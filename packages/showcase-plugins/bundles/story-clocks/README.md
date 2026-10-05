@@ -46,6 +46,11 @@ coherent by construction; the model's tool path catches the refusal and answers 
 
 ## The surfaces
 
+The `advance_clock` tool uses `displayName: "Advance story clock"` and returns a readable result sentence.
+Its completed calls replay from the active swipe on later tool-capable turns because `replayHistory` is true by default.
+Set `replayHistory: false` for transient results. Hiding or deleting a card removes future replay, not its clock mutation.
+The history budget trims the tool exchange with its message row. RPG turn-tool display records remain display-only.
+
 * **`chat-settings-section`** — the host-controls band. The one anchor that is host-gated at the MOUNT, which
   is why it is the right home for room configuration.
 * **`chat-flank`** — the read-only clock readout, published PER ROOM (`host.ui.setState(id, state, chat)` —

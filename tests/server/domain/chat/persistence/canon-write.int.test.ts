@@ -8,7 +8,7 @@ import type { Db } from "@orb/db";
 import { messageVariants } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
@@ -17,11 +17,14 @@ import {
   buildCommittedMessageView,
   commitCanonAppend,
   continueVariantStatements,
+  editMessageContentStatements,
   insertCanonMessageStatements,
   MAX_CANON_APPEND_ATTEMPTS,
   selectActiveVariantStatement,
+  setVariantContentStatement,
 } from "../../../../../packages/server/src/domain/chat/persistence/canon-write.ts";
 import { loadCanonHistory, loadMaxMessageSeq, loadSlotTarget } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { continuedSignatureMetadata } from "../../../../../packages/server/src/domain/chat/substrate/content-signatures.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
@@ -41,6 +44,71 @@ function ids(key: string): { messageId: MessageId; variantId: MessageVariantId }
 }
 
 describe("persistence/canon-write — the D26 3-step dance", () => {
+  test("continue undo/revert and swipes restore their own tool sets; hand edits retain calls but clear obsolete offsets", async () => {
+    const chatId = await seedChat(db, "tool-history");
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "Before." });
+    const first = {
+      toolCallId: "call-1",
+      turnId: mintTypeId(ID_PREFIX.chatTurn),
+      callOrdinal: 0,
+      name: "draw",
+      arguments: "{}",
+      result: "Moon",
+      isError: false,
+      durationMs: 1,
+      textOffset: 7,
+    };
+    const second = { ...first, turnId: mintTypeId(ID_PREFIX.chatTurn), name: "tick", result: "1/6", textOffset: 6 };
+    const metadata = continuedSignatureMetadata({
+      beforeContent: "Before.",
+      additionContent: "After.Done.",
+      before: {},
+      addition: null,
+      beforeTools: [first],
+      additionTools: [second],
+    });
+    const after = metadata?.continuationTools?.after ?? [];
+    await db.batch(
+      batchMany(
+        continueVariantStatements(db, {
+          variantId,
+          variant: { content: "Before.After.Done.", metadata, toolCalls: after },
+          preContinueContent: "Before.",
+          preContinueReasoning: null,
+          lastContinuationContent: "After.Done.",
+          lastContinuationReasoning: null,
+        }),
+      ),
+    );
+    expect((await loadCanonHistory(db, chatId))[0]?.toolCalls).toEqual(after);
+    expect(after[1]?.textOffset).toBe(13);
+    await db.batch(batchMany([setVariantContentStatement(db, variantId, { content: "Before.", reasoning: null, undoContinuation: true })]));
+    const undone = (await loadCanonHistory(db, chatId))[0];
+    expect(undone?.toolCalls).toEqual([first]);
+    expect(undone).not.toHaveProperty("variantMetadata");
+    await db.batch(batchMany([setVariantContentStatement(db, variantId, { content: "Before.After.Done.", reasoning: null, undoContinuation: false })]));
+    expect((await loadCanonHistory(db, chatId))[0]?.toolCalls).toEqual(after);
+    const alternate = mintTypeId(ID_PREFIX.messageVariant);
+    await db.batch(
+      batchMany(
+        appendVariantStatements(db, {
+          messageId,
+          variantId: alternate,
+          idx: 1,
+          now: FROZEN_AT,
+          variant: { content: "A different card.", toolCalls: [{ ...first, result: "Sun" }] },
+        }),
+      ),
+    );
+    expect((await loadCanonHistory(db, chatId))[0]?.toolCalls[0]?.result).toBe("Sun");
+    await db.batch(batchMany([selectActiveVariantStatement(db, messageId, variantId)]));
+    expect((await loadCanonHistory(db, chatId))[0]?.toolCalls).toEqual(after);
+    await db.batch(batchMany(editMessageContentStatements(db, { messageId, variantId, content: "Edited prose.", editedAt: FROZEN_AT, toolCalls: after })));
+    const edited = (await loadCanonHistory(db, chatId))[0];
+    expect(edited?.toolCalls.map((record) => record.name)).toEqual(["draw", "tick"]);
+    expect(edited?.toolCalls.every((record) => record.textOffset === undefined)).toBe(true);
+    expect((await loadSlotTarget(db, chatId, messageId))?.metadata.continuationTools).toBeUndefined();
+  });
   test("insert commits the slot + first variant; the read joins them (FK integrity)", async () => {
     const chatId = await seedChat(db, "a");
     const { messageId, variantId } = ids("m1");

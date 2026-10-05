@@ -1,6 +1,22 @@
 import { continuedSignatureMetadata, signaturesForContent } from "../../../../../packages/server/src/domain/chat/substrate/content-signatures.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
+test("continuation tool offsets include the UTF-16 prefix and configured delimiter without changing provider call ids", () => {
+  const first = { toolCallId: "call-1", name: "draw", arguments: "{}", result: "Moon", isError: false, durationMs: 1, textOffset: 3 };
+  const second = { ...first, name: "tick", textOffset: 6 };
+  const metadata = continuedSignatureMetadata({
+    beforeContent: "🔮.",
+    additionContent: "\n\nAfter.Done.",
+    before: {},
+    addition: null,
+    beforeTools: [first],
+    additionTools: [second],
+    additionOffset: 2,
+  });
+  expect(metadata?.continuationTools?.before).toEqual([first]);
+  expect(metadata?.continuationTools?.after).toEqual([first, { ...second, textOffset: 11 }]);
+});
+
 test("an unsigned prefix and signed continuation reconstruct only the exact canonical body", () => {
   const metadata = continuedSignatureMetadata({
     beforeContent: "Prefix",

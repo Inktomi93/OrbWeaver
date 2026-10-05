@@ -242,6 +242,8 @@ function logTurnRefusal(err: unknown): void {
 if (host.grants.includes("tools.register") && host.grants.includes("chat.read") && host.grants.includes("chat.variables.write")) {
   host.tools.register({
     name: "advance_clock",
+    displayName: "Advance story clock",
+    replayHistory: true,
     description:
       "Advance a named story clock by one segment (start it first if new). Use when the fiction moves a threat, project, or countdown forward. Returns the clock's new state.",
     parameters: {

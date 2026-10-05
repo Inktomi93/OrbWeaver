@@ -58,6 +58,30 @@ const VIEW_CARRIER_EVENTS: readonly ChatBusEvent[] = [
 ];
 
 describe("applyCanonView — the view carrier written into the room's message list", () => {
+  test("optional tool metadata reaches the cache exactly as a JSON read would", () => {
+    const { queryClient, trpc } = setup();
+    const key = trpc.chat.listMessages.queryKey({ chatId: CHAT_ID });
+    queryClient.setQueryData([...key], page([view(MESSAGE_ID, "before")]));
+    const carried = {
+      ...view(MESSAGE_ID, "after"),
+      toolCalls: [
+        {
+          toolCallId: "call-1",
+          name: "draw",
+          arguments: "{}",
+          result: "Moon",
+          isError: false,
+          durationMs: 1,
+          displayName: "Draw a card",
+          replayHistory: false,
+          hidden: true,
+          textOffset: 4,
+        },
+      ],
+    };
+    applyCanonView(queryClient, trpc, { type: "messageEdited", chatId: CHAT_ID, messageId: MESSAGE_ID, view: carried });
+    expect(queryClient.getQueryData<{ messages: readonly MessageView[] }>([...key])?.messages[0]).toEqual(JSON.parse(JSON.stringify(carried)));
+  });
   test("REPLACES its row in place (the swipe's new variant, with no wire read)", () => {
     const { queryClient, trpc } = setup();
     const key = trpc.chat.listMessages.queryKey({ chatId: CHAT_ID });
@@ -90,7 +114,7 @@ describe("applyCanonView — the view carrier written into the room's message li
     for (const event of VIEW_CARRIER_EVENTS) {
       const { queryClient, trpc } = setup();
       const key = trpc.chat.listMessages.queryKey({ chatId: CHAT_ID });
-      queryClient.setQueryData([...key], page([view(MESSAGE_ID, "before")]) as never);
+      queryClient.setQueryData([...key], page([view(MESSAGE_ID, "before")]));
 
       applyCanonView(queryClient, trpc, event);
 

@@ -128,7 +128,13 @@ export interface MembraneRuntime {
    *  floor (a static gate cannot verify the dataflow — flagged for a review-time follow-up). */
   readonly pending: Set<QuickJSDeferredPromise>;
   readonly collectTool: (
-    reg: { readonly name: string; readonly description: string; readonly parameters: Record<string, unknown> },
+    reg: {
+      readonly name: string;
+      readonly displayName?: string;
+      readonly replayHistory?: boolean;
+      readonly description: string;
+      readonly parameters: Record<string, unknown>;
+    },
     handler: QuickJSHandle,
   ) => void;
   /** Collect a D50 transform registration — the SYNC activation-time mirror of `collectTool`. The
@@ -1337,10 +1343,26 @@ function buildQuietSchema(raw: unknown): PluginQuietSchema | undefined {
   };
 }
 
-/** tools.register — SYNC, activation-time. Captures the guest handler HANDLE for the resident-handler
- *  runtime (the Sandbox keeps it alive + mints the ref); collects `{name, description, parameters}`. A snippet
- *  (no tools.register grant) hits the capability throw here — the "no registration from a transient snippet"
- *  rule enforced through the SAME gate, no snippet-special path. */
+function toolDisplayMetadata(
+  ctx: QuickJSContext,
+  defHandle: QuickJSHandle,
+  name: string,
+): Pick<Parameters<MembraneRuntime["collectTool"]>[0], "displayName" | "replayHistory"> {
+  using displayHandle = ctx.getProp(defHandle, "displayName");
+  using replayHandle = ctx.getProp(defHandle, "replayHistory");
+  const displayType = ctx.typeof(displayHandle);
+  const replayType = ctx.typeof(replayHandle);
+  if ((displayType !== "string" && displayType !== "undefined") || (replayType !== "boolean" && replayType !== "undefined")) {
+    throw new Error("plugin host: tool displayName must be nonempty text and replayHistory must be boolean");
+  }
+  const displayName = displayType === "string" ? ctx.getString(displayHandle) : name.replaceAll("_", " ");
+  if (displayName.trim().length === 0) {
+    throw new Error("plugin host: tool displayName must be nonempty text");
+  }
+  return { displayName, ...(replayType === "boolean" ? { replayHistory: Boolean(ctx.dump(replayHandle)) } : {}) };
+}
+
+/** Collect activation-time tools through the capability-gated resident registration path. */
 function setTools(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using tools = ctx.newObject();
   using registerFn = ctx.newFunction("register", (defHandle?: QuickJSHandle) => {
@@ -1348,26 +1370,20 @@ function setTools(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membrane
     if (defHandle === undefined) {
       throw new Error("plugin host: tools.register requires a definition object");
     }
-    // The three METADATA handles are scope-owned (`using` — this is the try/finally that was here). `handler`
-    // is NOT: its ownership TRANSFERS to `collectTool` on the success path (the Sandbox keeps it alive for the
-    // instance lifetime) and is hand-disposed only on the reject path, so a `using` would double-free it —
-    // `Lifetime.dispose()` asserts alive and THROWS on a second call.
+    // Metadata stays scope-owned; acquire the transferred handler only after every metadata refusal.
     using nameHandle = ctx.getProp(defHandle, "name");
     using descHandle = ctx.getProp(defHandle, "description");
     using paramsHandle = ctx.getProp(defHandle, "parameters");
-    const handler = ctx.getProp(defHandle, "handler");
     const dumpedName = tryDumpGuestValue(ctx, nameHandle);
     const dumpedDescription = tryDumpGuestValue(ctx, descHandle);
     const dumpedParameters = tryDumpGuestValue(ctx, paramsHandle);
     if (!(dumpedName.ok && dumpedDescription.ok && dumpedParameters.ok)) {
-      handler.dispose();
       throw new Error("plugin host: tools.register metadata is too deeply nested");
     }
     const name = dumpedName.value;
     const description = dumpedDescription.value;
     const parameters = dumpedParameters.value;
     if (typeof name !== "string" || typeof description !== "string" || typeof parameters !== "object" || parameters === null) {
-      handler.dispose();
       throw new Error("plugin host: tools.register definition must be { name, description, parameters, handler }");
     }
     // THE TOOL NAME IS GUEST INPUT AND THIS IS ITS TRUST BOUNDARY. `PLUGIN_TOOL_NAME_RE` is the grammar
@@ -1382,10 +1398,19 @@ function setTools(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membrane
     // half is the manifest's `slug` cap), so a too-long name is refused right here, at the guest's own call,
     // rather than surfacing as a length failure at the registry two boundaries downstream.
     if (!PLUGIN_TOOL_NAME_RE.test(name)) {
-      handler.dispose();
       throw new Error(`plugin host: tools.register name must match ${PLUGIN_TOOL_NAME_RE.source}`);
     }
-    runtime.collectTool({ name, description, parameters: parameters as Record<string, unknown> }, handler);
+    const presentation = toolDisplayMetadata(ctx, defHandle, name);
+    const handler = ctx.getProp(defHandle, "handler");
+    runtime.collectTool(
+      {
+        name,
+        description,
+        parameters: parameters as Record<string, unknown>,
+        ...presentation,
+      },
+      handler,
+    );
     return ctx.undefined;
   });
   ctx.setProp(tools, "register", registerFn);

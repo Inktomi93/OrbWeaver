@@ -25,17 +25,19 @@ import type {
   VariantMetadata,
 } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND, parseVariantMetadata } from "@orb/contracts/chat";
+import type { ParticipantRole } from "@orb/contracts/identity";
 import type { CostDetails, NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import { messageAssets, messages, messageVariants } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import { chatParticipants, messageAssets, messages, messageVariants } from "@orb/db";
+import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/kit";
 import type { ReasoningContentPart } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, MessageAssetId, MessageId, MessageVariantId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
-import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, eq, exists, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { DeliveredCue } from "../contract/results.ts";
 import { loadMaxMessageSeq } from "./queries.ts";
@@ -469,6 +471,43 @@ async function commitOrLoseAllocation(db: Db, chatId: ChatId, statements: readon
   }
 }
 
+/** Rebase transcript-only flags against the current row in the same atomic continuation UPDATE. */
+function continuedToolState(records: readonly ToolCallRecord[]): SQL {
+  return sql`(
+    with current_calls as (
+      select current.value,
+        coalesce(json_extract(current.value, '$.callOrdinal'),
+          (select coalesce(max(json_extract(prior.value, '$.callOrdinal')) + 1, 0)
+            from json_each(coalesce(${messageVariants.toolCalls}, '[]')) prior
+            where json_extract(prior.value, '$.turnId') is json_extract(current.value, '$.turnId'))
+          + (select count(*) from json_each(coalesce(${messageVariants.toolCalls}, '[]')) prior
+            where json_extract(prior.value, '$.turnId') is json_extract(current.value, '$.turnId')
+              and json_extract(prior.value, '$.callOrdinal') is null
+              and cast(prior.key as integer) < cast(current.key as integer))) as ordinal
+      from json_each(coalesce(${messageVariants.toolCalls}, '[]')) current
+    )
+    select json_group_array(json(json_patch(incoming.value, coalesce((
+      select json_object(
+        'hidden', json(case json_type(current.value, '$.hidden') when 'true' then 'true' when 'false' then 'false' else 'null' end),
+        'deleted', json(case json_type(current.value, '$.deleted') when 'true' then 'true' when 'false' then 'false' else 'null' end))
+      from current_calls current
+      where json_extract(current.value, '$.toolCallId') = json_extract(incoming.value, '$.toolCallId')
+        and json_extract(current.value, '$.turnId') is json_extract(incoming.value, '$.turnId')
+        and current.ordinal = coalesce(json_extract(incoming.value, '$.callOrdinal'), cast(incoming.key as integer))
+    ), '{}')))) from json_each(${JSON.stringify(records)}) incoming
+  )`;
+}
+
+function continuedMetadata(metadata: VariantMetadata | null | undefined): VariantMetadata | SQL | null {
+  const snapshot = metadata?.continuationTools;
+  return snapshot === undefined
+    ? (metadata ?? null)
+    : sql`json_set(${JSON.stringify(metadata)},
+    '$.continuationTools.undone', json('false'),
+    '$.continuationTools.before', json(${continuedToolState(snapshot.before)}),
+    '$.continuationTools.after', json(${continuedToolState(snapshot.after)}))`;
+}
+
 /**
  * Continue-in-place: extend an existing variant's content + record the undo snapshot. One update of the
  * slot's selected variant — `content`/`reasoning`/economics become the new generation; `preContinue*`
@@ -504,7 +543,7 @@ export function continueVariantStatements(
           // `genStartedAt`/`genFinishedAt` above: the engine's continue stats delta adds the continuation's
           // reasoning window and subtracts the base's (docs/work/0146), so the row must hold that same
           // continuation-only value or a `reconcileStats` rebuild reads the stale base window forever.
-          metadata: params.variant.metadata ?? null,
+          metadata: continuedMetadata(params.variant.metadata),
           // The continuation's own reasoning blocks replace the base's: only the LAST generation's signed blocks
           // are replayable on the next leg (the rendered `reasoning` text, by contrast, is COMBINED above).
           reasoningParts: reasoningPartsColumn(params.variant.reasoningParts),
@@ -512,7 +551,7 @@ export function continueVariantStatements(
           promptSnapshot: params.variant.promptSnapshot ?? null,
           // A continue re-runs assembly, so its op-log replaces this variant's delta.
           variableDelta: params.variant.variableDelta ?? null,
-          toolCalls: params.variant.toolCalls ?? null,
+          toolCalls: params.variant.toolCalls === undefined || params.variant.toolCalls === null ? null : continuedToolState(params.variant.toolCalls),
           // A continue replays the slot's frozen draws (threaded via the prep) — re-stamp the identical record.
           macroDraws: params.variant.macroDraws ?? null,
           // The merged body is not what this variant's freeze produced (a frozen greeting is continuable), so
@@ -559,15 +598,33 @@ export function freezeVariantContentStatement(
 }
 
 /** Set a variant's `content`/`reasoning` directly (the `undoContinue`/`revertContinue` restore — a
- *  pointer-free content swap from the `preContinue*`/`lastContinuation*` snapshot). The economics/snapshot
+ *  pointer-free content and active-tool swap from the `preContinue*`/`lastContinuation*` snapshot). Explicit
+ *  phase survives equal projected bodies. The economics/snapshot
  *  columns are untouched so a restore is reversible by its twin — but the freeze provenance is NOT, because
  *  the snapshot it restores is a continue-era body this variant's raw never produced. (The continue that
  *  created those snapshots already cleared it; this keeps the pair honest if the order ever changes.) */
-export function setVariantContentStatement(db: Db, variantId: MessageVariantId, content: string, reasoning: string | null): BatchStmt {
+export function setVariantContentStatement(
+  db: Db,
+  variantId: MessageVariantId,
+  params: { readonly content: string; readonly reasoning: string | null; readonly undoContinuation?: boolean },
+): BatchStmt {
+  const { content, reasoning, undoContinuation } = params;
   return batchStmt(
     db
       .update(messageVariants)
-      .set({ content, reasoning, ...CLEARED_FREEZE_PROVENANCE })
+      .set({
+        content,
+        reasoning,
+        ...CLEARED_FREEZE_PROVENANCE,
+        ...(undoContinuation === undefined
+          ? {}
+          : {
+              metadata: sql`case when json_type(${messageVariants.metadata}, '$.continuationTools') = 'object'
+            then json_set(${messageVariants.metadata}, '$.continuationTools.undone', json(${undoContinuation ? "true" : "false"})) else ${messageVariants.metadata} end`,
+              toolCalls: sql`case when json_type(${messageVariants.metadata}, '$.continuationTools') = 'object'
+            then json_extract(${messageVariants.metadata}, ${undoContinuation ? "$.continuationTools.before" : "$.continuationTools.after"}) else ${messageVariants.toolCalls} end`,
+            }),
+      })
       .where(eq(messageVariants.id, variantId)),
   );
 }
@@ -595,6 +652,7 @@ export function editMessageContentStatements(
     readonly variantId: MessageVariantId;
     readonly content: string;
     readonly editedAt: number;
+    readonly toolCalls: readonly ToolCallRecord[];
   },
 ): BatchStmt[] {
   return [
@@ -603,6 +661,8 @@ export function editMessageContentStatements(
         .update(messageVariants)
         .set({
           content: params.content,
+          toolCalls: params.toolCalls.map(({ textOffset: _offset, exchangeTextEnd: _end, ...record }) => record),
+          metadata: sql`json_remove(coalesce(${messageVariants.metadata}, '{}'), '$.continuationTools')`,
           ...CLEARED_FREEZE_PROVENANCE,
           // A hand-authored body is no longer evidence of what a connection generated. Keep the immutable
           // provider/model snapshot for context, but clear the FK and mark the connection record absent.
@@ -636,6 +696,50 @@ export function editReasoningStatements(
  *  pure slot-flag write. */
 export function setMessageHiddenStatement(db: Db, messageId: MessageId, hidden: boolean): BatchStmt {
   return batchStmt(db.update(messages).set({ excludedFromPrompt: hidden }).where(eq(messages.id, messageId)));
+}
+
+/** Current membership/selection and the exact read snapshot fence the whole-record replacement. */
+export function editToolCallsCasStatement(
+  db: Db,
+  args: {
+    readonly chatId: ChatId;
+    readonly userId: UserId;
+    readonly hostRoles: readonly ParticipantRole[];
+    readonly messageId: MessageId;
+    readonly variantId: MessageVariantId;
+    readonly records: readonly ToolCallRecord[];
+    readonly metadata: VariantMetadata;
+    readonly expectedContent: string;
+    readonly expectedToolCalls: string | null;
+    readonly expectedMetadata: string | null;
+  },
+): AwaitableBatchStmt<Pick<typeof messageVariants.$inferSelect, "id">[]> {
+  const admittedSelection = db
+    .select({ one: sql`1` })
+    .from(messages)
+    .innerJoin(chatParticipants, and(eq(chatParticipants.chatId, messages.chatId), eq(chatParticipants.userId, args.userId), isNull(chatParticipants.leftSeq)))
+    .where(
+      and(
+        eq(messages.id, args.messageId),
+        eq(messages.chatId, args.chatId),
+        eq(messages.selectedVariantId, args.variantId),
+        or(eq(messages.authorUserId, args.userId), inArray(chatParticipants.role, args.hostRoles)),
+      ),
+    );
+  return db
+    .update(messageVariants)
+    .set({ toolCalls: args.records, metadata: args.metadata })
+    .where(
+      and(
+        eq(messageVariants.id, args.variantId),
+        eq(messageVariants.messageId, args.messageId),
+        eq(messageVariants.content, args.expectedContent),
+        sql`${messageVariants.toolCalls} is ${args.expectedToolCalls}`,
+        sql`${messageVariants.metadata} is ${args.expectedMetadata}`,
+        exists(admittedSelection),
+      ),
+    )
+    .returning({ id: messageVariants.id });
 }
 
 /** Delete a set of slots (`deleteMessages`; message_variants cascade on the slot delete). Scoped to

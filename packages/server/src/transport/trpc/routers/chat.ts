@@ -47,6 +47,7 @@ import {
   seatKnobsSchema,
   shapeTraceSchema,
   startChatResultSchema,
+  TOOL_CALL_EDIT_ACTIONS,
   turnOutcomeSchema,
   userMacroPicksViewSchema,
   variablePicksViewSchema,
@@ -250,6 +251,17 @@ const setMessageHiddenSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
   messageId: typeIdSchema(ID_PREFIX.message),
   hidden: z.boolean(),
+});
+
+const editToolCallSchema = z.object({
+  turnId: typeIdSchema(ID_PREFIX.chatTurn).optional(),
+  callOrdinal: z.number().int().nonnegative().optional(),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  messageId: typeIdSchema(ID_PREFIX.message),
+  variantId: typeIdSchema(ID_PREFIX.messageVariant),
+  // @orb-waive no-raw-id(toolCallId): provider-emitted opaque call id, paired with our turn/ordinal occurrence identity (D48). Ends if providers use Orbweaver TypeIDs.
+  toolCallId: z.string(),
+  action: z.enum(TOOL_CALL_EDIT_ACTIONS),
 });
 
 const deleteMessagesSchema = z.object({
@@ -668,6 +680,10 @@ export const chatRouter = t.router({
     .output(messageViewSchema)
     .input(setMessageHiddenSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setMessageHidden({ principal: ctx.auth, ...input })),
+  editToolCall: authedProcedure
+    .output(messageViewSchema)
+    .input(editToolCallSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.editToolCall({ principal: ctx.auth, ...input })),
   deleteMessages: authedProcedure.input(deleteMessagesSchema).mutation(({ ctx, input }) => ctx.services.chat.deleteMessages({ principal: ctx.auth, ...input })),
   reattributePersona: authedProcedure
     .input(reattributePersonaSchema)

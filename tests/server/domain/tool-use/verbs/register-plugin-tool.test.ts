@@ -74,6 +74,14 @@ test("a registered plugin tool executes through the one pipeline; the guest stri
   expect(record?.result).toBe('echo:{"tag":"calm"}');
 });
 
+test("registration display and replay metadata survive the canonical executor", async () => {
+  const service = serviceWith();
+  service.registerPluginTool(specOf({ displayName: "Report the mood", replayHistory: false }));
+  const record = await runOne(service, "plugin_mood_report", { tag: "calm" });
+  expect(record).toMatchObject({ name: "plugin_mood_report", displayName: "Report the mood", replayHistory: false, result: 'echo:{"tag":"calm"}' });
+  expect(record).not.toHaveProperty("thoughtSignature");
+});
+
 test("the turn cancellation signal reaches the plugin runtime admission request", async () => {
   const service = serviceWith();
   const controller = new AbortController();

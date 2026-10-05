@@ -932,12 +932,33 @@ function tokenizeForHiddenScan(content: string): ContentSpan[] {
  *  reader seeing raw `<lie` is a visible model bug, never a silent truth-leak). `unknown-directive` spans are
  *  NOT stripped here — they are display noise, not secrets, and the transcript payload stays honest. */
 export function stripHiddenSpans(content: string): { readonly content: string; readonly hadHidden: boolean } {
+  const projected = projectHiddenSpans(content, []);
+  return { content: projected.content, hadHidden: projected.hadHidden };
+}
+
+/** Project positions with the whole-body strip: positions inside a removed span collapse to its visible start. */
+export function projectHiddenSpans(
+  content: string,
+  offsets: readonly number[],
+): { readonly content: string; readonly hadHidden: boolean; readonly offsets: readonly number[] } {
   const spans = tokenizeForHiddenScan(content);
   if (!spans.some((s) => s.kind === "hidden")) {
-    return { content, hadHidden: false };
+    return { content, hadHidden: false, offsets };
   }
-  const kept = spans.filter((s) => s.kind !== "hidden").map(contentSpanRaw);
-  return { content: kept.join(""), hadHidden: true };
+  let cursor = 0;
+  const removed = spans.flatMap((span) => {
+    const start = cursor;
+    cursor += contentSpanRaw(span).length;
+    return span.kind === "hidden" ? [{ start, end: cursor }] : [];
+  });
+  return {
+    content: spans
+      .filter((s) => s.kind !== "hidden")
+      .map(contentSpanRaw)
+      .join(""),
+    hadHidden: true,
+    offsets: offsets.map((offset) => offset - removed.reduce((count, span) => count + Math.max(0, Math.min(offset, span.end) - span.start), 0)),
+  };
 }
 
 /** The STRIP'S TWIN (§3.6): every hidden-class span in a body, in document order — what the host-reveal eye

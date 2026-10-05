@@ -201,7 +201,7 @@ test("the RESTORE path (continue undo/revert) clears it too — the snapshot it 
   expect((await readProvenance(scn.db, greeting.variantId)).rawContent).toBe("You rolled {{roll::1d1}}");
 
   // `setVariantContentStatement` is the undo/revert content swap; drive the builder the verbs drive.
-  await scn.db.batch(batchMany([setVariantContentStatement(scn.db, greeting.variantId, "a restored body", null)]));
+  await scn.db.batch(batchMany([setVariantContentStatement(scn.db, greeting.variantId, { content: "a restored body", reasoning: null })]));
 
   const after = await readProvenance(scn.db, greeting.variantId);
   expect(after.content).toBe("a restored body");

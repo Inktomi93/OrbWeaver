@@ -53,7 +53,7 @@ import type { ChatMetadata } from "../contract/metadata.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
 import type { DeliveredCue } from "../contract/results.ts";
 import type { ChatStreamReplayEvent, StreamEventBounds, VariantWireView } from "../contract/views.ts";
-import { signaturesForContent } from "../substrate/content-signatures.ts";
+import { continuationToolsAreUndone, signaturesForContent } from "../substrate/content-signatures.ts";
 
 const LIMIT_ONE = 1;
 
@@ -158,6 +158,34 @@ const messageViewSelection = {
 const toolCallsSchema = toolCallRecordSchema.array();
 const reasoningPartsSchema = chatReasoningPartSchema.array();
 
+function activeToolCalls(raw: readonly ToolCallRecord[] | null, metadata: VariantMetadata, content: string): readonly ToolCallRecord[] {
+  const snapshot = metadata.continuationTools;
+  if (snapshot !== undefined) {
+    return normalizeToolOrdinals(continuationToolsAreUndone(snapshot, content) ? snapshot.before : snapshot.after);
+  }
+  const parsed = toolCallsSchema.safeParse(raw);
+  return normalizeToolOrdinals(parsed.success ? parsed.data : []);
+}
+
+/** Legacy records gain deterministic ordinals at the read boundary; tombstones keep their positions. */
+export function normalizeToolOrdinals(records: readonly ToolCallRecord[]): readonly ToolCallRecord[] {
+  // @orb-waive persistence-no-in-memory-state(Map): call-local index over this selected variant's parsed records; no state survives the read. Ends if the index escapes this normalization.
+  const next = new Map<ToolCallRecord["turnId"], number>();
+  for (const record of records) {
+    if (record.callOrdinal !== undefined) {
+      next.set(record.turnId, Math.max(next.get(record.turnId) ?? 0, record.callOrdinal + 1));
+    }
+  }
+  return records.map((record) => {
+    if (record.callOrdinal !== undefined) {
+      return record;
+    }
+    const callOrdinal = next.get(record.turnId) ?? 0;
+    next.set(record.turnId, callOrdinal + 1);
+    return { ...record, callOrdinal };
+  });
+}
+
 // The `messageViewSelection` row → `MessageView`: scalar columns mirror the view 1:1; JSON sidecars are
 // parsed at this read seam. Tool calls degrade malformed/absent blobs to `[]`, while provider metadata is
 // reduced to the one member-visible output-cap fact — neither raw blob crosses the boundary.
@@ -168,14 +196,14 @@ function toMessageView(
     variantMetadata: VariantMetadata | null;
   },
 ): MessageView {
-  const parsed = toolCallsSchema.safeParse(row.toolCalls);
   const { variantMetadata, ...view } = row;
-  const providerMetadata = parseVariantMetadata(variantMetadata).providerMetadata;
+  const metadata = parseVariantMetadata(variantMetadata);
+  const providerMetadata = metadata.providerMetadata;
   return {
     ...view,
     hasContinuation: row.hasContinuation === 1,
     outputCapReached: providerMetadata?.provider === "claude-sub" && providerMetadata.outputCapReached === true,
-    toolCalls: parsed.success ? parsed.data : [],
+    toolCalls: activeToolCalls(row.toolCalls, metadata, row.content),
   };
 }
 
@@ -897,6 +925,9 @@ export async function loadSwipeStatRows(db: Db, chatId: ChatId, messageIds: read
 // The append-variant/continue write target — the slot's attribution + seq joined to its selected
 // variant's current content/idx.
 const slotTargetSelection = {
+  toolCalls: messageVariants.toolCalls,
+  rawToolCalls: sql<string | null>`${messageVariants.toolCalls}`,
+  rawMetadata: sql<string | null>`${messageVariants.metadata}`,
   messageId: messages.id,
   seq: messages.seq,
   role: messages.role,
@@ -915,6 +946,9 @@ const slotTargetSelection = {
 
 /** The write target for a swipe (`append-variant`) / `continue`. */
 interface SlotTarget {
+  toolCalls: readonly ToolCallRecord[];
+  rawToolCalls: string | null;
+  rawMetadata: string | null;
   metadata: VariantMetadata;
   messageId: MessageId;
   seq: number;
@@ -959,7 +993,9 @@ export async function loadSlotTarget(db: Db, chatId: ChatId, messageId: MessageI
   // Parse the draw record at the read seam (never surface raw JSON) — a malformed blob degrades to null,
   // so a swipe/continue of it draws fresh rather than throwing (the `variableDelta` degrade precedent).
   const parsedDraws = userMacroDrawsSchema.safeParse(row.macroDraws);
-  return { ...row, metadata: parseVariantMetadata(row.metadata), macroDraws: parsedDraws.success ? parsedDraws.data : null };
+  const metadata = parseVariantMetadata(row.metadata);
+  const toolCalls = activeToolCalls(row.toolCalls, metadata, row.content);
+  return { ...row, toolCalls, metadata, macroDraws: parsedDraws.success ? parsedDraws.data : null };
 }
 
 /** The continue-undo snapshot for a slot's selected variant. All-null ⇒ never continued (undo/revert

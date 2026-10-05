@@ -109,7 +109,7 @@ import { buildHistoryBudget, fitCeiling, historyTurnTokens } from "../substrate/
 import { continuedSignatureMetadata } from "../substrate/content-signatures.ts";
 import { digestsDerivable } from "../substrate/digests-derivable.ts";
 import { resolveGroupBucketCharacterId } from "../substrate/group-bucket.ts";
-import { spliceInlineReplyImages } from "../substrate/inline-reply-images.ts";
+import { projectInlineReplyImages } from "../substrate/inline-reply-images.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
 import { assistantTurnDelta, canonMessageDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
@@ -261,10 +261,11 @@ function liveVariantMetadata(result: Awaited<ReturnType<typeof runTurnPipeline>>
   const providerMetadata = result.economics?.providerMetadata;
   const text = [...(result.economics?.textSignatures ?? [])];
   const images = [...(result.imageSignatures ?? [])];
+  const tools = result.toolSignatures;
   const sidecar: VariantMetadata = {
     ...(result.reasoningMs === null ? {} : { [VARIANT_METADATA_REASONING_MS_KEY]: result.reasoningMs }),
     ...(result.systemTokens === null ? {} : { systemTokens: result.systemTokens }),
-    ...(text.length === 0 && images.length === 0 ? {} : { contentSignatures: { content: result.content, text, images } }),
+    ...(text.length === 0 && images.length === 0 && tools.length === 0 ? {} : { contentSignatures: { content: result.content, text, images, tools } }),
     ...(providerMetadata === null || providerMetadata === undefined ? {} : { providerMetadata }),
   };
   return Object.keys(sidecar).length === 0 ? null : sidecar;
@@ -578,19 +579,24 @@ function buildCommitPlan(args: {
   }
   // continue: extend the selected variant in place; snapshot the pre-continue state so undo/revert round-trip.
   const continuationContent = continuePostfixDelimiter(prep) + result.content;
+  const metadata = continuedSignatureMetadata({
+    beforeContent: target.content,
+    additionContent: continuationContent,
+    before: target.metadata,
+    addition: variant.metadata,
+    beforeTools: target.toolCalls,
+    additionTools: variant.toolCalls ?? [],
+    additionOffset: continuePostfixDelimiter(prep).length,
+  });
   return {
     statements: continueVariantStatements(ctx.db, {
       variantId: target.selectedVariantId,
       variant: {
         ...variant,
         content: target.content + continuationContent,
-        metadata: continuedSignatureMetadata({
-          beforeContent: target.content,
-          additionContent: continuationContent,
-          before: target.metadata,
-          addition: variant.metadata,
-        }),
+        metadata,
         reasoning: combineReasoning(target.reasoning, result.reasoning),
+        toolCalls: metadata?.continuationTools?.after,
       },
       preContinueContent: target.content,
       preContinueReasoning: target.reasoning,
@@ -1553,6 +1559,7 @@ async function absorbInlineReplyImages(
     }
     placed.push({
       assetId: stored.assetId,
+      eventOrdinal: image.eventOrdinal,
       atChars: image.atChars ?? result.content.length,
       ...(image.thoughtSignature === undefined ? {} : { thoughtSignature: image.thoughtSignature }),
     });
@@ -1560,10 +1567,36 @@ async function absorbInlineReplyImages(
   if (refused > 0) {
     await deps.emit({ type: "warning", chatId: prep.chatId, code: "reply_image_failed" });
   }
+  const projection = projectInlineReplyImages(
+    result.content,
+    placed,
+    result.toolRecords.flatMap((record) => (record.textOffset === undefined ? [] : [record.textOffset, record.exchangeTextEnd ?? record.textOffset])),
+    result.toolRecords.flatMap((record) =>
+      record.textOffset === undefined
+        ? []
+        : [
+            record.callOrdinal === undefined ? undefined : result.toolEvents.get(record.callOrdinal),
+            record.exchangeOrdinal === undefined ? undefined : result.exchangeEnds.get(record.exchangeOrdinal),
+          ],
+    ),
+  );
+  let boundary = 0;
   return {
     result: {
       ...result,
-      content: spliceInlineReplyImages(result.content, placed),
+      content: projection.content,
+      toolRecords: result.toolRecords.map((record) => {
+        if (record.textOffset === undefined) {
+          return record;
+        }
+        const textOffset = projection.offsets[boundary++];
+        const end = projection.offsets[boundary++];
+        return {
+          ...record,
+          textOffset: textOffset ?? record.textOffset,
+          ...(record.exchangeTextEnd === undefined ? {} : { exchangeTextEnd: end ?? record.exchangeTextEnd }),
+        };
+      }),
       imageSignatures: placed.flatMap((image) =>
         image.thoughtSignature === undefined ? [] : [{ assetId: image.assetId, thoughtSignature: image.thoughtSignature }],
       ),

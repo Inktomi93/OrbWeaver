@@ -70,6 +70,8 @@ export function createExecuteToolCalls(
         result: outcome.result,
         isError: outcome.isError,
         durationMs: ctx.clock() - startedAt,
+        ...(entry?.displayName === undefined ? {} : { displayName: entry.displayName }),
+        ...(entry?.replayHistory === undefined ? {} : { replayHistory: entry.replayHistory }),
       });
     }
     return records;

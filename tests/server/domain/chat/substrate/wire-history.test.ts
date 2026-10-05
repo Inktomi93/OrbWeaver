@@ -14,6 +14,8 @@ import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
+import { buildWirePlan } from "../../../../../packages/inference/src/backends/v4/prompt.ts";
+import { historyTurnTokens } from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
 import { buildWireHistory, dropEmptyWireRows, fitWireHistory, wireCostRows } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -50,6 +52,32 @@ const env = {
 };
 
 const CARD = ':::card title="Ashfell Market"\n<div>'.concat("blob ".repeat(400), "</div>\n:::");
+
+test("signed tool-depth thinking stays before its own call and final thinking stays before final prose", async () => {
+  const id = castId<MessageId>("message_signed_tools");
+  const first: ChatReasoningPart = { type: "reasoning", text: "Draw first.", meta: { anthropic: { signature: "first" } } };
+  const last: ChatReasoningPart = { type: "reasoning", text: "Explain now.", meta: { anthropic: { signature: "last" } } };
+  const call = { toolCallId: "c1", name: "draw", arguments: "{}", result: "Moon", isError: false, durationMs: 1, textOffset: 7 };
+  const canon = [{ ...canonRow(id, "assistant"), content: "Before.After.", toolCalls: [call] }];
+  const provenance = new Map([[id, { content: "Before.After.", text: [], images: [], tools: [{ toolCallId: "c1", reasoningParts: [first] }] }]]);
+  const converted = await buildWireHistory(
+    { ...env, toolsOk: true, carryToolReasoning: true, canon, reasoningByMessage: new Map([[id, [last]]]), contentSignaturesByMessage: provenance },
+    [row("assistant", "Before.After.", id)],
+  );
+  const frames = converted.flatMap((wire) => [...(wire.prefixRows ?? []), wire.row]);
+  expect(frames[0]?.content).toEqual([first, { type: "text", text: "Before." }, { type: "tool-call", toolCallId: "c1", name: "draw", arguments: "{}" }]);
+  expect(frames[2]?.content).toEqual([last, { type: "text", text: "After." }]);
+  expect(historyTurnTokens(wireCostRows(converted)[0] ?? { content: "" })).toBe(
+    ["Draw first.Before.drawc1{}", "c1Moon", "Explain now.After."].reduce((sum, content) => sum + historyTurnTokens({ content }), 0),
+  );
+  const off = await buildWireHistory({ ...env, toolsOk: true, canon, contentSignaturesByMessage: provenance }, [row("assistant", "Before.After.", id)]);
+  expect(
+    off
+      .flatMap((wire) => [...(wire.prefixRows ?? []), wire.row])
+      .flatMap((frame) => frame.content)
+      .some((part) => part.type === "reasoning"),
+  ).toBe(false);
+});
 
 test("a stored card is PRICED as its wire stub, not as its stored body (the #1540 defect, at the seam)", async () => {
   const converted = await buildWireHistory({ ...env, cardKeepLastX: 0, canon: [canonRow("message_1", "assistant")] }, [row("assistant", CARD, "message_1")]);
@@ -385,4 +413,188 @@ test("host-only content signatures cannot follow a replaced asset or edited text
     { type: "text", text: "Edited." },
     { type: "image", url: "https://cas.test/asset_imagine_1" },
   ]);
+});
+
+test("tool segmentation keeps converted card bytes and drops choices at the original prose boundary", async () => {
+  const id = castId<MessageId>("message_rich_tools");
+  const prefix = `Before.\n${CARD}\n:::choices\n1. north\n:::\n`;
+  const content = `${prefix}After.`;
+  const call = { toolCallId: "rich", name: "draw", arguments: "{}", result: "Moon", isError: false, durationMs: 1, textOffset: prefix.length };
+  const canon = [{ ...canonRow(id, "assistant"), content, toolCalls: [call] }];
+  for (const cardKeepLastX of [0, 1]) {
+    const plain = await buildWireHistory({ ...env, cardKeepLastX, canon }, [row("assistant", content, id)]);
+    const replay = await buildWireHistory({ ...env, toolsOk: true, cardKeepLastX, canon }, [row("assistant", content, id)]);
+    const text = replay
+      .flatMap((wire) => [...(wire.prefixRows ?? []), wire.row])
+      .flatMap((frame) => frame.content)
+      .flatMap((part) => (part.type === "text" ? [part.text] : []))
+      .join("");
+    expect(text).toBe(wireCostRows(plain)[0]?.content);
+    expect(replay[0]?.row.content).toEqual([{ type: "text", text: "After." }]);
+    expect(text).not.toContain("north");
+  }
+});
+
+test("a trimmed scoped tool row opens on the marker before its first user prose frame", async () => {
+  const id = castId<MessageId>("message_scoped_marker");
+  const content = "Before.After.";
+  const call = { toolCallId: "scope", name: "draw", arguments: "{}", result: "Moon", isError: false, durationMs: 1, textOffset: 7 };
+  const canon = [{ ...canonRow(id, "assistant"), content, toolCalls: [call] }];
+  const converted = await buildWireHistory({ ...env, toolsOk: true, canon }, [
+    row("user", "old ".repeat(1000), "message_old"),
+    row("user", `Other: ${content}`, id),
+  ]);
+  const scopedFit = fitWireHistory(converted, { ...TIGHT_BUDGET, windowTokens: 500 }, MERGING_MARKER);
+  expect(scopedFit.fitted.droppedCount).toBe(1);
+  const frames = scopedFit.kept.flatMap((wire) => [...(wire.prefixRows ?? []), wire.row]);
+  expect(frames[0]?.content).toEqual([{ type: "text", text: `${MARKER}\n\nOther: Before.` }]);
+  expect(frames[3]?.content).toEqual([{ type: "text", text: "After." }]);
+});
+
+test("reused provider ids in one generation replay their own occurrence's private signatures", async () => {
+  const id = mintTypeId(ID_PREFIX.message);
+  const turnId = mintTypeId(ID_PREFIX.chatTurn);
+  const first = { toolCallId: "same", turnId, callOrdinal: 0, name: "draw", arguments: "{}", result: "Moon", isError: false, durationMs: 1, textOffset: 7 };
+  const second = { ...first, callOrdinal: 1, name: "tick", result: "1/6", textOffset: 13 };
+  const content = "Before.After.Done.";
+  const canon = [{ ...canonRow(id, "assistant"), content, toolCalls: [first, second] }];
+  const converted = await buildWireHistory(
+    {
+      ...env,
+      toolsOk: true,
+      canon,
+      contentSignaturesByMessage: new Map([
+        [
+          id,
+          {
+            content,
+            text: [],
+            images: [],
+            tools: [
+              { toolCallId: "same", turnId, callOrdinal: 0, thoughtSignature: "draw" },
+              { toolCallId: "same", turnId, callOrdinal: 1, thoughtSignature: "tick" },
+            ],
+          },
+        ],
+      ]),
+    },
+    [row("assistant", content, id)],
+  );
+  const calls = converted
+    .flatMap((wire) => [...(wire.prefixRows ?? []), wire.row])
+    .flatMap((frame) => frame.content)
+    .filter((part) => part.type === "tool-call");
+  expect(calls.map((call) => [call.name, call.toolCallId, call.thoughtSignature])).toEqual([
+    ["draw", "same", "draw"],
+    ["tick", "same", "tick"],
+  ]);
+});
+
+test("legacy private call provenance keeps its occurrence binding after the earlier card is deleted", async () => {
+  const id = mintTypeId(ID_PREFIX.message);
+  const content = "Before.After.Done.";
+  const first = {
+    toolCallId: "same",
+    callOrdinal: 0,
+    name: "draw",
+    arguments: "{}",
+    result: "Moon",
+    isError: false,
+    durationMs: 1,
+    textOffset: 7,
+    deleted: true,
+  };
+  const second = { ...first, callOrdinal: 1, name: "tick", result: "1/6", textOffset: 13, deleted: false };
+  const canon = [{ ...canonRow(id, "assistant"), content, toolCalls: [first, second] }];
+  const converted = await buildWireHistory(
+    {
+      ...env,
+      toolsOk: true,
+      canon,
+      contentSignaturesByMessage: new Map([
+        [
+          id,
+          {
+            content,
+            text: [],
+            images: [],
+            tools: [
+              { toolCallId: "same", thoughtSignature: "draw" },
+              { toolCallId: "same", thoughtSignature: "tick" },
+            ],
+          },
+        ],
+      ]),
+    },
+    [row("assistant", content, id)],
+  );
+  const calls = converted
+    .flatMap((wire) => [...(wire.prefixRows ?? []), wire.row])
+    .flatMap((frame) => frame.content)
+    .filter((part) => part.type === "tool-call");
+  expect(calls).toEqual([{ type: "tool-call", toolCallId: "same", name: "tick", arguments: "{}", thoughtSignature: "tick" }]);
+});
+
+test("same-offset reused native ids keep separate exchanges through the V4 converter", async () => {
+  const id = mintTypeId(ID_PREFIX.message);
+  const turnId = mintTypeId(ID_PREFIX.chatTurn);
+  const first = {
+    toolCallId: "same",
+    turnId,
+    callOrdinal: 0,
+    exchangeOrdinal: 0,
+    name: "draw",
+    arguments: "{}",
+    result: "Moon",
+    isError: false,
+    durationMs: 1,
+    textOffset: 7,
+  };
+  const second = { ...first, callOrdinal: 1, exchangeOrdinal: 1, name: "tick", result: "1/6" };
+  const content = "Before.After.";
+  const canon = [{ ...canonRow(id, "assistant"), content, toolCalls: [first, second] }];
+  const converted = await buildWireHistory({ ...env, toolsOk: true, canon }, [row("assistant", content, id)]);
+  const history = converted.flatMap((wire) => [...(wire.prefixRows ?? []), wire.row]);
+  expect(history.map((frame) => frame.role)).toEqual(["assistant", "tool", "assistant", "tool", "assistant"]);
+  const plan = buildWirePlan({ systemPrompt: { static: "", dynamic: "" }, history });
+  const results = plan.prompt.flatMap((frame) => (frame.role === "tool" ? frame.content : [])).filter((part) => part.type === "tool-result");
+  expect(results.map((part) => [part.toolCallId, part.toolName, part.output])).toEqual([
+    ["same", "draw", { type: "text", value: "Moon" }],
+    ["same", "tick", { type: "text", value: "1/6" }],
+  ]);
+});
+
+test("signed tool boundaries inside a wire-full directive split its original text rather than moving the whole span", async () => {
+  const id = mintTypeId(ID_PREFIX.message);
+  const content = 'Before.<lie character="Vex" type="object" truth="secret" reason="test"/>After.';
+  const at = content.indexOf(" truth=");
+  const call = { toolCallId: "partial", name: "draw", arguments: "{}", result: "Moon", isError: false, durationMs: 1, textOffset: at };
+  const canon = [{ ...canonRow(id, "assistant"), content, toolCalls: [call] }];
+  const converted = await buildWireHistory(
+    {
+      ...env,
+      toolsOk: true,
+      canon,
+      contentSignaturesByMessage: new Map([
+        [
+          id,
+          {
+            content,
+            text: [
+              { text: content.slice(0, at), thoughtSignature: "before" },
+              { text: content.slice(at), thoughtSignature: "after" },
+            ],
+            images: [],
+          },
+        ],
+      ]),
+    },
+    [row("assistant", content, id)],
+  );
+  const frames = converted.flatMap((wire) => [...(wire.prefixRows ?? []), wire.row]);
+  expect(frames[0]?.content).toEqual([
+    { type: "text", text: content.slice(0, at), thoughtSignature: "before" },
+    { type: "tool-call", toolCallId: "partial", name: "draw", arguments: "{}" },
+  ]);
+  expect(frames[2]?.content).toEqual([{ type: "text", text: content.slice(at), thoughtSignature: "after" }]);
 });

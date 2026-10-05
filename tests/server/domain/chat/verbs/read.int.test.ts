@@ -3413,6 +3413,41 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
 describe("read — the §3.6 hidden-content member-strip", () => {
   const lieTag = '<lie character="Zandik" type="location" truth="He is in the crypt" reason="the heist"/>';
 
+  test("ordinary member list projects tool starts/ends onto its stripped body while the host and stored bytes remain exact", async () => {
+    const host = await seedUser(db, castId<Handle>("offset_host"));
+    const member = await seedUser(db, castId<Handle>("offset_member"));
+    const chatId = await seedRoom("offset", host);
+    await seedParticipant(db, { chatId, key: "offset_m", userId: member, role: "member" });
+    const content = `Before.${lieTag}After.${lieTag}Done.`;
+    const { variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content });
+    const record = {
+      toolCallId: "native",
+      turnId: mintTypeId(ID_PREFIX.chatTurn),
+      callOrdinal: 4,
+      name: "draw",
+      arguments: "{}",
+      result: "Moon",
+      isError: false,
+      durationMs: 1,
+      textOffset: 7 + lieTag.length,
+      exchangeTextEnd: 13 + lieTag.length * 2,
+    };
+    await db
+      .update(messageVariants)
+      .set({ toolCalls: [record] })
+      .where(eq(messageVariants.id, variantId));
+    const { listMessages } = createRead(makeChatContext(db), makeDeps());
+    const projected = (await listMessages({ principal: principal(member), chatId })).messages[0];
+    expect(projected?.content).toBe("Before.After.Done.");
+    expect(projected?.toolCalls).toEqual([{ ...record, textOffset: 7, exchangeTextEnd: 13 }]);
+    const unstripped = (await listMessages({ principal: principal(host), chatId })).messages[0];
+    expect(unstripped?.content).toBe(content);
+    expect(unstripped?.toolCalls).toEqual([record]);
+    const [stored] = await db.select().from(messageVariants).where(eq(messageVariants.id, variantId));
+    expect(stored?.content).toBe(content);
+    expect(stored?.toolCalls).toEqual([record]);
+  });
+
   test("listMessages: a MEMBER's payload carries ZERO hidden bytes; the HOST reads the full stored body", async () => {
     const host = await seedUser(db, castId<Handle>("ms_host"));
     const member = await seedUser(db, castId<Handle>("ms_member"));

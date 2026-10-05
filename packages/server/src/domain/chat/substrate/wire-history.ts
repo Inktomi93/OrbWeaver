@@ -27,13 +27,13 @@
 // row's thinking. The later replies' thinking never reaches the model, and nothing reports it. One message
 // holding every reply's thinking is refused on both OpenRouter endpoints (OR-9, scripts/probes/openrouter/RESULTS.md).
 
-import type { ChatContentPart, ChatReasoningPart, ContentSignatures, MessageView } from "@orb/contracts/chat";
-import type { WireMeta } from "@orb/inference";
+import type { ChatContentPart, ChatReasoningPart, ContentSignatures, MessageView, ToolCallRecord } from "@orb/contracts/chat";
+import type { GeneratedImage, ToolCallInput, WireMeta } from "@orb/inference";
 import { cacheDepthCovering, rowIndexAtCacheDepth } from "@orb/inference";
 import type { ContentImageRef, ContentSpan, ContentSpanKind } from "@orb/kit/content";
-import { cardWireStub, tokenizeContent } from "@orb/kit/content";
+import { cardWireStub, contentSpanRaw, tokenizeContent } from "@orb/kit/content";
 import type { AssetId, MessageId } from "@orb/kit/ids";
-import type { ResolvedMediaRef, TurnMessage } from "../contract/results.ts";
+import type { ResolvedMediaRef, TurnEconomics, TurnMessage } from "../contract/results.ts";
 import type { shapeTurn, toShapeCanon } from "./assembly-access.ts";
 import { fitHistory, historyTurnTokens } from "./assembly-access.ts";
 
@@ -313,8 +313,17 @@ async function toContentParts(
   spans: readonly ContentSpan[],
   env: WirePartsEnv,
   row: WireRowFacts,
-): Promise<{ parts: ChatContentPart[]; imageDropped: boolean; videoDropped: boolean }> {
+): Promise<{ parts: ChatContentPart[]; imageDropped: boolean; videoDropped: boolean; source: ResolvedSpanParts }> {
   const resolved = await Promise.all(spans.map((span) => spanToWirePart(span, env, row)));
+  return { ...joinedParts(resolved), source: { spans, resolved } };
+}
+
+interface ResolvedSpanParts {
+  readonly spans: readonly ContentSpan[];
+  readonly resolved: readonly WirePartResult[];
+}
+
+function joinedParts(resolved: readonly WirePartResult[]): { parts: ChatContentPart[]; imageDropped: boolean; videoDropped: boolean } {
   const parts: ChatContentPart[] = [];
   let mergeBlocked = false;
   const droppedMedia: DroppedMedia[] = [];
@@ -357,7 +366,8 @@ type ShapedHistoryRow = ReturnType<typeof shapeTurn>["history"][number];
  *  irreducible-tail anchor + the context-boundary id), and carries the WIRE text as its `content`. */
 interface WireRow {
   readonly row: TurnMessage;
-  readonly costRow: ShapedHistoryRow;
+  readonly prefixRows?: readonly TurnMessage[];
+  readonly costRow: ShapedHistoryRow & { readonly extraTokens?: number };
   readonly imageDropped: boolean;
   readonly videoDropped: boolean;
 }
@@ -367,9 +377,8 @@ interface WireRow {
  *
  *  ORDER IS NOT COSMETIC: Anthropic requires the `thinking` block at the head of an assistant turn, and the
  *  wire converters emit parts in array order, so a signed block behind the prose is not the turn the model
- *  signed. (A persisted row carries no tool-call part today — the recorded exchange is materialized only by
- *  the in-turn loop — so "ahead of the tool-call part" is satisfied by construction here and explicitly by
- *  `toolExchangeMessages` there.)
+ *  signed. Tool-bearing rows materialize each depth
+ *  separately below, so its thinking stays ahead of that depth's prose and tool calls.
  *
  *  ONLY ASSISTANT ROWS, and only rows that already carry something: a row whose body converted to nothing is
  *  about to be dropped (`dropEmptyWireRows`), and prepending thinking to it would resurrect a row the model
@@ -381,7 +390,7 @@ function carryReasoningParts(parts: readonly ChatContentPart[], stored: readonly
   return [...stored, ...parts];
 }
 
-/** The wire text a row costs the model — the concatenation of its TEXT parts, and nothing else (#1434).
+/** The wire text a row costs the model — prose, reasoning, and replayed tool payloads (#1434).
  *  A resolved image/video part carries a URL or a data payload the token estimator cannot price and the
  *  provider does not charge as prompt text, so it contributes ZERO here; what it replaced (a multi-KB
  *  `![alt](orb://…)` blob, or a card body collapsed to `[card: Title]`) is gone by construction because
@@ -393,7 +402,239 @@ function carryReasoningParts(parts: readonly ChatContentPart[], stored: readonly
  *  priceable from here and is not estimated — absence over a fabricated number, the same posture as the
  *  economics fields. */
 function wireCostText(parts: readonly ChatContentPart[]): string {
-  return parts.flatMap((p) => (p.type === "text" || p.type === "reasoning" ? [p.text] : [])).join("");
+  return parts.flatMap(wirePartCost).join("");
+}
+
+function wirePartCost(p: ChatContentPart): readonly string[] {
+  switch (p.type) {
+    case "text":
+    case "reasoning":
+      return [p.text];
+    case "tool-call":
+      return [p.name, p.toolCallId, p.arguments];
+    case "tool-result":
+      return [p.toolCallId, p.content];
+    case "image":
+    case "video":
+      return [];
+    default: {
+      const exhausted: never = p;
+      throw new Error(`unhandled content part ${JSON.stringify(exhausted)}`);
+    }
+  }
+}
+
+function replayableToolCalls(records: readonly ToolCallRecord[] | undefined): readonly ToolCallRecord[] {
+  return (records ?? []).filter((record) => record.result !== null && record.replayHistory !== false && record.hidden !== true && record.deleted !== true);
+}
+
+/** Tool-bearing canon rows stay separate until conversion materializes their exchange. */
+export function replayToolMessageIds(canon: readonly MessageView[], toolsOk: boolean): ReadonlySet<MessageId> {
+  return new Set(
+    toolsOk
+      ? canon
+          .filter((message) => message.role === "assistant" && !message.excludedFromPrompt && replayableToolCalls(message.toolCalls).length > 0)
+          .map((message) => message.id)
+      : [],
+  );
+}
+
+function replayToolRows(
+  row: TurnMessage,
+  records: readonly ToolCallRecord[],
+  options: {
+    readonly canonical: string;
+    readonly shapedContent: string;
+    readonly source: ResolvedSpanParts;
+    readonly signatures: ContentSignatures | undefined;
+    readonly allRecords: readonly ToolCallRecord[];
+    readonly carryToolReasoning: boolean;
+  },
+): TurnMessage[] {
+  const { canonical, signatures, shapedContent, source } = options;
+  const thinking = row.content.filter((part) => part.type === "reasoning");
+  const origin = shapedContent.indexOf(canonical);
+  const exact = canonical.length > 0 && origin !== -1;
+  const groups = Map.groupBy(records, (record, index) => `${record.turnId ?? "legacy"}:${record.exchangeOrdinal ?? record.callOrdinal ?? index}`);
+  const output: TurnMessage[] = [];
+  let consumed = 0;
+  for (const batch of groups.values()) {
+    const replayed = replayToolBatch(row, batch, { ...options, origin, exact, start: consumed });
+    pushToolCallFrame(output, row, replayed.parts);
+    output.push(...batch.map(toolResultFrame));
+    consumed = replayed.end;
+  }
+  const remaining = replayTextSignatures(
+    joinedParts(resolvedBetween(source, consumed, shapedContent.length)).parts,
+    row.role === "assistant" ? signatures : undefined,
+  );
+  if (!isEmptyPartList(remaining) && remaining.length > 0) {
+    output.push({ ...row, content: [...thinking, ...remaining] });
+  }
+  return output;
+}
+
+function replayToolBatch(
+  row: TurnMessage,
+  batch: readonly ToolCallRecord[],
+  options: Parameters<typeof replayToolRows>[2] & { readonly origin: number; readonly exact: boolean; readonly start: number },
+): { readonly parts: readonly ChatContentPart[]; readonly end: number } {
+  const { signatures, allRecords, source } = options;
+  const parts: ChatContentPart[] = options.carryToolReasoning ? [...(toolProvenance(batch[0], signatures, allRecords)?.reasoningParts ?? [])] : [];
+  const proseSignatures = row.role === "assistant" ? signatures : undefined;
+  let consumed = options.start;
+  for (const record of batch) {
+    const offset = canonicalToolOffset(record.textOffset, options);
+    parts.push(
+      ...replayProseBetween(source, consumed, offset, proseSignatures),
+      recordedToolPart(record, toolProvenance(record, signatures, allRecords)?.thoughtSignature),
+    );
+    consumed = offset;
+  }
+  const boundary = batch[0]?.exchangeTextEnd;
+  const end = row.role === "assistant" && options.exact && boundary !== undefined ? canonicalToolOffset(boundary, options) : consumed;
+  parts.push(...replayProseBetween(source, consumed, end, proseSignatures));
+  return { parts, end };
+}
+
+function canonicalToolOffset(offset: number | undefined, options: { readonly exact: boolean; readonly origin: number; readonly canonical: string }): number {
+  return options.exact && offset !== undefined ? options.origin + Math.min(options.canonical.length, offset) : 0;
+}
+
+function recordedToolPart(record: Pick<ToolCallRecord, "toolCallId" | "name" | "arguments">, thoughtSignature: string | undefined): ChatContentPart {
+  return {
+    type: "tool-call",
+    toolCallId: record.toolCallId,
+    name: record.name,
+    arguments: record.arguments,
+    ...(thoughtSignature === undefined ? {} : { thoughtSignature }),
+  };
+}
+
+function toolResultFrame(record: ToolCallRecord): TurnMessage {
+  return {
+    role: "tool",
+    content: [{ type: "tool-result", toolCallId: record.toolCallId, content: record.result ?? "", ...(record.isError ? { isError: true } : {}) }],
+  };
+}
+
+/** In-turn replay uses original provider parts, before CAS storage or canonical image encoding. */
+export function receivedToolExchangeMessages(input: {
+  readonly content: string;
+  readonly reasoning: readonly ChatReasoningPart[];
+  readonly calls: readonly ToolCallInput[];
+  readonly records: readonly ToolCallRecord[];
+  readonly economics: TurnEconomics | null;
+}): TurnMessage[] {
+  const images = input.economics?.replyImages ?? [];
+  const events = [
+    ...images.flatMap((image, index) => {
+      const part = generatedReplyImagePart(image);
+      return part === null ? [] : [{ part, at: image.atChars ?? input.content.length, ordinal: image.partOrdinal ?? index }];
+    }),
+    ...input.calls.map((call, index) => ({
+      part: recordedToolPart(call, call.thoughtSignature),
+      at: call.atChars ?? input.content.length,
+      ordinal: call.partOrdinal ?? images.length + index,
+    })),
+  ].toSorted((a, b) => a.ordinal - b.ordinal);
+  const parts: ChatContentPart[] = [...input.reasoning];
+  const signatures: ContentSignatures = { text: [...(input.economics?.textSignatures ?? [])], images: [] };
+  let cursor = 0;
+  for (const event of events) {
+    parts.push(...receivedProse(input.content.slice(cursor, event.at), signatures), event.part);
+    cursor = event.at;
+  }
+  parts.push(...receivedProse(input.content.slice(cursor), signatures));
+  return [{ role: "assistant", content: parts }, ...input.records.map(toolResultFrame)];
+}
+
+function receivedProse(text: string, signatures: ContentSignatures): readonly ChatContentPart[] {
+  return text.length === 0 ? [] : replayTextSignatures([{ type: "text", text }], signatures);
+}
+
+function generatedReplyImagePart(image: GeneratedImage): ChatContentPart | null {
+  const url = image.url ?? (image.base64 !== undefined && image.mediaType !== undefined ? `data:${image.mediaType};base64,${image.base64}` : undefined);
+  return url === undefined ? null : { type: "image", url, ...(image.thoughtSignature === undefined ? {} : { thoughtSignature: image.thoughtSignature }) };
+}
+
+function resolvedBetween(source: ResolvedSpanParts, from: number, to: number): readonly WirePartResult[] {
+  let cursor = 0;
+  return source.spans.flatMap((span, index): readonly WirePartResult[] => {
+    const start = cursor;
+    cursor += contentSpanRaw(span).length;
+    const part = source.resolved[index] ?? null;
+    if (part !== null && "type" in part && part.type === "text" && part.text === contentSpanRaw(span)) {
+      const text = part.text.slice(Math.max(0, from - start), Math.min(part.text.length, to - start));
+      return start < to && cursor > from && text.length > 0 ? [{ type: "text", text }] : [];
+    }
+    return start >= from && start < to ? [part] : [];
+  });
+}
+
+function replayProseBetween(source: ResolvedSpanParts, from: number, to: number, signatures: ContentSignatures | undefined): readonly ChatContentPart[] {
+  const parts = replayTextSignatures(joinedParts(resolvedBetween(source, from, to)).parts, signatures);
+  return isEmptyPartList(parts) ? [] : parts;
+}
+
+function pushToolCallFrame(output: TurnMessage[], row: TurnMessage, parts: readonly ChatContentPart[]): void {
+  if (row.role === "assistant") {
+    output.push({ ...row, content: parts });
+    return;
+  }
+  const prose = parts.filter((part) => part.type !== "tool-call" && part.type !== "reasoning");
+  if (prose.length > 0) {
+    output.push({ ...row, content: prose });
+  }
+  output.push({ role: "assistant", content: parts.filter((part) => part.type === "tool-call") });
+}
+
+/** Old provenance has no ordinal. Bind it by full occurrence order only when that order is complete. */
+function toolProvenance(
+  record: ToolCallRecord | undefined,
+  signatures: ContentSignatures | undefined,
+  allRecords: readonly ToolCallRecord[],
+): NonNullable<ContentSignatures["tools"]>[number] | undefined {
+  if (record === undefined) {
+    return;
+  }
+  const candidates = signatures?.tools?.filter((item) => item.toolCallId === record.toolCallId && item.turnId === record.turnId) ?? [];
+  const exact = candidates.find((item) => item.callOrdinal !== undefined && item.callOrdinal === record.callOrdinal);
+  if (exact !== undefined) {
+    return exact;
+  }
+  const occurrences = allRecords.filter((item) => item.toolCallId === record.toolCallId && item.turnId === record.turnId);
+  const legacy = candidates.filter((item) => item.callOrdinal === undefined);
+  return legacy.length === occurrences.length ? legacy[occurrences.indexOf(record)] : undefined;
+}
+
+function withToolReplay(wire: WireRow, h: ShapedHistoryRow, env: Parameters<typeof buildWireHistory>[0], source: ResolvedSpanParts): WireRow {
+  const stored = h.messageId === undefined ? undefined : env.canon.find((message) => message.id === h.messageId);
+  const records = env.toolsOk === true && stored?.role === "assistant" ? replayableToolCalls(stored.toolCalls) : [];
+  if (records.length === 0) {
+    return wire;
+  }
+  const signatures = h.messageId === undefined ? undefined : env.contentSignaturesByMessage?.get(h.messageId);
+  const replay = replayToolRows(wire.row, records, {
+    canonical: stored?.content ?? "",
+    shapedContent: h.content,
+    source,
+    signatures,
+    allRecords: stored?.toolCalls ?? [],
+    carryToolReasoning: env.carryToolReasoning === true && h.role === "assistant",
+  });
+  const content = replay.map((message) => wireCostText(message.content)).join("");
+
+  return {
+    ...wire,
+    row: replay.at(-1) ?? wire.row,
+    prefixRows: replay.slice(0, -1),
+    costRow: { ...wire.costRow, content, extraTokens: extraFrameTokens(replay, content) },
+  };
+}
+
+function extraFrameTokens(frames: readonly TurnMessage[], content: string): number {
+  return frames.reduce((sum, frame) => sum + historyTurnTokens({ content: wireCostText(frame.content) }), 0) - historyTurnTokens({ content });
 }
 
 /** The REQUEST-step history build: tokenize each shaped row ONCE, resolve the keep-last-X card window over
@@ -418,6 +659,8 @@ export async function buildWireHistory(
    *  `substrate/` is `no-inline-types` RED — a domain type home is `contract/`), and identical on both
    *  callers: the turn reads them off `RunTurnPipelineArgs`, the previews off `PreviewInputs` + the chat ctx. */
   env: {
+    readonly toolsOk?: boolean;
+    readonly carryToolReasoning?: boolean;
     /** `connection.capability.input.vision === true` — gates resolved IMAGE parts. */
     readonly visionOk: boolean;
     /** The video twin (#317): `capability.input.video === true`. */
@@ -468,7 +711,12 @@ export async function buildWireHistory(
   return await Promise.all(
     tokenized.map(async ({ h, spans }): Promise<WireRow> => {
       const userAuthored = h.messageId === undefined || !assistantMessageIds.has(h.messageId);
-      const { parts: bodyParts, imageDropped, videoDropped } = await toContentParts(spans, partsEnv, { role: h.role, userAuthored, messageId: h.messageId });
+      const {
+        parts: bodyParts,
+        imageDropped,
+        videoDropped,
+        source,
+      } = await toContentParts(spans, partsEnv, { role: h.role, userAuthored, messageId: h.messageId });
       // A SHAPE fold may have re-roled a character's assistant line to `user` (`scopeToSpeaker`); its thinking
       // must not ride back on a row the wire will deliver as the user speaking.
       const signedParts =
@@ -487,7 +735,7 @@ export async function buildWireHistory(
         ...(h.name === undefined ? {} : { name: h.name }),
         messageId: h.messageId,
       };
-      return { row, costRow, imageDropped, videoDropped };
+      return withToolReplay({ row, costRow, imageDropped, videoDropped }, h, env, source);
     }),
   );
 }
@@ -495,7 +743,7 @@ export async function buildWireHistory(
 /** A converted row that carries NOTHING for the provider: one empty text part, which is what
  *  `toContentParts` emits when every span was `wire:"drop"`ped and no media drop left a placeholder. */
 function isEmptyWireRow(wire: WireRow): boolean {
-  return isEmptyPartList(wire.row.content);
+  return (wire.prefixRows?.length ?? 0) === 0 && isEmptyPartList(wire.row.content);
 }
 
 /** The part-list half of {@link isEmptyWireRow}, so the §8.8 carry can ask the same question BEFORE the row
@@ -536,12 +784,22 @@ type NewChatMarker = ReturnType<typeof shapeTurn>["newChatMarker"];
 function withNewChatMarkerAtHead(kept: readonly WireRow[], marker: NonNullable<NewChatMarker>): WireRow[] {
   const at = kept.findIndex((wire) => !isEmptyWireRow(wire));
   const head = kept[at];
-  if (head !== undefined && head.row.role === "user" && marker.mergeSeparator !== null) {
+  const opening = head?.prefixRows?.[0] ?? head?.row;
+  if (head !== undefined && opening?.role === "user" && marker.mergeSeparator !== null) {
     const lead = `${marker.content}${marker.mergeSeparator}`;
-    const [first, ...parts] = head.row.content;
+    const [first, ...parts] = opening.content;
     const content: ChatContentPart[] =
-      first?.type === "text" ? [{ type: "text", text: lead + first.text }, ...parts] : [{ type: "text", text: lead }, ...head.row.content];
-    const merged: WireRow = { ...head, row: { ...head.row, content }, costRow: { ...head.costRow, content: lead + head.costRow.content } };
+      first?.type === "text" && first.thoughtSignature === undefined
+        ? [{ type: "text", text: lead + first.text }, ...parts]
+        : [{ type: "text", text: lead }, ...opening.content];
+    const frames = [...(head.prefixRows ?? []), head.row].map((frame, index) => (index === 0 ? { ...frame, content } : frame));
+    const costContent = lead + head.costRow.content;
+    const merged: WireRow = {
+      ...head,
+      row: frames.at(-1) ?? head.row,
+      ...(head.prefixRows === undefined ? {} : { prefixRows: frames.slice(0, -1) }),
+      costRow: { ...head.costRow, content: costContent, extraTokens: extraFrameTokens(frames, costContent) },
+    };
     return kept.map((wire, index) => (index === at ? merged : wire));
   }
   const row: TurnMessage = { role: "user", content: [{ type: "text", text: marker.content }] };
@@ -672,7 +930,7 @@ function shiftBreakpoint(
     return null;
   }
   const pinned = rowIndexAtCacheDepth(
-    before.map((wire) => wire.row),
+    before.map((wire) => wire.costRow),
     cacheBreakpointFromEnd,
   );
   if (pinned === undefined) {
@@ -680,8 +938,8 @@ function shiftBreakpoint(
   }
   const keptAtOrAbove = keeps.slice(0, pinned + 1).filter(Boolean).length - 1;
   const shifted = cacheDepthCovering(
-    kept.map((wire) => wire.row),
-    keptAtOrAbove,
+    kept.flatMap((wire) => [...(wire.prefixRows ?? []), wire.row]),
+    kept.slice(0, keptAtOrAbove + 1).reduce((sum, wire) => sum + 1 + (wire.prefixRows?.length ?? 0), 0) - 1,
   );
   // Depth 0 is a real pin: the covering depth never reaches past the pinned row, so depth 0 means only system rows
   // (transparent to the depth) follow it, the shape a turn-scoped cue after a committed user row leaves.

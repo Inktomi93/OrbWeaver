@@ -36,17 +36,24 @@ export const MERGE_SEPARATOR = "\n\n";
  */
 export function squashRuns<T extends { role: MessageRole; content: string; name?: string; messageId?: MessageId | undefined }>(
   history: readonly T[],
-  opts: { readonly canonApart: boolean } = { canonApart: false },
+  opts: { readonly canonApart: boolean; readonly replayToolMessageIds?: ReadonlySet<MessageId> | undefined } = { canonApart: false },
 ): readonly (readonly number[])[] {
   const runs: number[][] = [];
   history.forEach((msg, index) => {
-    if (msg.content.trim().length === 0) {
+    const toolRow = msg.messageId !== undefined && opts.replayToolMessageIds?.has(msg.messageId) === true;
+    if (msg.content.trim().length === 0 && !toolRow) {
       return;
     }
     const openRun = runs.at(-1);
     const head = openRun === undefined ? undefined : history[openRun[0] ?? -1];
     const storedAlready = opts.canonApart && msg.messageId !== undefined && openRun?.some((at) => history[at]?.messageId !== undefined) === true;
-    if (openRun !== undefined && head !== undefined && head.role === msg.role && !distinctCompletionName(head, msg) && !storedAlready) {
+    const toolBoundary =
+      toolRow ||
+      openRun?.some((at) => {
+        const id = history[at]?.messageId;
+        return id !== undefined && opts.replayToolMessageIds?.has(id) === true;
+      }) === true;
+    if (openRun !== undefined && head !== undefined && head.role === msg.role && !distinctCompletionName(head, msg) && !storedAlready && !toolBoundary) {
       openRun.push(index);
       return;
     }
@@ -62,7 +69,7 @@ export function squashRuns<T extends { role: MessageRole; content: string; name?
  *  other — a system row never folds into a user/assistant neighbor. `canonApart` is {@link squashRuns}'s. */
 export function squashSameRole<T extends { role: MessageRole; content: string; name?: string; messageId?: MessageId | undefined }>(
   history: readonly T[],
-  opts: { readonly canonApart: boolean } = { canonApart: false },
+  opts: { readonly canonApart: boolean; readonly replayToolMessageIds?: ReadonlySet<MessageId> | undefined } = { canonApart: false },
 ): T[] {
   const result: T[] = [];
   for (const run of squashRuns(history, opts)) {

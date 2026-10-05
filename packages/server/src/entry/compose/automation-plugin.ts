@@ -884,6 +884,8 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       registerTool: (reg, invoke, scope) =>
         deps.toolUse.registerPluginTool({
           name: pluginToolWireName(scope.slug, reg.name),
+          ...(reg.displayName === undefined ? {} : { displayName: reg.displayName }),
+          ...(reg.replayHistory === undefined ? {} : { replayHistory: reg.replayHistory }),
           description: reg.description,
           parameters: reg.parameters,
           installer: scope.installer,

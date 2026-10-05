@@ -36,6 +36,7 @@ import type {
   DuplicateMessageParams,
   EditMessageParams,
   EditReasoningParams,
+  EditToolCallParams,
   ForceCharacterTurnParams,
   ForkChatParams,
   GenerateImageParams,
@@ -280,6 +281,7 @@ export interface ChatService {
   readonly applyProseRewrite: (params: ApplyProseRewriteParams) => Promise<MessageView>;
   /** Toggle `excludedFromPrompt` (held out of assembly; the row survives). */
   readonly setMessageHidden: (params: SetMessageHiddenParams) => Promise<MessageView>;
+  readonly editToolCall: (params: EditToolCallParams) => Promise<MessageView>;
   /** Delete a set of slots (author-or-host; cascades variants). */
   readonly deleteMessages: (params: DeleteMessagesParams) => Promise<void>;
   readonly editReasoning: (params: EditReasoningParams) => Promise<MessageView>;

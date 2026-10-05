@@ -36,6 +36,7 @@
 
 import type { DurableChatBusEvent, MessageView, ReattributeScope } from "@orb/contracts/chat";
 import { macroFreezeRecordSchema } from "@orb/contracts/chat";
+import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
 import { batchMany } from "@orb/db/kit";
 import type { ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
@@ -56,6 +57,7 @@ import type {
   DuplicateMessageParams,
   EditMessageParams,
   EditReasoningParams,
+  EditToolCallParams,
   MoveMessageParams,
   ReattributeMessagesParams,
   ReattributePersonaParams,
@@ -72,6 +74,7 @@ import {
   deleteMessagesStatement,
   editMessageContentStatements,
   editReasoningStatements,
+  editToolCallsCasStatement,
   freezeVariantContentStatement,
   insertCanonMessageStatements,
   reattributeMessagesStatement,
@@ -90,15 +93,18 @@ import {
   loadMaxMessageSeq,
   loadMessageSeqs,
   loadMessageView,
+  loadSlotTarget,
   loadSwipeStatRows,
   loadVariableDeltas,
   loadVariantDelta,
   loadVariantMessageId,
   loadVariantsByMessageIds,
+  normalizeToolOrdinals,
 } from "../persistence/queries.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { buildTurnMacroContext, freezeVolatileMacros } from "../substrate/assembly-access.ts";
-import { assertAuthorOrHost } from "../substrate/auth/index.ts";
+import { assertAuthorOrHost, isBelowHistoryFloor, permitsHost } from "../substrate/auth/index.ts";
+import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
 import { projectViewReturnForViewer } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { humanSeatPersonasOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
@@ -131,6 +137,7 @@ type EditVerbs = Pick<
   | "setSeededGreeting"
   | "applyProseRewrite"
   | "setMessageHidden"
+  | "editToolCall"
   | "deleteMessages"
   | "editReasoning"
   | "clearReasoning"
@@ -565,6 +572,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
       variantId: slot.selectedVariantId,
       content: clean,
       editedAt: now,
+      toolCalls: slot.toolCalls,
     });
     // The net word/byte change rides the same batch as the edit, bucketed on the slot's original day.
     ctx.applyStatsDelta(
@@ -636,6 +644,7 @@ function createSetSeededGreeting(ctx: ChatContext, emit: EmitChatEvent): ChatSer
       variantId: slot.selectedVariantId,
       content: alternate,
       editedAt: now,
+      toolCalls: slot.toolCalls,
     });
     ctx.applyStatsDelta(
       statements,
@@ -731,6 +740,124 @@ function createSetMessageHidden(ctx: ChatContext, emit: EmitChatEvent): ChatServ
     const view = await reloadSlot(ctx, chatId, messageId);
     await emit({ type: "messageHidden", chatId, messageId, view });
     return await projectEditReturn(ctx, view, membership);
+  };
+}
+
+const MAX_TOOL_CALL_EDIT_ATTEMPTS = 8;
+
+function sameToolOccurrence(current: MessageView["toolCalls"][number] | undefined, selected: MessageView["toolCalls"][number]): boolean {
+  return (
+    current !== undefined &&
+    current.callOrdinal === selected.callOrdinal &&
+    current.name === selected.name &&
+    current.arguments === selected.arguments &&
+    current.result === selected.result
+  );
+}
+
+function matchingEditableToolCalls(
+  records: MessageView["toolCalls"],
+  params: Pick<EditToolCallParams, "toolCallId" | "turnId" | "callOrdinal">,
+): MessageView["toolCalls"] {
+  return records.filter(
+    (record) =>
+      record.toolCallId === params.toolCallId &&
+      record.turnId === params.turnId &&
+      record.deleted !== true &&
+      (params.callOrdinal === undefined || record.callOrdinal === params.callOrdinal),
+  );
+}
+
+function editedToolCall(
+  record: MessageView["toolCalls"][number],
+  selected: MessageView["toolCalls"][number],
+  action: EditToolCallParams["action"],
+): MessageView["toolCalls"][number] {
+  if (record.toolCallId !== selected.toolCallId || record.turnId !== selected.turnId || record.callOrdinal !== selected.callOrdinal) {
+    return record;
+  }
+  switch (action) {
+    case "hide":
+      return { ...record, hidden: true };
+    case "show":
+      return { ...record, hidden: false };
+    case "delete":
+      return { ...record, deleted: true };
+    default: {
+      const exhausted: never = action;
+      throw new Error(`unhandled tool edit ${JSON.stringify(exhausted)}`);
+    }
+  }
+}
+
+async function writeEditedToolCall(ctx: ChatContext, params: EditToolCallParams, selected: MessageView["toolCalls"][number]): Promise<void> {
+  const { principal, chatId, messageId, variantId, action } = params;
+  const update = (record: MessageView["toolCalls"][number]): MessageView["toolCalls"][number] => editedToolCall(record, selected, action);
+  const hostRoles = PARTICIPANT_ROLES.filter((role) => permitsHost(ctx.can, principal, role));
+  for (let attempt = 0; attempt < MAX_TOOL_CALL_EDIT_ATTEMPTS; attempt += 1) {
+    const target = await loadSlotTarget(ctx.db, chatId, messageId);
+    if (target === undefined) {
+      throw new ChatNotFoundError(chatId);
+    }
+    await requireAuthorOrHost(ctx, principal, chatId, target.authorUserId);
+    const occurrences = matchingEditableToolCalls(target.toolCalls, params);
+    const current = occurrences[0];
+    if (target.selectedVariantId !== variantId || occurrences.length !== 1 || !sameToolOccurrence(current, selected)) {
+      throw new ChatOperationError(CHAT_OP_CODES.toolCallChanged, "This tool call is no longer on the active swipe.");
+    }
+    const snapshot = target.metadata.continuationTools;
+    const metadata =
+      snapshot === undefined
+        ? target.metadata
+        : {
+            ...target.metadata,
+            continuationTools: {
+              ...snapshot,
+              before: normalizeToolOrdinals(snapshot.before).map(update),
+              after: normalizeToolOrdinals(snapshot.after).map(update),
+              undone: continuationToolsAreUndone(snapshot, target.content),
+            },
+          };
+    const continuation = metadata.continuationTools;
+    const activeRecords = continuation?.undone === true ? continuation.before : continuation?.after;
+    const records = activeRecords ?? target.toolCalls.map(update);
+    const applied = await editToolCallsCasStatement(ctx.db, {
+      chatId,
+      userId: principal.userId,
+      hostRoles,
+      messageId,
+      variantId,
+      records,
+      metadata,
+      expectedContent: target.content,
+      expectedToolCalls: target.rawToolCalls,
+      expectedMetadata: target.rawMetadata,
+    });
+    if (applied.length > 0) {
+      return;
+    }
+  }
+  throw new ChatOperationError(CHAT_OP_CODES.toolCallChanged, "This tool call changed while it was being updated.");
+}
+
+function createEditToolCall(ctx: ChatContext, emit: EmitChatEvent): ChatService["editToolCall"] {
+  return async (params: EditToolCallParams) => {
+    const { principal, chatId, messageId, variantId } = params;
+    const initial = await loadSlotInChat(ctx, chatId, messageId);
+    await requireAuthorOrHost(ctx, principal, chatId, initial.authorUserId);
+    const matching = matchingEditableToolCalls(initial.toolCalls, params);
+    const selected = matching[0];
+    if (initial.selectedVariantId !== variantId || matching.length !== 1 || selected === undefined) {
+      throw new ChatOperationError(CHAT_OP_CODES.toolCallChanged, "This tool call is no longer on the active swipe.");
+    }
+    await writeEditedToolCall(ctx, params, selected);
+    const view = await reloadSlot(ctx, chatId, messageId);
+    await emit({ type: "messageEdited", chatId, messageId, view });
+    const viewer = await requireParticipant(ctx, principal, chatId);
+    if (isBelowHistoryFloor({ type: "messageEdited", chatId, messageId, view }, viewer.historyFloorSeq)) {
+      throw new ChatNotFoundError(chatId);
+    }
+    return await projectEditReturn(ctx, view, viewer);
   };
 }
 
@@ -1131,6 +1258,7 @@ export function createEdit(ctx: ChatContext, deps: EditDeps): EditVerbs {
     setSeededGreeting: claim(createSetSeededGreeting(ctx, emit)),
     applyProseRewrite: claim(createApplyProseRewrite(ctx, emit)),
     setMessageHidden: claim(createSetMessageHidden(ctx, emit)),
+    editToolCall: claim(createEditToolCall(ctx, emit)),
     deleteMessages: claim(createDeleteMessages(ctx, emit)),
     editReasoning: claim(createEditReasoning(ctx, emit)),
     clearReasoning: claim(createClearReasoning(ctx, emit)),

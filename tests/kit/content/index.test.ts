@@ -8,6 +8,7 @@ import {
   PREVIEW_MAX_CHARS,
   projectBodyForPreview,
   projectBodyForSummary,
+  projectHiddenSpans,
   scanGhostContent,
   scanHiddenSpans,
   stripHiddenSpans,
@@ -60,6 +61,19 @@ describe("tokenizeContent", () => {
 // ── The parity-plus §3.2 grammar family (hidden tags · directive fences · the §3.2.1 robustness walker) ──
 
 const LIE = '<lie character="Zandik" type="location" truth="He is in the crypt" reason="protecting the heist"/>';
+
+test("hidden position projection uses the full scan, distinguishing repeated code-fenced tags and collapsing interior positions", () => {
+  const shown = `\`\`\`\n${LIE}\n\`\`\`\nBefore.`;
+  const body = `${shown}${LIE}After.${LIE}Done.`;
+  const second = shown.length + LIE.length + 6;
+  const positions = [0, shown.indexOf("truth"), shown.length, shown.length + 4, shown.length + LIE.length, second + 2, body.length];
+  expect(projectHiddenSpans(body, positions)).toEqual({
+    content: `${shown}After.Done.`,
+    hadHidden: true,
+    offsets: [0, shown.indexOf("truth"), shown.length, shown.length, shown.length, shown.length + 6, shown.length + 11],
+  });
+  expect(projectHiddenSpans(`${shown}<lie`, [shown.length + 2])).toEqual({ content: `${shown}<lie`, hadHidden: false, offsets: [shown.length + 2] });
+});
 
 describe("hidden-class tags (§3.2a — registry-driven)", () => {
   test("a registered `<lie …/>` tag → a hidden span with parsed attrs (+ surrounding text preserved)", () => {

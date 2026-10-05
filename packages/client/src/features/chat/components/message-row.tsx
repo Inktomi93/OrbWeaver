@@ -26,13 +26,21 @@ import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import { BG_PHOTO_CHROME_PLATE } from "../lib/message-row-backing.ts";
 import { columnClassFor, gutterRailFor, MESSAGE_ROW_SKINS, rowBodyClassFor } from "../lib/message-row-variants.ts";
-import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
+import { toolBoundaryDisplayMessage } from "../lib/tool-prose.ts";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageMetadataRow } from "./message-metadata-row.tsx";
 import { renderContextBoundaryDivider } from "./message-row-divider.tsx";
 import { placeRowHeader, renderRowActions, renderRowNameRow } from "./message-row-header.tsx";
-import { renderRowAvatar, renderRowBubble, renderRowReasoning, renderRowSwipe, resolveRowContent, themedColumnContent } from "./message-row-parts.tsx";
-import { MessageToolCalls } from "./message-tool-calls.tsx";
+import {
+  renderRowAvatar,
+  renderRowBubble,
+  renderRowReasoning,
+  renderRowSwipe,
+  renderRowToolCalls,
+  resolveRowContent,
+  themedColumnContent,
+  trainParagraphsFor,
+} from "./message-row-parts.tsx";
 
 export interface MessageRowProps {
   readonly message: MessageView;
@@ -271,21 +279,20 @@ export function MessageRow({
     autoFixMarkdown,
     displayScripts,
   });
-  const trainParagraphs = !editing && skin.bubbleLayout === "trains" ? splitIntoTrainParagraphs(message.content) : null;
+  const displayedMessage = toolBoundaryDisplayMessage(message, editing);
   const speakerThemes = speakerThemesByName(participants);
-  const narratorVoiced = isNarratorVoiced(message.kind);
   // The narrator row's outer name is UNCONDITIONAL, like every other row's. Suppressing it once the body
   // resolved speaker spans was considered and REVERSED (owner, 2026-08-03): the narrator narrates — the
   // unattributed prose between the character spans is its OWN voice, and the row label is that voice's
   // attribution, not a redundant repeat of the in-block labels. Do not re-propose it as an improvement.
   const content = resolveRowContent({
     editing,
-    message,
-    trainParagraphs,
+    message: displayedMessage,
+    trainParagraphs: trainParagraphsFor(displayedMessage, editing, skin.bubbleLayout === "trains"),
     render,
     renderContext,
     speakerThemes,
-    narratorVoiced,
+    narratorVoiced: isNarratorVoiced(message.kind),
   });
 
   const avatarTreatment = skin.avatarTreatment(attribution.kind);
@@ -404,19 +411,19 @@ export function MessageRow({
                   header: header.inside,
                   content,
                   reasoning: renderRowReasoning({ editing, message, renderContext, showLLMReasoningIcon }),
-                  trainParagraphs,
+                  trainParagraphs: trainParagraphsFor(displayedMessage, editing, skin.bubbleLayout === "trains"),
                   skin,
                   decoration,
                   weldedAvatar,
                   render,
                   renderContext,
                   speakerThemes,
-                  narratorVoiced,
+                  narratorVoiced: isNarratorVoiced(message.kind),
                   editing,
                 })}
               </>,
             )}
-            {editing ? null : <MessageToolCalls records={message.toolCalls} renderers={toolRenderers} />}
+            {renderRowToolCalls({ editing, message, renderers: toolRenderers, viewerIsHost, viewerUserId })}
             {/* #106 — the two chrome bands BELOW the bubble. Unlike the name row they are outside any
                 bubble fill in EVERY mode, so their scrim is mode-independent (the skin's `chromeBacking`
                 is not consulted here). Both self-gate on `data-has-bg-image`: no wallpaper, no chip. */}

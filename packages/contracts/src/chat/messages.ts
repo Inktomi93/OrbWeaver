@@ -4,7 +4,7 @@
 // and the runtime variable-delta wire (D46) parsed at the DB read seam. A swipe APPENDs a variant + flips a
 // pointer (never a content copy); attribution is slot-level (a swipe never changes the voiced speaker).
 
-import type { CharacterId, ChatId, MessageId, MessageVariantId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -249,6 +249,18 @@ const contentSignatureSnapshotSchema = z.object({
   content: z.string().optional(),
   text: z.array(textSignatureSchema.partial({ thoughtSignature: true })),
   images: z.array(z.object({ assetId: typeIdSchema(ID_PREFIX.asset), thoughtSignature: z.string() })),
+  tools: z
+    .array(
+      z.object({
+        // @orb-waive no-raw-id(toolCallId): provider-emitted opaque call id retained verbatim for signed wire replay (D48). Ends if providers use Orbweaver TypeIDs.
+        toolCallId: z.string(),
+        callOrdinal: z.number().int().nonnegative().optional(),
+        thoughtSignature: z.string().optional(),
+        reasoningParts: z.array(chatReasoningPartSchema).optional(),
+        turnId: typeIdSchema(ID_PREFIX.chatTurn).optional(),
+      }),
+    )
+    .optional(),
 });
 const contentSignaturesSchema = contentSignatureSnapshotSchema.extend({ previous: contentSignatureSnapshotSchema.optional() });
 export type ContentSignatures = z.infer<typeof contentSignaturesSchema>;
@@ -277,6 +289,12 @@ export const variantMetadataSchema = z.object({
   systemTokens: z.number().optional(),
   providerMetadata: variantProviderMetadataSchema.optional(),
   contentSignatures: contentSignaturesSchema.optional(),
+  /** Explicit phase survives lossy member projections; missing phase is a legacy body-equality read. */
+  continuationTools: z
+    .lazy(() =>
+      z.object({ beforeContent: z.string(), before: z.array(toolCallRecordSchema), after: z.array(toolCallRecordSchema), undone: z.boolean().optional() }),
+    )
+    .optional(),
   importResidue: jsonValueSchema.optional(),
 });
 /** The parsed `message_variants.metadata` sidecar — the type the column's `$type` carries and every reader
@@ -324,11 +342,6 @@ export const messageSlotSchema = z.object({
 });
 export type MessageSlot = z.infer<typeof messageSlotSchema>;
 
-/** ONE model-emitted tool exchange, persisted on `message_variants.toolCalls` (D48).
- *  The client's ONLY tool read surface (chips render from this — never body-parse). Schema-first so the DB
- *  read seam parses with `toolCallRecordSchema` (never a cast — the `parseProviderMetadata` pattern). `result`
- *  is ALWAYS a JSON document when non-null (execute's one stringify site) so chips `JSON.parse` unconditionally;
- *  `result: null` ⇔ recorded-but-unexecuted (recurse-limit hit); `isError` is authoritative for error styling. */
 /** ONE recorded runtime variable mutation (D46) — the read-parse boundary for `message_variants.variable_delta`.
  *  A discriminated union on `op` MIRRORING the kit {@link VarOp} (`set`/`add` carry a string `value`; `inc`/`dec`/
  *  `delete` don't). The db column is `$type<readonly VarOp[]>`; every read parses through {@link variableDeltaSchema}
@@ -430,19 +443,75 @@ export const macroFreezeSchema = z.object({
 export const macroFreezeRecordSchema = z.array(macroFreezeSchema);
 export type MacroFreezeRecord = z.infer<typeof macroFreezeRecordSchema>;
 
-export const toolCallRecordSchema = z.object({
-  // @orb-waive no-raw-id(toolCallId): PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (D48 types it `string`).
-  toolCallId: z.string(),
-  name: z.string(),
-  /** RAW model-emitted JSON string (provenance-faithful; parsed once, at execute). */
-  arguments: z.string(),
-  /** JSON document serialized by execute; `null` = not executed (recurse-limit — D48). */
-  result: z.string().nullable(),
-  isError: z.boolean(),
-  /** `null` when unexecuted; else the execute duration (injected clock). */
-  durationMs: z.number().nullable(),
-});
-export type ToolCallRecord = z.infer<typeof toolCallRecordSchema>;
+/** One model-emitted exchange on the active variant (D48), never reconstructed from prose.
+ *  `result` preserves the tool's actual text, including plain prose or JSON; null records an unexecuted
+ *  call. The request-local provider id is preserved, while `turnId` plus `callOrdinal` identifies the persisted occurrence.
+ *  `textOffset` addresses exact canonical UTF-16 prose, not the display-only paragraph projection. */
+export interface ToolCallRecord {
+  readonly turnId?: ChatTurnId;
+  readonly callOrdinal?: number;
+  /** Batch identity keeps same-offset native-id reuse in separate original exchanges. */
+  readonly exchangeOrdinal?: number;
+  /** The completion may emit prose/media after its calls; those parts precede this batch's results. */
+  readonly exchangeTextEnd?: number;
+  readonly toolCallId: string;
+  readonly name: string;
+  readonly arguments: string;
+  readonly result: string | null;
+  readonly isError: boolean;
+  readonly durationMs: number | null;
+  readonly displayName?: string;
+  readonly replayHistory?: boolean;
+  readonly hidden?: boolean;
+  readonly deleted?: boolean;
+  readonly textOffset?: number;
+}
+
+export const toolCallRecordSchema = z
+  .object({
+    turnId: typeIdSchema(ID_PREFIX.chatTurn).optional(),
+    callOrdinal: z.number().int().nonnegative().optional(),
+    exchangeOrdinal: z.number().int().nonnegative().optional(),
+    exchangeTextEnd: z.number().int().nonnegative().optional(),
+    // @orb-waive no-raw-id(toolCallId): PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (D48 types it `string`).
+    toolCallId: z.string(),
+    name: z.string(),
+    /** RAW model-emitted JSON string (provenance-faithful; parsed once, at execute). */
+    arguments: z.string(),
+    /** Exact tool-result text; `null` = not executed (recurse-limit — D48). */
+    result: z.string().nullable(),
+    isError: z.boolean(),
+    /** `null` when unexecuted; else the execute duration (injected clock). */
+    durationMs: z.number().nullable(),
+    displayName: z.string().optional(),
+    replayHistory: z.boolean().optional(),
+    hidden: z.boolean().optional(),
+    deleted: z.boolean().optional(),
+    /** UTF-16 position in stored canon, rebased together with the body on a member view. */
+    textOffset: z.number().int().nonnegative().optional(),
+  })
+  .transform(
+    (record): ToolCallRecord => ({
+      ...(record.turnId === undefined ? {} : { turnId: record.turnId }),
+      ...(record.callOrdinal === undefined ? {} : { callOrdinal: record.callOrdinal }),
+      ...(record.exchangeOrdinal === undefined ? {} : { exchangeOrdinal: record.exchangeOrdinal }),
+      ...(record.exchangeTextEnd === undefined ? {} : { exchangeTextEnd: record.exchangeTextEnd }),
+      toolCallId: record.toolCallId,
+      name: record.name,
+      arguments: record.arguments,
+      result: record.result,
+      isError: record.isError,
+      durationMs: record.durationMs,
+      ...(record.displayName === undefined ? {} : { displayName: record.displayName }),
+      ...(record.replayHistory === undefined ? {} : { replayHistory: record.replayHistory }),
+      ...(record.hidden === undefined ? {} : { hidden: record.hidden }),
+      ...(record.deleted === undefined ? {} : { deleted: record.deleted }),
+      ...(record.textOffset === undefined ? {} : { textOffset: record.textOffset }),
+    }),
+  );
+/** Transcript-only call edits never execute or undo a tool's effects. */
+export const TOOL_CALL_EDIT_ACTIONS = ["hide", "show", "delete"] as const;
+export type ToolCallEditAction = (typeof TOOL_CALL_EDIT_ACTIONS)[number];
 
 /** The client read-model: the SLOT joined with its SELECTED variant (D26). The slot owns attribution + the
  *  `selectedVariantId` pointer; the joined variant supplies the displayed content + the per-turn economics
@@ -590,5 +659,5 @@ export const messageViewSchema = z.strictObject({
   generationId: z.string().nullable(),
   connectionAttributionProvenance: connectionAttributionProvenanceSchema,
   connectionId: typeIdSchema(ID_PREFIX.userConnection).nullable(),
-  toolCalls: z.array(toolCallRecordSchema.strict()).readonly(),
+  toolCalls: z.array(toolCallRecordSchema).readonly(),
 }) satisfies z.ZodType<MessageView>;

@@ -5,9 +5,10 @@ type Handler = (args: unknown) => Promise<string>;
 type PageAction = (a: { actionId: string; values: Record<string, string> }) => Promise<void>;
 
 interface Drive {
+  readonly registrations: ReadonlyMap<string, { readonly displayName?: string; readonly replayHistory?: boolean }>;
   readonly kv: Map<string, string>;
   readonly published: Record<string, unknown>[];
-  readonly draw: (count?: number) => Promise<{ cards: string[]; dealt: number }>;
+  readonly draw: (count?: number) => Promise<{ cards: string[]; dealt: number; summary: string }>;
   readonly pageAction: (actionId: string) => Promise<void>;
 }
 
@@ -18,6 +19,7 @@ async function bootDeck(seedKv: Record<string, string> = {}): Promise<Drive> {
   const kv = new Map(Object.entries(seedKv));
   const published: Record<string, unknown>[] = [];
   const tools = new Map<string, Handler>();
+  const registrations = new Map<string, { readonly displayName?: string; readonly replayHistory?: boolean }>();
   let page: PageAction | null = null;
   let toasts = 0;
   const host = {
@@ -40,7 +42,12 @@ async function bootDeck(seedKv: Record<string, string> = {}): Promise<Drive> {
         return Promise.resolve({ applied: true, current: next });
       },
     },
-    tools: { register: (tool: { name: string; handler: Handler }): void => void tools.set(tool.name, tool.handler) },
+    tools: {
+      register: (tool: { name: string; handler: Handler; displayName?: string; replayHistory?: boolean }): void => {
+        tools.set(tool.name, tool.handler);
+        registrations.set(tool.name, tool);
+      },
+    },
     macros: { register: (): void => undefined },
     pubsub: { emit: (): Promise<void> => Promise.resolve() },
     ui: {
@@ -64,14 +71,15 @@ async function bootDeck(seedKv: Record<string, string> = {}): Promise<Drive> {
   };
   await bootShowcase("oracle-deck", host);
   return {
+    registrations,
     kv,
     published,
-    draw: async (count = 1): Promise<{ cards: string[]; dealt: number }> => {
+    draw: async (count = 1): Promise<{ cards: string[]; dealt: number; summary: string }> => {
       const handler = tools.get("draw");
       if (handler === undefined) {
         throw new Error("no draw tool");
       }
-      return JSON.parse(await handler({ count })) as { cards: string[]; dealt: number };
+      return JSON.parse(await handler({ count })) as { cards: string[]; dealt: number; summary: string };
     },
     pageAction: async (actionId: string): Promise<void> => {
       if (page === null) {
@@ -104,6 +112,9 @@ test("a deck with no session shows no commitment row and no cards", async () => 
 test("a model draw republishes the page with the card it dealt", async () => {
   const drive = await bootDeck();
   const result = await drive.draw(2);
+  expect(drive.registrations.get("draw")).toMatchObject({ displayName: "Draw oracle cards", replayHistory: true });
+  expect(drive.registrations.get("reveal")).toMatchObject({ displayName: "Reveal oracle deck", replayHistory: true });
+  expect(result.summary).toBe(`Drew ${result.cards.join(", ")}.`);
 
   const state = drive.published.at(-1);
   expect(state?.["dealt"]).toBe(2);

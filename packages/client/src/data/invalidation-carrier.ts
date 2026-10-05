@@ -87,6 +87,8 @@ function queueUntilInitialRead(queryClient: QueryClient, queryHash: string, view
 }
 
 function applyCachedView(queryClient: QueryClient, trpc: Trpc, chatId: ChatBusEvent["chatId"], view: MessageView): boolean {
+  // tRPC's JSON projection reconstructs optional-field arrays as mutable transport values.
+  const cachedView = { ...view, toolCalls: [...view.toolCalls] };
   const key = trpc.chat.listMessages.queryKey({ chatId });
   if (queryClient.getQueryData(key) === undefined) {
     return false;
@@ -97,10 +99,10 @@ function applyCachedView(queryClient: QueryClient, trpc: Trpc, chatId: ChatBusEv
     }
     const index = page.messages.findIndex((message) => message.id === view.id);
     if (index === -1) {
-      return { ...page, messages: [...page.messages, view] };
+      return { ...page, messages: [...page.messages, cachedView] };
     }
     const messages = [...page.messages];
-    messages[index] = view;
+    messages[index] = cachedView;
     return { ...page, messages };
   });
   return true;

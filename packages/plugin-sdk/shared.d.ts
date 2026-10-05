@@ -818,7 +818,16 @@ interface PluginHostV1 {
     /** Register a model-callable tool. Your `name` is prefixed to `plugin_<slug'>_<name>`; `parameters` is
      *  raw JSON Schema (host-validated); the returned STRING is what the model reads, verbatim.
      *  capability: tools.register */
-    register: (def: { name: string; description: string; parameters: Record<string, unknown>; handler: (args: unknown) => Promise<string> }) => void;
+    register: (def: {
+      name: string;
+      /** Human-readable transcript label; defaults to your local name with spaces. */
+      displayName?: string;
+      /** Completed calls replay on later tool-capable turns. False keeps transient results out of history. */
+      replayHistory?: boolean;
+      description: string;
+      parameters: Record<string, unknown>;
+      handler: (args: unknown) => Promise<string>;
+    }) => void;
   };
 
   readonly transforms: {

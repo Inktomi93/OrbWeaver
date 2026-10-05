@@ -20,6 +20,7 @@ import type {
   RegexTierKey,
   RoomOverrides,
   SeatKnobs,
+  ToolCallEditAction,
   TurnInitiator,
 } from "@orb/contracts/chat";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
@@ -37,6 +38,7 @@ import type {
   ChatInjectionId,
   ChatInviteId,
   ChatParticipantId,
+  ChatTurnId,
   MessageId,
   MessageVariantId,
   PersonaId,
@@ -399,6 +401,15 @@ export interface SetSeededGreetingParams extends MessageScopedParams {
 /** `setMessageHidden` — toggles excludedFromPrompt (held out of assembly; the row survives). */
 export interface SetMessageHiddenParams extends MessageScopedParams {
   readonly hidden: boolean;
+}
+
+export interface EditToolCallParams extends MessageScopedParams {
+  readonly turnId?: ChatTurnId | undefined;
+  readonly callOrdinal?: number | undefined;
+  readonly variantId: MessageVariantId;
+  // Provider-emitted opaque call handle, not an Orbweaver identity.
+  readonly toolCallId: string;
+  readonly action: ToolCallEditAction;
 }
 
 /** `deleteMessages` — deletes a set of slots (author-or-host; cascades their variants). */

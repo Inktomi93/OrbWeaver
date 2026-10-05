@@ -12,21 +12,37 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { characterStats, chatDigests, chats, dailyStats, messages, messageVariants, modelStats, ownerStats, rpgSnapshots, statsCanonVersions } from "@orb/db";
+import {
+  characterStats,
+  chatDigests,
+  chatParticipants,
+  chats,
+  dailyStats,
+  messages,
+  messageVariants,
+  modelStats,
+  ownerStats,
+  rpgSnapshots,
+  statsCanonVersions,
+} from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
+import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName, VarOp } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { sha256Hex } from "@orb/server/kit/content-hash";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
+import { continueVariantStatements, setVariantContentStatement } from "../../../../../packages/server/src/domain/chat/persistence/canon-write.ts";
+import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { continuedSignatureMetadata } from "../../../../../packages/server/src/domain/chat/substrate/content-signatures.ts";
 import { createEdit } from "../../../../../packages/server/src/domain/chat/verbs/edit.ts";
 import { applyStatsDelta, bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
-import { freshDb } from "../../../../support/db.ts";
+import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
@@ -419,6 +435,395 @@ describe("D46 runtime plane — swipe-clobber rewind (ST #3263)", () => {
 });
 
 describe("setMessageHidden / editReasoning / clearReasoning", () => {
+  const call = { toolCallId: "shared", name: "draw", arguments: "{}", result: "Moon", isError: false, durationMs: 1, callOrdinal: 0, textOffset: 7 };
+
+  test("editing an undone card retains before phase, then revert and a new continuation preserve its flags", async () => {
+    const { host, chatId, charA } = await seedRoom();
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "Before." });
+    const after = { ...call, callOrdinal: 1, name: "tick", result: "1/6" };
+    await db
+      .update(messageVariants)
+      .set({
+        toolCalls: [call],
+        preContinueContent: "Before.",
+        lastContinuationContent: "",
+        metadata: { continuationTools: { beforeContent: "Before.", before: [call], after: [call, after], undone: true } },
+      })
+      .where(eq(messageVariants.id, variantId));
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
+    const view = await edit.editToolCall({
+      principal: principal(host),
+      chatId,
+      messageId,
+      variantId,
+      toolCallId: call.toolCallId,
+      callOrdinal: 0,
+      action: "hide",
+    });
+    expect(view.toolCalls).toEqual([{ ...call, hidden: true }]);
+    let [stored] = await db.select().from(messageVariants).where(eq(messageVariants.id, variantId));
+    expect(stored?.toolCalls).toEqual(view.toolCalls);
+    expect(stored?.metadata?.continuationTools?.undone).toBe(true);
+    await db.batch(batchMany([setVariantContentStatement(db, variantId, { content: "Before.", reasoning: null, undoContinuation: false })]));
+    const restored = (await loadCanonHistory(db, chatId))[0]?.toolCalls ?? [];
+    expect(restored).toEqual([{ ...call, hidden: true }, after]);
+    const added = { ...call, turnId: mintTypeId(ID_PREFIX.chatTurn), name: "new", result: "Star" };
+    const metadata = continuedSignatureMetadata({
+      beforeContent: "Before.",
+      additionContent: "Next.",
+      before: {},
+      addition: null,
+      beforeTools: restored,
+      additionTools: [added],
+    });
+    await db.batch(
+      batchMany(
+        continueVariantStatements(db, {
+          variantId,
+          variant: { content: "Before.Next.", metadata, toolCalls: metadata?.continuationTools?.after },
+          preContinueContent: "Before.",
+          preContinueReasoning: null,
+          lastContinuationContent: "Next.",
+          lastContinuationReasoning: null,
+        }),
+      ),
+    );
+    [stored] = await db.select().from(messageVariants).where(eq(messageVariants.id, variantId));
+    expect(stored?.metadata?.continuationTools?.undone).toBe(false);
+    expect((await loadCanonHistory(db, chatId))[0]?.toolCalls).toEqual([{ ...call, hidden: true }, after, { ...added, textOffset: 14 }]);
+  });
+
+  test("concurrent edits preserve both independent occurrence changes", async () => {
+    const held = await freshHeldDb();
+    db = held.db;
+    const { host, chatId, charA } = await seedRoom();
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "Before.After." });
+    await db
+      .update(messageVariants)
+      .set({ toolCalls: [call, { ...call, callOrdinal: 1, name: "tick" }] })
+      .where(eq(messageVariants.id, variantId));
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
+    const gate = held.hold(/update "message_variants" set "tool_calls"/u, 2);
+    const args = { principal: principal(host), chatId, messageId, variantId, toolCallId: call.toolCallId };
+    const pending = [edit.editToolCall({ ...args, callOrdinal: 0, action: "hide" }), edit.editToolCall({ ...args, callOrdinal: 1, action: "delete" })];
+    await gate.reached;
+    gate.release();
+    await Promise.all(pending);
+    const [stored] = await db.select().from(messageVariants).where(eq(messageVariants.id, variantId));
+    expect(stored?.toolCalls).toEqual([
+      { ...call, hidden: true },
+      { ...call, callOrdinal: 1, name: "tick", deleted: true },
+    ]);
+  });
+
+  test("a role change after the reads refuses the write and leaves owner state unchanged", async () => {
+    const held = await freshHeldDb();
+    db = held.db;
+    const { host, member, chatId, charA } = await seedRoom();
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
+    await db
+      .update(messageVariants)
+      .set({ toolCalls: [call] })
+      .where(eq(messageVariants.id, variantId));
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
+    const gate = held.hold(/update "message_variants" set "tool_calls"/u);
+    const pending = edit.editToolCall({
+      principal: principal(host),
+      chatId,
+      messageId,
+      variantId,
+      toolCallId: call.toolCallId,
+      callOrdinal: 0,
+      action: "hide",
+    });
+    const refusal = expect(pending).rejects.toMatchObject({ code: "not_author" });
+    await gate.reached;
+    await db
+      .update(chatParticipants)
+      .set({ role: "member" })
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, host)));
+    await db
+      .update(chatParticipants)
+      .set({ role: "host" })
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, member)));
+    gate.release();
+    await refusal;
+    const [stored] = await db.select().from(messageVariants).where(eq(messageVariants.id, variantId));
+    expect(stored?.toolCalls).toEqual([call]);
+    expect(emitted).toEqual([]);
+  });
+
+  test("selection changing after the reads refuses an inactive-swipe update", async () => {
+    const held = await freshHeldDb();
+    db = held.db;
+    const { host, chatId, charA } = await seedRoom();
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
+    await db
+      .update(messageVariants)
+      .set({ toolCalls: [call] })
+      .where(eq(messageVariants.id, variantId));
+    const alternate = await addVariant(db, messageId, 1, "Other swipe");
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
+    const gate = held.hold(/update "message_variants" set "tool_calls"/u);
+    const pending = edit.editToolCall({
+      principal: principal(host),
+      chatId,
+      messageId,
+      variantId,
+      toolCallId: call.toolCallId,
+      callOrdinal: 0,
+      action: "hide",
+    });
+    const refusal = expect(pending).rejects.toMatchObject({ code: "tool_call_changed" });
+    await gate.reached;
+    await db.update(messages).set({ selectedVariantId: alternate }).where(eq(messages.id, messageId));
+    gate.release();
+    await refusal;
+    const [stored] = await db.select().from(messageVariants).where(eq(messageVariants.id, variantId));
+    expect(stored?.toolCalls).toEqual([call]);
+    expect(emitted).toEqual([]);
+  });
+
+  test("a concurrent continuation keeps its new records and private metadata when the earlier card edit retries", async () => {
+    const held = await freshHeldDb();
+    db = held.db;
+    const { host, chatId, charA } = await seedRoom();
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "Before." });
+    await db
+      .update(messageVariants)
+      .set({ toolCalls: [call] })
+      .where(eq(messageVariants.id, variantId));
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
+    const gate = held.hold(/update "message_variants" set "tool_calls"/u);
+    const pending = edit.editToolCall({
+      principal: principal(host),
+      chatId,
+      messageId,
+      variantId,
+      toolCallId: call.toolCallId,
+      callOrdinal: 0,
+      action: "hide",
+    });
+    await gate.reached;
+    const added = { ...call, turnId: mintTypeId(ID_PREFIX.chatTurn), name: "tick", result: "1/6", textOffset: 6 };
+    const metadata = continuedSignatureMetadata({
+      beforeContent: "Before.",
+      additionContent: "After.Done.",
+      before: {},
+      addition: {
+        systemTokens: 23,
+        contentSignatures: {
+          content: "After.Done.",
+          text: [],
+          images: [],
+          tools: [{ toolCallId: added.toolCallId, turnId: added.turnId, callOrdinal: 0, thoughtSignature: "private" }],
+        },
+      },
+      beforeTools: [call],
+      additionTools: [added],
+    });
+    await db.batch(
+      batchMany(
+        continueVariantStatements(db, {
+          variantId,
+          variant: { content: "Before.After.Done.", metadata, toolCalls: metadata?.continuationTools?.after },
+          preContinueContent: "Before.",
+          preContinueReasoning: null,
+          lastContinuationContent: "After.Done.",
+          lastContinuationReasoning: null,
+        }),
+      ),
+    );
+    gate.release();
+    const view = await pending;
+    expect(view.toolCalls).toEqual([
+      { ...call, hidden: true },
+      { ...added, textOffset: 13 },
+    ]);
+    const [stored] = await db.select().from(messageVariants).where(eq(messageVariants.id, variantId));
+    expect(stored?.metadata).toMatchObject({
+      systemTokens: 23,
+      contentSignatures: metadata?.contentSignatures,
+      continuationTools: { before: [{ ...call, hidden: true }], after: view.toolCalls },
+    });
+    expect(stored?.content).toBe("Before.After.Done.");
+  });
+
+  test("the mutation return uses the viewer's current role after a successful write", async () => {
+    const { host, chatId, charA } = await seedRoom();
+    const secret = '<lie truth="hidden truth"/>';
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: `Before.${secret}After.` });
+    await db
+      .update(messageVariants)
+      .set({ toolCalls: [{ ...call, textOffset: 7 + secret.length, exchangeTextEnd: 13 + secret.length }] })
+      .where(eq(messageVariants.id, variantId));
+    const edit = createEdit(makeChatContext(db), {
+      resolveForeignInputs,
+      claimChat: noClaim,
+      emit: async (event) => {
+        await emit(event);
+        await db
+          .update(chatParticipants)
+          .set({ role: "member" })
+          .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, host)));
+      },
+    });
+    const view = await edit.editToolCall({
+      principal: principal(host),
+      chatId,
+      messageId,
+      variantId,
+      toolCallId: call.toolCallId,
+      callOrdinal: 0,
+      action: "hide",
+    });
+    expect(view.content).toBe("Before.After.");
+    expect(view.toolCalls[0]?.hidden).toBe(true);
+    expect(view.toolCalls[0]?.textOffset).toBe(7);
+    expect(view.toolCalls[0]?.exchangeTextEnd).toBe(13);
+  });
+
+  test("a continuation derived before a successful card edit cannot restore that card's old replay state", async () => {
+    const held = await freshHeldDb();
+    db = held.db;
+    const { host, chatId, charA } = await seedRoom();
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "Before." });
+    await db
+      .update(messageVariants)
+      .set({ toolCalls: [call] })
+      .where(eq(messageVariants.id, variantId));
+    const added = { ...call, turnId: mintTypeId(ID_PREFIX.chatTurn), name: "tick", result: "1/6", textOffset: 6 };
+    const metadata = continuedSignatureMetadata({
+      beforeContent: "Before.",
+      additionContent: "After.Done.",
+      before: {},
+      addition: null,
+      beforeTools: [call],
+      additionTools: [added],
+    });
+    const gate = held.hold(/update "message_variants" set "content"/u);
+    const continuation = db.batch(
+      batchMany(
+        continueVariantStatements(db, {
+          variantId,
+          variant: { content: "Before.After.Done.", metadata, toolCalls: metadata?.continuationTools?.after },
+          preContinueContent: "Before.",
+          preContinueReasoning: null,
+          lastContinuationContent: "After.Done.",
+          lastContinuationReasoning: null,
+        }),
+      ),
+    );
+    await gate.reached;
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
+    await edit.editToolCall({ principal: principal(host), chatId, messageId, variantId, toolCallId: call.toolCallId, callOrdinal: 0, action: "hide" });
+    gate.release();
+    await continuation;
+    const [stored] = await db.select().from(messageVariants).where(eq(messageVariants.id, variantId));
+    expect(stored?.toolCalls).toEqual([
+      { ...call, hidden: true },
+      { ...added, textOffset: 13 },
+    ]);
+    expect(stored?.metadata?.continuationTools?.before).toEqual([{ ...call, hidden: true }]);
+    expect(stored?.metadata?.continuationTools?.after).toEqual(stored?.toolCalls);
+  });
+
+  test("legacy reused call ids materialize stable occurrence ordinals before an individual card edit", async () => {
+    const { host, chatId, charA } = await seedRoom();
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
+    const first = { toolCallId: "reused", name: "draw", arguments: "{}", result: "Moon", isError: false, durationMs: 1 };
+    const second = { ...first, name: "tick", result: "1/6" };
+    await db
+      .update(messageVariants)
+      .set({ toolCalls: [first, second] })
+      .where(eq(messageVariants.id, variantId));
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
+    const target = { principal: principal(host), chatId, messageId, variantId, toolCallId: "reused" };
+    const hidden = await edit.editToolCall({ ...target, callOrdinal: 1, action: "hide" });
+    expect(hidden.toolCalls).toEqual([
+      { ...first, callOrdinal: 0 },
+      { ...second, callOrdinal: 1, hidden: true },
+    ]);
+    const deleted = await edit.editToolCall({ ...target, callOrdinal: 0, action: "delete" });
+    expect(deleted.toolCalls).toEqual([
+      { ...first, callOrdinal: 0, deleted: true },
+      { ...second, callOrdinal: 1, hidden: true },
+    ]);
+    const shown = await edit.editToolCall({ ...target, callOrdinal: 1, action: "show" });
+    expect(shown.toolCalls[1]).toMatchObject({ name: "tick", callOrdinal: 1, hidden: false });
+    const stored = await db.select({ calls: messageVariants.toolCalls }).from(messageVariants).where(eq(messageVariants.id, variantId));
+    expect(stored[0]?.calls).toEqual(shown.toolCalls);
+  });
+
+  test("reused provider ids across continued turns remain independently editable", async () => {
+    const { host, chatId, charA } = await seedRoom();
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
+    const first = {
+      toolCallId: "call-1",
+      turnId: mintTypeId(ID_PREFIX.chatTurn),
+      callOrdinal: 0,
+      name: "draw",
+      arguments: "{}",
+      result: "Moon",
+      isError: false,
+      durationMs: 1,
+      textOffset: 7,
+    };
+    const second = { ...first, turnId: mintTypeId(ID_PREFIX.chatTurn), name: "tick", result: "1/6", textOffset: 13 };
+    await db
+      .update(messageVariants)
+      .set({
+        content: "Before.After.Done.",
+        toolCalls: [first, second],
+        metadata: { continuationTools: { beforeContent: "Before.", before: [first], after: [first, second] } },
+      })
+      .where(eq(messageVariants.id, variantId));
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
+    const hidden = await edit.editToolCall({
+      principal: principal(host),
+      chatId,
+      messageId,
+      variantId,
+      toolCallId: "call-1",
+      turnId: second.turnId,
+      action: "hide",
+    });
+    expect(hidden.toolCalls[0]).toEqual(first);
+    expect(hidden.toolCalls[1]).toMatchObject({ name: "tick", hidden: true });
+    await expect(edit.editToolCall({ principal: principal(host), chatId, messageId, variantId, toolCallId: "call-1", action: "delete" })).rejects.toThrow(
+      "no longer on the active swipe",
+    );
+  });
+  test("tool-card edits affect only the active swipe and preserve prose and call boundaries", async () => {
+    const { host, member, chatId, charA } = await seedRoom();
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
+    const record = {
+      toolCallId: "draw-1",
+      name: "plugin_oracle__deck_draw",
+      arguments: "{}",
+      result: '"The Moon"',
+      isError: false,
+      durationMs: 1,
+      textOffset: 5,
+    };
+    await db
+      .update(messageVariants)
+      .set({ content: "Before.After", toolCalls: [record] })
+      .where(eq(messageVariants.id, variantId));
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
+    const args = { principal: principal(host), chatId, messageId, variantId, toolCallId: record.toolCallId };
+    await expect(edit.editToolCall({ ...args, principal: principal(member), action: "hide" })).rejects.toThrow();
+    const hidden = await edit.editToolCall({ ...args, action: "hide" });
+    expect(hidden.content).toBe("Before.After");
+    expect(hidden.toolCalls[0]).toMatchObject({ hidden: true, textOffset: 5 });
+    const shown = await edit.editToolCall({ ...args, action: "show" });
+    expect(shown.toolCalls[0]?.hidden).toBe(false);
+    const deleted = await edit.editToolCall({ ...args, action: "delete" });
+    expect(deleted.content).toBe("Before.After");
+    expect(deleted.toolCalls[0]).toMatchObject({ deleted: true, textOffset: 5 });
+    await expect(edit.editToolCall({ ...args, action: "show" })).rejects.toThrow("no longer on the active swipe");
+    expect(emitted.at(-1)).toMatchObject({ type: "messageEdited", view: deleted });
+  });
   test("setMessageHidden toggles excludedFromPrompt (the row survives)", async () => {
     const { host, chatId, charA } = await seedRoom();
     const { messageId } = await seedMessage(db, chatId, 1, {

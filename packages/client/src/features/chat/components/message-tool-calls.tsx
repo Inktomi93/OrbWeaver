@@ -4,22 +4,71 @@
 // its per-tool feature-registered renderer (claimed by exact NAME, or by NAMESPACE PREFIX — the plugin plane's
 // `plugin_<slug'>_<name>` tools cannot be named at door-assembly time), else the generic @orb/ui `ToolCallBlock`
 // fallback — the UNCLAIMED default that never blanks. Chat NEVER body-parses for tool markers: the persisted
-// `ToolCallRecord[]` is the ONLY tool read surface, and its array order is the render order. `toolCallId` is
-// unique within a variant — the stable list key.
+// `ToolCallRecord[]` is the ONLY tool read surface, and its array order is the render order. a provider `toolCallId` is
+// request-local; the generation `turnId` plus persisted occurrence ordinal is the stable continued-variant key.
 
-import type { ToolCallRecord } from "@orb/contracts/chat";
-import { Stack } from "@orb/ui/layout";
+import type { MessageView, ToolCallRecord } from "@orb/contracts/chat";
+import { Button } from "@orb/ui/button";
+import { Row, Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import { ToolCallBlock } from "@orb/ui/tool-call-block";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import { use } from "react";
+import { ConfirmDialog, FINE_INERT_UNTIL_HOVER } from "#components";
+import type { Trpc } from "#data";
+import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import type { ContributorRegistry, ToolRenderer } from "#lib";
 import { MessageToolsRendererRegistryContext } from "#state";
 
 export interface MessageToolCallsProps {
+  readonly message?: MessageView;
+  readonly canEdit?: boolean;
   readonly records: readonly ToolCallRecord[];
   /** The chat-owned per-tool-name renderer registry, wired empty at `main.tsx`. Absent ⇒ every record
    *  renders through the generic fallback (a build/test with no contributions). */
   readonly renderers?: ContributorRegistry<ToolRenderer> | undefined;
+}
+
+const useEditToolCall = createEntityMutation<inferInput<Trpc["chat"]["editToolCall"]>, MessageView>({
+  options: (trpc) => trpc.chat.editToolCall.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't update that tool call.",
+});
+
+function ToolCallControls({ message, record }: { readonly message: MessageView; readonly record: ToolCallRecord }): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const edit = useEditToolCall({ trpc, invalidation });
+  const variables = {
+    chatId: message.chatId,
+    messageId: message.id,
+    variantId: message.selectedVariantId,
+    toolCallId: record.toolCallId,
+    ...(record.callOrdinal === undefined ? {} : { callOrdinal: record.callOrdinal }),
+    ...(record.turnId === undefined ? {} : { turnId: record.turnId }),
+  };
+  const hidden = record.hidden === true;
+  return (
+    <Row gap="field" className={FINE_INERT_UNTIL_HOVER}>
+      <Button intent="ghost" size="sm" loading={edit.isPending} onClick={(): void => edit.mutate({ ...variables, action: hidden ? "show" : "hide" })}>
+        {hidden ? "Show to AI" : "Hide from AI"}
+      </Button>
+      <ConfirmDialog
+        title="Delete this tool call?"
+        description="The prose stays. This removes the card and its future prompt replay, not the tool's effects."
+        confirmLabel="Delete"
+        trigger={
+          <Button intent="ghost" size="sm">
+            Delete tool call
+          </Button>
+        }
+        onConfirm={async (): Promise<void> => {
+          await edit.mutateAsync({ ...variables, action: "delete" });
+        }}
+      />
+    </Row>
+  );
 }
 
 /** The FIRST whole-message renderer to claim these records (non-null), or `null` when none is
@@ -55,9 +104,10 @@ function ToolCallSlot({ record, renderer }: { readonly record: ToolCallRecord; r
 }
 
 /** Renders nothing for an empty record set (every non-tool turn) — the caller need not guard. */
-export function MessageToolCalls({ records, renderers }: MessageToolCallsProps): ReactElement | null {
-  const override = useMessageOverride(records);
-  if (records.length === 0) {
+export function MessageToolCalls({ records, renderers, message, canEdit }: MessageToolCallsProps): ReactElement | null {
+  const visible = records.filter((record) => record.deleted !== true);
+  const override = useMessageOverride(visible);
+  if (visible.length === 0) {
     return null;
   }
   if (override !== null) {
@@ -65,8 +115,17 @@ export function MessageToolCalls({ records, renderers }: MessageToolCallsProps):
   }
   return (
     <Stack gap="field" data-slot="message-tool-calls">
-      {records.map((record) => (
-        <ToolCallSlot key={record.toolCallId} record={record} renderer={claimFor(renderers, record.name)} />
+      {visible.map((record) => (
+        <Stack
+          key={`${record.turnId ?? "legacy"}:${record.callOrdinal ?? record.toolCallId}`}
+          role="group"
+          aria-label={record.displayName ?? record.name}
+          gap="field"
+        >
+          <ToolCallSlot record={record} renderer={claimFor(renderers, record.name)} />
+          {record.hidden === true ? <Text voice="gloss">Hidden from AI</Text> : null}
+          {message !== undefined && canEdit === true ? <ToolCallControls message={message} record={record} /> : null}
+        </Stack>
       ))}
     </Stack>
   );

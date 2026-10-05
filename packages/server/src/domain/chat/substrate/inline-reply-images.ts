@@ -21,7 +21,7 @@
 
 import { tokenizeContent } from "@orb/kit/content";
 import type { AssetId } from "@orb/kit/ids";
-import type { PlacedInlineImage } from "../contract/results.ts";
+import type { InlineReplyImageProjection, PlacedInlineImage } from "../contract/results.ts";
 
 /** The alt ceiling — a model that captions a picture with three paragraphs is not writing alt text, and the
  *  string is permanent. Matches imagery's own `ALT_MAX_CHARS` so the two picture writers read alike. */
@@ -82,13 +82,31 @@ function openBlock(before: string): string {
  *  than re-sorting into a position the model never chose. What this protects is the only property that
  *  matters: every picture the model made appears exactly once, in the order it made them. */
 export function spliceInlineReplyImages(content: string, images: readonly PlacedInlineImage[]): string {
+  return projectInlineReplyImages(content, images, []).content;
+}
+
+/** Rebase tool/prose boundaries in the same splice that owns the canonical image encoding. */
+export function projectInlineReplyImages(
+  content: string,
+  images: readonly PlacedInlineImage[],
+  offsets: readonly number[],
+  offsetEvents: readonly (number | undefined)[] = [],
+): InlineReplyImageProjection {
   if (images.length === 0) {
-    return content;
+    return { content, offsets };
   }
+  const projected = offsets.map((): number | undefined => undefined);
   let out = "";
   let cursor = 0;
   for (const image of images) {
     const at = Math.min(Math.max(image.atChars, cursor), content.length);
+    for (const [index, offset] of offsets.entries()) {
+      const event = offsetEvents[index];
+      const beforeImage = offset < at || (offset === at && event !== undefined && image.eventOrdinal !== undefined && event < image.eventOrdinal);
+      if (projected[index] === undefined && beforeImage) {
+        projected[index] = out.length + offset - cursor;
+      }
+    }
     out += content.slice(cursor, at);
     // Minted against the ORIGINAL body up to this point, never the spliced `out`: a previous picture's span
     // is markdown, not prose, and letting it become the next picture's caption is how alts start echoing
@@ -97,5 +115,6 @@ export function spliceInlineReplyImages(content: string, images: readonly Placed
     cursor = at;
   }
   const tail = content.slice(cursor);
-  return tail.length === 0 ? out : out + (tail.startsWith("\n") ? "" : "\n\n") + tail;
+  const separator = tail.length === 0 || tail.startsWith("\n") ? "" : "\n\n";
+  return { content: out + separator + tail, offsets: offsets.map((offset, index) => projected[index] ?? out.length + separator.length + offset - cursor) };
 }

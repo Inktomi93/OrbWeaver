@@ -22,6 +22,7 @@ import type { ImageRefAssets } from "@orb/server/entry/compose";
 import { resolveImageRefToUrl } from "@orb/server/entry/compose";
 import { getLog } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
+import { buildWirePlan } from "../../../../../packages/inference/src/backends/v4/prompt.ts";
 import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
 import { HISTORY_TRIM_CHUNK_FRACTION, historyTurnTokens } from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
 import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
@@ -39,7 +40,11 @@ import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/
 // The span→wire-part dispatch moved to `substrate/wire-history.ts` with the rest of CONVERT (#1540): the read
 // verb's previews must price the SAME converted rows this pipeline prices, so the conversion is no longer an
 // engine-private step. The behaviour under test is unchanged — the pipeline still runs it, in the same place.
-import { __spanConvertsToNothingForTest, __spanToWirePartForTest } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
+import {
+  __spanConvertsToNothingForTest,
+  __spanToWirePartForTest,
+  buildWireHistory,
+} from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { makeCapability, makeGenerationCapability, makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -2010,6 +2015,268 @@ const doneFinal = (content: string): TurnStreamChunk => ({
   economics: { content, tokensIn: 7, tokensOut: 3, costUsd: 0.02, finishReason: "stop" },
 });
 
+async function assertConvertedToolNames(records: readonly ToolCallRecord[], content: string, names: readonly string[]): Promise<void> {
+  const prior = { ...rowOf("assistant", content), toolCalls: records };
+  const converted = await buildWireHistory(
+    {
+      toolsOk: true,
+      visionOk: false,
+      videoOk: false,
+      cardKeepLastX: undefined,
+      canon: [prior],
+      resolveImageUrl: () => Promise.resolve(null),
+      loadInlineReplyAssetIds: () => Promise.resolve(new Map<MessageId, ReadonlySet<AssetId>>()),
+      reasoningByMessage: new Map<MessageId, readonly ChatReasoningPart[]>(),
+    },
+    [{ role: "assistant", content, messageId: prior.id }],
+  );
+  const history = converted.flatMap((wire) => [...(wire.prefixRows ?? []), wire.row]);
+  const plan = buildWirePlan({ systemPrompt: { static: "", dynamic: "" }, history });
+  const results = plan.prompt.flatMap((frame) => (frame.role === "tool" ? frame.content : [])).filter((part) => part.type === "tool-result");
+  expect(results.map((part) => part.toolName)).toEqual(names);
+}
+
+test("consecutive recursive requests with no intervening prose keep same native ids scoped to each original exchange", async () => {
+  const { args } = baseArgs({
+    connection: TOOL_CONNECTION,
+    tools: fakeToolOps([]),
+    attachedToolNames: ["draw", "tick_clock"],
+    runChatTurn: scriptedDepths(
+      [
+        [toolFinal("Before.", [{ id: "same", name: "draw", args: "{}" }])],
+        [toolFinal("", [{ id: "same", name: "tick_clock", args: "{}" }])],
+        [doneFinal("After.")],
+      ],
+      [],
+    ),
+  });
+  const result = await runTurnPipeline(args);
+  expect(result.content).toBe("Before.After.");
+  expect(result.toolRecords.map((record) => [record.toolCallId, record.textOffset, record.exchangeOrdinal])).toEqual([
+    ["same", 7, 0],
+    ["same", 7, 1],
+  ]);
+  await assertConvertedToolNames(result.toolRecords, result.content, ["draw", "tick_clock"]);
+});
+
+test("later turns replay the active variant's completed tool exchange", async () => {
+  const previous = rowOf("assistant", "The card is the Moon.");
+  const record: ToolCallRecord = {
+    toolCallId: "draw-1",
+    name: "plugin_oracle__deck_draw",
+    arguments: "{}",
+    result: '{"card":"Moon"}',
+    isError: false,
+    durationMs: 1,
+  };
+  const requests: TurnRequest[] = [];
+  const { args } = baseArgs({
+    connection: TOOL_CONNECTION,
+    canon: [{ ...previous, toolCalls: [record] }, userRow("What does it mean?")],
+    runChatTurn: scriptedDepths([[doneFinal("A hidden truth.")]], requests),
+  });
+  await runTurnPipeline(args);
+  const parts = requests[0]?.history.flatMap((message) => message.content) ?? [];
+  expect(parts).toContainEqual({ type: "tool-call", toolCallId: "draw-1", name: record.name, arguments: "{}" });
+  expect(parts).toContainEqual({ type: "tool-result", toolCallId: "draw-1", content: record.result });
+});
+
+test("tool recursion preserves provider bytes and records the prose boundary", async () => {
+  const requests: TurnRequest[] = [];
+  const { args } = baseArgs({
+    connection: TOOL_CONNECTION,
+    tools: fakeToolOps([]),
+    attachedToolNames: ["tick_clock"],
+    runChatTurn: scriptedDepths(
+      [[toolFinal("with suspicion.", [{ id: "c1", name: "tick_clock", args: "{}" }])], [doneFinal("I turn the card over")]],
+      requests,
+    ),
+  });
+  const result = await runTurnPipeline(args);
+  expect(result.content).toBe("with suspicion.I turn the card over");
+  expect(result.toolRecords[0]).toMatchObject({ textOffset: "with suspicion.".length });
+});
+
+test("active-swipe replay respects capability, row hiding, per-call hiding, deletion, opt-out and unexecuted calls", async () => {
+  const record: ToolCallRecord = { toolCallId: "active", name: "draw", arguments: "{}", result: '"Moon"', isError: false, durationMs: 1 };
+  const previous = rowOf("assistant", "A card.");
+  const run = async (over: Partial<MessageView>, connection = TOOL_CONNECTION): Promise<readonly string[]> => {
+    const { args } = baseArgs({ connection, canon: [{ ...previous, toolCalls: [record], ...over }, userRow("Explain.")] });
+    const result = await runTurnPipeline(args);
+    return result.request.history.flatMap((message) => message.content.flatMap((part) => (part.type === "tool-call" ? [part.toolCallId] : [])));
+  };
+  expect(await run({})).toEqual(["active"]);
+  expect(await run({ toolCalls: [{ ...record, toolCallId: "other-swipe", result: '"Sun"' }] })).toEqual(["other-swipe"]);
+  expect(await run({}, CONNECTION)).toEqual([]);
+  expect(await run({ excludedFromPrompt: true })).toEqual([]);
+  for (const suppressed of [{ hidden: true }, { deleted: true }, { replayHistory: false }, { result: null }]) {
+    expect(await run({ toolCalls: [{ ...record, ...suppressed }] })).toEqual([]);
+  }
+  expect(await run({ toolCalls: [] })).toEqual([]);
+});
+
+test("tool-only and adjacent assistant rows survive shaping and replay in order without dropping either exchange", async () => {
+  const record: ToolCallRecord = { toolCallId: "c1", name: "draw", arguments: "{}", result: '"Moon"', isError: false, durationMs: 1 };
+  const first = { ...rowOf("assistant", ""), toolCalls: [record] };
+  const second = { ...rowOf("assistant", "The next card."), toolCalls: [{ ...record, toolCallId: "c2", result: '"Sun"' }] };
+  const { args } = baseArgs({ connection: TOOL_CONNECTION, canon: [first, second, userRow("Explain.")] });
+  const result = await runTurnPipeline(args);
+  expect(
+    result.request.history
+      .flatMap((message) => message.content)
+      .filter((part) => part.type === "tool-call")
+      .map((part) => part.toolCallId),
+  ).toEqual(["c1", "c2"]);
+  expect(result.request.history.map((message) => message.role)).toEqual(["assistant", "tool", "assistant", "tool", "assistant", "user"]);
+});
+
+test("replayed tool payloads are priced and trimmed with their whole history row", async () => {
+  const record: ToolCallRecord = {
+    toolCallId: "expensive",
+    name: "draw",
+    arguments: "{}",
+    result: JSON.stringify("card ".repeat(4000)),
+    isError: false,
+    durationMs: 1,
+  };
+  const prior = { ...rowOf("assistant", "A short sentence."), toolCalls: [record] };
+  const { args } = baseArgs({
+    connection: TOOL_CONNECTION,
+    intent: { maxContextTokens: 1000, maxOutputTokens: 100 },
+    canon: [userRow("Draw."), prior, userRow("Explain.")],
+  });
+  const result = await runTurnPipeline(args);
+  expect(result.droppedCount).toBeGreaterThan(0);
+  expect(result.request.history.flatMap((message) => message.content).some((part) => part.type === "tool-call" || part.type === "tool-result")).toBe(false);
+  expect(result.request.history.flatMap((message) => message.content).some((part) => part.type === "text" && part.text.includes("A short sentence."))).toBe(
+    false,
+  );
+});
+
+test("replay restores text/tool boundaries and private tool signatures without changing provider text", async () => {
+  const prose = "Before.After.";
+  const prior = rowOf("assistant", prose);
+  const record: ToolCallRecord = { toolCallId: "signed", name: "draw", arguments: "{}", result: '"Moon"', isError: false, durationMs: 1, textOffset: 7 };
+  const { args } = baseArgs({
+    connection: TOOL_CONNECTION,
+    canon: [{ ...prior, toolCalls: [record] }, userRow("Explain.")],
+    loadContentSignatures: () =>
+      Promise.resolve(
+        new Map([
+          [
+            prior.id,
+            {
+              content: prose,
+              text: [
+                { text: "Before.", thoughtSignature: "before" },
+                { text: "After.", thoughtSignature: "after" },
+              ],
+              images: [],
+              tools: [{ toolCallId: "signed", thoughtSignature: "call" }],
+            },
+          ],
+        ]),
+      ),
+  });
+  const result = await runTurnPipeline(args);
+  expect(result.request.history.slice(0, 3)).toEqual([
+    {
+      role: "assistant",
+      content: [
+        { type: "text", text: "Before.", thoughtSignature: "before" },
+        { type: "tool-call", toolCallId: "signed", name: "draw", arguments: "{}", thoughtSignature: "call" },
+      ],
+    },
+    { role: "tool", content: [{ type: "tool-result", toolCallId: "signed", content: '"Moon"' }] },
+    { role: "assistant", content: [{ type: "text", text: "After.", thoughtSignature: "after" }] },
+  ]);
+});
+
+test("scoped foreign prose keeps its user role while its original tool exchange remains in history", async () => {
+  const other = castId<CharacterId>("char_other");
+  const target = castId<CharacterId>("char_target");
+  const previous = {
+    ...rowOf("assistant", "Before.After."),
+    characterId: other,
+    toolCalls: [{ toolCallId: "foreign", name: "draw", arguments: "{}", result: "Moon", isError: false, durationMs: 1, textOffset: 7 }],
+  };
+  const { args } = baseArgs({
+    connection: {
+      ...TOOL_CONNECTION,
+      capability: makeCapability(
+        makeGenerationCapability({ ...TOOL_CAPABILITY, reasoning: { mode: "adaptive", enabled: true, effortLevels: ["high"], replay: "signed" } }),
+      ),
+    },
+    intent: { effort: "high", carryReasoning: "conversation" },
+    loadReasoningParts: () =>
+      Promise.resolve(new Map([[previous.id, [{ type: "reasoning" as const, text: "foreign thinking", meta: { anthropic: { signature: "foreign" } } }]]])),
+    loadContentSignatures: () =>
+      Promise.resolve(
+        new Map([
+          [
+            previous.id,
+            {
+              content: previous.content,
+              text: [{ text: "Before.", thoughtSignature: "foreign-prose" }],
+              images: [],
+              tools: [
+                {
+                  toolCallId: "foreign",
+                  thoughtSignature: "foreign-call",
+                  reasoningParts: [{ type: "reasoning" as const, text: "foreign thinking", meta: { anthropic: { signature: "foreign" } } }],
+                },
+              ],
+            },
+          ],
+        ]),
+      ),
+    canon: [previous, userRow("Explain.")],
+    shape: {
+      output: "per-speaker",
+      cardScope: "scoped",
+      scopedTargetId: target,
+      speakerName: "Target",
+      speakerRef: { kind: "character", characterId: target },
+    },
+  });
+  const result = await runTurnPipeline(args);
+  const call = result.request.history.find((message) => message.content.some((part) => part.type === "tool-call"));
+  expect(call).toMatchObject({
+    role: "assistant",
+    content: [{ type: "tool-call", toolCallId: "foreign", name: "draw", arguments: "{}", thoughtSignature: "foreign-call" }],
+  });
+  expect(
+    result.request.history
+      .filter((message) => message.content.some((part) => part.type === "text" && (part.text.includes("Before.") || part.text.includes("After."))))
+      .map((message) => message.role),
+  ).toEqual(["user", "user"]);
+  expect(result.request.history.flatMap((message) => message.content)).toContainEqual({ type: "tool-result", toolCallId: "foreign", content: "Moon" });
+  const parts = result.request.history.flatMap((message) => message.content);
+  expect(parts.some((part) => part.type === "reasoning")).toBe(false);
+  expect(parts.filter((part) => part.type === "text").some((part) => part.thoughtSignature !== undefined)).toBe(false);
+});
+
+test("a signed reply image before a tool call keeps its original part order on replay", async () => {
+  const assetId = mintTypeId(ID_PREFIX.asset);
+  const prefix = `Before.![image](asset:${assetId})`;
+  const previous = {
+    ...rowOf("assistant", `${prefix}After.`),
+    toolCalls: [{ toolCallId: "image-call", name: "draw", arguments: "{}", result: "Moon", isError: false, durationMs: 1, textOffset: prefix.length }],
+  };
+  const connection = { ...TOOL_CONNECTION, capability: makeCapability(makeGenerationCapability({ ...TOOL_CAPABILITY, input: ["text", "image"] })) };
+  const { args } = baseArgs({
+    connection,
+    canon: [previous, userRow("Explain.")],
+    loadInlineReplyAssetIds: () => Promise.resolve(new Map([[previous.id, new Set([assetId])]])),
+    loadContentSignatures: () =>
+      Promise.resolve(new Map([[previous.id, { content: previous.content, text: [], images: [{ assetId, thoughtSignature: "image-signature" }] }]])),
+  });
+  const result = await runTurnPipeline(args);
+  expect(result.request.history[0]?.content.map((part) => part.type)).toEqual(["text", "image", "tool-call"]);
+  expect(result.request.history[0]?.content[1]).toMatchObject({ type: "image", thoughtSignature: "image-signature" });
+  expect(result.request.history[2]?.content).toEqual([{ type: "text", text: "After." }]);
+});
+
 /** Every tool NAME a request offers, in the order an array wire declares them — the executable offer first, the
  *  terminal set after (`toChatRequest`'s projection, pinned in tests/inference/roles/chat-request.test.ts). */
 function offeredNames(req: TurnRequest | undefined): readonly string[] | undefined {
@@ -2129,6 +2396,8 @@ describe("runTurnPipeline — the D48 recurse loop", () => {
     expect(last?.result).toBeNull();
     expect(last?.isError).toBe(false);
     expect(last?.durationMs).toBeNull();
+    expect(result.toolRecords.map((record) => record.callOrdinal)).toEqual([0, 1, 2]);
+    expect(last?.turnId).toBe(args.toolExecFrame.turnId);
   });
 
   test("errors-as-data feedback is VISIBLE to the recursed model (the tool message carries the error document)", async () => {
@@ -2418,7 +2687,7 @@ describe("runTurnPipeline — the backend-neutral tool offer (a backend-owned lo
     const requests: TurnRequest[] = [];
     const executed: string[][] = [];
     const outcomes: ChatToolExecution[] = [];
-    const call: ToolCallInput = { toolCallId: "mcp_tick_clock_1", name: "tick_clock", arguments: '{"m":30}' };
+    const call: ToolCallInput = { toolCallId: "mcp_tick_clock_1", name: "tick_clock", arguments: '{"m":30}', thoughtSignature: "backend-call-signature" };
     const { args } = baseArgs({
       connection: agentConnection,
       tools: fakeToolOps(executed),
@@ -2434,6 +2703,11 @@ describe("runTurnPipeline — the backend-neutral tool offer (a backend-owned lo
     expect(result.toolRecords).toEqual([
       {
         toolCallId: "mcp_tick_clock_1",
+        turnId: args.toolExecFrame.turnId,
+        callOrdinal: 0,
+        exchangeOrdinal: 0,
+        exchangeTextEnd: 0,
+        textOffset: 0,
         name: "tick_clock",
         arguments: '{"m":30}',
         result: JSON.stringify({ ok: "tick_clock" }),
@@ -2441,10 +2715,66 @@ describe("runTurnPipeline — the backend-neutral tool offer (a backend-owned lo
         durationMs: 1,
       },
     ]);
+    expect(result.toolSignatures).toEqual([
+      { toolCallId: call.toolCallId, turnId: args.toolExecFrame.turnId, callOrdinal: 0, thoughtSignature: "backend-call-signature" },
+    ]);
     // …and the backend is handed exactly the record's serialized result.
     expect(outcomes).toEqual([{ text: JSON.stringify({ ok: "tick_clock" }), isError: false }]);
     expect(result.toolsUnsupported).toBe(false);
     expect(result.content).toBe("done");
+  });
+
+  test("concurrent backend offers reserve occurrence ordinals before execution settles", async () => {
+    const releases: (() => void)[] = [];
+    const calls: readonly ToolCallInput[] = [
+      { toolCallId: "shared", name: "draw", arguments: "{}", thoughtSignature: "first" },
+      { toolCallId: "shared", name: "tick_clock", arguments: "{}", thoughtSignature: "second" },
+    ];
+    const { args } = baseArgs({
+      connection: agentConnection,
+      attachedToolNames: ["draw", "tick_clock"],
+      tools: {
+        resolveTools: () => ({}),
+        toToolDefinitions: () => [],
+        prepareExecution: () =>
+          Promise.resolve(async (batch) => {
+            await new Promise<void>((resolve) => releases.push(resolve));
+            return batch.map((call) => ({
+              toolCallId: call.toolCallId,
+              name: call.name,
+              arguments: call.arguments,
+              result: call.name,
+              isError: false,
+              durationMs: 1,
+            }));
+          }),
+      },
+      runChatTurn: (request) =>
+        (async function* (): AsyncGenerator<TurnStreamChunk> {
+          const offer = request.tools?.offer;
+          if (offer === undefined) {
+            throw new Error("missing offer");
+          }
+          const pending = calls.map((call) => offer.execute(call));
+          expect(releases).toHaveLength(2);
+          releases[1]?.();
+          await pending[1];
+          releases[0]?.();
+          await Promise.all(pending);
+          yield doneFinal("Done.");
+        })(),
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.toolRecords.map((record) => [record.name, record.callOrdinal])).toEqual([
+      ["draw", 0],
+      ["tick_clock", 1],
+    ]);
+    expect(result.toolSignatures.map((record) => [record.thoughtSignature, record.callOrdinal])).toEqual([
+      ["first", 0],
+      ["second", 1],
+    ]);
+    expect(result.toolRecords.map((record) => record.exchangeOrdinal)).toEqual([0, 1]);
+    await assertConvertedToolNames(result.toolRecords, result.content, ["draw", "tick_clock"]);
   });
 
   test("an errors-as-data execution reaches the backend as an error, and is still recorded", async () => {

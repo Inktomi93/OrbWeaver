@@ -20,6 +20,8 @@ export type RunOutcome =
  *  parse→gate→invoke closure. */
 export interface RegisteredTool {
   readonly name: string;
+  readonly displayName?: string;
+  readonly replayHistory?: boolean;
   readonly description: string;
   readonly capability: ToolCapability | null;
   readonly source: ToolSource;

@@ -103,6 +103,8 @@ export interface ImageGenerateRequest extends TaskRequestCommon<"generateImage">
 }
 
 export interface GeneratedImage {
+  /** Relative tool/file part order in the original completion, before the result arrays split it. */
+  readonly partOrdinal?: number | undefined;
   readonly thoughtSignature?: string | undefined;
   readonly url: string | undefined;
   readonly base64: string | undefined;

@@ -25,10 +25,111 @@ import {
   VARIANT_NEXT_NAME,
   VARIANT_PREV_NAME,
 } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
+import { projectViewForMember } from "../../../../../packages/server/src/domain/chat/substrate/member-visibility.ts";
 import { pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GroupTranscriptAttributionStory, MessageRowStory, NarratorTranscriptStory } from "../_ct-stories.tsx";
-import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, makeMessageView } from "../fixtures.ts";
+
+test("member hidden-body projection keeps native start/end paragraph boundaries on visible prose", async ({ mount }) => {
+  const hidden = '<lie truth="private"/>';
+  const message = projectViewForMember(
+    makeMessageView({
+      content: `Before.${hidden}After.${hidden}Done.`,
+      toolCalls: [
+        {
+          toolCallId: "native",
+          callOrdinal: 3,
+          name: "draw",
+          arguments: "{}",
+          result: "Moon",
+          isError: false,
+          durationMs: 1,
+          textOffset: 7 + hidden.length,
+          exchangeTextEnd: 13 + hidden.length * 2,
+          deleted: true,
+        },
+      ],
+    }),
+    false,
+  );
+  const component = await mount(<MessageRowStory chatStyle="bubble" content={message.content} toolCalls={message.toolCalls} />);
+  await expect(component.getByText("Before.", { exact: true })).toBeVisible();
+  await expect(component.getByText("After.", { exact: true })).toBeVisible();
+  await expect(component.getByText("Done.", { exact: true })).toBeVisible();
+  await expect(component.getByText("private", { exact: true })).toHaveCount(0);
+});
+
+test("tool-boundary prose renders as distinct paragraphs and deleted cards stay absent", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      content="with suspicion.I turn the card over"
+      toolCalls={[{ toolCallId: "call-1", name: "draw", arguments: "{}", result: "Moon", isError: false, durationMs: 1, textOffset: 15, deleted: true }]}
+    />,
+  );
+  await expect(component.getByText("with suspicion.", { exact: true })).toBeVisible();
+  await expect(component.getByText("I turn the card over", { exact: true })).toBeVisible();
+  await expect(component.locator('[data-slot="tool-call-block"]')).toHaveCount(0);
+});
+
+test("a native exchange's trailing prose stays separate from the next completion", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      content="Before.After.Done."
+      toolCalls={[
+        {
+          toolCallId: "native",
+          name: "draw",
+          arguments: "{}",
+          result: "Moon",
+          isError: false,
+          durationMs: 1,
+          textOffset: 7,
+          exchangeTextEnd: 13,
+          deleted: true,
+        },
+      ]}
+    />,
+  );
+  await expect(component.getByText("Before.", { exact: true })).toBeVisible();
+  await expect(component.getByText("After.", { exact: true })).toBeVisible();
+  await expect(component.getByText("Done.", { exact: true })).toBeVisible();
+});
+
+test("per-card prompt controls belong to the room host, retain hidden cards, and confirm deletion", async ({ mount, page }) => {
+  const toolCalls = [
+    {
+      toolCallId: "call-hidden",
+      name: "draw",
+      displayName: "Draw a card",
+      arguments: "{}",
+      result: "Moon",
+      isError: false,
+      durationMs: 1,
+      callOrdinal: 7,
+      hidden: true,
+    },
+  ];
+  const recorder = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.editToolCall": () => ({ toolCalls }) });
+  const host = await mount(<MessageRowStory chatStyle="bubble" content="The moon rises." toolCalls={toolCalls} viewerIsHost={true} />);
+  const card = host.getByRole("group", { name: "Draw a card", exact: true });
+  await expect(card.getByText("Hidden from AI", { exact: true })).toBeVisible();
+  await card.hover();
+  await expect(card.getByRole("button", { name: "Show to AI", exact: true })).toBeVisible();
+  await card.getByRole("button", { name: "Show to AI", exact: true }).click();
+  await expect.poll(() => recorder.lastInput("chat.editToolCall")).toMatchObject({ toolCallId: "call-hidden", callOrdinal: 7, action: "show" });
+  await card.getByRole("button", { name: "Delete tool call", exact: true }).click();
+  const dialog = host.page().getByRole("alertdialog", { name: "Delete this tool call?" });
+  await expect(dialog).toContainText("The prose stays.");
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(host.getByText("The moon rises.", { exact: true })).toBeVisible();
+  await host.unmount();
+  const member = await mount(<MessageRowStory chatStyle="bubble" content="The moon rises." toolCalls={toolCalls} />);
+  await expect(member.getByRole("button", { name: "Show to AI", exact: true })).toHaveCount(0);
+  await expect(member.getByRole("button", { name: "Delete tool call", exact: true })).toHaveCount(0);
+});
 
 const AI_BUBBLE = /bg-ai-bubble/u;
 const USER_BUBBLE = /bg-user-bubble/u;

@@ -2599,7 +2599,9 @@ async function restoreContinue(
   }
   const content = direction === "undo" ? snap.preContinueContent : snap.preContinueContent + snap.lastContinuationContent;
   const reasoning = direction === "undo" ? snap.preContinueReasoning : combineReasoning(snap.preContinueReasoning, snap.lastContinuationReasoning);
-  await commitHostFencedWrite(ctx, chatId, [setVariantContentStatement(ctx.db, snap.variantId, content, reasoning)]);
+  await commitHostFencedWrite(ctx, chatId, [
+    setVariantContentStatement(ctx.db, snap.variantId, { content, reasoning, undoContinuation: direction === "undo" }),
+  ]);
   const view = await loadMessageView(ctx.db, messageId);
   if (view === undefined) {
     throw new ChatNotFoundError(chatId);
