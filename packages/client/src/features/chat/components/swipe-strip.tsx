@@ -19,10 +19,11 @@
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { ChevronLeft, ChevronRight, Icon, RefreshCw } from "@orb/ui/icons";
+import { ChevronLeft, ChevronRight, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useId } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { cn, turnMutationToast, viewerTimeZone } from "#lib";
 import { useSwipeKeyboardNav } from "../hooks/use-swipe-keyboard-nav.ts";
@@ -74,6 +75,7 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
   const swipe = useSwipeMutation({ trpc, invalidation });
   const selectVariant = useSelectVariantMutation({ trpc, invalidation });
   const history = useVariantHistory(message);
+  const historyStatusId = useId();
 
   const { chatId, id: messageId, selectedVariantIdx: idx } = message;
   const total = Math.max(message.variantCount, 1);
@@ -94,6 +96,7 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
   const prevVariantId = total > 1 ? history.get(prevIdx) : undefined;
   const nextVariantId = current < total ? history.get(idx + 1) : undefined;
   const canStepBack = prevVariantId !== undefined;
+  const waitingForNext = current < total && nextVariantId === undefined;
 
   const goPrev = (): void => {
     if (busy || prevVariantId === undefined) {
@@ -103,7 +106,7 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
   };
 
   const goNext = (): void => {
-    if (busy) {
+    if (busy || waitingForNext) {
       return;
     }
     if (nextVariantId !== undefined) {
@@ -115,24 +118,9 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
 
   useSwipeKeyboardNav({ onPrev: goPrev, onNext: goNext });
 
-  // A PAGER NEEDS PAGES (side-eye leg-4 P3). With one variant the strip rendered "1 / 1" flanked by a
-  // disabled ‹ and a › — a counter that counts to one and an arrow that cannot move, which reads as a
-  // broken control rather than as "there is nothing to page through". The one thing that IS live here is
-  // the right chevron, which at the tip GENERATES rather than steps; so at a single variant the strip is
-  // just that verb. The counter and the back-step return the moment a second variant exists.
-  //
-  // ⚑ SUPERSEDES A PIN, NOT ITS MECHANISM: `swipe-strip.ct.tsx` asserted "the left chevron is DISABLED
-  // when variantCount === 1". Its real subject — `useVariantHistory`'s gate never firing a query at one
-  // variant — is untouched and still pinned; what changed is that the disabled affordance no longer
-  // renders at all, which is the affordance-lie the review filed.
-  const showPager = total > 1;
-
-  // #570 RULED (owner, 2026-08-23): KEEP BOTH — this chevron and the ✨ menu's Regenerate row (
-  // composer-utility-menu.tsx) ratify as cross-plane under #568's own logic (reader-side pager vs.
-  // composer control), with distinct honest names. What #568's triage left unsettled was the NAME at
-  // variantCount === 1: this lone chevron GENERATES (not steps) here, so it must say so rather than
-  // borrow the pager's "Next variant" label.
-  const nextChevronLabel = showPager ? VARIANT_NEXT_NAME : VARIANT_GENERATE_NAME;
+  // Keep the same navigation geometry at the first variant; the right edge still generates rather
+  // than selecting nonexistent history, and its accessible name distinguishes that paid action.
+  const nextChevronLabel = current < total ? VARIANT_NEXT_NAME : VARIANT_GENERATE_NAME;
 
   return (
     // THE PAGER MAY NOT SIZE THE BUBBLE'S COLUMN (#598). The content column is a flex child of a row body
@@ -174,11 +162,9 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
           way, which is the whole point of rule 1. The chip still hugs (`max-content` IS the hug) — what it
           no longer does is shrink below the controls it backs. */}
       <Row gap="field" align="center" data-slot="swipe-strip" className={cn(PAGER_CHIP, PAGER_CHIP_COMPACT, backingClass)}>
-        {showPager ? (
-          <Button intent="ghost" size="icon" disabled={!canStepBack} loading={busy && canStepBack} aria-label={VARIANT_PREV_NAME} onClick={goPrev}>
-            <Icon icon={ChevronLeft} size="sm" />
-          </Button>
-        ) : null}
+        <Button intent="ghost" size="icon" disabled={!canStepBack} loading={busy && canStepBack} aria-label={VARIANT_PREV_NAME} onClick={goPrev}>
+          <Icon icon={ChevronLeft} size="sm" />
+        </Button>
         {/* The counter is a VALUE you read — the `datum` voice, whose tabular mono figures stop the count
             from nudging the chevrons sideways as it ticks (UI-Density-Law.md §2.3).
             IT IS NAMED FOR THE EYE NOW (#490). `‹ 8 / 8 ›` under a transcript is the universal pagination
@@ -201,49 +187,29 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
             FLOW without leaving the tree (absolutely positioned ⇒ zero width contribution, and an abspos
             child is not a flex item, so its gap goes too): the band still reads "Variant 2 / 3", pinned by an
             ariaSnapshot at a narrow mount. #490's subject holds wherever the surface can hold it. */}
-        {showPager ? (
-          <>
-            <Text as="span" voice="kicker" className={PAGER_LABEL_QUIET_WHEN_TIGHT}>
-              Variant
-            </Text>
-            {/* …and in a tight chip it surrenders the two spaces around its slash (`PAGER_COUNTER`) — 15.6px
-                that buy the chevrons their touch box back. The TEXT never changes; only its word-spacing. */}
-            <Text as="span" voice="datum" data-slot="swipe-strip-counter" className={PAGER_COUNTER}>
-              {current} / {total}
-            </Text>
-          </>
-        ) : null}
-        {/* THE SINGLE-VARIANT ARM IS A NAMED VERB, NOT A NAKED CHEVRON (#849). The pager arm above is
-            unchanged; this is the OTHER arm, and shipped it was the only affordance in the app whose visible
-            label is the empty string — a 34×34 transparent `›` floating over the room's background art
-            between the plate and the composer, with an empty `textContent` AND an empty parent text. A
-            right-pointing chevron universally means "next"; here it costs a model call.
-
-            TWO CHANGES, BOTH MINIMAL. The GLYPH becomes `RefreshCw` — the house's regenerate mark, already
-            carrying that meaning on the composer's ✨ Regenerate row 40px below (composer-utility-menu.tsx),
-            so the "next page" reading is gone even before the word is read. And the word is VISIBLE:
-            "Regenerate", in the `sm` control box rather than the icon square, so the control says what it does
-            without hover.
-
-            THE OLD RULING SURVIVES — ITS INPUT CHANGED. The header's "A PAGER NEEDS PAGES" ruling removed
-            the `1 / 1` counter and the dead back-chevron at one variant, and that mechanism is untouched
-            here: `showPager` still gates BOTH, and no counter comes back. What the ruling did not settle is
-            that the surviving verb rendered as a pager glyph with no name.
-
-            "Regenerate" IS A SUBSTRING OF THE ACCESSIBLE NAME, deliberately: #570 ruled the accname at one
-            variant says it generates ("Regenerate a variant"), and WCAG 2.5.3 requires the visible label to
-            appear in it, so the visible word is the verb the accname already opens with. */}
-        {showPager ? (
-          <Button intent="ghost" size="icon" loading={busy} aria-label={nextChevronLabel} onClick={goNext}>
-            <Icon icon={ChevronRight} size="sm" />
-          </Button>
-        ) : (
-          <Button intent="ghost" size="sm" loading={busy} aria-label={nextChevronLabel} onClick={goNext}>
-            <Icon icon={RefreshCw} size="sm" />
-            Regenerate
-          </Button>
-        )}
+        <Text as="span" voice="kicker" className={PAGER_LABEL_QUIET_WHEN_TIGHT}>
+          Variant
+        </Text>
+        <Text as="span" voice="datum" data-slot="swipe-strip-counter" className={PAGER_COUNTER}>
+          {current} / {total}
+        </Text>
+        <Button
+          intent="ghost"
+          size="icon"
+          disabled={waitingForNext}
+          loading={busy || waitingForNext}
+          aria-label={nextChevronLabel}
+          aria-describedby={waitingForNext ? historyStatusId : undefined}
+          onClick={goNext}
+        >
+          <Icon icon={ChevronRight} size="sm" />
+        </Button>
       </Row>
+      {waitingForNext ? (
+        <Text as="span" id={historyStatusId} voice="label" className="text-muted-foreground" role="status">
+          Loading variant history…
+        </Text>
+      ) : null}
     </Stack>
   );
 }

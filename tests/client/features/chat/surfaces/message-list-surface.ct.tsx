@@ -22,8 +22,10 @@ import type { ChatBusEvent, ChatIdentity, GroupConfig } from "@orb/contracts/cha
 import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import { messageWindowTargetSchema } from "@orb/contracts/search";
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { StreamFrame } from "@orb/contracts/stream";
-import type { CharacterId, MessageId } from "@orb/kit/ids";
+import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
+import type { CharacterId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { contrastRatio } from "@orb/tooling/_shared/wcag";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -101,6 +103,223 @@ const ROSTER_STUB: TrpcRoutes<"chat.getChat"> = {
     group: DEFAULT_GROUP_CONFIG,
   }),
 };
+
+const ECHO_PAGER_CASES = [false, true].flatMap((greeting) => [false, true].flatMap((long) => [false, true].map((portrait) => ({ greeting, long, portrait }))));
+
+function readEchoPagerGeometry(
+  pager: Locator,
+): Promise<{ overflow: boolean; buttons: { contained: boolean; width: number; height: number; hit: boolean }[]; counterInside: boolean }> {
+  return pager.evaluate((element) => {
+    const port = element.closest('[data-slot="message-list-scroll"]');
+    if (port === null) {
+      throw new Error("pager lacks its physical scrollport");
+    }
+    const box = port.getBoundingClientRect();
+    const buttons = [...element.querySelectorAll("button")];
+    return {
+      overflow: port.scrollWidth > port.clientWidth,
+      buttons: buttons.map((button) => {
+        const rect = button.getBoundingClientRect();
+        const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        return {
+          contained: rect.left >= box.left && rect.right <= box.right,
+          width: rect.width,
+          height: rect.height,
+          hit: hit !== null && button.contains(hit),
+        };
+      }),
+      counterInside: [...element.querySelectorAll('[data-slot$="strip-counter"]')].every((counter) => {
+        const rect = counter.getBoundingClientRect();
+        return rect.left >= box.left && rect.right <= box.right && counter.scrollWidth <= counter.clientWidth;
+      }),
+    };
+  });
+}
+
+function readEchoArtGeometry(bubble: Locator): Promise<{ reservationMatches: boolean; portrait: boolean; tileMatches: boolean }> {
+  return bubble.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const row = element.closest('[data-slot="message-row"]');
+    if (row === null) {
+      throw new Error("Echo lacks its query container");
+    }
+    const probe = document.createElement("span");
+    probe.style.width = "var(--immersive-echo-art-width)";
+    element.append(probe);
+    const full = probe.getBoundingClientRect().width;
+    probe.remove();
+    const tile = element.querySelector('[data-slot="message-edge-tile"]');
+    return {
+      reservationMatches:
+        Number.parseFloat(style.paddingRight) > 0 &&
+        Math.abs(Number.parseFloat(style.paddingRight) - Math.min(full, row.getBoundingClientRect().width / 4)) < 0.05,
+      portrait: style.backgroundImage.includes("?v=portrait"),
+      tileMatches: tile === null || Math.abs(tile.getBoundingClientRect().width - Number.parseFloat(style.paddingRight)) < 0.05,
+    };
+  });
+}
+
+function echoPortraitPaints(bubble: Locator): Promise<boolean> {
+  return bubble.evaluate(async (element) => {
+    const url = getComputedStyle(element).backgroundImage.match(/url\("?([^")]+)"?\)/u)?.[1];
+    if (url === undefined) {
+      return false;
+    }
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    return image.naturalWidth > 0;
+  });
+}
+
+for (const width of [320, 430]) {
+  test.describe(`Echo physical pager at ${width}`, () => {
+    test.use({ viewport: { width, height: 780 }, hasTouch: true });
+    for (const { greeting, long, portrait } of ECHO_PAGER_CASES) {
+      test(`${greeting ? "greeting" : "generated"} ${long ? "long" : "short"} ${portrait ? "portrait" : "fallback"} stays inside the scrollport`, async ({
+        mount,
+        page,
+      }, testInfo) => {
+        const character = castId<CharacterId>("character_ct_echo");
+        const content = long ? "The lantern lights the winding path beyond the old gate. ".repeat(60) : "Hi";
+        const avatarHash = portrait ? "ab".repeat(32) : null;
+        await routeTrpc(page, {
+          ...CHAT_AMBIENT_ROUTES,
+          ...PREVIEW_FIT_STUB,
+          "settings.getUserSettings": () => ({
+            userId: "user_ct_viewer",
+            schemaVersion: 1,
+            configUnreadable: null,
+            updatedAt: 0,
+            config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatStyle: "echo" as const } },
+          }),
+          "chat.getChat": (): TrpcFixtureOutput<"chat.getChat"> => ({
+            participants: [{ id: "cp_echo", kind: "character", characterId: character, displayName: "Mira", avatarHash, leftSeq: null, role: "member" }],
+            anchorPersonaId: null,
+            identities: [],
+            group: DEFAULT_GROUP_CONFIG,
+            viewerIsHost: true,
+          }),
+          "character.get": () => ({
+            id: character,
+            name: "Mira",
+            avatarHash,
+            greetings: [{ text: "First opening." }, { text: content }, { text: "Another opening." }],
+          }),
+          "chat.listMessageVariants": () => [0, 1, 2].map((idx) => ({ idx, variantId: castId<MessageVariantId>(`mv_echo_${idx}`) })),
+          "chat.listMessages": () =>
+            makeMessagesPage(
+              [
+                ...(greeting ? [] : [USER_VIEW]),
+                makeMessageView({
+                  role: "assistant",
+                  characterId: character,
+                  content,
+                  seq: 2,
+                  variantCount: greeting ? 1 : 3,
+                  selectedVariantIdx: 1,
+                  selectedVariantId: castId<MessageVariantId>("mv_echo_1"),
+                }),
+              ],
+              [{ kind: "character", id: character, name: "Mira", avatarHash }],
+            ),
+        });
+        await page.route("**/api/blob/**", (route) =>
+          route.fulfill({
+            contentType: "image/svg+xml",
+            path: new URL("../../../../../packages/client/public/illustrations/chat-style-portrait.svg", import.meta.url).pathname,
+          }),
+        );
+        await routeOrbSocket(page, { frames: [], awaitAttaches: 1 });
+        const component = await mount(<MessageListSurfaceStory />);
+        await expect(component.locator('[data-slot="avatar-image"]')).toHaveCount(portrait ? 1 : 0);
+        const pager = component.locator(greeting ? '[data-slot="greeting-swipe-strip"]' : '[data-slot="swipe-strip"]');
+        await expect(pager).toHaveCount(1);
+        await expect(pager.getByText("2 / 3", { exact: true })).toBeVisible();
+        const scrollport = component.locator('[data-slot="message-list-scroll"]');
+        await scrollport.evaluate((element) => {
+          element.scrollTop = element.scrollHeight;
+        });
+        await expect(pager.getByRole("button").first()).toBeEnabled();
+        await expect(pager.getByRole("button").last()).toBeEnabled();
+        await expect
+          .poll(() => readEchoPagerGeometry(pager))
+          .toEqual({
+            overflow: false,
+            counterInside: true,
+            buttons: Array.from({ length: 2 }, () => ({ contained: true, width: 48, height: 48, hit: true })),
+          });
+        await testInfo.attach("echo-physical-pager", { body: await component.screenshot(), contentType: "image/png" });
+        const bubble = component.locator('[data-slot="message-bubble"]').last();
+        await expect.poll(() => readEchoArtGeometry(bubble)).toEqual({ reservationMatches: true, portrait, tileMatches: true });
+        await expect.poll(() => echoPortraitPaints(bubble)).toBe(portrait);
+      });
+    }
+  });
+}
+
+for (const width of [320, 430]) {
+  test.describe(`mobile avatar paint at ${width}`, () => {
+    test.use({ viewport: { width, height: 780 }, hasTouch: true });
+    for (const chatStyle of THEME_CHAT_STYLES) {
+      test(`${chatStyle}: accent rings fit inside the real scrollport for user and character rows`, async ({ mount, page }, testInfo) => {
+        const character = castId<CharacterId>("character_ct_edge");
+        const persona = castId<PersonaId>("persona_ct_edge");
+        const identities: ChatIdentity[] = [
+          { kind: "character", id: character, name: "Mira", avatarHash: null },
+          { kind: "persona", id: persona, name: "Traveler", description: "", avatarHash: null },
+        ];
+        await routeTrpc(page, {
+          ...CHAT_AMBIENT_ROUTES,
+          ...ROSTER_STUB,
+          "settings.getUserSettings": () => ({
+            userId: "user_ct_viewer",
+            schemaVersion: 1,
+            configUnreadable: null,
+            updatedAt: 0,
+            config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, avatarRing: "accent" as const, chatStyle } },
+          }),
+          "chat.listMessages": () =>
+            makeMessagesPage(
+              [
+                { ...USER_VIEW, personaId: persona },
+                { ...AI_VIEW, characterId: character },
+              ],
+              identities,
+            ),
+        });
+        await routeOrbSocket(page, { frames: [], awaitAttaches: 1 });
+        const component = await mount(<MessageListSurfaceStory />);
+        const avatars = component.locator('[data-slot="avatar-root"]');
+        await expect(avatars).toHaveCount(2);
+        const geometry = (): Promise<boolean[]> =>
+          avatars.evaluateAll((elements) =>
+            elements.map((element) => {
+              const viewport = element.closest('[data-slot="message-list-scroll"]');
+              if (viewport === null) {
+                throw new Error("avatar lacks its physical scrollport");
+              }
+              const a = element.getBoundingClientRect();
+              const v = viewport.getBoundingClientRect();
+              const style = getComputedStyle(element);
+              const probe = document.createElement("span");
+              probe.style.boxShadow = style.getPropertyValue("--tw-ring-shadow");
+              element.append(probe);
+              const lengths = getComputedStyle(probe).boxShadow.match(/[-\d.]+px/gu);
+              const extent = Number.parseFloat(lengths?.at(-1) ?? "0");
+              probe.remove();
+              if (extent === 0) {
+                throw new Error("configured accent ring did not paint");
+              }
+              return a.left - extent >= v.left && a.right + extent <= v.right;
+            }),
+          );
+        await testInfo.attach("mobile-avatar-edges", { body: await component.screenshot(), contentType: "image/png" });
+        await expect.poll(geometry).toEqual([true, true]);
+      });
+    }
+  });
+}
 
 test("an anchored window survives suspension, pages both ways and consumes focus once", async ({ mount, page }) => {
   const source = corpusSceneSource(mintTypeId(ID_PREFIX.chat), 4);

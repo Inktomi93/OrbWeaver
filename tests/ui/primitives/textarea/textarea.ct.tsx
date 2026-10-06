@@ -8,6 +8,37 @@ import { ValueChangeDetailsStory } from "./textarea.fixtures.tsx";
 
 const NON_EMPTY = /.+/u;
 
+for (const touch of [false, true]) {
+  test.describe(`compact textarea at ${touch ? "coarse" : "fine"} pointer`, () => {
+    test.use({ hasTouch: touch });
+    test("compact size retains its token floor and multiline expansion without changing the default", async ({ mount, page }) => {
+      await mount(
+        <>
+          <Textarea aria-label="Default" rows={1} />
+          <Textarea aria-label="Compact" rows={1} size="compact" />
+        </>,
+      );
+      const compact = page.getByRole("textbox", { name: "Compact", exact: true });
+      const standard = page.getByRole("textbox", { name: "Default", exact: true });
+      await expect(compact).toBeVisible();
+      const floor = await compact.evaluate((element) => {
+        const probe = document.createElement("div");
+        probe.style.height = "var(--spacing-control-md)";
+        element.parentElement?.append(probe);
+        const height = probe.getBoundingClientRect().height;
+        probe.remove();
+        return height;
+      });
+      const initial = await compact.boundingBox();
+      expect(initial?.height ?? 0).toBeGreaterThanOrEqual(floor);
+      expect(initial?.height ?? 0).toBeLessThan((await standard.boundingBox())?.height ?? 0);
+      await compact.fill("Line one\nLine two\nLine three");
+      await expect(compact).toHaveValue("Line one\nLine two\nLine three");
+      expect((await compact.boundingBox())?.height ?? 0).toBeGreaterThan(initial?.height ?? 0);
+    });
+  });
+}
+
 // `onValueChange` is Field.Control's native change arm: (value, eventDetails). The eventDetails
 // object is what makes `cancel()` / `allowPropagation()` reachable, and it is exactly what a
 // hand-spelled `(value: string) => void` seal signature silently deletes.

@@ -50,14 +50,14 @@ export const MESSAGE_ACTIONS_MENU_NAME = "More message actions";
  */
 export const MESSAGE_REASONING_NAME = "Reasoning";
 
-/** The variant pager's back chevron (`swipe-strip.tsx`), present only once a row has more than one variant. */
+/** The variant pager's back chevron (`swipe-strip.tsx`), disabled until a sibling variant exists. */
 export const VARIANT_PREV_NAME = "Previous variant";
 
-/** The variant pager's forward chevron — it STEPS, which is why it may only say this when a pager exists. */
+/** The forward chevron while an already-generated sibling lies ahead. */
 export const VARIANT_NEXT_NAME = "Next variant";
 
 /**
- * The lone forward chevron at `variantCount === 1` — it GENERATES rather than steps.
+ * The forward chevron at the newest variant — it generates rather than steps.
  *
  * #570 (owner, 2026-08-23) ruled the chevron and the ✨ menu's Regenerate row both stay, on condition that
  * their names stay honest; borrowing the pager's `Next variant` here is the exact drift that ruling forbids,

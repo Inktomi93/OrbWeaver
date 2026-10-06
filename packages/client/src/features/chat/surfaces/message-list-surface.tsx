@@ -421,7 +421,8 @@ function ChatThread({
         // pinned the sticky name band 12px below the visible top with a guillotined strip of prose
         // permanently above it (#204). The first/last rows still breathe off the topbar/composer edges.
         blockPaddingToken="block"
-        className="h-full"
+        // Avatar accent rings paint outside their boxes; give both track edges room inside the scroller.
+        className="h-full px-field"
       />
       <JumpToLatestPill count={jump.count} visible={jump.visible} onJump={jump.onJump} />
     </Stack>
