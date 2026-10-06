@@ -40,24 +40,24 @@ catalog:
   # our own Windows escaping.
   cross-spawn: 7.0.6
   "@types/cross-spawn": ^6.0.6
-  knip: ^6.27.0
-  yaml: 2.9.0
+  knip: ^6.38.0
+  yaml: 2.9.1
   "@typescript/native": npm:typescript@7.0.2
   ts7: npm:typescript@7.0.2
   "@eslint/config-array": 0.23.5
   typescript: ^6.0.3
-  "@biomejs/biome": 2.5.1
-  lefthook: ^2.1.10
-  dependency-cruiser: ^18.1.0
+  "@biomejs/biome": 2.5.14
+  lefthook: ^2.1.14
+  dependency-cruiser: ^18.4.0
   ts-morph: ^28.0.0
   # @types/node tracks the RUNTIME (Node 26).
-  "@types/node": ^26.1.1
+  "@types/node": ^26.6.3
   # --- test ---
   # Typecheck integration is experimental; validate upgrades explicitly and keep coverage in lockstep.
   vitest: 4.1.11
   "@vitest/coverage-v8": 4.1.11
-  "@playwright/test": ^1.61.1
-  "@playwright/experimental-ct-react": ^1.61.1
+  "@playwright/test": ^1.63.0
+  "@playwright/experimental-ct-react": ^1.62.1
   # --- rendered instruments ---
   # lighthouse: the audit ENGINE the retired chrome-devtools MCP wrapped (#1195/#1198). WHY THE DEPENDENCY
   # IS WORTH IT (every dependency is a liability): the retirement census
@@ -67,7 +67,7 @@ catalog:
   # The caret is deliberate but NOT free: snap reads audit ids and the `details.items[].node.selector`
   # shape, so a minor bump owes a re-run of tests/tooling/snap/ops/lighthouse.int.test.ts (it pins the
   # audit BY NAME) before it is trusted.
-  lighthouse: ^13.4.1
+  lighthouse: ^13.5.0
   # puppeteer-core: NOT a second browser — the ATTACH surface. Lighthouse drives a puppeteer Page
   # (`page.target().createCDPSession()` + a wildcard protocol listener), so snap connects puppeteer to the
   # SAME chromium Playwright already launched, over its `--remote-debugging-port` endpoint, and hands
@@ -75,7 +75,7 @@ catalog:
   # in the tree as lighthouse's own dependency; PINNED EXACT TO LIGHTHOUSE'S RESOLUTION so the two share
   # one installed copy — a drift here silently gives Lighthouse a page from a different puppeteer build.
   # Re-derive this pin on every `lighthouse` bump (`pnpm why puppeteer-core`).
-  "puppeteer-core": 25.9.0
+  "puppeteer-core": 25.12.0
   # chrome-devtools-mcp: PARSER ENGINE ONLY for Snap's heap arm (#1300). Snap never imports or starts
   # the MCP server, transport, Puppeteer page, or browser launcher. One adapter deep-imports the bundled
   # browser-free HeapSnapshotManager so retained sizes, dominators, native-context attribution and
@@ -90,7 +90,7 @@ catalog:
   # ts-reset: ambient type hardening (filter(Boolean), JSON.parse→unknown) — wired via root reset.d.ts.
   "@total-typescript/ts-reset": ^0.6.1
   # jscpd: copy-paste detection (CI gate, threshold 5%) — config jscpd.json.
-  jscpd: ^5.0.12
+  jscpd: ^5.3.3
   # stryker: mutation testing (run via `pnpm test:mutation` / `pnpm test:mutation:gate` = a plain
   # `stryker run <config>` from the repo root — no wrapper, no --inPlace: Stryker copies into .stryker-tmp/,
   # the working tree is never touched, reports land in reports/ natively). PINNED EXACT to 10.0.0 (no caret) —
@@ -150,21 +150,21 @@ catalog:
   # The two patches + the four pins + that alias move TOGETHER on any bump, and the planted control below
   # is what proves the sandbox half still works afterwards.
   # --- kit (isomorphic libs allowed by the kit-purity ruling) ---
-  zod: ^4.4.3
+  zod: ^4.6.5
   typeid-js: ^1.2.0
   luxon: ^3.7.2
-  "@types/luxon": ^3.7.2
+  "@types/luxon": ^3.7.6
   # @marcbachmann/cel-js: the CEL expression evaluator (isomorphic, pure — no node:*) behind the
   # @orb/kit/cel seam; automation predicates + {{expr}}. Bundled types.
   "@marcbachmann/cel-js": ^8.0.0
   # --- db ---
-  drizzle-orm: ^0.45.2
-  drizzle-kit: ^0.31.10
-  "@libsql/client": ^0.17.4
+  drizzle-orm: ^0.45.3
+  drizzle-kit: ^0.31.11
+  "@libsql/client": ^0.18.0
   # --- server ---
-  hono: ^4.12.31
-  "@hono/node-server": ^2.0.6
-  openid-client: ^6.8.4
+  hono: ^4.13.11
+  "@hono/node-server": ^2.1.3
+  openid-client: ^6.8.8
   isomorphic-git: 1.42.2
   # cloudflared: the quick-tunnel process wrapper only (`Tunnel.quick`, `use`, its output and exit events). Exact pin:
   # the wrapper spawns and signals the binary. Never its installer; allowBuilds above denies its postinstall.
@@ -177,8 +177,8 @@ catalog:
   # createRemoteJWKSet + jwtVerify with a pinned RS256/ES256 allowlist). Already in the tree as an
   # openid-client transitive; promoted to a direct @orb/server dep to name the verify surface
   # (docs/law/Tier-5-Entry.md: mint = openid-client at entry, verify = jose at infra).
-  jose: ^6.2.3
-  "@trpc/server": ^11.18.0
+  jose: ^6.2.12
+  "@trpc/server": ^11.19.0
   # undici: the global-dispatcher seam for the SSRF egress firewall (infra/network/egress —
   # setGlobalDispatcher + Agent({connect.lookup})). Node's fetch is undici under the hood, but the
   # dispatcher swap requires the package; tracks Node 26's bundled undici major (node 26.5 bundles
@@ -191,7 +191,7 @@ catalog:
   # import this exact package (pnpm-strict hides a packages/server dep from tests/).
   # ^8.9.0 (not 8.10.0 — published <24h ago, minimumReleaseAge-blocked); 8.9.0 is the latest mature 8.x
   # and the caret floats to 8.10.0 on the next install once it ages past the gate.
-  undici: ^8.9.0
+  undici: ^8.11.2
   # --- foundation observability (Phase 4a — Tier-2-Foundation.md › Runtime dependencies) ---
   # pino: the structured logger (pino.multistream([stdout, ringStream])).
   pino: ^10.3.1
@@ -202,12 +202,12 @@ catalog:
   # manager + the service.name/version resource attrs. We run the SDK, NOT the collector stack.
   "@opentelemetry/api": ^1.9.1
   "@opentelemetry/sdk-trace-base": ^2.8.0
-  "@opentelemetry/context-async-hooks": ^2.7.1
+  "@opentelemetry/context-async-hooks": ^2.11.0
   "@opentelemetry/resources": ^2.7.1
-  "@opentelemetry/semantic-conventions": ^1.41.1
+  "@opentelemetry/semantic-conventions": ^1.43.0
   # infra/image (Phase 4b — Tier-3-Infra.md D6): the sharp adapter (decode/resize/format-normalize/
   # strip-metadata) behind the injected `imageTransform` op. Native libvips binding — pnpm builds it.
-  sharp: ^0.35.0
+  sharp: ^0.35.5
   # Outbound media uses only the public CLI path, never the native codec API.
   node-av: 6.1.1
   # --- infra/providers backends (Phase 4b-ii-b — Tier-3b-Providers.md) ---
@@ -215,11 +215,11 @@ catalog:
   # mode). Its env firewall is the load-bearing credential seam (Tier-3b-Providers.md Esoteric §1).
   # `^0.3.280` floor — owner-approved force past the age gate (see minimumReleaseAgeExclude): its bundled
   # CLI 2.1.280 is the first that serves claude-opus-5-5 and claude-fable-5-1.
-  "@anthropic-ai/claude-agent-sdk": ^0.3.280
+  "@anthropic-ai/claude-agent-sdk": ^0.3.284
   # @anthropic-ai/sdk: the anth-direct backend (D67) — the direct Anthropic-Messages wire over the
   # egress-firewalled global fetch. ALREADY in the tree as a transitive dep of the agent-sdk; promoted
   # to a direct dep to name the existing surface (installs nothing new).
-  "@anthropic-ai/sdk": ^0.106.0
+  "@anthropic-ai/sdk": ^0.129.0
   # --- @orb/inference — the Vercel AI SDK provider layer (inference program §8.0; F9 settled 2026-09-19) ---
   # EXACT PINS, deliberately: the two hosted wires are built against provider spec V4
   # (`LanguageModelV4.doStream` / `EmbeddingModelV4.doEmbed` / `ImageModelV4.doGenerate`) and the
@@ -243,39 +243,39 @@ catalog:
   # "any box" embed/rerank/imageEmbed path (D39). Pulls onnxruntime-node (native; allowBuilds-approved).
   "@huggingface/transformers": ^4.3.0
   # --- infra/extraction (databank) ---
-  pdfjs-dist: ^6.2.108
-  html-to-text: ^10.0.0
+  pdfjs-dist: ^6.3.289
+  html-to-text: ^10.0.1
   "@types/html-to-text": ^9.0.4
   # --- infra/plugin-host (P1 — the QuickJS-ng WASM sandbox) ---
   quickjs-emscripten-core: ^0.32.0
   "@jitl/quickjs-ng-wasmfile-release-sync": ^0.32.0
   fflate: ^0.8.3
   # --- client ---
-  react: ^19.2.7
-  react-dom: ^19.2.7
-  "@types/react": ^19.2.17
-  "@types/react-dom": ^19.2.3
+  react: ^19.3.0
+  react-dom: ^19.3.0
+  "@types/react": ^19.3.0
+  "@types/react-dom": ^19.3.0
   # --- ui (@orb/ui — the sealed satellites; versions verified against the registry 2026-07-02,
   #     deltas vs the docs recorded in proposed/ui-package-design.md §3) ---
   # Base UI v1 stable — the headless primitive (D42). NOT the dead rc-era @base-ui-components/react.
-  "@base-ui/react": ^1.7.0
+  "@base-ui/react": ^1.8.0
   # tailwind-variants: variants + slots + merge — subsumes cva/clsx (D54). DELTA vs D54: v3
   # externalized tailwind-merge to a PEER (>=3) — it rides inside @orb/ui's seal, never the client.
-  tailwind-variants: ^3.2.2
-  tailwind-merge: ^3.6.0
+  tailwind-variants: ^3.3.1
+  tailwind-merge: ^3.7.0
   ajv: 8.20.0
   ajv-formats: 3.0.1
   # lucide-react: ^1.22 (not .23 — published <24h ago, blocked by minimumReleaseAge; bump when mature)
-  lucide-react: ^1.22.0
+  lucide-react: ^1.48.0
   # TanStack Virtual ≥3.14.3: the directDomUpdates React-Compiler fix + core 3.16 chat APIs (D54).
-  "@tanstack/react-virtual": ^3.14.5
+  "@tanstack/react-virtual": ^3.14.13
   # Streamdown ≥2.5 — the D43 §6.3.1 version-floor build gate.
-  streamdown: ^2.5.0
+  streamdown: ^2.6.0
   # KaTeX math stack for @orb/ui/markdown's plugins.math (Streamdown ships mermaid bundled but NOT
   #   katex — these three are the math plugin's parse (remark-math) + render (rehype-katex) + the
   #   stylesheet/typesetting engine (katex). remark-gfm (^4 above) is also a @orb/ui direct dep for the
   #   singleTilde:false override.
-  katex: ^0.16.25
+  katex: ^0.18.9
   "remark-math": ^6.0.0
   "rehype-katex": ^7.0.1
   # Shiki, fine-grained (@orb/ui/markdown's plugins.code — streamdown 2.5 dropped bundled Shiki, D44
@@ -283,9 +283,9 @@ catalog:
   #   `@shikijs/engine-javascript` (the JS-regex engine, no WASM oniguruma) + `@shikijs/langs` (per-lang
   #   grammar entrypoints, dynamic-imported lazily per fence language) keep the highlighter tree-shaken
   #   to only what's actually rendered.
-  "@shikijs/core": ^4.3.1
-  "@shikijs/engine-javascript": ^4.3.1
-  "@shikijs/langs": ^4.3.1
+  "@shikijs/core": ^4.4.3
+  "@shikijs/engine-javascript": ^4.4.3
+  "@shikijs/langs": ^4.4.3
   codemirror: ^6.0.2
   "@codemirror/lang-css": ^6.3.1
   # jsdiff (docs said v8+; current major is 9 — same modern TS surface).
@@ -296,7 +296,7 @@ catalog:
   # @codemirror/state: pinned direct (was transitive, same reasoning) — the code-editor seal reaches
   #   it directly for EditorState.readOnly (state-gates paste/drop/command inserts; EditorView.editable
   #   alone only toggles contentEditable).
-  "@codemirror/state": ^6.7.0
+  "@codemirror/state": ^6.7.6
   # @codemirror/autocomplete: pinned direct (was transitive via `codemirror`'s basicSetup, same
   #   @codemirror/lint reasoning) — WS3 exposes a `completions` prop on the code-editor seal
   #   (autocompletion/completionSource) for the theme editor's CSS var inline autocomplete.
@@ -324,15 +324,15 @@ catalog:
   "remark-frontmatter": ^5.0.0
   "remark-gfm": ^4.0.1
   # DTCG token codegen (docs said v4; current major is 5 — ESM/async, DTCG first-class).
-  style-dictionary: ^5.5.0
+  style-dictionary: ^5.5.5
   # Standards CSS Color 4 parsing/gamut mapping for the isomorphic ThemeScope derivation boundary.
-  colorjs.io: 0.5.2
+  colorjs.io: 0.7.1
   # Tailwind v4 + the vite plugin (the @theme consumer; used by the CT harness + Phase-6 client).
   tailwindcss: ^4.3.3
   "@tailwindcss/oxide": ^4.3.3
   "@tailwindcss/vite": ^4.3.3
   # CT harness (playwright-ct bundles components via vite+react). Also the client build's react plugin.
-  "@vitejs/plugin-react": ^6.0.3
+  "@vitejs/plugin-react": ^6.1.1
 
   # --- client tooling: the ESLint gate + the @orb/client vite build (versions verified vs the live
   #     registry 2026-07-02) ---
@@ -340,19 +340,19 @@ catalog:
   # rules biome can't do — react-hooks + React-Compiler diagnostics, TanStack Query/Router discipline,
   # tailwind compiled-class validation. Config: eslint.config.js (explicit-rules-only, no `recommended`).
   # Every plugin below peer-supports eslint ^10 (verified) and TS 6.0.3 (typescript-eslint peer <6.1.0).
-  eslint: ^10.7.0
+  eslint: ^10.11.0
   # typescript-eslint: latest major-8 (there is NO v9); peer `typescript >=4.8.4 <6.1.0` → our 6.0.3 in range.
   # Used as PARSER only (+ the type-aware no-deprecated gate); its recommended RULE set stays OFF (biome+tsc own that).
-  typescript-eslint: ^8.65.0
+  typescript-eslint: ^8.71.0
   # react-hooks v7 ships the React Compiler diagnostics (the rules-of-react correctness set) alongside rules-of-hooks.
   eslint-plugin-react-hooks: ^7.1.1
-  "@tanstack/eslint-plugin-query": ^5.101.4
+  "@tanstack/eslint-plugin-query": ^5.104.0
   "@tanstack/eslint-plugin-router": ^1.162.0
   # better-tailwindcss: validates class strings against the classes the v4 engine ACTUALLY registers
   # for our @theme (entryPoint = @orb/ui globals.css). Correctness rules only (biome owns class style/order).
   eslint-plugin-better-tailwindcss: ^4.7.0
   # tsdoc/syntax — validates TSDoc comment syntax (the doc-comment gate, .claude/rules/comments.md). No eslint peer dep.
-  eslint-plugin-tsdoc: ^0.5.2
+  eslint-plugin-tsdoc: ^0.5.3
   # jsx-a11y — EXACT, not a caret, and that is the point (#1331). eslint.config.js spreads its `strict`
   # bundle, `lint:eslint` runs with `--max-warnings 0`, so any rule a 6.x MINOR adds to that bundle would
   # land as a hard `pnpm check` gate with no config change and no review. The spread is sanctioned ONLY
@@ -360,27 +360,27 @@ catalog:
   eslint-plugin-jsx-a11y: 6.10.2
   # eslint-react's leak family: unremoved listeners/timers/observers/fetch inside components — nothing
   # else in the stack (biome, react-hooks, tsc) can see a subscription that outlives its component.
-  eslint-plugin-react-web-api: ^5.18.1
+  eslint-plugin-react-web-api: ^5.22.1
   # semantic unnecessary-effect analysis (the "you might not need an effect" family). 6 of 9 rules
   # enabled, 3 rejected with receipts — the reasoning lives in eslint.config.js beside the block.
-  eslint-plugin-react-you-might-not-need-an-effect: ^1.0.1
+  eslint-plugin-react-you-might-not-need-an-effect: ^1.0.2
   # vite: not 8.1.3 (published <24h ago, minimumReleaseAge-blocked); ^8.1.2 is the latest mature — the
   # caret auto-adopts 8.1.3 once it clears the 24h window. (Matches the lucide pin-reason style.)
-  vite: ^8.1.2
-  vite-plugin-checker: ^0.14.4
+  vite: ^8.3.1
+  vite-plugin-checker: ^0.14.5
   # React Compiler (stable 1.0) runs FULL-compile from day one (D54). plugin-react v6 dropped internal
   # babel for oxc, so the compiler runs as a @rolldown/plugin-babel preset that MUST precede react().
   babel-plugin-react-compiler: ^1.0.0
-  "@rolldown/plugin-babel": ^0.2.3
+  "@rolldown/plugin-babel": ^0.2.4
   # --- client data/forms/state (the Phase-6 client-foundation wave — UI-Primitives-and-Reuse.md §13.1
   #     primitives; versions per the UI-Lib-* mines' verified baselines, caret-adopted) ---
-  "@tanstack/react-query": ^5.101.4
-  "@tanstack/react-form": ^1.33.2
-  zustand: ^5.0.14
+  "@tanstack/react-query": ^5.104.0
+  "@tanstack/react-form": ^1.33.5
+  zustand: ^5.0.15
   # @trpc/client + the tanstack-react-query bridge track @trpc/server's major (^11.18.0) — the
   # options-proxy (`trpc.x.y.queryOptions()`) IS the queryKey factory (gate no-array-literal-querykey).
-  "@trpc/client": ^11.18.0
-  "@trpc/tanstack-react-query": ^11.18.0
+  "@trpc/client": ^11.19.0
+  "@trpc/tanstack-react-query": ^11.19.0
   # @tanstack/react-router: the KEPT runtime (UI-Arch KEEP list "Router-minimal") — committed
   # production stack, used MINIMALLY (~3 hand-written code-based routes: / · /login · /admin/*).
   # 1.170.17 is <24h-blocked; ^1.170.16 is the latest mature (caret adopts newer once mature).
@@ -388,7 +388,7 @@ catalog:
   # DELIBERATELY DROPPED (UI-Arch §6.1): hand-written code-based
   # tree; type-safety = inference + one `declare module { Register }`, not codegen. The vite build does
   # NOT wire tanstackRouter().
-  "@tanstack/react-router": ^1.170.16
+  "@tanstack/react-router": ^1.170.40
 # There is deliberately NO `esbuild@^0.25.0` override here any more (dropped 2026-08-07). It existed to
 # force "vite/vitest's bundled esbuild" up to 0.28.1 so the es2025 target would not be rejected — and the
 # vite 8 / vitest 4 bump killed BOTH halves of that premise. Re-derived from source, not from the comment:
@@ -418,7 +418,7 @@ overrides:
   # floor moves past 10.3.1.
   ip-address: ^10.3.1
   # @modelcontextprotocol/sdk declares its OWN `@hono/node-server: ^1.19.9` (a separate major line from
-  # our own catalog `@hono/node-server: ^2.0.6` dep, so pnpm cannot dedupe the two) — same "no manifest
+  # our own catalog `@hono/node-server: ^2.1.3` dep, so pnpm cannot dedupe the two) — same "no manifest
   # names the 1.x line by itself" reason `pnpm update` can't reach it. Pin to a version already inside
   # that declared range to clear GHSA-frvp-7c67-39w9 (Windows encoded-backslash path traversal in
   # serve-static, patched by 1.19.15). Falls away once @modelcontextprotocol/sdk's declared floor moves
@@ -431,7 +431,7 @@ overrides:
   # the CT harness onto it. (the owner-approved 2026-07-02: accept the CT-harness major-bump to clear the peer.)
   "@vitejs/plugin-react": "catalog:"
   # @huggingface/transformers@4.2.0 declares its own `sharp: ^0.34.5` dependency (matching our own
-  # pre-bump floor), which resolves to a separate 0.34.5 tree alongside our catalog `sharp: ^0.35.0` —
+  # pre-bump floor), which resolves to a separate 0.34.5 tree alongside our catalog `sharp: ^0.35.5` —
   # duplicating the GHSA-f88m-g3jw-g9cj-vulnerable version instead of deduping onto the fixed one.
   # Force the single resolution onto the catalog floor.
   sharp: "catalog:"
