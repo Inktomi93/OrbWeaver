@@ -480,6 +480,20 @@ peerDependencyRules:
   allowedVersions:
     eslint-plugin-jsx-a11y>eslint: "10"
 
+# Advisories triaged as unreachable or dev-only (each dismissed with its reason in the repository's Dependabot
+# alerts). Listed here so `pnpm audit` exits clean and a new advisory stands out. Drop an entry once its
+# package is upgraded past the fix.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-2p57-rm9w-gvfp # ip, via node-av's WebRTC code, never loaded
+    - GHSA-86w9-cpqp-85rv # node-forge, acme-client runs on its native crypto interface
+    - GHSA-ggr8-5vv4-36mx # deepmerge-ts, html-to-text merges only a fixed options constant
+    - GHSA-w5hq-g745-h8pq # uuid, typeid-js calls v7; the advisory covers v3, v5 and v6
+    - GHSA-67mh-4wv8-2f99 # esbuild, drizzle-kit dev dependency, dev server never started
+    - GHSA-q8mj-m7cp-5q26 # qs, Stryker dev dependency
+    - GHSA-x5fp-wj9c-mxmx # qs, Stryker dev dependency
+    - GHSA-4mjr-xmp4-gh2g # qs, Stryker dev dependency
+
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - dependency-cruiser@18.0.0
