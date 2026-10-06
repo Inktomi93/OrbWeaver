@@ -4,6 +4,9 @@
 import type { RpgActorView, RpgTrackerDef, RpgTrackerView } from "@orb/contracts/rpg";
 import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
 
+const STAMINA_CEILING = 10;
+export const SCENARIO_CONTROLS = { staminaCeiling: STAMINA_CEILING };
+
 export const TRACKERS: readonly RpgTrackerDef[] = [
   rpgTrackerDefSchema.parse({
     key: "stamina",
@@ -11,7 +14,7 @@ export const TRACKERS: readonly RpgTrackerDef[] = [
     shape: "meter",
     write: "delta",
     subject: "actor",
-    max: 10,
+    max: STAMINA_CEILING,
     hint: "physical energy you spend on hard work",
   }),
   rpgTrackerDefSchema.parse({
@@ -147,7 +150,7 @@ export const TURNS: readonly Turn[] = [
     id: "t4-labour",
     player: "To pay for my board I spend two hours hauling heavy crates in the cellar. It leaves me drained; I lose 3 stamina.",
     planes: ["tracker.delta"],
-    expect: [{ label: "stamina went down", holds: (a, b) => a.stamina !== null && a.stamina < (b.stamina ?? 0) }],
+    expect: [{ label: "stamina went down", holds: (a, b) => a.stamina !== null && a.stamina < (b.stamina ?? STAMINA_CEILING) }],
   },
   {
     id: "t5-letter",

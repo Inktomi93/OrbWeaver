@@ -2,14 +2,157 @@
 // the D26-correct aggregation (economics from the SELECTED variant only — a non-selected swipe never
 // counts), owner scoping (a foreign owner's turns never leak), and the per-(character, model) split.
 
+import { generationUsageLegSchema, projectGenerationUsage } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
+import { messageVariants } from "@orb/db";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { readCharacterEconomics, readCharacterModelEconomics } from "../../../../../packages/server/src/domain/stats/persistence/messages-economics.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { seedCharacter, seedChat, seedMessage, seedUser } from "../_support.ts";
 
 let db: Db;
+
+test.for([null, 0])("selected price reads distinguish an unpriced API leg from a known-zero API price (%s)", async (apiPrice) => {
+  db = await freshDb();
+  const owner = await seedUser(db);
+  const character = await seedCharacter(db, owner);
+  const chat = await seedChat(db, character);
+  const sdkLeg = generationUsageLegSchema.parse({
+    ...makeGenerationUsage(0.125, { costProvenance: "estimated", costDetails: null }),
+    model: testModelId("subscription-model"),
+    provider: "claude-sub",
+    wire: "agent-sdk",
+    observedAt: 0,
+    contextWindow: null,
+    maxOutputTokens: null,
+    modelCalls: 1,
+    durationApiMs: null,
+    ttftMs: null,
+    finishReason: "stop",
+    stopReason: null,
+    terminalReason: null,
+    generationId: null,
+  });
+  const apiLeg = generationUsageLegSchema.parse({
+    ...sdkLeg,
+    ...makeGenerationUsage(apiPrice),
+    model: testModelId("main-model"),
+    provider: "openrouter",
+    wire: "openai-compat",
+  });
+  const legs = [sdkLeg, apiLeg];
+  expect(projectGenerationUsage(legs).total.costUsd).toBeNull();
+  expect(projectGenerationUsage(legs).knownSubtotal.costUsd).toBeNull();
+  const messageId = await seedMessage(db, {
+    chatId: chat,
+    seq: 1,
+    role: "assistant",
+    characterId: character,
+    variants: [{ model: "main-model", provider: "openrouter", costUsd: null }],
+  });
+  await db
+    .update(messageVariants)
+    .set({ metadata: { usageLegs: legs } })
+    .where(eq(messageVariants.messageId, messageId));
+  const partialPrice = apiPrice === null ? 0.125 : null;
+  expect(await readCharacterEconomics(db, owner)).toMatchObject([{ characterId: character, generations: 1, costUsd: partialPrice }]);
+  expect(await readCharacterModelEconomics(db, owner)).toMatchObject([
+    { characterId: character, model: "main-model", provider: "openrouter", costUsd: partialPrice },
+  ]);
+  expect((await db.select().from(messageVariants).where(eq(messageVariants.messageId, messageId)))[0]?.metadata?.usageLegs).toEqual(legs);
+});
+
+test("both canon economics reads keep a null-scalar mixed-basis variant in compatibility, rather than showing the other API fee as the total", async () => {
+  db = await freshDb();
+  const owner = await seedUser(db);
+  const character = await seedCharacter(db, owner);
+  const chat = await seedChat(db, character);
+  const common = {
+    observedAt: 0,
+    contextWindow: null,
+    maxOutputTokens: null,
+    modelCalls: 1,
+    durationApiMs: null,
+    ttftMs: null,
+    finishReason: "stop",
+    stopReason: "STOP",
+    terminalReason: null,
+    generationId: null,
+  };
+  const legs = [
+    generationUsageLegSchema.parse({
+      ...common,
+      ...makeGenerationUsage(0.125, { costProvenance: "estimated" }),
+      model: testModelId("subscription-model"),
+      provider: testProviderId("claude-sub"),
+      wire: "agent-sdk",
+    }),
+    generationUsageLegSchema.parse({
+      ...common,
+      ...makeGenerationUsage(0.25),
+      model: testModelId("main-model"),
+      provider: testProviderId("google"),
+      wire: "google-generative-ai",
+    }),
+  ];
+  const mixed = await seedMessage(db, {
+    chatId: chat,
+    seq: 1,
+    role: "assistant",
+    characterId: character,
+    variants: [{ model: "main-model", provider: "google", tokensIn: 20, tokensOut: 40, costUsd: null }],
+  });
+  await db
+    .update(messageVariants)
+    .set({ metadata: { usageLegs: legs } })
+    .where(eq(messageVariants.messageId, mixed));
+  await seedMessage(db, {
+    chatId: chat,
+    seq: 2,
+    role: "assistant",
+    characterId: character,
+    variants: [{ model: "main-model", provider: "google", tokensIn: 100, tokensOut: 200, costUsd: 0.25 }],
+  });
+  expect(await readCharacterEconomics(db, owner)).toMatchObject([{ characterId: character, generations: 2, tokensIn: 120, tokensOut: 240, costUsd: null }]);
+  expect(await readCharacterModelEconomics(db, owner)).toMatchObject([
+    { characterId: character, model: "main-model", provider: "google", generations: 2, tokensOut: 240, costUsd: null },
+  ]);
+});
+
+test("typed legacy subscription prices are visible alone and unavailable when mixed with another retained price basis", async () => {
+  db = await freshDb();
+  const owner = await seedUser(db);
+  const character = await seedCharacter(db, owner);
+  const chat = await seedChat(db, character);
+  const subscription = await seedMessage(db, {
+    chatId: chat,
+    seq: 1,
+    role: "assistant",
+    characterId: character,
+    variants: [{ model: "subscription-model", provider: "claude-sub", costUsd: 0.125 }],
+  });
+  await db
+    .update(messageVariants)
+    .set({ metadata: { providerMetadata: { provider: "claude-sub" } } })
+    .where(eq(messageVariants.messageId, subscription));
+  expect((await readCharacterEconomics(db, owner))[0]?.costUsd).toBe(0.125);
+  expect((await readCharacterModelEconomics(db, owner))[0]?.costUsd).toBe(0.125);
+  await seedMessage(db, {
+    chatId: chat,
+    seq: 2,
+    role: "assistant",
+    characterId: character,
+    variants: [{ model: "api-model", provider: "google", costUsd: 0.25 }],
+  });
+  expect((await readCharacterEconomics(db, owner))[0]?.costUsd).toBeNull();
+  const models = await readCharacterModelEconomics(db, owner);
+  expect(models.find((row) => row.model === "subscription-model")?.costUsd).toBe(0.125);
+  expect(models.find((row) => row.model === "api-model")?.costUsd).toBe(0.25);
+});
 
 describe("readCharacterEconomics", () => {
   test("sums the SELECTED assistant variant's economics per character, owner-scoped", async () => {

@@ -7,7 +7,7 @@ import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
 import type { CharacterCard } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
-import type { GenerationCapability } from "@orb/contracts/inference";
+import type { GenerationCapability, GenerationUsage } from "@orb/contracts/inference";
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -108,11 +108,6 @@ export interface ImageGenerateRequest {
   readonly capability: GenerationCapability;
 }
 
-/** The settled cost of one generation call (null when the provider did not report it). */
-export interface ImageGenerateUsage {
-  readonly costUsd: number | null;
-}
-
 /** The executor's result — the returned images + the model provenance + the economics + the runner's edit-strip
  *  belt warnings (doc 03 §2). Structural twin of the infra `ImageGenerateResult.warnings` (`ResolvedWarning[]`)
  *  mapped to the domain's `ImageryWarning` at compose — two spellings of one result must not drift (doc 01 §4 note). */
@@ -120,7 +115,7 @@ export interface ImageGenerateResult {
   readonly images: readonly GeneratedImage[];
   /** Provider-reported foreign id; `runGeneration` validates/brands it before any persistence. */
   readonly model: string;
-  readonly usage: ImageGenerateUsage;
+  readonly usage: GenerationUsage;
   readonly warnings: readonly ImageryWarning[];
 }
 

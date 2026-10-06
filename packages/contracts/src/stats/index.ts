@@ -3,11 +3,11 @@
 // substrate fulfils). Lives here (not `domain/stats`) because a feature home would force an illegal
 // chat→stats sideways import; the apply IMPL lives in `domain/stats/write/apply-delta.ts`.
 
-import type { CharacterId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatParticipantId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MODEL_PROVIDER_UNKNOWN, statsBucketStart } from "@orb/kit/stats-tally";
 import { z } from "zod";
-import type { ProviderId } from "#inference";
+import type { GenerationUsageLeg, ProviderId } from "#inference";
 import { modelIdSchema, providerIdSchema } from "#inference";
 import type { TokenProvenance } from "../chat/messages.ts";
 import { tokenProvenanceSchema } from "../chat/messages.ts";
@@ -48,6 +48,7 @@ export const statsDeltaSchema = z.object({
   tokensOutEstimatedSamples: z.number().optional(),
   costUsd: z.number().optional(),
   costSamples: z.number().optional(),
+  notionalCostSamples: z.number().optional(),
   genTimeMs: z.number().optional(),
   genSamples: z.number().optional(),
   reasoningGenerations: z.number().optional(),
@@ -93,6 +94,7 @@ export const statsDeltaSchema = z.object({
   modelReasoningMs: z.number().optional(),
   modelCostUsd: z.number().optional(),
   modelCostSamples: z.number().optional(),
+  modelNotionalCostSamples: z.number().optional(),
   modelCacheReadTokens: z.number().optional(),
   modelCacheWriteTokens: z.number().optional(),
 
@@ -111,7 +113,33 @@ export type StatsDelta = z.infer<typeof statsDeltaSchema>;
 /** The increments a SPEND delta may carry: money spent outside the message canon (an image generation, a
  *  compaction pass). The stats rebuild folds exactly these keys, so a key added here without a fold arm
  *  fails `tsc` there rather than drifting the rebuild from the live write. */
-export const SPEND_DELTA_FIELDS = ["costUsd", "costSamples", "modelGenerations", "modelGenSamples", "modelCostUsd", "lastAt"] as const;
+export const SPEND_DELTA_FIELDS = [
+  "costUsd",
+  "costSamples",
+  "notionalCostSamples",
+  "modelGenerations",
+  "modelGenSamples",
+  "modelCostUsd",
+  "lastAt",
+  "tokensIn",
+  "tokensInMeasuredSamples",
+  "dailyTokensIn",
+  "dailyTokensInMeasuredSamples",
+  "modelTokensIn",
+  "modelTokensInMeasuredSamples",
+  "modelCostSamples",
+  "modelNotionalCostSamples",
+  "tokensOut",
+  "tokensOutMeasuredSamples",
+  "dailyTokensOut",
+  "dailyTokensOutMeasuredSamples",
+  "modelTokensOut",
+  "modelTokensOutMeasuredSamples",
+  "cacheReadTokens",
+  "cacheWriteTokens",
+  "modelCacheReadTokens",
+  "modelCacheWriteTokens",
+] as const;
 export type SpendDeltaField = (typeof SPEND_DELTA_FIELDS)[number];
 
 /** A {@link StatsDelta} narrowed to owner, timeline and model grain spend: never a character, never a turn.
@@ -141,7 +169,7 @@ export function imageGenerationSpendDelta(args: {
     modelGenerations: args.count,
     modelGenSamples: args.count,
     now: args.now,
-    ...(args.costUsd !== null ? { costUsd: args.costUsd, modelCostUsd: args.costUsd } : {}),
+    ...(args.costUsd !== null ? { costUsd: args.costUsd, costSamples: 1, modelCostUsd: args.costUsd, modelCostSamples: 1 } : {}),
   };
 }
 
@@ -161,11 +189,168 @@ export function compactionSpendDelta(args: { readonly ownerId: UserId; readonly 
   };
 }
 
+/** One observed physical embedding batch: input accounting, never chat turns or generation samples. */
+export function embeddingSpendDelta(args: {
+  readonly ownerId: UserId;
+  readonly model: ModelId;
+  readonly provider: ProviderId;
+  readonly promptTokens: number | null;
+  readonly costUsd: number | null;
+  readonly now: number;
+}): SpendDelta {
+  return {
+    ownerId: args.ownerId,
+    characterId: null,
+    bucketStart: statsBucketStart(args.now),
+    model: args.model,
+    provider: args.provider,
+    now: args.now,
+    lastAt: args.now,
+    ...(args.promptTokens === null
+      ? {}
+      : {
+          tokensIn: args.promptTokens,
+          tokensInMeasuredSamples: 1,
+          dailyTokensIn: args.promptTokens,
+          dailyTokensInMeasuredSamples: 1,
+          modelTokensIn: args.promptTokens,
+          modelTokensInMeasuredSamples: 1,
+        }),
+    ...(args.costUsd === null ? {} : { costUsd: args.costUsd, costSamples: 1, modelCostUsd: args.costUsd, modelCostSamples: 1 }),
+  };
+}
+
+/** Retained completed call facts carry economics, never an invented transcript turn or duration sample. */
+export function generationObservationSpendDelta(args: {
+  readonly ownerId: UserId;
+  readonly leg: GenerationUsageLeg;
+  readonly sign?: number;
+  readonly changedAt?: number;
+}): SpendDelta {
+  const { leg, sign = 1 } = args;
+  return {
+    ownerId: args.ownerId,
+    characterId: null,
+    bucketStart: statsBucketStart(leg.observedAt),
+    model: leg.model,
+    provider: leg.provider,
+    now: args.changedAt ?? leg.observedAt,
+    ...(sign > 0 ? { lastAt: leg.observedAt } : {}),
+    ...(leg.tokensIn === null
+      ? {}
+      : {
+          tokensIn: sign * leg.tokensIn,
+          tokensInMeasuredSamples: sign,
+          dailyTokensIn: sign * leg.tokensIn,
+          dailyTokensInMeasuredSamples: sign,
+          modelTokensIn: sign * leg.tokensIn,
+          modelTokensInMeasuredSamples: sign,
+        }),
+    ...(leg.tokensOut === null
+      ? {}
+      : {
+          tokensOut: sign * leg.tokensOut,
+          tokensOutMeasuredSamples: sign,
+          dailyTokensOut: sign * leg.tokensOut,
+          dailyTokensOutMeasuredSamples: sign,
+          modelTokensOut: sign * leg.tokensOut,
+          modelTokensOutMeasuredSamples: sign,
+        }),
+    ...(leg.costUsd === null
+      ? {}
+      : {
+          costUsd: sign * leg.costUsd,
+          costSamples: sign,
+          ...(leg.wire === "agent-sdk" ? { notionalCostSamples: sign, modelNotionalCostSamples: sign } : {}),
+          modelCostUsd: sign * leg.costUsd,
+          modelCostSamples: sign,
+        }),
+    ...(leg.cacheReadTokens === null ? {} : { cacheReadTokens: sign * leg.cacheReadTokens, modelCacheReadTokens: sign * leg.cacheReadTokens }),
+    ...(leg.cacheWriteTokens === null ? {} : { cacheWriteTokens: sign * leg.cacheWriteTokens, modelCacheWriteTokens: sign * leg.cacheWriteTokens }),
+  };
+}
+
+/** Kept variant economics use the same observed facts without creating transcript or timing samples. */
+export function variantUsageLegDelta(args: {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId | null;
+  readonly leg: GenerationUsageLeg;
+  readonly selected: boolean;
+  readonly sign: 1 | -1;
+  readonly now: number;
+}): StatsDelta {
+  const delta = generationObservationSpendDelta({ ownerId: args.ownerId, leg: args.leg, sign: args.sign, changedAt: args.now });
+  if (args.selected) {
+    return { ...delta, characterId: args.characterId };
+  }
+  const tokens: StatsDelta = { ...delta, characterId: args.characterId };
+  tokens.costUsd = undefined;
+  tokens.costSamples = undefined;
+  tokens.notionalCostSamples = undefined;
+  tokens.modelCostUsd = undefined;
+  tokens.modelCostSamples = undefined;
+  tokens.modelNotionalCostSamples = undefined;
+  tokens.cacheReadTokens = undefined;
+  tokens.cacheWriteTokens = undefined;
+  tokens.modelCacheReadTokens = undefined;
+  tokens.modelCacheWriteTokens = undefined;
+  tokens.dailyTokensIn = undefined;
+  tokens.dailyTokensOut = undefined;
+  tokens.dailyTokensInMeasuredSamples = undefined;
+  tokens.dailyTokensOutMeasuredSamples = undefined;
+  return tokens;
+}
+
 /** The signature of the injected upsert op — chat receives this typed and calls it to enqueue the
  *  rollup-increment statements into the same canon-write batch, so chat never imports the stats
  *  schema-write at runtime. `@orb/contracts` may not import `@orb/db`/drizzle, so `Batch`/`Db` are
  *  generic, bound to concrete db types at the impl + injection sites. */
 export type ApplyStatsDelta<Batch, Db> = (batch: Batch, db: Db, delta: StatsDelta) => void;
+
+/** Retained-data accounting scope and its same-batch immutable membership fence. */
+export interface RetainedChatAccountingScope<Predicate> {
+  readonly ownerIds: readonly UserId[];
+  readonly characterOwnerId: UserId | null;
+  readonly predicate: Predicate;
+}
+
+/** Stats owns the membership relation; consumers neither infer ownership from host authority nor copy SQL. */
+export type ResolveRetainedChatAccountingScope<Predicate> = (
+  chatId: ChatId,
+  characterId: CharacterId | null,
+) => Promise<RetainedChatAccountingScope<Predicate>>;
+
+/** Private retained-room rebase input: the accepted copy plan, not a new ownership decision. */
+export interface RetainedChatRekeys {
+  readonly chatId: ChatId;
+  readonly seats: ReadonlyMap<ChatParticipantId, CharacterId>;
+  readonly characters: ReadonlyMap<CharacterId, CharacterId>;
+}
+
+/** A stats-owned immutable read snapshot. DB rows and SQL remain implementation-supplied generic types. */
+export interface RetainedChatRebaseSnapshot<ChatRow, SlotRow, VariantRow, Predicate> {
+  readonly chat: ChatRow;
+  readonly slots: readonly SlotRow[];
+  readonly variants: readonly VariantRow[];
+  readonly beforeOwnerIds: readonly UserId[];
+  readonly afterOwnerIds: readonly UserId[];
+  readonly beforeSeatIds: readonly CharacterId[];
+  readonly afterSeatIds: readonly CharacterId[];
+  readonly characterOwners: ReadonlyMap<CharacterId, UserId>;
+  readonly predicate: Predicate;
+}
+
+/** Canonical membership and immutable canon facts are read by stats; chat reuses its own delta builders. */
+export type ResolveRetainedChatRebase<ChatRow, SlotRow, VariantRow, Predicate> = (
+  rekeys: RetainedChatRekeys,
+) => Promise<RetainedChatRebaseSnapshot<ChatRow, SlotRow, VariantRow, Predicate> | null>;
+
+/** Repair only extrema and unsupported voice rows after an atomic retained-room rekey. */
+export type SettleRetainedChatRebase<Batch, Database> = (
+  batch: Batch,
+  db: Database,
+  scope: { readonly ownerIds: readonly UserId[]; readonly characterIds: readonly CharacterId[] },
+) => void;
 
 /** Append only the per-owner rebuild fence to an existing canon batch. Used when canon changes but no
  *  exact incremental rollup delta exists; the next reconcile must still detect the mutation. */
@@ -220,7 +405,7 @@ export interface ReconcileStatsWorkloadResult {
 
 export interface ExtraStats {
   reasoningMs: number;
-  /** `null` when no contributing generation reported a dollar cost. */
+  /** Partial compatible priced subtotal; missing prices are omitted. Null when unavailable or incompatible. */
   costUsd: number | null;
   cacheReadTokens: number;
   cacheWriteTokens: number;
@@ -235,7 +420,7 @@ export interface ExtraStats {
   avgReplyWords: number;
 }
 
-/** Unrecorded economics stay null: zero means a measured zero, never missing accounting. */
+/** Missing economics stay null; known zero is not missing usage or pricing. Cost is a compatible priced subset. */
 export interface OwnerStatsView extends ExtraStats {
   characters: number;
   chats: number;
@@ -328,8 +513,8 @@ export interface ModelStatRow {
   avgTtftMs: number | null;
   p50TtftMs: number | null;
   p90TtftMs: number | null;
-  reasoningRate: number;
-  throughputTps: number;
+  reasoningRate: number | null;
+  throughputTps: number | null;
   costUsd: number | null;
   reasoningMs: number;
   cacheHitRate: number | null;
@@ -485,8 +670,8 @@ export const modelStatRowSchema = z.strictObject({
   avgTtftMs: z.number().nullable(),
   p50TtftMs: z.number().nullable(),
   p90TtftMs: z.number().nullable(),
-  reasoningRate: z.number(),
-  throughputTps: z.number(),
+  reasoningRate: z.number().nullable(),
+  throughputTps: z.number().nullable(),
   costUsd: z.number().nullable(),
   reasoningMs: z.number(),
   cacheHitRate: z.number().nullable(),

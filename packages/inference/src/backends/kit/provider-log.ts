@@ -22,11 +22,11 @@ export interface ProviderTurnUsage {
 /** The cache-rot signal: a collapsed hitRatio with a spiked cacheWriteTokens is the re-bill, in one grep. */
 interface ProviderCacheLog {
   readonly turnId: string;
-  readonly cacheReadTokens: number;
-  readonly cacheWriteTokens: number;
+  readonly cacheReadTokens: number | null;
+  readonly cacheWriteTokens: number | null;
   readonly breakpointsPlaced: number;
   readonly breakpointOffsets: readonly number[];
-  readonly hitRatio: number;
+  readonly hitRatio: number | null;
   readonly minCacheTokens: number;
 }
 

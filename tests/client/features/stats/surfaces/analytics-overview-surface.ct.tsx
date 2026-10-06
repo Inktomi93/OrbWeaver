@@ -123,9 +123,9 @@ for (const width of [320, 720] as const) {
           await expect(figure.locator('[data-slot="stat-figure-value"]')).toHaveText(accounting.tokenValue);
           await expect(figure.locator('[data-slot="stat-figure-label"]')).toHaveText(`${label} · ${accounting.label}`);
         }
-        const spend = component.locator('[data-slot="stat-figure"]', { hasText: "Spend" });
+        const spend = component.locator('[data-slot="stat-figure"]', { hasText: "Cost" });
         await expect(spend.locator('[data-slot="stat-figure-value"]')).toHaveText(accounting.costValue);
-        await expect(spend.locator('[data-slot="stat-figure-label"]')).toHaveText(`Spend · ${accounting.cost === null ? "Not recorded" : "Recorded"}`);
+        await expect(spend.locator('[data-slot="stat-figure-label"]')).toHaveText(accounting.cost === null ? "Cost · Unavailable" : "Cost");
         await expect(component.getByText("Whole library · Aggregate only", { exact: true })).toBeVisible();
         await expect(component.getByText("~ marks estimates", { exact: false }).first()).toBeVisible();
         await expect(component.getByText("Reasoning (of replies + swipes)", { exact: true })).toBeVisible();
@@ -247,13 +247,13 @@ test("an unmeasured figure renders an em dash, never a zero", async ({ mount, pa
   await expect(component.getByRole("button", { name: "Recompute now" })).toBeVisible();
 
   await Promise.all(
-    ["Cache hits (of input)", "Tokens in", "Tokens out", "Spend"].map(async (label) => {
+    ["Cache hits (of input)", "Tokens in", "Tokens out", "Cost"].map(async (label) => {
       const value = component.locator('[data-slot="stat-figure"]', { hasText: label }).locator('[data-slot="stat-figure-value"]');
       await expect(value).toHaveText("—");
     }),
   );
   // …and the surface TEACHES the dash rather than leaving a reader to guess it means zero.
-  await expect(component.getByText("A dash means the figure was never recorded", { exact: false }).first()).toBeVisible();
+  await expect(component.getByText("A dash means unavailable", { exact: false }).first()).toBeVisible();
 });
 
 // P2d: "Words" meant user+assistant here and assistant-only on the drill, under the same label; and

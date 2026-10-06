@@ -25,6 +25,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { PortableFile } from "@orb/contracts/portability";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { WorkloadRef } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
@@ -43,7 +44,9 @@ import {
   createEnqueueImportIndex,
   createSettleImportMemory,
 } from "../../../../packages/server/src/entry/compose/portability-runner.ts";
+import { freshDb } from "../../../support/db.ts";
 import { principal } from "../../../support/factories/principal.ts";
+import { seedUser } from "../../../support/factories/user.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("usr_runner_owner");
@@ -65,6 +68,12 @@ function build(overrides: Partial<PortabilityRunnerComposeDeps> = {}): ReturnTyp
     worldInfoExportCtx: {},
     importStandaloneLorebook: vi.fn(),
     galleryCtx: {},
+    imageryPortability: {
+      async *exportAll(): AsyncIterable<PortableFile> {
+        yield* [];
+      },
+      importFile: vi.fn(),
+    },
     databankCtx: {},
     persona: { list: vi.fn(), export: vi.fn(), import: vi.fn() },
     exportService: { exportCharacter: vi.fn(), exportChatBundle: vi.fn(), listHostChats: vi.fn() },
@@ -151,12 +160,15 @@ describe("buildPortabilityRunner — quiet mode wraps the bulk runs without swal
   // records that as a note (#1688). Before #1710 the runner's own collapse to `{imported,skipped,failed}`
   // dropped it before it ever reached a background `import-bundle` workload's result.
   test("a real staged card whose primary book is taken surfaces the #1598 kept-book note on the workload result", async () => {
+    const db = await freshDb();
+    await seedUser(db, { id: OWNER });
     const cardJson =
       '{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"Aria","description":"a bard","character_book":{"name":"Aria\'s World","entries":[{"keys":["kingdom"],"content":"A realm of dusk.","comment":"The Kingdom","insertion_order":10}]}}}';
     await mkdir(join(stagedRoot, "characters"), { recursive: true });
     await writeFile(join(stagedRoot, "characters", "Aria.json"), cardJson);
     const characterId = castId<CharacterId>("chr_aria");
     const { importWorkloads } = build({
+      db,
       importStagingDir: stagedRoot,
       // @orb-waive no-test-fabrication(unknown): only the four ops `buildOwnerImport` reads off `deps.character` matter here — the Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       // rest of the real `CharacterService` surface is never touched by a staged card import.
@@ -315,10 +327,10 @@ describe("createSettleImportMemory — an import's span, and its free segment pa
 });
 
 describe("buildPortabilityRunner — the registry and the workload bundle are both produced", () => {
-  test("the portability registry is composed here (twelve descriptors, the shared import slice)", () => {
+  test("the portability registry is composed here with the shared import slice", () => {
     const { portability } = build();
 
-    expect(portability).toHaveLength(12);
+    expect(portability).toHaveLength(13);
     expect(portability.map((e) => e.kind)).toContain("character");
   });
 

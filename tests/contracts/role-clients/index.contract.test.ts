@@ -22,6 +22,7 @@ const sampleRerankResult: RerankResult = {
 const sampleImageEmbedResult: ImageEmbedResult = {
   vectors: [vecA],
   model: "qwen3-vl-embedding",
+  usage: { promptTokens: null, totalTokens: null },
 };
 const sampleSummarizeResult: SummarizeResult = {
   items: [{ text: "a summary", usage: { tokensIn: null, tokensOut: null, costUsd: null } }],

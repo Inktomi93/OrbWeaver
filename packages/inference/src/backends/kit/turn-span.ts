@@ -21,8 +21,8 @@ import type { AddSpanEvent } from "../../contract/runtime.ts";
 /** One turn's cache placement, as the two hosted wires already count it for their own receipts. */
 export interface TurnCacheSpan {
   readonly breakpointsPlaced: number;
-  readonly readTokens: number;
-  readonly writeTokens: number;
+  readonly readTokens: number | null;
+  readonly writeTokens: number | null;
 }
 
 /** Emit the turn's timeline events. Absent `addSpanEvent` ⇒ nothing happens (no span in scope), which is the
@@ -53,14 +53,15 @@ export function emitTurnSpanEvents(args: {
     stopReason: turn.stopReason ?? "",
     toolCalls: turn.toolCalls?.length ?? 0,
   });
-  const total = args.cache.readTokens + args.cache.writeTokens;
+  const { readTokens, writeTokens } = args.cache;
+  const total = readTokens !== null && writeTokens !== null ? readTokens + writeTokens : null;
   // Emitted even at zero: "the breakpoints were placed and NOTHING hit" is the finding worth having, and an
   // absent event reads identically to a turn that never tried to cache.
   addSpanEvent("provider.cache", {
     turnId: args.turnId,
     breakpointsPlaced: args.cache.breakpointsPlaced,
-    readTokens: args.cache.readTokens,
-    writeTokens: args.cache.writeTokens,
-    hitRatio: total > 0 ? args.cache.readTokens / total : 0,
+    ...(readTokens === null ? {} : { readTokens }),
+    ...(writeTokens === null ? {} : { writeTokens }),
+    ...(total === null || readTokens === null ? {} : { hitRatio: total > 0 ? readTokens / total : 0 }),
   });
 }

@@ -1,7 +1,17 @@
 import type { AssetId, CharacterId, ImageryGenerationId, ModelId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { z } from "zod";
+import type { ProseSlotDef, ProseSlotId } from "#prose-slot";
 import type { MessageContentBlock } from "../chat/content-blocks.ts";
 import { messageContentBlockViewSchema } from "../chat/content-blocks.ts";
+import type { GenerationUsageDetails } from "../inference/usage.ts";
+import { generationUsageDetailsSchema } from "../inference/usage.ts";
+import type { PromptTemplateMode } from "./modes.ts";
+import { promptTemplateModeSchema } from "./modes.ts";
+
+export type { PromptTemplateMode } from "./modes.ts";
+export { PROMPT_TEMPLATE_MODES, promptTemplateModeSchema } from "./modes.ts";
+
 // @orb/contracts/imagery — the image-generation wire vocabulary (D49 item 1). The ONE home for the prompt
 // template MODES (the db `imagery_generations` CHECK + the Phase-7 leaf's templates both DERIVE this tuple —
 // `no-inline-union-redecl`), the size presets, and the chat-facing `generatePicture` request. The Phase-7
@@ -10,17 +20,6 @@ import { messageContentBlockViewSchema } from "../chat/content-blocks.ts";
 // IC-C: `MODE_TRIGGERS` + `generateImageActionArgsSchema` are minted HERE and
 // imported DOWN by `@orb/contracts/automation`'s `generate_image` action arm (never re-spelled there —
 // `no-inline-union-redecl`); they land in the SAME commit as their first consumer.
-
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { z } from "zod";
-import type { ProseSlotDef, ProseSlotId } from "#prose-slot";
-
-/** The committed prompt-template modes. `free` = the user's prompt verbatim — the
- *  only mode the Phase-5 chat caller drives; the rest are the Phase-7 extraction/caption modes. A new mode
- *  fails the templates `Record`'s `tsc` — the exhaustiveness lever. */
-export const PROMPT_TEMPLATE_MODES = ["free", "character", "face", "scenario", "background", "character_multimodal", "face_multimodal"] as const;
-export const promptTemplateModeSchema = z.enum(PROMPT_TEMPLATE_MODES);
-export type PromptTemplateMode = z.infer<typeof promptTemplateModeSchema>;
 
 // ── The prompt-building CATALOG (Phase B ⑫) — the SHIPPED-DEFAULT authored content, as-data ──────────
 // The image-prompt-mode instructions were hardcoded in the server leaf (`domain/imagery/substrate/templates`);
@@ -327,6 +326,7 @@ export interface GenerationProvenance {
   readonly negativePrompt: string | null;
   readonly model: ModelId;
   readonly costUsd: number | null;
+  readonly usage: GenerationUsageDetails;
   readonly subjectCharacterId: CharacterId | null;
   /** The reuse hash stored on this generation (docs/plans/rpg/design.md): the portrait-mode subject hash, an external
    *  free-mode consumer's precomputed hash, or `null`. Exposed so a non-character consumer's own reuse gate can
@@ -376,6 +376,7 @@ export const generationProvenanceSchema = z.strictObject({
   negativePrompt: z.string().nullable(),
   model: brandedId<ModelId>(),
   costUsd: z.number().nullable(),
+  usage: generationUsageDetailsSchema,
   subjectCharacterId: typeIdSchema(ID_PREFIX.character).nullable(),
   identityHash: z.string().nullable(),
   edited: z.boolean(),
@@ -388,3 +389,5 @@ export const extractedPromptSchema = z.strictObject({
   source: z.literal(["extracted", "captioned"]),
   costUsd: z.number().nullable(),
 }) satisfies z.ZodType<ExtractedPrompt>;
+
+export * from "./portable.ts";

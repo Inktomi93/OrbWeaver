@@ -30,6 +30,7 @@ import type {
 } from "@orb/contracts/chat";
 import { buildIdentityNameContext, DEFAULT_MESSAGE_KIND, INLINE_REPLY_ORIGIN, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import type { NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
+import { projectGenerationUsage } from "@orb/contracts/inference";
 import type { ContinuePostfix, UserIntent } from "@orb/contracts/preset";
 import {
   DEFAULT_COMPACT_INSTRUCTIONS,
@@ -41,19 +42,20 @@ import {
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/kit";
 // A VALUE import from infra, unlike this file's other `#infra/providers` type-only imports: the fault-outcome
 // arm needs `instanceof` against the real class to read a thrown turn's OWN classification (see
 // `providerTerminalReason`). Legal in the tier order (domain sits ABOVE infra); the reverse edge is what
 // `infra-below-domain` bans.
 import type { Resolved, ResolvedWarning } from "@orb/inference";
-import { generationOf, ProviderError } from "@orb/inference";
+import { GenerationObservationPersistenceError, generationOf, ProviderError } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { getLog, recordTurnOutcome, withRequestSpan } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
 import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
+import type { GenerationObservationParent, GenerationObservationSession } from "../contract/generation-observation.ts";
 import type {
   MemoryConfig,
   MemoryEmbedSpace,
@@ -86,6 +88,7 @@ import {
   insertCanonMessageStatements,
   insertMessageAssetStatements,
 } from "../persistence/canon-write.ts";
+import { createGenerationObservationSession } from "../persistence/generation-observation.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { holdsLock, refreshLock, releaseLock, tryAcquireLock } from "../persistence/lock.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
@@ -104,6 +107,7 @@ import {
   loadSlotTarget,
   loadVariableDeltas,
 } from "../persistence/queries.ts";
+import { prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { insertChatStreamEventStatements } from "../persistence/stream-events.ts";
 import { buildHistoryBudget, fitCeiling, historyTurnTokens } from "../substrate/assembly-access.ts";
 import { continuedSignatureMetadata } from "../substrate/content-signatures.ts";
@@ -112,7 +116,7 @@ import { resolveGroupBucketCharacterId } from "../substrate/group-bucket.ts";
 import { projectInlineReplyImages } from "../substrate/inline-reply-images.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
-import { assistantTurnDelta, canonMessageDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
+import { appendStatsDeltas, assistantTurnDelta, canonMessageDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
 import { runTurnPipeline } from "./pipeline.ts";
 import { resolveTurnNarrative } from "./recover-narrative.ts";
 import { abortedOutcome, committedOutcome } from "./result.ts";
@@ -200,7 +204,7 @@ function continuePostfixDelimiter(prep: TurnPrep): string {
 }
 
 /** The shared economics subset (variant columns ∩ stats input). */
-interface EconomicsCommon {
+interface EconomicsCommon extends Pick<Parameters<typeof appendVariantStatements>[1]["variant"], "servedModel" | "tokenDetails" | "responseCache"> {
   readonly model: ModelId | null;
   readonly provider: ProviderId | null;
   readonly connectionId: UserConnectionId | null;
@@ -214,6 +218,9 @@ interface EconomicsCommon {
 
 function economicsCommon(e: TurnEconomics | null): EconomicsCommon {
   return {
+    servedModel: e?.servedModel ?? null,
+    tokenDetails: e?.tokenDetails ?? null,
+    responseCache: e?.responseCache ?? null,
     model: e?.model ?? null,
     provider: e?.provider ?? null,
     connectionId: e?.connectionId ?? null,
@@ -228,6 +235,10 @@ function economicsCommon(e: TurnEconomics | null): EconomicsCommon {
 
 /** The loaded write target for an append-variant/continue turn, read pre-start. */
 type SlotTarget = NonNullable<Awaited<ReturnType<typeof loadSlotTarget>>>;
+
+function observationParentOf(chatId: ChatId, turnId: ChatTurnId, target: SlotTarget | null): GenerationObservationParent {
+  return { chatId, turnId, sourceMessageId: target?.messageId ?? null, sourceVariantId: target?.selectedVariantId ?? null };
+}
 
 /** Re-reads a just-committed message's authoritative MessageView (append-variant/continue produce fields
  *  the in-memory insert params don't know, unlike a fresh slot). */
@@ -267,8 +278,20 @@ function liveVariantMetadata(result: Awaited<ReturnType<typeof runTurnPipeline>>
     ...(result.systemTokens === null ? {} : { systemTokens: result.systemTokens }),
     ...(text.length === 0 && images.length === 0 && tools.length === 0 ? {} : { contentSignatures: { content: result.content, text, images, tools } }),
     ...(providerMetadata === null || providerMetadata === undefined ? {} : { providerMetadata }),
+    ...(result.economics?.usageLegs === undefined ? {} : { usageLegs: [...result.economics.usageLegs] }),
   };
   return Object.keys(sidecar).length === 0 ? null : sidecar;
+}
+
+function observedResult(
+  result: Awaited<ReturnType<typeof runTurnPipeline>>,
+  legs: NonNullable<TurnEconomics["usageLegs"]>,
+): Awaited<ReturnType<typeof runTurnPipeline>> {
+  if (legs.length === 0 || result.economics === null) {
+    return result;
+  }
+  const { responseCache: _aggregateCache, ...economics } = result.economics;
+  return { ...result, economics: { ...economics, ...projectGenerationUsage(legs).total, usageLegs: [...legs] } };
 }
 
 /** Builds the variant payload (content + reasoning + economics + per-swipe snapshot) — every persist mode
@@ -395,7 +418,7 @@ async function buildTurnStatsDeltas(args: {
   if (persist.mode === "new-slot") {
     if (persist.role === "assistant") {
       return [
-        assistantTurnDelta({
+        ...assistantTurnDelta({
           ownerId,
           characterId: args.speakerCharacterId,
           economics: {
@@ -414,7 +437,7 @@ async function buildTurnStatsDeltas(args: {
     }
     // impersonate: the rebuild folds a user row (userTurns + economics, no assistantTurns/character/model grain).
     return [
-      canonMessageDelta({
+      ...canonMessageDelta({
         ownerId,
         sign: 1,
         now,
@@ -441,8 +464,8 @@ async function buildTurnStatsDeltas(args: {
 
   if (persist.mode === "append-variant") {
     return [
-      canonMessageDelta({ ownerId, sign: -1, now, row: old }),
-      swipeVariantDelta({
+      ...canonMessageDelta({ ownerId, sign: -1, now, row: old }),
+      ...swipeVariantDelta({
         ownerId,
         sign: 1,
         now,
@@ -461,7 +484,7 @@ async function buildTurnStatsDeltas(args: {
           metadata: old.metadata,
         },
       }),
-      canonMessageDelta({
+      ...canonMessageDelta({
         ownerId,
         sign: 1,
         now,
@@ -481,7 +504,7 @@ async function buildTurnStatsDeltas(args: {
 
   // continue: (new - old) on the slot — the extended variant replaces the pre-continue one (same idx/count).
   return [
-    canonMessageDelta({
+    ...canonMessageDelta({
       ownerId,
       sign: 1,
       now,
@@ -497,7 +520,7 @@ async function buildTurnStatsDeltas(args: {
         ...econ,
       },
     }),
-    canonMessageDelta({ ownerId, sign: -1, now, row: old }),
+    ...canonMessageDelta({ ownerId, sign: -1, now, row: old }),
   ];
 }
 
@@ -610,8 +633,9 @@ function buildCommitPlan(args: {
 }
 
 /** Commits a turn's generation per the persist mode + the stats delta in one atomic batch, then emits
- *  `messageCommitted`. The stats delta is attributed to the host and the voiced slot's character. */
+ *  `messageCommitted`. Funding stays frozen; retained accounting follows the canonical cohort. */
 async function commitGeneration(args: {
+  readonly observations: GenerationObservationSession;
   readonly ctx: ChatContext;
   readonly deps: EngineDeps;
   readonly prep: TurnPrep;
@@ -632,7 +656,12 @@ async function commitGeneration(args: {
    *  model see its own picture next turn — one row, two jobs, both load-bearing. */
   readonly inlineReplyAssetIds: readonly AssetId[];
 }): Promise<MessageView> {
-  const { ctx, deps, prep, persist, target, result, nextSeq, genStartedAt, genFinishedAt } = args;
+  const { ctx, deps, prep, persist, target, nextSeq, genStartedAt, genFinishedAt } = args;
+  const facts = await args.observations.load();
+  const result = observedResult(
+    args.result,
+    facts.map((fact) => fact.leg),
+  );
   const now = ctx.now();
   const variant = variantPayloadOf(prep, result, genStartedAt, genFinishedAt);
 
@@ -679,9 +708,9 @@ async function commitGeneration(args: {
       genFinishedAt,
       now,
     });
-    for (const delta of deltas) {
-      ctx.applyStatsDelta(statements, ctx.db, delta);
-    }
+    const retainedStats = await prepareRetainedCanonStats(ctx, prep.chatId, deltas);
+    statements.unshift(...args.observations.transferStatements(facts, retainedStats.predicate));
+    appendStatsDeltas(ctx, statements, retainedStats.deltas);
 
     // Recomputes chats.runtime_variables reflecting this commit's delta, in the same atomic batch: new-slot
     // appends at the tail seq; append-variant/continue override the target slot's delta.
@@ -696,7 +725,7 @@ async function commitGeneration(args: {
     // THE WRITE FENCE (#1393) — the LAST thing before the batch, and re-run on the seq-retry. Everything
     // above is in-memory statement building; this is where the turn stops being reversible.
     await assertTurnMayCommit(ctx, deps, prep);
-    await ctx.db.batch(batchMany(statements));
+    await args.observations.commit(statements, facts, retainedStats.predicate);
     return loadView();
   };
 
@@ -1294,7 +1323,8 @@ class StaleLockAbort extends Error {
  *  surfaces). A future provider-side cancellation that is NOT ours becomes classifiable by adding a TYPED
  *  cause (the {@link StaleLockAbort} shape), never by re-reading a name. */
 function abortReasonFor(err: unknown, signal: AbortSignal | undefined): TurnAbortReason {
-  if (err instanceof ChatOperationError && err.code === CHAT_OP_CODES.aborted) {
+  const failure = err instanceof GenerationObservationPersistenceError ? err.cause : err;
+  if (failure instanceof ChatOperationError && failure.code === CHAT_OP_CODES.aborted) {
     return "stale";
   }
   if (signal?.aborted === true) {
@@ -1802,6 +1832,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
   // The turn's ephemeral identity (docs/plans/rpg/design.md) — minted once, threaded to the tool-exec frame + the rpg
   // turn-end hooks so a turn-scoped registrant correlates the turn's tool writes to its commit/abort flush.
   const turnId = ctx.newChatTurnId();
+  const observations = createGenerationObservationSession(ctx, observationParentOf(prep.chatId, turnId, target));
   markRpgDiceEligible(ctx, prep, turnId);
   await deps.emit({
     type: "turnStarted",
@@ -1856,6 +1887,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     // exactly these arguments with two overrides (`recover-narrative.ts`), and a second hand-built literal
     // would be a second definition of the turn, free to drift.
     const pipelineArgs = {
+      onObservedResult: observations.onObservedResult,
       runChatTurn: ctx.runChatTurn,
       attachmentQuality: prep.attachmentQuality,
       now: ctx.now,
@@ -1956,6 +1988,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       });
     }
     const view = await commitGeneration({
+      observations,
       ctx,
       deps,
       prep,
@@ -2229,8 +2262,11 @@ async function generateTextUnpersisted(ctx: ChatContext, prep: TurnPrep, onText:
 
   const canonAll = await loadCanonHistory(ctx.db, prep.chatId);
   const historyMacroNames: HistoryMacroNames = buildIdentityNameContext(await loadChatIdentityProducer(ctx.db, { messages: canonAll }));
+  const turnId = ctx.newChatTurnId();
+  const observations = createGenerationObservationSession(ctx, { chatId: prep.chatId, turnId, sourceMessageId: null, sourceVariantId: null });
   try {
     const result = await runTurnPipeline({
+      onObservedResult: observations.onObservedResult,
       runChatTurn: ctx.runChatTurn,
       attachmentQuality: prep.attachmentQuality,
       now: ctx.now,
@@ -2268,7 +2304,7 @@ async function generateTextUnpersisted(ctx: ChatContext, prep: TurnPrep, onText:
         triggeredBy: prep.triggeredBy,
         chatId: prep.chatId,
         membership: prep.toolMembership ?? null,
-        turnId: ctx.newChatTurnId(),
+        turnId,
         signal: prep.signal,
       },
       // Surface each TEXT delta to the caller AS IT ARRIVES (reasoning deltas aren't composer-bound); a caller

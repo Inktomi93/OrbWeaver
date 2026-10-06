@@ -2,7 +2,11 @@
 // for neo's scattered marker predicates; domains branch on `.kind`. The `unique`/`foreign-key` arms are
 // exercised by the schema tests, but `check` and `not-null` were not — these pin them against real libSQL
 // constraint errors (raw inserts that bypass drizzle's typed-insert guards).
+
+import { chats, users } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
+import type { ChatId, HandleKey, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures.ts";
@@ -64,4 +68,23 @@ test("a CYCLIC cause chain terminates instead of spinning", () => {
   const b: { message: string; cause?: unknown } = { message: "b", cause: a };
   a.cause = b;
   expect(isConstraintViolation(a)).toBeUndefined();
+});
+
+test.for([0, 1])("actual libSQL batch failure retains its statement index %s through an outer cause", async (index) => {
+  const db = await freshDb();
+  const valid = db.insert(chats).values({ id: castId<ChatId>("chat_index_control") });
+  const invalid = db.insert(users).values({ id: castId<UserId>("user_index_control"), handle: sql`null`, handleKey: castId<HandleKey>("index_control") });
+  let caught: unknown;
+  try {
+    await db.batch(index === 0 ? [invalid, valid] : [valid, invalid]);
+  } catch (error) {
+    caught = error;
+  }
+  expect(isConstraintViolation(new Error("outer domain boundary", { cause: caught }))).toMatchObject({ kind: "not-null", statementIndex: index });
+  expect(await db.select().from(chats)).toEqual([]);
+});
+
+test.for([-1, 0.5, Number.NaN, "0", undefined])("invalid or absent driver statementIndex %s remains absent", (statementIndex) => {
+  const error = Object.assign(new Error("NOT NULL constraint failed: chats.id"), { code: "SQLITE_CONSTRAINT_NOTNULL", statementIndex });
+  expect(isConstraintViolation(error)).toEqual({ kind: "not-null", detail: "SQLITE_CONSTRAINT_NOTNULL" });
 });

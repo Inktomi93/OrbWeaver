@@ -15,6 +15,28 @@ beforeEach(async () => {
 });
 
 describe("stats.byModel", () => {
+  test("input-only execution has no reply rate, while recorded zero-output generation preserves zero", async () => {
+    const owner = await seedUser(db);
+    await seedModelStats(db, owner, { model: "embed-only", provider: "google", generations: 0, tokensIn: 34, tokensInMeasuredSamples: 1 });
+    await seedModelStats(db, owner, {
+      model: "reported-zero",
+      provider: "google",
+      generations: 1,
+      tokensOut: 0,
+      tokensOutMeasuredSamples: 1,
+      genTimeMs: 1000,
+      genSamples: 1,
+    });
+    const rows = await createStatsService(db, () => STATS_NOW).byModel(owner);
+    expect(rows.find((row) => row.model === "embed-only")).toMatchObject({
+      tokensIn: 34,
+      tokensOut: null,
+      reasoningRate: null,
+      throughputTps: null,
+      generations: 0,
+    });
+    expect(rows.find((row) => row.model === "reported-zero")).toMatchObject({ tokensOut: 0, reasoningRate: 0, throughputTps: 0 });
+  });
   test("returns per-(model, provider) rows", async () => {
     const owner = await seedUser(db);
     await seedModelStats(db, owner, { model: "gpt", provider: "openrouter", generations: 5 });

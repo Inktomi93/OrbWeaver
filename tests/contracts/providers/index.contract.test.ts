@@ -74,7 +74,7 @@ test("rerankResultSchema rejects a hit missing its id", () => {
 });
 
 test("imageEmbedResultSchema parses, round-trips, and keeps the filtered-input null", () => {
-  const value: ImageEmbedResult = { vectors: [vecA, null], model: "qwen3-vl" };
+  const value: ImageEmbedResult = { vectors: [vecA, null], model: "qwen3-vl", usage: { promptTokens: null, totalTokens: null } };
   const parsed = imageEmbedResultSchema.parse(value);
   expect(parsed).toEqual(value);
   expect(parsed.vectors[0]).toBeInstanceOf(Float32Array);

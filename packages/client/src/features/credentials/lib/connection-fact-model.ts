@@ -43,54 +43,16 @@ import {
   TOKENIZE_APIS,
 } from "@orb/contracts/inference";
 
-/** Digit grouping for a COUNT. Deliberately not `toLocaleString`/`Intl`: these are token counts and vector
- *  widths, not dates or money, and the `no-raw-intl-time` gate exists because a bare `.toLocale*()` is Intl
- *  by the back door — un-memoized and locale-drifting — in a surface whose whole job is a stable reading. */
-export function grouped(value: unknown): string {
-  return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
+import { grouped as formatGrouped, tokens as formatTokens, samplerWords } from "./connection-fact-format.ts";
+import type { BooleanLabels, FactLeaf, FactRow, NumberBound } from "./connection-fact-types.ts";
+import { pricingFactLeaves, pricingSiblings } from "./connection-pricing.ts";
+
+export type { BooleanLabels, FactChoice, FactLeaf, FactRow, NumberBound } from "./connection-fact-types.ts";
+
+export const grouped = formatGrouped;
+export const tokens = formatTokens;
 
 // ── the Advanced tier: ONE fact-row grammar for both blocks ────────────────────────────────────────────
-
-/**
- * The control an Override reveals for ONE fact. Six kinds cover every row in both blocks — which is WHY
- * both blocks are flattened to LEAVES.
- *
- * STATED DEVIATION FROM THE MOCK (Board B): the drawing joins two composite quirks into one reading row
- * (`sleep endpoints: /is_sleeping · /wake_up`, `price: $x in · $y out`). A joined row reads fine and has no
- * editor, and §5.3a's affordance is ONE OVERRIDE PER FIELD — an Override that silently skips the composite
- * fields is that affordance with holes in it. Splitting them costs one extra line of reading each and makes
- * every row in both blocks overridable through the same four controls.
- */
-/** NOT exported: `no-inline-types` refuses an exported UNION outside a type home, and no consumer needs
- *  the name — a component types its parameter as `FactRow["edit"]`, which is the same type by construction. */
-type FactEdit =
-  | { readonly kind: "text" }
-  | { readonly kind: "number"; readonly min?: NumberBound; readonly max?: NumberBound }
-  | { readonly kind: "boolean"; readonly labels?: BooleanLabels }
-  | { readonly kind: "list" }
-  | { readonly kind: "enum"; readonly options: readonly string[] }
-  | { readonly kind: "choice"; readonly choices: readonly FactChoice[] };
-
-/** How a boolean fact reads when "yes"/"no" would hide what the value means. */
-export interface BooleanLabels {
-  readonly yes: string;
-  readonly no: string;
-}
-
-/** One answer of a `choice` fact, for a leaf whose answers are not one scalar each: the label it reads as, the
- *  value its Override writes at the leaf's path, and whether a resolved value reads as it. */
-export interface FactChoice {
-  readonly label: string;
-  readonly writes: unknown;
-  readonly matches: (value: unknown) => boolean;
-}
-
-/** A bound on the values a number fact takes, and how it reads. */
-export interface NumberBound {
-  readonly value: number;
-  readonly reads: string;
-}
 
 const SUMMARIZE_MAX: NumberBound = { value: SUMMARIZE_CONCURRENCY_MAX, reads: String(SUMMARIZE_CONCURRENCY_MAX) };
 
@@ -105,41 +67,6 @@ export function boundRefusal(edit: FactRow["edit"], raw: string): string | null 
 
 /** The plain reading of a boolean fact, for a leaf that states no labels of its own. */
 export const PLAIN_BOOLEAN_LABELS: BooleanLabels = { yes: "yes", no: "no" };
-
-export interface FactRow {
-  /** The DOTTED path from the `declared` block's root (`features.prefill`, `generation.context.window`) —
-   *  the React key, the subject of the row's `Override`/`Reset` accessible name, and the write target. */
-  readonly path: string;
-  /** The key column. Plain words except where the string IS the wire's (§5.3a: `prefill` survives raw). */
-  readonly name: string;
-  /** The resolved value, formatted for reading. */
-  readonly value: string;
-  /** Where the resolved value came from — only ever what this client can actually prove. */
-  readonly source: string;
-  /** `true` ⇒ the row's own `declared` block states this field: a colour change and `Reset` instead of
-   *  `Override`. */
-  readonly overridden: boolean;
-  /** `true` ⇒ the value is set somewhere else, which `source` names, so the row offers no `Override`. */
-  readonly setElsewhere?: boolean;
-  readonly edit: FactEdit;
-  /** What the Override control opens seeded with — the resolved value in the control's own spelling. */
-  readonly draft: string;
-  /** Paths a write must set ALONGSIDE the leaf because their schema requires them: `rangeSchema` needs
-   *  `min` beside `max`, so a bare `max` write would not parse. Empty on every row but that one. */
-  readonly siblings: Readonly<Record<string, unknown>>;
-}
-
-/** One row's static description — the reading name, the control, and how the raw value reads. */
-export interface FactLeaf {
-  readonly path: string;
-  readonly name: string;
-  readonly edit: FactEdit;
-  readonly format?: (value: unknown) => string;
-  /** Present ⇒ the leaf renders even when the fold states no value, reading as this, so it can be declared. */
-  readonly unset?: string;
-  /** The flag (a dotted path from the same root) the fold sets when this value is a floor guess. */
-  readonly estimatedBy?: string;
-}
 
 export const NOT_STATED = "not stated";
 const NOT_SET = "not set";
@@ -216,7 +143,7 @@ export function parseFactValue(edit: FactRow["edit"], raw: string): unknown {
 
 /** The control's seed for a resolved value — the inverse of {@link parseFactValue}. An unstated leaf seeds the
  *  control's first choice (a boolean seeds "no", the cautious answer) or an empty field. */
-export function draftOf(edit: FactEdit, value: unknown): string {
+export function draftOf(edit: FactRow["edit"], value: unknown): string {
   if (edit.kind === "choice") {
     return (value === undefined ? edit.choices[0] : edit.choices.find((choice) => choice.matches(value)))?.label ?? "";
   }
@@ -233,7 +160,7 @@ export function draftOf(edit: FactEdit, value: unknown): string {
 }
 
 /** How a raw leaf value READS when the leaf states no formatter of its own. */
-function readValue(edit: FactEdit, value: unknown): string {
+function readValue(edit: FactRow["edit"], value: unknown): string {
   if (edit.kind === "boolean") {
     const labels = edit.labels ?? PLAIN_BOOLEAN_LABELS;
     return value === true ? labels.yes : labels.no;
@@ -316,7 +243,7 @@ const QUIRK_LEAF_PATHS: Record<keyof Required<EndpointFeatures>, readonly string
   nativeChat: ["nativeChat"],
   detectServer: ["detectServer"],
   sleep: ["sleep.isSleepingPath", "sleep.wakePath"],
-  pricing: ["pricing.inputPerMTok", "pricing.outputPerMTok"],
+  pricing: ["pricing.inputPerMTok", "pricing.outputPerMTok", "pricing.cacheReadPerMTok", "pricing.cacheWritePerMTok"],
   concurrency: ["concurrency.embed", "concurrency.imageEmbed", "concurrency.summarize"],
   embedBatch: ["embedBatch.maxTokens", "embedBatch.floorTokensPerSec"],
   requestTimeoutMs: ["requestTimeoutMs"],
@@ -332,11 +259,6 @@ const QUIRK_LEAF_PATHS: Record<keyof Required<EndpointFeatures>, readonly string
   numBatch: ["numBatch"],
   thinkingOff: ["thinkingOff"],
 };
-
-// A sampler's plain name from its key ("repetitionPenaltyRange" → "repetition penalty range").
-function samplerWords(knob: string): string {
-  return knob.replaceAll(/([A-Z])/gu, " $1").toLowerCase();
-}
 
 /** The quirk rows, in the PANE's render order (the schema's declaration order is not a UI decision).
  *
@@ -359,8 +281,7 @@ const QUIRK_LEAVES: readonly FactLeaf[] = [
   { path: "detectServer", name: "detect the server", edit: { kind: "boolean" }, unset: NOT_SET },
   { path: "sleep.isSleepingPath", name: "sleep check path", edit: { kind: "text" } },
   { path: "sleep.wakePath", name: "wake path", edit: { kind: "text" } },
-  { path: "pricing.inputPerMTok", name: "price in", edit: { kind: "number" }, format: perMillionTokens },
-  { path: "pricing.outputPerMTok", name: "price out", edit: { kind: "number" }, format: perMillionTokens },
+  ...pricingFactLeaves(NOT_SET),
   { path: "concurrency.embed", name: "embeddings at once", edit: { kind: "number" } },
   { path: "concurrency.imageEmbed", name: "image embeddings at once", edit: { kind: "number" } },
   { path: "concurrency.summarize", name: "utility calls at once", edit: { kind: "number", max: SUMMARIZE_MAX } },
@@ -394,20 +315,22 @@ const QUIRK_LEAVES: readonly FactLeaf[] = [
   ...SAMPLER_KNOBS.map((knob): FactLeaf => ({ path: `samplerKeys.${knob}`, name: `${samplerWords(knob)} field`, edit: { kind: "text" } })),
 ];
 
-function perMillionTokens(value: unknown): string {
-  return `$${String(value)} per million tokens`;
-}
-
-export function tokens(value: unknown): string {
-  return `${grouped(value)} tokens`;
-}
-
 /** The leaf paths, for the completeness pin — the anchor `Record` above is the `tsc` half.
  * @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const QUIRK_LEAF_PATH_LIST: readonly string[] = Object.values(QUIRK_LEAF_PATHS).flat();
 /** The same set derived from the ROW list — the two derivations must agree.
  * @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const QUIRK_ROW_PATHS: readonly string[] = QUIRK_LEAVES.map((leaf) => leaf.path);
+
+function unstatedQuirkRow(leaf: FactLeaf, folded: EndpointFeatures, showUnset: boolean): FactRow | undefined {
+  if (leaf.unset === undefined) {
+    return;
+  }
+  if (leaf.path.startsWith("pricing.") ? folded.pricing === undefined : !showUnset) {
+    return;
+  }
+  return unsetRow(`features.${leaf.path}`, leaf, leaf.unset, "nothing sets it for this kind of server");
+}
 
 /** "Endpoint quirks" — one row per FOLDED leaf, with the layer it came from and, when the row overrides it,
  *  the value it replaced. Fully derivable: every layer is in the client's hands. `showUnset` adds the
@@ -423,10 +346,13 @@ export function quirkFactRows(
   const folded = foldFeatures(providerFeatures, declaredFeatures);
   const rows: FactRow[] = [];
   for (const leaf of QUIRK_LEAVES) {
+    // Declaring one optional cache rate still needs the two required base rates at the write boundary.
+    const siblings = pricingSiblings(leaf.path, folded, declaredFeatures);
     const value = readPath(folded, leaf.path);
     if (value === undefined) {
-      if (showUnset && leaf.unset !== undefined) {
-        rows.push(unsetRow(`features.${leaf.path}`, leaf, leaf.unset, "nothing sets it for this kind of server"));
+      const unstated = unstatedQuirkRow(leaf, folded, showUnset);
+      if (unstated !== undefined) {
+        rows.push({ ...unstated, siblings });
       }
       continue;
     }
@@ -443,7 +369,7 @@ export function quirkFactRows(
       overridden,
       edit: leaf.edit,
       draft: draftOf(leaf.edit, value),
-      siblings: {},
+      siblings,
     });
   }
   return rows;

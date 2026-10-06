@@ -33,7 +33,7 @@
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import { runTurnPipeline } from "./pipeline.ts";
+import { aggregateEconomics, runTurnPipeline } from "./pipeline.ts";
 
 // DERIVED from the function, never re-declared (`no-inline-types`: an exported type belongs in `contract/`,
 // and these are pipeline-internal shapes). `engine.ts` already names the result this way throughout, so this
@@ -63,10 +63,10 @@ function isRecoverableProselessTurn(result: TurnPipelineResult): boolean {
  * own, so the gate lives here rather than as an `if` up there.
  *
  * On every non-recoverable turn this returns `first` UNTOUCHED, having done nothing — no wire call, no log.
- * When recovery runs but also comes back empty, it likewise returns `first`, so the caller's empty-generation
- * guard fires exactly as it would have and reports the ORIGINAL completion's reasons.
+ * When recovery also comes back empty, the first pass's display and reasons remain, with both paid results'
+ * economics preserved for the caller's empty-generation refusal.
  *
- * The recovered result is pass 2's in every respect a reader cares about — content, reasoning, economics, the
+ * The recovered result is pass 2's display — content, reasoning and the
  * request that produced it — EXCEPT the FOLD CHANNEL, which stays pass 1's: `terminalToolCalls` (the whole
  * point of the feature, and why this merges rather than returning pass 2) and, with it, the
  * `terminalToolsCollided` names that explain a null channel (#1617). Pass 2 rides tool-less by construction,
@@ -128,7 +128,7 @@ export async function resolveTurnNarrative(args: {
     );
     // The FIRST pass, deliberately: the caller's guard then reports the reasons of the completion that
     // actually discharged into tool calls, which is the diagnosable one. Pass 2 is the symptom, pass 1 is why.
-    return first;
+    return { ...first, economics: recoveredEconomics(first, recovery, first) };
   }
 
   log.info(
@@ -141,7 +141,27 @@ export async function resolveTurnNarrative(args: {
     "chat: recovered a prose-less turn — the narrative is pass 2's, the state writes are pass 1's",
   );
 
-  return { ...recovery, terminalToolCalls: first.terminalToolCalls, terminalToolsCollided: first.terminalToolsCollided };
+  return {
+    ...recovery,
+    economics: recoveredEconomics(first, recovery, recovery),
+    terminalToolCalls: first.terminalToolCalls,
+    terminalToolsCollided: first.terminalToolsCollided,
+  };
+}
+
+function recoveredEconomics(first: TurnPipelineResult, recovery: TurnPipelineResult, displayed: TurnPipelineResult): TurnPipelineResult["economics"] {
+  const economics = aggregateEconomics(first.economics, recovery.economics);
+  return economics === null
+    ? null
+    : {
+        ...economics,
+        content: displayed.content,
+        reasoning: displayed.reasoning,
+        textSignatures: displayed.economics?.textSignatures,
+        finishReason: displayed.economics?.finishReason ?? null,
+        stopReason: displayed.economics?.stopReason ?? null,
+        terminalReason: displayed.economics?.terminalReason ?? null,
+      };
 }
 
 /** The trailing user row for the recovery pass: the turn's own synthetic row (if any) then the ask. */

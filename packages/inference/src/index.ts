@@ -423,7 +423,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     detectedServer,
     warmDetect,
   };
-  const executor = createProviderExecutor({ registry: built.registry, span: deps.span });
+  const executor = createProviderExecutor({ registry: built.registry, span: deps.span, beginEmbeddingAccounting: deps.beginEmbeddingAccounting });
   const diagnostics = createProviderDiagnostics(built.registry);
   const roleClientsFor = createRoleClientsFor({ deps, ctx, executor });
   const probe = built.openAiCompat.reachability.probe;

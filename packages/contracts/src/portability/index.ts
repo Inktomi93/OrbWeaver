@@ -31,6 +31,7 @@ export const PORTABLE_KINDS = [
   "gallery",
   // The CAS blob bundle. Heterogeneous mime, so `ext: ""` + self-describing filenames (`assets/<hash>`).
   "assets",
+  "imagery",
 ] as const;
 
 /** A portable entity kind — the routing key that ties a bundle subdirectory to its owning descriptor. */
@@ -57,6 +58,7 @@ export const PORTABLE_IMPORT_ORDER = [
   "preset",
   "theme",
   "chat",
+  "imagery",
 ] as const satisfies readonly PortableKind[];
 
 // ── the uniform file envelope (spec R7/R8) ───────────────────────────────────────────────────────────

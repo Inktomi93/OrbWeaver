@@ -6,7 +6,7 @@
 // the whole app-shell. Ids + the blob url ride in as PROPS (minted node-side in the test, serialized to the
 // page) so recorded tRPC inputs assert against the exact values used. Components only (the _ct-stories rule).
 
-import { useTRPC } from "@orb/client/data";
+import { useInvalidation, useTRPC } from "@orb/client/data";
 import { ImageDetailBody, ImageEditBody, ImagineBody } from "@orb/client/features/imagery";
 import { openImageDetail, openImageEdit, openImagine, useOpenModal } from "@orb/client/state";
 import type { AssetId, ChatId } from "@orb/kit/ids";
@@ -74,6 +74,28 @@ export function DetailFlowStory({ chatId, assetId, url }: { readonly chatId: Cha
   return (
     <CtDataProviders>
       <ImageryHost />
+    </CtDataProviders>
+  );
+}
+
+function ImportCompleted(): ReactElement {
+  const { invalidateUser } = useInvalidation();
+  return (
+    <button type="button" onClick={(): void => invalidateUser({ type: "charactersChanged" })}>
+      Restore completed
+    </button>
+  );
+}
+
+/** The actual completion event dispatch over a mounted, previously-null provenance query. */
+export function RestoredDetailStory({ chatId, assetId, url }: { readonly chatId: ChatId; readonly assetId: AssetId; readonly url: string }): ReactElement {
+  useEffect(() => {
+    openImageDetail({ assetId, chatId, url, alt: "a restored image" });
+  }, [assetId, chatId, url]);
+  return (
+    <CtDataProviders refetchOnWindowFocus={false}>
+      <ImageryHost />
+      <ImportCompleted />
     </CtDataProviders>
   );
 }

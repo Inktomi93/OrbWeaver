@@ -10,18 +10,55 @@
 //     the file serializes — and a snapshot anchored to a variant this chat does not contain must NOT be
 //     emitted with a fabricated index.
 
+import { parseVariantMetadata } from "@orb/contracts/chat";
+import { generationUsageLegSchema } from "@orb/contracts/inference";
 import { rpgGameConfigSchema } from "@orb/contracts/rpg";
+import { variantUsageLegDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { chatInjections, chatParticipants, chats, chatTags, messages, messageVariants, personas, rpgGames, rpgSnapshots, tags } from "@orb/db";
-import type { ChatId, ChatParticipantId, Handle, MessageId, MessageVariantId, PersonaId, RpgGameId, RpgSnapshotId, TagId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import {
+  chatGenerationObservations,
+  chatInjections,
+  chatParticipants,
+  chats,
+  chatTags,
+  messages,
+  messageVariants,
+  personas,
+  rpgGames,
+  rpgSnapshots,
+  tags,
+  userConnections,
+} from "@orb/db";
+import { batchMany, batchStmt } from "@orb/db/kit";
+import type {
+  ChatId,
+  ChatParticipantId,
+  ChatTurnId,
+  Handle,
+  MessageId,
+  MessageVariantId,
+  PersonaId,
+  RpgGameId,
+  RpgSnapshotId,
+  TagId,
+  UserConnectionId,
+  UserId,
+} from "@orb/kit/ids";
+import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { createExportRpgGame } from "@orb/server/domain/rpg";
 import type { PortableChat } from "@orb/server/kit/serde/chat-bundle";
 import { parseChatBundleFile } from "@orb/server/kit/serde/chat-bundle";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import {
+  appendGenerationObservation,
+  generationObservationTransferStatements,
+  loadGenerationObservations,
+} from "../../../../../packages/server/src/domain/chat/persistence/generation-observation.ts";
 import { createExportChatBundle } from "../../../../../packages/server/src/domain/export/verbs/export-chat-bundle.ts";
-import { freshDb } from "../../../../support/db.ts";
+import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/index.ts";
+import { freshDb, freshHeldDb } from "../../../../support/db.ts";
+import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedCharacter, seedUser } from "../_support.ts";
 
@@ -123,6 +160,132 @@ describe("exportChatBundle — the host gate is the jsonl arm's, restated", () =
 });
 
 describe("exportChatBundle — the fidelity planes", () => {
+  test("one native canon snapshot cannot lose a completed fee across its atomic pending-to-variant transfer", async ({ ids }) => {
+    const held = await freshHeldDb();
+    db = held.db;
+    const host = await seedUser(db, { handle: castId("snapshot_host") });
+    const { messageId, variantIds, characterId } = await seedRoom(host);
+    const variantId = variantIds[1];
+    if (variantId === undefined) {
+      throw new Error("Selected fixture variant missing");
+    }
+    const parent = { chatId: CHAT_ID, turnId: castId<ChatTurnId>(ids.next(ID_PREFIX.chatTurn)), sourceMessageId: messageId, sourceVariantId: variantId };
+    const leg = generationUsageLegSchema.parse({
+      ...makeGenerationUsage(0.125, { tokensIn: 70, tokensOut: 2048 }),
+      model: "gemini-3.1-pro-preview",
+      provider: "google",
+      wire: "google-generative-ai",
+      observedAt: FROZEN_AT,
+      modelCalls: 1,
+      contextWindow: null,
+      maxOutputTokens: 2048,
+      durationApiMs: 1,
+      ttftMs: null,
+      finishReason: "length",
+      stopReason: "MAX_TOKENS",
+      terminalReason: null,
+      generationId: null,
+    });
+    const ctx = { db, now: () => FROZEN_AT, applyStatsDelta };
+    expect(await appendGenerationObservation(ctx, parent, { ordinal: 0, funderUserId: host, connectionId: null, leg })).toBe(true);
+    const before = must(await verb()({ principal: principal(host), chatId: CHAT_ID }));
+    expect(before.pendingGenerationObservations?.map((fact) => fact.leg.costUsd)).toEqual([0.125]);
+    const facts = await loadGenerationObservations(ctx, parent);
+    const gate = held.hold(/^select[\s\S]*from "chat_generation_observations"/iu);
+    const exporting = verb()({ principal: principal(host), chatId: CHAT_ID });
+    await gate.reached;
+    try {
+      const statements = generationObservationTransferStatements(ctx, parent, facts);
+      statements.push(
+        batchStmt(
+          db
+            .update(messageVariants)
+            .set({
+              ...makeGenerationUsage(0.125, { tokensIn: 70, tokensOut: 2048 }),
+              model: leg.model,
+              provider: leg.provider,
+              tokenProvenance: "measured",
+              metadata: { usageLegs: [leg] },
+            })
+            .where(eq(messageVariants.id, variantId)),
+        ),
+      );
+      applyStatsDelta(statements, db, variantUsageLegDelta({ ownerId: host, characterId, leg, selected: true, sign: 1, now: FROZEN_AT }));
+      await db.batch(batchMany(statements));
+    } finally {
+      gate.release();
+    }
+    const captured = must(await exporting);
+    const fees = [
+      ...captured.messages.flatMap((slot) => slot.variants.flatMap((variant) => parseVariantMetadata(variant.metadata).usageLegs ?? [])),
+      ...(captured.pendingGenerationObservations ?? []).map((fact) => fact.leg),
+    ];
+    expect(fees).toEqual([leg]);
+    expect(fees.reduce((sum, fact) => sum + (fact.costUsd ?? 0), 0)).toBe(0.125);
+    expect(await db.select().from(chatGenerationObservations)).toEqual([]);
+  });
+  test("exports retained completed groups by canon position without private payer, connection or source ids", async ({ ids }) => {
+    const host = await seedUser(db, { handle: castId("pending_host") });
+    const funder = await seedUser(db, { handle: castId("pending_funder") });
+    const { messageId, variantIds } = await seedRoom(host);
+    const connectionId = castId<UserConnectionId>(ids.next(ID_PREFIX.userConnection));
+    const turnId = castId<ChatTurnId>(ids.next(ID_PREFIX.chatTurn));
+    const standaloneTurn = castId<ChatTurnId>(ids.next(ID_PREFIX.chatTurn));
+    const leg = generationUsageLegSchema.parse({
+      ...makeGenerationUsage(0.125, { tokensIn: 70, tokensOut: 2048, cacheReadTokens: null, cacheWriteTokens: 0 }),
+      model: "gemini-3.1-pro-preview",
+      provider: "google",
+      wire: "google-generative-ai",
+      observedAt: FROZEN_AT + 1,
+      modelCalls: 1,
+      contextWindow: null,
+      maxOutputTokens: 2048,
+      durationApiMs: 1,
+      ttftMs: null,
+      finishReason: "length",
+      stopReason: "MAX_TOKENS",
+      terminalReason: null,
+      generationId: "provider-observation",
+    });
+    await db.insert(userConnections).values({ id: connectionId, ownerId: funder, providerId: leg.provider, model: leg.model, label: "Private source" });
+    await db.insert(chatGenerationObservations).values([
+      {
+        ...leg,
+        chatId: CHAT_ID,
+        turnId,
+        ordinal: 0,
+        funderUserId: funder,
+        connectionId,
+        connectionAttributionProvenance: "recorded",
+        sourceMessageId: messageId,
+        sourceVariantId: variantIds[1],
+      },
+      {
+        ...leg,
+        chatId: CHAT_ID,
+        turnId: standaloneTurn,
+        ordinal: 0,
+        funderUserId: funder,
+        connectionId,
+        connectionAttributionProvenance: "recorded",
+        sourceMessageId: null,
+        sourceVariantId: null,
+        observedAt: FROZEN_AT + 2,
+      },
+    ]);
+    const file = await verb()({ principal: principal(host), chatId: CHAT_ID });
+    const bundle = must(file);
+    expect(bundle.pendingGenerationObservations).toEqual([
+      { turnIndex: 0, ordinal: 0, sourceMessageIndex: 0, sourceVariantIdx: 1, leg },
+      { turnIndex: 1, ordinal: 0, sourceMessageIndex: null, sourceVariantIdx: null, leg: { ...leg, observedAt: FROZEN_AT + 2 } },
+    ]);
+    const serialized = JSON.stringify(bundle.pendingGenerationObservations);
+    for (const privateId of [funder, connectionId, turnId, standaloneTurn, CHAT_ID, messageId, ...variantIds]) {
+      expect(serialized).not.toContain(privateId);
+    }
+    expect(serialized).not.toContain("funderUserId");
+    expect(serialized).not.toContain("connectionId");
+  });
   test("carries the room blob, the variable picks, the injection LIST, the seats by handle, and the swipe economics", async () => {
     const host = await seedUser(db, { handle: castId<Handle>("host") });
     await seedRoom(host);

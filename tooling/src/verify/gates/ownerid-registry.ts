@@ -89,9 +89,13 @@ export const OWNERID_CLASSIFICATIONS: Readonly<Record<string, OwnershipClassific
   },
   // PARENTLESS PER-USER AGGREGATES (D23 KEEP)
   owner_stats: { why: "D23 parentless per-user aggregate" },
+  imagery_import_calls: { why: "D23 parentless per-user import identity aggregate, atomically committed with its owned asset outputs" },
   stats_canon_versions: { why: "D23 parentless per-user aggregate — monotonic rebuild ownership token" },
   compaction_spend: {
     why: "D23 owner unreachable by FK — the funding host's compaction spend, which outlives the chat it was spent in (no chat_id), so the stamp is the only owner the stats rebuild can fold it to",
+  },
+  embedding_calls: {
+    why: "D23 parentless per-user execution canon — the resolved funder owns the physical batch, which outlives connection deletion and vector purge",
   },
   automation_owner_budgets: {
     why: "D23 parentless per-user aggregate + D46 — C5's owner-GLOBAL fire-rate ceiling: the scope belt for chat-less rules, which no chat can key. The owner IS the scope here — the row has no parent to derive one from — so the stamp is the identity, not a redundant denormalization",
@@ -215,8 +219,8 @@ export const gate = defineGate({
         "packages/db/src/schema/chat.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const chats = sqliteTable("chats", { id: text("id").primaryKey() });\n',
       },
-      expect: { count: 33, messageIncludes: "classifies nothing" },
-      why: "THE STALE ARM, mode (B) of §4.4a: the barrel resolves so the schema is the production one, and every classified table is GONE — a classification that outlives its subject must RED rather than sit there looking like a ruling. `count` is `Object.keys(OWNERID_CLASSIFICATIONS).length` — 33 after `compaction_spend` joined the registry. RE-DERIVED 2026-10-03 from the exported object keys and the object literal. It is EXACT on purpose: without it the row passed on ONE stale finding as readily as on all of them, so a stale sweep that silently shrank to a single row would still have looked green (#1968/#2001). It moves with the table, which is the coupling this arm is FOR.",
+      expect: { countFrom: "OWNERID_CLASSIFICATIONS", messageIncludes: "classifies nothing" },
+      why: "The schema resolves but carries no owned table: every classification must be reported stale. The registry directly drives this sweep, so its cardinality is the exact expected finding count.",
     },
   ],
   mustPass: [

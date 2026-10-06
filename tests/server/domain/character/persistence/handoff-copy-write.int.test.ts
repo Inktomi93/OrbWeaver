@@ -6,13 +6,13 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
-import { assets, characters } from "@orb/db";
+import { assets, characters, ownerStats } from "@orb/db";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import type { CopyAssetToOwner } from "../../../../../packages/server/src/domain/character/index.ts";
 import { createCopyHandoffCards, handoffProvenance } from "../../../../../packages/server/src/domain/character/index.ts";
-import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
+import { applyStatsDelta, bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { seedUser } from "../../../../support/factories/user.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -72,6 +72,7 @@ function copier(db: Db, copyAsset: CopyAssetToOwner = () => Promise.resolve(null
   return createCopyHandoffCards({
     db,
     bumpStatsCanonVersion,
+    applyStatsDelta,
     now: () => AT,
     newCharacterId: (): CharacterId => {
       n += 1;
@@ -108,6 +109,7 @@ test("copies the departing host's card under the recipient, provenance-stamped, 
   expect(copy?.importHash).toBeNull();
   // The original is untouched.
   expect((await db.select().from(characters).where(eq(characters.id, source)))[0]?.ownerId).toBe(oldHost.id);
+  expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, nominee.id)))[0]?.characters ?? 0).toBe(1);
 });
 
 test("a card the claimed source owner does NOT own is silently absent (naming an id is not a license)", async () => {
@@ -350,6 +352,7 @@ test("two CONCURRENT accepts of one offer mint ONE copy — the loser converges 
   const landed = rows[0]?.id;
   expect(settled.map((result) => result[0]?.characterId)).toEqual([landed, landed]);
   expect(settled.flatMap((result) => result.map((copy) => copy.minted)).filter(Boolean)).toHaveLength(1);
+  expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, nominee.id)))[0]?.characters ?? 0).toBe(1);
 });
 
 // #1571 — THIS IS A FENCE, NOT A RED-FIRST DEFECT PROOF, and the label is deliberate: de2dcaa23a added this
@@ -375,6 +378,7 @@ test("a mid-set failure leaves the landed copies claimable — the RETRY converg
   const landed = await db.select().from(characters).where(eq(characters.ownerId, nominee.id));
   expect(landed).toHaveLength(1);
   expect(landed[0]?.importedFrom).toBe(handoffProvenance(CHAT, second));
+  expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, nominee.id)))[0]?.characters ?? 0).toBe(1);
 
   const retried = await copier(
     db,
@@ -394,4 +398,5 @@ test("a mid-set failure leaves the landed copies claimable — the RETRY converg
   expect(rows).toHaveLength(2);
   expect(retried.filter((copy) => copy.minted)).toHaveLength(1);
   expect(retried.map((copy) => copy.sourceCharacterId).toSorted()).toEqual([first, second].toSorted());
+  expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, nominee.id)))[0]?.characters ?? 0).toBe(2);
 });

@@ -10,7 +10,7 @@ area: stats
 
 ## What
 
-From the 0486 lane: (1) deleting a generated image cascades away its imagery_generations row but the live rollup never subtracts the spend, so a later Recompute lowers spend; decide whether image spend is history (its own ledger like compaction) or current canon (deletion subtracts live). (2) Restore starts image and compaction spend at zero (DEFERRED portability row); carry spend history in the bundle. (3) Compaction and other chat metadata writes bump chats.updatedAt, which moves the rebuild character lastActivityAt with no live delta; decide whether those count as character activity. (4) The image delta adds modelGenSamples without genTimeMs and cost without costSamples, skewing averages.
+From the 0486 lane: (1) deleting a generated image cascades away its imagery_generations row but the live rollup never subtracts the spend, so a later Recompute lowers spend; decide whether image spend is history (its own ledger like compaction) or current canon (deletion subtracts live). (2) Imagery execution history travels through the `imagery` descriptor and rebuilds grouped image spend. Compaction spend still does not travel; carry its history in the bundle. (3) Compaction and other chat metadata writes bump chats.updatedAt, which moves the rebuild character lastActivityAt with no live delta; decide whether those count as character activity. (4) The image delta adds modelGenSamples without genTimeMs and cost without costSamples, skewing averages.
 
 ## Why
 

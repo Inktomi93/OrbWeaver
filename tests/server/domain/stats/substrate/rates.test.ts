@@ -73,13 +73,41 @@ describe("recordedTokens / recordedCost decide unrecorded vs zero", () => {
   });
 
   test("cost uses its own sample counter — estimated tokens never manufacture dollars", () => {
-    expect(recordedCost(0, 0)).toBeNull();
-    expect(recordedCost(0, 1)).toBe(0);
-    expect(recordedCost(0.037_678_5, 3)).toBe(0.037_678_5);
+    expect(recordedCost(0, 0, 0)).toBeNull();
+    expect(recordedCost(0, 1, 0)).toBe(0);
+    expect(recordedCost(0.037_678_5, 3, 0)).toBe(0.037_678_5);
   });
 });
 
 describe("deriveExtra", () => {
+  test("compatible price samples remain visible; known mixed or unsettled signed samples stay unavailable", () => {
+    const base = {
+      reasoningMs: 0,
+      costUsd: 0.375,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      forkedChats: 0,
+      variantMessages: 0,
+      maxContextTokens: null,
+      tokensIn: 0,
+      tokensOut: 0,
+      costSamples: 2,
+      totalGenTimeMs: 0,
+      activeIdxSum: 0,
+      assistantTurns: 0,
+      assistantWords: 0,
+      swipes: 0,
+    };
+    const mixed = { ...base, notionalCostSamples: 1 };
+    const subscription = { ...base, notionalCostSamples: 2 };
+    const unclassified = { ...base, notionalCostSamples: 0 };
+    const inverseBeforeRebuild = { ...base, notionalCostSamples: -1 };
+    expect(deriveExtra(mixed).costUsd).toBeNull();
+    expect(deriveExtra(subscription).costUsd).toBe(0.375);
+    expect(deriveExtra(unclassified).costUsd).toBe(0.375);
+    expect(deriveExtra(inverseBeforeRebuild).costUsd).toBeNull();
+    expect(deriveExtra({ ...base, costUsd: 0, costSamples: 1, notionalCostSamples: 1 }).costUsd).toBe(0);
+  });
   test("derives the ExtraStats block from additive columns", () => {
     const e = deriveExtra({
       reasoningMs: 50,
@@ -92,6 +120,7 @@ describe("deriveExtra", () => {
       tokensIn: 200,
       tokensOut: 1000,
       costSamples: 2,
+      notionalCostSamples: 0,
       totalGenTimeMs: 2000,
       activeIdxSum: 8,
       assistantTurns: 8,
@@ -119,6 +148,7 @@ describe("deriveExtra", () => {
       tokensIn: 0,
       tokensOut: 0,
       costSamples: 0,
+      notionalCostSamples: 0,
       totalGenTimeMs: 900_000,
       activeIdxSum: 0,
       assistantTurns: 1187,

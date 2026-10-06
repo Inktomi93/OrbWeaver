@@ -5,6 +5,8 @@
 
 import { z } from "zod";
 
+export * from "./accounting.ts";
+
 /** The two complementary lenses through which an avatar image is embedded, both in the one 1024-dim
  *  space. `image-raw` = pure visual signal, no caption/text influence. `image-captioned` = image bytes
  *  + the generated caption string. Both coexist per asset (`unique(assetId, model, lens)`). */

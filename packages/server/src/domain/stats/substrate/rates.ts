@@ -61,10 +61,13 @@ export function recordedTokens(tokens: number, measuredSamples: number, estimate
   return aggregateTokenProvenance(measuredSamples, estimatedSamples) === "unrecorded" ? null : tokens;
 }
 
-/** A USD total, or `null` when no contributing row reported cost. A zero cost with a sample is a perfectly
- *  ordinary measured value (for example a local model); no sample is absence, not `$0.00`. */
-export function recordedCost(costUsd: number, costSamples: number): number | null {
-  return costSamples > 0 ? costUsd : null;
+/** Partial compatible priced subtotal: missing prices are omitted, not zero. Absent or unsettled samples
+ * and incompatible priced mixtures remain unavailable; an explicit zero sample stays known. */
+export function recordedCost(costUsd: number, costSamples: number, notionalCostSamples: number): number | null {
+  if (costSamples <= 0 || notionalCostSamples < 0 || notionalCostSamples > costSamples) {
+    return null;
+  }
+  return notionalCostSamples > 0 && notionalCostSamples < costSamples ? null : costUsd;
 }
 
 /** Shared by owner + character views (character_stats has no cache/context columns — caller passes 0/null). */
@@ -79,6 +82,7 @@ export function deriveExtra(r: {
   tokensIn: number;
   tokensOut: number;
   costSamples: number;
+  notionalCostSamples: number;
   totalGenTimeMs: number;
   activeIdxSum: number;
   assistantTurns: number;
@@ -87,7 +91,7 @@ export function deriveExtra(r: {
 }): ExtraStats {
   return {
     reasoningMs: r.reasoningMs,
-    costUsd: recordedCost(r.costUsd, r.costSamples),
+    costUsd: recordedCost(r.costUsd, r.costSamples, r.notionalCostSamples),
     cacheReadTokens: r.cacheReadTokens,
     cacheWriteTokens: r.cacheWriteTokens,
     forkedChats: r.forkedChats,

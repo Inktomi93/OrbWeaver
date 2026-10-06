@@ -60,7 +60,8 @@ const YEAR_KEY_LENGTH = 4;
 const EM_DASH = "—";
 
 /** Shared legend for absent accounting and estimates; missing totals are not measured zeros. */
-export const UNRECORDED_NOTE = "A dash means the figure was never recorded. ~ marks estimates. Token and cost totals omit turns with missing accounting.";
+export const UNRECORDED_NOTE =
+  "A dash means unavailable or not applicable. ~ marks estimates. Token totals omit missing usage. Mixing available subscription-notional and API prices makes the cost subtotal unavailable.";
 
 /** Imported transcript activity can be rebuilt; missing provider telemetry cannot. */
 export const IMPORTED_ACTIVITY_NOTE =
@@ -81,10 +82,15 @@ export const LATENCY_LABELS = {
 
 const ACCOUNTING_ORIGINS = { measured: "Recorded", estimated: "Estimated", unrecorded: "Not recorded" } satisfies Record<TokenProvenance, string>;
 
-/** Cost provenance follows dollar presence, independently of token estimates. */
+/** Accounting labels name token/time provenance, not the origin of a dollar amount. */
 export function formatAccountingLabel(label: string, value: number | null, provenance?: TokenProvenance): string {
   const origin = value === null ? "unrecorded" : (provenance ?? "measured");
   return `${label} · ${ACCOUNTING_ORIGINS[origin]}`;
+}
+
+/** Dollar presence cannot distinguish a reported price, configured estimate or subscription notional. */
+export function formatCostLabel(value: number | null): string {
+  return value === null ? "Cost · Unavailable" : "Cost";
 }
 
 /** A human duration: `340ms` · `1.2s` · `3m 20s` · `2h 5m`. Rounding at a unit boundary CARRIES into the
@@ -186,8 +192,8 @@ export function throughputProvenance(totalGenTimeMs: number, tokensOutProvenance
 }
 
 /** Token-derived throughput with the same provenance spelling as the total it divides. */
-export function formatThroughput(rate: number, provenance: TokenProvenance): string {
-  if (provenance === "unrecorded") {
+export function formatThroughput(rate: number | null, provenance: TokenProvenance): string {
+  if (rate === null || provenance === "unrecorded") {
     return EM_DASH;
   }
   return `${provenance === "estimated" ? "~" : ""}${rate.toFixed(1)} t/s`;

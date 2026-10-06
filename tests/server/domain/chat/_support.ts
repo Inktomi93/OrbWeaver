@@ -55,6 +55,12 @@ import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { can } from "@orb/server/domain/admin";
 import { createSourceState } from "@orb/server/domain/search";
+import {
+  applyCharacterStatsDelta,
+  createResolveRetainedChatAccountingScope,
+  createResolveRetainedChatRebase,
+  settleRetainedChatRebase,
+} from "@orb/server/domain/stats";
 import { buildAuditStatement } from "@orb/server/foundation/observability";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import type { ChatContext } from "../../../../packages/server/src/domain/chat/context.ts";
@@ -540,6 +546,14 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // The stats push default is a NO-OP (the contract's "default injection is a no-op" — the canon-mutator
     // verbs push on every write path now; a test that asserts stats overrides with a recorder).
     applyStatsDelta: () => undefined,
+    applyCharacterStatsDelta: (batch, opDb, delta) => {
+      applyCharacterStatsDelta(batch as BatchStmt[], opDb, delta);
+    },
+    resolveRetainedChatAccountingScope: createResolveRetainedChatAccountingScope(db),
+    resolveRetainedChatRebase: createResolveRetainedChatRebase(db),
+    settleRetainedChatRebase: (batch, opDb, scope) => {
+      settleRetainedChatRebase(batch as BatchStmt[], opDb, scope);
+    },
     bumpStatsCanonVersion: () => undefined,
     summarize: notStubbed,
     // No rerank role is bound by default, so a Smart room on the reranker picks like natural and warns.

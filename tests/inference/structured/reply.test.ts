@@ -69,6 +69,8 @@ function chatResult(reply: string, toolCalls?: ChatResult["toolCalls"]): ChatRes
     appliedEffort: null,
     usage: {
       model: castId<ModelId>("test-model"),
+      servedModel: null,
+      tokenDetails: null,
       tokensIn: null,
       tokensOut: null,
       cacheReadTokens: 0,

@@ -1,3 +1,4 @@
+import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 // verb: generatePicture — the P5 free-mode orchestrator. Proves against a real libSQL
 // db: a returned base64 image is decoded, stored as a `kind:"generated"` asset (via the injected CAS write),
 // a matching `imagery_generations` provenance row is written (store-THEN-provenance), one economics delta is
@@ -72,7 +73,7 @@ describe("generatePicture (free mode)", () => {
   test("zero decodable images → GenerationFailedError (no asset, no row)", async () => {
     const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx } = makeHarness(db, {
-      generateImage: () => Promise.resolve({ images: [], model: "img-model", usage: { costUsd: null }, warnings: [] }),
+      generateImage: () => Promise.resolve({ images: [], model: "img-model", usage: makeGenerationUsage(null), warnings: [] }),
     });
 
     await expect(
@@ -95,7 +96,7 @@ describe("generatePicture (free mode)", () => {
         Promise.resolve({
           images: [{ url, base64: undefined, mediaType: "image/png" }],
           model: "img-model",
-          usage: { costUsd: 0.01 },
+          usage: makeGenerationUsage(0.01),
           warnings: [],
         }),
       fetchImage: (u) => {
@@ -127,7 +128,7 @@ describe("generatePicture (free mode)", () => {
         Promise.resolve({
           images: [{ url: "http://169.254.169.254/latest/meta-data/", base64: undefined }],
           model: "img-model",
-          usage: { costUsd: null },
+          usage: makeGenerationUsage(null),
           warnings: [],
         }),
     });
@@ -339,7 +340,7 @@ describe("generatePicture — sniff ↔ assets.enforceMagic agreement (F4)", () 
             },
           ],
           model: "img-model",
-          usage: { costUsd: 0.03 },
+          usage: makeGenerationUsage(0.03),
           warnings: [],
         }),
     });
@@ -574,7 +575,7 @@ describe("generatePicture — runner warnings surface onto the result (doc 03 §
         Promise.resolve({
           images: [{ base64: Buffer.from(PNG_BYTES).toString("base64"), mediaType: "image/png", url: undefined }],
           model: "img-model",
-          usage: { costUsd: 0.02 },
+          usage: makeGenerationUsage(0.02),
           warnings: [{ code: "image_edit_dropped", detail: "img-model: the mask was dropped" }],
         }),
     });
@@ -613,7 +614,7 @@ describe("generatePicture — gallery auto-add", () => {
             { base64: Buffer.from([...PNG_BYTES, 1]).toString("base64"), mediaType: "image/png", url: undefined },
           ],
           model: "img-model",
-          usage: { costUsd: 0.02 },
+          usage: makeGenerationUsage(0.02),
           warnings: [],
         }),
     });

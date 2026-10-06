@@ -5,6 +5,7 @@
 export type { ImageryContext } from "./context.ts";
 export { GenerationFailedError, ImageEditUnsupportedError, ImageryNotConfiguredError, PromptExtractionFailedError } from "./contract/errors.ts";
 export type { EditImageParams, EditImageSource, ExtractPromptParams, GeneratePictureParams, ReadProvenanceParams, ReusePolicy } from "./contract/params.ts";
+export type { ImageryPortabilityContext, ImageryPortabilityService } from "./contract/portability.ts";
 export type {
   ExtractedPrompt,
   GeneratedPicture,
@@ -16,11 +17,10 @@ export type {
   GeneratedImage,
   ImageGenerateRequest,
   ImageGenerateResult,
-  ImageGenerateUsage,
   ImageryService,
   ResolvedGenerateImage,
 } from "./contract/service.ts";
-export { createImageryService } from "./service.ts";
+export { createImageryPortability, createImageryService } from "./service.ts";
 // The pure I3 reuse-hash primitive — exposed so the composition root can bind it into a
 // non-character consumer's injected op (docs/plans/rpg/design.md: rpg's NPC-portrait reuse consumes imagery's OWN hash
 // machinery, never a fork).

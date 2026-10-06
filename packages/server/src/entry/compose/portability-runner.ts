@@ -20,6 +20,7 @@ import type { BulkImportChats } from "#domain/chat";
 import { createCompareAndSetImportedTokenUsage, createListImportedTokenUsageCandidates } from "#domain/chat";
 import type { DatabankPortabilityContext } from "#domain/databank";
 import type { ExportService } from "#domain/export";
+import type { ImageryPortabilityService } from "#domain/imagery";
 import type { ImportWorkloadDeps, SettleImportMemory } from "#domain/import";
 import { DEFAULT_IMPORT_STAGING_DIR } from "#domain/import";
 import type { BulkImportPersonas, PersonaService } from "#domain/persona";
@@ -65,6 +66,7 @@ export interface PortabilityRunnerComposeDeps {
   readonly importStandaloneLorebook: ImportStandaloneLorebook;
   /** The gallery-extended assets ctx (the two character-handle resolvers the gallery export/import verbs need). */
   readonly galleryCtx: AssetsContext;
+  readonly imageryPortability: ImageryPortabilityService;
   /** The databank portability bundle (db + clock + id minter + the ingest enqueue a restore re-runs). */
   readonly databankCtx: DatabankPortabilityContext;
   readonly persona: PersonaService;
@@ -197,6 +199,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     worldInfoExportCtx: deps.worldInfoExportCtx,
     importStandaloneLorebook: deps.importStandaloneLorebook,
     assetsCtx: deps.galleryCtx,
+    imagery: deps.imageryPortability,
     databankCtx: deps.databankCtx,
     persona: deps.persona,
     exportService: deps.exportService,
@@ -275,6 +278,9 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
           extractOptions: { maxTotalBytes: IMPORT_MAX_TOTAL_BYTES, maxTotalDecompressedBytes: IMPORT_MAX_DECOMPRESSED_BYTES, stagingRoot: root },
           signal,
         });
+        if (report.imported > 0) {
+          await reconcileImportStats({ ownerId });
+        }
         // #1710 — carry what #1688 already put on the report (a kept edited lorebook, a dropped overlay) into
         // the BACKGROUND workload's own result, not only the descriptor-level report a sync door would read.
         return {
@@ -289,6 +295,9 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
       await withQuietBulkFanout(async () => {
         const from = now();
         const report = await importStagedArchive({ registry: portability, ownerId, staged: await stageDirectory(stagedPath), signal });
+        if (report.imported > 0) {
+          await reconcileImportStats({ ownerId });
+        }
         return {
           imported: report.imported,
           skipped: report.skipped,

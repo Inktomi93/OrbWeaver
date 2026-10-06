@@ -59,6 +59,7 @@ const LAYOUT: readonly (readonly [PortableKind, string, string])[] = [
   ["persona", "personas/", ".json"],
   ["character", "characters/", ".png"],
   ["chat", "chats/", CHAT_BUNDLE_EXT],
+  ["imagery", "imagery/", ".json"],
 ];
 
 interface Injected {
@@ -110,6 +111,12 @@ function registry(i: Injected): readonly PortableEntity[] {
     worldInfoExportCtx: {},
     importStandaloneLorebook: vi.fn(),
     assetsCtx: {},
+    imagery: {
+      async *exportAll(): AsyncIterable<PortableFile> {
+        yield* [];
+      },
+      importFile: vi.fn(),
+    },
     databankCtx: {},
     persona: { list: i.personaList, export: i.personaExport, import: i.personaImport },
     exportService: { exportCharacter: i.exportCharacter, exportChatBundle: i.exportChatBundle, listHostChats: i.listHostChats },

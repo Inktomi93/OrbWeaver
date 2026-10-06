@@ -5,8 +5,19 @@
 // job (tested there), so these fixtures are chat-native.
 
 import type { BulkImportChatInput } from "@orb/contracts/chat";
+import { generationUsageLegSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
-import { chatImportClaims, chatInjections, chatParticipants, chats, messages, messageVariants, statsCanonVersions } from "@orb/db";
+import {
+  chatGenerationObservations,
+  chatImportClaims,
+  chatInjections,
+  chatParticipants,
+  chats,
+  messages,
+  messageVariants,
+  ownerStats,
+  statsCanonVersions,
+} from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type {
@@ -16,21 +27,25 @@ import type {
   ChatId,
   ChatInjectionId,
   ChatParticipantId,
+  ChatTurnId,
   MessageAssetId,
   MessageId,
   MessageVariantId,
   UserId,
 } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import type { ChatImportContext } from "../../../../../packages/server/src/domain/chat/contract/import.ts";
 import { createBulkImportChats } from "../../../../../packages/server/src/domain/chat/persistence/import-write.ts";
+import { reconcileStats } from "../../../../../packages/server/src/domain/stats/index.ts";
 import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { seedCharacter, seedPersona, seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { createSeededIds } from "../../../../support/ids.ts";
 
 const NOW = 1_700_000_000_000;
 const CHAT_CREATED = 1_699_999_990_000;
@@ -50,6 +65,7 @@ interface MintSpy {
 /** A deterministic counter-minted `ChatImportContext` (no ambient clock/ids under tests/). */
 function importCtx(db: Db, ownerId: UserId, spy: MintSpy = { calls: [], byChat: new Map() }): ChatImportContext {
   let n = 0;
+  const turnIds = createSeededIds();
   const counter = (): string => {
     n += 1;
     return String(n).padStart(26, "0");
@@ -59,6 +75,7 @@ function importCtx(db: Db, ownerId: UserId, spy: MintSpy = { calls: [], byChat: 
     bumpStatsCanonVersion: (batch, opDb, versionOwnerId) => bumpStatsCanonVersion(batch as BatchStmt[], opDb, versionOwnerId),
     now: (): number => NOW,
     newChatId: (): ChatId => castId<ChatId>(`chat_${counter()}`),
+    newChatTurnId: (): ChatTurnId => castId<ChatTurnId>(turnIds.next(ID_PREFIX.chatTurn)),
     newMessageId: (): MessageId => castId<MessageId>(`message_${counter()}`),
     newMessageVariantId: (): MessageVariantId => castId<MessageVariantId>(`message_variant_${counter()}`),
     newMessageAssetId: (): MessageAssetId => castId<MessageAssetId>(`message_asset_${counter()}`),
@@ -141,6 +158,112 @@ function chatInput(importedFrom: string, over: Partial<BulkImportChatInput> = {}
 }
 
 describe("createBulkImportChats", () => {
+  test("native pending observations reconstruct local parents and groups once, retain zero/unknown facts and rebuild kept-data economics", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const leg = generationUsageLegSchema.parse({
+      ...makeGenerationUsage(0.125, { tokensIn: 70, tokensOut: 2048 }),
+      model: "gemini-3.1-pro-preview",
+      provider: "google",
+      wire: "google-generative-ai",
+      observedAt: NOW,
+      modelCalls: 1,
+      contextWindow: null,
+      maxOutputTokens: 2048,
+      durationApiMs: 1,
+      ttftMs: null,
+      finishReason: "length",
+      stopReason: "MAX_TOKENS",
+      terminalReason: null,
+      generationId: "source-generation",
+    });
+    const input = chatInput("NativePending.orb.json", {
+      pendingGenerationObservations: [
+        { turnIndex: 0, ordinal: 0, sourceMessageIndex: 0, sourceVariantIdx: 0, leg },
+        { turnIndex: 0, ordinal: 1, sourceMessageIndex: 0, sourceVariantIdx: 0, leg: { ...leg, ...makeGenerationUsage(0, { tokensIn: 0, tokensOut: 0 }) } },
+        {
+          turnIndex: 1,
+          ordinal: 0,
+          sourceMessageIndex: null,
+          sourceVariantIdx: null,
+          leg: { ...leg, ...makeGenerationUsage(null, { tokensIn: null, tokensOut: null }) },
+        },
+      ],
+    });
+    const op = createBulkImportChats(importCtx(db, owner.id));
+    const args = { ownerId: owner.id, characterId: character.id, chats: [input] };
+    const result = await op(args);
+    const identity = result.identities[0];
+    if (identity === undefined) {
+      throw new Error("native import requires its canonical identity");
+    }
+    const facts = await db.select().from(chatGenerationObservations).orderBy(chatGenerationObservations.turnId, chatGenerationObservations.ordinal);
+    expect(facts).toHaveLength(3);
+    expect(facts[0]).toMatchObject({
+      ...leg,
+      chatId: identity.chatId,
+      sourceMessageId: identity.messageIds[0],
+      sourceVariantId: identity.variantIds[0]?.[0],
+      funderUserId: owner.id,
+      connectionId: null,
+      connectionAttributionProvenance: "unrecorded",
+    });
+    expect(facts[1]).toMatchObject({ turnId: facts[0]?.turnId, ordinal: 1, costUsd: 0, tokensIn: 0, tokensOut: 0 });
+    expect(facts[2]).toMatchObject({ sourceMessageId: null, sourceVariantId: null, ordinal: 0, costUsd: null, tokensIn: null, tokensOut: null });
+    expect(facts[2]?.turnId).not.toBe(facts[0]?.turnId);
+    await reconcileStats(db, { ownerId: owner.id, now: () => NOW });
+    expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner.id)))[0]).toMatchObject({
+      costUsd: 0.125,
+      costSamples: 2,
+      tokensIn: 70,
+      tokensOut: 2048,
+      tokensInMeasuredSamples: 2,
+      tokensOutMeasuredSamples: 2,
+      assistantTurns: 1,
+      genSamples: 0,
+    });
+    expect((await op(args)).chatsImported).toBe(0);
+    expect(await db.select().from(chatGenerationObservations).orderBy(chatGenerationObservations.turnId, chatGenerationObservations.ordinal)).toEqual(facts);
+  });
+  test.for([0, null])("native usage cost %s survives the real writer without inventing a local connection", async (costUsd) => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const usage = makeGenerationUsage(costUsd, {
+      tokensIn: 12,
+      tokensOut: 17,
+      servedModel: "served-model-version",
+      reasoningTokens: null,
+      cacheReadTokens: null,
+      cacheWriteTokens: 0,
+      tokenDetails: { output: [{ modality: "text", tokens: 8 }] },
+      costProvenance: costUsd === null ? "unrecorded" : "estimated",
+      costDetails: costUsd === null ? null : { totalUsd: costUsd, pricing: { inputPerMTok: 0, outputPerMTok: 0 } },
+    });
+    const base = chatInput("Native.orb.json");
+    const source = base.messages[0];
+    const variant = source?.variants[0];
+    if (source === undefined || variant === undefined) {
+      throw new Error("chat fixture has no assistant variant");
+    }
+    const input = {
+      ...base,
+      messages: [{ ...source, variants: [{ ...variant, tokensIn: usage.tokensIn, tokensOut: usage.tokensOut, tokenProvenance: "measured" as const, usage }] }],
+    };
+    const op = createBulkImportChats(importCtx(db, owner.id));
+    const args = { ownerId: owner.id, characterId: character.id, chats: [input] };
+    const first = await op(args);
+    const row = (await db.select().from(messageVariants))[0];
+    expect(row).toMatchObject(usage);
+    expect(row?.connectionId).toBeNull();
+    expect(row?.connectionAttributionProvenance).toBe("unrecorded");
+    const again = await op(args);
+    expect(again.identities).toEqual(first.identities);
+    expect(again.chatsImported).toBe(0);
+    expect(await db.select().from(messageVariants)).toEqual([row]);
+  });
+
   test("an imported asset background that GC already won cannot land as a dangling JSON reference", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});

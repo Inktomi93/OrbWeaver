@@ -158,7 +158,10 @@ function ConnectionsBody(): ReactElement {
   return (
     <Section divider={true} heading={CONNECTIONS_LIST_SUBCATEGORY.label} id={configAnchorId("connections", CONNECTIONS_LIST_SUBCATEGORY.id)}>
       <Row gap="field" align="center" justify="between" className="flex-wrap">
-        <Text voice="gloss">One provider and one model per connection. Every turn you trigger — in any room — runs on your own connections.</Text>
+        <Text voice="quiet" className="max-w-(--reading-measure-prose)">
+          One provider and one model per connection. Your roles use these connections in rooms you host and for your work outside rooms. Shared-room turns use
+          the room host's connections.
+        </Text>
         {/* ONE "Add connection" PER VIEWPORT: the empty state owns the verb while the list is empty. */}
         {connections.length === 0 ? null : (
           <Button ref={addConnectionFocus} id={ADD_CONNECTION_CONTROL_ID} intent="primary" size="sm" onClick={(): void => setAddOpen(true)}>

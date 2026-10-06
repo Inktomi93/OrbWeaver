@@ -4,6 +4,7 @@
 // Vectors are `Float32Array` — the same binary format libSQL's `vector_idx` consumes.
 
 import { z } from "zod";
+import { responseCacheSchema } from "../inference/usage.ts";
 
 /** One embedding vector. Single binary type across all families (the OR runner converts `number[]` →
  *  `Float32Array` at its boundary). */
@@ -11,11 +12,14 @@ const embedVectorSchema = z.instanceof(Float32Array);
 
 /** Token-usage half of a (text) embed result. `null` when the family doesn't report — in-process
  *  embedders don't meter. */
-const embedUsageSchema = z.object({
+export const embedUsageSchema = z.object({
+  responseCache: responseCacheSchema.optional(),
   /** Tokens billed. `null` when the family doesn't report. */
   promptTokens: z.number().nullable(),
   totalTokens: z.number().nullable(),
 });
+
+export type EmbedUsage = z.infer<typeof embedUsageSchema>;
 
 /** Cross-family TEXT embed result. One `vectors` entry per input (same order as the request `input`
  *  array; a single-string input produces a one-element array). `null` entries mark filtered inputs
@@ -60,6 +64,7 @@ export type RerankResult = z.infer<typeof rerankResultSchema>;
 export const imageEmbedResultSchema = z.object({
   vectors: z.array(embedVectorSchema.nullable()),
   model: z.string(),
+  usage: embedUsageSchema,
 });
 export type ImageEmbedResult = z.infer<typeof imageEmbedResultSchema>;
 

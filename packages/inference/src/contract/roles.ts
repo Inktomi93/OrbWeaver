@@ -2,7 +2,8 @@
 // credential-free call shape from `@orb/contracts/role-clients` plus the dispatcher-bound
 // `connection` + `signal`. RESULT shapes live in `@orb/contracts/providers`, not redeclared here.
 
-import type { EndpointFeatures, Task } from "@orb/contracts/inference";
+import type { EmbeddingAccounting } from "@orb/contracts/embeddings";
+import type { EndpointFeatures, GenerationUsage, Task } from "@orb/contracts/inference";
 import type { RolePresetParams } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type {
@@ -17,8 +18,13 @@ import type {
   SummarizeOptions,
 } from "@orb/contracts/role-clients";
 import type { ModelId, UserId } from "@orb/kit/ids";
+import type { GenerationObservationCallback } from "./chat.ts";
+import type { GeneratedImage } from "./generation.ts";
+
 import type { ResolvedWarning } from "./resolve.ts";
 import type { Resolved } from "./resolved.ts";
+
+export type { GeneratedImage } from "./generation.ts";
 
 /** The base deadline of one remote embed request when its row states none. */
 const DEFAULT_EMBED_REQUEST_TIMEOUT_MS = 120_000;
@@ -39,6 +45,7 @@ interface TaskRequestCommon<T extends RoleTask> {
 
 /** Text embedding. Empty/whitespace inputs filter to `null` in the result. */
 export interface EmbedRequest extends TaskRequestCommon<"embed"> {
+  readonly embeddingAccounting?: EmbeddingAccounting | undefined;
   readonly input: string | readonly string[];
   /** Output dimensionality an MRL model is asked for; the funnel decides it from the capability. */
   readonly dimensions?: number | undefined;
@@ -58,6 +65,7 @@ export interface RerankRequest extends TaskRequestCommon<"rerank"> {
 }
 
 export interface ImageEmbedRequest extends TaskRequestCommon<"imageEmbed"> {
+  readonly embeddingAccounting?: EmbeddingAccounting | undefined;
   readonly input: ImageEmbedInput;
 }
 
@@ -76,11 +84,13 @@ export type TaskSampling = Readonly<Omit<RolePresetParams, "maxOutputTokens">> &
  *  task (owner ruling 2026-07-27); this request carries NO `responseFormat`, by type. */
 export interface SummarizeRequest extends TaskRequestCommon<"summarize">, TaskSampling {
   readonly inputs: readonly SummarizeRequestItem[];
+  readonly onObservedResult?: GenerationObservationCallback | undefined;
 }
 
 /** The one-shot SCHEMA-CONSTRAINED primitive. Same batch shape as summarize; `responseFormat` REQUIRED. */
 export interface StructuredRequest extends TaskRequestCommon<"structured">, TaskSampling {
   readonly inputs: readonly SummarizeRequestItem[];
+  readonly onObservedResult?: GenerationObservationCallback | undefined;
   readonly responseFormat: ResponseFormat;
 }
 
@@ -102,31 +112,17 @@ export interface ImageGenerateRequest extends TaskRequestCommon<"generateImage">
   readonly edit?: ImageEditInput | undefined;
 }
 
-export interface GeneratedImage {
-  /** Relative tool/file part order in the original completion, before the result arrays split it. */
-  readonly partOrdinal?: number | undefined;
-  readonly thoughtSignature?: string | undefined;
-  readonly url: string | undefined;
-  readonly base64: string | undefined;
-  readonly mediaType: string | undefined;
-  /** §6.7 INLINE REPLY ONLY — the character offset in the completion's accumulated REPLY TEXT at which this
-   *  picture arrived, so the chat reducer can splice its `![alt](asset:id)` span where the model put it
-   *  rather than piling every picture at the tail. Absent on the `/imagine` path, which has no prose to
-   *  interleave with. A HINT, not a guarantee: the domain's receive tier (regex scripts, the `<think>` demux)
-   *  may rewrite those bytes before the splice, so the consumer clamps. */
-  readonly atChars?: number | undefined;
-}
-
 export interface ImageGenerateResult {
   readonly images: readonly GeneratedImage[];
   readonly model: ModelId;
-  readonly usage: { readonly costUsd: number | null };
+  readonly usage: GenerationUsage;
   readonly warnings: readonly ResolvedWarning[];
 }
 
 /** The `RoleClients.summarize` call options as the SERVER sees them: the isomorphic vocabulary plus the
  *  caller's `AbortSignal`. */
 export interface SummarizeCallOptions extends SummarizeOptions {
+  readonly onObservedResult?: GenerationObservationCallback | undefined;
   readonly signal?: AbortSignal | undefined;
 }
 

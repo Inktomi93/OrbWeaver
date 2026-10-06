@@ -35,9 +35,10 @@ import { batchMany } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, eq, isNull } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";
-import type { ClaimChatOp, HandoffResumption } from "../contract/context.ts";
+import type { ClaimChatOp, HandoffCopyPlan, HandoffResumption } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import { TOOL_RECURSE_LIMIT_MAX, TOOL_RECURSE_LIMIT_MIN, toolRecurseLimitSchema } from "../contract/metadata.ts";
 import type {
@@ -67,7 +68,7 @@ import type { HostTierRegexAllow } from "../contract/regex.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHost, requireParticipant } from "../guard.ts";
 import { carriedBackgroundAvailable, ownedBackgroundAvailable } from "../persistence/background-write.ts";
-import { restampChatCharacterStatement } from "../persistence/canon-write.ts";
+import { isRetainedParentFenceViolation, restampChatCharacterStatement, retainedChatFenceStatement } from "../persistence/canon-write.ts";
 import { chatMetadataSetStatement } from "../persistence/chat-metadata-write.ts";
 import { clearHandoffResumptionStatement, insertHandoffResumptionStatement, loadHandoffResumption } from "../persistence/handoff-resume.ts";
 import {
@@ -88,7 +89,7 @@ import { previewHandoffCopyPlan, resolveHandoffCopyPlan } from "../substrate/han
 import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { regexAllowOf } from "../substrate/regex-tier.ts";
-import { canonMessageDelta, seatChatDelta } from "../substrate/stats-delta.ts";
+import { appendRetainedChatRebaseDeltas, appendStatsDeltas, canonMessageDelta, seatChatDelta } from "../substrate/stats-delta.ts";
 
 /** The emit op the mutating roster verbs close over. Production returns `false` only when the total bus
  * classified and dropped its durable append; direct verb tests historically return no value. */
@@ -682,9 +683,9 @@ async function seedJoinGreeting(
     return null; // an empty/cleared card greeting seeds no row.
   }
   const stmts = [...seed.stmts];
-  ctx.applyStatsDelta(
+  appendStatsDeltas(
+    ctx,
     stmts,
-    ctx.db,
     canonMessageDelta({
       ownerId: args.ownerId,
       row: {
@@ -1099,6 +1100,7 @@ async function commitHandoffSwap(
   ctx: ChatContext,
   statements: BatchStmt[],
   args: { readonly chatId: ChatId; readonly oldHostUserId: UserId | null; readonly newHost: Principal },
+  predicate?: SQL,
 ): Promise<void> {
   if (args.oldHostUserId !== null) {
     ctx.bumpStatsCanonVersion(statements, ctx.db, args.oldHostUserId);
@@ -1106,19 +1108,75 @@ async function commitHandoffSwap(
   if (args.oldHostUserId !== args.newHost.userId) {
     ctx.bumpStatsCanonVersion(statements, ctx.db, args.newHost.userId);
   }
-  if (args.oldHostUserId !== null && args.oldHostUserId !== args.newHost.userId) {
-    await ctx.emitNotification(
-      {
-        type: "handoff-accepted",
-        recipientUserId: args.oldHostUserId,
-        chatId: args.chatId,
-        newHostHandle: args.newHost.handle,
-      },
-      statements,
-    );
-    return;
+  try {
+    if (args.oldHostUserId !== null && args.oldHostUserId !== args.newHost.userId) {
+      await ctx.emitNotification(
+        {
+          type: "handoff-accepted",
+          recipientUserId: args.oldHostUserId,
+          chatId: args.chatId,
+          newHostHandle: args.newHost.handle,
+        },
+        statements,
+      );
+      return;
+    }
+    await ctx.db.batch(batchMany(statements));
+  } catch (error) {
+    if (
+      predicate !== undefined &&
+      isRetainedParentFenceViolation(error) &&
+      (
+        await ctx.db
+          .select({ one: sql`1` })
+          .from(chats)
+          .where(and(eq(chats.id, args.chatId), predicate))
+      ).length === 0
+    ) {
+      const refusal = new ChatOperationError(CHAT_OP_CODES.aborted, "the room changed while the handoff was prepared; accept it again");
+      refusal.cause = error;
+      throw refusal;
+    }
+    throw error;
   }
-  await ctx.db.batch(batchMany(statements));
+}
+
+async function prepareHandoffRebase(
+  ctx: ChatContext,
+  chatId: ChatId,
+  plan: HandoffCopyPlan,
+): Promise<{
+  readonly statements: BatchStmt[];
+  readonly predicate: SQL;
+  readonly settle: (statements: BatchStmt[]) => void;
+} | null> {
+  if (plan.cardCopies.length === 0) {
+    return null;
+  }
+  const rekeys = {
+    chatId,
+    seats: new Map(plan.seats.map((seat) => [seat.participantId, seat.copy.characterId])),
+    characters: new Map(plan.cardCopies.map((copy) => [copy.sourceCharacterId, copy.characterId])),
+  };
+  const snapshot = await ctx.resolveRetainedChatRebase(rekeys);
+  if (snapshot === null) {
+    return null;
+  }
+  const statements = [retainedChatFenceStatement(ctx.db, sql`select ${chats.id} from ${chats} where ${and(eq(chats.id, chatId), snapshot.predicate)}`)];
+  appendRetainedChatRebaseDeltas(ctx, statements, snapshot, rekeys);
+  return {
+    statements,
+    predicate: snapshot.predicate,
+    settle: (batch): void => {
+      ctx.settleRetainedChatRebase(batch, ctx.db, {
+        ownerIds: [
+          ...snapshot.beforeOwnerIds.filter((id) => !snapshot.afterOwnerIds.includes(id)),
+          ...snapshot.afterOwnerIds.filter((id) => !snapshot.beforeOwnerIds.includes(id)),
+        ],
+        characterIds: [...new Set([...rekeys.characters.keys(), ...rekeys.characters.values()])],
+      });
+    },
+  };
 }
 
 /** `acceptHostHandoff` — step 2: the nominee accepts (a self-action). The caller must equal
@@ -1177,7 +1235,9 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
         cardCopies: plan.cardCopies,
       })) ?? [];
     const digestRestamp = plan.cardCopies.length === 0 ? [] : await ctx.restampHandoffDigests({ chatId, pairs: plan.cardCopies });
+    const rebase = await prepareHandoffRebase(ctx, chatId, plan);
     const swap = [
+      ...(rebase?.statements ?? []),
       ...acceptHostHandoffSwapStatements(ctx.db, {
         chatId,
         nomineeUserId: principal.userId,
@@ -1214,7 +1274,8 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
         acceptedAt,
       ),
     ];
-    await commitHandoffSwap(ctx, swap, { chatId, oldHostUserId, newHost: principal });
+    rebase?.settle(swap);
+    await commitHandoffSwap(ctx, swap, { chatId, oldHostUserId, newHost: principal }, rebase?.predicate);
     await completeHandoffResumption(ctx, emit, {
       chatId,
       acceptedByUserId: principal.userId,

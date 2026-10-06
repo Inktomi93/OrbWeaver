@@ -43,6 +43,7 @@ function toArrayWireChatRequest(input: ChatTurnInput, api: Exclude<ChatApi, "age
     connection: input.connection,
     params: input.params,
     responseCache: input.responseCache,
+    onObservedResult: input.onObservedResult,
     attachmentQuality: input.attachmentQuality,
     systemPrompt: { static: input.systemPrompt.static, dynamic: input.systemPrompt.dynamic },
     history: input.history,

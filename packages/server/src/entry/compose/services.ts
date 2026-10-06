@@ -71,7 +71,9 @@ import { createConnectionPorts, createConnectionService } from "#domain/connecti
 import { createCredentialsService } from "#domain/credentials";
 import type { DatabankIngest } from "#domain/databank";
 import type { EmbeddingConnectionSnapshot, EmbeddingsIndexer, EmbeddingsService, GenerationReceipt } from "#domain/embeddings";
+import { createRecordUsage } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
+import { createImageryPortability } from "#domain/imagery";
 import { createImportService } from "#domain/import";
 import { createPluginMacroRegistry } from "#domain/plugin";
 import { createCopyPresetToUser, PresetNotFoundError } from "#domain/preset";
@@ -84,6 +86,7 @@ import type { DefaultBackgroundSeeder, SettingsContext, SettingsServiceDeps } fr
 import { createJoinerSettingsStatement, createSettingsContext, createSettingsService, listSeededItemKeys, recordSeededItemKeys } from "#domain/settings";
 import type { CertificateController, RelayController } from "#domain/share";
 import { createShareService } from "#domain/share";
+import { applyStatsDelta, bumpStatsCanonVersion } from "#domain/stats";
 import type { TagContext } from "#domain/tag";
 import { createTagService } from "#domain/tag";
 import type { ToolUseService } from "#domain/tool-use";
@@ -494,6 +497,13 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   const runtime = await createInferenceRuntime({
     ...(deps.providerSeams ?? {}),
+    beginEmbeddingAccounting: createRecordUsage({
+      db,
+      now,
+      newCallId: minter(ID_PREFIX.embeddingCall),
+      newInvocationId: minter(ID_PREFIX.embeddingInvocation),
+      applyStatsDelta,
+    }),
     now,
     log: getLog(),
     span: (name, fn, attrs) => span(name, () => fn(), attrs),
@@ -1217,6 +1227,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       newEntryId: minter(ID_PREFIX.worldEntry),
     }),
     galleryCtx,
+    imageryPortability: createImageryPortability({
+      db,
+      newCallId: minter(ID_PREFIX.imageryCall),
+      newGenerationId: minter(ID_PREFIX.imageryGeneration),
+      bumpStatsCanonVersion,
+    }),
     databankCtx: databankPortability,
     persona,
     exportService,

@@ -1,3 +1,5 @@
+import type { LanguageModelV4GenerateResult } from "@ai-sdk/provider";
+import type { GenerationUsage } from "@orb/contracts/inference";
 import { acceptsImageEdit } from "@orb/contracts/inference";
 import { ProviderError } from "../../contract/errors.ts";
 import type { GoogleBackendDeps } from "../../contract/google.ts";
@@ -7,11 +9,23 @@ import { providerErrorFromHttp } from "../kit/error-classify.ts";
 import { createImageNormalizer, passthroughImageNormalizer, toImageUrl } from "../kit/image-normalize.ts";
 import { resolvedScrubSet } from "../kit/sanitize.ts";
 import { mediaFilePart } from "../v4/prompt.ts";
-import { measuredCostOf, sdkWarnings } from "../v4/result.ts";
+import { generationUsageOf, measuredCostOf, sdkWarnings } from "../v4/result.ts";
 import { generatedImageOf } from "../v4/stream.ts";
 import { requireGoogleGeneration } from "./chat.ts";
 import { GOOGLE_KEY, googleModelId, googleProviderFor } from "./model.ts";
 import { googleExtras } from "./options.ts";
+import { googleServedModelOf, googleTokenDetailsOf, googleTokenUsageOf } from "./usage.ts";
+
+function imageUsageOf(result: LanguageModelV4GenerateResult): GenerationUsage {
+  const measured = measuredCostOf(result.providerMetadata, result.usage.raw);
+  // Google 4.0.87 drops modelVersion from response.modelId, but retains the actual response body.
+  const servedModel = googleServedModelOf(result.response?.body);
+  return {
+    ...generationUsageOf(result.usage, servedModel ?? undefined, measured),
+    ...googleTokenUsageOf(result.usage.raw),
+    tokenDetails: googleTokenDetailsOf(result.usage.raw),
+  };
+}
 
 export async function runGoogleGenerateImage(req: ImageGenerateRequest, deps: GoogleBackendDeps): Promise<ImageGenerateResult> {
   const { connection } = req;
@@ -56,8 +70,7 @@ export async function runGoogleGenerateImage(req: ImageGenerateRequest, deps: Go
     if (images.length === 0) {
       throw new ProviderError({ kind: "server", retryable: false, message: `${label}: image generation returned no images` });
     }
-    const measured = measuredCostOf(result.providerMetadata, result.usage.raw);
-    return { images, model: connection.model, usage: { costUsd: measured === null ? null : measured.costUsd }, warnings };
+    return { images, model: connection.model, usage: imageUsageOf(result), warnings };
   } catch (err) {
     throw err instanceof ProviderError ? err : providerErrorFromHttp(err, label, resolvedScrubSet(connection));
   }

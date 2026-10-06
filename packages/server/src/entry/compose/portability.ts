@@ -16,6 +16,7 @@ import type { BulkImportChats } from "#domain/chat";
 import type { DatabankPortabilityContext } from "#domain/databank";
 import { createExportDocument, createImportDocument, createListOwnedDocumentIds } from "#domain/databank";
 import type { ExportService } from "#domain/export";
+import type { ImageryPortabilityService } from "#domain/imagery";
 import type { ImportProfileDeps, ImportService } from "#domain/import";
 import { createImportService } from "#domain/import";
 import type { BulkImportPersonas, PersonaService } from "#domain/persona";
@@ -42,6 +43,7 @@ export interface PortabilityDeps {
   readonly worldInfoExportCtx: WorldInfoExportContext;
   readonly importStandaloneLorebook: ImportStandaloneLorebook;
   readonly assetsCtx: AssetsContext;
+  readonly imagery: ImageryPortabilityService;
   readonly databankCtx: DatabankPortabilityContext;
   readonly persona: Pick<PersonaService, "export" | "import" | "list">;
   readonly exportService: Pick<ExportService, "exportCharacter" | "exportChatBundle" | "listHostChats">;
@@ -367,5 +369,6 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     },
   };
 
-  return [assets, gallery, tag, theme, userSettings, preset, worldInfo, regex, databank, persona, character, chat];
+  const imagery: PortableEntity = { kind: "imagery", dir: "imagery/", ext: ".json", exportAll: deps.imagery.exportAll, importFile: deps.imagery.importFile };
+  return [assets, gallery, tag, theme, userSettings, preset, worldInfo, regex, databank, persona, character, chat, imagery];
 }

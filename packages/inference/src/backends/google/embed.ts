@@ -1,14 +1,16 @@
 import type { GoogleEmbeddingModelOptions } from "@ai-sdk/google";
-import type { EmbeddingModelV4, JSONObject } from "@ai-sdk/provider";
+import type { EmbeddingModelV4, EmbeddingModelV4Result, JSONObject } from "@ai-sdk/provider";
 import type { EmbeddingCapability } from "@orb/contracts/inference";
 import { canEmbedImages } from "@orb/contracts/inference";
-import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
+import type { EmbedResult, EmbedUsage, ImageEmbedResult } from "@orb/contracts/providers";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import { clampToTokenBudget, safeTokenWindow } from "@orb/kit/tokens";
+import { z } from "zod";
 import { ProviderError } from "../../contract/errors.ts";
 import type { GoogleBackendDeps } from "../../contract/google.ts";
 import type { EmbedRequest, ImageEmbedRequest } from "../../contract/roles.ts";
 import { embedRequestTimeoutMs } from "../../contract/roles.ts";
+import { embeddingCostOf } from "../kit/embedding-cost.ts";
 import { embeddingPrompt, fitToDim } from "../kit/embedding-input.ts";
 import { providerErrorFromHttp } from "../kit/error-classify.ts";
 import { turnAbortSignal } from "../kit/idle-timeout.ts";
@@ -19,6 +21,11 @@ import { mediaFilePart } from "../v4/prompt.ts";
 import { GOOGLE_KEY, googleModelId, googleProviderFor } from "./model.ts";
 
 const INPUT_RESERVE_TOKENS = 64;
+// GenerateContent embedContent/batchEmbedContents raw response, not the Interactions usage shape.
+// The installed SDK leaves usage undefined but retains this actual API response in response.body.
+const embeddingResponseUsageSchema = z.object({
+  usageMetadata: z.object({ promptTokenCount: z.number().int().nonnegative().optional() }).optional(),
+});
 const IMAGE_URL_MIMES: ReadonlyMap<string, string> = new Map([
   ["png", "image/png"],
   ["jpg", "image/jpeg"],
@@ -98,13 +105,29 @@ function storeBatch(batch: readonly KeptInput[], embeddings: readonly number[][]
   }
 }
 
-async function runBatches(model: EmbeddingModelV4, req: EmbedRequest, kept: readonly KeptInput[], context: BatchContext): Promise<void> {
+async function observeGoogleBatch(req: EmbedRequest, batch: readonly KeptInput[], result: EmbeddingModelV4Result): Promise<number | null> {
+  const parsed = embeddingResponseUsageSchema.safeParse(result.response?.body);
+  const count = parsed.success ? (parsed.data.usageMetadata?.promptTokenCount ?? null) : null;
+  const textOnly = batch.every((input) => input.parts === undefined);
+  await req.embeddingAccounting?.recordBatch({
+    inputCount: batch.length,
+    inputModalities: textOnly ? ["text"] : ["image", ...(batch.some((input) => input.text.length > 0) ? ["text" as const] : [])],
+    servedModel: null,
+    usage: { promptTokens: count, totalTokens: null },
+    tokenDetails: null,
+    cost: embeddingCostOf(count, req.connection.features.pricing, null, textOnly),
+  });
+  return count;
+}
+
+async function runBatches(model: EmbeddingModelV4, req: EmbedRequest, kept: readonly KeptInput[], context: BatchContext): Promise<EmbedUsage> {
   const { capability, dimension } = context;
   const limit = (await Promise.resolve(model.maxEmbeddingsPerCall)) ?? kept.length;
   const options: JSONObject = {
     ...(capability.mrl ? { outputDimensionality: dimension } : {}),
     ...(capability.retrievalTaskType === true ? { taskType: req.inputType === "query" ? "RETRIEVAL_QUERY" : "RETRIEVAL_DOCUMENT" } : {}),
   };
+  let promptTokens: number | null = 0;
   for (let start = 0; start < kept.length; start += limit) {
     const batch = kept.slice(start, start + limit);
     const idle = turnAbortSignal(req.signal, embedRequestTimeoutMs(req.connection.features));
@@ -115,11 +138,14 @@ async function runBatches(model: EmbeddingModelV4, req: EmbedRequest, kept: read
         abortSignal: idle.signal,
         providerOptions: { [GOOGLE_KEY]: { ...options, ...content } },
       });
+      const count = await observeGoogleBatch(req, batch, result);
       storeBatch(batch, result.embeddings, context);
+      promptTokens = promptTokens !== null && count !== null ? promptTokens + count : null;
     } finally {
       idle.dispose();
     }
   }
+  return { promptTokens, totalTokens: null };
 }
 
 async function embedInputs(req: EmbedRequest, inputs: readonly (EmbeddingInput | null)[], deps: GoogleBackendDeps): Promise<EmbedResult> {
@@ -137,8 +163,8 @@ async function embedInputs(req: EmbedRequest, inputs: readonly (EmbeddingInput |
   }
   try {
     const model = googleProviderFor({ connection, deps, label, api: "embed" }).embedding(googleModelId(connection.model));
-    await runBatches(model, req, kept, { vectors, dimension, capability, label });
-    return { vectors, model: connection.model, usage: { promptTokens: null, totalTokens: null } };
+    const usage = await runBatches(model, req, kept, { vectors, dimension, capability, label });
+    return { vectors, model: connection.model, usage };
   } catch (err) {
     throw err instanceof ProviderError ? err : providerErrorFromHttp(err, label, resolvedScrubSet(connection));
   }
@@ -160,7 +186,10 @@ export async function runGoogleImageEmbed(req: ImageEmbedRequest, deps: GoogleBa
   const input = req.input;
   const connection = { ...req.connection, task: "embed" as const };
   if (input.kind === "text") {
-    return runGoogleEmbed({ connection, input: input.input, inputType: "query", instruction: input.instruction, signal: req.signal }, deps);
+    return runGoogleEmbed(
+      { connection, input: input.input, inputType: "query", instruction: input.instruction, signal: req.signal, embeddingAccounting: req.embeddingAccounting },
+      deps,
+    );
   }
   const inputs: EmbeddingInput[] =
     input.kind === "image"
@@ -168,5 +197,5 @@ export async function runGoogleImageEmbed(req: ImageEmbedRequest, deps: GoogleBa
       : await Promise.all(
           (Array.isArray(input.input) ? input.input : [input.input]).map(async (pair) => ({ text: pair.text, parts: await imageParts(pair.image, deps) })),
         );
-  return embedInputs({ connection, input: [], inputType: "document", signal: req.signal }, inputs, deps);
+  return embedInputs({ connection, input: [], inputType: "document", signal: req.signal, embeddingAccounting: req.embeddingAccounting }, inputs, deps);
 }

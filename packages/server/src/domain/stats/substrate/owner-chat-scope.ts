@@ -19,13 +19,27 @@
 import type { SQL } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 
+const retainedChatMembership = sql`
+  SELECT DISTINCT cp.chat_id, c.owner_id FROM chat_participants cp
+  JOIN characters c ON c.id = cp.character_id
+  JOIN chats ch ON ch.id = cp.chat_id
+  WHERE cp.kind = 'character' AND ch.started_at IS NOT NULL
+`;
+
 /** The owner's chat ids as a subquery fragment — `… WHERE m.chat_id IN (${ownerChatIds(ownerId)})`.
  *  Membership-derived (an owned `character` participant) and husk-excluding, per the contract above. */
-export function ownerChatIds(ownerId: string): SQL {
+export function ownerChatIds(ownerId: string | SQL): SQL {
   return sql`
-    SELECT DISTINCT cp.chat_id FROM chat_participants cp
-    JOIN characters c ON c.id = cp.character_id
-    JOIN chats ch ON ch.id = cp.chat_id
-    WHERE c.owner_id = ${ownerId} AND cp.kind = 'character' AND ch.started_at IS NOT NULL
+    SELECT chat_id FROM (${retainedChatMembership}) WHERE owner_id = ${ownerId}
   `;
+}
+
+/** The inverse of {@link ownerChatIds}, including retained departed seats. */
+export function chatOwnerIds(chatId: string): SQL {
+  return sql`SELECT owner_id FROM (${retainedChatMembership}) WHERE chat_id = ${chatId}`;
+}
+
+/** The character-seat arm shared by rebuild census and retained-voice extrema settlement. */
+export function retainedCharacterSeatPredicate(ownerId: SQL): SQL {
+  return sql`c.owner_id = ${ownerId} AND cp.kind = 'character' AND ch.started_at IS NOT NULL`;
 }
