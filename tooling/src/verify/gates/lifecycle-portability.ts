@@ -118,6 +118,7 @@ const PORTABLE_CANON_TABLES: Record<PortableKind, readonly string[]> = {
   tag: ["tags"],
   gallery: ["galleryItems"],
   assets: ["assets"],
+  imagery: ["imageryGenerations", "imageryImportCalls"],
 };
 
 /** The owner-stamped tables that deliberately do NOT travel. Two-sided: a row naming a table the schema no
@@ -203,9 +204,7 @@ const NON_PORTABLE_CANON: Readonly<Record<string, NonPortableRow>> = {
   ownerStats: { classification: "DERIVED", why: "same rollup plane as `dailyStats`. Ends never." },
   compactionSpend: {
     classification: "DEFERRED",
-    why:
-      "spend history: the canon the stats rebuild re-derives compaction spend from, beside `imagery_generations` for image spend. Neither travels today " +
-      "(image provenance rides no portable kind either), so a restored box's reconcile starts both spends at zero. Ends when the bundle carries spend history.",
+    why: "Compaction spend history does not travel, so restored compaction spend starts at zero. Imagery execution history travels through its own descriptor. Ends when the bundle carries compaction spend history.",
   },
   statsCanonVersions: {
     classification: "DERIVED",
@@ -346,6 +345,11 @@ const LIFECYCLE_DOORS: Record<PortableKind, LifecycleDoors> = {
   assets: {
     singleExport: { ruled: "the CAS blob plane. Per-blob download is `/blob/:hash` (D21); the bundle arm is always-on, never a user checkbox." },
     singleImport: { ruled: "blobs arrive with the entity that references them." },
+    chrome: "backup-pane",
+  },
+  imagery: {
+    singleExport: { ruled: "Execution history travels with its retained output assets through the backup bundle, not a generation request." },
+    singleImport: { ruled: "History restores through the same bundle without resolving connections or executing paid calls." },
     chrome: "backup-pane",
   },
 };

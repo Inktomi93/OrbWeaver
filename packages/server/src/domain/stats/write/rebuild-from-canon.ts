@@ -6,12 +6,31 @@
 // Owner-scoping is membership-derived: the owner's chats are those with a character participant they own.
 
 import type { TokenProvenance } from "@orb/contracts/chat";
-import type { ProviderId } from "@orb/contracts/inference";
-import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
-import type { SpendDelta, SpendDeltaField } from "@orb/contracts/stats";
-import { compactionSpendDelta, imageGenerationSpendDelta, SPEND_DELTA_FIELDS } from "@orb/contracts/stats";
+import { legacyNotionalCostSamples, parseVariantMetadata } from "@orb/contracts/chat";
+import type { GenerationUsageLeg, ProviderId } from "@orb/contracts/inference";
+import { generationUsageLegSchema, modelIdSchema, providerIdSchema, responseCacheSchema } from "@orb/contracts/inference";
+import type { SpendDeltaField, StatsDelta } from "@orb/contracts/stats";
+import {
+  compactionSpendDelta,
+  embeddingSpendDelta,
+  generationObservationSpendDelta,
+  imageGenerationSpendDelta,
+  SPEND_DELTA_FIELDS,
+  variantUsageLegDelta,
+} from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { assets, characterStats, compactionSpend, dailyStats, imageryGenerations, modelStats, ownerStats } from "@orb/db";
+import {
+  assets,
+  characterStats,
+  characters,
+  chatGenerationObservations,
+  compactionSpend,
+  dailyStats,
+  embeddingCalls,
+  imageryGenerations,
+  modelStats,
+  ownerStats,
+} from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/kit";
 import type { CharacterId, ModelId, UserId } from "@orb/kit/ids";
@@ -20,7 +39,7 @@ import { MODEL_PROVIDER_UNKNOWN, statsBucketStart, wordCount } from "@orb/kit/st
 import { eq, sql } from "drizzle-orm";
 import { calendarBucketStartSql } from "#kit/calendar-bucket-sql";
 import type { ReconcileStatsResult } from "../contract/results.ts";
-import { ownerChatIds } from "../substrate/owner-chat-scope.ts";
+import { ownerChatIds, retainedCharacterSeatPredicate } from "../substrate/owner-chat-scope.ts";
 
 export type { ReconcileStatsResult } from "../contract/results.ts";
 
@@ -29,9 +48,9 @@ const DAY_MS = 86_400_000;
 const MIGRATION_GAP_DAYS = 30; // a message >30d after its chat's creation = migrated (createdAt clobbered)
 const MIGRATION_GAP_MS = MIGRATION_GAP_DAYS * DAY_MS;
 // Per-table column counts for the bound-variable chunker — must track the insert shapes below.
-const CHAR_COLS = 29;
-const DAILY_COLS = 21;
-const MODEL_COLS = 20;
+const CHAR_COLS = 30;
+const DAILY_COLS = 22;
+const MODEL_COLS = 21;
 
 interface TokenSampleAccum {
   tokensInMeasuredSamples: number;
@@ -56,6 +75,7 @@ interface CharAccum extends TokenSampleAccum {
   reasoningMs: number;
   costUsd: number;
   costSamples: number;
+  notionalCostSamples: number;
   activeIdxSum: number;
   variantMessages: number;
   contentChars: number;
@@ -71,6 +91,7 @@ interface ModelAccum extends TokenSampleAccum {
   reasoningMs: number;
   costUsd: number;
   costSamples: number;
+  notionalCostSamples: number;
   cacheReadTokens: number;
   cacheWriteTokens: number;
 }
@@ -86,6 +107,7 @@ interface BucketAccum extends TokenSampleAccum {
   genTimeMs: number;
   costUsd: number;
   costSamples: number;
+  notionalCostSamples: number;
   approx: boolean;
 }
 interface OwnerAccum extends TokenSampleAccum {
@@ -104,6 +126,7 @@ interface OwnerAccum extends TokenSampleAccum {
   reasoningMs: number;
   costUsd: number;
   costSamples: number;
+  notionalCostSamples: number;
   activeIdxSum: number;
   variantMessages: number;
   contentChars: number;
@@ -146,6 +169,7 @@ const freshChar = (): CharAccum => ({
   reasoningMs: 0,
   costUsd: 0,
   costSamples: 0,
+  notionalCostSamples: 0,
   activeIdxSum: 0,
   variantMessages: 0,
   contentChars: 0,
@@ -165,6 +189,7 @@ const freshModel = (): ModelAccum => ({
   reasoningMs: 0,
   costUsd: 0,
   costSamples: 0,
+  notionalCostSamples: 0,
   cacheReadTokens: 0,
   cacheWriteTokens: 0,
 });
@@ -184,6 +209,7 @@ const freshBucket = (): BucketAccum => ({
   genTimeMs: 0,
   costUsd: 0,
   costSamples: 0,
+  notionalCostSamples: 0,
   approx: false,
 });
 const freshOwner = (): OwnerAccum => ({
@@ -206,6 +232,7 @@ const freshOwner = (): OwnerAccum => ({
   reasoningMs: 0,
   costUsd: 0,
   costSamples: 0,
+  notionalCostSamples: 0,
   activeIdxSum: 0,
   variantMessages: 0,
   contentChars: 0,
@@ -316,7 +343,11 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
   const owners =
     opts.ownerId !== undefined && opts.ownerId !== ""
       ? [opts.ownerId]
-      : (await db.all<{ ownerId: string }>(sql`SELECT DISTINCT owner_id AS ownerId FROM characters`)).map((r) => r.ownerId);
+      : (
+          await db.all<{ ownerId: string }>(
+            sql`SELECT owner_id AS ownerId FROM characters UNION SELECT owner_id AS ownerId FROM embedding_calls UNION SELECT funder_user_id AS ownerId FROM chat_generation_observations UNION SELECT owner_id AS ownerId FROM owner_stats`,
+          )
+        ).map((r) => r.ownerId);
 
   const now = opts.now();
   let totalChars = 0;
@@ -416,6 +447,42 @@ interface MessageRow {
   ctx: number | null;
   selectedIdx: number | null;
   variantCount: number;
+  usageLegs: string | null;
+  metadata: string | null;
+}
+
+// SQLite returns serialized JSON only for the array arm selected by both scans.
+function usageLegsOf(raw: string | null): readonly GenerationUsageLeg[] {
+  return raw === null ? [] : (generationUsageLegSchema.array().safeParse(JSON.parse(raw)).data ?? []);
+}
+
+function foldVariantLegs(
+  args: { readonly ownerId: string; readonly cid: string | null; readonly legs: readonly GenerationUsageLeg[]; readonly selected: boolean },
+  a: Accums,
+): void {
+  const { ownerId, cid, legs, selected } = args;
+  for (const leg of legs) {
+    const delta = variantUsageLegDelta({
+      ownerId: castId<UserId>(ownerId),
+      characterId: cid === null ? null : castId<CharacterId>(cid),
+      leg,
+      selected,
+      sign: 1,
+      now: leg.observedAt,
+    });
+    foldSpend(delta, a);
+    if (cid !== null) {
+      const character = get(a.charMap, cid, freshChar);
+      character.tokensIn += delta.tokensIn ?? 0;
+      character.tokensOut += delta.tokensOut ?? 0;
+      character.tokensInMeasuredSamples += delta.tokensInMeasuredSamples ?? 0;
+      character.tokensOutMeasuredSamples += delta.tokensOutMeasuredSamples ?? 0;
+      character.costUsd += delta.costUsd ?? 0;
+      character.costSamples += delta.costSamples ?? 0;
+      character.notionalCostSamples += delta.notionalCostSamples ?? 0;
+      character.lastMsgAt = Math.max(character.lastMsgAt, delta.lastAt ?? 0);
+    }
+  }
 }
 
 /** Owner-grain economics from a message's SELECTED variant (tokens/cost/cache/ctx/chars/gen/reasoning). */
@@ -501,11 +568,14 @@ function foldMessageChar(charMap: Map<string, CharAccum>, r: MessageRow): void {
 
 /** Fold one message (its SELECTED variant — the kept take) across owner/char/bucket/model accumulators. */
 function foldMessage(r: MessageRow, a: Accums): void {
+  const notionalSamples = legacyNotionalCostSamples(r.cost, parseVariantMetadata(r.metadata === null ? null : JSON.parse(r.metadata)));
   const bucket = get(a.bucketMap, statsBucketStart(r.createdAt), freshBucket);
   if (r.createdAt - r.chatCreatedAt > MIGRATION_GAP_MS) {
     bucket.approx = true;
   }
   foldOwnerMessage(a.owner, bucket, r);
+  a.owner.notionalCostSamples += notionalSamples;
+  bucket.notionalCostSamples += notionalSamples;
   foldRoleCounts(a.owner, bucket, r);
   // Settle depth: a re-rolled message (>1 variant) contributes its SELECTED idx (the take you kept).
   if (r.variantCount > 1 && r.selectedIdx !== null) {
@@ -517,6 +587,7 @@ function foldMessage(r: MessageRow, a: Accums): void {
   }
   if (r.role === "assistant" && r.cid !== null) {
     foldMessageChar(a.charMap, r);
+    get(a.charMap, r.cid, freshChar).notionalCostSamples += notionalSamples;
   }
   const identity = r.role === "assistant" ? modelIdentity(r.model, r.provider) : null;
   if (identity !== null) {
@@ -527,6 +598,7 @@ function foldMessage(r: MessageRow, a: Accums): void {
     foldModelGen(entry.acc, r);
     entry.acc.costUsd += r.cost ?? 0;
     entry.acc.costSamples += r.cost === null ? 0 : 1;
+    entry.acc.notionalCostSamples += notionalSamples;
     entry.acc.cacheReadTokens += r.cacheR ?? 0;
     entry.acc.cacheWriteTokens += r.cacheW ?? 0;
   }
@@ -546,7 +618,9 @@ async function scanMessages(db: Db, ownerId: string, a: Accums): Promise<void> {
              json_extract(v.metadata, '$.reasoning_duration') AS reasoningDur,
              v.cost_usd AS cost, v.cache_read_tokens AS cacheR, v.cache_write_tokens AS cacheW,
              v.context_window AS ctx, v.idx AS selectedIdx,
-             (SELECT COUNT(*) FROM message_variants vv WHERE vv.message_id = m.id) AS variantCount
+             (SELECT COUNT(*) FROM message_variants vv WHERE vv.message_id = m.id) AS variantCount,
+             v.metadata AS metadata,
+             CASE WHEN json_type(v.metadata, '$.usageLegs') = 'array' THEN json_extract(v.metadata, '$.usageLegs') END AS usageLegs
       FROM messages m
       JOIN chats ch ON ch.id = m.chat_id
       LEFT JOIN message_variants v ON v.id = m.selected_variant_id
@@ -557,7 +631,9 @@ async function scanMessages(db: Db, ownerId: string, a: Accums): Promise<void> {
       break;
     }
     for (const r of rows) {
-      foldMessage(r, a);
+      const legs = usageLegsOf(r.usageLegs);
+      foldMessage(legs.length === 0 ? r : { ...r, ti: null, tout: null, cost: null, cacheR: null, cacheW: null, tokenProvenance: "unrecorded" }, a);
+      foldVariantLegs({ ownerId, cid: r.role === "assistant" ? r.cid : null, legs, selected: true }, a);
     }
     lastId = rows.at(-1)?.mid ?? lastId;
     if (rows.length < CHUNK) {
@@ -580,6 +656,7 @@ interface SwipeRow {
   provider: string | null;
   reasoning: string | null;
   reasoningDur: number | null;
+  usageLegs: string | null;
 }
 
 /** Per-character swipe fold (assistant re-rolls). */
@@ -646,7 +723,8 @@ async function scanSwipes(db: Db, ownerId: string, a: Accums): Promise<void> {
              mv.tokens_in AS ti, mv.tokens_out AS tout, mv.token_provenance AS tokenProvenance,
              mv.gen_started_at AS gs, mv.gen_finished_at AS gf,
              mv.model AS model, mv.provider AS provider, mv.reasoning AS reasoning,
-             json_extract(mv.metadata, '$.reasoning_duration') AS reasoningDur
+             json_extract(mv.metadata, '$.reasoning_duration') AS reasoningDur,
+             CASE WHEN json_type(mv.metadata, '$.usageLegs') = 'array' THEN json_extract(mv.metadata, '$.usageLegs') END AS usageLegs
       FROM message_variants mv
       JOIN messages m ON m.id = mv.message_id
       WHERE m.chat_id IN (${ownerChatIds(ownerId)})
@@ -658,7 +736,9 @@ async function scanSwipes(db: Db, ownerId: string, a: Accums): Promise<void> {
       break;
     }
     for (const r of rows) {
-      foldSwipe(r, a);
+      const legs = usageLegsOf(r.usageLegs);
+      foldSwipe(legs.length === 0 ? r : { ...r, ti: null, tout: null, tokenProvenance: "unrecorded" }, a);
+      foldVariantLegs({ ownerId, cid: r.cid, legs, selected: false }, a);
     }
     lastId = rows.at(-1)?.svid ?? lastId;
     if (rows.length < CHUNK) {
@@ -681,7 +761,7 @@ interface SpendGrains {
   model: ModelAccum | null;
 }
 
-function addToModel(model: ModelAccum | null, key: "generations" | "genSamples" | "costUsd", v: number): void {
+function addToModel(model: ModelAccum | null, key: keyof ModelAccum, v: number): void {
   if (model !== null) {
     model[key] += v;
   }
@@ -700,6 +780,48 @@ const SPEND_FOLD: Readonly<Record<SpendDeltaField, (g: SpendGrains, v: number) =
   modelGenerations: (g, v) => addToModel(g.model, "generations", v),
   modelGenSamples: (g, v) => addToModel(g.model, "genSamples", v),
   modelCostUsd: (g, v) => addToModel(g.model, "costUsd", v),
+  modelCostSamples: (g, v) => addToModel(g.model, "costSamples", v),
+  modelNotionalCostSamples: (g, v) => addToModel(g.model, "notionalCostSamples", v),
+  notionalCostSamples: (g, v) => {
+    g.owner.notionalCostSamples += v;
+    g.bucket.notionalCostSamples += v;
+  },
+  tokensIn: (g, v) => {
+    g.owner.tokensIn += v;
+  },
+  tokensInMeasuredSamples: (g, v) => {
+    g.owner.tokensInMeasuredSamples += v;
+  },
+  dailyTokensIn: (g, v) => {
+    g.bucket.tokensIn += v;
+  },
+  dailyTokensInMeasuredSamples: (g, v) => {
+    g.bucket.tokensInMeasuredSamples += v;
+  },
+  modelTokensIn: (g, v) => addToModel(g.model, "tokensIn", v),
+  modelTokensInMeasuredSamples: (g, v) => addToModel(g.model, "tokensInMeasuredSamples", v),
+  tokensOut: (g, v) => {
+    g.owner.tokensOut += v;
+  },
+  tokensOutMeasuredSamples: (g, v) => {
+    g.owner.tokensOutMeasuredSamples += v;
+  },
+  dailyTokensOut: (g, v) => {
+    g.bucket.tokensOut += v;
+  },
+  dailyTokensOutMeasuredSamples: (g, v) => {
+    g.bucket.tokensOutMeasuredSamples += v;
+  },
+  modelTokensOut: (g, v) => addToModel(g.model, "tokensOut", v),
+  modelTokensOutMeasuredSamples: (g, v) => addToModel(g.model, "tokensOutMeasuredSamples", v),
+  cacheReadTokens: (g, v) => {
+    g.owner.cacheReadTokens += v;
+  },
+  cacheWriteTokens: (g, v) => {
+    g.owner.cacheWriteTokens += v;
+  },
+  modelCacheReadTokens: (g, v) => addToModel(g.model, "cacheReadTokens", v),
+  modelCacheWriteTokens: (g, v) => addToModel(g.model, "cacheWriteTokens", v),
   lastAt: (g, v) => {
     g.owner.lastActivityAt = Math.max(g.owner.lastActivityAt, v);
   },
@@ -707,12 +829,12 @@ const SPEND_FOLD: Readonly<Record<SpendDeltaField, (g: SpendGrains, v: number) =
 
 /** Fold one spend delta. The timeline bucket (and the model row) exists even for a zero-valued delta,
  *  because the live upsert writes those rows whatever the increments are. */
-function foldSpend(d: SpendDelta, a: Accums): void {
-  const { model, provider } = d;
+function foldSpend(d: StatsDelta, a: Accums): void {
+  const identity = modelIdentity(d.model, d.provider);
   const grains: SpendGrains = {
     owner: a.owner,
     bucket: get(a.bucketMap, d.bucketStart, freshBucket),
-    model: model === null ? null : get(a.modelMap, modelMapKey(model, provider), () => ({ model, provider, acc: freshModel() })).acc,
+    model: identity === null ? null : get(a.modelMap, modelMapKey(identity.model, identity.provider), () => ({ ...identity, acc: freshModel() })).acc,
   };
   for (const field of SPEND_DELTA_FIELDS) {
     const v = d[field];
@@ -730,23 +852,18 @@ function foldSpend(d: SpendDelta, a: Accums): void {
 async function scanImageSpend(db: Db, ownerId: string, a: Accums): Promise<void> {
   const calls = await db
     .select({
-      model: imageryGenerations.model,
-      provider: imageryGenerations.provider,
-      costUsd: imageryGenerations.costUsd,
-      createdAt: imageryGenerations.createdAt,
+      // Every producer writes one immutable execution body/time across its outputs. Stable aggregates
+      // keep attribution-only FK loss from splitting a call or choosing an arbitrary context row.
+      model: sql<ModelId>`min(${imageryGenerations.model})`,
+      provider: sql<ProviderId | null>`min(${imageryGenerations.provider})`,
+      costUsd: sql<number | null>`min(${imageryGenerations.costUsd})`,
+      createdAt: sql<number>`min(${imageryGenerations.createdAt})`,
       count: sql<number>`count(*)`,
     })
     .from(imageryGenerations)
     .innerJoin(assets, eq(assets.id, imageryGenerations.assetId))
     .where(eq(assets.ownerId, castId<UserId>(ownerId)))
-    .groupBy(
-      imageryGenerations.callId,
-      imageryGenerations.createdAt,
-      imageryGenerations.model,
-      imageryGenerations.provider,
-      imageryGenerations.connectionId,
-      imageryGenerations.costUsd,
-    );
+    .groupBy(sql`coalesce(${imageryGenerations.callId}, ${imageryGenerations.id})`);
   for (const call of calls) {
     foldSpend(imageGenerationSpendDelta({ ownerId: castId<UserId>(ownerId), ...call, now: call.createdAt }), a);
   }
@@ -760,6 +877,52 @@ async function scanCompactionSpend(db: Db, ownerId: string, a: Accums): Promise<
     .where(eq(compactionSpend.ownerId, castId<UserId>(ownerId)));
   for (const pass of passes) {
     foldSpend(compactionSpendDelta({ ownerId: castId<UserId>(ownerId), costUsd: pass.costUsd, now: pass.createdAt }), a);
+  }
+}
+
+async function scanEmbeddingSpend(db: Db, ownerId: string, a: Accums): Promise<void> {
+  let lastId = "";
+  for (;;) {
+    // @orb-waive no-await-db-in-loop(limit): keyset pagination bounds the retained embedding-call corpus per page, matching the message/swipe scans. Ends if rebuild folds server-side.
+    const calls = await db
+      .select()
+      .from(embeddingCalls)
+      .where(sql`${embeddingCalls.ownerId} = ${ownerId} and ${embeddingCalls.id} > ${lastId}`)
+      .orderBy(embeddingCalls.id)
+      .limit(CHUNK);
+    for (const call of calls) {
+      foldSpend(
+        embeddingSpendDelta({
+          ownerId: call.ownerId,
+          model: modelIdSchema.parse(call.model),
+          provider: call.provider,
+          promptTokens: call.promptTokens,
+          costUsd: call.costUsd,
+          now: call.createdAt,
+        }),
+        a,
+      );
+    }
+    lastId = calls.at(-1)?.id ?? lastId;
+    if (calls.length < CHUNK) {
+      break;
+    }
+  }
+}
+
+async function scanGenerationObservations(db: Db, ownerId: string, a: Accums): Promise<void> {
+  const rows = await db
+    .select()
+    .from(chatGenerationObservations)
+    .where(eq(chatGenerationObservations.funderUserId, castId<UserId>(ownerId)));
+  for (const row of rows) {
+    foldSpend(
+      generationObservationSpendDelta({
+        ownerId: row.funderUserId,
+        leg: generationUsageLegSchema.parse({ ...row, responseCache: responseCacheSchema.safeParse(row.responseCache).data }),
+      }),
+      a,
+    );
   }
 }
 
@@ -786,7 +949,7 @@ async function loadChatMeta(db: Db, ownerId: string): Promise<ChatMeta> {
     FROM chat_participants cp
     JOIN chats ch ON ch.id = cp.chat_id
     JOIN characters c ON c.id = cp.character_id
-    WHERE c.owner_id = ${ownerId} AND cp.kind = 'character' AND ch.started_at IS NOT NULL
+    WHERE ${retainedCharacterSeatPredicate(sql`${ownerId}`)}
     GROUP BY cp.character_id
   `);
   const chatByChar = new Map(chatAgg.map((r) => [r.cid, r]));
@@ -855,6 +1018,7 @@ function buildCharRows(charMap: Map<string, CharAccum>, meta: ChatMeta, now: num
       tokensOutEstimatedSamples: c.tokensOutEstimatedSamples,
       costUsd: c.costUsd,
       costSamples: c.costSamples,
+      notionalCostSamples: c.notionalCostSamples,
       genTimeMs: c.genTimeMs,
       genSamples: c.genSamples,
       reasoningGenerations: c.reasoningGenerations,
@@ -890,6 +1054,7 @@ function buildOwnerRow(ownerId: UserId, owner: OwnerAccum, meta: ChatMeta, now: 
     tokensOutEstimatedSamples: owner.tokensOutEstimatedSamples,
     costUsd: owner.costUsd,
     costSamples: owner.costSamples,
+    notionalCostSamples: owner.notionalCostSamples,
     genTimeMs: owner.genTimeMs,
     genSamples: owner.genSamples,
     reasoningGenerations: owner.reasoningGenerations,
@@ -930,6 +1095,7 @@ function buildBucketRows(ownerId: UserId, bucketMap: Map<number, BucketAccum>, m
       tokensOutEstimatedSamples: d.tokensOutEstimatedSamples,
       costUsd: d.costUsd,
       costSamples: d.costSamples,
+      notionalCostSamples: d.notionalCostSamples,
       genTimeMs: d.genTimeMs,
       messageDatesApprox: d.approx,
       computedAt: now,
@@ -956,6 +1122,7 @@ function buildModelRows(ownerId: UserId, modelMap: Map<string, ModelEntry>, now:
     reasoningMs: acc.reasoningMs,
     costUsd: acc.costUsd,
     costSamples: acc.costSamples,
+    notionalCostSamples: acc.notionalCostSamples,
     cacheReadTokens: acc.cacheReadTokens,
     cacheWriteTokens: acc.cacheWriteTokens,
     computedAt: now,
@@ -1004,6 +1171,8 @@ async function foldOwnerCanon(db: Db, ownerId: string): Promise<{ a: Accums; met
   await scanSwipes(db, ownerId, a);
   await scanImageSpend(db, ownerId, a);
   await scanCompactionSpend(db, ownerId, a);
+  await scanEmbeddingSpend(db, ownerId, a);
+  await scanGenerationObservations(db, ownerId, a);
   const meta = await loadChatMeta(db, ownerId);
   return { a, meta };
 }
@@ -1025,9 +1194,10 @@ async function computeOwner(db: Db, ownerId: string, now: number): Promise<{ cha
   ownerExtrema(a.owner, meta);
 
   const oid = castId<UserId>(ownerId);
+  const ownedCharacters = new Set((await db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, oid))).map((row) => row.id));
   const rows: OwnerRollupRows = {
     ownerRow: buildOwnerRow(oid, a.owner, meta, now),
-    charRows: buildCharRows(a.charMap, meta, now),
+    charRows: buildCharRows(a.charMap, meta, now).filter((row) => ownedCharacters.has(row.characterId)),
     bucketRows: buildBucketRows(oid, a.bucketMap, meta, now),
     modelRows: buildModelRows(oid, a.modelMap, now),
   };

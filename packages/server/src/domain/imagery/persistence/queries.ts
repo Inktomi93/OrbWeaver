@@ -5,7 +5,8 @@
 // lookup + the provenance read both JOIN `assets` and gate on `ownerId` (no cross-owner leak, no ownerId dup).
 
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
-import type { ProviderId } from "@orb/contracts/inference";
+import type { GenerationUsage, ProviderId } from "@orb/contracts/inference";
+import { costDetailsSchema, responseCacheSchema, tokenDetailsSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { assets, imageryGenerations } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -27,6 +28,7 @@ interface InsertGenerationInput {
   readonly providerId: ProviderId;
   readonly connectionId: UserConnectionId;
   readonly costUsd: number | null;
+  readonly usage: GenerationUsage;
   readonly edited: boolean;
   readonly createdAt: number;
 }
@@ -47,9 +49,21 @@ export function insertGenerationStatement(db: Db, input: InsertGenerationInput):
     provider: input.providerId,
     connectionId: input.connectionId,
     costUsd: input.costUsd,
+    servedModel: input.usage.servedModel,
+    tokensIn: input.usage.tokensIn,
+    tokensOut: input.usage.tokensOut,
+    reasoningTokens: input.usage.reasoningTokens,
+    cacheReadTokens: input.usage.cacheReadTokens,
+    cacheWriteTokens: input.usage.cacheWriteTokens,
+    costProvenance: input.usage.costProvenance,
+    costDetails: input.usage.costDetails,
+    tokenDetails: input.usage.tokenDetails,
+    responseCache: input.usage.responseCache ?? null,
     edited: input.edited,
     createdAt: input.createdAt,
     callId: input.callId,
+    importHash: null,
+    importSource: null,
   });
 }
 
@@ -106,6 +120,16 @@ export async function readProvenanceByAsset(db: Db, ownerId: UserId, assetId: As
       negativePrompt: imageryGenerations.negativePrompt,
       model: imageryGenerations.model,
       costUsd: imageryGenerations.costUsd,
+      servedModel: imageryGenerations.servedModel,
+      tokensIn: imageryGenerations.tokensIn,
+      tokensOut: imageryGenerations.tokensOut,
+      reasoningTokens: imageryGenerations.reasoningTokens,
+      cacheReadTokens: imageryGenerations.cacheReadTokens,
+      cacheWriteTokens: imageryGenerations.cacheWriteTokens,
+      costProvenance: imageryGenerations.costProvenance,
+      costDetails: imageryGenerations.costDetails,
+      tokenDetails: imageryGenerations.tokenDetails,
+      responseCache: imageryGenerations.responseCache,
       subjectCharacterId: imageryGenerations.subjectCharacterId,
       identityHash: imageryGenerations.identityHash,
       edited: imageryGenerations.edited,
@@ -115,5 +139,36 @@ export async function readProvenanceByAsset(db: Db, ownerId: UserId, assetId: As
     .innerJoin(assets, eq(assets.id, imageryGenerations.assetId))
     .where(and(eq(imageryGenerations.assetId, assetId), eq(assets.ownerId, ownerId)))
     .limit(1);
-  return rows[0] ?? null;
+  const row = rows[0];
+  if (row === undefined) {
+    return null;
+  }
+  const {
+    servedModel,
+    tokensIn,
+    tokensOut,
+    reasoningTokens,
+    cacheReadTokens,
+    cacheWriteTokens,
+    costProvenance,
+    costDetails,
+    tokenDetails,
+    responseCache,
+    ...provenance
+  } = row;
+  return {
+    ...provenance,
+    usage: {
+      servedModel,
+      tokensIn,
+      tokensOut,
+      reasoningTokens,
+      cacheReadTokens,
+      cacheWriteTokens,
+      costProvenance,
+      costDetails: costDetailsSchema.nullable().catch(null).parse(costDetails),
+      tokenDetails: tokenDetailsSchema.nullable().catch(null).parse(tokenDetails),
+      ...(responseCacheSchema.safeParse(responseCache).success ? { responseCache: responseCacheSchema.parse(responseCache) } : {}),
+    },
+  };
 }

@@ -290,7 +290,9 @@ function wireFor(spec: WireSpec, key: string, capture: Capture) {
       createOpenAiCompatBackend({ ...shared, app: { name: "orbweaver-or12-probe", url: "http://127.0.0.1" }, snapshotStore: NO_SNAPSHOTS }).backend,
     ],
   ]);
-  const executor = createProviderExecutor({ registry, span: (_name, fn) => Promise.resolve(fn()) });
+  const executor = createProviderExecutor({ registry, span: (_name, fn) => Promise.resolve(fn()), beginEmbeddingAccounting: () => {
+    throw new Error("or12 is a chat-only probe; unexpected embedding execution");
+  } });
   const base = makeResolved({ providerId: spec.providerId });
   const connection = makeResolved({
     providerId: spec.providerId,

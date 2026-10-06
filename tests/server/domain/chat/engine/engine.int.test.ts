@@ -9,7 +9,18 @@ import type { GenerationCapability } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { characterStats, chatLocks, chatStreamEvents, chats, dailyStats, messages, messageVariants, ownerStats } from "@orb/db";
+import {
+  characterStats,
+  characters,
+  chatGenerationObservations,
+  chatLocks,
+  chatStreamEvents,
+  chats,
+  dailyStats,
+  messages,
+  messageVariants,
+  ownerStats,
+} from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type { ChatEvent, ChatResult } from "@orb/inference";
 import { generationOf, resolveChat } from "@orb/inference";
@@ -17,11 +28,16 @@ import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, ModelId,
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { applyStatsDelta } from "@orb/server/domain/stats";
+import { applyStatsDelta, reconcileStats } from "@orb/server/domain/stats";
 import { createRunChatTurnBridge } from "@orb/server/entry/compose";
 import { getLog, initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
+import { createAgentSdkLog } from "../../../../../packages/inference/src/backends/agent-sdk/log.ts";
+import { consumeTurnStream } from "../../../../../packages/inference/src/backends/agent-sdk/runner.ts";
+import { NO_SAVED_TOTALS } from "../../../../../packages/inference/src/backends/agent-sdk/session/frames.ts";
+import { observeChatResult } from "../../../../../packages/inference/src/backends/kit/generation-observation.ts";
+import { resolvedScrubSet } from "../../../../../packages/inference/src/backends/kit/sanitize.ts";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import type { MemoryRecallInputs } from "../../../../../packages/server/src/domain/chat/contract/memory.ts";
@@ -563,15 +579,15 @@ describe("createTurnEngine — happy path", () => {
     expect(warnings[0]).toMatchObject({ type: "warning", code: "image_dropped" });
   });
 
-  test("the stats delta is attributed to the host (runAsUserId), not the caller", async () => {
+  test("the solo retained cohort is credited, never the initiating member", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const characterId = await seedCharacter(db, host, "retained_stats");
     const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "retained_stats", characterId });
     const h = harness(db);
     await h.engine.runTurn(prepOf(chatId, { triggeredBy: MEMBER, runAsUserId: HOST }));
     expect(h.deltas).toHaveLength(1);
     expect(h.deltas[0]?.ownerId).toBe(HOST);
-    // The per-member budget DEBIT that was asserted beside this is deleted with the belt (@orb/inference
-    // §14 F11). Stats attribution is the live half and is unchanged: `buildTurnStatsDeltas` still keys the
-    // delta on `prep.runAsUserId` (the host's assembly scope, §8.4-3), never on the triggering member.
   });
 
   test("the lock is released — a second turn runs (seq advances)", async () => {
@@ -2031,6 +2047,8 @@ describe("createTurnEngine — an infra runner warning reaches the chat bus (D41
     appliedEffort: null,
     usage: {
       model: castId<ModelId>("test-model"),
+      servedModel: null,
+      tokenDetails: null,
       tokensIn: 4,
       tokensOut: 2,
       cacheReadTokens: 0,
@@ -2341,7 +2359,10 @@ describe("createTurnEngine — the commit fence (#1393)", () => {
 
 describe("createTurnEngine — the op-log survives a failed commit (#1437)", () => {
   test("a commit that throws BEFORE the write leaves the caller's op-log intact for the retry", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const characterId = await seedCharacter(db, host, "oplog_actor");
     const chatId = await seedChat(db, "oplog-retry");
+    await seedParticipant(db, { chatId, key: "oplog_actor", characterId });
     // ONE assembleContext, shared across a round's speakers (the `round.ts` pattern) — the op-log is the
     // by-reference array assembly pushed this turn's setvars onto.
     const shared: AssembleContext = { ...ASSEMBLE_CTX, opLog: [{ op: "set", key: "hp", value: "1" }] };
@@ -2373,4 +2394,276 @@ describe("createTurnEngine — the op-log survives a failed commit (#1437)", () 
     // …and the clear still happens on the SUCCESSFUL commit (no double-count for the next speaker).
     expect(shared.opLog).toEqual([]);
   });
+});
+
+type SdkFrame = Parameters<typeof consumeTurnStream>[0] extends AsyncIterable<infer Frame> ? Frame : never;
+
+async function* accountingSdkFrames(reply: string, cost: number, refused = false): AsyncGenerator<SdkFrame> {
+  await Promise.resolve();
+  const usage = {
+    ["input_tokens"]: 10,
+    ["output_tokens"]: 20,
+    ["cache_creation_input_tokens"]: 3,
+    ["cache_read_input_tokens"]: 2,
+    ["cache_creation"]: { ["ephemeral_5m_input_tokens"]: 3, ["ephemeral_1h_input_tokens"]: 0 },
+    ["inference_geo"]: "not_available",
+    iterations: [],
+    ["output_tokens_details"]: { ["thinking_tokens"]: 4 },
+    ["server_tool_use"]: { ["web_search_requests"]: 0, ["web_fetch_requests"]: 0 },
+    ["service_tier"]: "standard" as const,
+    speed: "standard" as const,
+  };
+  yield {
+    type: "assistant",
+    ["session_id"]: "898b4849-1607-4179-bcc2-56b45e572385",
+    uuid: "00000000-0000-4000-8000-000000000001",
+    ["parent_tool_use_id"]: null,
+    ...(refused ? { error: "invalid_request" as const } : {}),
+    message: {
+      id: "msg_accounting",
+      type: "message",
+      model: "test-model",
+      role: "assistant",
+      content: [{ type: "text", text: reply, citations: null }],
+      container: null,
+      ["context_management"]: null,
+      diagnostics: null,
+      ["stop_details"]: null,
+      ["stop_reason"]: "end_turn",
+      ["stop_sequence"]: null,
+      usage,
+    },
+  };
+  yield {
+    type: "result",
+    subtype: "success",
+    uuid: "00000000-0000-4000-8000-000000000002",
+    ["session_id"]: "898b4849-1607-4179-bcc2-56b45e572385",
+    ["is_error"]: refused,
+    ["api_error_status"]: refused ? 400 : null,
+    ["duration_ms"]: 10,
+    ["duration_api_ms"]: 5,
+    ["num_turns"]: 3,
+    result: reply,
+    ["stop_reason"]: "end_turn",
+    ["total_cost_usd"]: cost,
+    usage,
+    modelUsage: {
+      "test-model": {
+        inputTokens: 10,
+        outputTokens: 20,
+        thinkingTokens: 4,
+        cacheReadInputTokens: 2,
+        cacheCreationInputTokens: 3,
+        webSearchRequests: 0,
+        costUSD: cost,
+        contextWindow: 200_000,
+        maxOutputTokens: 8192,
+      },
+    },
+    ["permission_denials"]: [],
+    ["terminal_reason"]: refused ? "api_error" : "completed",
+  };
+}
+
+test("actual SDK terminal aggregates traverse the compose bridge and continuation replaces only its operation economics", async () => {
+  const owner = await seedUser(db, castId<Handle>("host"));
+  const characterId = await seedCharacter(db, owner, "sdk_accounting");
+  const chatId = await seedChat(db, "sdk_accounting");
+  await seedParticipant(db, { chatId, key: "sdk_accounting", characterId });
+  await seedConnection(db, owner);
+  let calls = 0;
+  const connection = { ...testConnection("claude-sub", "agent-sdk"), ownerId: owner };
+  const bridge = createRunChatTurnBridge({
+    runChatTurn: (request): Promise<ChatResult> => {
+      calls += 1;
+      return consumeTurnStream(
+        accountingSdkFrames(calls === 1 ? "A retained reply." : " Continued.", calls === 1 ? 0.25 : 0.375),
+        {
+          model: request.connection.model,
+          providerId: request.connection.providerId,
+          resumed: calls > 1,
+          savedTotals: calls === 1 ? NO_SAVED_TOTALS : { costUsd: 0.25, webSearchRequests: 0 },
+          now: () => FROZEN_AT,
+          appliedEffort: null,
+          secrets: resolvedScrubSet(request.connection),
+          onObservedResult: (result) => observeChatResult(request, result),
+        },
+        createAgentSdkLog({ info: () => undefined, debug: () => undefined, warn: () => undefined, error: () => undefined }, "claude-sub"),
+      );
+    },
+  });
+  const h = harness(db, {
+    runChatTurn: bridge,
+    applyStatsDelta: (batch, opDb, delta): void => {
+      applyStatsDelta(batch as BatchStmt[], opDb, delta);
+    },
+  });
+  await reconcileStats(db, { ownerId: owner, now: () => FROZEN_AT });
+  const first = await h.engine.runTurn(prepOf(chatId, { connection, speakerCharacterId: characterId }));
+  expect(first.aborted).toBe(false);
+  const firstMessage = first.messages[0];
+  if (firstMessage === undefined) {
+    throw new Error("SDK fixture did not commit its retained reply");
+  }
+  const firstRow = (await db.select().from(messageVariants).where(eq(messageVariants.messageId, firstMessage.id)))[0];
+  expect(firstRow?.metadata?.usageLegs).toMatchObject([{ costUsd: 0.25, wire: "agent-sdk", tokensIn: 15, tokensOut: 20, modelCalls: 3 }]);
+  const continued = await h.engine.runTurn(
+    prepOf(chatId, {
+      connection,
+      speakerCharacterId: characterId,
+      kind: "continue",
+      appendUserTurn: "[continue]",
+      persist: { mode: "continue", targetMessageId: firstMessage.id },
+    }),
+  );
+  expect(continued.aborted).toBe(false);
+  expect(calls).toBe(2);
+  const row = (await db.select().from(messageVariants).where(eq(messageVariants.messageId, firstMessage.id)))[0];
+  expect(row?.content).toBe("A retained reply.Continued.");
+  expect(row?.metadata?.usageLegs).toMatchObject([{ costUsd: 0.125, wire: "agent-sdk", tokensIn: 15, tokensOut: 20, modelCalls: 3 }]);
+  expect(row?.metadata?.usageLegs).toHaveLength(1);
+  expect(await db.select().from(chatGenerationObservations)).toEqual([]);
+  const live = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner)))[0];
+  expect(live).toMatchObject({ assistantTurns: 1, costUsd: 0.125, costSamples: 1, notionalCostSamples: 1, tokensIn: 15, tokensOut: 20 });
+  await reconcileStats(db, { ownerId: owner, now: () => FROZEN_AT });
+  expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner)))[0]).toMatchObject({
+    assistantTurns: 1,
+    costUsd: 0.125,
+    costSamples: 1,
+    notionalCostSamples: 1,
+    tokensIn: 15,
+    tokensOut: 20,
+  });
+});
+
+test("an actual nonzero failed SDK terminal result retains its paid facts before the compose bridge refuses it", async () => {
+  const owner = await seedUser(db, castId<Handle>("host"));
+  const chatId = await seedChat(db, "sdk_refused_accounting");
+  await seedConnection(db, owner);
+  let calls = 0;
+  const bridge = createRunChatTurnBridge({
+    runChatTurn: (request): Promise<ChatResult> => {
+      calls += 1;
+      return consumeTurnStream(
+        accountingSdkFrames("API Error: 400 fixture refusal", 0.25, true),
+        {
+          model: request.connection.model,
+          providerId: request.connection.providerId,
+          resumed: false,
+          savedTotals: NO_SAVED_TOTALS,
+          now: () => FROZEN_AT,
+          appliedEffort: null,
+          secrets: resolvedScrubSet(request.connection),
+          onObservedResult: (result) => observeChatResult(request, result),
+        },
+        createAgentSdkLog({ info: () => undefined, debug: () => undefined, warn: () => undefined, error: () => undefined }, "claude-sub"),
+      );
+    },
+  });
+  const h = harness(db, {
+    runChatTurn: bridge,
+    applyStatsDelta: (batch, opDb, delta): void => {
+      applyStatsDelta(batch as BatchStmt[], opDb, delta);
+    },
+  });
+  await expect(h.engine.runTurn(prepOf(chatId, { connection: { ...testConnection("claude-sub", "agent-sdk"), ownerId: owner } }))).rejects.toMatchObject({
+    kind: "invalid",
+    retryable: false,
+  });
+  expect(calls).toBe(1);
+  expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toEqual([]);
+  expect(await db.select().from(chatGenerationObservations)).toMatchObject([
+    {
+      chatId,
+      funderUserId: owner,
+      wire: "agent-sdk",
+      costUsd: 0.25,
+      costProvenance: "estimated",
+      tokensIn: 15,
+      tokensOut: 20,
+      modelCalls: 3,
+      terminalReason: "api_error",
+    },
+  ]);
+  await reconcileStats(db, { ownerId: owner, now: () => FROZEN_AT });
+  expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner)))[0]).toMatchObject({
+    assistantTurns: 0,
+    costUsd: 0.25,
+    costSamples: 1,
+    notionalCostSamples: 1,
+    tokensIn: 15,
+    tokensOut: 20,
+  });
+});
+
+test.for([
+  "cohort",
+  "voice",
+] as const)("a fresh paid engine commit refuses a stale retained %s without transferring or redirecting its completed facts", async (race) => {
+  const a = await seedUser(db, castId<Handle>("retained_a"));
+  const b = await seedUser(db, castId<Handle>("retained_b"));
+  const c = await seedUser(db, castId<Handle>("retained_c"));
+  const chatId = await seedChat(db, `fresh_scope_${race}`);
+  const oldVoice = await seedCharacter(db, a, "retained_old");
+  const voice = await seedCharacter(db, b, "retained_voice");
+  await seedParticipant(db, { chatId, key: "retained_host", userId: b, role: "host" });
+  await seedParticipant(db, { chatId, key: "retained_old", characterId: oldVoice, leftSeq: 0 });
+  await seedParticipant(db, { chatId, key: "retained_voice", characterId: voice });
+  if (race === "voice") {
+    const bOther = await seedCharacter(db, b, "retained_b_other");
+    const cOther = await seedCharacter(db, c, "retained_c_other");
+    await seedParticipant(db, { chatId, key: "retained_b_other", characterId: bOther });
+    await seedParticipant(db, { chatId, key: "retained_c_other", characterId: cOther });
+  }
+  await seedConnection(db, b);
+  const connection = { ...testConnection("claude-sub", "agent-sdk"), ownerId: b };
+  let calls = 0;
+  const bridge = createRunChatTurnBridge({
+    runChatTurn: (request): Promise<ChatResult> => {
+      calls += 1;
+      return consumeTurnStream(
+        accountingSdkFrames("A completed reply.", 0.125),
+        {
+          model: request.connection.model,
+          providerId: request.connection.providerId,
+          resumed: false,
+          savedTotals: NO_SAVED_TOTALS,
+          now: () => FROZEN_AT,
+          appliedEffort: null,
+          secrets: resolvedScrubSet(request.connection),
+          onObservedResult: (result) => observeChatResult(request, result),
+        },
+        createAgentSdkLog({ info: () => undefined, debug: () => undefined, warn: () => undefined, error: () => undefined }, "claude-sub"),
+      );
+    },
+  });
+  const h = harness(db, {
+    runChatTurn: bridge,
+    applyStatsDelta: (batch, opDb, delta): void => {
+      applyStatsDelta(batch as BatchStmt[], opDb, delta);
+    },
+  });
+  const resolve = h.ctx.resolveRetainedChatAccountingScope;
+  let changed = false;
+  let before: (typeof ownerStats.$inferSelect)[] = [];
+  vi.spyOn(h.ctx, "resolveRetainedChatAccountingScope").mockImplementation(async (roomId, characterId) => {
+    const scope = await resolve(roomId, characterId);
+    if (!changed) {
+      changed = true;
+      before = await db.select().from(ownerStats);
+      await db
+        .update(characters)
+        .set({ ownerId: c })
+        .where(eq(characters.id, race === "cohort" ? oldVoice : voice));
+    }
+    return scope;
+  });
+  const outcome = await h.engine.runTurn(prepOf(chatId, { connection, runAsUserId: b, funderUserId: b, triggeredBy: b, speakerCharacterId: voice }));
+  expect(outcome).toMatchObject({ aborted: true, abortReason: "stale", messages: [] });
+  expect(changed).toBe(true);
+  expect(calls).toBe(1);
+  expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toEqual([]);
+  expect(await db.select().from(ownerStats)).toEqual(before);
+  expect(await db.select().from(chatGenerationObservations)).toMatchObject([{ funderUserId: b, costUsd: 0.125, tokensIn: 15, tokensOut: 20 }]);
 });

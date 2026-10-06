@@ -249,6 +249,7 @@ export function fakeDeps(options: FakeDepsOptions = {}): InferenceDeps & { reado
   const log = options.log ?? silentLog();
   return {
     stores,
+    beginEmbeddingAccounting: () => ({ recordBatch: () => Promise.resolve(), finish: () => Promise.resolve() }),
     now: () => FROZEN_NOW,
     log,
     span: (_name, fn) => Promise.resolve(fn()),

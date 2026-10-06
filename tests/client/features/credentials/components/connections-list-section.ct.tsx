@@ -10,6 +10,54 @@ import { ConnectionsAuthoringStory } from "../_ct-stories.tsx";
 
 const ROW_NAME = "Legacy relay · claude-opus-5";
 
+for (const theme of ["hearth", "light"] as const) {
+  for (const width of [870, 320]) {
+    test(`the connections funding disclosure stays readable and operable at ${width} in ${theme}`, async ({ mount, page }) => {
+      await stubConnectionsPane(page, { connections: [connectionRow()] });
+      const component = await mount(
+        <div data-theme={theme === "hearth" ? undefined : theme} className="bg-background text-foreground">
+          <ConnectionsAuthoringStory width={width} />
+        </div>,
+      );
+      const list = component.locator("#config-anchor-connections-connections");
+      const paragraph = list.getByText("One provider and one model per connection.", { exact: false });
+      await expect(paragraph).toContainText("Your roles use these connections in rooms you host and for your work outside rooms.");
+      await expect(paragraph).toContainText("Shared-room turns use the room host's connections.");
+      await expect
+        .poll(() =>
+          paragraph.evaluate((element) => {
+            const style = getComputedStyle(element);
+            const probe = document.createElement("span");
+            probe.style.font = style.font;
+            probe.style.width = "var(--reading-measure-prose)";
+            probe.style.display = "block";
+            element.append(probe);
+            const cap = probe.getBoundingClientRect().width;
+            probe.remove();
+            return {
+              fontMatchesBody:
+                Number.parseFloat(style.fontSize) ===
+                Number.parseFloat(style.getPropertyValue("--text-body")) * Number.parseFloat(getComputedStyle(document.documentElement).fontSize),
+              withinCap: element.getBoundingClientRect().width <= cap + 1,
+              capped: style.maxWidth !== "none",
+              overflow: element.scrollWidth > element.clientWidth,
+            };
+          }),
+        )
+        .toEqual({ fontMatchesBody: true, capped: true, withinCap: true, overflow: false });
+      const add = list.getByRole("button", { name: "Add connection", exact: true });
+      await expect(add).toBeVisible();
+      await add.focus();
+      await expect(add).toBeFocused();
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(add).toBeFocused();
+      await test.info().attach("funding-readable", { body: await component.screenshot(), contentType: "image/png" });
+    });
+  }
+}
+
 test("connection chips say what the model can do, while the image role offers only image-capable rows", async ({ mount, page }) => {
   await stubConnectionsPane(page, {
     connections: [

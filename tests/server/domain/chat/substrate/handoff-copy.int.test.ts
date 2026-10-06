@@ -28,6 +28,7 @@ import type { Db } from "@orb/db";
 import {
   auditLogs,
   characterBooks,
+  characterStats,
   characters,
   chatBooks,
   chatDigestSpeakers,
@@ -35,8 +36,13 @@ import {
   chatHandoffResumptions,
   chatParticipants,
   chatRegexScripts,
+  chats,
+  dailyStats,
   embedGenerations,
   messages,
+  messageVariants,
+  modelStats,
+  ownerStats,
   regexScripts,
   userConnections,
   worldBooks,
@@ -58,13 +64,14 @@ import type {
   WorldEntryId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createCopyHandoffCards, handoffProvenance } from "../../../../../packages/server/src/domain/character/index.ts";
 import { createParticipants } from "../../../../../packages/server/src/domain/chat/verbs/participants.ts";
 import { createHandoffRestampStatements } from "../../../../../packages/server/src/domain/embeddings/index.ts";
 import { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "../../../../../packages/server/src/domain/regex/index.ts";
-import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
+import { reconcileStats } from "../../../../../packages/server/src/domain/stats/index.ts";
+import { applyStatsDelta, bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { createCopyHandoffBooks, createCountHandoffBooks } from "../../../../../packages/server/src/domain/world-info/index.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -146,10 +153,14 @@ function copyContext(
   const mint = minters();
   return makeChatContext(db, {
     getCard: ownedCard(),
+    applyStatsDelta: (batch, opDb, delta): void => {
+      applyStatsDelta(batch as BatchStmt[], opDb, delta);
+    },
     emitNotification: recordingEmit(notes),
     copyHandoffCards: createCopyHandoffCards({
       db,
       bumpStatsCanonVersion,
+      applyStatsDelta,
       now: () => 1,
       newCharacterId: mint.newCharacterId,
       copyAsset: () => Promise.resolve(null),
@@ -409,6 +420,49 @@ describe("cross-tenant — the offer gives only what the departing host owns", (
 });
 
 describe("the crash arm — mints land first, and a retry converges", () => {
+  test("an actual failed room swap retains the winning library census and retry never counts that clone again", async () => {
+    const { host, member, chatId, aria } = await seedTransferRoom();
+    const retained = await seedMessage(db, chatId, 1, { characterId: aria, content: "Retained paid reply." });
+    await db.update(messageVariants).set({ costUsd: 0.25, tokensIn: 10, tokensOut: 20 }).where(eq(messageVariants.id, retained.variantId));
+    await reconcileStats(db, { ownerId: host, now: () => 1 });
+    const ctx = copyContext();
+    const roster = createParticipants(ctx, { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    await reconcileStats(db, { ownerId: member, now: () => 1 });
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await db.run(
+      sql.raw(
+        "create trigger refuse_fixture_room_swap before update of pending_host_user_id on chats when old.pending_host_user_id is not null and new.pending_host_user_id is null begin select raise(abort, 'fixture room swap failure'); end",
+      ),
+    );
+    await expect(roster.acceptHostHandoff({ principal: principal(member), chatId })).rejects.toThrow("fixture room swap failure");
+    expect(await db.select().from(characters).where(eq(characters.ownerId, member))).toHaveLength(1);
+    const live = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, member)))[0];
+    expect(live?.characters).toBe(1);
+    expect(live?.costUsd).toBe(0);
+    expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, host)))[0]?.costUsd).toBe(0.25);
+    expect((await db.select().from(messages).where(eq(messages.id, retained.messageId)))[0]?.characterId).toBe(aria);
+    expect((await db.select().from(chatParticipants).where(eq(chatParticipants.userId, host)))[0]?.role).toBe("host");
+    await reconcileStats(db, { ownerId: member, now: () => 1 });
+    expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, member)))[0]).toEqual(live);
+    await db.run(sql.raw("drop trigger refuse_fixture_room_swap"));
+    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    expect(await db.select().from(characters).where(eq(characters.ownerId, member))).toHaveLength(1);
+    expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, member)))[0]).toMatchObject({
+      characters: 1,
+      costUsd: 0.25,
+      tokensIn: 10,
+      tokensOut: 20,
+    });
+    expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, host)))[0]?.costUsd).toBe(0);
+    await reconcileStats(db, { ownerId: member, now: () => 1 });
+    expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, member)))[0]).toMatchObject({
+      characters: 1,
+      costUsd: 0.25,
+      tokensIn: 10,
+      tokensOut: 20,
+    });
+    expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, host)))[0]?.costUsd).toBe(0);
+  });
   test("a re-accept after the mints landed re-uses the SAME copies (zero duplicates)", async () => {
     const { host, member, chatId, aria } = await seedTransferRoom();
     const ctx = copyContext();
@@ -743,4 +797,119 @@ describe("the nomination discloses what an accepted offer would copy", () => {
       offer: { characters: 1, worldBooks: 0, regexScripts: 0, gmPreset: false },
     });
   });
+});
+
+test.for([false, true])("copied retained room has whole-row live/rebuild parity with unchanged cohort %s", async (unchangedCohort) => {
+  const { host, member, chatId, aria } = await seedTransferRoom();
+  const incomingVoice = await seedCharacter(db, member, "incoming_voice");
+  await seedParticipant(db, { chatId, key: "incoming_voice", characterId: incomingVoice });
+  if (unchangedCohort) {
+    const departed = await seedCharacter(db, host, "departed_voice");
+    await seedParticipant(db, { chatId, key: "departed_voice", characterId: departed, leftSeq: 2 });
+  }
+  // The later room remains on the original voice, so subtracting this room must repair its extrema.
+  const other = await seedChat(db, "retained_other", { createdAt: 200, updatedAt: 300 });
+  await seedParticipant(db, { chatId: other, key: "retained_other", characterId: aria });
+  await db.update(chats).set({ createdAt: 10, updatedAt: 30 }).where(eq(chats.id, chatId));
+  const moved = await seedMessage(db, chatId, 1, { characterId: aria, role: "assistant", content: "Moved retained reply.", createdAt: 20 });
+  const kept = await seedMessage(db, other, 1, { characterId: aria, role: "assistant", content: "Other room remains.", createdAt: 250 });
+  for (const [variantId, costUsd] of [
+    [moved.variantId, 0.25],
+    [kept.variantId, 0.5],
+  ] as const) {
+    await db
+      .update(messageVariants)
+      .set({ costUsd, tokensIn: 10, tokensOut: 20, model: testModelId("retained_model"), provider: testProviderId("custom-openai") })
+      .where(eq(messageVariants.id, variantId));
+  }
+  for (const ownerId of [host, member]) {
+    await reconcileStats(db, { ownerId, now: () => 30 });
+  }
+  const ctx = copyContext({ now: () => 30 });
+  const roster = createParticipants(ctx, { claimChat: (): Promise<void> => Promise.resolve(), emit });
+  await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+  // Minting is a separate durable library operation; isolate the subsequent room-only cohort movement.
+  await ctx.copyHandoffCards({ fromOwnerId: host, toOwnerId: member, chatId, characterIds: [aria] });
+  const beforeOwners = await db.select().from(ownerStats).orderBy(ownerStats.ownerId);
+  const beforeDaily = await db.select().from(dailyStats).orderBy(dailyStats.ownerId, dailyStats.bucketStart);
+  const beforeModels = await db.select().from(modelStats).orderBy(modelStats.ownerId, modelStats.model);
+  await roster.acceptHostHandoff({ principal: principal(member), chatId });
+  const liveOwners = await db.select().from(ownerStats).orderBy(ownerStats.ownerId);
+  const liveDaily = await db.select().from(dailyStats).orderBy(dailyStats.ownerId, dailyStats.bucketStart);
+  const liveModels = await db.select().from(modelStats).orderBy(modelStats.ownerId, modelStats.model);
+  const unchangedBefore = unchangedCohort ? [beforeOwners, beforeDaily, beforeModels] : [];
+  const unchangedAfter = unchangedCohort ? [liveOwners, liveDaily, liveModels] : [];
+  expect(unchangedAfter).toEqual(unchangedBefore);
+  const liveCharacters = (await db.select().from(characterStats).orderBy(characterStats.characterId)).map(({ id, computedAt, ...row }) => row);
+  expect(liveCharacters.find((row) => row.characterId === aria)).toMatchObject({ costUsd: 0.5, tokensIn: 10, tokensOut: 20, chats: 1 });
+  for (const ownerId of [host, member]) {
+    await reconcileStats(db, { ownerId, now: () => 30 });
+  }
+  expect(await db.select().from(ownerStats).orderBy(ownerStats.ownerId)).toEqual(liveOwners);
+  expect((await db.select().from(dailyStats).orderBy(dailyStats.ownerId, dailyStats.bucketStart)).map(({ id, ...row }) => row)).toEqual(
+    liveDaily.map(({ id, ...row }) => row),
+  );
+  expect((await db.select().from(modelStats).orderBy(modelStats.ownerId, modelStats.model)).map(({ id, ...row }) => row)).toEqual(
+    liveModels.map(({ id, ...row }) => row),
+  );
+  expect((await db.select().from(characterStats).orderBy(characterStats.characterId)).map(({ id, computedAt, ...row }) => row)).toEqual(liveCharacters);
+});
+
+test.for(["variant", "cohort", "voice-owner"] as const)("copied handoff refuses a stale %s snapshot before rebase or room writes", async (axis) => {
+  const { host, member, chatId, aria } = await seedTransferRoom();
+  const { variantId } = await seedMessage(db, chatId, 1, { characterId: aria, content: "Original retained reply." });
+  await db.update(messageVariants).set({ costUsd: 0.25, tokensIn: 10, tokensOut: 20 }).where(eq(messageVariants.id, variantId));
+  const foreign = await seedUser(db, castId<Handle>("snapshot_foreign"));
+  const foreignVoice = await seedCharacter(db, foreign, "snapshot_foreign_voice");
+  for (const ownerId of [host, member]) {
+    await reconcileStats(db, { ownerId, now: () => 1 });
+  }
+  const ctx = copyContext({ now: () => 1 });
+  const resolve = ctx.resolveRetainedChatRebase;
+  const resolveRetainedChatRebase: typeof resolve = async (rekeys): ReturnType<typeof resolve> => {
+    const snapshot = await resolve(rekeys);
+    if (axis === "variant") {
+      await db.update(messageVariants).set({ content: "Changed retained reply." }).where(eq(messageVariants.id, variantId));
+    } else if (axis === "cohort") {
+      await db.update(chatParticipants).set({ characterId: foreignVoice }).where(eq(chatParticipants.characterId, aria));
+    } else {
+      await db.update(characters).set({ ownerId: foreign }).where(eq(characters.id, aria));
+    }
+    return snapshot;
+  };
+  const notes: NotificationEvent[] = [];
+  const roster = createParticipants(
+    { ...ctx, resolveRetainedChatRebase, emitNotification: recordingEmit(notes) },
+    { claimChat: (): Promise<void> => Promise.resolve(), emit },
+  );
+  await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+  await ctx.copyHandoffCards({ fromOwnerId: host, toOwnerId: member, chatId, characterIds: [aria] });
+  const before = await db.select().from(ownerStats).orderBy(ownerStats.ownerId);
+  emitted.length = 0;
+  notes.length = 0;
+  await expect(roster.acceptHostHandoff({ principal: principal(member), chatId })).rejects.toMatchObject({ code: "aborted" });
+  expect(await db.select().from(ownerStats).orderBy(ownerStats.ownerId)).toEqual(before);
+  expect((await db.select().from(chatParticipants).where(eq(chatParticipants.userId, host)))[0]?.role).toBe("host");
+  expect((await db.select().from(chats).where(eq(chats.id, chatId)))[0]?.pendingHostUserId).toBe(member);
+  expect(emitted).toEqual([]);
+  expect(notes).toHaveLength(1);
+  expect(await db.select().from(chatHandoffResumptions)).toEqual([]);
+});
+
+test("copy prunes only the unsupported original voice row and keeps the copied retained zero economics", async () => {
+  const { host, member, chatId, aria } = await seedTransferRoom();
+  await seedMessage(db, chatId, 1, { characterId: aria, content: "An unpriced retained reply." });
+  for (const ownerId of [host, member]) {
+    await reconcileStats(db, { ownerId, now: () => 1 });
+  }
+  const roster = createParticipants(copyContext({ now: () => 1 }), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+  await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+  await roster.acceptHostHandoff({ principal: principal(member), chatId });
+  expect(await db.select().from(characterStats).where(eq(characterStats.characterId, aria))).toEqual([]);
+  const live = (await db.select().from(characterStats)).map(({ id, computedAt, ...row }) => row);
+  expect(live).toMatchObject([{ characterId: "character_copy_1", chats: 1, assistantTurns: 1, costUsd: 0, costSamples: 0 }]);
+  for (const ownerId of [host, member]) {
+    await reconcileStats(db, { ownerId, now: () => 1 });
+  }
+  expect((await db.select().from(characterStats)).map(({ id, computedAt, ...row }) => row)).toEqual(live);
 });

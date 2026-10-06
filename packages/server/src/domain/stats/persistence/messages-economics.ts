@@ -13,11 +13,14 @@
 
 import type { CharacterEconomics, CharacterModelEconomics } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
+import { characters, messages, messageVariants } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
+import type { SelectedCostMaps } from "../contract/cost-samples.ts";
 import { ownerChatIds } from "../substrate/owner-chat-scope.ts";
-import { aggregateTokenProvenance, recordedCost, recordedTokens } from "../substrate/rates.ts";
+import { aggregateTokenProvenance, recordedTokens } from "../substrate/rates.ts";
+import { costOfSamples, createSelectedCostAccumulator, modelCostKey } from "../substrate/selected-cost-samples.ts";
 
 // The raw aggregated row as it comes back from the untyped `sql`` boundary — module-private.
 interface EconomicsRow {
@@ -30,8 +33,6 @@ interface EconomicsRow {
   readonly tokensOut: number | null;
   readonly tokensOutMeasuredSamples: number;
   readonly tokensOutEstimatedSamples: number;
-  readonly costUsd: number;
-  readonly costSamples: number;
   readonly cacheReadTokens: number;
   readonly cacheWriteTokens: number;
 }
@@ -46,8 +47,45 @@ interface ModelEconomicsRow {
   readonly tokensOutEstimatedSamples: number;
   readonly genTimeMs: number;
   readonly genSamples: number;
-  readonly costUsd: number;
-  readonly costSamples: number;
+}
+
+const COST_PAGE_ROWS = 5000;
+
+// Scalar-null variants still contain known leg facts; SQL SUM(cost_usd) alone erases their compatibility.
+async function readSelectedCostSamples(db: Db, ownerId: UserId): Promise<SelectedCostMaps> {
+  const cost = createSelectedCostAccumulator(ownerId);
+  let lastId = "";
+  for (;;) {
+    // @orb-waive no-await-db-in-loop(limit): keyset pagination bounds the selected canon corpus at COST_PAGE_ROWS, never one query per entity; ends if this reader stops paging.
+    const rows = await db
+      .select({
+        id: messageVariants.id,
+        characterId: characters.id,
+        model: messageVariants.model,
+        provider: messageVariants.provider,
+        costUsd: messageVariants.costUsd,
+        metadata: messageVariants.metadata,
+      })
+      .from(messages)
+      .innerJoin(characters, eq(characters.id, messages.characterId))
+      .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+      .where(
+        and(
+          eq(characters.ownerId, ownerId),
+          eq(messages.role, "assistant"),
+          sql`${messages.chatId} in (${ownerChatIds(ownerId)})`,
+          sql`${messageVariants.id} > ${lastId}`,
+        ),
+      )
+      .orderBy(messageVariants.id)
+      .limit(COST_PAGE_ROWS);
+    cost.append(rows);
+    lastId = rows.at(-1)?.id ?? lastId;
+    if (rows.length < COST_PAGE_ROWS) {
+      break;
+    }
+  }
+  return cost.maps;
 }
 
 /** Per-character economics — the selected assistant-variant totals, owner-scoped. One row per character
@@ -57,8 +95,9 @@ interface ModelEconomicsRow {
  *  in the SQL sum: `recordedTokens` (substrate/rates.ts) returns `null` whenever both sample counters are
  *  zero, regardless of the coalesced total, so the mapper can safely `?? 0` the sum before calling it. The
  *  other sums keep their COALESCE: a missing cache count on a local-model turn genuinely IS zero. Cost has
- *  its own sample count, because a reported zero is measured while an absent dollar field is unrecorded. */
+ *  its own sample count: compatible available prices form a partial subtotal, and missing prices are omitted. */
 export async function readCharacterEconomics(db: Db, ownerId: UserId): Promise<CharacterEconomics[]> {
+  const costSamples = (await readSelectedCostSamples(db, ownerId)).characters;
   const rows = await db.all<EconomicsRow>(sql`
     SELECT m.character_id AS characterId,
            COUNT(*) AS generations,
@@ -68,8 +107,6 @@ export async function readCharacterEconomics(db: Db, ownerId: UserId): Promise<C
            SUM(CASE WHEN v.tokens_in IS NOT NULL AND v.token_provenance = 'estimated' THEN 1 ELSE 0 END) AS tokensInEstimatedSamples,
            SUM(CASE WHEN v.tokens_out IS NOT NULL AND v.token_provenance = 'measured' THEN 1 ELSE 0 END) AS tokensOutMeasuredSamples,
            SUM(CASE WHEN v.tokens_out IS NOT NULL AND v.token_provenance = 'estimated' THEN 1 ELSE 0 END) AS tokensOutEstimatedSamples,
-           COALESCE(SUM(v.cost_usd), 0) AS costUsd,
-           SUM(CASE WHEN v.cost_usd IS NOT NULL THEN 1 ELSE 0 END) AS costSamples,
            COALESCE(SUM(v.cache_read_tokens), 0) AS cacheReadTokens,
            COALESCE(SUM(v.cache_write_tokens), 0) AS cacheWriteTokens
     FROM messages m
@@ -88,7 +125,7 @@ export async function readCharacterEconomics(db: Db, ownerId: UserId): Promise<C
     // The sample counters, not this sum, decide recorded-vs-null (see recordedTokens) — coalescing here is safe.
     tokensOut: recordedTokens(Number(r.tokensOut ?? 0), Number(r.tokensOutMeasuredSamples), Number(r.tokensOutEstimatedSamples)),
     tokensOutProvenance: aggregateTokenProvenance(Number(r.tokensOutMeasuredSamples), Number(r.tokensOutEstimatedSamples)),
-    costUsd: recordedCost(Number(r.costUsd), Number(r.costSamples)),
+    costUsd: costOfSamples(costSamples.get(r.characterId)),
     cacheReadTokens: Number(r.cacheReadTokens),
     cacheWriteTokens: Number(r.cacheWriteTokens),
   }));
@@ -98,6 +135,7 @@ export async function readCharacterEconomics(db: Db, ownerId: UserId): Promise<C
  *  `genTimeMs`/`genSamples` sum only variants carrying both gen timestamps. Model-less generations are
  *  excluded. */
 export async function readCharacterModelEconomics(db: Db, ownerId: UserId): Promise<CharacterModelEconomics[]> {
+  const costSamples = (await readSelectedCostSamples(db, ownerId)).models;
   const rows = await db.all<ModelEconomicsRow>(sql`
     SELECT m.character_id AS characterId,
            v.model AS model,
@@ -111,9 +149,7 @@ export async function readCharacterModelEconomics(db: Db, ownerId: UserId): Prom
              THEN v.gen_finished_at - v.gen_started_at END), 0) AS genTimeMs,
            SUM(CASE
              WHEN v.gen_started_at IS NOT NULL AND v.gen_finished_at IS NOT NULL
-             THEN 1 ELSE 0 END) AS genSamples,
-           COALESCE(SUM(v.cost_usd), 0) AS costUsd,
-           SUM(CASE WHEN v.cost_usd IS NOT NULL THEN 1 ELSE 0 END) AS costSamples
+             THEN 1 ELSE 0 END) AS genSamples
     FROM messages m
     JOIN characters c ON c.id = m.character_id
     JOIN message_variants v ON v.id = m.selected_variant_id
@@ -130,6 +166,6 @@ export async function readCharacterModelEconomics(db: Db, ownerId: UserId): Prom
     tokensOutProvenance: aggregateTokenProvenance(Number(r.tokensOutMeasuredSamples), Number(r.tokensOutEstimatedSamples)),
     genTimeMs: Number(r.genTimeMs),
     genSamples: Number(r.genSamples),
-    costUsd: recordedCost(Number(r.costUsd), Number(r.costSamples)),
+    costUsd: costOfSamples(costSamples.get(modelCostKey(r.characterId, r.model, r.provider))),
   }));
 }

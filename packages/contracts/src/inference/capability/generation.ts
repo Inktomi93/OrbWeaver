@@ -8,7 +8,7 @@
 
 import { z } from "zod";
 import { modalitySchema } from "../modalities.ts";
-import { PROMPT_CACHE_TTLS } from "../prompt-cache.ts";
+import { PROMPT_CACHE_FORMATS, PROMPT_CACHE_TTLS } from "../prompt-cache.ts";
 import { WIRE_SCHEMA_MODES } from "../wire-subset.ts";
 
 /** How a model reasons — distinct from on/off (`reasoning.enabled`); `EFFORT_LEVELS` has no `'none'`. */
@@ -283,6 +283,7 @@ export const turnsCapabilitySchema = z.object({
   roleHandlingFloor: roleHandlingSchema,
   /** Explicit prompt caching (a rolling breakpoint pair + per-block cache_control) is worth placing. */
   explicitPromptCache: z.boolean(),
+  promptCacheFormat: z.enum(PROMPT_CACHE_FORMATS).optional(),
   /** Per-model minimum cacheable prefix; `CACHE_MIN_FLOOR` when absent. */
   cacheMinTokens: z.number().int().positive().optional(),
   /** The route fixes cache retention; a different requested TTL is reported and clamped. */

@@ -12,7 +12,18 @@ import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/
 import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
-import type { AssetId, CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type {
+  AssetId,
+  CharacterId,
+  ChatId,
+  ChatInjectionId,
+  ChatParticipantId,
+  ChatTurnId,
+  MessageAssetId,
+  MessageId,
+  MessageVariantId,
+  UserId,
+} from "@orb/kit/ids";
 import type { MintSyntheticGroupCharacterOp } from "./context.ts";
 
 /** The DI bundle `createBulkImportChats` closes over (assembled at the entry composition root). All ids are
@@ -23,6 +34,7 @@ export interface ChatImportContext {
   /** The injected clock (epoch-ms) — the fallback when a chat/message carries no ST date. */
   readonly now: () => number;
   readonly newChatId: () => ChatId;
+  readonly newChatTurnId: () => ChatTurnId;
   readonly newMessageId: () => MessageId;
   readonly newMessageVariantId: () => MessageVariantId;
   readonly newMessageAssetId: () => MessageAssetId;

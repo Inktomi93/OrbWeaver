@@ -1,3 +1,4 @@
+import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 // verb: editImage — explicit edit of an owned image. Proves against a real libSQL db:
 // the source bytes are resolved (owned asset via readAsset, or direct upload bytes), the CAPABILITY GATE
 // throws `ImageEditUnsupportedError` on a non-edit model (the asymmetric posture — doc 01 §3.4), and a
@@ -55,7 +56,7 @@ describe("editImage — the edit path (doc 02 §4)", () => {
         return Promise.resolve({
           images: [{ base64: Buffer.from(PNG_BYTES).toString("base64"), mediaType: "image/png", url: undefined }],
           model: "edit-model",
-          usage: { costUsd: 0.04 },
+          usage: makeGenerationUsage(0.04),
           warnings: [],
         });
       },
@@ -120,7 +121,7 @@ describe("editImage — the edit path (doc 02 §4)", () => {
         return Promise.resolve({
           images: [{ base64: Buffer.from(PNG_BYTES).toString("base64"), mediaType: "image/png", url: undefined }],
           model: "edit-model",
-          usage: { costUsd: 0.04 },
+          usage: makeGenerationUsage(0.04),
           warnings: [],
         });
       },
@@ -146,7 +147,7 @@ describe("editImage — the edit path (doc 02 §4)", () => {
         Promise.resolve({
           images: [{ base64: Buffer.from(PNG_BYTES).toString("base64"), mediaType: "image/png", url: undefined }],
           model: "edit-model",
-          usage: { costUsd: 0.04 },
+          usage: makeGenerationUsage(0.04),
           warnings: [{ code: "image_edit_dropped", detail: "edit-model: the mask was dropped" }],
         }),
     });

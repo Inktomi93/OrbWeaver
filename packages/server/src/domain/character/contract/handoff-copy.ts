@@ -25,7 +25,7 @@
 // before the atomic swap at all.
 
 import type { AssetKind } from "@orb/contracts/assets";
-import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
+import type { ApplyStatsDelta, BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
@@ -62,6 +62,7 @@ export type CopyAssetToOwner = (args: {
 export interface CharacterHandoffCopyContext {
   readonly db: Db;
   readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>;
+  readonly applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db>;
   readonly now: () => number;
   readonly newCharacterId: () => CharacterId;
   readonly copyAsset: CopyAssetToOwner;

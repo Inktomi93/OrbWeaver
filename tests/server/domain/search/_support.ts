@@ -233,6 +233,7 @@ function makeSearchRoleClients(controls: FakeRoleClientControls = {}): RoleClien
     return Promise.resolve({
       vectors: texts.map((t) => imageEmbedVector(t)),
       model: imageEmbedModel,
+      usage: { promptTokens: null, totalTokens: null },
     });
   };
   const summarize = (_inputs: readonly SummarizeInput[]): Promise<SummarizeResult> => Promise.resolve({ items: [], model: "test-summarize-model" });

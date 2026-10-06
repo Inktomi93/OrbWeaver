@@ -26,6 +26,7 @@ import { AccountingCoverageNotice } from "../components/accounting-coverage-noti
 import {
   formatAccountingLabel,
   formatCompact,
+  formatCostLabel,
   formatCount,
   formatDurationMs,
   formatMs,
@@ -168,7 +169,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
               label={formatAccountingLabel("Tokens out", stats.tokensOut, stats.tokensOutProvenance)}
               value={formatCount(stats.tokensOut, stats.tokensOutProvenance)}
             />
-            <StatFigure label={formatAccountingLabel("Spend", stats.costUsd)} value={formatUsd(stats.costUsd)} />
+            <StatFigure label={formatCostLabel(stats.costUsd)} value={formatUsd(stats.costUsd)} />
             {/* Per-character cache accounting does not exist: `character_stats` carries no cache columns
                 at all (the rollup is owner+model grain), so this tile printed a hard-coded 0%. It now
                 reads the em dash the absence has always deserved. */}

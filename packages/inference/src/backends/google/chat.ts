@@ -13,6 +13,7 @@ import { requireStructuredPlan } from "../../structured/plan.ts";
 import { structuredChatResult } from "../../structured/reply.ts";
 import { effortWordOf } from "../kit/applied-effort.ts";
 import { providerErrorFromHttp, withSchemaRejection } from "../kit/error-classify.ts";
+import { observeChatResult } from "../kit/generation-observation.ts";
 import { turnAbortSignal } from "../kit/idle-timeout.ts";
 import { providerLogger } from "../kit/provider-log.ts";
 import { rateLimitFromHeaders } from "../kit/rate-limit-headers.ts";
@@ -25,6 +26,7 @@ import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, t
 import { drainStream } from "../v4/stream.ts";
 import { GOOGLE_KEY, googleModelId, googleProviderFor } from "./model.ts";
 import { googleOptions, googleToolAsk } from "./options.ts";
+import { googleServedModelOf, googleTokenDetailsOf, googleTokenUsageOf } from "./usage.ts";
 
 function isJsonObject(value: unknown): value is JSONObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -46,6 +48,7 @@ export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendD
   const log = providerLogger(deps.log, connection.wire, connection.providerId);
   const startedAt = deps.now();
   let firstDeltaAt: number | undefined;
+  const nativeIdentity: { servedModel: string | null } = { servedModel: null };
   const response: { rateLimit: RateLimitSnapshot | null } = { rateLimit: null };
   const plan = buildWirePlan({ systemPrompt: req.systemPrompt, history: req.history, includeAssistantMedia: true });
   if (plan.endsOnAssistant && !acceptsAssistantPrefill(generation)) {
@@ -73,10 +76,13 @@ export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendD
       const target = req.chatId !== undefined && req.onDelta !== undefined ? { chatId: req.chatId, onDelta: req.onDelta } : undefined;
       try {
         const model = googleProviderFor({ connection, deps, label, api: req.api, chatId: req.chatId }).chat(googleModelId(connection.model));
-        const result = await model.doStream({ ...options, prompt: plan.prompt, abortSignal: idle.signal });
+        const result = await model.doStream({ ...options, includeRawChunks: true, prompt: plan.prompt, abortSignal: idle.signal });
         response.rateLimit = rateLimitFromHeaders(result.response?.headers, deps.now());
         return await drainStream(result.stream, {
           label,
+          onRaw: (raw) => {
+            nativeIdentity.servedModel = googleServedModelOf(raw) ?? nativeIdentity.servedModel;
+          },
           onPart: idle.reset,
           onText: (text) => {
             commit();
@@ -122,7 +128,11 @@ export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendD
     appliedEffort,
     rateLimit: response.rateLimit,
     warnings,
+    tokenUsage: googleTokenUsageOf(drain.usage?.raw),
+    servedModel: nativeIdentity.servedModel,
+    tokenDetails: googleTokenDetailsOf(drain.usage?.raw),
   });
+  await observeChatResult(req, folded);
   const turn: ChatResult = structuredChatResult(
     folded.finishReason === "filter"
       ? {

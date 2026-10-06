@@ -52,6 +52,22 @@ const UNRECORDED_MODEL = {
   totalGenTimeMs: 0,
 };
 
+test("price totals do not claim invoice provenance and an incompatible total is unavailable, not zero", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.byModel": () => [{ ...MODELS[0], provider: "claude-sub", costUsd: 0.125 }, UNRECORDED_MODEL],
+    "stats.latency": () => LATENCY,
+  });
+  const component = await mount(<AnalyticsModelsTabStory />);
+  const rows = component.getByRole("list", { name: "Models" }).getByRole("listitem");
+  await expect(rows.first()).not.toContainText("Cost · Recorded");
+  await expect(rows.last()).toContainText("Cost · Unavailable");
+  await expect(rows.last()).not.toContainText("$0.00");
+  const coverage = component.locator('[data-slot="accounting-coverage"]');
+  await expect(coverage).toContainText("subscription-notional estimates");
+  await expect(coverage).toContainText("Costs sum available compatible prices and omit missing prices");
+  await expect(component.getByText(/A dash means unavailable/)).toBeVisible();
+});
+
 for (const width of [320, 420] as const) {
   test.describe(`model accounting at ${width}`, () => {
     test.use({ hasTouch: width === 320, viewport: { width: width === 320 ? 320 : 1280, height: 844 } });
@@ -68,9 +84,9 @@ for (const width of [320, 420] as const) {
       await expect(rows).toHaveCount(3);
       await expect(rows.first()).toContainText("~340k tok");
       await expect(rows.first()).toContainText("Output tokens · Estimated");
-      await expect(rows.first()).toContainText("Cost · Not recorded");
+      await expect(rows.first()).toContainText("Cost · Unavailable");
       await expect(rows.nth(1)).toContainText("$0.00");
-      await expect(rows.nth(1)).toContainText("Cost · Recorded");
+      await expect(rows.nth(1)).not.toContainText("Cost · Recorded");
       await expect(rows.last()).toContainText("Output tokens · Not recorded");
       for (const row of await rows.all()) {
         await expect(row).toContainText("Aggregate only");
@@ -145,4 +161,32 @@ test("a model with unrecorded token accounting reads a dash, never a coalesced-t
   const unrecordedRow = list.getByRole("listitem").last();
   await expect(unrecordedRow).toContainText("—");
   await expect(unrecordedRow).not.toContainText("0 tok");
+});
+
+test("an input-only paid model remains visible without inventing output or throughput", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.byModel": () => [
+      {
+        ...UNRECORDED_MODEL,
+        model: "gemini-embedding-2",
+        provider: "google",
+        generations: 0,
+        charactersUsedWith: 0,
+        tokensIn: 34,
+        tokensInProvenance: "measured",
+        costUsd: 0.000_034,
+        reasoningRate: null,
+        throughputTps: null,
+      },
+    ],
+    "stats.latency": () => LATENCY,
+  });
+  const component = await mount(<AnalyticsModelsTabStory />);
+  const row = component.getByRole("list", { name: "Models" }).getByRole("listitem");
+  await expect(row).toContainText("gemini-embedding-2");
+  await expect(row).toContainText("0 generations");
+  await expect(row).toContainText("Output tokens · Not recorded");
+  await expect(row).not.toContainText("Cost · Recorded");
+  await expect(row).toContainText("Throughput · Not recorded: —");
+  await expect(row).not.toContainText("0.0 t/s");
 });

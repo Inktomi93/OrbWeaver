@@ -93,7 +93,9 @@ export type {
   BulkImportSeatKnobs,
   BulkImportVariantInput,
   ImportedChatIdentity,
+  PendingGenerationObservationInput,
 } from "./bulk-import.ts";
+export { pendingGenerationObservationInputSchema, pendingGenerationObservationsSchema } from "./bulk-import.ts";
 export type {
   AdjustedKnob,
   ChatBusEvent,
@@ -191,6 +193,7 @@ export {
   combineTokenProvenance,
   connectionAttributionProvenanceSchema,
   INLINE_REPLY_ORIGIN,
+  legacyNotionalCostSamples,
   MESSAGE_ASSET_ORIGINS,
   macroFreezeRecordSchema,
   macroFreezeSchema,

@@ -41,6 +41,7 @@ import { requireStructuredPlan } from "../../structured/plan.ts";
 import { normalizeStructuredValue } from "../../structured/reply.ts";
 import { toAnthImageBlock } from "../kit/anth-image-block.ts";
 import { classifyHttpStatus } from "../kit/error-classify.ts";
+import { observeChatResult } from "../kit/generation-observation.ts";
 import type { IdleAbort } from "../kit/idle-timeout.ts";
 import { isIdleTrip, turnAbortSignal } from "../kit/idle-timeout.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
@@ -239,6 +240,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
     abort.bound(stream),
     {
       turnId: gen.turnId,
+      onObservedResult: (observed) => observeChatResult(req, observed),
       model: connection.model,
       providerId: connection.providerId,
       resumed: resume !== undefined,
@@ -449,6 +451,8 @@ async function probeContextUsage(query: Query, scheduleTimeout: AgentSdkDeps["sc
  *  that ends without a `result` frame is a TRUNCATED turn and a retryable provider fault (#1400). */
 export async function consumeTurnStream(stream: AsyncIterable<SDKMessage>, ctx: TurnStreamContext, log: AgentSdkLog): Promise<ChatResult> {
   const acc = new TurnAccumulator(ctx, log);
+  let streamFailure: unknown;
+  // @orb-waive caught-failure-ownership(error): the original stream failure is retained until completed facts are durably observed, then finishWithError rethrows it; ends if capture no longer precedes refusal.
   try {
     for await (const message of stream) {
       if (typeof message.session_id === "string" && message.session_id.length > 0) {
@@ -457,7 +461,15 @@ export async function consumeTurnStream(stream: AsyncIterable<SDKMessage>, ctx: 
       dispatch(acc, message);
     }
   } catch (error) {
-    return acc.finishWithError(error);
+    streamFailure = error;
+  }
+
+  if (acc.sawTerminalFrame && ctx.onObservedResult !== undefined) {
+    const captured: Promise<void> = ctx.onObservedResult(acc.snapshot());
+    await captured;
+  }
+  if (streamFailure !== undefined) {
+    return acc.finishWithError(streamFailure);
   }
   if (!acc.sawTerminalFrame) {
     return acc.finishWithError(
@@ -605,6 +617,8 @@ class TurnAccumulator {
   private buildUsage(): ChatUsage {
     return {
       model: this.ctx.model,
+      servedModel: this.meta.servedModel,
+      tokenDetails: null,
       ...this.usageAcc,
       reasoningTokens: this.reasoningTokens,
       costDetails: null,
@@ -663,7 +677,11 @@ class TurnAccumulator {
 
   finish(contextUsage?: ContextUsage): ChatResult {
     this.logTurn(true, contextUsage);
-    const planned = this.ctx.structured;
+    return this.snapshot(contextUsage, true);
+  }
+
+  snapshot(contextUsage?: ContextUsage, normalize = false): ChatResult {
+    const planned = normalize ? this.ctx.structured : undefined;
     const structuredReply = planned === undefined ? undefined : JSON.stringify(normalizeStructuredValue(this.structuredOutput, planned));
     // The subscription's own receipts, narrowed to the closed per-provider sidecar the variant stores
     // (`backends/kit/provider-metadata.ts`). `modelUsage` and `apiKeySource` stay OUT of the record on purpose:
@@ -951,7 +969,7 @@ function detectModelDowngrade(acc: TurnAccumulator, message: Narrow<"result">): 
   const requestedCanon = canonicalize(acc.ctx.model);
   const unexpected = billed.filter((m) => canonicalize(m) !== requestedCanon);
   if (unexpected.length > 0) {
-    acc.meta.servedModel = billed[0] ?? acc.meta.servedModel;
+    acc.meta.servedModel = billed.length === 1 ? (billed[0] ?? null) : null;
     acc.log.drift({ requested: acc.ctx.model, billed });
     acc.emit({ kind: "model_downgrade", at: acc.ctx.now(), requested: acc.ctx.model, billed });
   }

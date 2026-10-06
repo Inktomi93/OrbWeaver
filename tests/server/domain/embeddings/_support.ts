@@ -144,6 +144,7 @@ export function makeRoleClients(vision = true, imageArm: FakeImageArm = "joint")
     Promise.resolve({
       vectors: [fakeVector(EMBED_DIM, req.kind === "multimodal" ? 3 : 2)],
       model: IMAGE_EMBED_MODEL,
+      usage: { promptTokens: null, totalTokens: null },
     }),
   );
   const rerank: Mock<RoleClients["rerank"]> = vi.fn<RoleClients["rerank"]>(() =>

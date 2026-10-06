@@ -389,6 +389,7 @@ export function toAgentSdkChatRequest(input: ChatTurnInput): AgentSdkChatRequest
     // extras and capability — the runtime picks the wire off it; nothing here re-derives a routing fact.
     connection: input.connection,
     params: input.params,
+    onObservedResult: input.onObservedResult,
     systemPrompt: input.systemPrompt,
     ...(extract.systemText !== null ? { tailSystem: extract.systemText } : {}),
     ...(offer !== undefined ? { toolServer: mountToolOffer(offer), toolTurnLimit: offer.turnLimit } : {}),

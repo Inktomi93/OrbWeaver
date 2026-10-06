@@ -10,6 +10,9 @@ import { z } from "zod";
 export const PROMPT_CACHE_TTLS = ["5m", "1h"] as const;
 export type PromptCacheTtl = (typeof PROMPT_CACHE_TTLS)[number];
 
+export const PROMPT_CACHE_FORMATS = ["cache-control", "openai-breakpoint"] as const;
+export type PromptCacheFormat = (typeof PROMPT_CACHE_FORMATS)[number];
+
 /** A cache WRITE's price as a multiple of base input tokens, per TTL. A read is 0.1x at either TTL. */
 export const PROMPT_CACHE_WRITE_MULTIPLIER: Readonly<Record<PromptCacheTtl, number>> = { "5m": 1.25, "1h": 2 };
 

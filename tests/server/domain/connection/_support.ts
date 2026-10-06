@@ -16,10 +16,23 @@ import { assets, automationRules, plugins, users } from "@orb/db";
 import type { InferenceDeps, InferenceRuntime } from "@orb/inference";
 import { createInferenceRuntime } from "@orb/inference";
 import { handleKey } from "@orb/kit/handle-key";
-import type { AssetId, AutomationRuleId, ConnectionBindingId, Handle, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
+import type {
+  AssetId,
+  AutomationRuleId,
+  ConnectionBindingId,
+  EmbeddingCallId,
+  EmbeddingInvocationId,
+  Handle,
+  PluginId,
+  UserConnectionId,
+  UserCredentialId,
+  UserId,
+} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ConnectionContext, ConnectionService, EndpointAdmission } from "@orb/server/domain/connection";
 import { createConnectionPorts, createConnectionService } from "@orb/server/domain/connection";
+import { createRecordUsage } from "@orb/server/domain/embeddings";
+import { applyStatsDelta } from "@orb/server/domain/stats";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import type { EmbeddingsService } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
 import { countOwnedVectors } from "../../../../packages/server/src/domain/embeddings/persistence/owned-vector-counts.ts";
@@ -230,6 +243,13 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
   let embeddings: EmbeddingTargetPorts = { syncTargetGenerations: () => Promise.resolve(null), targetWouldMove: () => Promise.resolve(null) };
 
   const deps: InferenceDeps = {
+    beginEmbeddingAccounting: createRecordUsage({
+      db,
+      now,
+      newCallId: seededMinter<EmbeddingCallId>("embedding_call"),
+      newInvocationId: seededMinter<EmbeddingInvocationId>("embedding_invocation"),
+      applyStatsDelta,
+    }),
     now,
     log: { debug: (): void => undefined, info: (): void => undefined, warn: (): void => undefined, error: (): void => undefined },
     span: (_name, fn) => Promise.resolve(fn()),

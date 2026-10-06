@@ -1,9 +1,11 @@
+import type { EmbeddingBatchObservation } from "@orb/contracts/embeddings";
 import type { Task } from "@orb/contracts/inference";
 import { z } from "zod";
 import { createGoogleBackend } from "../../../../packages/inference/src/backends/google/index.ts";
+import { googleTokenDetailsOf, googleTokenUsageOf } from "../../../../packages/inference/src/backends/google/usage.ts";
 import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
-import type { GoogleChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
+import type { ChatResult, GoogleChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
 import type { Resolved } from "../../../../packages/inference/src/contract/resolved.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { testProviderId } from "../../../support/inference-identities.ts";
@@ -12,6 +14,88 @@ import { fakeApiKeySecret, fakeDeps, fakeResolved } from "../../_support.ts";
 
 const SIGNATURE = "signed-native-tool-fixture";
 const NOW = 1_700_000_000_000;
+
+test("native streamed served version and partial modality facts survive the SDK metadata loss", async () => {
+  const raw = {
+    modelVersion: "gemini-3.8-flash-served-fixture",
+    candidates: [{ content: { parts: [{ text: "ok" }] }, finishReason: "STOP" }],
+    usageMetadata: {
+      promptTokenCount: 70,
+      totalTokenCount: 1504,
+      candidatesTokenCount: 1434,
+      promptTokensDetails: [{ modality: "DOCUMENT", tokenCount: 60 }],
+      candidatesTokensDetails: [{ modality: "IMAGE", tokenCount: 1120 }],
+    },
+  };
+  const result = await backend(() =>
+    Promise.resolve(new Response(`data: ${JSON.stringify(raw)}\n\n`, { headers: { "content-type": "text/event-stream" } })),
+  ).runChatTurn(request());
+  expect(result.usage).toMatchObject({
+    servedModel: raw.modelVersion,
+    tokensOut: 1434,
+    reasoningTokens: null,
+    tokenDetails: { input: [{ modality: "file", tokens: 60 }], output: [{ modality: "image", tokens: 1120 }] },
+  });
+});
+
+test("completed native usage is observed before a side-generation safety refusal", async () => {
+  const observed: ChatResult[] = [];
+  const req = {
+    connection: connection("summarize"),
+    inputs: [{ systemPrompt: "Summarize", userPrompt: "text" }],
+    onObservedResult: (result: ChatResult) => {
+      observed.push(result);
+      return Promise.resolve();
+    },
+  };
+  await expect(backend(() => Promise.resolve(sse([], "SAFETY"))).summarize(req)).rejects.toMatchObject({ kind: "refused" });
+  expect(observed).toHaveLength(1);
+  expect(observed[0]).toMatchObject({ reply: "", usage: { tokensIn: 10, tokensOut: 4 }, finishReason: "filter" });
+});
+
+test("durable observation failure remains the original error and never repeats the paid request", async () => {
+  let calls = 0;
+  const writeFailure = new Error("fixture durable observation append failed");
+  const req = {
+    ...request(),
+    onObservedResult: (): Promise<void> => Promise.reject(writeFailure),
+  };
+  await expect(
+    backend(() => {
+      calls += 1;
+      return Promise.resolve(sse([{ text: "paid completion" }]));
+    }).runChatTurn(req),
+  ).rejects.toBe(writeFailure);
+  expect(calls).toBe(1);
+});
+
+test("native document modality normalizes to file without discarding known partial entries", () => {
+  expect(
+    googleTokenDetailsOf({
+      promptTokensDetails: [
+        { modality: "TEXT", tokenCount: 10 },
+        { modality: "DOCUMENT", tokenCount: 20 },
+        { modality: "MODALITY_UNSPECIFIED", tokenCount: 7 },
+      ],
+    }),
+  ).toEqual({
+    input: [
+      { modality: "text", tokens: 10 },
+      { modality: "file", tokens: 20 },
+    ],
+  });
+});
+
+test("native explicit output counts take precedence over a total with additional tool prompt input", () => {
+  expect(
+    googleTokenUsageOf({ promptTokenCount: 70, toolUsePromptTokenCount: 5, candidatesTokenCount: 10, thoughtsTokenCount: 2, totalTokenCount: 87 }),
+  ).toMatchObject({ tokensIn: 75, tokensOut: 12, reasoningTokens: 2 });
+  expect(googleTokenUsageOf({ promptTokenCount: 70, toolUsePromptTokenCount: 5, candidatesTokenCount: 10, totalTokenCount: 85 })).toMatchObject({
+    tokensIn: 75,
+    tokensOut: null,
+    reasoningTokens: null,
+  });
+});
 function connection<T extends Task>(task: T, model = "gemini-3-flash-preview"): Resolved<T> {
   const kind = task === "embed" || task === "imageEmbed" ? "embedding" : "generation";
   const capability = synthesizeCapability(kind, "google", {
@@ -475,4 +559,177 @@ test("native cached-content references and implicit cache usage keep the shared 
     expect(body).not.toHaveProperty("cache_control");
     expect(result.usage).toMatchObject({ tokensIn: 5000, cacheReadTokens: 4096, cacheWriteTokens: 0 });
   }
+});
+
+test("native embedding preserves reported prompt usage without inventing an absent total", async () => {
+  const native = backend(() =>
+    Promise.resolve(Response.json({ embedding: { values: [1, ...new Array(3071).fill(0)] }, usageMetadata: { promptTokenCount: 34 } })),
+  );
+  expect((await native.embed({ connection: connection("embed", "gemini-embedding-2"), input: "banana" })).usage).toEqual({
+    promptTokens: 34,
+    totalTokens: null,
+  });
+});
+
+test("native embedding batches require complete reported prompt accounting, including real zero", async () => {
+  for (const last of [30, 0, undefined, -1, "30"]) {
+    let calls = 0;
+    const native = backend(() => {
+      calls += 1;
+      return Promise.resolve(
+        Response.json(
+          calls === 1
+            ? { embeddings: Array.from({ length: 100 }, () => ({ values: [1, ...new Array(3071).fill(0)] })), usageMetadata: { promptTokenCount: 34 } }
+            : { embedding: { values: [1, ...new Array(3071).fill(0)] }, usageMetadata: { promptTokenCount: last } },
+        ),
+      );
+    });
+    const result = await native.embed({ connection: connection("embed", "gemini-embedding-2"), input: new Array(101).fill("banana") });
+    expect(result.usage).toEqual({ promptTokens: typeof last === "number" && last >= 0 ? 34 + last : null, totalTokens: null });
+  }
+});
+
+test("native image embedding retains its actual reported prompt count in the same usage contract", async () => {
+  const native = backend(() =>
+    Promise.resolve(Response.json({ embedding: { values: [1, ...new Array(3071).fill(0)] }, usageMetadata: { promptTokenCount: 258 } })),
+  );
+  const result = await native.imageEmbed({
+    connection: connection("imageEmbed", "gemini-embedding-2"),
+    input: { kind: "image", input: "data:image/png;base64,AQID" },
+  });
+  expect(result).toMatchObject({ usage: { promptTokens: 258, totalTokens: null } });
+});
+
+test("native observed embedding usage reaches accounting before a width refusal", async () => {
+  const observed: EmbeddingBatchObservation[] = [];
+  const native = backend(() => Promise.resolve(Response.json({ embedding: { values: [1, 0] }, usageMetadata: { promptTokenCount: 34 } })));
+  await expect(
+    native.embed({
+      connection: connection("embed", "gemini-embedding-2"),
+      input: "banana",
+      dimensions: 768,
+      embeddingAccounting: {
+        recordBatch: (batch) => {
+          observed.push(batch);
+          return Promise.resolve();
+        },
+        finish: () => Promise.resolve(),
+      },
+    }),
+  ).rejects.toThrow("width 2 differs from requested 768");
+  expect(observed).toMatchObject([{ inputCount: 1, inputModalities: ["text"], servedModel: null, usage: { promptTokens: 34, totalTokens: null } }]);
+});
+
+test("native embedding retains a completed physical batch before a later provider refusal", async () => {
+  let requests = 0;
+  const observed: EmbeddingBatchObservation[] = [];
+  const native = backend(() => {
+    requests += 1;
+    return Promise.resolve(
+      requests === 1
+        ? Response.json({
+            embeddings: Array.from({ length: 100 }, () => ({ values: [1, ...new Array(3071).fill(0)] })),
+            usageMetadata: { promptTokenCount: 34 },
+          })
+        : Response.json({ error: { code: 400, message: "fixture second batch refused", status: "INVALID_ARGUMENT" } }, { status: 400 }),
+    );
+  });
+  await expect(
+    native.embed({
+      connection: connection("embed", "gemini-embedding-2"),
+      input: Array.from({ length: 101 }, () => "banana"),
+      embeddingAccounting: {
+        recordBatch: (batch) => {
+          observed.push(batch);
+          return Promise.resolve();
+        },
+        finish: () => Promise.resolve(),
+      },
+    }),
+  ).rejects.toThrow();
+  expect(requests).toBe(2);
+  expect(observed).toMatchObject([{ inputCount: 100, usage: { promptTokens: 34, totalTokens: null } }]);
+});
+
+test("native image generation preserves served model and partial modality usage, with thoughts in output once", async () => {
+  const native = backend(() =>
+    Promise.resolve(
+      Response.json({
+        modelVersion: "gemini-3-pro-image",
+        candidates: [{ content: { parts: [{ inlineData: { mimeType: "image/jpeg", data: "AQID" } }] }, finishReason: "STOP" }],
+        usageMetadata: {
+          promptTokenCount: 70,
+          candidatesTokenCount: 1201,
+          thoughtsTokenCount: 112,
+          totalTokenCount: 1383,
+          candidatesTokensDetails: [{ modality: "IMAGE", tokenCount: 1120 }],
+        },
+      }),
+    ),
+  );
+  const result = await native.generateImage({ connection: connection("generateImage", "gemini-3-pro-image"), prompt: "banana" });
+  expect(result.usage).toMatchObject({
+    servedModel: "gemini-3-pro-image",
+    tokensIn: 70,
+    tokensOut: 1313,
+    reasoningTokens: 112,
+    costUsd: null,
+    tokenDetails: { output: [{ modality: "image", tokens: 1120 }] },
+  });
+});
+
+test("native image usage preserves absent facts instead of SDK synthesized zeros", async () => {
+  for (const usageMetadata of [
+    { promptTokenCount: 70 },
+    { promptTokenCount: 70, candidatesTokenCount: 1434, totalTokenCount: 1504 },
+    { promptTokenCount: 0, candidatesTokenCount: 0, thoughtsTokenCount: 0, totalTokenCount: 0, cachedContentTokenCount: 0 },
+  ]) {
+    const native = backend(() =>
+      Promise.resolve(
+        Response.json({
+          candidates: [{ content: { parts: [{ inlineData: { mimeType: "image/jpeg", data: "AQID" } }] }, finishReason: "STOP" }],
+          usageMetadata,
+        }),
+      ),
+    );
+    const result = await native.generateImage({ connection: connection("generateImage", "gemini-3-pro-image"), prompt: "banana" });
+    expect(result.usage).toMatchObject({
+      tokensIn: usageMetadata.promptTokenCount,
+      tokensOut: "totalTokenCount" in usageMetadata ? usageMetadata.totalTokenCount - usageMetadata.promptTokenCount : null,
+      reasoningTokens: "thoughtsTokenCount" in usageMetadata ? usageMetadata.thoughtsTokenCount : null,
+      cacheReadTokens: "cachedContentTokenCount" in usageMetadata ? usageMetadata.cachedContentTokenCount : null,
+    });
+  }
+});
+
+test("native streamed partial usage cannot price SDK synthesized absent output or cache counts", async () => {
+  const native = backend(
+    () =>
+      new Promise((resolve) =>
+        resolve(
+          new Response(
+            [
+              { candidates: [{ content: { parts: [{ text: "ok" }] } }] },
+              { candidates: [{ content: { parts: [] }, finishReason: "STOP" }], usageMetadata: { promptTokenCount: 70 } },
+            ]
+              .map((row) => `data: ${JSON.stringify(row)}\n\n`)
+              .join(""),
+            { headers: { "content-type": "text/event-stream" } },
+          ),
+        ),
+      ),
+  );
+  const req = request();
+  const result = await native.runChatTurn({
+    ...req,
+    connection: { ...req.connection, features: { ...req.connection.features, pricing: { inputPerMTok: 2, outputPerMTok: 12 } } },
+  });
+  expect(result.usage).toMatchObject({
+    tokensIn: 70,
+    tokensOut: null,
+    reasoningTokens: null,
+    cacheReadTokens: null,
+    costUsd: null,
+    costProvenance: "unrecorded",
+  });
 });

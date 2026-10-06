@@ -14,13 +14,14 @@ import type {
   ChatId,
   ChatInjectionId,
   ChatParticipantId,
+  ChatTurnId,
   MessageAssetId,
   MessageId,
   MessageVariantId,
   PersonaId,
   UserId,
 } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { parseChatJsonl } from "@orb/server/kit/serde/chat";
 import { asc, eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -34,6 +35,7 @@ import { reconcileStats } from "../../../../packages/server/src/domain/stats/wri
 import { freshDb } from "../../../support/db.ts";
 import { seedCharacter, seedPersona, seedUser } from "../../../support/factories/index.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { createSeededIds } from "../../../support/ids.ts";
 
 const NOW = 1_700_000_000_000;
 /** The reasoning traces ST recorded on the two takes of the swiped turn (ms) — `extra.reasoning_duration`. */
@@ -50,6 +52,7 @@ const CHARACTER_NAME = "Eleni Northwell";
 /** A deterministic counter-minted `ChatImportContext` (no ambient clock/ids under tests/). */
 function importCtx(db: Db): ChatImportContext {
   let n = 0;
+  const turnIds = createSeededIds();
   const counter = (): string => {
     n += 1;
     return String(n).padStart(26, "0");
@@ -59,6 +62,7 @@ function importCtx(db: Db): ChatImportContext {
     bumpStatsCanonVersion,
     now: (): number => NOW,
     newChatId: (): ChatId => castId<ChatId>(`chat_${counter()}`),
+    newChatTurnId: (): ChatTurnId => castId<ChatTurnId>(turnIds.next(ID_PREFIX.chatTurn)),
     newMessageId: (): MessageId => castId<MessageId>(`message_${counter()}`),
     newMessageVariantId: (): MessageVariantId => castId<MessageVariantId>(`message_variant_${counter()}`),
     newMessageAssetId: (): MessageAssetId => castId<MessageAssetId>(`message_asset_${counter()}`),

@@ -44,6 +44,7 @@ export interface TransportDeps {
 
 /** Everything one call needs the hooks to know. `plan` is null on the non-chat surfaces (no re-attach). */
 export interface ModelCall {
+  readonly translateResponse?: WrapFetchArgs["translateResponse"];
   readonly imageDetail?: ImageDetail | undefined;
   readonly connection: Resolved;
   readonly deps: TransportDeps;
@@ -105,6 +106,7 @@ function fetchArgs(call: ModelCall, shapeBody: WrapFetchArgs["shapeBody"]): Wrap
     responseMap: connection.transport?.responseMap,
     reasoningKeys: connection.features.reasoningKeys,
     shapeBody,
+    translateResponse: call.translateResponse,
     ...(deps.captureWire !== undefined
       ? {
           capture: {

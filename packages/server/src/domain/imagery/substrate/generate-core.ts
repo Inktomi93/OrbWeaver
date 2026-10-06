@@ -5,7 +5,7 @@
 // each verb; this is the spend-and-persist core, so the store-then-provenance GC ordering has ONE home.
 
 import type { MessageContentBlock } from "@orb/contracts/chat";
-import type { ProviderId } from "@orb/contracts/inference";
+import type { GenerationUsage, ProviderId } from "@orb/contracts/inference";
 import { modelIdSchema } from "@orb/contracts/inference";
 import { imageGenerationSpendDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/kit";
@@ -60,6 +60,7 @@ async function storeImage(
     readonly providerId: ProviderId;
     readonly connectionId: UserConnectionId;
     readonly costUsd: number | null;
+    readonly usage: GenerationUsage;
     readonly createdAt: number;
     readonly callId: ImageryCallId;
     readonly img: DecodedImage;
@@ -85,6 +86,7 @@ async function storeImage(
     providerId: gen.providerId,
     connectionId: gen.connectionId,
     costUsd: gen.costUsd,
+    usage: gen.usage,
     edited: prov.edited,
     createdAt: gen.createdAt,
   });
@@ -117,6 +119,7 @@ export async function runGeneration(ctx: ImageryContext, req: ImageGenerateReque
       providerId: req.connection.providerId,
       connectionId: req.connection.connectionId,
       costUsd: result.usage.costUsd,
+      usage: result.usage,
       createdAt,
       callId,
       img,

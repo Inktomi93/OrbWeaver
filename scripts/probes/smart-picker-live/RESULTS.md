@@ -1,10 +1,58 @@
 # Smart-picker live matrix: results
 
-Run 2026-10-03 on branch `wt/agent-a35378799df0d73a3`. The current verdict is for `3e4957f7c8`: the
-side-gen reasoning fix `89a6207bf1` plus a docs-only main merge, with no product diff between them. Every row
-in `results.jsonl` carries `tree.head`, and `tree.dirtyProduct` is false for all of them. Rows without `tree`
+## Funded Gemini acceptance
+
+Run `crdxes24` used the production runtime at D8 tip `384d8ed9e6`, with H accounting edits declared by `dirtyProduct: true`. All rows remain in `results.jsonl`. Current Flash and Pro native and Custom compatibility paths completed every scene and both refusal controls.
+
+| cell | scenes pass | quality hits | actual model calls | latency median / max ms | vehicle | missing-model / unbound |
+| - | - | - | - | - | - | - |
+| `gemini-3.8-flash` | 9/9 | 8/8 | 7 | 2227 / 7853 | native `generationConfig` JSON schema | pass / pass |
+| `gemini-3.1-pro-preview` | 9/9 | 8/8 | 7 | 2987 / 3984 | native `generationConfig` JSON schema | pass / pass |
+| `custom-gemini-3.8-flash-compat` | 9/9 | 8/8 | 7 | 3685 / 9765 | `response_format.json_schema` | pass / pass |
+| `custom-gemini-3.1-pro-preview-compat` | 9/9 | 8/8 | 7 | 3132 / 8021 | `response_format.json_schema` | pass / pass |
+
+The two clear-name scenes per cell make no model call. Missing-model and unbound controls also make no call. The completed cohort therefore has 28 called scenes and 16 no-call controls, not 44 hosted calls. Custom retains the explicit supported `thinkingOff: "none"` declaration; no capability was invented to obtain a passing vehicle.
+
+```sh
+env -u GEMINI_PROBE_KEY pnpm exec node scripts/probes/smart-picker-live/run.ts gemini-3.8-flash gemini-3.1-pro-preview custom-gemini-3.8-flash-compat custom-gemini-3.1-pro-preview-compat
+pnpm exec node scripts/probes/smart-picker-live/run.ts report
+```
+
+The command completed with exit 0 and all 44 verdict rows passed. This establishes Smart consumer acceptance for the named paths. Full metadata, usage, persistence and continuation acceptance is a separate part of the same Gemini audit; this table does not waive it.
+
+## Historical quota-blocked Gemini attempt
+
+Production runtime calls on `7bad0df1cc`, with `dirtyProduct: false`, did not complete acceptance. All prior JSONL rows remain.
+
+| cell | run | scenes pass | successful model scenes | vehicle | controls | blocker |
+| - | - | - | - | - | - | - |
+| `gemini-3.8-flash` | `6mxn4z5c` | 3/9 | narrator only | `generationConfig` JSON schema | both pass | HTTP 503 high demand and HTTP 429 quota |
+| `custom-gemini-3.8-flash-compat`, default connection | `6mxn4z5c` | 2/9 | none | `response_format: json_schema` | both pass | HTTP 400 unknown `chat_template_kwargs` |
+| `custom-gemini-3.8-flash-compat`, `thinkingOff: none` | `6hwvz83d` | 2/9 | none | `response_format: json_schema` | both pass | HTTP 503 high demand and HTTP 429 quota |
+
+`clear-name` and `clear-names` make no model call; their passes are not provider acceptance. The native narrator reply returned `{"responders":["Narrator"]}` and measured usage. The remaining model scenes degraded.
+
+The Custom connection uses the existing `declared.features.thinkingOff: "none"` setting because Google's compatibility endpoint rejects `chat_template_kwargs`. Structured capability already resolves from the model facts; the probe does not invent it. [Google's OpenAI compatibility documentation](https://ai.google.dev/gemini-api/docs/openai#structured-output) documents the schema vehicle.
+
+Exact upstream error bodies remain in the run's `reply` fields in `results.jsonl`. Representative refusals are HTTP 503 `UNAVAILABLE`, "This model is currently experiencing high demand", and HTTP 429 `RESOURCE_EXHAUSTED`, `GenerateRequestsPerMinutePerProjectPerModel-FreeTier`, quota 5. No credentials appear in the evidence.
+
+Commands, each completed with exit 0 but failing acceptance rows:
+
+```sh
+pnpm exec node scripts/probes/smart-picker-live/run.ts gemini-3.8-flash custom-gemini-3.8-flash-compat
+pnpm exec node scripts/probes/smart-picker-live/run.ts custom-gemini-3.8-flash-compat
+pnpm exec node scripts/probes/smart-picker-live/run.ts report
+```
+
+This quota-blocked cohort remains evidence. The funded cohort above supersedes it for Smart consumer acceptance; its refusals are not reclassified as passing.
+
+## Historical non-Gemini matrix
+
+The historical run used branch `wt/agent-a35378799df0d73a3`. Its verdict is for `3e4957f7c8`: the
+side-gen reasoning fix `89a6207bf1` plus a docs-only main merge, with no product diff between them. Its tagged rows
+carry `tree.head`, and `tree.dirtyProduct` is false for that historical cohort. Rows without `tree`
 predate the tag and come from the pre-fix tree `49bc0597ef`. `node scripts/probes/smart-picker-live/run.ts
-report` prints the per-cell table from each cell's latest run. [`README.md`](README.md) describes how the probe
+report` prints the per-cell table from each cell's latest run, including funded dirty-product evidence above. [`README.md`](README.md) describes how the probe
 drives the production path.
 
 ## Verdict on 3e4957f7c8
@@ -17,7 +65,7 @@ reranker returns a valid pick on 9 of 9 scenes. On every cell, a model the provi
 unbound row both degraded, and no model scene on a passing cell degraded.
 
 Still open: llama.cpp with Gemma 4, which is lane 0512's `body.ts` change, and DeepSeek through a Custom
-connection, which waits on item 0518. Gemini is **pending: quota, reset 23:59:59 UTC, runs on the final tree**.
+connection, which waits on item 0518. This historical matrix did not complete Gemini; the current funded verdict is above.
 
 ## Matrix (3e4957f7c8)
 
@@ -33,8 +81,8 @@ through the app's runtime, over the 7 rounds that called the model.
 | OpenRouter | hosted | `anthropic/claude-sonnet-5.5` | 9/9 | 7/8 | 1958 / 2191 | `response_format: json_schema` | pass | pass |
 | OpenRouter | hosted | `anthropic/claude-sonnet-4.6` | 9/9 | 8/8 | 1244 / 1327 | `response_format: json_schema` | pass | pass |
 | OpenRouter | hosted | `anthropic/claude-haiku-4.5` | 9/9 | 8/8 | 1246 / 2000 | `response_format: json_schema` | pass | pass |
-| Gemini direct (native wire) | hosted | `gemini-3.8-flash` | pending: quota | - | - | `generationConfig` JSON schema | pass | pass |
-| Gemini compat (Custom, `v1beta/openai`) | hosted | `gemini-3.8-flash` | pending: quota | - | - | `response_format: json_schema` | pass | pass |
+| Gemini direct (native wire) | hosted | `gemini-3.8-flash` | not called in this historical matrix | - | - | `generationConfig` JSON schema | pass | pass |
+| Gemini compat (Custom, `v1beta/openai`) | hosted | `gemini-3.8-flash` | not called in this historical matrix | - | - | `response_format: json_schema` | pass | pass |
 | DeepSeek (Custom) | hosted | `deepseek-flash` | not configurable until 0518 | - | - | none | pass | pass |
 | vLLM | GPU 1 | `qwen3.8-27b` (Qwen3.8-27B W8A8) | 9/9 | 7/8 | 622 / 1131 | `response_format: json_schema` | pass | pass |
 | llama.cpp (on `89a6207bf1`) | GPU 1 | `gemma-4-e4b-it` (gemma-4-E4B-it Q8_0) | **2/9** | - | 2779 / 3060 | `response_format: json_schema` | pass | pass |
@@ -104,12 +152,11 @@ mode: 400 "Thinking mode does not support this tool_choice". With structured out
 refused: 400 "This response_format type is unavailable now". These two declared variants ran only on the
 pre-fix tree.
 
-## Gemini: pending on the probe key's quota
+## Historical Gemini quota limit
 
-`GEMINI_PROBE_KEY` is on the free tier, with `generate_content_free_tier_requests` limited to 20 per day per
-model. The first pre-fix round got a 503 "high demand". Every later round got a 429 RESOURCE_EXHAUSTED; the
-first came at 20:54:46Z with "Please retry in 3h5m13s". The quota resets at 23:59:59 UTC, and the cells run on
-the final tree. The rows still show the wiring: the native wire resolved `gemini-3.8-flash` with structured
+The historical `GEMINI_PROBE_KEY` cohort reported `generate_content_free_tier_requests` limited to 20 per day per
+model. The first pre-fix round got a 503 "high demand". Later generation rounds got a 429 RESOURCE_EXHAUSTED; the
+first came at 20:54:46Z with "Please retry in 3h5m13s". The later funded cohort is recorded above. These rows still show the wiring: the native wire resolved `gemini-3.8-flash` with structured
 output and sent the `generationConfig` schema with the label enum, and both controls degraded.
 
 ## Exact launches
@@ -129,14 +176,9 @@ CUDA_VISIBLE_DEVICES=1 setsid nohup ~/qwen-local/bin/serve-27b.sh \
   --tensor-parallel-size 1 --max-model-len 32768 --max-num-seqs 64 --port 28941
 ```
 
-The argv vLLM ran, from `ps`: `vllm serve <model> --served-model-name qwen3.8-27b <model> --tensor-parallel-size 2
---host 127.0.0.1 --port 8901 --gpu-memory-utilization 0.90 --max-num-batched-tokens 8192 --max-model-len 262144
---reasoning-parser qwen3 --chat-template ~/qwen-local/templates/qwen3_gen_thinking_serve.jinja
---default-chat-template-kwargs {"enable_thinking": false, "preserve_thinking": false} --structured-outputs-config
+The argv vLLM ran, from `ps`: `vllm serve <model> --served-model-name qwen3.8-27b <model> --tensor-parallel-size 2 --host 127.0.0.1 --port 8901 --gpu-memory-utilization 0.90 --max-num-batched-tokens 8192 --max-model-len 262144 --reasoning-parser qwen3 --chat-template ~/qwen-local/templates/qwen3_gen_thinking_serve.jinja --default-chat-template-kwargs {"enable_thinking": false, "preserve_thinking": false} --structured-outputs-config
 {"enable_in_reasoning": false} --enable-auto-tool-choice --tool-call-parser qwen3_coder --speculative-config
-{"method":"mtp","num_speculative_tokens":2} --enable-prefix-caching --mm-encoder-tp-mode data
---mm-processor-cache-type shm --disable-access-log-for-endpoints /health,/metrics,/ping --enable-request-id-headers
---enable-force-include-usage --tensor-parallel-size 1 --max-model-len 32768 --max-num-seqs 64 --port 28941`.
+{"method":"mtp","num_speculative_tokens":2} --enable-prefix-caching --mm-encoder-tp-mode data --mm-processor-cache-type shm --disable-access-log-for-endpoints /health,/metrics,/ping --enable-request-id-headers --enable-force-include-usage --tensor-parallel-size 1 --max-model-len 32768 --max-num-seqs 64 --port 28941`.
 The later flags win. vLLM's `non-default args` line confirms TP 1, a 32768 context and port 28941.
 
 llama.cpp ran on GPU 1 (`ghcr.io/ggml-org/llama.cpp:server-cuda`, build 11371 `99b95488c`):

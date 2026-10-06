@@ -21,12 +21,21 @@ import type {
   VariantProviderMetadata,
 } from "@orb/contracts/chat";
 import type { ChatMembership } from "@orb/contracts/identity";
-import type { AttachmentQuality, CostDetails, NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
+import type {
+  AttachmentQuality,
+  CostDetails,
+  GenerationUsageLeg,
+  NormalizedFinishReason,
+  ProviderId,
+  ResponseCache,
+  TokenDetails,
+} from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type {
   ChatTurnTools,
   GeneratedImage,
+  GenerationObservationCallback,
   HistoryRole,
   ReasoningContentPart,
   Resolved,
@@ -137,6 +146,7 @@ export interface TurnMessage {
  * request at the boundary.
  */
 export interface TurnRequest {
+  readonly onObservedResult?: GenerationObservationCallback | undefined;
   readonly attachmentQuality?: AttachmentQuality | undefined;
   readonly connection: Resolved<"chat">;
   /** The chat this turn belongs to — the stateful backend keys its resume cache by it. */
@@ -255,6 +265,10 @@ export interface TurnEconomics {
   readonly content: string;
   readonly reasoning?: string | null;
   readonly model?: ModelId | null;
+  readonly servedModel?: string | null;
+  readonly tokenDetails?: TokenDetails | null;
+  readonly responseCache?: ResponseCache | undefined;
+  readonly usageLegs?: readonly GenerationUsageLeg[];
   /** ATTRIBUTION (§5.3b): the provider REGISTRY id and the connection row that generated this swipe — both
    *  denormalised onto the variant so a read outlives an edited or deleted connection. */
   readonly provider?: ProviderId | null;

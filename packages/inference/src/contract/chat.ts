@@ -9,8 +9,8 @@ import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatId } from "@orb/kit/ids";
 import type { ZodRawShape } from "zod";
 import type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events.ts";
+import type { GeneratedImage } from "./generation.ts";
 import type { Resolved } from "./resolved.ts";
-import type { GeneratedImage } from "./roles.ts";
 import type { ChatPosture } from "./side-gen.ts";
 
 export type { ResponseFormat } from "@orb/contracts/role-clients";
@@ -128,7 +128,22 @@ export const AGENT_PROMPT_TAIL_JOINER = "\n\n";
  *  turn boundary (#1593/#1607). */
 export const AGENT_CONTINUATION_PROMPT_STUB = "*The scene continues.*";
 
+/** The resolved attribution of one completed call, without credential or transport secrets. */
+export type GenerationObservationSource = Pick<Resolved<"chat">, "ownerId" | "connectionId" | "providerId" | "model" | "wire">;
+
+/** Awaited after provider completion, before result decoding or refusal. */
+export type GenerationObservationCallback = (result: ChatResult, source: GenerationObservationSource) => Promise<void>;
+
+/** A durable producer failed after paid completion; consumer fallback must not purchase another result. */
+export class GenerationObservationPersistenceError extends Error {
+  constructor(message: string, options: Required<Pick<ErrorOptions, "cause">>) {
+    super(message, options);
+    this.name = "GenerationObservationPersistenceError";
+  }
+}
+
 interface ChatRequestBase {
+  readonly onObservedResult?: GenerationObservationCallback | undefined;
   readonly attachmentQuality?: AttachmentQuality | undefined;
   readonly connection: Resolved<"chat">;
   readonly params: UserIntent;
@@ -223,6 +238,7 @@ export type ChatTurnInput = ChatRequestCommon & {
  * chat turn. The format passes through untouched — the backend plans how it rides.
  */
 export interface StructuredChatInput {
+  readonly onObservedResult?: GenerationObservationCallback | undefined;
   readonly connection: Resolved<"chat">;
   /** The wire-capture correlation key; only the backends whose request carries a chat id stamp it. */
   readonly chatId: ChatId;
@@ -238,6 +254,7 @@ export interface StructuredChatInput {
  * backend with no wire `tools[]` cannot carry it, which `carriesForcedToolRound` answers before the caller builds one.
  */
 export interface ForcedToolRoundInput {
+  readonly onObservedResult?: GenerationObservationCallback | undefined;
   readonly connection: Resolved<"chat">;
   readonly chatId: ChatId;
   readonly systemPrompt: string;

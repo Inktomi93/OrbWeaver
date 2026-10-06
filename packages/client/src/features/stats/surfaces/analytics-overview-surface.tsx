@@ -38,6 +38,7 @@ import {
   formatAccountingLabel,
   formatCompact,
   formatCompactNoun,
+  formatCostLabel,
   formatCount,
   formatDecimal,
   formatDurationMs,
@@ -157,7 +158,7 @@ function OverviewBody(): ReactElement {
             <StatFigure label="Replies" value={formatCompact(wrapped.replies)} />
             <StatFigure label="Swipes" value={formatCompact(wrapped.swipes)} />
             <StatFigure label="Forked chats" value={formatCompact(wrapped.forkedChats)} />
-            <StatFigure label={formatAccountingLabel("Spend", wrapped.costUsd)} value={formatUsd(wrapped.costUsd)} />
+            <StatFigure label={formatCostLabel(wrapped.costUsd)} value={formatUsd(wrapped.costUsd)} />
             <StatFigure label="Time generating" value={wrapped.genTimeMs === 0 && overview.avgGenMs === null ? "—" : formatDurationMs(wrapped.genTimeMs)} />
             <StatFigure label="First chat" value={wrapped.firstChatAt === null ? "—" : timeLib.formatDate(wrapped.firstChatAt)} />
             {/* The swiped share divides by replies and the depth by re-rolled replies; with no sample each reads

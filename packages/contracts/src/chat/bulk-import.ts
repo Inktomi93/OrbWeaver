@@ -13,12 +13,48 @@
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
+import { z } from "zod";
+import type { GenerationUsage } from "../inference/usage.ts";
+import { generationUsageLegSchema } from "../inference/usage.ts";
 import type { UserMacroValues } from "../preset/index.ts";
 import type { CHAT_INJECTION_POSITIONS } from "./assemble.ts";
 import type { TokenProvenance, VariantMetadata } from "./messages.ts";
 import type { ChatMetadata } from "./metadata.ts";
 import type { MessageKind } from "./participants.ts";
 import type { SeatKnobs } from "./roster.ts";
+
+/** Normalized completed facts travel by local transcript position, never by private funding or connection ids. */
+export const pendingGenerationObservationInputSchema = z
+  .object({
+    turnIndex: z.number().int().nonnegative(),
+    ordinal: z.number().int().nonnegative(),
+    sourceMessageIndex: z.number().int().nonnegative().nullable(),
+    sourceVariantIdx: z.number().int().nonnegative().nullable(),
+    leg: generationUsageLegSchema,
+  })
+  .superRefine((row, ctx) => {
+    if (row.sourceMessageIndex === null && row.sourceVariantIdx !== null) {
+      ctx.addIssue({ code: "custom", path: ["sourceVariantIdx"], message: "a source variant requires its message position" });
+    }
+  });
+export type PendingGenerationObservationInput = z.infer<typeof pendingGenerationObservationInputSchema>;
+
+export const pendingGenerationObservationsSchema = z.array(pendingGenerationObservationInputSchema).superRefine((rows, ctx) => {
+  const ordinals = new Set<string>();
+  const parents = new Map<number, string>();
+  for (const [index, row] of rows.entries()) {
+    const key = `${row.turnIndex}/${row.ordinal}`;
+    const parent = JSON.stringify([row.sourceMessageIndex, row.sourceVariantIdx]);
+    if (ordinals.has(key)) {
+      ctx.addIssue({ code: "custom", path: [index, "ordinal"], message: "a logical turn cannot repeat an observed ordinal" });
+    }
+    if (parents.has(row.turnIndex) && parents.get(row.turnIndex) !== parent) {
+      ctx.addIssue({ code: "custom", path: [index], message: "a logical turn has one retained source parent" });
+    }
+    ordinals.add(key);
+    parents.set(row.turnIndex, parent);
+  }
+});
 
 /** One resolved variant (swipe) row for a bulk-imported message (D26 — the SELECTED variant carries the
  *  rendered content). `idx` is 0-based within the slot's pool; the economics subset is what an ST import
@@ -47,6 +83,8 @@ export interface BulkImportVariantInput {
    *  the DELTAS is what lets a restore re-derive `chats.runtimeVariables`, which is a cache and therefore
    *  does not travel. Absent ⇒ null (the ST arm's shape). */
   readonly variableDelta?: readonly VarOp[] | null;
+  /** Native normalized economics; absent preserves the legacy interchange writer. */
+  readonly usage?: GenerationUsage;
 }
 
 /** One `chat_injections` row carried by an importing chat. The per-chat prose plane: since the room-override
@@ -128,6 +166,7 @@ export interface BulkImportChatInput {
   readonly parentRef: string | null;
   readonly isRealConversation: boolean;
   readonly messages: readonly BulkImportMessageInput[];
+  readonly pendingGenerationObservations?: readonly PendingGenerationObservationInput[];
   /** The ADDITIONAL character seats beyond the run's primary (a GROUP room). Empty/absent ⇒ the founding
    *  roster is host + the one primary character, byte-identically today's ST import. Every id is
    *  ownership-gated exactly like the primary before any row is written. */

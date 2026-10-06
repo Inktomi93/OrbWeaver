@@ -23,7 +23,8 @@ export type {
   StatsFreshness,
   WrappedSummary,
 } from "./contract/views.ts";
+export { createResolveRetainedChatAccountingScope, createResolveRetainedChatRebase, settleRetainedChatRebase } from "./persistence/retained-chat-accounting.ts";
 export { createStatsService } from "./service.ts";
 export { createStatsWorkloadContributions } from "./workload-contributions.ts";
-export { applyStatsDelta, bumpStatsCanonVersion } from "./write/apply-delta.ts";
+export { applyCharacterStatsDelta, applyStatsDelta, bumpStatsCanonVersion } from "./write/apply-delta.ts";
 export { reconcileOwnersMissingTimeline, reconcileStats } from "./write/rebuild-from-canon.ts";

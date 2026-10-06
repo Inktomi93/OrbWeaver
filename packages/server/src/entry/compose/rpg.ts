@@ -89,6 +89,7 @@ import type { ChatResult, ForcedToolRoundInput, ProviderExecutor, Resolved } fro
 import {
   carriesForcedToolRound,
   forcesToolRound,
+  GenerationObservationPersistenceError,
   generationOf,
   NoConnectionError,
   ProviderError,
@@ -99,7 +100,7 @@ import {
 } from "@orb/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { CharacterHandle, ChatId, ChatTurnId, UserId } from "@orb/kit/ids";
-import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { can } from "#domain/admin";
@@ -722,9 +723,7 @@ function refEnumerationLines(inputs: PromptInputs): string {
  *  into an `RpgStateDelta`. On any backend throw / parse failure it returns an EMPTY delta (the byte-identical
  *  non-writing turn — a broken extraction never corrupts canon, the errors-as-data posture).
  *
- *  State-round economics: this is a real billed call that lands NO `ToolCallRecord` and NO stats delta (deliberate — the char turn is
- *  tool-less, so persisting the round's calls on the variant would lie to the transcript reader). The per-item provider log is the v1
- *  record (`provider.structured-item`; the agent-sdk arm's `provider.turn`) — see spec §10.1a. */
+ *  Completed economics reach the chat-owned observer before response decoding; state-call records remain RPG-owned. */
 function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
   return async ({ chatId, baseState, trackerDefs, turnConnection, reconcile, signal }) => {
     const empty = { statePatch: {}, journal: [] };
@@ -761,12 +760,12 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
     // the empty delta), but the throw MUST be observable: a silent swallow at `engine.ts`'s fire-and-forget
     // `.catch` made a broken extraction invisible in prod (the diagnosis that surfaced this).
     let text: string;
-    // @orb-waive caught-failure-ownership(err): errors-as-data — documented above: a failed
-    // extraction never corrupts state (returns the empty delta), but the throw is made observable by the
-    // `logger.warn` below (the diagnosis that surfaced the fix). Ends if the warn log is removed.
     try {
       text = await extractStructured(deps, ctx);
     } catch (err) {
+      if (err instanceof GenerationObservationPersistenceError) {
+        throw err;
+      }
       // A CANCEL is not a FAILURE. Reading the signal (not the error's shape) is what keeps the two apart: the
       // thrown value differs per backend, and misfiling a user's Stop as `rpg.extraction.failed` would put a
       // normal cancellation in the same warn stream we use to diagnose broken extractions.
@@ -1187,6 +1186,9 @@ async function runInventoryAudit(args: {
     args.deps.trace?.({ phase: "tool", chatId, turnId: args.turnId, vehicle: "cheap inventory audit", calls: recordToolCalls(calls) });
     return calls;
   } catch (err) {
+    if (err instanceof GenerationObservationPersistenceError) {
+      throw err;
+    }
     logger.warn({ event: "rpg.inventory-audit.failed", chatId, model: connection.model, api: connection.api, err }, "rpg inventory audit failed");
     return [];
   }
@@ -1210,27 +1212,41 @@ async function withInventoryAudit(args: {
   return [...args.calls, ...(await runInventoryAudit({ deps: args.deps, round: args.round, prose: args.prose, tools, turnId: args.turnId }))];
 }
 
-/** Build the cheap-mode `runToolRound` op — the parallel-tool-call state round (the sibling of
- *  `runExtraction`). Rides the CHARACTER turn's ALREADY-RESOLVED connection + consent verdict
- *  (`input.turnConnection` — stickler F1: no re-resolve, no force-stamped consent); the vehicle is wire tools +
- *  `required`. On a connection that cannot carry a forced tool round it degrades to the structured extraction
- *  (identical delta, shared-plane). On any backend throw / no calls it returns the EMPTY delta (errors-as-data —
- *  never corrupts canon).
- *
- *  State-round economics: same posture as `runExtraction` (no `ToolCallRecord`, no stats delta — see spec §10.1a). This vehicle rides the
- *  CHAT role, so no backend emits a per-item usage log for it; `logToolRoundUsage` is its economics record (`rpg.toolround.usage`), which
- *  is what makes §10.1a's "recorded in the provider-observability plane" true here. The degraded arm rides `runExtraction`'s
- *  per-item record instead. */
-function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
-  const extract = buildRunExtraction(deps);
+function failedToolRoundDelta(err: unknown, round: { readonly chatId: ChatId; readonly conn: Resolved<"chat">; readonly signal: AbortSignal }): RpgStateDelta {
+  if (err instanceof GenerationObservationPersistenceError) {
+    throw err;
+  }
+  const { chatId, conn, signal } = round;
+  if (isCancelled(signal)) {
+    logCancelled({ chatId, model: conn.model, api: conn.api, vehicle: "cheap tool round", preflight: false });
+    return { statePatch: {}, journal: [] };
+  }
+  logger.warn({ event: "rpg.toolround.failed", chatId, model: conn.model, api: conn.api, err }, "rpg cheap tool round failed");
+  return { statePatch: {}, journal: [], failure: roundFailure(err) };
+}
+
+function withGenerationObservation(deps: RpgComposeDeps, parent: Parameters<RpgComposeDeps["rpgChatOps"]["beginGenerationObservation"]>[0]): RpgComposeDeps {
+  const onObservedResult = deps.rpgChatOps.beginGenerationObservation(parent);
+  return { ...deps, executor: { runChatTurn: (request) => deps.executor.runChatTurn({ ...request, onObservedResult }) } };
+}
+
+/** The dedicated round shares its resolved route and one observation session across primary, fallback and audit calls.
+ * Provider failures are state errors-as-data; durable observation failures cannot degrade or purchase another call. */
+function buildRunToolRound(baseDeps: RpgComposeDeps): RpgRunToolRound {
   return async (input) => {
+    const deps = withGenerationObservation(baseDeps, {
+      chatId: input.chatId,
+      turnId: input.turnId,
+      sourceMessageId: input.messageId,
+      sourceVariantId: input.variantId,
+    });
     const { chatId, turnId, baseState, turnConnection, reconcile, signal } = input;
     const empty = { statePatch: {}, journal: [] };
     const conn = turnConnection.connection;
     // No forced round on this backend: the shared-plane proof lets it ride the SAME structured extraction (which
     // runs its own pre-flight cancel check, so the degrade inherits cancellation identically).
     if (!carriesForcedToolRound(conn)) {
-      return extract(input);
+      return buildRunExtraction(deps)(input);
     }
     // CANCELLED BEFORE THE CALL — no ref resolve, no model call, no spend (the structured arm's posture).
     if (isCancelled(signal)) {
@@ -1265,24 +1281,14 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
     let calls: readonly RpgToolCall[];
     // @orb-waive caught-failure-ownership(err): errors-as-data — the structured arm's twin: a
     // CANCEL is read off the signal (not the error shape) and returns `empty`; any other failure is observed
-    // via `logger.warn` below. Ends if the warn log is removed.
+    // by failedToolRoundDelta. Ends if its warn log is removed.
     try {
       const result = await deps.executor.runChatTurn(toForcedToolRoundRequest(round));
       // The round's economics record — §10.1a's claim, made true on the vehicle that had no emitter.
       logToolRoundUsage({ chatId, api: conn.api, pass: "primary", result });
       calls = result.toolCalls ?? [];
     } catch (err) {
-      // A CANCEL is not a FAILURE — read the signal, never the error's shape (see the structured arm's twin).
-      if (isCancelled(signal)) {
-        logCancelled({ chatId, model: conn.model, api: conn.api, vehicle: "cheap tool round", preflight: false });
-        return empty;
-      }
-      logger.warn({ event: "rpg.toolround.failed", chatId, model: conn.model, api: conn.api, err }, "rpg cheap tool round failed");
-      // ERRORS-AS-DATA, AND SAID SO (#1468 item 2): the delta stays empty (canon is never corrupted by a broken
-      // vehicle) but it now carries WHY, so the flush reports this turn as `failed` with a durable record
-      // instead of as the quiet beat it is byte-identical to. The warn above stays the operator trail; this is
-      // the half that reaches the person whose state update went missing.
-      return { ...empty, failure: roundFailure(err) };
+      return failedToolRoundDelta(err, { chatId, conn, signal });
     }
     deps.trace?.({ phase: "tool", chatId, turnId, vehicle: "cheap tool round", calls: recordToolCalls(calls) });
     const fallback = fallbackStateRound(generation, calls, shapes.plans);
@@ -1469,8 +1475,6 @@ async function requestStructuredCalls(
   const { conn, chatId, signal, round } = args;
   const line = { chatId, model: conn.model, api: conn.api, vehicle: STRUCTURED_ROUND_VEHICLE, shape: round.shape };
   let text: string;
-  // @orb-waive caught-failure-ownership(err): errors-as-data — returned as `failed` and warned on the caller's own
-  // event, the tool round's posture; a cancel is read off the signal. Ends if the warn is removed.
   try {
     text = await runStructuredChat(deps.executor, {
       connection: conn,
@@ -1481,6 +1485,9 @@ async function requestStructuredCalls(
       signal,
     });
   } catch (err) {
+    if (err instanceof GenerationObservationPersistenceError) {
+      throw err;
+    }
     if (signal !== undefined && isCancelled(signal)) {
       logCancelled({ chatId, model: conn.model, api: conn.api, vehicle: STRUCTURED_ROUND_VEHICLE, preflight: false });
       return { kind: "cancelled" };
@@ -1766,6 +1773,9 @@ async function resyncViaToolRound(
     logToolRoundUsage({ chatId, api: conn.api, pass: "resync", result });
     calls = result.toolCalls ?? [];
   } catch (err) {
+    if (err instanceof GenerationObservationPersistenceError) {
+      throw err;
+    }
     logger.warn({ event: RESYNC_EVENTS.failed, chatId, model: conn.model, api: conn.api, err }, "rpg resync tool round failed");
     return { ok: false, reason: `${RESYNC_FAILED_REASON} ${errorMessage(err)}` };
   }
@@ -1916,7 +1926,8 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
     }
     const userPrompt = fitted.userPrompt;
     const args = { chatId, conn, baseState, inputs, userPrompt };
-    return toolRound ? await resyncViaToolRound(deps, args) : await resyncViaStructured(deps, args);
+    const observed = withGenerationObservation(deps, { chatId, turnId: mintTypeId(ID_PREFIX.chatTurn), sourceMessageId: null, sourceVariantId: null });
+    return toolRound ? await resyncViaToolRound(observed, args) : await resyncViaStructured(observed, args);
   };
 }
 
@@ -1948,6 +1959,9 @@ async function resyncViaStructured(
   try {
     text = await extractStructured(deps, ctx);
   } catch (err) {
+    if (err instanceof GenerationObservationPersistenceError) {
+      throw err;
+    }
     logger.warn({ event: "rpg.resync.failed", chatId, model: conn.model, api: conn.api, err }, "rpg resync extraction failed");
     // THE HOST HEARS IT. This catch used to return an empty delta, which the verb reported as "nothing to
     // resync" — so a provider that refused every single call (live, on the DEFAULT hosted backend) looked

@@ -6,8 +6,17 @@
 import type { SharedV4ProviderMetadata, SharedV4Warning } from "@ai-sdk/provider";
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import { ADJUSTED_KNOBS } from "@orb/contracts/chat";
-import type { ChatUsage, CostDetails, EndpointFeatures, GenerationCapability } from "@orb/contracts/inference";
-import { foldNestedUsage } from "@orb/contracts/inference";
+import type {
+  ChatUsage,
+  CostDetails,
+  EndpointFeatures,
+  GenerationCapability,
+  GenerationUsage,
+  NestedUsage,
+  TokenDetails,
+  TokenUsage,
+} from "@orb/contracts/inference";
+import { foldNestedUsage, foldTokenUsage } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type { ModelId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -28,20 +37,74 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /** What OpenRouter puts on the V4 `usage.raw` beyond the SDK's typed mapping (measured 2026-09-20,
  *  `gen-1789884256-ZeulFgkGknjAbAgCKe1S`): the per-phase upstream split and the BYOK bit. Optional throughout —
  *  a wire that reports none of it is simply not OpenRouter. */
+const reportedUsd = z.number().nonnegative().nullish().catch(null);
 const openRouterRawUsageSchema = z.object({
+  cost: reportedUsd,
   cost_details: z
     .object({
-      upstream_inference_prompt_cost: z.number().nullish(),
-      upstream_inference_completions_cost: z.number().nullish(),
+      upstream_inference_cost: reportedUsd,
+      upstream_inference_prompt_cost: reportedUsd,
+      upstream_inference_completions_cost: reportedUsd,
     })
-    .nullish(),
-  is_byok: z.boolean().nullish(),
+    .nullish()
+    .catch(null),
+  is_byok: z.boolean().nullish().catch(null),
 });
 
 /** A wire-reported cost WITH its breakdown — what `costProvenance: "measured"` records. */
 export interface MeasuredCost {
   readonly costUsd: number;
   readonly costDetails: CostDetails;
+}
+
+function measuredCostWithDetails(args: {
+  readonly cost: number;
+  readonly upstreamCost: number | null | undefined;
+  readonly prompt: number | null | undefined;
+  readonly completions: number | null | undefined;
+  readonly byok: boolean;
+}): MeasuredCost {
+  const { cost, upstreamCost, prompt, completions, byok } = args;
+  const split = {
+    ...(typeof prompt === "number" ? { promptUsd: prompt } : {}),
+    ...(typeof completions === "number" ? { completionUsd: completions } : {}),
+  };
+  if (byok && typeof upstreamCost === "number") {
+    const totalUsd = cost + upstreamCost;
+    return { costUsd: totalUsd, costDetails: { totalUsd, ...split, upstreamUsd: upstreamCost, gatewayUsd: cost } };
+  }
+  return { costUsd: cost, costDetails: { totalUsd: cost, ...split } };
+}
+
+/** The admitted OpenRouter images response reports cost, but its image SDK discards the raw usage. */
+export function rawMeasuredOpenRouterCostOf(rawUsage: unknown): MeasuredCost | null {
+  const raw = openRouterRawUsageSchema.safeParse(rawUsage);
+  if (!raw.success || raw.data.cost === null || raw.data.cost === undefined) {
+    return null;
+  }
+  const details = raw.data.cost_details;
+  if (raw.data.is_byok === true && (details?.upstream_inference_cost === null || details?.upstream_inference_cost === undefined)) {
+    return null;
+  }
+  return measuredCostWithDetails({
+    cost: raw.data.cost,
+    upstreamCost: details?.upstream_inference_cost,
+    prompt: details?.upstream_inference_prompt_cost,
+    completions: details?.upstream_inference_completions_cost,
+    byok: raw.data.is_byok === true,
+  });
+}
+
+/** Image output has modality-specific prices: configured flat chat rates cannot establish its cost. */
+export function generationUsageOf(usage: NestedUsage | undefined, servedModel: string | undefined, measured: MeasuredCost | null): GenerationUsage {
+  return {
+    ...foldTokenUsage(usage),
+    servedModel: servedModel ?? null,
+    tokenDetails: null,
+    costUsd: measured === null ? null : measured.costUsd,
+    costDetails: measured === null ? null : measured.costDetails,
+    costProvenance: measured === null ? "unrecorded" : "measured",
+  };
 }
 
 /** The wire-reported cost off the SDK's provider metadata — OpenRouter's usage accounting today; `null` on every
@@ -57,24 +120,28 @@ export function measuredCostOf(
   if (!isRecord(usage)) {
     return null;
   }
-  const cost = usage["cost"];
-  if (typeof cost !== "number") {
+  const cost = reportedUsd.parse(usage["cost"]);
+  if (cost === null || cost === undefined) {
     return null;
   }
   const details = usage["costDetails"];
-  const upstreamCost = isRecord(details) ? details["upstreamInferenceCost"] : undefined;
   const raw = openRouterRawUsageSchema.safeParse(rawUsage);
+  const upstreamCost =
+    reportedUsd.parse(isRecord(details) ? details["upstreamInferenceCost"] : undefined) ??
+    (raw.success ? raw.data.cost_details?.upstream_inference_cost : undefined);
+  const byok = raw.success && raw.data.is_byok === true;
+  if (byok && (upstreamCost === null || upstreamCost === undefined)) {
+    return null;
+  }
   const prompt = raw.success ? raw.data.cost_details?.upstream_inference_prompt_cost : undefined;
   const completions = raw.success ? raw.data.cost_details?.upstream_inference_completions_cost : undefined;
-  const split = {
-    ...(typeof prompt === "number" ? { promptUsd: prompt } : {}),
-    ...(typeof completions === "number" ? { completionUsd: completions } : {}),
-  };
-  if (raw.success && raw.data.is_byok === true && typeof upstreamCost === "number") {
-    const totalUsd = cost + upstreamCost;
-    return { costUsd: totalUsd, costDetails: { totalUsd, ...split, upstreamUsd: upstreamCost, gatewayUsd: cost } };
-  }
-  return { costUsd: cost, costDetails: { totalUsd: cost, ...split } };
+  return measuredCostWithDetails({
+    cost,
+    upstreamCost,
+    prompt,
+    completions,
+    byok,
+  });
 }
 
 // ── the SDK's own warnings (§A3) ───────────────────────────────────────────────────────────────────────
@@ -166,6 +233,10 @@ export interface ResultContext {
   /** The response's rate-limit headers, parsed by the transport (`backends/kit/rate-limit-headers.ts`). */
   readonly rateLimit: RateLimitSnapshot | null;
   readonly warnings: readonly ResolvedWarning[];
+  /** Boundary-normalized facts where the SDK loses reportedness (native GenerateContent). */
+  readonly tokenUsage?: TokenUsage;
+  readonly servedModel?: string | null;
+  readonly tokenDetails?: TokenDetails | null;
 }
 
 function costOf(
@@ -175,10 +246,28 @@ function costOf(
   if (ctx.measuredCost !== null) {
     return { costUsd: ctx.measuredCost.costUsd, costDetails: ctx.measuredCost.costDetails, costProvenance: "measured" };
   }
-  if (ctx.pricing !== undefined && core.tokensIn !== null && core.tokensOut !== null) {
-    const promptUsd = (core.tokensIn / TOKENS_PER_MTOK) * ctx.pricing.inputPerMTok;
+  if (ctx.pricing !== undefined && core.tokensIn !== null && core.tokensOut !== null && core.cacheReadTokens !== null && core.cacheWriteTokens !== null) {
+    const uncachedTokens = core.tokensIn - core.cacheReadTokens - core.cacheWriteTokens;
+    // Only compatible non-overlapping counters establish this flat-rate estimate. Overlapping provider
+    // creation/read counts or an absent applicable rate cannot establish a complete price.
+    if (
+      uncachedTokens < 0 ||
+      (core.cacheReadTokens > 0 && ctx.pricing.cacheReadPerMTok === undefined) ||
+      (core.cacheWriteTokens > 0 && ctx.pricing.cacheWritePerMTok === undefined)
+    ) {
+      return { costUsd: null, costDetails: null, costProvenance: "unrecorded" };
+    }
+    const promptUsd =
+      (uncachedTokens * ctx.pricing.inputPerMTok +
+        core.cacheReadTokens * (ctx.pricing.cacheReadPerMTok ?? 0) +
+        core.cacheWriteTokens * (ctx.pricing.cacheWritePerMTok ?? 0)) /
+      TOKENS_PER_MTOK;
     const completionUsd = (core.tokensOut / TOKENS_PER_MTOK) * ctx.pricing.outputPerMTok;
-    return { costUsd: promptUsd + completionUsd, costDetails: { totalUsd: promptUsd + completionUsd, promptUsd, completionUsd }, costProvenance: "estimated" };
+    return {
+      costUsd: promptUsd + completionUsd,
+      costDetails: { totalUsd: promptUsd + completionUsd, promptUsd, completionUsd, pricing: ctx.pricing },
+      costProvenance: "estimated",
+    };
   }
   return { costUsd: null, costDetails: null, costProvenance: "unrecorded" };
 }
@@ -188,11 +277,16 @@ function warningEvents(warnings: readonly ResolvedWarning[], at: number): ChatEv
 }
 
 export function toChatResult(drain: StreamDrain, ctx: ResultContext): ChatResult {
-  const core = foldNestedUsage(drain.usage, {
-    model: ctx.model,
-    contextWindow: ctx.generation.context.window,
-    maxOutputTokens: ctx.maxOutputTokens ?? ctx.generation.output.maxTokens.max,
-  });
+  const core = {
+    ...foldNestedUsage(drain.usage, {
+      model: ctx.model,
+      contextWindow: ctx.generation.context.window,
+      maxOutputTokens: ctx.maxOutputTokens ?? ctx.generation.output.maxTokens.max,
+    }),
+    ...ctx.tokenUsage,
+    servedModel: ctx.servedModel ?? drain.servedModel ?? null,
+    tokenDetails: ctx.tokenDetails ?? null,
+  };
   const raw = drain.finish.raw ?? drain.finish.unified;
   const toolCalls = drain.toolCalls.length > 0 ? drain.toolCalls : undefined;
   // The vendor's bag under OUR registry id, narrowed to the closed sidecar arm (`backends/kit/provider-metadata`).

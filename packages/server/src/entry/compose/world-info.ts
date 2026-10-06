@@ -115,6 +115,7 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
     bumpStatsCanonVersion,
     now,
     newChatId: minter(ID_PREFIX.chat),
+    newChatTurnId: minter(ID_PREFIX.chatTurn),
     newMessageId: minter(ID_PREFIX.message),
     newMessageVariantId: minter(ID_PREFIX.messageVariant),
     newMessageAssetId: minter(ID_PREFIX.messageAsset),

@@ -70,6 +70,7 @@ interface Cell {
 const CELLS: Record<string, Cell> = {
   "openai-gpt-5.4-mini": { kind: "arbiter", providerId: "openai", model: "gpt-5.4-mini", keyEnv: "OPENAI_PROBE_KEY" },
   "gemini-3.8-flash": { kind: "arbiter", providerId: "google", model: "gemini-3.8-flash", keyEnv: "GEMINI_PROBE_KEY" },
+  "gemini-3.1-pro-preview": { kind: "arbiter", providerId: "google", model: "gemini-3.1-pro-preview", keyEnv: "GEMINI_PROBE_KEY" },
   "openrouter-claude-sonnet-5.5": {
     kind: "arbiter",
     providerId: "openrouter",
@@ -126,6 +127,15 @@ const CELLS: Record<string, Cell> = {
     model: "gemini-3.8-flash",
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
     keyEnv: "GEMINI_PROBE_KEY",
+    declared: { features: { thinkingOff: "none" } },
+  },
+  "custom-gemini-3.1-pro-preview-compat": {
+    kind: "arbiter",
+    providerId: "custom-openai",
+    model: "gemini-3.1-pro-preview",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    keyEnv: "GEMINI_PROBE_KEY",
+    declared: { features: { thinkingOff: "none" } },
   },
   "ollama-gemma4-e4b": { kind: "arbiter", providerId: "ollama", model: "gemma4:e4b", baseUrl: "http://127.0.0.1:28943/v1" },
   "koboldcpp-gemma-4-e4b": { kind: "arbiter", providerId: "koboldcpp", model: "koboldcpp/gemma-4-E4B-it-Q8_0", baseUrl: "http://127.0.0.1:28944/v1" },

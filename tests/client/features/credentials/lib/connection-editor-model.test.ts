@@ -456,3 +456,17 @@ describe("the request-body overrides field saves only what the transport schema 
     expect(includeBodyText(undefined)).toBe("");
   });
 });
+
+test("cache prices stay independent editable facts; required price siblings are retained without invented rates", () => {
+  const pricing = { inputPerMTok: 0.75, outputPerMTok: 3.75 };
+  const rows = quirkFactRows({ pricing }, undefined, "Google");
+  const cache = rowFor(rows, "features.pricing.cacheReadPerMTok");
+  expect(cache.value).toBe("not set");
+  const next = withDeclaredOverride(null, cache, 0.075);
+  expect(next).toEqual({ features: { pricing: { ...pricing, cacheReadPerMTok: 0.075 } } });
+  expect(declaredCapabilitySchema.parse(next)).toEqual(next);
+  const edited = rowFor(quirkFactRows({ pricing }, next.features, "Google"), cache.path);
+  expect(edited.value).toBe("$0.075 per million tokens");
+  expect(withoutDeclaredOverride(next, edited)).toEqual({ features: { pricing } });
+  expect(quirkFactRows(undefined, undefined, "Custom", true).map((row) => row.path)).not.toContain(cache.path);
+});

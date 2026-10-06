@@ -33,6 +33,8 @@ const CHAT_RESULT: ChatResult = {
   appliedEffort: null,
   usage: {
     model: castId<ModelId>("test-model"),
+    servedModel: null,
+    tokenDetails: null,
     tokensIn: 1,
     tokensOut: 1,
     cacheReadTokens: 0,

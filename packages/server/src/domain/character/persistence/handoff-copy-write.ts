@@ -165,7 +165,7 @@ export function createCopyHandoffCards(ctx: CharacterHandoffCopyContext): CopyHa
             refinery: null,
             createdAt: at,
           },
-          ctx.bumpStatsCanonVersion,
+          ctx,
         );
         if (claimed) {
           return [{ sourceCharacterId: source.id, characterId: newId, minted: true }];

@@ -8,10 +8,11 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { messageAssets, messages, messageVariants, ownerStats, statsCanonVersions } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
-import type { Handle } from "@orb/kit/ids";
+import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import { createClaimChat } from "../../../../../packages/server/src/domain/chat/verbs/claim-chat.ts";
 import { createPostNarratorMessage } from "../../../../../packages/server/src/domain/chat/verbs/post-narrator-message.ts";
 import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
@@ -40,6 +41,8 @@ describe("postNarratorMessage", () => {
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
     const groupChar = await seedCharacter(db, host, "narrator");
+    const actor = await seedCharacter(db, host, "seated_actor");
+    await seedParticipant(db, { chatId, key: "seated_actor", characterId: actor });
 
     const ctx = makeChatContext(db, {
       mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: groupChar }),
@@ -185,11 +188,12 @@ describe("postNarratorMessage", () => {
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
     const groupChar = await seedCharacter(db, host, "narrator");
     const claims: string[] = [];
-    const claimChat = (id: string): Promise<void> => {
-      claims.push(id);
-      return Promise.resolve();
-    };
     const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: groupChar }) });
+    const claim = createClaimChat(ctx);
+    const claimChat = async (id: ChatId): Promise<void> => {
+      claims.push(id);
+      await claim(id);
+    };
     const postNarratorMessage = createPostNarratorMessage(ctx, { emit, claimChat });
 
     await expect(postNarratorMessage(chatId, "   \n ")).rejects.toThrow(BLANK_POST_RE);

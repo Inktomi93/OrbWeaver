@@ -1,5 +1,6 @@
 // engine/stats-delta — the StatsDelta builders (the same kit/stats-tally primitives as reconcile → no drift).
 
+import { generationUsageLegSchema } from "@orb/contracts/inference";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { statsBucketStart, wordCount } from "@orb/kit/stats-tally";
@@ -11,28 +12,162 @@ import {
   seatChatDelta,
   userMessageDelta,
 } from "../../../../../packages/server/src/domain/chat/substrate/stats-delta.ts";
+import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 
 const OWNER = castId<UserId>("user_host");
 const ARIA = castId<CharacterId>("character_aria");
 const BRANN = castId<CharacterId>("character_brann");
 const NOW = 1_750_000_000_000;
 
-describe("assistantTurnDelta", () => {
-  test("owner-attributed, one assistant turn, words via the shared tally", () => {
-    const d = assistantTurnDelta({
+function onlyDeltaOf(sequence: ReturnType<typeof assistantTurnDelta>): ReturnType<typeof assistantTurnDelta>[number] {
+  expect(sequence).toHaveLength(1);
+  const delta = sequence[0];
+  if (delta === undefined) {
+    throw new Error("Expected the legacy singleton delta");
+  }
+  return delta;
+}
+
+test("typed paid legs retain mixed models, original buckets, zero samples and known subtotals beside an unknown aggregate", () => {
+  const common = {
+    provider: testProviderId("google"),
+    wire: "google-generative-ai",
+    contextWindow: null,
+    maxOutputTokens: null,
+    modelCalls: 1,
+    durationApiMs: 100,
+    ttftMs: null,
+    finishReason: "stop",
+    stopReason: "STOP",
+    terminalReason: null,
+    generationId: null,
+  };
+  const legs = [
+    generationUsageLegSchema.parse({
+      ...common,
+      ...makeGenerationUsage(0.125, { tokensIn: 10, tokensOut: 20, reasoningTokens: 5 }),
+      model: testModelId("first-model"),
+      observedAt: NOW,
+    }),
+    generationUsageLegSchema.parse({
+      ...common,
+      ...makeGenerationUsage(0, { tokensIn: 20, tokensOut: 30 }),
+      model: testModelId("second-model"),
+      observedAt: NOW + 86_400_000,
+    }),
+    generationUsageLegSchema.parse({
+      ...common,
+      ...makeGenerationUsage(null, { tokensIn: 30, tokensOut: null }),
+      model: testModelId("second-model"),
+      observedAt: NOW + 86_400_000,
+    }),
+  ];
+  const sequence = [
+    assistantTurnDelta({
       ownerId: OWNER,
       characterId: ARIA,
       economics: {
         content: "two words",
-        model: "opus",
-        provider: "anthropic",
-        tokensIn: 5,
-        tokensOut: 9,
-        tokenProvenance: "measured",
+        model: "second-model",
+        provider: "google",
+        tokensIn: 60,
+        tokensOut: null,
+        costUsd: null,
+        genTimeMs: 100,
+        metadata: { usageLegs: legs },
       },
-      now: NOW,
-    });
+      now: NOW + 2 * 86_400_000,
+    }),
+  ].flat();
+  expect(
+    sequence.map((delta) => ({
+      model: delta.model,
+      bucketStart: delta.bucketStart,
+      assistantTurns: delta.assistantTurns ?? null,
+      generations: delta.modelGenerations ?? null,
+      genSamples: delta.genSamples ?? null,
+      input: delta.tokensIn ?? null,
+      output: delta.tokensOut ?? null,
+      cost: delta.costUsd ?? null,
+      inputSamples: delta.tokensInMeasuredSamples ?? null,
+      outputSamples: delta.tokensOutMeasuredSamples ?? null,
+      costSamples: delta.costSamples ?? null,
+    })),
+  ).toEqual([
+    {
+      model: "second-model",
+      bucketStart: statsBucketStart(NOW + 2 * 86_400_000),
+      assistantTurns: 1,
+      generations: 1,
+      genSamples: 1,
+      input: null,
+      output: null,
+      cost: null,
+      inputSamples: null,
+      outputSamples: null,
+      costSamples: null,
+    },
+    {
+      model: "first-model",
+      bucketStart: statsBucketStart(NOW),
+      assistantTurns: null,
+      generations: null,
+      genSamples: null,
+      input: 10,
+      output: 20,
+      cost: 0.125,
+      inputSamples: 1,
+      outputSamples: 1,
+      costSamples: 1,
+    },
+    {
+      model: "second-model",
+      bucketStart: statsBucketStart(NOW + 86_400_000),
+      assistantTurns: null,
+      generations: null,
+      genSamples: null,
+      input: 20,
+      output: 30,
+      cost: 0,
+      inputSamples: 1,
+      outputSamples: 1,
+      costSamples: 1,
+    },
+    {
+      model: "second-model",
+      bucketStart: statsBucketStart(NOW + 86_400_000),
+      assistantTurns: null,
+      generations: null,
+      genSamples: null,
+      input: 30,
+      output: null,
+      cost: null,
+      inputSamples: 1,
+      outputSamples: null,
+      costSamples: null,
+    },
+  ]);
+});
+
+describe("assistantTurnDelta", () => {
+  test("owner-attributed, one assistant turn, words via the shared tally", () => {
+    const d = onlyDeltaOf(
+      assistantTurnDelta({
+        ownerId: OWNER,
+        characterId: ARIA,
+        economics: {
+          content: "two words",
+          model: "opus",
+          provider: "anthropic",
+          tokensIn: 5,
+          tokensOut: 9,
+          tokenProvenance: "measured",
+        },
+        now: NOW,
+      }),
+    );
     expect(d.ownerId).toBe(OWNER);
     expect(d.characterId).toBe(ARIA);
     expect(d.bucketStart).toBe(statsBucketStart(NOW));
@@ -51,83 +186,91 @@ describe("assistantTurnDelta", () => {
   // add-path supplies no `genTimeMs` (nor persisted gen bounds), so a `1` here inflated the counter (add +1
   // / delete −0) and diluted the gen-time average vs a rebuild.
   test("modelGenSamples is 0 when no gen time is present (add/delete symmetry)", () => {
-    const add = assistantTurnDelta({
-      ownerId: OWNER,
-      characterId: ARIA,
-      economics: { content: "hi", model: "opus", provider: "anthropic", tokensIn: 5, tokensOut: 9 },
-      now: NOW,
-    });
+    const add = onlyDeltaOf(
+      assistantTurnDelta({
+        ownerId: OWNER,
+        characterId: ARIA,
+        economics: { content: "hi", model: "opus", provider: "anthropic", tokensIn: 5, tokensOut: 9 },
+        now: NOW,
+      }),
+    );
     expect(add.modelGenerations).toBe(1);
     expect(add.modelGenSamples).toBe(0);
     // The delete mirror over the SAME row (no persisted gen bounds) also yields 0 → no net drift.
-    const del = canonMessageDelta({
-      ownerId: OWNER,
-      sign: -1,
-      now: NOW,
-      row: {
-        characterId: ARIA,
-        role: "assistant",
-        createdAt: NOW,
-        content: "hi",
-        tokensIn: 5,
-        tokensOut: 9,
-        tokenProvenance: "measured",
-        costUsd: null,
-        cacheReadTokens: null,
-        cacheWriteTokens: null,
-        contextWindow: null,
-        genStartedAt: null,
-        genFinishedAt: null,
-        model: "opus",
-        provider: "anthropic",
-        reasoning: null,
-        metadata: null,
-        selectedIdx: null,
-        variantCount: 1,
-      },
-    });
+    const del = onlyDeltaOf(
+      canonMessageDelta({
+        ownerId: OWNER,
+        sign: -1,
+        now: NOW,
+        row: {
+          characterId: ARIA,
+          role: "assistant",
+          createdAt: NOW,
+          content: "hi",
+          tokensIn: 5,
+          tokensOut: 9,
+          tokenProvenance: "measured",
+          costUsd: null,
+          cacheReadTokens: null,
+          cacheWriteTokens: null,
+          contextWindow: null,
+          genStartedAt: null,
+          genFinishedAt: null,
+          model: "opus",
+          provider: "anthropic",
+          reasoning: null,
+          metadata: null,
+          selectedIdx: null,
+          variantCount: 1,
+        },
+      }),
+    );
     expect(del.modelGenSamples).toBe(0);
     expect((add.modelGenSamples ?? 0) + (del.modelGenSamples ?? 0)).toBe(0);
   });
 
   test("modelGenSamples is 1 when a gen time IS present", () => {
-    const d = assistantTurnDelta({
-      ownerId: OWNER,
-      characterId: ARIA,
-      economics: { content: "hi", model: "opus", provider: "anthropic", genTimeMs: 1200 },
-      now: NOW,
-    });
+    const d = onlyDeltaOf(
+      assistantTurnDelta({
+        ownerId: OWNER,
+        characterId: ARIA,
+        economics: { content: "hi", model: "opus", provider: "anthropic", genTimeMs: 1200 },
+        now: NOW,
+      }),
+    );
     expect(d.modelGenSamples).toBe(1);
     expect(d.modelGenTimeMs).toBe(1200);
   });
 
   test("canon model samples preserve independently nullable token axes", () => {
-    const outputOnly = canonMessageDelta({
-      ownerId: OWNER,
-      sign: 1,
-      now: NOW,
-      row: {
-        characterId: ARIA,
-        role: "assistant",
-        createdAt: NOW,
-        content: "hi",
-        tokensIn: null,
-        tokensOut: 9,
-        tokenProvenance: "measured",
-        costUsd: null,
-        cacheReadTokens: null,
-        cacheWriteTokens: null,
-        contextWindow: null,
-        genStartedAt: null,
-        genFinishedAt: null,
-        model: "opus",
-        provider: "anthropic",
-        reasoning: null,
-        metadata: null,
-        selectedIdx: null,
-        variantCount: 1,
-      },
-    });
+    const outputOnly = onlyDeltaOf(
+      canonMessageDelta({
+        ownerId: OWNER,
+        sign: 1,
+        now: NOW,
+        row: {
+          characterId: ARIA,
+          role: "assistant",
+          createdAt: NOW,
+          content: "hi",
+          tokensIn: null,
+          tokensOut: 9,
+          tokenProvenance: "measured",
+          costUsd: null,
+          cacheReadTokens: null,
+          cacheWriteTokens: null,
+          contextWindow: null,
+          genStartedAt: null,
+          genFinishedAt: null,
+          model: "opus",
+          provider: "anthropic",
+          reasoning: null,
+          metadata: null,
+          selectedIdx: null,
+          variantCount: 1,
+        },
+      }),
+    );
     expect(outputOnly.modelTokensIn).toBe(0);
     expect(outputOnly.modelTokensOut).toBe(9);
     expect(outputOnly.modelTokensInMeasuredSamples).toBeUndefined();
@@ -135,12 +278,14 @@ describe("assistantTurnDelta", () => {
   });
 
   test("no model → no model slice (apply skips model_stats)", () => {
-    const d = assistantTurnDelta({
-      ownerId: OWNER,
-      characterId: ARIA,
-      economics: { content: "hi" },
-      now: NOW,
-    });
+    const d = onlyDeltaOf(
+      assistantTurnDelta({
+        ownerId: OWNER,
+        characterId: ARIA,
+        economics: { content: "hi" },
+        now: NOW,
+      }),
+    );
     expect(d.model).toBeNull();
     expect(d.modelGenerations).toBeUndefined();
     expect(d.modelTokensIn).toBeUndefined();
@@ -151,18 +296,20 @@ describe("assistantTurnDelta", () => {
     // characterId — so the owner/day/model grains credit the host while character_stats is skipped (apply
     // no-ops the char row on a null characterId). This is the LIVE twin of reconcile's `foldMessage` null-cid
     // skip — the drift-gate mirror.
-    const d = assistantTurnDelta({
-      ownerId: OWNER,
-      characterId: null,
-      economics: {
-        content: "on my own",
-        model: "opus",
-        provider: "anthropic",
-        tokensIn: 5,
-        tokensOut: 9,
-      },
-      now: NOW,
-    });
+    const d = onlyDeltaOf(
+      assistantTurnDelta({
+        ownerId: OWNER,
+        characterId: null,
+        economics: {
+          content: "on my own",
+          model: "opus",
+          provider: "anthropic",
+          tokensIn: 5,
+          tokensOut: 9,
+        },
+        now: NOW,
+      }),
+    );
     expect(d.ownerId).toBe(OWNER); // the HOST funds it (D19)
     expect(d.characterId).toBeNull(); // no character_stats row
     expect(d.assistantTurns).toBe(1); // the owner still counts the turn
@@ -172,12 +319,14 @@ describe("assistantTurnDelta", () => {
   });
 
   test("reasoning present → reasoningGenerations counted (owner/char AND model grains)", () => {
-    const d = assistantTurnDelta({
-      ownerId: OWNER,
-      characterId: ARIA,
-      economics: { content: "hi", model: "opus", provider: "anthropic", reasoning: "thinking" },
-      now: NOW,
-    });
+    const d = onlyDeltaOf(
+      assistantTurnDelta({
+        ownerId: OWNER,
+        characterId: ARIA,
+        economics: { content: "hi", model: "opus", provider: "anthropic", reasoning: "thinking" },
+        now: NOW,
+      }),
+    );
     expect(d.reasoningGenerations).toBe(1);
     // The MODEL grain must credit it too (apply-delta feeds `model_stats.reasoningGenerations` from
     // `modelReasoningGenerations`) — omitting it drifted the model row vs a reconcile on a reasoning turn.
@@ -185,24 +334,28 @@ describe("assistantTurnDelta", () => {
   });
 
   test("whitespace-only reasoning → model reasoning NOT credited (trim predicate, matches the rebuild)", () => {
-    const d = assistantTurnDelta({
-      ownerId: OWNER,
-      characterId: ARIA,
-      economics: { content: "hi", model: "opus", provider: "anthropic", reasoning: "  \n  " },
-      now: NOW,
-    });
+    const d = onlyDeltaOf(
+      assistantTurnDelta({
+        ownerId: OWNER,
+        characterId: ARIA,
+        economics: { content: "hi", model: "opus", provider: "anthropic", reasoning: "  \n  " },
+        now: NOW,
+      }),
+    );
     expect(d.modelReasoningGenerations).toBeUndefined();
   });
 
   // F7: a WHITESPACE-ONLY reasoning trace (an empty thinking block with a newline) is NOT a generation — the
   // rebuild + every sibling builder gate on `trim().length > 0`. A bare `.length > 0` over-counted vs reconcile.
   test("whitespace-only reasoning → NOT counted (trim predicate, matches the rebuild)", () => {
-    const d = assistantTurnDelta({
-      ownerId: OWNER,
-      characterId: ARIA,
-      economics: { content: "hi", reasoning: "  \n  " },
-      now: NOW,
-    });
+    const d = onlyDeltaOf(
+      assistantTurnDelta({
+        ownerId: OWNER,
+        characterId: ARIA,
+        economics: { content: "hi", reasoning: "  \n  " },
+        now: NOW,
+      }),
+    );
     expect(d.reasoningGenerations).toBeUndefined();
   });
 
@@ -210,32 +363,38 @@ describe("assistantTurnDelta", () => {
   // `contextWindow` on every variant; the live turn delta MUST carry it or the column stays NULL until a
   // reconcile. The delete mirror (`canonMessageDelta`) already carries it — so the two agree on the max.
   test("contextWindow → maxContextTokens on the live turn delta", () => {
-    const d = assistantTurnDelta({
-      ownerId: OWNER,
-      characterId: ARIA,
-      economics: { content: "hi", contextWindow: 128_000 },
-      now: NOW,
-    });
+    const d = onlyDeltaOf(
+      assistantTurnDelta({
+        ownerId: OWNER,
+        characterId: ARIA,
+        economics: { content: "hi", contextWindow: 128_000 },
+        now: NOW,
+      }),
+    );
     expect(d.maxContextTokens).toBe(128_000);
   });
 
   test("absent contextWindow → no maxContextTokens (sparse patch)", () => {
-    const d = assistantTurnDelta({
-      ownerId: OWNER,
-      characterId: ARIA,
-      economics: { content: "hi" },
-      now: NOW,
-    });
+    const d = onlyDeltaOf(
+      assistantTurnDelta({
+        ownerId: OWNER,
+        characterId: ARIA,
+        economics: { content: "hi" },
+        now: NOW,
+      }),
+    );
     expect(d.maxContextTokens).toBeUndefined();
   });
 
   test("absent economics stay absent (sparse patch — never a fabricated zero)", () => {
-    const d = assistantTurnDelta({
-      ownerId: OWNER,
-      characterId: ARIA,
-      economics: { content: "hi" },
-      now: NOW,
-    });
+    const d = onlyDeltaOf(
+      assistantTurnDelta({
+        ownerId: OWNER,
+        characterId: ARIA,
+        economics: { content: "hi" },
+        now: NOW,
+      }),
+    );
     expect(d.tokensIn).toBeUndefined();
     expect(d.costUsd).toBeUndefined();
     expect(d.reasoningGenerations).toBeUndefined();

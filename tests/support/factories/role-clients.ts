@@ -92,7 +92,11 @@ export function makeFakeRoleClients(controls: FakeRoleClientControls = {}): Role
     if (req.kind === "text") {
       texts = typeof req.input === "string" ? [req.input] : [...req.input];
     }
-    return Promise.resolve({ vectors: texts.map((t, i) => fakeVector(t, dim, i + 101)), model: imageEmbedModel });
+    return Promise.resolve({
+      vectors: texts.map((t, i) => fakeVector(t, dim, i + 101)),
+      model: imageEmbedModel,
+      usage: { promptTokens: null, totalTokens: null },
+    });
   };
   const rerank: RoleClients["rerank"] = (_query: RerankQuery, documents: RerankDocument[]): Promise<RerankResult> => {
     guard("rerank");

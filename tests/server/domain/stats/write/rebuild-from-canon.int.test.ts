@@ -259,7 +259,9 @@ describe("reconcileStats", () => {
       now,
       variant: { content, model: testModelId("gpt"), provider: testProviderId("openrouter") },
     });
-    applyStatsDelta(statements, db, assistantTurnDelta({ ownerId, characterId, economics: { content, model: "gpt", provider: "openrouter" }, now }));
+    for (const delta of assistantTurnDelta({ ownerId, characterId, economics: { content, model: "gpt", provider: "openrouter" }, now })) {
+      applyStatsDelta(statements, db, delta);
+    }
     await db.batch(batchMany(statements));
     held.release();
     await rebuilding;
@@ -320,7 +322,9 @@ describe("reconcileStats", () => {
       now,
       variant: { content },
     });
-    applyStatsDelta(statements, db, assistantTurnDelta({ ownerId: otherOwnerId, characterId: otherCharacterId, economics: { content }, now }));
+    for (const delta of assistantTurnDelta({ ownerId: otherOwnerId, characterId: otherCharacterId, economics: { content }, now })) {
+      applyStatsDelta(statements, db, delta);
+    }
     await db.batch(batchMany(statements));
     held.release();
     await rebuilding;

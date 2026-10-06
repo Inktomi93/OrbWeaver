@@ -115,7 +115,9 @@ export async function run(): Promise<object> {
   let alarms = 0;
   const log: InferenceLog = { ...silent, error: (fields) => (fields["event"] === "provider.thinking_dropped" ? (alarms += 1) : undefined) };
   const registry = new Map([["anthropic-messages" as const, createAnthropicBackend({ now: Date.now, log, fetch: globalThis.fetch, captureWire: sink })]]);
-  const executor = createProviderExecutor({ registry, span: (_name, fn) => Promise.resolve(fn()) });
+  const executor = createProviderExecutor({ registry, span: (_name, fn) => Promise.resolve(fn()), beginEmbeddingAccounting: () => {
+    throw new Error("or13 is a chat-only probe; unexpected embedding execution");
+  } });
   const base = makeResolved({ providerId: "anthropic" });
   const query = { model: MODEL, providerId: base.provider.id, wire: base.provider.wire, api: base.provider.apis[0] ?? null };
   const synthesized = synthesizeCapability("generation", detectModelFamily(MODEL), { measured: measuredRows(query), curated: curatedRows(query) });

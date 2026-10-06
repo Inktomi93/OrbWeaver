@@ -1,3 +1,4 @@
+import { makeGenerationUsage } from "../../../support/factories/generation-usage.ts";
 // Shared imagery test harness: a fake ImageryContext over a real db, with recording spies for the injected
 // ops (generate/fetch/store/extract/caption/stats). The infra executor + role resolver + CAS write + the
 // chat/character/assets ops are stubs — imagery declares their ports; the composition root binds the real infra.
@@ -116,7 +117,7 @@ export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): Im
       return Promise.resolve({
         images: [{ base64: PNG_BASE64, mediaType: "image/png", url: undefined }],
         model: "img-model",
-        usage: { costUsd: 0.02 },
+        usage: makeGenerationUsage(0.02),
         warnings: [],
       });
     },

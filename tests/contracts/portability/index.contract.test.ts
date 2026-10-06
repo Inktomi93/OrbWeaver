@@ -4,8 +4,18 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
 
+test("image generation provenance restores after its owned assets, subjects and room files", () => {
+  const kinds: readonly string[] = PORTABLE_KINDS;
+  const order: readonly string[] = PORTABLE_IMPORT_ORDER;
+  const imagery = order.indexOf("imagery");
+  expect(kinds).toContain("imagery");
+  expect(imagery).toBeGreaterThan(order.indexOf("assets"));
+  expect(imagery).toBeGreaterThan(order.indexOf("character"));
+  expect(imagery).toBeGreaterThan(order.indexOf("chat"));
+});
+
 // ── Kind membership: the closed set is EXACTLY the design's §2 eight, no more, no less ──────────────────
-test("PORTABLE_KINDS pins the twelve portable entity kinds", () => {
+test("PORTABLE_KINDS pins the portable entity kinds", () => {
   expect([...PORTABLE_KINDS]).toEqual([
     "character",
     "chat",
@@ -19,6 +29,7 @@ test("PORTABLE_KINDS pins the twelve portable entity kinds", () => {
     "tag",
     "gallery",
     "assets",
+    "imagery",
   ]);
 });
 
@@ -37,6 +48,7 @@ const KIND_SEEN: Record<PortableKind, true> = {
   tag: true,
   gallery: true,
   assets: true,
+  imagery: true,
 };
 test("PortableKind has no member beyond the tuple", () => {
   expect(Object.keys(KIND_SEEN).sort()).toEqual(PORTABLE_KINDS.toSorted());
@@ -59,6 +71,7 @@ test("PORTABLE_IMPORT_ORDER pins the exact dependency order", () => {
     "preset",
     "theme",
     "chat",
+    "imagery",
   ]);
 });
 

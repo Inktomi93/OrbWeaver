@@ -140,7 +140,13 @@ export function createRoleClientsFor(args: {
       summarize: async (inputs: readonly SummarizeInput[], opts?: SummarizeCallOptions): Promise<SummarizeResult> => {
         const conn = await live("summarize");
         return withStrikeOut(conn, () =>
-          executor.summarize({ connection: conn, inputs, ...(opts?.signal !== undefined ? { signal: opts.signal } : {}), ...samplerFields(opts) }),
+          executor.summarize({
+            connection: conn,
+            inputs,
+            onObservedResult: opts?.onObservedResult,
+            ...(opts?.signal !== undefined ? { signal: opts.signal } : {}),
+            ...samplerFields(opts),
+          }),
         );
       },
       structured: async (inputs: readonly SummarizeInput[], opts: StructuredCallOptions): Promise<SummarizeResult> => {
@@ -150,6 +156,7 @@ export function createRoleClientsFor(args: {
             connection: conn,
             inputs,
             responseFormat: opts.responseFormat,
+            onObservedResult: opts.onObservedResult,
             ...(opts.signal !== undefined ? { signal: opts.signal } : {}),
             ...samplerFields(opts),
           }),

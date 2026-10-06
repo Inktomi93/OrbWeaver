@@ -22,10 +22,12 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { statsBucketStart } from "@orb/kit/stats-tally";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, inArray, isNull, notExists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { CHARACTER_BACKGROUND_UNAVAILABLE, CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "../contract/errors.ts";
+import type { CharacterHandoffCopyContext } from "../contract/handoff-copy.ts";
 import type { CardWriteBasis } from "../contract/params.ts";
 
 // The self-join alias the provenance claim's NOT EXISTS reads through — a subquery over the table being
@@ -160,7 +162,7 @@ function classifyInsertFailure(err: unknown, values: CharacterInsert): unknown {
 export async function insertCharacterClaimingProvenance(
   db: Db,
   values: CharacterInsert & { readonly importedFrom: string },
-  bumpCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>,
+  accounting: Pick<CharacterHandoffCopyContext, "applyStatsDelta" | "bumpStatsCanonVersion" | "now">,
 ): Promise<boolean> {
   const unclaimed = notExists(
     db
@@ -174,9 +176,24 @@ export async function insertCharacterClaimingProvenance(
   // find-before-mint path gives. Every violation with no provenance row behind it is classified and RETHROWN
   // (`classifyInsertFailure`). Ends if the claim ever needs to distinguish WHICH constraint refused.
   try {
-    await db.batch(
-      batchMany(guardedInsertStatements(db, values, [carriedBackgroundExists(db, backgroundAssetId(values.backgroundOverride)), unclaimed], bumpCanonVersion)),
+    const statements = guardedInsertStatements(
+      db,
+      values,
+      [carriedBackgroundExists(db, backgroundAssetId(values.backgroundOverride)), unclaimed],
+      accounting.bumpStatsCanonVersion,
     );
+    const now = accounting.now();
+    // Copies become library data even if the later room swap fails; only this guarded insert owns their census.
+    accounting.applyStatsDelta(statements, db, {
+      ownerId: values.ownerId,
+      characterId: null,
+      model: null,
+      provider: null,
+      bucketStart: statsBucketStart(now),
+      now,
+      newCharacter: true,
+    });
+    await db.batch(batchMany(statements));
     return true;
   } catch (err) {
     if (isConstraintViolation(err) !== undefined && (await provenanceClaimed(db, values.ownerId, values.importedFrom))) {

@@ -35,9 +35,10 @@
 // the host's own payload. Strip the return; emit the truth.
 
 import type { DurableChatBusEvent, MessageView, ReattributeScope } from "@orb/contracts/chat";
-import { macroFreezeRecordSchema } from "@orb/contracts/chat";
+import { macroFreezeRecordSchema, parseVariantMetadata } from "@orb/contracts/chat";
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
+import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze } from "@orb/kit/macro";
@@ -84,6 +85,11 @@ import {
   setMessageSeqStatement,
   shiftSeqRangeStatement,
 } from "../persistence/canon-write.ts";
+import {
+  commitGenerationObservationRemoval,
+  generationObservationRemovalStatements,
+  loadGenerationObservationsForRemoval,
+} from "../persistence/generation-observation.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import {
@@ -101,6 +107,7 @@ import {
   loadVariantsByMessageIds,
   normalizeToolOrdinals,
 } from "../persistence/queries.ts";
+import { commitRetainedCanonStats, prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { buildTurnMacroContext, freezeVolatileMacros } from "../substrate/assembly-access.ts";
 import { assertAuthorOrHost, isBelowHistoryFloor, permitsHost } from "../substrate/auth/index.ts";
@@ -110,7 +117,15 @@ import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { humanSeatPersonasOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
-import { canonMessageDelta, editMessageDelta, editReasoningDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
+import {
+  appendStatsDeltas,
+  canonMessageDelta,
+  canonRowOf,
+  editMessageDelta,
+  editReasoningDelta,
+  swipeRowOf,
+  swipeVariantDelta,
+} from "../substrate/stats-delta.ts";
 
 /** The emit op the edit verbs close over. */
 type EmitChatEvent = (event: DurableChatBusEvent) => Promise<void>;
@@ -279,45 +294,8 @@ async function applyRunOnEditRegex(
   });
 }
 
-/** The stats owner for a canon mutation — the room host. A hostless room (archived orphan) degrades to the
- *  acting caller so the delta is never dropped. */
-async function resolveStatsOwner(
-  ctx: ChatContext,
-  chatId: ChatId,
-  fallback: MessageView["authorUserId"] & {},
-): Promise<NonNullable<MessageView["authorUserId"]>> {
-  const participants = await loadParticipants(ctx.db, chatId);
-  return hostUserIdOf(participants) ?? fallback;
-}
-
 /** One raw message_variants row (a slot's stored variant — the selected one or a swipe). */
 type VariantRow = Awaited<ReturnType<typeof loadVariantsByMessageIds>>[number];
-
-/** Maps a slot + one of its variants to the canonMessageDelta message-stream row. Attribution is
- *  slot-level; economics + gen bounds + idx are the variant's own. */
-function canonRowOf(slot: MessageView, variant: VariantRow, variantCount: number): Parameters<typeof canonMessageDelta>[0]["row"] {
-  return {
-    characterId: slot.characterId,
-    role: slot.role,
-    createdAt: slot.createdAt,
-    content: variant.content,
-    tokensIn: variant.tokensIn,
-    tokensOut: variant.tokensOut,
-    tokenProvenance: variant.tokenProvenance,
-    costUsd: variant.costUsd,
-    cacheReadTokens: variant.cacheReadTokens,
-    cacheWriteTokens: variant.cacheWriteTokens,
-    contextWindow: variant.contextWindow,
-    genStartedAt: variant.genStartedAt,
-    genFinishedAt: variant.genFinishedAt,
-    model: variant.model,
-    provider: variant.provider,
-    reasoning: variant.reasoning,
-    metadata: variant.metadata,
-    selectedIdx: variant.idx,
-    variantCount,
-  };
-}
 
 /** The variant row an APPEND-from-content-alone actually writes, as the stats builders read it. A rewrite's
  *  new variant is inserted from `{ content }` (`appendVariantStatements` → `variantEconomics`), so every
@@ -344,25 +322,6 @@ function appendedVariantOf(audited: VariantRow, content: string, idx: number): V
     genStartedAt: null,
     genFinishedAt: null,
     metadata: null,
-  };
-}
-
-/** Maps a slot + one of its variants to the swipeVariantDelta swipe-stream row (no cost/cache/context — a
- *  swipe credits the re-roll counters + scalar tokens only). */
-function swipeRowOf(slot: MessageView, variant: VariantRow): Parameters<typeof swipeVariantDelta>[0]["row"] {
-  return {
-    characterId: slot.characterId,
-    msgCreatedAt: slot.createdAt,
-    content: variant.content,
-    tokensIn: variant.tokensIn,
-    tokensOut: variant.tokensOut,
-    tokenProvenance: variant.tokenProvenance,
-    genStartedAt: variant.genStartedAt,
-    genFinishedAt: variant.genFinishedAt,
-    model: variant.model,
-    provider: variant.provider,
-    reasoning: variant.reasoning,
-    metadata: variant.metadata,
   };
 }
 
@@ -486,11 +445,12 @@ function createSelectVariant(ctx: ChatContext, deps: EditDeps): ChatService["sel
     // variant's delta replaces this slot's contribution, so a swipe to a variant that never set X rewinds X.
     const [currentDeltas, newDelta] = await Promise.all([loadVariableDeltas(ctx.db, chatId), loadVariantDelta(ctx.db, variantId)]);
     const postEntries = currentDeltas.map((e) => (e.messageId === messageId ? { seq: e.seq, delta: newDelta } : e));
+    const statsDeltas: StatsDelta[] = [];
     const statements = [selectActiveVariantStatement(ctx.db, messageId, variantId), runtimeVariablesUpdateStatement(ctx.db, chatId, foldChain(postEntries))];
     // A selection flip changes what reconcileStats folds: push the same 4-part signed swap the engine's
     // append-variant arm proves (-old-as-message, +old-as-swipe, -new-as-swipe, +new-as-message).
     const now = ctx.now();
-    const ownerId = await resolveStatsOwner(ctx, chatId, principal.userId);
+    const ownerId = principal.userId;
     const variants = await loadVariantsByMessageIds(ctx.db, [messageId]);
     const oldVariant = variants.find((v) => v.id === slot.selectedVariantId);
     const selected = variants.find((v) => v.id === variantId);
@@ -518,15 +478,15 @@ function createSelectVariant(ctx: ChatContext, deps: EditDeps): ChatService["sel
     if (oldVariant !== undefined && newVariant !== undefined) {
       const variantCount = variants.length;
       const swap: StatsDelta[] = [
-        canonMessageDelta({
+        ...canonMessageDelta({
           ownerId,
           sign: -1,
           now,
           row: canonRowOf(slot, oldVariant, variantCount),
         }),
-        swipeVariantDelta({ ownerId, sign: 1, now, row: swipeRowOf(slot, oldVariant) }),
-        swipeVariantDelta({ ownerId, sign: -1, now, row: swipeRowOf(slot, newVariant) }),
-        canonMessageDelta({
+        ...swipeVariantDelta({ ownerId, sign: 1, now, row: swipeRowOf(slot, oldVariant) }),
+        ...swipeVariantDelta({ ownerId, sign: -1, now, row: swipeRowOf(slot, newVariant) }),
+        ...canonMessageDelta({
           ownerId,
           sign: 1,
           now,
@@ -534,10 +494,10 @@ function createSelectVariant(ctx: ChatContext, deps: EditDeps): ChatService["sel
         }),
       ];
       for (const delta of swap) {
-        ctx.applyStatsDelta(statements, ctx.db, delta);
+        statsDeltas.push(delta);
       }
     }
-    await ctx.db.batch(batchMany(statements));
+    await commitRetainedCanonStats(ctx, chatId, statements, statsDeltas);
     const view = await reloadSlot(ctx, chatId, messageId);
     await emit({ type: "variantSelected", chatId, messageId, view });
     return await projectEditReturn(ctx, view, membership);
@@ -567,6 +527,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
       timeZone,
     });
     const now = ctx.now();
+    const statsDeltas: StatsDelta[] = [];
     const statements = editMessageContentStatements(ctx.db, {
       messageId,
       variantId: slot.selectedVariantId,
@@ -575,9 +536,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
       toolCalls: slot.toolCalls,
     });
     // The net word/byte change rides the same batch as the edit, bucketed on the slot's original day.
-    ctx.applyStatsDelta(
-      statements,
-      ctx.db,
+    statsDeltas.push(
       editMessageDelta({
         ownerId: hostUserId ?? principal.userId,
         characterId: slot.characterId,
@@ -588,7 +547,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
         now,
       }),
     );
-    await ctx.db.batch(batchMany(statements));
+    await commitRetainedCanonStats(ctx, chatId, statements, statsDeltas);
     const view = await reloadSlot(ctx, chatId, messageId);
     await deps.emit({ type: "messageEdited", chatId, messageId, view });
     return await projectEditReturn(ctx, view, membership);
@@ -639,6 +598,7 @@ function createSetSeededGreeting(ctx: ChatContext, emit: EmitChatEvent): ChatSer
       throw new ChatOperationError(CHAT_OP_CODES.greetingAlternateNotFound, `chat ${chatId}: greeting ${String(greetingIndex)} is not on this card`);
     }
     const now = ctx.now();
+    const statsDeltas: StatsDelta[] = [];
     const statements = editMessageContentStatements(ctx.db, {
       messageId,
       variantId: slot.selectedVariantId,
@@ -646,9 +606,7 @@ function createSetSeededGreeting(ctx: ChatContext, emit: EmitChatEvent): ChatSer
       editedAt: now,
       toolCalls: slot.toolCalls,
     });
-    ctx.applyStatsDelta(
-      statements,
-      ctx.db,
+    statsDeltas.push(
       editMessageDelta({
         ownerId: hostUserId,
         characterId: slot.characterId,
@@ -659,7 +617,7 @@ function createSetSeededGreeting(ctx: ChatContext, emit: EmitChatEvent): ChatSer
         now,
       }),
     );
-    await ctx.db.batch(batchMany(statements));
+    await commitRetainedCanonStats(ctx, chatId, statements, statsDeltas);
     const view = await reloadSlot(ctx, chatId, messageId);
     await emit({ type: "messageEdited", chatId, messageId, view });
     return await projectEditReturn(ctx, view, membership);
@@ -706,22 +664,23 @@ function createApplyProseRewrite(ctx: ChatContext, emit: EmitChatEvent): ChatSer
     }
     const now = ctx.now();
     const newVariantId = ctx.newMessageVariantId();
+    const statsDeltas: StatsDelta[] = [];
     const statements = appendVariantStatements(ctx.db, { messageId, variantId: newVariantId, idx: variants.length, now, variant: { content } });
-    const ownerId = await resolveStatsOwner(ctx, chatId, principal.userId);
+    const ownerId = principal.userId;
     // EACH HALF DESCRIBES ITS OWN ERA, and that is not pedantry: `canonMessageDelta` derives the
     // `variantMessages` / `activeIdxSum` counters from `variantCount > 1`, so a subtraction told the POST
     // count would remove a "this slot has swipes" credit the PRE state never had — the two would cancel and
     // the live mirror would drift from a rebuild by exactly one. (Caught by the rebuild-parity pin, not by
     // inspection.)
     const swap: StatsDelta[] = [
-      canonMessageDelta({ ownerId, sign: -1, now, row: canonRowOf(slot, audited, variants.length) }),
-      swipeVariantDelta({ ownerId, sign: 1, now, row: swipeRowOf(slot, audited) }),
-      canonMessageDelta({ ownerId, sign: 1, now, row: canonRowOf(slot, appendedVariantOf(audited, content, variants.length), variants.length + 1) }),
+      ...canonMessageDelta({ ownerId, sign: -1, now, row: canonRowOf(slot, audited, variants.length) }),
+      ...swipeVariantDelta({ ownerId, sign: 1, now, row: swipeRowOf(slot, audited) }),
+      ...canonMessageDelta({ ownerId, sign: 1, now, row: canonRowOf(slot, appendedVariantOf(audited, content, variants.length), variants.length + 1) }),
     ];
     for (const delta of swap) {
-      ctx.applyStatsDelta(statements, ctx.db, delta);
+      statsDeltas.push(delta);
     }
-    await ctx.db.batch(batchMany(statements));
+    await commitRetainedCanonStats(ctx, chatId, statements, statsDeltas);
     const view = await reloadSlot(ctx, chatId, messageId);
     // `variantSelected` is the honest event: the slot gained a swipe AND its selection moved to it, which is
     // exactly what a manual swipe emits — so every live consumer already knows how to fold it.
@@ -876,15 +835,14 @@ async function writeReasoning(
   },
 ): Promise<MessageView> {
   const now = ctx.now();
+  const statsDeltas: StatsDelta[] = [];
   const statements = editReasoningStatements(ctx.db, {
     messageId: args.slot.id,
     variantId: args.slot.selectedVariantId,
     reasoning: args.reasoning,
     editedAt: now,
   });
-  ctx.applyStatsDelta(
-    statements,
-    ctx.db,
+  statsDeltas.push(
     editReasoningDelta({
       ownerId: args.ownerId,
       characterId: args.slot.characterId,
@@ -897,7 +855,7 @@ async function writeReasoning(
       now,
     }),
   );
-  await ctx.db.batch(batchMany(statements));
+  await commitRetainedCanonStats(ctx, args.chatId, statements, statsDeltas);
   const view = await reloadSlot(ctx, args.chatId, args.slot.id);
   await emit({ type: args.event, chatId: args.chatId, messageId: args.slot.id, view });
   return await projectEditReturn(ctx, view, args.viewer);
@@ -908,7 +866,7 @@ function createEditReasoning(ctx: ChatContext, emit: EmitChatEvent): ChatService
   return async ({ principal, chatId, messageId, reasoning }: EditReasoningParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
-    const ownerId = await resolveStatsOwner(ctx, chatId, principal.userId);
+    const ownerId = principal.userId;
     return await writeReasoning(ctx, emit, {
       chatId,
       slot,
@@ -925,7 +883,7 @@ function createClearReasoning(ctx: ChatContext, emit: EmitChatEvent): ChatServic
   return async ({ principal, chatId, messageId }: ClearReasoningParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
-    const ownerId = await resolveStatsOwner(ctx, chatId, principal.userId);
+    const ownerId = principal.userId;
     return await writeReasoning(ctx, emit, {
       chatId,
       slot,
@@ -955,21 +913,29 @@ function createDeleteMessages(ctx: ChatContext, emit: EmitChatEvent): ChatServic
     // Each removed slot's selected-variant contribution + its non-selected swipes are subtracted in the
     // same batch as the delete. Rows are read before the delete lands.
     const now = ctx.now();
-    const ownerId = await resolveStatsOwner(ctx, chatId, principal.userId);
+    const ownerId = principal.userId;
     const statRows = await loadCanonStatRows(ctx.db, chatId, messageIds);
     const swipeRows = await loadSwipeStatRows(ctx.db, chatId, messageIds);
-    const statements = [deleteMessagesStatement(ctx.db, chatId, messageIds)];
+    const scope = { chatIds: [chatId], messageIds };
+    const groups = await loadGenerationObservationsForRemoval(ctx, scope);
+    const statements: BatchStmt[] = [];
+    const statsDeltas: StatsDelta[] = [];
+    statements.push(deleteMessagesStatement(ctx.db, chatId, messageIds));
     for (const row of statRows) {
-      ctx.applyStatsDelta(statements, ctx.db, canonMessageDelta({ ownerId, row, sign: -1, now }));
+      statsDeltas.push(...canonMessageDelta({ ownerId, row, sign: -1, now }));
     }
     for (const row of swipeRows) {
-      ctx.applyStatsDelta(statements, ctx.db, swipeVariantDelta({ ownerId, row, sign: -1, now }));
+      statsDeltas.push(...swipeVariantDelta({ ownerId, row, sign: -1, now }));
     }
     // Re-folds chats.runtime_variables over the chain minus the deleted slots, in the same batch as the delete.
     // A standalone (out-of-turn) delta entry carries `messageId === null` — never a deleted slot, so it survives.
     const remainingDeltas = (await loadVariableDeltas(ctx.db, chatId)).filter((e) => e.messageId === null || !messageIds.includes(e.messageId));
     statements.push(runtimeVariablesUpdateStatement(ctx.db, chatId, foldChain(remainingDeltas)));
-    await ctx.db.batch(batchMany(statements));
+    const prepared = await prepareRetainedCanonStats(ctx, chatId, statsDeltas);
+    const retainedScope = { ...scope, chatPredicate: prepared.predicate };
+    statements.unshift(...generationObservationRemovalStatements(ctx, retainedScope, groups));
+    appendStatsDeltas(ctx, statements, prepared.deltas);
+    await commitGenerationObservationRemoval(ctx, retainedScope, groups, statements);
     await emit({ type: "messagesDeleted", chatId, messageIds: [...messageIds] });
     // Best-effort audit after the destructive write lands: no phantom row for a refused delete.
     await ctx.audit(
@@ -1072,6 +1038,18 @@ function createDuplicateMessage(ctx: ChatContext, emit: EmitChatEvent): ChatServ
   return async ({ principal, chatId, messageId }: DuplicateMessageParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
+    const source = (await loadVariantsByMessageIds(ctx.db, [messageId])).find((variant) => variant.id === slot.selectedVariantId);
+    if (source === undefined) {
+      throw new ChatNotFoundError(chatId);
+    }
+    const sourceMetadata = parseVariantMetadata(source.metadata);
+    const metadata =
+      sourceMetadata.usageLegs === undefined && sourceMetadata.providerMetadata === undefined
+        ? null
+        : {
+            ...(sourceMetadata.usageLegs === undefined ? {} : { usageLegs: sourceMetadata.usageLegs }),
+            ...(sourceMetadata.providerMetadata === undefined ? {} : { providerMetadata: sourceMetadata.providerMetadata }),
+          };
     const seq = (await loadMaxMessageSeq(ctx.db, chatId)) + 1;
     const params = {
       messageId: ctx.newMessageId(),
@@ -1095,6 +1073,12 @@ function createDuplicateMessage(ctx: ChatContext, emit: EmitChatEvent): ChatServ
         cacheReadTokens: slot.cacheReadTokens,
         cacheWriteTokens: slot.cacheWriteTokens,
         costUsd: slot.costUsd,
+        costProvenance: source.costProvenance,
+        costDetails: source.costDetails,
+        servedModel: source.servedModel,
+        tokenDetails: source.tokenDetails,
+        responseCache: source.responseCache ?? undefined,
+        metadata,
         contextWindow: slot.contextWindow,
         ttftMs: slot.ttftMs,
         finishReason: slot.finishReason,
@@ -1104,12 +1088,11 @@ function createDuplicateMessage(ctx: ChatContext, emit: EmitChatEvent): ChatServ
     };
     // The dup is a fresh single-variant tail slot whose economics are copied from the source's selected
     // variant, so a rebuild folds the copy too; mirrored live to keep live == rebuild.
+    const statsDeltas: StatsDelta[] = [];
     const statements = insertCanonMessageStatements(ctx.db, params);
-    const ownerId = await resolveStatsOwner(ctx, chatId, principal.userId);
-    ctx.applyStatsDelta(
-      statements,
-      ctx.db,
-      canonMessageDelta({
+    const ownerId = principal.userId;
+    statsDeltas.push(
+      ...canonMessageDelta({
         ownerId,
         sign: 1,
         now: params.now,
@@ -1130,13 +1113,13 @@ function createDuplicateMessage(ctx: ChatContext, emit: EmitChatEvent): ChatServ
           model: slot.model,
           provider: slot.provider,
           reasoning: slot.reasoning,
-          metadata: null,
+          metadata,
           selectedIdx: 0,
           variantCount: 1,
         },
       }),
     );
-    await ctx.db.batch(batchMany(statements));
+    await commitRetainedCanonStats(ctx, chatId, statements, statsDeltas);
     const view = buildCommittedMessageView(params);
     await emit({ type: "messageCommitted", chatId, messageId: view.id, view });
     await ctx.emitChatChanged(chatId);
@@ -1159,9 +1142,7 @@ function createReattributeMessages(ctx: ChatContext, emit: EmitChatEvent): ChatS
       }
     }
     const statements = [reattributeMessagesStatement(ctx.db, chatId, messageIds, characterId)];
-    const ownerId = await resolveStatsOwner(ctx, chatId, principal.userId);
-    ctx.bumpStatsCanonVersion(statements, ctx.db, ownerId);
-    await ctx.db.batch(batchMany(statements));
+    await commitRetainedCanonStats(ctx, chatId, statements, []);
     const views = await Promise.all(messageIds.map((id) => loadMessageView(ctx.db, id)));
     await Promise.all(views.flatMap((view) => (view !== undefined ? [emit({ type: "messageEdited", chatId, messageId: view.id, view })] : [])));
   };

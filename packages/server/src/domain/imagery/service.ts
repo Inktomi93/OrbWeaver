@@ -3,11 +3,14 @@
 // `tsc`). The `ImageryContext` (db + the injected clock/id seams + the connection/executor/assets/stats ops)
 // is built at the entry composition root and passed in — imagery sideways-imports nothing.
 
+import type { ImageryPortabilityContext, ImageryPortabilityService } from "./contract/portability.ts";
 import type { ImageryContext, ImageryService } from "./contract/service.ts";
 import { createCaptionAvatar } from "./verbs/caption-avatar.ts";
 import { createEditImage } from "./verbs/edit-image.ts";
+import { createExportProvenance } from "./verbs/export-provenance.ts";
 import { createExtractPrompt, createResolvePrompt } from "./verbs/extract-prompt.ts";
 import { createGeneratePicture } from "./verbs/generate-picture.ts";
+import { createImportProvenance } from "./verbs/import-provenance.ts";
 import { createReadProvenance } from "./verbs/read-provenance.ts";
 
 export function createImageryService(ctx: ImageryContext): ImageryService {
@@ -21,4 +24,8 @@ export function createImageryService(ctx: ImageryContext): ImageryService {
     readProvenance: createReadProvenance(ctx),
     editImage: createEditImage(ctx),
   };
+}
+
+export function createImageryPortability(ctx: ImageryPortabilityContext): ImageryPortabilityService {
+  return { exportAll: createExportProvenance(ctx), importFile: createImportProvenance(ctx) };
 }

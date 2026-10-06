@@ -29,10 +29,16 @@ import type { ChoiceBlockSpec, UserIntent, UserMacroSpec } from "@orb/contracts/
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ChatRpgPointer, RpgActorRef, RpgGameTemplate } from "@orb/contracts/rpg";
 import type { BlockKey, MemoryQueryOptions, ResolveCorpusSourceState, ScoredBlock } from "@orb/contracts/search";
-import type { ApplyStatsDelta, BumpStatsCanonVersion } from "@orb/contracts/stats";
+import type {
+  ApplyStatsDelta,
+  BumpStatsCanonVersion,
+  ResolveRetainedChatAccountingScope,
+  ResolveRetainedChatRebase,
+  SettleRetainedChatRebase,
+} from "@orb/contracts/stats";
 import type { TagView } from "@orb/contracts/tag";
 import type { MaterializeBackgroundOp, ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
-import type { Db } from "@orb/db";
+import type { chats, Db, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type {
   BindingActor,
@@ -76,6 +82,7 @@ import type { UserMacroDef } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { RegexReplacer } from "@orb/kit/regex";
 import type { IanaTimeZone } from "@orb/kit/time";
+import type { SQL } from "drizzle-orm";
 import type { ResolveRegexSources } from "#domain/regex";
 import type { AuditEntry } from "#foundation/observability";
 import type { ActiveTurns } from "./active-turns.ts";
@@ -1450,6 +1457,15 @@ export interface ChatContext {
    *  always same-origin-paintable (an external URL is CSP-blocked). Compose-built from infra + assets.store. */
   readonly materializeBackground: MaterializeBackgroundOp;
   readonly applyStatsDelta: ApplyStatsDeltaOp;
+  readonly applyCharacterStatsDelta: ApplyStatsDeltaOp;
+  readonly resolveRetainedChatAccountingScope: ResolveRetainedChatAccountingScope<SQL>;
+  readonly settleRetainedChatRebase: SettleRetainedChatRebase<Parameters<ApplyStatsDeltaOp>[0], Db>;
+  readonly resolveRetainedChatRebase: ResolveRetainedChatRebase<
+    typeof chats.$inferSelect,
+    typeof messages.$inferSelect,
+    typeof messageVariants.$inferSelect,
+    SQL
+  >;
   /** Version-only rebuild fence for canon writes that have no exact incremental rollup delta. */
   readonly bumpStatsCanonVersion: BumpStatsCanonVersionOp;
   readonly summarize: SummarizeOp;
@@ -1458,7 +1474,7 @@ export interface ChatContext {
   readonly resolveSpeakerReranker: (funderUserId: UserId) => Promise<SpeakerReranker | null>;
   /** The FUNDER's Utility role for Smart's opt-in arbiter, or null when it is unbound or its model can serve no
    *  structured-output vehicle. Null is the arbiter's visible degrade, never a free-text call. */
-  readonly resolveSpeakerArbiter: (funderUserId: UserId) => Promise<SpeakerArbiter | null>;
+  readonly resolveSpeakerArbiter: (funderUserId: UserId, chatId: ChatId) => Promise<SpeakerArbiter | null>;
   /** The FUNDER's summarize model's context window (tokens) — the memory build's token-guard fits each
    *  summarizer call to the actual context. Resolved PER CALL through `roleClientsFor(funder).resolved("summarize")`
    *  (inference program §7.5-1b: `capability.context.window`, no bespoke getter); a funder whose summarize task

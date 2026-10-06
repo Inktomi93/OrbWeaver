@@ -43,6 +43,8 @@ export type {
   ChatTurnTools,
   ContextUsage,
   ForcedToolRoundInput,
+  GenerationObservationCallback,
+  GenerationObservationSource,
   HistoryRole,
   OpenAiCompatChatRequest,
   ReasoningContentPart,
@@ -53,7 +55,13 @@ export type {
   WireMeta,
   WireTool,
 } from "./chat.ts";
-export { AGENT_CONTINUATION_PROMPT_STUB, AGENT_PROMPT_TAIL_JOINER, HISTORY_ROLES, normalizeFinishReason } from "./chat.ts";
+export {
+  AGENT_CONTINUATION_PROMPT_STUB,
+  AGENT_PROMPT_TAIL_JOINER,
+  GenerationObservationPersistenceError,
+  HISTORY_ROLES,
+  normalizeFinishReason,
+} from "./chat.ts";
 export type {
   AccountCreditsRequest,
   GenerationCostRequest,

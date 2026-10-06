@@ -117,6 +117,28 @@ test("the fold's three provenance arms: measured carries the record; estimated d
   expect(unrecorded.usage).toMatchObject({ costUsd: null, costDetails: null, costProvenance: "unrecorded" });
 });
 
+test("cached input uses its configured rate, while output already includes reasoning once", () => {
+  const pricing = { inputPerMTok: 0.75, outputPerMTok: 3.75, cacheReadPerMTok: 0.075 };
+  const drain = drainOf({
+    usage: { inputTokens: { total: 5000, noCache: 904, cacheRead: 4096, cacheWrite: 0 }, outputTokens: { total: 2, text: 1, reasoning: 1 } },
+  });
+  const result = toChatResult(drain, ctxOf({ providerId: "google", pricing }));
+  expect(result.usage.costUsd).toBeCloseTo(0.000_992_7, 12);
+  expect(result.usage.costDetails).toMatchObject({ pricing });
+  expect(result.usage.costProvenance).toBe("estimated");
+});
+
+test("a reported cache subset without its price leaves the whole cost unknown", () => {
+  const pricing = { inputPerMTok: 0.75, outputPerMTok: 3.75 };
+  for (const inputTokens of [
+    { total: 5000, noCache: 904, cacheRead: 4096, cacheWrite: 0 },
+    { total: 5000, noCache: 904, cacheRead: 0, cacheWrite: 4096 },
+  ]) {
+    const result = toChatResult(drainOf({ usage: { inputTokens, outputTokens: { total: 2, text: 2, reasoning: 0 } } }), ctxOf({ pricing }));
+    expect(result.usage).toMatchObject({ costUsd: null, costDetails: null, costProvenance: "unrecorded" });
+  }
+});
+
 // ── §5.3c — THE SIDECAR IS NARROWED AT THE RECORD, NOT CARRIED AS A BAG ─────────────────────────────────
 // RED-FIRST against the unmodified source: these assert the VALUE `ChatResult.providerMetadata` carries, never
 // the new module's API, so they compile and run either way. Pre-fix the fold emitted
@@ -136,4 +158,21 @@ test("§5.3c: the bag is read under OUR registry id alone — the old `?? openro
   // routed it); the provenance arm is absent, which is the honest answer.
   const drain = drainOf({ providerMetadata: { openrouter: { usage: { cost: 0.2 } } } });
   expect(toChatResult(drain, ctxOf({ providerId: "custom-openai" })).providerMetadata).toBeUndefined();
+});
+
+test("read and write subsets are priced disjointly; zero rates and zero counters remain known", () => {
+  const usage = { inputTokens: { total: 100, noCache: 50, cacheRead: 20, cacheWrite: 30 }, outputTokens: { total: 10, text: 6, reasoning: 4 } };
+  const pricing = { inputPerMTok: 1_000_000, outputPerMTok: 2_000_000, cacheReadPerMTok: 100_000, cacheWritePerMTok: 3_000_000 };
+  expect(toChatResult(drainOf({ usage }), ctxOf({ pricing })).usage.costUsd).toBe(162);
+  expect(
+    toChatResult(drainOf({ usage }), ctxOf({ pricing: { inputPerMTok: 0, outputPerMTok: 0, cacheReadPerMTok: 0, cacheWritePerMTok: 0 } })).usage.costUsd,
+  ).toBe(0);
+  const zero = { inputTokens: { total: 0, noCache: 0, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 0, text: 0, reasoning: 0 } };
+  expect(toChatResult(drainOf({ usage: zero }), ctxOf({ pricing: { inputPerMTok: 1, outputPerMTok: 2 } })).usage.costUsd).toBe(0);
+  const measuredCost = { costUsd: 7, costDetails: { totalUsd: 7 } };
+  expect(toChatResult(drainOf({ usage }), ctxOf({ pricing: { inputPerMTok: 1, outputPerMTok: 2 }, measuredCost })).usage).toMatchObject({
+    costUsd: 7,
+    costDetails: { totalUsd: 7 },
+    costProvenance: "measured",
+  });
 });

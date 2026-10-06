@@ -15,8 +15,15 @@ import type { NormalizedFinishReason } from "../inference/finish-reasons.ts";
 import { normalizedFinishReasonSchema } from "../inference/finish-reasons.ts";
 import type { ProviderId } from "../inference/provider-schema.ts";
 import { providerIdSchema } from "../inference/provider-schema.ts";
+import { generationUsageLegSchema } from "../inference/usage.ts";
 import type { MessageKind } from "./participants.ts";
 import { messageKindSchema, messageRoleSchema } from "./participants.ts";
+import type { TokenProvenance } from "./token-provenance.ts";
+import { tokenProvenanceSchema } from "./token-provenance.ts";
+
+export type { TokenProvenance } from "./token-provenance.ts";
+// biome-ignore lint/performance/noBarrelFile: compatibility reexports preserve the existing chat API after its required cycle-free token-provenance leaf move; this module owns substantive schemas.
+export { combineTokenProvenance, TOKEN_PROVENANCES, tokenProvenanceSchema } from "./token-provenance.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE MESSAGE / VARIANT WIRE CONTRACT (D26) — `messages` is a pure SLOT; ALL content/economics live on
@@ -48,25 +55,11 @@ export const INLINE_REPLY_ORIGIN: MessageAssetOrigin = "inline-reply";
 export const CUE_ROLES = ["user", "turn-scoped-system"] as const;
 export type CueRole = (typeof CUE_ROLES)[number];
 
-export const TOKEN_PROVENANCES = ["measured", "estimated", "unrecorded"] as const;
-export type TokenProvenance = (typeof TOKEN_PROVENANCES)[number];
-export const tokenProvenanceSchema = z.enum(TOKEN_PROVENANCES) satisfies z.ZodType<TokenProvenance>;
-
 /** Whether a variant ever carried a connection id. The provenance survives the FK's SET NULL, so
  *  `recorded` + null is a proven deleted connection while `unrecorded` + null is an honest missing record. */
 export const CONNECTION_ATTRIBUTION_PROVENANCES = ["recorded", "unrecorded"] as const;
 export type ConnectionAttributionProvenance = (typeof CONNECTION_ATTRIBUTION_PROVENANCES)[number];
 export const connectionAttributionProvenanceSchema = z.enum(CONNECTION_ATTRIBUTION_PROVENANCES) satisfies z.ZodType<ConnectionAttributionProvenance>;
-
-/** Combine accounting origins for a displayed total. One estimate makes the sum approximate; measured
- *  wins only over absence. Keeping this beside the vocabulary prevents cross-domain rollups from inventing
- *  different precedence rules. */
-export function combineTokenProvenance(left: TokenProvenance, right: TokenProvenance): TokenProvenance {
-  if (left === "estimated" || right === "estimated") {
-    return "estimated";
-  }
-  return left === "measured" || right === "measured" ? "measured" : "unrecorded";
-}
 
 /** The `listMessages` page CEILING, enforced at the transport trust boundary (the `CHAT_LIST_MAX_LIMIT` /
  *  `character.list` precedent). An unclamped `limit` is an unbounded SQL `.limit()` DoS surface; an over-bound
@@ -288,6 +281,8 @@ export const variantMetadataSchema = z.object({
    *  pre-turn managed-compaction check prices it before its own prompt is assembled. */
   systemTokens: z.number().optional(),
   providerMetadata: variantProviderMetadataSchema.optional(),
+  /** Ordered normalized executions for this operation; funding context never rides in this copied sidecar. */
+  usageLegs: z.array(generationUsageLegSchema).optional(),
   contentSignatures: contentSignaturesSchema.optional(),
   /** Explicit phase survives lossy member projections; missing phase is a legacy body-equality read. */
   continuationTools: z
@@ -311,6 +306,11 @@ const EMPTY_VARIANT_METADATA: VariantMetadata = Object.freeze({});
  *  drizzle `$type` cast — the annotation states the contract, this function proves it. */
 export function parseVariantMetadata(raw: unknown): VariantMetadata {
   return variantMetadataSchema.catch(EMPTY_VARIANT_METADATA).parse(raw);
+}
+
+/** Only the parsed subscription receipt proves a no-leg legacy price is notional. */
+export function legacyNotionalCostSamples(costUsd: number | null | undefined, metadata: VariantMetadata | null | undefined): number {
+  return costUsd !== null && costUsd !== undefined && (metadata?.usageLegs?.length ?? 0) === 0 && metadata?.providerMetadata?.provider === "claude-sub" ? 1 : 0;
 }
 
 /** The `messages` SLOT (D26): identity + attribution + selection ONLY — NO content, NO economics. A swipe

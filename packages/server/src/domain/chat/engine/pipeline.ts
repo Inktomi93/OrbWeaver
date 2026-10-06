@@ -31,12 +31,19 @@ import type {
   MessageView,
   ToolCallRecord,
 } from "@orb/contracts/chat";
-import type { AttachmentQuality } from "@orb/contracts/inference";
-import { acceptsAssistantPrefill, acceptsImageInput, acceptsVideoInput, coEmitsProseWithTools, turnsLevelFor } from "@orb/contracts/inference";
+import type { AttachmentQuality, GenerationUsage } from "@orb/contracts/inference";
+import {
+  acceptsAssistantPrefill,
+  acceptsImageInput,
+  acceptsVideoInput,
+  coEmitsProseWithTools,
+  projectGenerationUsage,
+  turnsLevelFor,
+} from "@orb/contracts/inference";
 import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
-import type { ChatToolExecution, ChatToolOffer, Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
+import type { ChatToolExecution, ChatToolOffer, GenerationObservationCallback, Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
 import { cachesByAnthropicMarkers, generationOf, resolveCarryReasoning, withPresetWindow } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
@@ -91,6 +98,7 @@ import {
  *  as `Parameters<typeof runTurnPipeline>[0]` — the same derive-from-the-function pattern `engine.ts` already
  *  uses for the RESULT (`Awaited<ReturnType<typeof runTurnPipeline>>`), so there is exactly one definition. */
 interface RunTurnPipelineArgs {
+  readonly onObservedResult?: GenerationObservationCallback | undefined;
   readonly attachmentQuality?: AttachmentQuality | undefined;
   readonly runChatTurn: RunChatTurnOp;
   /** The turn's clock (`ChatContext.now`) — the pipeline's ONE time source, used to measure the reasoning
@@ -785,6 +793,7 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
   const videoDropped = kept.some((w) => w.videoDropped);
 
   const baseRequest: TurnRequest = {
+    onObservedResult: args.onObservedResult,
     attachmentQuality: args.attachmentQuality,
     connection: args.connection,
     chatId: args.chatId,
@@ -1312,29 +1321,47 @@ function carriedReasoning(economics: TurnEconomics | null, carry: CarryReasoning
  *  `...next` spread with that last group ON PURPOSE: it is one call's RECEIPT (a session id, a warm-spare
  *  flag, the vendor that served it), not an accumulating count, and the legs of a tool loop may not even
  *  share a provider — summing across arms of a discriminated union would invent a turn that never ran. */
-function aggregateEconomics(acc: TurnEconomics | null, next: TurnEconomics | null): TurnEconomics | null {
+export function aggregateEconomics(acc: TurnEconomics | null, next: TurnEconomics | null): TurnEconomics | null {
   if (acc === null) {
     return next;
   }
   if (next === null) {
     return acc;
   }
-  const sum = (a: number | null | undefined, b: number | null | undefined): number | null => {
-    if (a === null || a === undefined) {
-      return b ?? null;
-    }
-    return b === null || b === undefined ? a : a + b;
-  };
+  const usageLegs = [...(acc.usageLegs ?? []), ...(next.usageLegs ?? [])];
+  const usage = projectGenerationUsage([...economicsLegs(acc), ...economicsLegs(next)]).total;
+  const modelCalls =
+    acc.modelCalls !== null && acc.modelCalls !== undefined && next.modelCalls !== null && next.modelCalls !== undefined
+      ? acc.modelCalls + next.modelCalls
+      : null;
   return {
     ...next,
+    responseCache: undefined,
+    ...usage,
+    ...(usageLegs.length === 0 ? {} : { usageLegs }),
+    modelCalls,
     content: acc.content + next.content,
     textSignatures: [...(acc.textSignatures ?? []), ...(next.textSignatures ?? [])],
     reasoning: [acc.reasoning ?? "", next.reasoning ?? ""].join("") || null,
-    tokensIn: sum(acc.tokensIn, next.tokensIn),
-    tokensOut: sum(acc.tokensOut, next.tokensOut),
-    cacheReadTokens: sum(acc.cacheReadTokens, next.cacheReadTokens),
-    cacheWriteTokens: sum(acc.cacheWriteTokens, next.cacheWriteTokens),
-    costUsd: sum(acc.costUsd, next.costUsd),
     ttftMs: acc.ttftMs ?? next.ttftMs ?? null,
+  };
+}
+
+function economicsLegs(e: TurnEconomics): Parameters<typeof projectGenerationUsage>[0] {
+  return e.usageLegs !== undefined && e.usageLegs.length > 0 ? e.usageLegs : [economicsUsage(e)];
+}
+
+function economicsUsage(e: TurnEconomics): GenerationUsage {
+  return {
+    tokensIn: e.tokensIn ?? null,
+    tokensOut: e.tokensOut ?? null,
+    reasoningTokens: e.reasoningTokens ?? null,
+    cacheReadTokens: e.cacheReadTokens ?? null,
+    cacheWriteTokens: e.cacheWriteTokens ?? null,
+    servedModel: e.servedModel ?? null,
+    tokenDetails: e.tokenDetails ?? null,
+    costUsd: e.costUsd ?? null,
+    costDetails: e.costDetails ?? null,
+    costProvenance: e.costProvenance ?? "unrecorded",
   };
 }

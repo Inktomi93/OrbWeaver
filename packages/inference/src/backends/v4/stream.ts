@@ -46,11 +46,13 @@ export interface StreamDrain {
   readonly usage: LanguageModelV4Usage | undefined;
   readonly providerMetadata: SharedV4ProviderMetadata | undefined;
   readonly responseId: string | undefined;
+  readonly servedModel?: string | undefined;
   readonly warnings: readonly SharedV4Warning[];
 }
 
 export interface DrainCallbacks {
   readonly onPart?: (() => void) | undefined;
+  readonly onRaw?: ((value: unknown) => void) | undefined;
   readonly onText?: ((text: string) => void) | undefined;
   readonly onReasoning?: ((text: string) => void) | undefined;
   readonly onImage?: ((image: GeneratedImage) => void) | undefined;
@@ -83,6 +85,7 @@ interface Accumulator {
   usage: LanguageModelV4Usage | undefined;
   providerMetadata: SharedV4ProviderMetadata | undefined;
   responseId: string | undefined;
+  servedModel: string | undefined;
 }
 
 /** A generated `file` part → the cross-family `GeneratedImage` (bytes as base64, a URL as a reference). */
@@ -206,6 +209,7 @@ function applyControlPart(acc: Accumulator, part: LanguageModelV4StreamPart, lab
     acc.warnings.push(...part.warnings);
   } else if (part.type === "response-metadata") {
     acc.responseId = part.id ?? acc.responseId;
+    acc.servedModel = part.modelId ?? acc.servedModel;
   } else if (part.type === "finish") {
     acc.finish = part.finishReason;
     acc.usage = part.usage;
@@ -289,6 +293,7 @@ export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPa
     usage: undefined,
     providerMetadata: undefined,
     responseId: undefined,
+    servedModel: undefined,
   };
   const reader = stream.getReader();
   try {
@@ -298,6 +303,9 @@ export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPa
         break;
       }
       callbacks.onPart?.();
+      if (value.type === "raw") {
+        callbacks.onRaw?.(value.rawValue);
+      }
       applyContentPart(acc, value, callbacks);
       applyControlPart(acc, value, callbacks.label);
     }
@@ -320,6 +328,7 @@ export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPa
     usage: acc.usage,
     providerMetadata: acc.providerMetadata,
     responseId: acc.responseId,
+    servedModel: acc.servedModel,
     warnings: acc.warnings,
   };
 }

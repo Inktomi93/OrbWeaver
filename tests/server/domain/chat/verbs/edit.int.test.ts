@@ -7,6 +7,7 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
+import { generationUsageLegSchema } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
@@ -43,6 +44,7 @@ import { createEdit } from "../../../../../packages/server/src/domain/chat/verbs
 import { applyStatsDelta, bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
+import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
@@ -1050,6 +1052,87 @@ function recordingStatsCtx(database: Db, sink: StatsDelta[]): ReturnType<typeof 
 
 describe("canon-mutator stats drift gate (live delta == a reconcile over the resulting canon)", () => {
   const clock = { now: () => FROZEN_AT };
+
+  test("SDK leg economics survive duplicate, selected API swap and signed copy deletion without new observations", async () => {
+    const { host, chatId, charA } = await seedRoom();
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "retained source" });
+    const apiVariantId = await addVariant(db, messageId, 1, "alternative API response");
+    const sdkLeg = generationUsageLegSchema.parse({
+      ...makeGenerationUsage(0.125, { tokensIn: 10, tokensOut: 20, costProvenance: "estimated", costDetails: null, servedModel: "served-sdk" }),
+      model: testModelId("sdk-model"),
+      provider: "claude-sub",
+      wire: "agent-sdk",
+      observedAt: FROZEN_AT - 86_400_000,
+      contextWindow: null,
+      maxOutputTokens: null,
+      modelCalls: 1,
+      durationApiMs: 100,
+      ttftMs: null,
+      finishReason: "stop",
+      stopReason: null,
+      terminalReason: null,
+      generationId: null,
+    });
+    const apiLeg = generationUsageLegSchema.parse({
+      ...sdkLeg,
+      model: testModelId("api-model"),
+      provider: "google",
+      wire: "google-generative-ai",
+      costUsd: 0.25,
+      costProvenance: "measured",
+      costDetails: { totalUsd: 0.25 },
+      observedAt: FROZEN_AT,
+      servedModel: "served-api",
+    });
+    await db
+      .update(messageVariants)
+      .set({
+        model: sdkLeg.model,
+        provider: sdkLeg.provider,
+        costUsd: sdkLeg.costUsd,
+        servedModel: sdkLeg.servedModel,
+        tokensIn: 10,
+        tokensOut: 20,
+        tokenProvenance: "measured",
+        metadata: { usageLegs: [sdkLeg] },
+      })
+      .where(eq(messageVariants.id, variantId));
+    await db
+      .update(messageVariants)
+      .set({
+        model: apiLeg.model,
+        provider: apiLeg.provider,
+        costUsd: apiLeg.costUsd,
+        servedModel: apiLeg.servedModel,
+        tokensIn: 10,
+        tokensOut: 20,
+        tokenProvenance: "measured",
+        metadata: { usageLegs: [apiLeg] },
+      })
+      .where(eq(messageVariants.id, apiVariantId));
+    const deltas: StatsDelta[] = [];
+    const edit = createEdit(recordingStatsCtx(db, deltas), { emit, resolveForeignInputs, claimChat: noClaim });
+    await reconcileStats(db, { ownerId: host, now: clock.now });
+    const copy = await edit.duplicateMessage({ principal: principal(host), chatId, messageId });
+    const [copiedVariant] = await db.select().from(messageVariants).where(eq(messageVariants.messageId, copy.id));
+    expect(copiedVariant?.metadata?.usageLegs).toEqual([sdkLeg]);
+    expect(copiedVariant?.servedModel).toBe("served-sdk");
+    const copied = await snapshotRollups(db, host);
+    expect(copied.owner).toMatchObject({ costUsd: 0.25, costSamples: 2, notionalCostSamples: 2, assistantTurns: 2 });
+    await reconcileStats(db, { ownerId: host, now: clock.now });
+    expect(await snapshotRollups(db, host)).toEqual(copied);
+    await edit.selectVariant({ principal: principal(host), chatId, messageId, variantId: apiVariantId });
+    const swapped = await snapshotRollups(db, host);
+    expect(swapped.owner).toMatchObject({ costUsd: 0.375, costSamples: 2, notionalCostSamples: 1, assistantTurns: 2 });
+    await reconcileStats(db, { ownerId: host, now: clock.now });
+    expect(await snapshotRollups(db, host)).toEqual(swapped);
+    await edit.deleteMessages({ principal: principal(host), chatId, messageIds: [copy.id] });
+    const deleted = await snapshotRollups(db, host);
+    expect(deleted.owner).toMatchObject({ costUsd: 0.25, costSamples: 1, notionalCostSamples: 0, assistantTurns: 1 });
+    await reconcileStats(db, { ownerId: host, now: clock.now });
+    expect(await snapshotRollups(db, host)).toEqual(deleted);
+    expect(deltas.filter((delta) => delta.notionalCostSamples === -1)).not.toHaveLength(0);
+  });
 
   test("selectVariant — the 4-part swap keeps the rollups drift-free (cost/cache follow the selection)", async () => {
     const { host, chatId, charA } = await seedRoom();

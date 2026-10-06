@@ -53,13 +53,9 @@ export const bumpStatsCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db> = (ba
   );
 };
 
-export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchStmt[], db: Db, delta: StatsDelta): void => {
+function appendCharacterStatsDelta(batch: BatchStmt[], db: Db, delta: StatsDelta): void {
   const lastAt = delta.lastAt ?? null;
   const firstAt = delta.firstAt ?? null;
-  const maxCtx = delta.maxContextTokens ?? null;
-
-  bumpStatsCanonVersion(batch, db, delta.ownerId);
-
   // character_stats (skipped for a null character): no ownerId, conflict on the characterId unique index.
   if (delta.characterId !== null) {
     batch.push(
@@ -85,6 +81,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
             tokensOutEstimatedSamples: n(delta.tokensOutEstimatedSamples),
             costUsd: n(delta.costUsd),
             costSamples: n(delta.costSamples),
+            notionalCostSamples: n(delta.notionalCostSamples),
             genTimeMs: n(delta.genTimeMs),
             genSamples: n(delta.genSamples),
             reasoningGenerations: n(delta.reasoningGenerations),
@@ -116,6 +113,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
               tokensOutEstimatedSamples: sql`${characterStats.tokensOutEstimatedSamples} + excluded.tokens_out_estimated_samples`,
               costUsd: sql`${characterStats.costUsd} + excluded.cost_usd`,
               costSamples: sql`${characterStats.costSamples} + excluded.cost_samples`,
+              notionalCostSamples: sql`${characterStats.notionalCostSamples} + excluded.notional_cost_samples`,
               genTimeMs: sql`${characterStats.genTimeMs} + excluded.gen_time_ms`,
               genSamples: sql`${characterStats.genSamples} + excluded.gen_samples`,
               reasoningGenerations: sql`${characterStats.reasoningGenerations} + excluded.reasoning_generations`,
@@ -133,6 +131,25 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
       ),
     );
   }
+}
+
+/** Rebase a retained voice without changing the unchanged owner, timeline or model grains. */
+export const applyCharacterStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch, db, delta): void => {
+  if (delta.characterId === null) {
+    return;
+  }
+  bumpStatsCanonVersion(batch, db, delta.ownerId);
+  appendCharacterStatsDelta(batch, db, delta);
+};
+
+export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchStmt[], db: Db, delta: StatsDelta): void => {
+  const lastAt = delta.lastAt ?? null;
+  const firstAt = delta.firstAt ?? null;
+  const maxCtx = delta.maxContextTokens ?? null;
+
+  bumpStatsCanonVersion(batch, db, delta.ownerId);
+
+  appendCharacterStatsDelta(batch, db, delta);
 
   // owner_stats always writes (even all-zeros, so the row stays present for freshness). Natural PK on
   // ownerId; `characters` bumps only on the first chat for a character.
@@ -159,6 +176,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
           tokensOutEstimatedSamples: n(delta.tokensOutEstimatedSamples),
           costUsd: n(delta.costUsd),
           costSamples: n(delta.costSamples),
+          notionalCostSamples: n(delta.notionalCostSamples),
           genTimeMs: n(delta.genTimeMs),
           genSamples: n(delta.genSamples),
           reasoningGenerations: n(delta.reasoningGenerations),
@@ -194,6 +212,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
             tokensOutEstimatedSamples: sql`${ownerStats.tokensOutEstimatedSamples} + excluded.tokens_out_estimated_samples`,
             costUsd: sql`${ownerStats.costUsd} + excluded.cost_usd`,
             costSamples: sql`${ownerStats.costSamples} + excluded.cost_samples`,
+            notionalCostSamples: sql`${ownerStats.notionalCostSamples} + excluded.notional_cost_samples`,
             genTimeMs: sql`${ownerStats.genTimeMs} + excluded.gen_time_ms`,
             genSamples: sql`${ownerStats.genSamples} + excluded.gen_samples`,
             reasoningGenerations: sql`${ownerStats.reasoningGenerations} + excluded.reasoning_generations`,
@@ -238,6 +257,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
           tokensOutEstimatedSamples: n(delta.dailyTokensOutEstimatedSamples),
           costUsd: n(delta.costUsd),
           costSamples: n(delta.costSamples),
+          notionalCostSamples: n(delta.notionalCostSamples),
           genTimeMs: n(delta.genTimeMs),
           messageDatesApprox: delta.messageDatesApprox ?? false,
           computedAt: delta.now,
@@ -260,6 +280,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
             tokensOutEstimatedSamples: sql`${dailyStats.tokensOutEstimatedSamples} + excluded.tokens_out_estimated_samples`,
             costUsd: sql`${dailyStats.costUsd} + excluded.cost_usd`,
             costSamples: sql`${dailyStats.costSamples} + excluded.cost_samples`,
+            notionalCostSamples: sql`${dailyStats.notionalCostSamples} + excluded.notional_cost_samples`,
             genTimeMs: sql`${dailyStats.genTimeMs} + excluded.gen_time_ms`,
             // OR the approx flag — once a bucket is flagged migrated-approx it stays so.
             messageDatesApprox: sql`(${dailyStats.messageDatesApprox} OR excluded.message_dates_approx)`,
@@ -293,6 +314,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
             reasoningMs: n(delta.modelReasoningMs),
             costUsd: n(delta.modelCostUsd),
             costSamples: n(delta.modelCostSamples),
+            notionalCostSamples: n(delta.modelNotionalCostSamples),
             cacheReadTokens: n(delta.modelCacheReadTokens),
             cacheWriteTokens: n(delta.modelCacheWriteTokens),
             computedAt: delta.now,
@@ -313,6 +335,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
               reasoningMs: sql`${modelStats.reasoningMs} + excluded.reasoning_ms`,
               costUsd: sql`${modelStats.costUsd} + excluded.cost_usd`,
               costSamples: sql`${modelStats.costSamples} + excluded.cost_samples`,
+              notionalCostSamples: sql`${modelStats.notionalCostSamples} + excluded.notional_cost_samples`,
               cacheReadTokens: sql`${modelStats.cacheReadTokens} + excluded.cache_read_tokens`,
               cacheWriteTokens: sql`${modelStats.cacheWriteTokens} + excluded.cache_write_tokens`,
               computedAt: sql`MAX(${modelStats.computedAt}, excluded.computed_at)`,

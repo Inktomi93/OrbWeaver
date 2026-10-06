@@ -97,7 +97,10 @@ async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams, gen
     };
   }
   const seeded = seedFor(ctx, { hash, kind: "card-text", generation });
-  const embedded = seeded === null ? await generation.connection.embed(p.content, { signal: p.signal }) : { model: seeded.model, vectors: [seeded.vector] };
+  const embedded =
+    seeded === null
+      ? await generation.connection.embed(p.content, { signal: p.signal })
+      : { model: seeded.model, vectors: [seeded.vector], usage: { promptTokens: null, totalTokens: null } };
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, generation.dims, vector);
   const landed = await upsertCharacterEmbedding(ctx.db, {
@@ -184,7 +187,7 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
     embedded =
       seeded === null
         ? await generation.connection.imageEmbed({ kind: "image", input: p.content }, { signal: p.signal })
-        : { model: seeded.model, vectors: [seeded.vector] };
+        : { model: seeded.model, vectors: [seeded.vector], usage: { promptTokens: null, totalTokens: null } };
   } else if (p.via === "embed") {
     embedded = await generation.connection.embed(p.caption, { signal: p.signal });
   } else {

@@ -34,6 +34,7 @@ import { effortWordOf } from "../kit/applied-effort.ts";
 import type { ExplicitCachePlan } from "../kit/cache-control.ts";
 import { explicitCachePlan, placeExplicitCacheMarkers } from "../kit/cache-control.ts";
 import { providerErrorFromHttp, withSchemaRejection } from "../kit/error-classify.ts";
+import { observeChatResult } from "../kit/generation-observation.ts";
 import { turnAbortSignal } from "../kit/idle-timeout.ts";
 import type { ProviderLogger } from "../kit/provider-log.ts";
 import { providerLogger } from "../kit/provider-log.ts";
@@ -333,14 +334,19 @@ function emitReceipts(args: {
   readonly warnings: readonly ResolvedWarning[];
 }): void {
   const { log, req, generation, knobs, turn, written, warnings } = args;
-  const total = turn.usage.cacheReadTokens + turn.usage.cacheWriteTokens;
+  const { cacheReadTokens, cacheWriteTokens } = turn.usage;
+  const total = cacheReadTokens !== null && cacheWriteTokens !== null ? cacheReadTokens + cacheWriteTokens : null;
+  let hitRatio: number | null = null;
+  if (total !== null && cacheReadTokens !== null) {
+    hitRatio = total > 0 ? cacheReadTokens / total : 0;
+  }
   log.cache({
     turnId: knobs.turnId,
     cacheReadTokens: turn.usage.cacheReadTokens,
     cacheWriteTokens: turn.usage.cacheWriteTokens,
     breakpointsPlaced: written.systemBlocks + written.historyDepths.length + written.toolBlocks,
     breakpointOffsets: written.historyDepths,
-    hitRatio: total > 0 ? turn.usage.cacheReadTokens / total : 0,
+    hitRatio,
     minCacheTokens: cacheMinTokensOf(generation),
   });
   log.capability({
@@ -470,6 +476,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   const extraEvents: ChatEvent[] = [refusalEventOf(drain, connection.model, finishedAt), rateLimitCanaryEvent(response.rateLimit, finishedAt)].filter(
     (event): event is ChatEvent => event !== null,
   );
+  await observeChatResult(req, folded);
   const turn: ChatResult = structuredChatResult(extraEvents.length > 0 ? { ...folded, events: [...folded.events, ...extraEvents] } : folded, structured);
   if (response.rateLimit !== null) {
     log.emit(response.rateLimit.status === "allowed" ? "debug" : "warn", "provider.rate_limit", { turnId: knobs.turnId, ...response.rateLimit });

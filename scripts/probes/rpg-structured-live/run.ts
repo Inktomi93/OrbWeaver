@@ -18,13 +18,14 @@ import { resolveProseText } from "@orb/contracts/prose";
 import type { RpgExtractionMode, RpgStateCaptureVehicle } from "@orb/contracts/rpg";
 import type { CharacterHandle, ChatId, Handle, MessageId, MessageVariantId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { z } from "zod";
 import type { ServicesResult } from "../../../packages/server/src/entry/compose/index.ts";
 import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "../../../packages/server/src/entry/compose/index.ts";
 import { freshDb } from "../../../tests/support/db.ts";
 import { seedUser } from "../../../tests/support/factories/user.ts";
 import { readEnvKey } from "../openrouter/_kit.ts";
 import type { PanelRead } from "./scenario.ts";
-import { FINAL_EXPECT, judge, NARRATOR_CARD, panelDiff, readPanel, SWIPE_CHECKS, SWIPE_SCRIPT, TRACKERS, TURNS } from "./scenario.ts";
+import { FINAL_EXPECT, judge, NARRATOR_CARD, panelDiff, readPanel, SCENARIO_CONTROLS, SWIPE_CHECKS, SWIPE_SCRIPT, TRACKERS, TURNS } from "./scenario.ts";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 // A parallel batch writes its own file (merged afterwards), so two writers never interleave one line.
@@ -55,6 +56,7 @@ interface Cell {
   readonly vehicle: RpgStateCaptureVehicle;
   readonly consumers: readonly Consumer[];
   readonly echoUpstream?: boolean;
+  readonly maxOutputTokens?: number;
 }
 
 const ALL = ["folded", "cheap", "resync"] as const;
@@ -156,6 +158,59 @@ const CELLS: Record<string, Cell> = {
   },
   "openai-gpt-5.5": { providerId: "openai", model: "gpt-5.5", device: "hosted", keyEnv: "OPENAI_PROBE_KEY", vehicle: "auto", consumers: ALL },
   "gemini-3.8-flash": { providerId: "google", model: "gemini-3.8-flash", device: "hosted", keyEnv: "GEMINI_PROBE_KEY", vehicle: "auto", consumers: ALL },
+  "gemini-3.1-pro-preview": {
+    providerId: "google",
+    model: "gemini-3.1-pro-preview",
+    device: "hosted",
+    keyEnv: "GEMINI_PROBE_KEY",
+    vehicle: "auto",
+    consumers: ALL,
+  },
+  "gemini-3.1-pro-preview-folded-16k": {
+    providerId: "google",
+    model: "gemini-3.1-pro-preview",
+    device: "hosted",
+    keyEnv: "GEMINI_PROBE_KEY",
+    vehicle: "auto",
+    consumers: ["folded"],
+    maxOutputTokens: 16_384,
+  },
+  "gemini-3.8-flash-structured": {
+    providerId: "google",
+    model: "gemini-3.8-flash",
+    device: "hosted",
+    keyEnv: "GEMINI_PROBE_KEY",
+    vehicle: "structured",
+    consumers: ["cheap", "resync"],
+  },
+  "gemini-3.1-pro-preview-structured": {
+    providerId: "google",
+    model: "gemini-3.1-pro-preview",
+    device: "hosted",
+    keyEnv: "GEMINI_PROBE_KEY",
+    vehicle: "structured",
+    consumers: ["cheap", "resync"],
+  },
+  "custom-gemini-3.8-flash-compat": {
+    providerId: "custom-openai",
+    model: "gemini-3.8-flash",
+    device: "hosted",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    keyEnv: "GEMINI_PROBE_KEY",
+    declared: { features: { thinkingOff: "none" } },
+    vehicle: "structured",
+    consumers: ALL,
+  },
+  "custom-gemini-3.1-pro-preview-compat": {
+    providerId: "custom-openai",
+    model: "gemini-3.1-pro-preview",
+    device: "hosted",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    keyEnv: "GEMINI_PROBE_KEY",
+    declared: { features: { thinkingOff: "none" } },
+    vehicle: "structured",
+    consumers: ALL,
+  },
 };
 
 const runId = mintTypeId(ID_PREFIX.chatTurn).slice(-RUN_ID_CHARS);
@@ -163,7 +218,7 @@ const git = (gitArgs: readonly string[]): string => execFileSync("git", gitArgs,
 const tree = { head: git(["rev-parse", "--short", "HEAD"]), dirtyProduct: git(["status", "--porcelain", "--", "../../../packages"]).length > 0 };
 
 function row(fields: Record<string, unknown>): void {
-  appendFileSync(RESULTS, `${JSON.stringify({ run: runId, at: new Date().toISOString(), tree, ...fields })}\n`);
+  appendFileSync(RESULTS, `${JSON.stringify({ run: runId, at: new Date().toISOString(), tree, fixtureControls: SCENARIO_CONTROLS, ...fields })}\n`);
 }
 
 const clip = (text: string): string => (text.length > TEXT_CAP ? `${text.slice(0, TEXT_CAP)}…` : text);
@@ -389,6 +444,13 @@ function frameMeta(frame: Json, out: ReplyParts): void {
   if (finish !== undefined && finish !== null) {
     out.meta["finish_reason"] = finish;
   }
+  const nativeFinish = asList(frame["candidates"])[0]?.["finishReason"];
+  if (typeof nativeFinish === "string") {
+    out.meta["finishReason"] = nativeFinish;
+  }
+  if (typeof frame["modelVersion"] === "string") {
+    out.meta["modelVersion"] = frame["modelVersion"];
+  }
   const usage = asRecord(frame["usage"] ?? frame["usageMetadata"] ?? asRecord(frame["message"])?.["usage"]);
   if (usage !== undefined) {
     out.meta["usage"] = { ...asRecord(out.meta["usage"]), ...usage };
@@ -446,6 +508,18 @@ function geminiParts(frame: Json, out: ReplyParts): void {
     }
     if (part["functionCall"] !== undefined) {
       out.calls.push(JSON.stringify(part["functionCall"]));
+    }
+    if (part["functionCall"] !== undefined || typeof part["thoughtSignature"] === "string") {
+      const call = asRecord(part["functionCall"]);
+      out.meta["nativeParts"] = [
+        ...asList(out.meta["nativeParts"]),
+        {
+          kind: call === undefined ? "signed-part" : "functionCall",
+          id: call?.["id"] ?? null,
+          name: call?.["name"] ?? null,
+          signaturePresent: typeof part["thoughtSignature"] === "string",
+        },
+      ];
     }
   }
 }
@@ -538,6 +612,7 @@ interface Booted {
   readonly app: ServicesResult;
   readonly host: Principal;
   readonly cleanup: () => void;
+  readonly maxOutputTokens: number | undefined;
 }
 
 async function storeKey(services: ServicesResult["services"], host: Principal, provider: string, keyEnv: string): Promise<UserCredentialId> {
@@ -581,9 +656,17 @@ async function boot(cell: Cell): Promise<Booted> {
     declared: cell.declared ?? null,
   });
   await services.connection.setBinding({ principal: host, task: "chat", connectionId: connection.id });
+  if (cell.maxOutputTokens !== undefined) {
+    const resolved = await services.connection.resolveChatCapability({ principal: host });
+    if (resolved.capability.kind !== "generation" || resolved.capability.generation.output.maxTokens.max < cell.maxOutputTokens) {
+      throw new Error("Diagnostic output budget exceeds the resolved model limit");
+    }
+    row({ kind: "diagnostic-config", model: cell.model, maxOutputTokens: cell.maxOutputTokens, effort: "provider-default", capability: resolved.capability });
+  }
   return {
     app,
     host,
+    maxOutputTokens: cell.maxOutputTokens,
     cleanup: (): void => {
       for (const dir of [casDir, variantDir, stagingDir]) {
         rmSync(dir, { recursive: true, force: true });
@@ -758,11 +841,60 @@ async function settleWires(): Promise<void> {
 /** Send one player turn through `chat.send`; a refusal is recorded, never thrown out of the run. */
 async function send(booted: Booted, chatId: ChatId, content: string): Promise<string | null> {
   try {
-    await booted.app.services.chat.send({ principal: booted.host, chatId, content });
+    await booted.app.services.chat.send({
+      principal: booted.host,
+      chatId,
+      content,
+      ...(booted.maxOutputTokens === undefined ? {} : { intent: { maxOutputTokens: booted.maxOutputTokens } }),
+    });
     return null;
   } catch (err) {
     return err instanceof Error ? err.message : String(err);
   }
+}
+
+function nativeRequestParts(body: Json | null): Json[] {
+  return asList(body?.["contents"]).flatMap((content, messageIndex) =>
+    asList(content["parts"]).flatMap((part, partIndex) => {
+      const call = asRecord(part["functionCall"]);
+      const result = asRecord(part["functionResponse"]);
+      const kind = call === undefined ? "signed-part" : "functionCall";
+      return call === undefined && result === undefined && typeof part["thoughtSignature"] !== "string"
+        ? []
+        : [
+            {
+              messageIndex,
+              partIndex,
+              role: content["role"],
+              kind: result === undefined ? kind : "functionResponse",
+              id: call?.["id"] ?? result?.["id"] ?? null,
+              name: call?.["name"] ?? result?.["name"] ?? null,
+              signaturePresent: typeof part["thoughtSignature"] === "string",
+            },
+          ];
+    }),
+  );
+}
+
+function characterRequestFacts(wire: Wire): Json {
+  const tools = wire.body === null ? [] : toolNamesOf(wire.body);
+  const system = asRecord(wire.body?.["systemInstruction"]);
+  const systemText = asList(system?.["parts"])
+    .map((part) => part["text"])
+    .filter((text): text is string => typeof text === "string")
+    .join("\n");
+  return {
+    kind: classify(wire).kind,
+    status: wire.status,
+    ms: wire.ms,
+    knobs: knobsOf(wire.body),
+    toolConfig: wire.body?.["toolConfig"] ?? null,
+    declaredTools: tools,
+    declaredToolCount: tools.length,
+    narrationConstraintPresent: systemText.includes(NARRATOR_CARD.description),
+    requestParts: nativeRequestParts(wire.body),
+    stop: decodeReply(wire.reply).meta,
+  };
 }
 
 /** The first state round of a consumer (or its folded character turn), re-sent with OpenRouter's upstream echo. */
@@ -822,8 +954,9 @@ async function playTurn(ctx: TurnCtx, turn: (typeof TURNS)[number]): Promise<boo
     after,
     events,
     upstream,
-    narration: clip(reply.text.replace(/\s+/g, " ")),
-    charTurnCalls: clip(reply.calls),
+    narration: ctx.booted.maxOutputTokens === undefined ? clip(reply.text.replace(/\s+/g, " ")) : "",
+    charTurnCalls: ctx.booted.maxOutputTokens === undefined ? clip(reply.calls) : "",
+    charRequests: window.filter((wire) => classify(wire).kind.startsWith("char-turn")).map(characterRequestFacts),
   });
   process.stdout.write(
     `${ctx.cellName} ${ctx.mode} ${turn.id}: ${tools.path ?? "-"} ${tools.vehicles.join("+") || "-"} req=${stateRequests.map((r) => r.kind).join(",") || "-"} ` +
@@ -1064,14 +1197,35 @@ interface Row {
 }
 
 /** Score a stored row with the CURRENT checks over the panels it recorded, so every run reads by one rule. */
-function rejudge(t: Row): { readonly pass: string[]; readonly miss: string[] } {
+function rejudge(t: Row, verifiedCeiling?: number): { readonly pass: string[]; readonly miss: string[] } {
   const after = t["after"] as PanelRead;
   const before = t["before"] as PanelRead;
-  if (t.kind === "resync") {
-    return judge(FINAL_EXPECT, after, before);
-  }
   const turn = TURNS.find((candidate) => candidate.id === t["turn"]);
-  return turn === undefined ? { pass: [], miss: ["unknown turn"] } : judge(turn.expect, after, before);
+  const expected = t.kind === "resync" ? FINAL_EXPECT : turn?.expect;
+  if (expected === undefined) {
+    return { pass: [], miss: ["unknown turn"] };
+  }
+  const result = t["result"];
+  const resyncFailed = result !== null && typeof result === "object" && "ok" in result && result.ok === false;
+  if (typeof t["sendError"] === "string" || resyncFailed) {
+    return { pass: [], miss: expected.map((expectation) => expectation.label) };
+  }
+  if (t["turn"] === "t4-labour" && before.stamina === null) {
+    if (verifiedCeiling === undefined) {
+      // Old captures did not record the fixture ceiling. Their stored verdict is historical evidence,
+      // not a new acceptance claim under today's fixture.
+      return { pass: z.array(z.string()).parse(t["expectPass"]), miss: z.array(z.string()).parse(t["expectMiss"]) };
+    }
+    return judge(expected, after, { ...before, stamina: verifiedCeiling });
+  }
+  return judge(expected, after, before);
+}
+
+const fixtureControlsSchema = z.object({ staminaCeiling: z.number().positive() });
+
+function fixtureCeiling(entry: Row): number | undefined {
+  const parsed = fixtureControlsSchema.safeParse(entry["fixtureControls"]);
+  return parsed.success ? parsed.data.staminaCeiling : undefined;
 }
 
 interface Tally {
@@ -1085,11 +1239,15 @@ interface Tally {
   audits: number;
 }
 
-function tallyTurn(t: Row, tally: Tally): void {
+function tallyTurn(t: Row, tally: Tally, verifiedCeiling?: number): void {
   for (const req of (t["stateRequests"] as { kind: string; detail: string; reply?: string }[] | undefined) ?? []) {
     tally.vehicles.add(`${req.kind}(${shapeFromReply(req.detail, req.reply ?? "")})`);
   }
-  const { pass, miss } = rejudge(t);
+  const ceiling = fixtureCeiling(t) ?? verifiedCeiling;
+  const { pass, miss } = rejudge(t, ceiling);
+  if (t["turn"] === "t4-labour" && ceiling === undefined && (t["before"] as PanelRead).stamina === null) {
+    tally.issues.push("historical fixture unverified; excluded from current acceptance");
+  }
   tally.checks += pass.length + miss.length;
   tally.passed += pass.length;
   tally.turnsPass += miss.length === 0 ? 1 : 0;
@@ -1109,7 +1267,7 @@ function tallyTurn(t: Row, tally: Tally): void {
 }
 
 /** One consumer's table line, or `null` when the run did not play it. */
-function consumerLine(cell: string, consumer: string, mine: readonly Row[]): string | null {
+function consumerLine(cell: string, consumer: string, mine: readonly Row[], verifiedCeiling?: number): string | null {
   const turns = mine.filter((r) => r.consumer === consumer && (r.kind === "turn" || r.kind === "resync"));
   if (turns.length === 0) {
     return null;
@@ -1122,7 +1280,7 @@ function consumerLine(cell: string, consumer: string, mine: readonly Row[]): str
   const unavailable = panelRead?.structuredUnavailable === true ? " + structuredUnavailable" : "";
   const tally: Tally = { vehicles: new Set(), issues: [], stateMs: [], checks: 0, passed: 0, turnsPass: 0, retries: 0, audits: 0 };
   for (const t of turns) {
-    tallyTurn(t, tally);
+    tallyTurn(t, tally, verifiedCeiling);
   }
   const sorted = tally.stateMs.toSorted((a, b) => a - b);
   const median = sorted.length === 0 ? "-" : String(sorted[Math.floor(sorted.length / 2)]);
@@ -1142,7 +1300,12 @@ function report(): void {
     .map((line) => JSON.parse(line) as Row);
   // The latest run per cell AND consumer: a rerun of one consumer must not hide the cell's others.
   const latest = new Map<string, string>();
+  const verifiedControls = new Map<string, number>();
   for (const r of rows) {
+    const ceiling = fixtureCeiling(r);
+    if (ceiling !== undefined) {
+      verifiedControls.set(r.run, ceiling);
+    }
     if (r.consumer !== undefined) {
       latest.set(`${r.cell}\u0000${r.consumer}`, r.run);
     }
@@ -1160,6 +1323,7 @@ function report(): void {
               cell,
               consumer,
               rows.filter((r) => r.cell === cell && r.run === run),
+              verifiedControls.get(run),
             );
       if (line !== null) {
         console.log(line);

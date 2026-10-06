@@ -5,15 +5,242 @@
 // The drift gate: a builder computes the CHANGE its write makes. The same `@orb/kit/stats-tally`
 // primitives run here AND in `reconcileStats`, so the live delta can never drift from a rebuild.
 //
-// Owner = `runAsUserId` (the frozen host, who funds + owns the turn). `triggeredBy` remains initiator
-// attribution and can differ from the stats owner.
+// Retained owner/voice attribution is projected by retainedCanonDeltas; funding remains the frozen host.
 
-import type { TokenProvenance, VariantMetadata } from "@orb/contracts/chat";
-import { VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
+import type { MessageView, TokenProvenance, VariantMetadata } from "@orb/contracts/chat";
+import { legacyNotionalCostSamples, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
-import type { StatsDelta } from "@orb/contracts/stats";
+import type { RetainedChatRekeys, StatsDelta } from "@orb/contracts/stats";
+import { variantUsageLegDelta } from "@orb/contracts/stats";
+import type { messageVariants } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { modelKey, statsBucketStart, wordCount } from "@orb/kit/stats-tally";
+import type { ChatContext } from "../contract/context.ts";
+
+/** Append a canonical delta sequence without widening the injected single-delta write boundary. */
+export function appendStatsDeltas(ctx: Pick<ChatContext, "db" | "applyStatsDelta">, statements: BatchStmt[], deltas: readonly StatsDelta[]): void {
+  for (const delta of deltas) {
+    ctx.applyStatsDelta(statements, ctx.db, delta);
+  }
+}
+
+/** Funding/actor labels on a builder template never choose the retained-data accounting cohort. */
+export function retainedCanonDeltas(
+  scope: Pick<Awaited<ReturnType<ChatContext["resolveRetainedChatAccountingScope"]>>, "ownerIds" | "characterOwnerId">,
+  deltas: readonly StatsDelta[],
+): StatsDelta[] {
+  return scope.ownerIds.flatMap((ownerId) =>
+    deltas.map((delta) => ({
+      ...delta,
+      ownerId,
+      // @orb-waive membership-enforcer(ownerId): Retained cohort accounting assigns the character grain only to its actual DB-derived owner; this is not room authorization. Ends if the comparison admits caller operations or the character-grain contract changes.
+      characterId: ownerId === scope.characterOwnerId ? delta.characterId : null,
+    })),
+  );
+}
+
+/** Slot attribution and stored variant economics for the selected-canon contribution. */
+export function canonRowOf(
+  slot: Pick<MessageView, "characterId" | "role" | "createdAt">,
+  variant: typeof messageVariants.$inferSelect | null,
+  variantCount: number,
+): Parameters<typeof canonMessageDelta>[0]["row"] {
+  if (variant === null) {
+    // Rebuild LEFT JOINs the selected variant: a retained slot still counts when its pointer has no row.
+    return {
+      characterId: slot.characterId,
+      role: slot.role,
+      createdAt: slot.createdAt,
+      content: null,
+      tokensIn: null,
+      tokensOut: null,
+      tokenProvenance: "unrecorded",
+      costUsd: null,
+      cacheReadTokens: null,
+      cacheWriteTokens: null,
+      contextWindow: null,
+      genStartedAt: null,
+      genFinishedAt: null,
+      model: null,
+      provider: null,
+      reasoning: null,
+      metadata: null,
+      selectedIdx: null,
+      variantCount,
+    };
+  }
+  return {
+    characterId: slot.characterId,
+    role: slot.role,
+    createdAt: slot.createdAt,
+    content: variant.content,
+    tokensIn: variant.tokensIn,
+    tokensOut: variant.tokensOut,
+    tokenProvenance: variant.tokenProvenance,
+    costUsd: variant.costUsd,
+    cacheReadTokens: variant.cacheReadTokens,
+    cacheWriteTokens: variant.cacheWriteTokens,
+    contextWindow: variant.contextWindow,
+    genStartedAt: variant.genStartedAt,
+    genFinishedAt: variant.genFinishedAt,
+    model: variant.model,
+    provider: variant.provider,
+    reasoning: variant.reasoning,
+    metadata: variant.metadata,
+    selectedIdx: variant.idx,
+    variantCount,
+  };
+}
+
+/** The copied room moves contributions, never executions: pending paid facts retain their original home. */
+export function appendRetainedChatRebaseDeltas(
+  ctx: ChatContext,
+  statements: BatchStmt[],
+  snapshot: NonNullable<Awaited<ReturnType<ChatContext["resolveRetainedChatRebase"]>>>,
+  rekeys: RetainedChatRekeys,
+): void {
+  for (const ownerId of snapshot.beforeOwnerIds.filter((id) => !snapshot.afterOwnerIds.includes(id))) {
+    appendRebasedCanon(ctx, statements, { snapshot, rekeys, ownerId, sign: -1, characterOnly: false });
+    ctx.applyStatsDelta(statements, ctx.db, {
+      ownerId,
+      characterId: null,
+      model: null,
+      provider: null,
+      bucketStart: statsBucketStart(snapshot.chat.createdAt),
+      now: ctx.now(),
+      chats: -1,
+      chatsCreated: -1,
+      forkedChats: snapshot.chat.parentChatId === null ? 0 : -1,
+    });
+  }
+  for (const ownerId of snapshot.afterOwnerIds.filter((id) => !snapshot.beforeOwnerIds.includes(id))) {
+    appendRebasedCanon(ctx, statements, { snapshot, rekeys, ownerId, sign: 1, characterOnly: false });
+    ctx.applyStatsDelta(statements, ctx.db, {
+      ownerId,
+      characterId: null,
+      model: null,
+      provider: null,
+      bucketStart: statsBucketStart(snapshot.chat.createdAt),
+      now: ctx.now(),
+      chats: 1,
+      chatsCreated: 1,
+      forkedChats: snapshot.chat.parentChatId === null ? 0 : 1,
+    });
+  }
+  for (const ownerId of new Set(snapshot.characterOwners.values())) {
+    appendRebasedCanon(ctx, statements, { snapshot, rekeys, ownerId, sign: -1, characterOnly: true });
+    appendRebasedCanon(ctx, statements, { snapshot, rekeys, ownerId, sign: 1, characterOnly: true });
+  }
+  appendRebasedSeatCensus(ctx, statements, snapshot);
+}
+
+function appendRebasedSeatCensus(
+  ctx: ChatContext,
+  statements: BatchStmt[],
+  snapshot: NonNullable<Awaited<ReturnType<ChatContext["resolveRetainedChatRebase"]>>>,
+): void {
+  for (const [ids, other, sign] of [
+    [snapshot.beforeSeatIds, snapshot.afterSeatIds, -1],
+    [snapshot.afterSeatIds, snapshot.beforeSeatIds, 1],
+  ] as const) {
+    for (const characterId of ids.filter((id) => !other.includes(id))) {
+      const ownerId = snapshot.characterOwners.get(characterId);
+      // @orb-waive membership-enforcer(ownerId): D167 retained character census attribution, not a membership gate; ends if this lookup admits an operation.
+      if (ownerId !== undefined) {
+        ctx.applyCharacterStatsDelta(statements, ctx.db, {
+          ownerId,
+          characterId,
+          model: null,
+          provider: null,
+          bucketStart: statsBucketStart(snapshot.chat.createdAt),
+          now: ctx.now(),
+          characterChats: sign,
+          characterForkedChats: snapshot.chat.parentChatId === null ? 0 : sign,
+        });
+      }
+    }
+  }
+}
+
+function appendRebasedCanon(
+  ctx: ChatContext,
+  statements: BatchStmt[],
+  args: {
+    readonly snapshot: NonNullable<Awaited<ReturnType<ChatContext["resolveRetainedChatRebase"]>>>;
+    readonly rekeys: RetainedChatRekeys;
+    readonly ownerId: UserId;
+    readonly sign: 1 | -1;
+    readonly characterOnly: boolean;
+  },
+): void {
+  const now = ctx.now();
+  const apply = args.characterOnly ? ctx.applyCharacterStatsDelta : ctx.applyStatsDelta;
+  for (const slot of args.snapshot.slots) {
+    const replacement = slot.characterId === null ? undefined : args.rekeys.characters.get(slot.characterId);
+    if (args.characterOnly && replacement === undefined) {
+      continue;
+    }
+    const voice = rebasedVoice(slot.characterId, replacement, args.sign);
+    // @orb-waive membership-enforcer(ownerId): D167 credits the global voice row only once to its actual owner; ends if this accounting comparison becomes authority.
+    if (args.characterOnly && (voice === null || args.snapshot.characterOwners.get(voice) !== args.ownerId)) {
+      continue;
+    }
+    const deltas = rebasedSlotDeltas(slot, args, voice, now);
+    for (const delta of deltas) {
+      apply(statements, ctx.db, delta);
+    }
+  }
+}
+
+function rebasedVoice(original: CharacterId | null, replacement: CharacterId | undefined, sign: 1 | -1): CharacterId | null {
+  return sign > 0 ? (replacement ?? original) : original;
+}
+
+function rebasedSlotDeltas(
+  slot: NonNullable<Awaited<ReturnType<ChatContext["resolveRetainedChatRebase"]>>>["slots"][number],
+  args: Parameters<typeof appendRebasedCanon>[2],
+  voice: CharacterId | null,
+  now: number,
+): readonly StatsDelta[] {
+  const ownerSlot = { ...slot, characterId: args.characterOnly ? voice : null };
+  const variants = args.snapshot.variants.filter((variant) => variant.messageId === slot.id);
+  const selected = variants.find((variant) => variant.id === slot.selectedVariantId) ?? null;
+  return [
+    ...canonMessageDelta({ ownerId: args.ownerId, row: canonRowOf(ownerSlot, selected, variants.length), sign: args.sign, now }),
+    ...variants
+      .filter((variant) => variant.id !== slot.selectedVariantId)
+      .flatMap((variant) =>
+        swipeVariantDelta({
+          ownerId: args.ownerId,
+          row: swipeRowOf(ownerSlot, variant),
+          sign: args.sign,
+          now,
+        }),
+      ),
+  ];
+}
+
+/** A non-selected variant's contribution excludes selected cost, cache and context. */
+export function swipeRowOf(
+  slot: Pick<MessageView, "characterId" | "createdAt">,
+  variant: typeof messageVariants.$inferSelect,
+): Parameters<typeof swipeVariantDelta>[0]["row"] {
+  return {
+    characterId: slot.characterId,
+    msgCreatedAt: slot.createdAt,
+    content: variant.content,
+    tokensIn: variant.tokensIn,
+    tokensOut: variant.tokensOut,
+    tokenProvenance: variant.tokenProvenance,
+    genStartedAt: variant.genStartedAt,
+    genFinishedAt: variant.genFinishedAt,
+    model: variant.model,
+    provider: variant.provider,
+    reasoning: variant.reasoning,
+    metadata: variant.metadata,
+  };
+}
 
 /** Convert nullable historical attribution into the only model-stats identities the write contract admits.
  * A blank model has no bucket; a missing/malformed provider takes the ruled `(unknown)` bucket. */
@@ -96,6 +323,7 @@ function modelSliceFor(model: string | null, e: TurnEconomicsInput): Record<stri
   }
   const reasoningMs = reasoningMsOf(e.metadata ?? null);
   const tokenProvenance = tokenProvenanceOf(e);
+  const notionalSamples = legacyNotionalCostSamples(e.costUsd, e.metadata);
   return {
     modelGenerations: 1,
     // A gen-time sample is counted only when a gen time is present, symmetric with the delete mirror.
@@ -107,6 +335,7 @@ function modelSliceFor(model: string | null, e: TurnEconomicsInput): Record<stri
     ...tokenSampleSlice({ prefix: "model", provenance: tokenProvenance, tokensIn: e.tokensIn, tokensOut: e.tokensOut }),
     ...(has(e.costUsd) ? { modelCostUsd: e.costUsd } : {}),
     ...(has(e.costUsd) ? { modelCostSamples: 1 } : {}),
+    ...(notionalSamples > 0 ? { modelNotionalCostSamples: notionalSamples } : {}),
     ...(has(e.genTimeMs) ? { modelGenTimeMs: e.genTimeMs } : {}),
     ...(has(e.cacheReadTokens) ? { modelCacheReadTokens: e.cacheReadTokens } : {}),
     ...(has(e.cacheWriteTokens) ? { modelCacheWriteTokens: e.cacheWriteTokens } : {}),
@@ -118,7 +347,7 @@ function modelSliceFor(model: string | null, e: TurnEconomicsInput): Record<stri
  * null ⇒ `character_stats` is skipped. The model slice is decoupled from the scalar tokens (a later swipe
  * on a different model emits its own model-only delta).
  */
-export function assistantTurnDelta(params: {
+function legacyAssistantTurnDelta(params: {
   readonly ownerId: UserId;
   readonly characterId: CharacterId | null;
   readonly economics: TurnEconomicsInput;
@@ -142,6 +371,7 @@ export function assistantTurnDelta(params: {
   // the swipe/continue builders (reading the committed row) did — a drift that could not fire until now.
   const reasoningMs = reasoningMsOf(e.metadata ?? null);
   const tokenProvenance = tokenProvenanceOf(e);
+  const notionalSamples = legacyNotionalCostSamples(e.costUsd, e.metadata);
   return {
     ownerId: params.ownerId,
     characterId: params.characterId,
@@ -158,6 +388,7 @@ export function assistantTurnDelta(params: {
     ...tokenSampleSlice({ prefix: "", provenance: tokenProvenance, tokensIn: e.tokensIn, tokensOut: e.tokensOut }),
     ...tokenSampleSlice({ prefix: "daily", provenance: tokenProvenance, tokensIn: e.tokensIn, tokensOut: e.tokensOut }),
     ...(has(e.costUsd) ? { costSamples: 1 } : {}),
+    ...(notionalSamples > 0 ? { notionalCostSamples: notionalSamples } : {}),
     lastAt: params.now,
     now: params.now,
     ...optional,
@@ -264,7 +495,7 @@ function hasReasoningText(reasoning: string | null): boolean {
  * `+1` (a MAX candidate can't be retracted).
  */
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: a flat signed field-mapping of the rebuild's fold — every ternary is one column, no nesting; splitting it would scatter the drift-gate mirror.
-export function canonMessageDelta(params: { readonly ownerId: UserId; readonly row: CanonRowInput; readonly sign: 1 | -1; readonly now: number }): StatsDelta {
+function legacyCanonMessageDelta(params: { readonly ownerId: UserId; readonly row: CanonRowInput; readonly sign: 1 | -1; readonly now: number }): StatsDelta {
   const { row, sign } = params;
   const isUser = row.role === "user";
   const isAssistant = row.role === "assistant";
@@ -280,6 +511,7 @@ export function canonMessageDelta(params: { readonly ownerId: UserId; readonly r
   const cacheW = (row.cacheWriteTokens ?? 0) * sign;
   const settled = row.variantCount > 1 && row.selectedIdx !== null;
   const reasoningGen = isAssistant && hasReasoningText(row.reasoning) ? sign : 0;
+  const notionalSamples = legacyNotionalCostSamples(row.costUsd, row.metadata) * sign;
   return {
     ownerId: params.ownerId,
     // Per-char grain is assistant-only (the rebuild's foldMessageChar) — a user/system row is owner+timeline.
@@ -302,6 +534,7 @@ export function canonMessageDelta(params: { readonly ownerId: UserId; readonly r
     ...tokenSampleSlice({ prefix: "daily", provenance: row.tokenProvenance, tokensIn: row.tokensIn, tokensOut: row.tokensOut, sign }),
     costUsd,
     costSamples: row.costUsd !== null ? sign : 0,
+    ...(notionalSamples !== 0 ? { notionalCostSamples: notionalSamples } : {}),
     cacheReadTokens: cacheR,
     cacheWriteTokens: cacheW,
     reasoningMs,
@@ -322,6 +555,7 @@ export function canonMessageDelta(params: { readonly ownerId: UserId; readonly r
       reasoningMs,
       costUsd,
       costSamples: row.costUsd !== null ? sign : 0,
+      notionalCostSamples: notionalSamples,
       tokenProvenance: row.tokenProvenance,
       cacheR,
       cacheW,
@@ -341,6 +575,7 @@ function canonModelSlice(
     readonly reasoningMs: number;
     readonly costUsd: number;
     readonly costSamples: number;
+    readonly notionalCostSamples: number;
     readonly tokenProvenance: TokenProvenance;
     readonly cacheR: number;
     readonly cacheW: number;
@@ -360,6 +595,7 @@ function canonModelSlice(
     modelReasoningMs: v.reasoningMs,
     modelCostUsd: v.costUsd,
     modelCostSamples: v.costSamples,
+    ...(v.notionalCostSamples !== 0 ? { modelNotionalCostSamples: v.notionalCostSamples } : {}),
     modelCacheReadTokens: v.cacheR,
     modelCacheWriteTokens: v.cacheW,
   };
@@ -370,7 +606,7 @@ function canonModelSlice(
  * rebuild's `foldSwipe`/`foldSwipeChar`: swipes credit the re-roll counters + scalar tokens but not the
  * daily token slice, and their model bucket carries no cost/cache.
  */
-export function swipeVariantDelta(params: { readonly ownerId: UserId; readonly row: SwipeRowInput; readonly sign: 1 | -1; readonly now: number }): StatsDelta {
+function legacySwipeVariantDelta(params: { readonly ownerId: UserId; readonly row: SwipeRowInput; readonly sign: 1 | -1; readonly now: number }): StatsDelta {
   const { row, sign } = params;
   const gen = genDurationMs(row.genStartedAt, row.genFinishedAt);
   const reasoningMs = reasoningMsOf(row.metadata) * sign;
@@ -409,6 +645,88 @@ export function swipeVariantDelta(params: { readonly ownerId: UserId; readonly r
         }
       : {}),
   };
+}
+
+/** One transcript contribution followed by the selected variant's ordered economic facts. */
+export function assistantTurnDelta(params: Parameters<typeof legacyAssistantTurnDelta>[0]): readonly StatsDelta[] {
+  const legs = params.economics.metadata?.usageLegs;
+  if (legs === undefined || legs.length === 0) {
+    return [legacyAssistantTurnDelta(params)];
+  }
+  const economics = {
+    ...params.economics,
+    tokensIn: null,
+    tokensOut: null,
+    costUsd: null,
+    cacheReadTokens: null,
+    cacheWriteTokens: null,
+    tokenProvenance: "unrecorded" as const,
+  };
+  return [
+    legacyAssistantTurnDelta({ ...params, economics }),
+    ...legs.map((leg) =>
+      variantUsageLegDelta({
+        ownerId: params.ownerId,
+        characterId: params.characterId,
+        leg,
+        selected: true,
+        sign: 1,
+        now: params.now,
+      }),
+    ),
+  ];
+}
+
+/** Signed selected-variant transcript and economics, preserving the legacy singleton unchanged. */
+export function canonMessageDelta(params: Parameters<typeof legacyCanonMessageDelta>[0]): readonly StatsDelta[] {
+  const legs = params.row.metadata?.usageLegs;
+  if (legs === undefined || legs.length === 0) {
+    return [legacyCanonMessageDelta(params)];
+  }
+  const row = {
+    ...params.row,
+    tokensIn: null,
+    tokensOut: null,
+    costUsd: null,
+    cacheReadTokens: null,
+    cacheWriteTokens: null,
+    tokenProvenance: "unrecorded" as const,
+  };
+  return [
+    legacyCanonMessageDelta({ ...params, row }),
+    ...legs.map((leg) =>
+      variantUsageLegDelta({
+        ownerId: params.ownerId,
+        characterId: params.row.role === "assistant" ? params.row.characterId : null,
+        leg,
+        selected: true,
+        sign: params.sign,
+        now: params.now,
+      }),
+    ),
+  ];
+}
+
+/** Non-selected legs carry token samples, never selected cost/cache or daily-token contributions. */
+export function swipeVariantDelta(params: Parameters<typeof legacySwipeVariantDelta>[0]): readonly StatsDelta[] {
+  const legs = params.row.metadata?.usageLegs;
+  if (legs === undefined || legs.length === 0) {
+    return [legacySwipeVariantDelta(params)];
+  }
+  const row = { ...params.row, tokensIn: null, tokensOut: null, tokenProvenance: "unrecorded" as const };
+  return [
+    legacySwipeVariantDelta({ ...params, row }),
+    ...legs.map((leg) =>
+      variantUsageLegDelta({
+        ownerId: params.ownerId,
+        characterId: params.row.characterId,
+        leg,
+        selected: false,
+        sign: params.sign,
+        now: params.now,
+      }),
+    ),
+  ];
 }
 
 /**

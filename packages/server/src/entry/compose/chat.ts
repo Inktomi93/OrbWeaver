@@ -30,6 +30,7 @@ import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import { createCopyHandoffCards } from "#domain/character";
 import type {
+  BeginGenerationObservation,
   ChatContext,
   ChatService,
   ChatServiceDeps,
@@ -69,6 +70,7 @@ import {
   createActiveTurns,
   createChatService,
   createChatTeachingContributions,
+  createGenerationObservationSession,
   createGetMembership,
   createGetPendingUserText,
   createPostNarratorMessage,
@@ -98,7 +100,14 @@ import type { SearchService } from "#domain/search";
 import type { SessionsService } from "#domain/sessions";
 import { createTokenHasher } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
-import { applyStatsDelta, bumpStatsCanonVersion } from "#domain/stats";
+import {
+  applyCharacterStatsDelta,
+  applyStatsDelta,
+  bumpStatsCanonVersion,
+  createResolveRetainedChatAccountingScope,
+  createResolveRetainedChatRebase,
+  settleRetainedChatRebase,
+} from "#domain/stats";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import { createCopyHandoffBooks, createCountHandoffBooks } from "#domain/world-info";
 import type { AuditEntry } from "#foundation/observability";
@@ -345,6 +354,7 @@ export interface ChatComposeResult {
   /** The generic, principal-free chat ops domain/rpg receives by injection — built over chat's own
    *  ctx here (chat never learns rpg). Wired onto `RpgContext.chat` at the rpg compose block. */
   readonly rpgChatOps: {
+    readonly beginGenerationObservation: BeginGenerationObservation;
     readonly getMembership: GetMembership;
     readonly postNarratorMessage: PostNarratorMessage;
     readonly getPendingUserText: GetPendingUserText;
@@ -522,6 +532,7 @@ function chatTurnInputOf(args: {
     // The WHOLE resolved connection rides the request (§8.4-3): provider row, credential, folded features,
     // extras and capability — the runtime picks the wire off it; nothing here re-derives a routing fact.
     connection: req.connection,
+    onObservedResult: req.onObservedResult,
     params: req.intent,
     attachmentQuality: req.attachmentQuality,
     systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
@@ -556,6 +567,9 @@ function finalTurnChunk(req: TurnRequest, result: ChatResult): TurnStreamChunk {
       // denormalised on purpose so a read outlives an edited or deleted connection.
       provider: req.connection.provider.id,
       connectionId: req.connection.connectionId,
+      servedModel: result.usage.servedModel,
+      tokenDetails: result.usage.tokenDetails,
+      ...(result.usage.responseCache === undefined ? {} : { responseCache: result.usage.responseCache }),
       tokensIn: result.usage.tokensIn,
       tokensOut: result.usage.tokensOut,
       cacheReadTokens: result.usage.cacheReadTokens,
@@ -1052,6 +1066,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     copyHandoffCards: createCopyHandoffCards({
       db: input.db,
       bumpStatsCanonVersion,
+      applyStatsDelta,
       now: input.now,
       newCharacterId: minter(ID_PREFIX.character),
       // The picture RE-OWN, avatar AND carried background (#1426): `assets` is per-owner with an
@@ -1217,6 +1232,14 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     applyStatsDelta: (batch, opDb, delta) => {
       applyStatsDelta(batch as BatchStmt[], opDb, delta);
     },
+    resolveRetainedChatAccountingScope: createResolveRetainedChatAccountingScope(db),
+    applyCharacterStatsDelta: (batch, opDb, delta) => {
+      applyCharacterStatsDelta(batch as BatchStmt[], opDb, delta);
+    },
+    resolveRetainedChatRebase: createResolveRetainedChatRebase(db),
+    settleRetainedChatRebase: (batch, opDb, scope) => {
+      settleRetainedChatRebase(batch as BatchStmt[], opDb, scope);
+    },
     bumpStatsCanonVersion: (batch, opDb, ownerId) => {
       bumpStatsCanonVersion(batch as BatchStmt[], opDb, ownerId);
     },
@@ -1235,8 +1258,25 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     // The arbiter is structured output only: a row that carries no structured payload cannot serve it, so the round
     // degrades visibly instead of reading free text.
-    resolveSpeakerArbiter: async (funderUserId) =>
-      await speakerArbiterFor(await input.roleClientsFor(funderUserId), (await input.resolveUtilityPresetParams(funderUserId))?.maxContextTokens),
+    resolveSpeakerArbiter: async (funderUserId, chatId) => {
+      const arbiter = await speakerArbiterFor(
+        await input.roleClientsFor(funderUserId),
+        (await input.resolveUtilityPresetParams(funderUserId))?.maxContextTokens,
+      );
+      if (arbiter === null) {
+        return null;
+      }
+      const observations = createGenerationObservationSession(
+        { db, now, applyStatsDelta },
+        {
+          chatId,
+          turnId: chatCtx.newChatTurnId(),
+          sourceMessageId: null,
+          sourceVariantId: null,
+        },
+      );
+      return { ...arbiter, structured: (inputs, opts) => arbiter.structured(inputs, { ...opts, onObservedResult: observations.onObservedResult }) };
+    },
     summarizerContextTokens: taskWindows.summarize,
     summarizeAvailability: async (funderUserId) => await input.connection.availability({ task: "summarize", principal: await realHostPrincipal(funderUserId) }),
     // The embed model's input cap off the resolved EMBEDDING capability (was the vLLM launch window) — the
@@ -1588,6 +1628,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     service: chatBundle.service,
     emitBusEvent: emitChatEvent,
     rpgChatOps: {
+      beginGenerationObservation: (parent) => createGenerationObservationSession(chatCtx, parent, chatCtx).onObservedResult,
       getMembership: createGetMembership(chatCtx),
       postNarratorMessage: createPostNarratorMessage(chatCtx, { emit: emitChatEvent, claimChat }),
       getPendingUserText: createGetPendingUserText(chatCtx),

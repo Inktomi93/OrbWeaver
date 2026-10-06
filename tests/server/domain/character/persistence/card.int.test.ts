@@ -19,7 +19,7 @@ import {
   writeCardInPlace,
 } from "../../../../../packages/server/src/domain/character/persistence/card.ts";
 import { buildGroupCard } from "../../../../../packages/server/src/domain/character/substrate/group-character.ts";
-import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
+import { applyStatsDelta, bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -117,15 +117,16 @@ describe("persistence/card", () => {
     const first = { ...makeRow(owner, "character_1", castId<CharacterHandle>("a")), importedFrom: "handoff:chat_1:character_src" };
     const second = { ...makeRow(owner, "character_2", castId<CharacterHandle>("b")), importedFrom: "handoff:chat_1:character_src" };
 
-    expect(await insertCharacterClaimingProvenance(db, first, bumpStatsCanonVersion)).toBe(true);
+    const accounting = { applyStatsDelta, bumpStatsCanonVersion, now: () => FROZEN_AT_MS };
+    expect(await insertCharacterClaimingProvenance(db, first, accounting)).toBe(true);
     // The claim is the WRITE's own predicate, not a prior read: a second writer with the same key lands
     // nothing and is told so, which is what lets the caller converge on the winner instead of minting a
     // second library for one gift.
-    expect(await insertCharacterClaimingProvenance(db, second, bumpStatsCanonVersion)).toBe(false);
+    expect(await insertCharacterClaimingProvenance(db, second, accounting)).toBe(false);
     expect(await db.select().from(characters).where(eq(characters.ownerId, owner))).toHaveLength(1);
     // The claim is PER-OWNER: the same key under a different recipient is a different gift.
     const foreign = { ...makeRow(other, "character_3", castId<CharacterHandle>("c")), importedFrom: "handoff:chat_1:character_src" };
-    expect(await insertCharacterClaimingProvenance(db, foreign, bumpStatsCanonVersion)).toBe(true);
+    expect(await insertCharacterClaimingProvenance(db, foreign, accounting)).toBe(true);
   });
 
   test("deleteOwnedCharacter is owner-scoped", async () => {
