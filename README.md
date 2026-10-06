@@ -31,17 +31,27 @@ server you already run, such as Ollama, KoboldCpp, LM Studio or vLLM.
 
 ## Run it
 
-Pick one path. Each serves the app at <http://localhost:8788>. Both install the latest stable release from
-the `release` branch; `main` is the development line.
+Pick one path. Each serves the app at <http://localhost:8788>. The alpha uses the development image or source
+from `main`. Stable releases use the `release` branch and the default compose image.
 
 ### Docker (Linux, macOS, Windows)
 
 ```bash
-git clone --branch release https://github.com/Inktomi93/orbweaver && cd orbweaver
+git clone https://github.com/Inktomi93/OrbWeaver.git
+cd OrbWeaver
+ORB_IMAGE=ghcr.io/inktomi93/orbweaver:development docker compose up -d
+```
+
+Windows PowerShell:
+
+```powershell
+git clone https://github.com/Inktomi93/OrbWeaver.git
+cd OrbWeaver
+$env:ORB_IMAGE = "ghcr.io/inktomi93/orbweaver:development"
 docker compose up -d
 ```
 
-Open <http://localhost:8788>. There is no login: the port is published on this machine only, and you are the owner. Compose pulls the published release image, so there is no build step; [`docker/README.md`](docker/README.md) shows how to build from the checkout instead. The app starts its plugin watchdog and isolated broker as child processes inside the container. [`docker/README.md`](docker/README.md) also covers updates, login modes, LAN and HTTPS, tunnels, secrets and backups.
+Open <http://localhost:8788>. There is no login: the port is published on this machine only, and you are the owner. Compose pulls the development image, so there is no build step; [`docker/README.md`](docker/README.md) shows how to build from the checkout instead. The app starts its plugin watchdog and isolated broker as child processes inside the container. [`docker/README.md`](docker/README.md) also covers updates, login modes, LAN and HTTPS, tunnels, secrets and backups.
 
 ### From source
 
@@ -58,7 +68,8 @@ Invoke-WebRequest https://get.pnpm.io/install.ps1 -UseBasicParsing | Invoke-Expr
 If Windows Defender blocks the pnpm binary, run `winget install -e --id pnpm.pnpm` instead. Then, on every platform:
 
 ```bash
-git clone --branch release https://github.com/Inktomi93/orbweaver && cd orbweaver
+git clone https://github.com/Inktomi93/OrbWeaver.git
+cd OrbWeaver
 pnpm install
 pnpm start
 ```
@@ -91,6 +102,15 @@ A device on your network signs in over plain http, so the password and the sessi
 ### Back up your data
 
 Everything the app keeps is in `data/`, or wherever `DATA_DIR` points. Stop the app, copy `data/` except `data/cache/`, and start it again. `data/secrets/` holds `credentials_key` (it decrypts saved provider keys) and `session_secret` (the pepper for passwords and sign-ins); a database restored without them cannot read its keys or sign anyone in, and boot refuses and names the file. Before a boot applies new migrations, it copies the database to `data/backups/`. Migrations only go forward: to roll back, stop the app, put a backup in place of `data/db/orbweaver.db`, delete the `-wal` and `-shm` files beside it, and start the older checkout.
+
+## Author a plugin
+
+Use the [server plugin starter](https://github.com/Inktomi93/OrbWeaver-plugin-template) or the
+[visual plugin starter](https://github.com/Inktomi93/OrbWeaver-plugin-template-scripted-ui).
+The visual starter separates scripted house UI from its custom-frame example.
+Both consume the [versioned SDK and toolchain release](https://github.com/Inktomi93/OrbWeaver/releases/tag/plugin-authoring-v0.1.0).
+Their guides explain builds, consent, updates, and runtime boundaries.
+The application installs committed JavaScript from Git, not the author's source or build scripts.
 
 ## Work on the code
 
@@ -168,6 +188,29 @@ reader prefers it. When neither can answer, the commit reads `unknown` — never
 `stable` only when its commit is the commit its own `v<version>` tag names, so a checkout or image of the
 release tag is stable and everything else, including `main`, is a dev build. There is no `dirty` flag: it
 cannot be derived without git, and a field that is always `false` would lie exactly when it matters.
+
+**Development images** (`.github/workflows/development-image.yml`):
+
+The manually dispatched workflow builds its selected commit as `ghcr.io/inktomi93/orbweaver:development`
+and `:sha-<full-commit>`. A push to the publication branch `codex/launch-packages` also runs it.
+It checks the development identity, boots a fresh container, and proves anonymous pull by digest.
+These alpha images never replace `:latest` or a stable version tag.
+Select one from an existing checkout on Linux or macOS:
+
+```bash
+ORB_IMAGE=ghcr.io/inktomi93/orbweaver:development docker compose up -d
+```
+
+Windows PowerShell:
+
+```powershell
+$env:ORB_IMAGE = "ghcr.io/inktomi93/orbweaver:development"
+docker compose up -d
+```
+
+Use the digest in the workflow summary to pin exact bytes.
+Manual dispatch becomes available after the workflow reaches the default branch.
+The first GHCR package needs public visibility before anonymous pull can pass.
 
 **Shipping a stable release** (`.github/workflows/release.yml`, `release-please-config.json`):
 
