@@ -6,6 +6,7 @@ import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { JsonNormalizerProof } from "../contract/json-column-origin.ts";
 import { unwrapExpression } from "./ast-read.ts";
+import { jsonColumnSchemaFactoryProof } from "./json-column-schema-factory-proof.ts";
 import { readStaticAuthoredValue, resolveAuthoredComposite } from "./static-authored-value.ts";
 import { readMemberAccess } from "./symbol-reference.ts";
 
@@ -63,13 +64,10 @@ function pureUniqueness(callback: MorphNode): boolean {
     return false;
   }
   const construct = size.receiver;
-  const declarations = construct.getExpression().getSymbol()?.getDeclarations() ?? [];
   const origin = resolveCallableOrigin(construct);
   return (
     construct.getArguments().length === 1 &&
     sameParameter(construct.getArguments()[0] ?? construct, parameter) &&
-    declarations.length > 0 &&
-    declarations.every((declaration) => /^lib\..*\.d\.ts$/u.test(declaration.getSourceFile().getBaseName())) &&
     origin.kind === "resolved" &&
     origin.value.target.kind === "global" &&
     origin.value.target.globalName === "Set"
@@ -141,13 +139,18 @@ function healProof(argument: MorphNode): void {
     }
     return;
   }
+  const authored = readStaticAuthoredValue(value);
+  if (authored.kind === "resolved" && authored.value.kind === "object") {
+    return;
+  }
   if (!(Node.isArrowFunction(value) || Node.isFunctionExpression(value)) || value.getParameters().length > 0) {
     refusal(value, "catch fallback cannot read or mutate the input");
   }
   const body = value.getBody();
   const returns = Node.isBlock(body) ? body.getDescendantsOfKind(SyntaxKind.ReturnStatement).map((statement) => statement.getExpression()) : [body];
   const fallback = returns[0] === undefined ? undefined : unwrapExpression(returns[0]);
-  if (returns.length !== 1 || fallback === undefined || !Node.isObjectLiteralExpression(fallback) || readStaticAuthoredValue(fallback).kind !== "resolved") {
+  const resolved = fallback === undefined ? undefined : readStaticAuthoredValue(fallback);
+  if (returns.length !== 1 || resolved?.kind !== "resolved" || resolved.value.kind !== "object") {
     refusal(value, "catch fallback is not an explicit static historical-heal object");
   }
 }
@@ -156,6 +159,9 @@ function schemaCallProof(call: import("ts-morph").CallExpression, seen: Readonly
   const constructed = constructorProof(call, seen);
   if (constructed !== undefined) {
     return constructed;
+  }
+  if (jsonColumnSchemaFactoryProof(call)) {
+    return { historicalHeal: false };
   }
   const member = readMemberAccess(call.getExpression());
   if (member === undefined || !zodMethod(call.getExpression(), member.name)) {

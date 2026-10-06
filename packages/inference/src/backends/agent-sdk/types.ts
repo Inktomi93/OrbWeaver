@@ -10,7 +10,7 @@ import type { ChatResult, ContextUsage } from "../../contract/chat.ts";
 import type { ProviderScrubSet } from "../../contract/errors.ts";
 import type { ChatDeltaEvent, ChatEvent } from "../../contract/events.ts";
 import type { AgentSdkSessionId } from "../../contract/identity.ts";
-import type { SpawnIdentity } from "../../contract/runtime.ts";
+import type { ScheduleTimeout, SpawnIdentity } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
 import type { PlannedResponseFormat } from "../../structured/plan.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
@@ -40,7 +40,7 @@ export interface AgentSdkDeps {
   /** The shared outbound-image seam (MA-10): a summarize item's images ride the SDK streaming-input prompt. */
   readonly normalizeImageBytes: NormalizeImageBytes;
   /** The TIMER seam every bound in this backend arms through — injected so a test trips a bound by hand. */
-  readonly scheduleTimeout: (fn: () => void, ms: number) => () => void;
+  readonly scheduleTimeout: ScheduleTimeout;
   readonly captureWire?: WireCaptureSink | undefined;
   /** Opt-in subprocess stderr at debug level. */
   readonly debug: boolean;

@@ -15,6 +15,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { classifyMembership, compareRoutingParity, findTripleSlashLibLeaks, runTestsTypeMembership } from "@orb/tooling/verify";
+import { ts } from "ts-morph";
 import { vi } from "vitest";
 import type { MembershipReport } from "../../../../tooling/src/verify/contract/tests-type-membership.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -120,6 +121,53 @@ test("findTripleSlashLibLeaks does NOT flag an ordinary DOM-less file (the found
   withScratchDir((dir) => {
     writeFileSync(join(dir, "clean.ts"), 'import { readFileSync } from "node:fs";\nexport const x = readFileSync;\n');
     expect(findTripleSlashLibLeaks(dir, ["clean.ts"])).toEqual([]);
+  });
+});
+
+test("findTripleSlashLibLeaks reads comment tokens, not directive-shaped template, string or block-comment data", () => {
+  withScratchDir((dir) => {
+    const dataFiles = {
+      "template.ts": 'export const fixture = `\n/// <reference lib="es2022" />\nexport const unique = new Set([1]);\n`;\n',
+      "interpolated-template.ts": 'export const fixture = `\n/// <reference lib="dom" />\n${1}\n/// <reference lib="dom" />\n`;\n',
+      "continued-string.ts": "export const fixture = \"\\\n/// <reference lib='dom' />\";\n",
+      "block-prose.ts": '/*\n/// <reference lib="dom" />\n*/\nexport const fixture = 1;\n',
+    };
+    for (const [name, body] of Object.entries(dataFiles)) {
+      writeFileSync(join(dir, name), body);
+    }
+    expect(findTripleSlashLibLeaks(dir, Object.keys(dataFiles))).toEqual([]);
+    const realComments = {
+      "after-template.ts": 'export const fixture = `\n/// <reference lib="es2022" />\n`;\n/// <reference lib="dom" />\nexport const next = 1;\n',
+      "interpolation-comment.ts": 'export const fixture = `${\n/// <reference lib="dom" />\n1}`;\n',
+    };
+    for (const [name, body] of Object.entries(realComments)) {
+      writeFileSync(join(dir, name), body);
+    }
+    expect(findTripleSlashLibLeaks(dir, Object.keys(realComments))).toEqual(Object.keys(realComments));
+  });
+});
+
+test("compiler-recognized indented and equals-spaced directives flag while the same spellings in data do not", () => {
+  withScratchDir((dir) => {
+    const directives = {
+      "indented.ts": '    /// <reference lib="dom" />\nexport const value = 1;\n',
+      "spaced-equals.ts": '\t/// <reference lib = "dom" />\nexport const value = 1;\n',
+    };
+    for (const [name, body] of Object.entries(directives)) {
+      expect(ts.preProcessFile(body).libReferenceDirectives.map((reference) => reference.fileName)).toEqual(["dom"]);
+      writeFileSync(join(dir, name), body);
+    }
+    expect(findTripleSlashLibLeaks(dir, Object.keys(directives))).toEqual(Object.keys(directives));
+    const data = {
+      "indented-template.ts": 'export const value = `\n    /// <reference lib="dom" />\n`;\n',
+      "spaced-template.ts": 'export const value = `\n\t/// <reference lib = "dom" />\n`;\n',
+      "indented-block.ts": '/*\n    /// <reference lib="dom" />\n*/\nexport const value = 1;\n',
+      "spaced-block.ts": '/*\n\t/// <reference lib = "dom" />\n*/\nexport const value = 1;\n',
+    };
+    for (const [name, body] of Object.entries(data)) {
+      writeFileSync(join(dir, name), body);
+    }
+    expect(findTripleSlashLibLeaks(dir, Object.keys(data))).toEqual([]);
   });
 });
 

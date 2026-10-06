@@ -12,6 +12,7 @@ import {
   declaredByAnyPackage,
   declaredByFile,
   declaredByPackage,
+  resolveArrayElementTypeIdentityOrigin,
   resolveContextualMemberOrigin,
   resolveTypeIdentityChain,
   resolveTypeIdentityOrigin,
@@ -97,6 +98,29 @@ function memberReads(source: SourceFile, name: string): readonly Node[] {
       .filter((node) => node.getArgumentExpression()?.getText().replaceAll(/["']/gu, "") === name),
   ];
 }
+
+test("direct array-element identity preserves imported aliases without adopting nested or foreign names", () => {
+  const project = projectOf({
+    "canonical.ts": "export interface ResolvedWarning { code: string; message: string }",
+    "subject.ts": [
+      'import type { ResolvedWarning as Warning } from "./canonical.ts";',
+      "interface ResolvedWarning { code: string; message: string }",
+      "declare const canonical: readonly Warning[];",
+      "declare const foreign: ResolvedWarning[];",
+      "declare const nested: { warning: Warning }[];",
+      "declare const nonArray: Warning;",
+    ].join("\n"),
+  });
+  const source = file(project, "subject.ts");
+  for (const name of ["canonical", "foreign", "nested"]) {
+    const origin = expectResolved(resolveArrayElementTypeIdentityOrigin(source.getVariableDeclarationOrThrow(name).getNameNode()));
+    expect(declaredByFile(origin.value.declarations, file(project, "canonical.ts"))).toBe(name === "canonical");
+  }
+  expect(resolveArrayElementTypeIdentityOrigin(source.getVariableDeclarationOrThrow("nonArray").getNameNode())).toMatchObject({
+    kind: "unresolved",
+    reason: "missing",
+  });
+});
 
 test("a member read resolves to the property symbol's declaration home through every spelling", () => {
   const project = projectOf({

@@ -14,12 +14,15 @@ export interface Write { set(value: object): Write; where(value: object): Promis
 export interface Client { select<const Fields = undefined>(fields?: Fields): Select<Fields>; update(table: object): Write; insert(table: object): Write }
 `;
 const ZOD = `
-export interface ZodType<T = unknown> { readonly _output: T; parse(value: unknown): T; int(): ZodType<T>; min(n: number): ZodType<T>; max(n: number): ZodType<T>; optional(): ZodType<T | undefined>; nullable(): ZodType<T | null>; catch(value: T | (() => T)): ZodType<T>; refine(check: (value: T) => boolean, message?: string): ZodType<T>; transform<U>(map: (value: T) => U): ZodType<U> }
+export interface RefinementCtx { addIssue(issue: { readonly code: "custom"; readonly message: string }): void }
+export interface ZodType<T = unknown, Input = unknown> { readonly _output: T; readonly _input: Input; parse(value: unknown): T; int(): ZodType<T, Input>; min(n: number): ZodType<T, Input>; max(n: number): ZodType<T, Input>; optional(): ZodType<T | undefined, Input>; nullable(): ZodType<T | null, Input>; catch(value: T | (() => T)): ZodType<T, Input>; refine(check: (value: T) => boolean, message?: string): ZodType<T, Input>; transform<U>(map: (value: T, ctx: RefinementCtx) => U): ZodType<U, Input> }
 type ObjectOutput<Shape extends Record<string, ZodType>> = { [Key in keyof Shape as undefined extends Shape[Key]["_output"] ? never : Key]: Shape[Key]["_output"] } & { [Key in keyof Shape as undefined extends Shape[Key]["_output"] ? Key : never]?: Shape[Key]["_output"] };
 export declare function object<const Shape extends Record<string, ZodType>>(shape: Shape): ZodType<ObjectOutput<Shape>>;
 export declare function array<T>(schema: ZodType<T>): ZodType<T[]>;
 export declare function number(): ZodType<number>;
-export declare function string(): ZodType<string>;
+export declare function string(): ZodType<string, string>;
+export declare function literal<const Value extends string | number | boolean>(value: Value): ZodType<Value>;
+export declare const NEVER: never;
 export declare function boolean(): ZodType<boolean>;
 export declare function record<Key extends string, Value>(key: ZodType<Key>, value: ZodType<Value>): ZodType<Record<Key, Value>>;
 export declare function union<const Members extends readonly ZodType[]>(members: Members): ZodType<Members[number]["_output"]>;
@@ -174,4 +177,40 @@ export function jsonWriteProofFiles(files: Readonly<Record<string, string>>): Re
     "packages/contracts/src/rpg/index.ts": RPG_SHEET,
     ...upgraded,
   };
+}
+
+const TYPE_ID_FACTORY = `
+import { fromString } from "typeid-js";
+import * as z from "zod";
+export const ID_PREFIX = { refinerySchema: "refinery_schema" } as const;
+export type TypeIdOf<P extends string> = string & { readonly idPrefix: P };
+export function typeIdSchema<P extends string>(prefix: P): z.ZodType<TypeIdOf<P>, string> {
+  return z.string().transform((value, ctx): TypeIdOf<P> => {
+    try { return fromString(value, prefix) as string as TypeIdOf<P>; }
+    catch { ctx.addIssue({ code: "custom", message: \`Invalid \${prefix} id\` }); return z.NEVER; }
+  });
+}
+`;
+const STAGE_CONFIG = `
+import { ID_PREFIX, typeIdSchema } from "../../../kit/src/ids/index.ts";
+export const custom = z.object({ kind: z.literal("custom"), schemaId: typeIdSchema(ID_PREFIX.refinerySchema) });
+export const fixed = z.object({ kind: z.literal("fixed"), mode: z.enum(["full", "balanced"]) });
+export const stageConfigSchema = z.object({ score: z.union([fixed, custom]), rewrite: fixed, analyze: z.union([fixed, custom]) });
+export type StageConfig = z.output<typeof stageConfigSchema>;
+export const DEFAULT_STAGE_CONFIG = { score: { kind: "fixed", mode: "full" }, rewrite: { kind: "fixed", mode: "balanced" }, analyze: { kind: "fixed", mode: "full" } } as const;
+`;
+
+/** The actual stage-config constructor/factory/read-heal chain, with deliberate per-control overrides. */
+export function jsonStageConfigProofFiles(source: string, overrides: Readonly<Record<string, string>> = {}): Readonly<Record<string, string>> {
+  return jsonWriteProofFiles({
+    "node_modules/typeid-js/index.d.ts": "export declare function fromString<T extends string>(typeId: string, prefix?: T): string;\n",
+    "packages/kit/src/ids/index.ts": TYPE_ID_FACTORY,
+    "packages/contracts/src/refinery/index.ts": SELECTION + STAGE_CONFIG,
+    "packages/db/src/schema/refinery.ts":
+      'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; import type { StageConfig } from "../../../contracts/src/refinery/index.ts"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }), stageConfig: text("stage_config", { mode: "json" }).$type<StageConfig>() });',
+    "packages/server/src/domain/refinery/verbs/stage-proof.ts":
+      'import { stageConfigSchema, DEFAULT_STAGE_CONFIG } from "../../../../../contracts/src/refinery/index.ts"; const stageParser = stageConfigSchema.catch(() => { addSpanEvent("refinery.read.heal", { arm: "stageConfig" }); return DEFAULT_STAGE_CONFIG; }); function stageViewOf(row: Row) { return { stageConfig: stageParser.parse(row.stageConfig) }; }\n' +
+      source,
+    ...overrides,
+  });
 }

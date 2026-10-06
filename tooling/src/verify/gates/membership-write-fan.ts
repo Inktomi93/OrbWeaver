@@ -30,13 +30,13 @@
 // `lib/reviewed-grants-membership-write-fan.ts` remains this policy's grant home.
 import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 import { readMemberAccess } from "../lib/symbol-reference.ts";
 import { isDrizzleWriteStatement, tableTargetOf } from "../lib/tenancy-read.ts";
 import { membershipScopedTableIdents, reportBlindWhenEmpty, schemaTableIdents } from "../lib/tenancy-scope.ts";
+import { resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
 
 /** The drizzle write verbs whose first argument is the table. `insert` is IN (unlike `owner-scoped-writes`,
  *  whose question is a WHERE predicate `insert` cannot carry): attaching a row to a room is precisely the
@@ -62,23 +62,15 @@ function isAwaitedDocumentFan(call: CallExpression): boolean {
   if (parent === undefined || !Node.isAwaitExpression(parent)) {
     return false;
   }
-  const member = readMemberReference(call.getExpression());
+  const member = resolveTypeMemberOrigin(call.getExpression());
   if (member.kind !== "resolved" || member.value.name !== DOCUMENT_FAN) {
     return false;
   }
-  const receiver = member.value.receiver.getType().getNonNullableType();
-  const arms = receiver.isUnion() ? receiver.getUnionTypes() : [receiver];
-  return arms.every(
-    (arm) =>
-      arm
-        .getProperty(member.value.name)
-        ?.getDeclarations()
-        .some(
-          (declaration) =>
-            Node.isPropertySignature(declaration) &&
-            declaration.getName() === DOCUMENT_FAN &&
-            declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith(`/${DOCUMENT_FAN_HOME}`),
-        ) === true,
+  return member.value.declarations.every(
+    (declaration) =>
+      Node.isPropertySignature(declaration) &&
+      declaration.getName() === DOCUMENT_FAN &&
+      declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith(`/${DOCUMENT_FAN_HOME}`),
   );
 }
 
@@ -245,6 +237,20 @@ export const gate = defineGate({
         "packages/server/src/domain/databank/contract/service.ts":
           "export interface DatabankOps { readonly fanDatabankRoomsForDocument: (documentId: string) => Promise<void>; }\n",
         "packages/server/src/domain/databank/persistence/scope.ts":
+          'import { chatDocuments } from "@orb/db"; import type { DatabankOps } from "../contract/service.ts"; interface Foreign { readonly fanDatabankRoomsForDocument: (documentId: string) => Promise<void> } declare const ctx: (DatabankOps | Foreign) & { db: { insert(table: object): { values(row: object): Promise<void> } }; emitUserEvent(userId: string, event: object): void }; export async function write(): Promise<void> { await ctx.db.insert(chatDocuments).values({}); await ctx["fanDatabankRoomsForDocument"]("doc"); ctx.emitUserEvent("owner", { type: "databankChanged" }); }\n',
+      },
+      expect: { count: 1, token: "emitUserEvent" },
+      why: "an awaited common union member cannot certify delivery when one receiver arm has a foreign fan origin",
+    },
+    {
+      mode: "types",
+      grant: { subject: "packages/server/src/domain/databank/persistence/scope.ts#chatDocuments", operation: OPERATION },
+      files: {
+        "packages/db/src/schema/databank.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const chatDocuments = sqliteTable("chat_documents", { chatId: text("chat_id"), documentId: text("document_id") });\n',
+        "packages/server/src/domain/databank/contract/service.ts":
+          "export interface DatabankOps { readonly fanDatabankRoomsForDocument: (documentId: string) => Promise<void>; }\n",
+        "packages/server/src/domain/databank/persistence/scope.ts":
           'import { chatDocuments } from "@orb/db"; import type { DatabankOps } from "../contract/service.ts"; declare const ctx: DatabankOps & { db: { insert(table: object): { values(row: object): Promise<void> } }; emitUserEvent(userId: string, event: object): void }; export async function write(): Promise<void> { await ctx.db.insert(chatDocuments).values({}); void ctx.fanDatabankRoomsForDocument("doc"); ctx.emitUserEvent("owner", { type: "databankChanged" }); }\n',
       },
       expect: { count: 1, token: "emitUserEvent" },
@@ -298,6 +304,19 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/databank.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const chatDocuments = sqliteTable("chat_documents", { chatId: text("chat_id"), documentId: text("document_id") });\n',
+        "packages/server/src/domain/databank/contract/service.ts":
+          "export interface DatabankOps { readonly fanDatabankRoomsForDocument: (documentId: string) => Promise<void>; }\n",
+        "packages/server/src/domain/databank/contract/alias.ts": 'export type { DatabankOps as RoomOps } from "./service.ts";\n',
+        "packages/server/src/domain/databank/persistence/scope.ts":
+          'import { chatDocuments } from "@orb/db"; import type { RoomOps as Ops } from "../contract/alias.ts"; declare const ctx: ((Ops & { side: "a" }) | (Ops & { side: "b" })) & { db: { insert(table: object): { values(row: object): Promise<void> } }; emitUserEvent(userId: string, event: object): void }; export async function write(): Promise<void> { await ctx.db.insert(chatDocuments).values({}); await ctx["fanDatabankRoomsForDocument"]("doc"); ctx.emitUserEvent("owner", { type: "databankChanged" }); }\n',
+      },
+      why: "re-exported type aliases and bracket calls retain the same canonical member on every receiver union arm",
+    },
     {
       mode: "types",
       files: {

@@ -9,9 +9,11 @@ import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { isTypeWorldSource, predictedProgram, requiresExclusiveRoot, worldOf } from "@orb/tooling/_shared/project-worlds";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import { ambientRootsForProgram, ambientScopeOf, programWorldOf } from "@orb/tooling/_shared/type-config-intent";
+import { SyntaxKind } from "ts-morph";
 import type { PolicyProgramMembership } from "../contract/policy-scope.ts";
 import type { ClosureLeak, MembershipOutcome, MembershipReport, MembershipRow, RoutingParityViolation } from "../contract/tests-type-membership.ts";
 import { MEMBERSHIP_ENFORCEMENT, MEMBERSHIP_OUTCOMES } from "../contract/tests-type-membership.ts";
+import { forEachCommentRange, parseScratch } from "../lib/comment-spans.ts";
 import { readAvailablePolicyPrograms } from "../lib/policy-program-membership.ts";
 import { readPolicyRepositoryInventory } from "../lib/policy-repo-inventory.ts";
 
@@ -236,7 +238,7 @@ export function findEscapees(testFiles: readonly string[], closureAbs: ReadonlyS
 }
 
 // A reference-lib directive widens its entire compiler program, including unrelated source files.
-const TRIPLE_SLASH_LIB_RE = /^\/{3}\s*<reference\s+lib=/mu;
+const TRIPLE_SLASH_LIB_RE = /^\s*\/{3}\s*<reference\s+lib\s*=/mu;
 // Currently empty BY DESIGN — no live file needs this escape. A future genuine need adds a row here with
 // a `why` (never just deletes the check); this is the door, not a standing exemption.
 const LIB_LEAK_ALLOWLIST: ReadonlySet<string> = new Set();
@@ -244,7 +246,22 @@ const LIB_LEAK_ALLOWLIST: ReadonlySet<string> = new Set();
 /** The leak-scan core (exported for a proof test): files carrying a triple-slash `reference lib=`
  *  directive, minus the allowlist. */
 export function findTripleSlashLibLeaks(root: string, files: readonly string[]): readonly string[] {
-  return files.filter((rel) => !LIB_LEAK_ALLOWLIST.has(rel) && TRIPLE_SLASH_LIB_RE.test(readFileSync(join(root, rel), "utf8")));
+  return files.filter((rel) => {
+    if (LIB_LEAK_ALLOWLIST.has(rel)) {
+      return false;
+    }
+    const text = readFileSync(join(root, rel), "utf8");
+    if (!TRIPLE_SLASH_LIB_RE.test(text)) {
+      return false;
+    }
+    const directives: number[] = [];
+    forEachCommentRange(parseScratch(text), (range) => {
+      if (range.kind === SyntaxKind.SingleLineCommentTrivia && TRIPLE_SLASH_LIB_RE.test(text.slice(range.pos, range.end))) {
+        directives.push(range.pos);
+      }
+    });
+    return directives.length > 0;
+  });
 }
 
 function jsonRequested(args: readonly string[]): boolean {

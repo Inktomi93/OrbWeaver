@@ -97,6 +97,19 @@ export function resolveTypeIdentityOrigin(node: MorphNode): ReferenceFact<TypeId
     : resolved({ name: symbol.getName(), node, aliased: alias !== undefined, declarations: declarations.value }, node, declarations.value);
 }
 
+/** Resolve the direct array element's named identity, never a type nested inside that element. */
+export function resolveArrayElementTypeIdentityOrigin(node: MorphNode): ReferenceFact<TypeIdentityOrigin> {
+  const element = node.getType().getArrayElementType();
+  const symbol = element?.getSymbol();
+  if (symbol === undefined) {
+    return unresolved("missing", node, "the checker resolved no named direct array element type");
+  }
+  const declarations = symbolDeclarations(symbol, node, `array element ${symbol.getName()}`);
+  return declarations.kind === "unresolved"
+    ? declarations
+    : resolved({ name: symbol.getName(), node, aliased: false, declarations: declarations.value }, node, declarations.value);
+}
+
 /** One step UP a declared type-alias chain: `type MyHook = GatedStoreHook<T>` steps from `MyHook` to
  *  `GatedStoreHook`, following an import specifier to the real declaration on the way. */
 function aliasStep(origin: TypeIdentityOrigin): TypeIdentityOrigin | undefined {

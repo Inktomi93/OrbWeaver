@@ -1,6 +1,6 @@
 // Stored-array remaps retain field provenance only through installed array methods and pure callbacks.
 // Caller snapshots, opaque callbacks and member writes do not acquire provenance from the base array.
-import { resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
+import { resolveGlobalMemberOrigin, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
 import { lexicalReferenceSymbol } from "@orb/tooling/_shared/reference-fact-alias";
 import { resolveCallableOrigin } from "@orb/tooling/_shared/reference-fact-call";
 import type { Node as MorphNode, Type } from "ts-morph";
@@ -29,6 +29,8 @@ const PURE_OPERATORS = new Set([
 ]);
 const ARRAY_REMAPS = new Set(["filter", "map"]);
 const PURE_MEMBERS = new Set(["filter", "map", "includes", "has"]);
+const ARRAY_OWNERS = new Set(["Array", "ReadonlyArray"]);
+const SET_OWNERS = new Set(["Set", "ReadonlySet"]);
 
 function primitive(type: Type): boolean {
   return (
@@ -53,7 +55,19 @@ function plainValue(type: Type): boolean {
 
 function installedMember(receiver: MorphNode, name: string): boolean {
   const declarations = receiver.getType().getNonNullableType().getProperty(name)?.getDeclarations() ?? [];
-  return declarations.length > 0 && declarations.every((declaration) => /^lib\..*\.d\.ts$/u.test(declaration.getSourceFile().getBaseName()));
+  const owners = name === "has" ? SET_OWNERS : ARRAY_OWNERS;
+  return (
+    PURE_MEMBERS.has(name) &&
+    declarations.some((declaration) => declaration.getSourceFile().getFilePath().replaceAll("\\", "/").includes("/node_modules/typescript/lib/lib.")) &&
+    declarations.every((declaration) => {
+      const owner = declaration.getParentIfKind(SyntaxKind.InterfaceDeclaration);
+      if (owner === undefined) {
+        return false;
+      }
+      const origin = resolveGlobalMemberOrigin(owner.getNameNode());
+      return origin.kind === "resolved" && origin.value.memberPath.length === 0 && owners.has(origin.value.globalName);
+    })
+  );
 }
 
 function pureCallback(node: MorphNode, seen: ReadonlySet<object>): boolean {

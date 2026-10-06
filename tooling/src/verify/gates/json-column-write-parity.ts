@@ -64,7 +64,7 @@
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { jsonColumnWriteFact } from "../lib/json-column-write-fact.ts";
-import { jsonWriteProofFiles } from "../lib/json-column-write-proof-fixtures.ts";
+import { jsonStageConfigProofFiles, jsonWriteProofFiles } from "../lib/json-column-write-proof-fixtures.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 
@@ -135,6 +135,19 @@ export const gate = defineGate({
   }),
 
   mustFlag: [
+    {
+      mode: "types",
+      files: jsonStageConfigProofFiles(
+        "export async function run(ctx, patch, id) { const row = await loadOwnedSessionRow(ctx.db, id); const current = stageViewOf(row).stageConfig; await ctx.db.update(refinerySessions).set({ stageConfig: { score: patch.score ?? current.score, rewrite: patch.rewrite ?? current.rewrite, analyze: patch.analyze ?? current.analyze } }).where(id); }",
+        {
+          "packages/contracts/src/stage-versioned.ts":
+            'import type { StageConfig } from "./refinery/index.ts"; declare function defineVersionedConfig<T>(options: object): object; export const config = defineVersionedConfig<StageConfig>({});',
+        },
+      ),
+      expect: { count: 1, token: "stageConfig" },
+      grant: { subject: "packages/server/src/domain/refinery/verbs/stage-proof.ts#run", operation: "versioned-config-replace" },
+      why: "an imported static stage heal remains historicalHeal and cannot bypass the versioned-config guard even on an otherwise keywise merge",
+    },
     {
       mode: "types",
       grant: { subject: "refinerySessions.selection", operation: "json-column-straddle" },
@@ -375,6 +388,283 @@ export const gate = defineGate({
   mustRefuse: [
     {
       mode: "types",
+      files: jsonStageConfigProofFiles(
+        "export async function run(ctx, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ stageConfig: { ...stageViewOf(row).stageConfig } }).where(id); }",
+        {
+          "node_modules/typeid-js/index.d.ts":
+            "export declare function fromString<T extends string>(typeId: string, prefix?: T): string; export declare class TypeID<T extends string> { static fromString<P extends string>(value: string, prefix?: P): TypeID<P>; }",
+          "packages/kit/src/ids/index.ts":
+            'import { TypeID } from "typeid-js"; import * as z from "zod"; export const ID_PREFIX = { refinerySchema: "refinery_schema" } as const; export function typeIdSchema(prefix: string) { return z.string().transform((value, ctx) => { try { return TypeID.fromString(value, prefix); } catch { ctx.addIssue({ code: "custom", message: `Invalid ${prefix} id` }); return z.NEVER; } }); }',
+        },
+      ),
+      expect: { messageIncludes: "schema operation is not the installed Zod method" },
+      why: "the same installed package's boxed TypeID.fromString returns an object and is not the unboxed root export's same-string contract",
+    },
+    {
+      mode: "types",
+      files: jsonStageConfigProofFiles(
+        "export async function run(ctx, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ stageConfig: { ...stageViewOf(row).stageConfig } }).where(id); }",
+        {
+          "packages/kit/src/ids/index.ts":
+            'import * as z from "zod"; export const ID_PREFIX = { refinerySchema: "refinery_schema" } as const; export function typeIdSchema(prefix: string): z.ZodType<string, string> { return z.string(); }',
+        },
+      ),
+      expect: { messageIncludes: "schema operation is not the installed Zod method" },
+      why: "a same-named factory returning a string schema without the prefix validator does not inherit the validating factory contract",
+    },
+    {
+      mode: "types",
+      files: jsonStageConfigProofFiles(
+        "export async function run(ctx, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ stageConfig: { ...stageViewOf(row).stageConfig } }).where(id); }",
+        {
+          "packages/kit/src/ids/index.ts":
+            'import { fromString } from "typeid-js"; import * as z from "zod"; export const ID_PREFIX = { refinerySchema: "refinery_schema" } as const; const state = { count: 0 }; export function typeIdSchema(prefix: string) { state.count++; return z.string().transform((value, ctx) => { try { return fromString(value, prefix); } catch { ctx.addIssue({ code: "custom", message: `Invalid ${prefix} id` }); return z.NEVER; } }); }',
+        },
+      ),
+      expect: { messageIncludes: "schema operation is not the installed Zod method" },
+      why: "a factory prelude that mutates captured state cannot be ignored merely because its returned validator expression matches",
+    },
+    {
+      mode: "types",
+      files: jsonStageConfigProofFiles(
+        "export async function run(ctx, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ stageConfig: { ...stageViewOf(row).stageConfig } }).where(id); }",
+        {
+          "packages/kit/src/ids/index.ts":
+            'import * as z from "zod"; export const ID_PREFIX = { refinerySchema: "refinery_schema" } as const; export declare function typeIdSchema(prefix: string): z.ZodType<string, string>;',
+        },
+      ),
+      expect: { messageIncludes: "schema operation is not the installed Zod method" },
+      why: "an opaque factory's ZodType annotation does not establish valid-row value preservation",
+    },
+    {
+      mode: "types",
+      files: jsonStageConfigProofFiles(
+        "export async function run(ctx, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ stageConfig: { ...stageViewOf(row).stageConfig } }).where(id); }",
+        {
+          "packages/kit/src/ids/index.ts":
+            'import { fromString } from "foreign-id"; import * as z from "zod"; export const ID_PREFIX = { refinerySchema: "refinery_schema" } as const; export function typeIdSchema(prefix: string) { return z.string().transform((value, ctx) => { try { return fromString(value, prefix); } catch { ctx.addIssue({ code: "custom", message: `Invalid ${prefix} id` }); return z.NEVER; } }); }',
+          "node_modules/foreign-id/index.d.ts": "export declare function fromString(value: string, prefix: string): string;",
+        },
+      ),
+      expect: { messageIncludes: "schema operation is not the installed Zod method" },
+      why: "a foreign same-named fromString export cannot inherit the installed TypeID validator's semantic contract",
+    },
+    {
+      mode: "types",
+      files: jsonStageConfigProofFiles(
+        "export async function run(ctx, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ stageConfig: { ...stageViewOf(row).stageConfig } }).where(id); }",
+        {
+          "packages/kit/src/ids/index.ts":
+            'import { fromString } from "typeid-js"; import * as z from "zod"; export const ID_PREFIX = { refinerySchema: "refinery_schema" } as const; export function typeIdSchema(prefix: string) { return z.string().transform((value, ctx) => { try { return fromString(value.trim(), prefix); } catch { ctx.addIssue({ code: "custom", message: `Invalid ${prefix} id` }); return z.NEVER; } }); }',
+        },
+      ),
+      expect: { messageIncludes: "schema operation is not the installed Zod method" },
+      why: "a transform that alters the callback input before validation is not the same-value TypeID factory",
+    },
+    {
+      mode: "types",
+      files: jsonStageConfigProofFiles(
+        "export async function run(ctx, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ stageConfig: { ...stageViewOf(row).stageConfig } }).where(id); }",
+        {
+          "packages/kit/src/ids/index.ts":
+            'import { fromString } from "typeid-js"; import * as z from "zod"; export const ID_PREFIX = { refinerySchema: "refinery_schema" } as const; export function typeIdSchema(prefix: string) { return z.string().transform((value, ctx) => { try { return fromString(value, "different_prefix"); } catch { ctx.addIssue({ code: "custom", message: `Invalid ${prefix} id` }); return z.NEVER; } }); }',
+        },
+      ),
+      expect: { messageIncludes: "schema operation is not the installed Zod method" },
+      why: "a factory cannot validate a different prefix instead of the statically bound caller prefix",
+    },
+    {
+      mode: "types",
+      files: jsonStageConfigProofFiles(
+        "export async function run(ctx, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ stageConfig: { ...stageViewOf(row).stageConfig } }).where(id); }",
+        {
+          "packages/kit/src/ids/index.ts":
+            'import { fromString } from "typeid-js"; import * as z from "zod"; export const ID_PREFIX = { refinerySchema: "refinery_schema" } as const; export function typeIdSchema(prefix: string) { return z.string().transform((value, ctx) => { try { return fromString(value, prefix); } catch { return z.NEVER; } }); }',
+        },
+      ),
+      expect: { messageIncludes: "schema operation is not the installed Zod method" },
+      why: "dropping the Zod issue receipt is not the exact installed-validator factory error channel",
+    },
+    {
+      mode: "types",
+      files: jsonStageConfigProofFiles(
+        "export async function run(ctx, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ stageConfig: { ...stageViewOf(row).stageConfig } }).where(id); }",
+        {
+          "packages/kit/src/ids/index.ts":
+            'import { fromString } from "typeid-js"; import * as z from "zod"; export const ID_PREFIX = { refinerySchema: "refinery_schema" } as const; const captured = { changed: false }; export function typeIdSchema(prefix: string) { return z.string().transform((value, ctx) => { try { captured.changed = true; return fromString(value, prefix); } catch { ctx.addIssue({ code: "custom", message: `Invalid ${prefix} id` }); return z.NEVER; } }); }',
+        },
+      ),
+      expect: { messageIncludes: "schema operation is not the installed Zod method" },
+      why: "a transform with a captured-state mutation before validation is not a pure same-value factory",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
+        "packages/server/src/domain/refinery/verbs/proof.ts":
+          "function merge(current, first, second) { const greetingIndexes = first.greetingIndexes === undefined ? current.greetingIndexes : (second.greetingIndexes ?? undefined); return refinerySelectionSchema.parse({ fields: first.fields ?? current.fields, ...(greetingIndexes === undefined ? {} : { greetingIndexes }) }); } export function create(ctx) { return async ({ guardPatch, valuePatch, id }) => { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: merge(sessionViewOf(row).selection, refinerySelectionPatchSchema.parse(guardPatch.selection), refinerySelectionPatchSchema.parse(valuePatch.selection)) }).where(id); }; }",
+      }),
+      expect: { messageIncludes: "guard and provided value name different incoming fields" },
+      why: "two different members of one destructured root argument remain different callers despite identical greeting field names",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
+        "packages/server/src/domain/refinery/verbs/proof.ts":
+          "function merge(current, patch) { const greetingIndexes = patch.fields === undefined ? current.greetingIndexes : (patch.greetingIndexes ?? undefined); return refinerySelectionSchema.parse({ fields: patch.fields ?? current.fields, ...(greetingIndexes === undefined ? {} : { greetingIndexes }) }); } export function create(ctx) { return async ({ patch, id }) => { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: merge(sessionViewOf(row).selection, refinerySelectionPatchSchema.parse(patch.selection)) }).where(id); }; }",
+      }),
+      expect: { messageIncludes: "guard and provided value name different incoming fields" },
+      why: "a destructured caller's fields guard cannot certify its nullable greeting clear/set axis",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
+        "packages/server/src/domain/refinery/verbs/proof.ts":
+          "function merge(current, first, second) { const greetingIndexes = first.greetingIndexes === undefined ? current.greetingIndexes : (second.greetingIndexes ?? undefined); return refinerySelectionSchema.parse({ fields: first.fields ?? current.fields, ...(greetingIndexes === undefined ? {} : { greetingIndexes }) }); } export function create(ctx) { return async ({ guardPatch: first, valuePatch: second, id }) => { const guardAlias = first; const valueAlias = second; const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: merge(sessionViewOf(row).selection, refinerySelectionPatchSchema.parse(guardAlias.selection), refinerySelectionPatchSchema.parse(valueAlias.selection)) }).where(id); }; }",
+      }),
+      expect: { messageIncludes: "guard and provided value name different incoming fields" },
+      why: "renamed root bindings and immutable aliases do not collapse foreign receiver identities in the nullable clear arm",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
+        "packages/server/src/domain/refinery/verbs/proof.ts":
+          "export function create(ctx) { return async ({ patch = {}, id }) => { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: mergeSelection(sessionViewOf(row).selection, refinerySelectionPatchSchema.parse(patch.selection)) }).where(id); }; }",
+      }),
+      expect: { messageIncludes: "guard and provided value name different incoming fields" },
+      why: "a defaulted destructured parameter is not one proved lexical incoming-field projection",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
+        "packages/server/src/domain/refinery/verbs/proof.ts":
+          "export function create(ctx) { return async ({ id, ...patch }) => { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: mergeSelection(sessionViewOf(row).selection, refinerySelectionPatchSchema.parse(patch.selection)) }).where(id); }; }",
+      }),
+      expect: { messageIncludes: "guard and provided value name different incoming fields" },
+      why: "an object rest parameter cannot acquire a simple authored-key identity",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
+        "packages/server/src/domain/refinery/verbs/proof.ts":
+          'function copy(current: import("../../../../../contracts/src/refinery/index.ts").Selection) { if (current.greetingIndexes === undefined) return current; const indexes: number[] & { filter(predicate: (value: number) => boolean): number[] } = current.greetingIndexes; return { ...current, greetingIndexes: indexes.filter((index) => index >= 0) }; } export async function run(ctx, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: copy(sessionViewOf(row).selection) }).where(id); }',
+      }),
+      expect: { messageIncludes: "opaque producer/view cannot certify persisted field provenance" },
+      why: "a filter symbol combining a real Array declaration with a foreign member still has an unproved containing-owner identity",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
+        "packages/server/src/domain/refinery/verbs/proof.ts":
+          'function copy(current: import("../../../../../contracts/src/refinery/index.ts").Selection) { if (current.greetingIndexes === undefined) return current; const indexes: { filter(predicate: (value: number) => boolean): number[] } = current.greetingIndexes; return { ...current, greetingIndexes: indexes.filter((index) => index >= 0) }; } export async function run(ctx, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: copy(sessionViewOf(row).selection) }).where(id); }',
+      }),
+      expect: { messageIncludes: "opaque producer/view cannot certify persisted field provenance" },
+      why: "a foreign structural filter method does not acquire installed Array identity from its stored input",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "node_modules/@total-typescript/ts-reset/index.d.ts":
+          "interface Array<T> { filter(predicate: (value: T) => unknown): T[] } interface Set<T> { has(value: T): boolean }\n",
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
+        "packages/server/src/domain/refinery/verbs/proof.ts":
+          'import "@total-typescript/ts-reset"; class Set<T> { constructor(values: readonly T[]) { void values; } has(value: T): boolean { void value; return false; } } function copy(current: import("../../../../../contracts/src/refinery/index.ts").Selection, removed: readonly number[]) { const gone = new Set(removed); return { ...current, greetingIndexes: current.greetingIndexes.filter((index) => !gone.has(index)) }; } export async function run(ctx, removed, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: copy(sessionViewOf(row).selection, removed) }).where(id); }',
+      }),
+      expect: { messageIncludes: "pure same-field array remap" },
+      why: "recognizing an augmented Array does not make a foreign same-named Set callback pure",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "node_modules/@total-typescript/ts-reset/index.d.ts": "interface Array<T> { filter(predicate: (value: T) => unknown): T[] }\n",
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
+        "packages/server/src/domain/refinery/verbs/proof.ts":
+          'import "@total-typescript/ts-reset"; declare function pick(index: number): boolean; function copy(current: import("../../../../../contracts/src/refinery/index.ts").Selection) { return { ...current, greetingIndexes: current.greetingIndexes.filter(pick) }; } export async function run(ctx, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: copy(sessionViewOf(row).selection) }).where(id); }',
+      }),
+      expect: { messageIncludes: "pure same-field array remap" },
+      why: "an opaque callback remains refused after an augmented installed filter is recognized",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "node_modules/@total-typescript/ts-reset/index.d.ts": "interface Array<T> { filter(predicate: (value: T) => unknown): T[] }\n",
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
+        "packages/server/src/domain/refinery/verbs/proof.ts":
+          'import "@total-typescript/ts-reset"; function copy(current: import("../../../../../contracts/src/refinery/index.ts").Selection) { return { ...current, greetingIndexes: current.greetingIndexes.filter((index) => { current.fields = []; return index >= 0; }) }; } export async function run(ctx, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: copy(sessionViewOf(row).selection) }).where(id); }',
+      }),
+      expect: { messageIncludes: "pure same-field array remap" },
+      why: "augmented collection identity does not permit a callback to mutate a sibling stored field",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "node_modules/@total-typescript/ts-reset/index.d.ts":
+          "interface Promise<T> { catch<TResult = never>(rejected?: (reason: unknown) => TResult): Promise<T | TResult> }\n",
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });\n',
+        "packages/server/src/domain/refinery/verbs/update-session.ts":
+          'import "@total-typescript/ts-reset"; async function fabricate(input: Row): Promise<Row> { return input; } export async function update(ctx, patch: Row, id) { const row = await fabricate(patch); await ctx.db.update(refinerySessions).set({ selection: mergeSelection(sessionViewOf(row).selection, {}) }).where({ id }); }\n',
+      }),
+      expect: { messageIncludes: "fabricated/foreign annotated row" },
+      why: "recognizing an augmented library Promise does not turn a caller-wrapped annotated Row into a persisted producer",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "node_modules/@total-typescript/ts-reset/index.d.ts":
+          "interface Promise<T> { catch<TResult = never>(rejected?: (reason: unknown) => TResult): Promise<T | TResult> }\n",
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });\n',
+        "packages/server/src/domain/refinery/verbs/update-session.ts":
+          'import "@total-typescript/ts-reset"; declare function opaque(): Promise<Row | undefined>; export async function update(ctx, patch, id) { const row = await opaque(); if (row === undefined) throw new Error("missing"); await ctx.db.update(refinerySessions).set({ selection: mergeSelection(sessionViewOf(row).selection, patch) }).where({ id }); }\n',
+      }),
+      expect: { messageIncludes: "opaque producer/view cannot certify persisted field provenance" },
+      why: "an opaque producer stays refused even when its library Promise and row-owner annotation are known",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });\n',
+        "packages/contracts/src/refinery/index.ts":
+          'import * as z from "zod"; class Set<T> { readonly size = 0; constructor(_values: readonly T[]) {} } export const refinerySelectionSchema = z.object({ fields: z.array(z.enum(["description", "greetings"])).refine((fields) => new Set(fields).size === fields.length), greetingIndexes: z.array(z.number()).optional() }); export const refinerySelectionPatchSchema = refinerySelectionSchema; export type Selection = { fields: ("description" | "greetings")[]; greetingIndexes?: number[] | undefined };\n',
+        "packages/server/src/domain/refinery/verbs/update-session.ts":
+          "export async function update(ctx, patch, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: mergeSelection(sessionViewOf(row).selection, patch) }).where({ id }); }\n",
+      }),
+      expect: { messageIncludes: "unsupported refine" },
+      why: "a same-spelled module-local Set constructor cannot certify the runtime Set uniqueness refinement",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });\n',
+        "packages/contracts/src/refinery/index.ts":
+          'import * as z from "zod"; declare const Set: { new<T>(values: readonly T[]): { readonly size: number } }; export const refinerySelectionSchema = z.object({ fields: z.array(z.enum(["description", "greetings"])).refine((fields) => new Set(fields).size === fields.length), greetingIndexes: z.array(z.number()).optional() }); export const refinerySelectionPatchSchema = refinerySelectionSchema; export type Selection = { fields: ("description" | "greetings")[]; greetingIndexes?: number[] | undefined };\n',
+        "packages/server/src/domain/refinery/verbs/update-session.ts":
+          "export async function update(ctx, patch, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: mergeSelection(sessionViewOf(row).selection, patch) }).where({ id }); }\n",
+      }),
+      expect: { messageIncludes: "unsupported refine" },
+      why: "an opaque locally declared Set value shadows the actual library constructor and must refuse",
+    },
+    {
+      mode: "types",
       files: jsonWriteProofFiles({
         "packages/db/src/schema/refinery.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
@@ -568,6 +858,116 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: jsonStageConfigProofFiles(
+        "declare function requireIntactStoredConfig(value: object): void; export async function run(ctx, patch, id) { const row = await loadOwnedSessionRow(ctx.db, id); const current = stageViewOf(row).stageConfig; requireIntactStoredConfig(current); await ctx.db.update(refinerySessions).set({ stageConfig: { score: patch.score ?? current.score, rewrite: patch.rewrite ?? current.rewrite, analyze: patch.analyze ?? current.analyze } }).where(id); }",
+        {
+          "packages/contracts/src/stage-versioned.ts":
+            'import type { StageConfig } from "./refinery/index.ts"; declare function defineVersionedConfig<T>(options: object): object; export const config = defineVersionedConfig<StageConfig>({});',
+        },
+      ),
+      why: "the same imported static historical-heal stage merge passes only with the existing earlier versioned-config dominance guard",
+    },
+    {
+      mode: "types",
+      files: jsonStageConfigProofFiles(
+        "export async function run(ctx, patch, id) { const row = await loadOwnedSessionRow(ctx.db, id); const current = stageViewOf(row).stageConfig; await ctx.db.update(refinerySessions).set({ stageConfig: { score: patch.score ?? current.score, rewrite: patch.rewrite ?? current.rewrite, analyze: patch.analyze ?? current.analyze } }).where(id); }",
+        {
+          "packages/kit/src/ids/index.ts":
+            'import { fromString as validateId } from "typeid-js"; import * as z from "zod"; export const ID_PREFIX = { refinerySchema: "refinery_schema" } as const; function renamedFactory(prefix: string): z.ZodType<string, string> { return z.string().transform((value, ctx) => { try { return validateId(value, prefix); } catch { ctx.addIssue({ code: "custom", message: `Invalid ${prefix} id` }); return z.NEVER; } }); } export { renamedFactory as typeIdSchema };',
+        },
+      ),
+      why: "canonical primitive aliases and a renamed/re-exported factory still prove the actual body rather than an exported factory name",
+    },
+    {
+      mode: "types",
+      files: jsonStageConfigProofFiles(
+        "export async function run(ctx, patch, id) { const row = await loadOwnedSessionRow(ctx.db, id); const current = stageViewOf(row).stageConfig; await ctx.db.update(refinerySessions).set({ stageConfig: { score: patch.score ?? current.score, rewrite: patch.rewrite ?? current.rewrite, analyze: patch.analyze ?? current.analyze } }).where(id); }",
+      ),
+      why: "the real nested fixed/custom stage constructor, validating TypeID factory and immutable imported read-heal default retain valid-row provenance",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
+        "packages/server/src/domain/refinery/verbs/proof.ts":
+          "function parseDestructured({ patch: incoming }, current) { const set = {}; if (incoming.selection !== undefined) set.selection = mergeSelection(current, refinerySelectionPatchSchema.parse(incoming.selection)); return set; } export async function run(ctx, input, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ ...parseDestructured(input, sessionViewOf(row).selection) }).where(id); }",
+      }),
+      why: "a bound destructured helper traces its actual argument and authored patch key before proving the same three-state field",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
+        "packages/server/src/domain/refinery/verbs/proof.ts":
+          "function parseActualPatch(patch, current) { const set = {}; if (patch.selection !== undefined) set.selection = mergeSelection(current, refinerySelectionPatchSchema.parse(patch.selection)); return set; } export function create(ctx) { return async ({ patch, sessionId }) => { const row = await loadOwnedSessionRow(ctx.db, sessionId); await ctx.db.update(refinerySessions).set({ ...parseActualPatch(patch, sessionViewOf(row).selection) }).where(sessionId); }; }",
+      }),
+      why: "the actual factory callback's destructured patch retains greeting field identity through parsed delta and three-state omission/null-clear/array merge",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
+        "packages/server/src/domain/refinery/verbs/proof.ts":
+          "function parseActualPatch(patch, current) { const set = {}; if (patch.selection !== undefined) set.selection = mergeSelection(current, refinerySelectionPatchSchema.parse(patch.selection)); return set; } export function create(ctx) { return async ({ patch: incoming, sessionId }) => { const row = await loadOwnedSessionRow(ctx.db, sessionId); await ctx.db.update(refinerySessions).set({ ...parseActualPatch(incoming, sessionViewOf(row).selection) }).where(sessionId); }; }",
+      }),
+      why: "a renamed object-parameter binding keeps the same original patch axis through the real three-state merge",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "node_modules/@total-typescript/ts-reset/index.d.ts":
+          "interface Array<T> { filter(predicate: (value: T) => unknown): T[] } interface ReadonlyArray<T> { filter(predicate: (value: T) => unknown): T[]; includes(value: T): boolean }\n",
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
+        "packages/server/src/domain/refinery/verbs/proof.ts":
+          'import "@total-typescript/ts-reset"; export async function run(ctx, removed, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: remapSelection(sessionViewOf(row).selection, removed) }).where(id); }',
+      }),
+      why: "actual loaded array field remaps remain preserving with merged filter and includes library declarations",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "node_modules/@total-typescript/ts-reset/index.d.ts":
+          "interface Array<T> { filter(predicate: (value: T) => unknown): T[] } interface ReadonlyArray<T> { filter(predicate: (value: T) => unknown): T[] } interface Set<T> { has(value: T): boolean } interface ReadonlySet<T> { has(value: T): boolean }\n",
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
+        "packages/server/src/domain/refinery/verbs/proof.ts":
+          'import "@total-typescript/ts-reset"; function liveRemap(selection: import("../../../../../contracts/src/refinery/index.ts").Selection, removed: readonly number[]) { const indexes = selection.greetingIndexes; if (indexes === undefined) return selection; const gone = new Set(removed); return { ...selection, greetingIndexes: indexes.filter((index) => !gone.has(index)).map((index) => index - removed.filter((drop) => drop < index).length) }; } export async function run(ctx, removed, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: liveRemap(sessionViewOf(row).selection, removed) }).where(id); }',
+      }),
+      why: "the actual filter/map and Set.has remap body preserves a genuinely loaded field under merged standard collection declarations",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "node_modules/@total-typescript/ts-reset/index.d.ts":
+          "interface Promise<T> { catch<TResult = never>(rejected?: (reason: unknown) => TResult): Promise<T | TResult> }\n",
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });\n',
+        "packages/server/src/domain/refinery/verbs/update-session.ts":
+          'import "@total-typescript/ts-reset"; export async function update(ctx, patch, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: mergeSelection(sessionViewOf(row).selection, patch) }).where({ id }); }\n',
+        "packages/server/src/domain/refinery/verbs/apply-fields.ts":
+          "export async function apply(ctx, removed, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: remapSelection(sessionViewOf(row).selection, removed) }).where({ id }); }\n",
+      }),
+      why: "augmented standard Promise wrappers preserve the actual Drizzle-loaded merge basis, not an arbitrary annotated row",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "node_modules/@total-typescript/ts-reset/index.d.ts": "export {}; declare global { interface Set<T> { has(value: T): boolean } }\n",
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });\n',
+        "packages/server/src/domain/refinery/verbs/update-session.ts":
+          'import "@total-typescript/ts-reset"; export async function update(ctx, patch, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: mergeSelection(sessionViewOf(row).selection, patch) }).where({ id }); }\n',
+        "packages/server/src/domain/refinery/verbs/apply-fields.ts":
+          "export async function apply(ctx, removed, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: remapSelection(sessionViewOf(row).selection, removed) }).where({ id }); }\n",
+      }),
+      why: "the actual library Set keeps its trusted global identity when ts-reset adds a harmless interface augmentation beside it",
+    },
     {
       mode: "types",
       files: jsonWriteProofFiles({

@@ -2,13 +2,13 @@
 // failure shape whether the planner refused before the call or the provider refused after it. Fixtures are the
 // recorded Anthropic bodies; an unmatched schema-shaped 400 is logged with its body, never guessed at.
 
-import { vi } from "vitest";
 import { providerErrorFromHttp, withSchemaRejection } from "../../../../packages/inference/src/backends/kit/error-classify.ts";
 import { isIdleTrip, turnAbortSignal } from "../../../../packages/inference/src/backends/kit/idle-timeout.ts";
 import type { ProviderLogger } from "../../../../packages/inference/src/backends/kit/provider-log.ts";
 import { NO_PROVIDER_SECRETS } from "../../../../packages/inference/src/backends/kit/sanitize.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { ANTHROPIC_STATE_ROUND_400S } from "../../../server/entry/compose/_structured-state-round-recordings.ts";
+import { createManualTimer } from "../../../support/clock.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 interface Emitted {
@@ -33,16 +33,16 @@ function recordingLogger(lines: Emitted[]): ProviderLogger {
 const INVALID = new ProviderError({ kind: "invalid", retryable: false, message: "anthropic chat: Bad Request", apiErrorStatus: 400 });
 
 test("an idle trip survives nested causes and wins over an abort-named SDK wrapper", () => {
-  vi.useFakeTimers();
-  const idle = turnAbortSignal(undefined, 50);
+  const timer = createManualTimer();
+  const idle = turnAbortSignal(undefined, 50, timer.schedule);
   let trip: unknown;
   try {
-    vi.advanceTimersByTime(50);
+    expect(timer.armed()).toEqual([50]);
+    timer.fire();
     expect(idle.signal.aborted).toBe(true);
     trip = idle.signal.reason;
   } finally {
     idle.dispose();
-    vi.useRealTimers();
   }
   const wrapped = Object.assign(new Error("aborted", { cause: new Error("middle", { cause: trip }) }), { name: "AbortError" });
   expect(isIdleTrip(trip)).toBe(true);
@@ -52,6 +52,28 @@ test("an idle trip survives nested causes and wins over an abort-named SDK wrapp
   cancel.cause = cancel;
   expect(isIdleTrip(cancel)).toBe(false);
   expect(providerErrorFromHttp(cancel, "wire", NO_PROVIDER_SECRETS)).toMatchObject({ kind: "aborted", retryable: false });
+});
+
+test("idle scheduling preserves the default rolling window and clears it on caller cancellation", () => {
+  const timer = createManualTimer();
+  const caller = new AbortController();
+  const idle = turnAbortSignal(caller.signal, undefined, timer.schedule);
+  try {
+    expect(timer.armed()).toEqual([180_000]);
+    idle.reset();
+    expect(timer.cancelled()).toEqual([180_000]);
+    expect(timer.armed()).toEqual([180_000]);
+    caller.abort(new Error("connection timeout from caller"));
+    expect(timer.cancelled()).toEqual([180_000, 180_000]);
+    expect(timer.armed()).toEqual([]);
+    expect(isIdleTrip(idle.signal.reason)).toBe(false);
+    expect(providerErrorFromHttp(idle.signal.reason, "wire", NO_PROVIDER_SECRETS)).toMatchObject({ kind: "aborted", retryable: false });
+    idle.reset();
+    timer.fire();
+    expect(timer.armed()).toEqual([]);
+  } finally {
+    idle.dispose();
+  }
 });
 
 /** An SDK-shaped HTTP failure carrying the upstream body. */

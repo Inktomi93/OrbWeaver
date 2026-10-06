@@ -4,7 +4,7 @@
 // element callbacks and union/intersection types until a live schema table can be proved or refused.
 import type { BindingElement, Node as TsNode, Type, TypeReferenceNode } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
-import { readStaticString, resolveStableExpression } from "../../_shared/reference-fact.ts";
+import { readStaticString, resolveGlobalMemberOrigin, resolveStableExpression } from "../../_shared/reference-fact.ts";
 import type { OpenJsonColumn } from "./open-json-vocabulary.ts";
 import { isOpenBag, unwrap } from "./open-json-vocabulary.ts";
 
@@ -385,12 +385,30 @@ export function blobTargets(receiver: TsNode, byProp: ReadonlyMap<string, readon
   return targets;
 }
 
+const PROMISE = "Promise";
+
+function libraryPromise(reference: TsNode): boolean {
+  const globalOrigin = resolveGlobalMemberOrigin(reference);
+  return globalOrigin.kind === "resolved" && globalOrigin.value.globalName === PROMISE && globalOrigin.value.memberPath.length === 0;
+}
+
+function promiseType(type: Type): boolean {
+  // A declaration name denotes the whole merged symbol; the canonical reader validates its
+  // trusted library anchor and every augmentation, not the first declaration's pathname.
+  return (
+    type
+      .getSymbol()
+      ?.getDeclarations()
+      .filter(Node.isInterfaceDeclaration)
+      .some((declaration) => libraryPromise(declaration.getNameNode())) === true
+  );
+}
+
 function rowValueType(value: TsNode): Type {
   let type = value.getType().getNonNullableType();
-  if (type.getSymbol()?.getName() === "Promise") {
-    const declarations = type.getSymbol()?.getDeclarations() ?? [];
+  if (type.getSymbol()?.getName() === PROMISE) {
     const promised = type.getTypeArguments()[0];
-    if (promised === undefined || declarations.some((item) => !/^lib\..*\.d\.ts$/u.test(item.getSourceFile().getBaseName()))) {
+    if (promised === undefined || !promiseType(type)) {
       mixedOriginError(value);
     }
     type = promised.getNonNullableType();
@@ -420,9 +438,8 @@ export function schemaRowOriginIdentity(receiver: TsNode): TsNode | undefined {
     Node.isFunctionExpression(declaration)
       ? declaration.getReturnTypeNode()
       : undefined;
-  if (annotation !== undefined && Node.isTypeReference(annotation) && annotation.getTypeName().getText() === "Promise") {
-    const declarations = annotation.getTypeName().getSymbol()?.getDeclarations() ?? [];
-    if (declarations.length === 0 || declarations.some((item) => !/^lib\..*\.d\.ts$/u.test(item.getSourceFile().getBaseName()))) {
+  if (annotation !== undefined && Node.isTypeReference(annotation) && annotation.getTypeName().getText() === PROMISE) {
+    if (!libraryPromise(annotation.getTypeName())) {
       mixedOriginError(receiver);
     }
     annotation = annotation.getTypeArguments()[0];

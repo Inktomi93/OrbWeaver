@@ -18,16 +18,6 @@ export const WIRE_SCHEMA_CEILINGS = [
 ] as const;
 export type WireSchemaCeiling = (typeof WIRE_SCHEMA_CEILINGS)[number];
 
-/** Every way a structured request can fail its plan, as data. */
-export const WIRE_SCHEMA_VIOLATION_KINDS = [
-  ...WIRE_SCHEMA_CEILINGS,
-  "refused-keyword",
-  "root-not-object",
-  "ambiguous-null",
-  "no-vehicle",
-  "vendor-refused",
-] as const;
-
 /** Where in a plan a violation came from: the candidate format's index and the vehicle it was tried on. */
 interface ViolationOrigin {
   readonly mode: WireSchemaMode;

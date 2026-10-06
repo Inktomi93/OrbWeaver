@@ -70,6 +70,7 @@ import { declarationHome } from "../lib/declaration-home.ts";
 import { readStaticAuthoredScalar, readStaticAuthoredValue } from "../lib/static-authored-value.ts";
 import { readMemberAccess } from "../lib/symbol-reference.ts";
 import { tupleVocabularyFact, tupleVocabularyReceipt } from "../lib/tuple-vocabulary-fact.ts";
+import { resolveArrayElementTypeIdentityOrigin } from "../lib/type-member-origin.ts";
 
 /** The local accumulator a provider warning record is pushed onto. */
 const SINK = "warnings";
@@ -128,17 +129,15 @@ function propertyValue(object: ObjectLiteralExpression, name: string): MorphNode
 
 /** The local accumulator's authored name, never a member or an imported export-name lookalike. */
 function canonicalWarningAccumulator(node: MorphNode): boolean {
-  const element = node.getType().getArrayElementType();
+  const element = resolveArrayElementTypeIdentityOrigin(node);
   return (
-    element
-      ?.getSymbol()
-      ?.getDeclarations()
-      .some(
-        (declaration) =>
-          Node.isInterfaceDeclaration(declaration) &&
-          declaration.getName() === "ResolvedWarning" &&
-          declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith(`/${WARNING_VALUE_HOME}`),
-      ) === true
+    element.kind === "resolved" &&
+    element.value.declarations.some(
+      (declaration) =>
+        Node.isInterfaceDeclaration(declaration) &&
+        declaration.getName() === "ResolvedWarning" &&
+        declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith(`/${WARNING_VALUE_HOME}`),
+    )
   );
 }
 
@@ -499,7 +498,7 @@ export const gate = defineGate({
         "packages/server/src/domain/chat/x.ts":
           'const codes = { left: "left", right: "right" } as const; declare const key: string; declare function emit(event: object): void; emit({ type: "warning", code: codes[key] });\n',
       },
-      expect: { count: 2, messageIncludes: "NO emit site" },
+      expect: { count: 2, token: '"right"' },
       why: "an unrestricted string index cannot certify which authored record values are ever emitted",
     },
     {

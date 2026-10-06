@@ -271,6 +271,33 @@ interface IncomingField {
   readonly path: readonly string[];
 }
 
+function parameterProjection(
+  binding: import("ts-morph").BindingElement,
+  path: readonly string[],
+  context: JsonColumnOriginContext,
+  seen: ReadonlySet<object>,
+): IncomingField | undefined {
+  const parameter = binding.getParentIfKind(SyntaxKind.ObjectBindingPattern)?.getParentIfKind(SyntaxKind.Parameter);
+  if (
+    parameter === undefined ||
+    parameter.getInitializer() !== undefined ||
+    binding.getInitializer() !== undefined ||
+    binding.getDotDotDotToken() !== undefined ||
+    !Node.isIdentifier(binding.getNameNode())
+  ) {
+    return;
+  }
+  const key = binding.getPropertyNameNode() ?? binding.getNameNode();
+  const literalName = Node.isStringLiteral(key) ? key.getLiteralText() : undefined;
+  const name = Node.isIdentifier(key) ? key.getText() : literalName;
+  if (name === undefined) {
+    return;
+  }
+  const projected = [name, ...path];
+  const argument = context.bindings.get(parameter);
+  return argument === undefined ? { root: parameter, path: projected } : incomingField(argument, projected, context, new Set(seen));
+}
+
 function incomingField(node: MorphNode, path: readonly string[], context: JsonColumnOriginContext, seen = new Set<object>()): IncomingField | undefined {
   const current = unwrapExpression(node);
   if (seen.has(current.compilerNode)) {
@@ -295,6 +322,9 @@ function incomingField(node: MorphNode, path: readonly string[], context: JsonCo
   }
   const binding = resolveStableExpression(current);
   const value = binding.kind === "resolved" ? binding.value : binding.node;
+  if (Node.isBindingElement(value)) {
+    return parameterProjection(value, path, context, next);
+  }
   if (Node.isParameterDeclaration(value)) {
     const argument = context.bindings.get(value);
     return argument === undefined ? { root: value, path } : incomingField(argument, path, context, next);
