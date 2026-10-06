@@ -4,6 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { parse } from "yaml";
+import { z } from "zod";
 import { expect, test } from "../support/tool-fixtures.ts";
 
 // ── the container surface's load-bearing shape (docker/README.md is the prose; these are the pins) ────
@@ -28,6 +29,25 @@ test("the Dockerfile is a single app-only target: no corepack, no GPU stage, pnp
   expect(read(repoRoot, "docker/compose.build.yaml")).toContain("target: runtime");
   // the runtime file set has ONE home and the Dockerfile delegates to it
   expect(dockerfile).toContain("docker/assemble-runtime.sh");
+});
+
+test("every container Node matches the Node the repository pins in devEngines", ({ repoRoot }) => {
+  // Dependabot bumps base images on its own; a bump that leaves package.json behind would ship a Node that
+  // development and CI never ran.
+  const pinned = z
+    .object({ devEngines: z.object({ runtime: z.object({ name: z.literal("node"), version: z.string() }) }) })
+    .parse(JSON.parse(read(repoRoot, "package.json"))).devEngines.runtime.version;
+  const major = pinned.split(".")[0];
+  const images = (rel: string): string[] => [...read(repoRoot, rel).matchAll(/\bnode:([0-9][^-@\s]*)/gu)].map((match) => match[1] ?? "");
+  expect(images("Dockerfile").length).toBeGreaterThan(0);
+  for (const tag of images("Dockerfile")) {
+    expect(tag, "Dockerfile pins the exact devEngines Node").toBe(pinned);
+  }
+  for (const rel of ["docker/compose.dev.yaml", ".devcontainer/Dockerfile"]) {
+    for (const tag of images(rel)) {
+      expect(tag.split(".")[0], `${rel} runs the devEngines Node major`).toBe(major);
+    }
+  }
 });
 
 test("the client build excludes stamp-only git refs while the assembler keeps its separate ref mount", ({ repoRoot }) => {

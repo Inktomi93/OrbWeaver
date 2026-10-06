@@ -168,6 +168,6 @@ LABEL org.opencontainers.image.title="Orbweaver" \
       org.opencontainers.image.url="https://github.com/Inktomi93/orbweaver" \
       org.opencontainers.image.documentation="https://github.com/Inktomi93/orbweaver/wiki" \
       org.opencontainers.image.licenses="AGPL-3.0-only" \
-      org.opencontainers.image.description="Orbweaver — self-hosted AI roleplay chat (app only; bring your own model server or API key)" \
+      org.opencontainers.image.description="Roleplay with your friends in the same scene, live. Self-hosted; bring your own model server or API key." \
       org.opencontainers.image.revision="${GIT_SHA}" \
       org.opencontainers.image.version="${IMAGE_VERSION}"
