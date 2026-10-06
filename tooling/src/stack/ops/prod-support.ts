@@ -11,7 +11,7 @@ import type { DistVerdict } from "../contract/types.ts";
 import { newestSourceEntries } from "../lib/source-scan.ts";
 import { CLIENT_DIST_INDEX_REL } from "../lib/spawn-plan.ts";
 import { classifyDist, debugPostureText } from "../lib/verdicts.ts";
-import { LOG_PATH, log, PIDFILE, probeDebug, runDir, TOKEN_PATH } from "./prod-state.ts";
+import { LOG_PATH, log, PIDFILE, probeDebugPosture, runDir, TOKEN_PATH } from "./prod-state.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm stack <verb> prod");
 
@@ -97,7 +97,7 @@ export function debugToken(): string {
 
 /** Report the live gate's posture after a launch — probed, never echoed from our own overlay. */
 export async function reportDebugPosture(port: number): Promise<void> {
-  const { posture } = await probeDebug(port);
+  const posture = await probeDebugPosture(port);
   log(`/api/_debug/*: ${debugPostureText(posture, TOKEN_PATH())}`);
 }
 
