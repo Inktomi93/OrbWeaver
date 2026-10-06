@@ -1,0 +1,44 @@
+name: dependency-audit
+
+# Weekly npm advisory check. Dependabot cannot read this repo's pnpm 12 lockfile, so its alerts miss most
+# of the npm tree. This job keeps one open issue listing high and critical advisories, and closes it when
+# none remain.
+on:
+  schedule:
+    - cron: "41 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TITLE: "Dependency audit: high or critical npm advisories"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+
+      # pnpm audit exits non-zero whenever advisories exist; the report decides the outcome instead.
+      - run: pnpm audit --json > audit.json || true
+
+      - name: Update the audit issue
+        run: |
+          jq -r '[.advisories[] | select(.severity == "high" or .severity == "critical")]
+            | sort_by(.severity, .module_name)
+            | .[] | "- **\(.severity)** `\(.module_name)` \(.vulnerable_versions) → \(.patched_versions // "no fix"): [\(.title)](\(.url))\n  via `\(.findings[0].paths[0])`"' \
+            audit.json > findings.md
+          existing=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number // empty')
+          if [ -s findings.md ]; then
+            { echo "Found by the weekly \`pnpm audit\` run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; echo; cat findings.md; } > body.md
+            if [ -n "$existing" ]; then gh issue edit "$existing" --body-file body.md
+            else gh issue create --title "$TITLE" --body-file body.md; fi
+          elif [ -n "$existing" ]; then
+            gh issue close "$existing" --comment "No high or critical advisories remain."
+          fi

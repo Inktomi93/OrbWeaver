@@ -1,0 +1,49 @@
+# Version updates for everything except npm packages. Dependabot supports pnpm up to v10 and this repo pins
+# pnpm 12 (package.json packageManager), so npm updates would fail; dependency-audit.yml covers npm
+# advisories instead. Security updates for supported ecosystems run from the repository settings.
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+
+  # Base images are pinned by digest; Dependabot moves the tag and the digest together.
+  - package-ecosystem: docker
+    directories: [/, /.devcontainer]
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      docker-images:
+        patterns: ["*"]
+    commit-message:
+      prefix: build
+
+  - package-ecosystem: docker-compose
+    directories: [/, /docker]
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      compose-images:
+        patterns: ["*"]
+    commit-message:
+      prefix: build
+
+  - package-ecosystem: devcontainers
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: build

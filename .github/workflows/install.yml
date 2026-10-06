@@ -20,6 +20,9 @@ on:
         options: ['1', '2', '3']
         default: '1'
 
+permissions:
+  contents: read
+
 env:
   HEALTHZ: http://127.0.0.1:8788/healthz
 
