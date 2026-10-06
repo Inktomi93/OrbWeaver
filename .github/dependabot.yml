@@ -1,4 +1,4 @@
-# Monthly, batched updates: one npm PR and one infrastructure PR per month, each version at least two
+# Monthly, batched updates: one npm PR (plus one for majors) and one infrastructure PR per month, each version at least two
 # weeks old (majors a month) so broken releases are caught upstream first. Security fixes ignore the
 # schedule and cooldown and arrive as one grouped PR.
 # npm updates rely on Dependabot's pnpm 12 support; alerts for the npm tree come from the SBOM that
@@ -25,10 +25,17 @@ updates:
       default-days: 14
       semver-major-days: 30
     open-pull-requests-limit: 2
+    # Majors get their own PR: each is a migration to read on purpose, and one red major must not hold
+    # back the routine minor and patch batch.
     groups:
       npm:
         applies-to: version-updates
         patterns: ["*"]
+        update-types: [minor, patch]
+      npm-majors:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: [major]
       npm-security:
         applies-to: security-updates
         patterns: ["*"]
