@@ -1,0 +1,31 @@
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ask away. The [wiki](https://github.com/Inktomi93/OrbWeaver/wiki) and [Known issues](https://github.com/Inktomi93/OrbWeaver/wiki/Known-Issues) may already have it. When an answer fixes it, mark it, so the next person finds it. Something clearly broken? A [bug report](https://github.com/Inktomi93/OrbWeaver/issues/new/choose) is the better place.
+  - type: textarea
+    id: question
+    attributes:
+      label: What are you trying to do?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Settings → This install has a Copy button for the version line.
+      placeholder: "v0.1.0 (f4cdde34be59, container)"
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you run it
+      options:
+        - Docker
+        - From source
+        - Not installed yet
+  - type: input
+    id: model
+    attributes:
+      label: Model and provider, if it's about replies
+      placeholder: "OpenRouter, deepseek/deepseek-chat"

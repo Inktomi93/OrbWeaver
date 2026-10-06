@@ -1,0 +1,22 @@
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Tell me what you're trying to do first, then what you'd want it to do. A goal I can solve three ways beats a button I can only add one way. If it's a SillyTavern feature you miss, check [what isn't supported](https://github.com/Inktomi93/OrbWeaver/wiki/Coming-from-SillyTavern#what-isnt-supported) for whether it's planned or out by design.
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to do?
+      description: The situation and what gets in your way today.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+      description: How you picture it working. Sketches and screenshots welcome.
+  - type: textarea
+    id: elsewhere
+    attributes:
+      label: Seen it somewhere else?
+      description: Another app or extension that does it well, if any.
