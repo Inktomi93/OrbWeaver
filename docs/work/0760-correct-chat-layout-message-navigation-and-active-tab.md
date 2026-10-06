@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-06
 priority: P2
 area: ui
-lane: codex/launch-chat-visuals
+lane: main
 ---
 
 # Correct chat layout, message navigation and active tab visuals
@@ -23,4 +23,4 @@ Verify desktop and mobile chat layouts, composer actions, variant generation and
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Implementation is integrated at `0a0de93fac7b2980dbd521732f8683d01e758faf` from `6bfd980928666503ea631857be37016e4a813dad`. Independent source and rendered reviews cleared the required corrections. The composer, message alignment, avatar clearance, active tab styling and variant controls passed scoped acceptance. Wiki screenshot replacement and combined product verification remain required.

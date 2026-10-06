@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-06
 priority: P2
 area: ui
-lane: codex/launch-chat-visuals
+lane: main
 ---
 
 # Make chat style previews and descriptions match actual rendering
@@ -23,4 +23,4 @@ Every style preview and description agrees with actual rendered messages. Repres
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Implementation is integrated at `0a0de93fac7b2980dbd521732f8683d01e758faf` from `6bfd980928666503ea631857be37016e4a813dad`. Independent source and rendered reviews cleared the required corrections. Native PNG inspection confirmed the Light artwork. Matching scoped behavioral, compiler and static checks passed. Wiki screenshot replacement and combined product verification remain required.
