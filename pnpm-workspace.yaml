@@ -273,7 +273,7 @@ catalog:
   #   katex — these three are the math plugin's parse (remark-math) + render (rehype-katex) + the
   #   stylesheet/typesetting engine (katex). remark-gfm (^4 above) is also a @orb/ui direct dep for the
   #   singleTilde:false override.
-  katex: ^0.16.25
+  katex: ^0.18.2
   "remark-math": ^6.0.0
   "rehype-katex": ^7.0.1
   # Shiki, fine-grained (@orb/ui/markdown's plugins.code — streamdown 2.5 dropped bundled Shiki, D44
