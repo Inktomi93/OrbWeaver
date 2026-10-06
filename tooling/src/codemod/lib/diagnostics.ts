@@ -35,6 +35,7 @@ const DEFAULT_MAX_OUTPUT_LINES = 200;
 const TRUNCATION_HEAD_FRACTION = 0.6; // bias toward head; first impression is the codemod's intent
 /** Lines consumed by the banner + tip + separator printed before the head/tail split. */
 const RESERVED_BANNER_LINES = 4;
+const OVERFLOW_FILE_MODE = 0o600;
 
 /** Resolve the spill threshold: an explicit override wins, then the env knob, then the default. The
  *  `--max-output-lines=N` FLAG is parsed by `codemod/cli.ts` and arrives here as `override` — this module
@@ -76,9 +77,11 @@ export function flushBuffer(buffer: readonly string[], tag: string, maxLines?: n
   const tmpPath = join(osTmpdir(), `codemod-${slug}-${Date.now()}.txt`);
   // @orb-waive caught-failure-ownership(err): an unwritable /tmp falls back to printing the whole buffer plus an explicit warning banner naming the failure — the comment above states the intent directly ("better noisy than silent loss"). Ends if the fallback stops printing the warning.
   try {
-    writeFileSync(tmpPath, flat.join("\n"));
+    // Exclusive create: the name is predictable in a shared tmpdir, so an existing entry (a planted
+    // symlink included) must fail into the fallback instead of being written through.
+    writeFileSync(tmpPath, flat.join("\n"), { flag: "wx", mode: OVERFLOW_FILE_MODE });
   } catch (err) {
-    // If /tmp isn't writable we can't preserve the full output. Fall back
+    // If /tmp isn't writable (or the path already exists) we can't preserve the full output. Fall back
     // to printing the whole thing — better noisy than silent loss.
     print(`(warning: couldn't write overflow file ${tmpPath}: ${(err as Error).message})`);
     for (const line of flat) {

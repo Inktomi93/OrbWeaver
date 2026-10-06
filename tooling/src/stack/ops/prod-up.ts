@@ -233,7 +233,7 @@ async function waitForDetachedBoot(record: ProdRecord, plan: ReturnType<typeof b
       result(`mode=prod status=boot-failed log=${plan.logPath}`);
       return EXIT.violations;
     }
-    const observed = await observe(port);
+    const observed = await observe(port, record);
     if (classifyInstance({ record, observed, recordProcessAlive: true }).verdict === "ours-healthy") {
       log("up — verified by identity and answering /healthz");
       await reportDebugPosture(port);

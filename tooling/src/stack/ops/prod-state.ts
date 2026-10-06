@@ -96,8 +96,8 @@ function readDebugToken(): string | null {
   }
 }
 
-/** Credential-free posture classification — never presents the token (see probeDebug #1). */
-async function probeDebugPosture(port: number): Promise<DebugPosture> {
+/** Credential-free posture classification — never presents the token (see {@link observe} #1). */
+export async function probeDebugPosture(port: number): Promise<DebugPosture> {
   // @orb-waive caught-failure-ownership(catch): credential-free debug probe failure returns unknown posture, which prevents token-bearing identity claims. Ends if unknown can authorize control.
   try {
     const res = await fetch(`http://127.0.0.1:${port}/api/_debug/info`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
@@ -107,7 +107,7 @@ async function probeDebugPosture(port: number): Promise<DebugPosture> {
   }
 }
 
-/** The token-bearing pid read (see probeDebug #2). Null when no token is on disk or the gate refuses it. */
+/** The token-bearing pid read (see {@link observe} #2). Null when no token is on disk or the gate refuses it. */
 async function probeDebugPid(port: number): Promise<number | null> {
   const token = readDebugToken();
   if (token === null) {
@@ -122,24 +122,6 @@ async function probeDebugPid(port: number): Promise<number | null> {
   }
   const body = (await res.json()) as { pid?: unknown };
   return typeof body.pid === "number" ? body.pid : null;
-}
-
-/** TWO questions, TWO requests, because they are different questions:
- *
- *  1. POSTURE — is the surface reachable WITHOUT a credential? A credential-free GET: 404 = off, 401 = the
- *     token gate is armed (normal), 200 = reachable un-credentialed (post-AUTHFIX-2 an anomaly to
- *     investigate). This request MUST stay credential-free — presenting a token would turn every armed
- *     stack into a 200 and destroy the question.
- *  2. PID — what process is serving? The pid body sits BEHIND the gate, so the un-credentialed posture
- *     fetch cannot read it. Present `x-debug-token` and, on 200, the body carries the SERVING PROCESS'S
- *     OWN `pid` — the strongest instance identity available (it comes from inside the process on the port,
- *     not the `ss` socket table). Skipped when the surface is off or no token is on disk. */
-export async function probeDebug(port: number): Promise<{ posture: DebugPosture; pid: number | null }> {
-  const posture = await probeDebugPosture(port);
-  if (posture === "off" || posture === "unknown") {
-    return { posture, pid: null };
-  }
-  return { posture, pid: await probeDebugPid(port) };
 }
 
 /** The socket table's owner of `port`, or null when it is free. An unreadable table, or a port bound by an owner
@@ -168,15 +150,32 @@ export function processAlive(pid: number): boolean {
   }
 }
 
-export async function observe(port: number): Promise<ObservedInstance & { readonly posture: DebugPosture }> {
+/** Who holds `port`. The debug surface is asked TWO questions in TWO requests, because they are different questions:
+ *
+ *  1. POSTURE — is the surface reachable WITHOUT a credential? A credential-free GET: 404 = off, 401 = the
+ *     token gate is armed (normal), 200 = reachable un-credentialed (post-AUTHFIX-2 an anomaly to
+ *     investigate). This request MUST stay credential-free — presenting a token would turn every armed
+ *     stack into a 200 and destroy the question.
+ *  2. PID — what process is serving? The pid body sits BEHIND the gate, so the un-credentialed posture
+ *     fetch cannot read it. Present `x-debug-token` and, on 200, the body carries the SERVING PROCESS'S
+ *     OWN `pid`, which then wins over the socket table's owner. Skipped when the surface is off, no token
+ *     is on disk, or the socket table does not name `record.pid` as the port's owner.
+ *
+ *  SECURITY: the token unlocks /api/_debug, and anything can answer 401 on a port — another local user can
+ *  bind it while prod is down. So the OS socket table, never the HTTP answer, decides whether the listener
+ *  is the process this tool spawned, and only that process is ever shown the token. A same-user process
+ *  that passes this check could already read the 0600 token file. */
+export async function observe(port: number, record: ProdRecord | null): Promise<ObservedInstance & { readonly posture: DebugPosture }> {
   const health = await probeHealthz(port);
-  const debug = await probeDebug(port);
-  // Prefer the pid the SERVING PROCESS reports about itself; fall back to the socket table's owner.
+  const posture = await probeDebugPosture(port);
+  const owner = listenerPid(port);
+  const armed = posture === "token" || posture === "open";
+  const servedPid = armed && record !== null && owner === record.pid ? await probeDebugPid(port) : null;
   return {
     healthy: health.healthy,
     harness: health.harness,
-    listenerPid: debug.pid ?? listenerPid(port),
-    posture: debug.posture,
+    listenerPid: servedPid ?? owner,
+    posture,
   };
 }
 
@@ -195,6 +194,6 @@ export async function classify(
   port: number,
 ): Promise<{ record: ProdRecord | null; observed: ObservedInstance & { readonly posture: DebugPosture }; classification: InstanceClassification }> {
   const record = readRecord();
-  const observed = await observe(port);
+  const observed = await observe(port, record);
   return { record, observed, classification: classifyInstance({ record, observed, recordProcessAlive: record !== null && processAlive(record.pid) }) };
 }
