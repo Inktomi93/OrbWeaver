@@ -1301,16 +1301,16 @@ describe("runTurnPipeline — roleHandling is the PRESET knob, clamped at SHAPE"
     expect(systemRows((await noteTurn(withFloor("strict"), presetWith("none"))).request)).toHaveLength(0);
   });
 
-  // The resolved connection decides whether SHAPE keeps a run's stored rows apart: explicit caching in the
-  // capability AND an Anthropic model (`cachesByAnthropicMarkers`). The same `strict` cell on another family joins.
-  const caching = (model: string): Resolved<"chat"> => ({
-    ...CONNECTION,
-    factsModel: castId<ModelId>(model),
-    capability: makeCapability({
-      ...CAPABILITY,
-      turns: { assistantPrefill: false, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "strict", explicitPromptCache: true },
-    }),
-  });
+  // A documented route is required: a model-family name on an unknown Custom connection is not cache admission.
+  const caching = (model: string): Resolved<"chat"> =>
+    makeResolved({
+      providerId: "openrouter",
+      factsModel: castId<ModelId>(model),
+      capability: makeCapability({
+        ...CAPABILITY,
+        turns: { assistantPrefill: false, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "strict", explicitPromptCache: true },
+      }),
+    });
 
   // Stored rows: only a row with an id is canon, and only canon rows stay apart.
   const twoStoredAssistants = [
@@ -1324,7 +1324,7 @@ describe("runTurnPipeline — roleHandling is the PRESET knob, clamped at SHAPE"
     expect(assistantRows(result.request)).toHaveLength(2);
   });
 
-  test("a non-Anthropic model with the same cell still MERGES them (the family is part of the gate)", async () => {
+  test("a generic explicit flag without a documented marker protocol still MERGES them", async () => {
     const result = await runTurnPipeline(baseArgs({ canon: twoStoredAssistants, connection: caching("google/gemini-3-pro") }).args);
     expect(assistantRows(result.request)).toHaveLength(1);
   });

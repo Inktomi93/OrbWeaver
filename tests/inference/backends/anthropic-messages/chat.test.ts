@@ -827,6 +827,15 @@ function betasOf(recorded: RecordedRequest | undefined): readonly string[] {
 
 const CACHE_TTL_BETA = /cache-ttl/iu;
 
+test("automatic Anthropic caching carries one request-wide directive without manual breakpoints", async () => {
+  const body = (await recordedTurn(cacheTurn({ ...SHIPPED_PROMPT_CACHE, requestAutomatic: true, ttl: "1h" }), anthropicTextStream("ok"))).body;
+  expect(body?.body["cache_control"]).toEqual({ type: "ephemeral", ttl: "1h" });
+  expect(markersInPrefixOrder(body)).toEqual([]);
+  const off = (await recordedTurn(cacheTurn({ ...SHIPPED_PROMPT_CACHE, enabled: false }), anthropicTextStream("ok"))).body;
+  expect(off?.body).not.toHaveProperty("cache_control");
+  expect(markersInPrefixOrder(off)).toEqual([]);
+});
+
 /** A direct Anthropic turn over a six-row history with two tools, cacheable at any depth (floor 1 token). */
 function cacheTurn(promptCache: PromptCacheSettings, cacheBreakpointDepth = 1): AnthropicChatRequest {
   const connection = fakeResolved({
@@ -841,6 +850,7 @@ function cacheTurn(promptCache: PromptCacheSettings, cacheBreakpointDepth = 1): 
         roleHandlingFloor: "strict",
         explicitPromptCache: true,
         cacheMinTokens: 1,
+        requestAutomaticPromptCache: true,
       },
     }),
     baseUrl: "https://api.anthropic.com",

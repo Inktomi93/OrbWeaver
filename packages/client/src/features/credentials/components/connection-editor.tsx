@@ -1,42 +1,6 @@
-// THE CONNECTION EDITOR — §5.3a's four disclosure tiers over ONE saved connection (inference program step 9,
-// built from the step-3b mock). §5.3a's schemas imply ~40 leaf
-// fields on one endpoint form; a pane that rendered them flat would mirror SillyTavern's API drawer in a zod
-// costume. So: Essential and Purpose OPEN, Advanced and Diagnostics COLLAPSED behind a count badge of
-// non-default overrides, and a user who has touched nothing sees FOUR fields — provider, the key-or-URL,
-// model, and the auto-minted `label` — plus one "how it's used" line, at 870 AND at 486, because collapsing
-// is width-independent.
-//
-// THE TIERS ARE `@orb/ui/collapsible`, WHICH IS THE WHOLE A11Y ANSWER. The mock draws `.tierhead` as a
-// `div` with `cursor: pointer` — no `aria-expanded`, no button role, no keyboard operation — and the mock design
-// §5.2 names it "the single most likely thing to be copied verbatim". Base UI's Collapsible gives the button
-// role, `aria-expanded`, `aria-controls` and Space/Enter for free; nothing here hand-rolls a disclosure.
-//
-// WIDTH ADAPTATION IS `@container`, NOT `@media` — the mock declares ZERO of either and the mock design §5.1 leaves
-// the mechanism explicitly undecided, so it is decided HERE: the editor's root is the named container and
-// every reflow keys off the container's `lg` step (512px). The settings body is 870 with the context panel
-// closed and 486 with it open, and a media query cannot tell those apart — the viewport is identical.
-// The three width-keyed reflows and where they live:
-//   • the fact ROW stacks (`connection-fact-rows.tsx`),
-//   • the extras key/value pair stacks (`connection-extras-editor.tsx`),
-//   • the transport pair goes one-up (`connection-transport-editor.tsx`, whose header carries the measured
-//     490px-of-content crossover the mock swept).
-// The FOURTH — the capability rail truncating GREENS LAST — is here, because the truncation is itself a
-// §5.3a ruling rather than a layout accident.
-//
-// WHAT IS DELIBERATELY ABSENT, each by DATA rather than omission:
-//   • NO `api` control. `showsApiControl` is `apis.length > 1` and `837016eda6` retired the `responses` api,
-//     so every built-in provider lists exactly one. A one-option combobox can only be gotten wrong.
-//   • NO prefetch status surface. §8.3's per-row `downloading/ready/failed` line was STRUCK by owner ruling.
-//   • NO per-chat or per-room override, anywhere. F20: a room never binds a connection.
-//   • NO Prompt caching tier on a connection whose wire places no explicit cache markers (`showsPromptCache`
-//     reads the capability's `turns.explicitPromptCache`): there the settings reach nothing. Where it shows it is
-//     COLLAPSED, so the untouched editor is still the four fields at both widths.
-//
-// STATED DEVIATION — THE PROVIDER IS READ-ONLY ON A SAVED ROW. The mock's Board A draws it as a combobox,
-// and the grouped four-`auth`-group picker it draws in Board G already ships, in the ADD flow
-// (`add-connection-dialog.tsx` · `connections-model.ts::providerPickerItems`). Changing the provider of a
-// SAVED row invalidates its credential, its base URL, its model and its kind at once; a control that starts
-// that cascade and handles none of it is worse than no control. The row says so and points at the add flow.
+// Saved providers stay read-only because changing one invalidates credential, URL, model and kind.
+// Disclosure tiers keep advanced controls collapsed; layout follows the settings container width.
+// Capability and cache readback describe the resolved connection, not upstream acceptance or hits.
 
 import { EMBED_SPACE_FIELDS, providerDisplayLabel } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
@@ -309,6 +273,9 @@ function AvailableConnectionEditorBody({
             title="Prompt caching"
           >
             <ConnectionPromptCache
+              generation={capabilityView.capability.kind === "generation" ? capabilityView.capability.generation : null}
+              policy={capabilityView.cache}
+              warnings={capabilityView.cacheWarnings.map((warning) => warning.message)}
               busy={busy}
               defaultEnabled={
                 capabilityView.capability.kind === "generation" ? capabilityView.capability.generation.turns?.promptCacheDefaultEnabled : undefined

@@ -6,7 +6,7 @@
 import type { SharedV4ProviderMetadata, SharedV4Warning } from "@ai-sdk/provider";
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import { ADJUSTED_KNOBS } from "@orb/contracts/chat";
-import type { ChatUsage, CostDetails, EndpointFeatures, GenerationCapability } from "@orb/contracts/inference";
+import type { ChatUsage, CostDetails, EndpointFeatures, GenerationCapability, ResponseCache } from "@orb/contracts/inference";
 import { foldNestedUsage } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type { ModelId } from "@orb/kit/ids";
@@ -149,6 +149,7 @@ export function appliedSampling(sampling: ResolvedSampling, warnings: readonly R
 }
 
 export interface ResultContext {
+  readonly responseCache?: ResponseCache | undefined;
   readonly model: ModelId;
   readonly providerId: string;
   readonly generation: GenerationCapability;
@@ -174,6 +175,9 @@ function costOf(
 ): Pick<ChatUsage, "costUsd" | "costDetails" | "costProvenance"> {
   if (ctx.measuredCost !== null) {
     return { costUsd: ctx.measuredCost.costUsd, costDetails: ctx.measuredCost.costDetails, costProvenance: "measured" };
+  }
+  if (ctx.responseCache?.status === "hit") {
+    return { costUsd: 0, costDetails: { totalUsd: 0 }, costProvenance: "measured" };
   }
   if (ctx.pricing !== undefined && core.tokensIn !== null && core.tokensOut !== null) {
     const promptUsd = (core.tokensIn / TOKENS_PER_MTOK) * ctx.pricing.inputPerMTok;
@@ -220,7 +224,7 @@ export function toChatResult(drain: StreamDrain, ctx: ResultContext): ChatResult
     numTurns: 1,
     generationId: ctx.generationId,
     appliedEffort: ctx.appliedEffort,
-    usage: { ...core, ...costOf(core, ctx) },
+    usage: { ...core, ...costOf(core, ctx), ...(ctx.responseCache === undefined ? {} : { responseCache: ctx.responseCache }) },
     ...(providerMetadata !== undefined ? { providerMetadata } : {}),
     ...(drain.images.length > 0 ? { images: drain.images } : {}),
     events: warningEvents(ctx.warnings, ctx.now),

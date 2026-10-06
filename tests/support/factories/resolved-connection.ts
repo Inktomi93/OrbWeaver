@@ -15,7 +15,7 @@
 //   • makeResolvedView — the credential-free `ResolvedConnectionView` (`connection.resolveChatCapability`).
 
 import type { ResolvedSecret, ResolvedSecretKind } from "@orb/contracts/credentials";
-import type { Capability, GenerationCapability, ResolvedConnectionView, Task } from "@orb/contracts/inference";
+import type { CachePolicy, Capability, GenerationCapability, ResolvedCacheConnectionView, ResolvedConnectionView, Task } from "@orb/contracts/inference";
 import { builtinProvider, foldFeatures, generationCapabilitySchema, requirementMet, SHIPPED_PROMPT_CACHE, taskDef } from "@orb/contracts/inference";
 import type { Resolved } from "@orb/inference";
 import type { ModelId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
@@ -125,4 +125,32 @@ export function makeResolved<T extends Task = "chat">(overrides: MakeResolvedOve
 export function makeResolvedView(overrides: Partial<ResolvedConnectionView> = {}): ResolvedConnectionView {
   const { task, connectionId, providerId, wire, api, model, capability, requirement } = makeResolved();
   return { task, connectionId, providerId, wire, api, model, capability, requirement, ...overrides };
+}
+
+/** The internal cache read port extends the unchanged public view fixture. */
+export function makeResolvedCacheView(overrides: Partial<ResolvedCacheConnectionView> = {}): ResolvedCacheConnectionView {
+  const { cacheContext, ...base } = overrides;
+  const view = makeResolvedView(base);
+  return {
+    ...view,
+    cacheContext: cacheContext ?? {
+      wire: view.wire,
+      dialect: view.wire === "openai-compat" ? "openai-compatible" : null,
+      factsModel: view.model,
+      promptSettings: SHIPPED_PROMPT_CACHE,
+      responseReplaySupported: false,
+      configuredReplay: {},
+      configuredRetention: { owned: false, value: null },
+    },
+  };
+}
+
+/** Neutral applied-control fixture; no provider hit or upstream disable is fabricated. */
+export function makeCachePolicy(overrides: Partial<CachePolicy> = {}): CachePolicy {
+  return {
+    prefix: { action: "none", format: null, ttl: null, cacheSystem: false, historyDepth: null, preservesBlockEnds: false },
+    implicit: { supported: null, disableApplied: false, minimumRetentionSeconds: null, refreshOnHit: null, retention: null },
+    replay: { supported: false, enabled: false, ttlSeconds: null, refresh: false, provenance: "default" },
+    ...overrides,
+  };
 }

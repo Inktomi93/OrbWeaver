@@ -24,7 +24,29 @@ const PREFILL_MODELS = "^(anthropic/)?claude[-/](sonnet-4([-.]5)?|opus-4[-.][15]
 const UNCHECKED_GENERATIONS = "(instant|[123])([-.].*)?|opus-4([-.][015678])?|sonnet-4([-.][056])?|haiku-4[-.]5|(opus|sonnet|fable|mythos)-5";
 const UNCHECKED_MODELS = `(${UNCHECKED_GENERATIONS})(-20(1[0-9]|2[0-5])[0-9]{4}|-20260[0-9]{3})?(:[a-z-]+)?$`;
 
+const REQUEST_CACHE = {
+  turns: { requestAutomaticPromptCache: true, providerImplicitPromptCache: false, cacheRetentionRefresh: true },
+} as const;
+
 export const anthropicRows = [
+  {
+    match: { model: "^(anthropic/)?claude[-/]", provider: "anthropic", wire: "anthropic-messages" },
+    generation: REQUEST_CACHE,
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-05",
+      cite: "https://platform.claude.com/docs/en/build-with-claude/prompt-caching: top-level automatic cache_control is opt-in, accepts five-minute/one-hour TTL and shares explicit-cache ordering, refresh and breakpoint limits. Without an app cache control there is no provider implicit prefix cache.",
+    },
+  },
+  {
+    match: { model: "^(anthropic/)?claude[-/]", provider: "openrouter", wire: "openai-compat" },
+    generation: REQUEST_CACHE,
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-05",
+      cite: "https://openrouter.ai/docs/guides/best-practices/prompt-caching#anthropic-claude: automatic top-level cache_control and explicit block breakpoints supported across Anthropic-compatible upstreams; default five-minute or requested one-hour retention. Existing application Anthropic routing pin remains unchanged.",
+    },
+  },
   {
     match: {
       model: "^(anthropic/)?claude[-/]",

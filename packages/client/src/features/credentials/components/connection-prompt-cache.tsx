@@ -1,23 +1,33 @@
 // The connection editor's Prompt caching tier body: an autosave form (D78) whose save writes the whole settings
 // document, so changes inside one save window land as one write. The depth field commits on blur or Enter, never
-// per keystroke. With caching off the dependent controls stay rendered and disabled, and their gloss says why.
+// per keystroke. App controls and provider-managed implicit caching remain distinct.
 
-import type { PromptCacheSettings, PromptCacheTtl } from "@orb/contracts/inference";
+import type { CachePolicy, GenerationCapability, PromptCacheSettings, PromptCacheTtl } from "@orb/contracts/inference";
 import { effectivePromptCache } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { NumberField } from "@orb/ui/number-field";
 import { RadioGroup, RadioGroupItem } from "@orb/ui/radio-group";
+import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useId, useState } from "react";
 import type { AutosaveSession } from "#forms/editor";
 import { PromptCacheAutosaveForm } from "../hooks/use-prompt-cache-form.ts";
-import { PROMPT_CACHE_DEPTH_BOUNDS, PROMPT_CACHE_TTL_OPTIONS, promptCacheDepthOf, promptCacheTtlOf } from "../lib/prompt-cache-model.ts";
+import {
+  PROMPT_CACHE_DEPTH_BOUNDS,
+  PROMPT_CACHE_TTL_OPTIONS,
+  promptCacheDepthOf,
+  promptCacheRetentionOf,
+  promptCacheTtlOf,
+} from "../lib/prompt-cache-model.ts";
 
 export interface ConnectionPromptCacheProps {
+  readonly generation: GenerationCapability | null;
+  readonly policy: CachePolicy;
+  readonly warnings: readonly string[];
   readonly connectionId: UserConnectionId;
   /** The row's stored settings; `null` is the shipped behavior. */
   readonly stored: PromptCacheSettings | null;
@@ -43,6 +53,9 @@ export function ConnectionPromptCache({ connectionId, stored, save, defaultEnabl
 }
 
 interface PromptCacheBodyProps {
+  readonly generation: GenerationCapability | null;
+  readonly policy: CachePolicy;
+  readonly warnings: readonly string[];
   readonly session: AutosaveSession<PromptCacheSettings>;
   readonly hasStored: boolean;
   readonly connectionLabel: string;
@@ -52,144 +65,289 @@ interface PromptCacheBodyProps {
   readonly onReset: () => void;
 }
 
-function PromptCacheBody({ session, hasStored, connectionLabel, busy, onReset, fixedTtl, defaultEnabled }: PromptCacheBodyProps): ReactElement {
-  const { form, reseed } = session;
+function PromptCacheBody(props: PromptCacheBodyProps): ReactElement {
+  const { session, hasStored, busy, onReset, defaultEnabled, fixedTtl, generation, policy, warnings } = props;
+  const controllable = generation?.turns?.explicitPromptCache === true || generation?.turns?.requestAutomaticPromptCache === true;
+  const reset = (): void => {
+    session.reseed(effectivePromptCache(null, defaultEnabled, fixedTtl));
+    onReset();
+  };
+  return (
+    <Stack data-slot="connection-prompt-cache" gap="row">
+      <CacheFacts policy={policy} warnings={warnings} />
+      {controllable ? <PrefixControls {...props} /> : null}
+      <ProviderControls {...props} />
+      {hasStored ? (
+        <Row justify="start">
+          <Button disabled={busy} intent="secondary" onClick={reset} size="sm">
+            Use the defaults
+          </Button>
+        </Row>
+      ) : null}
+    </Stack>
+  );
+}
+
+type ControlProps = Pick<PromptCacheBodyProps, "session" | "connectionLabel" | "busy" | "fixedTtl" | "generation" | "policy">;
+
+function PrefixControls(props: ControlProps): ReactElement {
+  const {
+    session: { form },
+    connectionLabel,
+    busy,
+    generation,
+  } = props;
+  return (
+    <form.Subscribe
+      selector={(state): CachePolicy["prefix"]["action"] => {
+        if (!state.values.enabled) {
+          return "none";
+        }
+        return state.values.requestAutomatic === true ? "automatic-request" : "markers";
+      }}
+    >
+      {(action): ReactElement => {
+        const off = action === "none";
+        return (
+          <Stack gap="row">
+            <SettingLine
+              label="Request prefix caching"
+              gloss="Request caching for reusable prompt prefixes. Provider-specific read, write and storage pricing applies. Turning this request off does not disable provider-managed implicit caching."
+            >
+              <form.Field name="enabled">
+                {(field): ReactElement => (
+                  <Switch
+                    aria-label={`Request prefix caching on ${connectionLabel}`}
+                    checked={field.state.value}
+                    disabled={busy}
+                    onCheckedChange={(on): void => field.handleChange(on)}
+                  />
+                )}
+              </form.Field>
+            </SettingLine>
+            {generation?.turns?.requestAutomaticPromptCache === true ? (
+              <SettingLine
+                label="Automatic prefix placement"
+                gloss="Opt in to request-wide automatic placement. This replaces manual system/history markers and can incur cache-write charges."
+              >
+                <form.Field name="requestAutomatic">
+                  {(field): ReactElement => (
+                    <Switch
+                      aria-label={`Automatic prefix placement on ${connectionLabel}`}
+                      checked={field.state.value === true}
+                      disabled={busy || off}
+                      onCheckedChange={(on): void => field.handleChange(on)}
+                    />
+                  )}
+                </form.Field>
+              </SettingLine>
+            ) : null}
+            <ManualMarkers {...props} disabled={off || action === "automatic-request"} />
+            <MarkerRetention {...props} off={off} />
+          </Stack>
+        );
+      }}
+    </form.Subscribe>
+  );
+}
+
+function ManualMarkers({ session: { form }, connectionLabel, busy, fixedTtl, disabled }: ControlProps & { readonly disabled: boolean }): ReactElement {
   const depthLabelId = useId();
-  const ttlLabelId = useId();
+  const [depthDraft, setDepthDraft] = useState<{ readonly value: number | null } | null>(null);
   const systemGloss =
     fixedTtl === undefined
       ? "Mark the fixed system prompt separately. History cache entries still include preceding system content."
       : "Mark a stable-only system prompt. A dynamic system tail prevents a separate marker; history entries still include the whole system prompt.";
-  const cacheGloss =
-    fixedTtl === undefined
-      ? "The provider keeps the unchanged start of each request for a while, so the next turn re-reads it at a tenth of the input price instead of paying for it again."
-      : "Request explicit caching for unchanged prompt content. Provider cache and storage pricing applies; automatic caching can still occur when this is off.";
-  // The depth field's IN-PROGRESS edit, boxed because a cleared field (`null`) is an edit; `null` = not editing.
-  const [depthDraft, setDepthDraft] = useState<{ readonly value: number | null } | null>(null);
-  // The reset drops any edit still inside the save window before it writes NULL, so the edit cannot land after it.
-  const resetToDefaults = (): void => {
-    reseed(effectivePromptCache(null, defaultEnabled, fixedTtl));
-    onReset();
-  };
-
   return (
-    <form.Subscribe selector={(state): boolean => !state.values.enabled}>
-      {(off): ReactElement => (
-        <Stack data-slot="connection-prompt-cache" gap="row">
-          <SettingLine gloss={cacheGloss} label="Cache prompts">
-            <form.Field name="enabled">
-              {(field): ReactElement => (
-                <Switch
-                  aria-label={`Cache prompts on ${connectionLabel}`}
-                  checked={field.state.value}
-                  className="shrink-0"
-                  disabled={busy}
-                  onCheckedChange={(checked): void => field.handleChange(checked)}
-                />
-              )}
-            </form.Field>
-          </SettingLine>
-          <SettingLine gloss={off ? "Turn caching on to choose this." : systemGloss} label="Cache the system prompt">
-            <form.Field name="cacheSystem">
-              {(field): ReactElement => (
-                <Switch
-                  aria-label={`Cache the system prompt on ${connectionLabel}`}
-                  checked={field.state.value}
-                  className="shrink-0"
-                  disabled={busy || off}
-                  onCheckedChange={(checked): void => field.handleChange(checked)}
-                />
-              )}
-            </form.Field>
-          </SettingLine>
-          <SettingLine
-            gloss={
-              off
-                ? "Turn caching on to choose this."
-                : "How many of the newest exchanges stay outside the cache. Empty follows each chat on its own; a number only ever moves it further back, never past the administrator's minimum."
-            }
-            label="History cache depth"
-            labelId={depthLabelId}
-          >
-            <form.Field name="historyDepth">
-              {(field): ReactElement => (
-                <NumberField
-                  aria-labelledby={depthLabelId}
-                  disabled={busy || off}
-                  max={PROMPT_CACHE_DEPTH_BOUNDS.max}
-                  min={PROMPT_CACHE_DEPTH_BOUNDS.min}
-                  onKeyDown={(event): void => {
-                    // Enter is a NAVIGATE key for Base UI's NumberField and does not commit; blur routes it through
-                    // the one commit path.
-                    if (event.key === "Enter" && event.target instanceof HTMLElement) {
-                      event.target.blur();
-                    }
-                  }}
-                  onValueChange={(next): void => setDepthDraft({ value: next })}
-                  onValueCommitted={(next): void => {
-                    setDepthDraft(null);
-                    const historyDepth = promptCacheDepthOf(next);
-                    if (historyDepth !== undefined && historyDepth !== field.state.value) {
-                      field.handleChange(historyDepth);
-                    }
-                  }}
-                  placeholder="automatic"
-                  value={depthDraft === null ? field.state.value : depthDraft.value}
-                />
-              )}
-            </form.Field>
-          </SettingLine>
-          {fixedTtl !== undefined ? (
-            <Stack gap="tight">
-              <Text voice="label">Cache retention</Text>
-              <Text voice="gloss">
-                {PROMPT_CACHE_TTL_OPTIONS.find((option) => option.value === fixedTtl)?.label} fixed by this route. Cache hits do not extend retention. Other
-                saved retention choices do not apply.
-              </Text>
-            </Stack>
-          ) : (
-            <Stack gap="tight">
-              <Text id={ttlLabelId} voice="label">
-                Keep the cache for
-              </Text>
-              <Text voice="gloss">
-                {off
-                  ? "Turn caching on to choose this."
-                  : "Writing to the cache costs more than plain input. The longer time pays off when you pause for more than five minutes between turns."}
-              </Text>
-              <form.Field name="ttl">
-                {(field): ReactElement => (
-                  <RadioGroup
-                    aria-labelledby={ttlLabelId}
-                    disabled={busy || off}
-                    onValueChange={(value): void => {
-                      const ttl = promptCacheTtlOf(value);
-                      if (ttl !== undefined && ttl !== field.state.value) {
-                        field.handleChange(ttl);
-                      }
-                    }}
-                    value={field.state.value}
-                  >
-                    {PROMPT_CACHE_TTL_OPTIONS.map((option) => (
-                      <RadioGroupItem key={option.value} value={option.value}>
-                        {`${option.label} · writes cost ${option.writeCost} input`}
-                      </RadioGroupItem>
-                    ))}
-                  </RadioGroup>
-                )}
-              </form.Field>
-            </Stack>
+    <Stack gap="row">
+      <SettingLine label="Cache the system prompt" gloss={disabled ? "Enable manual prefix placement to choose this." : systemGloss}>
+        <form.Field name="cacheSystem">
+          {(field): ReactElement => (
+            <Switch
+              aria-label={`Cache the system prompt on ${connectionLabel}`}
+              checked={field.state.value}
+              disabled={busy || disabled}
+              onCheckedChange={(on): void => field.handleChange(on)}
+            />
           )}
-          {hasStored ? (
-            <Row justify="start">
-              <Button disabled={busy} intent="secondary" onClick={resetToDefaults} size="sm">
-                Use the defaults
-              </Button>
-            </Row>
-          ) : null}
-        </Stack>
-      )}
-    </form.Subscribe>
+        </form.Field>
+      </SettingLine>
+      <SettingLine
+        label="History cache depth"
+        labelId={depthLabelId}
+        gloss={
+          disabled
+            ? "Enable manual prefix placement to choose this."
+            : "How many of the newest exchanges stay outside the cache. Empty follows each chat; a number can move the checkpoint further back, never past the administrator's minimum."
+        }
+      >
+        <form.Field name="historyDepth">
+          {(field): ReactElement => (
+            <NumberField
+              aria-label="History cache depth"
+              disabled={busy || disabled}
+              max={PROMPT_CACHE_DEPTH_BOUNDS.max}
+              min={PROMPT_CACHE_DEPTH_BOUNDS.min}
+              placeholder="automatic"
+              value={depthDraft === null ? field.state.value : depthDraft.value}
+              onValueChange={(next): void => setDepthDraft({ value: next })}
+              onValueCommitted={(next): void => {
+                setDepthDraft(null);
+                const depth = promptCacheDepthOf(next);
+                if (depth !== undefined && depth !== field.state.value) {
+                  field.handleChange(depth);
+                }
+              }}
+              onKeyDown={(event): void => {
+                // Base UI treats Enter as navigation; blur reaches the field's single commit path.
+                if (event.key === "Enter" && event.target instanceof HTMLElement) {
+                  event.target.blur();
+                }
+              }}
+            />
+          )}
+        </form.Field>
+      </SettingLine>
+    </Stack>
+  );
+}
+
+function MarkerRetention({ session: { form }, generation, fixedTtl, policy, busy, off }: ControlProps & { readonly off: boolean }): ReactElement {
+  const ttlLabelId = useId();
+  if (fixedTtl !== undefined) {
+    return (
+      <Stack gap="tight">
+        <Text voice="label">Cache retention</Text>
+        <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+          {PROMPT_CACHE_TTL_OPTIONS.find((option) => option.value === fixedTtl)?.label} applied by this route. Other saved marker retention choices do not
+          apply.{generation?.turns?.cacheRetentionRefresh === false ? " Cache hits do not extend retention." : null}
+        </Text>
+      </Stack>
+    );
+  }
+  if (generation?.turns?.promptCacheFormat === "openai-breakpoint") {
+    const minimum = policy.implicit.minimumRetentionSeconds;
+    return (
+      <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+        {minimum === null
+          ? "This route uses request-wide prefix retention options; marker TTL choices do not apply."
+          : `This model requests at least ${minimum / 60} minutes of prefix retention after the latest write or reuse; the provider may retain it longer. Marker TTL choices do not apply.`}
+      </Text>
+    );
+  }
+  return (
+    <Stack gap="tight">
+      <Text id={ttlLabelId} voice="label">
+        Keep the cache for
+      </Text>
+      <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+        {off
+          ? "Turn the prefix request on to choose this."
+          : "Choose the requested marker retention. Cache-write charges and retention refresh depend on the provider and model."}
+      </Text>
+      <form.Field name="ttl">
+        {(field): ReactElement => (
+          <RadioGroup
+            aria-labelledby={ttlLabelId}
+            disabled={busy || off}
+            value={field.state.value}
+            onValueChange={(value): void => {
+              const ttl = promptCacheTtlOf(value);
+              if (ttl !== undefined && ttl !== field.state.value) {
+                field.handleChange(ttl);
+              }
+            }}
+          >
+            {PROMPT_CACHE_TTL_OPTIONS.map((option) => (
+              <RadioGroupItem key={option.value} value={option.value}>
+                {option.label}
+              </RadioGroupItem>
+            ))}
+          </RadioGroup>
+        )}
+      </form.Field>
+    </Stack>
+  );
+}
+
+function ProviderControls({ session: { form }, generation, connectionLabel, busy }: ControlProps): ReactElement {
+  const retentions = generation?.turns?.promptCacheRetentions;
+  return (
+    <Stack gap="row">
+      {generation?.turns?.disablesImplicitPromptCache === true ? (
+        <SettingLine
+          label="Disable implicit breakpoints"
+          gloss="Request explicit-only prefix caching. On supported models, no markers means no prompt cache writes or reuse. Configured request-body overrides remain authoritative; full-response replay is separate."
+        >
+          <form.Field name="disableImplicit">
+            {(field): ReactElement => (
+              <Switch
+                aria-label={`Disable implicit breakpoints on ${connectionLabel}`}
+                checked={field.state.value === true}
+                disabled={busy}
+                onCheckedChange={(on): void => field.handleChange(on)}
+              />
+            )}
+          </form.Field>
+        </SettingLine>
+      ) : null}
+      {retentions !== undefined && retentions.length > 0 ? (
+        <SettingLine
+          label="Provider prefix retention"
+          gloss="Leave inherited to use the model and organization's retention policy. This is not a marker TTL or complete-response replay lifetime."
+        >
+          <form.Field name="retention">
+            {(field): ReactElement => (
+              <Select
+                aria-label={`Provider prefix retention on ${connectionLabel}`}
+                disabled={busy}
+                items={[
+                  { value: "provider-default", label: "Inherit provider default" },
+                  ...retentions.map((value) => ({ value, label: value === "24h" ? "Up to 24 hours" : "In memory" })),
+                ]}
+                onValueChange={(value): void => field.handleChange(promptCacheRetentionOf(value))}
+                value={field.state.value ?? "provider-default"}
+              />
+            )}
+          </form.Field>
+        </SettingLine>
+      ) : null}
+    </Stack>
+  );
+}
+
+const PREFIX_LABELS: Readonly<Record<CachePolicy["prefix"]["action"], string>> = {
+  none: "none",
+  markers: "manual breakpoints",
+  "automatic-request": "request-wide automatic placement",
+};
+function implicitSupportGloss(supported: boolean | null): string {
+  if (supported === true) {
+    return "Provider-managed implicit prefix caching is available; eligibility and hits are determined upstream.";
+  }
+  return supported === false
+    ? "Provider-managed implicit prefix caching is not documented as automatic on this route."
+    : "Provider-managed implicit prefix cache support is unknown for this route.";
+}
+function CacheFacts({ policy, warnings }: Pick<ConnectionPromptCacheProps, "policy" | "warnings">): ReactElement {
+  return (
+    <Stack gap="tight">
+      <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+        {implicitSupportGloss(policy.implicit.supported)}
+      </Text>
+      <Text voice="gloss">App prefix request: {PREFIX_LABELS[policy.prefix.action]}.</Text>
+      {policy.replay.supported ? (
+        <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+          Complete-response replay: {policy.replay.enabled ? "requested by connection headers" : "off by default"}. This is separate from prefix caching;
+          upstream settings can still prevent a replay hit.
+        </Text>
+      ) : null}
+      {warnings.map((message) => (
+        <Text className="max-w-(--reading-measure-prose)" key={message} prose={true} voice="gloss">
+          {message}
+        </Text>
+      ))}
+    </Stack>
   );
 }
 
@@ -211,7 +369,9 @@ function SettingLine({
         <Text id={labelId} voice="label">
           {label}
         </Text>
-        <Text voice="gloss">{gloss}</Text>
+        <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+          {gloss}
+        </Text>
       </Stack>
       {children}
     </Row>

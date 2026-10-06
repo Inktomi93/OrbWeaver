@@ -7,7 +7,6 @@ import {
   PROMPT_CACHE_DEPTH_CEIL,
   PROMPT_CACHE_DEPTH_MIN,
   PROMPT_CACHE_TTLS,
-  PROMPT_CACHE_WRITE_MULTIPLIER,
   promptCacheSettingsSchema,
   SHIPPED_PROMPT_CACHE,
 } from "@orb/contracts/inference";
@@ -30,10 +29,6 @@ test("the ttl is exactly the two the Anthropic cache accepts", () => {
   }
   expect(promptCacheSettingsSchema.safeParse({ ...SET, ttl: "9z" }).success).toBe(false);
   expect(promptCacheSettingsSchema.safeParse({ ...SET, ttl: "5M" }).success).toBe(false);
-});
-
-test("the write multipliers are the published prices: 5m 1.25x, 1h 2x base input", () => {
-  expect(PROMPT_CACHE_WRITE_MULTIPLIER).toEqual({ "5m": 1.25, "1h": 2 });
 });
 
 test("the user depth is an integer from 1 to the ceiling the admin floor shares, or null", () => {

@@ -29,8 +29,8 @@
 //      gen-1790135929 vs gen-1790135933, read the history). The provider converter writes assistant and tool
 //      rows as strings with a message-level marker, and the history breakpoints land on those rows. A row with
 //      no text part (a tool-call row) passes its marker to the nearest earlier row with text.
-//  10. the same-role fold (after rule 9, only when the turn caches by explicit Anthropic block markers,
-//      `cachesByAnthropicMarkers`): consecutive plain user or assistant rows become ONE message with one text
+//  10. the same-role fold (after rule 9, only when the admitted prefix plan preserves block ends at a merging
+//      role floor): consecutive plain user or assistant rows become ONE message with one text
 //      part per row, each row's marker still on its own last part. SHAPE keeps the stored rows of a run apart on
 //      such a wire, so a marked row keeps its bytes and its end when the run grows; this fold keeps the wire
 //      alternating without joining their text. It adds and removes no row, so the tail is whatever SHAPE sent.
@@ -39,7 +39,7 @@
 // included, which no row rule rewrites), and so does a `chat_template_kwargs.enable_thinking` the user stated.
 // Warnings are collected on a per-call sink the caller folds into the turn's `warning` events (D41).
 
-import type { Dialect, EndpointFeatures, ImageDetail } from "@orb/contracts/inference";
+import type { Dialect, EndpointFeatures, ImageDetail, PromptCacheFormat } from "@orb/contracts/inference";
 import { DEFAULT_SAMPLER_KEYS, isBeltOwnedBodyKey } from "@orb/contracts/inference";
 import { deepMergeRequestBody } from "@orb/kit/custom-parameters";
 import type { JsonValue } from "@orb/kit/json";
@@ -63,6 +63,7 @@ const IMAGE_URL_TYPE = "image_url";
 const VIDEO_URL_TYPE = "video_url";
 const TEXT_TYPE = "text";
 const CACHE_CONTROL_KEY = "cache_control";
+const PROMPT_CACHE_BREAKPOINT_KEY = "prompt_cache_breakpoint";
 const MESSAGES_KEY = "messages";
 
 /** The keys the `openrouter` transport MODELS off `extras` — everything else is dropped loudly.
@@ -74,9 +75,11 @@ const MESSAGES_KEY = "messages";
  *  not claim it was dropped. `plugins`/`web_search_options` were missing when their doors landed (audit C3),
  *  so a user who declared either got a `settings_adjusted` notice about a field that rode the wire
  *  perfectly; `debug` (D3) would have inherited it. A new extras door adds its key HERE in the same commit. */
-const OPENROUTER_EXTRAS_KEYS = ["provider", "models", "plugins", "web_search_options", "debug"] as const;
+const OPENROUTER_EXTRAS_KEYS = ["provider", "models", "plugins", "web_search_options", "debug", "session_id", "prompt_cache_key"] as const;
 
 export interface ShapeArgs {
+  readonly cacheMarkers?: ReadonlyMap<number, Record<string, unknown>> | undefined;
+  readonly cacheFormat?: PromptCacheFormat | undefined;
   readonly plan: WirePlan | null;
   readonly features: EndpointFeatures;
   readonly extras: Readonly<Record<string, JsonValue>> | null;
@@ -85,7 +88,7 @@ export interface ShapeArgs {
   readonly dialect: Dialect;
   /** The capability half of the prefill decision (`acceptsAssistantPrefill`); the array half is the plan's. */
   readonly prefillAllowed: boolean;
-  /** Rule 10 runs: the turn caches by explicit Anthropic block markers (`cachesByAnthropicMarkers`). */
+  /** Rule 10 runs: the admitted prefix action preserves block ends at the effective merging role floor. */
   readonly foldSameRole: boolean;
   readonly replyImages: boolean;
   /** What rule 5b tells the template's thinking switch (`templateThinkingFor`); `undefined` sends nothing. */
@@ -306,6 +309,51 @@ function isTextPart(part: unknown): part is Record<string, unknown> {
   return isRecord(part) && part["type"] === TEXT_TYPE;
 }
 
+function applyPlannedCacheMarkers(body: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
+  const messages = body[MESSAGES_KEY];
+  if (args.dialect === "openrouter" || args.cacheMarkers === undefined || args.cacheMarkers.size === 0 || !Array.isArray(messages)) {
+    return body;
+  }
+  if (messages.length !== args.plan?.rows.length) {
+    args.warnings.push({ code: "sdk_unsupported_setting", message: "Prompt cache markers were not sent: the adapter changed the planned message boundaries" });
+    return body;
+  }
+  return {
+    ...body,
+    messages: messages.map((message: unknown, index) => {
+      const marker = args.cacheMarkers?.get(index)?.["cacheControl"];
+      if (!isRecord(message) || marker === undefined) {
+        return message;
+      }
+      return { ...message, [CACHE_CONTROL_KEY]: marker };
+    }),
+  };
+}
+
+function translateCacheMarkers(body: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
+  if (args.cacheFormat !== "openai-breakpoint" || !Array.isArray(body[MESSAGES_KEY])) {
+    return body;
+  }
+  return {
+    ...body,
+    messages: body[MESSAGES_KEY].map((message: unknown) => {
+      if (!(isRecord(message) && Array.isArray(message["content"]))) {
+        return message;
+      }
+      return {
+        ...message,
+        content: message["content"].map((part: unknown) => {
+          if (!isTextPart(part) || part[CACHE_CONTROL_KEY] === undefined) {
+            return part;
+          }
+          const { [CACHE_CONTROL_KEY]: _translated, ...text } = part;
+          return { ...text, [PROMPT_CACHE_BREAKPOINT_KEY]: { mode: "explicit" } };
+        }),
+      };
+    }),
+  };
+}
+
 /** Rule 9, walked from the end. A message-level marker moves onto its row's last text part. A row with no text
  *  (an assistant tool-call row, `content: null`) cannot hold one — an empty text block with `cache_control` is
  *  refused — so its marker moves to the nearest EARLIER row with text: a shorter prefix of the same history,
@@ -313,7 +361,7 @@ function isTextPart(part: unknown): part is Record<string, unknown> {
  *  forwarded). A row that already carries a part marker absorbs a moved one; two never stack. */
 function applyCacheMarkerSpelling(body: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
   const messages = body[MESSAGES_KEY];
-  if (args.dialect !== "openrouter" || !Array.isArray(messages)) {
+  if ((args.dialect !== "openrouter" && args.cacheFormat === undefined) || !Array.isArray(messages)) {
     return body;
   }
   const out: unknown[] = [...messages];
@@ -410,7 +458,7 @@ export function shapeOutboundBody(raw: Record<string, unknown>, args: ShapeArgs)
     body = { ...body, [MODALITIES_KEY]: [...REPLY_MODALITIES] };
   }
   body = applyOutputCapSpelling(applyEffortSpelling(body, args, owned), args, owned);
-  return rowsOwned ? body : applySameRoleFold(applyCacheMarkerSpelling(body, args), args);
+  return rowsOwned ? body : applySameRoleFold(translateCacheMarkers(applyCacheMarkerSpelling(applyPlannedCacheMarkers(body, args), args), args), args);
 }
 
 function applyImageDetail(body: Record<string, unknown>, detail: ImageDetail | undefined): Record<string, unknown> {

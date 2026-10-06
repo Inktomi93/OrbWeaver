@@ -15,6 +15,7 @@
 // `intent` the UI composer can't inject (the context-cutoff spec's small `maxContextTokens` ceiling).
 
 import process from "node:process";
+import type { ResponseCacheSettings } from "@orb/contracts/preset";
 import type { CharacterHandle, CharacterId, ChatId, MessageId, PersonaId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { DEV_TARGET_ALLOWED, E2E_DEBUG_TOKEN, E2E_LOCAL_ENGINE_LABEL, SINGLE_USER } from "./modes.ts";
@@ -82,7 +83,9 @@ export async function trpcMutation<T>(procedure: string, input: unknown): Promis
 // ground-truth read; same posture as chat-room.ts's OrbBusHandle). ONE carve-out (brand-in-name-position,
 // 2026-08-03): TYPE-ONLY imports of the `@orb/kit/ids` id brands are allowed — erased at runtime, they add
 // no package-code dependency, and an id position typed bare `string` here is exactly the wrong-id hole the
-// gate exists to close. The mirror rule still binds every CONTRACT shape. ──
+// gate exists to close. Response replay's canonical nested settings are also type-only: duplicating their
+// boundary validation shape here would create another control vocabulary. The mirror rule still binds
+// every locally projected CONTRACT shape. ──
 
 /** One canon message row (a subset of contracts/chat `MessageView` — the fields the honesty specs read).
  *  `role` stays `string` (not a re-spelled `"user"|"assistant"` union): this package-import-free support
@@ -291,7 +294,7 @@ export async function fetchWireCaptures(chatId: ChatId, backend?: string): Promi
 export interface ActivePresetConfig {
   readonly namesBehavior?: string;
   readonly sections: readonly { readonly id: string; readonly enabled?: boolean }[];
-  readonly params: { readonly maxOutputTokens?: number; readonly maxContextTokens?: number };
+  readonly params: { readonly maxOutputTokens?: number; readonly maxContextTokens?: number; readonly responseCache?: ResponseCacheSettings };
 }
 
 /** Read the resolved active preset config for a chat (chat.getActivePresetConfig). The FE-layer read: "what

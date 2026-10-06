@@ -4,7 +4,7 @@
 // root, so preset never imports `connection` (the sideways-import ban, Constitution.md §2).
 
 import type { Principal } from "@orb/contracts/identity";
-import type { CapabilityTarget, ResolvedConnectionView } from "@orb/contracts/inference";
+import type { CapabilityTarget, ResolvedCacheConnectionView } from "@orb/contracts/inference";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { PresetId } from "@orb/kit/ids";
@@ -29,7 +29,7 @@ import type { EffectivePreset, PresetDetail, PresetSummary, PresetUsageView } fr
 export type ResolveChatCapabilityOp = (params: {
   readonly principal: Principal;
   readonly target?: CapabilityTarget | undefined;
-}) => Promise<ResolvedConnectionView>;
+}) => Promise<ResolvedCacheConnectionView>;
 
 /**
  * The injected BACKWARD-BINDINGS read (#279) — "where is this preset bound from outside the library".

@@ -35,7 +35,7 @@ import { PromptReadout } from "../../../../../../packages/client/src/features/pr
 import { CapabilityCard, EffectiveProfile } from "../../../../../../packages/client/src/features/preset/components/readout/readout-parts.tsx";
 import { TransformsReadout } from "../../../../../../packages/client/src/features/preset/components/readout/transforms-readout.tsx";
 import { CtDataProviders } from "../../../../../support/browser/ct-data-providers.tsx";
-import { makeGenerationCapability } from "../../../../../support/factories/resolved-connection.ts";
+import { makeCachePolicy, makeGenerationCapability } from "../../../../../support/factories/resolved-connection.ts";
 
 const STORY_PRESET = castId<PresetId>("preset_ct_readoutbind");
 const STORY_CHAT = castId<ChatId>("chat_ct_readoutbind");
@@ -277,6 +277,8 @@ export function EffectiveProfileMirostatStory(): ReactElement {
             },
             stale: [],
             qualityMapping: null,
+            cache: makeCachePolicy(),
+            cacheWarnings: [],
           }}
           error={null}
           onRetry={noRetry}
@@ -300,6 +302,8 @@ export function EffectiveProfileSettledStory(): ReactElement {
             knobs: { maxOutputTokens: { value: 2048, provenance: "floor" } },
             stale: [],
             qualityMapping: null,
+            cache: makeCachePolicy(),
+            cacheWarnings: [],
           }}
           error={null}
           onRetry={noRetry}
@@ -331,6 +335,8 @@ export function LongModelPathReadoutStory(): ReactElement {
             knobs: { maxOutputTokens: { value: 2048, provenance: "floor" } },
             stale: [],
             qualityMapping: null,
+            cache: makeCachePolicy(),
+            cacheWarnings: [],
           }}
           error={null}
           onRetry={noRetry}
@@ -369,6 +375,8 @@ export function EffectiveProfileShapeMatchStory(): ReactElement {
               },
               stale: [],
               qualityMapping: null,
+              cache: makeCachePolicy(),
+              cacheWarnings: [],
             }}
             error={null}
             onRetry={noRetry}

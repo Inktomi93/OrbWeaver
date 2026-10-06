@@ -82,6 +82,19 @@ const GEMINI_ROUTES = [
   ["google/", "openrouter", "openai-compat"],
 ] as const;
 
+test("native GenerateContent implicit support does not enable app markers or invent a resource manager", () => {
+  for (const model of ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3.1-pro-preview", "gemini-3.8-flash"]) {
+    const native = geminiOn("", "google", "google-generative-ai", model);
+    expect(native.turns, model).toMatchObject({ providerImplicitPromptCache: true, explicitPromptCache: false, promptCacheDefaultEnabled: false });
+    expect(native.turns?.requestAutomaticPromptCache, model).toBeUndefined();
+    expect(native.turns?.fixedCacheTtl, model).toBeUndefined();
+    const routed = geminiOn("google/", "openrouter", "openai-compat", model);
+    expect(routed.turns?.explicitPromptCache, model).toBe(true);
+    expect(routed.turns?.fixedCacheTtl, model).toBe("5m");
+  }
+  expect(geminiOn("models/", "custom-openai", "openai-compat", "gemini-3.8-flash").turns?.providerImplicitPromptCache).toBeUndefined();
+});
+
 function geminiOn(prefix: string, providerId: string, wire: "google-generative-ai" | "openai-compat", model: string): GenerationCapability {
   const { capability } = synthesizeCapability("generation", "google", {
     curated: curatedRows({ model: `${prefix}${model}`, providerId: testProviderId(providerId), wire }),

@@ -9,14 +9,17 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { EmbeddingModelV4, ImageModelV4, LanguageModelV4 } from "@ai-sdk/provider";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import type { Dialect, EffortLevel, ImageDetail } from "@orb/contracts/inference";
+import type { CachePolicy, Dialect, EffortLevel, ImageDetail } from "@orb/contracts/inference";
+import type { ResponseCacheControl, ResponseCacheSettings } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import { wrapLanguageModel } from "ai";
 import type { WireCaptureSink } from "../../contract/backend.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { ResolvedWarning } from "../../contract/resolve.ts";
 import type { Resolved } from "../../contract/resolved.ts";
+import { resolveCachePolicy } from "../../funnel/resolve-cache.ts";
 import { authHeaders, openAiPath } from "../kit/fetch-json.ts";
+import { cachePolicyContextOf, effectiveDialectOf, responseCacheHeaders } from "../kit/response-cache.ts";
 import { resolvedScrubSet } from "../kit/sanitize.ts";
 import type { WrapFetchArgs } from "../v4/fetch.ts";
 import { wrapFetch } from "../v4/fetch.ts";
@@ -44,6 +47,10 @@ export interface TransportDeps {
 
 /** Everything one call needs the hooks to know. `plan` is null on the non-chat surfaces (no re-attach). */
 export interface ModelCall {
+  readonly cachePolicy?: CachePolicy | undefined;
+  readonly cacheMarkers?: ReadonlyMap<number, Record<string, unknown>> | undefined;
+  readonly responseCache?: ResponseCacheControl | undefined;
+  readonly responseCacheSettings?: ResponseCacheSettings | undefined;
   readonly imageDetail?: ImageDetail | undefined;
   readonly connection: Resolved;
   readonly deps: TransportDeps;
@@ -73,11 +80,6 @@ export interface ModelCall {
   readonly reasoningTags?: ReasoningTags | undefined;
 }
 
-function dialectOf(call: ModelCall): Dialect {
-  // Validated by the provider schema's superRefine: an openai-compat row always names its dialect.
-  return call.connection.provider.dialect ?? "openai-compatible";
-}
-
 function shapeArgs(call: ModelCall, dialect: Dialect): ShapeArgs {
   return {
     plan: call.plan,
@@ -93,6 +95,8 @@ function shapeArgs(call: ModelCall, dialect: Dialect): ShapeArgs {
     replyImages: call.replyImages,
     imageDetail: call.imageDetail,
     warnings: call.warnings,
+    cacheMarkers: call.cacheMarkers,
+    cacheFormat: call.connection.capability.kind === "generation" ? call.connection.capability.generation.turns?.promptCacheFormat : undefined,
   };
 }
 
@@ -218,14 +222,33 @@ function ollamaNativeProvider(call: ModelCall): ReturnType<typeof createOpenAICo
   });
 }
 
-function openRouterProvider(call: ModelCall): ReturnType<typeof createOpenRouter> {
+function responsePolicyFor(call: ModelCall, responseReplaySupported: boolean): CachePolicy {
+  if (call.cachePolicy !== undefined) {
+    return call.cachePolicy;
+  }
+  const context = cachePolicyContextOf(call.connection, responseReplaySupported);
+  const resolved = resolveCachePolicy({
+    context: { ...context, promptSettings: { ...context.promptSettings, enabled: false } },
+    preset: call.responseCacheSettings,
+    request: call.responseCache,
+  });
+  call.warnings.push(...resolved.warnings);
+  return resolved.plan;
+}
+
+function openRouterProvider(call: ModelCall, responseReplaySupported: boolean): ReturnType<typeof createOpenRouter> {
   const { connection, deps } = call;
   const args = shapeArgs(call, "openrouter");
   const shapeBody = (body: Record<string, unknown>): Record<string, unknown> => shapeOutboundBody({ ...body, ...(call.extraBody ?? {}) }, args);
+  const headers = new Headers({ [OR_REFERER_HEADER]: deps.app.url, [OR_TITLE_HEADER]: deps.app.name });
+  const policy = responsePolicyFor(call, responseReplaySupported);
+  for (const [key, value] of Object.entries(responseCacheHeaders({ configured: connection.transport?.headers, plan: policy }))) {
+    headers.set(key, value);
+  }
   return createOpenRouter({
     baseURL: baseUrlOf(call),
     ...(connection.credential.secret !== null ? { apiKey: connection.credential.secret } : {}),
-    headers: { [OR_REFERER_HEADER]: deps.app.url, [OR_TITLE_HEADER]: deps.app.name },
+    headers: Object.fromEntries(headers),
     fetch: wrapFetch(fetchArgs(call, shapeBody)),
     compatibility: "strict",
   });
@@ -239,21 +262,25 @@ const TRANSPORTS: Record<Dialect, Transport> = {
   },
   openrouter: {
     language: (call) =>
-      openRouterProvider(call).chat(call.connection.model, {
+      openRouterProvider(call, true).chat(call.connection.model, {
         usage: { include: true },
         ...(call.openRouterChat?.strict !== undefined ? { structuredOutputs: { strict: call.openRouterChat.strict } } : {}),
         ...(call.openRouterChat?.parallelToolCalls !== undefined ? { parallelToolCalls: call.openRouterChat.parallelToolCalls } : {}),
       }),
     embedding: (call) =>
-      openRouterProvider(call).textEmbeddingModel(call.connection.model, { ...(call.extraBody !== undefined ? { extraBody: { ...call.extraBody } } : {}) }),
+      openRouterProvider(call, true).textEmbeddingModel(call.connection.model, {
+        ...(call.extraBody !== undefined ? { extraBody: { ...call.extraBody } } : {}),
+      }),
     image: (call) =>
-      openRouterProvider(call).imageModel(call.connection.model, { ...(call.extraBody !== undefined ? { extraBody: { ...call.extraBody } } : {}) }),
+      openRouterProvider(call, false).imageModel(call.connection.model, { ...(call.extraBody !== undefined ? { extraBody: { ...call.extraBody } } : {}) }),
   },
 };
 
 export function languageModelFor(call: ModelCall): LanguageModelV4 {
   const model =
-    call.connection.features.nativeChat === "ollama" ? ollamaNativeProvider(call).chatModel(call.connection.model) : TRANSPORTS[dialectOf(call)].language(call);
+    call.connection.features.nativeChat === "ollama"
+      ? ollamaNativeProvider(call).chatModel(call.connection.model)
+      : TRANSPORTS[effectiveDialectOf(call.connection)].language(call);
   // The F-table "Adopt" row: a server with NO native reasoning field and an XML-shaped preset tag pair gets
   // the SDK's stream-time splitter. Empty list ⇒ the bare model, so every other row is byte-identical and
   // pays no wrapper (`wrapLanguageModel` with no middleware would still be a layer on every turn).
@@ -262,9 +289,9 @@ export function languageModelFor(call: ModelCall): LanguageModelV4 {
 }
 
 export function embeddingModelFor(call: ModelCall): EmbeddingModelV4 {
-  return TRANSPORTS[dialectOf(call)].embedding(call);
+  return TRANSPORTS[effectiveDialectOf(call.connection)].embedding(call);
 }
 
 export function imageModelFor(call: ModelCall): ImageModelV4 {
-  return TRANSPORTS[dialectOf(call)].image(call);
+  return TRANSPORTS[effectiveDialectOf(call.connection)].image(call);
 }

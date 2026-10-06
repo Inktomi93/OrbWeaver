@@ -11,7 +11,8 @@
 // tRPC-inferred at the call site, never a re-declared contract): the effective view lives in
 // `domain/preset/contract/views.ts`, which the client cannot import across the cake.
 
-import type { GenerationCapability } from "@orb/contracts/inference";
+import type { CachePolicy, GenerationCapability } from "@orb/contracts/inference";
+import type { ResponseCacheSettings } from "@orb/contracts/preset";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { SAMPLING_FLAG_LABELS, SAMPLING_KNOBS } from "./sampling-knob-catalog.ts";
 
@@ -25,12 +26,29 @@ export interface EffectiveKnobRow {
  *  `EffectiveKnob` names — the same spelling as the capability's sampling keys, which is why a knob spec
  *  can look itself up by its own capability key. */
 export interface EffectiveProfileRow {
+  readonly cache: CachePolicy;
+  readonly cacheWarnings: readonly { readonly message: string }[];
   readonly model: string;
   readonly knobs: Readonly<Record<string, EffectiveKnobRow | undefined>>;
   readonly stale: readonly { readonly knob: string; readonly value: number | string }[];
   /** What the QUALITY dial feeds, as the dial declares it — the server's own projection (§4 cluster 1).
    *  `null`/absent = no dial set, or nothing it feeds exists on this model. */
   readonly qualityMapping: { readonly quality: string; readonly entries: readonly { readonly knob: string; readonly value: number | string }[] } | null;
+}
+
+export const RESPONSE_REPLAY_CHOICES = ["inherit", "off", "on"] as const;
+export const RESPONSE_REPLAY_LABELS: Readonly<Record<(typeof RESPONSE_REPLAY_CHOICES)[number], string>> = {
+  inherit: "Inherit connection settings",
+  off: "Off",
+  on: "Request replay",
+};
+
+/** Unset preserves intentional connection-header opt-in; explicit off is a different intent. */
+export function responseReplayChoice(settings: ResponseCacheSettings | undefined): (typeof RESPONSE_REPLAY_CHOICES)[number] {
+  if (settings === undefined) {
+    return "inherit";
+  }
+  return settings.enabled ? "on" : "off";
 }
 
 /** The DISPLAY name for one resolved knob. The read is keyed by SCHEMA names (`maxOutputTokens`), and a

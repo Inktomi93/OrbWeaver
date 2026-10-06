@@ -24,11 +24,27 @@ function generation(explicitPromptCache: boolean | undefined): Capability {
   };
 }
 
-test("the tier shows only where the capability places explicit cache markers", () => {
+test("the tier explains provider implicit caching even where app markers are unsupported", () => {
   expect(showsPromptCache(generation(true))).toBe(true);
   expect(showsPromptCache(generation(false))).toBe(false);
   expect(showsPromptCache(generation(undefined))).toBe(false);
   expect(showsPromptCache(null)).toBe(false);
+  expect(
+    showsPromptCache({
+      kind: "generation",
+      generation: {
+        ...GENERATION_FLOOR,
+        turns: {
+          assistantPrefill: false,
+          midConversationSystem: false,
+          historySystemRows: false,
+          roleHandlingFloor: "strict",
+          explicitPromptCache: false,
+          providerImplicitPromptCache: true,
+        },
+      },
+    }),
+  ).toBe(true);
 });
 
 test("the badge counts the fields that differ from the shipped behavior; a NULL row is zero", () => {
@@ -45,10 +61,10 @@ test("the depth field: empty is automatic, an in-range whole number writes, anyt
   expect(promptCacheDepthOf(2.5)).toBeUndefined();
 });
 
-test("the TTL options follow the contract tuple and carry its write price; only a tuple member narrows", () => {
-  expect(PROMPT_CACHE_TTL_OPTIONS.map((option) => [option.value, option.writeCost])).toEqual([
-    ["5m", "1.25×"],
-    ["1h", "2×"],
+test("the TTL options name retention without inventing a universal write price; only a tuple member narrows", () => {
+  expect(PROMPT_CACHE_TTL_OPTIONS.map((option) => [option.value, option.label])).toEqual([
+    ["5m", "5 minutes"],
+    ["1h", "1 hour"],
   ]);
   expect(promptCacheTtlOf("5m")).toBe("5m");
   expect(promptCacheTtlOf("9z")).toBeUndefined();

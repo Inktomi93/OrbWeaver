@@ -21,7 +21,7 @@ import { samplerSpellingOf } from "../../../../../packages/client/src/features/p
 import { validatePresetConfig } from "../../../../../packages/client/src/features/preset/lib/preset-editor-model.ts";
 import type { ReadFailure } from "../../../../../packages/client/src/features/preset/lib/resolve-failure.ts";
 import { CtDataProviders } from "../../../../support/browser/ct-data-providers.tsx";
-import { makeGenerationCapability } from "../../../../support/factories/resolved-connection.ts";
+import { makeCachePolicy, makeGenerationCapability } from "../../../../support/factories/resolved-connection.ts";
 
 const STORY_PRESET = "preset_deckstoryaaaa";
 
@@ -56,6 +56,8 @@ const GHOST_EFFECTIVE = {
   stale: [],
   // No dial set on this fixture, so the server reports no mapping (side-eye F-15's datum).
   qualityMapping: null,
+  cache: makeCachePolicy(),
+  cacheWarnings: [],
 };
 
 // The same preset on `quality: deep` with an explicit, OVER-RANGE repetition penalty: temperature now comes
@@ -71,6 +73,8 @@ const EXPLICIT_EFFECTIVE = {
   stale: [],
   // The DIAL's own declared mapping, as `preset.resolveEffective` projects it — never a client re-mapping,
   // and true even though `temperature` is currently overridden (the F-15 distinction).
+  cache: makeCachePolicy(),
+  cacheWarnings: [],
   qualityMapping: {
     quality: "deep",
     entries: [
@@ -101,6 +105,21 @@ const StoryForm = createAutosaveEntityForm<PromptConfig>({
 /** The deck over a BLANK params blob — every knob inherited, so the ghost column is what renders. */
 export function ParamsDeckGhostStory(): ReactElement {
   return <DeckHarness effective={GHOST_EFFECTIVE} params={{}} />;
+}
+
+/** The server projects an intentional connection-header replay opt-in while the preset remains inherited. */
+export function ParamsDeckReplayStory(): ReactElement {
+  const neutral = makeCachePolicy();
+  return (
+    <DeckHarness
+      effective={{
+        ...GHOST_EFFECTIVE,
+        model: "openai/gpt-6-sol",
+        cache: makeCachePolicy({ replay: { ...neutral.replay, supported: true, enabled: true, ttlSeconds: 60, provenance: "connection" } }),
+      }}
+      params={{}}
+    />
+  );
 }
 
 /** The deck on Ollama's native route: an unpinned model resolves to the server's 4096 floor, and the route sends the
@@ -171,6 +190,8 @@ export function ParamsDeckMirostatStory(): ReactElement {
         knobs: { mirostatMode: { value: 2, provenance: "explicit" }, topP: { value: 0.95, provenance: "serverDefault" } },
         stale: [],
         qualityMapping: null,
+        cache: makeCachePolicy(),
+        cacheWarnings: [],
       }}
       params={{ mirostatMode: 2, samplerOrder: ["adaptiveP", "temperature", "topK"] }}
     />

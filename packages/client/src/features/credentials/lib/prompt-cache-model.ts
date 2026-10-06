@@ -1,22 +1,26 @@
-// The connection editor's Prompt caching tier as pure folds over `@orb/contracts/inference` `prompt-cache.ts`.
-// The tier shows only where the capability says `turns.explicitPromptCache`, since elsewhere the settings reach
-// nothing; its autosave form writes the WHOLE document, and NULL is the shipped behavior.
+// Display support and stored overrides; effective cache policy is resolved server-side, not reconstructed here.
 
 import type { Capability, PromptCacheSettings, PromptCacheTtl } from "@orb/contracts/inference";
-import {
-  effectivePromptCache,
-  PROMPT_CACHE_DEPTH_CEIL,
-  PROMPT_CACHE_DEPTH_MIN,
-  PROMPT_CACHE_TTLS,
-  PROMPT_CACHE_WRITE_MULTIPLIER,
-} from "@orb/contracts/inference";
+import { effectivePromptCache, PROMPT_CACHE_DEPTH_CEIL, PROMPT_CACHE_DEPTH_MIN, PROMPT_CACHE_RETENTIONS, PROMPT_CACHE_TTLS } from "@orb/contracts/inference";
 
-/** Does this connection's wire place explicit cache markers — the one condition under which the tier shows? */
+/** Show both controllable prefix caching and documented provider-managed implicit caching. */
 export function showsPromptCache(capability: Capability | null): boolean {
-  return capability?.kind === "generation" && capability.generation.turns?.explicitPromptCache === true;
+  if (capability?.kind !== "generation") {
+    return false;
+  }
+  const turns = capability.generation.turns;
+  return turns?.explicitPromptCache === true || turns?.providerImplicitPromptCache === true || turns?.requestAutomaticPromptCache === true;
 }
 
-const SETTING_KEYS = ["enabled", "cacheSystem", "historyDepth", "ttl"] as const satisfies readonly (keyof PromptCacheSettings)[];
+const SETTING_KEYS = [
+  "enabled",
+  "cacheSystem",
+  "historyDepth",
+  "ttl",
+  "requestAutomatic",
+  "disableImplicit",
+  "retention",
+] as const satisfies readonly (keyof PromptCacheSettings)[];
 
 /** How many settings differ from the shipped behavior — the tier's count badge. A NULL row is zero. */
 export function promptCacheChangedCount(stored: PromptCacheSettings | null, capability?: Capability | null): number {
@@ -44,18 +48,20 @@ const TTL_LABELS: Record<PromptCacheTtl, string> = { "5m": "5 minutes", "1h": "1
 export interface PromptCacheTtlOption {
   readonly value: PromptCacheTtl;
   readonly label: string;
-  /** The cache WRITE price as a multiple of base input, formatted for the option's gloss. */
-  readonly writeCost: string;
 }
 
-/** The TTL options in contract order, each with its write price. */
+/** Retention choices are not a universal cache price schedule. */
 export const PROMPT_CACHE_TTL_OPTIONS: readonly PromptCacheTtlOption[] = PROMPT_CACHE_TTLS.map((value) => ({
   value,
   label: TTL_LABELS[value],
-  writeCost: `${String(PROMPT_CACHE_WRITE_MULTIPLIER[value])}×`,
 }));
 
 /** Narrow a radio group's value back to the TTL tuple; any other value is not a TTL. */
 export function promptCacheTtlOf(value: unknown): PromptCacheTtl | undefined {
   return PROMPT_CACHE_TTLS.find((ttl) => ttl === value);
+}
+
+/** Narrow the separate earlier-OpenAI retention vocabulary. */
+export function promptCacheRetentionOf(value: unknown): PromptCacheSettings["retention"] {
+  return PROMPT_CACHE_RETENTIONS.find((retention) => retention === value);
 }

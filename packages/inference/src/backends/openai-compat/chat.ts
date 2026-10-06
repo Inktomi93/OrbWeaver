@@ -7,7 +7,7 @@
 // `warning` event (D41).
 
 import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4ProviderOptions } from "@ai-sdk/provider";
-import type { Dialect, GenerationCapability } from "@orb/contracts/inference";
+import type { CachePolicy, Dialect, GenerationCapability, ResponseCache } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, cacheMinTokensOf, DEFAULT_ATTACHMENT_QUALITY, honoursParallelControl } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
@@ -20,18 +20,20 @@ import type { ResolvedChatKnobs, ResolvedWarning } from "../../contract/resolve.
 import type { Resolved } from "../../contract/resolved.ts";
 import type { AddSpanEvent } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
+import { resolveCachePolicy } from "../../funnel/resolve-cache.ts";
 import { resolveChat, templateThinkingFor } from "../../funnel/resolve-chat.ts";
 import type { StructuredPlan } from "../../structured/plan.ts";
 import { requireStructuredPlan } from "../../structured/plan.ts";
 import { structuredChatResult } from "../../structured/reply.ts";
 import { effortWordOf } from "../kit/applied-effort.ts";
 import type { ExplicitCachePlan, OpenRouterRouting } from "../kit/cache-control.ts";
-import { cachesByAnthropicMarkers, effectiveProviderRouting, explicitCachePlan, isAnthropicModel, placeExplicitCacheMarkers } from "../kit/cache-control.ts";
+import { automaticCachePlan, effectiveProviderRouting, explicitCachePlan, isAnthropicModel, placeExplicitCacheMarkers } from "../kit/cache-control.ts";
 import { extractHttpErrorDiagnostic, providerErrorFromHttp, withSchemaRejection } from "../kit/error-classify.ts";
 import { turnAbortSignal } from "../kit/idle-timeout.ts";
 import type { ProviderLogger } from "../kit/provider-log.ts";
 import { providerLogger } from "../kit/provider-log.ts";
 import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../kit/rate-limit-headers.ts";
+import { cachePolicyContextOf, effectiveDialectOf, responseCacheOf } from "../kit/response-cache.ts";
 import { runWithPreCommitRetry } from "../kit/retry.ts";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../kit/sanitize.ts";
 import { emitTurnSpanEvents } from "../kit/turn-span.ts";
@@ -66,6 +68,9 @@ const MIDDLE_OUT_ENGINE = "middle-out";
 const OPENROUTER_KEY = "openrouter";
 const REASONING_OFF = "none";
 const OLLAMA_THINK_KEY = "think";
+const SESSION_ID_HEADER = "x-session-id";
+const SESSION_ID_MAX_LENGTH = 256;
+const openRouterSessionSchema = z.string().max(SESSION_ID_MAX_LENGTH);
 
 export interface OpenAiCompatChatDeps {
   readonly now: () => number;
@@ -135,6 +140,7 @@ function templateRoleRefusal(error: unknown, label: string, classified: Provider
 // ── cache placement (OpenRouter explicit-cache routes) ────────────────────────────────────────────────────────
 
 interface CacheWriteReceipt {
+  readonly requestBlocks: number;
   readonly historyDepths: readonly number[];
   readonly systemBlocks: number;
 }
@@ -152,6 +158,7 @@ function placeCache(args: {
   readonly generation: GenerationCapability;
   readonly log: ProviderLogger;
   readonly anthropicRoute: boolean;
+  readonly automaticCache: ExplicitCachePlan | null;
 }): CachePlacement {
   const { plan, req, generation, log } = args;
   const placed = placeExplicitCacheMarkers({
@@ -162,13 +169,17 @@ function placeCache(args: {
     generation,
     log,
   });
-  return { patches: placed.patches, written: { historyDepths: placed.historyDepths, systemBlocks: placed.systemBlocks } };
+  return {
+    patches: placed.patches,
+    written: { historyDepths: placed.historyDepths, systemBlocks: placed.systemBlocks, requestBlocks: args.automaticCache === null ? 0 : 1 },
+  };
 }
 
 // ── the per-dialect option builders ───────────────────────────────────────────────────────────────────────
 
 /** The turn's resolved knobs and their wire spelling, both computed once per turn (never per attempt). */
 interface TurnKnobs {
+  readonly automaticCache: ExplicitCachePlan | null;
   readonly knobs: ResolvedChatKnobs;
   readonly sampling: ReturnType<typeof wireSampling>;
   /** {@link templateThinkingFor}: body rule 5b sends it on a `chat_template_kwargs` row, the effort word on a `reasoning_effort` one. */
@@ -360,6 +371,36 @@ function openRouterExtras(
   };
 }
 
+function openRouterSession(req: OpenAiCompatChatRequest): Record<string, unknown> {
+  const extras = req.connection.extras;
+  const bodySession = extras?.["session_id"];
+  const headerSession = new Headers(req.connection.transport?.headers).get(SESSION_ID_HEADER);
+  if (bodySession !== undefined) {
+    const parsed = openRouterSessionSchema.safeParse(bodySession);
+    if (!parsed.success) {
+      throw new ProviderError({ kind: "invalid", retryable: false, message: "OpenRouter session_id must be a string of at most 256 characters" });
+    }
+    return { session_id: parsed.data };
+  }
+  if (headerSession !== null) {
+    if (!openRouterSessionSchema.safeParse(headerSession).success) {
+      throw new ProviderError({ kind: "invalid", retryable: false, message: "OpenRouter x-session-id must be at most 256 characters" });
+    }
+    return {};
+  }
+  const cacheKey = extras?.["prompt_cache_key"];
+  if (cacheKey !== undefined) {
+    if (typeof cacheKey !== "string") {
+      throw new ProviderError({ kind: "invalid", retryable: false, message: "OpenRouter prompt_cache_key must be a string" });
+    }
+    return { prompt_cache_key: cacheKey };
+  }
+  if (req.chatId === undefined) {
+    return {};
+  }
+  return { session_id: req.chatId };
+}
+
 /** The openrouter transport: reasoning nested under `providerOptions.openrouter`, routing + the fallback
  *  chain off `extras`, the managed context-compression plugin, `parallel_tool_calls` beside a tools request,
  *  the hosted-common schema subset, `strict` caller-set only (STRICTFMT).
@@ -395,6 +436,8 @@ function openRouterShape(req: OpenAiCompatChatRequest, turn: TurnKnobs, warnings
     },
     extraBody: {
       ...sampling.body,
+      ...openRouterSession(req),
+      ...(turn.automaticCache === null ? {} : { cache_control: { ...turn.automaticCache.directive } }),
       ...(knobs.verbosity !== undefined ? { verbosity: knobs.verbosity } : {}),
       ...(routing !== undefined ? { provider: routing } : {}),
       // C3: the turn-owned compression entry MERGED with the user's declared plugins (validated against the
@@ -502,7 +545,7 @@ function emitReceipts(args: {
       turnId: knobs.turnId,
       cacheReadTokens: turn.usage.cacheReadTokens,
       cacheWriteTokens: turn.usage.cacheWriteTokens,
-      breakpointsPlaced: written.systemBlocks + written.historyDepths.length,
+      breakpointsPlaced: written.systemBlocks + written.historyDepths.length + written.requestBlocks,
       breakpointOffsets: written.historyDepths,
       hitRatio: total > 0 ? turn.usage.cacheReadTokens / total : 0,
       minCacheTokens: cacheMinTokensOf(generation),
@@ -552,14 +595,23 @@ async function drainWithReplay(
   }
 }
 
-function openRouterCachePlan(req: OpenAiCompatChatRequest, generation: GenerationCapability, log: ProviderLogger): ExplicitCachePlan | null {
-  if (
-    req.connection.provider.dialect !== "openrouter" ||
-    !(isAnthropicModel(req.connection) || (generation.turns?.explicitPromptCache === true && generation.turns.fixedCacheTtl !== undefined))
-  ) {
-    return null;
+function prefixOptions(
+  policy: CachePolicy,
+  generation: GenerationCapability,
+  anthropicRoute: boolean,
+  chatId: OpenAiCompatChatRequest["chatId"],
+): { readonly splitSystem: boolean; readonly body: Record<string, unknown> } {
+  const common = {
+    ...(policy.implicit.retention === null ? {} : { prompt_cache_retention: policy.implicit.retention }),
+    ...(generation.turns?.promptCacheKey === true && chatId !== undefined ? { prompt_cache_key: chatId } : {}),
+  };
+  if (generation.turns?.promptCacheFormat !== "openai-breakpoint") {
+    return { splitSystem: anthropicRoute, body: common };
   }
-  return explicitCachePlan({ connection: req.connection, requestedDepth: req.cacheBreakpointDepth, fixedTtl: generation.turns?.fixedCacheTtl, log });
+  return {
+    splitSystem: policy.prefix.action === "markers",
+    body: { ...common, prompt_cache_options: { mode: policy.implicit.disableApplied ? "explicit" : "implicit", ttl: "30m" } },
+  };
 }
 
 /** Runs one chat-completions turn — the only api this wire speaks (`WIRE_DEFS["openai-compat"].apis`). */
@@ -567,7 +619,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   const { connection } = req;
   const label = `${connection.providerId} chat (${connection.model})`;
   const generation = requireGeneration(connection, label);
-  const dialect = connection.provider.dialect ?? "openai-compatible";
+  const dialect = effectiveDialectOf(connection);
   const knobs = resolveChat(req.params, generation, { posture: req.posture, wire: connection.wire });
   const warnings: ResolvedWarning[] = [...knobs.warnings];
   const log = providerLogger(deps.log, connection.wire, connection.providerId);
@@ -577,24 +629,41 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   // narrows a `let` read after an `await` to its initializer): the shape it was built with — the mandatory-reasoning
   // replay rebuilds it without the reasoning block, so the applied effort is read off THIS, never the first
   // attempt's intent — and the rate-limit snapshot off its response headers.
-  const attempt: { shape: TurnShape | undefined; nativeBody: Readonly<Record<string, unknown>> | undefined; rateLimit: RateLimitSnapshot | null } = {
+  const attempt: {
+    shape: TurnShape | undefined;
+    nativeBody: Readonly<Record<string, unknown>> | undefined;
+    rateLimit: RateLimitSnapshot | null;
+    responseCache: ResponseCache | undefined;
+  } = {
     shape: undefined,
     nativeBody: undefined,
     rateLimit: null,
+    responseCache: undefined,
   };
   const secrets = resolvedScrubSet(connection);
   const anthropicRoute = dialect === "openrouter" && isAnthropicModel(connection);
-  const cachePlan = openRouterCachePlan(req, generation, log);
+  const policy = resolveCachePolicy({
+    context: cachePolicyContextOf(connection, dialect === "openrouter"),
+    generation,
+    preset: req.params.responseCache,
+    request: req.responseCache,
+    requestedDepth: req.cacheBreakpointDepth,
+    requestedRoleHandling: req.params.advanced?.roleHandling,
+  });
+  warnings.push(...policy.warnings);
+  const prefix = prefixOptions(policy.plan, generation, anthropicRoute, req.chatId);
+  const cachePlan = explicitCachePlan(policy.plan);
+  const automaticCache = automaticCachePlan(policy.plan);
   const plan = buildWirePlan({
     systemPrompt: req.systemPrompt,
     history: req.history,
     rowOptions: rowOptionsFor(anthropicRoute, cachePlan),
-    splitSystem: anthropicRoute,
+    splitSystem: prefix.splitSystem,
   });
   if (plan.toolResultErrorDropped) {
     warnings.push({ code: "tool_result_error_dropped", message: "tool-result isError ignored: the OpenAI-shaped chat wire has no tool-result error field" });
   }
-  const cache = placeCache({ plan, req, cachePlan, generation, log, anthropicRoute });
+  const cache = placeCache({ plan, req, cachePlan, generation, log, anthropicRoute, automaticCache });
   const prompt = withMessageOptions(plan.prompt, OPENROUTER_KEY, cache.patches);
   // Planned once per turn, never per attempt: a retry or the mandatory-reasoning replay must not warn twice.
   const structured = requireStructuredPlan(
@@ -634,6 +703,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   // A word-keyed logit bias resolves once per turn, from the cache where held (one tokenize call per new word).
   const sampling = await resolveWordBias(knobs.sampling, connection, deps.tokens, warnings);
   const turnKnobs: TurnKnobs = {
+    automaticCache,
     knobs,
     sampling: wireSampling(sampling, connection.features, dialect, warnings),
     templateThinking: templateThinkingFor(req.params, generation, req.terminalToolsAttached === true, req.posture),
@@ -654,6 +724,9 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
             : openAiCompatibleShape(req, turnKnobs, warnings, providerOptionsKey(connection.providerId));
         attempt.shape = shape;
         const call: ModelCall = {
+          cachePolicy: policy.plan,
+          responseCache: req.responseCache,
+          responseCacheSettings: req.params.responseCache,
           connection,
           deps: deps.transport,
           label,
@@ -665,11 +738,15 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
           templatePreserveReasoning: knobs.carryReasoning === "off" ? false : undefined,
           reasoningEffort,
           onNativeBody,
-          foldSameRole: cachesByAnthropicMarkers(connection, generation),
+          foldSameRole: policy.plan.prefix.preservesBlockEnds,
           replyImages: knobs.replyImages,
           ...(generation.imageDetail === true ? { imageDetail: req.attachmentQuality?.imageDetail ?? DEFAULT_ATTACHMENT_QUALITY.imageDetail } : {}),
           warnings,
-          extraBody: shape.extraBody,
+          extraBody: {
+            ...shape.extraBody,
+            ...prefix.body,
+          },
+          cacheMarkers: cache.patches,
           openRouterChat: shape.openRouterChat,
           ...(req.reasoningTags !== undefined ? { reasoningTags: req.reasoningTags } : {}),
         };
@@ -685,6 +762,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
           },
           onResponse: (headers) => {
             attempt.rateLimit = rateLimitFromHeaders(headers, deps.now());
+            attempt.responseCache = dialect === "openrouter" ? responseCacheOf(headers, secrets) : undefined;
           },
         });
       },
@@ -717,6 +795,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     firstDeltaAt,
     now: finishedAt,
     measuredCost: measuredCostOf(drain.providerMetadata, drain.usage?.raw),
+    responseCache: attempt.responseCache,
     pricing: connection.features.pricing,
     // The provider's response id (B7): OpenRouter's `gen-…` (the cost-settlement key) or an endpoint's own
     // `chatcmpl-…` — both opaque provenance on the row.
@@ -740,7 +819,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     firstDeltaAt,
     turn,
     cache: {
-      breakpointsPlaced: cache.written.systemBlocks + cache.written.historyDepths.length,
+      breakpointsPlaced: cache.written.systemBlocks + cache.written.historyDepths.length + cache.written.requestBlocks,
       readTokens: turn.usage.cacheReadTokens,
       writeTokens: turn.usage.cacheWriteTokens,
     },

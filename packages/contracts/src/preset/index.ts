@@ -24,6 +24,7 @@ import { hasProseToken, proseOverridesSchema, proseOverridesViewSchema } from "#
 import type { VersionedParseIssue } from "#versioned-config";
 import { defineVersionedConfig } from "#versioned-config";
 import { PRESET_COMPACTION_SLOT_ID, PRESET_PROSE_SLOTS } from "./prose.ts";
+import { responseCacheSettingsSchema } from "./response-cache.ts";
 
 export {
   PRESET_COMPACTION_SLOT_ID,
@@ -33,6 +34,7 @@ export {
   PRESET_PROSE_SLOTS,
   PRESET_REWRITE_TOGGLE_PROSE_SLOTS,
 } from "./prose.ts";
+export * from "./response-cache.ts";
 
 const MAX_NAME_LENGTH = 200;
 const MIN_ID_LENGTH = 1;
@@ -448,6 +450,7 @@ export const userIntentSchema = z.strictObject({
   maxOutputTokens: generationKnobSchemas.maxOutputTokens,
   maxContextTokens: generationKnobSchemas.maxContextTokens,
   providerContextCompression: z.boolean().optional(),
+  responseCache: responseCacheSettingsSchema.optional(),
 
   temperature: generationKnobSchemas.temperature,
   topP: generationKnobSchemas.topP,
@@ -557,6 +560,7 @@ export const ROLE_PRESET_FIELDS = [
   "maxContextTokens",
   "effort",
   "thinkingBudgetTokens",
+  "responseCache",
 ] as const satisfies readonly (keyof UserIntent)[];
 export type RolePresetField = (typeof ROLE_PRESET_FIELDS)[number];
 /** The inline reasoning tag pair a role's preset splits a prose reply with (its `reasoningParse`). */

@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-02
+updated: 2026-10-06
 ---
 
 # Orbweaver — `@orb/inference`: the provider runtime (wires · providers · resolution · execution)
@@ -151,6 +151,16 @@ Rejected:
 - A per-row `/props?model=` read in llama.cpp router mode. The read loads the model. The row's `architecture.input_modalities` covers vision, and tools stay not stated.
 - Reading llama.cpp's `architecture` and `meta` in the generic `/v1/models` row read. A generic list carries no kind or modalities, and the `llama-cpp` reader alone reads those fields.
 
+### Caching controls
+
+`packages/inference/src/funnel/resolve-cache.ts` resolves cache intent against model and route facts. `packages/contracts/src/inference/cache-policy.ts` owns its secret-free context and effective plan. Connection capability reads and preset effective reads project that same plan. Backend adapters translate controls without synthesizing capability facts. `packages/inference/src/backends/kit/cache-control.ts` remains the shared depth and breakpoint placement home.
+
+App-authored prefix markers, request-wide automatic placement and provider-managed implicit caching are distinct. Disabling app markers does not promise upstream implicit caching is disabled. Curated rows admit supported model and route controls. Unknown Custom endpoints retain user-owned body, header and declared settings; a model name does not establish the serving vendor.
+
+OpenRouter complete-response replay is separate from prefix caching. Explicit request controls precede typed preset settings, then configured connection headers, then default false. Fresh operations bypass replay without clearing a shared entry. A remote preset can prevent a hit even when the local request enables replay. The plan describes locally applied controls, not observed cache hits.
+
+`packages/contracts/src/inference/usage.ts` owns normalized response-cache facts. Reported cost takes precedence; an observed OpenRouter response-cache hit establishes free billing when cost is absent. Missing token counters remain unknown. Prefix-read counts, replayed context size and response-cache facts remain separate.
+
 ### Native Google
 
 The `google` provider uses `google-generative-ai` through the low-level V4 models from `@ai-sdk/google` (D279). Shared callers, prompt planning, stream reduction and task dispatch remain the runtime boundary. Native model discovery contributes method-derived kinds and advertised limits through the endpoint catalog mirror. `curated/google.ts` owns shared Gemini model facts; route-specific rows describe transport differences.
@@ -187,7 +197,7 @@ The embed and imageEmbed surfaces carry model and dimensions through to storage.
 
 6. **A foreign connection id and a missing one are ONE indistinguishable refusal — kind AND text.** `connectionNotFoundMessage` is a single literal shared by the resolver's owner check and the runtime root's id-taking reads (`packages/inference/src/resolve/resolve-task.ts`), because `invalid` is the one error case the transport lets carry its own message to the caller, so two distinguishable refusals would be an existence oracle for any id a caller can type. The distinction survives inward: the owner-mismatch case records a `securityEvent` (a binding naming a stranger's row is a domain bug no caller can provoke); the caller-supplied-id guard records nothing, or an authenticated stranger could fill the security log by typing ids. The domain door pre-gates with the same refusal (`domain/connection/contract/errors.ts::ConnectionNotFoundError`); this guard must never answer more precisely than the door it backs.
 
-7. **`detectModelFamily` owns model-family matching.** Its anchored Claude pattern rejects third-party forks. `isAnthropicModel` in `packages/inference/src/backends/kit/cache-control.ts` delegates to that detector. The result governs Anthropic routing and same-role block preservation. The shared explicit-cache planner also serves admitted OpenRouter Gemini routes, using their declared retention and prefix thresholds. `cache_control` is not exclusive to Anthropic. Model facts remain in the capability fold; transport guards read the resolved facts.
+7. **`detectModelFamily` owns model-family matching.** Its anchored Claude pattern rejects third-party forks. `isAnthropicModel` in `packages/inference/src/backends/kit/cache-control.ts` delegates to that detector. The result governs Anthropic routing. The shared cache policy admits model-specific controls; shape and placement preserve block ends only where the effective policy and required turn floor permit them. `cache_control` is not exclusive to Anthropic. Model facts remain in the capability fold; transport guards read the resolved facts.
 
 8. **The reasoning guard is API-level and lives ONLY in the funnel.** `packages/inference/src/funnel/resolve-chat.ts` owns reasoning gating, the effort clamp, the adaptive/budget guard, sampling capability-gating, the output clamp, the dynamic-context channel and the reply-images decision — never re-derived per backend, and its second consumer is `preset.resolveEffective` so the editor projects exactly what the next turn sends. A side-generation item's reasoning posture and output room are an argument of that same resolution, not a second resolver. Every drop is LOUD (D41): a budget handed to an `adaptive` or `effort` model 400s live, so the funnel drops it and emits `adaptive_budget_dropped` / the effort-mode warning. Downstream, an endpoint that rejects `reasoning.effort:"none"` gets a strip-and-replay ONCE, pre-commit-safe (`packages/inference/src/backends/openai-compat/chat.ts`), and the APPLIED effort is read back off the options the LAST attempt built, never recomputed from the knobs (`packages/inference/src/backends/kit/applied-effort.ts`). ADR 0112's fold keeps the extraction tools attached with `tool_choice:"auto"` on every hosted wire, unchanged by reasoning. With reasoning ON, a hosted model regularly treats emitting those tool calls as discharging the beat and writes no prose; the recovery pass (`packages/server/src/domain/chat/engine/recover-narrative.ts`) reruns a tool-less prompt instead of discarding the turn.
 

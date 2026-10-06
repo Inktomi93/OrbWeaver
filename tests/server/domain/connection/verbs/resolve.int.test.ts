@@ -5,7 +5,7 @@
 // caller's rather than describing a stranger's model.
 
 import type { GenerationCapability, ProviderId } from "@orb/contracts/inference";
-import { CONNECTION_OP_CODES, requireGenerationCapability } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, requireGenerationCapability, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { NoConnectionError } from "@orb/inference";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -18,6 +18,38 @@ const OLLAMA = castId<ProviderId>("ollama");
 const OLLAMA_URL = "http://127.0.0.1:11434";
 
 describe("resolveChatCapability — the target", () => {
+  test("the internal cache read normalizes intentional headers while preserving the public projection and owner fence", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const stranger = await seedOwner(db, "user_cache_stranger");
+    const row = await h.svc.create({
+      principal: owner.principal,
+      providerId: "openrouter",
+      credentialId: null,
+      baseUrl: null,
+      model: "openai/gpt-6-sol",
+      transport: { headers: { "X-OpenRouter-Cache": "true", "X-OpenRouter-Cache-TTL": "60abc", "X-Private-Fixture": "not-projected" } },
+    });
+    await h.svc.setBinding({ principal: owner.principal, task: "chat", connectionId: row.id });
+    const params = { principal: owner.principal, target: { kind: "connection" as const, connectionId: row.id } };
+    const refined = await h.svc.resolveChatCacheContext(params);
+    const { cacheContext, ...base } = refined;
+    expect(base).toEqual(await h.svc.resolveChatCapability(params));
+    expect(cacheContext).toMatchObject({
+      wire: "openai-compat",
+      dialect: "openrouter",
+      factsModel: "openai/gpt-6-sol",
+      responseReplaySupported: true,
+      configuredReplay: { enabled: true, ttlSeconds: 60 },
+      configuredRetention: { owned: false, value: null },
+    });
+    expect(JSON.stringify(refined)).not.toContain("not-projected");
+    expect(refined).not.toHaveProperty("credential");
+    expect(refined).not.toHaveProperty("transport");
+    expect((await h.svc.resolveChatCacheContext({ principal: owner.principal })).cacheContext).toEqual(cacheContext);
+    await expect(h.svc.resolveChatCacheContext({ ...params, principal: stranger.principal })).rejects.toMatchObject({ code: CONNECTION_OP_CODES.notFound });
+  });
   test("a role target resolves through that role's binding, and a connection target names the row itself", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);
@@ -132,7 +164,27 @@ describe("capabilities", () => {
     const row = await h.svc.create({ principal: owner.principal, providerId: BYO_PROVIDER, credentialId: null, baseUrl: BYO_BASE_URL, model: "m" });
     const read = await h.svc.capabilities({ principal: owner.principal, connectionId: row.id });
     expect(read.capability.kind).toBe("generation");
-    expect([...read.tasks].toSorted()).toEqual(["chat", "generateImage", "structured", "summarize"]);
+    expect(read).toHaveProperty("cacheContext", {
+      wire: "openai-compat",
+      dialect: "openai-compatible",
+      factsModel: "m",
+      promptSettings: SHIPPED_PROMPT_CACHE,
+      responseReplaySupported: false,
+      configuredReplay: {},
+      configuredRetention: { owned: false, value: null },
+    });
+    expect([...read.tasks].toSorted()).toEqual(["chat", "summarize"]);
+    await h.svc.update({
+      principal: owner.principal,
+      connectionId: row.id,
+      patch: { declared: { generation: { output: { modalities: ["text", "image"], structured: true } } } },
+    });
+    expect([...(await h.svc.capabilities({ principal: owner.principal, connectionId: row.id })).tasks].toSorted()).toEqual([
+      "chat",
+      "generateImage",
+      "structured",
+      "summarize",
+    ]);
     await expect(h.svc.capabilities({ principal: other.principal, connectionId: row.id })).rejects.toThrow();
   });
 
@@ -151,7 +203,13 @@ describe("capabilities", () => {
     const read = await h.svc.capabilities({ principal: owner.principal, connectionId: row.id });
     expect(read.capability).toMatchObject({ kind: "embedding", embedding: { dims: 768 } });
     expect(read.baseline).toMatchObject({ kind: "embedding", embedding: { dims: 1024 } });
-    expect([...read.tasks].toSorted()).toEqual(["embed", "imageEmbed"]);
+    expect([...read.tasks].toSorted()).toEqual(["embed"]);
+    await h.svc.update({
+      principal: owner.principal,
+      connectionId: row.id,
+      patch: { declared: { kind: "embedding", embedding: { dims: 768, input: ["text", "image"] } } },
+    });
+    expect([...(await h.svc.capabilities({ principal: owner.principal, connectionId: row.id })).tasks].toSorted()).toEqual(["embed", "imageEmbed"]);
   });
 
   // The Game-mode path end to end: an own-server model nothing states tools for has no write path until the

@@ -10,6 +10,21 @@ const SWEPT_IDS =
   "gpt-4\\.1(-mini|-nano)?|gpt-4o(-mini)?|gpt-5(-mini|-nano)?|gpt-5\\.[125]|gpt-5\\.4(-mini|-nano)?|gpt-5\\.6-(luna|sol|terra)|gpt-6-(astra|luna|sol)|gpt-6\\.1-sol|o3(-mini)?|o4-mini";
 const SWEPT_DIRECT_IDS = `^(${SWEPT_IDS}|o1)$`;
 const SWEPT_OPENROUTER_IDS = `^openai/(${SWEPT_IDS})$`;
+const EXPLICIT_CACHE_IDS = "gpt-(5\\.6-(luna|sol|terra)|6-(astra|luna|sol)|6\\.1-sol)";
+const IMPLICIT_CACHE_IDS =
+  "gpt-4o(-mini)?|gpt-4\\.1(-mini|-nano)?|gpt-5(-mini|-nano|-codex)?|gpt-5\\.1(-codex|-codex-max|-codex-mini|-chat-latest)?|gpt-5\\.(2|4|5(-pro)?)|o1|o3(-mini)?|o4-mini";
+const NATIVE_IMPLICIT_CACHE_IDS = "gpt-4o(-mini)?|gpt-4\\.1(-mini|-nano)?|gpt-5(-mini|-nano)?|gpt-5\\.1(-chat-latest)?|gpt-5\\.(2|4|5)|o1|o3(-mini)?|o4-mini";
+const EXTENDED_CACHE_IDS = "gpt-4\\.1|gpt-5|gpt-5\\.1(-chat-latest)?|gpt-5\\.(2|4)";
+const EXPLICIT_CACHE = {
+  explicitPromptCache: true,
+  promptCacheFormat: "openai-breakpoint",
+  cacheMinTokens: 1024,
+  cacheRetentionSeconds: 1800,
+  promptCacheDefaultEnabled: false,
+  providerImplicitPromptCache: true,
+  disablesImplicitPromptCache: true,
+  cacheRetentionRefresh: true,
+} as const;
 
 const SWEPT_TURNS = {
   assistantPrefill: false,
@@ -19,6 +34,79 @@ const SWEPT_TURNS = {
 } as const;
 
 export const openaiRows = [
+  ...(["openai", "openrouter"] as const).map(
+    (provider) =>
+      ({
+        match: {
+          provider,
+          model: provider === "openrouter" ? `^openai/(${IMPLICIT_CACHE_IDS})$` : `^(${NATIVE_IMPLICIT_CACHE_IDS})$`,
+          wire: "openai-compat",
+          api: "chat-completions",
+        },
+        generation: {
+          turns: {
+            providerImplicitPromptCache: true,
+            explicitPromptCache: false,
+            disablesImplicitPromptCache: false,
+            promptCacheDefaultEnabled: false,
+            cacheRetentionRefresh: true,
+          },
+        },
+        evidence: {
+          tier: "curated",
+          dated: "2026-10-05",
+          cite: "https://developers.openai.com/api/docs/guides/prompt-caching.md: earlier models support implicit caching only; minimum depends on request settings and retention depends on model/organization. Extended-retention list names GPT-4.1, GPT-5/5-codex/5.1 variants/5.2/5.4/5.5/5.5-pro; https://developers.openai.com/api/docs/models/{gpt-4o,gpt-4o-mini,gpt-4.1-mini,gpt-4.1-nano,gpt-5-mini,gpt-5-nano,o1,o3,o3-mini,o4-mini}.md documents cached-input pricing and Chat Completions support. https://openrouter.ai/docs/guides/best-practices/prompt-caching.md documents automatic OpenAI caching. Exact aliases only, no inferred snapshots or Custom routes",
+        },
+      }) as const,
+  ),
+  {
+    match: { provider: "openai", model: `^(${NATIVE_IMPLICIT_CACHE_IDS})$`, wire: "openai-compat", api: "chat-completions" },
+    generation: { turns: { promptCacheKey: true, promptCacheRetentions: ["in_memory"] } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-05",
+      cite: "https://developers.openai.com/api/docs/guides/prompt-caching.md: earlier models use prompt_cache_key for routing and prompt_cache_retention; models outside the named extended list use in_memory",
+    },
+  },
+  {
+    match: { provider: "openai", model: `^(${EXTENDED_CACHE_IDS})$`, wire: "openai-compat", api: "chat-completions" },
+    generation: { turns: { promptCacheRetentions: ["in_memory", "24h"] } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-05",
+      cite: "https://developers.openai.com/api/docs/guides/prompt-caching.md#extended-retention-models: exact named extended-retention aliases; organization ZDR policy determines the default, so no default is forced",
+    },
+  },
+  {
+    match: { provider: "openai", model: "^gpt-5\\.5$", wire: "openai-compat", api: "chat-completions" },
+    generation: { turns: { promptCacheRetentions: ["24h"] } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-05",
+      cite: "https://developers.openai.com/api/docs/guides/prompt-caching.md#model-differences-at-a-glance: GPT-5.5 supports 24h only; GPT-5.5 Pro is Responses-only and is not admitted on this native Chat Completions route",
+    },
+  },
+  {
+    match: { provider: "openai", model: `^${EXPLICIT_CACHE_IDS}$`, wire: "openai-compat", api: "chat-completions" },
+    generation: { turns: { promptCacheKey: true } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-05",
+      cite: "https://developers.openai.com/api/docs/guides/prompt-caching.md#prompt-cache-keys: GPT-5.6 and later accept optional prompt_cache_key for separate cache accounting; it is not required for routing",
+    },
+  },
+  ...(["openai", "openrouter"] as const).map(
+    (provider) =>
+      ({
+        match: { provider, model: `^${provider === "openrouter" ? "openai/" : ""}${EXPLICIT_CACHE_IDS}$`, wire: "openai-compat", api: "chat-completions" },
+        generation: { turns: EXPLICIT_CACHE },
+        evidence: {
+          tier: "curated",
+          dated: "2026-10-05",
+          cite: "https://developers.openai.com/api/docs/guides/prompt-caching.md: GPT-5.6 and later explicit breakpoints, 1024 visible-input minimum, implicit-disable control and 30m minimum retention refreshed on reuse; https://openrouter.ai/docs/guides/best-practices/prompt-caching.md: OpenAI request controls and translated block markers",
+        },
+      }) as const,
+  ),
   {
     match: { model: "^(openai/)?gpt-(4\\.1|5\\.4-mini|5\\.5)(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$", wire: "openai-compat", api: "chat-completions" },
     generation: { imageDetail: true },

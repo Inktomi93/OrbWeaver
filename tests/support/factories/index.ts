@@ -17,9 +17,11 @@ export { makePersona, seedPersona } from "./persona.ts";
 export { principal } from "./principal.ts";
 export {
   makeApiKeySecret,
+  makeCachePolicy,
   makeCapability,
   makeGenerationCapability,
   makeResolved,
+  makeResolvedCacheView,
   makeResolvedSecret,
   makeResolvedView,
 } from "./resolved-connection.ts";

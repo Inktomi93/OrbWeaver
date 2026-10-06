@@ -37,7 +37,7 @@ import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatToolExecution, ChatToolOffer, Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
-import { cachesByAnthropicMarkers, generationOf, resolveCarryReasoning, withPresetWindow } from "@orb/inference";
+import { generationOf, preservesCacheBlockEnds, resolveCarryReasoning, withPresetWindow } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -762,7 +762,7 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
         // (owner ruling: group narration is the assistant's own voice).
         ...turnsLevelFor(generationOf(args.connection), effectiveIntent.advanced?.roleHandling),
         roleHandling: effectiveIntent.advanced?.roleHandling,
-        explicitCacheMarkers: cachesByAnthropicMarkers(args.connection, generationOf(args.connection)),
+        explicitCacheMarkers: preservesCacheBlockEnds(args.connection, generationOf(args.connection), effectiveIntent),
         replayToolMessageIds: replayToolMessageIds(args.canon, generationOf(args.connection).tools !== undefined),
         squashSystemMessages: effectiveIntent.advanced?.squashSystemMessages,
         // The room host's note frames (PROSE-1) rode onto the ctx at build; SHAPE frames the spliced injections.

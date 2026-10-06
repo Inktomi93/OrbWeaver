@@ -4,6 +4,7 @@
 // node-only `@orb/inference` package executes against them.
 
 export * from "./apis.ts";
+export * from "./cache-policy.ts";
 export * from "./capability/index.ts";
 export * from "./catalog.ts";
 export * from "./connection.ts";

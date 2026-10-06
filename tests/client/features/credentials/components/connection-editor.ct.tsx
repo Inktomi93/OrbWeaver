@@ -21,11 +21,18 @@
 //     owner ruling), no per-chat/per-room override (F20).
 
 import type { USER_ROLES } from "@orb/contracts/identity";
-import { CONNECTION_OP_CODES, EMBEDDING_FLOOR } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, EMBEDDING_FLOOR, effectivePromptCache, modelIdSchema } from "@orb/contracts/inference";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // Pure `.ts`, safe in a node-side CT spec.
 import { REINDEX_CONFIRM_COPY } from "../../../../../packages/client/src/lib/embedder-rebuild.ts";
+import { cachePolicyContextOf, responseReplaySupportedFor } from "../../../../../packages/inference/src/backends/kit/response-cache.ts";
+import { detectModelFamily } from "../../../../../packages/inference/src/capability/families.ts";
+import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
+import { resolveCachePolicy } from "../../../../../packages/inference/src/funnel/resolve-cache.ts";
+import { expectCacheProse } from "../../../../support/browser/cache-prose.ts";
+import { makeCachePolicy, makeResolved, makeResolvedCacheView } from "../../../../support/factories/resolved-connection.ts";
 import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ALL_AVAILABLE, catalogEntry, catalogOf, SIGNED_IN } from "../_connection-fixtures.ts";
@@ -108,6 +115,9 @@ const GENERATION_CAPABILITY: NonNullable<TrpcWireOutput<"connection.capabilities
 };
 
 const CONNECTION_CAPABILITIES = {
+  cacheContext: makeResolvedCacheView().cacheContext,
+  cache: makeCachePolicy(),
+  cacheWarnings: [],
   capability: GENERATION_CAPABILITY,
   baseline: GENERATION_CAPABILITY,
   warnings: [],
@@ -1001,7 +1011,10 @@ test("the depth field commits on Enter, never per keystroke", async ({ mount, pa
   const recorder = await stubEditor(page, { capabilities: EXPLICIT_CACHE_CAPABILITIES });
   await mount(<ConnectionEditorStory />);
   const body = await openCacheTier(page);
-  const depth = body.getByRole("textbox");
+  const depth = body.getByRole("textbox", { name: "History cache depth", exact: true });
+  await expect(depth).toBeVisible();
+  await expect(body.getByRole("button", { name: "Decrease History cache depth", exact: true })).toBeVisible();
+  await expect(body.getByRole("button", { name: "Increase History cache depth", exact: true })).toBeVisible();
   // Typed key by key: a per-keystroke write would land a 1 before the 12, and the count below would be 2.
   await depth.pressSequentially("12");
   await expect(depth).toHaveValue("12");
@@ -1069,8 +1082,8 @@ test("fixed-retention caching exposes switches and depth without unsupported TTL
   await mount(<ConnectionEditorNarrowStory />);
   const body = await openCacheTier(page);
   await expect(body.getByRole("radio")).toHaveCount(0);
-  await expect(body.getByText("5 minutes fixed by this route.", { exact: false })).toBeVisible();
-  await expect(body.getByText("Provider cache and storage pricing applies", { exact: false })).toBeVisible();
+  await expect(body.getByText("5 minutes applied by this route.", { exact: false })).toBeVisible();
+  await expect(body.getByText("Provider-specific read, write and storage pricing applies", { exact: false })).toBeVisible();
   await expect(body.getByText("a tenth", { exact: false })).toHaveCount(0);
   await expect(body.getByText("writes cost", { exact: false })).toHaveCount(0);
   await expect(body.getByRole("switch")).toHaveCount(2);
@@ -1082,6 +1095,100 @@ test("fixed-retention caching exposes switches and depth without unsupported TTL
     .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
     .toEqual({ connectionId: CONNECTION_ID, patch: { promptCache: { ...SHIPPED, enabled: true, ttl: "5m" } } });
   await expect(body.getByRole("textbox")).toBeEnabled();
+});
+
+function cacheEditorOptions(providerId: string, model: string, replay = false): NonNullable<Parameters<typeof stubEditor>[1]> {
+  const provider = ALL_AVAILABLE.find((row) => row.provider.id === providerId)?.provider;
+  if (provider === undefined) {
+    throw new Error("Caching UI fixture requires a built-in provider");
+  }
+  const resolved = makeResolved({ providerId: provider.id, model: modelIdSchema.parse(model) });
+  const capability = synthesizeCapability("generation", detectModelFamily(model), {
+    curated: curatedRows({ model, providerId: resolved.providerId, wire: provider.wire, api: provider.apis[0] }),
+  }).capability;
+  if (capability.kind !== "generation") {
+    throw new Error("Caching UI fixture requires a generation capability");
+  }
+  const connection = {
+    ...resolved,
+    capability,
+    promptCache: effectivePromptCache(null, capability.generation.turns?.promptCacheDefaultEnabled, capability.generation.turns?.fixedCacheTtl),
+    transport: replay ? { headers: { "X-OpenRouter-Cache": "true" } } : null,
+  };
+  const cacheContext = cachePolicyContextOf(connection, responseReplaySupportedFor(connection));
+  const cache = resolveCachePolicy({ context: cacheContext, generation: capability.generation });
+  return {
+    provider,
+    connection: connectionRow({
+      label: "Caching route",
+      providerId: provider.id,
+      providerLabel: provider.label,
+      model,
+      baseUrl: null,
+      credentialId: "user_credential_cachect",
+    }),
+    capabilities: { ...CONNECTION_CAPABILITIES, capability, baseline: capability, cacheContext, cache: cache.plan, cacheWarnings: cache.warnings },
+  };
+}
+
+test("native implicit caching is explained without a fake off switch or managed-resource controls", async ({ mount, page }) => {
+  await stubEditor(page, cacheEditorOptions("google", "gemini-3.8-flash"));
+  await mount(<ConnectionEditorNarrowStory />);
+  const body = await openCacheTier(page);
+  await expect(
+    body.getByText("Provider-managed implicit prefix caching is available; eligibility and hits are determined upstream.", { exact: true }),
+  ).toBeVisible();
+  await expect(body.getByRole("switch")).toHaveCount(0);
+  await expect(body.getByRole("combobox")).toHaveCount(0);
+  await expect(body.getByRole("radio")).toHaveCount(0);
+  await expect(body.getByText("a tenth", { exact: false })).toHaveCount(0);
+});
+
+test("modern prefix controls distinguish implicit disable and minimum retention from marker TTL", async ({ mount, page }) => {
+  const recorder = await stubEditor(page, cacheEditorOptions("openai", "gpt-6-sol"));
+  await mount(<ConnectionEditorNarrowStory />);
+  const body = await openCacheTier(page);
+  await expect(body.getByRole("radio")).toHaveCount(0);
+  await expect(body.getByText("at least 30 minutes", { exact: false })).toBeVisible();
+  const disable = body.getByRole("switch", { name: "Disable implicit breakpoints on Caching route", exact: true });
+  await expect(disable).toBeEnabled();
+  await disable.click();
+  await expect
+    .poll(() => recorder.lastInput("connection.update"))
+    .toEqual({ connectionId: CONNECTION_ID, patch: { promptCache: { ...SHIPPED, enabled: false, disableImplicit: true } } });
+});
+
+test("request automatic placement disables only replaced manual controls and preserves marker retention", async ({ mount, page }) => {
+  const recorder = await stubEditor(page, cacheEditorOptions("anthropic", "claude-sonnet-5"));
+  await mount(<ConnectionEditorStory />);
+  const body = await openCacheTier(page);
+  await body.getByRole("switch", { name: "Automatic prefix placement on Caching route", exact: true }).click();
+  await expect(body.getByRole("switch", { name: "Cache the system prompt on Caching route", exact: true })).toBeDisabled();
+  await expect(body.getByRole("textbox")).toBeDisabled();
+  await expect(body.getByRole("radio").first()).not.toHaveAttribute("aria-disabled", "true");
+  await expect
+    .poll(() => recorder.lastInput("connection.update"))
+    .toEqual({ connectionId: CONNECTION_ID, patch: { promptCache: { ...SHIPPED, requestAutomatic: true } } });
+});
+
+test("native legacy retention stays inherited until explicitly selected, with only admitted choices", async ({ mount, page }) => {
+  const recorder = await stubEditor(page, cacheEditorOptions("openai", "gpt-5.5"));
+  await mount(<ConnectionEditorNarrowStory />);
+  const body = await openCacheTier(page);
+  await body.getByRole("combobox", { name: "Provider prefix retention on Caching route", exact: true }).click();
+  await expect(page.getByRole("option", { name: "In memory", exact: true })).toHaveCount(0);
+  await page.getByRole("option", { name: "Up to 24 hours", exact: true }).click();
+  await expect
+    .poll(() => recorder.lastInput("connection.update"))
+    .toEqual({ connectionId: CONNECTION_ID, patch: { promptCache: { ...SHIPPED, enabled: false, retention: "24h" } } });
+});
+
+test("intentional inherited connection-header response replay never reads as off", async ({ mount, page }) => {
+  await stubEditor(page, cacheEditorOptions("openrouter", "anthropic/claude-sonnet-5", true));
+  await mount(<ConnectionEditorStory />);
+  const body = await openCacheTier(page);
+  await expect(body.getByText("Complete-response replay: requested by connection headers.", { exact: false })).toBeVisible();
+  await expect(body.getByText("Complete-response replay: off by default.", { exact: false })).toHaveCount(0);
 });
 
 // ── a local server's reported capabilities read as reported, a guessed list as assumed (D292) ──────────────
@@ -1112,7 +1219,15 @@ const WIDENED_CAPABILITY: NonNullable<TrpcWireOutput<"connection.capabilities">[
 
 test("a local server's stated tool calls and image input read as reported, with an Override and no assumed mark", async ({ mount, page }) => {
   await stubEditor(page, {
-    capabilities: { capability: LOCAL_SERVER_CAPABILITY, baseline: LOCAL_SERVER_CAPABILITY, warnings: [], tasks: ["chat", "agent", "summarize", "structured"] },
+    capabilities: {
+      cacheContext: CONNECTION_CAPABILITIES.cacheContext,
+      cache: makeCachePolicy(),
+      cacheWarnings: [],
+      capability: LOCAL_SERVER_CAPABILITY,
+      baseline: LOCAL_SERVER_CAPABILITY,
+      warnings: [],
+      tasks: ["chat", "agent", "summarize", "structured"],
+    },
   });
   const component = await mount(<ConnectionEditorStory />);
   await tier(page, "Advanced").click();
@@ -1129,7 +1244,17 @@ test("a local server's stated tool calls and image input read as reported, with 
 });
 
 test("a modality list the posture guessed reads assumed, never as something the server reported", async ({ mount, page }) => {
-  await stubEditor(page, { capabilities: { capability: WIDENED_CAPABILITY, baseline: WIDENED_CAPABILITY, warnings: [], tasks: ["chat", "summarize"] } });
+  await stubEditor(page, {
+    capabilities: {
+      cacheContext: CONNECTION_CAPABILITIES.cacheContext,
+      cache: makeCachePolicy(),
+      cacheWarnings: [],
+      capability: WIDENED_CAPABILITY,
+      baseline: WIDENED_CAPABILITY,
+      warnings: [],
+      tasks: ["chat", "summarize"],
+    },
+  });
   const component = await mount(<ConnectionEditorStory />);
   await tier(page, "Advanced").click();
 
@@ -1153,7 +1278,15 @@ const SETTABLE_WINDOW_CAPABILITY: NonNullable<TrpcWireOutput<"connection.capabil
 
 test("on a route that sends the window, the window row offers no Override; other rows keep theirs", async ({ mount, page }) => {
   await stubEditor(page, {
-    capabilities: { capability: SETTABLE_WINDOW_CAPABILITY, baseline: SETTABLE_WINDOW_CAPABILITY, warnings: [], tasks: ["chat", "summarize"] },
+    capabilities: {
+      cacheContext: CONNECTION_CAPABILITIES.cacheContext,
+      cache: makeCachePolicy(),
+      cacheWarnings: [],
+      capability: SETTABLE_WINDOW_CAPABILITY,
+      baseline: SETTABLE_WINDOW_CAPABILITY,
+      warnings: [],
+      tasks: ["chat", "summarize"],
+    },
   });
   const component = await mount(<ConnectionEditorStory />);
   await tier(page, "Advanced").click();
@@ -1192,7 +1325,15 @@ test("an overridden window shows the reported value it replaced, and Reset write
 
 test("tool calls offer a no, which writes the declared absence", async ({ mount, page }) => {
   const recorder = await stubEditor(page, {
-    capabilities: { capability: LOCAL_SERVER_CAPABILITY, baseline: LOCAL_SERVER_CAPABILITY, warnings: [], tasks: ["chat", "agent", "summarize", "structured"] },
+    capabilities: {
+      cacheContext: CONNECTION_CAPABILITIES.cacheContext,
+      cache: makeCachePolicy(),
+      cacheWarnings: [],
+      capability: LOCAL_SERVER_CAPABILITY,
+      baseline: LOCAL_SERVER_CAPABILITY,
+      warnings: [],
+      tasks: ["chat", "agent", "summarize", "structured"],
+    },
   });
   const component = await mount(<ConnectionEditorStory />);
   await tier(page, "Advanced").click();
@@ -1219,6 +1360,9 @@ test("a declared no reads as the override over the reported yes, and Reset retur
   const recorder = await stubEditor(page, {
     connection: connectionRow({ declared: { features: { strictJson: "declared-only" }, generation: { tools: null } } }),
     capabilities: {
+      cacheContext: CONNECTION_CAPABILITIES.cacheContext,
+      cache: makeCachePolicy(),
+      cacheWarnings: [],
       capability: toolsDropped(LOCAL_SERVER_CAPABILITY),
       baseline: LOCAL_SERVER_CAPABILITY,
       warnings: [],
@@ -1276,7 +1420,15 @@ test("confirming a vector-width rebuild returns focus to the vector-width row", 
     embedding: { ...EMBEDDING_FLOOR, dims: 1024, mrl: true, input: ["text", "image"] },
   };
   await stubEditor(page, {
-    capabilities: { capability: embedding, baseline: embedding, warnings: [], tasks: ["embed", "imageEmbed"] },
+    capabilities: {
+      cacheContext: CONNECTION_CAPABILITIES.cacheContext,
+      cache: makeCachePolicy(),
+      cacheWarnings: [],
+      capability: embedding,
+      baseline: embedding,
+      warnings: [],
+      tasks: ["embed", "imageEmbed"],
+    },
     reindexPreview: { reindex: true, stored: { cards: 10, memory: 0, documents: 0, images: 0 }, embedCalls: 10, utilityModelSet: true },
   });
   const component = await mount(<ConnectionEditorStory />);
@@ -1297,7 +1449,15 @@ async function stubEmbedderEditor(page: Page, updateAnswer?: () => ReturnType<ty
     embedding: { ...EMBEDDING_FLOOR, dims: 1024, mrl: true, input: ["text", "image"] },
   };
   return await stubEditor(page, {
-    capabilities: { capability: embedding, baseline: embedding, warnings: [], tasks: ["embed", "imageEmbed"] },
+    capabilities: {
+      cacheContext: CONNECTION_CAPABILITIES.cacheContext,
+      cache: makeCachePolicy(),
+      cacheWarnings: [],
+      capability: embedding,
+      baseline: embedding,
+      warnings: [],
+      tasks: ["embed", "imageEmbed"],
+    },
     reindexPreview: { reindex: true, stored: { cards: 10, memory: 0, documents: 0, images: 0 }, embedCalls: 10, utilityModelSet: true },
     ...(updateAnswer === undefined ? {} : { updateAnswer }),
   });
@@ -1406,7 +1566,15 @@ test("a vector width saved with no rebuild to confirm leaves focus on its row", 
     embedding: { ...EMBEDDING_FLOOR, dims: 1024, mrl: true, input: ["text", "image"] },
   };
   await stubEditor(page, {
-    capabilities: { capability: embedding, baseline: embedding, warnings: [], tasks: ["embed", "imageEmbed"] },
+    capabilities: {
+      cacheContext: CONNECTION_CAPABILITIES.cacheContext,
+      cache: makeCachePolicy(),
+      cacheWarnings: [],
+      capability: embedding,
+      baseline: embedding,
+      warnings: [],
+      tasks: ["embed", "imageEmbed"],
+    },
     reindexPreview: { reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0, utilityModelSet: true },
   });
   const component = await mount(<ConnectionEditorStory />);
@@ -1419,3 +1587,25 @@ test("a vector width saved with no rebuild to confirm leaves focus on its row", 
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
   await expect(component.locator('[data-fact="embedding.dims"]')).toBeFocused();
 });
+
+for (const [arm, Story] of WIDTH_ARMS) {
+  test(`${arm}: caching explanations have their own readable prose scale and cap`, async ({ mount, page }, testInfo) => {
+    await stubEditor(page, cacheEditorOptions("openrouter", "anthropic/claude-sonnet-5", true));
+    await mount(<Story />);
+    const body = await openCacheTier(page);
+    await page.evaluate(async () => {
+      await Promise.allSettled(
+        document
+          .getAnimations()
+          .filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime))
+          .map((animation) => animation.finished),
+      );
+    });
+    const paragraphs = body.locator("p[data-voice=gloss]").filter({ hasNotText: /^App prefix request:/ });
+    await expect.poll(() => paragraphs.count()).toBeGreaterThan(3);
+    for (const paragraph of await paragraphs.all()) {
+      await expectCacheProse(paragraph);
+    }
+    await body.screenshot({ path: testInfo.outputPath("prompt-cache.png") });
+  });
+}

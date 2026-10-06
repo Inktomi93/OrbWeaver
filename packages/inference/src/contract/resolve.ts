@@ -3,9 +3,21 @@
 
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import { ADJUSTED_KNOBS } from "@orb/contracts/chat";
-import type { EffortLevel, ReasoningDisplayMode, ReasoningMode, ReasoningOffMode, SamplerStage, SamplingRangeKnob, Verbosity } from "@orb/contracts/inference";
+import type {
+  CachePolicy,
+  CachePolicyContext,
+  EffortLevel,
+  GenerationCapability,
+  ReasoningDisplayMode,
+  ReasoningMode,
+  ReasoningOffMode,
+  SamplerStage,
+  SamplingRangeKnob,
+  UserRoleHandling,
+  Verbosity,
+} from "@orb/contracts/inference";
 import { effortLevelSchema } from "@orb/contracts/inference";
-import type { CarryReasoning } from "@orb/contracts/preset";
+import type { CarryReasoning, ResponseCacheControl, ResponseCacheSettings } from "@orb/contracts/preset";
 import { z } from "zod";
 
 /** One code per distinct drop site a resolver/transport actually emits; clamps are silent. Every member has a
@@ -159,5 +171,20 @@ export interface ResolvedEmbedKnobs {
   readonly dimensions?: number | undefined;
   readonly instruction?: string | undefined;
   readonly inputType?: "query" | "document" | undefined;
+  readonly warnings: readonly ResolvedWarning[];
+}
+
+export interface ResolveCachePolicyInput {
+  readonly context: CachePolicyContext;
+  readonly generation?: GenerationCapability | undefined;
+  readonly preset?: ResponseCacheSettings | undefined;
+  readonly request?: ResponseCacheControl | undefined;
+  readonly fresh?: boolean | undefined;
+  readonly requestedDepth?: number | undefined;
+  readonly requestedRoleHandling?: UserRoleHandling | undefined;
+}
+
+export interface ResolvedCachePolicy {
+  readonly plan: CachePolicy;
   readonly warnings: readonly ResolvedWarning[];
 }

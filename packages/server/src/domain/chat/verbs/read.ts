@@ -53,7 +53,7 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import { composeProse, isPresetProseSlotId, resolveProseText } from "@orb/contracts/prose";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { Resolved } from "@orb/inference";
-import { cachesByAnthropicMarkers, generationOf, resolveCarryReasoning } from "@orb/inference";
+import { generationOf, preservesCacheBlockEnds, resolveCarryReasoning } from "@orb/inference";
 import { projectBodyForPreview } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, MessageId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
@@ -245,7 +245,7 @@ interface PreviewInputs {
   /** The resolved model capability — the SHAPE-trace peek reads its `turns` cell (roleHandlingFloor /
    *  assistantPrefill) to shape faithfully. Undefined when the connection resolver omits it (a test double). */
   readonly capability: GenerationCapability | undefined;
-  /** The connection caches by explicit block markers (`cachesByAnthropicMarkers`) — SHAPE keeps stored rows apart. */
+  /** The admitted prefix action and effective role floor require stored block ends to survive SHAPE. */
   readonly explicitCacheMarkers: boolean;
   /** The resolved protocol axis — previewContextFit source-modes the divider boundary on it (agent-sdk → the
    *  marker coverage point; stateless → the fit boundary). */
@@ -538,7 +538,7 @@ async function resolvePreviewInputs(
     model: connection.model,
     // The window the next turn sends and fits: the preset's, on a route whose request sets it.
     capability: windowForPreset(generationOf(connection), foreign.promptConfig.params.maxContextTokens),
-    explicitCacheMarkers: cachesByAnthropicMarkers(connection, generationOf(connection)),
+    explicitCacheMarkers: preservesCacheBlockEnds(connection, generationOf(connection), foreign.promptConfig.params),
     api: connection.api,
     characterIds,
     // The same membership rule as the live turn (`memberPersonaIdsOf`), so the preview shows the lore it sends.

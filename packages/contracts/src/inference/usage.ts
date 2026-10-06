@@ -19,11 +19,21 @@
 // `cost`) + upstreamUsd (the provider's charge)`; on a passthrough turn `totalUsd` is OR's `cost` and the two
 // are absent.
 
-import type { ModelId } from "@orb/kit/ids";
+import type { ModelId, ProviderGenerationId } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import type { TokenProvenance } from "../chat/messages.ts";
 
 const usd = z.number().nonnegative();
+
+export const RESPONSE_CACHE_STATUSES = ["hit", "miss"] as const;
+export const responseCacheSchema = z.object({
+  status: z.enum(RESPONSE_CACHE_STATUSES),
+  ageSeconds: z.number().int().nonnegative().nullable(),
+  ttlSeconds: z.number().int().nonnegative().nullable(),
+  sourceGenerationId: brandedId<ProviderGenerationId>().nullable(),
+});
+export type ResponseCache = z.infer<typeof responseCacheSchema>;
 
 /** Per-phase / per-party upstream cost breakdown — the ONE parser for `message_variants.cost_details`. */
 export const costDetailsSchema = z.object({
@@ -38,6 +48,7 @@ export const costDetailsSchema = z.object({
 export type CostDetails = z.infer<typeof costDetailsSchema>;
 
 export interface ChatUsage {
+  readonly responseCache?: ResponseCache | undefined;
   readonly model: ModelId;
   readonly tokensIn: number | null;
   readonly tokensOut: number | null;

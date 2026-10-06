@@ -22,6 +22,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { MIROSTAT_SKIPPED_GLOSS } from "../../../../../packages/client/src/features/preset/lib/effective-knobs.ts";
 import { compactionModeLabel } from "../../../../../packages/client/src/features/preset/lib/preset-nav.ts";
+import { expectCacheProse } from "../../../../support/browser/cache-prose.ts";
 import { boxWithBeforeFloor, resolveSpacingPxIn } from "../../../../support/browser/touch-floor.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { clearNumber, setNumber } from "../../../../support/node/set-number.ts";
@@ -37,10 +38,31 @@ import {
   ParamsDeckMirostatStory,
   ParamsDeckNoBansStory,
   ParamsDeckPendingCapabilityStory,
+  ParamsDeckReplayStory,
   ParamsDeckSettableWindowStory,
   ParamsDeckStaleKoboldStory,
   ParamsDeckStaleStory,
 } from "./_params-deck-stories.tsx";
+
+test("response replay preserves inherited header opt-in and explicit off/on intent separately", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  const component = await mount(<ParamsDeckReplayStory />);
+  const select = component.getByRole("combobox", { name: "Complete-response replay", exact: true });
+  await expect(select).toContainText("Inherit connection settings");
+  await expect(component.getByText("Inherited request: replay on from connection headers.", { exact: true })).toBeVisible();
+  await select.click();
+  await page.getByRole("option", { name: "Off", exact: true }).click();
+  await expect.poll(() => component.locator("output").textContent(), savePoll()).toContain('responseCache:{"enabled":false}');
+  await select.click();
+  await page.getByRole("option", { name: "Request replay", exact: true }).click();
+  const ttl = component.getByRole("textbox", { name: "Response replay lifetime (seconds)", exact: true });
+  await ttl.fill("120");
+  await ttl.blur();
+  await expect.poll(() => component.locator("output").textContent(), savePoll()).toContain('responseCache:{"enabled":true,"ttlSeconds":120}');
+  await select.click();
+  await page.getByRole("option", { name: "Inherit connection settings", exact: true }).click();
+  await expect.poll(() => component.locator("output").textContent(), savePoll()).toContain("keys= ");
+});
 
 /** A FUNCTION, not a const: Playwright's `pollAgainstDeadline` pops/shifts the interval array it is handed,
  *  so a shared object is drained by its first use and the other ten polls in this file silently fall back to
@@ -1008,3 +1030,16 @@ test("OUTPUT — a model whose server takes neither ban shows neither control", 
   await expect(deck.getByRole("group", { name: "Banned phrases" })).toHaveCount(0);
   await expect(deck.getByRole("switch", { name: "Ban end of reply" })).toHaveCount(0);
 });
+
+for (const width of [486, 870]) {
+  test(`${width}: response replay explanation has its own readable prose scale and cap`, async ({ mount, page }, testInfo) => {
+    await routeTrpc(page, {});
+    const component = await mount(<ParamsDeckReplayStory />);
+    await component.evaluate((node, hostWidth) => {
+      node.style.width = `${hostWidth}px`;
+    }, width);
+    await expect.poll(async () => (await component.boundingBox())?.width).toBe(width);
+    await expectCacheProse(component.getByText("Reuse an identical complete answer on OpenRouter, not just its prompt prefix.", { exact: false }));
+    await component.screenshot({ path: testInfo.outputPath("response-replay.png") });
+  });
+}

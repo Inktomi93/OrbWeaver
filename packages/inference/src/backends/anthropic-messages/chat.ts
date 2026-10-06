@@ -26,19 +26,21 @@ import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "../.
 import type { Resolved } from "../../contract/resolved.ts";
 import type { AddSpanEvent } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
+import { resolveCachePolicy } from "../../funnel/resolve-cache.ts";
 import { resolveChat } from "../../funnel/resolve-chat.ts";
 import type { StructuredPlan } from "../../structured/plan.ts";
 import { requireStructuredPlan } from "../../structured/plan.ts";
 import { structuredChatResult } from "../../structured/reply.ts";
 import { effortWordOf } from "../kit/applied-effort.ts";
 import type { ExplicitCachePlan } from "../kit/cache-control.ts";
-import { explicitCachePlan, placeExplicitCacheMarkers } from "../kit/cache-control.ts";
+import { automaticCachePlan, explicitCachePlan, placeExplicitCacheMarkers } from "../kit/cache-control.ts";
 import { providerErrorFromHttp, withSchemaRejection } from "../kit/error-classify.ts";
 import { turnAbortSignal } from "../kit/idle-timeout.ts";
 import type { ProviderLogger } from "../kit/provider-log.ts";
 import { providerLogger } from "../kit/provider-log.ts";
 import { prefixBindingDropsOf } from "../kit/provider-metadata.ts";
 import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../kit/rate-limit-headers.ts";
+import { cachePolicyContextOf } from "../kit/response-cache.ts";
 import { runWithPreCommitRetry } from "../kit/retry.ts";
 import { resolvedScrubSet } from "../kit/sanitize.ts";
 import { emitTurnSpanEvents } from "../kit/turn-span.ts";
@@ -120,6 +122,7 @@ function rowOptionsFor(
 }
 
 interface CacheWriteReceipt {
+  readonly requestBlocks: number;
   readonly historyDepths: readonly number[];
   readonly systemBlocks: number;
   /** The TOOL-LIST breakpoint (audit C4): 1 when a `cacheControl` rode the last tool, else 0. Counted in the
@@ -135,10 +138,14 @@ function placeCache(args: {
   readonly generation: GenerationCapability;
   readonly log: ProviderLogger;
   readonly toolBlocks: number;
+  readonly automaticCache: ExplicitCachePlan | null;
 }): { readonly patches: ReadonlyMap<number, Record<string, unknown>>; readonly written: CacheWriteReceipt } {
   const { plan, req, cachePlan, generation, log, toolBlocks } = args;
   const placed = placeExplicitCacheMarkers({ plan: cachePlan, rows: plan.rows, staticSystem: req.systemPrompt.static.trim(), generation, log });
-  return { patches: placed.patches, written: { historyDepths: placed.historyDepths, systemBlocks: placed.systemBlocks, toolBlocks } };
+  return {
+    patches: placed.patches,
+    written: { historyDepths: placed.historyDepths, systemBlocks: placed.systemBlocks, toolBlocks, requestBlocks: args.automaticCache === null ? 0 : 1 },
+  };
 }
 
 /** The off `thinking` block per the model's off mode. `between_tools` takes no other thinking field: a `display`
@@ -222,7 +229,12 @@ function anthropicOptions(
   req: AnthropicChatRequest,
   knobs: ResolvedChatKnobs,
   warnings: ResolvedWarning[],
-  model: { readonly generation: GenerationCapability; readonly toolCache: SharedV4ProviderOptions | undefined; readonly plan: StructuredPlan },
+  model: {
+    readonly generation: GenerationCapability;
+    readonly toolCache: SharedV4ProviderOptions | undefined;
+    readonly plan: StructuredPlan;
+    readonly automaticCache: ExplicitCachePlan | null;
+  },
 ): Omit<LanguageModelV4CallOptions, "prompt" | "abortSignal"> {
   const { generation, toolCache, plan } = model;
   const effort = knobs.reasoning.enabled ? sdkEffortOf(knobs.reasoning.effort, warnings, "turn") : undefined;
@@ -234,6 +246,7 @@ function anthropicOptions(
     // C2: the allowlisted `extras` slice FIRST, so nothing a connection declares can displace a modelled
     // knob below it (D143(b)/D156 — modelled wins; the allowlist itself excludes every modelled key).
     ...anthropicExtras(req.connection, warnings),
+    ...(model.automaticCache === null ? {} : { cacheControl: { ...model.automaticCache.directive } }),
     sendReasoning: true,
     thinking: withBlockBinding(thinkingOf(knobs.reasoning), knobs, generation),
     ...(effort !== undefined ? { effort } : {}),
@@ -338,7 +351,7 @@ function emitReceipts(args: {
     turnId: knobs.turnId,
     cacheReadTokens: turn.usage.cacheReadTokens,
     cacheWriteTokens: turn.usage.cacheWriteTokens,
-    breakpointsPlaced: written.systemBlocks + written.historyDepths.length + written.toolBlocks,
+    breakpointsPlaced: written.systemBlocks + written.historyDepths.length + written.toolBlocks + written.requestBlocks,
     breakpointOffsets: written.historyDepths,
     hitRatio: total > 0 ? turn.usage.cacheReadTokens / total : 0,
     minCacheTokens: cacheMinTokensOf(generation),
@@ -372,7 +385,16 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   // after an `await` to its initializer (a property read is re-widened across the call).
   const response: { rateLimit: RateLimitSnapshot | null } = { rateLimit: null };
   const secrets = resolvedScrubSet(connection);
-  const cachePlan = explicitCachePlan({ connection, requestedDepth: req.cacheBreakpointDepth, log });
+  const policy = resolveCachePolicy({
+    context: cachePolicyContextOf(connection, false),
+    generation,
+    preset: req.params.responseCache,
+    request: req.responseCache,
+    requestedDepth: req.cacheBreakpointDepth,
+  });
+  warnings.push(...policy.warnings);
+  const cachePlan = explicitCachePlan(policy.plan);
+  const automaticCache = automaticCachePlan(policy.plan);
   const plan = buildWirePlan({
     systemPrompt: req.systemPrompt,
     history: req.history,
@@ -389,7 +411,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   // C4: the tool list is its own cacheable prefix. Decided BEFORE `placeCache` so the receipt can count the
   // breakpoint the option builder is about to place (Anthropic's per-request breakpoint budget is small).
   const toolCache = toolCacheOptions(generation, cachePlan, req.tools !== undefined && req.tools.length > 0);
-  const cache = placeCache({ plan, req, cachePlan, generation, log, toolBlocks: toolCache === undefined ? 0 : 1 });
+  const cache = placeCache({ plan, req, cachePlan, generation, log, toolBlocks: toolCache === undefined ? 0 : 1, automaticCache });
   const prompt = withMessageOptions(plan.prompt, ANTHROPIC_KEY, cache.patches);
   const structured = requireStructuredPlan(
     connection,
@@ -404,7 +426,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
     label,
   );
   warnings.push(...structured.downgrades);
-  const options = anthropicOptions(req, knobs, warnings, { generation, toolCache, plan: structured });
+  const options = anthropicOptions(req, knobs, warnings, { generation, toolCache, plan: structured, automaticCache });
   const call: AnthropicCall = { connection, deps: deps.transport, label, api: req.api, chatId: req.chatId, plannedSchema: nativeSchemaOf(structured) };
   const classify = (err: unknown): ProviderError =>
     err instanceof ProviderError
@@ -486,7 +508,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
     firstDeltaAt,
     turn,
     cache: {
-      breakpointsPlaced: cache.written.systemBlocks + cache.written.historyDepths.length + cache.written.toolBlocks,
+      breakpointsPlaced: cache.written.systemBlocks + cache.written.historyDepths.length + cache.written.toolBlocks + cache.written.requestBlocks,
       readTokens: turn.usage.cacheReadTokens,
       writeTokens: turn.usage.cacheWriteTokens,
     },

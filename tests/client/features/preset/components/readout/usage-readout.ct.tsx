@@ -16,6 +16,7 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { makeCachePolicy } from "../../../../../support/factories/resolved-connection.ts";
 import type { TrpcFixtureOutput, TrpcRoutes } from "../../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../../support/node/route-trpc.ts";
 import { PresetReadoutUsageStory } from "./_readout-stories.tsx";
@@ -81,7 +82,15 @@ function usageRoutes(
     // The Params panel's switcher list; this file's subject is not the switcher, so the user has no connections.
     "connection.list": () => [],
     "connection.resolveChatCapability": () => trpcError({ message: "no chat connection configured" }),
-    "preset.resolveEffective": () => ({ presetId: PRESET, model: "qwen3-32b", knobs: {}, stale: [], qualityMapping: null }),
+    "preset.resolveEffective": () => ({
+      presetId: PRESET,
+      model: "qwen3-32b",
+      knobs: {},
+      stale: [],
+      qualityMapping: null,
+      cache: makeCachePolicy(),
+      cacheWarnings: [],
+    }),
     "preset.listUsage": () => usage,
     // #649 — the readout's chat BINDING read. `use-readout-binding.ts:51` only fires it when there IS an
     // active chat, and this story has one, so it was a real request riding `routeTrpc`'s null: the binding's

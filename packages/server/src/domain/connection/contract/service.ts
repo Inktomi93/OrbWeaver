@@ -12,6 +12,7 @@ import type {
   ConnectionBinding,
   EmbedTargetRefusal,
   ModelListing,
+  ResolvedCacheConnectionView,
   ResolvedConnectionView,
   RoutableTask,
   SendAvailability,
@@ -122,6 +123,7 @@ export interface ConnectionService {
   readonly availability: (params: ResolveTaskParams) => Promise<SendAvailability>;
   /** The caller's OWN chat connection end-to-end, credential-free (`ResolvedConnectionView`). */
   readonly resolveChatCapability: (params: ResolveChatCapabilityParams) => Promise<ResolvedConnectionView>;
+  readonly resolveChatCacheContext: (params: ResolveChatCapabilityParams) => Promise<ResolvedCacheConnectionView>;
   readonly capabilities: (params: GetConnectionParams) => Promise<ConnectionCapabilityView>;
   /** Each word's tokens on the targeted connection's server, cached per (server, model, word). */
   readonly tokenizeWords: (params: TokenizeWordsParams) => Promise<TokenizeResult>;

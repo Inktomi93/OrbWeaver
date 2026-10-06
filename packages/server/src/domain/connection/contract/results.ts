@@ -4,6 +4,8 @@
 // output parser: an extra key fails the call instead of reaching the browser.
 
 import type {
+  CachePolicy,
+  CachePolicyContext,
   Capability,
   ConnectionBinding,
   ProviderId,
@@ -14,6 +16,8 @@ import type {
   UserConnection,
 } from "@orb/contracts/inference";
 import {
+  cachePolicyContextSchema,
+  cachePolicySchema,
   capabilitySchema,
   connectionBindingSchema,
   providerIdSchema,
@@ -41,6 +45,9 @@ export const connectionViewSchema = userConnectionSchema
 /** The capability read for one row (`runtime.capabilities.for`): the descriptor + the warnings it was
  *  synthesized with + the tasks. */
 export interface ConnectionCapabilityView {
+  readonly cache: CachePolicy;
+  readonly cacheWarnings: readonly ResolvedWarning[];
+  readonly cacheContext: CachePolicyContext;
   readonly capability: Capability;
   /** The same evidence fold with this row's declaration omitted. */
   readonly baseline: Capability;
@@ -51,6 +58,9 @@ export interface ConnectionCapabilityView {
 }
 
 export const connectionCapabilityViewSchema = z.strictObject({
+  cache: cachePolicySchema,
+  cacheWarnings: z.array(resolvedWarningSchema).readonly(),
+  cacheContext: cachePolicyContextSchema,
   capability: capabilitySchema,
   baseline: capabilitySchema,
   warnings: z.array(resolvedWarningSchema).readonly(),

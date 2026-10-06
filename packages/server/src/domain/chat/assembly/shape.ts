@@ -131,7 +131,7 @@ interface ShapeInput {
   /** The floor the knob is clamped against (`turnsLevelFor`): the model's stated floor, or the knob itself where
    *  no tier measured the model. Unset ⇒ `strict`. SHAPE runs the stricter of floor + knob. */
   roleHandlingFloor?: RoleHandling | undefined;
-  /** The turn caches by explicit block markers (`@orb/inference` `cachesByAnthropicMarkers`): a merging level
+  /** The admitted prefix plan preserves block ends (`@orb/inference` `preservesCacheBlockEnds`): a merging level
    *  keeps each stored row of a same-role run its own row (see the file header). Absent ⇒ the run joins. */
   explicitCacheMarkers?: boolean | undefined;
   /** The user `squashSystemMessages` knob (from preset `params.advanced.squashSystemMessages`): `true` ⇒

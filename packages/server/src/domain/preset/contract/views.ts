@@ -6,11 +6,14 @@
 
 import type { VisibleRoomRef } from "@orb/contracts/chat";
 import { visibleRoomRefSchema } from "@orb/contracts/chat";
-import { SAMPLING_RANGE_KNOBS } from "@orb/contracts/inference";
+import type { CachePolicy } from "@orb/contracts/inference";
+import { cachePolicySchema, SAMPLING_RANGE_KNOBS } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { promptConfigViewSchema } from "@orb/contracts/preset";
 import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
 import { versionedParseFailureSchema } from "@orb/contracts/versioned-config";
+import type { ResolvedWarning } from "@orb/inference";
+import { resolvedWarningSchema } from "@orb/inference";
 import type { ModelId, PresetId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
@@ -146,6 +149,8 @@ export interface QualityMapping {
 }
 
 export interface EffectivePreset {
+  readonly cache: CachePolicy;
+  readonly cacheWarnings: readonly ResolvedWarning[];
   readonly presetId: PresetId;
   /** The model the funnel resolved AGAINST — the readout says "resolved for <model>", and it may not lie
    *  after a model swap (the §4.4 freshness contract's capability rung). */
@@ -191,6 +196,8 @@ const qualityMappingSchema = z.strictObject({
   entries: z.array(qualityMappingEntrySchema).readonly(),
 }) satisfies z.ZodType<QualityMapping>;
 export const effectivePresetSchema = z.strictObject({
+  cache: cachePolicySchema,
+  cacheWarnings: z.array(resolvedWarningSchema).readonly(),
   presetId: typeIdSchema(ID_PREFIX.preset),
   model: brandedId<ModelId>(),
   knobs: z.partialRecord(z.enum(EFFECTIVE_KNOBS), effectiveKnobReadingSchema),
