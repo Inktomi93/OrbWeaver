@@ -1,5 +1,6 @@
-// Build the two GitHub Release assets for the public author surface. The release tag is
-// plugin-authoring-v0.1.0 and the resulting tarballs are attached unchanged; no npm registry is involved.
+// Build the two GitHub Release assets for the public author surface. release.yml attaches them unchanged to
+// the plugin-authoring-v<version> release that release-please cuts; no npm registry is involved. The SDK and
+// the toolchain share one version (release-please-config.json bumps both), so one tag names both assets.
 
 import { createHash } from "node:crypto";
 import { cp, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
@@ -12,9 +13,9 @@ import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 
 const REPO_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
-const ASSETS = [
-  { directory: "packages/plugin-sdk", filename: "orb-plugin-sdk-0.1.0.tgz" },
-  { directory: "packages/plugin-toolchain", filename: "orb-plugin-toolchain-0.1.0.tgz" },
+const PACKAGES = [
+  { directory: "packages/plugin-sdk", tarballStem: "orb-plugin-sdk" },
+  { directory: "packages/plugin-toolchain", tarballStem: "orb-plugin-toolchain" },
 ] as const;
 
 interface PackageManifest {
@@ -94,8 +95,16 @@ const first = await mkdtemp(join(tmpdir(), "orb-plugin-author-release-a-"));
 const second = await mkdtemp(join(tmpdir(), "orb-plugin-author-release-b-"));
 const staging = await mkdtemp(join(tmpdir(), "orb-plugin-author-release-stage-"));
 try {
+  const versions = await Promise.all(
+    PACKAGES.map(async ({ directory }) => (JSON.parse(await readFile(join(REPO_ROOT, directory, "package.json"), "utf8")) as PackageManifest).version),
+  );
+  const version = versions[0];
+  if (version === undefined || versions.some((other) => other !== version)) {
+    throw new Error(`plugin-sdk and plugin-toolchain must share one version, found ${versions.join(" and ")}`);
+  }
+  const assets = PACKAGES.map(({ directory, tarballStem }) => ({ directory, filename: `${tarballStem}-${version}.tgz` }));
   const toolchain = await stagedToolchain(staging);
-  for (const asset of ASSETS) {
+  for (const asset of assets) {
     const directory = asset.directory === "packages/plugin-toolchain" ? toolchain : join(REPO_ROOT, asset.directory);
     await pack(directory, first);
     await pack(directory, second);

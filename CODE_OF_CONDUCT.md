@@ -32,7 +32,7 @@ NSFW, say so at the top.
 
 ## Reporting
 
-Email **studio@inktomi.tech**. It comes straight to me, it stays private, and I won't tell anyone who
+Email **<studio@inktomi.tech>**. It comes straight to me, it stays private, and I won't tell anyone who
 reported it. Links or screenshots help.
 
 Orbweaver is one dude right now, so I'm the one who reads it and the one who decides. If the problem is me,

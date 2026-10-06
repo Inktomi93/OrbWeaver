@@ -3,8 +3,8 @@
 Type declarations for Orbweaver plugin authoring. This package contains no runtime code and has no
 dependencies.
 
-Orbweaver distributes the package as `orb-plugin-sdk-0.1.0.tgz` on the public
-`plugin-authoring-v0.1.0` GitHub Release. Projects pin that anonymous release-asset URL; there is no npm
+Orbweaver distributes the package as `orb-plugin-sdk-<version>.tgz` on each public
+`plugin-authoring-v<version>` GitHub Release. Projects pin that anonymous release-asset URL; there is no npm
 registry publication.
 
 Choose exactly one entry for each TypeScript program:

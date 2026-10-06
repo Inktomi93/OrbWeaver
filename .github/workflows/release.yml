@@ -28,6 +28,9 @@ jobs:
       tag_name: ${{ steps.release.outputs.tag_name }}
       version: ${{ steps.release.outputs.version }}
       sha: ${{ steps.release.outputs.sha }}
+      # The plugin authoring component (packages/plugin-sdk + packages/plugin-toolchain) releases on its own.
+      plugin_authoring_created: ${{ steps.release.outputs['packages--release_created'] }}
+      plugin_authoring_tag: ${{ steps.release.outputs['packages--tag_name'] }}
     steps:
       # The GITHUB_TOKEN default is enough: the image job below runs in this same workflow, so nothing
       # needs a workflow run triggered by the tag or the release.
@@ -109,3 +112,31 @@ jobs:
             echo "::error::$IMAGE:$VERSION does not pull without credentials, so the GHCR package is private. Set it Public (package settings, Danger Zone, Change visibility), then re-run this job."
             exit 1
           fi
+
+  # release-please creates the plugin-authoring release as a draft because immutable releases refuse assets
+  # once a release is published. This job attaches the SDK and toolchain tarballs, then publishes it as a
+  # pre-release, which keeps it out of "latest" (the app's update check reads that). The template repositories
+  # pick the new tag up on their own schedule.
+  plugin-authoring:
+    needs: release-please
+    if: needs.release-please.outputs.plugin_authoring_created == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ needs.release-please.outputs.plugin_authoring_tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ needs.release-please.outputs.plugin_authoring_tag }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - run: pnpm install --frozen-lockfile
+      - name: Build the SDK and toolchain tarballs
+        run: pnpm plugin:author-release dist/plugin-authoring
+      - name: Attach the tarballs and publish the release
+        run: |
+          gh release upload "$TAG" dist/plugin-authoring/*.tgz --repo "$GITHUB_REPOSITORY"
+          gh release edit "$TAG" --draft=false --prerelease --repo "$GITHUB_REPOSITORY"

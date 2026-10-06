@@ -110,7 +110,7 @@ Everything the app keeps is in `data/`, or wherever `DATA_DIR` points. Stop the 
 Use the [server plugin starter](https://github.com/Inktomi93/OrbWeaver-plugin-template) or the
 [visual plugin starter](https://github.com/Inktomi93/OrbWeaver-plugin-template-scripted-ui).
 The visual starter separates scripted house UI from its custom-frame example.
-Both consume the [versioned SDK and toolchain release](https://github.com/Inktomi93/OrbWeaver/releases/tag/plugin-authoring-v0.1.0).
+Both consume the [versioned SDK and toolchain releases](https://github.com/Inktomi93/OrbWeaver/releases?q=plugin-authoring\&expanded=true) and move to each new one on their own.
 Their guides explain builds, consent, updates, and runtime boundaries.
 The application installs committed JavaScript from Git, not the author's source or build scripts.
 

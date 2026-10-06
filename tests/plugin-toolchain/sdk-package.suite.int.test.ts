@@ -10,8 +10,9 @@ test("the public SDK and toolchain tarballs compile in a clean project with no w
   const release = await spawnNiced(process.execPath, [join(repoRoot, "scripts", "release-plugin-authoring.ts"), scratch], { cwd: repoRoot });
   expect(release.code, release.stderr).toBe(0);
 
-  const sdkTarball = join(scratch, "orb-plugin-sdk-0.1.0.tgz");
-  const toolchainTarball = join(scratch, "orb-plugin-toolchain-0.1.0.tgz");
+  const { version } = JSON.parse(await readFile(join(repoRoot, "packages", "plugin-sdk", "package.json"), "utf8")) as { version: string };
+  const sdkTarball = join(scratch, `orb-plugin-sdk-${version}.tgz`);
+  const toolchainTarball = join(scratch, `orb-plugin-toolchain-${version}.tgz`);
   await writeFile(join(scratch, "package.json"), JSON.stringify({ name: "plugin-clean-room", private: true, type: "module" }));
   const installed = await spawnNiced("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--no-package-lock", sdkTarball, toolchainTarball], {
     cwd: scratch,

@@ -2,7 +2,7 @@
 // version reader looks for (or every stable build reads as `main`), and the release workflow must publish the
 // image the default compose file pulls, built from the tag so its stamp derives the stable channel.
 
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { releaseTagRef } from "@orb/kit/version-identity";
@@ -115,6 +115,66 @@ test("development publication selects an exact source commit and cannot overwrit
   const anonymous = image.steps.find((step) => step.name === "Prove anonymous digest pull");
   expect(anonymous?.run).toContain("--src-no-creds --preserve-digests");
   expect(anonymous?.run).toContain("oci:/proof/image:published");
+});
+
+const pluginAuthoring = z.object({
+  component: z.string(),
+  "include-component-in-tag": z.literal(true),
+  "include-v-in-tag": z.boolean().optional(),
+  "version-file": z.string(),
+  "extra-files": z.array(z.object({ type: z.literal("json"), path: z.string(), jsonpath: z.literal("$.version") })),
+  "exclude-paths": z.array(z.string()),
+  prerelease: z.boolean(),
+  draft: z.boolean(),
+  "force-tag-creation": z.boolean(),
+});
+const AUTHORING_PACKAGES = ["plugin-sdk", "plugin-toolchain"];
+
+function pluginAuthoringConfig(repoRoot: string): z.infer<typeof pluginAuthoring> {
+  const config = z.object({ packages: z.record(z.string(), z.unknown()) }).parse(JSON.parse(read(repoRoot, "release-please-config.json")));
+  return pluginAuthoring.parse(config.packages["packages"]);
+}
+
+test("the plugin authoring release counts commits from the SDK and toolchain and from no other package", ({ repoRoot }) => {
+  const config = pluginAuthoringConfig(repoRoot);
+  // A new package that is not excluded would cut an SDK release for every change to it.
+  const others = readdirSync(join(repoRoot, "packages"), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && !AUTHORING_PACKAGES.includes(entry.name))
+    .map((entry) => `packages/${entry.name}`)
+    .sort();
+  expect([...config["exclude-paths"]].sort()).toEqual(others);
+  expect(config["extra-files"].map((file) => file.path).sort()).toEqual(AUTHORING_PACKAGES.map((name) => `${name}/package.json`));
+});
+
+test("the plugin authoring tag, manifest, version file and both package versions agree", ({ repoRoot }) => {
+  const config = pluginAuthoringConfig(repoRoot);
+  const manifest = z.object({ packages: z.string() }).parse(JSON.parse(read(repoRoot, ".release-please-manifest.json")));
+  const version = manifest.packages;
+  expect(read(repoRoot, join("packages", config["version-file"])).trim()).toBe(version);
+  for (const name of AUTHORING_PACKAGES) {
+    expect(z.object({ version: z.string() }).parse(JSON.parse(read(repoRoot, `packages/${name}/package.json`))).version).toBe(version);
+  }
+  // The template repositories and the README link this tag spelling.
+  expect(`${config.component}-${config["include-v-in-tag"] === false ? "" : "v"}${version}`).toBe(`plugin-authoring-v${version}`);
+});
+
+test("plugin authoring releases stay out of latest and publish only after their tarballs are attached", ({ repoRoot }) => {
+  const config = pluginAuthoringConfig(repoRoot);
+  // The app's stable update check reads releases/latest, which skips pre-releases.
+  expect(config.prerelease).toBe(true);
+  // Immutable releases refuse new assets once published, so the release starts as a draft with its tag.
+  expect(config.draft).toBe(true);
+  expect(config["force-tag-creation"]).toBe(true);
+  const workflow = z
+    .object({ jobs: z.object({ "plugin-authoring": z.object({ if: z.string(), steps: z.array(z.object({ run: z.string().optional() })) }) }) })
+    .parse(parse(read(repoRoot, ".github/workflows/release.yml")));
+  const job = workflow.jobs["plugin-authoring"];
+  expect(job.if).toContain("plugin_authoring_created == 'true'");
+  const script = job.steps.map((step) => step.run ?? "").join("\n");
+  expect(script).toContain("pnpm plugin:author-release");
+  expect(script.indexOf("gh release upload")).toBeGreaterThan(-1);
+  expect(script.indexOf("gh release edit")).toBeGreaterThan(script.indexOf("gh release upload"));
+  expect(script).toContain("--draft=false --prerelease");
 });
 
 function developmentStep(repoRoot: string, name: string): string {

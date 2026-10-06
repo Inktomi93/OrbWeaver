@@ -73,9 +73,10 @@ A bundle contains **`manifest.json` + `main.js`** at the root, optional **`ui.js
 and SDK declarations are author inputs, not runtime bundle entries; QuickJS has no module loader.
 
 External projects install the zero-dependency `@orb/plugin-sdk` declarations and the standalone
-`@orb/plugin-toolchain` CLI from the public `plugin-authoring-v0.1.0` GitHub Release. The SDK has separate
+`@orb/plugin-toolchain` CLI from a public `plugin-authoring-v<version>` GitHub Release. The SDK has separate
 `main`, `ui`, and `frame` entry points; the toolchain selects the matching entry automatically and has no
-Orbweaver application dependency. There is no npm-registry publication or credential requirement:
+Orbweaver application dependency. There is no npm-registry publication or credential requirement. The
+example pins 0.1.0; use the newest version on the [releases page](https://github.com/Inktomi93/OrbWeaver/releases?q=plugin-authoring&expanded=true):
 
 ```bash
 pnpm add -D \

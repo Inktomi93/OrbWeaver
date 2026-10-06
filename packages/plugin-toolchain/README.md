@@ -56,7 +56,7 @@ and network APIs inside isolated frames are rejected before emit.
 The application installs only the emitted
 JavaScript and never executes this toolchain or repository build scripts.
 
-Orbweaver distributes this package and `@orb/plugin-sdk` as deterministic `.tgz` assets on the public
-`plugin-authoring-v0.1.0` GitHub Release. No npm registry is involved. Ordinary plugin repositories do not
+Orbweaver distributes this package and `@orb/plugin-sdk` as deterministic `.tgz` assets on each public
+`plugin-authoring-v<version>` GitHub Release. No npm registry is involved. Ordinary plugin repositories do not
 need a release asset; the generated root entries are directly Git-installable. The tarballs are author
 infrastructure only.
