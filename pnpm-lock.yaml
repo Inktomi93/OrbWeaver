@@ -429,8 +429,8 @@ catalogs:
       specifier: ^5.0.12
       version: 5.0.12
     katex:
-      specifier: ^0.16.25
-      version: 0.16.47
+      specifier: ^0.18.2
+      version: 0.18.10
     knip:
       specifier: ^6.27.0
       version: 6.27.0
@@ -1138,7 +1138,7 @@ importers:
         version: 3.0.6(echarts@6.1.0)(react@19.2.7)
       katex:
         specifier: 'catalog:'
-        version: 0.16.47
+        version: 0.18.10
       lucide-react:
         specifier: 'catalog:'
         version: 1.22.0(react@19.2.7)
@@ -6510,6 +6510,10 @@ packages:
 
   katex@0.16.47:
     resolution: {integrity: sha512-Eeo8Ys1doU1z+x8AZsPpQu+p/QcZBI5PeOo7QGQdy2x2m0MU/hYagBbGOmXwr5KVbEfVuWv9LpnQWeehogurjg==}
+    hasBin: true
+
+  katex@0.18.10:
+    resolution: {integrity: sha512-/B6p9eY9DX7aHBfpkHdpirDTZ5QH9xTwL9y837PWuzuv41O5jFdqNQwVQEQsimY0/iVNkwBY4+4hMfhQ7d4Dbw==}
     hasBin: true
 
   keyv@4.5.4:
@@ -13756,6 +13760,10 @@ snapshots:
   katex@0.16.47:
     dependencies:
       commander: 8.3.0
+
+  katex@0.18.10:
+    dependencies:
+      commander: 15.0.0
 
   keyv@4.5.4:
     dependencies:
