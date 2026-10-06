@@ -1,4 +1,4 @@
-name: contributor
+name: Contributor proof
 
 # Manual native contributor proof; install.yml separately proves the production launch paths.
 on:

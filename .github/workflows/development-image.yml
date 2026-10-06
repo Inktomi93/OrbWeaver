@@ -1,4 +1,4 @@
-name: development image
+name: Development image
 
 # The publication branch permits the first build before manual dispatch is available on main.
 on:

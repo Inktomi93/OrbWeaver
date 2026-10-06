@@ -1,4 +1,4 @@
-name: dependency-graph
+name: Dependency graph
 
 # GitHub's dependency graph reads only the first document of a pnpm 12 lockfile, which holds pnpm itself,
 # so Dependabot never sees the npm tree (dependabot/dependabot-core#15904). This job submits the full tree

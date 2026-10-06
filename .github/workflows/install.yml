@@ -1,4 +1,4 @@
-name: install
+name: Install proof
 
 # Proves the README's "Run it" paths on fresh runners. Each source job runs the README's install lines, a
 # non-interactive `pnpm start` (start.cmd on Windows), waits for /healthz and stops the server, then runs the

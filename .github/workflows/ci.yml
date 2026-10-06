@@ -1,4 +1,9 @@
-name: ci
+name: CI
+run-name: >-
+  ${{ github.event_name == 'schedule' && 'Nightly product verify on main'
+  || github.event_name == 'pull_request' && format('PR #{0} · {1}', github.event.pull_request.number, github.event.pull_request.title)
+  || github.event_name == 'workflow_dispatch' && format('Manual {0} tier on {1}', inputs.tier, github.ref_name)
+  || github.event.head_commit.message }}
 
 # The push tier, run on GitHub's runners instead of the pushing machine (lefthook's pre-push keeps the sync
 # guard and `pnpm check`). Every push to main and every PR runs it; a newer push cancels the older run.
@@ -83,6 +88,16 @@ jobs:
             if: needs.changes.outputs.code == 'true'
             run: pnpm test:scoped tests/tooling/tool-guard.int.test.ts
       - if: failure()
+        name: Say how to reproduce
+        run: |
+          {
+            echo "### $GITHUB_JOB failed"
+            echo
+            echo "Reproduce locally: \`pnpm check\`"
+            echo
+            echo "Logs and reports are in the \`reports-static\` artifact on this run."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-static
@@ -105,6 +120,16 @@ jobs:
           persist-credentials: false
       - uses: $/.github/actions/setup
       - run: pnpm test:node --shard=${{ matrix.shard }}/3
+      - if: failure()
+        name: Say how to reproduce
+        run: |
+          {
+            echo "### $GITHUB_JOB failed"
+            echo
+            echo "Reproduce locally: \`pnpm test:node --shard=${{ matrix.shard }}/3\`"
+            echo
+            echo "Logs and reports are in the \`reports-node-${{ matrix.shard }}\` artifact on this run."
+          } >> "$GITHUB_STEP_SUMMARY"
       - if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -131,6 +156,16 @@ jobs:
           browsers: "true"
       - run: pnpm test:ct --retries=2 --shard=${{ matrix.shard }}/4
       - if: failure()
+        name: Say how to reproduce
+        run: |
+          {
+            echo "### $GITHUB_JOB failed"
+            echo
+            echo "Reproduce locally: \`pnpm test:ct --retries=2 --shard=${{ matrix.shard }}/4\`"
+            echo
+            echo "Logs and reports are in the \`reports-ct-${{ matrix.shard }}\` artifact on this run."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-ct-${{ matrix.shard }}
@@ -150,6 +185,16 @@ jobs:
         with:
           browsers: "true"
       - run: pnpm e2e:smoke
+      - if: failure()
+        name: Say how to reproduce
+        run: |
+          {
+            echo "### $GITHUB_JOB failed"
+            echo
+            echo "Reproduce locally: \`pnpm e2e:smoke\`"
+            echo
+            echo "Logs and reports are in the \`reports-e2e-smoke\` artifact on this run."
+          } >> "$GITHUB_STEP_SUMMARY"
       - if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -214,6 +259,16 @@ jobs:
         with:
           path: .product-verified
           key: product-verified-${{ steps.sha.outputs.sha }}
+      - if: failure()
+        name: Say how to reproduce
+        run: |
+          {
+            echo "### $GITHUB_JOB failed"
+            echo
+            echo "Reproduce locally: \`pnpm verify --product\`"
+            echo
+            echo "Logs and reports are in the \`reports-product\` artifact on this run."
+          } >> "$GITHUB_STEP_SUMMARY"
       - if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

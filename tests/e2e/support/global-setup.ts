@@ -249,6 +249,9 @@ async function warmWithRetry(mode: ModeProject, drive: () => Promise<void>, atte
 async function warmMode(browser: Browser, mode: ModeProject): Promise<void> {
   const context = await browser.newContext({ ...devices["Desktop Chrome"], baseURL: mode.baseUrl });
   const page = await context.newPage();
+  // The room drive navigates through shared helpers with no timeout of their own; on a cold, small runner
+  // the first transform outlasts Playwright's 30s navigation default, which is exactly the cost this pays.
+  page.setDefaultNavigationTimeout(SHELL_WARMUP_TIMEOUT);
   try {
     switch (mode.clientWarmup) {
       case "room":

@@ -1,4 +1,4 @@
-name: codeql
+name: CodeQL
 
 # Advanced setup instead of GitHub's default setup so test fixtures stay out of the results: the suites
 # deliberately build hostile URLs, payloads and fake servers, which CodeQL reports as real findings.

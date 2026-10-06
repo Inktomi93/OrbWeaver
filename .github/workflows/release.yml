@@ -1,11 +1,12 @@
-name: release
+name: Release
+run-name: Release · ${{ github.event.head_commit.message }}
 
-# Stable releases. `main` is integration; the `release` branch is stable. A push to `release` runs
-# release-please, which keeps one release PR open against `release` (conventional commits: feat bumps the
-# minor and fix the patch while the version is below 1.0, release-please-config.json). Merging that PR bumps
-# the root package.json, tags `v<version>` and publishes the GitHub Release; this same run then builds the
-# runtime image from the tag and pushes it to GHCR as `<version>` and `latest`. The README's "Releases"
-# section is the owner's procedure. linux/amd64 only until the native dependencies are proven on arm64.
+# Stable releases. `main` is integration; `release` is stable and the default branch. `pnpm release` pushes
+# main here, and release-please keeps one release PR open (conventional commits: feat bumps the minor and fix
+# the patch below 1.0, release-please-config.json). Merging it tags `v<version>`, publishes the GitHub
+# Release, and this run builds the runtime image from the tag, attests its provenance, pushes it to GHCR as
+# `<version>` and `latest`, and finishes the release notes. The plugin-authoring component releases the
+# same way with its own tag. linux/amd64 only until the native dependencies are proven on arm64.
 on:
   push:
     branches: [release]
@@ -19,6 +20,7 @@ concurrency:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
       issues: write
@@ -31,9 +33,10 @@ jobs:
       # The plugin authoring component (packages/plugin-sdk + packages/plugin-toolchain) releases on its own.
       plugin_authoring_created: ${{ steps.release.outputs['packages--release_created'] }}
       plugin_authoring_tag: ${{ steps.release.outputs['packages--tag_name'] }}
+      plugin_authoring_version: ${{ steps.release.outputs['packages--version'] }}
     steps:
-      # The GITHUB_TOKEN default is enough: the image job below runs in this same workflow, so nothing
-      # needs a workflow run triggered by the tag or the release.
+      # The GITHUB_TOKEN default is enough: every job that acts on a release runs in this same workflow, so
+      # nothing needs a run triggered by the tag or the release.
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release
         with:
@@ -47,6 +50,10 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      digest: ${{ steps.digest.outputs.digest }}
     env:
       # The name docker-compose.yaml pulls by default. GHCR names are lowercase.
       IMAGE: ghcr.io/inktomi93/orbweaver
@@ -57,6 +64,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/tags/${{ needs.release-please.outputs.tag_name }}
+          persist-credentials: false
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
@@ -102,6 +110,21 @@ jobs:
           docker push "$IMAGE:$VERSION"
           docker push "$IMAGE:latest"
 
+      - name: Read the pushed digest
+        id: digest
+        run: |
+          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE:$VERSION" | cut -d@ -f2)
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      # SLSA build provenance, stored beside the image in GHCR: anyone can check that this exact digest was
+      # built by this workflow from this tag (`gh attestation verify`, printed in the release notes).
+      - name: Attest build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          push-to-registry: true
+
       # GHCR publishes a new package as private, and docker-compose.yaml pulls with no login. Pull through an
       # empty Docker config so a private package fails the release here instead of every user's first pull.
       - name: Prove the image pulls without credentials
@@ -113,10 +136,55 @@ jobs:
             exit 1
           fi
 
+  # release-please writes what changed; this adds what to do about it. Immutable releases lock the tag and
+  # the assets, not the notes, so the notes can be finished after publication.
+  notes:
+    needs: [release-please, image]
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.release-please.outputs.tag_name }}
+      VERSION: ${{ needs.release-please.outputs.version }}
+      DIGEST: ${{ needs.image.outputs.digest }}
+    steps:
+      - name: Add the upgrade steps to the release notes
+        run: |
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body > notes.md
+          cat >> notes.md <<NOTES
+
+          ## Upgrade
+
+          Back up \`data/\` first: migrations only go forward, and the app copies the database to \`data/backups/\` before it applies them.
+
+          **Docker**, in your checkout:
+
+          \`\`\`bash
+          git pull && docker compose pull && docker compose up -d
+          \`\`\`
+
+          **From source**, on the \`release\` branch: stop the app, then
+
+          \`\`\`bash
+          git pull && pnpm install && pnpm start
+          \`\`\`
+
+          ## Image
+
+          \`ghcr.io/inktomi93/orbweaver:$VERSION\` (also \`latest\`), digest \`$DIGEST\`. Check that it was built here, from this tag:
+
+          \`\`\`bash
+          gh attestation verify oci://ghcr.io/inktomi93/orbweaver:$VERSION --repo $GITHUB_REPOSITORY
+          \`\`\`
+          NOTES
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file notes.md
+
   # release-please creates the plugin-authoring release as a draft because immutable releases refuse assets
-  # once a release is published. This job attaches the SDK and toolchain tarballs, then publishes it as a
-  # pre-release, which keeps it out of "latest" (the app's update check reads that). The template repositories
-  # pick the new tag up on their own schedule.
+  # once a release is published. This job attaches the SDK and toolchain tarballs, adds the install lines to
+  # the notes, then publishes it as a pre-release, which keeps it out of "latest" (the app's update check
+  # reads that). The template repositories pick the new tag up on their own schedule.
   plugin-authoring:
     needs: release-please
     if: needs.release-please.outputs.plugin_authoring_created == 'true'
@@ -126,17 +194,31 @@ jobs:
       contents: write
     env:
       TAG: ${{ needs.release-please.outputs.plugin_authoring_tag }}
+      VERSION: ${{ needs.release-please.outputs.plugin_authoring_version }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/tags/${{ needs.release-please.outputs.plugin_authoring_tag }}
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - run: pnpm install --frozen-lockfile
+      - uses: $/.github/actions/setup
       - name: Build the SDK and toolchain tarballs
         run: pnpm plugin:author-release dist/plugin-authoring
       - name: Attach the tarballs and publish the release
         run: |
+          base="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body > notes.md
+          cat >> notes.md <<NOTES
+
+          ## Install
+
+          \`\`\`bash
+          pnpm add -D \\
+            $base/orb-plugin-sdk-$VERSION.tgz \\
+            $base/orb-plugin-toolchain-$VERSION.tgz
+          \`\`\`
+
+          The [server](https://github.com/Inktomi93/OrbWeaver-plugin-template) and [visual](https://github.com/Inktomi93/OrbWeaver-plugin-template-scripted-ui) plugin starters move to this release on their own within a day.
+          NOTES
           gh release upload "$TAG" dist/plugin-authoring/*.tgz --repo "$GITHUB_REPOSITORY"
-          gh release edit "$TAG" --draft=false --prerelease --repo "$GITHUB_REPOSITORY"
+          gh release edit "$TAG" --notes-file notes.md --draft=false --prerelease --repo "$GITHUB_REPOSITORY"

@@ -1,4 +1,4 @@
-name: scorecard
+name: Scorecard
 
 # OpenSSF Scorecard: grades the repository's supply-chain practices (pinned actions, token permissions,
 # branch protection, dependency updates) and reports each failing check as a code scanning alert.
