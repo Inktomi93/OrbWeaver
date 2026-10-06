@@ -1,37 +1,224 @@
 name: ci
 
-# Auto-triggers DISABLED (2026-07-05, the owner): the real gate is local `pnpm check` at the pre-commit +
-# pre-push lefthook hooks — CI-on-push just re-ran the same suite. Kept as MANUAL-only (`workflow_dispatch`)
-# so it can be run on demand from the Actions tab; re-enable auto-runs by restoring the `push`/`pull_request`
-# triggers below.
+# The push tier, run on GitHub's runners instead of the pushing machine (lefthook's pre-push keeps the sync
+# guard and `pnpm check`). Every push to main and every PR runs it; a newer push cancels the older run.
+# Docs-only changes run the static tier and skip the test suites. `ci-ok` is the one required check, and
+# `pnpm release` refuses a commit whose run is not green. Nightly, the product tier runs on main when main
+# has changed since the last green nightly.
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, release]
+  schedule:
+    - cron: "37 9 * * *"
   workflow_dispatch:
+    inputs:
+      tier:
+        description: push runs the per-push suites; product runs the nightly product verify.
+        type: choice
+        options: [push, product]
+        default: push
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || inputs.tier || 'push' }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
+
+env:
+  CI: "true"
+
 jobs:
-  check:
+  changes:
+    if: github.event_name != 'schedule' && inputs.tier != 'product'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      # pnpm reads the pinned packageManager from package.json, then pnpm install downloads the
-      # devEngines.runtime-pinned Node itself — no separate Node setup step needed.
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-
-      - run: pnpm install --frozen-lockfile
-
-      # Playwright chromium — the --full tier runs the CT suite + full e2e (browser lanes).
-      - run: pnpm exec playwright install --with-deps chromium
-
-      # The ONE "nothing omitted" bar (UNIFIED-VERIFICATION-DESIGN.md §3.2, V4): the full tier — static
-      # (biome + tsc×3 + the ts-morph gates + depcruise + docs) + node tests + CT + e2e-smoke + cpd + full
-      # e2e + parity (loud-skips if the steady clone is absent) + the mutation gate. ONE command, ONE
-      # summary, ONE max-severity exit; the per-stage logs land in reports/verify/. Replaces the old
-      # check + test + cpd trio (which omitted the browser + quality lanes entirely). CI is
-      # workflow_dispatch-only (2026-07-05), so the operator dispatches this when the works is wanted; the
-      # per-push automated bar is the pre-push lefthook (`pnpm verify --push`).
-      - run: pnpm verify --full
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - id: diff
         env:
-          CI: "true"
+          BEFORE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = 0000000000000000000000000000000000000000 ] || ! git cat-file -e "$BEFORE" 2>/dev/null; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Agent, docs and Markdown-only changes cannot change test outcomes.
+          code=$(git diff --name-only "$BEFORE" "$GITHUB_SHA" \
+            | { grep -v -E '^(docs/|\.claude/|\.codex/|\.agents/|\.vscode/|\.github/ISSUE_TEMPLATE/)|\.md$' || true; } \
+            | head -1)
+          echo "code=$([ -n "$code" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+  static:
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+      - name: Static tier
+        run: pnpm check
+      # The push tier's remaining whole-repo checks are light enough to share the runner.
+      - parallel:
+          - name: Orphan-export ratchet
+            if: needs.changes.outputs.code == 'true'
+            run: pnpm check:orphan-ratchet
+          - name: Boot chunk budget
+            if: needs.changes.outputs.code == 'true'
+            run: pnpm check:boot-chunk
+          - name: Copy-paste detection
+            if: needs.changes.outputs.code == 'true'
+            run: pnpm cpd
+          - name: Bash tool guard contract
+            if: needs.changes.outputs.code == 'true'
+            run: pnpm test:scoped tests/tooling/tool-guard.int.test.ts
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reports-static
+          path: reports/
+          retention-days: 7
+
+  node:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    name: node (${{ matrix.shard }}/3)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+      - run: pnpm test:node --shard=${{ matrix.shard }}/3
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reports-node-${{ matrix.shard }}
+          path: reports/
+          retention-days: 7
+
+  ct:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    name: ct (${{ matrix.shard }}/4)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+        with:
+          browsers: "true"
+      - run: pnpm test:ct --retries=2 --shard=${{ matrix.shard }}/4
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reports-ct-${{ matrix.shard }}
+          path: reports/
+          retention-days: 7
+
+  e2e-smoke:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+        with:
+          browsers: "true"
+      - run: pnpm e2e:smoke
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reports-e2e-smoke
+          path: |
+            reports/
+            test-results/
+          retention-days: 7
+
+  # The one required check. A skipped suite (docs-only change) passes; a failed or cancelled one does not.
+  ci-ok:
+    if: always() && github.event_name != 'schedule' && inputs.tier != 'product'
+    needs: [changes, static, node, ct, e2e-smoke]
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          {
+            echo "### CI"
+            echo
+            echo "| Job | Result |"
+            echo "| - | - |"
+            echo "$NEEDS" | jq -r 'to_entries[] | "| \(.key) | \(.value.result) |"'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "$NEEDS" | jq -e 'all(.[]; .result == "success" or .result == "skipped")' > /dev/null
+
+  # The product tier: complete application CT and E2E without the tooling batteries. Scheduled runs use
+  # the default branch's copy of this file, so the job checks out main explicitly, and it skips a main
+  # commit that already passed a nightly.
+  product:
+    if: github.event_name == 'schedule' || inputs.tier == 'product'
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'main' || github.ref }}
+          persist-credentials: false
+      - id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - id: seen
+        if: github.event_name == 'schedule'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .product-verified
+          key: product-verified-${{ steps.sha.outputs.sha }}
+          lookup-only: true
+      - if: steps.seen.outputs.cache-hit != 'true'
+        uses: $/.github/actions/setup
+        with:
+          browsers: "true"
+      - if: steps.seen.outputs.cache-hit != 'true'
+        run: pnpm verify --product
+      - if: steps.seen.outputs.cache-hit != 'true'
+        run: echo "${{ steps.sha.outputs.sha }}" > .product-verified
+      - if: steps.seen.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .product-verified
+          key: product-verified-${{ steps.sha.outputs.sha }}
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reports-product
+          path: |
+            reports/
+            test-results/
+          retention-days: 7

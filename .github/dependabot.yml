@@ -3,6 +3,7 @@
 # schedule and cooldown and arrive as one grouped PR.
 # npm updates rely on Dependabot's pnpm 12 support; alerts for the npm tree come from the SBOM that
 # dependency-graph.yml submits, because GitHub's graph cannot read the pnpm 12 lockfile.
+# The default branch is `release` (what users install), so every entry targets `main` explicitly.
 version: 2
 
 multi-ecosystem-groups:
@@ -14,6 +15,7 @@ multi-ecosystem-groups:
 
 updates:
   - package-ecosystem: npm
+    target-branch: main
     directory: /
     schedule:
       interval: monthly
@@ -35,6 +37,7 @@ updates:
   # Actions, base images (pinned by digest; tag and digest move together), Compose images and the dev
   # container share the infrastructure PR.
   - package-ecosystem: github-actions
+    target-branch: main
     directory: /
     patterns: ["*"]
     multi-ecosystem-group: infrastructure
@@ -42,6 +45,7 @@ updates:
       default-days: 14
 
   - package-ecosystem: docker
+    target-branch: main
     directories: [/, /.devcontainer]
     patterns: ["*"]
     multi-ecosystem-group: infrastructure
@@ -49,6 +53,7 @@ updates:
       default-days: 14
 
   - package-ecosystem: docker-compose
+    target-branch: main
     directories: [/, /docker]
     patterns: ["*"]
     multi-ecosystem-group: infrastructure
@@ -56,6 +61,7 @@ updates:
       default-days: 14
 
   - package-ecosystem: devcontainers
+    target-branch: main
     directory: /
     patterns: ["*"]
     multi-ecosystem-group: infrastructure

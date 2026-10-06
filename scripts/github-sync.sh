@@ -2,7 +2,8 @@
 # `pnpm sync`: bring local main level with GitHub, then push it. Merges made on GitHub (Dependabot PRs on
 # main, the release-please PR on `release`) land on origin, and main is pushed from this checkout, so they
 # are merged in here first or the push is refused.
-# `pnpm release`: sync, then push main to `release`, which opens or updates the release-please PR.
+# `pnpm release`: sync, then push main to `release`, which opens or updates the release-please PR. It refuses
+# unless the ci workflow passed on this exact commit.
 # Extra arguments go to `git push`, e.g. `pnpm release --no-verify`.
 # `--check` (the pre-push hook) only reports: it fails when GitHub has merges local main lacks.
 set -euo pipefail
@@ -43,6 +44,18 @@ done
 
 git push "$@" origin main
 if [ "$release" = 1 ]; then
+  sha=$(git rev-parse HEAD)
+  result=$(gh run list --workflow ci.yml --commit "$sha" --event push --limit 1 --json status,conclusion,url \
+    --jq '.[0] // empty | "\(.status) \(.conclusion) \(.url)"' 2>/dev/null || true)
+  case "$result" in
+    "completed success "*) ;;
+    "")
+      echo "release: CI has not started for ${sha:0:10} yet. Run pnpm release again once it is green."
+      exit 1 ;;
+    *)
+      echo "release: CI for ${sha:0:10} is not green ($result). Fix it or wait, then run pnpm release again."
+      exit 1 ;;
+  esac
   git push "$@" origin main:release
   echo "release: pushed. Merge the release PR on GitHub to publish; it updates within a minute or two:"
   echo "         https://github.com/Inktomi93/orbweaver/pulls?q=is%3Aopen+label%3A%22autorelease%3A+pending%22"

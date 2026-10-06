@@ -19,16 +19,12 @@
 #     policies and `deps:knip` defer to the whole static tier, which runs at pre-push and at the
 #     merge-train barrier (`pnpm check` on main). A scoped run takes no host-wide whole-run slot, so a
 #     commit never queues behind another checkout's battery.
-#   • pre-push → `pnpm verify --push` (one command, one summary, one exit code, one json): the static
-#     bundle + `pnpm test` (unit/integration/contract and the Playwright CT suite, which retries flakes
-#     instead of blocking) + `pnpm e2e:smoke` (the fast `@smoke` model-free subset). It runs every stage
-#     and reports every failure, then exits at the max severity. Browser suites never gate the static
-#     tier; CT rides the `pnpm test` lane, e2e-smoke gates here. Needs Playwright chromium on the pushing
-#     machine (`pnpm exec playwright install chromium` once); the sandbox can't push, so this fires on
-#     the host.
-#   • The full e2e suite stays manual (`pnpm e2e`); only a `@smoke` subset gates here, since it is the
-#     only automated per-push surface and catches UI-selector/landing drift a manual-only suite would
-#     miss silently. The live-model spec (`@live`) is excluded from every gate.
+#   • pre-push → the GitHub sync guard, then `pnpm check` (the whole static tier, minutes). The behavioral
+#     rest of the push tier (node tests, the CT suite, `e2e:smoke`) runs in `.github/workflows/ci.yml` on
+#     every push to main, sharded across GitHub's runners, and the product tier runs there nightly.
+#     `pnpm verify --push` still runs the whole push tier locally by hand.
+#   • The full e2e suite stays out of the per-push gate (`pnpm e2e`, or the nightly product tier). The
+#     live-model spec (`@live`) is excluded from every gate.
 # The only sanctioned bypass is `LEFTHOOK_EXCLUDE=check`, used when the owner or orchestrator authorizes
 # it (`.claude/skills/orchestrator/SKILL.md` "Hooks and pushes"); lanes and the orchestrator never use
 # `--no-verify`.
@@ -142,19 +138,11 @@ pre-push:
     github-sync-check:
       priority: 1
       run: bash scripts/github-sync.sh --check
-    # The push tier: static + deps:orphan-ratchet + tests:node (`pnpm test`, the configured vitest
-    # runtime projects plus the CT suite) + e2e-smoke + `quality:cpd`, with a unified summary and a
-    # max-severity exit. Runs every stage and reports every failure, rather than aborting on the first.
-    #
-    # Still not at push, both deliberately:
-    #   • `quality:mutation-gate` is a real regression gate, but a current run takes roughly 72 minutes,
-    #     so it belongs in `full`, not in every push.
-    #   • the full `browser:e2e` suite stays manual (`pnpm e2e`); the `@smoke` subset gates every push.
-    #     Changing that is an owner call.
-    # `tooling/src/verify/lib/registry.ts` is the authority on the tier list; `pnpm verify --list` prints
-    # every stage with its tier.
-    verify:push:
+    # The whole static tier. The behavioral push-tier suites took about an hour here, so they run in CI
+    # (owner ruling); `pnpm release` refuses a commit CI has not passed. `pnpm verify --list` prints every
+    # stage with its tier.
+    check:
       priority: 2
-      run: pnpm verify --push
+      run: pnpm check
       env:
         NO_COLOR: "1"

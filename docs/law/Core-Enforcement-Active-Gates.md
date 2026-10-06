@@ -27,9 +27,9 @@ property a structural gate would only restate.
 
 **Fast lane** — `pnpm check` = biome (lint+format) → eslint (doc-comment + react-surface rules) → tsc
 → test:types → check:structure (Layer 3, below) → depcruise (Layer 4). lefthook runs the stages that narrow
-to the staged change at pre-commit (`pnpm verify --static --changed staged`, D274) and `pnpm verify --push` at
-pre-push (the whole static tier plus the CT suite and `e2e:smoke`).
-There is no standing CI (D62): `.github/workflows/ci.yml` is `workflow_dispatch`-only.
+to the staged change at pre-commit (`pnpm verify --static --changed staged`, D274) and `pnpm check` at
+pre-push. `.github/workflows/ci.yml` runs the rest of the push tier (node tests, the CT suite and
+`e2e:smoke`) on every push to main and every PR, and the product tier nightly.
 
 **On-demand lanes** — `pnpm cpd` (jscpd, Layer 5) and `pnpm test:mutation[:gate]` (Stryker, Layer 6).
 Enforced — they fail the build — just not in the pre-commit budget.

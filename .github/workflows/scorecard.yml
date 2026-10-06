@@ -3,8 +3,9 @@ name: scorecard
 # OpenSSF Scorecard: grades the repository's supply-chain practices (pinned actions, token permissions,
 # branch protection, dependency updates) and reports each failing check as a code scanning alert.
 on:
+  # Scorecard grades the default branch, which is `release`.
   push:
-    branches: [main]
+    branches: [release]
   schedule:
     - cron: "29 7 * * 1"
   workflow_dispatch:

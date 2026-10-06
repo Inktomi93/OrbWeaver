@@ -489,10 +489,12 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
 (`lefthook.yml`).
 
 - **pre-commit and pre-merge-commit → `pnpm verify --static --changed staged`.** A type, lint, boundary or file-local structure red in the staged change ⇒ cannot commit (§4.3).
-- **pre-push → `pnpm verify --push`.** ONE command, ONE summary, ONE exit, ONE json. Its membership comes
-  from the registry; it replaces a piped multi-command sequence with run-all-report-all and a max-severity exit.
-- **CI → `pnpm verify --full`** (`.github/workflows/ci.yml`), `workflow_dispatch`-only — the hooks are the
-  real automated gate.
+- **pre-push → the GitHub sync guard, then `pnpm check`** (the whole static tier). `pnpm verify --push`
+  stays available by hand; it is the same tier CI runs.
+- **CI → the push tier** (`.github/workflows/ci.yml`) on every push to main and every PR: `pnpm check`, the
+  push tier's whole-only checks, `test:node` and the CT suite sharded across runners, and `e2e:smoke`. Its
+  `ci-ok` job is the required check, and `pnpm release` refuses a commit whose run is not green. Nightly,
+  `pnpm verify --product` runs on main when main changed since the last green nightly.
 
 ### 4.3 Scoped static at commit
 

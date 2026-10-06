@@ -1,3 +1,5 @@
+<!-- Open pull requests against `main`. `release` only moves when a version ships. -->
+
 ## What this changes
 
 <!-- The behavior that changes, and why. Link the issue it fixes: Fixes #123 -->
