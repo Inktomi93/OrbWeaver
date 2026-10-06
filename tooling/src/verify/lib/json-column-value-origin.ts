@@ -266,6 +266,107 @@ function unboundRootParameter(node: MorphNode, context: JsonColumnOriginContext)
   return Node.isParameterDeclaration(declaration) && !context.bindings.has(declaration);
 }
 
+interface IncomingField {
+  readonly root: MorphNode;
+  readonly path: readonly string[];
+}
+
+function incomingField(node: MorphNode, path: readonly string[], context: JsonColumnOriginContext, seen = new Set<object>()): IncomingField | undefined {
+  const current = unwrapExpression(node);
+  if (seen.has(current.compilerNode)) {
+    return;
+  }
+  const next = new Set(seen).add(current.compilerNode);
+  if (Node.isCallExpression(current) && jsonColumnNormalizer(current) !== undefined) {
+    const input = current.getArguments()[0];
+    return input === undefined ? undefined : incomingField(input, path, context, next);
+  }
+  const member = readMemberAccess(current);
+  if (member !== undefined) {
+    return incomingField(member.receiver, [member.name, ...path], context, next);
+  }
+  if (!Node.isIdentifier(current)) {
+    return;
+  }
+  const declaration = lexicalReferenceSymbol(current)?.getValueDeclaration();
+  const bound = declaration === undefined ? undefined : context.bindings.get(declaration);
+  if (bound !== undefined) {
+    return incomingField(bound, path, context, next);
+  }
+  const binding = resolveStableExpression(current);
+  const value = binding.kind === "resolved" ? binding.value : binding.node;
+  if (Node.isParameterDeclaration(value)) {
+    const argument = context.bindings.get(value);
+    return argument === undefined ? { root: value, path } : incomingField(argument, path, context, next);
+  }
+  return value.compilerNode === current.compilerNode ? undefined : incomingField(value, path, context, next);
+}
+
+function sameField(left: IncomingField, right: IncomingField | undefined): boolean {
+  return (
+    right !== undefined &&
+    left.root.compilerNode === right.root.compilerNode &&
+    left.path.length === right.path.length &&
+    left.path.every((key, i) => key === right.path[i])
+  );
+}
+
+function providedField(node: MorphNode, expected: IncomingField, context: JsonColumnOriginContext, seen = new Set<object>()): boolean {
+  const current = unwrapExpression(node);
+  if (seen.has(current.compilerNode)) {
+    return false;
+  }
+  const next = new Set(seen).add(current.compilerNode);
+  const reference = incomingField(current, [], context);
+  if (reference !== undefined) {
+    return sameField(expected, reference);
+  }
+  if (Node.isBinaryExpression(current) && current.getOperatorToken().getKind() === SyntaxKind.QuestionQuestionToken) {
+    const right = unwrapExpression(current.getRight());
+    return (
+      (right.getKind() === SyntaxKind.NullKeyword || traceJsonColumnValue(right, [], context).every((origin) => origin.kind === "missing")) &&
+      providedField(current.getLeft(), expected, context, next)
+    );
+  }
+  if (Node.isArrayLiteralExpression(current)) {
+    const elements = current.getElements();
+    const spread = elements.length === 1 ? elements[0] : undefined;
+    return Node.isSpreadElement(spread) && providedField(spread.getExpression(), expected, context, next);
+  }
+  if (Node.isIdentifier(current)) {
+    const binding = resolveStableExpression(current);
+    return binding.kind === "resolved" && binding.value.compilerNode !== current.compilerNode && providedField(binding.value, expected, context, next);
+  }
+  if (!Node.isCallExpression(current)) {
+    return false;
+  }
+  const returns = readCallReturns(current);
+  if (returns.kind === "unresolved") {
+    return false;
+  }
+  const args = current.getArguments();
+  const supplied = args.filter((argument) => !traceJsonColumnValue(argument, [], context).every((origin) => origin.kind === "column"));
+  const bodyContext = jsonColumnCallContext(current, returns.trace.origin, context);
+  // Calls may derive the supplied field (the RPG record merge does); every incoming input and
+  // captured field must still be this exact receiver/member, not an unrelated optional axis.
+  const captures = returns.trace.origin
+    .getDescendants()
+    .filter((child) => readMemberAccess(child) !== undefined)
+    .map((child) => incomingField(child, [], bodyContext))
+    .filter((field) => field !== undefined);
+  return (
+    supplied.length > 0 &&
+    supplied.every((argument) => providedField(argument, expected, context, next)) &&
+    captures.every((field) => sameField(expected, field))
+  );
+}
+
+/** Compare lexical caller identity after real helper bindings and immutable member aliases. */
+export function jsonColumnGuardMatchesProvided(guard: MorphNode, provided: MorphNode, context: JsonColumnOriginContext, member?: string): boolean {
+  const reference = incomingField(guard, member === undefined ? [] : [member], context);
+  return reference !== undefined && reference.path.length > 0 && providedField(provided, reference, context);
+}
+
 /** Actual source/body trace. Schema identity annotations are checked against, never substituted for, the producer. */
 export function traceJsonColumnValue(node: MorphNode, path: readonly string[], context: JsonColumnOriginContext): readonly JsonColumnOrigin[] {
   const current = unwrapExpression(node);

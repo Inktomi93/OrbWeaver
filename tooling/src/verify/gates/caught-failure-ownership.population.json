@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 696,
+    "sites": 694,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 696,
+      "deliberate-absorb": 694,
       "unproven": 0
     },
     "byGrammar": {
       "default": 159,
-      "empty": 358,
+      "empty": 356,
       "promise": 179
     }
   },
@@ -751,6 +751,11 @@
       "reason": "optional model discovery owns refusal as `listed:false` with the scrubbed reason; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog."
     },
     {
+      "siteId": "packages/inference/src/backends/agent-sdk/runner.ts::consumeTurnStream::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the original stream failure is retained until completed facts are durably observed, then finishWithError rethrows it; ends if capture no longer precedes refusal."
+    },
+    {
       "siteId": "packages/inference/src/backends/agent-sdk/runner.ts::probeContextUsage::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "context fill is an optional bounded diagnostic and `undefined` omits only that sidecar. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if the probe starts governing the turn result."
@@ -869,11 +874,6 @@
       "siteId": "packages/inference/src/backends/openai-compat/reachability.ts::createReachabilityProber.asleep::err::1",
       "verdict": "deliberate-absorb",
       "reason": "a sleep read the server does not answer is owned by the task it guards, which meets the same server and surfaces its own classified error; only a cancel is rethrown here. Ends if a caller needs the read's own failure."
-    },
-    {
-      "siteId": "packages/inference/src/backends/openai-compat/reachability.ts::createReachabilityProber.wake::started.run::1",
-      "verdict": "deliberate-absorb",
-      "reason": "map cleanup only; every waiting task receives the wake's rejection through joinWake. Ends if the cleanup grows work of its own."
     },
     {
       "siteId": "packages/inference/src/backends/openai-compat/reachability.ts::createReachabilityProber.wakeOnce::fetch::1",
@@ -1196,11 +1196,6 @@
       "reason": "an unbound, refused or failing rerank role is the documented degrade, consumed as the visible fallback; an abort is classified by the turn's signal instead."
     },
     {
-      "siteId": "packages/server/src/domain/chat/engine/smart-arbitrate.ts::smartArbitrate::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "classified by signal state — a settled signal returns CANCELLED (the user stopped it); an unservable row, a failed call or an invalid payload after the one bounded retry degrades to the visible `fallback()`, the arbiter's documented best-effort contract."
-    },
-    {
       "siteId": "packages/server/src/domain/chat/memory/generate/digests.ts::summarizeAlone::err::1",
       "verdict": "deliberate-absorb",
       "reason": "reported via `onError(err)` (the caller's own callback — the content-hash self-heal retries the dropped item next pass) and returned as a consumed `null` result, per the batch/isolate contract on `summarizeBatchIsolated`."
@@ -1279,6 +1274,11 @@
       "siteId": "packages/server/src/domain/discovery/verbs/distill.ts::parseOneDistill::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the header states the contract: `null` counts THIS card `failed` in the caller's sweep counts so one bad card never aborts the batch; the caller reads `failed > 0` and throws the retryable `DistillFailedError`. Ends if a per-card cause needs to travel past this boundary."
+    },
+    {
+      "siteId": "packages/server/src/domain/embeddings/verbs/record-usage.ts::createRecordUsage.recordBatch::append::1",
+      "verdict": "deliberate-absorb",
+      "reason": "queue recovery never replaces the original returned append, which finish also joins via appends; ends if either failure propagation path is removed."
     },
     {
       "siteId": "packages/server/src/domain/embeddings/verbs/stale-generation-owners.ts::currentConnection::catch::1",
@@ -1581,19 +1581,9 @@
       "reason": "the one absorbed failure is the memory-off admission refusal, a normal outcome whose span still returns for the client to judge; every other failure rethrows and fails the import run. Ends if another refusal code is absorbed here."
     },
     {
-      "siteId": "packages/server/src/entry/compose/rpg.ts::buildRunExtraction::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "errors-as-data — documented above: a failed extraction never corrupts state (returns the empty delta), but the throw is made observable by the `logger.warn` below (the diagnosis that surfaced the fix). Ends if the warn log is removed."
-    },
-    {
       "siteId": "packages/server/src/entry/compose/rpg.ts::buildRunToolRound::err::1",
       "verdict": "deliberate-absorb",
-      "reason": "errors-as-data — the structured arm's twin: a CANCEL is read off the signal (not the error shape) and returns `empty`; any other failure is observed via `logger.warn` below. Ends if the warn log is removed."
-    },
-    {
-      "siteId": "packages/server/src/entry/compose/rpg.ts::requestStructuredCalls::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "errors-as-data — returned as `failed` and warned on the caller's own event, the tool round's posture; a cancel is read off the signal. Ends if the warn is removed."
+      "reason": "errors-as-data — the structured arm's twin: a CANCEL is read off the signal (not the error shape) and returns `empty`; any other failure is observed by failedToolRoundDelta. Ends if its warn log is removed."
     },
     {
       "siteId": "packages/server/src/entry/compose/rpg.ts::safeJson::catch::1",

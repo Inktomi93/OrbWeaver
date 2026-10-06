@@ -9,7 +9,7 @@ import { unwrapExpression } from "./ast-read.ts";
 import { readCallReturns } from "./authored-key-set.ts";
 import { jsonColumnArrayFieldProof } from "./json-column-array-field-proof.ts";
 import { jsonColumnNormalizer, jsonColumnPropertyValue } from "./json-column-normalizer.ts";
-import { jsonColumnCallContext, jsonStoredColumnReference, traceJsonColumnValue } from "./json-column-value-origin.ts";
+import { jsonColumnCallContext, jsonColumnGuardMatchesProvided, jsonStoredColumnReference, traceJsonColumnValue } from "./json-column-value-origin.ts";
 
 const WHOLE: JsonColumnMergeProof = { keywise: false, historicalHeal: false };
 
@@ -47,8 +47,8 @@ function stable(node: MorphNode, context: JsonColumnOriginContext, seen = new Se
   return binding.reason === "dynamic" ? binding.node : current;
 }
 
-function omittedCondition(node: MorphNode, field: string, context: JsonColumnOriginContext): boolean | undefined {
-  const condition = unwrapExpression(node);
+function omittedCondition(node: import("ts-morph").ConditionalExpression, field: string, context: JsonColumnOriginContext): boolean | undefined {
+  const condition = unwrapExpression(node.getCondition());
   if (!Node.isBinaryExpression(condition)) {
     return;
   }
@@ -62,14 +62,22 @@ function omittedCondition(node: MorphNode, field: string, context: JsonColumnOri
     leftNode.getLiteralText() === field &&
     right.every((origin) => origin.kind === "caller" || origin.kind === "missing")
   ) {
+    if (!jsonColumnGuardMatchesProvided(condition.getRight(), node.getWhenTrue(), context, field)) {
+      return refusal(node, "guard and provided value name different incoming fields");
+    }
     return false;
   }
   const omitted = (values: readonly JsonColumnOrigin[]): boolean => values.every((value) => value.kind === "caller" || value.kind === "missing");
-  return (operator === SyntaxKind.EqualsEqualsEqualsToken || operator === SyntaxKind.ExclamationEqualsEqualsToken) &&
+  const absent =
+    (operator === SyntaxKind.EqualsEqualsEqualsToken || operator === SyntaxKind.ExclamationEqualsEqualsToken) &&
     omitted(left) &&
     right.every((origin) => origin.kind === "missing")
-    ? operator === SyntaxKind.EqualsEqualsEqualsToken
-    : undefined;
+      ? operator === SyntaxKind.EqualsEqualsEqualsToken
+      : undefined;
+  if (absent !== undefined && !jsonColumnGuardMatchesProvided(leftNode, absent ? node.getWhenFalse() : node.getWhenTrue(), context)) {
+    return refusal(node, "guard and provided value name different incoming fields");
+  }
+  return absent;
 }
 
 function fallback(node: MorphNode, field: string, target: JsonColumnTarget, context: JsonColumnOriginContext): JsonColumnMergeProof {
@@ -89,7 +97,7 @@ function fallback(node: MorphNode, field: string, target: JsonColumnTarget, cont
     }
   }
   if (Node.isConditionalExpression(current)) {
-    const condition = omittedCondition(current.getCondition(), field, context);
+    const condition = omittedCondition(current, field, context);
     if (condition !== undefined) {
       return fallback(condition ? current.getWhenTrue() : current.getWhenFalse(), field, target, context);
     }

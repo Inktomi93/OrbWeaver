@@ -379,6 +379,39 @@ export const gate = defineGate({
         "packages/db/src/schema/refinery.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
         "packages/server/src/domain/refinery/verbs/proof.ts":
+          'function merge(current: import("../../../../../contracts/src/refinery/index.ts").Selection, patch: { fields?: import("../../../../../contracts/src/refinery/index.ts").Selection["fields"]; greetingIndexes?: number[] }) { return { fields: patch.greetingIndexes === undefined ? current.fields : patch.fields, greetingIndexes: patch.greetingIndexes ?? current.greetingIndexes }; } export async function run(ctx, patch, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: merge(sessionViewOf(row).selection, patch) }).where(id); }',
+      }),
+      expect: { messageIncludes: "guard and provided value name different incoming fields" },
+      why: "a greeting-axis guard cannot certify the fields-axis value: patch={greetingIndexes:[1]} would drop fields",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
+        "packages/server/src/domain/refinery/verbs/proof.ts":
+          'function merge(current: import("../../../../../contracts/src/refinery/index.ts").Selection, guardPatch: { fields?: import("../../../../../contracts/src/refinery/index.ts").Selection["fields"] }, valuePatch: { fields?: import("../../../../../contracts/src/refinery/index.ts").Selection["fields"] }) { return { fields: guardPatch.fields === undefined ? current.fields : valuePatch.fields, greetingIndexes: current.greetingIndexes }; } export async function run(ctx, guardPatch, valuePatch, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: merge(sessionViewOf(row).selection, guardPatch, valuePatch) }).where(id); }',
+      }),
+      expect: { messageIncludes: "guard and provided value name different incoming fields" },
+      why: "the same member spelling on two different caller receivers cannot certify omission preservation",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
+        "packages/server/src/domain/refinery/verbs/proof.ts":
+          'function merge(current: import("../../../../../contracts/src/refinery/index.ts").Selection, first: { fields?: import("../../../../../contracts/src/refinery/index.ts").Selection["fields"] }, second: { fields?: import("../../../../../contracts/src/refinery/index.ts").Selection["fields"] }) { const guardAlias = first; const valueAlias = second; const guarded = guardAlias["fields"]; const supplied = valueAlias.fields; return { fields: guarded === undefined ? current.fields : supplied, greetingIndexes: current.greetingIndexes }; } export async function run(ctx, first, second, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: merge(sessionViewOf(row).selection, first, second) }).where(id); }',
+      }),
+      expect: { messageIncludes: "guard and provided value name different incoming fields" },
+      why: "receiver/value aliases and bracket spelling do not launder a different caller root into the guard's field",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
+        "packages/server/src/domain/refinery/verbs/proof.ts":
           "function copy(current, patch: Record<string, unknown>) { return { ...current, ...patch }; } export async function run(ctx, patch, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: copy(sessionViewOf(row).selection, patch) }).where(id); }",
       }),
       expect: { messageIncludes: "dynamic spread can overwrite preserved fields" },
@@ -535,6 +568,16 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/refinery.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const refinerySessions = sqliteTable("refinery_sessions", { selection: text("selection", { mode: "json" }) });',
+        "packages/server/src/domain/refinery/verbs/proof.ts":
+          'function merge(current: import("../../../../../contracts/src/refinery/index.ts").Selection, patch: { fields?: import("../../../../../contracts/src/refinery/index.ts").Selection["fields"]; greetingIndexes?: number[] }) { const receiverAlias = patch; const guarded = receiverAlias["fields"]; const supplied = patch.fields; return { fields: guarded === undefined ? current.fields : supplied, greetingIndexes: patch.greetingIndexes ?? current.greetingIndexes }; } export async function run(ctx, patch, id) { const row = await loadOwnedSessionRow(ctx.db, id); await ctx.db.update(refinerySessions).set({ selection: merge(sessionViewOf(row).selection, patch) }).where(id); } export async function sibling(ctx, removed, id) { const { session } = await resolveApplyBasis(ctx, id); await ctx.db.update(refinerySessions).set({ selection: remapSelection(session.selection, removed) }).where(id); }',
+      }),
+      why: "same-axis receiver/value aliases and bracket access resolve to the same actual incoming field and preserve omission",
+    },
     {
       mode: "types",
       files: jsonWriteProofFiles({
