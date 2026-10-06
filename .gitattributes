@@ -6,6 +6,9 @@
 
 # Batch files stay CRLF: cmd.exe can misread labels and blocks in a batch file with LF line endings.
 *.cmd text eol=crlf
+# Downloaded on its own from GitHub, where a text file is served with LF; batch labels need CRLF, so the
+# bytes are stored as-is.
+install.cmd -text
 
 # Binary assets: never converted, never diffed as text.
 *.png   binary

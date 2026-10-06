@@ -40,6 +40,22 @@ server you already run, such as Ollama, KoboldCpp, LM Studio or vLLM.
 Pick one path. Each serves the app at <http://localhost:8788>. The alpha uses the development image or source
 from `main`. Stable releases use the `release` branch and the default compose image.
 
+### One-line install
+
+Linux and macOS:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Inktomi93/OrbWeaver/release/install.sh | bash
+```
+
+Windows: download [`install.cmd`](https://raw.githubusercontent.com/Inktomi93/OrbWeaver/release/install.cmd) and
+double-click it. It installs Git and pnpm with winget if they're missing.
+
+Both clone the stable release, ask whether to run it from source or with Docker, and start it. Afterwards,
+`start.sh` / `start.cmd` runs it and `update.sh` / `update.cmd` updates it. The update waits for a running
+server to stop cleanly in its own window before it pulls, so nothing is cut off mid-write. The manual steps
+below do the same things by hand.
+
 ### Docker (Linux, macOS, Windows)
 
 ```bash
@@ -80,7 +96,8 @@ pnpm install
 pnpm start
 ```
 
-To update, stop the app, then `git pull`, `pnpm install` and `pnpm start` again.
+To update, run `./update.sh` (`update.cmd` on Windows), or stop the app and run `git pull`, `pnpm install` and
+`pnpm start` again.
 
 The first `pnpm start` in a terminal asks for the port and who uses the app, and saves the answers in `.env`. It builds the client bundle when needed, runs the server in this terminal, and opens the app in your default browser once the server answers. Set `OPEN_BROWSER=off` in `.env` to keep the browser closed. Ctrl-C stops the server. With no terminal (a service, CI, piped input) it asks nothing, opens nothing and starts on the defaults. Over SSH it opens no browser. `pnpm start --port 9000` uses another port for one run.
 
