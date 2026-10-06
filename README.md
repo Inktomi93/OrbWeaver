@@ -1,3 +1,5 @@
+<p align="center"><img src="packages/client/public/brand/orb-mark.svg" width="120" alt=""></p>
+
 # Orbweaver
 
 **Roleplay with your friends in the same scene, live.**
