@@ -37,8 +37,8 @@ server you already run, such as Ollama, KoboldCpp, LM Studio or vLLM.
 
 ## Run it
 
-Pick one path. Each serves the app at <http://localhost:8788>. The alpha uses the development image or source
-from `main`. Stable releases use the `release` branch and the default compose image.
+Pick one path. Each serves the app at <http://localhost:8788> and runs the stable release: the `release` branch
+and the matching image. `main` is where development happens.
 
 ### One-line install
 
@@ -61,7 +61,7 @@ below do the same things by hand.
 ```bash
 git clone https://github.com/Inktomi93/OrbWeaver.git
 cd OrbWeaver
-ORB_IMAGE=ghcr.io/inktomi93/orbweaver:development docker compose up -d
+docker compose up -d
 ```
 
 Windows PowerShell:
@@ -69,11 +69,10 @@ Windows PowerShell:
 ```powershell
 git clone https://github.com/Inktomi93/OrbWeaver.git
 cd OrbWeaver
-$env:ORB_IMAGE = "ghcr.io/inktomi93/orbweaver:development"
 docker compose up -d
 ```
 
-Open <http://localhost:8788>. There is no login: the port is published on this machine only, and you are the owner. Compose pulls the development image, so there is no build step; [`docker/README.md`](docker/README.md) shows how to build from the checkout instead. The app starts its plugin watchdog and isolated broker as child processes inside the container. [`docker/README.md`](docker/README.md) also covers updates, login modes, LAN and HTTPS, tunnels, secrets and backups.
+Open <http://localhost:8788>. There is no login: the port is published on this machine only, and you are the owner. Compose pulls the published release image, so there is no build step; [`docker/README.md`](docker/README.md) shows how to build from the checkout instead. The app starts its plugin watchdog and isolated broker as child processes inside the container. [`docker/README.md`](docker/README.md) also covers updates, login modes, LAN and HTTPS, tunnels, secrets and backups.
 
 ### From source
 
