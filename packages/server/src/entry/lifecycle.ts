@@ -1,4 +1,4 @@
-// The boot/shutdown protocol. index.ts constructs the lifecycle once and runs boot(); SIGTERM/SIGINT run
+// The boot/shutdown protocol. index.ts constructs the lifecycle once and runs boot(); SIGTERM/SIGINT/SIGHUP run
 // shutdown(). Owns no business logic — mints the one real clock, resolves the boot chicken-egg (owner id
 // → services → owner Principal), runs the seed steps, starts the supervisors, builds + serves the Hono
 // app, and tears it all down gracefully. Entry mints the one real wall clock and threads it everywhere as
@@ -147,6 +147,10 @@ export function serveHttpServer(
  *  (measured: ~6 minutes on one tab, until it happened to reconnect). Long enough for a normal in-flight
  *  request to finish, short enough that a restart is always a restart. */
 const SHUTDOWN_DRAIN_MS = 10_000;
+
+/** The drain for a closed terminal (SIGHUP). Windows terminates the process about 10 s after its console window
+ *  closes, and the stages after the drain (workers, the database) need the rest of that window. */
+export const HANGUP_DRAIN_MS = 5000;
 
 /** The two node-http connection-closing methods a bounded drain needs. Present on `http.Server` (node 18.2+),
  *  ABSENT on the http2 servers in `ServerType`'s union — so they are probed, never assumed. */
@@ -430,7 +434,7 @@ function oidcRedirectAllowlist(): readonly string[] {
 export interface Lifecycle {
   readonly boot: () => Promise<void>;
   readonly listeningAddress: () => Readonly<AddressInfo> | null;
-  readonly shutdown: () => Promise<void>;
+  readonly shutdown: (options?: { readonly drainMs?: number }) => Promise<void>;
 }
 
 interface LifecycleOptions {
@@ -1057,7 +1061,8 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   // RATIFIED (#596). Nine null-guarded stops at real nesting depth 0 score 20 only because biome DOUBLES every
   // increment inside a closure — the measured tell that this score is length, not tangle.
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: the graceful-drain teardown is a flat sequence of independent null-guarded stops (server, schedulers, worker, observer, vLLM, db) — one cohesive shutdown, splitting it hides the ordering.
-  async function shutdown(): Promise<void> {
+  async function shutdown(request: { readonly drainMs?: number } = {}): Promise<void> {
+    const httpDrainMs = request.drainMs ?? SHUTDOWN_DRAIN_MS;
     if (isShuttingDown) {
       return;
     }
@@ -1077,7 +1082,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     if (server !== null) {
       const loopback = loopbackServer;
-      await Promise.all([drainHttpServer(server, log), ...(loopback === null ? [] : [drainHttpServer(loopback, log)])]);
+      await Promise.all([drainHttpServer(server, log, httpDrainMs), ...(loopback === null ? [] : [drainHttpServer(loopback, log, httpDrainMs)])]);
       server = null;
       loopbackServer = null;
       listenerAddress = null;

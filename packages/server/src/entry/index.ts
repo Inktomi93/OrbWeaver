@@ -9,7 +9,7 @@ const EXIT_BOOT_FAILURE = 1;
 
 // The lifecycle graph parses the environment as it loads, so a refused key surfaces as this import's rejection. It
 // prints as the named refusal alone; any other load failure keeps its stack.
-const { createLifecycle } = await import("./lifecycle.ts").catch((err: unknown) => {
+const { createLifecycle, HANGUP_DRAIN_MS } = await import("./lifecycle.ts").catch((err: unknown) => {
   if (err instanceof EnvRefusedError) {
     process.stderr.write(`${err.message}\n`);
     process.exit(EXIT_BOOT_FAILURE);
@@ -25,12 +25,13 @@ scrubAppSecretsFromProcessEnv();
 const lifecycle = createLifecycle();
 
 // Wire graceful shutdown BEFORE boot so a signal arriving mid-boot still tears down cleanly (shutdown is
-// idempotent + flips healthz to 503 first).
-for (const signal of ["SIGTERM", "SIGINT"] as const) {
+// idempotent + flips healthz to 503 first). SIGHUP is a closed terminal window, the most common way a start
+// is stopped; without a handler Node exits on it at once, so it drains too, on the shorter hangup budget.
+for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"] as const) {
   process.on(signal, () => {
     // @orb-waive caught-failure-ownership(shutdown): owned: the handler logs through getLog and exits non-zero; getLog is imported after the env parse, where this policy cannot resolve it as the logger. Ends if getLog returns to a static import.
     lifecycle
-      .shutdown()
+      .shutdown(signal === "SIGHUP" ? { drainMs: HANGUP_DRAIN_MS } : {})
       .then(() => {
         process.exit(0);
       })
