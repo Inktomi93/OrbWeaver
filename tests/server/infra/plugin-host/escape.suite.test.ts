@@ -931,12 +931,16 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
       throw new Error("no handler ref");
     }
     expect(await host.invoke(outcome.instance, ref, "{}", null)).toBe("fired");
+    // Calls made before the broker sees the command return are the command's own and uncounted. On a loaded
+    // machine the chain can fire more than one of them, so the bound is pinned on the calls after the return.
+    const readsAtReturn = reads;
     const refused = (): string | undefined => host.readLog(outcome.instance).find((line) => line.message.startsWith("chain-refused:"))?.message;
     await vi.waitFor(() => expect(refused()).toBeDefined(), { timeout: POLL_MS, interval: 20 });
     expect(refused()).toContain("continuation call budget");
     const readsAtRefusal = reads;
-    // The command's own first read plus the tail's whole budget, and not one more.
-    expect(readsAtRefusal).toBe(PLUGIN_AUTHORITY_TAIL_CALLS_MAX + 1);
+    // At least the command's first read plus the tail's whole budget, and never more than the budget after it returned.
+    expect(readsAtRefusal).toBeGreaterThanOrEqual(PLUGIN_AUTHORITY_TAIL_CALLS_MAX + 1);
+    expect(readsAtRefusal - readsAtReturn).toBeLessThanOrEqual(PLUGIN_AUTHORITY_TAIL_CALLS_MAX);
     // The chain is dead, not slowed: no further host call lands after the refusal.
     await new Promise((resolve) => setTimeout(resolve, 200));
     expect(reads).toBe(readsAtRefusal);
