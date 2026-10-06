@@ -23,7 +23,7 @@ jobs:
       IMAGE: ghcr.io/inktomi93/orbweaver
       SOURCE_SHA: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
           persist-credentials: false

@@ -1,19 +1,30 @@
+# Monthly, batched updates: one npm PR and one infrastructure PR per month, each version at least two
+# weeks old (majors a month) so broken releases are caught upstream first. Security fixes ignore the
+# schedule and cooldown and arrive as one grouped PR.
 # npm updates rely on Dependabot's pnpm 12 support; alerts for the npm tree come from the SBOM that
 # dependency-graph.yml submits, because GitHub's graph cannot read the pnpm 12 lockfile.
 version: 2
+
+multi-ecosystem-groups:
+  infrastructure:
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: build
 
 updates:
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
     cooldown:
-      default-days: 7
-    open-pull-requests-limit: 5
+      default-days: 14
+      semver-major-days: 30
+    open-pull-requests-limit: 2
     groups:
-      npm-minor-patch:
-        update-types: [minor, patch]
-      # One PR for all security fixes instead of one per advisory.
+      npm:
+        applies-to: version-updates
+        patterns: ["*"]
       npm-security:
         applies-to: security-updates
         patterns: ["*"]
@@ -21,46 +32,30 @@ updates:
       prefix: chore
       include: scope
 
+  # Actions, base images (pinned by digest; tag and digest move together), Compose images and the dev
+  # container share the infrastructure PR.
   - package-ecosystem: github-actions
     directory: /
-    schedule:
-      interval: weekly
+    patterns: ["*"]
+    multi-ecosystem-group: infrastructure
     cooldown:
-      default-days: 7
-    groups:
-      actions:
-        patterns: ["*"]
-    commit-message:
-      prefix: ci
+      default-days: 14
 
-  # Base images are pinned by digest; Dependabot moves the tag and the digest together.
   - package-ecosystem: docker
     directories: [/, /.devcontainer]
-    schedule:
-      interval: weekly
+    patterns: ["*"]
+    multi-ecosystem-group: infrastructure
     cooldown:
-      default-days: 7
-    groups:
-      docker-images:
-        patterns: ["*"]
-    commit-message:
-      prefix: build
+      default-days: 14
 
   - package-ecosystem: docker-compose
     directories: [/, /docker]
-    schedule:
-      interval: weekly
+    patterns: ["*"]
+    multi-ecosystem-group: infrastructure
     cooldown:
-      default-days: 7
-    groups:
-      compose-images:
-        patterns: ["*"]
-    commit-message:
-      prefix: build
+      default-days: 14
 
   - package-ecosystem: devcontainers
     directory: /
-    schedule:
-      interval: monthly
-    commit-message:
-      prefix: build
+    patterns: ["*"]
+    multi-ecosystem-group: infrastructure

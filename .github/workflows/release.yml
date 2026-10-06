@@ -51,7 +51,7 @@ jobs:
     steps:
       # The tag itself, so the build context carries `.git/refs/tags/v<version>` and the image's version
       # stamp derives the `stable` channel from it (docker/assemble-runtime.sh).
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: refs/tags/${{ needs.release-please.outputs.tag_name }}
 
