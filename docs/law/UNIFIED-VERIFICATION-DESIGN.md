@@ -1,13 +1,13 @@
 ---
 kind: law
 status: active
-updated: 2026-09-23
+updated: 2026-10-06
 ---
 
 # Unified Verification Design
 
 > The ONE verification surface. `pnpm verify` is the single entry that runs every check the repo can run —
-> lint, types, structure, imports, deps, docs, tests, browser, quality — over four tiers, one scope
+> lint, types, structure, imports, deps, docs, tests, browser, quality — over named tiers, one scope
 > convention, one exit contract, one summary artifact, generalized over a self-describing stage registry.
 > Root `AGENTS.md` "Verification tiers" states the doctrine ("iterate on `--changed`, claim done only after `pnpm check`, pre-push is
 > `--push`, the works is `--full`"); this doc is its as-built spec. The CODE is truth on any conflict:
@@ -68,7 +68,7 @@ resolver. `pnpm check` = `pnpm verify --static` (byte-compatible with the origin
 `tooling/src/verify/lib/registry.ts` — every verification surface in the repo, self-described as a `StageDef`:
 
 - `name` (kebab, unique) · `group` (§2.4) · `tiers` (§3.2 membership) · `argv` (the whole-scope
-  `pnpm <script>` form, spawned `shell:false`) · optional `env` (child env; no current consumer) ·
+  `pnpm <script>` form, spawned `shell:false`) · optional `tierArgv` (native population variants, printed in the list and artifact notices) · optional `env` (child env; no current consumer) ·
   optional `scopedArgv` (§3.4 — ABSENT ⇒ whole-only) · `classify` (§3.3 — the native-exit adapter) ·
   optional `manualReason` (rendered by `verify --list`) · optional `tierPrecondition` (§3.2 — conditional
   membership at a named WHOLE tier, where `scopedArgv` cannot reach because a whole-tier run carries no
@@ -88,7 +88,7 @@ resolver. `pnpm check` = `pnpm verify --static` (byte-compatible with the origin
 
 ### 3.2 Tier composition (the ladder)
 
-Four runnable tiers + a `manual` bucket. The WHOLE-TREE ladder nests by MEMBERSHIP: **static ⊂ push ⊂ full**
+Runnable tiers + a `manual` bucket. The WHOLE-TREE ladder nests by MEMBERSHIP: **static ⊂ push ⊂ full**
 — each tier ADDS stages, never drops one, and every step's membership is UNCONDITIONAL data (the
 `tierPrecondition` mechanism survives for the next row that needs it — see the note under the table —
 but no row declares one). `changed` is the SCOPED inner loop and is deliberately NOT ⊆ static: it carries
@@ -101,6 +101,7 @@ born-compliant TEST-FREE commit gate. The honest containment for the inner loop 
 | `changed` | scoped structural checks over the changed set plus related behavioral tests | fast iteration; `verify --changed` |
 | `static` | every STRUCTURAL surface — lint, the type programs, the structure/registry/ledger reconciliations, imports, deps, docs — and **no behavioral suite**. That characterization is the doctrine; the MEMBERSHIP is data (`pnpm verify --list`) and is never enumerated here | `pnpm check` = `verify --static`, the barrier; the commit gate runs its stages over the working change (§4.3) |
 | `push` | static + the BEHAVIORAL surfaces a commit gate cannot afford: product behavior, component and browser smoke, tool guards, whole-graph liveness, and bounded quality/build checks. Membership is `pnpm verify --list` | pre-push bar; `verify --push` |
+| `product` | whole application checks, complete application CT and model-free E2E; excludes tooling test populations, tool-corpus proofs and mutation. Static analysis of tooling remains. Membership is `pnpm verify --list` | application verification; `verify --product`; scope selectors are refused |
 | `full` | push + exhaustive surfaces whose cost belongs on the works: the whole instrument battery, exhaustive browser coverage, mutation quality, and stricter dependency analysis. Membership is `pnpm verify --list` | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
 
 **The instrument battery lives on the full tier, not pre-push.** A lane iterating on an instrument gets

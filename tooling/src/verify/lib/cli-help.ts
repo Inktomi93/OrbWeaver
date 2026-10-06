@@ -18,7 +18,7 @@ import { TYPECHECK_PLAN_HELP } from "../ops/typecheck-plan.ts";
 import { STRUCTURE_USAGE } from "./structure-tail.ts";
 
 export const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
-  run: "usage: node tooling/src/verify/cli.ts run [--static|--push|--full|--changed] [--scope <glob>|--package <name>|--file <paths…>] [--tier <name>] [--strict-scope] [--list] [--json] [--verbose]",
+  run: "usage: node tooling/src/verify/cli.ts run [--static|--push|--full|--product|--changed] [--scope <glob>|--package <name>|--file <paths…>] [--tier <name>] [--strict-scope] [--list] [--json] [--verbose]\n  --product: whole application checks, complete application CT and E2E; no tooling test populations, tool proofs or mutation. Scope selectors are refused.",
   structure: STRUCTURE_USAGE,
   "structure-delta": STRUCTURE_DELTA_USAGE,
   show: SHOW_HELP,

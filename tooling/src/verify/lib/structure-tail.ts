@@ -41,7 +41,7 @@ const REPEATABLE_TAIL_OPTIONS: ReadonlySet<string> = new Set(["check", "family"]
 /** This verb's usage line — ONE home, read by the tail refusal below and by the front door's pre-dispatch
  *  `--help` answer (cli.ts VERB_HELP, #809). */
 export const STRUCTURE_USAGE =
-  `usage: node tooling/src/verify/cli.ts structure [--whole|--changed|--file <path>...|--folder <path>|--package <name>|--project <config>] [--tier <changed|static|push|full>] [--strict-scope] [${FAIL_ON_WARNINGS_FLAG}] [${CHECK_FLAG} <id>]... | [${FAMILY_FLAG} <name>]... [--json]\n` +
+  `usage: node tooling/src/verify/cli.ts structure [--whole|--changed|--file <path>...|--folder <path>|--package <name>|--project <config>] [--tier <changed|static|push|full|product>] [--strict-scope] [${FAIL_ON_WARNINGS_FLAG}] [${CHECK_FLAG} <id>]... | [${FAMILY_FLAG} <name>]... [--json]\n` +
   "       node tooling/src/verify/cli.ts structure --list [--json]\n" +
   `       node tooling/src/verify/cli.ts structure --explain (${CHECK_FLAG} <id>|${FAMILY_FLAG} <name>) [--json]\n` +
   `       node tooling/src/verify/cli.ts structure ${VOID_FLAG} <slot> ${REASON_FLAG} "<why>"   (tombstone an existing slot; runs nothing)\n` +

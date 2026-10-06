@@ -21,14 +21,14 @@ export interface Parsed {
 
 // The strict option schema (node:util parseArgs, stdlib — no new dep). Every accepted flag is declared;
 // `strict:true` + `allowPositionals:true` makes an UNKNOWN flag (`--bogus`) throw → we map that to exit 3
-// (misuse), never a silent-ignore. The tier markers (--static/--push/--full; --changed when alone) and the value
+// (misuse), never a silent-ignore. The tier markers (--static/--push/--full/--product; --changed when alone) and the value
 // selectors (--package/--scope/--tier) live here; --file/--changed's PATHS arrive as positionals (only one
 // scope selector is legal at a time, so a trailing `a b` unambiguously belongs to whichever is present).
 const OPTIONS = {
   // scope selectors that take a value:
   package: { type: "string" },
   scope: { type: "string" },
-  tier: { type: "string" },
+  tier: { type: "string", multiple: true },
   // scope-selector markers whose paths come from positionals:
   file: { type: "boolean" },
   changed: { type: "boolean" },
@@ -36,6 +36,7 @@ const OPTIONS = {
   static: { type: "boolean" },
   push: { type: "boolean" },
   full: { type: "boolean" },
+  product: { type: "boolean" },
   // run-shaping booleans:
   "strict-scope": { type: "boolean" },
   json: { type: "boolean" },
@@ -53,12 +54,13 @@ const RUNNABLE_TIERS: ReadonlySet<Tier> = new Set<Tier>(RUNNABLE_VERIFY_TIERS);
 interface ParsedValues {
   readonly package?: string;
   readonly scope?: string;
-  readonly tier?: string;
+  readonly tier?: readonly string[];
   readonly file?: boolean;
   readonly changed?: boolean;
   readonly static?: boolean;
   readonly push?: boolean;
   readonly full?: boolean;
+  readonly product?: boolean;
   readonly "strict-scope"?: boolean;
   readonly json?: boolean;
   readonly list?: boolean;
@@ -164,31 +166,26 @@ function scopeRequest(v: ParsedValues, positionals: readonly string[]): ScopeRes
   return glob.length === 0 ? { error: "--scope needs a folder glob" } : { kind: "scope", glob };
 }
 
-// The bare tier markers, in registry order. `--changed` alone also names its own (inner-loop) tier; next to
-// `--static` it is only the selector, which is how pre-commit spells `--static --changed`.
-const TIER_MARKERS: readonly (readonly [keyof ParsedValues, Tier])[] = [
-  ["static", "static"],
-  ["push", "push"],
-  ["full", "full"],
-];
-
 /** The tier for a run: an explicit --tier <name> or a bare tier marker wins; else a scope flag (including
  *  `--changed`) implies `changed`; else `static`. A run may name AT MOST ONE distinct tier. */
 function tierFor(v: ParsedValues, scoped: boolean): Tier | { readonly error: string } {
   const named = new Set<Tier>();
-  for (const [key, tier] of TIER_MARKERS) {
-    if (v[key] === true) {
+  for (const tier of RUNNABLE_VERIFY_TIERS.filter((candidate) => candidate !== "changed")) {
+    if (v[tier] === true) {
       named.add(tier);
     }
   }
-  if (v.tier !== undefined) {
-    if (!RUNNABLE_TIERS.has(v.tier as Tier)) {
-      return { error: `--tier must be one of ${RUNNABLE_VERIFY_TIERS.join(" / ")} (got "${v.tier}")` };
+  for (const tier of v.tier ?? []) {
+    if (!RUNNABLE_TIERS.has(tier as Tier)) {
+      return { error: `--tier must be one of ${RUNNABLE_VERIFY_TIERS.join(" / ")} (got "${tier}")` };
     }
-    named.add(v.tier as Tier);
+    named.add(tier as Tier);
   }
   if (named.size > 1) {
     return { error: `at most one tier: got ${[...named].join(" ")}` };
+  }
+  if (scoped && named.has("product")) {
+    return { error: "product runs the whole tree; remove --changed / --file / --package / --scope" };
   }
   // Push and full are whole-tree bars, and a scoped run skips the whole-run queue, so a scoped test battery
   // would run beside another checkout's. Only the commit gate's `--static --changed` pairs a tier with it.

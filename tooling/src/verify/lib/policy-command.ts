@@ -44,6 +44,7 @@ const OPTIONS = {
   static: { type: "boolean" },
   push: { type: "boolean" },
   full: { type: "boolean" },
+  product: { type: "boolean" },
   whole: { type: "boolean" },
   changed: { type: "boolean" },
   file: { type: "string", multiple: true },
@@ -66,6 +67,7 @@ interface Values {
   readonly static?: boolean;
   readonly push?: boolean;
   readonly full?: boolean;
+  readonly product?: boolean;
   readonly whole?: boolean;
   readonly changed?: boolean;
   readonly file?: readonly string[];
@@ -182,6 +184,7 @@ function hasRunShape(values: Values): boolean {
     values.static === true ||
     values.push === true ||
     values.full === true ||
+    values.product === true ||
     values.whole === true ||
     values.changed === true ||
     values.file !== undefined ||

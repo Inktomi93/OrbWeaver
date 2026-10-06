@@ -36,3 +36,24 @@ test("--changed beside --push or --full stays misuse: those tiers are whole-tree
     expect("error" in r ? r.error : "parsed", argv.join(" ")).toContain("--changed");
   }
 });
+
+test("product is a distinct whole-tree tier through both CLI spellings", () => {
+  for (const argv of [["--product"], ["--tier", "product"], ["--tier=product"], ["--product", "--tier=product"]]) {
+    expect(tierAndScope(argv)).toStrictEqual(["product", undefined]);
+  }
+});
+
+test("product refuses mixed tiers and every narrowed scope before resolving a selection", () => {
+  for (const marker of ["--product", "--tier=product"]) {
+    for (const other of ["--static", "--push", "--full", "--tier=changed"]) {
+      const parsed = parseRequest([marker, other]);
+      expect("error" in parsed ? parsed.error : "parsed").toContain("at most one tier");
+    }
+    for (const scope of [["--changed"], ["--changed", "staged"], ["--file", DOC], ["--package=kit"], ["--scope=packages/kit/**"]]) {
+      for (const extra of [[], ["--strict-scope"], ["--list"]]) {
+        const parsed = parseRequest([marker, ...scope, ...extra]);
+        expect("error" in parsed ? parsed.error : "parsed", [...scope, ...extra].join(" ")).toContain("product runs the whole tree");
+      }
+    }
+  }
+});

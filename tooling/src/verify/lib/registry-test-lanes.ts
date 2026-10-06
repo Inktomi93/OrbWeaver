@@ -32,7 +32,7 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
   {
     name: "tests:node",
     group: "tests",
-    tiers: ["changed", "push", "full"],
+    tiers: ["changed", "push", "full", "product"],
     // THE VITEST HALF ONLY (#1848). It ran `pnpm test` — the composite that ALSO runs the CT suite — and
     // the two halves shared one 45-minute hang ceiling that the sum outgrew the moment #1835 put CT on the
     // shared worker cap: `verify --full` reported `[tool-error] TIMED OUT` on a QUIET box for a stage that
@@ -150,11 +150,12 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
     // one that needs a DERIVED ceiling; sharing a constant with a 10-minute suite is what produced a false
     // `[tool-error]`. `changed` keeps the scoped inner loop (mirrors + declared sweeps, never the whole
     // suite — LANDED 2026-07-17); push/full run the whole suite, which remains the coverage verdict.
-    tiers: ["changed", "push", "full"],
+    tiers: ["changed", "push", "full", "product"],
     // `--retries=2` rides the argv VISIBLY (parallelism flakes retry instead of blocking a push); ad-hoc
     // `pnpm test:ct` keeps the config's retries:0 for debugging. It moved here from the `pnpm test`
     // composite with the stage.
     argv: ["pnpm", "test:ct", "--retries=2"],
+    tierArgv: { product: ["pnpm", "test:ct", "--retries=2", "--config=playwright-ct.product.config.ts"] },
     // The launcher's own exit contract: a CT run that could not launch its browser is 2, never failed tests.
     classify: ownScheme,
     // DERIVED, never typed: ctWorkers moves the CT wall clock, so it moves this ceiling too (lib/stage-budget.ts).
@@ -167,7 +168,7 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
   {
     name: "browser:e2e-smoke",
     group: "browser",
-    tiers: ["push", "full"],
+    tiers: ["push", "full", "product"],
     argv: ["pnpm", "e2e:smoke"],
     classify: asViolations,
     // Cross-cutting by nature — never scoped; deferred at a scoped tier.
@@ -184,7 +185,7 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
     // build also proves the emitted html links the app stylesheet with its front-door sentinels (#1752: a
     // `sideEffects` field once let the bundler drop the CSS import, and no authored-graph check could see it),
     // and that no emitted chunk, preloaded or lazy, carries a DEV-only client instrument (work item 0030).
-    tiers: ["push", "full"],
+    tiers: ["push", "full", "product"],
     argv: ["pnpm", "check:boot-chunk"],
     // Our OWN 0/1/2/3-speaking script (tooling/src/verify/ops/boot-chunk-ratchet.ts) — and it USES the
     // tool-error code: an unmeasurable dist (no entry chunk / more than one / a failed build) exits 2, so

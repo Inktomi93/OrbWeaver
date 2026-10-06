@@ -23,7 +23,7 @@ import { mutationGateHangCeilingMs } from "./stage-budget.ts";
 // verdict; the push bar (`tests:node` running the WHOLE CT suite) remains that verdict. The static tier is
 // EXACTLY run.ts's stages, in order, so `pnpm check` (= `verify --static`) stays byte-compatible.
 
-const STATIC: readonly Tier[] = ["static", "push", "full"];
+const STATIC: readonly Tier[] = ["static", "push", "full", "product"];
 
 /** `node --check` on every `.claude/hooks/*.mjs`, and a refusal when the glob matches nothing. */
 const HOOK_SYNTAX_LOOP = [
@@ -95,6 +95,7 @@ const GATING_STAGES: readonly StageDef[] = [
     group: "types",
     tiers: STATIC,
     argv: ["pnpm", "test:types"],
+    tierArgv: { product: ["pnpm", "test:types", "--config=vitest.product.config.ts"] },
     classify: asViolations,
     // Vitest typecheck has no sound narrowed derivation. The changed-tier trigger decorator runs this
     // stage's whole argv whenever a changed selection owes it.
@@ -193,7 +194,7 @@ const GATING_STAGES: readonly StageDef[] = [
   {
     name: "structure:policy-conformance",
     group: "structure",
-    tiers: STATIC,
+    tiers: ["static", "push", "full"],
     argv: ["pnpm", "check:policy-conformance"],
     // THE WHOLE-CORPUS CONFORMANCE STAGE (#1941, docs/law/gate-runtime-standardization.md §6.6): every final
     // defineGate policy's own mustFlag/mustPass rows through the production dispatcher, on every `pnpm check`.
@@ -292,7 +293,7 @@ const GATING_STAGES: readonly StageDef[] = [
     // "surface freeze" trigger class). Wired 2026-07-17 — it had NEVER run anywhere despite the registry
     // doc claiming it live; the parity gate's shape list gained `knip*` the same day so a knip script can
     // never dangle again.
-    tiers: ["full"],
+    tiers: ["full", "product"],
     argv: ["pnpm", "knip:prod"],
     classify: asViolations,
   },
@@ -305,7 +306,7 @@ const GATING_STAGES: readonly StageDef[] = [
     // each package's `exports` map already makes these subpaths public API in knip's eyes, so knip flags
     // none of them and its `tags: ["-@public"]` exemption never fires. This stage reads `@public <reason>`
     // itself and ratchets the swept tree (tooling/src/verify/ops/orphan-export-ratchet.ts).
-    tiers: ["push", "full"],
+    tiers: ["push", "full", "product"],
     argv: ["pnpm", "check:orphan-ratchet"],
     classify: ownScheme,
     // A WHOLE-TREE liveness reconciliation (an export is only an orphan relative to the ENTIRE workspace's
@@ -341,14 +342,14 @@ const GATING_STAGES: readonly StageDef[] = [
     group: "quality",
     // PROMOTED to the push tier 2026-08-03: measured 0.86s. It sat in `full` for historical reasons,
     // not cost — and a duplication ratchet that only runs in a tier nobody invokes is not a ratchet.
-    tiers: ["push", "full"],
+    tiers: ["push", "full", "product"],
     argv: ["pnpm", "cpd"],
     classify: ownScheme,
   },
   {
     name: "browser:e2e",
     group: "browser",
-    tiers: ["full"],
+    tiers: ["full", "product"],
     argv: ["pnpm", "e2e"],
     classify: asViolations,
   },

@@ -2,7 +2,7 @@
 // §2.5/§2.6). Every `check:*` pnpm row for this system points HERE, each naming a verb; nothing points into ops/, so there is exactly
 // one argv parse and one exit-honesty runner for the harness that judges everything else.
 //
-//   check / verify           → cli.ts run [--static|--push|--full|--changed|--list|…]
+//   check / verify           → cli.ts run [--static|--push|--full|--product|--changed|--list|…]
 //   check:structure          → cli.ts structure [--fail-on-warnings] [--check|--family …] [--void <slot> --reason …]
 //   check:structure-delta    → cli.ts structure-delta [--before <slot>] [--after <slot>]  (per-policy diff, #2110)
 //   check:show               → cli.ts show [--errors-only|--gate|--file|--limit]

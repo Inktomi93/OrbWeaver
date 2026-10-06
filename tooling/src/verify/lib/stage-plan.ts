@@ -4,6 +4,11 @@ import process from "node:process";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { Selection } from "../contract/selection.ts";
 import type { StageDef, StageMode, StageResult, Tier } from "../contract/stage.ts";
+import { RUNNABLE_VERIFY_TIERS } from "../contract/stage.ts";
+
+export function invocationVariant(stage: StageDef, tier: Tier | undefined): readonly [string, ...string[]] | undefined {
+  return tier === undefined || tier === "manual" ? undefined : stage.tierArgv?.[tier];
+}
 
 /** Resolve how a stage runs at this tier+scope: its concrete argv, or a mode sentinel. */
 export function planStage(
@@ -24,7 +29,8 @@ export function planStage(
     if (precondition !== undefined && tier !== undefined && precondition.tiers.includes(tier) && precondition.satisfied(root ?? process.cwd()) === false) {
       return { mode: "skipped", argv: null, runsAt: unconditionalTier(stage) };
     }
-    return { mode: "full", argv: stage.argv, runsAt: null };
+    const argv = invocationVariant(stage, tier) ?? stage.argv;
+    return { mode: "full", argv, runsAt: null };
   }
   // Scoped run: a stage with no scopedArgv is whole-only ⇒ deferred.
   if (stage.scopedArgv === undefined) {
@@ -44,7 +50,7 @@ export function planStage(
  *  actually run it, never the one that just declined. */
 function unconditionalTier(stage: StageDef): string {
   const conditional = new Set(stage.tierPrecondition?.tiers ?? []);
-  for (const t of ["static", "push", "full"] as const) {
+  for (const t of RUNNABLE_VERIFY_TIERS.filter((candidate) => candidate !== "changed")) {
     if (stage.tiers.includes(t) && !conditional.has(t)) {
       return `verify --${t}`;
     }
@@ -54,7 +60,7 @@ function unconditionalTier(stage: StageDef): string {
 
 /** The tier a deferred stage runs at — the lowest non-changed tier it belongs to (for the notice). */
 function pushOrStatic(stage: StageDef): string {
-  for (const t of ["static", "push", "full"] as const) {
+  for (const t of RUNNABLE_VERIFY_TIERS.filter((candidate) => candidate !== "changed")) {
     if (stage.tiers.includes(t)) {
       return `verify --${t}`;
     }
