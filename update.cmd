@@ -66,11 +66,20 @@ exit /b 0
 
 :docker
 if "%UPDATED%"=="1" git pull --ff-only --quiet || goto :pullfailed
+rem compose sends SIGTERM and waits for the drain, stop_grace_period, before it recreates the container.
+set "LOCAL_BUILD="
+for /f %%i in ('docker compose ps --format "{{.Image}}" orbweaver 2^>nul') do if "%%i"=="orbweaver:local" set "LOCAL_BUILD=1"
+if defined LOCAL_BUILD goto :dockerbuild
 call "%UI%" :step "Pulling the newest image"
 docker compose pull || goto :failed
-rem compose sends SIGTERM and waits for the drain, stop_grace_period, before it recreates the container.
 call "%UI%" :step "Restarting the container"
 docker compose up -d || goto :failed
+goto :dockerdone
+:dockerbuild
+rem Built from this checkout with the build overlay: rebuild rather than switch to the published image.
+call "%UI%" :step "Rebuilding the image and restarting"
+docker compose -f docker-compose.yaml -f docker/compose.build.yaml up -d --build || goto :failed
+:dockerdone
 call "%UI%" :port
 call "%UI%" :ok "Orbweaver is running at http://localhost:%ORB_PORT%"
 timeout /t 5 >nul

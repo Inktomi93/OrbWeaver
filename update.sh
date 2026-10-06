@@ -43,9 +43,14 @@ main() {
 
   if [ "$docker_install" = 1 ]; then
     [ "$updated" = 1 ] && orb_spin "Pulling the new compose file" git pull --ff-only --quiet
-    orb_spin "Pulling the newest image" docker compose pull
     # compose sends SIGTERM and waits for the drain (stop_grace_period) before it recreates the container.
-    orb_spin "Restarting the container" docker compose up -d
+    if [ "$(docker compose ps --format '{{.Image}}' orbweaver 2> /dev/null)" = "orbweaver:local" ]; then
+      # Built from this checkout with the build overlay: rebuild rather than switch to the published image.
+      orb_spin "Rebuilding the image and restarting" docker compose -f docker-compose.yaml -f docker/compose.build.yaml up -d --build
+    else
+      orb_spin "Pulling the newest image" docker compose pull
+      orb_spin "Restarting the container" docker compose up -d
+    fi
     orb_ok "Orbweaver is running at http://localhost:$(orb_port)"
     exit 0
   fi
