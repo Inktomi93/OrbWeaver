@@ -30,6 +30,20 @@ test("the Dockerfile is a single app-only target: no corepack, no GPU stage, pnp
   expect(dockerfile).toContain("docker/assemble-runtime.sh");
 });
 
+test("the client build excludes stamp-only git refs while the assembler keeps its separate ref mount", ({ repoRoot }) => {
+  const dockerfile = read(repoRoot, "Dockerfile");
+  const build = dockerfile.split(/^FROM deps AS build$/mu)[1]?.split(/^FROM .* AS runtime$/mu)[0];
+  const contextCopy = build?.match(/^COPY (?:[^\n]*\\\n)*[^\n]* \. \.$/mu)?.[0];
+  // A ref-only .git is not a repository; pnpm's pre-run reinstall must take prepare's archive path.
+  expect(contextCopy).toMatch(/(?:^|\s)--exclude=\.git(?:\s|$)/u);
+  expect(dockerfile).toMatch(/^FROM scratch AS git-refs\nCOPY \.gi\[t\] \/$/mu);
+  expect(build).toContain("--mount=type=bind,from=git-refs,target=/app/.git-refs");
+  expect(read(repoRoot, ".dockerignore")).toMatch(/^!\.git\/HEAD$/mu);
+  expect(read(repoRoot, ".dockerignore")).toMatch(/^!\.git\/refs\/heads\/\*\*$/mu);
+  expect(read(repoRoot, ".dockerignore")).toMatch(/^!\.git\/refs\/tags\/\*\*$/mu);
+  expect(read(repoRoot, ".dockerignore")).toMatch(/^!\.git\/packed-refs$/mu);
+});
+
 test("the runtime assembler invokes the checked version-stamp entry without pnpm chatter in version.json", ({ repoRoot }) => {
   const assembler = read(repoRoot, "docker/assemble-runtime.sh");
   const manifest = JSON.parse(read(repoRoot, "package.json")) as { scripts?: Record<string, string> };

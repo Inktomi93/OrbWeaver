@@ -1,10 +1,11 @@
 // The root `prepare` lifecycle script (scripts/prepare.ts): a source archive with no .git must install
 // cleanly, and a checkout whose hook install fails must still fail the install.
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { runGit } from "@orb/tooling/_shared/git";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { expect, test } from "../support/tool-fixtures.ts";
 
@@ -41,4 +42,22 @@ test("a .git that git cannot read is a real lefthook failure and stays non-zero"
   } finally {
     rmSync(broken, { recursive: true, force: true });
   }
+});
+
+test("a linked worktree leaves the main checkout's shared hooks untouched", ({ scratch }) => {
+  const main = join(scratch, "main");
+  const lane = join(scratch, "lane");
+  mkdirSync(main);
+  const init = runGit(main, ["init"]);
+  expect(init.status, init.stderr).toBe(0);
+  const commit = runGit(main, ["-c", "user.name=Prepare test", "-c", "user.email=prepare@example.invalid", "commit", "--allow-empty", "-m", "fixture"]);
+  expect(commit.status, commit.stderr).toBe(0);
+  const add = runGit(main, ["worktree", "add", "--detach", lane]);
+  expect(add.status, add.stderr).toBe(0);
+  const hook = join(main, ".git", "hooks", "pre-commit");
+  const sentinel = "#!/bin/sh\nexit 0\n";
+  writeFileSync(hook, sentinel);
+
+  expect(runPrepareIn(lane)).toBe(0);
+  expect(readFileSync(hook, "utf8")).toBe(sentinel);
 });

@@ -109,8 +109,9 @@ FROM deps AS build
 # inference or default-content cannot change the bundle and must not re-run it. The server's media check that
 # `pnpm build` runs first reads the two files the `deps` stage already copied. docker/ is mounted where it is
 # used, so an entrypoint or assembler edit does not re-run the build either.
+# Ref-only .git metadata belongs to git-refs; copying it here makes prepare mistake the build for a checkout.
 COPY --exclude=packages/server --exclude=packages/db --exclude=packages/inference --exclude=packages/default-content \
-     --exclude=docker . .
+     --exclude=docker --exclude=.git . .
 # theme.css + tokens/index.ts are GENERATED from tokens.json before the client build consumes them
 # (`pnpm build` = the ui tokens build + `vite build`; one script, shared with the bare-metal docs).
 RUN pnpm build
