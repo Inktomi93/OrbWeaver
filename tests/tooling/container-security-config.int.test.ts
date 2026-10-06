@@ -1,6 +1,6 @@
 import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { parse } from "yaml";
@@ -47,6 +47,21 @@ test("every container Node matches the Node the repository pins in devEngines", 
     for (const tag of images(rel)) {
       expect(tag.split(".")[0], `${rel} runs the devEngines Node major`).toBe(major);
     }
+  }
+});
+
+test("the dev container installs the pinned pnpm and gives every workspace package its own node_modules volume", ({ repoRoot }) => {
+  const packageManager = z.object({ packageManager: z.string() }).parse(JSON.parse(read(repoRoot, "package.json"))).packageManager;
+  // Node 26 has no corepack; the sandbox installs pnpm with npm at the version package.json pins.
+  expect(read(repoRoot, ".devcontainer/Dockerfile")).not.toMatch(/^RUN .*corepack/mu);
+  expect(read(repoRoot, ".devcontainer/Dockerfile")).toContain(`ARG PNPM_VERSION=${packageManager.replace(/^pnpm@/u, "").replace(/\+.*$/u, "")}`);
+  // A package without a volume makes pnpm write its node_modules into the bind-mounted host checkout.
+  const config = read(repoRoot, ".devcontainer/devcontainer.json");
+  const packages = readdirSync(join(repoRoot, "packages"), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => `packages/${entry.name}`);
+  for (const dir of ["tooling", ...packages]) {
+    expect(config, `${dir} has a node_modules volume`).toContain(`target=/workspace/${dir}/node_modules,type=volume`);
   }
 });
 

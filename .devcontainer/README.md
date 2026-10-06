@@ -66,7 +66,7 @@ host sessions keep whatever the host user settings say.
 | File | Purpose |
 |------|---------|
 | `devcontainer.json` | Container definition: image build, mounts, run args, lifecycle commands, container-only VS Code settings. |
-| `Dockerfile` | The sandbox image: `node:26` + Claude Code + ast-grep + pnpm (corepack) + git/gh/delta/zsh/iptables + the baked Playwright Chromium. |
+| `Dockerfile` | The sandbox image: `node:26` + Claude Code + ast-grep + pnpm (npm-installed, the version `packageManager` pins) + git/gh/delta/zsh/iptables + the baked Playwright Chromium. |
 | `init-firewall.sh` | Default-deny egress firewall. Runs on every start (`postStartCommand`). Allowlists only what dev needs (npm, GitHub, Anthropic, VS Code); self-tests at the end. |
 
 ---
@@ -76,19 +76,20 @@ host sessions keep whatever the host user settings say.
 The repo is bind-mounted, so host and container would otherwise fight over
 `node_modules` (pnpm stamps its store path in `.modules.yaml`; two different stores ⇒
 the "store has changed, purge?" prompt every time you switch sides). The cure is the
-standard one: **named volumes overlay every `node_modules`** — the root + all six
-`packages/*/node_modules` — so nothing pnpm writes touches the host folder.
+standard one: **named volumes overlay every `node_modules`**: the root, `tooling/` and every
+`packages/*/node_modules`, so nothing pnpm writes touches the host folder. A container config test fails
+when a workspace package has no volume.
 
-The store itself must share a device with those volumes (hardlinks), and pnpm 11's
+The store itself must share a device with those volumes (hardlinks), and pnpm's
 per-device fallback would otherwise probe the bind-mounted `/workspace` and dump a
 `.pnpm-store` into the host repo. Neo solved that with a `/usr/local/sbin/pnpm` wrapper
 that injected `--store-dir` per store-touching subcommand — fragile (any subcommand
 missing from its case list silently used the wrong store; `--store-dir` passed globally
 breaks `run`/`exec` outright).
 
-**Orb doesn't carry the wrapper.** pnpm 11 ignores `npm_config_store_dir` and the
-user-level rc files for `store-dir`, but it honors the **pnpm-prefixed env var** —
-`pnpm_config_store_dir` — verified empirically on pnpm 11.5.1. One `containerEnv` line
+**Orb doesn't carry the wrapper.** pnpm ignores `npm_config_store_dir` and the
+user-level rc files for `store-dir`, but it honors the **pnpm-prefixed env var**,
+`pnpm_config_store_dir` (checked with `pnpm store path` on pnpm 12.6.0). One `containerEnv` line
 points every pnpm invocation (hooks, lifecycle commands, scripts) at the store volume,
 with no subcommand list to rot. If a future pnpm major changes env-config handling,
 re-verify with `pnpm store path` inside the container; the symptom of regression is a

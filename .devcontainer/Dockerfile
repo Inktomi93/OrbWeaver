@@ -43,18 +43,24 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhisto
 # Set `DEVCONTAINER` environment variable to help with orientation
 ENV DEVCONTAINER=true
 
-# Create workspace and config directories and set permissions. Orbweaver is a 6-package
-# pnpm workspace: the ROOT node_modules + every packages/*/node_modules are created here
+# Create workspace and config directories and set permissions. The ROOT node_modules, tooling's and
+# every packages/*/node_modules are created here
 # so their named volumes (mounted in devcontainer.json) seed as node-owned instead of
 # root — pnpm installs into them without permission errors.
 RUN mkdir -p \
       /workspace/node_modules \
-      /workspace/packages/kit/node_modules \
+      /workspace/tooling/node_modules \
+      /workspace/packages/client/node_modules \
       /workspace/packages/contracts/node_modules \
       /workspace/packages/db/node_modules \
+      /workspace/packages/default-content/node_modules \
+      /workspace/packages/inference/node_modules \
+      /workspace/packages/kit/node_modules \
+      /workspace/packages/plugin-sdk/node_modules \
+      /workspace/packages/plugin-toolchain/node_modules \
       /workspace/packages/server/node_modules \
+      /workspace/packages/showcase-plugins/node_modules \
       /workspace/packages/ui/node_modules \
-      /workspace/packages/client/node_modules \
       /home/node/.claude /home/node/.local/share/pnpm && \
   chown -R node:node /workspace /home/node/.claude /home/node/.local
 
@@ -66,8 +72,6 @@ RUN ARCH=$(dpkg --print-architecture) && \
   sudo dpkg -i "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" && \
   rm "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb"
 
-# Enable Corepack so the project's pinned pnpm is available (root: writes shims to /usr/local/bin)
-RUN corepack enable
 
 # Set up non-root user
 USER node
@@ -96,12 +100,11 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
 # Install Claude + ast-grep (the house structural-sweep tool — agents lean on `sg`)
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} @ast-grep/cli
 
-# Activate the pnpm version this project pins (package.json packageManager). Downloads
-# at build time (network is open during build; the runtime firewall isn't up yet).
-# NB: NO store-dir wrapper here (neo carried one in /usr/local/sbin) — the
-# pnpm_config_store_dir env var in devcontainer.json does the same job without the
-# fragile per-subcommand case list (verified working on pnpm 11.5.1).
-RUN corepack prepare pnpm@11.5.1 --activate
+# The pnpm this project pins (package.json packageManager; a container config test holds the two equal).
+# Node 26 ships without corepack, so npm installs it, at build time while the network is open. No store-dir
+# wrapper: the pnpm_config_store_dir env var in devcontainer.json points the store at its volume.
+ARG PNPM_VERSION=12.6.0
+RUN npm install -g pnpm@${PNPM_VERSION}
 
 # Playwright Chromium for the client CT (`pnpm test:ct`) and e2e (`pnpm e2e`) suites.
 # The browser binary AND its OS libs must be baked in at build time: the runtime

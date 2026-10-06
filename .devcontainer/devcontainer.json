@@ -49,16 +49,21 @@
     // Give the container its OWN node_modules (not the host's) so pnpm's store-path
     // metadata doesn't clash between host and container. Avoids the purge prompt and
     // the host<->container reinstall ping-pong. Named per-project for portability.
-    // Orbweaver is a 6-package pnpm workspace: the ROOT virtual store + every
-    // packages/*/node_modules symlink farm each get a volume, so nothing pnpm writes
-    // lands on the bind-mounted host folder.
+    // The ROOT virtual store, tooling's and every packages/*/node_modules symlink farm each
+    // get a volume, so nothing pnpm writes lands on the bind-mounted host folder.
     "source=${localWorkspaceFolderBasename}-node_modules,target=/workspace/node_modules,type=volume",
-    "source=${localWorkspaceFolderBasename}-kit-node_modules,target=/workspace/packages/kit/node_modules,type=volume",
+    "source=${localWorkspaceFolderBasename}-tooling-node_modules,target=/workspace/tooling/node_modules,type=volume",
+    "source=${localWorkspaceFolderBasename}-client-node_modules,target=/workspace/packages/client/node_modules,type=volume",
     "source=${localWorkspaceFolderBasename}-contracts-node_modules,target=/workspace/packages/contracts/node_modules,type=volume",
     "source=${localWorkspaceFolderBasename}-db-node_modules,target=/workspace/packages/db/node_modules,type=volume",
+    "source=${localWorkspaceFolderBasename}-default-content-node_modules,target=/workspace/packages/default-content/node_modules,type=volume",
+    "source=${localWorkspaceFolderBasename}-inference-node_modules,target=/workspace/packages/inference/node_modules,type=volume",
+    "source=${localWorkspaceFolderBasename}-kit-node_modules,target=/workspace/packages/kit/node_modules,type=volume",
+    "source=${localWorkspaceFolderBasename}-plugin-sdk-node_modules,target=/workspace/packages/plugin-sdk/node_modules,type=volume",
+    "source=${localWorkspaceFolderBasename}-plugin-toolchain-node_modules,target=/workspace/packages/plugin-toolchain/node_modules,type=volume",
     "source=${localWorkspaceFolderBasename}-server-node_modules,target=/workspace/packages/server/node_modules,type=volume",
+    "source=${localWorkspaceFolderBasename}-showcase-plugins-node_modules,target=/workspace/packages/showcase-plugins/node_modules,type=volume",
     "source=${localWorkspaceFolderBasename}-ui-node_modules,target=/workspace/packages/ui/node_modules,type=volume",
-    "source=${localWorkspaceFolderBasename}-client-node_modules,target=/workspace/packages/client/node_modules,type=volume",
     // pnpm's content-addressable store, persisted on a volume (so it survives rebuilds
     // and stays off the bind-mounted host folder). The Dockerfile's pnpm wrapper points
     // --store-dir here. Same device as the node_modules volumes, so hardlinks work.
@@ -68,10 +73,9 @@
     "NODE_OPTIONS": "--max-old-space-size=4096",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
     "POWERLEVEL9K_DISABLE_GITSTATUS": "true",
-    // THE store fix — and the whole reason neo's /usr/local/sbin pnpm wrapper does NOT
-    // exist here. pnpm 11 ignores npm_config_store_dir / ~/.npmrc / ~/.config/pnpm/rc for
-    // store-dir (settings live in the committed pnpm-workspace.yaml, shared with the host),
-    // but it DOES honor the pnpm-prefixed env var (verified empirically on pnpm 11.5.1).
+    // THE store fix, and the reason there is no pnpm wrapper script. pnpm ignores
+    // npm_config_store_dir / ~/.npmrc / ~/.config/pnpm/rc for store-dir (settings live in the
+    // committed pnpm-workspace.yaml, shared with the host), but it honors the pnpm-prefixed env var.
     // Without this, pnpm's per-device fallback probes the bind-mounted /workspace and dumps
     // a .pnpm-store into the host folder. This points it at the pnpm-store volume, which
     // shares a device with the node_modules volumes, so hardlinks work. Env config never
