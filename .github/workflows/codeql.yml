@@ -1,7 +1,7 @@
 name: CodeQL
 
-# Advanced setup instead of GitHub's default setup so test fixtures stay out of the results: the suites
-# deliberately build hostile URLs, payloads and fake servers, which CodeQL reports as real findings.
+# Advanced setup instead of GitHub's default setup so code that never ships stays out of the results: the test
+# suites deliberately build hostile URLs, payloads and fake servers, which CodeQL reports as real findings.
 on:
   push:
     branches: [main, release]
@@ -36,6 +36,9 @@ jobs:
           config: |
             paths-ignore:
               - tests/**
+              # One-off research scripts and a vendored copy of Chrome DevTools: neither ships.
+              - scripts/probes/**
+              - tooling/src/snap/lib/devtools-frontend/**
               - "**/*.test.ts"
               - "**/*.test.tsx"
       - uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
