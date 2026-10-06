@@ -1,0 +1,28 @@
+name: dependency-graph
+
+# GitHub's dependency graph reads only the first document of a pnpm 12 lockfile, which holds pnpm itself,
+# so Dependabot never sees the npm tree (dependabot/dependabot-core#15904). This job submits the full tree
+# from pnpm's own SBOM, which drives Dependabot alerts. Remove it once the graph parses both documents.
+on:
+  push:
+    branches: [main, release]
+    paths: [pnpm-lock.yaml, pnpm-workspace.yaml, "**/package.json"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - run: pnpm sbom --lockfile-only --sbom-format spdx --out pnpm.spdx.json
+      - uses: advanced-security/spdx-dependency-submission-action@v0.4.0
+        with:
+          filePattern: pnpm.spdx.json
+          manifestPath: pnpm-lock.yaml

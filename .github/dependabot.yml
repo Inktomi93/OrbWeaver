@@ -1,9 +1,22 @@
-# Version updates for everything except npm packages. Dependabot supports pnpm up to v10 and this repo pins
-# pnpm 12 (package.json packageManager), so npm updates would fail; dependency-audit.yml covers npm
-# advisories instead. Security updates for supported ecosystems run from the repository settings.
+# npm updates rely on Dependabot's pnpm 12 support; alerts for the npm tree come from the SBOM that
+# dependency-graph.yml submits, because GitHub's graph cannot read the pnpm 12 lockfile.
 version: 2
 
 updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: chore
+      include: scope
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
