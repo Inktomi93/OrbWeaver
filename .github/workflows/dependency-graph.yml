@@ -19,8 +19,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
       - run: pnpm sbom --lockfile-only --sbom-format spdx --out pnpm.spdx.json
       - uses: advanced-security/spdx-dependency-submission-action@v0.4.0
         with:

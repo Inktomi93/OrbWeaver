@@ -27,9 +27,9 @@ jobs:
       HEALTHZ: http://127.0.0.1:8788/healthz
       DEV_ORIGIN: http://localhost:5173
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # packageManager pins pnpm; install downloads the devEngines.runtime-pinned Node.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - run: pnpm install --frozen-lockfile
       # Git hooks invoke node directly, outside pnpm's script environment.
       - name: Expose the installed pinned Node on PATH
@@ -208,7 +208,7 @@ jobs:
 
       - name: Upload harness, Snap and dev evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: contributor-${{ matrix.os }}
           path: |

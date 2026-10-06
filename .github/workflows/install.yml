@@ -37,7 +37,7 @@ jobs:
         os: ${{ fromJSON(inputs.windows_proof_only && '["windows-latest"]' || '["ubuntu-latest", "macos-latest", "windows-latest"]') }}
     steps:
       # The README's `git clone`, at the ref this run was dispatched on.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install pnpm (README, Linux and macOS)
         if: runner.os != 'Windows'
@@ -170,7 +170,7 @@ jobs:
 
       - name: Upload plugin broker receipt
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: plugin-broker-proof-${{ matrix.os }}
           path: |
@@ -187,7 +187,7 @@ jobs:
     timeout-minutes: 40
     steps:
       # The README's `git clone`, at the ref this run was dispatched on.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - run: docker compose pull
 
@@ -239,7 +239,7 @@ jobs:
 
       - name: Upload Docker plugin broker receipt
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: plugin-broker-proof-docker
           path: ${{ runner.temp }}/plugin-broker-proof-docker.json
