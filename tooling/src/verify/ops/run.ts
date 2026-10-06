@@ -1,11 +1,12 @@
-// `pnpm verify` — the ONE verification entry (UNIFIED-VERIFICATION-DESIGN.md §3). Four tiers, one scope
+// `pnpm verify` — the ONE verification entry (UNIFIED-VERIFICATION-DESIGN.md §3). Named tiers, one scope
 // convention, one exit contract, one summary/artifact, generalized over the self-describing stage registry.
 //
 //   pnpm verify              → --static  (today's `pnpm check`, byte-compatible)
 //   pnpm verify --changed    → the inner loop (scoped, related tests)
 //   pnpm verify --static     → the whole static tier (= `pnpm check`); pre-commit adds `--changed staged`
 //   pnpm verify --push       → static + node tests + CT + e2e-smoke (the pre-push bar)
-//   pnpm verify --full       → push + cpd + full e2e + mutation-gate
+//   pnpm verify --full       → every automated check, including instrument proofs and mutation
+//   pnpm verify --product    → full application checks without instrument proofs or mutation
 //   pnpm verify --list       → print every registry row (incl. manual) with its tiers/reason
 //   pnpm verify --json       → mirror reports/verify.json to stdout
 //   pnpm verify --file <p…>  → scoped to explicit paths (the check:file muscle memory)
@@ -52,10 +53,10 @@ import type { Parsed } from "../lib/run-argv.ts";
 import { printHeadBanner, printList, printSummary, stageLine } from "../lib/run-render.ts";
 import { stageHangCeilingBaseMs } from "../lib/stage-budget.ts";
 import { refuseUnrunnableRows, resolveStageCommand, unresolvableCommandTranscript } from "../lib/stage-command.ts";
-import { nonRunningStageResult, planStage } from "../lib/stage-plan.ts";
+import { invocationVariant, nonRunningStageResult, planStage } from "../lib/stage-plan.ts";
 import { enterWholeRunQueue } from "../lib/whole-run-queue.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm verify [--push|--full])");
+refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm verify [--push|--full|--product])");
 
 /** Where per-stage transcripts live inside a run's slot; published as the `reports/verify/` alias. */
 const STAGES_SEGMENT = "stages";
@@ -238,7 +239,11 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
     logFile,
     failureExcerpt: ok ? null : failureExcerpt(transcript),
     runsAt: null,
-    notices: [...noticesIn(body), ...(audit?.kind === "notice" ? [audit.message] : [])],
+    notices: [
+      ...noticesIn(body),
+      ...(audit?.kind === "notice" ? [audit.message] : []),
+      ...(invocationVariant(stage, tier) === undefined ? [] : [`tier invocation: ${argv.join(" ")}`]),
+    ],
   };
 }
 

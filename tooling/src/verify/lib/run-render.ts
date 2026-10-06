@@ -10,6 +10,7 @@ import type { StageResult, Tier, VerifyReport } from "../contract/stage.ts";
 import { RUNNABLE_VERIFY_TIERS } from "../contract/stage.ts";
 import { producedNoVerdict } from "./exit-classifiers.ts";
 import { manualStages, stagesForTier } from "./registry.ts";
+import { invocationVariant } from "./stage-plan.ts";
 
 const NAME_PAD = 20; // stage-name column width in `verify --list`.
 /** The tool-error glyph, shared by `stageMark` and the NO-VERDICT block so one class reads one way. */
@@ -163,7 +164,9 @@ export function printList(): void {
       // is listed under would make the listing a half-truth.
       const precondition = s.tierPrecondition;
       const conditional = precondition !== undefined && precondition.tiers.includes(t) ? ` · CONDITIONAL: runs when ${precondition.reason}` : "";
-      process.stdout.write(`    · ${s.name.padEnd(NAME_PAD)} [${s.group}] ${scoped}${conditional}\n`);
+      const variant = invocationVariant(s, t);
+      const invocation = variant === undefined ? "" : ` · argv: ${variant.join(" ")}`;
+      process.stdout.write(`    · ${s.name.padEnd(NAME_PAD)} [${s.group}] ${scoped}${conditional}${invocation}\n`);
     }
   }
   process.stdout.write("\n  manual (never auto-run):\n");

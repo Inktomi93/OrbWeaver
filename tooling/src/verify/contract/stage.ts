@@ -7,7 +7,7 @@ import type { Selection } from "./selection.ts";
 /** @public knip type-face false positive — the one-home vocabulary tuple behind the exported `Tier` union — the ONE
  *  importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would invite the re-spell
  *  `no-inline-union-redecl` exists to stop. */
-export const VERIFY_TIERS = ["changed", "static", "push", "full", "manual"] as const;
+export const VERIFY_TIERS = ["changed", "static", "push", "full", "product", "manual"] as const;
 export type Tier = (typeof VERIFY_TIERS)[number];
 export type RunnableVerifyTier = Exclude<Tier, "manual">;
 export const RUNNABLE_VERIFY_TIERS: readonly RunnableVerifyTier[] = VERIFY_TIERS.filter((tier): tier is RunnableVerifyTier => tier !== "manual");
@@ -48,12 +48,12 @@ export interface StageDef {
   /** kebab, unique — "lint:biome", "types:native", "tests:node", … */
   readonly name: string;
   readonly group: StageGroup;
-  /** Every tier that includes this stage. The whole-tree ladder nests `static ⊂ push ⊂ full`; `changed`
-   *  is the SCOPED inner loop (`changed ⊆ push`) — it carries related-tests static omits, so it is NOT a
-   *  subset of static (static is the born-compliant test-free commit gate). */
+  /** Tier admission is independent of scope; product retains full application checks without tool proofs or mutation. */
   readonly tiers: readonly Tier[];
   /** The whole-scope invocation (the `pnpm <script>` form, spawned shell:false). */
   readonly argv: readonly [string, ...string[]];
+  /** Native runner population variants; absent tiers retain the default invocation. */
+  readonly tierArgv?: Readonly<Partial<Record<RunnableVerifyTier, readonly [string, ...string[]]>>>;
   /** Extra env for the child (merged over the inherited env + the run's NO_COLOR). No current stage
    *  needs one (the former CT_GATE consumer retired 2026-07-17 — gate retries are a visible CLI flag in
    *  the `pnpm test` composition now); the seam stays for the next genuinely env-shaped stage knob. */

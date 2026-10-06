@@ -11,15 +11,78 @@
 // The membership is registry DATA (UNIFIED-VERIFICATION-DESIGN §3.1), so these arms read the registry
 // rather than a prose table.
 import { ACTIVE_GATES_INDEX_REL, SNAP_FLAGS_INDEX_REL } from "../../../../tooling/src/verify/contract/ledger-paths.ts";
-import type { StageDef, Tier } from "../../../../tooling/src/verify/contract/stage.ts";
+import type { StageDef } from "../../../../tooling/src/verify/contract/stage.ts";
+import { RUNNABLE_VERIFY_TIERS } from "../../../../tooling/src/verify/contract/stage.ts";
 import { stagesForTier } from "../../../../tooling/src/verify/lib/registry.ts";
 import { applyPathTriggers, WHOLE_COMMAND_PATH_TRIGGERS } from "../../../../tooling/src/verify/lib/registry-triggers.ts";
+import { parseRequest } from "../../../../tooling/src/verify/lib/run-argv.ts";
 import { stageLine } from "../../../../tooling/src/verify/lib/run-render.ts";
 import { resolveSelection } from "../../../../tooling/src/verify/lib/selection.ts";
+import { planStage } from "../../../../tooling/src/verify/lib/stage-plan.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-const WHOLE_TIERS: readonly Tier[] = ["changed", "static", "push", "full"];
+const WHOLE_TIERS = RUNNABLE_VERIFY_TIERS;
+
+test("product is exactly the complete full roster minus instrument proofs and mutation", () => {
+  const excluded = ["structure:policy-conformance", "tests:tooling", "tests:instrument-affected", "tests:tool-guard", "quality:mutation-gate"];
+  const full = stagesForTier("full");
+  const product = stagesForTier("product");
+  const retained = full.filter(({ name }) => !excluded.includes(name));
+  expect(
+    full
+      .filter(({ name }) => excluded.includes(name))
+      .map(({ name }) => name)
+      .toSorted(),
+  ).toEqual(excluded.toSorted());
+  expect(product.map(({ name }) => name)).toEqual([
+    "lint:biome",
+    "lint:eslint",
+    "lint:hook-syntax",
+    "types:native",
+    "types:testd",
+    "types:ownership",
+    "tests:execution-membership",
+    "structure:db-baseline",
+    "structure:asset-refs",
+    "structure:drizzle-kit",
+    "structure:agent-config",
+    "structure:full",
+    "ledgers:fresh",
+    "release:showcase-versions",
+    "config:biome-rule-liveness",
+    "config:knip-negative-liveness",
+    "imports:depcruise",
+    "deps:knip",
+    "deps:knip-prod",
+    "deps:orphan-ratchet",
+    "docs:format",
+    "tests:node",
+    "browser:ct",
+    "browser:e2e-smoke",
+    "quality:boot-chunk",
+    "quality:cpd",
+    "browser:e2e",
+  ]);
+  expect(product).toEqual(retained);
+  for (const row of product) {
+    expect(row).toBe(full.find(({ name }) => name === row.name));
+    expect(planStage(row, undefined, "product")).toEqual({ mode: "full", argv: row.tierArgv?.product ?? row.argv, runsAt: null });
+    expect(planStage(row, undefined, "full")).toEqual({ mode: "full", argv: row.argv, runsAt: null });
+  }
+  expect(product.filter(({ tierArgv }) => tierArgv !== undefined).map(({ name, tierArgv }) => [name, tierArgv])).toEqual([
+    ["types:testd", { product: ["pnpm", "test:types", "--config=vitest.product.config.ts"] }],
+    ["browser:ct", { product: ["pnpm", "test:ct", "--retries=2", "--config=playwright-ct.product.config.ts"] }],
+  ]);
+  expect(
+    full
+      .filter(({ name }) => !product.some((row) => row.name === name))
+      .map(({ name }) => name)
+      .toSorted(),
+  ).toEqual(excluded.toSorted());
+  const request = parseRequest(["--product"]);
+  expect(request).toMatchObject({ tier: "product", request: undefined });
+});
 
 function stage(tier: Parameters<typeof stagesForTier>[0], name: string): StageDef {
   const found = stagesForTier(tier).find((row) => row.name === name);

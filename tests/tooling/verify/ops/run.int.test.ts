@@ -37,8 +37,10 @@ import {
   unrunnableRegistryRows,
   workspaceBinPath,
 } from "../../../../tooling/src/verify/index.ts";
+import { readHistory } from "../../../../tooling/src/verify/lib/history.ts";
 import { parseRequest } from "../../../../tooling/src/verify/lib/run-argv.ts";
 import { workingChangeClassification } from "../../../../tooling/src/verify/lib/selection.ts";
+import { resolveLatestVerifyRun } from "../../../../tooling/src/verify/lib/show-run-summary.ts";
 import { nonRunningStageResult, planStage } from "../../../../tooling/src/verify/lib/stage-plan.ts";
 import type { WholeRunAsk } from "../../../../tooling/src/verify/lib/whole-run-queue.ts";
 import { enterWholeRunQueue } from "../../../../tooling/src/verify/lib/whole-run-queue.ts";
@@ -244,6 +246,63 @@ process.exitCode = await runVerify(${JSON.stringify(scratch)}, parsed);
   // A zero denominator would pass the uniqueness assertion below on its own.
   expect(lines.length, `no stage reached the fake pnpm:\n${output}`).toBeGreaterThan(0);
   expect([...new Set(lines)]).toEqual(["NO_COLOR=[1] FORCE_COLOR=[unset]"]);
+});
+
+test("product publishes its own tier, whole roster, native argv and history identity", { timeout: scaledBudget(60_000) }, async ({
+  fakeBin,
+  repoRoot,
+  scratch,
+}) => {
+  const commands = join(scratch, "commands.jsonl");
+  await fakeBin(
+    "pnpm",
+    `import { appendFileSync } from "node:fs";
+appendFileSync(${JSON.stringify(commands)}, JSON.stringify(process.argv.slice(2)) + "\\n");
+console.log("Checked 1 file in 1ms.");
+`,
+  );
+  mkdirSync(join(scratch, ".claude", "hooks"), { recursive: true });
+  writeFileSync(join(scratch, ".claude", "hooks", "fixture.mjs"), "export {};\n");
+  const runner = join(scratch, "run-product.ts");
+  writeFileSync(
+    runner,
+    `import { parse } from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/lib/run-argv.ts")).href)};
+import { runVerify } from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/ops/run.ts")).href)};
+const parsed = parse(["--product", "--json"]);
+if ("error" in parsed) throw new Error(parsed.error);
+process.exitCode = await runVerify(${JSON.stringify(scratch)}, parsed);
+`,
+  );
+  const result = await spawnNiced(process.execPath, [runner], {
+    cwd: repoRoot,
+    env: { [HOST_POOL_ROOT_ENV]: join(scratch, "product-slots") },
+    timeoutMs: scaledBudget(60_000),
+  });
+  expect(result.code, result.stdout + result.stderr).toBe(0);
+  expect(result.stdout).toContain("tier=product · scope=whole");
+  expect(result.stdout).toContain("tier: product, scope: whole");
+  expect(result.stdout).not.toContain("tier=full");
+  const report = JSON.parse(readFileSync(join(scratch, "reports", "verify.json"), "utf8")) as VerifyReport;
+  expect(report).toMatchObject({ tier: "product", scope: "whole", ok: true, exitCode: 0, failed: 0, noVerdict: [] });
+  expect(report.stages.map(({ name }) => name)).toEqual(stagesForTier("product").map(({ name }) => name));
+  expect(report.stages.every(({ mode, childExit }) => mode === "full" && childExit === 0)).toBe(true);
+  expect(
+    readFileSync(commands, "utf8")
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line)),
+  ).toEqual(
+    stagesForTier("product")
+      .filter(({ argv }) => argv[0] === "pnpm")
+      .map((row) => (row.tierArgv?.product ?? row.argv).slice(1)),
+  );
+  expect(report.stages.filter(({ notices }) => notices.length > 0).map(({ name, notices }) => [name, notices])).toEqual([
+    ["types:testd", ["tier invocation: pnpm test:types --config=vitest.product.config.ts"]],
+    ["browser:ct", ["tier invocation: pnpm test:ct --retries=2 --config=playwright-ct.product.config.ts"]],
+  ]);
+  const resolved = resolveLatestVerifyRun(scratch);
+  expect(resolved).toMatchObject({ kind: "report", report });
+  expect(readHistory(scratch)).toMatchObject([{ tier: "product", scope: "whole", exitCode: 0 }]);
 });
 
 test("asViolations: clean 0, any non-zero is a violation (tsc's 2 = type errors, not tool-error)", () => {
@@ -547,7 +606,7 @@ test("the boot-chunk ratchet is a push/full stage, whole-only, speaking the OWN 
   const boot = stage("quality:boot-chunk");
   // PUSH, never static: the stage runs a real vite production build (15.45s warm, 2026-08-22) and the
   // static tier is the structural-fast commit bar. A static row would put a bundler in every commit.
-  expect(boot.tiers).toEqual(["push", "full"]);
+  expect(boot.tiers).toEqual(["push", "full", "product"]);
   expect(new Set(stagesForTier("static").map((s) => s.name)).has("quality:boot-chunk")).toBe(false);
   // ownScheme, not asViolations: an UNMEASURABLE dist (no entry chunk / two / a failed build) must reach
   // the runner as a TOOL ERROR (2), never collapse to a violation or — worse — a clean pass.
@@ -568,7 +627,7 @@ test("the push tier carries the behavioral suites the static tier omits (the `bo
   // (lib/stage-budget.ts), and `tests:node` is the vitest half alone. No double-run: the composite is a
   // manual-only row (`tests:product-composite`) that no tier includes.
   expect(push.has("browser:ct")).toBe(true);
-  expect(stage("browser:ct").tiers).toEqual(["changed", "push", "full"]);
+  expect(stage("browser:ct").tiers).toEqual(["changed", "push", "full", "product"]);
   // The composition remains the explicit combined product-test command: if `test` stops composing
   // test:ct, callers asking for the combined behavioral suites silently lose CT coverage.
   const rootPkg = JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as {

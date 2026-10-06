@@ -1,7 +1,6 @@
 # Orbweaver
 
-This file is the always-on core for Claude Code and Codex. Area rules load by path from `.claude/rules/`
-(see "Path rules and Codex"). Procedures are skills. Read every other doc on demand through the reading router.
+This file is the always-on core for Claude Code and Codex. Area rules load by path from `.claude/rules/` (see "Path rules and Codex"). Procedures are skills. Read every other doc on demand through the reading router.
 
 ## Which law wins
 
@@ -111,6 +110,7 @@ as the new one. If you cannot go green without a hatch, stop and report.
 | `pnpm check` (same as `pnpm verify`, `--static`) | the static whole tree: lint, types and type tests, structure, imports, docs; no product runtime tests |
 | `pnpm verify --push` | adds node tests, CT and e2e smoke |
 | `pnpm verify --full` | adds the tooling test battery and the slow quality stages |
+| `pnpm verify --product` | whole application checks, complete application CT and E2E; excludes tool proofs and mutation |
 
 - Read stage membership from `pnpm verify --list`. Exit codes: 0 clean, 1 violations, 2 tool error (not a verdict), 3 misuse.
 - Use the `lane` skill's "Completion" policy to select checks. Run `pnpm check` after merge trains, for cross-package contracts or shared build/verification changes, or when requested. Routine local changes finish with relevant scoped checks.

@@ -13,6 +13,7 @@ import process from "node:process";
 import type { MembershipReport } from "@orb/tooling/verify";
 import { VERIFY_VERBS } from "@orb/tooling/verify";
 import { readPolicyRepositoryInventory } from "../../../tooling/src/verify/lib/policy-repo-inventory.ts";
+import { stagesForTier } from "../../../tooling/src/verify/lib/registry.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
@@ -79,6 +80,8 @@ test("an explicit changed path outside the repository is CLI misuse, not a tool 
 // effect IS the write we are refusing (a scaffolded gate file, a rewritten committed ledger), so the
 // receipt for them is the refusal below, taken before either door opens.
 const TAIL_REFUSALS: readonly (readonly [string, readonly string[], string])[] = [
+  ["run", ["--product", "--changed"], "product runs the whole tree"],
+  ["run", ["--tier=product", "--package=kit"], "product runs the whole tree"],
   ["ledgers-fresh", ["--scope", "packages/ui"], "takes no arguments"],
   // `structure` now owns the final-policy scope grammar. An actually unknown token is still refused before
   // the run slot opens; `--changed` is a supported planner request and is exercised by the policy command tests.
@@ -97,6 +100,22 @@ const TAIL_REFUSALS: readonly (readonly [string, readonly string[], string])[] =
   ["baseline", ["prose", "--chekc"], "unexpected argument"],
   ["scoped", ["--package", "@orb/kit", "--bogus-flag"], "unrecognised argument"],
 ];
+
+test("run help and the registry listing name product without promising tooling proof coverage", { timeout: HELP_TIMEOUT_MS }, async ({ runCli }) => {
+  const help = await runCli("verify", ["run", "--help"], { env: SMALL_HEAP_ENV, timeoutMs: HELP_TIMEOUT_MS });
+  await expect(help).toExitWith(0);
+  expect(help.stdout).toContain("--product");
+  expect(help.stdout).toContain("complete application CT and E2E; no tooling test populations, tool proofs or mutation");
+  expect(help.stdout).toContain("Scope selectors are refused");
+  const list = await runCli("verify", ["run", "--product", "--list"], { env: smallHeapEnvWithPath(CALLER_PATH), timeoutMs: HELP_TIMEOUT_MS });
+  await expect(list).toExitWith(0);
+  const product = list.stdout.split("  product:\n")[1]?.split("\n  manual")[0] ?? "";
+  const names = product.split("\n").flatMap((line) => /^ {4}· (\S+)/u.exec(line)?.[1] ?? []);
+  expect(names).toEqual(stagesForTier("product").map(({ name }) => name));
+  expect(product).not.toContain("CONDITIONAL");
+  expect(product).toContain("argv: pnpm test:types --config=vitest.product.config.ts");
+  expect(product).toContain("argv: pnpm test:ct --retries=2 --config=playwright-ct.product.config.ts");
+});
 
 test.for(TAIL_REFUSALS)(
   "`verify %s` refuses an unrecognised tail before doing any work",

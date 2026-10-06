@@ -2,6 +2,7 @@ import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile
 import { budget } from "@orb/tooling/_shared/load-budget";
 import type { TestCompilerWorld, TestFamily, TestResource } from "@orb/tooling/_shared/test-kinds";
 import { runtimeForTestFamily, TEST_KIND_DEFINITIONS, vitestTypecheckGroupName } from "@orb/tooling/_shared/test-kinds";
+import { applicationTestExclusions } from "@orb/tooling/_shared/test-population";
 import { TEST_TAGS } from "@orb/tooling/_shared/test-tags";
 import type { TestProjectConfiguration, ViteUserConfig } from "vitest/config";
 import { defineConfig } from "vitest/config";
@@ -77,48 +78,52 @@ const TYPECHECKER = "scripts/ts7.ts";
  *  TEST failure, not a source error, and still reds. */
 const IGNORE_SOURCE_ERRORS = true;
 
-const TYPECHECK_PROJECTS = [
-  {
-    extends: true,
-    test: {
-      name: vitestTypecheckGroupName("node"),
-      sequence: { groupOrder: NORMAL_GROUP_ORDER },
-      include: [],
-      typecheck: {
-        enabled: true,
-        only: true,
-        include: testGlobs("type"),
-        exclude: BROWSER_TYPES,
-        tsconfig: "tsconfig.json",
-        checker: TYPECHECKER,
-        ignoreSourceErrors: IGNORE_SOURCE_ERRORS,
+function typecheckProjects(applicationOnly: boolean): readonly TestProjectConfiguration[] {
+  const applicationExclusions = applicationTestExclusions(applicationOnly);
+  return [
+    {
+      extends: true,
+      test: {
+        name: vitestTypecheckGroupName("node"),
+        sequence: { groupOrder: NORMAL_GROUP_ORDER },
+        include: [],
+        typecheck: {
+          enabled: true,
+          only: true,
+          include: testGlobs("type"),
+          exclude: [...BROWSER_TYPES, ...applicationExclusions],
+          tsconfig: "tsconfig.json",
+          checker: TYPECHECKER,
+          ignoreSourceErrors: IGNORE_SOURCE_ERRORS,
+        },
       },
     },
-  },
-  {
-    extends: true,
-    test: {
-      name: vitestTypecheckGroupName("browser"),
-      sequence: { groupOrder: BROWSER_TYPECHECK_GROUP_ORDER },
-      include: [],
-      typecheck: {
-        enabled: true,
-        only: true,
-        include: BROWSER_TYPES,
-        tsconfig: "tsconfig.tests-dom.json",
-        checker: TYPECHECKER,
-        ignoreSourceErrors: IGNORE_SOURCE_ERRORS,
+    {
+      extends: true,
+      test: {
+        name: vitestTypecheckGroupName("browser"),
+        sequence: { groupOrder: BROWSER_TYPECHECK_GROUP_ORDER },
+        include: [],
+        typecheck: {
+          enabled: true,
+          only: true,
+          include: BROWSER_TYPES,
+          ...(applicationExclusions.length === 0 ? {} : { exclude: applicationExclusions }),
+          tsconfig: "tsconfig.tests-dom.json",
+          checker: TYPECHECKER,
+          ignoreSourceErrors: IGNORE_SOURCE_ERRORS,
+        },
       },
     },
-  },
-] satisfies readonly TestProjectConfiguration[];
+  ] satisfies readonly TestProjectConfiguration[];
+}
 
 // docs/work/0062 — every project inherits this through `extends: true`, so each one captures the working
 // tree before its own first test and re-checks it at close: a suite that writes the real tree (repo law
 // forbids it) reds naming the file instead of passing unseen.
 const WORKING_TREE_GUARD = "@orb/tooling/_shared/working-tree-guard";
 
-export function vitestConfig(runtimeOnly = false): ViteUserConfig {
+export function vitestConfig(runtimeOnly = false, applicationOnly = false): ViteUserConfig {
   return defineConfig({
     test: {
       globalSetup: [WORKING_TREE_GUARD],
@@ -197,7 +202,7 @@ export function vitestConfig(runtimeOnly = false): ViteUserConfig {
             include: withIgnored([...exclusiveTestGlobs(({ family, resource }) => family === "contract" && resource === null), `!${TOOLING}`]),
           },
         },
-        ...(runtimeOnly ? [] : TYPECHECK_PROJECTS),
+        ...(runtimeOnly ? [] : typecheckProjects(applicationOnly)),
       ],
     },
   });

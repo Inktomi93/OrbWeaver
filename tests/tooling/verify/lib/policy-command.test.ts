@@ -32,6 +32,9 @@ test.describe("final policy command parser", () => {
     expect(parsePolicyCommand(["--static"])).toMatchObject({ ok: true, request: { mode: "run", tier: "static" } });
     expect(parsePolicyCommand(["--push", "--file", "a.ts"])).toMatchObject({ ok: true, request: { mode: "run", tier: "push" } });
     expect(parsePolicyCommand(["--full"])).toMatchObject({ ok: true, request: { mode: "run", tier: "full" } });
+    expect(parsePolicyCommand(["--product"])).toMatchObject({ ok: true, request: { mode: "run", tier: "product", scope: { kind: "whole" } } });
+    expect(parsePolicyCommand(["--tier=product"])).toMatchObject({ ok: true, request: { mode: "run", tier: "product" } });
+    expect(parsePolicyCommand(["--list", "--product"])).toMatchObject({ ok: false, exitCode: 3 });
   });
 
   test("list and explain are deterministic data requests", () => {
