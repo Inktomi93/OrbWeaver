@@ -134,7 +134,14 @@ post-commit:
 
 pre-push:
   follow: true
+  # Stop at the first failure so a push GitHub would refuse never pays for the verify tier.
+  piped: true
   commands:
+    # Merges made on GitHub (Dependabot PRs, the release PR) must come into local main first, or the
+    # push is refused after the whole verify tier has run. `pnpm sync` folds them in.
+    github-sync-check:
+      priority: 1
+      run: bash scripts/github-sync.sh --check
     # The push tier: static + deps:orphan-ratchet + tests:node (`pnpm test`, the configured vitest
     # runtime projects plus the CT suite) + e2e-smoke + `quality:cpd`, with a unified summary and a
     # max-severity exit. Runs every stage and reports every failure, rather than aborting on the first.
@@ -147,6 +154,7 @@ pre-push:
     # `tooling/src/verify/lib/registry.ts` is the authority on the tier list; `pnpm verify --list` prints
     # every stage with its tier.
     verify:push:
+      priority: 2
       run: pnpm verify --push
       env:
         NO_COLOR: "1"

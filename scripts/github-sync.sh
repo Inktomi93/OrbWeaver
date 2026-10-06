@@ -4,7 +4,21 @@
 # are merged in here first or the push is refused.
 # `pnpm release`: sync, then push main to `release`, which opens or updates the release-please PR.
 # Extra arguments go to `git push`, e.g. `pnpm release --no-verify`.
+# `--check` (the pre-push hook) only reports: it fails when GitHub has merges local main lacks.
 set -euo pipefail
+
+if [ "${1:-}" = "--check" ]; then
+  # Only main is pushed from a checkout; other branches are not this hook's business.
+  [ "$(git rev-parse --abbrev-ref HEAD)" = main ] || exit 0
+  git fetch --quiet origin || exit 0
+  for ref in origin/main origin/release; do
+    git rev-parse --quiet --verify "$ref" >/dev/null || continue
+    git merge-base --is-ancestor "$ref" HEAD && continue
+    echo "GitHub has merges on ${ref#origin/} that local main lacks (Dependabot or a release). Run: pnpm sync"
+    exit 1
+  done
+  exit 0
+fi
 
 release=0
 if [ "${1:-}" = "--release" ]; then
