@@ -74,6 +74,7 @@ export function createResolveStructuredBinding(
  *  binding, so that connection's consent and its plan for the projected draft are the answer. */
 export function createPlanSchema(
   resolveStructuredBinding: RefineryComposeDeps["resolveStructuredBinding"],
+  resolveUtilityPresetParams: RefineryComposeDeps["resolveUtilityPresetParams"],
 ): (ownerId: UserId, schema: WireReady) => Promise<RefinerySchemaPlan> {
   return async (ownerId, schema) => {
     const connection = await resolveStructuredBinding(ownerId);
@@ -83,7 +84,8 @@ export function createPlanSchema(
     if (!canFund(connection, "structured")) {
       return { outcome: "background-refused", model: connection.model };
     }
-    const preview = structuredFitFor(connection, { name: "refinery_schema_preview", schema });
+    const params = await resolveUtilityPresetParams(ownerId);
+    const preview = structuredFitFor(connection, { name: "refinery_schema_preview", schema }, params ?? {});
     if (preview.ok) {
       return { outcome: "sends", model: connection.model, carrier: preview.native ? "native" : "tool" };
     }
@@ -108,7 +110,7 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
     roleClientsFor: deps.roleClientsFor,
     resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
     resolveUserProse,
-    planSchema: createPlanSchema(deps.resolveStructuredBinding),
+    planSchema: createPlanSchema(deps.resolveStructuredBinding, deps.resolveUtilityPresetParams),
     emitUserEvent: publishUserEvent,
     loadOwnedCard: createLoadOwnedCard({ db: deps.db }),
     stampRefinerySignals,

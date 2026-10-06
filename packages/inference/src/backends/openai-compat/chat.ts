@@ -599,7 +599,12 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   // Planned once per turn, never per attempt: a retry or the mandatory-reasoning replay must not warn twice.
   const structured = requireStructuredPlan(
     connection,
-    { formats: req.responseFormat === undefined ? undefined : [req.responseFormat], tools: req.tools, toolChoice: req.toolChoice },
+    {
+      formats: req.responseFormat === undefined ? undefined : [req.responseFormat],
+      tools: req.tools,
+      toolChoice: req.toolChoice,
+      reasoningOff: knobs.reasoning.offChosen === true,
+    },
     label,
   );
   warnings.push(...structured.downgrades);

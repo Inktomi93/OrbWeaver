@@ -321,7 +321,7 @@ export const generationCapabilitySchema = z.object({
   /** What a chat turn may CARRY. `image` gates the multimodal send, `video` likewise (#317); `audio`/`file`
    *  are captured truth no consumer sends yet. */
   input: z.array(modalitySchema),
-  /** Present ⇒ accepts `tools[]`. `silencesProse` = MEASURED: attaching tools suppresses the assistant's
+  /** Present ⇒ offers `tools[]`, subject to the stated turn conditions. `silencesProse` = MEASURED: attaching tools suppresses the assistant's
    *  prose on this (model × wire) — local vLLM's Qwen3-VL wrote 0 chars on 36/36 tool-attached turns. Absent
    *  `silencesProse` ⇒ the wire CO-EMITS (the hosted 6/6). Read through `coEmitsProseWithTools`.
    *
@@ -344,6 +344,8 @@ export const generationCapabilitySchema = z.object({
       namedChoice: z.boolean().optional(),
       noneChoice: z.boolean().optional(),
       parallelControl: z.boolean().optional(),
+      /** Tool calls on this route require an explicitly disabled reasoning turn. */
+      requiresReasoningOff: z.boolean().optional(),
     })
     .optional(),
   output: z.object({

@@ -4,11 +4,13 @@
 
 import type { StructuredVehicle, WireSchemaMode, WireSchemaViolation } from "@orb/contracts/inference";
 import { countWireSchemas, describeWireSchemaViolation, scrubViolations, scrubWireSchema, WIRE_SUBSETS } from "@orb/contracts/inference";
+import type { RolePresetParams } from "@orb/contracts/preset";
 import type { ResponseFormat, ToolChoice, WireTool } from "../contract/chat.ts";
 import { assertNever, ProviderError, SCHEMA_REJECTED_DETAIL } from "../contract/errors.ts";
 import type { ResolvedWarning } from "../contract/resolve.ts";
 import type { Resolved } from "../contract/resolved.ts";
 import type { StructuredFit } from "../contract/structured-turn.ts";
+import { resolveChat } from "../funnel/resolve-chat.ts";
 import type { StructuredTarget } from "./target.ts";
 import { structuredTargetOf } from "./target.ts";
 
@@ -28,6 +30,8 @@ export interface StructuredAsk {
   /** `false` when this turn's own shape refuses the native carrier (an Anthropic assistant prefill cannot ride
    *  `output_config.format`): the payload rides a tool or is refused. */
   readonly nativeFormat?: false | undefined;
+  /** The funnel resolved an explicit off; omission leaves the model's reasoning default active. */
+  readonly reasoningOff?: boolean | undefined;
 }
 
 /** The structured payload as planned: the scrubbed schema, how it rides, and the paths the reply drops a null at. */
@@ -237,11 +241,13 @@ function toolVehicleAttempt(
 function turnTarget(ask: StructuredAsk, endpoint: StructuredTarget): StructuredTarget {
   const forced = ask.forcedChoice !== false;
   const native = ask.nativeFormat !== false;
+  const toolsSupported = endpoint.toolsSupported && (!endpoint.requiresReasoningOff || ask.reasoningOff === true);
   return {
     ...endpoint,
+    toolsSupported,
     requiredChoice: endpoint.requiredChoice && forced,
     namedChoice: endpoint.namedChoice && forced,
-    vehicles: endpoint.vehicles.filter((vehicle) => (vehicle !== "forced-tool" || forced) && (vehicle !== "response-format" || native)),
+    vehicles: endpoint.vehicles.filter((vehicle) => (vehicle === "response-format" ? native : toolsSupported && (vehicle !== "forced-tool" || forced))),
   };
 }
 
@@ -252,6 +258,12 @@ export function planStructured(ask: StructuredAsk, endpoint: StructuredTarget): 
   const target = turnTarget(ask, endpoint);
   const downgrades: ResolvedWarning[] = [];
   const withdrawn = withdrawnForNone(ask, target, downgrades);
+  if (!withdrawn && (ask.tools?.length ?? 0) > 0 && !target.toolsSupported) {
+    return {
+      ok: false,
+      violations: [{ kind: "no-vehicle", mode: target.mode, cause: endpoint.toolsSupported ? "tools-with-reasoning" : "tools-unsupported" }],
+    };
+  }
   const turn: PlanningTurn = {
     prefillDroppedNative: ask.nativeFormat === false && endpoint.vehicles.includes("response-format"),
     target,
@@ -297,6 +309,9 @@ function vehicleAttempt(format: ResponseFormat, vehicle: StructuredVehicle, { ta
 }
 
 function noVehicleCause({ target, callerTools, prefillDroppedNative }: PlanningTurn): Extract<WireSchemaViolation, { kind: "no-vehicle" }>["cause"] {
+  if (target.requiresReasoningOff && !target.toolsSupported) {
+    return "tools-with-reasoning";
+  }
   if (callerTools.length > 0 && target.vehicles.length > 0) {
     return prefillDroppedNative ? "tools-with-prefill" : "tools-without-native";
   }
@@ -336,9 +351,12 @@ export function planStructuredFor(connection: Resolved, ask: StructuredAsk): Str
   return planStructured(ask, structuredTargetOf(connection));
 }
 
-/** {@link planStructuredFor} for a caller that shows the outcome instead of sending (the refinery schema editor). */
-export function structuredFitFor(connection: Resolved, format: ResponseFormat): StructuredFit {
-  const plan = planStructuredFor(connection, { formats: [format] });
+/** Side-generation preview with the same role parameters and reasoning posture as the request. */
+export function structuredFitFor(connection: Resolved, format: ResponseFormat, params: RolePresetParams): StructuredFit {
+  const reasoningOff =
+    connection.capability.kind === "generation" &&
+    resolveChat(params, connection.capability.generation, { posture: "side-gen", wire: connection.wire }).reasoning.offChosen === true;
+  const plan = planStructuredFor(connection, { formats: [format], reasoningOff });
   if (plan.ok) {
     return { ok: true, native: plan.responseFormat?.vehicle === "response-format" };
   }
