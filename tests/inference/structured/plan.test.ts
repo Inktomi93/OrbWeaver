@@ -24,6 +24,8 @@ function target(overrides: Partial<StructuredTarget> = {}): StructuredTarget {
     requiredChoice: true,
     namedChoice: true,
     noneChoice: true,
+    toolsSupported: true,
+    requiresReasoningOff: false,
     ...overrides,
   };
 }

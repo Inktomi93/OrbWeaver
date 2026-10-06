@@ -24,6 +24,8 @@ export interface StructuredTarget extends StructuredSchemaTarget {
   readonly namedChoice: boolean;
   /** A `none` choice reaches the model. */
   readonly noneChoice: boolean;
+  readonly toolsSupported: boolean;
+  readonly requiresReasoningOff: boolean;
 }
 
 /** Wires whose request has a native schema carrier (`response_format`, `output_config.format`,
@@ -62,7 +64,17 @@ export function structuredTargetOf(connection: Resolved): StructuredTarget {
   const mode = connection.features.structuredMode ?? WIRE_STRUCTURED_MODE_DEFAULT[connection.wire];
   const strictTools = connection.features.strictJson;
   if (connection.capability.kind !== "generation") {
-    return { mode, limits: undefined, vehicles: [], strictTools, requiredChoice: false, namedChoice: false, noneChoice: false };
+    return {
+      mode,
+      limits: undefined,
+      vehicles: [],
+      strictTools,
+      requiredChoice: false,
+      namedChoice: false,
+      noneChoice: false,
+      toolsSupported: false,
+      requiresReasoningOff: false,
+    };
   }
   const generation = connection.capability.generation;
   const takesTools = generation.tools !== undefined && SENDS_TOOLS[connection.wire];
@@ -87,5 +99,7 @@ export function structuredTargetOf(connection: Resolved): StructuredTarget {
     requiredChoice: acceptsRequiredToolChoice(generation),
     namedChoice,
     noneChoice: acceptsNoneToolChoice(generation),
+    toolsSupported: takesTools,
+    requiresReasoningOff: generation.tools?.requiresReasoningOff === true,
   };
 }

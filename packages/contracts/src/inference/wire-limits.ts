@@ -53,13 +53,12 @@ interface PathViolation extends ViolationOrigin {
   readonly path: string;
 }
 
-/** Why no carrier was left. `unsupported`: the model takes neither structured output nor tools. `assistant-prefill`:
- *  the turn ends on a prefill, which the native carrier cannot follow, and the model has no tool to carry the payload.
- *  The `tools-` causes: the turn carries the caller's own tools, so the payload can only ride natively, and the native
- *  carrier is missing from the model (`tools-without-native`) or removed by the prefill (`tools-with-prefill`). */
-type NoVehicleCause = "unsupported" | "assistant-prefill" | "tools-without-native" | "tools-with-prefill";
+/** Why a structured or tool request has no permitted carrier on this turn. */
+type NoVehicleCause = "unsupported" | "assistant-prefill" | "tools-without-native" | "tools-with-prefill" | "tools-unsupported" | "tools-with-reasoning";
 
 const NO_VEHICLE_REASON: Readonly<Record<NoVehicleCause, string>> = {
+  "tools-unsupported": "this model's selected API route does not support tool calls",
+  "tools-with-reasoning": "tool calls on this API route require reasoning effort none; choose none or a route that supports tools with reasoning",
   unsupported: "this model takes neither structured output nor tool calls",
   "assistant-prefill":
     "structured output cannot be used on a turn that ends with a prefilled assistant message, and this model has no tool calls to carry it instead",

@@ -29,6 +29,7 @@ import { FROZEN_NOW, fakeConnection, fakeDeps, memoryStores, newUserId } from ".
 import { principal } from "../../../support/factories/principal.ts";
 import { makeCapability, makeGenerationCapability, makeResolved, TEST_OWNER_ID } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { testModelId } from "../../../support/inference-identities.ts";
 
 const USER = castId<UserId>("usr_author");
 const OTHER = castId<UserId>("usr_other");
@@ -162,7 +163,10 @@ const CLAUDE_OUTPUT: GenerationCapability["output"] = {
 };
 
 function planOn(connection: Resolved | null): ReturnType<ReturnType<typeof createPlanSchema>> {
-  const planSchema = createPlanSchema(() => Promise.resolve(connection));
+  const planSchema = createPlanSchema(
+    () => Promise.resolve(connection),
+    () => Promise.resolve(undefined),
+  );
   return planSchema(TEST_OWNER_ID, optionalFields(30));
 }
 
@@ -177,6 +181,29 @@ test("over Anthropic's ceilings on a model that takes tools, the plan rides a to
     capability: makeCapability(makeGenerationCapability({ output: CLAUDE_OUTPUT, tools: { parallel: true } })),
   });
   expect(await planOn(claude)).toEqual({ outcome: "sends", model: "test-model", carrier: "tool" });
+});
+
+test("the Utility default reasoning off admits the same conditional tool fallback in the schema preview", async () => {
+  const connection = bound({
+    providerId: "openai",
+    model: testModelId("gpt-6-sol"),
+    capability: makeCapability(
+      makeGenerationCapability({
+        reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"] },
+        tools: { parallel: true, requiresReasoningOff: true },
+        output: { maxTokens: { min: 1, max: 8192 }, structured: true, modalities: ["text"], structuredLimits: { maxObjectProps: 1 } },
+      }),
+    ),
+  });
+  const params = vi.fn<RefineryComposeDeps["resolveUtilityPresetParams"]>().mockResolvedValue(undefined);
+  const planSchema = createPlanSchema(() => Promise.resolve(connection), params);
+  const schema = projectJsonSchema(z.object({ a: z.string(), b: z.string() }));
+  expect(await planSchema(TEST_OWNER_ID, schema)).toEqual({ outcome: "sends", model: "gpt-6-sol", carrier: "tool" });
+  expect(params).toHaveBeenLastCalledWith(TEST_OWNER_ID);
+  params.mockResolvedValue({ effort: "medium" });
+  expect(await planSchema(TEST_OWNER_ID, schema)).toMatchObject({ outcome: "refused", model: "gpt-6-sol" });
+  params.mockResolvedValue({ effort: "none" });
+  expect(await planSchema(TEST_OWNER_ID, schema)).toEqual({ outcome: "sends", model: "gpt-6-sol", carrier: "tool" });
 });
 
 test("with no tools to fall back on, the refusal names the reason in the author's words, never the planner's vocabulary", async () => {

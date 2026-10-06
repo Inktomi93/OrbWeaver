@@ -1,10 +1,17 @@
 import type { GenerationCapability, ProviderId } from "@orb/contracts/inference";
+import type { UserIntent } from "@orb/contracts/preset";
 import { castId } from "@orb/kit/ids";
+import { runOpenAiCompatChatTurn } from "../../../../../packages/inference/src/backends/openai-compat/chat.ts";
 import { detectModelFamily } from "../../../../../packages/inference/src/capability/families.ts";
 import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
+import type { OpenAiCompatChatRequest } from "../../../../../packages/inference/src/contract/chat.ts";
 import { resolveChat } from "../../../../../packages/inference/src/funnel/resolve-chat.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { wireSchema } from "../../../../support/wire-ready.ts";
+import { fakeResolved, memoryTokenLexicon } from "../../../_support.ts";
+import type { RecordedRequest } from "../../../backends/_hosted-support.ts";
+import { openAiTextStream, scriptedSseFetch } from "../../../backends/_hosted-support.ts";
 
 function openaiRows(model: string): ReturnType<typeof curatedRows> {
   return curatedRows({
@@ -22,6 +29,82 @@ function generation(model: string): GenerationCapability {
   }
   return out.capability.generation;
 }
+
+test("native GPT-6 Sol and Luna tool calls require an explicit reasoning off, without narrowing OpenRouter", () => {
+  for (const model of ["gpt-6-sol", "gpt-6-luna"]) {
+    expect(generation(model).tools, model).toMatchObject({ parallel: true, requiresReasoningOff: true });
+    expect(generation(`openai/${model}`).tools, model).not.toHaveProperty("requiresReasoningOff");
+  }
+  expect(generation("gpt-5.2").tools).not.toHaveProperty("requiresReasoningOff");
+});
+
+test("native GPT-6.1 Sol keeps mandatory reasoning and native schemas but offers no Chat Completions tools", () => {
+  const native = generation("gpt-6.1-sol");
+  expect(native.tools).toBeUndefined();
+  expect(native.output.structured).toBe(true);
+  expect(native.reasoning).toMatchObject({ mode: "effort", enabled: true, mandatory: true, effortLevels: ["low", "medium", "high", "xhigh", "max"] });
+  expect(resolveChat({ effort: "none" }, native).reasoning).toMatchObject({ enabled: true, effort: "low" });
+  expect(generation("openai/gpt-6.1-sol").tools).toMatchObject({ parallel: true });
+});
+
+function nativeToolRequest(model: string, params: UserIntent): OpenAiCompatChatRequest {
+  return {
+    api: "chat-completions",
+    connection: fakeResolved({ task: "chat", providerId: "openai", model, capability: { kind: "generation", generation: generation(model) } }),
+    params,
+    systemPrompt: { static: "Check the weather.", dynamic: "" },
+    history: [{ role: "user", content: [{ type: "text", text: "Check Paris." }] }],
+    tools: [{ name: "weather", description: "Read weather.", parameters: { type: "object", properties: {} } }],
+  };
+}
+
+test("native GPT-6 tool restrictions refuse before SDK fetch; none still reaches the installed SDK with tools", async () => {
+  const noop = (): void => undefined;
+  const invoke = (request: OpenAiCompatChatRequest, requests: RecordedRequest[]): ReturnType<typeof runOpenAiCompatChatTurn> =>
+    runOpenAiCompatChatTurn(request, {
+      now: () => 1,
+      log: { debug: noop, info: noop, warn: noop, error: noop },
+      transport: { fetch: scriptedSseFetch([openAiTextStream("READY")], requests), app: { name: "tool-condition-test", url: "http://localhost:0" } },
+      tokens: memoryTokenLexicon(),
+    });
+  for (const model of ["gpt-6-sol", "gpt-6-luna"]) {
+    for (const params of [{}, { effort: "medium" }] satisfies UserIntent[]) {
+      for (const terminalToolsAttached of [false, true]) {
+        const recorded: RecordedRequest[] = [];
+        await expect(invoke({ ...nativeToolRequest(model, params), terminalToolsAttached }, recorded)).rejects.toMatchObject({
+          kind: "invalid",
+          retryable: false,
+          violations: [{ kind: "no-vehicle", cause: "tools-with-reasoning" }],
+        });
+        expect(recorded).toEqual([]);
+      }
+    }
+    const recorded: RecordedRequest[] = [];
+    await invoke(nativeToolRequest(model, { effort: "none" }), recorded);
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]?.body).toMatchObject({ reasoning_effort: "none", tools: [{ function: { name: "weather" } }] });
+    const schemaRequest = nativeToolRequest(model, { effort: "medium" });
+    await invoke(
+      {
+        ...schemaRequest,
+        tools: undefined,
+        responseFormat: { name: "weather", schema: wireSchema({ type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"] }) },
+      },
+      recorded,
+    );
+    expect(recorded[1]?.body).toMatchObject({ reasoning_effort: "medium", response_format: { type: "json_schema" } });
+    expect(recorded[1]?.body).not.toHaveProperty("tools");
+  }
+  const recorded: RecordedRequest[] = [];
+  await expect(invoke(nativeToolRequest("gpt-6.1-sol", { effort: "low" }), recorded)).rejects.toMatchObject({
+    kind: "invalid",
+    retryable: false,
+    violations: [{ kind: "no-vehicle", cause: "tools-unsupported" }],
+  });
+  expect(recorded).toEqual([]);
+  await invoke({ ...nativeToolRequest("gpt-6.1-sol", { effort: "none" }), tools: undefined }, recorded);
+  expect(recorded[0]?.body).toMatchObject({ reasoning_effort: "low" });
+});
 
 test("o3-mini and o4-mini clamp disabled reasoning before a request is built", () => {
   for (const model of ["o3-mini", "o4-mini-2025-04-16", "openai/o4-mini"]) {

@@ -196,6 +196,33 @@ export const openaiRows = [
     },
   },
   {
+    match: { ids: ["gpt-6-sol", "gpt-6-luna"], provider: "openai", wire: "openai-compat", api: "chat-completions" },
+    generation: { tools: { parallel: true, requiresReasoningOff: true } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-05",
+      cite: "developers.openai.com/api/docs/models/{gpt-6-sol,gpt-6-luna}: Chat Completions supports function calling only with reasoning_effort set to none; this restriction does not describe OpenRouter's upstream Responses route",
+    },
+  },
+  {
+    match: { ids: ["gpt-6.1-sol", "openai/gpt-6.1-sol"] },
+    generation: { reasoning: { mode: "effort", enabled: true, mandatory: true, effortLevels: ["low", "medium", "high", "xhigh", "max"] } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-05",
+      cite: "developers.openai.com/api/docs/models/gpt-6.1-sol: low, medium (default), high, xhigh, max; none and minimal are unsupported",
+    },
+  },
+  {
+    match: { ids: ["gpt-6.1-sol"], provider: "openai", wire: "openai-compat", api: "chat-completions" },
+    generation: { tools: null },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-05",
+      cite: "developers.openai.com/api/docs/models/gpt-6.1-sol: use Responses for tool calling; Chat Completions is supported without tool calling",
+    },
+  },
+  {
     match: {
       model: "^(openai/)?o[13](-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
     },
