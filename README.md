@@ -6,8 +6,12 @@
 
 Orbweaver is a self-hosted AI roleplay app with real-time multiplayer: several people and several characters
 in one live scene. Invite friends in, turn any story into a game, and keep chats that remember what happened
-a hundred messages ago. It runs on your own machine, and your characters, chats and keys stay there. It is an
-alpha.
+a hundred messages ago. It runs on your own machine, and your characters, chats and keys stay there.
+
+One dude built this, and it's an alpha: there are rough edges, and a few SillyTavern features aren't here yet
+([the exact list](https://github.com/Inktomi93/orbweaver/wiki/Coming-from-SillyTavern#what-isnt-supported)).
+It's also a love letter to SillyTavern. The shared rooms started with STMP (SillyTavern MultiPlayer) by
+RossAscends, and I wanted that in every scene. ([Credits](https://github.com/Inktomi93/orbweaver/wiki/Credits))
 
 **The [Orbweaver wiki](https://github.com/Inktomi93/orbweaver/wiki) is the user guide:** install, connecting a
 model, your first chat, and every feature below.
@@ -117,23 +121,23 @@ The application installs committed JavaScript from Git, not the author's source 
 ## Work on the code
 
 Everything below is for contributors. Orbweaver's code is written mostly by AI agents, so its architecture is
-enforced by the toolchain rather than documented. Development happens on `main`; clone it without
-`--branch release`.
+enforced by the toolchain rather than documented. Development happens on `main`: after cloning, run
+`git switch main`.
 
 `pnpm dev` runs the watched server and the Vite client from source on Linux, macOS and Windows; open <http://localhost:5173>. The server restarts on a source change, and Ctrl-C stops both. `pnpm stack up` runs the same dev stack detached, and `pnpm stack down` stops it. See [CONTRIBUTING.md](CONTRIBUTING.md) for checks and native platform evidence.
 
 ## Read first
 
-- **`docs/law/Constitution.md`** — the cold-start reading router and current architecture map.
-- **`docs/law/Core-0-Architecture-and-Structure.md`** — the constitution: package layout, server tiers, per-feature
+- **`docs/law/Constitution.md`**: the cold-start reading router and current architecture map.
+- **`docs/law/Core-0-Architecture-and-Structure.md`**: the constitution. Package layout, server tiers, per-feature
   template, central test mirror, the partitioning rule, and the enforcement gates.
 
 ## Core bets
 
-1. **pnpm workspace packages** — the layer cake is resolver-enforced (tier-1), not just linted.
+1. **pnpm workspace packages.** The layer cake is resolver-enforced (tier-1), not just linted.
 2. **`#` subpath imports intra-package, package deps cross-package, zero `paths` aliases.**
-3. **Name by role; no `_shared` junk drawers** — services are features, primitives are `kit`.
-4. **One central `tests/` tree mirroring `src` 1:1** — agent-enforceable, clean src.
+3. **Name by role; no `_shared` junk drawers.** Services are features, primitives are `kit`.
+4. **One central `tests/` tree mirroring `src` 1:1.** Agent-enforceable, clean src.
 
 The guiding constraint: **you (and agents) should be able to derive where anything lives, and what
 may import what, from the tree alone.**
@@ -153,7 +157,7 @@ On Linux, `pnpm exec playwright install --with-deps chromium` also installs the 
 
 The contributor commands use native Node on macOS and Windows; WSL2 is optional. The manual [contributor workflow](.github/workflows/contributor.yml) proves a fresh install, `pnpm dev`, Snap, `pnpm check` and a fixed component test on native runners. Read its completed artifacts before claiming native contributor parity; those results are still required.
 
-**Worktrees just work** — without a symlink hack. Each `git worktree` gets its
+**Worktrees just work**, without a symlink hack. Each `git worktree` gets its
 OWN `node_modules` (correct when branches carry different deps; fast via the shared global store). In a
 fresh worktree:
 
@@ -168,12 +172,12 @@ External versions are centralized in the pnpm **catalog** (`pnpm-workspace.yaml`
 ## Versioning + releases
 
 There are two channels. `main` is integration and development: lanes, hooks and worktrees all work against
-it. The `release` branch is stable: release-please versions it from conventional commits, and every stable
+it. The `release` branch is stable and the default branch: release-please versions it from conventional commits, and every stable
 release is a `v<version>` tag, a GitHub Release with its notes, and a `ghcr.io/inktomi93/orbweaver` image.
 Below 1.0, a `feat` commit bumps the minor version and a `fix` the patch; a breaking change also bumps only
 the minor. The first release is v0.1.0.
 
-Every running Orbweaver reports ONE identity block — `{ version, commit, short, builtAt?, source, channel }` —
+Every running Orbweaver reports ONE identity block, `{ version, commit, short, builtAt?, source, channel }`,
 in four places, so a bug report can always say what it is running:
 
 | Where | What it shows |
@@ -186,7 +190,7 @@ in four places, so a bug report can always say what it is running:
 The version line is `v0.1.0` for a stable release and `0.1.0-dev+f4cdde34be59` for anything else. `version`
 is the ROOT `package.json` version. `commit` is read from `.git`'s plain ref files at boot (no git binary,
 no child process); a container image has no `.git`, so the build stamps `/app/version.json` instead and the
-reader prefers it. When neither can answer, the commit reads `unknown` — never a fabricated sha. A build is
+reader prefers it. When neither can answer, the commit reads `unknown`, never a fabricated sha. A build is
 `stable` only when its commit is the commit its own `v<version>` tag names, so a checkout or image of the
 release tag is stable and everything else, including `main`, is a dev build. There is no `dirty` flag: it
 cannot be derived without git, and a field that is always `false` would lie exactly when it matters.
@@ -216,23 +220,26 @@ The first GHCR package needs public visibility before anonymous pull can pass.
 
 **Shipping a stable release** (`.github/workflows/release.yml`, `release-please-config.json`):
 
-1. Promote `main`: open a pull request from `main` into `release` on GitHub and merge it with a merge commit.
-2. The push to `release` runs release-please, which opens or updates the release PR: the next version, the
-   root `package.json` bump, and the release notes built from the conventional commits since the last
-   release.
-3. Merge the release PR. The same workflow tags `v<version>`, publishes the GitHub Release, builds the image
-   from the tag, checks that it reports itself as that stable release, pushes `:<version>` and `:latest`, and
-   then pulls the image without credentials.
+1. Push `main` and wait for its CI run to go green.
+2. `pnpm release`. It folds anything merged on GitHub into local `main`, refuses a commit whose CI isn't green,
+   and pushes `main` to `release`. release-please opens or updates the release PR: the next version, the
+   `package.json` bump, and notes built from the conventional commits since the last release.
+3. Merge the release PR. The workflow tags `v<version>`, publishes the GitHub Release, builds the image from
+   the tag, checks that it reports itself as that release, pushes `:<version>` and `:latest` with build
+   provenance, pulls it without credentials, and adds the upgrade steps and image digest to the notes.
+   Changes to the plugin SDK or toolchain cut their own `plugin-authoring-v<version>` release the same way.
 4. First release only: GHCR publishes a new package as private, and linking it to the repository does not
    change that, so the anonymous pull fails the run. Open the package's settings on GitHub, use **Danger Zone →
    Change visibility**, set it to **Public**, and re-run the failed image job. Later releases keep the
    visibility.
-5. Merge `release` back into `main`, so dev builds report the new version (`0.2.0-dev+<commit>`).
+
+The next `pnpm sync` or `pnpm release` brings the version bump back into `main`, so dev builds report the new
+version (`0.2.0-dev+<commit>`). [CONTRIBUTING.md](CONTRIBUTING.md) has the day-to-day commands.
 
 The GitHub Release page is the changelog's one home; nothing in this repository duplicates it.
 
 **Checking for updates** is manual and one-shot. An admin's "Check for updates" button in Settings → This install sends a single unauthenticated
-GET through the app's SSRF-safe egress belt and reports `up to date`, `update available`, or `couldn't
+GET through the app's outbound-request firewall and reports `up to date`, `update available`, or `couldn't
 check` with the reason. A stable build asks for the latest GitHub Release
 (`https://api.github.com/repos/Inktomi93/orbweaver/releases/latest`) and compares versions; a dev build asks
 for main's head (`https://api.github.com/repos/Inktomi93/orbweaver/commits/main`) and compares commits. No

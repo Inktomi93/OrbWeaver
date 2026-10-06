@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        The **Report a bug** button in the app fills most of this in for you. Everything here is public, so leave out keys, chat text and anything else you do not want to share.
+        Something broke? Thanks for telling me. The **Report a bug** button in the app fills most of this in for you. Everything here is public, so leave out keys, chat text and anything else you don't want to share. Security problems go to [SECURITY.md](https://github.com/Inktomi93/orbweaver/blob/main/SECURITY.md) instead.
   - type: input
     id: version
     attributes:

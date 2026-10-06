@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        This form was filled in by the app's "Report a bug" button. Everything here will be public. The app leaves out chats, characters, personas, keys and error messages; read it once more and remove anything you do not want to share. You can attach the downloaded diagnostics file or a screenshot below.
+        This form was filled in by the app's "Report a bug" button. Everything here will be public. The app leaves out chats, characters, personas, keys and error messages, but read it once more and cut anything you don't want to share. You can attach the downloaded diagnostics file or a screenshot below.
   - type: textarea
     id: what-happened
     attributes:

@@ -1,4 +1,5 @@
-<!-- Open pull requests against `main`. `release` only moves when a version ships. -->
+<!-- Thanks for sending this. Target `main` (`release` only moves when a version ships), and keep it to one
+change: two unrelated fixes are two PRs. -->
 
 ## What this changes
 
