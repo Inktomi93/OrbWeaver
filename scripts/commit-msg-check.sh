@@ -13,7 +13,7 @@
 #   closes   an OPTIONAL `Closes: 12, 14` trailer names the work items (docs/work/) this commit lands; the
 #            post-merge hook on main reads it (`pnpm doc land --merged`). Well-formed = comma-separated ids.
 # Git-generated messages (merge, revert, fixup!, squash!) are exempt. ORB_HUMAN_COMMIT=1 waives the
-# trailer rule only — for a hand-typed owner commit, never for a lane.
+# trailer rule only — for a hand-typed owner commit, never for a lane. --range waives it for GitHub bot authors.
 set -uo pipefail
 TYPES='feat|fix|docs|test|chore|refactor|perf|style|build|ci|revert'
 HEADER_RE="^(${TYPES})(\([A-Za-z0-9#+,./-]+\))?!?: [^ ].*$"
@@ -55,7 +55,11 @@ case "${1:-}" in
   --range)
     rc=0
     for sha in $(git rev-list --no-merges "${2:?usage: --range <rev-range>}"); do
-      git log -1 --format=%B "$sha" | check_message "$(git log -1 --format=%h "$sha")" || rc=1
+      # GitHub's bots (Dependabot, release-please) cannot add a Co-Authored-By trailer; their commits
+      # arrive through `pnpm sync`, so only the trailer rule is waived for them.
+      human=0
+      case "$(git log -1 --format=%ae "$sha")" in *"[bot]@users.noreply.github.com") human=1 ;; esac
+      git log -1 --format=%B "$sha" | ORB_HUMAN_COMMIT="$human" check_message "$(git log -1 --format=%h "$sha")" || rc=1
     done
     [ $rc -eq 0 ] && echo "commit-msg-check: $(git rev-list --no-merges --count "$2") commit(s) in $2 conform"
     exit $rc ;;

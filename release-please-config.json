@@ -10,7 +10,8 @@
       "initial-version": "0.1.0",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": false,
-      "skip-changelog": true
+      "skip-changelog": true,
+      "pull-request-footer": "Merging this tags the release, publishes the GitHub release and builds the image. Next time, run `pnpm release` from main: it merges this version bump back into main before pushing."
     }
   }
 }

@@ -43,3 +43,15 @@ The manual [install workflow](.github/workflows/install.yml) separately proves s
 The architecture is enforced, not suggested: imports flow one direction through the package cake,
 every shape has exactly one home, and tests live in the central `tests/` tree mirroring `src`. Read
 `docs/law/Constitution.md` before a non-trivial change — it is the map and the rules.
+
+## Maintainers: syncing and releasing
+
+`main` is pushed from a local checkout, and two things merge on GitHub: Dependabot PRs (into `main`) and the
+release PR (into `release`). Both commands below merge those back first, so the push is never refused.
+
+- `pnpm sync` merges anything new on `origin/main` and `origin/release` into local `main`, then pushes `main`.
+  Merge Dependabot PRs on GitHub with the Squash button, then run it.
+- `pnpm release` does the same, then pushes `main` to `release`. That opens or updates the release PR. Merge
+  that PR on GitHub to tag the version, publish the release and build the image.
+
+Extra arguments go to `git push`, for example `pnpm release --no-verify`.
