@@ -2847,7 +2847,7 @@ test("HUD-1 §7.1: the admin rail is PINNED to the pane's foot — on a short bo
   // (side-eye 08-01) and this stub's Journal body then fills the pane exactly, so there is no residual span
   // left for the GROUND to be — and "the ground is painted" is precisely what this test exists to pin.
   const component = await mount(<RpgTakeoverReferenceStory />);
-  const region = component.locator("[data-context-bracket]");
+  const region = component.locator("[data-context-bracket]").filter({ has: page.locator("[data-slot=rpg-takeover-header]") });
   await expect(region).toBeVisible();
   // The RAIL BLOCK (kicker + cells + the floor under them — #861), not the bare toolbar: the block is what
   // sits on the pane's edge; the cells end one `row` step above it by design.
@@ -2925,20 +2925,6 @@ test("HUD-1 §5.2: the primary binding edge paints FLUSH at the pane's top edge,
 // statements about resolved colour, resolved text-transform and resolved geometry, and every one of them
 // stayed green through the rendered defects the 2026-08-01 audit photographed.
 
-/** The colour the browser resolves for one of OUR tokens — via a probe element, so the assertion compares
- *  two BROWSER-RESOLVED colours rather than a token string against a serialised `oklch()` (those never match
- *  textually, and a test comparing strings is asserting our authoring, not the pixels). */
-function resolvedToken(page: Page, token: string): Promise<string> {
-  return page.evaluate((name) => {
-    const probe = document.createElement("span");
-    probe.style.color = `var(${name})`;
-    document.body.append(probe);
-    const resolved = getComputedStyle(probe).color;
-    probe.remove();
-    return resolved;
-  }, token);
-}
-
 test("HUD-1 §4 (#102 variant A): BOTH rails are TAB GROUPS — each wears its own name on screen, as the rail's edge", async ({ mount, page }) => {
   // F6 defect 3: the meta strip read as an action bar because nothing said it was a second set of TABS of
   // the same panel. The fix is the rail's own NAME, visible — and its hairline rule IS the rail's top edge,
@@ -2987,43 +2973,24 @@ test("HUD-1 §4 (#102 variant A): BOTH rails are TAB GROUPS — each wears its o
   expect(rules.every((rule) => rule.border === "1px" && rule.width > 0 && Math.abs(rule.width - rule.railWidth) <= 1)).toBe(true);
 });
 
-test("HUD-1 §4: HOST-ONLY cells wear the crown gold at rest — and only at rest", async ({ mount, page }) => {
-  // "Host-only reads without a label" (panel-redesign §6 P3). The flag is DECLARED by each tab's owner
-  // (`ContextTabDef.crown`), so this also proves the resolve carried a chat-owned flag and an rpg-owned one
-  // through the same seam to one renderer.
+test("only the active Game crown fills; Preview never borrows its state", async ({ mount, page }) => {
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
   const rail = component.getByRole("toolbar", { name: "Chat" });
-  const highlight = await resolvedToken(page, "--color-highlight");
-
-  const glyphColor = async (tabName: string): Promise<string> =>
-    rail
-      .getByRole("button", { name: tabName })
-      .locator("svg")
-      .first()
-      .evaluate((el) => getComputedStyle(el).color);
-
-  // THE CROWN INHERITS THE RECEDE (side-eye 08-01). The landing tab is `rpg.status`, so the ADMIN rail is
-  // the receded one — and while it recedes its crowns recede with it. Full gold on a quiet strip made the
-  // crown the brightest pixel in the rail that does NOT hold the selection.
-  const receded = await glyphColor("Preview");
-  expect(receded).not.toBe(highlight);
-  expect(receded).toBe(await glyphColor("This chat"));
-
-  // Give the admin rail the selection and its crowns light up — the gold marks a class of CELL, within its
-  // rail's own voice.
-  await rail.getByRole("button", { name: "This chat" }).click();
-  await expect(rail.getByRole("button", { name: "This chat" })).toHaveAttribute("aria-current", "true");
-  await expect.poll(() => glyphColor("Preview"), { intervals: [20, 50, 100, 200] }).toBe(highlight);
-  expect(await glyphColor("Game")).toBe(highlight);
-  // A non-host cell in the SAME (owning) rail is untouched — the gold marks a class of cell, not the rail.
-  expect(await glyphColor("This chat")).not.toBe(highlight);
-
-  // ACTIVE beats crowned: once the cell is the answer to "where am I", the accent state colour owns it —
-  // a gold glyph inside an accent cell argues with the one treatment that means "selected".
-  await rail.getByRole("button", { name: "Preview" }).click();
-  await expect(rail.getByRole("button", { name: "Preview" })).toHaveAttribute("aria-current", "true");
-  expect(await glyphColor("Preview")).not.toBe(highlight);
+  await expect(rail).toHaveCount(1);
+  const glyph = (name: string): Locator => rail.getByRole("button", { name, exact: true }).locator("svg").first();
+  const fill = (name: string): Promise<string> => glyph(name).evaluate((el) => getComputedStyle(el).fill);
+  for (const name of ["This chat", "Preview"] as const) {
+    const tab = rail.getByRole("button", { name, exact: true });
+    await tab.click();
+    await expect(tab).toHaveAttribute("aria-current", "true");
+    await expect.poll(() => fill("Game")).toBe("none");
+    await expect.poll(() => fill(name)).toBe("none");
+  }
+  await rail.getByRole("button", { name: "Game", exact: true }).click();
+  await expect(rail.getByRole("button", { name: "Game", exact: true })).toHaveAttribute("aria-current", "true");
+  await expect.poll(() => glyph("Game").evaluate((el) => getComputedStyle(el).fill === getComputedStyle(el).color)).toBe(true);
+  await expect.poll(() => fill("Preview")).toBe("none");
 });
 
 test("HUD-1 §4: the NON-OWNING rail recedes and the owning one lifts — the selection is legible across the split", async ({ mount, page }) => {
@@ -3546,7 +3513,7 @@ test("HUD-1 §7.1 (AMENDED): the AMBIENT-SET band's chrome stays inside the SET 
   // signature element the amendment protects.
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverReferenceStory />);
-  const region = component.locator("[data-context-bracket]");
+  const region = component.locator("[data-context-bracket]").filter({ has: page.locator("[data-slot=rpg-takeover-header]") });
   await expect(region).toBeVisible();
   await expect.poll(() => component.locator('[data-slot="tabs-panel"]:visible').count(), { intervals: [20, 50, 100, 200] }).toBe(1);
   // The composite is really the full arm — a budget met by a band that collapsed to its compact form would

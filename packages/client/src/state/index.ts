@@ -267,6 +267,7 @@ export {
   startEditingMessage,
   useIsEditingMessage,
   useMessageEditDraftText,
+  useMessageEditReservedBlockSize,
   useMessageEditReservedInlineSize,
 } from "./message-edit-draft.ts";
 export {

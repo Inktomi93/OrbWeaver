@@ -7,7 +7,7 @@
 // character_summaries / assets) directly — a test fixture may read/seed `users` (the `no-direct-users-read`
 // gate scopes only `packages/server/src/domain`).
 
-import type { ImageLens } from "@orb/contracts/embeddings";
+import type { EmbeddingTask, ImageLens } from "@orb/contracts/embeddings";
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
@@ -71,7 +71,7 @@ export const EMBED_MODEL = "test-embed-model-1024";
 /** The default IMAGE-embed model the harness scopes the cross-modal `images` scan to. */
 export const IMAGE_EMBED_MODEL = "test-image-embed-model-1024";
 
-async function seedGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmbed", model: string): Promise<EmbedGenerationId> {
+async function seedGeneration(db: Db, ownerId: UserId, task: EmbeddingTask, model: string): Promise<EmbedGenerationId> {
   const roleClients = makeSearchRoleClients(task === "embed" ? { embedModel: model } : { imageEmbedModel: model });
   const resolved = await roleClients.resolved(task);
   if (resolved === null) {

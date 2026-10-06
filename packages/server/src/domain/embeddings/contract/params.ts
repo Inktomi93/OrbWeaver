@@ -1,6 +1,6 @@
 // The dispatch axes (SourceKind, SourceLens) + the verb input shapes for the embeddings write surface.
 
-import type { ImageCaptionMeta, ImageLens } from "@orb/contracts/embeddings";
+import type { EmbeddingTask, ImageCaptionMeta, ImageLens } from "@orb/contracts/embeddings";
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
 import type { AssetId, CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 
@@ -80,7 +80,7 @@ export interface ImageCaptionedStoreParams extends EmbedAbortParams {
    *  caption alone is embedded as TEXT into their `embed` space. The store verb dispatches the role op off
    *  this — it is not derivable from `model`, which is just a tag, and guessing it wrong writes a vector
    *  into a geometry nothing queries. */
-  readonly via: "imageEmbed" | "embed";
+  readonly via: EmbeddingTask;
   readonly model: string;
   /** Re-embed even on a matched `content_hash`. */
   readonly force?: boolean | undefined;

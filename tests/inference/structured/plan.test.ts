@@ -2,31 +2,59 @@
 // Anthropic refusals are reproduced from the vendor's own arithmetic, and each refusal row carries a planted control
 // that plans.
 
-import type { WireSchemaLimits } from "@orb/contracts/inference";
+import type { EndpointFeatures, WireSchemaLimits, WireSchemaMode } from "@orb/contracts/inference";
 import { effectiveStructuredLimits } from "@orb/contracts/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
 import type { ResponseFormat } from "../../../packages/inference/src/contract/chat.ts";
-import { planStructured, planStructuredFor } from "../../../packages/inference/src/structured/plan.ts";
-import type { StructuredTarget } from "../../../packages/inference/src/structured/target.ts";
+import type { Resolved } from "../../../packages/inference/src/contract/resolved.ts";
+import { planStructuredFor } from "../../../packages/inference/src/structured/plan.ts";
 import { makeCapability, makeGenerationCapability, makeResolved } from "../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { wireSchema } from "../../support/wire-ready.ts";
 
 const ANTHROPIC = effectiveStructuredLimits("anthropic-format", undefined);
 
-function target(overrides: Partial<StructuredTarget> = {}): StructuredTarget {
+function target(
+  overrides: {
+    readonly mode?: WireSchemaMode;
+    readonly limits?: WireSchemaLimits | undefined;
+    readonly native?: boolean;
+    readonly tools?: boolean;
+    readonly strictTools?: EndpointFeatures["strictJson"];
+    readonly requiredChoice?: boolean;
+    readonly namedChoice?: boolean;
+    readonly noneChoice?: boolean;
+    readonly requiresReasoningOff?: boolean;
+  } = {},
+): Resolved {
+  const generation = makeGenerationCapability({
+    ...(overrides.tools === false
+      ? {}
+      : {
+          tools: {
+            parallel: true,
+            requiredChoice: overrides.requiredChoice ?? true,
+            namedChoice: overrides.namedChoice ?? true,
+            noneChoice: overrides.noneChoice ?? true,
+            requiresReasoningOff: overrides.requiresReasoningOff ?? false,
+          },
+        }),
+    output: {
+      maxTokens: { min: 1, max: 8192 },
+      modalities: ["text"],
+      structured: overrides.native !== false,
+      ...(overrides.limits === undefined ? {} : { structuredLimits: overrides.limits }),
+    },
+  });
+  const resolved = makeResolved({ generation });
   return {
-    mode: "hosted-common",
-    limits: undefined,
-    vehicles: ["response-format", "forced-tool", "offered-tool"],
-    strictTools: undefined,
-    requiredChoice: true,
-    namedChoice: true,
-    noneChoice: true,
-    toolsSupported: true,
-    requiresReasoningOff: false,
-    ...overrides,
+    ...resolved,
+    features: {
+      ...resolved.features,
+      structuredMode: overrides.mode ?? "hosted-common",
+      ...(overrides.strictTools === undefined ? {} : { strictJson: overrides.strictTools }),
+    },
   };
 }
 
@@ -45,32 +73,32 @@ function optionals(n: number): ResponseFormat {
 const SMALL: ResponseFormat = { name: "small", schema: wireSchema({ type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"] }) };
 
 test("the first vehicle on which a format fits wins, an enforcing carrier before a weaker one", () => {
-  const plan = planStructured({ formats: [optionals(30), SMALL] }, target({ mode: "anthropic-format", limits: ANTHROPIC, vehicles: ["response-format"] }));
+  const plan = planStructuredFor(target({ mode: "anthropic-format", limits: ANTHROPIC, tools: false }), { formats: [optionals(30), SMALL] });
   expect(plan).toMatchObject({ ok: true, shape: 1, responseFormat: { name: "small", vehicle: "response-format" } });
 });
 
 test("the recorded Anthropic refusals reproduce: 41 optionals as projected, 41 unions once strict-compatible reshapes them", () => {
-  const anthropic = planStructured({ formats: [optionals(41)] }, target({ mode: "anthropic-format", limits: ANTHROPIC, vehicles: ["response-format"] }));
+  const anthropic = planStructuredFor(target({ mode: "anthropic-format", limits: ANTHROPIC, tools: false }), { formats: [optionals(41)] });
   expect(anthropic).toEqual({
     ok: false,
     violations: [{ kind: "optional-props", mode: "anthropic-format", count: 41, limit: 24, shape: 0, vehicle: "response-format" }],
   });
   // A reshaped optional counts as a union: OpenRouter's strict-compatible wire under Anthropic's ceilings.
-  const routed = planStructured({ formats: [optionals(41)] }, target({ mode: "strict-compatible", limits: ANTHROPIC, vehicles: ["response-format"] }));
+  const routed = planStructuredFor(target({ mode: "strict-compatible", limits: ANTHROPIC, tools: false }), { formats: [optionals(41)] });
   expect(routed).toEqual({
     ok: false,
     violations: [{ kind: "union-props", mode: "strict-compatible", count: 41, limit: 16, shape: 0, vehicle: "response-format" }],
   });
   // PLANTED CONTROL: the same schema under a target that states no ceiling plans.
-  expect(planStructured({ formats: [optionals(41)] }, target({ mode: "strict-compatible", vehicles: ["response-format"] })).ok).toBe(true);
+  expect(planStructuredFor(target({ mode: "strict-compatible", tools: false }), { formats: [optionals(41)] }).ok).toBe(true);
 });
 
 test("a capability with neither structured output nor tools has no vehicle; one with tools only plans the forced tool", () => {
-  expect(planStructured({ formats: [SMALL] }, target({ vehicles: [] }))).toEqual({
+  expect(planStructuredFor(target({ native: false, tools: false }), { formats: [SMALL] })).toEqual({
     ok: false,
     violations: [{ kind: "no-vehicle", mode: "hosted-common", cause: "unsupported" }],
   });
-  const forced = planStructured({ formats: [SMALL] }, target({ vehicles: ["forced-tool", "offered-tool"] }));
+  const forced = planStructuredFor(target({ native: false }), { formats: [SMALL] });
   expect(forced).toMatchObject({ ok: true, responseFormat: { vehicle: "forced-tool" }, toolChoice: { mode: "tool", name: "small" }, parallelToolCalls: false });
   expect(forced.ok && forced.tools?.map((tool) => tool.name)).toEqual(["small"]);
 });
@@ -79,26 +107,26 @@ test("a model that refuses forced tool use (Claude 5.x) has `required` and a nam
   const tools = [{ name: "set", description: "Set.", parameters: { type: "object", properties: {} } }];
   const refusing = target({ requiredChoice: false, namedChoice: false });
   for (const toolChoice of [{ mode: "required" as const }, { mode: "tool" as const, name: "set" }]) {
-    const plan = planStructured({ tools, toolChoice }, refusing);
+    const plan = planStructuredFor(refusing, { tools, toolChoice });
     expect(plan).toMatchObject({ ok: true, toolChoice: { mode: "auto" } });
     expect(plan.ok && plan.downgrades.map((warning) => warning.code)).toEqual(["tool_choice_downgraded"]);
   }
   // PLANTED CONTROL: a model that takes forced use keeps the choice and raises nothing.
-  const kept = planStructured({ tools, toolChoice: { mode: "required" } }, target());
+  const kept = planStructuredFor(target(), { tools, toolChoice: { mode: "required" } });
   expect(kept).toMatchObject({ ok: true, toolChoice: { mode: "required" }, downgrades: [] });
 });
 
 test("a `none` the server cannot carry offers no tools, loudly; where it can, the tools ride under none", () => {
   const tools = [{ name: "set", description: "Set.", parameters: { type: "object", properties: {} } }];
-  const withdrawn = planStructured({ tools, toolChoice: { mode: "none" } }, target({ noneChoice: false }));
+  const withdrawn = planStructuredFor(target({ noneChoice: false }), { tools, toolChoice: { mode: "none" } });
   expect(withdrawn.ok && withdrawn.tools).toBeUndefined();
   expect(withdrawn.ok && withdrawn.toolChoice).toBeUndefined();
   expect(withdrawn.ok && withdrawn.downgrades.map((warning) => warning.code)).toEqual(["tool_choice_downgraded"]);
-  const carried = planStructured({ tools, toolChoice: { mode: "none" } }, target());
+  const carried = planStructuredFor(target(), { tools, toolChoice: { mode: "none" } });
   expect(carried).toMatchObject({ ok: true, toolChoice: { mode: "none" }, downgrades: [] });
   expect(carried.ok && carried.tools?.map((tool) => tool.name)).toEqual(["set"]);
   // `auto` on the same server keeps its tools: only an unsendable none withdraws them.
-  expect(planStructured({ tools, toolChoice: { mode: "auto" } }, target({ noneChoice: false }))).toMatchObject({ ok: true, downgrades: [] });
+  expect(planStructuredFor(target({ noneChoice: false }), { tools, toolChoice: { mode: "auto" } })).toMatchObject({ ok: true, downgrades: [] });
 });
 
 test("reshapedPaths lists exactly the reshaped properties, with [*] for an array of objects, and only under a reshaping mode", () => {
@@ -106,33 +134,33 @@ test("reshapedPaths lists exactly the reshaped properties, with [*] for an array
     name: "changes",
     schema: projectJsonSchema(z.object({ note: z.string().optional(), changes: z.array(z.object({ field: z.string(), value: z.string().optional() })) })),
   };
-  const strict = planStructured({ formats: [format] }, target({ mode: "strict-compatible", vehicles: ["response-format"] }));
+  const strict = planStructuredFor(target({ mode: "strict-compatible", tools: false }), { formats: [format] });
   expect(strict).toMatchObject({ ok: true, responseFormat: { strict: true, nullMeansAbsent: true } });
   expect(strict.ok && strict.responseFormat?.reshapedPaths.toSorted()).toEqual(["changes[*].value", "note"]);
-  const hosted = planStructured({ formats: [format] }, target({ vehicles: ["response-format"] }));
+  const hosted = planStructuredFor(target({ tools: false }), { formats: [format] });
   expect(hosted).toMatchObject({ ok: true, responseFormat: { strict: false, nullMeansAbsent: false, reshapedPaths: [] } });
 });
 
 test("an optional AND nullable property under strict-compatible refuses with ambiguous-null naming its path", () => {
   const format: ResponseFormat = { name: "x", schema: projectJsonSchema(z.object({ keep: z.string(), maybe: z.string().nullable().optional() })) };
-  expect(planStructured({ formats: [format] }, target({ mode: "strict-compatible", vehicles: ["response-format"] }))).toEqual({
+  expect(planStructuredFor(target({ mode: "strict-compatible", tools: false }), { formats: [format] })).toEqual({
     ok: false,
     violations: [{ kind: "ambiguous-null", mode: "strict-compatible", path: "maybe", shape: 0, vehicle: "response-format" }],
   });
   // PLANTED CONTROL: the same field required (the author's own null) plans and is never dropped.
   const required: ResponseFormat = { name: "x", schema: projectJsonSchema(z.object({ keep: z.string(), maybe: z.string().nullable() })) };
-  const plan = planStructured({ formats: [required] }, target({ mode: "strict-compatible", vehicles: ["response-format"] }));
+  const plan = planStructuredFor(target({ mode: "strict-compatible", tools: false }), { formats: [required] });
   expect(plan).toMatchObject({ ok: true, responseFormat: { reshapedPaths: [] } });
 });
 
 test("a capability row's own lower ceiling beats the mode's default, field by field", () => {
   const limits: WireSchemaLimits | undefined = effectiveStructuredLimits("anthropic-format", { maxOptionalProps: 4 });
   expect(limits).toMatchObject({ maxOptionalProps: 4, maxUnionProps: 16 });
-  expect(planStructured({ formats: [optionals(5)] }, target({ mode: "anthropic-format", limits, vehicles: ["response-format"] }))).toMatchObject({
+  expect(planStructuredFor(target({ mode: "anthropic-format", limits, tools: false }), { formats: [optionals(5)] })).toMatchObject({
     ok: false,
     violations: [{ kind: "optional-props", count: 5, limit: 4 }],
   });
-  expect(planStructured({ formats: [optionals(4)] }, target({ mode: "anthropic-format", limits, vehicles: ["response-format"] })).ok).toBe(true);
+  expect(planStructuredFor(target({ mode: "anthropic-format", limits, tools: false }), { formats: [optionals(4)] }).ok).toBe(true);
 });
 
 test("strict tools count against the shared ceilings with the response schema: their strict-tools ceiling refuses the request", () => {
@@ -143,13 +171,13 @@ test("strict tools count against the shared ceilings with the response schema: t
     strict: true,
   });
   const many = Array.from({ length: 21 }, (_, i) => strictTool(`t${String(i)}`));
-  expect(planStructured({ tools: many }, target({ mode: "anthropic-format", limits: ANTHROPIC }))).toMatchObject({
+  expect(planStructuredFor(target({ mode: "anthropic-format", limits: ANTHROPIC }), { tools: many })).toMatchObject({
     ok: false,
     violations: [{ kind: "strict-tools", count: 21, limit: 20 }],
   });
   // PLANTED CONTROL: the same tools without `strict` are prompt material, counted by nobody.
   const loose = many.map(({ strict: _strict, ...tool }) => tool);
-  expect(planStructured({ tools: loose }, target({ mode: "anthropic-format", limits: ANTHROPIC })).ok).toBe(true);
+  expect(planStructuredFor(target({ mode: "anthropic-format", limits: ANTHROPIC }), { tools: loose }).ok).toBe(true);
 });
 
 const UNIQUE_TAGS = wireSchema({ type: "object", properties: { t: { type: "array", items: { type: "string" }, uniqueItems: true } } });
@@ -159,7 +187,7 @@ test("a caller tool whose schema the grammar refuses goes out non-strict, loudly
     { name: "tags", description: "Tags.", parameters: UNIQUE_TAGS },
     { name: "plain", description: "Plain.", parameters: { type: "object", properties: { a: { type: "string" } } } },
   ];
-  const plan = planStructured({ tools }, target({ mode: "guided-decoding", strictTools: "default-on" }));
+  const plan = planStructuredFor(target({ mode: "guided-decoding", strictTools: "default-on" }), { tools });
   expect(plan).toMatchObject({
     ok: true,
     tools: [
@@ -169,18 +197,24 @@ test("a caller tool whose schema the grammar refuses goes out non-strict, loudly
   });
   expect(plan.ok && plan.downgrades.map((warning) => warning.code)).toEqual(["sdk_unsupported_tool"]);
   // The structured payload is the caller's reply contract, so its own refusal still blocks rather than relaxing.
-  const payload = planStructured(
-    { formats: [{ name: "row", schema: UNIQUE_TAGS }] },
-    target({ mode: "guided-decoding", vehicles: ["forced-tool"], strictTools: "default-on" }),
-  );
-  expect(payload).toMatchObject({ ok: false, violations: [{ kind: "refused-keyword", keyword: "uniqueItems" }] });
+  const payload = planStructuredFor(target({ mode: "guided-decoding", native: false, strictTools: "default-on" }), {
+    formats: [{ name: "row", schema: UNIQUE_TAGS }],
+  });
+  expect(payload).toEqual({
+    ok: false,
+    violations: ["forced-tool", "offered-tool"].map((vehicle) => ({
+      kind: "refused-keyword",
+      mode: "guided-decoding",
+      keyword: "uniqueItems",
+      path: "t",
+      shape: 0,
+      vehicle,
+    })),
+  });
 });
 
 test("a schema over the ceilings still rides one offered tool where the model takes tools, because no grammar compiles it", () => {
-  const plan = planStructured(
-    { formats: [optionals(30)] },
-    target({ mode: "anthropic-format", limits: ANTHROPIC, vehicles: ["response-format", "offered-tool"] }),
-  );
+  const plan = planStructuredFor(target({ mode: "anthropic-format", limits: ANTHROPIC, namedChoice: false }), { formats: [optionals(30)] });
   expect(plan).toMatchObject({ ok: true, responseFormat: { vehicle: "offered-tool" }, toolChoice: { mode: "auto" } });
 });
 
@@ -199,61 +233,62 @@ test("agent-sdk: the CLI sends StructuredOutput as a non-strict tool it validate
 
 test("a turn whose own settings refuse forced tool use gets no forced choice and no forced-tool vehicle", () => {
   const tools = [{ name: "set", description: "Set.", parameters: { type: "object", properties: {} } }];
-  const plan = planStructured({ tools, toolChoice: { mode: "required" }, forcedChoice: false }, target());
+  const plan = planStructuredFor(target(), { tools, toolChoice: { mode: "required" }, forcedChoice: false });
   expect(plan).toMatchObject({ ok: true, toolChoice: { mode: "auto" } });
   expect(plan.ok && plan.downgrades.map((warning) => warning.code)).toEqual(["tool_choice_downgraded"]);
-  const format = planStructured({ formats: [SMALL], forcedChoice: false }, target({ vehicles: ["forced-tool", "offered-tool"] }));
+  const format = planStructuredFor(target({ native: false }), { formats: [SMALL], forcedChoice: false });
   expect(format).toMatchObject({ ok: true, responseFormat: { vehicle: "offered-tool" }, toolChoice: { mode: "auto" } });
 });
 
 test("a turn whose shape refuses the native carrier (an Anthropic prefill) rides the payload on a tool instead", () => {
-  const plan = planStructured({ formats: [SMALL], nativeFormat: false }, target());
+  const plan = planStructuredFor(target(), { formats: [SMALL], nativeFormat: false });
   expect(plan).toMatchObject({ ok: true, responseFormat: { vehicle: "forced-tool" } });
   // With no tool to fall back on, the plan refuses before the call instead of sending a request that 400s, and names
   // the prefill as the reason: the model does take structured output, just not on a turn that ends on one.
-  expect(planStructured({ formats: [SMALL], nativeFormat: false }, target({ vehicles: ["response-format"] }))).toEqual({
+  expect(planStructuredFor(target({ tools: false }), { formats: [SMALL], nativeFormat: false })).toEqual({
     ok: false,
     violations: [{ kind: "no-vehicle", mode: "hosted-common", cause: "assistant-prefill" }],
   });
   // A turn carrying the caller's own tools can only send the payload natively, so the model's tools are no fallback:
   // the cause names those tools, with the prefill or with a model that has no native carrier.
   const callerTools = [{ name: "roll", description: "Roll.", parameters: { type: "object", properties: {} } }];
-  expect(planStructured({ formats: [SMALL], tools: callerTools, nativeFormat: false }, target())).toMatchObject({
+  expect(planStructuredFor(target(), { formats: [SMALL], tools: callerTools, nativeFormat: false })).toMatchObject({
     violations: [{ kind: "no-vehicle", cause: "tools-with-prefill" }],
   });
-  expect(planStructured({ formats: [SMALL], tools: callerTools }, target({ vehicles: ["forced-tool", "offered-tool"] }))).toMatchObject({
+  expect(planStructuredFor(target({ native: false }), { formats: [SMALL], tools: callerTools })).toMatchObject({
     violations: [{ kind: "no-vehicle", cause: "tools-without-native" }],
   });
   // PLANTED CONTROL: a model with no carrier at all is refused for that, prefill or not.
-  expect(planStructured({ formats: [SMALL], nativeFormat: false }, target({ vehicles: [] }))).toMatchObject({
+  expect(planStructuredFor(target({ native: false, tools: false }), { formats: [SMALL], nativeFormat: false })).toMatchObject({
     violations: [{ kind: "no-vehicle", cause: "unsupported" }],
   });
 });
 
 test("Gemini payload semantics refuse before any carrier; optional recursion plans without invented vendor ceilings", () => {
-  const endpoint = target({ mode: "gemini-schema", vehicles: ["response-format", "forced-tool"] });
+  const endpoint = target({ mode: "gemini-schema", native: true });
   const unsupported: ResponseFormat = {
     name: "result",
     schema: wireSchema({ type: "object", properties: { value: { type: "string", not: { enum: ["bad"] } } } }),
   };
-  const refused = planStructured({ formats: [unsupported] }, endpoint);
+  const refused = planStructuredFor(endpoint, { formats: [unsupported] });
   expect(refused).toMatchObject({
     ok: false,
     violations: [
       { kind: "refused-keyword", keyword: "not", vehicle: "response-format" },
       { kind: "refused-keyword", keyword: "not", vehicle: "forced-tool" },
+      { kind: "refused-keyword", keyword: "not", vehicle: "offered-tool" },
     ],
   });
   const schema = (required: readonly string[]): ResponseFormat => ({
     name: "tree",
     schema: wireSchema({ type: "object", properties: { next: { $ref: "#" } }, required }),
   });
-  expect(planStructured({ formats: [schema([])] }, endpoint)).toMatchObject({ ok: true, responseFormat: { vehicle: "response-format" } });
-  expect(planStructured({ formats: [schema(["next"])] }, endpoint)).toMatchObject({
+  expect(planStructuredFor(endpoint, { formats: [schema([])] })).toMatchObject({ ok: true, responseFormat: { vehicle: "response-format" } });
+  expect(planStructuredFor(endpoint, { formats: [schema(["next"])] })).toMatchObject({
     ok: false,
     violations: expect.arrayContaining([expect.objectContaining({ kind: "refused-keyword", keyword: "required recursive $ref" })]),
   });
-  expect(planStructured({ formats: [optionals(41)] }, endpoint)).toMatchObject({ ok: true });
+  expect(planStructuredFor(endpoint, { formats: [optionals(41)] })).toMatchObject({ ok: true });
 });
 
 test("the OpenRouter adapter refuses explicit strict tools loudly without disabling strict response formats", () => {
@@ -271,7 +306,7 @@ test("the OpenRouter adapter refuses explicit strict tools loudly without disabl
   expect(native).toMatchObject({ ok: true, tools: [{ name: "write", strict: true }], downgrades: [] });
 });
 
-test("Gemini inline required pointer cycles refuse on both carriers and optional controls still plan", () => {
+test("Gemini inline required pointer cycles refuse on every available carrier and optional controls still plan", () => {
   const schema = (required: readonly string[]): ResponseFormat => ({
     name: "tree",
     schema: wireSchema({
@@ -283,11 +318,19 @@ test("Gemini inline required pointer cycles refuse on both carriers and optional
     }),
   });
   for (const vehicle of ["response-format", "forced-tool"] as const) {
-    const endpoint = target({ mode: "gemini-schema", vehicles: [vehicle] });
-    expect(planStructured({ formats: [schema(["next"])] }, endpoint)).toMatchObject({
+    const endpoint = target({ mode: "gemini-schema", native: vehicle === "response-format", tools: vehicle !== "response-format" });
+    const vehicles = vehicle === "response-format" ? [vehicle] : [vehicle, "offered-tool"];
+    expect(planStructuredFor(endpoint, { formats: [schema(["next"])] })).toEqual({
       ok: false,
-      violations: [{ kind: "refused-keyword", keyword: "required recursive $ref", path: "node.next", vehicle }],
+      violations: vehicles.map((carrier) => ({
+        kind: "refused-keyword",
+        mode: "gemini-schema",
+        keyword: "required recursive $ref",
+        path: "node.next",
+        shape: 0,
+        vehicle: carrier,
+      })),
     });
-    expect(planStructured({ formats: [schema([])] }, endpoint)).toMatchObject({ ok: true, responseFormat: { vehicle } });
+    expect(planStructuredFor(endpoint, { formats: [schema([])] })).toMatchObject({ ok: true, responseFormat: { vehicle } });
   }
 });

@@ -172,11 +172,10 @@ async function loadOwnedBooksForDedup(db: Db, ownerId: UserId): Promise<DedupCan
 /** Every name the caller's own books carry — the collision scan for the free-name mint. `except` leaves out
  *  the row a restore renames, so its own name is free to keep. */
 async function listOwnedBookNames(db: Db, ownerId: UserId, except?: WorldBookId): Promise<string[]> {
-  const owned = eq(worldBooks.ownerId, ownerId);
   const rows = await db
     .select({ name: worldBooks.name })
     .from(worldBooks)
-    .where(except === undefined ? owned : and(owned, ne(worldBooks.id, except)));
+    .where(and(eq(worldBooks.ownerId, ownerId), except === undefined ? undefined : ne(worldBooks.id, except)));
   return rows.map((row) => row.name);
 }
 

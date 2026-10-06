@@ -141,6 +141,11 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
 function settingsAdjustedNotice(warning: ChatSettingsAdjustedWarning): NotifyNotice {
   const kind = warning.adjustment;
   switch (kind) {
+    case "cache_control_adjusted":
+      return {
+        title: "Cache controls changed for this reply",
+        description: "This connection couldn't apply all your requested cache controls. Check its cache settings; provider-managed caching may still run.",
+      };
     case "sampling_knob_dropped": {
       // NO FALLBACK LABEL: `knob` is absent only if a producer ever raises this class without saying which
       // setting it dropped, and naming an arbitrary knob there would be a lie about the user's own settings.

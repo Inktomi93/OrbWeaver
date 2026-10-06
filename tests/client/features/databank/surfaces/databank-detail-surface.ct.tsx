@@ -28,7 +28,7 @@ const DUSKWATER_ROW = /Duskwater Barony/;
 
 /** The tail of `DATABANK_INGEST_GLOSS` — distinctive enough to count its copies on screen, and NOT the
  *  whole string, so the pin is about the number of homes rather than about the wording. */
-const INGEST_GLOSS_TAIL = "passages feed into your chats as they happen";
+const INGEST_GLOSS_TAIL = "Relevant passages can reach those chats after indexing.";
 /** The buttonless invitation the CONTENT welcome used to end on (the two-Add-doors trim). */
 const ADD_ANOTHER_INVITE = "or add another";
 

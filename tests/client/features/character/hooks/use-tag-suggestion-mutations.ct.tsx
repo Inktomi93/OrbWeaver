@@ -98,7 +98,7 @@ test("staging suggestions refreshes the warm Labels queue and census on return",
     },
   });
   const component = await mount(<CharacterSuggestWarmLabelsStory />);
-  await expect(component.getByText("No suggested labels awaiting review.")).toBeVisible();
+  await expect(component.getByText("No suggested tags awaiting review.", { exact: true })).toBeVisible();
   await expect(component.getByRole("button", { name: "Prune 1 unused" })).toBeVisible();
   await component.getByRole("button", { name: "Visit character" }).click();
   await expect(component.getByRole("textbox", { name: "Name" })).toHaveValue("Bare");

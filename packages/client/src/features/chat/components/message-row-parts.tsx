@@ -17,7 +17,7 @@ import { cn, renderMessageForDisplay } from "#lib";
 import type { RowAttribution } from "../lib/attribution.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { MESSAGE_REASONING_NAME } from "../lib/message-action-names.ts";
-import { BG_PHOTO_CHROME_PLATE } from "../lib/message-row-backing.ts";
+import { BG_PHOTO_PAGER_PLATE } from "../lib/message-row-backing.ts";
 import type { BubbleDecoration, BubbleDecorationArgs, RowSkin } from "../lib/message-row-variants.ts";
 import { avatarPortraitSrcProp, avatarSrcProp } from "../lib/message-row-variants.ts";
 import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
@@ -314,10 +314,12 @@ export function renderRowAvatar(args: {
 // holds (no user row yet) and the roster's cards. Absent ⇒ the variant strip's own `showSwipes` rule decides,
 // exactly as before.
 //
-// BOTH STRIPS TAKE THE ROW'S WALLPAPER BACKING (#221). The slot sits between the metadata row and the
+// BOTH STRIPS TAKE THE ROW'S PAIRED PAGER BACKING (#221). The slot sits between the metadata row and the
 // message footer, which have carried `BG_PHOTO_CHROME_PLATE` mode-independently since #106 — the strip
 // took nothing, so its chevrons were the one band still floating on the raw photo (measured 1.60:1 live,
-// against WCAG 1.4.11's 3:1 for a UI component). It is threaded from here, not imported by the strips, for
+// against WCAG 1.4.11's 3:1 for a UI component). The pager now takes its opaque card/foreground pair because
+// legal custom palette pivots left the new counter below AA on the translucent chrome plate.
+// It is threaded from here, not imported by the strips, for
 // the same reason `MessageMetadataRow` takes it as a prop: the ROW owns its backings and the leaf keeps
 // knowing nothing about the shell's wallpaper flag. Self-gated on `in-data-[has-bg-image]`, so a
 // plain-background room is byte-identical.
@@ -338,9 +340,9 @@ export function renderRowSwipe(args: {
         messageId={args.message.id}
         variants={args.greeting.variants}
         current={args.message.content}
-        backingClass={BG_PHOTO_CHROME_PLATE}
+        backingClass={BG_PHOTO_PAGER_PLATE}
       />
     );
   }
-  return args.showSwipes && args.role === "assistant" ? <SwipeStrip message={args.message} backingClass={BG_PHOTO_CHROME_PLATE} /> : null;
+  return args.showSwipes && args.role === "assistant" ? <SwipeStrip message={args.message} backingClass={BG_PHOTO_PAGER_PLATE} /> : null;
 }

@@ -8,9 +8,10 @@ import type { RefineryAnalyzePayload, RefineryScorePayload, RefineryVerdict } fr
 import { DEFAULT_REFINERY_STAGE_CONFIG } from "@orb/contracts/refinery";
 import type { Db } from "@orb/db";
 import { characters, refineryRuns, refinerySessions } from "@orb/db";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterHandle, CharacterId, Handle, ModelId, RefineryRunId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import {
   latestRunRowOf,
   latestVerdictsOf,
@@ -19,7 +20,7 @@ import {
 } from "../../../../../packages/server/src/domain/refinery/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { seedUser } from "../_support.ts";
+import { makeRefineryHarness, principal, seedOwnedCharacter, seedUser } from "../_support.ts";
 
 const AT_EARLY = 1_700_000_000_000;
 const AT_LATE = 1_700_000_100_000;
@@ -85,6 +86,44 @@ test("sessionViewOf heals a corrupt stored stageConfig to the canonical default"
     throw new Error("expected the corrupted refinery session to load");
   }
   expect(sessionViewOf(corrupt).stageConfig).toEqual(DEFAULT_REFINERY_STAGE_CONFIG);
+});
+
+const MALFORMED_SELECTIONS = [
+  { label: "missing fields", value: { greetingIndexes: [1] } },
+  { label: "unknown field", value: { fields: ["legacy-field"], greetingIndexes: [1] } },
+  { label: "duplicate greeting indexes", value: { fields: ["greetings"], greetingIndexes: [1, 1] } },
+] as const;
+
+test.for(MALFORMED_SELECTIONS)("owned session read heals $label to empty canonical selection without rewriting stored bytes", async ({ value }) => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_selection_reader" });
+  const stranger = await seedUser(db, { id: "user_selection_stranger", handle: castId<Handle>("selection-stranger") });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "selection-read");
+  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  const valid = { fields: ["greetings", "description"], greetingIndexes: [1] } as const;
+  const saved = await h.svc.updateSession({
+    principal: principal(owner),
+    sessionId: session.id,
+    patch: { selection: { fields: [...valid.fields], greetingIndexes: [...valid.greetingIndexes] } },
+  });
+  expect(saved.selection).toEqual(valid);
+  expect((await h.svc.getSession({ principal: principal(owner), sessionId: session.id })).selection).toEqual(valid);
+
+  await db.run(sql`UPDATE refinery_sessions SET selection = ${JSON.stringify(value)} WHERE id = ${session.id}`);
+  const before = await db.select().from(refinerySessions).where(eq(refinerySessions.id, session.id));
+  const healed = await h.svc.getSession({ principal: principal(owner), sessionId: session.id });
+  expect(healed.selection).toEqual({ fields: [] });
+  expect(healed.originalCard).toEqual(session.originalCard);
+  expect(healed.stageConfig).toEqual(session.stageConfig);
+  expect(before[0]?.selection).toEqual(value);
+  await expect(h.svc.getSession({ principal: principal(stranger), sessionId: session.id })).rejects.toBeInstanceOf(DomainNotFoundError);
+  expect(await db.select().from(refinerySessions).where(eq(refinerySessions.id, session.id))).toEqual(before);
+  expect(h.userEvents).toEqual([
+    { userId: owner, event: { type: "refineryChanged", sessionId: session.id } },
+    { userId: owner, event: { type: "refineryChanged", sessionId: session.id } },
+  ]);
+  expect(h.summarizeCalls).toEqual([]);
 });
 
 test("latestRunRowOf picks the newest of THAT stage; latestVerdictsOf groups newest-analyze per session", async () => {

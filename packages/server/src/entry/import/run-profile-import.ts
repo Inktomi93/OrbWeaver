@@ -13,7 +13,7 @@
 // `run-profile-dir-import.ts` (driven by the `import-st` workload), and a zip bundle is the third path.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CardImportResult, FailedCard, ImportedCard } from "@orb/contracts/import";
 import type { RestoreCharacterBookResult } from "#domain/import";
 import { createImportService } from "#domain/import";
 import type { ImportCardScripts } from "#domain/regex";
@@ -37,31 +37,6 @@ export interface ProfileImportDeps {
    *  lift the profile-dir driver and the bundle restore compose, so no door drops a card's scripts. */
   readonly importCardScripts?: ImportCardScripts;
   readonly files: readonly ImportFile[];
-}
-
-/** One successfully imported (or deduped) card. `created:false` = an equal-content card is already in the
- *  library: no new CHARACTER row, and the existing one is left as the owner has it. */
-export interface ImportedCard {
-  readonly filename: string | null;
-  readonly characterId: CharacterId;
-  readonly created: boolean;
-  readonly importHash: string;
-  /** The card planes this import deliberately did NOT assert, one operator-facing line each (the verb's
-   *  `skippedOverlays`, #1598). Present even when empty. Today's one member: a re-uploaded card whose
-   *  embedded lorebook was KEPT because the character already holds a primary book the owner may have
-   *  edited — the route's JSON is where a caller learns that, instead of silently getting the old behavior. */
-  readonly notes: readonly string[];
-}
-
-/** One card that failed to import (unreadable/invalid bytes) — recorded, not thrown (failures isolation). */
-export interface FailedCard {
-  readonly filename: string | null;
-  readonly error: string;
-}
-
-export interface ProfileImportResult {
-  readonly imported: readonly ImportedCard[];
-  readonly failed: readonly FailedCard[];
 }
 
 /** The card-only per-owner `ImportContext`, in ONE place: both card doors (the batch import and the #1598
@@ -107,7 +82,7 @@ export async function runCardLorebookRestore(deps: CardLorebookRestoreDeps): Pro
  * Build the per-owner `ImportService` (with the entry-supplied character/assets ops) and import each card
  * file, isolating per-card failures. Returns the per-card outcome (imported/deduped vs failed).
  */
-export async function runProfileImport(deps: ProfileImportDeps): Promise<ProfileImportResult> {
+export async function runProfileImport(deps: ProfileImportDeps): Promise<CardImportResult> {
   const { files, ...wiring } = deps;
 
   const service = cardImportService(wiring);

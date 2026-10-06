@@ -283,7 +283,7 @@ test("capabilities.for separates a row's declared override from its evidence bas
 
   expect(read.capability).toMatchObject({ kind: "embedding", embedding: { dims: 768, dtype: "q8", input: ["text"] } });
   expect(read.baseline).toMatchObject({ kind: "embedding", embedding: { dims: 1024, dtype: "q8", input: ["text", "image"] } });
-  expect(read.tasks).toEqual(["embed", "imageEmbed"]);
+  expect(read.tasks).toEqual(["embed"]);
   expect(read.warnings).toEqual([]);
 });
 

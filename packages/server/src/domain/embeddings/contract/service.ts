@@ -3,7 +3,7 @@
 // no principal/guard on any bundle — the vector substrate carries no ownerId.
 
 import type { AssetKind } from "@orb/contracts/assets";
-import type { VectorScope } from "@orb/contracts/embeddings";
+import type { EmbeddingTask, VectorScope } from "@orb/contracts/embeddings";
 import type { AssetCreatedEvent, CharacterUpdatedEvent } from "@orb/contracts/events";
 import type { Capability, EndpointFeatures, ProviderId } from "@orb/contracts/inference";
 import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
@@ -84,7 +84,7 @@ export interface PinnedImageSpace {
 /** `cachedFacts`: read only the server facts already cached, dialing nothing (a read-only preview). */
 export type ResolveEmbeddingConnection = (
   ownerId: UserId,
-  task: "embed" | "imageEmbed",
+  task: EmbeddingTask,
   connectionId?: UserConnectionId | undefined,
   opts?: { readonly cachedFacts?: boolean | undefined },
 ) => Promise<EmbeddingConnectionSnapshot | null>;

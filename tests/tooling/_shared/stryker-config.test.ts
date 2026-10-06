@@ -67,7 +67,7 @@ const EXPECTED_EXPLORATORY = {
     "packages/server/src/foundation/observability/audit.ts",
     "packages/server/src/infra/providers/backends/openrouter/**/*.ts",
     "packages/server/src/domain/chat/substrate/stats-delta.ts",
-    "packages/server/src/domain/stats/write/rebuild-from-canon.ts",
+    "packages/server/src/domain/stats/persistence/rebuild-from-canon.ts",
     "packages/server/src/domain/chat/persistence/canon-write.ts",
     "packages/server/src/domain/chat/memory/recall/recall.ts",
     "packages/server/src/entry/lifecycle.ts",

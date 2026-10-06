@@ -7,7 +7,7 @@ import { ProviderError } from "../contract/errors.ts";
 import type { ResolveCachePolicyInput, ResolvedCachePolicy, ResolvedWarning } from "../contract/resolve.ts";
 
 function warn(warnings: ResolvedWarning[], message: string): void {
-  warnings.push({ code: "sdk_unsupported_setting", message });
+  warnings.push({ code: "cache_control_adjusted", message });
 }
 
 function prefixPlan(args: ResolveCachePolicyInput, warnings: ResolvedWarning[]): CachePolicy["prefix"] {

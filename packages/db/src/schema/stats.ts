@@ -68,7 +68,7 @@ const NOW_MS = sql`(unixepoch() * 1000)`;
 // against a character with no rollup row yet inserts a negative row DIRECTLY, and against an existing one
 // can dip a column below zero between the live write and the reconcile that repairs it. A transiently
 // negative counter is not a corruption in this design; it is the accumulator mid-flight, and reconcile
-// (`write/rebuild-from-canon.ts`) is the thing that makes it true again.
+// (`persistence/rebuild-from-canon.ts`) is the thing that makes it true again.
 //
 // So the honest verdict is that "every counter is always >= 0" is NOT an invariant of these tables, and a
 // CHECK asserting it does not harden the schema — it breaks message editing. The floor was REFUSED rather

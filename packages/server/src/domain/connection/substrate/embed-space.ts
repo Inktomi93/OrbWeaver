@@ -68,17 +68,12 @@ export async function vectorResolutionOf(
 }
 
 /** One vector task's space — {@link vectorResolutionOf} without the pixel question. */
-export async function vectorSpaceOf(
-  ctx: SpaceResolveCtx,
-  principal: Principal,
-  task: RoutableTask,
-  connectionId?: UserConnectionId,
-): Promise<EmbedSpace | null> {
+async function vectorSpaceOf(ctx: SpaceResolveCtx, principal: Principal, task: RoutableTask, connectionId?: UserConnectionId): Promise<EmbedSpace | null> {
   return (await vectorResolutionOf(ctx, principal, task, { connectionId }))?.space ?? null;
 }
 
 /** Did one task's space move? Encoder identity or width — the trigger's whole condition, in one place. */
-export function spaceMoved(before: EmbedSpace | null | undefined, after: EmbedSpace | null | undefined): boolean {
+function spaceMoved(before: EmbedSpace | null | undefined, after: EmbedSpace | null | undefined): boolean {
   return before?.fingerprint !== after?.fingerprint || before?.dim !== after?.dim;
 }
 
@@ -86,7 +81,7 @@ export function spaceMoved(before: EmbedSpace | null | undefined, after: EmbedSp
  *  not before. A cheap filter, not the verdict: the owner's stored target decides (a re-bind of the encoder it
  *  already names moves nothing). Losing a space never counts: nothing can embed there, and the old generation stays
  *  for a later re-bind (the preview's "clearing a role deletes nothing"). */
-export function spacesMayMoveTarget(before: EmbedSpaces, after: EmbedSpaces): boolean {
+function spacesMayMoveTarget(before: EmbedSpaces, after: EmbedSpaces): boolean {
   return VECTOR_TASKS.some((task) => (after[task] ?? null) !== null && spaceMoved(before[task], after[task]));
 }
 

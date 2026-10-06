@@ -2,7 +2,7 @@
 // `createModelCache().scorePairs`, does it rank sanely, and what does it cost on CPU next to MiniLM?
 // One model per process so the RSS high-water mark is that model's alone.
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
@@ -112,12 +112,9 @@ function argValue(name: string): string | undefined {
   return flag?.slice(name.length + FLAG_AFFIXES);
 }
 
-/** Current and peak resident set from /proc, in MiB: the native ONNX arena is off-heap, so only the kernel sees it. */
+/** Resident memory includes the native ONNX arena, which JavaScript heap measurements omit. */
 function memory(): MemoryReading {
-  const status = readFileSync("/proc/self/status", "utf8");
-  const lines = status.split("\n");
-  const field = (key: string): number => Number.parseInt(lines.find((line) => line.startsWith(`${key}:`))?.slice(key.length + 1) ?? "0", 10) / KIB;
-  return { rssMib: Math.round(field("VmRSS")), hwmMib: Math.round(field("VmHWM")) };
+  return { rssMib: Math.round(process.memoryUsage().rss / KIB / KIB), hwmMib: Math.round(process.resourceUsage().maxRSS / KIB) };
 }
 
 const FILLER = [

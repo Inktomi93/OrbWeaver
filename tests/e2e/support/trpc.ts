@@ -6,7 +6,7 @@
 // `fetch`, and imports nothing from the browser client trees (deliberate — see below).
 //
 // GROW A SHAPE HERE = UPDATE THE MIRROR: every hand-declared wire shape below is pinned against its
-// @orb/contracts source by `./mirror-parity.test-d.ts` (the types lane) — a field added to the contract, a
+// @orb/contracts source by `./mirror-parity.dom.test-d.ts` (the types lane) — a field added to the contract, a
 // renamed key, or a drifted field type turns THAT file red, naming the shape. Add a pin with a new shape.
 //
 // WHY specs need this (not just globalSetup): the honesty specs assert DOM-vs-DB PARITY and
@@ -15,6 +15,7 @@
 // `intent` the UI composer can't inject (the context-cutoff spec's small `maxContextTokens` ceiling).
 
 import process from "node:process";
+import type { ContextLimitKind } from "@orb/contracts/chat";
 import type { ResponseCacheSettings } from "@orb/contracts/preset";
 import type { CharacterHandle, CharacterId, ChatId, MessageId, PersonaId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -84,7 +85,8 @@ export async function trpcMutation<T>(procedure: string, input: unknown): Promis
 // 2026-08-03): TYPE-ONLY imports of the `@orb/kit/ids` id brands are allowed — erased at runtime, they add
 // no package-code dependency, and an id position typed bare `string` here is exactly the wrong-id hole the
 // gate exists to close. Response replay's canonical nested settings are also type-only: duplicating their
-// boundary validation shape here would create another control vocabulary. The mirror rule still binds
+// boundary validation shape here would create another control vocabulary. Context limits reuse their canonical
+// type-only axis for the same reason. The mirror rule still binds
 // every locally projected CONTRACT shape. ──
 
 /** One canon message row (a subset of contracts/chat `MessageView` — the fields the honesty specs read).
@@ -126,7 +128,7 @@ export interface ContextFitPreview {
   readonly usedTokens: number;
   readonly ceilingTokens: number;
   readonly reserveOutputTokens: number;
-  readonly limit: { readonly kind: "window" | "cap"; readonly tokens: number } | null;
+  readonly limit: { readonly kind: ContextLimitKind; readonly tokens: number } | null;
   readonly droppedCount: number;
   readonly compactSummary: string | null;
 }

@@ -14,6 +14,7 @@ import { assetKindSchema } from "@orb/contracts/assets";
 import { DOCUMENT_DESTINATION_FORM_FIELD, documentDestinationSchema } from "@orb/contracts/databank";
 import { docUploadMime } from "@orb/contracts/extraction";
 import type { Principal } from "@orb/contracts/identity";
+import type { CardImportResult } from "@orb/contracts/import";
 import { ASSET_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_MAX_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { DomainOperationError } from "@orb/kit/errors";
 import { getHTTPStatusCodeFromError } from "@trpc/server/http";
@@ -25,7 +26,7 @@ import type { DatabankService } from "#domain/databank";
 import type { ImportCardScripts } from "#domain/regex";
 import { hasCsrfHeader } from "#infra/auth";
 import { classifyDomainError } from "#transport/trpc";
-import type { ImportAssetPort, ImportCharacterPort, ImportFile, ImportTagPort, ImportWorldInfoPort, ProfileImportResult } from "../import/index.ts";
+import type { ImportAssetPort, ImportCharacterPort, ImportFile, ImportTagPort, ImportWorldInfoPort } from "../import/index.ts";
 import { runCardLorebookRestore, runProfileImport } from "../import/index.ts";
 import type { PrincipalEnv } from "./blob.ts";
 
@@ -280,7 +281,7 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
     if (files.length === 0) {
       return c.json({ error: `no "${UPLOAD_FIELD}" card uploads` }, BAD_REQUEST);
     }
-    const result: ProfileImportResult = await runProfileImport({
+    const result: CardImportResult = await runProfileImport({
       principal,
       character: deps.character,
       assets: deps.assets,

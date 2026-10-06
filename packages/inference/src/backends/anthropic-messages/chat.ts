@@ -79,7 +79,7 @@ function requireGeneration(connection: Resolved, label: string): GenerationCapab
   return connection.capability.generation;
 }
 
-export function sdkEffortOf(effort: string | undefined, warnings: ResolvedWarning[], where: string): SdkEffort | undefined {
+function sdkEffortOf(effort: string | undefined, warnings: ResolvedWarning[], where: string): SdkEffort | undefined {
   if (effort === undefined) {
     return;
   }
@@ -160,7 +160,7 @@ const OFF_THINKING: Readonly<Record<ReasoningOffMode, JSONObject>> = {
 const OFF_THINKING_TYPES: readonly unknown[] = Object.values(OFF_THINKING).map((thinking) => thinking["type"]);
 
 /** The `thinking` block per the resolved reasoning MODE — the policy already ran in the funnel. */
-export function thinkingOf(reasoning: ResolvedReasoning): JSONObject {
+function thinkingOf(reasoning: ResolvedReasoning): JSONObject {
   if (!reasoning.enabled) {
     return OFF_THINKING[reasoning.offMode ?? REASONING_OFF_DEFAULT];
   }
@@ -173,7 +173,7 @@ export function thinkingOf(reasoning: ResolvedReasoning): JSONObject {
 
 /** Manual extended thinking (`thinking: enabled`) refuses a forced `tool_choice` on every model (the Messages API's
  *  tool-use docs), so a turn that sends it asks the plan for no forced choice. */
-export function forcedChoiceOf(reasoning: ResolvedReasoning): false | undefined {
+function forcedChoiceOf(reasoning: ResolvedReasoning): false | undefined {
   return reasoning.enabled && reasoning.mode === "budget" ? false : undefined;
 }
 
@@ -213,7 +213,7 @@ function toolCacheOptions(generation: GenerationCapability, cachePlan: ExplicitC
 
 /** How the SDK carries a planned payload: `outputFormat` (`output_config.format`) for a native format, so the SDK
  *  never picks a vehicle itself, and one call with parallel use off for a tool vehicle. */
-export function anthropicStructuredOptions(plan: StructuredPlan): JSONObject {
+function anthropicStructuredOptions(plan: StructuredPlan): JSONObject {
   const vehicle = plan.responseFormat?.vehicle;
   if (vehicle === undefined) {
     return {};
@@ -222,7 +222,7 @@ export function anthropicStructuredOptions(plan: StructuredPlan): JSONObject {
 }
 
 /** The planned schema when the payload rides `output_config.format`; a tool vehicle's schema is the tool's own. */
-export function nativeSchemaOf(plan: StructuredPlan | undefined): Record<string, unknown> | undefined {
+function nativeSchemaOf(plan: StructuredPlan | undefined): Record<string, unknown> | undefined {
   return plan?.responseFormat?.vehicle === "response-format" ? plan.responseFormat.schema : undefined;
 }
 

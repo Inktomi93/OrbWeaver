@@ -41,8 +41,8 @@ import { continueVariantStatements, setVariantContentStatement } from "../../../
 import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { continuedSignatureMetadata } from "../../../../../packages/server/src/domain/chat/substrate/content-signatures.ts";
 import { createEdit } from "../../../../../packages/server/src/domain/chat/verbs/edit.ts";
+import { reconcileStats } from "../../../../../packages/server/src/domain/stats/persistence/rebuild-from-canon.ts";
 import { applyStatsDelta, bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
-import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -624,11 +624,19 @@ describe("setMessageHidden / editReasoning / clearReasoning", () => {
       beforeTools: [call],
       additionTools: [added],
     });
+    const latestUsage = makeGenerationUsage(0, {
+      tokensIn: null,
+      tokensOut: 0,
+      cacheReadTokens: null,
+      cacheWriteTokens: 0,
+      tokenDetails: { output: [{ modality: "text", tokens: 0 }] },
+      responseCache: { status: "hit", ageSeconds: 1, ttlSeconds: null, sourceGenerationId: null },
+    });
     await db.batch(
       batchMany(
         continueVariantStatements(db, {
           variantId,
-          variant: { content: "Before.After.Done.", metadata, toolCalls: metadata?.continuationTools?.after },
+          variant: { ...latestUsage, content: "Before.After.Done.", metadata, toolCalls: metadata?.continuationTools?.after },
           preContinueContent: "Before.",
           preContinueReasoning: null,
           lastContinuationContent: "After.Done.",
@@ -649,6 +657,7 @@ describe("setMessageHidden / editReasoning / clearReasoning", () => {
       continuationTools: { before: [{ ...call, hidden: true }], after: view.toolCalls },
     });
     expect(stored?.content).toBe("Before.After.Done.");
+    expect(stored).toMatchObject(latestUsage);
   });
 
   test("the mutation return uses the viewer's current role after a successful write", async () => {

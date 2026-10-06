@@ -27,7 +27,7 @@ test("native implicit caching cannot be disabled by app-marker off; unsupported 
     connection: { ...req.connection, promptCache: { ...req.connection.promptCache, enabled: false, disableImplicit: true } },
     systemPrompt: { static: "Stable instructions.", dynamic: "Changing lore." },
   });
-  expect(result.events).toContainEqual(expect.objectContaining({ kind: "warning", code: "sdk_unsupported_setting" }));
+  expect(result.events).toContainEqual(expect.objectContaining({ kind: "warning", code: "cache_control_adjusted" }));
   expect(body["systemInstruction"]).toEqual({ parts: [{ text: "Stable instructions.\n\nChanging lore." }] });
   expect(body["contents"]).toMatchObject([{ role: "user", parts: [{ text: "Weather?" }] }]);
   expect(body).not.toHaveProperty("cachedContent");
@@ -85,7 +85,7 @@ test("native cache-control warnings preserve streamed served version and unknown
   });
   expect(body).not.toHaveProperty("cache_control");
   expect(body).not.toHaveProperty("cachedContent");
-  expect(result.events).toContainEqual(expect.objectContaining({ kind: "warning", code: "sdk_unsupported_setting" }));
+  expect(result.events).toContainEqual(expect.objectContaining({ kind: "warning", code: "cache_control_adjusted" }));
   expect(result.usage).toMatchObject({
     servedModel: raw.modelVersion,
     tokensOut: 1434,

@@ -36,8 +36,8 @@ import { insertCanonMessageStatements } from "../../../../../packages/server/src
 import { canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "../../../../../packages/server/src/domain/chat/substrate/stats-delta.ts";
 import { createCompaction } from "../../../../../packages/server/src/domain/chat/verbs/compaction.ts";
 import { runGeneration } from "../../../../../packages/server/src/domain/imagery/substrate/generate-core.ts";
+import { reconcileOwnersMissingTimeline, reconcileStats } from "../../../../../packages/server/src/domain/stats/persistence/rebuild-from-canon.ts";
 import { applyStatsDelta, bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
-import { reconcileOwnersMissingTimeline, reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { createFrozenClock } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
@@ -685,7 +685,7 @@ describe("stats drift gate — live deltas vs a canon rebuild agree column-for-c
     expect(live.models.find((m) => m["model"] === IMAGE_MODEL)).toMatchObject({ generations: 2, genSamples: 2, costUsd: IMAGE_COST });
     expect(live.days.map((d) => [d["costUsd"], d["costSamples"]])).toStrictEqual([
       [CHAR_ASSIST.costUsd + COMPACTION_COST, 2],
-      [IMAGE_COST, 0],
+      [IMAGE_COST, 1],
     ]);
 
     // The timeline-only heal (the boot step after a re-grain empties `daily_stats`) folds the same spend

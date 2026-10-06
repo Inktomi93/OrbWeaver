@@ -2,12 +2,17 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { modelIdSchema, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
-import { configuredResponseCache, responseCacheHeaders, responseCacheOf } from "../../../../packages/inference/src/backends/kit/response-cache.ts";
+import { cachePolicyContextOf, responseCacheHeaders, responseCacheOf } from "../../../../packages/inference/src/backends/kit/response-cache.ts";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../../../../packages/inference/src/backends/kit/sanitize.ts";
 import type { ResolveCachePolicyInput } from "../../../../packages/inference/src/contract/resolve.ts";
 import { resolveCachePolicy } from "../../../../packages/inference/src/funnel/resolve-cache.ts";
 import { appendEvidence } from "../../../../scripts/probes/caching/evidence.ts";
+import { makeResolved } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+
+function configuredCache(headers: Readonly<Record<string, string>> | undefined): ResolveCachePolicyInput["context"]["configuredReplay"] {
+  return cachePolicyContextOf(makeResolved({ providerId: "openrouter", transport: { headers: headers ?? {} } }), true).configuredReplay;
+}
 
 test("probe file evidence scrubs reflected provider strings while preserving numeric facts and valid identity", () => {
   const dir = mkdtempSync(join(tmpdir(), "orb-cache-sink-"));
@@ -49,7 +54,7 @@ function headersFor(
       factsModel: modelIdSchema.parse("openai/gpt-6-sol"),
       promptSettings: { ...SHIPPED_PROMPT_CACHE, enabled: false },
       responseReplaySupported: true,
-      configuredReplay: configuredResponseCache(args.configured),
+      configuredReplay: configuredCache(args.configured),
       configuredRetention: { owned: false, value: null },
     },
   });
@@ -63,10 +68,10 @@ test("raw OpenRouter TTL normalization accepts documented truncation/clamping an
     ["900000000000000000000000", 86_400],
     ["0", 1],
   ] as const) {
-    expect(configuredResponseCache({ "X-OpenRouter-Cache-TTL": raw }).ttlSeconds, raw).toBe(normalized);
+    expect(configuredCache({ "X-OpenRouter-Cache-TTL": raw }).ttlSeconds, raw).toBe(normalized);
   }
   for (const raw of ["garbage", ".5", ""]) {
-    expect(configuredResponseCache({ "X-OpenRouter-Cache-TTL": raw }), raw).not.toHaveProperty("ttlSeconds");
+    expect(configuredCache({ "X-OpenRouter-Cache-TTL": raw }), raw).not.toHaveProperty("ttlSeconds");
   }
   expect(headersFor({ configured: { "X-OpenRouter-Cache-TTL": "60abc", "X-Unrelated": "kept" } })).toMatchObject({
     "x-openrouter-cache-ttl": "60",

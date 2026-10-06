@@ -12,7 +12,7 @@ export interface SelectedCostMaps {
   readonly models: ReadonlyMap<string, SelectedCostSamples>;
 }
 
-export type SelectedCostRow = Pick<typeof messageVariants.$inferSelect, "id" | "model" | "provider" | "costUsd" | "metadata"> & {
+type SelectedCostRow = Pick<typeof messageVariants.$inferSelect, "id" | "model" | "provider" | "costUsd" | "metadata"> & {
   readonly characterId: CharacterId;
 };
 

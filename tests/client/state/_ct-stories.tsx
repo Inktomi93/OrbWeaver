@@ -41,6 +41,7 @@ import {
   clearChatMoment,
   clearCollectionSelection,
   clearConfigFocus,
+  clearConnectionEditorRequest,
   clearCorpusSelection,
   clearDatabankPhaseFilter,
   clearLabelSelection,
@@ -73,6 +74,7 @@ import {
   openConfigGroup,
   openConfigTo,
   openImageDetail,
+  openInstalledPlugin,
   openModal,
   openNewChatPicker,
   openPersonaEditor,
@@ -87,6 +89,7 @@ import {
   reportSectionSaveStatus,
   requestChatMoment,
   requestComposerFocus,
+  requestConnectionEditor,
   requestRefineryLandingFocus,
   resumeChat,
   revealContextPanel,
@@ -141,6 +144,7 @@ import {
   setOpenOverlayPanel,
   setPanelMode,
   setPresetEditorView,
+  setPresetReadoutTarget,
   setPresetSearchQuery,
   setTagPruneConfirmOpen,
   setTagSortMode,
@@ -205,8 +209,10 @@ import {
   usePanelOverride,
   usePersonaEditorId,
   usePresetEditorView,
+  usePresetReadoutTarget,
   usePresetSearchQuery,
   useRefineryLandingFocusRequest,
+  useRequestedConnectionEditor,
   useRoomInviteRequest,
   useSectionListIsScreen,
   useSectionListMode,
@@ -228,7 +234,7 @@ import {
   useVisibleConfigSettings,
   withContentSwap,
 } from "@orb/client/state";
-import type { AssetId, CharacterId, ChatId, PresetId, TagId, WorldEntryId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, PluginId, PresetId, TagId, UserConnectionId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { Fragment, useEffect, useState, useSyncExternalStore } from "react";
@@ -697,11 +703,24 @@ export function PresetSelectionProbe(): ReactElement {
  *  which makes "unset reads as null" and "the writer is the only mover" real invariants rather than
  *  component detail. A CT, not a unit test: the read surface is the reactive hook (useSyncExternalStore
  *  needs a browser) — the preset-selection-store.ct.tsx posture. */
-export function PresetEditorViewProbe(): ReactElement {
+export function PresetEditorViewProbe({ connectionId }: { readonly connectionId?: UserConnectionId }): ReactElement {
   const view = usePresetEditorView();
+  const target = usePresetReadoutTarget();
   return (
     <div>
       <output>{`view=${view ?? "unset"}`}</output>
+      <span data-slot="preset-readout-probe">{JSON.stringify(target)}</span>
+      {connectionId === undefined ? null : (
+        <button type="button" onClick={(): void => setPresetReadoutTarget({ kind: "connection", connectionId })}>
+          set connection readout
+        </button>
+      )}
+      <button type="button" onClick={(): void => setPresetReadoutTarget({ kind: "role", task: "summarize" })}>
+        set utility readout
+      </button>
+      <button type="button" onClick={(): void => setPresetReadoutTarget({ kind: "role", task: "chat" })}>
+        set chat readout
+      </button>
       <button type="button" onClick={(): void => setPresetEditorView("actions")}>
         set actions view
       </button>
@@ -1904,6 +1923,41 @@ export function ExtensionsSearchProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => setExtensionsSearchQuery("")}>
         Clear extensions query
+      </button>
+    </div>
+  );
+}
+
+export function ConnectionEditorRequestProbe({ first, second }: { readonly first: UserConnectionId; readonly second: UserConnectionId }): ReactElement {
+  const request = useRequestedConnectionEditor();
+  return (
+    <div>
+      <output>{request === null ? "none" : `${request.connectionId}:${request.openAdvanced}`}</output>
+      <button type="button" onClick={(): void => requestConnectionEditor(first)}>
+        request ordinary
+      </button>
+      <button type="button" onClick={(): void => requestConnectionEditor(second, { openAdvanced: true })}>
+        request advanced
+      </button>
+      <button type="button" onClick={clearConnectionEditorRequest}>
+        clear request
+      </button>
+    </div>
+  );
+}
+
+export function PluginSettingsNavigationProbe({ first, second }: { readonly first: PluginId; readonly second: PluginId }): ReactElement {
+  const target = useConfigTarget();
+  const group = useActiveConfigGroup();
+  const section = useActiveSection();
+  return (
+    <div>
+      <output>{`${section}:${group}:${target?.sub ?? "none"}:${target?.setting ?? "none"}`}</output>
+      <button type="button" onClick={(): void => openInstalledPlugin(first)}>
+        open first plugin
+      </button>
+      <button type="button" onClick={(): void => openInstalledPlugin(second)}>
+        open second plugin
       </button>
     </div>
   );

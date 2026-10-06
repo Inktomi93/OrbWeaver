@@ -2,9 +2,8 @@
 // as a source document (bytes → CAS → extract → chunk → embed). Raw fetch, not tRPC — the route is a Hono
 // multipart handler (`POST /api/databank/upload`, entry/http/upload.ts). Mirrors `upload-asset.ts`: the
 // `file`+`name` FormData body, the CSRF header every mutation carries, and a validated response. The
-// server's `UploadResult` is domain-internal (not a wire schema), so the load-bearing half — the returned
-// `DocumentView` — is validated here at the boundary against the exported `documentViewSchema` (the
-// `storedAssetSchema` posture).
+// response is validated against the canonical contracts `uploadResultSchema`, including its document and
+// dispositions, rather than trusting a successful HTTP status as proof of a usable body.
 //
 // SO ARE THE DISPOSITIONS (#1488). They used to ride as a typed PASS-THROUGH — a `as { outcome: … }`
 // assertion read straight off the parsed JSON, which is a claim about the body rather than a check of it. A
@@ -25,11 +24,8 @@ const UPLOAD_URL = "/api/databank/upload";
 const UPLOAD_FIELD = "file";
 const NAME_FIELD = "name";
 
-/** The canonical validated producer response, including a saved but not queued document. */
-export type { UploadResult as UploadDocumentResult } from "@orb/contracts/databank";
-
-/** POST a picked `File` to the databank upload route; validate the returned `document` against
- *  {@link documentViewSchema} and its dispositions against their own vocabularies (never bare-cast). Throws
+/** POST a picked `File` to the databank upload route; validate its full result against
+ *  {@link uploadResultSchema} (never bare-cast). Throws
  *  on a non-OK response, a malformed document, or an unknown disposition — the
  *  caller (an upload component/mutation) owns the try/catch + loading-state UI (the `FileDropzone`
  *  `loading`/`success` contract, `@orb/ui`). `name` defaults to the file's own name server-side when omitted. */

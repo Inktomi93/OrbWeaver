@@ -72,7 +72,7 @@ export function createResolveStructuredBinding(
 
 /** The refinery editor's plan preview: every refinery pass is `structured` background work on the owner's own
  *  binding, so that connection's consent and its plan for the projected draft are the answer. */
-export function createPlanSchema(
+function createPlanSchema(
   resolveStructuredBinding: RefineryComposeDeps["resolveStructuredBinding"],
   resolveUtilityPresetParams: RefineryComposeDeps["resolveUtilityPresetParams"],
 ): (ownerId: UserId, schema: WireReady) => Promise<RefinerySchemaPlan> {

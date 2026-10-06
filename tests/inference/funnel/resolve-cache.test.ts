@@ -13,6 +13,21 @@ const CONTEXT: CachePolicyContext = {
   configuredRetention: { owned: false, value: null },
 };
 
+test("unsupported enabled prefix controls report a cache adjustment, not an SDK sampling failure", () => {
+  const context: CachePolicyContext = { ...CONTEXT, dialect: "openai-compatible", promptSettings: SHIPPED_PROMPT_CACHE };
+  const resolved = resolveCachePolicy({ context, generation: GENERATION_FLOOR });
+  expect(resolved.plan.prefix.action).toBe("none");
+  expect(resolved.warnings).toEqual([
+    {
+      code: "cache_control_adjusted",
+      message: "App-authored prefix markers are unsupported on this route; provider implicit caching, if available, is unchanged",
+    },
+  ]);
+  const disabled = resolveCachePolicy({ context: { ...context, promptSettings: { ...SHIPPED_PROMPT_CACHE, enabled: false } }, generation: GENERATION_FLOOR });
+  expect(disabled.plan.prefix.action).toBe("none");
+  expect(disabled.warnings).toEqual([]);
+});
+
 test("legacy retention is model-admitted, inherited when unset, and respects normalized configured-body ownership", () => {
   const generation: GenerationCapability = {
     ...GENERATION_FLOOR,

@@ -9,6 +9,7 @@
 // it adds one genuinely new capability — the by-character cross-chat digest scan via the
 // chat_digest_speakers OR-branch — and otherwise delegates.
 
+import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { CorpusSource, ResolveCorpusSourceState, SearchSpaceStatus } from "@orb/contracts/search";
 import type { ReadOnlyDb } from "@orb/db";
@@ -64,7 +65,7 @@ export interface ActiveQuerySpace {
   readonly generationId?: EmbedGenerationId | undefined;
   readonly fingerprint: string;
   readonly model: string;
-  readonly via: "embed" | "imageEmbed";
+  readonly via: EmbeddingTask;
   readonly connection: EmbeddingConnectionSnapshot;
 }
 

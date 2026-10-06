@@ -225,6 +225,7 @@ export type {
   GuidedSteer,
   MemberCardVisibility,
   NarratorGroupPolicy,
+  NormalizedGroupConfigInput,
   OpeningPolicy,
   RoomOverrides,
   SmartPicker,

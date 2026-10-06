@@ -34,6 +34,7 @@ import {
   PLUGIN_SURFACE_TIERS,
   PLUGIN_TABS_OPTIONS_MAX,
   PLUGIN_TEXT_MAX_BYTES,
+  PLUGIN_TEXT_MAX_CHARS,
   PLUGIN_TIER_REGISTRAR,
   PLUGIN_TIER_REGISTRARS,
   PLUGIN_TILE_TAGS_MAX,
@@ -45,6 +46,7 @@ import {
   pluginCommandArgSpecSchema,
   pluginCommandArgsSchema,
   pluginCommandRegistrationMetaSchema,
+  pluginComposerDraftSchema,
   pluginFrameBodySchema,
   pluginSlugSchema,
   pluginSurfaceNodeSchema,
@@ -1209,4 +1211,12 @@ test("#0234: PLUGIN_ANCHOR_TIERS is the admitted matrix, and the registration ga
       expect(pluginSurfaceRegistrationMetaSchema.safeParse(meta).success, `${anchor} × ${tier}`).toBe(ADMITTED_ANCHOR_TIERS[anchor][tier]);
     }
   }
+});
+
+test("composer text retains the canonical inclusive character bound and rejects malformed Unicode", () => {
+  expect(PLUGIN_TEXT_MAX_CHARS).toBe(32_000);
+  const atLimit = "x".repeat(PLUGIN_TEXT_MAX_CHARS);
+  expect(pluginComposerDraftSchema.parse(atLimit)).toBe(atLimit);
+  expect(pluginComposerDraftSchema.safeParse(`${atLimit}x`).success).toBe(false);
+  expect(pluginComposerDraftSchema.safeParse("\ud800").success).toBe(false);
 });

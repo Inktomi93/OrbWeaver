@@ -160,7 +160,7 @@ function readRows<T>(arm: string): T[] {
   }
   return fs
     .readFileSync(file, "utf8")
-    .split("\n")
+    .split(/\r?\n/u)
     .filter((l) => l.length > 0)
     .map((l) => JSON.parse(l) as T);
 }

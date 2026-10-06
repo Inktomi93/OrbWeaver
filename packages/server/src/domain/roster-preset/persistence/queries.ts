@@ -9,6 +9,7 @@
 // NO `chat_participants` access anywhere in this directory — `applyToChat` drives chat's own verbs via
 // injected ops (the no-second-add-path law, D61 B6; grep-provable, dep-cruiser-backstopped).
 
+import { groupConfigInputSchema } from "@orb/contracts/chat";
 import type { RosterPresetMemberView, RosterPresetRuleView, RosterPresetSummary, RosterPresetView } from "@orb/contracts/roster-preset";
 import type { Db } from "@orb/db";
 import { assets, characters, rosterPresetMembers, rosterPresetRules, rosterPresets } from "@orb/db";
@@ -194,7 +195,7 @@ export function viewOf(row: PresetRow, members: readonly RosterPresetMemberView[
     name: row.name,
     description: row.description,
     anchorPersonaId: row.anchorPersonaId,
-    groupConfig: row.groupConfig ?? null,
+    groupConfig: row.groupConfig === null ? null : groupConfigInputSchema.parse(row.groupConfig),
     game: row.gameTemplate ?? null,
     members,
     rules,

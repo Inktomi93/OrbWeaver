@@ -724,7 +724,7 @@ test("#621 P1-3 re-derivation: the rule catalogue's summaries are not clipped by
 
 // ── #616: the SECTION graft (the retired "Rules" tab's replacement) ───────────────────────────────────
 
-test("#616: the host's 'This chat' tab renders the grafted Rules section in the host-controls band", async ({ mount, page }) => {
+test("#616: the host's 'This chat' tab renders the grafted Rules section after host controls", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...VIEWER_SETTINGS_ROUTE,
     "chat.setRoomOverrides": () => DEFAULT_ROOM_OVERRIDES,
@@ -761,7 +761,15 @@ test("#616: the host's 'This chat' tab renders the grafted Rules section in the 
   // A real h3 in the pane's own kicker grammar — the host spells the Section, the contributor only names it.
   await expect(component.getByRole("heading", { name: "Rules", exact: true, level: 3 })).toBeVisible();
   const band = component.locator("section").filter({ hasText: "Host controls" }).first();
-  await expect(band.getByRole("heading", { name: "Rules", exact: true, level: 3 })).toBeVisible();
+  await expect(band.getByRole("heading", { name: "Rules", exact: true, level: 3 })).toHaveCount(0);
+  const rules = component.getByRole("heading", { name: "Rules", exact: true, level: 3 });
+  await expect
+    .poll(async () => {
+      const hostBox = await band.boundingBox();
+      const rulesBox = await rules.boundingBox();
+      return hostBox !== null && rulesBox !== null && rulesBox.y >= hostBox.y + hostBox.height;
+    })
+    .toBe(true);
   // …and the section's real body is inside it.
   await expect(component.getByText("Illustrate the scene", { exact: true })).toBeVisible();
   // The rendered receipt of the #616 graft (reports/ is ephemera, never a committed artifact).

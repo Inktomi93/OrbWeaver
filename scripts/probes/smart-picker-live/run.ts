@@ -5,7 +5,6 @@
 //   node scripts/probes/smart-picker-live/run.ts <cell>...      one or more cells from CELLS (see README.md)
 //   node scripts/probes/smart-picker-live/run.ts report         the per-cell table from results.jsonl
 
-import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -33,6 +32,7 @@ import { smartArbitrate } from "../../../packages/server/src/domain/chat/engine/
 import { speakerArbiterFor } from "../../../packages/server/src/entry/compose/chat.ts";
 import { fakeApiKeySecret, fakeConnection, fakeDeps } from "../../../tests/inference/_support.ts";
 import { principal } from "../../../tests/support/factories/principal.ts";
+import { execGit } from "../../../tooling/src/_shared/git.ts";
 import { readEnvKey } from "../openrouter/_kit.ts";
 import type { Scene } from "./scenes.ts";
 import { SCENES } from "./scenes.ts";
@@ -164,7 +164,7 @@ const owner = principal(OWNER);
 
 /** The code each row ran against: HEAD plus whether product code had uncommitted edits, so a row from a tree
  *  mid-fix is never read as the committed branch. */
-const git = (gitArgs: readonly string[]): string => execFileSync("git", gitArgs, { cwd: DIR, encoding: "utf8" }).trim();
+const git = (gitArgs: readonly string[]): string => execGit(DIR, gitArgs).trim();
 const tree = { head: git(["rev-parse", "--short", "HEAD"]), dirtyProduct: git(["status", "--porcelain", "--", "../../../packages"]).length > 0 };
 
 function row(fields: Record<string, unknown>): void {
@@ -488,7 +488,7 @@ async function echoUpstream(cellName: string, scene: Scene, body: Record<string,
   });
   const text = await response.text();
   const frames = text
-    .split("\n")
+    .split(/\r?\n/u)
     .filter((l) => l.startsWith("data: ") && l !== "data: [DONE]")
     .map((l) => JSON.parse(l.slice("data: ".length)) as Record<string, unknown>);
   const upstream = frames.map((f) => (f["debug"] as { echo_upstream_body?: unknown } | undefined)?.echo_upstream_body).find((u) => u !== undefined) ?? null;
@@ -634,7 +634,7 @@ interface ResultRow {
  *  happened to land on an accepted name), median and max latency, the vehicle, the controls. */
 function report(): void {
   const rows = readFileSync(RESULTS, "utf8")
-    .split("\n")
+    .split(/\r?\n/u)
     .filter((l) => l.length > 0)
     .map((l) => JSON.parse(l) as ResultRow)
     .filter((r) => r.kind === "arbiter" || r.kind === "rerank");

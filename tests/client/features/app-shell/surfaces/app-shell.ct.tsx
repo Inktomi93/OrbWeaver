@@ -231,13 +231,19 @@ interface Box {
 async function settledBox(locator: Locator): Promise<Box> {
   await expect(locator).toBeVisible();
   // The toast enters on a translate transition; a same-tick read would measure it mid-flight. SETTLED = two
-  // CONSECUTIVE polls agreeing on `y`, and `expect.poll`'s own retry interval is what spaces them — so the
+  // CONSECUTIVE polls agreeing on position AND size, and `expect.poll`'s own retry interval spaces them — so the
   // wait is on the rendered state, never on the page clock (Spine-Testing.md §3: no `waitForTimeout` in a CT).
   let previous: Box | null = null;
   await expect
     .poll(async () => {
       const current = await locator.boundingBox();
-      const settled = previous !== null && current !== null && Math.abs(previous.y - current.y) < 0.5;
+      const settled =
+        previous !== null &&
+        current !== null &&
+        previous.x === current.x &&
+        previous.y === current.y &&
+        previous.width === current.width &&
+        previous.height === current.height;
       previous = current;
       return settled;
     })
@@ -264,6 +270,7 @@ interface NoticeGeometry {
 
 /** Measure the content column, raise one notice, and measure everything the notice could have hit. */
 async function raiseNoticeAndMeasure(page: Page): Promise<NoticeGeometry> {
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
   await page.getByTestId("raise-notice").scrollIntoViewIfNeeded();
   const contentBefore = await settledBox(page.getByTestId("band-content-pane"));
   await page.getByTestId("raise-notice").click();

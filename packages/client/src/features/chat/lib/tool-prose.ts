@@ -6,7 +6,7 @@ export function toolBoundaryDisplayMessage(message: MessageView, editing: boolea
 }
 
 /** Presentation boundaries never change canonical provider bytes or their signatures. */
-export function separateToolProse(content: string, records: readonly ToolCallRecord[]): string {
+function separateToolProse(content: string, records: readonly ToolCallRecord[]): string {
   const offsets = new Set(records.flatMap((record) => [record.textOffset, record.exchangeTextEnd].filter((offset) => offset !== undefined)));
   let displayed = content;
   for (const offset of [...offsets].toSorted((a, b) => b - a)) {

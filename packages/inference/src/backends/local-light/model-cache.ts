@@ -445,13 +445,13 @@ function tokenizeBatch<T>(modelId: ModelId, run: () => T): T {
   }
 }
 
-function rerankLoadError(modelId: string, detail: string): ProviderError {
+function rerankLoadError(modelId: ModelId, detail: string): ProviderError {
   return new ProviderError({ kind: "invalid", retryable: false, message: `local-light reranker "${modelId}": ${detail}` });
 }
 
 /** The lib options a reranker's ONNX serving selects. An architecture the row names no file for is refused: serving
  *  another architecture's quantized kernels, or silently the fp32 file, is a different model on this box. */
-function rerankFileOptions(modelId: string, onnx: RerankOnnx): { dtype: DataType; model_file_name?: string; revision?: string } {
+function rerankFileOptions(modelId: ModelId, onnx: RerankOnnx): { dtype: DataType; model_file_name?: string; revision?: string } {
   const dtype = DATA_TYPES.find((candidate) => candidate === onnx.dtype);
   if (dtype === undefined) {
     throw rerankLoadError(modelId, `the dtype "${onnx.dtype}" is not one this backend loads`);
@@ -471,7 +471,7 @@ function rerankFileOptions(modelId: string, onnx: RerankOnnx): { dtype: DataType
  *  downloading it at that revision when remote models are allowed. The head modules are files the lib never fetches. */
 async function readRepoFile(
   mod: TransformersModule,
-  repo: { readonly modelId: string; readonly revision: string | undefined },
+  repo: { readonly modelId: ModelId; readonly revision: string | undefined },
   file: string,
   onCacheHit: (path: string) => void,
 ): Promise<Uint8Array> {
@@ -515,7 +515,7 @@ async function readRepoFile(
  *  to fit, those files are deleted and fetched again before the load is reported failed. */
 async function loadHeadRepairing(
   mod: TransformersModule,
-  repo: { readonly modelId: string; readonly revision: string | undefined },
+  repo: { readonly modelId: ModelId; readonly revision: string | undefined },
   log: InferenceLog,
 ): Promise<StHead> {
   const cachedFiles = new Set<string>();

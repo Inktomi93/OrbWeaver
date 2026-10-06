@@ -1,6 +1,7 @@
 // Completed paid facts exist under retained chat/source parents until one atomic canon transfer removes them.
+
 import { parseVariantMetadata } from "@orb/contracts/chat";
-import { generationUsageLegSchema, projectGenerationUsage, responseCacheSchema } from "@orb/contracts/inference";
+import { generationUsageLegSchema, projectGenerationUsage, responseCacheSchema, storedGenerationUsageLegSchema } from "@orb/contracts/inference";
 import type { RetainedChatAccountingScope } from "@orb/contracts/stats";
 import { generationObservationSpendDelta } from "@orb/contracts/stats";
 import { chatGenerationObservations, chats, messages, messageVariants, userConnections } from "@orb/db";
@@ -59,7 +60,7 @@ function retainedParent(parent: GenerationObservationParent, facts: readonly Gen
 }
 
 /** First write of a transfer batch: the required id refuses missing facts before any inverse or canon write. */
-export function generationObservationFenceStatement(
+function generationObservationFenceStatement(
   ctx: GenerationObservationContext,
   parent: GenerationObservationParent,
   facts: readonly GenerationObservationFact[],
@@ -144,7 +145,10 @@ export function generationObservationRemovalStatements(
   return statements;
 }
 
-/** Append observed economics and its live rollup together; a vanished source cannot leave orphan facts. */
+/** Append observed economics and its live rollup together; a vanished source cannot leave orphan facts.
+ *  @public Test-anchored persistence boundary: the atomic funding/source-fence proofs supply historical
+ *  observedAt and nullable/unrecorded connection attribution that the live onObservedResult callback cannot
+ *  express (it stamps the current clock and requires a resolved connection). */
 export async function appendGenerationObservation(
   ctx: GenerationObservationContext,
   parent: GenerationObservationParent,
@@ -183,7 +187,7 @@ export async function appendGenerationObservation(
 }
 
 /** Private funding context stays in this parent-owned plane, not the copied normalized legs. */
-export async function loadGenerationObservations(ctx: GenerationObservationContext, parent: GenerationObservationParent): Promise<GenerationObservationFact[]> {
+async function loadGenerationObservations(ctx: GenerationObservationContext, parent: GenerationObservationParent): Promise<GenerationObservationFact[]> {
   const rows = await ctx.db
     .select()
     .from(chatGenerationObservations)
@@ -193,12 +197,12 @@ export async function loadGenerationObservations(ctx: GenerationObservationConte
     ordinal: row.ordinal,
     funderUserId: row.funderUserId,
     connectionId: row.connectionId,
-    leg: generationUsageLegSchema.parse({ ...row, responseCache: responseCacheSchema.safeParse(row.responseCache).data }),
+    leg: storedGenerationUsageLegSchema.parse({ ...row, responseCache: responseCacheSchema.safeParse(row.responseCache).data }),
   }));
 }
 
 /** The caller appends these inverses and deletion to its variant write batch: there is never a second money home. */
-export function generationObservationTransferStatements(
+function generationObservationTransferStatements(
   ctx: GenerationObservationContext,
   parent: GenerationObservationParent,
   facts: readonly GenerationObservationFact[],

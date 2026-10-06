@@ -54,7 +54,7 @@ export const pendingGenerationObservationsSchema = z.array(pendingGenerationObse
     ordinals.add(key);
     parents.set(row.turnIndex, parent);
   }
-});
+}) satisfies z.ZodType<PendingGenerationObservationInput[]>;
 
 /** One resolved variant (swipe) row for a bulk-imported message (D26 — the SELECTED variant carries the
  *  rendered content). `idx` is 0-based within the slot's pool; the economics subset is what an ST import

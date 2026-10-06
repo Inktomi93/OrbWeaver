@@ -14,7 +14,7 @@ import type { Capability, Task } from "@orb/contracts/inference";
 import type { ResolveArgs, ResolveOutcome } from "@orb/inference";
 import type { ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { spacesMayMoveTarget, VECTOR_TASKS, vectorSpacesOf } from "../../../../../packages/server/src/domain/connection/substrate/embed-space.ts";
+import { settleEmbedSpace, VECTOR_TASKS, vectorSpacesOf } from "../../../../../packages/server/src/domain/connection/substrate/embed-space.ts";
 import { principal } from "../../../../support/factories/principal.ts";
 import { makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -57,6 +57,25 @@ function runtimeOver(spaces: Partial<Record<Task, { readonly model: string; read
   };
 }
 
+async function triggersTargetSync(before: Awaited<ReturnType<typeof vectorSpacesOf>>, after: Awaited<ReturnType<typeof vectorSpacesOf>>): Promise<boolean> {
+  let calls = 0;
+  await settleEmbedSpace(
+    {
+      syncEmbedTargets: () => {
+        calls += 1;
+        return Promise.resolve(null);
+      },
+    },
+    {
+      ownerId: CALLER.userId,
+      before,
+      after,
+      undo: () => Promise.reject(new Error("a successful target sync must not undo")),
+    },
+  );
+  return calls > 0;
+}
+
 test("the snapshot carries EVERY vector task, and the tag folds the served dtype into the model", async () => {
   const spaces = await vectorSpacesOf(runtimeOver({ embed: { model: "jina-clip-v2", dtype: "q8" }, imageEmbed: { model: "jina-clip-v2" } }), CALLER);
 
@@ -77,10 +96,10 @@ test("a REFUSED resolve reads as `null`, never as a thrown write", async () => {
 
 test("an identical snapshot does NOT fire the trigger — including when every task is unbound", async () => {
   const bound = await vectorSpacesOf(runtimeOver({ embed: { model: "jina-clip-v2", dtype: "q8" }, imageEmbed: { model: "siglip2" } }), CALLER);
-  expect(spacesMayMoveTarget(bound, bound)).toBe(false);
+  expect(await triggersTargetSync(bound, bound)).toBe(false);
 
   const empty = await vectorSpacesOf(runtimeOver({}), CALLER);
-  expect(spacesMayMoveTarget(empty, empty), "`null` vs `null` is NO change — an unbound box must not reindex").toBe(false);
+  expect(await triggersTargetSync(empty, empty), "`null` vs `null` is NO change — an unbound box must not reindex").toBe(false);
 });
 
 test("a MOVED space fires — on the model, on the dtype alone, and on gaining one; never on losing one", async () => {
@@ -89,35 +108,35 @@ test("a MOVED space fires — on the model, on the dtype alone, and on gaining o
   const other = await vectorSpacesOf(runtimeOver({ embed: { model: "siglip2", dtype: "q8" } }), CALLER);
   const none = await vectorSpacesOf(runtimeOver({}), CALLER);
 
-  expect(spacesMayMoveTarget(q8, fp16), "the SAME weights at another precision are another geometry (#2417)").toBe(true);
-  expect(spacesMayMoveTarget(q8, other), "a different model is a different space").toBe(true);
-  expect(spacesMayMoveTarget(q8, none), "a task that LOST its binding has nothing to embed with").toBe(false);
-  expect(spacesMayMoveTarget(none, q8), "a task that GAINED one asks the stored target, which may already name it").toBe(true);
+  expect(await triggersTargetSync(q8, fp16), "the SAME weights at another precision are another geometry (#2417)").toBe(true);
+  expect(await triggersTargetSync(q8, other), "a different model is a different space").toBe(true);
+  expect(await triggersTargetSync(q8, none), "a task that LOST its binding has nothing to embed with").toBe(false);
+  expect(await triggersTargetSync(none, q8), "a task that GAINED one asks the stored target, which may already name it").toBe(true);
 });
 
 test("a move on the IMAGE task alone fires — the condition is any vector task, not just `embed`", async () => {
   const before = await vectorSpacesOf(runtimeOver({ embed: { model: "jina-clip-v2" }, imageEmbed: { model: "siglip2" } }), CALLER);
   const after = await vectorSpacesOf(runtimeOver({ embed: { model: "jina-clip-v2" }, imageEmbed: { model: "siglip2", dtype: "q8" } }), CALLER);
 
-  expect(spacesMayMoveTarget(before, after)).toBe(true);
+  expect(await triggersTargetSync(before, after)).toBe(true);
 });
 
 test("a stated width change triggers reindex even with unchanged model and precision", async () => {
   const before = await vectorSpacesOf(runtimeOver({ embed: { model: "same-encoder", dims: 3072, mrl: true } }), CALLER);
   const after = await vectorSpacesOf(runtimeOver({ embed: { model: "same-encoder", dims: 768, mrl: true } }), CALLER);
   expect(after["embed"]).toMatchObject({ dim: 768 });
-  expect(spacesMayMoveTarget(before, after)).toBe(true);
+  expect(await triggersTargetSync(before, after)).toBe(true);
 });
 
 test("native MRL dimension changes reindex because they change concrete encoder provenance", async () => {
   const before = await vectorSpacesOf(runtimeOver({ embed: { model: "same-encoder", dims: 1536, mrl: true } }), CALLER);
   const after = await vectorSpacesOf(runtimeOver({ embed: { model: "same-encoder", dims: 3072, mrl: true } }), CALLER);
-  expect(spacesMayMoveTarget(before, after)).toBe(true);
+  expect(await triggersTargetSync(before, after)).toBe(true);
 });
 
 test("a narrower non-MRL model is a space at its own width, not a refusal", async () => {
   const before = await vectorSpacesOf(runtimeOver({ embed: { model: "same-encoder", dims: 1024 } }), CALLER);
   const after = await vectorSpacesOf(runtimeOver({ embed: { model: "same-encoder", dims: 768 } }), CALLER);
   expect(after.embed).toMatchObject({ dim: 768 });
-  expect(spacesMayMoveTarget(before, after)).toBe(true);
+  expect(await triggersTargetSync(before, after)).toBe(true);
 });

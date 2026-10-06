@@ -1,6 +1,7 @@
 // Active embedding generation selection. Reads always query through the connection that produced the
 // last jointly-complete corpus; missing or drifted provenance takes the named reindex refusal.
 
+import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import { embedDtypeOf, embedSpaceOf, servesImageVectors } from "@orb/contracts/inference";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
@@ -19,7 +20,7 @@ type SpaceContext = Pick<SearchContext, "db"> & {
 async function resolveConnection(
   ctx: SpaceContext,
   ownerId: UserId,
-  task: "embed" | "imageEmbed",
+  task: EmbeddingTask,
   connectionId?: UserConnectionId,
 ): Promise<EmbeddingConnectionSnapshot | null> {
   if (ctx.resolveEmbeddingConnection !== undefined) {
@@ -55,7 +56,7 @@ async function resolveConnection(
 export async function withActiveQuerySpace<T>(
   ctx: SpaceContext,
   ownerId: UserId,
-  task: "embed" | "imageEmbed",
+  task: EmbeddingTask,
   query: (space: ActiveQuerySpace) => Promise<T>,
 ): Promise<T> {
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -72,7 +73,7 @@ export async function withActiveQuerySpace<T>(
   throw new SearchError(SEARCH_SPACE_REINDEXING, "your embedding index changed twice during this search — retry after re-indexing settles");
 }
 
-async function requireQuerySpace(ctx: SpaceContext, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<ActiveQuerySpace> {
+async function requireQuerySpace(ctx: SpaceContext, ownerId: UserId, task: EmbeddingTask): Promise<ActiveQuerySpace> {
   const read = await readGeneration(ctx.db, ownerId, task);
   if (read.status === "moving") {
     throw new SearchError(SEARCH_SPACE_REINDEXING, "your embedding index is being rebuilt — retry after re-indexing settles");

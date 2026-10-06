@@ -2,6 +2,7 @@
 // resolves to now, or was never promoted. A user's own embedder change raises the re-index trigger at the write;
 // this read catches a change no user made and a rebuild a crash stopped, so boot can re-index those owners.
 
+import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import { embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
 import type { UserId } from "@orb/kit/ids";
 import { generationIdOf } from "#kit/embedding-generation";
@@ -9,7 +10,7 @@ import type { EmbeddingsContext } from "../context.ts";
 import type { EmbeddingConnectionSnapshot, EmbeddingsService } from "../contract/service.ts";
 import { readGenerationTargets } from "../persistence/space-state.ts";
 
-async function currentConnection(ctx: EmbeddingsContext, ownerId: UserId, via: "embed" | "imageEmbed"): Promise<EmbeddingConnectionSnapshot | null> {
+async function currentConnection(ctx: EmbeddingsContext, ownerId: UserId, via: EmbeddingTask): Promise<EmbeddingConnectionSnapshot | null> {
   // @orb-waive caught-failure-ownership(catch): an owner whose binding cannot resolve at boot has nothing a re-index could embed with; their next store or sweep raises the same failure where it is owned. Ends if this read ever gates a write.
   try {
     return await ctx.resolveEmbeddingConnection(ownerId, via);

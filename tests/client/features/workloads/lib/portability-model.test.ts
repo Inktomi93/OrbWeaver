@@ -1,3 +1,4 @@
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 // Unit: the Backup & Restore pane's pure export/import model (features/workloads/lib/portability-model).
 // Pins the load-bearing derivations: the export-kind set EXCLUDES `assets` (media always rides along), the
 // href builder omits `kinds` for a full pick but appends `assets` to a partial one, the label Record is
@@ -95,8 +96,8 @@ test("summarizeBundleCounts carries the counts + notes with an empty per-file li
 test("summarizeCardImport maps the server's REAL result — created→imported, deduped→skipped", () => {
   const summary = summarizeCardImport({
     imported: [
-      { filename: "elara.png", characterId: "char_elara", created: true, notes: [] },
-      { filename: "kai.json", characterId: "char_kai", created: false, notes: [] },
+      { filename: "elara.png", characterId: mintTypeId(ID_PREFIX.character), importHash: "card-elara", created: true, notes: [] },
+      { filename: "kai.json", characterId: mintTypeId(ID_PREFIX.character), importHash: "card-kai", created: false, notes: [] },
     ],
     failed: [],
   });
@@ -119,8 +120,20 @@ test("summarizeCardImport maps the server's REAL result — created→imported, 
 test("summarizeCardImport carries each card's own notes onto its outcome — created and deduped alike", () => {
   const summary = summarizeCardImport({
     imported: [
-      { filename: "elara.png", characterId: "char_elara", created: true, notes: ["book kept: primary already exists"] },
-      { filename: "kai.json", characterId: "char_kai", created: false, notes: ["book kept: primary already exists"] },
+      {
+        filename: "elara.png",
+        characterId: mintTypeId(ID_PREFIX.character),
+        importHash: "card-elara",
+        created: true,
+        notes: ["book kept: primary already exists"],
+      },
+      {
+        filename: "kai.json",
+        characterId: mintTypeId(ID_PREFIX.character),
+        importHash: "card-kai",
+        created: false,
+        notes: ["book kept: primary already exists"],
+      },
     ],
     failed: [],
   });

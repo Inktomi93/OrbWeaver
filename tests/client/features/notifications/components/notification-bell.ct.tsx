@@ -11,6 +11,7 @@
 // deliberate: the name IS the a11y contract (see the component header for why no testid rides it).
 import { notificationEventSchema } from "@orb/contracts/notifications";
 import type { StreamFrame } from "@orb/contracts/stream";
+import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -30,6 +31,9 @@ import {
   NotificationBellToastStory,
   NotificationPhonePluginDestinationStory,
 } from "../_ct-stories.tsx";
+
+const AFFINITY_PLUGIN = mintTypeId(ID_PREFIX.plugin);
+const POLISH_PLUGIN = mintTypeId(ID_PREFIX.plugin);
 
 type InboxRow = TrpcWireOutput<"notifications.list">["items"][number];
 type InboxRowOf<TType extends InboxRow["type"]> = Omit<InboxRow, "type" | "payload"> & {
@@ -79,7 +83,7 @@ function consentRow(pendingCount: number, overrides: Partial<InboxRowOf<"plugins
 }
 
 /** A plugin the crash policy turned off — ids only on the wire, so the plugin's name has to come from its list. */
-function disabledRow(pluginId: string, seq: number): InboxRowOf<"plugin-disabled"> {
+function disabledRow(pluginId: PluginId, seq: number): InboxRowOf<"plugin-disabled"> {
   return {
     id: `ntf_ct_disabled${seq}`,
     type: "plugin-disabled",
@@ -92,7 +96,7 @@ function disabledRow(pluginId: string, seq: number): InboxRowOf<"plugin-disabled
   };
 }
 
-function installedPlugin(id: string, name: string): TrpcWireOutput<"plugin.list">[number] {
+function installedPlugin(id: PluginId, name: string): TrpcWireOutput<"plugin.list">[number] {
   return {
     id,
     slug: name.toLowerCase().replaceAll(" ", "-"),
@@ -751,9 +755,9 @@ test("Review sends the shell to the Plugins group and closes the inbox", async (
 test("each auto-disabled plugin gets its own notice naming it, with a door to the Plugins screen", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
-    "notifications.list": () => ({ items: [disabledRow("plugin_ct_affinity00000001", 2), disabledRow("plugin_ct_polish0000000001", 1)], nextCursor: null }),
+    "notifications.list": () => ({ items: [disabledRow(AFFINITY_PLUGIN, 2), disabledRow(POLISH_PLUGIN, 1)], nextCursor: null }),
     "notifications.markAllRead": () => ({ markedCount: 2 }),
-    "plugin.list": () => [installedPlugin("plugin_ct_affinity00000001", "Affinity Tracker"), installedPlugin("plugin_ct_polish0000000001", "Draft Polish")],
+    "plugin.list": () => [installedPlugin(AFFINITY_PLUGIN, "Affinity Tracker"), installedPlugin(POLISH_PLUGIN, "Draft Polish")],
   });
   await routeInboxStream(page, []);
 
@@ -768,19 +772,19 @@ test("each auto-disabled plugin gets its own notice naming it, with a door to th
 
   await page.getByRole("button", { name: "Open Plugins — Draft Polish" }).click();
   await expect(destination).toHaveText("config/plugins");
-  await expect(page.getByTestId("ct-plugin-target")).toHaveText("plugins/installed/plugin_ct_polish0000000001");
+  await expect(page.getByTestId("ct-plugin-target")).toHaveText(`plugins/installed/${POLISH_PLUGIN}`);
   await page.getByRole("button", { name: "Notifications" }).click();
   await page.getByRole("button", { name: "Open Plugins — Affinity Tracker" }).click();
-  await expect(page.getByTestId("ct-plugin-target")).toHaveText("plugins/installed/plugin_ct_affinity00000001");
+  await expect(page.getByTestId("ct-plugin-target")).toHaveText(`plugins/installed/${AFFINITY_PLUGIN}`);
 });
 
 test("a phone's disabled-plugin notice closes the real You drawer and reveals that plugin's own installed card", async ({ mount, page }) => {
   await page.setViewportSize({ width: 360, height: 780 });
   await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
-    "notifications.list": { items: [disabledRow("plugin_ct_affinity00000001", 2)], nextCursor: null },
+    "notifications.list": { items: [disabledRow(AFFINITY_PLUGIN, 2)], nextCursor: null },
     "notifications.markAllRead": { markedCount: 1 },
-    "plugin.list": [installedPlugin("plugin_ct_affinity00000001", "Affinity Tracker")],
+    "plugin.list": [installedPlugin(AFFINITY_PLUGIN, "Affinity Tracker")],
     "plugin.listSurfaces": [],
     "plugin.getLog": [],
     "sessions.me": { userId: "user_ct_reader", handle: "reader", globalRole: "user" },
@@ -792,7 +796,7 @@ test("a phone's disabled-plugin notice closes the real You drawer and reveals th
   await expect(you).toBeVisible();
   await you.getByRole("button", { name: "Open Plugins — Affinity Tracker", exact: true }).click();
   await expect(you).toHaveCount(0);
-  await expect(page.getByTestId("ct-plugin-target")).toHaveText("plugins/installed/plugin_ct_affinity00000001");
+  await expect(page.getByTestId("ct-plugin-target")).toHaveText(`plugins/installed/${AFFINITY_PLUGIN}`);
   await expect(page.getByRole("group", { name: "Affinity Tracker plugin", exact: true })).toBeVisible();
 });
 

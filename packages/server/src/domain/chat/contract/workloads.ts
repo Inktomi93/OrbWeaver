@@ -26,7 +26,7 @@ export interface MemorySweepArgs extends CorpusSweepArgs {
 
 /** The memory sweep's phases in run order — the progress rows an embedder switch's re-index shows. */
 export const MEMORY_SWEEP_STEPS = ["planning chats", "embedding transcripts", "summarizing", "writing digests"] as const;
-export type MemorySweepStep = (typeof MEMORY_SWEEP_STEPS)[number];
+type MemorySweepStep = (typeof MEMORY_SWEEP_STEPS)[number];
 
 export interface ChatWorkloadDeps {
   /** The memory subsystem's corpus-wide segment/digest rebuild (idempotent, hash-diff resumable). */

@@ -1745,13 +1745,14 @@ export interface PluginUiOutcome {
   readonly composerDraft?: string;
 }
 
-/** A draft stays below the resident invoke byte limit even with JSON escaping. */
-export const PLUGIN_DISPLAY_TEXT_MAX_CHARS = 32_000;
-export const PLUGIN_COMPOSER_DRAFT_MAX_CHARS = PLUGIN_DISPLAY_TEXT_MAX_CHARS;
+/** Display text and composer drafts stay below the resident invoke byte limit even with JSON escaping. */
+export const PLUGIN_TEXT_MAX_CHARS = 32_000;
 export const pluginComposerDraftSchema = z
   .string()
-  .max(PLUGIN_COMPOSER_DRAFT_MAX_CHARS)
-  .refine((text) => text.isWellFormed(), { message: "draft contains an unpaired surrogate" });
+  .max(PLUGIN_TEXT_MAX_CHARS)
+  .refine((text) => text.isWellFormed(), { message: "draft contains an unpaired surrogate" }) satisfies z.ZodType<
+  NonNullable<PluginUiOutcome["composerDraft"]>
+>;
 
 /** Strict: installed as the tRPC output parser of `invokeUiAction` / `invokeUiCommand`. */
 export const pluginUiOutcomeSchema = z.strictObject({

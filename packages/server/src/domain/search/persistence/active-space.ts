@@ -1,5 +1,6 @@
 // Read the immutable active encoder generation for one owner and logical task.
 
+import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { ReadOnlyDb } from "@orb/db";
 import { embedGenerations, embedGenerationTargets, embedSpaceState } from "@orb/db";
@@ -8,8 +9,8 @@ import { and, eq } from "drizzle-orm";
 
 interface ActiveGenerationRow {
   readonly id: EmbedGenerationId;
-  readonly task: "embed" | "imageEmbed";
-  readonly via: "embed" | "imageEmbed";
+  readonly task: EmbeddingTask;
+  readonly via: EmbeddingTask;
   readonly connectionId: string | null;
   readonly fingerprint: string;
   readonly space: string;
@@ -20,7 +21,7 @@ type GenerationRead =
   | { readonly status: "moving" }
   | { readonly status: "ready"; readonly generation: ActiveGenerationRow };
 
-export async function readGeneration(db: ReadOnlyDb, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<GenerationRead> {
+export async function readGeneration(db: ReadOnlyDb, ownerId: UserId, task: EmbeddingTask): Promise<GenerationRead> {
   const states = await db
     .select({ scope: embedSpaceState.scope, generationId: embedSpaceState.activeGenerationId, candidateGenerationId: embedSpaceState.candidateGenerationId })
     .from(embedSpaceState)
@@ -63,7 +64,7 @@ export async function readGeneration(db: ReadOnlyDb, ownerId: UserId, task: "emb
   return generation === undefined ? { status: "moving" } : { status: "ready", generation };
 }
 
-export async function readActiveGeneration(db: ReadOnlyDb, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<ActiveGenerationRow | null> {
+export async function readActiveGeneration(db: ReadOnlyDb, ownerId: UserId, task: EmbeddingTask): Promise<ActiveGenerationRow | null> {
   const read = await readGeneration(db, ownerId, task);
   return read.status === "ready" ? read.generation : null;
 }

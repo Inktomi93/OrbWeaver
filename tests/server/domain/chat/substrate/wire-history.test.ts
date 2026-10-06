@@ -16,7 +16,14 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import { buildWirePlan } from "../../../../../packages/inference/src/backends/v4/prompt.ts";
 import { historyTurnTokens } from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
-import { buildWireHistory, dropEmptyWireRows, fitWireHistory, wireCostRows } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
+import { shapeTurn } from "../../../../../packages/server/src/domain/chat/substrate/assembly-access.ts";
+import {
+  buildWireHistory,
+  convertsToEmptyWireRow,
+  dropEmptyWireRows,
+  shapeConvertFit,
+  wireCostRows,
+} from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 type ShapedRow = Parameters<typeof buildWireHistory>[1][number];
@@ -358,12 +365,42 @@ const markerHistory = (turns: number): ShapedRow[] => [
 const TIGHT_BUDGET = { windowTokens: 300, reserveOutputTokens: 50, systemTokens: 20 };
 const rowCost = (content: string): number => estimateTokens(content) + 4;
 
+/** This fixture already owns SHAPE/CONVERT's result; inject it through the production orchestration
+ *  doorway so every assertion still exercises the real trim and marker re-head, not a test copy. */
+function fitConvertedRows(
+  converted: Awaited<ReturnType<typeof buildWireHistory>>,
+  budget: Parameters<typeof shapeConvertFit>[0]["budget"],
+  marker: ReturnType<typeof shapeTurn>["newChatMarker"],
+): ReturnType<typeof shapeConvertFit> {
+  return shapeConvertFit({
+    canon: [],
+    budget,
+    shape: () => ({
+      ...shapeTurn({
+        canon: [],
+        appendUserTurn: null,
+        injections: [],
+        output: "per-speaker",
+        cardScope: "merged",
+        scopedTargetId: null,
+        namesBehavior: "none",
+        speakers: { user: "User", assistant: "Assistant" },
+        groupNudge: null,
+        convertsToEmptyWireRow,
+      }),
+      history: wireCostRows(converted),
+      newChatMarker: marker,
+    }),
+    convert: () => Promise.resolve(converted),
+  });
+}
+
 /** The first trimmed history whose first kept row has `role`. The trim snaps to chunk boundaries, so which row
  *  opens the kept history depends on the length; searching keeps each case independent of the grid. */
-async function firstTrimOpeningOn(role: "user" | "assistant"): Promise<ReturnType<typeof fitWireHistory> & { readonly head: ShapedRow }> {
+async function firstTrimOpeningOn(role: "user" | "assistant"): Promise<Awaited<ReturnType<typeof fitConvertedRows>> & { readonly head: ShapedRow }> {
   for (let turns = 12; turns <= 40; turns += 1) {
     const converted = await buildWireHistory(env, markerHistory(turns));
-    const fit = fitWireHistory(converted, TIGHT_BUDGET, MERGING_MARKER);
+    const fit = await fitConvertedRows(converted, TIGHT_BUDGET, MERGING_MARKER);
     const head = converted[fit.fitted.droppedCount]?.costRow;
     if (fit.fitted.droppedCount > 0 && head?.role === role) {
       return { ...fit, head };
@@ -389,7 +426,7 @@ test("when the first kept row is an assistant row, the marker rides as its own u
 
 test("an untrimmed history is left exactly as SHAPE delivered it", async () => {
   const converted = await buildWireHistory(env, markerHistory(20));
-  const { fitted, kept } = fitWireHistory(converted, { ...TIGHT_BUDGET, windowTokens: 100_000 }, MERGING_MARKER);
+  const { fitted, kept } = await fitConvertedRows(converted, { ...TIGHT_BUDGET, windowTokens: 100_000 }, MERGING_MARKER);
   expect(fitted.droppedCount).toBe(0);
   expect(kept).toEqual(converted);
 });
@@ -444,7 +481,7 @@ test("a trimmed scoped tool row opens on the marker before its first user prose 
     row("user", "old ".repeat(1000), "message_old"),
     row("user", `Other: ${content}`, id),
   ]);
-  const scopedFit = fitWireHistory(converted, { ...TIGHT_BUDGET, windowTokens: 500 }, MERGING_MARKER);
+  const scopedFit = await fitConvertedRows(converted, { ...TIGHT_BUDGET, windowTokens: 500 }, MERGING_MARKER);
   expect(scopedFit.fitted.droppedCount).toBe(1);
   const frames = scopedFit.kept.flatMap((wire) => [...(wire.prefixRows ?? []), wire.row]);
   expect(frames[0]?.content).toEqual([{ type: "text", text: `${MARKER}\n\nOther: Before.` }]);

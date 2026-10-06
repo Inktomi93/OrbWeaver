@@ -381,13 +381,20 @@ const RELAY: ProviderDef = {
   metered: false,
 };
 const RELAY_BUNDLE = makeBundle({ id: "relay", capabilities: ["net.fetch"], netHosts: [RELAY_HOST], providers: [RELAY] });
-const RELAY_ROUTES = [
-  { match: `${RELAY_HOST}/v1/models`, json: { object: "list", data: [{ id: RELAY_MODEL, object: "model" }] } },
-  {
-    match: `${RELAY_HOST}/v1/chat/completions`,
-    json: { model: RELAY_MODEL, choices: [{ index: 0, message: { role: "assistant", content: "relayed reply" } }] },
-  },
-];
+const RELAY_ROUTES = [{ match: `${RELAY_HOST}/v1/models`, json: { object: "list", data: [{ id: RELAY_MODEL, object: "model" }] } }];
+
+function relayStream(url: string): Promise<Response> | null {
+  if (!url.endsWith(`${RELAY_HOST}/v1/chat/completions`)) {
+    return null;
+  }
+  const chunk = {
+    id: "relay-completion",
+    model: RELAY_MODEL,
+    created: Math.floor(FROZEN_AT_MS / 1000),
+    choices: [{ index: 0, delta: { role: "assistant", content: "relayed reply" }, ["finish_reason"]: "stop" }],
+  };
+  return Promise.resolve(new Response(`data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`, { headers: { "content-type": "text/event-stream" } }));
+}
 const PROVIDER_UNKNOWN = { code: CONNECTION_OP_CODES.providerUnknown };
 
 type ConnectionHarness = Awaited<ReturnType<typeof makeConnectionHarness>>;
@@ -400,7 +407,7 @@ async function relayWorld(): Promise<{
   readonly relayRequests: () => readonly { readonly url: string; readonly headers: Record<string, string> }[];
 }> {
   const db = await freshDb();
-  const connection = await makeConnectionHarness(db, { routes: RELAY_ROUTES });
+  const connection = await makeConnectionHarness(db, { routes: RELAY_ROUTES, intercept: relayStream });
   const plugin = makePluginHarness(db, {
     providers: {
       activate: (rows, origin) => connection.svc.registerPluginProviders({ rows, pluginId: origin.pluginId, pluginName: origin.pluginName }),
@@ -518,7 +525,7 @@ describe("a plugin provider is scoped to the owners of its enabled installs", ()
 
   test("an admin-distributed provider plugin serves each recipient once THEY enable their own copy", async () => {
     const db = await freshDb();
-    const connection = await makeConnectionHarness(db, { routes: RELAY_ROUTES });
+    const connection = await makeConnectionHarness(db, { routes: RELAY_ROUTES, intercept: relayStream });
     const admin = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("relay-admin") }));
     const ann = principalFor(await seedUser(db, { handle: castId<Handle>("relay-ann") }));
     const bo = principalFor(await seedUser(db, { handle: castId<Handle>("relay-bo") }));

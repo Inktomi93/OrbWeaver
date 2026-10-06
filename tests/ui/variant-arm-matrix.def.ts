@@ -81,6 +81,7 @@ import { badgeVariants } from "../../packages/ui/src/primitives/badge/variants.t
 import { buttonVariants } from "../../packages/ui/src/primitives/button/variants.ts";
 import { cardVariants } from "../../packages/ui/src/primitives/card/variants.ts";
 import { checkboxVariants } from "../../packages/ui/src/primitives/checkbox/variants.ts";
+import { colorFieldVariants } from "../../packages/ui/src/primitives/color-field/variants.ts";
 import { emptyStateVariants } from "../../packages/ui/src/primitives/empty-state/variants.ts";
 import { highlightedTextVariants } from "../../packages/ui/src/primitives/highlighted-text/variants.ts";
 import { inputVariants } from "../../packages/ui/src/primitives/input/variants.ts";
@@ -92,6 +93,7 @@ import { sliderVariants } from "../../packages/ui/src/primitives/slider/variants
 import { statusChipVariants } from "../../packages/ui/src/primitives/status-chip/variants.ts";
 import { switchVariants } from "../../packages/ui/src/primitives/switch/variants.ts";
 import { textVariants } from "../../packages/ui/src/primitives/text/variants.ts";
+import { textareaVariants } from "../../packages/ui/src/primitives/textarea/variants.ts";
 import { toggleVariants } from "../../packages/ui/src/primitives/toggle/variants.ts";
 // Imported beside the re-export below because shapes in THIS file use them (a bare `export … from`
 // re-exports without binding locally — the contract/samples.ts lesson).
@@ -150,6 +152,22 @@ const def = (args: DefArgs): VariantArmStoryDef => ({
  *  (badge/button/toggle/text are the flagship intent/tone carriers). Growth path: story a withheld row,
  *  move it up here, delete its withheld entry — the parity suite REDs any drift in either direction. */
 export const VARIANT_ARM_STORY_DEFS: readonly VariantArmStoryDef[] = [
+  def({
+    key: "color-swatch",
+    source: "primitives/color-field/variants.ts",
+    exportName: "colorFieldVariants",
+    tv: colorFieldVariants,
+    supportsDisabled: false,
+    expectText: true,
+  }),
+  def({
+    key: "textarea",
+    source: "primitives/textarea/variants.ts",
+    exportName: "textareaVariants",
+    tv: textareaVariants,
+    supportsDisabled: true,
+    expectText: false,
+  }),
   def({ key: "badge", source: "primitives/badge/variants.ts", exportName: "badgeVariants", tv: badgeVariants, supportsDisabled: false, expectText: true }),
   def({ key: "button", source: "primitives/button/variants.ts", exportName: "buttonVariants", tv: buttonVariants, supportsDisabled: true, expectText: false }),
   def({ key: "card", source: "primitives/card/variants.ts", exportName: "cardVariants", tv: cardVariants, supportsDisabled: false, expectText: true }),
@@ -262,7 +280,6 @@ export const WITHHELD_VARIANT_SOURCES: Readonly<Record<string, string>> = {
   "primitives/skeleton/variants.ts::skeletonVariants": "placeholder shimmer — no text/control subject",
   "primitives/table/variants.ts::tableVariants": "density/align/sortActive need a populated table model — story with a table fixture",
   "primitives/tabs/variants.ts::tabsVariants": "layout axis is geometry; tab colour states are selection-driven, not arms",
-  "primitives/toast/variants.ts::toastVariants": "placement axis needs the toast viewport/provider flow — story with the popup wave",
   "primitives/toggle-group/variants.ts::toggleGroupVariants":
     "fill axis is layout geometry (grid cells, width, wrap) — the colour arms live on the child Toggles, and toggle is storied",
 };

@@ -26,7 +26,7 @@ import {
 } from "../../../../support/node/route-impersonate-stream.ts";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { ComposerStory } from "../_ct-stories.tsx";
+import { ComposerAtViewportFootStory, ComposerStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 const EMPTY_TURN = { messages: [], aborted: false } satisfies TrpcWireOutput<"chat.generate">;
@@ -199,6 +199,31 @@ test("a RETRYABLE server fault is terminal (the dead-engine zombie): one connect
 const STOP_RETRY_MS = 2000;
 const STOP_WATCH_MS = 2500;
 const PARTIAL = "I step into the tavern, ";
+
+test("the lower Message tools tooltip does not cover upper utilities at the viewport foot", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
+  const component = await mount(<ComposerAtViewportFootStory />);
+  await component.getByRole("button", { name: "Message tools", exact: true }).hover();
+  const popup = page.locator('[data-slot="tooltip-popup"]').filter({ hasText: "Message tools" });
+  await expect(popup).toBeVisible();
+  await expect
+    .poll(async () => {
+      const upper = await component.getByRole("group", { name: "Your message", exact: true }).boundingBox();
+      const tooltip = await popup.boundingBox();
+      return (
+        upper !== null &&
+        tooltip !== null &&
+        !(
+          upper.x < tooltip.x + tooltip.width &&
+          tooltip.x < upper.x + upper.width &&
+          upper.y < tooltip.y + tooltip.height &&
+          tooltip.y < upper.y + upper.height
+        )
+      );
+    })
+    .toBe(true);
+});
 
 test("Stop appears while impersonating, unsubscribes the stream, and KEEPS the partial fill", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });

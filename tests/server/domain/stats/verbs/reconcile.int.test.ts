@@ -1,5 +1,5 @@
 // Verb test: stats.reconcile — the caller-scoped, awaited rebuild-from-canon (the direct twin of the
-// `reconcile-stats` workload's singular arm). The rebuild MATH is pinned at write/rebuild-from-canon's
+// `reconcile-stats` workload's singular arm). The rebuild MATH is pinned at persistence/rebuild-from-canon's
 // mirror; what matters HERE is the SCOPE: the verb rebuilds exactly the caller's rollups and touches no
 // other owner's — the router passes `principal.userId`, so this is the whole authorization surface. Second:
 // the SINGLE-FLIGHT wiring (owner ruling 2026-08-02) — a caller with a rebuild in flight is refused, per

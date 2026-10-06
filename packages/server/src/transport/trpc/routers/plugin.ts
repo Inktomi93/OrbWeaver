@@ -39,9 +39,9 @@ import {
   PLUGIN_COMMAND_ARGS_DECLARED_MAX,
   PLUGIN_COMMAND_ARGS_MAX,
   PLUGIN_COMMAND_NAME_RE,
-  PLUGIN_DISPLAY_TEXT_MAX_CHARS,
   PLUGIN_LOG_LIST_MAX_LIMIT,
   PLUGIN_SURFACE_ID_RE,
+  PLUGIN_TEXT_MAX_CHARS,
   PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES,
   pluginBundleHashSchema,
   pluginComposerDraftSchema,
@@ -411,7 +411,7 @@ export const pluginRouter = t.router({
     .query(({ ctx }) => ctx.services.plugin.listDisplayTransforms({ caller: ctx.auth })),
 
   transformForDisplay: authedProcedure
-    .input(z.object({ chatId: chatIdSchema, messageId: messageIdSchema, text: z.string().max(PLUGIN_DISPLAY_TEXT_MAX_CHARS) }))
+    .input(z.object({ chatId: chatIdSchema, messageId: messageIdSchema, text: z.string().max(PLUGIN_TEXT_MAX_CHARS) }))
     .output(pluginDisplayTransformResultSchema)
     .query(({ ctx, input }) =>
       ctx.services.plugin.transformForDisplay({ caller: ctx.auth, chatId: input.chatId, messageId: input.messageId, text: input.text }),

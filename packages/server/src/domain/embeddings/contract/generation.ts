@@ -1,6 +1,7 @@
+import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { EmbedGenerationId } from "@orb/kit/ids";
 
-export type GenerationTask = "embed" | "imageEmbed";
+export type GenerationTask = EmbeddingTask;
 
 /** A target move refused before it purged anything: the new encoder does not make the width its connection states, did
  *  not answer the probe that would tell, or refused the row's key. `assumed`: no width was stated, so `stated` is the

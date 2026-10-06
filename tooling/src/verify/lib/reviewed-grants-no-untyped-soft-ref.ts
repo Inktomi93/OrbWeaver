@@ -1,0 +1,112 @@
+// Exact non-relational identity rulings; extracted to retain the tooling line cap.
+// reviewed-grants.ts remains the one central aggregation and authority home.
+import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
+
+export const REVIEWED_GRANTS_NO_UNTYPED_SOFT_REF: readonly ReviewedGateGrant[] = [
+  {
+    id: "no-untyped-soft-ref:chat-stream-generation",
+    policyId: "no-untyped-soft-ref",
+    subject: "chat_stream_events.generationId",
+    operation: "soft-reference",
+    why: "an internally minted correlation identity for one committed token-stream generation, not a row reference: swipe and continue can reuse a message slot, so member replay needs this boundary to reset its hidden-span scrubber without inventing a redundant generation entity.",
+    endsWhen: "stream generations become persisted orbweaver rows, at which point this column can carry a real FK.",
+  },
+  {
+    id: "no-untyped-soft-ref:chat-observation-turn",
+    policyId: "no-untyped-soft-ref",
+    subject: "chat_generation_observations.turnId",
+    operation: "soft-reference",
+    why: "D24 governs row references; ChatTurnId is the internally minted operation grouping identity in the composite (chatId, turnId, ordinal) key, not a reference to a separate turn row. The chat and nullable source parents retain real cascade FKs; this grouping never grants authority.",
+    endsWhen: "logical chat turns become persisted relational entities, at which point the grouping column must reference that entity.",
+  },
+  {
+    id: "no-untyped-soft-ref:chat-observation-provider-generation",
+    policyId: "no-untyped-soft-ref",
+    subject: "chat_generation_observations.generationId",
+    operation: "soft-reference",
+    why: "the upstream provider's opaque generation/billing handle, identical in nature to message_variants.generationId (D24 external identifier), not an Orbweaver row. Provider provenance may survive a refused canon transfer without inventing a local generation entity.",
+    endsWhen: "provider generation records become persisted Orbweaver entities that this column references.",
+  },
+  {
+    id: "no-untyped-soft-ref:embedding-call-invocation",
+    policyId: "no-untyped-soft-ref",
+    subject: "embedding_calls.invocationId",
+    operation: "soft-reference",
+    why: "D24 governs row references; EmbeddingInvocationId groups the physical batches observed during one logical invocation, with no independent invocation row. Owner-scoped settlement predicates on both ownerId and this grouping identity; connection attribution remains a nullable real FK.",
+    endsWhen: "embedding invocations acquire their own persisted relational entity, at which point this column must carry its FK.",
+  },
+  {
+    id: "no-untyped-soft-ref:imagery-physical-call",
+    policyId: "no-untyped-soft-ref",
+    subject: "imagery_generations.callId",
+    operation: "soft-reference",
+    why: "D24 governs row references; ImageryCallId groups one physical generation's output rows. A native call has no imagery_import_calls row: that table arbitrates additive import identity, not execution existence. Asset/source FKs and owner admission remain the scope, never this correlation id.",
+    endsWhen: "physical imagery calls become persisted execution entities, at which point output rows must reference that entity.",
+  },
+  {
+    id: "no-untyped-soft-ref:user-connections-provider",
+    policyId: "no-untyped-soft-ref",
+    subject: "user_connections.providerId",
+    operation: "soft-reference",
+    why: "the provider REGISTRY is built-in rows ∪ `provider_rows` (inference program §5.2/§5.9-1): a built-in id (`openrouter`, `vllm`, `local-light`…) has NO row to FK, so the column is a registry id validated at the domain's writer verb against the live registry, CHECK-free because plugin rows are runtime data (§5.3c class 2).",
+    endsWhen:
+      "the built-in provider rows are persisted in `provider_rows` too (one table for the whole registry), at which point this column can carry a real FK.",
+  },
+  {
+    id: "no-untyped-soft-ref:audit-logs-entity",
+    policyId: "no-untyped-soft-ref",
+    subject: "audit_logs.entityId",
+    operation: "soft-reference",
+    why: "the append-only audit log must outlive an arbitrary referent of unknown TYPE — the one D24 sanctioned soft ref. An FK would either pin the log to one table or delete history with its subject, and the log's whole purpose is to survive both.",
+    endsWhen:
+      "the audit log stops recording polymorphic referents (each entity kind gains its own typed log table), at which point this column can carry a real FK.",
+  },
+  {
+    id: "no-untyped-soft-ref:automation-rule-creation-request",
+    policyId: "no-untyped-soft-ref",
+    subject: "automation_rules.creationRequestId",
+    operation: "soft-reference",
+    why: "D24 governs row references; this immutable AutomationRuleCreationId is an owner-local birth request identity, not the independently server-minted rule ID or a foreign entity. No request row exists to reference. The authored boundary validates its distinct brand, UNIQUE(owner_id, creation_request_id) arbitrates retries, and recovery reads only the authenticated owner in the exact chat or global scope.",
+    endsWhen: "request identities become persisted relational rows, or this non-relational creation-request column is retired.",
+  },
+  {
+    id: "no-untyped-soft-ref:automation-rule-preset",
+    policyId: "no-untyped-soft-ref",
+    subject: "automation_rules.rulePresetId",
+    operation: "soft-reference",
+    why: "a rule-preset CATALOGUE id (`RULE_PRESET_IDS`, @orb/contracts/automation) — a member of a closed CODE tuple, not a row of any table, so there is nothing to FK. Coherence is the wire's z.enum at write plus the live-catalogue re-check at read/apply, where an orphaned id degrades to a reported skip.",
+    endsWhen: "the rule-preset catalogue becomes a table, at which point every catalogue id gains a real FK.",
+  },
+  {
+    id: "no-untyped-soft-ref:roster-rule-preset",
+    policyId: "no-untyped-soft-ref",
+    subject: "roster_preset_rules.rulePresetId",
+    operation: "soft-reference",
+    why: "the same rule-preset CATALOGUE id on the saved-roster side — the cast's captured rule, a code-tuple member rather than a row (D24-external), with the same enum-at-write plus re-check-at-apply coherence.",
+    endsWhen: "the rule-preset catalogue becomes a table, at which point every catalogue id gains a real FK.",
+  },
+  {
+    id: "no-untyped-soft-ref:sdk-session-handle",
+    policyId: "no-untyped-soft-ref",
+    subject: "session_entries.sdkSessionId",
+    operation: "soft-reference",
+    why: "the Claude Agent SDK's OWN resume handle — the prompt-cache lineage id the SDK returns (D8/D25). An EXTERNAL identifier owned by the vendor runtime, not a reference to any orbweaver table.",
+    endsWhen: "the SDK session becomes an orbweaver-owned row rather than a vendor handle we carry.",
+  },
+  {
+    id: "no-untyped-soft-ref:users-external",
+    policyId: "no-untyped-soft-ref",
+    subject: "users.externalId",
+    operation: "soft-reference",
+    why: "an external IdP subject identifier (the SSO `sub`) — a string minted by another system, not a reference to any orbweaver table, so there is nothing for an FK to point at.",
+    endsWhen: "identity stops being federated and the subject becomes an orbweaver row.",
+  },
+  {
+    id: "no-untyped-soft-ref:variant-generation",
+    policyId: "no-untyped-soft-ref",
+    subject: "message_variants.generationId",
+    operation: "soft-reference",
+    why: "the upstream OpenRouter generation handle (`gen-…`) a variant was billed under — an EXTERNAL provider id (`connection.orGenerationCost`'s key), not a reference to any orbweaver table (D24).",
+    endsWhen: "generation records are persisted as orbweaver rows, at which point the column can carry a real FK.",
+  },
+];

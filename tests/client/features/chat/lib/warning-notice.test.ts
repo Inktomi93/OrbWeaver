@@ -180,3 +180,11 @@ test("every CHAT_WARNING_CODES value yields a non-empty, distinct, SPLIT notice 
   // Distinct: a per-degrade drop must read specifically, never collapsed to one generic line.
   expect(new Set(notices.map((notice) => notice.title)).size).toBe(notices.length);
 });
+
+test("a cache-control adjustment names unapplied controls without inventing a cache hit or sampling fault", () => {
+  const notice = adjusted("cache_control_adjusted");
+  expect(notice.title).toBe("Cache controls changed for this reply");
+  expect(notice.description).toContain("couldn't apply all your requested cache controls");
+  expect(notice.description).toContain("provider-managed caching may still run");
+  expect(`${notice.title} ${notice.description}`).not.toMatch(/SDK|sampling|cache hit|cached reply|free/iu);
+});

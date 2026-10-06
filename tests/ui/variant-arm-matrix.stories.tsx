@@ -22,6 +22,8 @@ import type { CardProps } from "@orb/ui/card";
 import { Card } from "@orb/ui/card";
 import type { CheckboxProps } from "@orb/ui/checkbox";
 import { Checkbox } from "@orb/ui/checkbox";
+import type { ColorSwatchProps } from "@orb/ui/color-field";
+import { ColorSwatch } from "@orb/ui/color-field";
 import type { EmptyStateProps } from "@orb/ui/empty-state";
 import { EmptyState } from "@orb/ui/empty-state";
 import type { HighlightedTextProps } from "@orb/ui/highlighted-text";
@@ -45,6 +47,8 @@ import type { SwitchProps } from "@orb/ui/switch";
 import { Switch } from "@orb/ui/switch";
 import type { TextProps } from "@orb/ui/text";
 import { Text } from "@orb/ui/text";
+import type { TextareaProps } from "@orb/ui/textarea";
+import { Textarea } from "@orb/ui/textarea";
 import type { ToggleProps } from "@orb/ui/toggle";
 import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
@@ -70,6 +74,12 @@ const SELECT_ITEMS = [
 const GLYPH_BUTTON_SIZES = new Set(["icon", "icon-sm", "media", "glyph-xs", "glyph-sm", "glyph-md", "glyph-lg"]);
 
 const RENDERERS = {
+  "color-swatch": ({ swatchSize, ...props }: ColorSwatchProps & { readonly swatchSize?: ColorSwatchProps["size"] }): ReactElement => (
+    <ColorSwatch {...props} {...(swatchSize === undefined ? {} : { size: swatchSize })} value="var(--color-primary)" label="Primary" />
+  ),
+  textarea: (props: TextareaProps, ctx: RenderCtx): ReactElement => (
+    <Textarea {...props} aria-label="Message" defaultValue="A quiet line" disabled={ctx.disabled} />
+  ),
   badge: (props: BadgeProps): ReactElement => <Badge {...props}>Active</Badge>,
   button: (props: ButtonProps, ctx: RenderCtx): ReactElement =>
     GLYPH_BUTTON_SIZES.has(String(props.size)) ? (

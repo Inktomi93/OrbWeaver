@@ -11,7 +11,6 @@ import type { ArbiterCandidate, TranscriptLine } from "../../../../../packages/s
 import {
   addressedGroups,
   humanPlayerNames,
-  NAME_STOPWORDS,
   resolveMentions,
   resolveNameMentions,
   selectSpeakers,
@@ -240,7 +239,40 @@ describe("resolveNameMentions — a character named as a plain word (human-autho
     const cast = [{ ref: charRef("knight"), name: "The Knight" }, ...characters];
     expect(resolveNameMentions("Open the door.", cast)).toEqual([]);
     expect(resolveNameMentions("Knight, open the door.", cast)).toEqual([cid("knight")]);
-    for (const stopword of NAME_STOPWORDS) {
+    for (const stopword of [
+      "a",
+      "an",
+      "the",
+      "and",
+      "or",
+      "but",
+      "of",
+      "to",
+      "in",
+      "on",
+      "at",
+      "for",
+      "from",
+      "with",
+      "by",
+      "as",
+      "is",
+      "it",
+      "i",
+      "me",
+      "my",
+      "you",
+      "your",
+      "we",
+      "our",
+      "he",
+      "his",
+      "she",
+      "her",
+      "they",
+      "their",
+      "its",
+    ]) {
       expect(resolveNameMentions(`${stopword} ${stopword}`, [{ ref: charRef("lady"), name: "Lady of the Lake" }])).toEqual([]);
     }
   });

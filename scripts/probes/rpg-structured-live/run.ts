@@ -5,7 +5,6 @@
 //   node scripts/probes/rpg-structured-live/run.ts <cell>...   one or more cells from CELLS (see README.md)
 //   node scripts/probes/rpg-structured-live/run.ts report      the per-cell table from results.jsonl
 
-import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { appendFileSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -23,6 +22,7 @@ import type { ServicesResult } from "../../../packages/server/src/entry/compose/
 import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "../../../packages/server/src/entry/compose/index.ts";
 import { freshDb } from "../../../tests/support/db.ts";
 import { seedUser } from "../../../tests/support/factories/user.ts";
+import { execGit } from "../../../tooling/src/_shared/git.ts";
 import { readEnvKey } from "../openrouter/_kit.ts";
 import type { PanelRead } from "./scenario.ts";
 import { FINAL_EXPECT, judge, NARRATOR_CARD, panelDiff, readPanel, SCENARIO_CONTROLS, SWIPE_CHECKS, SWIPE_SCRIPT, TRACKERS, TURNS } from "./scenario.ts";
@@ -44,7 +44,8 @@ const EXTRACTION_SCHEMA = "rpg_state_extraction";
 const OPENROUTER_CHAT = "https://openrouter.ai/api/v1/chat/completions";
 const RPG_TOOL_NAMES = new Set(["update_party", "update_inventory", "update_scene", "set_tracker", "upsert_quest", "add_journal_entry", "no_changes"]);
 
-type Consumer = "folded" | "cheap" | "resync" | "swipes";
+const CONSUMERS = ["folded", "cheap", "resync", "swipes"] as const;
+type Consumer = (typeof CONSUMERS)[number];
 
 interface Cell {
   readonly providerId: string;
@@ -214,7 +215,7 @@ const CELLS: Record<string, Cell> = {
 };
 
 const runId = mintTypeId(ID_PREFIX.chatTurn).slice(-RUN_ID_CHARS);
-const git = (gitArgs: readonly string[]): string => execFileSync("git", gitArgs, { cwd: DIR, encoding: "utf8" }).trim();
+const git = (gitArgs: readonly string[]): string => execGit(DIR, gitArgs).trim();
 const tree = { head: git(["rev-parse", "--short", "HEAD"]), dirtyProduct: git(["status", "--porcelain", "--", "../../../packages"]).length > 0 };
 
 function row(fields: Record<string, unknown>): void {
@@ -311,7 +312,7 @@ function tapLog(): void {
   const write = process.stdout.write.bind(process.stdout) as (chunk: unknown, ...rest: unknown[]) => boolean;
   const tapped = (chunk: unknown, ...rest: unknown[]): boolean => {
     const text = typeof chunk === "string" ? chunk : chunkText(chunk);
-    for (const line of text.split("\n")) {
+    for (const line of text.split(/\r?\n/u)) {
       if (!(line.startsWith("{") && line.includes('"event":"rpg.'))) {
         continue;
       }
@@ -331,7 +332,8 @@ function tapLog(): void {
 
 // ── reading the wire ───────────────────────────────────────────────────────────────────────────────────────────
 
-type WireKind = "char-turn" | "char-turn+tools" | "state-tools" | "state-structured" | "state-extraction" | "other";
+const WIRE_KINDS = ["char-turn", "char-turn+tools", "state-tools", "state-structured", "state-extraction", "other"] as const;
+type WireKind = (typeof WIRE_KINDS)[number];
 
 function toolNamesOf(body: Record<string, unknown>): string[] {
   const tools = body["tools"];
@@ -546,7 +548,7 @@ const FRAME_READERS: readonly ((frame: Json, out: ReplyParts) => void)[] = [fram
 /** A reply decoded from SSE, NDJSON or one JSON body into the text it said and the calls it made. */
 function decodeReply(raw: string): { readonly text: string; readonly calls: string; readonly meta: Json } {
   const out: ReplyParts = { text: [], calls: [], meta: {} };
-  const frames = raw.trimStart().startsWith("{") && !raw.includes("\n{") ? [raw] : raw.split("\n");
+  const frames = raw.trimStart().startsWith("{") && !raw.includes("\n{") ? [raw] : raw.split(/\r?\n/u);
   for (const line of frames) {
     const payload = line.startsWith("data: ") ? line.slice("data: ".length) : line;
     if (!payload.trimStart().startsWith("{")) {
@@ -583,7 +585,7 @@ async function echoUpstream(wire: Wire): Promise<Record<string, unknown>> {
     body: JSON.stringify(body),
   });
   const text = await res.text();
-  for (const line of text.split("\n")) {
+  for (const line of text.split(/\r?\n/u)) {
     if (!(line.startsWith("data: ") && line.includes("echo_upstream_body"))) {
       continue;
     }
@@ -1295,7 +1297,7 @@ function consumerLine(cell: string, consumer: string, mine: readonly Row[], veri
 
 function report(): void {
   const rows = readFileSync(RESULTS, "utf8")
-    .split("\n")
+    .split(/\r?\n/u)
     .filter((line) => line.length > 0)
     .map((line) => JSON.parse(line) as Row);
   // The latest run per cell AND consumer: a rerun of one consumer must not hide the cell's others.

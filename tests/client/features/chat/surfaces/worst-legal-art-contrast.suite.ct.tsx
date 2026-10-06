@@ -55,7 +55,7 @@ const PALETTE_ARMS = [
 ] as const;
 
 for (const arm of PALETTE_ARMS) {
-  test(`#883 ${arm.palette} (${arm.polarity}) — every real room text node clears AA over worst legal art`, async ({ mount, page }) => {
+  test(`#883 ${arm.palette} (${arm.polarity}) — every real room text node clears AA over worst legal art`, async ({ mount, page }, testInfo) => {
     await routeRoom(page);
     const component = await mount(<WorstLegalArtRoomStory art={arm.art} palette={arm.palette} />);
     await expect(component.getByText("The lanterns answer in amber.")).toBeVisible();
@@ -69,6 +69,9 @@ for (const arm of PALETTE_ARMS) {
     expect(receipt.declared).toBeGreaterThan(0);
     expect(receipt.reached).toBe(receipt.declared);
     expect(receipt.sampled).toBe(receipt.declared);
+    if (arm.palette.startsWith("custom-pivot")) {
+      await component.screenshot({ path: testInfo.outputPath("paired-pager.png") });
+    }
   });
 
   test(`#883 ${arm.palette} (${arm.polarity}) — every painted ThemeScope pair clears AA over its framebuffer host`, async ({ mount, page }) => {

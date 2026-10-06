@@ -210,7 +210,11 @@ test.each([false, true])("ordinary OpenRouter Gemini tools preserve required opa
       responseFormat: { name: "result", schema: wireSchema({ type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"] }) },
     });
     expect(strict.reply).toBe('{"ok":true}');
-    expect(strict.events.filter((event) => event.kind === "warning").map((event) => event.code)).toEqual(["sdk_unsupported_tool", "sdk_unsupported_tool"]);
+    expect(strict.events.filter((event) => event.kind === "warning").map((event) => event.code)).toEqual([
+      "cache_control_adjusted",
+      "sdk_unsupported_tool",
+      "sdk_unsupported_tool",
+    ]);
     const strictBody = bodies[2];
     expect(record.parse(record.parse(strictBody?.["response_format"])["json_schema"])["strict"]).toBe(true);
     expect(

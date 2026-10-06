@@ -1,7 +1,7 @@
 // domain/stats/substrate/owner-chat-scope — the ONE definition of "the owner's chats" for this domain: a
 // pure SQL fragment (zero I/O, no `Db`), so it lands in substrate/ rather than persistence/ and both the
-// on-read scans (persistence/) and the rollup rebuild (write/) bind the IDENTICAL predicate instead of
-// re-spelling it. It moved here from `write/rebuild-from-canon.ts` (#1477) after the heatmap was found
+// on-read scans and the rollup rebuild (both persistence/) bind the IDENTICAL predicate instead of
+// re-spelling it. Extracted from the rebuild (#1477, now `persistence/rebuild-from-canon.ts`) after the heatmap was found
 // carrying its own copy WITHOUT the husk arm: any husk room with a seeded greeting counted in the heatmap
 // and nowhere else, so one dashboard tile disagreed with overview/temporal/economics/rollups.
 //
@@ -16,6 +16,7 @@
 // is a defect. The same arm is on the live firstness probe
 // (`domain/chat/persistence/participants-read.ts`).
 
+import type { ChatId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 
@@ -35,7 +36,7 @@ export function ownerChatIds(ownerId: string | SQL): SQL {
 }
 
 /** The inverse of {@link ownerChatIds}, including retained departed seats. */
-export function chatOwnerIds(chatId: string): SQL {
+export function chatOwnerIds(chatId: ChatId): SQL {
   return sql`SELECT owner_id FROM (${retainedChatMembership}) WHERE chat_id = ${chatId}`;
 }
 

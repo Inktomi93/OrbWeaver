@@ -2450,6 +2450,7 @@ function toChatWarning(warning: ResolvedWarning): ChatWarning {
     case "reasoning_dropped_for_prefill":
     case "tool_choice_downgraded":
     case "carry_reasoning_downgraded":
+    case "cache_control_adjusted":
       // `adjustment: code` IS the MATCH: the infra spellings above and `PROVIDER_ADJUSTMENT_KINDS` are separate
       // tuples (contracts sits below server and cannot import infra), so a rename on either side fails `tsc`
       // right here. The three detail fields ride straight through — the resolver is the only layer that knows

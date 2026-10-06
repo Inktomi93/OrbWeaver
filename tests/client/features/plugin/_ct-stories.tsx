@@ -263,7 +263,7 @@ export function PluginComposerRoomStory(): ReactElement {
 }
 
 /** Explicit draft actions in the real room, with the production mutation-error channel. */
-export function PluginComposerDraftRoomStory(): ReactElement {
+export function PluginComposerDraftRoomStory({ revocablePluginId }: { readonly revocablePluginId?: PluginId }): ReactElement {
   useEffect(() => {
     __resetComposerDrafts();
     selectChat(CHAT_ID);
@@ -274,11 +274,19 @@ export function PluginComposerDraftRoomStory(): ReactElement {
         <CtChatContributorSectionRegistry surfaceContributors={pluginComposerContributors}>
           <Button onClick={(): void => selectChat(castId<ChatId>("chat_ct_otherdraft"))}>Other room</Button>
           <Button onClick={(): void => selectChat(CHAT_ID)}>Original room</Button>
+          {revocablePluginId === undefined ? null : <RevokeDraftPluginButton pluginId={revocablePluginId} />}
           <ChatRoomHarness />
         </CtChatContributorSectionRegistry>
       </CtToastSurface>
     </CtAppDataProviders>
   );
+}
+
+function RevokeDraftPluginButton({ pluginId }: { readonly pluginId: PluginId }): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const disable = useSetPluginEnabled({ trpc, invalidation });
+  return <Button onClick={(): void => disable.mutate({ pluginId, enabled: false })}>Disable draft plugin</Button>;
 }
 
 function PluginOptOutBody(): ReactElement {

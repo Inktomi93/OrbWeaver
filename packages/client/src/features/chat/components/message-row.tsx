@@ -17,7 +17,14 @@ import type { CSSProperties, ReactElement } from "react";
 import { Fragment, useEffect } from "react";
 import type { ChatMessageSurfaceState, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { cn, resolveRowRenderPolicy } from "#lib";
-import { toggleMessageSelected, useIsEditingMessage, useIsMessageSelected, useMessageEditReservedInlineSize, useSelectionActive } from "#state";
+import {
+  toggleMessageSelected,
+  useIsEditingMessage,
+  useIsMessageSelected,
+  useMessageEditReservedBlockSize,
+  useMessageEditReservedInlineSize,
+  useSelectionActive,
+} from "#state";
 import { appearanceMessageRegistryEnabled, registerAppearanceMessageSnapshot } from "../../../lib/appearance-message-registry.ts";
 import { AttachmentUrlProvider } from "../hooks/attachment-url-provider.tsx";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
@@ -135,10 +142,16 @@ function resolveGenerationCredit(visibility: MessageMetadataVisibility): boolean
 }
 
 /** #245 — the content column's style: the skin's own width override (echo's art pane) plus, while this row
- *  is being EDITED, the read-mode width the Edit action measured. A bare helper, not inlined, so the row
+ *  is being EDITED, the read-mode footprint the Edit action measured. A bare helper, not inlined, so the row
  *  body stays under the cognitive-complexity ceiling. */
-function resolveColumnStyle(skinStyle: CSSProperties | undefined, reservedInlineSize: number | null): CSSProperties | undefined {
-  return reservedInlineSize === null ? skinStyle : { ...skinStyle, minInlineSize: reservedInlineSize };
+function resolveColumnStyle(
+  skinStyle: CSSProperties | undefined,
+  reservedInlineSize: number | null,
+  reservedBlockSize: number | null,
+): CSSProperties | undefined {
+  return reservedInlineSize === null && reservedBlockSize === null
+    ? skinStyle
+    : { ...skinStyle, minInlineSize: reservedInlineSize ?? undefined, minBlockSize: reservedBlockSize ?? undefined };
 }
 
 const NO_METADATA_VISIBLE: MessageMetadataVisibility = {
@@ -266,9 +279,10 @@ export function MessageRow({
   // Edit mode lives in the external draft store, not local useState — a windowed row unmounts on
   // scroll and would silently drop mid-edit state.
   const editing = useIsEditingMessage(message.id);
-  // #245 — the footprint the Edit action measured off the read-mode bubble. Read from the same external
-  // store as the mode flag so a row windowed out and back mid-edit re-renders at the SAME width.
+  // #245 — the footprint the Edit action measured off the read-mode column. Read from the same external
+  // store as the mode flag so windowing cannot discard either reservation.
   const reservedInlineSize = useMessageEditReservedInlineSize(message.id);
+  const reservedBlockSize = useMessageEditReservedBlockSize(message.id);
   const selecting = useSelectionActive();
   const selected = useIsMessageSelected(message.id);
   const renderContext = resolveMessageRenderContext({
@@ -400,7 +414,12 @@ export function MessageRow({
               the instant the reader clicked Edit, and in `flat` it slid 42px sideways as well. The
               suppression is kept; what it vacates is reserved. `minInlineSize` (not a fixed size) so a
               longer draft can still grow the box out to the column's own cap. */}
-          <Stack gap="row" data-slot="message-content-column" className={columnClass} style={resolveColumnStyle(skin.columnStyle, reservedInlineSize)}>
+          <Stack
+            gap="row"
+            data-slot="message-content-column"
+            className={columnClass}
+            style={resolveColumnStyle(skin.columnStyle, reservedInlineSize, reservedBlockSize)}
+          >
             {themedColumnContent(
               attribution.tokens,
               <>

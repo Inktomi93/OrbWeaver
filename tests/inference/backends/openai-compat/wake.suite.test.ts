@@ -228,3 +228,31 @@ test("one server's base URL spellings share one wake", async () => {
   expect(woke).toEqual([true, true, true]);
   expect(eng.requests.filter((request) => request === "POST /wake_up")).toHaveLength(1);
 });
+
+test("all cancelled wake waiters own the rejection and a later task starts a fresh flight", async () => {
+  const eng = engine(true);
+  eng.wakeLag = 4;
+  const prober = createReachabilityProber({ fetch: eng.fetch, now: createFrozenClock().now });
+  const target = { baseUrl: BASE_URL, secret: null, headers: undefined, sleepPath: "/is_sleeping", wakePath: "/wake_up" };
+  const controller = new AbortController();
+  const first = prober.wake(target, controller.signal);
+  const second = prober.wake(target, controller.signal);
+  const outcomes = Promise.allSettled([first, second]);
+  controller.abort();
+  for (const outcome of await outcomes) {
+    expect(outcome).toMatchObject({ status: "rejected", reason: { kind: "aborted" } });
+  }
+  eng.wakeLag = 0;
+  expect(await prober.wake(target, undefined)).toBe(true);
+  expect(eng.requests.filter((request) => request === "POST /wake_up")).toHaveLength(2);
+});
+
+test("an already-cancelled waiter stops its owned flight before a subsequent wake", async () => {
+  const eng = engine(true);
+  const prober = createReachabilityProber({ fetch: eng.fetch, now: createFrozenClock().now });
+  const target = { baseUrl: BASE_URL, secret: null, headers: undefined, sleepPath: "/is_sleeping", wakePath: "/wake_up" };
+  const controller = new AbortController();
+  controller.abort();
+  await expect(prober.wake(target, controller.signal)).rejects.toMatchObject({ kind: "aborted" });
+  expect(await prober.wake(target, undefined)).toBe(true);
+});

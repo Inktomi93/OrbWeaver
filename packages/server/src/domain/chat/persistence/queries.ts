@@ -52,7 +52,7 @@ import { alias } from "drizzle-orm/sqlite-core";
 import type { ChatMetadata } from "../contract/metadata.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
 import type { DeliveredCue } from "../contract/results.ts";
-import type { ChatStreamReplayEvent, StreamEventBounds, VariantWireView } from "../contract/views.ts";
+import type { ChatStreamReplayEvent, ContinueSnapshot, StreamEventBounds, VariantWireView } from "../contract/views.ts";
 import { continuationToolsAreUndone, signaturesForContent } from "../substrate/content-signatures.ts";
 
 const LIMIT_ONE = 1;
@@ -967,15 +967,6 @@ interface SlotTarget {
   variantCount: number;
 }
 
-/** The continue-undo snapshot of a slot's selected variant. */
-interface ContinueSnapshot {
-  variantId: MessageVariantId;
-  preContinueContent: string | null;
-  preContinueReasoning: string | null;
-  lastContinuationContent: string | null;
-  lastContinuationReasoning: string | null;
-}
-
 /** The write target for a swipe/`continue` — the slot's seq + attribution + its selected variant's current
  *  state. Chat-scoped (`id AND chatId`) so a foreign-chat `messageId` matches nothing. `undefined` ⇒ no
  *  such committed slot in this chat. */
@@ -1004,6 +995,10 @@ export async function loadContinueSnapshot(db: Db, chatId: ChatId, messageId: Me
   const rows = await db
     .select({
       variantId: messageVariants.id,
+      content: messageVariants.content,
+      reasoning: messageVariants.reasoning,
+      rawMetadata: sql<string | null>`${messageVariants.metadata}`,
+      rawToolCalls: sql<string | null>`${messageVariants.toolCalls}`,
       preContinueContent: messageVariants.preContinueContent,
       preContinueReasoning: messageVariants.preContinueReasoning,
       lastContinuationContent: messageVariants.lastContinuationContent,

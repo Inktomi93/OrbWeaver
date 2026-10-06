@@ -1,3 +1,4 @@
+import type { ModelInfoApi } from "@orb/contracts/inference";
 import { NO_PROVIDER_SECRETS } from "../../../packages/inference/src/backends/kit/sanitize.ts";
 import { fetchEndpointModels, probeListedModel } from "../../../packages/inference/src/catalog/endpoint.ts";
 import type { EndpointModel } from "../../../packages/inference/src/contract/runtime.ts";
@@ -242,7 +243,7 @@ test("endpoint catalog fetch rejects a malformed catalog instead of inventing ro
 
 function readArm(
   arm: LocalServerArm,
-  modelInfoApi: "ollama" | "llama-cpp" | "koboldcpp",
+  modelInfoApi: Exclude<ModelInfoApi, "none">,
   overrides?: Readonly<Record<string, unknown>>,
 ): { readonly rows: Promise<EndpointModel[]>; readonly warnings: string[] } {
   const warnings: string[] = [];
@@ -378,13 +379,13 @@ test("KoboldCpp: the version states the projector and structured output; tools s
 
 const BASE_URL = "http://127.0.0.1:1/v1";
 
-function read(arm: TranscriptArm, modelInfoApi: "llama-cpp" | "koboldcpp", probeModel?: string): Promise<EndpointModel[]> {
+function read(arm: TranscriptArm, modelInfoApi: ModelInfoApi, probeModel?: string): Promise<EndpointModel[]> {
   const args = { fetch: transcriptFetch(arm), baseUrl: BASE_URL, secret: null, secrets: NO_PROVIDER_SECRETS, modelInfoApi };
   return fetchEndpointModels(probeModel === undefined ? args : { ...args, probeModel });
 }
 
 /** The one model the server lists, read the way the resolve warm reads it: probed as the connection's model. */
-async function only(arm: TranscriptArm, modelInfoApi: "llama-cpp" | "koboldcpp"): Promise<EndpointModel> {
+async function only(arm: TranscriptArm, modelInfoApi: ModelInfoApi): Promise<EndpointModel> {
   const listed = await read(arm, modelInfoApi);
   expect(listed).toHaveLength(1);
   const rows = await read(arm, modelInfoApi, listed[0]?.id);

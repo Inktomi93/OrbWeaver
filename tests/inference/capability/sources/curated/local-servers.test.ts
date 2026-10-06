@@ -2,7 +2,7 @@
 // the capability gate's input: a knob shows in the preset deck and rides the wire only where this set states
 // it, and every stage a server orders must have a token in the order vocabulary its provider row names.
 
-import type { GenerationCapability, SamplingCapability } from "@orb/contracts/inference";
+import type { GenerationCapability, NativeChatApi, SamplingCapability } from "@orb/contracts/inference";
 import { builtinProvider, foldFeatures, SAMPLER_ORDER_TOKENS } from "@orb/contracts/inference";
 import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
@@ -51,7 +51,7 @@ test("the gate differs per server: DRY on llama.cpp and KoboldCpp, not on Ollama
 
 // Ollama's `/v1` route fills an omitted temperature and top_p with 1.0, so the Modelfile's own values never run there.
 test("Ollama's compat route states the values it sends for an omitted temperature and top_p; the native route states none", () => {
-  const route = (nativeChat: "ollama" | "none"): GenerationCapability => {
+  const route = (nativeChat: NativeChatApi): GenerationCapability => {
     const { capability } = synthesizeCapability("generation", "other", {
       curated: curatedRows({ model: "m", providerId: testProviderId("ollama"), wire: "openai-compat", nativeChat }),
       advertised: { samplingDefaults: { temperature: 0.6, topP: 0.95, topK: 20 } },

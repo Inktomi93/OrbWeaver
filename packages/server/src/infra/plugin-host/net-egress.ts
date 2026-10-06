@@ -47,7 +47,7 @@ export function createPluginNetEgress(netHosts: readonly string[], bridge: Plugi
       const body = NET_TEXT_DECODER.decode(await res.bytes());
       return { status: res.status, body };
     },
-    fetchAsset: async (url, liveness): Promise<{ readonly assetId: string }> => {
+    fetchAsset: async (url, liveness): ReturnType<PluginNetEgress["fetchAsset"]> => {
       bridge.admitAssetEgress();
       using cancel = livenessSignal(liveness);
       const res = await safeFetch(url, buildAssetFetchOptions(netHosts, cancel.signal));
@@ -107,7 +107,7 @@ function buildAssetFetchOptions(netHosts: readonly string[], signal: AbortSignal
 
 // A guest header map is inert data: a non-string value refuses the whole map rather than being coerced.
 function isStringRecord(value: unknown): value is Record<string, string> {
-  if (typeof value !== "object" || value === null) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return false;
   }
   return Object.values(value).every((v) => typeof v === "string");

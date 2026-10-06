@@ -88,7 +88,6 @@ export { beginSessionRecovery, bindSessionRecovery, completeReauth, recoverIfSta
 export type { Trpc, TrpcClient, TrpcReadError } from "./trpc.ts";
 export { createTrpcClient, createTrpcProxy, TRPCProvider, useTRPC, useTRPCClient } from "./trpc.ts";
 export { UploadRefusedError, uploadAsset } from "./upload-asset.ts";
-export type { UploadDocumentResult } from "./upload-document.ts";
 export { uploadDocument } from "./upload-document.ts";
 export type { CardFrameRequest } from "./use-card-frame.ts";
 export { cardFrameMintBody, mintCardFrame, useCardFrameSrc } from "./use-card-frame.ts";

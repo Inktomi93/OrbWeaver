@@ -28,7 +28,7 @@ import type { ChatApi, ProviderId } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
-import type { RpgBusEvent, RpgExtraction, RpgSnapshotState } from "@orb/contracts/rpg";
+import type { RpgBusEvent, RpgExtraction, RpgSnapshotState, RpgStateCaptureVehicle } from "@orb/contracts/rpg";
 import { RPG_STATE_ROUND_FAILED_SUMMARY, RPG_TOOL_ROUND_TOOL_NAMES, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, connectionBindings, messages, messageVariants, ownerStats, presets, userConnections } from "@orb/db";
@@ -3136,7 +3136,7 @@ async function cheapGame(
   db: Db,
   rpgCompose: ReturnType<typeof buildRpg>,
   key: string,
-  vehicle?: "auto" | "tools" | "structured",
+  vehicle?: RpgStateCaptureVehicle,
 ): Promise<{ readonly chatId: ChatId; readonly hostId: UserId; readonly messageId: MessageId; readonly variantId: MessageVariantId }> {
   const { chatId, hostId } = await seedHostGameChat(db, key);
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });

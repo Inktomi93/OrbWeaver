@@ -24,6 +24,7 @@ import type {
   UserMacroDraws,
 } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP, buildIdentityNameContext, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
+import type { ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { GenerationType, GuidedImpersonatePerson, UserIntent, UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { PRESET_FORMAT_SLOT_IDS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
@@ -79,7 +80,8 @@ import {
   freezeVariantContentStatement,
   insertCanonMessageStatements,
   insertMessageAssetStatements,
-  setVariantContentStatement,
+  isRetainedParentFenceViolation,
+  prepareContinueRestore,
 } from "../persistence/canon-write.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { claimPendingTurn, insertPendingTurn, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites.ts";
@@ -98,6 +100,7 @@ import {
 import { commitRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../substrate/assembly-access.ts";
+import { isBelowHistoryFloor } from "../substrate/auth/index.ts";
 import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
 import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
@@ -240,8 +243,12 @@ interface Room {
  *  Binds this domain's rpg verdict resolver onto the ONE shared seam (`projectViewReturnForViewer`, shared with
  *  every `edit.ts` return site) — the host reads verbatim, a non-host member gets the body hidden-strip PLUS,
  *  on a deception-active game, the reasoning channel withheld. */
-async function projectViewReturn(ctx: ChatContext, view: MessageView, membership: { readonly role: string }): Promise<MessageView> {
-  return await projectViewReturnForViewer(view, membership, (chatId) => resolveReasoningHostOnlyFor(ctx, chatId));
+async function projectViewReturn(ctx: ChatContext, view: MessageView, principal: Principal): Promise<MessageView> {
+  const viewer = await requireParticipant(ctx, principal, view.chatId);
+  if (isBelowHistoryFloor({ type: "messageCommitted", chatId: view.chatId, messageId: view.id, view }, viewer.historyFloorSeq)) {
+    throw new ChatNotFoundError(view.chatId);
+  }
+  return await projectViewReturnForViewer(view, viewer, (chatId) => resolveReasoningHostOnlyFor(ctx, chatId));
 }
 
 /** The injected rpg deception verdict for one chat: `false` when rpg isn't wired / the chat is not a
@@ -2588,12 +2595,14 @@ async function restoreContinue(
   ctx: ChatContext,
   emit: TurnDeps["emit"],
   args: {
+    readonly principal: Principal;
+    readonly role: ParticipantRole;
     readonly chatId: ChatId;
     readonly messageId: MessageId;
     readonly direction: "undo" | "revert";
   },
 ): Promise<MessageView> {
-  const { chatId, messageId, direction } = args;
+  const { principal, role, chatId, messageId, direction } = args;
   // Chat-scoped load: a messageId from another chat matches nothing, so undo/revert can't mutate another room's canon.
   const snap = await loadContinueSnapshot(ctx.db, chatId, messageId);
   if (snap === undefined || snap.preContinueContent === null || snap.lastContinuationContent === null) {
@@ -2601,9 +2610,25 @@ async function restoreContinue(
   }
   const content = direction === "undo" ? snap.preContinueContent : snap.preContinueContent + snap.lastContinuationContent;
   const reasoning = direction === "undo" ? snap.preContinueReasoning : combineReasoning(snap.preContinueReasoning, snap.lastContinuationReasoning);
-  await commitHostFencedWrite(ctx, chatId, [
-    setVariantContentStatement(ctx.db, snap.variantId, { content, reasoning, undoContinuation: direction === "undo" }),
-  ]);
+  const plan = prepareContinueRestore(ctx.db, {
+    chatId,
+    messageId,
+    userId: principal.userId,
+    role,
+    snapshot: snap,
+    restored: { content, reasoning, undoContinuation: direction === "undo" },
+  });
+  try {
+    await commitHostFencedWrite(ctx, chatId, plan.statements);
+  } catch (error) {
+    if (isRetainedParentFenceViolation(error) && (await ctx.db.all(plan.selection)).length === 0) {
+      await requireParticipant(ctx, principal, chatId);
+      const refusal = new ChatOperationError(CHAT_OP_CODES.aborted, "the continuation changed before it could be restored");
+      refusal.cause = error;
+      throw refusal;
+    }
+    throw error;
+  }
   const view = await loadMessageView(ctx.db, messageId);
   if (view === undefined) {
     throw new ChatNotFoundError(chatId);
@@ -2619,8 +2644,8 @@ async function restoreContinue(
 function createUndoContinue(ctx: ChatContext, deps: TurnDeps): ChatService["undoContinue"] {
   return async ({ principal, chatId, messageId }: UndoContinueParams): Promise<MessageView> => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    const view = await restoreContinue(ctx, deps.emit, { chatId, messageId, direction: "undo" });
-    return projectViewReturn(ctx, view, membership);
+    const view = await restoreContinue(ctx, deps.emit, { principal, role: membership.role, chatId, messageId, direction: "undo" });
+    return projectViewReturn(ctx, view, principal);
   };
 }
 
@@ -2629,8 +2654,8 @@ function createUndoContinue(ctx: ChatContext, deps: TurnDeps): ChatService["undo
 function createRevertContinue(ctx: ChatContext, deps: TurnDeps): ChatService["revertContinue"] {
   return async ({ principal, chatId, messageId }: RevertContinueParams): Promise<MessageView> => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    const view = await restoreContinue(ctx, deps.emit, { chatId, messageId, direction: "revert" });
-    return projectViewReturn(ctx, view, membership);
+    const view = await restoreContinue(ctx, deps.emit, { principal, role: membership.role, chatId, messageId, direction: "revert" });
+    return projectViewReturn(ctx, view, principal);
   };
 }
 

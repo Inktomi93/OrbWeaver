@@ -2,7 +2,6 @@
 // Evidence retains configuration, provider usage and validated read-back, but no credentials or HTTP headers.
 
 import assert, { deepStrictEqual, strictEqual } from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { appendFileSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -20,6 +19,7 @@ import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "../../../p
 import { createImageAdapter } from "../../../packages/server/src/infra/image/index.ts";
 import { freshDb } from "../../../tests/support/db.ts";
 import { seedUser } from "../../../tests/support/factories/user.ts";
+import { execGit } from "../../../tooling/src/_shared/git.ts";
 import { readEnvKey } from "../openrouter/_kit.ts";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -32,7 +32,7 @@ const HTTP_OK = 200;
 const NORM_TOLERANCE = 0.000_01;
 const CORPUS_SIZE = 2;
 const RUN = mintTypeId(ID_PREFIX.chatTurn).slice(-RUN_SUFFIX_LENGTH);
-const HEAD = execFileSync("git", ["rev-parse", "HEAD"], { cwd: DIR, encoding: "utf8" }).trim();
+const HEAD = execGit(DIR, ["rev-parse", "HEAD"]).trim();
 const OWNER = castId<UserId>(`user_gemini_roles_${RUN}`);
 const WIDTH = 768;
 const EMBEDDING_MODEL = "gemini-embedding-2";

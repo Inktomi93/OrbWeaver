@@ -4,7 +4,6 @@
 
 import type { Db } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { calendarBucketStartSql } from "#kit/calendar-bucket-sql";
 import type { MomentumBucket } from "../contract/views.ts";
@@ -12,7 +11,7 @@ import { ownerChatIds } from "../substrate/owner-chat-scope.ts";
 
 /** The owner's characters' assistant replies per (character, UTC quarter-hour), ascending by bucket. */
 export async function readMomentumBuckets(db: Db, ownerId: string): Promise<MomentumBucket[]> {
-  const rows = await db.all<{ characterId: string; name: string; bucketStart: number; replies: number }>(sql`
+  const rows = await db.all<{ characterId: CharacterId; name: string; bucketStart: number; replies: number }>(sql`
     SELECT m.character_id AS characterId, MIN(c.name) AS name,
            ${calendarBucketStartSql(sql`m.created_at`)} AS bucketStart, COUNT(*) AS replies
     FROM messages m
@@ -22,6 +21,5 @@ export async function readMomentumBuckets(db: Db, ownerId: string): Promise<Mome
     GROUP BY m.character_id, bucketStart
     ORDER BY bucketStart, m.character_id
   `);
-  // Raw-SQL boundary mint: the id comes off the branded characters.id column, untyped through sql``.
-  return rows.map((r) => ({ characterId: castId<CharacterId>(r.characterId), name: r.name, bucketStart: r.bucketStart, replies: r.replies }));
+  return rows;
 }

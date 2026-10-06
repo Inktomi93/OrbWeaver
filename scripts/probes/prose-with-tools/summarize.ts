@@ -111,7 +111,7 @@ if (dir === undefined) {
 }
 const latest = new Map<string, CellLine>();
 for (const text of readFileSync(path.join(dir, "cells.jsonl"), "utf8")
-  .split("\n")
+  .split(/\r?\n/u)
   .filter((l) => l.trim() !== "")) {
   const line = JSON.parse(text) as CellLine;
   latest.set(`${line.cell}\u0000${line.mode}\u0000${line.rep ?? 1}`, line);

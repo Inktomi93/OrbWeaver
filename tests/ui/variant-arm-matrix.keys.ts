@@ -7,6 +7,7 @@ export const STORY_KEYS = [
   "button",
   "card",
   "checkbox",
+  "color-swatch",
   "empty-state",
   "highlighted-text",
   "input",
@@ -18,6 +19,7 @@ export const STORY_KEYS = [
   "status-chip",
   "switch",
   "text",
+  "textarea",
   "toggle",
 ] as const;
 

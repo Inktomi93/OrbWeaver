@@ -12,7 +12,6 @@ export type PromptCacheTtl = (typeof PROMPT_CACHE_TTLS)[number];
 
 /** Earlier OpenAI retention controls are distinct from marker TTLs and modern request options. */
 export const PROMPT_CACHE_RETENTIONS = ["in_memory", "24h"] as const;
-export type PromptCacheRetention = (typeof PROMPT_CACHE_RETENTIONS)[number];
 
 export const PROMPT_CACHE_FORMATS = ["cache-control", "openai-breakpoint"] as const;
 export type PromptCacheFormat = (typeof PROMPT_CACHE_FORMATS)[number];

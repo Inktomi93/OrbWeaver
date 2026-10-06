@@ -5,20 +5,14 @@
 import type { CallExpression, ElementAccessExpression, PropertyAccessExpression, TaggedTemplateExpression, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { blobTargets, tailName } from "./open-json-row-origin.ts";
+import type { SqlAliasBindings } from "./open-json-sql-bindings.ts";
+import { SQL_VIRTUAL_TABLE, sqlAliasBindings } from "./open-json-sql-bindings.ts";
 import type { OpenJsonColumn, Schema, Vocab } from "./open-json-vocabulary.ts";
 import { addWrite, unwrap } from "./open-json-vocabulary.ts";
 
 // ── SQL text (readers AND json_set writers live in the same templates) ──────────────────────────────────
 const SQL_READ_RE = /json_(?:extract|each)\(\s*([^,()]+?)\s*,\s*['"]\$\.([\w.]+)['"]/giu;
 const SQL_WRITE_RE = /json_set\(\s*([^,()]+?)\s*,\s*['"]\$\.([\w.]+)['"]/giu;
-const SQL_ALIAS_RE = /\b(?:from|join)\s+([a-z_][a-z0-9_]*)\s+(?:as\s+)?([a-z][a-z0-9_]*)\b/giu;
-/** `FROM/JOIN json_each(<arg>) [AS] <alias>` / `json_tree(...)` — a TABLE-VALUED FUNCTION, not a table (#1802).
- *  The arg may carry one level of nested parens (`json_each(json_extract(«col», '$.k'))`). Its alias binds the
- *  virtual row whose `.value` / `.key` / `.type` are json_each's own columns, never a drizzle column. */
-const SQL_VIRTUAL_ALIAS_RE = /\b(?:from|join)\s+json_(?:each|tree)\s*\((?:[^()]|\([^()]*\))*\)\s+(?:as\s+)?([a-z][a-z0-9_]*)\b/giu;
-/** The alias-map value for a virtual alias — no drizzle table is ever spelled with a leading colon. */
-const VIRTUAL_TABLE = ":json_each";
-
 /** A `sql` template's text with every `${expr}` rendered as «expr» — so a drizzle column interpolation is
  *  resolvable and an interpolated PATH is visibly not a literal. */
 function sqlText(tt: TaggedTemplateExpression): string {
@@ -35,7 +29,7 @@ function sqlText(tt: TaggedTemplateExpression): string {
 
 /** The columns a SQL column reference names: a drizzle `«table.prop»` interpolation, an `alias.snake` the
  *  template's own FROM/JOIN declares, or a bare `snake` name. */
-function resolveSqlRef(ref: string, aliases: ReadonlyMap<string, string>, schema: Schema): readonly OpenJsonColumn[] {
+function resolveSqlRef(ref: string, aliases: SqlAliasBindings, offset: number, schema: Schema): readonly OpenJsonColumn[] {
   const { columns, tables } = schema;
   const parts = ref.replaceAll("«", "").replaceAll("»", "").trim().split(".");
   const tail = parts.at(-1) ?? "";
@@ -43,40 +37,19 @@ function resolveSqlRef(ref: string, aliases: ReadonlyMap<string, string>, schema
   // ATTRIBUTION FIRST, name-pooling last. A drizzle interpolation names the table VARIABLE; a raw SQL ref
   // names the template's own FROM/JOIN alias. Reversing this order silently pools every same-named column
   // (`metadata` is a column on SIX tables), which is how a table-attributed reader loses its table.
-  const byTableVar = head === undefined ? [] : columns.filter((c) => c.table === head && c.prop === tail);
+  const byTableVar = head === undefined || !ref.includes("«") ? [] : columns.filter((c) => c.table === head && c.prop === tail);
   if (byTableVar.length > 0) {
     return byTableVar;
   }
-  const sqlTable = head === undefined ? undefined : aliases.get(head.toLowerCase());
+  const sqlTable = head === undefined ? undefined : aliases.tableOf(head.toLowerCase(), tail.toLowerCase(), offset);
   // A json_each/json_tree alias (#1802): `element.value` is the VIRTUAL row's column, which no drizzle column
   // is — attributing it would pool every column NAMED `value` (the open `settings.value` blob among them) and
   // red a key that blob's writers never spell. Nothing open is addressed; the ref resolves to nothing.
-  if (sqlTable === VIRTUAL_TABLE) {
+  if (sqlTable === SQL_VIRTUAL_TABLE) {
     return [];
   }
   const byAlias = sqlTable === undefined ? [] : columns.filter((c) => tables.get(c.table) === sqlTable && (c.sqlName === tail || c.prop === tail));
   return byAlias.length > 0 ? byAlias : columns.filter((c) => c.prop === tail || c.sqlName === tail);
-}
-
-function aliasMap(text: string): Map<string, string> {
-  const out = new Map<string, string>();
-  // Virtual aliases FIRST, so a later same-named real alias in the same template cannot be shadowed silently
-  // (the real-alias loop below re-sets the key; a virtual alias only ever names json_each's row).
-  for (const m of text.matchAll(SQL_VIRTUAL_ALIAS_RE)) {
-    const alias = m[1];
-    if (alias !== undefined) {
-      out.set(alias.toLowerCase(), VIRTUAL_TABLE);
-    }
-  }
-  for (const m of text.matchAll(SQL_ALIAS_RE)) {
-    const table = m[1];
-    const alias = m[2];
-    if (table !== undefined && alias !== undefined) {
-      out.set(alias.toLowerCase(), table.toLowerCase());
-      out.set(table.toLowerCase(), table.toLowerCase());
-    }
-  }
-  return out;
 }
 
 // ── reader collection ───────────────────────────────────────────────────────────────────────────────────
@@ -167,10 +140,10 @@ export function collectHelperReads(calls: readonly CallExpression[], byProp: Rea
 
 /** One `json_*(<ref>, '$.<path>')` match → the open columns it addresses and the TOP-LEVEL key it names
  *  (`$.a.b` is a read of `a`). Empty when the ref resolves to nothing open. */
-function sqlMatch(m: RegExpExecArray | RegExpMatchArray, aliases: ReadonlyMap<string, string>, schema: Schema): SqlPath | undefined {
+function sqlMatch(m: RegExpExecArray | RegExpMatchArray, aliases: SqlAliasBindings, schema: Schema): SqlPath | undefined {
   const [, ref, path] = m;
   const key = (path ?? "").split(".")[0] ?? "";
-  const targets = ref === undefined ? [] : resolveSqlRef(ref, aliases, schema);
+  const targets = ref === undefined ? [] : resolveSqlRef(ref, aliases, m.index ?? 0, schema);
   return key.length === 0 || targets.length === 0 ? undefined : { key, path: `$.${path ?? ""}`, targets };
 }
 
@@ -188,7 +161,7 @@ export function collectSqlReads(templates: readonly TaggedTemplateExpression[], 
       continue;
     }
     const text = sqlText(tt);
-    const aliases = aliasMap(text);
+    const aliases = sqlAliasBindings(text);
     for (const m of text.matchAll(SQL_READ_RE)) {
       const hit = sqlMatch(m, aliases, schema);
       const open = hit?.targets.filter((c) => c.open) ?? [];

@@ -50,7 +50,7 @@ interface NamedCandidate {
 /** The query and one `Name: line` document per candidate, each cut to the bound model's window. The query
  *  takes at most half the pair budget; each document fills what the query left, its line clipped and its
  *  name never. Mirrors the inference backend's own clamp, so the backend never re-cuts a different way. */
-export function fitRerankPair(
+function fitRerankPair(
   windowTokens: number,
   query: string,
   documents: readonly { readonly id: string; readonly name: string; readonly line: string }[],

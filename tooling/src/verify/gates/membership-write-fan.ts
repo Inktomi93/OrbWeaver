@@ -10,7 +10,9 @@
 // DECLARED LIMITS, each with a mustPass row: an UNRESOLVABLE write target is out of this arm (the sibling
 // `owner-scoped-writes` already reports one over the same `@server` population, so it is not a hole); a
 // membership write with NO emit at all is the per-DOMAIN question `domain-freshness-plane` owns; a fan
-// raised through an op whose callee is not `emit*` reads as no fan.
+// raised through an op whose callee is not `emit*` reads as no fan unless it is an awaited
+// member originating in DatabankOps.fanDatabankRoomsForDocument. Same-spelled foreign members and
+// unawaited calls do not certify delivery.
 // FAMILY: `tenancy-scope` — the shared canonical declarations are `lib/tenancy-scope.ts`'s
 // `schemaTableIdents` / `reportBlindWhenEmpty` and `lib/tenancy-read.ts`'s `tableTargetOf`, all three of
 // which `owner-scoped-writes` also reaches from its production hooks. The (b)-class half of the registry
@@ -28,6 +30,7 @@
 // `lib/reviewed-grants-membership-write-fan.ts` remains this policy's grant home.
 import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReference } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
@@ -48,6 +51,36 @@ const PER_PERSON_EMITS: ReadonlySet<string> = new Set(["emitUserEvent", "emitNot
 
 const EMIT_PREFIX = "emit";
 const OPERATION = "membership-write-per-person-emit";
+const DOCUMENT_FAN_HOME = "packages/server/src/domain/databank/contract/service.ts";
+const DOCUMENT_FAN = "fanDatabankRoomsForDocument";
+
+function isAwaitedDocumentFan(call: CallExpression): boolean {
+  let parent = call.getParent();
+  while (parent !== undefined && Node.isParenthesizedExpression(parent)) {
+    parent = parent.getParent();
+  }
+  if (parent === undefined || !Node.isAwaitExpression(parent)) {
+    return false;
+  }
+  const member = readMemberReference(call.getExpression());
+  if (member.kind !== "resolved" || member.value.name !== DOCUMENT_FAN) {
+    return false;
+  }
+  const receiver = member.value.receiver.getType().getNonNullableType();
+  const arms = receiver.isUnion() ? receiver.getUnionTypes() : [receiver];
+  return arms.every(
+    (arm) =>
+      arm
+        .getProperty(member.value.name)
+        ?.getDeclarations()
+        .some(
+          (declaration) =>
+            Node.isPropertySignature(declaration) &&
+            declaration.getName() === DOCUMENT_FAN &&
+            declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith(`/${DOCUMENT_FAN_HOME}`),
+        ) === true,
+  );
+}
 
 const MESSAGE =
   "a MEMBERSHIP-class write announced ONLY to its actor — this verb writes a table whose scope resolves " +
@@ -148,6 +181,10 @@ export const gate = defineGate({
             if (name === undefined) {
               return;
             }
+            if (isAwaitedDocumentFan(node)) {
+              factsFor(sourceFile).roomFan = true;
+              return;
+            }
             if (name.startsWith(EMIT_PREFIX)) {
               const facts = factsFor(sourceFile);
               if (PER_PERSON_EMITS.has(name)) {
@@ -201,6 +238,32 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/server/src/domain/databank/persistence/scope.ts#chatDocuments", operation: OPERATION },
+      files: {
+        "packages/db/src/schema/databank.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const chatDocuments = sqliteTable("chat_documents", { chatId: text("chat_id"), documentId: text("document_id") });\n',
+        "packages/server/src/domain/databank/contract/service.ts":
+          "export interface DatabankOps { readonly fanDatabankRoomsForDocument: (documentId: string) => Promise<void>; }\n",
+        "packages/server/src/domain/databank/persistence/scope.ts":
+          'import { chatDocuments } from "@orb/db"; import type { DatabankOps } from "../contract/service.ts"; declare const ctx: DatabankOps & { db: { insert(table: object): { values(row: object): Promise<void> } }; emitUserEvent(userId: string, event: object): void }; export async function write(): Promise<void> { await ctx.db.insert(chatDocuments).values({}); void ctx.fanDatabankRoomsForDocument("doc"); ctx.emitUserEvent("owner", { type: "databankChanged" }); }\n',
+      },
+      expect: { count: 1, token: "emitUserEvent" },
+      why: "a canonical async room fan that is not awaited cannot certify that co-member invalidation completed",
+    },
+    {
+      mode: "types",
+      grant: { subject: "packages/server/src/domain/databank/persistence/scope.ts#chatDocuments", operation: OPERATION },
+      files: {
+        "packages/db/src/schema/databank.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const chatDocuments = sqliteTable("chat_documents", { chatId: text("chat_id"), documentId: text("document_id") });\n',
+        "packages/server/src/domain/databank/persistence/scope.ts":
+          'import { chatDocuments } from "@orb/db"; interface Foreign { readonly fanDatabankRoomsForDocument: (documentId: string) => Promise<void>; db: { insert(table: object): { values(row: object): Promise<void> } }; emitUserEvent(userId: string, event: object): void } declare const ctx: Foreign; export async function write(): Promise<void> { await ctx.db.insert(chatDocuments).values({}); await ctx.fanDatabankRoomsForDocument("doc"); ctx.emitUserEvent("owner", { type: "databankChanged" }); }\n',
+      },
+      expect: { count: 1, token: "emitUserEvent" },
+      why: "the same fan spelling on a foreign context is not the canonical DatabankOps room bridge",
+    },
+    {
+      mode: "types",
       files: {
         "packages/db/src/schema/databank.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const chatDocuments = sqliteTable("chat_documents", { chatId: text("chat_id"), documentId: text("document_id") });\n',
@@ -235,6 +298,18 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/databank.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const chatDocuments = sqliteTable("chat_documents", { chatId: text("chat_id"), documentId: text("document_id") });\n',
+        "packages/server/src/domain/databank/contract/service.ts":
+          "export interface DatabankOps { readonly fanDatabankRoomsForDocument: (documentId: string) => Promise<void>; }\n",
+        "packages/server/src/domain/databank/persistence/scope.ts":
+          'import { chatDocuments } from "@orb/db"; import type { DatabankOps } from "../contract/service.ts"; declare const ctx: DatabankOps & { db: { insert(table: object): { values(row: object): Promise<void> } }; emitUserEvent(userId: string, event: object): void }; export async function write(): Promise<void> { await ctx.db.insert(chatDocuments).values({}); await ctx.fanDatabankRoomsForDocument("doc"); ctx.emitUserEvent("owner", { type: "databankChanged" }); }\n',
+      },
+      why: "the awaited actual DatabankOps member completes the room fan before the actor-only notice",
+    },
     {
       mode: "types",
       files: {

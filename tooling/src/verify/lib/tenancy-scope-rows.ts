@@ -121,6 +121,11 @@ export const TABLE_SCOPING_ROWS: readonly ScopingRow[] = [
   },
   { table: "chat_digests", scope: "membership", why: "the room's memory digests — chat-anchored derived data, read only by the room's members." },
   {
+    table: "chat_generation_observations",
+    scope: "membership",
+    why: "retained completed generation facts inherit admission through their chat/source parents (D18); funderUserId freezes private liability (D19), never room read authority. Public/member projections strip funding and connection identity before the wire.",
+  },
+  {
     table: "chat_documents",
     scope: "membership",
     why: "the room's active databank set — room-public by design (`loadMetaByIds`'s header: a member views the HOST's active documents).",

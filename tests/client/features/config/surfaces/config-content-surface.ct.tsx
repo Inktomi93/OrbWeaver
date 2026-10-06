@@ -727,6 +727,26 @@ test("#549 a group-only deep link marks the group's FIRST section current, and k
 // primitives put `sr-only` boxes at `position:absolute`; a scroller only clips descendants whose CONTAINING
 // BLOCK is inside it. Two pins, because they fail for different reasons: the MECHANISM (nothing escapes the
 // CONTENT scroller) and the SYMPTOM (a positioned scrolling host around the pane gains no phantom scroll).
+test("the containing-block audit excludes hidden boxes but catches a real escaping absolute", async ({ mount, page }) => {
+  await mount(
+    <div data-testid="escape-audit">
+      <div style={{ display: "none" }}>
+        <div data-slot="hidden-absolute" style={{ position: "absolute" }} />
+      </div>
+      <div style={{ position: "relative" }}>
+        <div data-slot="contained-absolute" style={{ position: "absolute" }}>
+          Contained
+        </div>
+      </div>
+      <div data-slot="escaped-absolute" style={{ position: "absolute" }}>
+        Escaped
+      </div>
+    </div>,
+  );
+  await expect(page.getByText("Contained", { exact: true })).toBeVisible();
+  expect(await readEscapedAbsolutes(page, '[data-testid="escape-audit"]')).toEqual([{ what: "escaped-absolute", landedOn: "BODY" }]);
+});
+
 test("no absolutely-positioned box escapes the CONTENT scroller (the containing-block pin)", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<ConfigHostStory target="appearance" />);

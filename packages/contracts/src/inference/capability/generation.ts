@@ -193,7 +193,7 @@ export const samplerStageSchema = z.enum(SAMPLER_STAGES) satisfies z.ZodType<Sam
 export const samplerOrderSchema = z
   .array(samplerStageSchema)
   .min(1)
-  .refine((stages) => new Set(stages).size === stages.length, { message: "a sampler stage appears once" });
+  .refine((stages) => new Set(stages).size === stages.length, { message: "a sampler stage appears once" }) satisfies z.ZodType<SamplerStage[]>;
 
 /** The sampling knobs a model exposes, each a `Range` or a boolean. `exclusive` names knob PAIRS the model
  *  rejects together (current Claude models refuse `temperature` + `top_p` in one request): the funnel keeps

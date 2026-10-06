@@ -4,6 +4,7 @@
 // `segment`/`digest`) route to distinct tables, not this column, so they aren't re-spelled here.
 
 import { z } from "zod";
+import type { EmbeddingTask } from "./accounting.ts";
 
 export * from "./accounting.ts";
 
@@ -52,7 +53,7 @@ export type VectorScope = (typeof VECTOR_SCOPES)[number];
 /** Which scopes make up each vector task's space. The fold the `activeSpace` getter runs: a task's space is
  *  COMPLETE only when every one of its scopes has recorded the same tag, because a retrieval over `embed`
  *  scans cards, memory AND document chunks in one geometry. */
-export const VECTOR_SCOPES_BY_TASK: Readonly<Record<"embed" | "imageEmbed", readonly VectorScope[]>> = {
+export const VECTOR_SCOPES_BY_TASK: Readonly<Record<EmbeddingTask, readonly VectorScope[]>> = {
   embed: ["cards", "memory", "documents"],
   imageEmbed: ["images"],
 };

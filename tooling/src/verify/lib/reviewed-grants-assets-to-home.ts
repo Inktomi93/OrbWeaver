@@ -225,15 +225,7 @@ export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
     endsWhen:
       "the wire seam stops taking content PARTS (D51 is retired) or this module stops naming the type; either way the row is consumed zero times and reds.",
   },
-  {
-    id: "content-part-seam:chat-engine-pipeline",
-    policyId: "content-part-seam",
-    subject: "packages/server/src/domain/chat/engine/pipeline.ts",
-    operation: "chat-content-part-reference",
-    why: "the engine request seam ASSEMBLES the parts the CONVERT step builds, and mints its own for the TOOL-RESULT rows (`toolResultMessages`), which never pass through the history conversion.",
-    endsWhen:
-      "the wire seam stops taking content PARTS (D51 is retired) or this module stops naming the type; either way the row is consumed zero times and reds.",
-  },
+
   {
     id: "content-part-seam:chat-wire-history",
     policyId: "content-part-seam",

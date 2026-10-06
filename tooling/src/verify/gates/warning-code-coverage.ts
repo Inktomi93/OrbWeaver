@@ -67,7 +67,8 @@ import type { GateFactContext } from "../contract/fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { TupleVocabularyFact } from "../contract/tuple-vocabulary-fact.ts";
 import { declarationHome } from "../lib/declaration-home.ts";
-import { readStaticAuthoredScalar } from "../lib/static-authored-value.ts";
+import { readStaticAuthoredScalar, readStaticAuthoredValue } from "../lib/static-authored-value.ts";
+import { readMemberAccess } from "../lib/symbol-reference.ts";
 import { tupleVocabularyFact, tupleVocabularyReceipt } from "../lib/tuple-vocabulary-fact.ts";
 
 /** The local accumulator a provider warning record is pushed onto. */
@@ -76,6 +77,7 @@ const SINK = "warnings";
 const CHAT_MAPPER = "toChatWarning";
 /** A readonly tuple, not a module-scope `Set`: nothing in a policy module may be mutable at module scope. */
 const CHAT_EMITTERS = ["emit", "emitQuiet"] as const;
+const WARNING_VALUE_HOME = "packages/inference/src/contract/resolve.ts";
 
 interface Channel {
   readonly tuple: string;
@@ -94,7 +96,7 @@ const CHANNELS: readonly Channel[] = [
     // WHOLE out of `packages/server/src/infra/providers/` into the `@orb/inference` package; the emit scope
     // is the package's `src/` root rather than a subdirectory because the emitters are spread across
     // `backends/v4/`, `funnel/` and `resolve/` with no common parent below it.
-    home: "packages/inference/src/contract/resolve.ts",
+    home: WARNING_VALUE_HOME,
     emitScope: "packages/inference/src/",
     chat: false,
   },
@@ -125,11 +127,26 @@ function propertyValue(object: ObjectLiteralExpression, name: string): MorphNode
 }
 
 /** The local accumulator's authored name, never a member or an imported export-name lookalike. */
+function canonicalWarningAccumulator(node: MorphNode): boolean {
+  const element = node.getType().getArrayElementType();
+  return (
+    element
+      ?.getSymbol()
+      ?.getDeclarations()
+      .some(
+        (declaration) =>
+          Node.isInterfaceDeclaration(declaration) &&
+          declaration.getName() === "ResolvedWarning" &&
+          declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith(`/${WARNING_VALUE_HOME}`),
+      ) === true
+  );
+}
+
 function namesAccumulator(node: MorphNode): boolean {
   if (Node.isIdentifier(node)) {
-    return node.getText() === SINK;
+    return node.getText() === SINK || canonicalWarningAccumulator(node);
   }
-  return (Node.isVariableDeclaration(node) || Node.isParameterDeclaration(node)) && node.getName() === SINK;
+  return (Node.isVariableDeclaration(node) || Node.isParameterDeclaration(node)) && (node.getName() === SINK || canonicalWarningAccumulator(node));
 }
 
 /** Does this reference bind a PARAMETER or a LOCAL variable, rather than an imported module member? The
@@ -140,13 +157,11 @@ function bindsLocalValue(receiver: MorphNode): boolean {
     return false;
   }
   const binding = resolveStableExpression(receiver);
-  for (const declaration of binding.trace.declarations) {
-    if (Node.isImportSpecifier(declaration)) {
-      return false;
-    }
-    if (Node.isParameterDeclaration(declaration) || Node.isVariableDeclaration(declaration)) {
-      return true;
-    }
+  if (binding.trace.declarations.some(Node.isImportSpecifier)) {
+    return false;
+  }
+  if (binding.trace.declarations.some((declaration) => Node.isParameterDeclaration(declaration) || Node.isVariableDeclaration(declaration))) {
+    return true;
   }
   // THE REFUSAL IS THE ANSWER for the dominant live shape, and the first draft of this reader got it wrong:
   // `constInitializer` answers `unresolved("missing", <the ParameterDeclaration>, …)` for a PARAMETER, because
@@ -173,21 +188,20 @@ function bindsLocalValue(receiver: MorphNode): boolean {
  *  `<receiver>.warnings` when the RECEIVER provably binds a parameter or a local, which keeps the
  *  imported-lookalike fence that the original narrowing was actually about. */
 function isWarningsSink(node: MorphNode): boolean {
-  if (Node.isPropertyAccessExpression(node)) {
-    return node.getName() === SINK && bindsLocalValue(node.getExpression());
+  const member = readMemberAccess(node);
+  if (member !== undefined) {
+    return (member.name === SINK || canonicalWarningAccumulator(node)) && bindsLocalValue(member.receiver);
   }
   if (!Node.isIdentifier(node)) {
     return false;
   }
   // Inspect the binding before its spelling: an unrenamed import is not the local accumulator.
   const binding = resolveStableExpression(node);
-  for (const declaration of binding.trace.declarations) {
-    if (Node.isImportSpecifier(declaration)) {
-      return false;
-    }
-    if (namesAccumulator(declaration)) {
-      return true;
-    }
+  if (binding.trace.declarations.some(Node.isImportSpecifier)) {
+    return false;
+  }
+  if (binding.trace.declarations.some(namesAccumulator)) {
+    return true;
   }
   return binding.kind === "unresolved" && namesAccumulator(binding.node);
 }
@@ -197,13 +211,15 @@ function calleeName(call: CallExpression): string | undefined {
   if (Node.isIdentifier(expression)) {
     return expression.getText();
   }
-  return Node.isPropertyAccessExpression(expression) ? expression.getName() : undefined;
+  return readMemberAccess(expression)?.name;
 }
 
 function isPushedWarning(object: ObjectLiteralExpression, call: CallExpression): boolean {
-  const expression = call.getExpression();
-  const receiver = Node.isPropertyAccessExpression(expression) ? expression.getExpression() : undefined;
-  return receiver !== undefined && isWarningsSink(receiver) && object.getProperty("message") !== undefined;
+  const member = readMemberAccess(call.getExpression());
+  if (member === undefined) {
+    return false;
+  }
+  return isWarningsSink(member.receiver) && object.getProperty("message") !== undefined;
 }
 
 /** The nearest enclosing call IN THIS OBJECT'S OWN FUNCTION SCOPE, or `undefined` when a function boundary
@@ -344,6 +360,22 @@ function codesOf(node: MorphNode | undefined): readonly string[] {
   if (Node.isConditionalExpression(node)) {
     return [...codesOf(node.getWhenTrue()), ...codesOf(node.getWhenFalse())];
   }
+  if (Node.isElementAccessExpression(node)) {
+    const receiver = readStaticAuthoredValue(node.getExpression());
+    const argument = node.getArgumentExpression();
+    if (receiver.kind !== "resolved" || receiver.value.kind !== "object" || argument === undefined) {
+      return [];
+    }
+    const type = argument.getType();
+    const keys = type.isUnion() ? type.getUnionTypes() : [type];
+    if (!keys.every((key) => key.isStringLiteral())) {
+      return [];
+    }
+    return keys.flatMap((key) => {
+      const property = receiver.value.kind === "object" ? receiver.value.properties.findLast((entry) => entry.key === key.getLiteralValue()) : undefined;
+      return property?.value.kind === "scalar" && typeof property.value.value === "string" ? [property.value.value] : [];
+    });
+  }
   const scalar = stringOf(node);
   return scalar === undefined ? [] : [scalar];
 }
@@ -430,6 +462,59 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        "packages/inference/src/contract/resolve.ts":
+          'export const WARNING_CODES = ["provider_ok"] as const; export interface ResolvedWarning { readonly code: "provider_ok"; readonly message: string }\n',
+        "packages/inference/src/imported.ts": 'import type { ResolvedWarning } from "./contract/resolve.ts"; export const audit: ResolvedWarning[] = [];\n',
+        "packages/inference/src/resolve-chat.ts":
+          'import { audit } from "./imported.ts"; const alias = audit; alias.push({ code: "provider_ok", message: "unrelated" });\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'declare function emit(event: object): void; emit({ type: "warning", code: "chat_ok" });\n',
+      },
+      expect: { count: 1, token: '"provider_ok"', messageIncludes: 'Member: "provider_ok"' },
+      why: "a local immutable alias cannot launder a canonically typed imported audit array into warning emission",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/inference/src/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/inference/src/resolve-chat.ts":
+          'declare const warnings: { code: string; message: string }[]; warnings.push({ code: "provider_ok", message: "visible" });\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["left", "right"] as const;\n',
+        "packages/server/src/domain/chat/x.ts":
+          'const codes = { left: "left", right: "right" } as const; declare const key: "left"; declare function emit(event: object): void; emit({ type: "warning", code: codes[key] });\n',
+      },
+      expect: { count: 1, token: '"right"', messageIncludes: 'Member: "right"' },
+      why: "a closed selector proves only its reachable record members, not every authored value in the map",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/inference/src/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/inference/src/resolve-chat.ts":
+          'declare const warnings: { code: string; message: string }[]; warnings.push({ code: "provider_ok", message: "visible" });\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["left", "right"] as const;\n',
+        "packages/server/src/domain/chat/x.ts":
+          'const codes = { left: "left", right: "right" } as const; declare const key: string; declare function emit(event: object): void; emit({ type: "warning", code: codes[key] });\n',
+      },
+      expect: { count: 2, messageIncludes: "NO emit site" },
+      why: "an unrestricted string index cannot certify which authored record values are ever emitted",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/inference/src/contract/resolve.ts":
+          'export const WARNING_CODES = ["provider_ok"] as const; export interface ResolvedWarning { readonly code: "provider_ok"; readonly message: string }\n',
+        "packages/inference/src/imported.ts": 'import type { ResolvedWarning } from "./contract/resolve.ts"; export const audit: ResolvedWarning[] = [];\n',
+        "packages/inference/src/resolve-chat.ts": 'import { audit } from "./imported.ts"; audit.push({ code: "provider_ok", message: "unrelated" });\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'declare function emit(event: object): void; emit({ type: "warning", code: "chat_ok" });\n',
+      },
+      expect: { count: 1, token: '"provider_ok"', messageIncludes: 'Member: "provider_ok"' },
+      why: "a canonically typed imported audit array is not a local warning accumulator",
+    },
     {
       mode: "types",
       files: {
@@ -571,6 +656,19 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/inference/src/contract/resolve.ts":
+          'export const WARNING_CODES = ["provider_ok"] as const; export interface ResolvedWarning { readonly code: "provider_ok"; readonly message: string }\n',
+        "packages/inference/src/resolve-chat.ts":
+          'import type { ResolvedWarning as Warning } from "./contract/resolve.ts"; export function run(downgrades: Warning[]): void { downgrades["push"]({ code: "provider_ok", message: "visible" }); }\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["left", "right"] as const;\n',
+        "packages/server/src/domain/chat/x.ts":
+          'const codes = { left: "left", right: "right" } as const; declare const key: "left" | "right"; declare function emit(event: object): void; emit({ type: "warning", code: codes[key] });\n',
+      },
+      why: "the actual typed local downgrade accumulator and closed mapped warning selector certify live emissions without depending on their local names",
+    },
     {
       mode: "types",
       files: {

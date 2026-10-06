@@ -96,3 +96,25 @@ test("a redirecting server is no answer to a model probe either", async () => {
   expect(calls).not.toContain(ELSEWHERE);
   expect(rows[0]?.kind).toBeUndefined();
 });
+
+test.each([
+  { server: "koboldcpp", path: "/api/extra/version", answer: { result: "KoboldCpp", version: "future" }, requests: 1 },
+  { server: "llama-cpp", path: "/props", answer: { build_info: "build", unrelated: true }, requests: 2 },
+  { server: "ollama", path: "/api/version", answer: { version: "0.35.1", unrelated: true }, requests: 3 },
+  { server: "vllm", path: "/v1/models", answer: { data: [{ owned_by: "vllm", id: "model" }] }, requests: 4 },
+] as const)("detection retains the concrete $server identity schema and ordered first-match behavior", async (fixture) => {
+  const calls: string[] = [];
+  const fetchImpl = ((input: string | URL | Request): Promise<Response> => {
+    const url = String(input);
+    calls.push(url);
+    return Promise.resolve(Response.json(url.endsWith(fixture.path) ? fixture.answer : {}));
+  }) as typeof fetch;
+  expect(await detectServer({ fetch: fetchImpl, baseUrl: BASE_URL, secret: null })).toEqual({ server: fixture.server });
+  expect(calls).toHaveLength(fixture.requests);
+  expect(calls.at(-1)).toBe(`http://127.0.0.1:1${fixture.path}`);
+});
+
+test("coincident fields with malformed native identities do not detect a server", async () => {
+  const fetchImpl = (() => Promise.resolve(Response.json({ result: "foreign", build_info: 1, version: 1, data: [{ owned_by: "foreign" }] }))) as typeof fetch;
+  expect(await detectServer({ fetch: fetchImpl, baseUrl: BASE_URL, secret: null })).toEqual({ server: null });
+});

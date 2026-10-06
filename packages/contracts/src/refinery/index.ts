@@ -492,7 +492,7 @@ function withoutStrayGreetingIndex(entry: RefineryRewriteField): RefineryRewrite
  *  has no JSON-Schema spelling. */
 export const refineryRewriteParseSchema = refineryRewritePayloadSchema.transform(
   (payload): RefineryRewritePayload => ({ fields: payload.fields.map(withoutStrayGreetingIndex) }),
-);
+) satisfies z.ZodType<RefineryRewritePayload>;
 
 /** One review block's Keep/Discard decision: `true` keeps, `false` discards, `null` is undecided. */
 export const refineryRewriteDecisionSchema = z.boolean().nullable();
@@ -503,7 +503,7 @@ export type RefineryRewriteDecision = z.infer<typeof refineryRewriteDecisionSche
  *  position in that run's payload `fields` (immutable, unlike the selection-filtered review list). Keys are
  *  run ids the `decideRewrite` verb verified belong to the session. */
 /** One rewrite run's sheet — one decision per payload entry, so never longer than a payload can be. */
-export const refineryRewriteSheetSchema = z.array(refineryRewriteDecisionSchema).max(ENTRIES_MAX);
+export const refineryRewriteSheetSchema = z.array(refineryRewriteDecisionSchema).max(ENTRIES_MAX) satisfies z.ZodType<RefineryRewriteDecision[]>;
 export const refineryRewriteDecisionsSchema = z.record(z.string(), refineryRewriteSheetSchema);
 export type RefineryRewriteDecisions = z.infer<typeof refineryRewriteDecisionsSchema>;
 

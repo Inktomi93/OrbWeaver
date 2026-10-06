@@ -4,7 +4,7 @@
 // element callbacks and union/intersection types until a live schema table can be proved or refused.
 import type { BindingElement, Node as TsNode, Type, TypeReferenceNode } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
-import { readStaticString } from "../../_shared/reference-fact.ts";
+import { readStaticString, resolveStableExpression } from "../../_shared/reference-fact.ts";
 import type { OpenJsonColumn } from "./open-json-vocabulary.ts";
 import { isOpenBag, unwrap } from "./open-json-vocabulary.ts";
 
@@ -320,7 +320,7 @@ function mixedOriginError(site: TsNode): never {
   throw new Error(`open-json parity: cannot prove schema-row origin of mixed read at ${site.getSourceFile().getFilePath()}:${site.getStartLineNumber()}`);
 }
 
-function narrowedTable(receiver: TsNode, sources: readonly RowOrigin[]): TsNode | undefined {
+function narrowedTable(receiver: TsNode, sources: readonly RowOrigin[], liveType: Type = receiver.getType()): TsNode | undefined {
   if (!sources.some((source) => source.table !== undefined)) {
     return;
   }
@@ -338,7 +338,7 @@ function narrowedTable(receiver: TsNode, sources: readonly RowOrigin[]): TsNode 
       mixedOriginError(receiver);
     }
   }
-  const live = receiver.getType().compilerType;
+  const live = liveType.compilerType;
   const matches = sources.filter((source) => source.sourceType.compilerType === live);
   if (matches.length === 0) {
     mixedOriginError(receiver);
@@ -383,4 +383,49 @@ export function blobTargets(receiver: TsNode, byProp: ReadonlyMap<string, readon
     throw new Error(`open-json parity: cannot prove destructured column origin at ${receiver.getSourceFile().getFilePath()}:${receiver.getStartLineNumber()}`);
   }
   return targets;
+}
+
+function rowValueType(value: TsNode): Type {
+  let type = value.getType().getNonNullableType();
+  if (type.getSymbol()?.getName() === "Promise") {
+    const declarations = type.getSymbol()?.getDeclarations() ?? [];
+    const promised = type.getTypeArguments()[0];
+    if (promised === undefined || declarations.some((item) => !/^lib\..*\.d\.ts$/u.test(item.getSourceFile().getBaseName()))) {
+      mixedOriginError(value);
+    }
+    type = promised.getNonNullableType();
+  }
+  return type;
+}
+
+/** Schema-row identity only. A writer must separately prove its actual persisted producer body. */
+export function schemaRowOriginIdentity(receiver: TsNode): TsNode | undefined {
+  const value = unwrap(receiver);
+  const type = rowValueType(value);
+  const direct = rowOrigins(value);
+  if (direct.length > 0) {
+    return narrowedTable(value, direct, type);
+  }
+  const stable = resolveStableExpression(value);
+  const terminal = stable.kind === "resolved" ? stable.value : stable.node;
+  const call = Node.isAwaitExpression(terminal) ? terminal.getExpression() : terminal;
+  if (!Node.isCallExpression(call)) {
+    return;
+  }
+  const declaration = call.getSourceFile().getProject().getTypeChecker().getResolvedSignature(call)?.getDeclaration();
+  let annotation =
+    Node.isFunctionDeclaration(declaration) ||
+    Node.isMethodDeclaration(declaration) ||
+    Node.isArrowFunction(declaration) ||
+    Node.isFunctionExpression(declaration)
+      ? declaration.getReturnTypeNode()
+      : undefined;
+  if (annotation !== undefined && Node.isTypeReference(annotation) && annotation.getTypeName().getText() === "Promise") {
+    const declarations = annotation.getTypeName().getSymbol()?.getDeclarations() ?? [];
+    if (declarations.length === 0 || declarations.some((item) => !/^lib\..*\.d\.ts$/u.test(item.getSourceFile().getBaseName()))) {
+      mixedOriginError(receiver);
+    }
+    annotation = annotation.getTypeArguments()[0];
+  }
+  return annotation === undefined ? undefined : narrowedTable(value, typeOrigins(annotation), type);
 }

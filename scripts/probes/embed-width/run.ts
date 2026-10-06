@@ -271,7 +271,7 @@ class UserBus {
     try {
       for await (const chunk of body) {
         buffered += decoder.decode(chunk, { stream: true });
-        const lines = buffered.split("\n");
+        const lines = buffered.split(/\r?\n/u);
         buffered = lines.pop() ?? "";
         // A keep-alive is a `data:` line with no JSON payload.
         for (const payload of lines.filter((l) => l.startsWith("data:")).map((l) => l.slice("data:".length).trim())) {

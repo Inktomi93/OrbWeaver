@@ -21,6 +21,8 @@ for (const touch of [false, true]) {
       const compact = page.getByRole("textbox", { name: "Compact", exact: true });
       const standard = page.getByRole("textbox", { name: "Default", exact: true });
       await expect(compact).toBeVisible();
+      await expect(compact).toHaveAttribute("data-size", "compact");
+      await expect(standard).toHaveAttribute("data-size", "default");
       const floor = await compact.evaluate((element) => {
         const probe = document.createElement("div");
         probe.style.height = "var(--spacing-control-md)";

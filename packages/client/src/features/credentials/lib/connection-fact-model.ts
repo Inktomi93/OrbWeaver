@@ -47,7 +47,7 @@ import { grouped as formatGrouped, tokens as formatTokens, samplerWords } from "
 import type { BooleanLabels, FactLeaf, FactRow, NumberBound } from "./connection-fact-types.ts";
 import { pricingFactLeaves, pricingSiblings } from "./connection-pricing.ts";
 
-export type { BooleanLabels, FactChoice, FactLeaf, FactRow, NumberBound } from "./connection-fact-types.ts";
+export type { BooleanLabels, FactChoice, FactLeaf, FactRow } from "./connection-fact-types.ts";
 
 export const grouped = formatGrouped;
 export const tokens = formatTokens;

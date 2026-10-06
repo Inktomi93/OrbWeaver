@@ -104,9 +104,6 @@ interface WakeFlight {
 /** Wait on a shared wake under this task's own cancel: a cancel rejects this task at once and leaves the wake running
  *  for the others; the last task to leave stops it. */
 function joinWake(flight: WakeFlight, signal: AbortSignal | undefined): Promise<boolean> {
-  if (signal?.aborted === true) {
-    return Promise.reject(wakeAborted());
-  }
   flight.waiters += 1;
   return new Promise<boolean>((resolve, reject) => {
     let left = false;
@@ -127,6 +124,9 @@ function joinWake(flight: WakeFlight, signal: AbortSignal | undefined): Promise<
       reject(wakeAborted());
     };
     signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted === true) {
+      onAbort();
+    }
     // @orb-waive caught-failure-ownership(flight.run): the rejection is forwarded to this task's own promise, which its caller awaits. Ends if the handler stops rejecting with the error.
     flight.run.then(
       (woke) => {
@@ -231,15 +231,15 @@ export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityPr
     let flight = wakes.get(server);
     if (flight === undefined || flight.controller.signal.aborted) {
       const controller = new AbortController();
-      const started: WakeFlight = { controller, waiters: 0, run: wakeOnce(target, controller.signal) };
-      // @orb-waive caught-failure-ownership(started.run): map cleanup only; every waiting task receives the wake's rejection through joinWake. Ends if the cleanup grows work of its own.
-      void started.run
-        .catch(() => undefined)
-        .finally(() => {
+      const started: WakeFlight = {
+        controller,
+        waiters: 0,
+        run: wakeOnce(target, controller.signal).finally(() => {
           if (wakes.get(server) === started) {
             wakes.delete(server);
           }
-        });
+        }),
+      };
       wakes.set(server, started);
       flight = started;
     }

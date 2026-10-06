@@ -1,15 +1,13 @@
 import type { MessageSlot, MessageView, UserMacroDraws } from "@orb/contracts/chat";
 import {
   CONNECTION_ATTRIBUTION_PROVENANCES,
-  combineTokenProvenance,
   connectionAttributionProvenanceSchema,
   MESSAGE_ASSET_ORIGINS,
   macroFreezeRecordSchema,
   messageSlotSchema,
+  messageViewSchema,
   parseVariantMetadata,
   reattributeScopeSchema,
-  TOKEN_PROVENANCES,
-  tokenProvenanceSchema,
   toolCallRecordSchema,
   userMacroDrawsSchema,
   VARIANT_METADATA_REASONING_MS_KEY,
@@ -21,6 +19,25 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../support/inference-identities.ts";
 
+test("wire tool calls reject widening while the stored parser still strips private provider fields", () => {
+  const record = {
+    toolCallId: "call-provider",
+    name: "draw",
+    arguments: "{}",
+    result: "Moon",
+    isError: false,
+    durationMs: 0,
+    textOffset: 0,
+    callOrdinal: 0,
+    exchangeOrdinal: 0,
+    exchangeTextEnd: 0,
+  };
+  const wire = messageViewSchema.shape.toolCalls.unwrap().element;
+  expect(wire.parse(record)).toEqual(record);
+  expect(wire.safeParse({ ...record, privateTypedField: "secret" }).success).toBe(false);
+  expect(toolCallRecordSchema.parse({ ...record, thoughtSignature: "private" })).toEqual(record);
+});
+
 // ── Sample ids (minted/cast — no pasted random-looking literals; noSecrets) ───
 const SAMPLE_MESSAGE_ID = mintTypeId(ID_PREFIX.message);
 const SAMPLE_CHAT_ID = mintTypeId(ID_PREFIX.chat);
@@ -28,18 +45,6 @@ const SAMPLE_VARIANT_ID = mintTypeId(ID_PREFIX.messageVariant);
 const SAMPLE_CHARACTER_ID = mintTypeId(ID_PREFIX.character);
 const SAMPLE_PERSONA_ID = mintTypeId(ID_PREFIX.persona);
 const SAMPLE_USER_ID = castId<UserId>("user-alice");
-
-test("token provenance has exactly one canonical three-member vocabulary", () => {
-  expect(TOKEN_PROVENANCES).toEqual(["measured", "estimated", "unrecorded"]);
-  expect(tokenProvenanceSchema.options).toEqual([...TOKEN_PROVENANCES]);
-  expect(tokenProvenanceSchema.safeParse("inferred").success).toBe(false);
-});
-
-test("token provenance combination makes estimates dominant and absence neutral", () => {
-  expect(combineTokenProvenance("measured", "estimated")).toBe("estimated");
-  expect(combineTokenProvenance("unrecorded", "measured")).toBe("measured");
-  expect(combineTokenProvenance("unrecorded", "unrecorded")).toBe("unrecorded");
-});
 
 test("connection attribution provenance distinguishes a recorded connection from an absent record", () => {
   expect(CONNECTION_ATTRIBUTION_PROVENANCES).toEqual(["recorded", "unrecorded"]);

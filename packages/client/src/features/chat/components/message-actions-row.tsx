@@ -207,8 +207,8 @@ export function MessageActionsRow({
   // column at every pointer, so both doors reserve the same box.
   const onEdit = (): void => {
     const column = clusterRef.current?.closest('[data-slot="message-content-column"]') ?? null;
-    const width = column === null ? 0 : column.getBoundingClientRect().width;
-    startEditingMessage(messageId, content, width > 0 ? width : null);
+    const box = column?.getBoundingClientRect();
+    startEditingMessage(messageId, content, box !== undefined && box.width > 0 ? box.width : null, box !== undefined && box.height > 0 ? box.height : null);
   };
 
   const onToggleHidden = (): void => {

@@ -183,7 +183,7 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             ruling above SURVIVES — one tooltip, no native `title`, and the name stays the "Message tools"
             string every CT and the e2e room helper address — what changed is the popup's copy, which was the
             only half free to move. */}
-        <TooltipPopup side="top">Message tools</TooltipPopup>
+        <TooltipPopup side="bottom">Message tools</TooltipPopup>
       </Tooltip>
       <MenuPopup side="top" style={MENU_BOUND}>
         {/* THE ROOM'S OWN GROUPS LEAD. Each contribution closes its group with a separator. */}

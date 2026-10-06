@@ -2,8 +2,9 @@
 // failure shape whether the planner refused before the call or the provider refused after it. Fixtures are the
 // recorded Anthropic bodies; an unmatched schema-shaped 400 is logged with its body, never guessed at.
 
+import { vi } from "vitest";
 import { providerErrorFromHttp, withSchemaRejection } from "../../../../packages/inference/src/backends/kit/error-classify.ts";
-import { IdleTripError, isIdleTrip } from "../../../../packages/inference/src/backends/kit/idle-timeout.ts";
+import { isIdleTrip, turnAbortSignal } from "../../../../packages/inference/src/backends/kit/idle-timeout.ts";
 import type { ProviderLogger } from "../../../../packages/inference/src/backends/kit/provider-log.ts";
 import { NO_PROVIDER_SECRETS } from "../../../../packages/inference/src/backends/kit/sanitize.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
@@ -32,7 +33,17 @@ function recordingLogger(lines: Emitted[]): ProviderLogger {
 const INVALID = new ProviderError({ kind: "invalid", retryable: false, message: "anthropic chat: Bad Request", apiErrorStatus: 400 });
 
 test("an idle trip survives nested causes and wins over an abort-named SDK wrapper", () => {
-  const trip = new IdleTripError(50);
+  vi.useFakeTimers();
+  const idle = turnAbortSignal(undefined, 50);
+  let trip: unknown;
+  try {
+    vi.advanceTimersByTime(50);
+    expect(idle.signal.aborted).toBe(true);
+    trip = idle.signal.reason;
+  } finally {
+    idle.dispose();
+    vi.useRealTimers();
+  }
   const wrapped = Object.assign(new Error("aborted", { cause: new Error("middle", { cause: trip }) }), { name: "AbortError" });
   expect(isIdleTrip(trip)).toBe(true);
   expect(isIdleTrip(wrapped)).toBe(true);

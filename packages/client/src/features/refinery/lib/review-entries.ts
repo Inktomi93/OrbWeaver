@@ -6,6 +6,8 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import type { RefineryRewriteField, RefinerySelection } from "@orb/contracts/refinery";
 import { isAppendedRewrite } from "@orb/contracts/refinery";
+import type { inferOutput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "#data";
 
 /** One reviewable entry, resolved against the LIVE card and the ORIGINAL pin. */
 export interface ReviewEntry {
@@ -30,7 +32,7 @@ export interface ReviewEntry {
 }
 
 /** The verb's applicability refusals the review can predict from the payload and the live card alone. */
-type ReviewRefusal = "greeting_index_missing" | "greeting_index_invalid" | "not_applicable";
+type ReviewRefusal = inferOutput<Trpc["refinery"]["applyFields"]>["dropped"][number]["reason"];
 
 /** The entry's target in words — `greetings [2]`, `greetings [new]` for an append, else the field. */
 export function reviewTargetLabel(entry: RefineryRewriteField): string {

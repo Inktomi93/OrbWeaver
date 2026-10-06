@@ -45,6 +45,7 @@ import type { UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { buildLiteReminder, frameLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder.ts";
 import { buildActorRefIndex, extractionToStateDelta } from "../../../packages/server/src/domain/rpg/tools/apply.ts";
+import type { Shape } from "./contract.ts";
 import { BEATS, PERSONA } from "./scene.ts";
 
 const SERVERS = ["vllm", "llama-cpp", "koboldcpp", "ollama"] as const;
@@ -381,7 +382,7 @@ async function postStream(body: Record<string, unknown>): Promise<Reply> {
   let buffer = "";
   for await (const chunk of res.body ?? []) {
     buffer += decoder.decode(chunk, { stream: true });
-    const lines = buffer.split("\n");
+    const lines = buffer.split(/\r?\n/u);
     buffer = lines.pop() ?? "";
     for (const line of lines.map((l) => l.trim()).filter((l) => l.startsWith("data:"))) {
       fold.add(line.slice("data:".length).trim());
@@ -402,8 +403,6 @@ async function postStream(body: Record<string, unknown>): Promise<Reply> {
 }
 
 // ── one turn's verdict ───────────────────────────────────────────────────────────────────────────────────────
-
-type Shape = "both" | "prose-only" | "tools-only" | "empty";
 
 interface TurnRow {
   readonly turn: number;

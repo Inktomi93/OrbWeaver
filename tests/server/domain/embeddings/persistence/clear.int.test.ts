@@ -7,6 +7,7 @@
 // survive until every scope lands, then the swap completes on the new tag — is driven through real
 // sweeps by `tests/server/domain/embeddings/embed-space-round-trip.suite.int.test.ts`.
 
+import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import { characterEmbeddings, embedGenerations, embedGenerationTargets } from "@orb/db";
 import type { CharacterEmbeddingId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
@@ -20,7 +21,7 @@ import { EMBED_DIM, EMBED_MODEL, fakeVector, seedCharacter, seedUser } from "../
 
 const NOW = 1_750_000_000_000;
 
-async function seedGeneration(db: Db, ownerId: UserId, model: string, task: "embed" | "imageEmbed" = "embed"): Promise<EmbedGenerationId> {
+async function seedGeneration(db: Db, ownerId: UserId, model: string, task: EmbeddingTask = "embed"): Promise<EmbedGenerationId> {
   const id = castId<EmbedGenerationId>(`embed_generation_${ownerId}_${task}_${model}`);
   await db
     .insert(embedGenerations)

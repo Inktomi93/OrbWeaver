@@ -84,11 +84,18 @@ describe("connectionsChanged", () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     const owner = await seedOwner(db);
-    const row = await h.svc.create({ principal: owner.principal, providerId: BYO_PROVIDER, credentialId: null, baseUrl: BYO_BASE_URL, model: "qwen3" });
+    const row = await h.svc.create({
+      principal: owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "qwen3",
+      allowBackground: true,
+    });
     h.emittedUserEvents.length = 0;
 
     const written = await h.svc.useForEverything({ principal: owner.principal, connectionId: row.id });
-    expect(written.length).toBeGreaterThan(1);
+    expect(written.map((binding) => binding.task).toSorted()).toEqual(["chat", "summarize"]);
     expect(h.emittedUserEvents).toEqual([{ userId: owner.userId, event: { type: "connectionsChanged" } }]);
   });
 });

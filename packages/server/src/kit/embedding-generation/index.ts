@@ -1,5 +1,6 @@
 // Stable, non-secret identity for the concrete encoder configuration that produced a vector generation.
 
+import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { Capability } from "@orb/contracts/inference";
 import { embedDimsOf } from "@orb/contracts/inference";
 import type { EmbedGenerationId } from "@orb/kit/ids";
@@ -70,8 +71,8 @@ const LEGACY_GENERATION_DIMS = 1024;
  */
 export function generationIdOf(params: {
   readonly ownerId: unknown;
-  readonly task: "embed" | "imageEmbed";
-  readonly via: "embed" | "imageEmbed";
+  readonly task: EmbeddingTask;
+  readonly via: EmbeddingTask;
   readonly connection: EmbeddingConnectionIdentity;
   readonly space: string;
 }): EmbedGenerationId {

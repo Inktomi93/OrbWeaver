@@ -3,7 +3,7 @@
 // the ALL-OWNERS bulk sweep (single-active lock + run history), while a user asking "recompute my stats"
 // gets an answer in the same request instead of a queued row to babysit.
 //
-// The op has ONE home either way — `write/rebuild-from-canon.reconcileStats` — and this path was already
+// The op has ONE home either way — `persistence/rebuild-from-canon.reconcileStats` — and this path was already
 // proven in production: the import post-settle calls the very same function awaited.
 //
 // SCOPE: `ownerId` is the resolved `Principal.userId` at the router (never client input), so a caller can

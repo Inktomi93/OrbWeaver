@@ -56,7 +56,7 @@ export const REVIEW_FOCUS: readonly ReviewFocus[] = [
     id: "E6-stats-rebuild-delta",
     family: "E6",
     title: "stats rebuild versus delta serialization",
-    path: "packages/server/src/domain/stats/write/rebuild-from-canon.ts",
+    path: "packages/server/src/domain/stats/persistence/rebuild-from-canon.ts",
     symbol: "reconcileStats",
     why: "prove a delta committing during rebuild is not clobbered by replacement",
   },

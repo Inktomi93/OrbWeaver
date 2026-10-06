@@ -19,7 +19,7 @@ const IDLE_TIMEOUT_MS = 180_000;
 
 /** The reason an idle trip aborts with: a stalled server, not a cancel, so every wire classifies it as a retryable
  *  `server` failure ahead of the abort-name rule. The caller's own cancel still flattens to a plain `AbortError`. */
-export class IdleTripError extends Error {
+class IdleTripError extends Error {
   constructor(idleMs: number) {
     super(`no data within the ${idleMs} ms idle ceiling`);
     this.name = "IdleTripError";

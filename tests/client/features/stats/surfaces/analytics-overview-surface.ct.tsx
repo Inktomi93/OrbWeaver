@@ -1,3 +1,6 @@
+import type { CharacterId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 // CT: the Analytics OVERVIEW dashboard's RECOMPUTE affordance — the client half of the direct
 // `stats.reconcile` twin (the queue keeps the all-owners bulk sweep). Drives the PRODUCTION path: the five
 // suspense reads seed the dashboard, the button fires the real mutation, and the settle invalidates the
@@ -85,15 +88,13 @@ function timelineDay(dayStart: number): {
 const JULY_1 = Date.UTC(2026, 6, 1);
 const TIMELINE = [JULY_1, JULY_1 + DAY_MS, JULY_1 + 2 * DAY_MS, JULY_1 + 9 * DAY_MS].map(timelineDay);
 
-const MOMENTUM: { characterId: string; name: string; bucketStart: number; replies: number }[] = [];
+type MomentumBucket = TrpcWireOutput<"stats.momentum">[number];
+const MOMENTUM: MomentumBucket[] = [];
+const RISING_CHARACTER = mintTypeId(ID_PREFIX.character);
+const FALLING_CHARACTER = mintTypeId(ID_PREFIX.character);
 
 /** One character's replies in one bucket. Mid-month noon UTC unless stated: the same month in every zone. */
-function replies(
-  characterId: string,
-  name: string,
-  bucketStart: number,
-  count: number,
-): { characterId: string; name: string; bucketStart: number; replies: number } {
+function replies(characterId: CharacterId, name: string, bucketStart: number, count: number): MomentumBucket {
   return { characterId, name, bucketStart, replies: count };
 }
 const MID_JULY = Date.UTC(2026, 6, 15, 12, 0);
@@ -141,7 +142,7 @@ const SHOW_LIST_PANEL_RE = /Show list panel/u;
 
 /** The report's own live shape: a small rise beside a large fall. Independently auto-scaled, +10 and −184
  *  drew as near-identical full-width bars in the same colour. */
-const MOMENTUM_LOPSIDED = [replies("character_ct_falling", "Kate", MID_JULY, 184), replies("character_ct_rising", "Morgatha", MID_AUGUST, 10)];
+const MOMENTUM_LOPSIDED = [replies(FALLING_CHARACTER, "Kate", MID_JULY, 184), replies(RISING_CHARACTER, "Morgatha", MID_AUGUST, 10)];
 
 test("the dashboard's Recompute now button fires stats.reconcile", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
@@ -281,7 +282,7 @@ test("the momentum band names its months and the freshness line carries the abso
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
     "stats.timeseries": () => TIMELINE,
-    "stats.momentum": () => [replies("character_ct_rising", "Morgatha", MID_JULY, 1), replies("character_ct_rising", "Morgatha", MID_AUGUST, 1)],
+    "stats.momentum": () => [replies(RISING_CHARACTER, "Morgatha", MID_JULY, 1), replies(RISING_CHARACTER, "Morgatha", MID_AUGUST, 1)],
   });
   const component = await mount(<AnalyticsOverviewSurfaceStory />);
   await expect(component.getByRole("button", { name: "Recompute now" })).toBeVisible();
@@ -588,9 +589,9 @@ test("with no re-rolled reply and no replies, the swipe figures read unrecorded"
 // 2026-08-01 02:00 UTC is still the evening of July 31 in New York, so there those replies belong to July and
 // the band compares June with July; in UTC the same timeline compares July with August.
 const MONTH_EDGE = [
-  replies("character_ct_rising", "Morgatha", Date.UTC(2026, 5, 15, 12, 0), 1),
-  replies("character_ct_rising", "Morgatha", MID_JULY, 1),
-  replies("character_ct_rising", "Morgatha", Date.UTC(2026, 7, 1, 2, 0), 5),
+  replies(RISING_CHARACTER, "Morgatha", Date.UTC(2026, 5, 15, 12, 0), 1),
+  replies(RISING_CHARACTER, "Morgatha", MID_JULY, 1),
+  replies(RISING_CHARACTER, "Morgatha", Date.UTC(2026, 7, 1, 2, 0), 5),
 ];
 
 async function routeMonthEdge(page: Page): Promise<void> {

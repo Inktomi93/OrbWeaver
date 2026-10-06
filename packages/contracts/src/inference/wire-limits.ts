@@ -27,7 +27,6 @@ export const WIRE_SCHEMA_VIOLATION_KINDS = [
   "no-vehicle",
   "vendor-refused",
 ] as const;
-export type WireSchemaViolationKind = (typeof WIRE_SCHEMA_VIOLATION_KINDS)[number];
 
 /** Where in a plan a violation came from: the candidate format's index and the vehicle it was tried on. */
 interface ViolationOrigin {
@@ -54,7 +53,15 @@ interface PathViolation extends ViolationOrigin {
 }
 
 /** Why a structured or tool request has no permitted carrier on this turn. */
-type NoVehicleCause = "unsupported" | "assistant-prefill" | "tools-without-native" | "tools-with-prefill" | "tools-unsupported" | "tools-with-reasoning";
+const NO_VEHICLE_CAUSES = [
+  "unsupported",
+  "assistant-prefill",
+  "tools-without-native",
+  "tools-with-prefill",
+  "tools-unsupported",
+  "tools-with-reasoning",
+] as const;
+type NoVehicleCause = (typeof NO_VEHICLE_CAUSES)[number];
 
 const NO_VEHICLE_REASON: Readonly<Record<NoVehicleCause, string>> = {
   "tools-unsupported": "this model's selected API route does not support tool calls",

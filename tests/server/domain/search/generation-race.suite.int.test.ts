@@ -1,3 +1,4 @@
+import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import { userConnections } from "@orb/db";
@@ -48,7 +49,7 @@ test("a switch and promotion between query embedding and scan retry once against
   const oldConnection = await connection(db, ownerId, "old");
   const newConnection = await connection(db, ownerId, "new");
   let live = oldConnection;
-  const resolve = (_ownerId: UserId, _task: "embed" | "imageEmbed", connectionId?: UserConnectionId): Promise<EmbeddingConnectionSnapshot> => {
+  const resolve = (_ownerId: UserId, _task: EmbeddingTask, connectionId?: UserConnectionId): Promise<EmbeddingConnectionSnapshot> => {
     if (connectionId === undefined) {
       return Promise.resolve(live);
     }

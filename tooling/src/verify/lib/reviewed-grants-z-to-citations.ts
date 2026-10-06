@@ -115,14 +115,7 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     why: "driven by the durable inbox SSE adapter (features/notifications/hooks/use-inbox-stream.ts) — every arrival AND every transition into the live state calls invalidation.invalidateFilters([notifications.list]); the bell's own mark-read/dismiss mutations `invalidates` it too.",
     endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
   },
-  {
-    id: "query-freshness-coverage:workloads-list",
-    policyId: "query-freshness-coverage",
-    subject: "workloads.list",
-    operation: "uncovered-query-freshness",
-    why: "driven by the per-row workload SSE adapter (features/workloads/hooks/use-workload-stream.ts) — every non-progress event (state change, error, reconnect) invalidates the list through the seam; `progress` stays a row-local buffer by design.",
-    endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
-  },
+
   {
     id: "query-freshness-coverage:workloads-listschedules",
     policyId: "query-freshness-coverage",

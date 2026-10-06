@@ -133,6 +133,15 @@ test("a carry downgrade rides the carrier as its own class, naming the carry kno
   expect(event).toMatchObject({ adjustment: "carry_reasoning_downgraded", code: "settings_adjusted", knob: "carryReasoning" });
 });
 
+test("a cache-control adjustment stays a cache notice rather than an SDK or sampling drop", async () => {
+  const [event] = await busEventsFor({ code: "cache_control_adjusted", message: "provider does not accept the requested cache control" });
+  expect(event).toMatchObject({ type: "warning", chatId: CHAT, code: "settings_adjusted", adjustment: "cache_control_adjusted" });
+  expect(JSON.stringify(event)).not.toContain("sampling_knob_dropped");
+  expect(JSON.stringify(event)).not.toContain("sdk");
+  expect(JSON.stringify(event)).not.toContain("provider does not accept");
+  expect(JSON.stringify(event)).not.toContain('"knob"');
+});
+
 test("a clamp carries the VALUE the provider actually used — tokens", async () => {
   const [event] = await busEventsFor({ appliedBudget: 1536, code: "reasoning_budget_clamped", message: "clamped to 1536" });
   expect(event).toMatchObject({ adjustment: "reasoning_budget_clamped", appliedBudget: 1536, code: "settings_adjusted" });

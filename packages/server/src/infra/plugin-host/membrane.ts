@@ -1380,7 +1380,14 @@ function toolDisplayMetadata(
   if (displayName.trim().length === 0) {
     throw new Error("plugin host: tool displayName must be nonempty text");
   }
-  return { displayName, ...(replayType === "boolean" ? { replayHistory: Boolean(ctx.dump(replayHandle)) } : {}) };
+  if (replayType === "undefined") {
+    return { displayName };
+  }
+  const replay = tryDumpGuestValue(ctx, replayHandle);
+  if (!replay.ok || typeof replay.value !== "boolean") {
+    throw new Error("plugin host: tool replayHistory could not be read as boolean");
+  }
+  return { displayName, replayHistory: replay.value };
 }
 
 /** Collect activation-time tools through the capability-gated resident registration path. */

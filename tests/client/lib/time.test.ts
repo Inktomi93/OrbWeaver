@@ -1,20 +1,25 @@
-// The viewer's zone has one source: the zone timeLib renders in is the zone viewerTimeZone reports, even if the
-// host zone changes after the module loaded (a zone the server evaluates for the viewer must match their screen).
-
+// The display zone is fixed at module load even when the host zone later changes.
 import { hostTimeZone } from "@orb/kit/time";
 import { afterEach, vi } from "vitest";
-import { timeLib, viewerTimeZone } from "../../../packages/client/src/lib/time.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-test("viewerTimeZone keeps the zone timeLib renders in when the host zone changes afterwards", () => {
-  const loadedIn = viewerTimeZone();
-  vi.stubEnv("TZ", loadedIn === "Pacific/Auckland" ? "America/Los_Angeles" : "Pacific/Auckland");
-
-  expect(hostTimeZone()).not.toBe(loadedIn);
-  expect(viewerTimeZone()).toBe(loadedIn);
-  expect(timeLib.calendarPosition(0).day).toBe(new Intl.DateTimeFormat("en-CA", { timeZone: loadedIn }).format(0));
-});
+for (const { loadedIn, later, expectedDay } of [
+  { loadedIn: "Pacific/Auckland", later: "America/Los_Angeles", expectedDay: "1970-01-01" },
+  { loadedIn: "America/Los_Angeles", later: "Pacific/Auckland", expectedDay: "1969-12-31" },
+]) {
+  test(`viewerTimeZone retains ${loadedIn} after a host zone change`, async () => {
+    vi.resetModules();
+    vi.stubEnv("TZ", loadedIn);
+    const { timeLib, viewerTimeZone } = await import("../../../packages/client/src/lib/time.ts");
+    expect(viewerTimeZone()).toBe(loadedIn);
+    expect(timeLib.calendarPosition(0).day).toBe(expectedDay);
+    vi.stubEnv("TZ", later);
+    expect(hostTimeZone()).toBe(later);
+    expect(viewerTimeZone()).toBe(loadedIn);
+    expect(timeLib.calendarPosition(0).day).toBe(expectedDay);
+  });
+}

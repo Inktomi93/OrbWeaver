@@ -6,7 +6,7 @@
 // cross-feature dep arrives as an injected op, wired at the composition root; connection sideways-imports no
 // sibling runtime.
 
-import type { VectorScope } from "@orb/contracts/embeddings";
+import type { EmbeddingTask, VectorScope } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
 import type {
   ConnectionBinding,
@@ -100,8 +100,8 @@ export interface ConnectionContext {
    *  cannot resolve. The embeddings domain's own move rule, read-only, for the change preview. */
   readonly targetWouldMove: (args: {
     readonly ownerId: UserId;
-    readonly task: "embed" | "imageEmbed";
-    readonly via: "embed" | "imageEmbed";
+    readonly task: EmbeddingTask;
+    readonly via: EmbeddingTask;
     readonly connectionId: UserConnectionId;
   }) => Promise<boolean | null>;
   /** How many vectors the owner has stored per scope (the embeddings domain's count), for the change preview. */

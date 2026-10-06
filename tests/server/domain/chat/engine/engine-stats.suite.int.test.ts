@@ -29,8 +29,8 @@ import { createTurnEngine } from "../../../../../packages/server/src/domain/chat
 import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
 import { chatCreatedDelta } from "../../../../../packages/server/src/domain/chat/substrate/stats-delta.ts";
+import { reconcileStats } from "../../../../../packages/server/src/domain/stats/persistence/rebuild-from-canon.ts";
 import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
-import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { createFrozenClock } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeResolved } from "../../../../support/factories/resolved-connection.ts";

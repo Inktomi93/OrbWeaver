@@ -20,7 +20,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { RulePresetId, RulePresetKnobValueInputs, RulePresetKnobValues } from "#automation";
 import { RULE_PRESET_IDS, rulePresetIdSchema, rulePresetKnobOutputValuesSchema, rulePresetKnobValuesSchema } from "#automation";
-import type { CharacterMemberSpec, GroupConfigInput } from "#chat";
+import type { CharacterMemberSpec, NormalizedGroupConfigInput } from "#chat";
 import { characterMemberSpecSchema, groupConfigInputSchema, groupConfigSchema } from "#chat";
 import type { RpgGameTemplate } from "#rpg";
 import { rpgGameTemplateSchema } from "#rpg";
@@ -122,8 +122,8 @@ export interface RosterPresetView {
   readonly name: string;
   readonly description: string;
   readonly anchorPersonaId: PersonaId | null;
-  /** The stored room-behavior blob (lenient input — chat re-parses at apply). NULL = roster only. */
-  readonly groupConfig: GroupConfigInput | null;
+  /** Normalized partial room behavior; omitted knobs remain absent. NULL = roster only. */
+  readonly groupConfig: NormalizedGroupConfigInput | null;
   /** The game a start births with the room. NULL = the roster starts a plain chat. */
   readonly game: RpgGameTemplate | null;
   readonly members: readonly RosterPresetMemberView[];

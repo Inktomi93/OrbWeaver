@@ -29,7 +29,7 @@ function configuredRetention(connection: Pick<Resolved, "transport" | "extras" |
 }
 
 /** Normalize configured HTTP controls without exposing arbitrary headers in the policy context. */
-export function configuredResponseCache(headers: Readonly<Record<string, string>> | undefined): ResponseCacheControl {
+function configuredResponseCache(headers: Readonly<Record<string, string>> | undefined): ResponseCacheControl {
   const configured = new Headers(headers);
   const enabled = configured.get(CACHE_ENABLED_HEADER);
   const ttl = configured.get(CACHE_TTL_HEADER);

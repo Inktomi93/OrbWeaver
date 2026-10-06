@@ -30,7 +30,7 @@ function wireBaseline(hash: string | undefined): string | undefined {
 }
 
 /** Form row identities are local; only authored values identify the server baseline. */
-export function ruleEditorBaseline(values: RuleEditorValues): string {
+function ruleEditorBaseline(values: RuleEditorValues): string {
   const { actionIds: _actions, choiceIds: _choices, keywordIds: _keywords, ...body } = values;
   return hashServerBaseline(body);
 }

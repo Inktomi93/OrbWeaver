@@ -37,6 +37,7 @@ import { gate as queryMachineSealsHealth } from "../../../../../tooling/src/veri
 import { gate as realCorpusLivenessManifest } from "../../../../../tooling/src/verify/gates/real-corpus-liveness-manifest.ts";
 import { gate as scrubberFactoryHome } from "../../../../../tooling/src/verify/gates/scrubber-factory-home.ts";
 import { gate as staleDraftDecisionHealth } from "../../../../../tooling/src/verify/gates/stale-draft-decision-health.ts";
+import { gate as structuredPlanOneHome } from "../../../../../tooling/src/verify/gates/structured-plan-one-home.ts";
 import { gate as testFactoryContract } from "../../../../../tooling/src/verify/gates/test-factory-contract.ts";
 import { gate as testPresence } from "../../../../../tooling/src/verify/gates/test-presence.ts";
 import { gate as testPresenceClient } from "../../../../../tooling/src/verify/gates/test-presence-client.ts";
@@ -216,6 +217,11 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: staleDraftDecisionHealth,
     overlays: [{ kind: "remove", path: "packages/client/src/lib/edit-session.ts" }],
     messageIncludes: "edit-session",
+  },
+  {
+    policy: structuredPlanOneHome,
+    overlays: [add(`${DOMAIN}/liveness-structured.ts`, 'export const livenessRequest = { tools: [], toolChoice: { mode: "required" } };\n')],
+    messageIncludes: "a structured-output or tool-call spelling outside the structured planner",
   },
   {
     policy: testFactoryContract,

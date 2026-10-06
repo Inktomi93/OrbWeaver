@@ -3,6 +3,7 @@
 // another width under the same model tag. This suite plants such a row in every vector table and runs every
 // in-memory pass: none may throw on the width mismatch, and none may report the late rows.
 
+import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import { characterEmbeddings, characterSummaries, characters, chatDigests, chatSegments, embedGenerations, imageEmbeddings } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
@@ -42,7 +43,7 @@ interface Corpus {
   readonly cards: readonly CharacterId[];
 }
 
-async function staleGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<EmbedGenerationId> {
+async function staleGeneration(db: Db, ownerId: UserId, task: EmbeddingTask): Promise<EmbedGenerationId> {
   const id = castId<EmbedGenerationId>(`embed_generation_stale_${task}`);
   await db.insert(embedGenerations).values({
     id,

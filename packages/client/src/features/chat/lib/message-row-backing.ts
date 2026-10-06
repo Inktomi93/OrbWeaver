@@ -115,6 +115,10 @@ export const BG_PHOTO_READING_PLATE = "in-data-[has-bg-image]:bg-reading-plate i
 export const BG_PHOTO_CHROME_PLATE =
   "in-data-[has-bg-image]:bg-reading-plate in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:rounded-card in-data-[has-bg-image]:px-field in-data-[has-bg-image]:py-row in-data-[has-bg-image]:text-reading-plate-foreground";
 
+// Pager text needs the card's opaque foreground/surface pair; art composites at legal palette pivots fail AA.
+export const BG_PHOTO_PAGER_PLATE =
+  "in-data-[has-bg-image]:bg-card in-data-[has-bg-image]:rounded-card in-data-[has-bg-image]:px-field in-data-[has-bg-image]:py-row in-data-[has-bg-image]:text-card-foreground";
+
 // BAND backing (#229/#237) — the SAME over-art question as the chip above, answered for a full-bleed
 // STRIP rather than a floating chip. The character bar sits above the transcript inside `.shell-main`, which
 // over a wallpaper is `background: transparent` (shell.css) with only the halo text-shadow, so its chips

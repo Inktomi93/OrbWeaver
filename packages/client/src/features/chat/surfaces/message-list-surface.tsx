@@ -16,7 +16,7 @@ import type { ChatIdentity, MessageKind } from "@orb/contracts/chat";
 import { buildIdentityAvatarMaps, buildIdentityNameContext, identityKey } from "@orb/contracts/chat";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
-import { Stack } from "@orb/ui/layout";
+import { Container, Stack } from "@orb/ui/layout";
 import type { MessageListHandle, MessageListRowMeta } from "@orb/ui/message-list";
 import { MessageList } from "@orb/ui/message-list";
 import { Text } from "@orb/ui/text";
@@ -388,44 +388,46 @@ function ChatThread({
     );
   }
   return (
-    <Stack className="relative h-full min-h-0">
-      {sourceStatus}
-      <MessageList
-        ref={listHandleRef}
-        ariaLabel="Conversation messages"
-        items={items}
-        getItemKey={messageItemKey}
-        estimateSize={(index): number => estimateMessageRow(items[index] ?? { kind: "ghost" })}
-        keepMounted={(item): boolean => liveCardRows.has(messageItemKey(item))}
-        renderItem={(item, index, meta): ReactNode => {
-          const highlighted =
-            item.kind === "message" &&
-            window !== null &&
-            window.anchorSeq !== null &&
-            window.endSeq !== null &&
-            item.view.seq >= window.anchorSeq &&
-            item.view.seq <= window.endSeq;
-          return (
-            <Stack data-corpus-anchor={highlighted ? "" : undefined} className={highlighted ? "bg-muted ring-1 ring-ring" : undefined}>
-              {renderItem(item, index, meta)}
-            </Stack>
-          );
-        }}
-        rowNavigation="roving"
-        scrollContainerRef={jump.scrollContainerRef}
-        followTail={window === null}
-        scrollMode={behaviorPrefs.streamScrollMode}
-        gapToken="block"
-        // Block breathing rides the virtualizer's OWN padding (never CSS `py-*` on the scroll
-        // container): sticky `top: 0` resolves against the scroller's content box, so container padding
-        // pinned the sticky name band 12px below the visible top with a guillotined strip of prose
-        // permanently above it (#204). The first/last rows still breathe off the topbar/composer edges.
-        blockPaddingToken="block"
-        // Avatar accent rings paint outside their boxes; give both track edges room inside the scroller.
-        className="h-full px-field"
-      />
-      <JumpToLatestPill count={jump.count} visible={jump.visible} onJump={jump.onJump} />
-    </Stack>
+    <Container className="h-full min-h-0">
+      <Stack className="relative h-full min-h-0">
+        {sourceStatus}
+        <MessageList
+          ref={listHandleRef}
+          ariaLabel="Conversation messages"
+          items={items}
+          getItemKey={messageItemKey}
+          estimateSize={(index): number => estimateMessageRow(items[index] ?? { kind: "ghost" })}
+          keepMounted={(item): boolean => liveCardRows.has(messageItemKey(item))}
+          renderItem={(item, index, meta): ReactNode => {
+            const highlighted =
+              item.kind === "message" &&
+              window !== null &&
+              window.anchorSeq !== null &&
+              window.endSeq !== null &&
+              item.view.seq >= window.anchorSeq &&
+              item.view.seq <= window.endSeq;
+            return (
+              <Stack data-corpus-anchor={highlighted ? "" : undefined} className={highlighted ? "bg-muted ring-1 ring-ring" : undefined}>
+                {renderItem(item, index, meta)}
+              </Stack>
+            );
+          }}
+          rowNavigation="roving"
+          scrollContainerRef={jump.scrollContainerRef}
+          followTail={window === null}
+          scrollMode={behaviorPrefs.streamScrollMode}
+          gapToken="block"
+          // Block breathing rides the virtualizer's OWN padding (never CSS `py-*` on the scroll
+          // container): sticky `top: 0` resolves against the scroller's content box, so container padding
+          // pinned the sticky name band 12px below the visible top with a guillotined strip of prose
+          // permanently above it (#204). The first/last rows still breathe off the topbar/composer edges.
+          blockPaddingToken="block"
+          // Narrow tracks need ring clearance; wider tracks retain the shared reading budget.
+          className="h-full @max-md:px-field"
+        />
+        <JumpToLatestPill count={jump.count} visible={jump.visible} onJump={jump.onJump} />
+      </Stack>
+    </Container>
   );
 }
 

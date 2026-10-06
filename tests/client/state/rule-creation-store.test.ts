@@ -59,10 +59,30 @@ describe("rule-creation store", () => {
   test("before a verified identity binds, nothing is readable and nothing can begin", async () => {
     const { state, map } = await freshState();
 
+    expect(state.ruleDraftOwnerCurrent(ALICE)).toBe(false);
     expect(() => state.assertRuleDraftOwner(ALICE)).toThrow(ENDED);
     expect(() => state.beginRuleCreation(chatId, ALICE)).toThrow(ENDED);
     expect(state.readRuleCreation("automation_rule_creation_anything")).toBeUndefined();
     expect(persistedSessions(map, aliceKey())).toBeUndefined();
+  });
+
+  test("the matching namespace cannot create drafts until its real rehydration finishes", async () => {
+    const { state, map } = await freshState();
+    const { activeDurableLocalUserId } = await import("../../../packages/client/src/state/durable-local.ts");
+    const binding = state.bindDurableLocalToUser(ALICE);
+    try {
+      // The queued bind has selected its namespace but is still awaiting the real store rehydration.
+      await Promise.resolve();
+      expect(activeDurableLocalUserId()).toBe(ALICE);
+      expect(state.ruleDraftOwnerCurrent(ALICE)).toBe(false);
+      expect(() => state.beginRuleCreation(chatId, ALICE)).toThrow(ENDED);
+      expect(persistedSessions(map, aliceKey())).toBeUndefined();
+    } finally {
+      await binding;
+    }
+    expect(state.ruleDraftOwnerCurrent(ALICE)).toBe(true);
+    const created = state.beginRuleCreation(chatId, ALICE);
+    expect(state.readRuleCreation(created.requestId)).toEqual(created);
   });
 
   test("the bound owner's session persists its request identity, takes its target, retires its checkpoint, and is forgotten alone", async () => {
@@ -120,14 +140,19 @@ describe("rule-creation store", () => {
   test("another signed-in user can neither read nor write the first user's session, which survives a switch back", async () => {
     const { state } = await freshState();
     await state.bindDurableLocalToUser(ALICE);
+    expect(state.ruleDraftOwnerCurrent(ALICE)).toBe(true);
+    expect(state.ruleDraftOwnerCurrent(BOB)).toBe(false);
     const creation = state.beginRuleCreation(chatId, ALICE);
 
     await state.bindDurableLocalToUser(BOB);
+    expect(state.ruleDraftOwnerCurrent(ALICE)).toBe(false);
+    expect(state.ruleDraftOwnerCurrent(BOB)).toBe(true);
     expect(state.readRuleCreation(creation.requestId)).toBeUndefined();
     expect(() => state.acknowledgeRuleCreation(creation.requestId, ruleId, ALICE, checkpoint)).toThrow(ENDED);
     expect(() => state.forgetRuleCreation(creation.requestId, ALICE)).toThrow(ENDED);
 
     await state.bindDurableLocalToUser(ALICE);
+    expect(state.ruleDraftOwnerCurrent(ALICE)).toBe(true);
     expect(state.readRuleCreation(creation.requestId)).toEqual(creation);
   });
 

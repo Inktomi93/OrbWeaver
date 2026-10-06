@@ -30,7 +30,7 @@ import type { Scenario } from "./scenario.ts";
 import { LIVE_POST_LIMIT, PREPARED_SOURCE_PATHS, SCENARIO_POST_LIMIT, SCENARIOS } from "./scenario.ts";
 
 const LIVE = process.argv.includes("--live");
-const OUT = LIVE ? "scripts/probes/caching/results.jsonl" : `/tmp/k-caching-scripted-${Date.now()}.jsonl`;
+const OUT = LIVE ? "scripts/probes/caching/results.jsonl" : join(tmpdir(), `k-caching-scripted-${Date.now()}.jsonl`);
 const jsonObjectSchema = z.record(z.string(), jsonValueSchema);
 type JsonObject = z.infer<typeof jsonObjectSchema>;
 if (readEnvKey("ORB_ENV_NO_FILE") !== "1") {
@@ -57,7 +57,7 @@ function sourceHash(): string {
 const FROZEN_SOURCE = sourceHash();
 let physicalPosts = existsSync(OUT)
   ? readFileSync(OUT, "utf8")
-      .split("\n")
+      .split(/\r?\n/u)
       .filter((line) => line !== "")
       .map((line) => jsonObjectSchema.parse(JSON.parse(line)))
       .filter((row) => row["kind"] === "physical-post-start").length
@@ -77,7 +77,7 @@ function rawFrames(text: string): JsonObject[] {
   const chunks = text.startsWith("{")
     ? [text]
     : text
-        .split("\n")
+        .split(/\r?\n/u)
         .filter((line) => line.startsWith(SSE_DATA_PREFIX))
         .map((line) => line.slice(SSE_DATA_PREFIX.length));
   return chunks.filter((chunk) => chunk !== "[DONE]").map((chunk) => jsonObjectSchema.parse(JSON.parse(chunk)));
@@ -564,7 +564,7 @@ async function runScenario(scenario: Scenario): Promise<void> {
 
 if (process.argv.includes("--report")) {
   const rows = readFileSync("scripts/probes/caching/results.jsonl", "utf8")
-    .split("\n")
+    .split(/\r?\n/u)
     .filter(Boolean)
     .map((line) => jsonObjectSchema.parse(JSON.parse(line)));
   const results = rows.filter((row) => row["kind"] === "physical-post-result");

@@ -139,6 +139,7 @@ export const CHAT_AMBIENT_ROUTES: TrpcRoutes<
   | "plugin.listDisplayTransforms"
   | "notifications.presence"
   | "connection.list"
+  | "connection.listBindings"
   | "connection.resolveChatCapability"
 > = {
   // The viewer's settings row, at the production defaults (`userSettingsSchema.parse({})`) — the same shape
@@ -199,6 +200,8 @@ export const CHAT_AMBIENT_ROUTES: TrpcRoutes<
   // same list. The honest default is a viewer whose chat role resolves to a row they own, so both pipelines
   // run their named arm. A CT whose SUBJECT is a readout overrides these after the spread.
   "connection.list": [AMBIENT_CONNECTION],
+  // Context memory reads the viewer's persisted utility role even when no utility is assigned.
+  "connection.listBindings": [],
   // The FULL wire view, built by the shared factory (capability parsed through the contract's schema), so a
   // capability reader mounted beside the composer gets a real descriptor rather than a partial.
   "connection.resolveChatCapability": makeResolvedView({

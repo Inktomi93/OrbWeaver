@@ -31,7 +31,7 @@ import { wireSchema } from "./wires.ts";
 const usd = z.number().nonnegative();
 
 export const RESPONSE_CACHE_STATUSES = ["hit", "miss"] as const;
-export const responseCacheSchema = z.object({
+export const responseCacheSchema = z.strictObject({
   status: z.enum(RESPONSE_CACHE_STATUSES),
   ageSeconds: z.number().int().nonnegative().nullable(),
   ttlSeconds: z.number().int().nonnegative().nullable(),
@@ -39,7 +39,7 @@ export const responseCacheSchema = z.object({
 });
 export type ResponseCache = z.infer<typeof responseCacheSchema>;
 
-export const tokenPricingSchema = z.object({
+export const tokenPricingSchema = z.strictObject({
   inputPerMTok: usd,
   outputPerMTok: usd,
   cacheReadPerMTok: usd.optional(),
@@ -48,7 +48,7 @@ export const tokenPricingSchema = z.object({
 export type TokenPricing = z.infer<typeof tokenPricingSchema>;
 
 /** Per-phase / per-party upstream cost breakdown — the ONE parser for `message_variants.cost_details`. */
-export const costDetailsSchema = z.object({
+export const costDetailsSchema = z.strictObject({
   totalUsd: usd,
   /** The inference split, when a wire reports one or the estimated arm derives one. */
   promptUsd: usd.optional(),
@@ -61,14 +61,14 @@ export const costDetailsSchema = z.object({
 });
 export type CostDetails = z.infer<typeof costDetailsSchema>;
 
-export const costUsageSchema = z.object({
+export const costUsageSchema = z.strictObject({
   costUsd: usd.nullable(),
   costDetails: costDetailsSchema.nullable(),
   costProvenance: tokenProvenanceSchema,
 });
 export type CostUsage = Readonly<z.infer<typeof costUsageSchema>>;
 
-export const tokenUsageSchema = z.object({
+export const tokenUsageSchema = z.strictObject({
   tokensIn: z.number().int().nonnegative().nullable(),
   tokensOut: z.number().int().nonnegative().nullable(),
   cacheReadTokens: z.number().int().nonnegative().nullable(),
@@ -79,9 +79,9 @@ export const tokenUsageSchema = z.object({
 export type TokenUsage = Readonly<z.infer<typeof tokenUsageSchema>>;
 
 /** Provider-reported modality subsets. Lists may be partial; never derive totals from their sum. */
-export const tokenDetailsSchema = z.object({
-  input: z.array(z.object({ modality: modalitySchema, tokens: z.number().int().nonnegative() })).optional(),
-  output: z.array(z.object({ modality: modalitySchema, tokens: z.number().int().nonnegative() })).optional(),
+export const tokenDetailsSchema = z.strictObject({
+  input: z.array(z.strictObject({ modality: modalitySchema, tokens: z.number().int().nonnegative() })).optional(),
+  output: z.array(z.strictObject({ modality: modalitySchema, tokens: z.number().int().nonnegative() })).optional(),
 });
 export type TokenDetails = z.infer<typeof tokenDetailsSchema>;
 
@@ -92,6 +92,9 @@ export const generationUsageSchema = tokenUsageSchema.extend({
   ...costUsageSchema.shape,
 });
 export type GenerationUsage = z.infer<typeof generationUsageSchema>;
+
+/** Database rows include private identity columns; project the normalized fields without widening wire output. */
+export const storedGenerationUsageSchema = generationUsageSchema.strip() satisfies z.ZodType<GenerationUsage>;
 
 /** One completed SDK observation. numTurns/modelCalls is reported SDK cardinality, not inferred HTTP calls.
  * Private funding/connection context belongs to the retained chat observation, never this copied provenance. */
@@ -111,6 +114,9 @@ export const generationUsageLegSchema = generationUsageSchema.extend({
   generationId: brandedId<ProviderGenerationId>().nullable(),
 });
 export type GenerationUsageLeg = z.infer<typeof generationUsageLegSchema>;
+
+/** Stored observation scope stays on its parent row, never on the copied accounting leg. */
+export const storedGenerationUsageLegSchema = generationUsageLegSchema.strip() satisfies z.ZodType<GenerationUsageLeg>;
 
 export interface GenerationUsageProjection {
   readonly total: GenerationUsage;

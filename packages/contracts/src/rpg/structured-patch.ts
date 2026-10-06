@@ -58,7 +58,8 @@ function isScalar(node: SchemaNode): boolean {
   return arms !== null ? arms.every(isScalar) : SCALAR_TYPES.includes(node["type"]) || Array.isArray(node["enum"]);
 }
 
-type ChildKind = "append" | "object-array" | "tools-only" | "scalar" | "object";
+const CHILD_KINDS = ["append", "object-array", "tools-only", "scalar", "object"] as const;
+type ChildKind = (typeof CHILD_KINDS)[number];
 
 /** How one property is written in the patch list. A second array-of-objects level has no `item` to address it. */
 function childKind(child: SchemaNode, insideArray: boolean): ChildKind {
@@ -209,29 +210,44 @@ export function patchToolsOnlyFields(tool: Pick<RpgStateRoundTool, "parameters">
   return toolBranches(tool).toolsOnly;
 }
 
-/**
- * The patch-list response schema (zod, for the caller to project), generated from the round's own wire tools: one
- * member per tool pinning `plane` and enumerating that tool's field paths, plus a `no_changes` member. Every property
- * is required and none is a union, so the grammar carries no optional and no union-typed property. `call` groups one
- * tool call's entries; `item` picks the element of an array-of-objects field (`0` everywhere else).
- */
-export function stateRoundPatchSchema(tools: readonly RpgStateRoundTool[]): z.ZodType {
-  const members: z.ZodType[] = [];
-  for (const tool of tools) {
-    const [first, ...rest] = patchFieldPaths(tool);
-    if (tool.name === RPG_NO_CHANGES_TOOL) {
-      members.push(z.strictObject({ [PLANE_KEY]: z.enum([RPG_NO_CHANGES_TOOL]) }).describe(tool.description));
-    } else if (first !== undefined) {
-      const entry = z.strictObject({
-        [PLANE_KEY]: z.enum([tool.name]),
-        [CALL_KEY]: z.number().int().nonnegative().max(RPG_PATCH_INDEX_MAX),
-        [FIELD_KEY]: z.enum([first, ...rest]),
-        [ITEM_KEY]: z.number().int().nonnegative().max(RPG_PATCH_INDEX_MAX),
-        [VALUE_KEY]: z.string(),
-      });
-      members.push(entry.describe(tool.description));
-    }
-  }
+interface PatchValueEntry {
+  readonly plane: string;
+  readonly call: number;
+  readonly field: string;
+  readonly item: number;
+  readonly value: string;
+}
+
+interface PatchNoChangesEntry {
+  readonly plane: typeof RPG_NO_CHANGES_TOOL;
+}
+
+interface PatchReply {
+  readonly changes: (PatchValueEntry | PatchNoChangesEntry)[];
+}
+
+/** The generated patch grammar pins each tool and field; call/item group entries without optional properties. */
+export function stateRoundPatchSchema(tools: readonly RpgStateRoundTool[]): z.ZodType<PatchReply> {
+  const members = tools
+    .map((tool) => {
+      const [first, ...rest] = patchFieldPaths(tool);
+      if (tool.name === RPG_NO_CHANGES_TOOL) {
+        return z.strictObject({ [PLANE_KEY]: z.enum([RPG_NO_CHANGES_TOOL]) }).describe(tool.description);
+      }
+      if (first === undefined) {
+        return null;
+      }
+      return z
+        .strictObject({
+          [PLANE_KEY]: z.enum([tool.name]),
+          [CALL_KEY]: z.number().int().nonnegative().max(RPG_PATCH_INDEX_MAX),
+          [FIELD_KEY]: z.enum([first, ...rest]),
+          [ITEM_KEY]: z.number().int().nonnegative().max(RPG_PATCH_INDEX_MAX),
+          [VALUE_KEY]: z.string(),
+        })
+        .describe(tool.description);
+    })
+    .filter((member) => member !== null);
   return z.strictObject({ [RPG_STATE_CHANGES_FIELD]: z.array(z.union(members)).min(1) });
 }
 

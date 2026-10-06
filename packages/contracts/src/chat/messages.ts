@@ -128,7 +128,7 @@ export const chatReasoningPartSchema = z.object({
  *  nested-shape fidelity bug, `server/kit/serde/chat` §variantMetadata). The type is now the binding and this
  *  constant is the key's one spelling: the live turn's writer
  *  (`domain/chat/engine/engine.ts`) and the live stats mirror (`domain/chat/substrate/stats-delta.ts`) both
- *  spell it from here. DECLARED LIMIT: the two SQL readers in `domain/stats/write/rebuild-from-canon.ts`
+ *  spell it from here. DECLARED LIMIT: the two SQL readers in `domain/stats/persistence/rebuild-from-canon.ts`
  *  address it as a JSON PATH inside a `sql` template, where an interpolated value would bind as a
  *  PARAMETER rather than a path literal — those two sites cite this constant in a comment instead. */
 export const VARIANT_METADATA_REASONING_MS_KEY = "reasoning_duration";
@@ -468,48 +468,52 @@ export interface ToolCallRecord {
   readonly textOffset?: number;
 }
 
-export const toolCallRecordSchema = z
-  .object({
-    turnId: typeIdSchema(ID_PREFIX.chatTurn).optional(),
-    callOrdinal: z.number().int().nonnegative().optional(),
-    exchangeOrdinal: z.number().int().nonnegative().optional(),
-    exchangeTextEnd: z.number().int().nonnegative().optional(),
-    // @orb-waive no-raw-id(toolCallId): PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (D48 types it `string`).
-    toolCallId: z.string(),
-    name: z.string(),
-    /** RAW model-emitted JSON string (provenance-faithful; parsed once, at execute). */
-    arguments: z.string(),
-    /** Exact tool-result text; `null` = not executed (recurse-limit — D48). */
-    result: z.string().nullable(),
-    isError: z.boolean(),
-    /** `null` when unexecuted; else the execute duration (injected clock). */
-    durationMs: z.number().nullable(),
-    displayName: z.string().optional(),
-    replayHistory: z.boolean().optional(),
-    hidden: z.boolean().optional(),
-    deleted: z.boolean().optional(),
-    /** UTF-16 position in stored canon, rebased together with the body on a member view. */
-    textOffset: z.number().int().nonnegative().optional(),
-  })
-  .transform(
-    (record): ToolCallRecord => ({
-      ...(record.turnId === undefined ? {} : { turnId: record.turnId }),
-      ...(record.callOrdinal === undefined ? {} : { callOrdinal: record.callOrdinal }),
-      ...(record.exchangeOrdinal === undefined ? {} : { exchangeOrdinal: record.exchangeOrdinal }),
-      ...(record.exchangeTextEnd === undefined ? {} : { exchangeTextEnd: record.exchangeTextEnd }),
-      toolCallId: record.toolCallId,
-      name: record.name,
-      arguments: record.arguments,
-      result: record.result,
-      isError: record.isError,
-      durationMs: record.durationMs,
-      ...(record.displayName === undefined ? {} : { displayName: record.displayName }),
-      ...(record.replayHistory === undefined ? {} : { replayHistory: record.replayHistory }),
-      ...(record.hidden === undefined ? {} : { hidden: record.hidden }),
-      ...(record.deleted === undefined ? {} : { deleted: record.deleted }),
-      ...(record.textOffset === undefined ? {} : { textOffset: record.textOffset }),
-    }),
-  );
+const toolCallRecordInputSchema = z.object({
+  turnId: typeIdSchema(ID_PREFIX.chatTurn).optional(),
+  callOrdinal: z.number().int().nonnegative().optional(),
+  exchangeOrdinal: z.number().int().nonnegative().optional(),
+  exchangeTextEnd: z.number().int().nonnegative().optional(),
+  // @orb-waive no-raw-id(toolCallId): PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (D48 types it `string`).
+  toolCallId: z.string(),
+  name: z.string(),
+  /** RAW model-emitted JSON string (provenance-faithful; parsed once, at execute). */
+  arguments: z.string(),
+  /** Exact tool-result text; `null` = not executed (recurse-limit — D48). */
+  result: z.string().nullable(),
+  isError: z.boolean(),
+  /** `null` when unexecuted; else the execute duration (injected clock). */
+  durationMs: z.number().nullable(),
+  displayName: z.string().optional(),
+  replayHistory: z.boolean().optional(),
+  hidden: z.boolean().optional(),
+  deleted: z.boolean().optional(),
+  /** UTF-16 position in stored canon, rebased together with the body on a member view. */
+  textOffset: z.number().int().nonnegative().optional(),
+});
+
+function toolCallRecordOf(record: z.output<typeof toolCallRecordInputSchema>): ToolCallRecord {
+  return {
+    ...(record.turnId === undefined ? {} : { turnId: record.turnId }),
+    ...(record.callOrdinal === undefined ? {} : { callOrdinal: record.callOrdinal }),
+    ...(record.exchangeOrdinal === undefined ? {} : { exchangeOrdinal: record.exchangeOrdinal }),
+    ...(record.exchangeTextEnd === undefined ? {} : { exchangeTextEnd: record.exchangeTextEnd }),
+    toolCallId: record.toolCallId,
+    name: record.name,
+    arguments: record.arguments,
+    result: record.result,
+    isError: record.isError,
+    durationMs: record.durationMs,
+    ...(record.displayName === undefined ? {} : { displayName: record.displayName }),
+    ...(record.replayHistory === undefined ? {} : { replayHistory: record.replayHistory }),
+    ...(record.hidden === undefined ? {} : { hidden: record.hidden }),
+    ...(record.deleted === undefined ? {} : { deleted: record.deleted }),
+    ...(record.textOffset === undefined ? {} : { textOffset: record.textOffset }),
+  };
+}
+
+export const toolCallRecordSchema = toolCallRecordInputSchema.transform(toolCallRecordOf) satisfies z.ZodType<ToolCallRecord>;
+// Stored records strip private provider fields; outgoing normalized records refuse undeclared fields.
+const toolCallRecordOutputSchema = toolCallRecordInputSchema.strict().transform(toolCallRecordOf);
 /** Transcript-only call edits never execute or undo a tool's effects. */
 export const TOOL_CALL_EDIT_ACTIONS = ["hide", "show", "delete"] as const;
 export type ToolCallEditAction = (typeof TOOL_CALL_EDIT_ACTIONS)[number];
@@ -660,5 +664,5 @@ export const messageViewSchema = z.strictObject({
   generationId: z.string().nullable(),
   connectionAttributionProvenance: connectionAttributionProvenanceSchema,
   connectionId: typeIdSchema(ID_PREFIX.userConnection).nullable(),
-  toolCalls: z.array(toolCallRecordSchema).readonly(),
+  toolCalls: z.array(toolCallRecordOutputSchema).readonly(),
 }) satisfies z.ZodType<MessageView>;

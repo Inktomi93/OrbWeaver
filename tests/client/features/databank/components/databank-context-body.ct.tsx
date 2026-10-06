@@ -78,14 +78,9 @@ test("the CONTEXT promise is a ROSTER, and the pane pays it (#276)", async ({ mo
 // state and CONTENT's is the section's own welcome. Asserted on the RENDERED heads across the whole
 // workspace, so it cannot be satisfied by swapping one glyph for another that repeats somewhere else.
 //
-// THE SETTLE BARRIER MOVED WITH #434, THE INVARIANT DID NOT. This pin used to settle on CONTENT's
-// "Your databank" — copy #434 (9920fbf2d3) deliberately deleted on an empty bank with the list on screen, so
-// the barrier waited 5s for a string the product had stopped saying and the pin went red without the defect
-// coming back (`databank-detail-surface.ct` line 81 pins the SAME absence from the other side). It cannot
-// simply be dropped: an empty CONTENT pane and a CONTENT pane whose `bankHealth` census is still in flight
-// are the same DOM, so counting at boot would pass while the pane was merely late — a green that survives
-// the N-4 defect's return. So CONTENT is settled POSITIVELY through the one regime that makes it speak (the
-// list off screen, #434's own conditional arm), and the count is taken back at the boot layout.
+// CONTENT keeps its "Your databank" teaching in both list postures; only the shell-door invitation changes.
+// Visit the off-screen arm before counting so the bank-health read has actually settled, then restore the
+// list and assert its invitation disappears. A boot-time glyph count could pass while CONTENT is still late.
 test("the empty tri-pane does not print one hero glyph three times (N-4)", async ({ mount, page }) => {
   await stubDatabank(page, { "databank.listGlobal": () => [] }, []);
   const workspace = await mount(<DatabankWorkspaceListModeStory />);
@@ -94,9 +89,10 @@ test("the empty tri-pane does not print one hero glyph three times (N-4)", async
   await expect(workspace.getByText("No documents yet")).toBeVisible();
   // …and CONTENT has too — its census landed, proven by the arm that prints under it.
   await workspace.getByRole("button", { name: "take the list off screen" }).click();
-  await expect(workspace.getByText("Your databank")).toBeVisible();
+  await expect(workspace.getByText("Your databank", { exact: true })).toBeVisible();
   await workspace.getByRole("button", { name: "put the list back" }).click();
-  await expect(workspace.getByText("Your databank")).toHaveCount(0);
+  await expect(workspace.getByText("Your databank", { exact: true })).toBeVisible();
+  await expect(workspace.getByText(/Show list panel in the top bar/u)).toHaveCount(0);
   await expect.poll(async () => await page.locator('[data-slot="empty-state-icon"]').count()).toBeLessThan(3);
   // …and it is the CONTEXT arm that gave one up — the other two keep theirs.
   await expect

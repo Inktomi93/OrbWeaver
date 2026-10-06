@@ -19,6 +19,7 @@
 // Refusal tests retain a positive control or a complete-generation counterpart so fixture failure cannot
 // masquerade as the expected transition state.
 
+import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { EmbeddingCapability } from "@orb/contracts/inference";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
@@ -41,7 +42,7 @@ import { seedUser } from "../../embeddings/_support.ts";
 
 const NOW = 1_700_000_000_000;
 
-async function connectionOf(clients: RoleClients, task: "embed" | "imageEmbed"): Promise<EmbeddingConnectionSnapshot | null> {
+async function connectionOf(clients: RoleClients, task: EmbeddingTask): Promise<EmbeddingConnectionSnapshot | null> {
   const resolved = await clients.resolved(task);
   return resolved === null
     ? null
@@ -65,11 +66,7 @@ async function drive(controls: FakeRoleClientControls = {}): Promise<{
   ctx: {
     db: Db;
     roleClientsFor: () => Promise<RoleClients>;
-    resolveEmbeddingConnection: (
-      _ownerId: UserId,
-      task: "embed" | "imageEmbed",
-      _connectionId?: UserConnectionId,
-    ) => Promise<EmbeddingConnectionSnapshot | null>;
+    resolveEmbeddingConnection: (_ownerId: UserId, task: EmbeddingTask, _connectionId?: UserConnectionId) => Promise<EmbeddingConnectionSnapshot | null>;
   };
 }> {
   const db = await freshDb();
@@ -89,7 +86,7 @@ async function drive(controls: FakeRoleClientControls = {}): Promise<{
   };
 }
 
-async function target(db: Db, ownerId: UserId, clients: RoleClients, task: "embed" | "imageEmbed"): Promise<GenerationReceipt> {
+async function target(db: Db, ownerId: UserId, clients: RoleClients, task: EmbeddingTask): Promise<GenerationReceipt> {
   const generation = await resolveTargetGeneration(
     {
       db,
@@ -111,11 +108,11 @@ type SpaceCtx = Awaited<ReturnType<typeof drive>>["ctx"];
 
 /** The module's ONE exported door, projected to the two facts each case asserts. `withActiveQuerySpace` is
  *  what every query verb calls, so reading through it keeps these receipts on the production path. */
-async function spaceModel(ctx: SpaceCtx, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<string> {
+async function spaceModel(ctx: SpaceCtx, ownerId: UserId, task: EmbeddingTask): Promise<string> {
   return await withActiveQuerySpace(ctx, ownerId, task, (space) => Promise.resolve(space.model));
 }
 
-async function imageSpace(ctx: SpaceCtx, ownerId: UserId): Promise<{ via: "embed" | "imageEmbed"; model: string }> {
+async function imageSpace(ctx: SpaceCtx, ownerId: UserId): Promise<{ via: EmbeddingTask; model: string }> {
   return await withActiveQuerySpace(ctx, ownerId, "imageEmbed", (space) => Promise.resolve({ via: space.via, model: space.model }));
 }
 

@@ -11,12 +11,7 @@
 // it and adds no decision. Imported by deep path — the bundle builder is deliberately NOT in the lib barrel
 // (it is a dev-instrument internal), the `render-stats.test.ts` posture.
 
-import {
-  BUG_REPORT_TEXT_MAX_CHARS,
-  bugReportRouteFrom,
-  buildBugReportClientBundle,
-  clipCapturedText,
-} from "../../../packages/client/src/lib/bug-report-bundle.ts";
+import { bugReportRouteFrom, buildBugReportClientBundle, clipCapturedText } from "../../../packages/client/src/lib/bug-report-bundle.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 /** A real OAuth-callback location: the authorization CODE and the CSRF `state` in the query, plus a token in
@@ -28,6 +23,8 @@ const OAUTH_CALLBACK = {
   search: "?code=authz-code-do-not-ship-9f3a&state=csrf-state-do-not-ship-71bc",
   hash: "#access_token=implicit-token-do-not-ship-5e20",
 } as const;
+
+const CAPTURE_BOUNDARY_CHARS = 65_536;
 
 const LEAKED_LITERALS = ["authz-code-do-not-ship-9f3a", "csrf-state-do-not-ship-71bc", "implicit-token-do-not-ship-5e20"] as const;
 
@@ -82,12 +79,12 @@ test("a location with no query or fragment reduces to the same two fields", () =
 });
 
 test("a captured element text over the cap is clipped and says how much was left out; a short one is untouched", () => {
-  const sheet = "a{color:red}".repeat(BUG_REPORT_TEXT_MAX_CHARS);
+  const sheet = "a{color:red}".repeat(CAPTURE_BOUNDARY_CHARS);
   const clipped = clipCapturedText(sheet) ?? "";
 
-  expect(clipped.startsWith(sheet.slice(0, BUG_REPORT_TEXT_MAX_CHARS))).toBe(true);
-  expect(clipped).toContain(`${sheet.length - BUG_REPORT_TEXT_MAX_CHARS} more characters not captured`);
-  expect(clipped.length).toBeLessThan(BUG_REPORT_TEXT_MAX_CHARS + 100);
+  expect(clipped.startsWith(sheet.slice(0, CAPTURE_BOUNDARY_CHARS))).toBe(true);
+  expect(clipped).toContain(`${sheet.length - CAPTURE_BOUNDARY_CHARS} more characters not captured`);
+  expect(clipped.length).toBeLessThan(CAPTURE_BOUNDARY_CHARS + 100);
   expect(clipCapturedText("a{color:red}")).toBe("a{color:red}");
   expect(clipCapturedText(null)).toBeNull();
 });

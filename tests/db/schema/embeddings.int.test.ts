@@ -6,6 +6,7 @@
 // scope UNIQUE, the ABSENCE of ownerId on every vector row (D20), chat-child CASCADE, and the
 // chat_digest_speakers join.
 
+import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import { IMAGE_LENSES, IMAGE_SKIP_REASONS } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import {
@@ -50,7 +51,7 @@ function rampVector(): Float32Array {
   return Float32Array.from({ length: DIM }, (_unused, i) => i / DIM);
 }
 
-async function seedGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<EmbedGenerationId> {
+async function seedGeneration(db: Db, ownerId: UserId, task: EmbeddingTask): Promise<EmbedGenerationId> {
   const connectionId = castId<UserConnectionId>(`user_connection_${ownerId}_${task}_${MODEL}`);
   await db
     .insert(userConnections)

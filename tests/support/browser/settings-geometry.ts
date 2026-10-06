@@ -106,7 +106,8 @@ export function readEscapedAbsolutes(page: Page, selector: string): Promise<read
       el === null ? "«initial containing block»" : (el.getAttribute("data-slot") ?? el.getAttribute("role") ?? el.tagName);
     const escaped: EscapedAbsoluteBox[] = [];
     for (const el of scroller.querySelectorAll<HTMLElement>("*")) {
-      if (getComputedStyle(el).position !== "absolute") {
+      // Hidden theme illustrations have no containing block because they have no layout box.
+      if (el.getClientRects().length === 0 || getComputedStyle(el).position !== "absolute") {
         continue;
       }
       const containingBlock = el.offsetParent;

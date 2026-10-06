@@ -17,31 +17,24 @@ import { BYO_BASE_URL, makeHarness, seedOwner } from "../_support.ts";
 
 type KindAcceptance = Readonly<Record<ModelKind, readonly RoutableTask[]>>;
 
-/** A generic openai-compat row: the wire serves every task, so the kind alone decides. */
-const OPENAI_COMPAT_OPEN: KindAcceptance = {
-  generation: ["chat", "summarize", "generateImage"],
-  embedding: ["embed", "imageEmbed"],
-  rerank: ["rerank"],
-};
-
-/** The chat wires serve text generation only. */
+/** A kind declaration supplies no image modality or endpoint route. These cells describe the
+ *  actual default text-only capability, not every operation the wire could theoretically implement. */
+const TEXT_AND_EMBED: KindAcceptance = { generation: ["chat", "summarize"], embedding: ["embed"], rerank: [] };
+const TEXT_EMBED_RERANK: KindAcceptance = { ...TEXT_AND_EMBED, rerank: ["rerank"] };
 const TEXT_ONLY: KindAcceptance = { generation: ["chat", "summarize"], embedding: [], rerank: [] };
 
-/** What each built-in provider accepts for a row of each model kind, keyed by provider id. */
 const ACCEPTANCE: ReadonlyMap<string, KindAcceptance> = new Map([
-  ["google", { generation: ["chat", "summarize", "generateImage"], embedding: ["embed", "imageEmbed"], rerank: [] }],
-  ["openrouter", OPENAI_COMPAT_OPEN],
-  // OpenAI's row narrows the wire: no image embeddings and no rerank endpoint.
-  ["openai", { generation: ["chat", "summarize", "generateImage"], embedding: ["embed"], rerank: [] }],
+  ["google", TEXT_AND_EMBED],
+  ["openrouter", TEXT_EMBED_RERANK],
+  ["openai", TEXT_AND_EMBED],
   ["anthropic", TEXT_ONLY],
   ["claude-sub", TEXT_ONLY],
-  ["vllm", OPENAI_COMPAT_OPEN],
-  ["lm-studio", OPENAI_COMPAT_OPEN],
-  ["ollama", OPENAI_COMPAT_OPEN],
-  ["llama-cpp", OPENAI_COMPAT_OPEN],
-  ["koboldcpp", OPENAI_COMPAT_OPEN],
-  ["custom-openai", OPENAI_COMPAT_OPEN],
-  // The in-process runtime serves vectors and reranking, never generation.
+  ["vllm", TEXT_EMBED_RERANK],
+  ["lm-studio", TEXT_AND_EMBED],
+  ["ollama", TEXT_AND_EMBED],
+  ["llama-cpp", TEXT_EMBED_RERANK],
+  ["koboldcpp", TEXT_AND_EMBED],
+  ["custom-openai", TEXT_AND_EMBED],
   ["local-light", { generation: [], embedding: ["embed", "imageEmbed"], rerank: ["rerank"] }],
 ]);
 

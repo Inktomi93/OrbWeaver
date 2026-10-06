@@ -127,7 +127,7 @@ function safeBodySummary(body: Record<string, unknown>): object {
 const DATA_PREFIX = "data: ";
 function framesOf(text: string): Record<string, unknown>[] {
   return text
-    .split("\n")
+    .split(/\r?\n/u)
     .filter((l) => l.startsWith(DATA_PREFIX) && l !== "data: [DONE]")
     .map((l) => asObject(JSON.parse(l.slice(DATA_PREFIX.length))));
 }

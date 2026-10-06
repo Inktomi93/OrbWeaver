@@ -138,7 +138,7 @@ export function rhythmOf(days: readonly LocalDay[]): Rhythm {
 }
 
 /** One character's replies in the two compared months. */
-export interface MomentumRow {
+interface MomentumRow {
   readonly characterId: CharacterId;
   readonly name: string;
   readonly current: number;

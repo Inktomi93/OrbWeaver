@@ -18,7 +18,13 @@
 // derivation rather than two agreeing ones.
 
 import type { PendingGenerationObservationInput } from "@orb/contracts/chat";
-import { costDetailsSchema, generationUsageLegSchema, generationUsageSchema, responseCacheSchema, tokenDetailsSchema } from "@orb/contracts/inference";
+import {
+  costDetailsSchema,
+  responseCacheSchema,
+  storedGenerationUsageLegSchema,
+  storedGenerationUsageSchema,
+  tokenDetailsSchema,
+} from "@orb/contracts/inference";
 import { characters, chatGenerationObservations, chatInjections, chatParticipants, chats, chatTags, messages, messageVariants, personas, tags } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
@@ -119,7 +125,7 @@ function toPortableVariant(v: VariantRow): PortableChatVariant {
     genFinishedAt: v.genFinishedAt,
     variableDelta: v.variableDelta ?? null,
     metadata: v.metadata ?? null,
-    usage: generationUsageSchema.parse({
+    usage: storedGenerationUsageSchema.parse({
       ...v,
       tokenDetails: tokenDetailsSchema.safeParse(v.tokenDetails).data ?? null,
       costDetails: costDetailsSchema.safeParse(v.costDetails).data ?? null,
@@ -286,7 +292,7 @@ function portableObservations(args: {
       ordinal: row.ordinal,
       sourceMessageIndex,
       sourceVariantIdx: position?.variantIdx ?? null,
-      leg: generationUsageLegSchema.parse({ ...row, responseCache: responseCacheSchema.safeParse(row.responseCache).data }),
+      leg: storedGenerationUsageLegSchema.parse({ ...row, responseCache: responseCacheSchema.safeParse(row.responseCache).data }),
     };
     const group = groups.get(row.turnId);
     if (group === undefined) {

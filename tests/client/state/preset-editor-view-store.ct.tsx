@@ -1,3 +1,4 @@
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 // preset-editor-view store CT — the preset editor's VIEW axis.
 // A CT rather than a unit test because the store's only read surface is the reactive
 // `usePresetEditorView` hook (useSyncExternalStore needs a real browser render — the
@@ -25,4 +26,24 @@ test("unset reads as null; the writer moves it, and every write is observable", 
 
   await probe.getByRole("button", { name: "set params view" }).click();
   await expect(state).toHaveText("view=params");
+});
+
+test("the readout target survives editor view changes and a later selection replaces it", async ({ mount }) => {
+  const connectionId = mintTypeId(ID_PREFIX.userConnection);
+  const probe = await mount(<PresetEditorViewProbe connectionId={connectionId} />);
+  const target = probe.locator('[data-slot="preset-readout-probe"]');
+  await expect(target).toHaveText("null");
+  await probe.getByRole("button", { name: "set utility readout" }).click();
+  await expect(target).toHaveText('{"kind":"role","task":"summarize"}');
+  await probe.getByRole("button", { name: "set actions view" }).click();
+  await expect(probe.locator("output")).toHaveText("view=actions");
+  await expect(target).toHaveText('{"kind":"role","task":"summarize"}');
+  await probe.getByRole("button", { name: "set params view" }).click();
+  await expect(target).toHaveText('{"kind":"role","task":"summarize"}');
+  await probe.getByRole("button", { name: "set connection readout" }).click();
+  await expect(target).toHaveText(JSON.stringify({ kind: "connection", connectionId }));
+  await probe.getByRole("button", { name: "set actions view" }).click();
+  await expect(target).toHaveText(JSON.stringify({ kind: "connection", connectionId }));
+  await probe.getByRole("button", { name: "set chat readout" }).click();
+  await expect(target).toHaveText('{"kind":"role","task":"chat"}');
 });

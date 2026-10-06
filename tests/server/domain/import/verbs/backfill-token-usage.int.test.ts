@@ -13,9 +13,9 @@ import {
   createListImportedTokenUsageCandidates,
 } from "../../../../../packages/server/src/domain/chat/persistence/token-usage-backfill.ts";
 import { createBackfillTokenUsage } from "../../../../../packages/server/src/domain/import/verbs/backfill-token-usage.ts";
+import { reconcileStats } from "../../../../../packages/server/src/domain/stats/persistence/rebuild-from-canon.ts";
 import { readOverview } from "../../../../../packages/server/src/domain/stats/persistence/rollups.ts";
 import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
-import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { createFrozenClock } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

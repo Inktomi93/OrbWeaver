@@ -2,8 +2,9 @@
 // parser is the second guard, so a producer that starts returning an extra key fails the call instead of shipping
 // it. `listSurfaces` extends the refined registration meta, so its per-anchor refinements must still run.
 
-import type { PluginId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { PLUGIN_TEXT_MAX_CHARS } from "@orb/contracts/plugin";
+import type { ChatId, MessageId, PluginId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { PluginService, PluginSurfaceView, PluginView } from "@orb/server/domain/plugin";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -69,4 +70,16 @@ describe("plugin — the strict output boundary", () => {
 
     await expect(pluginApi({ listSurfaces }).listSurfaces()).rejects.toThrow("Output validation failed");
   });
+});
+
+test("display text reaches only its caller at the shared cap; larger text is refused before the service", async ({ ids }) => {
+  const transformForDisplay = vi.fn<PluginService["transformForDisplay"]>(async ({ text: renderedText }) => ({ text: renderedText }));
+  const api = pluginApi({ transformForDisplay });
+  const chatId = castId<ChatId>(ids.next(ID_PREFIX.chat));
+  const messageId = castId<MessageId>(ids.next(ID_PREFIX.message));
+  const text = "x".repeat(PLUGIN_TEXT_MAX_CHARS);
+  await expect(api.transformForDisplay({ chatId, messageId, text })).resolves.toEqual({ text });
+  expect(transformForDisplay).toHaveBeenCalledTimes(1);
+  await expect(api.transformForDisplay({ chatId, messageId, text: `${text}x` })).rejects.toThrow();
+  expect(transformForDisplay).toHaveBeenCalledTimes(1);
 });

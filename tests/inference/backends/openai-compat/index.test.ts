@@ -210,7 +210,10 @@ test("D299: a role preset's seed, stop and effort reach a summarize body; the ca
   // The model reasons and the row spells `reasoning_effort`, so the preset's level rides; thinking is paid out of
   // `max_tokens`, so the cap grows to the model's own 8192 rather than leaving the 64-token answer to starve.
   expect(body).toMatchObject({ temperature: 0.5, seed: 7, stop: ["END"], reasoning_effort: "high", max_tokens: 8192 });
-  expect(warnedCodes(lines)).toEqual([]);
+  expect(warnedCodes(lines)).toEqual(["cache_control_adjusted"]);
+  expect(lines.find((line) => line.fields["event"] === "provider.resolve-warning")?.fields["reason"]).toBe(
+    "App-authored prefix markers are unsupported on this route; provider implicit caching, if available, is unchanged",
+  );
 });
 
 // ── Side-generation reasoning: the posture's off, a preset's level, and room for thinking that runs ──

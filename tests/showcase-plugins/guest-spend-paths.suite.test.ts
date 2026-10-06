@@ -4,16 +4,22 @@
 
 import { join } from "node:path";
 import vm from "node:vm";
+import type { AssetId, ChatId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { packPluginDirectory } from "@orb/plugin-toolchain";
 import { AMBIENT_STUBS, HOST_FN_DEADLINE_MS, PLUGIN_QUIET_PROMPT_MAX_CHARS } from "@orb/server/infra/plugin-host";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { unzipSync } from "fflate";
+import { createSeededIds } from "../support/ids.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..");
 // One author build per plugin; the release compiler is the slow part (see authoring.suite.test.ts).
 const BUILD_TIMEOUT = budget(30_000);
 const SETTLE_TICKS = 24;
+const ids = createSeededIds();
+const CHAT_ID = typeIdSchema(ID_PREFIX.chat).parse(ids.next(ID_PREFIX.chat));
+const ASSET_ID = typeIdSchema(ID_PREFIX.asset).parse(ids.next(ID_PREFIX.asset));
 
 async function releasedMain(slug: string): Promise<string> {
   const built = await packPluginDirectory({
@@ -87,7 +93,7 @@ test("Affinity Tracker takes a reading in a long roleplay chat: newest lines fir
   const scene = longScene(12);
   const prompts: string[] = [];
   const logs: string[] = [];
-  let onCommit: ((fact: { chatId: string }) => Promise<void>) | undefined;
+  let onCommit: ((fact: { chatId: ChatId }) => Promise<void>) | undefined;
   boot(source, {
     grants: ["chat.read", "storage.kv", "notify", "llm.quiet", "events.subscribe"],
     log: { info: (line: string): void => void logs.push(line), warn: (line: string): void => void logs.push(line), error: quietLog.error },
@@ -98,7 +104,7 @@ test("Affinity Tracker takes a reading in a long roleplay chat: newest lines fir
       },
     },
     chat: {
-      current: (): string => "chat-handle",
+      current: (): ChatId => CHAT_ID,
       listMessages: (): Promise<View[]> => Promise.resolve(scene),
     },
     llm: {
@@ -116,14 +122,14 @@ test("Affinity Tracker takes a reading in a long roleplay chat: newest lines fir
     throw new Error("affinity tracker subscribed to nothing");
   }
   for (let i = 0; i < 8; i++) {
-    await onCommit({ chatId: "c1" });
+    await onCommit({ chatId: CHAT_ID });
   }
   await settle();
 
   expect(prompts).toHaveLength(1);
   const sent = prompts[0] ?? "";
   expect(sent.length).toBeLessThanOrEqual(PLUGIN_QUIET_PROMPT_MAX_CHARS);
-  expect(logs).toContain("affinity reading for c1: 7");
+  expect(logs).toContain(`affinity reading for ${CHAT_ID}: 7`);
   // The newest beats are the ones kept, in reading order; the oldest fall off the front.
   expect(sent).toContain("Wren: beat-10");
   expect(sent).toContain("You: beat-11");
@@ -150,13 +156,13 @@ async function snapshotToasts(source: string, failure: Error | null, elapsedMs: 
     clock: { nowEpochMs: (): number => now },
     storage: failure === null ? { ...storage, compareAndSet: (): Promise<never> => Promise.reject(new Error("storage unavailable")) } : storage,
     chat: {
-      current: (): string => "chat-handle",
+      current: (): ChatId => CHAT_ID,
       listMessages: (): Promise<View[]> => Promise.resolve(longScene(3)),
     },
     imagery: {
-      generatePicture: (): Promise<{ assetId: string }> => {
+      generatePicture: (): Promise<{ assetId: AssetId }> => {
         now += elapsedMs;
-        return failure === null ? Promise.resolve({ assetId: "asset-1" }) : Promise.reject(failure);
+        return failure === null ? Promise.resolve({ assetId: ASSET_ID }) : Promise.reject(failure);
       },
     },
     ui: {
@@ -229,7 +235,7 @@ test("Keepsake Camera titles long scenes within the host cap and files the model
     log: quietLog,
     clock: { nowEpochMs: (): number => 1_700_000_000_000 },
     storage,
-    chat: { current: (): string => "chat-handle", listMessages: (): Promise<View[]> => Promise.resolve(longScene(10)) },
+    chat: { current: (): ChatId => CHAT_ID, listMessages: (): Promise<View[]> => Promise.resolve(longScene(10)) },
     llm: {
       quiet: (prompt: string, options: { schema: { name: string } }): Promise<string> => {
         prompts.push(prompt);
@@ -240,10 +246,10 @@ test("Keepsake Camera titles long scenes within the host cap and files the model
       },
     },
     imagery: {
-      generatePicture: (_chat: string, args: { prompt: string; quiet: boolean }): Promise<{ assetId: string }> => {
+      generatePicture: (_chat: string, args: { prompt: string; quiet: boolean }): Promise<{ assetId: AssetId }> => {
         expect(args.quiet).toBe(false);
         paint.push(args.prompt);
-        return Promise.resolve({ assetId: "asset-1" });
+        return Promise.resolve({ assetId: ASSET_ID });
       },
     },
     ui: {
@@ -273,5 +279,5 @@ test("Keepsake Camera titles long scenes within the host cap and files the model
   expect(sent.indexOf("beat-08")).toBeLessThan(sent.indexOf("beat-09"));
   expect(sent).not.toContain("beat-00");
   expect(paint[0]).toContain("Two travelers in lantern light.");
-  expect(publications.at(-1)?.["tiles"]).toEqual([expect.objectContaining({ title: "Lanterns at dusk", assetId: "asset-1" })]);
+  expect(publications.at(-1)?.["tiles"]).toEqual([expect.objectContaining({ title: "Lanterns at dusk", assetId: ASSET_ID })]);
 });

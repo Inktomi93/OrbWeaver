@@ -5,38 +5,14 @@
 // filenames. A non-200 (whole-batch rejection) throws.
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import type { CardImportResult } from "@orb/contracts/import";
+import { cardImportResultSchema } from "@orb/contracts/import";
 import { throwHttpError } from "./http-error.ts";
 
 const IMPORT_URL = "/api/import";
 const IMPORT_FIELD = "file";
 
-/** One imported (or deduped) card from `POST /api/import`'s `ProfileImportResult` — `created:false` marks a
- *  byte-identical re-import (already present, no write). `notes` mirrors the server's `ImportedCard.notes`
- *  (#1598/#1709): the card planes this import deliberately did NOT assert (today's one member — a
- *  re-uploaded card whose embedded lorebook was KEPT because the character already holds a primary book
- *  the owner may have edited). The server always sends it (present even when empty); OPTIONAL here because
- *  this whole interface is read off an UNVALIDATED `as CardImportResult` cast below — no zod on this raw
- *  route — so a caller reading an older/incomplete body must not assume the field survived the cast. */
-interface ImportedCardResult {
-  readonly filename: string | null;
-  /** The character the card became — or, for a byte-identical re-import, the one already in the library. */
-  readonly characterId: string;
-  readonly created: boolean;
-  readonly notes?: readonly string[];
-}
-
-/** One card the server could not import (unreadable/invalid bytes) — carries the reason, isolated not thrown. */
-interface FailedCardResult {
-  readonly filename: string | null;
-  readonly error: string;
-}
-
-/** The `POST /api/import` response body (the server's `ProfileImportResult`): the REAL per-file outcome. The
- *  report summary derives from THIS — never from the uploaded filenames. */
-export interface CardImportResult {
-  readonly imported: readonly ImportedCardResult[];
-  readonly failed: readonly FailedCardResult[];
-}
+export type { CardImportResult } from "@orb/contracts/import";
 
 /** POST picked card `File`s to the import route and return the server's real per-file result. Throws on a
  *  non-OK response (a whole-batch rejection). Per-card failures ride back in the 200 body's `failed[]` — the
@@ -54,5 +30,5 @@ export async function importCharacters(files: readonly File[]): Promise<CardImpo
   if (!response.ok) {
     await throwHttpError("importCharacters", response);
   }
-  return (await response.json()) as CardImportResult;
+  return cardImportResultSchema.parse(await response.json());
 }

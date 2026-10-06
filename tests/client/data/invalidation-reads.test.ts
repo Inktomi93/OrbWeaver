@@ -110,7 +110,10 @@ describe("ROOM_ENTITY_FILTERS — the entity→room bridge's per-kind rows", () 
 
   test("`world-info` touches NO owner-scoped worldInfo read — a member never holds one", () => {
     const got = paths(ROOM_ENTITY_FILTERS["world-info"](CHAT_ID, trpcProxy()));
-    expect(got.some((p) => p.startsWith("worldInfo"))).toBe(false);
+    expect(got).toContain("worldInfo.listForChat");
+    for (const ownerRead of ["worldInfo.listBooks", "worldInfo.getBook", "worldInfo.listEntries"]) {
+      expect(got).not.toContain(ownerRead);
+    }
     expect(got).toContain("chat.previewContextFit");
   });
 });
@@ -131,9 +134,16 @@ describe("ROOM_ENTITY_HEAL_FILTERS — the live-only lane's attach heal (#2494)"
     expect(paths(roomEntityHealReads(CHAT_ID, trpc))).toEqual(ROOM_ENTITY_KINDS.flatMap((kind) => paths(ROOM_ENTITY_HEAL_FILTERS[kind](CHAT_ID, trpc))));
   });
 
-  test("covers the room-public reads of every kind that has one — the card and the two racks", () => {
+  test("covers the room-public reads of every kind that has one — the card and the room racks", () => {
     const got = paths(roomEntityHealReads(CHAT_ID, trpcProxy()));
-    expect(got.toSorted((left, right) => left.localeCompare(right))).toEqual(["chat.getMemberCard", "databank.listActiveForChat", "regex.listForChat"]);
+    expect(got.toSorted((left, right) => left.localeCompare(right))).toEqual([
+      "chat.getMemberCard",
+      "databank.listActiveForChat",
+      "regex.listForChat",
+      "worldInfo.listForChat",
+      "worldInfo.listForChat",
+      "worldInfo.listForChat",
+    ]);
   });
 
   test("heals NO fit/preview read — their staleness bound is one turn (#514 / BOOT-4X)", () => {
@@ -147,9 +157,18 @@ describe("ROOM_ENTITY_HEAL_FILTERS — the live-only lane's attach heal (#2494)"
     const got = paths(roomEntityHealReads(CHAT_ID, trpcProxy()));
     // `regex.listScripts`/`listGlobal`, `databank.list`, `worldInfo.*`, `character.*` — and the HOST-gated
     // `chat.listEffectiveRegex`, whose only reader is the writer of the very change.
-    for (const read of ["regex.listScripts", "regex.listGlobal", "databank.list", "chat.listEffectiveRegex"]) {
+    for (const read of [
+      "regex.listScripts",
+      "regex.listGlobal",
+      "databank.list",
+      "chat.listEffectiveRegex",
+      "worldInfo.listBooks",
+      "worldInfo.getBook",
+      "worldInfo.listEntries",
+    ]) {
       expect(got).not.toContain(read);
     }
-    expect(got.some((p) => p.startsWith("worldInfo") || p.startsWith("character."))).toBe(false);
+    expect(got.filter((path) => path.startsWith("worldInfo."))).toEqual(["worldInfo.listForChat", "worldInfo.listForChat", "worldInfo.listForChat"]);
+    expect(got.some((path) => path.startsWith("character."))).toBe(false);
   });
 });

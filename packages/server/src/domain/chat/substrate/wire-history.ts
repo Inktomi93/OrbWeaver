@@ -814,7 +814,7 @@ function withNewChatMarkerAtHead(kept: readonly WireRow[], marker: NonNullable<N
  *  marker is the oldest row, so a trimmed history reserves the marker's own row before it trims and then places
  *  the marker at the head of what it kept (`kept`, the rows the wire sends; `fitted.history`, their cost rows).
  *  `fitted.usedTokens` prices the rows as delivered, marker included. */
-export function fitWireHistory(
+function fitWireHistory(
   converted: readonly WireRow[],
   budget: Parameters<typeof fitHistory>[1],
   marker: NewChatMarker,

@@ -2,7 +2,7 @@
 // logic). The tRPC
 // `stats.*` router's single delegation target, with `ownerId = principal.userId` (never input — §7.1). The
 // rollups are maintained LIVE on the write path (write/apply-delta.ts, injected into chat); the full
-// rebuild (write/rebuild-from-canon.ts) is reached BOTH ways: the `reconcile` verb (caller-scoped, awaited)
+// rebuild (persistence/rebuild-from-canon.ts) is reached BOTH ways: the `reconcile` verb (caller-scoped, awaited)
 // and the `reconcile-stats` workload (the all-owners bulk sweep). `applyStatsDelta` is not a verb here.
 
 import type { Db } from "@orb/db";

@@ -27,6 +27,12 @@
 // Destructuring defaults and dynamic column selectors on schema-bearing rows refuse. Parameter destructuring,
 // nested key bindings, rest-created row copies, and mutable destructured bindings remain outside this reader.
 //
+// SQL aliases bind in SELECT scopes; correlated reads resolve outward. A CTE carries virtual lineage only
+// through direct qualified column projections (including an explicit AS rename). Arbitrary expressions,
+// quoted identifier bindings and unsupported projections keep conservative column attribution. Compound
+// SELECT branches refuse: this reader does not certify aliases across UNION/INTERSECT/EXCEPT branches. Quoted values,
+// comments and TypeScript interpolations never author relational bindings.
+//
 // DECLARED LIMITS, each with a mustPass row: a TYPED column is never judged (the type is the enforcer); an
 // INTERPOLATED json path (`json_extract(${col}, ${sel.path})` — the live allowlisted caption drill) names no
 // literal key; `Object.keys(blob)` / `blob[key]` iterate rather than name; a reader whose blob reached it
@@ -91,6 +97,175 @@ export const gate = defineGate({
   }),
 
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>() });',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          "export function read(db) { return db.all(sql`select 1 from json_each(actions_json) leg where exists (select json_extract(leg.value, '$.parameters') from settings as \"leg\")`); }",
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "an actual quoted inner settings alias shadows the outer virtual leg rather than laundering its missing key",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>() });',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          "export function read(db) { return db.all(sql`select json_extract(leg.value, '$.parameters') from settings leg, table_function(0, json_each(actions_json) leg) other`); }",
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "a comma/alias structural decoy nested within a FROM function's arguments is not a top-level relation",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>() });',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          "export function read(db) { return db.all(sql`select json_extract(leg.value, '$.parameters') from settings leg where exists (select 1 from message_variants v, json_each(v.metadata, '$.usageLegs') leg)`); }",
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "a virtual comma relation in a subquery does not overwrite the real outer settings alias",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>() });',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          "export function read(db) { return db.all(sql`select 1 from message_variants v, json_each(v.metadata, '$.usageLegs') leg where exists (select json_extract(leg.value, '$.parameters') from unrelated u, settings leg)`); }",
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "a real inner settings relation in a comma FROM-list shadows the outer virtual leg alias",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>() });',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          "export function read(db) { return db.all(sql`select json_extract(leg.value, '$.parameters') from settings leg where predicate(1, json_each(actions_json) leg)`); }",
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "a structural comma/alias decoy inside function arguments after WHERE does not rebind the real settings row",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>() });',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          "export function read(db) { return db.all(sql`select json_extract(leg.value, '$.parameters'), json_each(actions_json) as leg from settings leg`); }",
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "a comma and alias in SELECT projection are not a FROM relation list",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>() });',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          "export function read(db) { return db.all(sql`select json_extract(leg.value, '$.parameters') from settings leg /* , json_each(actions_json) leg */ where label = ', json_each(actions_json) leg' and payload = ${\", json_each(actions_json) leg\"}`); }",
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "quoted, commented and interpolated commas cannot author a virtual relation",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          "export function read(db) { return db.all(sql`select json_extract(${settings.value}, '$.parameters') from json_each(actions_json) settings`); }\n",
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "a genuine interpolated Drizzle column remains the stored column even when a raw virtual alias has the same spelling",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          "export function read(db) { return db.all(sql`select json_extract(current.value, '$.parameters') from settings current where exists (select 1 from json_each(actions_json) current)`); }\n",
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "an inner virtual alias cannot overwrite a real outer settings alias",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          "export function read(db) { return db.all(sql`select 1 from json_each(actions_json) current where exists (select json_extract(current.value, '$.parameters') from settings current)`); }\n",
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "an inner real settings alias shadows the outer virtual row rather than laundering the reader",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          "export function read(db) { return db.all(sql`with current_calls as (select transform(current.value) as value from json_each(actions_json) current) select json_extract(current.value, '$.parameters') from current_calls current`); }\n",
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "an arbitrary CTE expression has no demonstrated virtual-column lineage and retains conservative blame",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          "export function read(db) { return db.all(sql`select json_extract(current.value, '$.parameters') from settings current /* from json_each(actions_json) current */ where label = 'from json_each(actions_json) current'`); }\n",
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "comment and quoted SQL structural decoys cannot certify a settings row as virtual",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          "export function read(db) { return db.all(sql`select json_extract(current.value, '$.parameters') from settings current where value = ${\"from json_each(actions_json) current\"}`); }\n",
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "interpolated TypeScript text cannot create SQL aliases",
+    },
     {
       mode: "types",
       files: {
@@ -314,6 +489,17 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/read.ts":
+          "export function read(db) { return db.all(sql`select json_extract(current.value, '$.parameters') from settings current union all select json_extract(current.value, '$.parameters') from json_each(actions_json) current`); }\n",
+      },
+      expect: { messageIncludes: "compound SELECT branches" },
+      why: "compound queries cannot reuse a flat alias map and silently certify the real settings arm as virtual",
+    },
+    {
+      mode: "types",
+      files: {
         "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
         "packages/db/src/schema/settings.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
@@ -355,6 +541,78 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>() });',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          "export function read(db) { return db.all(sql`select json_extract(leg.value, '$.parameters') from json_each(actions_json) as \"leg\"`); }",
+      },
+      why: "a quoted alias at the actual virtual relation slot remains virtual without turning quoted projection/string contents into SQL syntax",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>() });',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }",
+        "packages/server/src/domain/stats/persistence/read.ts":
+          "export function retainedLegActivity(db) { return db.all(sql`select cast(json_extract(leg.value, '$.observedAt') as integer) as at from message_variants v, json_each(v.metadata, '$.usageLegs') leg where json_type(leg.value, '$.observedAt') = 'integer'`); }",
+      },
+      why: "the actual retained accounting FROM-comma json_each leg is virtual and is never settings.value",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          "export function read(db) { return db.all(sql`select json_extract(settings.value, '$.parameters') from json_each(actions_json) settings`); }\n",
+      },
+      why: "a raw SQL virtual alias sharing a Drizzle table variable spelling remains its own virtual row",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          "export function read(db) { return db.all(sql`with current_calls as (select current.value, (select count(*) from json_each(actions_json) prior) as ordinal from json_each(actions_json) current) select json_extract(current.value, '$.toolCallId') from current_calls current`); }\n",
+      },
+      why: "the shipped current_calls pattern projects json_each value through a CTE while nested prior has its own scope",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          "export function read(db) { return db.all(sql`with current_calls as (select current.value as payload from json_each(actions_json) current) select json_extract(current.payload, '$.toolCallId') from current_calls current`); }\n",
+      },
+      why: "an explicit renamed direct projection retains the same proven virtual lineage",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          "export function read(db) { return db.all(sql`select 1 from json_each(actions_json) current where exists (select json_extract(current.value, '$.parameters'))`); }\n",
+      },
+      why: "an unshadowed correlated reference resolves the outer virtual row",
+    },
     {
       mode: "types",
       files: {

@@ -8,10 +8,13 @@
 //   • AssembledPrompt    — the BUILD product (peekPrompt / the assembly preview body).
 //
 // Transport-visible list, turn and preview projections are also owned by @orb/contracts/chat.
-// The replay and attach shapes below remain internal transport/engine contracts.
+// Snapshot witnesses, replay and attach shapes below remain internal persistence/transport/engine contracts.
 
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
-import type { ChatStreamGenerationId } from "@orb/kit/ids";
+import type { messageVariants } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
+import type { ChatStreamGenerationId, MessageVariantId } from "@orb/kit/ids";
+import type { SQL } from "drizzle-orm";
 
 export type {
   AssembledPrompt,
@@ -99,3 +102,22 @@ export type {
   UserMacroPicksView,
   VariablePicksView,
 } from "@orb/contracts/chat";
+
+/** A selected continuation's immutable read witness; raw private JSON is compared, never sent on the wire. */
+export interface ContinueSnapshot
+  extends Readonly<
+    Pick<
+      typeof messageVariants.$inferSelect,
+      "content" | "reasoning" | "preContinueContent" | "preContinueReasoning" | "lastContinuationContent" | "lastContinuationReasoning"
+    >
+  > {
+  readonly variantId: MessageVariantId;
+  readonly rawMetadata: string | null;
+  readonly rawToolCalls: string | null;
+}
+
+/** The first-write admission witness is retained so unrelated DB failures cannot become stale refusals. */
+export interface ContinueRestorePlan {
+  readonly selection: SQL;
+  readonly statements: BatchStmt[];
+}

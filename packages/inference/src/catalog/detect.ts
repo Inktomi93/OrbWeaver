@@ -6,7 +6,7 @@
 import { z } from "zod";
 import { deadlineSignal } from "../backends/kit/abort-flatten.ts";
 import { authHeaders, isRedirect, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../backends/kit/fetch-json.ts";
-import type { DetectedServer } from "../contract/runtime.ts";
+import type { DetectedServer, DetectionProbe } from "../contract/runtime.ts";
 
 export interface DetectArgs {
   readonly fetch: typeof fetch;
@@ -28,12 +28,12 @@ const ollamaVersionSchema = z.object({ version: z.string() }).loose();
 /** vLLM's OpenAI server stamps every listed model `owned_by: "vllm"`; other servers name themselves or the org. */
 const vllmModelsSchema = z.object({ data: z.array(z.object({ ["owned_by"]: z.literal("vllm") }).loose()).min(1) }).loose();
 
-const PROBES: readonly { readonly server: NonNullable<DetectedServer["server"]>; readonly path: string; readonly schema: z.ZodType }[] = [
+const PROBES = [
   { server: "koboldcpp", path: "/api/extra/version", schema: koboldVersionSchema },
   { server: "llama-cpp", path: "/props", schema: llamaCppPropsSchema },
   { server: "ollama", path: "/api/version", schema: ollamaVersionSchema },
   { server: "vllm", path: "/v1/models", schema: vllmModelsSchema },
-];
+] as const satisfies readonly DetectionProbe[];
 
 /** One GET: the JSON body of a 2xx, `null` for any other answer, and a throw only when nothing answered. A
  *  redirect is never followed (host pin #25): it would carry the transport headers to another origin, and that

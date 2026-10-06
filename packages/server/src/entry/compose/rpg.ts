@@ -1861,6 +1861,7 @@ async function fitResyncPrompt(
   if (fixedTokens >= windowTokens) {
     return {
       ok: false,
+      // @orb-waive no-hardcoded-model-prose(The): fitResyncPrompt returns this operator refusal to buildRunResyncExtraction before provider dispatch; it never enters a model request. Ends if this reason becomes model-facing.
       reason: `The room's context window (${windowTokens} tokens) cannot fit the game instructions, tracked state and reply reserve. Increase Max context before resyncing; nothing was rebuilt.`,
     };
   }
@@ -1872,6 +1873,7 @@ async function fitResyncPrompt(
     if (transcript.length === 0) {
       return {
         ok: false,
+        // @orb-waive no-hardcoded-model-prose(The): the exhausted canon fit refuses resync before dispatch and returns this reason to the operator only. Ends if this reason becomes model-facing.
         reason: `The latest story message cannot fit the room's context window (${windowTokens} tokens) alongside game state and reply reserve. Increase Max context before resyncing; nothing was rebuilt.`,
       };
     }
@@ -2366,7 +2368,7 @@ async function resolveFunderChat(deps: RpgComposeDeps, funderUserId: UserId): Pr
  * schema payload. The caller supplies its dispatcher's tool-round choice: API support alone does not select
  * the resync vehicle. The same builders produce the priced and sent payloads.
  */
-export function stateRoundRequestText(conn: Resolved<"chat">, inputs: PromptInputs, userPrompt: string, toolRound: boolean): readonly string[] {
+function stateRoundRequestText(conn: Resolved<"chat">, inputs: PromptInputs, userPrompt: string, toolRound: boolean): readonly string[] {
   const { refs, config, prose } = inputs;
   if (!toolRound) {
     return [extractionSystem(inputs), userPrompt, JSON.stringify(constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs))];

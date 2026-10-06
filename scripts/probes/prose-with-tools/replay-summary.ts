@@ -41,7 +41,7 @@ const rows: Row[] = readdirSync(dir)
   .filter((f) => f.endsWith(".jsonl"))
   .flatMap((f) =>
     readFileSync(path.join(dir, f), "utf8")
-      .split("\n")
+      .split(/\r?\n/u)
       .filter((l) => l.trim() !== "")
       .map((l) => JSON.parse(l) as Row),
   );

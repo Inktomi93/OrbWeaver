@@ -16,7 +16,7 @@
 //      markdown. Consequence, stated: a member's regex scripts cannot post-process a plugin annotation.
 //
 // THE TRUST POSTURE, once: `text` is CLIENT-SUPPLIED and is reflected ONLY to the same caller — no authority,
-// no persistence and no other viewer's render derives from it. `PLUGIN_DISPLAY_TEXT_MAX_CHARS` bounds it at the
+// no persistence and no other viewer's render derives from it. `PLUGIN_TEXT_MAX_CHARS` bounds it at the
 // transport boundary; `PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS` bounds each guest call here.
 //
 // THE REFUSAL POSTURE IS D53's, verbatim: a transform that throws or outruns its deadline is SKIPPED — the fold

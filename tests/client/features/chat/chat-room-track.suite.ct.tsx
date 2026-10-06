@@ -508,7 +508,14 @@ test("an immersive skin's art is ADDITIVE — it is reserved outside the reading
       return {
         artPane: Number.parseFloat(style.paddingRight),
         textInset: Number.parseFloat(style.paddingLeft),
-        declaredBox: Number.parseFloat(style.maxWidth),
+        declaredBox: (() => {
+          const probe = document.createElement("div");
+          probe.style.width = style.maxWidth;
+          column.append(probe);
+          const width = probe.getBoundingClientRect().width;
+          probe.remove();
+          return width;
+        })(),
         // The reading line is the bubble's CONTENT box: its own width minus the art pane it reserves as padding.
         textWidth: bubbleWidth - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight),
         // The row's non-prose furniture, measured rather than assumed: the avatar gutter + its gap.
@@ -672,6 +679,20 @@ for (const chatStyle of ["flat", "bubble"] as const) {
     });
   }
 }
+
+test("the reserved edit footprint is a minimum: a longer draft grows and Cancel restores the read box", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1360, height: 900 });
+  await routeRoom(page, "bubble", LONG_PROSE);
+  await mount(<ChatRoomTrackStory paneWidth={894} />);
+  await expect(page.locator(CONTENT_COLUMN).first()).toBeVisible();
+  const read = await rowGeometry(page);
+  await enterEdit(page);
+  await page.getByRole("textbox", { name: MESSAGE_EDIT_NAME, exact: true }).fill(LONG_PROSE.repeat(8));
+  await expect.poll(async () => (await rowGeometry(page)).height).toBeGreaterThan(read.height);
+  await page.getByRole("button", { name: "Cancel edit", exact: true }).click();
+  await expect(page.locator(EDIT_TEXTAREA)).toHaveCount(0);
+  await expect.poll(async () => Math.abs((await rowGeometry(page)).height - read.height)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+});
 
 // ── #1204: THE READING LINE AT THE DIAL'S FLOOR — EVERY SKIN, NOT JUST THE ONE MEASURED ─────────────
 //

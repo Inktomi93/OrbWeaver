@@ -7,7 +7,7 @@ import { createDigestSources } from "@orb/server/domain/search";
 // the verbs read directly (users / characters / character_embeddings / chats / chat_participants /
 // chat_digests / chat_segments / assets / image_embeddings).
 
-import type { ImageLens } from "@orb/contracts/embeddings";
+import type { EmbeddingTask, ImageLens } from "@orb/contracts/embeddings";
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { RoleClients } from "@orb/contracts/role-clients";
@@ -82,7 +82,7 @@ function variantProvider(value: string | null | undefined): ProviderId | null {
   return value === null || value === undefined ? null : testProviderId(value);
 }
 
-async function seedGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmbed", model: string): Promise<EmbedGenerationId> {
+async function seedGeneration(db: Db, ownerId: UserId, task: EmbeddingTask, model: string): Promise<EmbedGenerationId> {
   const clients = makeFakeRoleClients(task === "embed" ? { embedModel: model } : { imageEmbedModel: model });
   const resolved = await clients.resolved(task);
   if (resolved === null) {

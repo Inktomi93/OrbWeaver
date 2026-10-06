@@ -52,8 +52,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import {
   appendGenerationObservation,
-  generationObservationTransferStatements,
-  loadGenerationObservations,
+  createGenerationObservationSession,
 } from "../../../../../packages/server/src/domain/chat/persistence/generation-observation.ts";
 import { createExportChatBundle } from "../../../../../packages/server/src/domain/export/verbs/export-chat-bundle.ts";
 import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/index.ts";
@@ -190,12 +189,12 @@ describe("exportChatBundle — the fidelity planes", () => {
     expect(await appendGenerationObservation(ctx, parent, { ordinal: 0, funderUserId: host, connectionId: null, leg })).toBe(true);
     const before = must(await verb()({ principal: principal(host), chatId: CHAT_ID }));
     expect(before.pendingGenerationObservations?.map((fact) => fact.leg.costUsd)).toEqual([0.125]);
-    const facts = await loadGenerationObservations(ctx, parent);
+    const facts = await createGenerationObservationSession(ctx, parent).load();
     const gate = held.hold(/^select[\s\S]*from "chat_generation_observations"/iu);
     const exporting = verb()({ principal: principal(host), chatId: CHAT_ID });
     await gate.reached;
     try {
-      const statements = generationObservationTransferStatements(ctx, parent, facts);
+      const statements = [...createGenerationObservationSession(ctx, parent).transferStatements(facts)];
       statements.push(
         batchStmt(
           db

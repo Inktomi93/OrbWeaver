@@ -9,8 +9,10 @@
 import type { PluginCommandArgSpec, PluginCommandArgValue, PluginCommandPlacement } from "@orb/contracts/plugin";
 import type { ChatId, PluginId } from "@orb/kit/ids";
 import { useIsMutating, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { inferOutput } from "@trpc/tanstack-react-query";
 import { useState } from "react";
-import { useInvalidation, useTRPC } from "#data";
+import type { Trpc } from "#data";
+import { peekQueryData, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import type { ComposerDraftSnapshot } from "#state";
 import { activeChatId, openPluginCommandArgs, readComposerDraftSnapshot, replaceComposerDraft, useActiveChatId, useComposerDraftRevision } from "#state";
@@ -116,7 +118,7 @@ export function usePluginCommandRunner(chatId: ChatId | null): PluginCommandRunn
       })
       .then((outcome): void => {
         if (request.composerDraft !== undefined && outcome.composerDraft !== undefined && chatId !== null) {
-          const currentCommands = queryClient.getQueryData(trpc.plugin.listCommands.queryKey());
+          const currentCommands = peekQueryData<inferOutput<Trpc["plugin"]["listCommands"]>>(queryClient, trpc.plugin.listCommands.queryKey());
           const stillRegistered =
             currentCommands?.some(
               (candidate) => candidate.pluginId === command.pluginId && candidate.name === command.name && candidate.composerDraft === true,

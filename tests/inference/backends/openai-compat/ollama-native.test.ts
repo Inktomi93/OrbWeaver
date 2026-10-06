@@ -157,7 +157,7 @@ test("a recorded tool call comes back as a tool call, and its replay reaches the
   expect(recorded[0]?.body["tools"]).toEqual([
     { type: "function", function: { ...WEATHER, parameters: { ...WEATHER.parameters, additionalProperties: false } } },
   ]);
-  expect(result.toolCalls).toEqual([{ toolCallId: "call_s4210pyw", name: "get_weather", arguments: '{"city":"Paris"}' }]);
+  expect(result.toolCalls).toEqual([{ toolCallId: "call_s4210pyw", name: "get_weather", arguments: '{"city":"Paris"}', atChars: 0, partOrdinal: 0 }]);
   expect(result.finishReason).toBe("tool");
 
   const replayed = toOllamaChat(
@@ -377,11 +377,15 @@ test("a chosen effort reaches Ollama in the model's own spelling, and the turn r
       params,
     });
     const warnings = result.events.flatMap((event) => (event.kind === "warning" ? [event.code] : []));
+    const messages = result.events.flatMap((event) => (event.kind === "warning" ? [event.message] : []));
+    expect(messages.filter((message) => message.includes("prefix markers"))).toEqual([
+      "App-authored prefix markers are unsupported on this route; provider implicit caching, if available, is unchanged",
+    ]);
     return { think: recorded[0]?.body["think"], applied: result.appliedEffort, warnings };
   };
   const named: GenerationCapability["reasoning"] = { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high", "max"] };
-  expect(await sent(named, { effort: "max" })).toEqual({ think: "max", applied: "max", warnings: [] });
-  expect(await sent(named, { effort: "low" })).toEqual({ think: "low", applied: "low", warnings: [] });
+  expect(await sent(named, { effort: "max" })).toEqual({ think: "max", applied: "max", warnings: ["cache_control_adjusted"] });
+  expect(await sent(named, { effort: "low" })).toEqual({ think: "low", applied: "low", warnings: ["cache_control_adjusted"] });
   expect(await sent(named, { effort: "none" })).toMatchObject({ think: false, applied: "none" });
   // On/off only: the level is dropped loudly, thinking is switched on, and no level is recorded.
   const onOff = await sent({ mode: "effort", enabled: true, effortLevels: [] }, { effort: "low" });

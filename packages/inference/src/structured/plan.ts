@@ -16,7 +16,7 @@ import { structuredTargetOf } from "./target.ts";
 
 /** The description a structured tool carries when the caller gave none: the callers describe the schema, not
  *  the act, and a tool with no description is a measurably worse prompt on every family. */
-export const STRUCTURED_TOOL_DESCRIPTION = "Record the result. Call this tool exactly once, with the complete result object.";
+const STRUCTURED_TOOL_DESCRIPTION = "Record the result. Call this tool exactly once, with the complete result object.";
 
 /** What a caller needs. A plan with `formats` produces one structured payload; `tools` alone is a tool turn. */
 export interface StructuredAsk {
@@ -254,7 +254,7 @@ function turnTarget(ask: StructuredAsk, endpoint: StructuredTarget): StructuredT
 /** Plan one structured request for `target`: the first vehicle (in the target's order) on which a format (in the
  *  caller's order) fits, or every violation each pair raised. A non-strict tool is not grammar-compiled, so a schema
  *  over the ceilings still rides one where the model takes tools; a model with no fitting vehicle is refused. */
-export function planStructured(ask: StructuredAsk, endpoint: StructuredTarget): StructuredPlan | StructuredRefusal {
+function planStructured(ask: StructuredAsk, endpoint: StructuredTarget): StructuredPlan | StructuredRefusal {
   const target = turnTarget(ask, endpoint);
   const downgrades: ResolvedWarning[] = [];
   const withdrawn = withdrawnForNone(ask, target, downgrades);

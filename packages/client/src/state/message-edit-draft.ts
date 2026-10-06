@@ -7,8 +7,8 @@
 import type { MessageId } from "@orb/kit/ids";
 import { createGatedStore } from "./create-gated-store.ts";
 
-/** One row's in-progress edit. `reservedInlineSize` is #245's FOOTPRINT: the outer width, in CSS px, of
- *  the bubble the editor replaced, measured by the Edit action at the moment of the swap. It lives HERE
+/** One row's in-progress edit. The reserved sizes are #245's FOOTPRINT: the content column's width and height,
+ *  measured by the Edit action at the moment of the swap. They live HERE
  *  rather than on the row because the transcript is windowed — a row scrolled out mid-edit remounts with no
  *  memory of what it used to look like, and a reservation that evaporates on scroll-back is the same jump
  *  one scroll later. `null` = the caller had no rendered box to measure (a story/driver call), which reads
@@ -16,6 +16,7 @@ import { createGatedStore } from "./create-gated-store.ts";
 interface MessageEditDraft {
   readonly text: string;
   readonly reservedInlineSize: number | null;
+  readonly reservedBlockSize: number | null;
 }
 
 interface MessageEditDraftState {
@@ -28,10 +29,15 @@ const useMessageEditDraftStore = createGatedStore<MessageEditDraftState>("messag
  *  from the Edit action's click handler. Re-entering an already-editing row reseeds the draft (a
  *  second Edit click discards any unsaved in-progress text, same as neo's re-open semantics).
  *
- *  `reservedInlineSize` is the read-mode bubble's own width (#245) — the click handler is the one place
+ *  The reserved sizes are the read-mode column's own box (#245) — the click handler is the one place
  *  that can still see it, because by the time any effect runs the prose has already been swapped out. */
-export function startEditingMessage(messageId: MessageId, initialText: string, reservedInlineSize: number | null = null): void {
-  const drafts = { ...useMessageEditDraftStore.getState().drafts, [messageId]: { text: initialText, reservedInlineSize } };
+export function startEditingMessage(
+  messageId: MessageId,
+  initialText: string,
+  reservedInlineSize: number | null = null,
+  reservedBlockSize: number | null = null,
+): void {
+  const drafts = { ...useMessageEditDraftStore.getState().drafts, [messageId]: { text: initialText, reservedInlineSize, reservedBlockSize } };
   useMessageEditDraftStore.setState({ drafts }, false, "edit-draft/start");
 }
 
@@ -39,7 +45,10 @@ export function startEditingMessage(messageId: MessageId, initialText: string, r
  *  typing changes the text, never the box the editor was opened into. */
 export function setMessageEditDraft(messageId: MessageId, text: string): void {
   const current = useMessageEditDraftStore.getState().drafts[messageId];
-  const drafts = { ...useMessageEditDraftStore.getState().drafts, [messageId]: { text, reservedInlineSize: current?.reservedInlineSize ?? null } };
+  const drafts = {
+    ...useMessageEditDraftStore.getState().drafts,
+    [messageId]: { text, reservedInlineSize: current?.reservedInlineSize ?? null, reservedBlockSize: current?.reservedBlockSize ?? null },
+  };
   useMessageEditDraftStore.setState({ drafts }, false, "edit-draft/set");
 }
 
@@ -62,10 +71,15 @@ export function useMessageEditDraftText(messageId: MessageId): string {
   return useMessageEditDraftStore((s) => s.drafts[messageId]?.text ?? "");
 }
 
-/** Reactive: the width (CSS px) the editor must occupy — the bubble it replaced (#245). `null` when
+/** Reactive: the width (CSS px) the editor must occupy — the column it replaced (#245). `null` when
  *  nothing was measured, which the row reads as "size to your content", the pre-#245 behaviour. */
 export function useMessageEditReservedInlineSize(messageId: MessageId): number | null {
   return useMessageEditDraftStore((s) => s.drafts[messageId]?.reservedInlineSize ?? null);
+}
+
+/** The read column's height, including chrome hidden during editing; a minimum lets longer drafts grow. */
+export function useMessageEditReservedBlockSize(messageId: MessageId): number | null {
+  return useMessageEditDraftStore((s) => s.drafts[messageId]?.reservedBlockSize ?? null);
 }
 
 /** Non-reactive snapshot read (tests / imperative call sites) — `undefined` means "not editing", the

@@ -12,7 +12,6 @@ import { beforeEach, describe } from "vitest";
 import type { EmbeddingsStoreOp, StoreDigestParams } from "../../../../../../packages/server/src/domain/chat/contract/context.ts";
 import { generateDigests } from "../../../../../../packages/server/src/domain/chat/memory/generate/digests.ts";
 import { consolidationSystemPrompt } from "../../../../../../packages/server/src/domain/chat/memory/generate/substrate/prompts.ts";
-import { SUMMARIZER_OUTPUT_RESERVE_MAX_FRACTION } from "../../../../../../packages/server/src/domain/chat/memory/generate/substrate/token-guard.ts";
 import { blockHash } from "../../../../../../packages/server/src/domain/chat/memory/generate/substrate/transcript.ts";
 import { loadDigestsForScope, loadWitnessHorizons } from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import type { MemoryLogEntry, MsgRow } from "../../../../../../packages/server/src/domain/chat/memory/types.ts";
@@ -256,7 +255,7 @@ describe("memory/generate/digests", () => {
 
     expect(counts.written).toBeGreaterThan(0);
     for (const opts of sum.optsSeen) {
-      expect(opts).toEqual({ maxOutputTokens: window * SUMMARIZER_OUTPUT_RESERVE_MAX_FRACTION });
+      expect(opts).toEqual({ maxOutputTokens: Math.floor(window / 2) });
     }
   });
 

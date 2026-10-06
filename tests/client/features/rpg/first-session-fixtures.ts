@@ -16,7 +16,7 @@ export function firstSessionConfig(): RpgConfigView {
   });
 }
 
-export function firstSessionActor(attributes: Readonly<Record<string, number>> = {}): RpgActorView {
+function firstSessionActor(attributes: Readonly<Record<string, number>> = {}): RpgActorView {
   return {
     actorRef: { kind: "user", userId: FIRST_SESSION_USER },
     name: "Player",

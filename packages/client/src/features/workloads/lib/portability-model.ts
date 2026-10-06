@@ -134,12 +134,7 @@ export function summarizeBundleCounts(counts: BundleCounts): ImportSummary {
 
 const UNNAMED_CARD = "Unnamed card";
 
-/** Normalize a bare-card import into the summary shape from the server's real per-file result. Per-card
- *  `notes` (#1598/#1709) rides each landed outcome — the deduped arm carries them too: a re-import that
- *  reconciled overlays against an existing character can skip the SAME planes a fresh import can.
- *  `card.notes` reads `?? []`: `import-characters.ts`'s `(await response.json()) as CardImportResult` is
- *  an unvalidated cast at the fetch boundary (no zod on this raw route), so a caller carrying an OLDER
- *  cached body (or a test fixture minted before this field existed) must not throw on a missing array. */
+/** Summarize validated per-card outcomes. Optional notes preserve compatibility with older responses. */
 export function summarizeCardImport(result: CardImportResult): ImportSummary {
   const created = result.imported.filter((card) => card.created);
   const deduped = result.imported.filter((card) => !card.created);

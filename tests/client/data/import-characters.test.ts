@@ -1,12 +1,13 @@
 // data/import-characters — the character-card import POST helper. Pins: the request shape (POST
 // `/api/import`, a repeated `file` FormData body, the CSRF header every mutation carries) and that a
 // non-OK response throws. `fetch` is stubbed at the global boundary (the `uploadAsset.test.ts` precedent
-// — "fake at the edges"), never a hand-mock of `importCharacters` itself. The response body is not parsed
-// (the LIST refreshes via invalidation), so there is no schema-validation case here.
+// — "fake at the edges"), never a hand-mock of `importCharacters` itself. Successful bodies are parsed
+// through the canonical import schema; malformed 200 responses must not reach the result summary.
 
+import { CSRF_HEADER } from "@orb/contracts/identity";
 // Deep import the PURE module (NOT the "@orb/client/data" barrel): a barrel import drags browser TSX into
 // the dom-less root typecheck:graph program (a dom-lib landmine by construction — the 2026-06-28 incident).
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { afterEach, vi } from "vitest";
 import { importCharacters } from "../../../packages/client/src/data/import-characters.ts";
 import { expect, test } from "../../support/fixtures.ts";
@@ -19,7 +20,7 @@ test("POSTs every file under the repeated `file` field with the CSRF header", as
   let capturedRequest: { url: string; init: RequestInit } | undefined;
   vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
     capturedRequest = { url, init };
-    return Promise.resolve(new Response(JSON.stringify({ imported: 2 }), { status: 200 }));
+    return Promise.resolve(new Response(JSON.stringify({ imported: [], failed: [] }), { status: 200 }));
   });
 
   const png = new File(["bytes"], "elara.png", { type: "image/png" });
@@ -40,3 +41,37 @@ test("throws on a non-OK response", async () => {
   const file = new File(["bytes"], "bad.txt", { type: "text/plain" });
   await expect(importCharacters([file])).rejects.toThrow("415");
 });
+
+const imported = {
+  filename: "elara.png",
+  characterId: mintTypeId(ID_PREFIX.character),
+  created: true,
+  importHash: "card-wire-hash",
+  notes: ["Primary book kept"],
+};
+
+test("a valid partial batch preserves canonical IDs, hashes, per-card notes and isolated failures", async () => {
+  const body = { imported: [imported, { ...imported, created: false, notes: [] }], failed: [{ filename: "bad.png", error: "Unreadable card" }] };
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify(body), { status: 200 })));
+  expect(await importCharacters([])).toEqual(body);
+});
+
+test("an older card result may omit notes without inventing a note or losing its identity", async () => {
+  const { notes: _notes, ...card } = imported;
+  const body = { imported: [card], failed: [] };
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify(body), { status: 200 })));
+  expect(await importCharacters([])).toEqual(body);
+});
+
+for (const body of [
+  { imported: 2, failed: [] },
+  { imported: [{ ...imported, characterId: "not-a-character-id" }], failed: [] },
+  { imported: [{ ...imported, importHash: undefined }], failed: [] },
+  { imported: [{ ...imported, notes: [42] }], failed: [] },
+  { imported: [], failed: [{ filename: "bad.png", error: 42 }] },
+]) {
+  test(`malformed successful card import is refused: ${JSON.stringify(body)}`, async () => {
+    vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify(body), { status: 200 })));
+    await expect(importCharacters([])).rejects.toThrow();
+  });
+}

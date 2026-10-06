@@ -5,7 +5,7 @@ import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatResult } from "../../../packages/inference/src/contract/chat.ts";
 import type { PlannedResponseFormat, StructuredPlan } from "../../../packages/inference/src/structured/plan.ts";
-import { normalizeStructuredText, normalizeStructuredValue, structuredChatResult } from "../../../packages/inference/src/structured/reply.ts";
+import { normalizeStructuredValue, structuredChatResult } from "../../../packages/inference/src/structured/reply.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 /** A format with no pinned values, so only the reshaped paths act. */
@@ -15,6 +15,10 @@ function at(reshapedPaths: readonly string[]): Pick<PlannedResponseFormat, "sche
 
 function format(reshapedPaths: readonly string[], vehicle: PlannedResponseFormat["vehicle"] = "response-format"): PlannedResponseFormat {
   return { name: "row", schema: {}, strict: true, vehicle, nullMeansAbsent: reshapedPaths.length > 0, reshapedPaths };
+}
+
+function structuredText(text: string, responseFormat: PlannedResponseFormat): string {
+  return structuredChatResult(chatResult(text), planWith(responseFormat)).reply;
 }
 
 test("a nullable REQUIRED field keeps its null under strict-compatible; a reshaped optional's null is dropped", () => {
@@ -39,7 +43,7 @@ test("a reshaped optional inside an array of objects drops at every index, and a
 
 test("an unreshaped plan drops nothing, and its text is returned byte for byte", () => {
   const text = '{"a": null,  "b": [null]}';
-  expect(normalizeStructuredText(text, format([]))).toBe(text);
+  expect(structuredText(text, format([]))).toBe(text);
   expect(normalizeStructuredValue({ a: null }, at([]))).toEqual({ a: null });
 });
 
@@ -49,8 +53,8 @@ test("a quoted path segment and a map-value wildcard address their nulls", () =>
 });
 
 test("a reply that is not bare JSON is read tolerantly; one with no object is returned for the caller's own parse to refuse", () => {
-  expect(normalizeStructuredText('```json\n{"note": null, "k": 1}\n```', format(["note"]))).toBe('{"k":1}');
-  expect(normalizeStructuredText("no json here", format(["note"]))).toBe("no json here");
+  expect(structuredText('```json\n{"note": null, "k": 1}\n```', format(["note"]))).toBe('{"k":1}');
+  expect(structuredText("no json here", format(["note"]))).toBe("no json here");
 });
 
 function chatResult(reply: string, toolCalls?: ChatResult["toolCalls"]): ChatResult {

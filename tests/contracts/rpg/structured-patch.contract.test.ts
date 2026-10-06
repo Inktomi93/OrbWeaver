@@ -607,3 +607,20 @@ test("two upserts of one actor that differ record the replaced value, naming the
     'presentUpsert.mood: a later update_scene this turn set this field again, so this value was replaced — sent {"name":"Mira","mood":"wary"}',
   ]);
 });
+
+test("the concrete patch reply refuses undeclared planes, fields, empty changes and widened members", () => {
+  const schema = stateRoundPatchSchema(TOOLS);
+  expect(schema.parse({ changes: [{ plane: "no_changes" }] })).toEqual({ changes: [{ plane: "no_changes" }] });
+  const field = patchFieldPaths(TOOLS[0] as RpgStateRoundTool)[0];
+  const change = { plane: "update_party", call: 0, field, item: 0, value: "Mira" };
+  expect(schema.parse({ changes: [change] })).toEqual({ changes: [change] });
+  for (const changes of [
+    [],
+    [{ ...change, plane: "foreign" }],
+    [{ ...change, field: "foreign" }],
+    [{ ...change, privateTypedField: true }],
+    [{ plane: "no_changes", value: "foreign" }],
+  ]) {
+    expect(schema.safeParse({ changes }).success).toBe(false);
+  }
+});

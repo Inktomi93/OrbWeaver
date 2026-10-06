@@ -13,6 +13,7 @@
 //     it is the SAME function object in both halves (one home for the resolution).
 
 import type { GenerationCapability } from "@orb/contracts/inference";
+import { SCORE_MAX, SCORE_MIN } from "@orb/contracts/refinery";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { Resolved } from "@orb/inference";
@@ -24,7 +25,7 @@ import { publishUserEvent } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
 import { z } from "zod";
 import type { RefineryComposeDeps } from "../../../../packages/server/src/entry/compose/refinery.ts";
-import { buildRefinery, createPlanSchema, createResolveStructuredBinding } from "../../../../packages/server/src/entry/compose/refinery.ts";
+import { buildRefinery, createResolveStructuredBinding } from "../../../../packages/server/src/entry/compose/refinery.ts";
 import { FROZEN_NOW, fakeConnection, fakeDeps, memoryStores, newUserId } from "../../../inference/_support.ts";
 import { principal } from "../../../support/factories/principal.ts";
 import { makeCapability, makeGenerationCapability, makeResolved, TEST_OWNER_ID } from "../../../support/factories/resolved-connection.ts";
@@ -162,12 +163,30 @@ const CLAUDE_OUTPUT: GenerationCapability["output"] = {
   structuredLimitsFrom: "anthropic-format",
 };
 
-function planOn(connection: Resolved | null): ReturnType<ReturnType<typeof createPlanSchema>> {
-  const planSchema = createPlanSchema(
-    () => Promise.resolve(connection),
-    () => Promise.resolve(undefined),
-  );
-  return planSchema(TEST_OWNER_ID, optionalFields(30));
+function previewOn(
+  connection: Resolved | null,
+  params: RefineryComposeDeps["resolveUtilityPresetParams"],
+): ReturnType<typeof buildRefinery>["refinery"]["previewSchemaPlan"] {
+  return buildRefinery({ ...harness().deps, resolveStructuredBinding: () => Promise.resolve(connection), resolveUtilityPresetParams: params }).refinery
+    .previewSchemaPlan;
+}
+
+function scoreDraft(schema: ReturnType<typeof projectJsonSchema>): Record<string, unknown> {
+  const properties = z.record(z.string(), z.unknown()).parse(schema["properties"] ?? {});
+  const required = z.array(z.string()).parse(schema["required"] ?? []);
+  return {
+    type: "object",
+    properties: { ...properties, overallScore: { type: "number", minimum: SCORE_MIN, maximum: SCORE_MAX } },
+    required: [...required, "overallScore"],
+  };
+}
+
+function planOn(connection: Resolved | null): ReturnType<ReturnType<typeof buildRefinery>["refinery"]["previewSchemaPlan"]> {
+  return previewOn(connection, () => Promise.resolve(undefined))({
+    principal: principal(TEST_OWNER_ID),
+    stage: "score",
+    schema: scoreDraft(optionalFields(30)),
+  });
 }
 
 /** A bound `structured` row that allows background work, as every refinery run needs. */
@@ -196,7 +215,9 @@ test("the Utility default reasoning off admits the same conditional tool fallbac
     ),
   });
   const params = vi.fn<RefineryComposeDeps["resolveUtilityPresetParams"]>().mockResolvedValue(undefined);
-  const planSchema = createPlanSchema(() => Promise.resolve(connection), params);
+  const preview = previewOn(connection, params);
+  const planSchema = (owner: UserId, draft: ReturnType<typeof projectJsonSchema>): ReturnType<typeof preview> =>
+    preview({ principal: principal(owner), stage: "score", schema: scoreDraft(draft) });
   const schema = projectJsonSchema(z.object({ a: z.string(), b: z.string() }));
   expect(await planSchema(TEST_OWNER_ID, schema)).toEqual({ outcome: "sends", model: "gpt-6-sol", carrier: "tool" });
   expect(params).toHaveBeenLastCalledWith(TEST_OWNER_ID);
@@ -210,7 +231,7 @@ test("with no tools to fall back on, the refusal names the reason in the author'
   const claude = bound({ providerId: "anthropic", capability: makeCapability(makeGenerationCapability({ output: CLAUDE_OUTPUT })) });
   const plan = await planOn(claude);
   expect(plan).toMatchObject({ outcome: "refused", model: "test-model" });
-  const reasons = plan.outcome === "refused" ? plan.reasons : [];
+  const reasons = plan?.outcome === "refused" ? plan.reasons : [];
   expect(reasons).toHaveLength(1);
   expect(reasons[0]).toMatch(/\b30\b.*\b24\b/u);
   expect(JSON.stringify(plan)).not.toMatch(/optional-props|anthropic-format|hosted-common/u);

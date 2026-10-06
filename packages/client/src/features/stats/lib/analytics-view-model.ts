@@ -21,7 +21,6 @@ import type { HistogramBucket } from "@orb/ui/histogram";
 
 /** Sun..Sat, index 0 = Sunday — matches the server's `dayOfWeek` / heatmap row ordering.
  *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 

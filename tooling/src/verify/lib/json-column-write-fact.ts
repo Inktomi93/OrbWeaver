@@ -4,9 +4,9 @@
 import type { Block, CallExpression, SourceFile, Statement, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineFact } from "../contract/fact.ts";
-import type { SchemaModel } from "../contract/schema-fact.ts";
+import type { SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
 import type { JsonColumnWriter } from "./json-column-writers.ts";
-import { collectJsonWritersByColumn, collectWriters, DOMAIN_DIR, EMPTY_TAINT, jsonWriterColumn, updatedTable } from "./json-column-writers.ts";
+import { collectJsonWritersByColumn, collectWriters, DOMAIN_DIR, jsonWriterColumn, updatedTable } from "./json-column-writers.ts";
 
 const CONTRACTS_DIR = "/packages/contracts/src/";
 
@@ -182,7 +182,13 @@ function unwrapArg(arg: TsNode | undefined): TsNode | undefined {
 
 /** Every whole-replace write of a versioned-config column reachable from one `set` object, plus the
  *  fail-closed OPAQUE verdict when the gate cannot read the object at all. */
-function guardTargetsOf(setArg: TsNode | undefined, cols: ReadonlySet<string>, root: string): JsonGuardTarget[] {
+function guardTargetsOf(
+  setArg: TsNode | undefined,
+  target: { readonly cols: ReadonlySet<string>; readonly table: SchemaTable },
+  root: string,
+  schema: SchemaModel,
+): JsonGuardTarget[] {
+  const { cols, table } = target;
   const arg = unwrapArg(setArg);
   if (arg === undefined) {
     return [];
@@ -194,9 +200,9 @@ function guardTargetsOf(setArg: TsNode | undefined, cols: ReadonlySet<string>, r
     return [{ node: arg, token: arg.getText().slice(0, OPAQUE_TOKEN_CHARS), key, dominated: dominates(arg), opaque: true }];
   }
   const found: JsonColumnWriter[] = [];
-  collectWriters(arg, { cols, out: found }, EMPTY_TAINT, 0);
+  collectWriters(arg, { cols, out: found, table }, { schema, bindings: new Map(), active: new Set(), mergeActive: new Set() }, 0);
   return found
-    .filter((w) => w.wholeReplace && cols.has(jsonWriterColumn(w)))
+    .filter((w) => (w.wholeReplace || w.historicalHeal) && cols.has(jsonWriterColumn(w)))
     .map((w) => ({ node: w.node, token: jsonWriterColumn(w), key, dominated: dominates(w.node), opaque: false }));
 }
 
@@ -218,7 +224,7 @@ const WRITE_VERBS: ReadonlyMap<string, string> = new Map([
 function versionedSetArg(
   call: CallExpression,
   versionedColumns: ReadonlyMap<string, ReadonlySet<string>>,
-): { readonly arg: TsNode | undefined; readonly cols: ReadonlySet<string> } | undefined {
+): { readonly arg: TsNode | undefined; readonly cols: ReadonlySet<string>; readonly table: string } | undefined {
   const callee = call.getExpression();
   if (!Node.isPropertyAccessExpression(callee)) {
     return;
@@ -226,10 +232,10 @@ function versionedSetArg(
   const chainVerb = WRITE_VERBS.get(callee.getName());
   const table = chainVerb === undefined ? undefined : updatedTable(callee.getExpression(), chainVerb);
   const cols = table === undefined ? undefined : versionedColumns.get(table);
-  if (cols === undefined) {
+  if (cols === undefined || table === undefined) {
     return;
   }
-  return { arg: callee.getName() === CONFLICT_UPDATE ? conflictSetObject(call) : call.getArguments()[0], cols };
+  return { arg: callee.getName() === CONFLICT_UPDATE ? conflictSetObject(call) : call.getArguments()[0], cols, table };
 }
 
 /** Every versioned-config write site in the domain corpus, classified. */
@@ -237,13 +243,18 @@ function collectJsonGuardTargets(
   calls: readonly CallExpression[],
   versionedColumns: ReadonlyMap<string, ReadonlySet<string>>,
   root: string,
+  schema: SchemaModel,
 ): JsonGuardTarget[] {
   const out: JsonGuardTarget[] = [];
   for (const call of calls) {
     if (call.getSourceFile().getFilePath().includes(DOMAIN_DIR)) {
       const target = versionedSetArg(call, versionedColumns);
       if (target !== undefined) {
-        out.push(...guardTargetsOf(target.arg, target.cols, root));
+        const table = schema.tables.find((candidate) => candidate.identity.declarationName === target.table);
+        if (table === undefined) {
+          throw new Error(`json-column-writes: versioned table disappeared: ${target.table}`);
+        }
+        out.push(...guardTargetsOf(target.arg, { cols: target.cols, table }, root, schema));
       }
     }
   }
@@ -300,8 +311,8 @@ export const jsonColumnWriteFact = defineFact({
           analyze: (schema: SchemaModel): JsonColumnWriteAnalysis => {
             const versioned = deriveVersionedTypes(calls);
             const columns = deriveJsonColumns(schema, versioned.types);
-            const writers = collectJsonWritersByColumn(calls, columns.all);
-            const guardTargets = collectJsonGuardTargets(calls, columns.versioned, root);
+            const writers = collectJsonWritersByColumn(calls, columns.all, schema);
+            const guardTargets = collectJsonGuardTargets(calls, columns.versioned, root, schema);
             return Object.freeze({ files: ctx.files, versioned, columns, writers, guardTargets });
           },
         });

@@ -136,6 +136,24 @@ test("RATCHET SIDE 1 — a schema table with NO registry row is reported UNCLASS
   expect(unclassified[0]?.token).toBe('"planted_extra_table"');
 });
 
+test("retained observations are chat-scoped, never authorized by a funding owner stamp", () => {
+  const path = "packages/db/src/schema/chat.ts";
+  const declaration =
+    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const observations = sqliteTable("chat_generation_observations", { chatId: text("chat_id"), funderUserId: text("funder_user_id") });\n';
+  const admitted = passOf(tableScopingClass, { [path]: declaration });
+  expect(admitted.toolErrors).toEqual([]);
+  expect(admitted.authority.effectiveFindings).toEqual([]);
+  expect(tableScopingClasses().get("chat_generation_observations")?.scope).toBe("membership");
+  const stamped = passOf(tableScopingClass, { [path]: declaration.replace('funderUserId: text("funder_user_id")', 'ownerId: text("owner_id")') });
+  expect(stamped.toolErrors).toEqual([]);
+  expect(stamped.authority.effectiveFindings).toHaveLength(1);
+  expect(stamped.authority.effectiveFindings[0]?.message).toContain("ownerId");
+  const unknown = passOf(tableScopingClass, { [path]: declaration.replace('"chat_generation_observations"', '"unclassified_observations"') });
+  expect(unknown.toolErrors).toEqual([]);
+  expect(unknown.authority.effectiveFindings).toHaveLength(1);
+  expect(unknown.authority.effectiveFindings[0]?.message).toContain("classify it");
+});
+
 test("RATCHET SIDE 2 — a registry row the schema no longer declares is reported STALE (the planted MISSING table)", () => {
   // The barrel declares `chats` and nothing else, so every OTHER registry row is a table the schema does
   // not declare — which is precisely the stale side, at scale.

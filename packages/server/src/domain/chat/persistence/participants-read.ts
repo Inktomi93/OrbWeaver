@@ -101,7 +101,7 @@ export async function loadParticipants(db: Db, chatId: ChatId, includePast = fal
  * HUSKS DO NOT COUNT (R0 §4.7): the seat's chat must be CLAIMED (`chats.started_at` NOT NULL). Without this
  * join a husk seating a character would make the next REAL chat read "not first" and the `newCharacter` bump
  * would be lost forever — even after the husk reaps. The rebuild's chat aggregations carry the SAME arm
- * (`domain/stats/write/rebuild-from-canon.ts`), because the drift-gate contract above binds BOTH writers:
+ * (`domain/stats/persistence/rebuild-from-canon.ts`), because the drift-gate contract above binds BOTH writers:
  * fixing one side alone is a guaranteed reconcile diff the moment any husk exists.
  */
 export async function characterSeatedInAnotherChat(db: Db, characterId: CharacterId, excludeChatId: ChatId): Promise<boolean> {

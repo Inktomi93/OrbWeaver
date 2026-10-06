@@ -279,7 +279,7 @@ function startsUpper(word: string): boolean {
 
 /** Name words that never name a character on their own. Nearly every message contains them, so a name like
  *  "The Knight" or "Lady of the Lake" would otherwise answer every message. Lowercase, compared per word. */
-export const NAME_STOPWORDS = [
+const NAME_STOPWORDS = [
   "a",
   "an",
   "the",
@@ -351,7 +351,7 @@ function writtenAsName(textWord: string, cardWord: string | undefined): boolean 
  * name, so "I don't" does not name `T'Pol`. A name made only of {@link NAME_STOPWORDS} and one-letter words is
  * named by its whole name as a phrase. Ordered by where each is first named, then roster order.
  */
-export function nameMentionsOf(triggerText: string, candidates: readonly SpeakerCandidate[]): NameMention[] {
+function nameMentionsOf(triggerText: string, candidates: readonly SpeakerCandidate[]): NameMention[] {
   return mentionHits(rawWordsOf(triggerText), candidates, new Set()).map(({ id, hits, strong }) => ({ id, hits, strong }));
 }
 

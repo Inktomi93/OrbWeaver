@@ -2,6 +2,9 @@
 // browser planner skips what the server would only report, and the server collector and report name the
 // same planes with the same reasons, so the two sides can never disagree about what was left behind.
 
+export type { CardImportResult, FailedCard, ImportedCard } from "./card-result.ts";
+export { cardImportResultSchema } from "./card-result.ts";
+
 /** The ST per-profile credentials file. Never uploaded, never staged, never imported. */
 export const ST_SECRETS_FILE = "secrets.json";
 

@@ -3,6 +3,7 @@
 // idempotent on their unique key (re-upsert updates in place, never doubles); a re-upsert NEVER touches
 // hub_score; the round-trip Float32Array survives the F32_BLOB column.
 
+import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import { characterEmbeddings, embedGenerations, embedGenerationTargets, imageEmbeddings } from "@orb/db";
 import type { CharacterEmbeddingId, EmbedGenerationId, Handle, ImageEmbeddingId, UserConnectionId, UserId } from "@orb/kit/ids";
@@ -23,7 +24,7 @@ import { EMBED_DIM, EMBED_MODEL, fakeVector, IMAGE_EMBED_MODEL, seedAsset, seedC
 
 const NOW = 1_750_000_000_000;
 
-async function seedGeneration(db: Db, ownerId: UserId, model: string, task: "embed" | "imageEmbed" = "embed"): Promise<EmbedGenerationId> {
+async function seedGeneration(db: Db, ownerId: UserId, model: string, task: EmbeddingTask = "embed"): Promise<EmbedGenerationId> {
   const id = castId<EmbedGenerationId>(`embed_generation_${task}_${model}`);
   await db
     .insert(embedGenerations)

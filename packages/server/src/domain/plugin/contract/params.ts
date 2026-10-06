@@ -400,6 +400,6 @@ export interface TransformForDisplayParams {
   readonly chatId: ChatId;
   readonly messageId: MessageId;
   /** The row as this viewer's client has ALREADY rendered it (macros → DISPLAY regex → this). Capped at
-   *  `PLUGIN_DISPLAY_TEXT_MAX_CHARS` at the transport boundary. */
+   *  `PLUGIN_TEXT_MAX_CHARS` at the transport boundary. */
   readonly text: string;
 }

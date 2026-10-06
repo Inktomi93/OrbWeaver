@@ -26,6 +26,7 @@ import {
 import { loadCanonHistory, loadMaxMessageSeq, loadSlotTarget } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { continuedSignatureMetadata } from "../../../../../packages/server/src/domain/chat/substrate/content-signatures.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { FROZEN_AT, seedCharacter, seedChat, seedConnection, seedMessage, seedUser } from "../_support.ts";
@@ -595,7 +596,20 @@ describe("persistence/canon-write — reasoning_tokens + cost_details (B5/B8) an
           seq: 1,
           role: "assistant",
           now: FROZEN_AT,
-          variant: { content: "first", tokensOut: 5, reasoningTokens: 3, costDetails: details, reasoningEffort: "high" },
+          variant: {
+            ...makeGenerationUsage(0.18, {
+              tokensIn: 7,
+              tokensOut: 5,
+              reasoningTokens: 3,
+              cacheReadTokens: 6,
+              cacheWriteTokens: 8,
+              tokenDetails: { input: [{ modality: "text", tokens: 7 }] },
+              costDetails: { ...details, pricing: { inputPerMTok: 2, outputPerMTok: 3 } },
+              responseCache: { status: "hit", ageSeconds: 4, ttlSeconds: 100, sourceGenerationId: null },
+            }),
+            content: "first",
+            reasoningEffort: "high",
+          },
         }),
       ),
     );
@@ -603,7 +617,19 @@ describe("persistence/canon-write — reasoning_tokens + cost_details (B5/B8) an
       batchMany(
         continueVariantStatements(db, {
           variantId,
-          variant: { content: "first and more", tokensOut: 9, reasoningTokens: 21, costDetails: { totalUsd: 0.4 }, reasoningEffort: "low" },
+          variant: {
+            ...makeGenerationUsage(0.4, {
+              tokensIn: null,
+              tokensOut: 9,
+              reasoningTokens: 21,
+              cacheReadTokens: null,
+              cacheWriteTokens: 0,
+              tokenDetails: { output: [{ modality: "image", tokens: 0 }] },
+              responseCache: { status: "miss", ageSeconds: null, ttlSeconds: null, sourceGenerationId: null },
+            }),
+            content: "first and more",
+            reasoningEffort: "low",
+          },
           preContinueContent: "first",
           preContinueReasoning: null,
           lastContinuationContent: " and more",
@@ -617,9 +643,28 @@ describe("persistence/canon-write — reasoning_tokens + cost_details (B5/B8) an
         reasoningTokens: messageVariants.reasoningTokens,
         costDetails: messageVariants.costDetails,
         reasoningEffort: messageVariants.reasoningEffort,
+        tokensIn: messageVariants.tokensIn,
+        cacheReadTokens: messageVariants.cacheReadTokens,
+        cacheWriteTokens: messageVariants.cacheWriteTokens,
+        tokenDetails: messageVariants.tokenDetails,
+        responseCache: messageVariants.responseCache,
+        costUsd: messageVariants.costUsd,
+        costProvenance: messageVariants.costProvenance,
       })
       .from(messageVariants)
       .where(eq(messageVariants.id, variantId));
-    expect(row).toEqual({ tokensOut: 9, reasoningTokens: 21, costDetails: { totalUsd: 0.4 }, reasoningEffort: "low" });
+    expect(row).toEqual({
+      tokensOut: 9,
+      reasoningTokens: 21,
+      costDetails: { totalUsd: 0.4 },
+      reasoningEffort: "low",
+      tokensIn: null,
+      cacheReadTokens: null,
+      cacheWriteTokens: 0,
+      tokenDetails: { output: [{ modality: "image", tokens: 0 }] },
+      responseCache: { status: "miss", ageSeconds: null, ttlSeconds: null, sourceGenerationId: null },
+      costUsd: 0.4,
+      costProvenance: "measured",
+    });
   });
 });

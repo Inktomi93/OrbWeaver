@@ -7,7 +7,15 @@
 // Exercised through the non-hook `__readComposerDraftsForTest` snapshot; the reactive `useComposerDraft`
 // needs a React render.
 
-import { __readComposerDraftsForTest, __resetComposerDrafts, COMPOSER_DRAFT_CAP, readComposerDraft, setComposerDraft } from "@orb/client/state";
+import {
+  __readComposerDraftsForTest,
+  __resetComposerDrafts,
+  COMPOSER_DRAFT_CAP,
+  readComposerDraft,
+  readComposerDraftSnapshot,
+  replaceComposerDraft,
+  setComposerDraft,
+} from "@orb/client/state";
 import { beforeEach, describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -60,4 +68,28 @@ describe("composer-draft store", () => {
     expect(Object.keys(__readComposerDraftsForTest())).toHaveLength(COMPOSER_DRAFT_CAP + 3);
     expect(__readComposerDraftsForTest()["room-0"]).toBe("draft 0");
   });
+});
+
+test("draft replacement and Undo require the exact captured revision and preserve literal text", () => {
+  __resetComposerDrafts();
+  setComposerDraft("room-a", "  Original\n");
+  const before = readComposerDraftSnapshot("room-a");
+  expect(before.text).toBe("  Original\n");
+  expect(readComposerDraftSnapshot("room-b").text).toBe("");
+  const after = replaceComposerDraft("room-a", before, "Replacement");
+  expect(after?.text).toBe("Replacement");
+  expect(readComposerDraft("room-a")).toBe("Replacement");
+  expect(replaceComposerDraft("room-a", before, "Stale")).toBeNull();
+  expect(readComposerDraft("room-a")).toBe("Replacement");
+  expect(replaceComposerDraft("room-b", before, "Wrong scope")).toBeNull();
+  expect(readComposerDraft("room-b")).toBe("");
+  if (after === null) {
+    throw new Error("valid replacement did not produce its Undo revision");
+  }
+  expect(replaceComposerDraft("room-a", after, before.text)?.text).toBe(before.text);
+  const undo = readComposerDraftSnapshot("room-a");
+  setComposerDraft("room-a", "Later edit");
+  setComposerDraft("room-a", before.text);
+  expect(replaceComposerDraft("room-a", undo, "Late Undo")).toBeNull();
+  expect(readComposerDraft("room-a")).toBe(before.text);
 });

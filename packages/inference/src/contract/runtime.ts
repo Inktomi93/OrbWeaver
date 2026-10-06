@@ -107,12 +107,17 @@ const endpointModelSchema = z.object({
 export type EndpointModel = z.infer<typeof endpointModelSchema>;
 
 /** The local servers a detecting row can identify, each named by the id of the built-in row that reads it. */
-export const DETECTED_SERVERS = ["koboldcpp", "llama-cpp", "ollama", "vllm"] as const;
+const DETECTED_SERVERS = ["koboldcpp", "llama-cpp", "ollama", "vllm"] as const;
 
 /** A detecting row's cached server probe: the server it identified as, or `null` for a server that answered
  *  and is none of the known local servers. */
 export const detectedServerSchema = z.object({ server: z.enum(DETECTED_SERVERS).nullable() });
 export type DetectedServer = z.infer<typeof detectedServerSchema>;
+export interface DetectionProbe {
+  readonly server: NonNullable<DetectedServer["server"]>;
+  readonly path: string;
+  readonly schema: Pick<z.ZodType, "safeParse">;
+}
 export const endpointModelsSchema = z.array(endpointModelSchema) satisfies z.ZodType<EndpointModel[]>;
 
 export type RoleClientsFor = (funder: Principal, actor?: BindingActor) => RoleClientsWithSignal;

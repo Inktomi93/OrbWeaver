@@ -1113,7 +1113,7 @@ export type AutomationRuleEditableInput = z.input<typeof automationRuleEditableS
 /** The saver's browser zone, stamped on every create, update and preset mint: the rule's clock reads in it.
  *  It travels beside the authored body, never inside it, so opening an editor never dirties a draft. A zone
  *  the server does not know is stored as UTC, never refused; the editor reports that from the saved row. */
-export const automationRuleTimeZoneSchema = z.strictObject({ timeZone: reportedTimeZoneSchema });
+export const automationRuleTimeZoneSchema = z.strictObject({ timeZone: reportedTimeZoneSchema }) satisfies z.ZodType<Pick<AutomationCelEnv, "timeZone">>;
 
 export const automationRuleCreateSchema = automationRuleEditableSchema.extend({
   ...automationRuleTimeZoneSchema.shape,

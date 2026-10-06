@@ -268,16 +268,16 @@ const COMPOSER_CONTRIBUTION_ROUTES = {
 for (const width of [1440, 360]) {
   test.describe(`composer contributions at ${width}`, () => {
     test.use({ viewport: { width, height: 900 }, hasTouch: width === 360 });
-    test("composer-action survives regrouping inside the fill slot", async ({ mount, page }) => {
+    test("composer-action survives regrouping in the upper utility row", async ({ mount, page }) => {
       await routeTrpc(page, COMPOSER_CONTRIBUTION_ROUTES);
       const component = await mount(<ChatSurfaceContributorStory anchor="composer-action" visible={true} />);
-      const bar = component.locator('[data-slot="action-bar"]');
-      const contribution = bar.locator('[data-slot="action-bar-fill"]').getByText("fake composer-action", { exact: true });
+      const bar = component.locator('[data-slot="composer-guided-cluster"]');
+      const contribution = bar.locator('[data-slot="composer-utilities"]').getByText("fake composer-action", { exact: true });
       await expect(contribution).toBeVisible();
       await expect
         .poll(async () => {
           const bounds = await contribution.evaluate((node) => {
-            const host = node.closest('[data-slot="action-bar"]')?.getBoundingClientRect();
+            const host = node.closest('[data-slot="composer-utilities"]')?.getBoundingClientRect();
             const box = node.getBoundingClientRect();
             return host !== undefined && box.left >= host.left && box.right <= host.right;
           });

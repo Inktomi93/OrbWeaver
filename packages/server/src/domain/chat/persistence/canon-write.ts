@@ -40,6 +40,7 @@ import type { SQL } from "drizzle-orm";
 import { and, eq, exists, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { DeliveredCue } from "../contract/results.ts";
+import type { ContinueRestorePlan, ContinueSnapshot } from "../contract/views.ts";
 import { loadMaxMessageSeq } from "./queries.ts";
 
 /** Only the known first required-parent write may become a stale-source domain refusal. */
@@ -652,6 +653,38 @@ export function setVariantContentStatement(
       })
       .where(eq(messageVariants.id, variantId)),
   );
+}
+
+/** Refuse a stale body/tool snapshot or withdrawn caller before restoration and its canon bump can commit. */
+export function prepareContinueRestore(
+  db: Db,
+  args: {
+    readonly chatId: ChatId;
+    readonly messageId: MessageId;
+    readonly userId: UserId;
+    readonly role: ParticipantRole;
+    readonly snapshot: ContinueSnapshot;
+    readonly restored: Parameters<typeof setVariantContentStatement>[2];
+  },
+): ContinueRestorePlan {
+  const { chatId, messageId, userId, role, snapshot, restored } = args;
+  const selection = sql`select ${messages.chatId} from ${messages}
+    inner join ${messageVariants} on ${messageVariants.id} = ${messages.selectedVariantId}
+    where ${messages.chatId} = ${chatId} and ${messages.id} = ${messageId}
+      and ${messages.selectedVariantId} = ${snapshot.variantId} and ${messageVariants.messageId} = ${messageId}
+      and ${messageVariants.content} = ${snapshot.content} and ${messageVariants.reasoning} is ${snapshot.reasoning}
+      and ${messageVariants.preContinueContent} is ${snapshot.preContinueContent}
+      and ${messageVariants.preContinueReasoning} is ${snapshot.preContinueReasoning}
+      and ${messageVariants.lastContinuationContent} is ${snapshot.lastContinuationContent}
+      and ${messageVariants.lastContinuationReasoning} is ${snapshot.lastContinuationReasoning}
+      and ${messageVariants.metadata} is ${snapshot.rawMetadata} and ${messageVariants.toolCalls} is ${snapshot.rawToolCalls}
+      and exists (select 1 from ${chatParticipants}
+        where ${chatParticipants.chatId} = ${chatId} and ${chatParticipants.userId} = ${userId}
+          and ${chatParticipants.leftSeq} is null and ${chatParticipants.role} = ${role})`;
+  return {
+    selection,
+    statements: [retainedChatFenceStatement(db, selection), setVariantContentStatement(db, snapshot.variantId, restored)],
+  };
 }
 
 /** Merge a base + a continuation text/reasoning (continue/revert): null only when both are null, else the

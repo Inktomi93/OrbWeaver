@@ -372,6 +372,15 @@ export const gate = defineGate({
     {
       mode: "source",
       files: {
+        "packages/server/src/entry/compose/rpg.ts":
+          'export function operatorRefusal() {\n  return { ok: false, reason: "A bound RPG character card supplies the extractor target, so scene extraction cannot run without one selected for this room." };\n}\n',
+      },
+      expect: { count: 1, token: "A" },
+      why: "reason fields are not a blanket operator exemption: an unmarked authored sentence remains a model-prose candidate",
+    },
+    {
+      mode: "source",
+      files: {
         "packages/server/src/domain/rpg/substrate/__probe.ts":
           'export const NEW_TEACH =\n  "When the scene calls for it, teach the model to answer in the voice of the narrator and keep it steady.";\n',
       },
@@ -433,6 +442,14 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/entry/compose/rpg.ts":
+          'export function operatorRefusal() {\n  // @orb-waive no-hardcoded-model-prose(A): VERIFIED-FP: this operator refusal returns before model dispatch; ends if this sentence is sent to a model.\n  return { ok: false, reason: "A bound RPG character card supplies the extractor target, so scene extraction cannot run without one selected for this room." };\n}\n',
+      },
+      why: "the exact line-adjacent verified operator-refusal marker disposes only its authored first-word candidate; no reason-key exemption is added",
+    },
     {
       mode: "source",
       files: {

@@ -30,8 +30,8 @@ import { createBulkImportChats } from "../../../../packages/server/src/domain/ch
 import type { ImportContext } from "../../../../packages/server/src/domain/import/context.ts";
 import type { ImportChatsResult } from "../../../../packages/server/src/domain/import/contract/results.ts";
 import { createImportChats } from "../../../../packages/server/src/domain/import/verbs/import-chats.ts";
+import { reconcileStats } from "../../../../packages/server/src/domain/stats/persistence/rebuild-from-canon.ts";
 import { bumpStatsCanonVersion } from "../../../../packages/server/src/domain/stats/write/apply-delta.ts";
-import { reconcileStats } from "../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { freshDb } from "../../../support/db.ts";
 import { seedCharacter, seedPersona, seedUser } from "../../../support/factories/index.ts";
 import { expect, test } from "../../../support/fixtures.ts";

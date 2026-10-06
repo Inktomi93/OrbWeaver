@@ -49,7 +49,7 @@ export function googleExtras(connection: Resolved, warnings: ResolvedWarning[]):
 }
 
 /** Model reasoning facts are resolved before the native transport spells them. */
-export function googleThinking(reasoning: ResolvedReasoning): JSONObject {
+function googleThinking(reasoning: ResolvedReasoning): JSONObject {
   if (reasoning.mode === "none") {
     return {};
   }

@@ -1507,6 +1507,19 @@ export function ComposerStory(props: ComposerStoryProps): ReactElement {
   );
 }
 
+/** The real composer at the viewport foot, where tooltip collision handling must not cover its upper utilities. */
+export function ComposerAtViewportFootStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: "100dvh", display: "flex", alignItems: "flex-end" }}>
+        <div style={{ width: "100%" }}>
+          <Composer chatId={COMPOSER_CHAT_ID} tailRole={null} tailAssistantMessageId={null} />
+        </div>
+      </div>
+    </CtDataProviders>
+  );
+}
+
 // ── Rewrite dialog story (the guided-Rewrite modal in isolation) ─────────────────────────────────
 // Owns the instruction + toggle-selection state exactly as the wand does (the modal is controlled), and on
 // Apply writes what the wand FIRES to a readout — the picked toggle IDS in catalog order + the instruction,

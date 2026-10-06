@@ -126,6 +126,34 @@ test("a pending Polish cannot overwrite an edit-and-restore or another room, and
   await expect(draft).toHaveValue("Edit after Polish");
 });
 
+test("a late plugin reply cannot replace the draft after its command registration is removed", async ({ mount, page }) => {
+  let resident = true;
+  const pending = trpcHold();
+  await routeTrpc(page, {
+    ...DRAFT_ROUTES,
+    "plugin.list": () => [],
+    "plugin.listSurfaces": () => [],
+    "plugin.listDisplayTransforms": () => [],
+    "plugin.listCommands": () => (resident ? [POLISH_COMMAND] : []),
+    "plugin.invokeUiCommand": pending,
+    "plugin.setEnabled": () => {
+      resident = false;
+      return null;
+    },
+  });
+  await mount(<PluginComposerDraftRoomStory revocablePluginId={FIRST_ID} />);
+  const draft = page.getByRole("textbox", { name: "Message", exact: true });
+  await draft.fill("Keep this exact draft");
+  const polish = page.getByRole("button", { name: "Draft Polish (draft-polish) · Commands · Run Polish", exact: true });
+  await polish.click();
+  await page.getByRole("button", { name: "Disable draft plugin", exact: true }).click();
+  await expect(polish).toHaveCount(0);
+  pending.release({ toasts: [], composerDraft: "Stale replacement" });
+  await expect(page.getByText("The draft or room changed. Nothing was replaced.", { exact: true })).toBeVisible();
+  await expect(draft).toHaveValue("Keep this exact draft");
+  await expect(page.getByRole("button", { name: "Undo Polish", exact: true })).toHaveCount(0);
+});
+
 test("a failed explicit Polish leaves the draft intact and gives a visible error, not a replacement or send", async ({ mount, page }) => {
   const recorder = await routeTrpc(page, {
     ...DRAFT_ROUTES,
@@ -732,7 +760,7 @@ test("the room composer mounts the production placement contributions and runs p
         placed !== undefined &&
         terminal !== null &&
         terminal !== undefined &&
-        Math.abs(placed.y - terminal.y) <= 1 &&
+        placed.y + placed.height <= terminal.y &&
         placed.x + placed.width <= terminal.x
       );
     })

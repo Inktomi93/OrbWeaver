@@ -13,11 +13,7 @@
 
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import {
-  mintInlineImageAlt,
-  projectInlineReplyImages,
-  spliceInlineReplyImages,
-} from "../../../../../packages/server/src/domain/chat/substrate/inline-reply-images.ts";
+import { mintInlineImageAlt, projectInlineReplyImages } from "../../../../../packages/server/src/domain/chat/substrate/inline-reply-images.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const A = castId<AssetId>("asset_a");
@@ -60,17 +56,21 @@ test("a card or choices block in front of the picture is not read aloud as its c
 test("the span lands WHERE THE PICTURE ARRIVED, as its own markdown block", () => {
   const body = "She unrolls the map.\n\nThen she waits.";
   const at = "She unrolls the map.\n\n".length;
-  const out = spliceInlineReplyImages(body, [{ assetId: A, atChars: at }]);
+  const out = projectInlineReplyImages(body, [{ assetId: A, atChars: at }], []).content;
 
   expect(out).toBe("She unrolls the map.\n\n![She unrolls the map.](asset:asset_a)\n\nThen she waits.");
 });
 
 test("two pictures keep ARRIVAL ORDER and each mints its own alt off the prose in front of IT", () => {
   const body = "First the map. Then the seal.";
-  const out = spliceInlineReplyImages(body, [
-    { assetId: A, atChars: "First the map.".length },
-    { assetId: B, atChars: body.length },
-  ]);
+  const out = projectInlineReplyImages(
+    body,
+    [
+      { assetId: A, atChars: "First the map.".length },
+      { assetId: B, atChars: body.length },
+    ],
+    [],
+  ).content;
 
   // Neither alt echoes the other's span — the mint reads the ORIGINAL body, never the spliced output.
   expect(out).toContain("![First the map.](asset:asset_a)");
@@ -81,17 +81,21 @@ test("two pictures keep ARRIVAL ORDER and each mints its own alt off the prose i
 test("an offset PAST the body clamps to the end — the receive tier may have shortened the prose under it", () => {
   // AI_OUTPUT regex scripts and the `<think>` demux rewrite the bytes between the provider's measurement and
   // this splice. A drifted offset must never drop the picture or throw; it lands at the tail.
-  const out = spliceInlineReplyImages("short", [{ assetId: A, atChars: 9999 }]);
+  const out = projectInlineReplyImages("short", [{ assetId: A, atChars: 9999 }], []).content;
   expect(out).toBe("short\n\n![short](asset:asset_a)");
 });
 
 test("offsets that cross after clamping still emit EVERY picture exactly once, in arrival order", () => {
   // The property that actually matters: a rewritten body must never lose a picture the user paid for, and
   // must never duplicate one. Re-sorting into a position the model never chose is the worse answer.
-  const out = spliceInlineReplyImages("abc", [
-    { assetId: A, atChars: 3 },
-    { assetId: B, atChars: 0 },
-  ]);
+  const out = projectInlineReplyImages(
+    "abc",
+    [
+      { assetId: A, atChars: 3 },
+      { assetId: B, atChars: 0 },
+    ],
+    [],
+  ).content;
 
   expect(out.match(/asset_a/gu)).toHaveLength(1);
   expect(out.match(/asset_b/gu)).toHaveLength(1);
@@ -101,14 +105,14 @@ test("offsets that cross after clamping still emit EVERY picture exactly once, i
 test("a PICTURE-ONLY reply is a body — the span is all there is, and it is not empty", () => {
   // The reason the absorb step runs BEFORE the prose-less refusal: an image-output model answering with
   // bytes and no words has said something, exactly as a media-only `/imagine` post has (D124).
-  const out = spliceInlineReplyImages("", [{ assetId: A, atChars: 0 }]);
+  const out = projectInlineReplyImages("", [{ assetId: A, atChars: 0 }], []).content;
   expect(out).toBe("![](asset:asset_a)");
   expect(out.trim().length).toBeGreaterThan(0);
 });
 
 test("no pictures leaves the body BYTE-IDENTICAL — every text-only turn pays nothing", () => {
   const body = "Nothing to see here.\n\nReally.";
-  expect(spliceInlineReplyImages(body, [])).toBe(body);
+  expect(projectInlineReplyImages(body, [], []).content).toBe(body);
 });
 
 test("tool boundaries rebase through picture spans without changing the canonical splice", () => {
@@ -118,7 +122,7 @@ test("tool boundaries rebase through picture spans without changing the canonica
     { assetId: B, atChars: 9 },
   ];
   const projected = projectInlineReplyImages(content, images, [0, 7, 9, content.length]);
-  expect(projected.content).toBe(spliceInlineReplyImages(content, images));
+  expect(projected.content).toBe(projectInlineReplyImages(content, images, []).content);
   expect(projected.content.slice(projected.offsets[1], projected.offsets[2])).toBe("😀\n\n![Before.😀](asset:asset_b)\n\n");
   expect(projected.content.slice(projected.offsets[2])).toBe("After.");
   expect(projected.offsets[0]).toBe(0);
@@ -129,7 +133,7 @@ test("equal prose positions retain both image-before-tool and tool-before-image 
   const content = "Before.After.";
   const image = { assetId: A, atChars: 7, eventOrdinal: 1 };
   const projection = projectInlineReplyImages(content, [image], [7, 7], [0, 2]);
-  expect(projection.content).toBe(spliceInlineReplyImages(content, [image]));
+  expect(projection.content).toBe(projectInlineReplyImages(content, [image], []).content);
   expect(projection.content.slice(0, projection.offsets[0])).toBe("Before.");
   expect(projection.content.slice(0, projection.offsets[1])).toContain("asset:asset_a");
   expect(projection.content.slice(projection.offsets[1])).toBe("After.");

@@ -62,6 +62,14 @@ export const REVIEWED_GRANTS_SINGLESTREAMTRANSPORT_SOLEENVREADER: readonly Revie
     endsWhen: "the sole reader moves out of foundation/env, or stops making this read; the row is then consumed zero times and reds.",
   },
   {
+    id: "sole-env-reader:env-home-orb-env-from-file",
+    policyId: "sole-env-reader",
+    subject: "packages/server/src/foundation/env/index.ts",
+    operation: "process-env-read:ORB_ENV_FROM_FILE",
+    why: "THE sole reader (Tier-2-Foundation.md inv #1) reads the launcher's file-provenance key before deriving the frozen auth-mode source. The claimed key must still match the loaded file's bytes; this permission licenses neither a foreign env reader nor a different static key.",
+    endsWhen: "the sole reader stops consuming this launcher provenance key, or the canonical env home moves.",
+  },
+  {
     id: "sole-env-reader:env-home-orb-env-no-override",
     policyId: "sole-env-reader",
     subject: "packages/server/src/foundation/env/index.ts",

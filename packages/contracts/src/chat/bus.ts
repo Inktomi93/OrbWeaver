@@ -229,6 +229,7 @@ export const PROVIDER_ADJUSTMENT_KINDS = [
   // binds its thinking to the conversation so far, and this connection cannot keep an earlier edit from failing
   // the reply.
   "carry_reasoning_downgraded",
+  "cache_control_adjusted",
   // The provider ran the turn in a COMPATIBILITY mode: it substituted its own value where this model spells
   // a setting differently (a default thinking budget, an output cap guessed for a model it does not know) or
   // accepted a deprecated spelling. Distinct from the drop classes above because the setting DID apply —

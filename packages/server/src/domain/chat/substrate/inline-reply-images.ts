@@ -80,12 +80,8 @@ function openBlock(before: string): string {
  *  `<think>` demux, the per-speaker self-label strip — any of which may shorten or rewrite the prose. So an
  *  offset past the end lands at the end, and offsets that cross after clamping keep ARRIVAL ORDER rather
  *  than re-sorting into a position the model never chose. What this protects is the only property that
- *  matters: every picture the model made appears exactly once, in the order it made them. */
-export function spliceInlineReplyImages(content: string, images: readonly PlacedInlineImage[]): string {
-  return projectInlineReplyImages(content, images, []).content;
-}
-
-/** Rebase tool/prose boundaries in the same splice that owns the canonical image encoding. */
+ *  matters: every picture the model made appears exactly once, in the order it made them. Tool/prose
+ *  boundaries are rebased in that same splice so they still name the stored canonical body. */
 export function projectInlineReplyImages(
   content: string,
   images: readonly PlacedInlineImage[],

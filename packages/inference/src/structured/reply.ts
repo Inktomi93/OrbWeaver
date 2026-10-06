@@ -184,7 +184,7 @@ function parseReply(text: string): unknown {
 
 /** A structured reply's text normalized against the plan (casing, then the reshaped nulls). A reply that holds no JSON object is returned
  *  unchanged: the caller's parse is what refuses it. */
-export function normalizeStructuredText(text: string, format: PlannedResponseFormat | undefined): string {
+function normalizeStructuredText(text: string, format: PlannedResponseFormat | undefined): string {
   if (format === undefined) {
     return text;
   }

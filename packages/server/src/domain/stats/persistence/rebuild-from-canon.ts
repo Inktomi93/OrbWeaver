@@ -1,14 +1,14 @@
 // Full RECONCILE: a memory-bounded streaming rebuild of the four rollup tables for one owner (or every
 // owner) from canon — the backfill/post-import/drift-repair path (rollups are maintained live elsewhere).
-// Canon is the message stream plus the two spend ledgers (`imagery_generations`, `compaction_spend`).
+// Canon includes the message stream and retained generation, embedding, imagery and compaction observations.
 // Keyset-paged streams over messages + swipe variants (bounded peak memory); per-character/model/bucket
 // accumulator Maps; atomic per-owner replace-write (one db.batch) so a read never sees a half-rebuilt owner.
-// Owner-scoping is membership-derived: the owner's chats are those with a character participant they own.
+// Owner-scoping follows the same retained host/character cohort predicates as the live accounting writers.
 
 import type { TokenProvenance } from "@orb/contracts/chat";
 import { legacyNotionalCostSamples, parseVariantMetadata } from "@orb/contracts/chat";
 import type { GenerationUsageLeg, ProviderId } from "@orb/contracts/inference";
-import { generationUsageLegSchema, modelIdSchema, providerIdSchema, responseCacheSchema } from "@orb/contracts/inference";
+import { generationUsageLegSchema, modelIdSchema, providerIdSchema, responseCacheSchema, storedGenerationUsageLegSchema } from "@orb/contracts/inference";
 import type { SpendDeltaField, StatsDelta } from "@orb/contracts/stats";
 import {
   compactionSpendDelta,
@@ -919,7 +919,7 @@ async function scanGenerationObservations(db: Db, ownerId: string, a: Accums): P
     foldSpend(
       generationObservationSpendDelta({
         ownerId: row.funderUserId,
-        leg: generationUsageLegSchema.parse({ ...row, responseCache: responseCacheSchema.safeParse(row.responseCache).data }),
+        leg: storedGenerationUsageLegSchema.parse({ ...row, responseCache: responseCacheSchema.safeParse(row.responseCache).data }),
       }),
       a,
     );

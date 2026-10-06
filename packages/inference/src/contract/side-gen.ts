@@ -11,7 +11,7 @@ export type SideGenSampling = RolePresetParams;
 /** How a chat request's reasoning resolves. `chat` is a delivered turn. `side-gen` is a summarize or structured
  *  item: reasoning is off unless the role preset states an effort or a budget, and the output cap grows by the
  *  room reasoning that runs may take. */
-export const CHAT_POSTURES = ["chat", "side-gen"] as const;
+const CHAT_POSTURES = ["chat", "side-gen"] as const;
 export type ChatPosture = (typeof CHAT_POSTURES)[number];
 
 /** The tasks whose items run as side-generation chat turns (`roles/side-gen.ts`). */

@@ -245,7 +245,9 @@ export const groupConfigInputSchema = z.discriminatedUnion("output", [
     ...groupInputFields,
     cardScope: perSpeakerGroupSchema.shape.cardScope.unwrap().unwrap().optional(),
   }),
-]) satisfies z.ZodType<GroupConfigInput>;
+]);
+/** The normalized partial output; omitted room knobs stay omitted rather than acquiring defaults. */
+export type NormalizedGroupConfigInput = z.output<typeof groupConfigInputSchema>;
 
 /** The default room behavior (Part III §7): per-speaker × merged, natural arbitration, no speaker tags,
  *  group-nudge on, auto-mode OFF, member cards visible at `sheet` (D22). */

@@ -13,17 +13,16 @@
 import { writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import type { ModelInfoApi } from "@orb/contracts/inference";
 import { NO_PROVIDER_SECRETS } from "../../../packages/inference/src/backends/kit/sanitize.ts";
 import { fetchEndpointModels } from "../../../packages/inference/src/catalog/endpoint.ts";
 import type { EndpointModel } from "../../../packages/inference/src/contract/runtime.ts";
 import { DIR, http, jsonl, RED_SQUARE_PNG_DATA_URI, waitFor, writeRaw } from "./_kit.ts";
 
-type ModelInfoApi = "ollama" | "llama-cpp" | "koboldcpp";
-
 interface Arm {
   readonly name: string;
   readonly baseUrl: string;
-  readonly modelInfoApi: ModelInfoApi;
+  readonly modelInfoApi: Exclude<ModelInfoApi, "none">;
   readonly health: string;
   /** Which model id each probe targets; a probe absent here is not run on the arm. */
   readonly probes: {

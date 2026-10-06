@@ -11,7 +11,7 @@
 // when the handler THREW, because a handler that toasts "couldn't reach the API" and then throws should still
 // reach the person who acted.
 
-import { PLUGIN_COMPOSER_DRAFT_MAX_CHARS } from "@orb/contracts/plugin";
+import { PLUGIN_TEXT_MAX_CHARS } from "@orb/contracts/plugin";
 import { DomainConflictError, DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, Handle, PluginId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -88,7 +88,7 @@ test("composer input and output are bounded; a draft action has no non-composer 
       ...recording,
       invoke: async (...args) => {
         await recording.invoke(...args);
-        return "x".repeat(PLUGIN_COMPOSER_DRAFT_MAX_CHARS + 1);
+        return "x".repeat(PLUGIN_TEXT_MAX_CHARS + 1);
       },
     },
   });
@@ -98,7 +98,7 @@ test("composer input and output are bounded; a draft action has no non-composer 
   const request = { caller, pluginId: installed.id, name: "draw", args: "", chatId: CHAT_ID };
   await expect(h.service.invokeUiCommand(request)).rejects.toThrow(/declared invocation mode/u);
   await expect(h.service.invokeUiCommand({ ...request, composerDraft: "draft", chatId: null })).rejects.toThrow(/current room/u);
-  await expect(h.service.invokeUiCommand({ ...request, composerDraft: "x".repeat(PLUGIN_COMPOSER_DRAFT_MAX_CHARS + 1) })).rejects.toThrow();
+  await expect(h.service.invokeUiCommand({ ...request, composerDraft: "x".repeat(PLUGIN_TEXT_MAX_CHARS + 1) })).rejects.toThrow();
   expect(invokes).toEqual([]);
   await expect(h.service.invokeUiCommand({ ...request, composerDraft: "draft" })).rejects.toBeInstanceOf(PluginActionFailedError);
   expect(invokes).toHaveLength(1);

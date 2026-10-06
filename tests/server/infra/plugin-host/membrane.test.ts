@@ -731,19 +731,24 @@ describe("attachMembrane — sync registration metadata is guarded before ctx.du
     });
     await withRuntime(runtime, (ctx) => {
       const result = ctx.evalCode(
-        `host.tools.register({name:"draw",displayName:"Draw a card",replayHistory:false,description:"d",parameters:{},handler:async()=>"Moon"}); host.tools.register({name:"advance_clock",description:"d",parameters:{},handler:async()=>"Ticked"}); "registered"`,
+        `host.tools.register({name:"draw",displayName:"Draw a card",replayHistory:false,description:"d",parameters:{},handler:async()=>"Moon"}); host.tools.register({name:"advance_clock",description:"d",parameters:{},handler:async()=>"Ticked"}); host.tools.register({name:"replay",replayHistory:true,description:"d",parameters:{},handler:async()=>"Retained"}); "registered"`,
       );
       expect(readString(ctx, result.error ?? result.value)).toBe("registered");
       const refused = ctx.evalCode(
         `try { host.tools.register({name:"bad",displayName:42,replayHistory:"no",description:"d",parameters:{},handler:async()=>""}); } catch(e) { e.message; }`,
       );
       expect(readString(ctx, refused.error ?? refused.value)).toContain("displayName");
+      const structured = ctx.evalCode(
+        `try { const replay={}; replay.self=replay; host.tools.register({name:"recursive",replayHistory:replay,description:"d",parameters:{},handler:async()=>""}); } catch(e) { e.message; }`,
+      );
+      expect(readString(ctx, structured.error ?? structured.value)).toContain("replayHistory");
     });
     expect(
       collected.map((registration) => ({ name: registration.name, displayName: registration.displayName, replayHistory: registration.replayHistory })),
     ).toEqual([
       { name: "draw", displayName: "Draw a card", replayHistory: false },
       { name: "advance_clock", displayName: "advance clock", replayHistory: undefined },
+      { name: "replay", displayName: "replay", replayHistory: true },
     ]);
   });
 

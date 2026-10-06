@@ -46,24 +46,31 @@ function belts(): PluginBelts {
 }
 
 /** An ops bundle recording every write the confirmed act reaches, with injectable lore gates. */
-function recordingOps(over: { readonly attached?: boolean; readonly titles?: readonly string[] } = {}): {
+function recordingOps(over: { readonly attached?: boolean; readonly titles?: readonly string[]; readonly host?: boolean } = {}): {
   readonly ops: PluginHostOps;
   readonly lore: Parameters<PluginHostOps["worldInfo"]["upsertEntries"]>[0][];
   readonly turns: Parameters<PluginHostOps["chat"]["requestTurn"]>[0][];
   readonly pictures: Parameters<PluginHostOps["imagery"]["generatePicture"]>[0][];
+  readonly hosts: Parameters<PluginHostOps["chat"]["requireHost"]>[];
 } {
   const lore: Parameters<PluginHostOps["worldInfo"]["upsertEntries"]>[0][] = [];
   const turns: Parameters<PluginHostOps["chat"]["requestTurn"]>[0][] = [];
   const pictures: Parameters<PluginHostOps["imagery"]["generatePicture"]>[0][] = [];
+  const hosts: Parameters<PluginHostOps["chat"]["requireHost"]>[] = [];
   const base = makeInertOps();
   return {
     lore,
     turns,
     pictures,
+    hosts,
     ops: {
       ...base,
       chat: {
         ...base.chat,
+        requireHost: (chatId, installerUserId): Promise<void> => {
+          hosts.push([chatId, installerUserId]);
+          return over.host === false ? Promise.reject(new Error("test: host seat withdrawn")) : Promise.resolve();
+        },
         requestTurn: (req): Promise<void> => {
           turns.push(req);
           return Promise.resolve();
@@ -139,6 +146,14 @@ describe("buildConfirmedActRunner — a confirmed act meets the PLUGIN's gates, 
     await run(rec.ops, { kind: "requestTurn", automationDepth: 3, guided: "push the scene" });
 
     expect(rec.turns).toEqual([{ triggeredBy: INSTALLER, chatId: CHAT, automationDepth: 3, guided: "push the scene" }]);
+    expect(rec.hosts).toEqual([[CHAT, INSTALLER]]);
+  });
+
+  test("a withdrawn installer host seat refuses the confirmed turn before initiation", async () => {
+    const rec = recordingOps({ host: false });
+    await expect(run(rec.ops, { kind: "requestTurn", automationDepth: 3 })).rejects.toThrow("host seat withdrawn");
+    expect(rec.hosts).toEqual([[CHAT, INSTALLER]]);
+    expect(rec.turns).toEqual([]);
   });
 
   test("omitted turn hints stay ABSENT, not undefined (exactOptionalPropertyTypes, as on the direct path)", async () => {

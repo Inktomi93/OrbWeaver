@@ -44,6 +44,7 @@ export const WARNING_CODES = [
   // ones, and on openai-compatible a belt-owned key is dropped (any other key merges over the computed body).
   // Carries `key`. Emitted at AUTHORING time by the Extras editor too.
   "custom_parameters_ignored",
+  "cache_control_adjusted",
   // A history `tool-result` part carried `isError:true`, which the OpenAI-shaped wires cannot express.
   "tool_result_error_dropped",
   // A forced tool choice (`required` / a named `tool`) went out as `auto`: that form cannot be forced on this

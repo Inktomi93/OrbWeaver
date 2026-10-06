@@ -5,21 +5,65 @@
 // a `measured` record. `foldNestedUsage` keeps its null/zero contract beside it.
 
 import type { TokenProvenance } from "@orb/contracts/chat";
-import type { GenerationUsageLeg, Wire } from "@orb/contracts/inference";
+import type { GenerationUsageLeg, TokenDetails, Wire } from "@orb/contracts/inference";
 import {
   costDetailsSchema,
   foldNestedUsage,
   generationUsageDetailsSchema,
   generationUsageLegSchema,
+  generationUsageSchema,
   projectGenerationUsage,
   providerDefSchema,
   responseCacheSchema,
+  storedGenerationUsageLegSchema,
+  storedGenerationUsageSchema,
+  tokenDetailsSchema,
+  tokenPricingSchema,
 } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { makeGenerationUsage } from "../../support/factories/generation-usage.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../support/inference-identities.ts";
+
+test("normalized economics and cache objects refuse undeclared fields without losing known zeroes", () => {
+  const pricing = { inputPerMTok: 0, outputPerMTok: 0, cacheReadPerMTok: 0, cacheWritePerMTok: 0 };
+  const cost = { totalUsd: 0, promptUsd: 0, completionUsd: 0, pricing };
+  const cache = { status: "hit", ageSeconds: 0, ttlSeconds: 0, sourceGenerationId: "source" };
+  const details = { input: [{ modality: "text", tokens: 0 }], output: [{ modality: "image", tokens: 0 }] } satisfies TokenDetails;
+  const usage = makeGenerationUsage(0, { tokenDetails: details, costDetails: cost });
+  for (const [schema, value] of [
+    [tokenPricingSchema, pricing],
+    [costDetailsSchema, cost],
+    [responseCacheSchema, cache],
+    [tokenDetailsSchema, details],
+    [tokenDetailsSchema.shape.input.unwrap().element, details.input[0]],
+    [tokenDetailsSchema.shape.output.unwrap().element, details.output[0]],
+    [generationUsageSchema, usage],
+  ] as const) {
+    expect(schema.parse(value)).toEqual(value);
+    expect(schema.safeParse({ ...value, privateTypedField: "secret" }).success).toBe(false);
+  }
+});
+
+test("stored row projection strips parent identities while strict wire schemas preserve every normalized fact", () => {
+  const leg = observedLegOf("openai-compat", 0, "measured");
+  const privateRow = { ...leg, funderUserId: "private-funder", connectionId: "private-connection", chatId: "private-room", ordinal: 7 };
+  const projected = storedGenerationUsageLegSchema.parse(privateRow);
+  expect(projected).toEqual(leg);
+  expect(generationUsageLegSchema.safeParse(privateRow).success).toBe(false);
+  expect(generationUsageLegSchema.parse(projected)).toEqual(leg);
+  const usage = makeGenerationUsage(null, {
+    tokensIn: 0,
+    tokensOut: null,
+    costProvenance: "unrecorded",
+    responseCache: responseCacheSchema.parse({ status: "hit", ageSeconds: 0, ttlSeconds: null, sourceGenerationId: "source" }),
+  });
+  const variant = { ...usage, id: "private-variant", content: "private-content" };
+  expect(storedGenerationUsageSchema.parse(variant)).toEqual(usage);
+  expect(generationUsageSchema.safeParse(variant).success).toBe(false);
+  expect(storedGenerationUsageSchema.safeParse({ ...variant, responseCache: { ...usage.responseCache, privateTypedField: "secret" } }).success).toBe(false);
+});
 
 function observedLegOf(wire: Wire, costUsd: number | null, costProvenance: TokenProvenance): GenerationUsageLeg {
   return generationUsageLegSchema.parse({

@@ -12,7 +12,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ChatContextHeaderStory, ChatHeaderNarrowStory, ChatHeaderStory } from "../_ct-stories.tsx";
-import { makeMessagesPage } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, makeMessagesPage } from "../fixtures.ts";
 
 /** Any roster chip, whatever it counts — used to prove NO chip exists before the roster does. */
 const ANY_MEMBERS_CHIP = /^Members — /u;
@@ -49,6 +49,7 @@ function character(name: string): ParticipantFixture {
 
 test("a GROUP chat shows the chip counting the PRESENT people, never the characters (Members \u2014 N)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     "chat.getChat": () => ({
       title: "Council of Two",
       participants: [
@@ -79,6 +80,7 @@ test("a GROUP chat shows the chip counting the PRESENT people, never the charact
 test("while chat.getChat is unresolved the header shows a skeleton — never 'Untitled chat · 0 members'", async ({ mount, page }) => {
   const hold = trpcHold();
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     "chat.getChat": hold,
     "chat.listMessages": () => makeMessagesPage([]),
   });
@@ -114,6 +116,7 @@ test.describe("narrow/touch viewport", () => {
 
   test("tapping the Members chip reveals the CONTEXT overlay on the members tab (was dead <64rem)", async ({ mount, page }) => {
     await routeTrpc(page, {
+      ...CHAT_AMBIENT_ROUTES,
       "chat.getChat": () => ({
         title: "Council of Two",
         participants: [human("host"), character("Aria"), character("Bolt")],
@@ -142,6 +145,7 @@ test.describe("narrow/touch viewport", () => {
 // same thing in every room: the present-people count, and a door to the one roster surface.
 test("the members chip counts the PRESENT people and opens the Members tab — in a solo room too", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     "chat.getChat": () => ({
       title: "",
       participants: [human("host"), character("Aria")],
@@ -162,6 +166,7 @@ test("the members chip counts the PRESENT people and opens the Members tab — i
 
 test("a NON-host gets the same chip and the same one door (no host-forked topbar roster)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     "chat.getChat": () => ({
       title: "",
       participants: [human("host"), character("Aria")],
@@ -188,6 +193,7 @@ test("a NON-host gets the same chip and the same one door (no host-forked topbar
 // band renders NEUTRAL chrome above the tab strip — never a second avatar+title cluster 300px away.
 test("the CONTEXT band renders neutral chrome, never a second identity cluster", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     "chat.getChat": { title: "Test chat", participants: [], identities: [] },
   });
 
@@ -204,6 +210,7 @@ test("the CONTEXT band renders neutral chrome, never a second identity cluster",
 test("#239: the room title carries its full value as a title attribute", async ({ mount, page }) => {
   const longTitle = "Example — The Rust Lecture, and What Came After";
   await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
     "chat.getChat": () => ({ title: longTitle, participants: [human("host"), character("Birdie")] }),
     "chat.listMessages": () => makeMessagesPage([]),
   });

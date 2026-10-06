@@ -157,7 +157,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
           variants.ts). With no refusal the Stack has one child and spends nothing. */}
       <Stack gap="field" data-slot="composer-guided-cluster">
         <Row align="center" justify="between" gap="field" className="min-w-0 flex-wrap" data-slot="composer-utilities">
-          <Row align="center" gap="field" className="min-w-0 flex-wrap">
+          <Row align="center" gap="field" className="min-w-0 flex-1 flex-wrap">
             <Row aria-label="Your message" className="shrink-0" data-slot="composer-you-actions" gap="field" role="group">
               <ImpersonateGuidedButton
                 disabled={!idle}

@@ -2,7 +2,7 @@
 import { z } from "zod";
 
 export const RESPONSE_CACHE_TTL_BOUNDS = { min: 1, max: 86_400, default: 300 } as const;
-export const responseCacheTtlSchema = z.number().int().min(RESPONSE_CACHE_TTL_BOUNDS.min).max(RESPONSE_CACHE_TTL_BOUNDS.max);
+export const responseCacheTtlSchema = z.number().int().min(RESPONSE_CACHE_TTL_BOUNDS.min).max(RESPONSE_CACHE_TTL_BOUNDS.max) satisfies z.ZodType<number>;
 
 export const responseCacheSettingsSchema = z.strictObject({
   enabled: z.boolean(),

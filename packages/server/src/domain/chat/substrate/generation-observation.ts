@@ -1,4 +1,4 @@
-import { generationUsageLegSchema, responseCacheSchema } from "@orb/contracts/inference";
+import { responseCacheSchema, storedGenerationUsageLegSchema } from "@orb/contracts/inference";
 import type { chatGenerationObservations } from "@orb/db";
 import type { GenerationObservationFact, GenerationObservationGroup, GenerationObservationParent } from "../contract/generation-observation.ts";
 
@@ -15,7 +15,7 @@ export function groupObservationRows(rows: readonly (typeof chatGenerationObserv
       ordinal: row.ordinal,
       funderUserId: row.funderUserId,
       connectionId: row.connectionId,
-      leg: generationUsageLegSchema.parse({ ...row, responseCache: responseCacheSchema.safeParse(row.responseCache).data }),
+      leg: storedGenerationUsageLegSchema.parse({ ...row, responseCache: responseCacheSchema.safeParse(row.responseCache).data }),
     });
     groups.set(key, group);
   }

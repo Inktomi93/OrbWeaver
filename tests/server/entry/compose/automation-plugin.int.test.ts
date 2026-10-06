@@ -345,6 +345,7 @@ async function seedTwoRows(app: ServicesResult, author: UserId): Promise<{ reado
     credentialId: null,
     baseUrl: "https://own-box.example.invalid/v1",
     model: "own-model",
+    declared: { generation: { output: { modalities: ["text", "image"] } } },
   });
   const rules = await app.services.connection.create({
     principal: actor,
@@ -352,6 +353,7 @@ async function seedTwoRows(app: ServicesResult, author: UserId): Promise<{ reado
     credentialId: null,
     baseUrl: "https://rule-box.example.invalid/v1",
     model: "rule-model",
+    declared: { generation: { output: { modalities: ["text", "image"] } } },
   });
   return { own: own.id, rules: rules.id };
 }

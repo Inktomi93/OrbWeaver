@@ -34,7 +34,9 @@
 // if the pairing ever leaks; carrying it now would cost a marker on every read-only verb for no found defect.
 //
 // DERIVATION, not a hand-list: a domain MUTATES iff some file under it imports `@orb/db` AND calls
-// `.insert(` / `.update(` / `.delete(` / `.batch(`. The `@orb/db` half is load-bearing — without it
+// `.insert(` / `.update(` / `.delete(` / `.batch(`, except a nonempty immutable batch whose
+// actual Drizzle select identities are all proven through the shared composite resolver. Empty, mutable,
+// opaque, mixed and foreign-query batches remain write obligations. The `@orb/db` half is load-bearing — without it
 // `domain/search/substrate/field-index.ts`'s MiniSearch and a `Map.delete` both read as persistence, which
 // is how a derivation quietly starts lying. THE DERIVATION IS ALSO WHAT SIZES THE TABLE: `export`, `import`,
 // `search` and `tool-use` carry NO row because none of them writes a durable row (search's index is
@@ -78,7 +80,10 @@ import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaColumnIdentity, SchemaModel } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
+import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
+import { resolveAuthoredComposite } from "../lib/static-authored-value.ts";
+import { readMemberAccess } from "../lib/symbol-reference.ts";
 
 /** Where a domain's writes become visible to a client. `none` is the cited no-announcement verdict; every
  *  other value names the plane and, for a plane whose PRODUCER lives in another domain, says whose. */
@@ -327,6 +332,42 @@ const DB_IMPORT = "@orb/db";
 /** The drizzle write verbs. Read off the CALLEE, so the receiver is deliberately unconstrained — the
  *  `@orb/db` import in the same file is the half that keeps a `Map.delete(` out of the derivation. */
 const WRITE_METHODS: ReadonlySet<string> = new Set(["insert", "update", "delete", "batch"]);
+
+function isSelectStatement(expression: MorphNode): boolean {
+  const resolved = resolveAuthoredComposite(expression);
+  let current: MorphNode | undefined = resolved.kind === "resolved" ? resolved.value : undefined;
+  if (resolved.kind === "unresolved" && resolved.reason === "dynamic" && Node.isCallExpression(resolved.node)) {
+    current = resolved.node;
+  }
+  if (current === undefined) {
+    return false;
+  }
+  while (Node.isCallExpression(current)) {
+    const member = readMemberAccess(current.getExpression());
+    if (member === undefined || readDrizzleClientCall(current).kind !== "drizzle") {
+      return false;
+    }
+    if (member.name === "select") {
+      return true;
+    }
+    current = member.receiver;
+  }
+  return false;
+}
+
+function isReadOnlyBatch(call: CallExpression): boolean {
+  if (readDrizzleClientCall(call).kind !== "drizzle") {
+    return false;
+  }
+  const argument = call.getArguments()[0];
+  const resolved = argument === undefined ? undefined : resolveAuthoredComposite(argument);
+  return (
+    resolved?.kind === "resolved" &&
+    Node.isArrayLiteralExpression(resolved.value) &&
+    resolved.value.getElements().length > 0 &&
+    resolved.value.getElements().every(isSelectStatement)
+  );
+}
 /** Every injected-emit spelling a domain announces through (survey §1.1). `emit` alone covers the chat
  *  bus's `bus.emit` and the domain-event `ctx.emit`. */
 const EMIT_NAMES: ReadonlySet<string> = new Set(["emitUserEvent", "emitChatEvent", "emitWiEvent", "emitBus", "emit"]);
@@ -565,6 +606,13 @@ const SCHEMA_BARREL_SOURCE = 'export * from "./chat.ts";\n';
 const PROBE_WRITE =
   'import { refinerySessions } from "@orb/db";\nexport async function run(ctx) {\n  await ctx.db.update(refinerySessions).set({ n: 1 });\n}\n';
 
+const BATCH_QUERY_PROOF = {
+  "node_modules/drizzle-orm/libsql/index.d.ts":
+    "export interface ReadQuery { from(table: object): ReadQuery; where(predicate: object): ReadQuery; }\n" +
+    "export interface WriteQuery { set(value: object): WriteQuery; values(value: object): WriteQuery; }\n" +
+    "export interface Client { select(fields?: object): ReadQuery; update(table: object): WriteQuery; insert(table: object): WriteQuery; batch(statements: readonly (ReadQuery | WriteQuery)[]): Promise<void>; }\n",
+} as const;
+
 export const gate = defineGate({
   id: "domain-freshness-plane",
   // FAMILY `drizzle-schema` — the shared subject reader is `lib/schema-fact.ts`'s `drizzleSchemaFact`, which
@@ -644,7 +692,7 @@ export const gate = defineGate({
             if (name === undefined) {
               return;
             }
-            if (WRITE_METHODS.has(name)) {
+            if (WRITE_METHODS.has(name) && !(name === "batch" && isReadOnlyBatch(node))) {
               facts.write ??= Node.isPropertyAccessExpression(node.getExpression())
                 ? node.getExpression().asKindOrThrow(SyntaxKind.PropertyAccessExpression).getNameNode()
                 : node;
@@ -692,6 +740,66 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        ...CHAT_BUS,
+        ...CHATS_SCHEMA,
+        ...BATCH_QUERY_PROOF,
+        "packages/server/src/domain/__batch_foreign/persistence/read.ts":
+          'import type { Client, ReadQuery } from "drizzle-orm/libsql";\nimport type { Db } from "@orb/db";\ndeclare const db: Client;\ndeclare const foreign: { select(): ReadQuery };\nexport async function read() { await db.batch([foreign.select()]); }\n',
+      },
+      expect: { count: 1, messageIncludes: "MUTATING domain with NO row" },
+      why: "a foreign select method returning a coincident query type cannot certify a Drizzle read-only batch",
+    },
+    {
+      mode: "types",
+      files: {
+        ...CHAT_BUS,
+        ...CHATS_SCHEMA,
+        ...BATCH_QUERY_PROOF,
+        [`${DOMAIN_PREFIX}__probe/verbs/batch.ts`]:
+          'import { chats } from "@orb/db"; import type { Client } from "drizzle-orm/libsql"; export async function write(db: Client): Promise<void> { await db.batch([db.select().from(chats), db.insert(chats).values({})]); }\n',
+      },
+      expect: { count: 1, messageIncludes: "MUTATING domain with NO row" },
+      why: "one mutating statement in an otherwise read-only Drizzle batch keeps the domain in the writer population",
+    },
+    {
+      mode: "types",
+      files: {
+        ...CHAT_BUS,
+        ...CHATS_SCHEMA,
+        ...BATCH_QUERY_PROOF,
+        [`${DOMAIN_PREFIX}__probe/verbs/batch.ts`]:
+          'import { chats } from "@orb/db"; import type { Client } from "drizzle-orm/libsql"; export async function opaque(db: Client): Promise<void> { let statements = [db.select().from(chats)]; statements = []; await db.batch(statements); }\n',
+      },
+      expect: { count: 1, token: "batch", messageIncludes: "MUTATING domain with NO row" },
+      why: "a reassigned batch argument cannot certify the immutable all-select classification",
+    },
+    {
+      mode: "types",
+      files: {
+        ...CHAT_BUS,
+        ...CHATS_SCHEMA,
+        ...BATCH_QUERY_PROOF,
+        [`${DOMAIN_PREFIX}__probe/verbs/batch.ts`]:
+          'import { chats } from "@orb/db"; import type { Client, ReadQuery } from "drizzle-orm/libsql"; export async function opaque(db: Client, statements: readonly ReadQuery[]): Promise<void> { await db.batch(statements); }\n',
+      },
+      expect: { count: 1, token: "batch", messageIncludes: "MUTATING domain with NO row" },
+      why: "a parameter's read-only declared type is not authored evidence of the batch statements",
+    },
+    {
+      mode: "types",
+      files: {
+        ...CHAT_BUS,
+        ...CHATS_SCHEMA,
+        ...BATCH_QUERY_PROOF,
+        [`${DOMAIN_PREFIX}__probe/verbs/batch.ts`]:
+          'import { chats } from "@orb/db"; import type { Client } from "drizzle-orm/libsql"; export async function empty(db: Client): Promise<void> { await db.batch([]); }\n',
+      },
+      expect: { count: 1, token: "batch", messageIncludes: "MUTATING domain with NO row" },
+      why: "an empty batch proves no select identity and cannot certify a read-only producer",
+    },
     {
       mode: "types",
       files: { ...CHAT_BUS, ...CHATS_SCHEMA, [`${DOMAIN_PREFIX}__probe/verbs/write-thing.ts`]: PROBE_WRITE },
@@ -803,6 +911,17 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        ...CHAT_BUS,
+        ...CHATS_SCHEMA,
+        ...BATCH_QUERY_PROOF,
+        [`${DOMAIN_PREFIX}export/verbs/batch.ts`]:
+          'import { chats } from "@orb/db"; import type { Client } from "drizzle-orm/libsql"; export async function snapshot(db: Client): Promise<void> { const first = db.select().from(chats); const statements = [first, db.select({ id: chats.id }).from(chats)]; await db.batch(statements); }\n',
+      },
+      why: "an immutable snapshot batch of checker-confirmed Drizzle selects has no mutating freshness obligation",
+    },
     {
       mode: "types",
       files: {

@@ -206,6 +206,14 @@ const NON_PORTABLE_CANON: Readonly<Record<string, NonPortableRow>> = {
     classification: "DEFERRED",
     why: "Compaction spend history does not travel, so restored compaction spend starts at zero. Imagery execution history travels through its own descriptor. Ends when the bundle carries compaction spend history.",
   },
+  embeddingCalls: {
+    classification: "DEFERRED",
+    why:
+      "Physical embedding execution history is canon, retained locally independently of vector lifetime; the alpha backup does not carry it, " +
+      "so a cross-box rebuild cannot recover those historical prices, partial failures or private connection attribution from restored vectors. " +
+      "The broader portability work remains parked under 0488. Ends when a portable physical-embedding descriptor carries the complete observed facts " +
+      "and restores importer-scoped attribution with live/rebuild parity. This classification neither permits local deletion nor calls the history derived.",
+  },
   statsCanonVersions: {
     classification: "DERIVED",
     why: "monotonic coordination token for rebuilding the stats rollup plane; restore rebuilds the rollups and starts a fresh token. Ends never.",
@@ -566,6 +574,15 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "packages/db/src/schema/embeddings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const unclassifiedEmbeddingCalls = sqliteTable("unclassified_embedding_calls", { ownerId: text("owner_id") });\n',
+      },
+      expect: { count: 1, token: "unclassifiedEmbeddingCalls", messageIncludes: "OWNER-STAMPED canon that no portable kind carries" },
+      why: "the exact deferred embeddingCalls ruling does not exempt a new owner-stamped canon family by schema filename or topic",
+    },
+    {
+      mode: "types",
+      files: {
         "packages/db/src/schema/journal.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
           'const ownerId = text("owner_id");\n' +
@@ -630,6 +647,14 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/embeddings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const embeddingCalls = sqliteTable("embedding_calls", { ownerId: text("owner_id") });\n',
+      },
+      why: "the exact alpha embedding-history omission has an explicit DEFERRED canon ruling and end condition; deleting that ruling makes this live owner-stamped subject red",
+    },
     {
       mode: "types",
       files: {

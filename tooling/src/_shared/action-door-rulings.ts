@@ -156,7 +156,7 @@ export const ACTION_DOOR_RULINGS: readonly ActionDoorRuling[] = Object.freeze([
       "packages/client/src/features/chat/components/chat-behavior-streaming-section.tsx",
       "packages/client/src/features/chat/components/databank-settings-section.tsx",
       "packages/client/src/features/chat/components/imagery-templates-section.tsx",
-      "packages/client/src/features/chat/components/memory-settings-section.tsx",
+      "packages/client/src/features/chat/hooks/use-memory-mutations.ts",
       "packages/client/src/features/chat/components/prose-settings-section.tsx",
     ],
     why: SEAM_WHY,

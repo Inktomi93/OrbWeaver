@@ -6,10 +6,10 @@ import type { ChatContentPart, ChatReasoningPart } from "@orb/contracts/chat";
 // frozen clock, seeded prng, no-op delay (D46) — no ambient clock / RNG.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { AssemblePersona, ChatBusEvent, SmartPicker } from "@orb/contracts/chat";
+import type { AssemblePersona, ChatBusEvent, SmartPicker, ToolCallRecord, VariantMetadata } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import type { Can, Principal } from "@orb/contracts/identity";
-import type { NormalizedFinishReason } from "@orb/contracts/inference";
+import type { GenerationUsage, NormalizedFinishReason } from "@orb/contracts/inference";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { PromptConfig, PromptSection, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
@@ -19,11 +19,12 @@ import { regexScriptSchema } from "@orb/contracts/regex";
 import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { chatParticipants, chats, messageVariants, personaBooks, personas, statsCanonVersions, worldBooks, worldEntries } from "@orb/db";
+import { chatParticipants, chats, messages, messageVariants, personaBooks, personas, statsCanonVersions, worldBooks, worldEntries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
+import { batchMany } from "@orb/db/kit";
 import type { Resolved } from "@orb/inference";
 import { generationOf } from "@orb/inference";
-import type { CharacterId, ChatId, Handle, MessageId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatTurnId, Handle, MessageId, MessageVariantId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
@@ -36,12 +37,13 @@ import { beforeEach, describe } from "vitest";
 import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns.ts";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import type { SpeakerArbiter } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
-import { ChatNotFoundError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
+import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import type { ChatBehaviorInputs } from "../../../../../packages/server/src/domain/chat/contract/foreign.ts";
 import type { TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine.ts";
 import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
+import { continueVariantStatements } from "../../../../../packages/server/src/domain/chat/persistence/canon-write.ts";
 import { loadPendingTurns, loadPendingTurnsForReclaim } from "../../../../../packages/server/src/domain/chat/persistence/invites.ts";
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock.ts";
 import {
@@ -52,16 +54,19 @@ import {
   loadSlotTarget,
   loadTurnOrigin,
 } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { continuedSignatureMetadata } from "../../../../../packages/server/src/domain/chat/substrate/content-signatures.ts";
 import { buildWireHistory } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { createClaimChat } from "../../../../../packages/server/src/domain/chat/verbs/claim-chat.ts";
 import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read.ts";
 import { createRequestTurn, createTurn } from "../../../../../packages/server/src/domain/chat/verbs/turn.ts";
 import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { createToolUseService, createToolUseTeachingContributions } from "../../../../../packages/server/src/domain/tool-use/index.ts";
-import { freshDb } from "../../../../support/db.ts";
+import { freshDb, freshHeldDb } from "../../../../support/db.ts";
+import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { makeCapability } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import type { SeededIds } from "../../../../support/ids.ts";
 import { testModelId } from "../../../../support/inference-identities.ts";
 import { CUSTOM_SYSTEM_TEMPLATE, utilityPresetResolver } from "../../../../support/utility-preset.ts";
 import {
@@ -171,6 +176,7 @@ const PERSONAS: { anchor: AssemblePersona | null; active: AssemblePersona | null
 interface Harness {
   ctx: ChatContext;
   events: ChatBusEvent[];
+  changedChats: ChatId[];
   deltas: StatsDelta[];
   notifications: NotificationEvent[];
   connectionFunders: UserId[];
@@ -191,6 +197,8 @@ function harness(
     /** Observe every bus emit AS IT HAPPENS — `h.events` is only readable after the send settles, so an
      *  ORDERING pin (the S1 rpg-fire-before-turnCompleted one) needs the live hook to interleave markers. */
     onEmit?: (event: ChatBusEvent) => void;
+    /** Await the real emit seam before the mutation return (post-commit viewer changes). */
+    afterEmit?: (event: ChatBusEvent) => Promise<void>;
     /** Override the resolved `PromptConfig` (the F1 injection_trigger pin drives trigger-gated sections). */
     promptConfig?: PromptConfig;
     /** Capture the args `loadRoom` resolved into the FOREIGN read for the round. */
@@ -238,11 +246,16 @@ function harness(
   } = {},
 ): Harness {
   const events: ChatBusEvent[] = [];
+  const changedChats: ChatId[] = [];
   const deltas: StatsDelta[] = [];
   const notifications: NotificationEvent[] = [];
   const connectionFunders: UserId[] = [];
   let replyIdx = 0;
   const ctx = makeChatContext(database, {
+    emitChatChanged: (chatId) => {
+      changedChats.push(chatId);
+      return Promise.resolve();
+    },
     // D121-E: the host-tier regex set reaches a turn through the injected four-scope resolver, not through
     // ForeignInputs. The harness feeds the override in as the GLOBAL slice — the same tier the old
     // `globalRegexScripts` field modelled, so the pins it carries keep asserting the same thing.
@@ -285,10 +298,12 @@ function harness(
     ...(over.tools !== undefined ? { tools: over.tools } : {}),
     ...(over.now !== undefined ? { now: over.now } : {}),
   });
-  const emit = (event: ChatBusEvent): Promise<void> => {
+  const emit = async (event: ChatBusEvent): Promise<void> => {
     events.push(event);
     over.onEmit?.(event);
-    return Promise.resolve();
+    if (over.afterEmit !== undefined) {
+      await over.afterEmit(event);
+    }
   };
   const engine = createTurnEngine(ctx, {
     emit,
@@ -328,7 +343,7 @@ function harness(
   };
   const turn = createTurn(ctx, turnDeps);
   const requestTurn = createRequestTurn(ctx, turnDeps);
-  return { ctx, events, deltas, notifications, connectionFunders, turn, requestTurn, activeTurns };
+  return { ctx, events, changedChats, deltas, notifications, connectionFunders, turn, requestTurn, activeTurns };
 }
 
 let db: Db;
@@ -2816,7 +2831,375 @@ describe("swipe — append-variant on an existing assistant slot (D26)", () => {
   });
 });
 
+const RESTORE_METHODS = ["undoContinue", "revertContinue"] as const;
+type RestoreMethod = (typeof RESTORE_METHODS)[number];
+const RESTORE_RACES = [
+  "continuation",
+  "selection",
+  "membership",
+  "role",
+  "preContent",
+  "preReasoning",
+  "lastContent",
+  "lastReasoning",
+  "metadata",
+  "tools",
+  "content",
+  "reasoning",
+] as const;
+type RestoreRace = (typeof RESTORE_RACES)[number];
+
+interface RestoreFixture {
+  readonly host: UserId;
+  readonly chatId: ChatId;
+  readonly messageId: MessageId;
+  readonly variantId: MessageVariantId;
+  readonly h: Harness;
+  readonly base: ToolCallRecord;
+  readonly b: ToolCallRecord;
+  readonly metadataA: VariantMetadata;
+  readonly usageA: GenerationUsage;
+  readonly usageB: GenerationUsage;
+}
+
+async function restoreFixture(
+  method: RestoreMethod,
+  ids: SeededIds,
+  over: Parameters<typeof harness>[2] = {},
+  before = { content: "Base.", reasoning: "R0." },
+): Promise<RestoreFixture> {
+  const { content: beforeContent, reasoning: beforeReasoning } = before;
+  const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: chars[0] ?? null, content: "Base.A." });
+  const base: ToolCallRecord = {
+    toolCallId: "base",
+    turnId: castId<ChatTurnId>(ids.next(ID_PREFIX.chatTurn)),
+    callOrdinal: 0,
+    name: "draw",
+    arguments: "{}",
+    result: "Moon",
+    isError: false,
+    durationMs: 1,
+    textOffset: beforeContent.length,
+    exchangeTextEnd: beforeContent.length,
+    hidden: true,
+  };
+  const a = {
+    ...base,
+    toolCallId: "a",
+    turnId: castId<ChatTurnId>(ids.next(ID_PREFIX.chatTurn)),
+    name: "tick",
+    hidden: false,
+    deleted: true,
+    textOffset: 2,
+    exchangeTextEnd: 2,
+  };
+  const b = {
+    ...base,
+    toolCallId: "b",
+    turnId: castId<ChatTurnId>(ids.next(ID_PREFIX.chatTurn)),
+    name: "advance",
+    hidden: false,
+    textOffset: 2,
+    exchangeTextEnd: 2,
+  };
+  const initial = continuedSignatureMetadata({
+    beforeContent,
+    additionContent: "A.",
+    before: {
+      contentSignatures: {
+        content: beforeContent,
+        text: [{ text: beforeContent, thoughtSignature: "base-private" }],
+        images: [],
+        tools: [
+          {
+            toolCallId: base.toolCallId,
+            turnId: base.turnId,
+            callOrdinal: base.callOrdinal,
+            thoughtSignature: "tool-private",
+            reasoningParts: [{ type: "reasoning", text: "tool-reason-private", meta: { anthropic: { signature: "tool-signature-private" } } }],
+          },
+        ],
+      },
+    },
+    addition: { systemTokens: 17, contentSignatures: { content: "A.", text: [{ text: "A.", thoughtSignature: "a-private" }], images: [] } },
+    beforeTools: [base],
+    additionTools: [a],
+  });
+  if (initial?.continuationTools === undefined) {
+    throw new Error("continued fixture needs its tool snapshot");
+  }
+  const undone = method === "revertContinue";
+  const metadataA = { ...initial, continuationTools: { ...initial.continuationTools, undone } };
+  const beforeB = undone ? beforeContent : `${beforeContent}A.`;
+  const reasonBeforeB = undone ? beforeReasoning : `${beforeReasoning}RA.`;
+  const usageA = makeGenerationUsage(0.25, {
+    tokensIn: 7,
+    tokensOut: 4,
+    tokenDetails: { input: [{ modality: "text", tokens: 7 }] },
+    responseCache: { status: "miss", ageSeconds: null, ttlSeconds: null, sourceGenerationId: null },
+  });
+  const usageB = makeGenerationUsage(0, {
+    tokensIn: null,
+    tokensOut: 0,
+    cacheReadTokens: null,
+    cacheWriteTokens: 0,
+    tokenDetails: { output: [{ modality: "text", tokens: 0 }] },
+    responseCache: { status: "hit", ageSeconds: 1, ttlSeconds: null, sourceGenerationId: null },
+  });
+  await db
+    .update(messageVariants)
+    .set({
+      ...usageA,
+      content: beforeB,
+      reasoning: reasonBeforeB,
+      metadata: metadataA,
+      toolCalls: undone ? metadataA.continuationTools.before : metadataA.continuationTools.after,
+      preContinueContent: beforeContent,
+      preContinueReasoning: beforeReasoning,
+      lastContinuationContent: "A.",
+      lastContinuationReasoning: "RA.",
+    })
+    .where(eq(messageVariants.id, variantId));
+  return { host, chatId, messageId, variantId, h: harness(db, names, over), base, b, metadataA, usageA, usageB };
+}
+
+async function commitNextContinuation(f: RestoreFixture): Promise<VariantMetadata> {
+  const current = await loadSlotTarget(db, f.chatId, f.messageId);
+  if (current === undefined) {
+    throw new Error("continued fixture lost its selected target");
+  }
+  const metadata = continuedSignatureMetadata({
+    beforeContent: current.content,
+    additionContent: "B.",
+    before: current.metadata,
+    addition: { systemTokens: 23, contentSignatures: { content: "B.", text: [{ text: "B.", thoughtSignature: "b-private" }], images: [] } },
+    beforeTools: current.toolCalls,
+    additionTools: [f.b],
+  });
+  if (metadata === null) {
+    throw new Error("next continuation needs its private snapshot");
+  }
+  const statements = continueVariantStatements(db, {
+    variantId: f.variantId,
+    variant: {
+      ...f.usageB,
+      content: `${current.content}B.`,
+      reasoning: `${current.reasoning ?? ""}RB.`,
+      metadata,
+      toolCalls: metadata.continuationTools?.after,
+    },
+    preContinueContent: current.content,
+    preContinueReasoning: current.reasoning,
+    lastContinuationContent: "B.",
+    lastContinuationReasoning: "RB.",
+  });
+  bumpStatsCanonVersion(statements, db, f.host);
+  await db.batch(batchMany(statements));
+  return metadata;
+}
+
 describe("continueTurn / undoContinue / revertContinue — extend in place (D26)", () => {
+  const PrivateRestoreBody = 'Before.<lie truth="host-secret"/>After.';
+  const PrivateRestoreReasoning = "reason-private.";
+  const privateRpg = (): NonNullable<ChatContext["rpg"]> => ({ ...triggeredBySpyRpg().rpg, resolveReasoningHostOnly: () => Promise.resolve(true) });
+
+  async function committedRestoration(f: RestoreFixture, method: RestoreMethod): Promise<void> {
+    const undone = method === "undoContinue";
+    const [row] = await db.select().from(messageVariants).where(eq(messageVariants.id, f.variantId));
+    expect(row).toMatchObject({
+      ...f.usageA,
+      content: undone ? PrivateRestoreBody : `${PrivateRestoreBody}A.`,
+      reasoning: undone ? PrivateRestoreReasoning : `${PrivateRestoreReasoning}RA.`,
+    });
+    expect(row?.metadata).toEqual({ ...f.metadataA, continuationTools: { ...f.metadataA.continuationTools, undone } });
+    expect(row?.toolCalls).toEqual(undone ? f.metadataA.continuationTools?.before : f.metadataA.continuationTools?.after);
+    expect((await db.select().from(statsCanonVersions))[0]?.version).toBe(1);
+    expect(f.h.events.map((event) => event.type)).toEqual(["messageCommitted"]);
+    expect(f.h.events[0]).toMatchObject({ type: "messageCommitted", view: { content: row?.content, reasoning: row?.reasoning } });
+    expect(f.h.changedChats).toEqual([f.chatId]);
+  }
+
+  test.for(RESTORE_METHODS)("post-success %s demotion returns current member bytes without undoing the valid commit", async (method, { ids }) => {
+    const f: RestoreFixture = await restoreFixture(
+      method,
+      ids,
+      {
+        rpg: privateRpg(),
+        afterEmit: async () => {
+          await db
+            .update(chatParticipants)
+            .set({ role: "member" })
+            .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, f.host)));
+        },
+      },
+      { content: PrivateRestoreBody, reasoning: PrivateRestoreReasoning },
+    );
+    const view = await f.h.turn[method]({ principal: principal(f.host), chatId: f.chatId, messageId: f.messageId });
+    expect(view.content).toBe(method === "undoContinue" ? "Before.After." : "Before.After.A.");
+    expect(view.reasoning).toBeNull();
+    expect(view.toolCalls[0]).toMatchObject({ toolCallId: f.base.toolCallId, textOffset: 13, exchangeTextEnd: 13 });
+    expect(JSON.stringify(view)).not.toMatch(/host-secret|reason-private|tool-private|tool-reason-private|tool-signature-private|<lie/u);
+    await committedRestoration(f, method);
+  });
+
+  const ReturnWithdrawals = ["membership", "history-floor"] as const;
+  test.for(
+    RESTORE_METHODS.flatMap((method) => ReturnWithdrawals.map((change) => ({ method, change }))),
+  )("post-success $method / $change withholds the response but retains the valid commit and events", async ({ method, change }, { ids }) => {
+    const f: RestoreFixture = await restoreFixture(
+      method,
+      ids,
+      {
+        rpg: privateRpg(),
+        afterEmit: async () => {
+          const patch = change === "membership" ? { leftSeq: 2 } : { role: "member" as const, joinSeq: 2, joinHistoryVisibility: "from-join" as const };
+          await db
+            .update(chatParticipants)
+            .set(patch)
+            .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, f.host)));
+        },
+      },
+      { content: PrivateRestoreBody, reasoning: PrivateRestoreReasoning },
+    );
+    await expect(f.h.turn[method]({ principal: principal(f.host), chatId: f.chatId, messageId: f.messageId })).rejects.toBeInstanceOf(ChatNotFoundError);
+    await committedRestoration(f, method);
+  });
+
+  test.for(RESTORE_METHODS)("post-success %s host projection remains unstripped despite a host's stored history-floor option", async (method, { ids }) => {
+    const f = await restoreFixture(method, ids, { rpg: privateRpg() }, { content: PrivateRestoreBody, reasoning: PrivateRestoreReasoning });
+    await db
+      .update(chatParticipants)
+      .set({ joinSeq: 2, joinHistoryVisibility: "from-join" })
+      .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, f.host)));
+    const view = await f.h.turn[method]({ principal: principal(f.host), chatId: f.chatId, messageId: f.messageId });
+    expect(view.content).toBe(method === "undoContinue" ? PrivateRestoreBody : `${PrivateRestoreBody}A.`);
+    expect(view.reasoning).toBe(method === "undoContinue" ? PrivateRestoreReasoning : `${PrivateRestoreReasoning}RA.`);
+    expect(view.toolCalls[0]?.textOffset).toBe(PrivateRestoreBody.length);
+    expect(JSON.stringify(view)).not.toContain("tool-private");
+    await committedRestoration(f, method);
+  });
+
+  test.for(RESTORE_METHODS)("post-success %s current member projection admits its inclusive history floor and strips only private channels", async (method, {
+    ids,
+  }) => {
+    const f = await restoreFixture(method, ids, { rpg: privateRpg() }, { content: PrivateRestoreBody, reasoning: PrivateRestoreReasoning });
+    const member = await seedUser(db, castId<Handle>("restore-member"));
+    await seedParticipant(db, { chatId: f.chatId, key: "restore-member", userId: member, role: "member", joinSeq: 1 });
+    await db
+      .update(chatParticipants)
+      .set({ joinHistoryVisibility: "from-join" })
+      .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, member)));
+    const view = await f.h.turn[method]({ principal: principal(member), chatId: f.chatId, messageId: f.messageId });
+    expect(view.seq).toBe(1);
+    expect(view.content).toBe(method === "undoContinue" ? "Before.After." : "Before.After.A.");
+    expect(view.reasoning).toBeNull();
+    expect(view.toolCalls[0]).toMatchObject({ toolCallId: f.base.toolCallId, arguments: "{}", result: "Moon", textOffset: 13, exchangeTextEnd: 13 });
+    expect(JSON.stringify(view)).not.toMatch(/host-secret|reason-private|tool-private|tool-reason-private|tool-signature-private|<lie/u);
+    await committedRestoration(f, method);
+  });
+
+  test.for(
+    RESTORE_METHODS.flatMap((method) => RESTORE_RACES.map((race) => ({ method, race }))),
+  )("restore refuses stale $method / $race before canon, versions or events", async ({ method, race }, { ids }) => {
+    const held = await freshHeldDb();
+    db = held.db;
+    const f = await restoreFixture(method, ids);
+    const gate = held.hold(/update "message_variants" set[\s\S]*case when json_type\([\s\S]*continuationTools/u);
+    const pending = f.h.turn[method]({ principal: principal(f.host), chatId: f.chatId, messageId: f.messageId });
+    const refusal = expect(pending).rejects.toBeInstanceOf(race === "membership" ? ChatNotFoundError : ChatOperationError);
+    await gate.reached;
+    const mutations: Record<RestoreRace, () => Promise<void>> = {
+      continuation: async () => {
+        await commitNextContinuation(f);
+      },
+      selection: async () => {
+        const alternate = castId<MessageVariantId>(ids.next(ID_PREFIX.messageVariant));
+        await db.insert(messageVariants).values({ id: alternate, messageId: f.messageId, idx: 1, content: "Other swipe.", createdAt: FROZEN_AT });
+        await db.update(messages).set({ selectedVariantId: alternate }).where(eq(messages.id, f.messageId));
+      },
+      membership: async () => {
+        await db
+          .update(chatParticipants)
+          .set({ leftSeq: 2 })
+          .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, f.host)));
+      },
+      role: async () => {
+        await db
+          .update(chatParticipants)
+          .set({ role: "member" })
+          .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, f.host)));
+      },
+      preContent: async () => {
+        await db.update(messageVariants).set({ preContinueContent: "Other base." }).where(eq(messageVariants.id, f.variantId));
+      },
+      preReasoning: async () => {
+        await db.update(messageVariants).set({ preContinueReasoning: "Other base reasoning." }).where(eq(messageVariants.id, f.variantId));
+      },
+      lastContent: async () => {
+        await db.update(messageVariants).set({ lastContinuationContent: "Other addition." }).where(eq(messageVariants.id, f.variantId));
+      },
+      lastReasoning: async () => {
+        await db.update(messageVariants).set({ lastContinuationReasoning: "Other addition reasoning." }).where(eq(messageVariants.id, f.variantId));
+      },
+      metadata: async () => {
+        await db
+          .update(messageVariants)
+          .set({ metadata: { ...f.metadataA, systemTokens: 999 } })
+          .where(eq(messageVariants.id, f.variantId));
+      },
+      tools: async () => {
+        await db
+          .update(messageVariants)
+          .set({ toolCalls: [{ ...f.base, hidden: false }] })
+          .where(eq(messageVariants.id, f.variantId));
+      },
+      content: async () => {
+        await db.update(messageVariants).set({ content: "New authored body." }).where(eq(messageVariants.id, f.variantId));
+      },
+      reasoning: async () => {
+        await db.update(messageVariants).set({ reasoning: "New authored reasoning." }).where(eq(messageVariants.id, f.variantId));
+      },
+    };
+    let beforeVariants: (typeof messageVariants.$inferSelect)[] = [];
+    let beforeVersions: (typeof statsCanonVersions.$inferSelect)[] = [];
+    try {
+      await mutations[race]();
+      beforeVariants = await db.select().from(messageVariants).orderBy(messageVariants.idx);
+      beforeVersions = await db.select().from(statsCanonVersions);
+    } finally {
+      gate.release();
+    }
+    await refusal;
+    expect(await db.select().from(messageVariants).orderBy(messageVariants.idx)).toEqual(beforeVariants);
+    expect(await db.select().from(statsCanonVersions)).toEqual(beforeVersions);
+    expect(f.h.events).toEqual([]);
+    expect(f.h.changedChats).toEqual([]);
+  });
+
+  test.for(RESTORE_METHODS)("restore-first %s leaves a coherent private snapshot; the next generation may then replace it", async (method, { ids }) => {
+    const f = await restoreFixture(method, ids);
+    const view = await f.h.turn[method]({ principal: principal(f.host), chatId: f.chatId, messageId: f.messageId });
+    const undone = method === "undoContinue";
+    expect(view.content).toBe(undone ? "Base." : "Base.A.");
+    expect(view.reasoning).toBe(undone ? "R0." : "R0.RA.");
+    expect(view.toolCalls).toEqual(undone ? f.metadataA.continuationTools?.before : f.metadataA.continuationTools?.after);
+    const [restored] = await db.select().from(messageVariants).where(eq(messageVariants.id, f.variantId));
+    expect(restored).toMatchObject(f.usageA);
+    expect(restored?.metadata).toEqual({ ...f.metadataA, continuationTools: { ...f.metadataA.continuationTools, undone } });
+    expect((await db.select().from(statsCanonVersions))[0]?.version).toBe(1);
+    expect(f.h.events.map((event) => event.type)).toEqual(["messageCommitted"]);
+    expect(f.h.changedChats).toEqual([f.chatId]);
+    expect(JSON.stringify(f.h.events)).not.toContain("private");
+    const nextMetadata = await commitNextContinuation(f);
+    const [next] = await db.select().from(messageVariants).where(eq(messageVariants.id, f.variantId));
+    expect(next).toMatchObject({ ...f.usageB, content: undone ? "Base.B." : "Base.A.B.", reasoning: undone ? "R0.RB." : "R0.RA.RB." });
+    expect(next?.metadata?.continuationTools?.undone).toBe(false);
+    expect(next?.metadata?.contentSignatures).toEqual(nextMetadata.contentSignatures);
+    expect(next?.toolCalls).toEqual(nextMetadata.continuationTools?.after);
+    expect((await db.select().from(statsCanonVersions))[0]?.version).toBe(2);
+  });
+
   test("undo/revert carries explicit tool phase when projected before/after bodies are identical", async () => {
     const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
     const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: chars[0] ?? null, content: "Before." });

@@ -21,6 +21,7 @@
 // empty vector read is ambiguous between "no vectors" and "asked as the wrong principal", so each
 // assertion below is preceded by a row-count read that proves vectors EXIST for this owner.
 
+import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
 import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
@@ -173,7 +174,7 @@ async function driveOwnerWithBoundEncoder(
 }
 
 /** The settled read tag, taken through the ONE door every query verb calls (`withActiveQuerySpace`). */
-async function spaceModel(ctx: EmbeddingsContext, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<string> {
+async function spaceModel(ctx: EmbeddingsContext, ownerId: UserId, task: EmbeddingTask): Promise<string> {
   return await withActiveQuerySpace(ctx, ownerId, task, (space) => Promise.resolve(space.model));
 }
 

@@ -32,9 +32,6 @@ import { smartArbitrate } from "../../../../../packages/server/src/domain/chat/e
 import {
   appendGenerationObservation,
   createGenerationObservationSession,
-  generationObservationFenceStatement,
-  generationObservationTransferStatements,
-  loadGenerationObservations,
 } from "../../../../../packages/server/src/domain/chat/persistence/generation-observation.ts";
 import { createChatLifecycle } from "../../../../../packages/server/src/domain/chat/verbs/chat-lifecycle.ts";
 import { createClaimChat } from "../../../../../packages/server/src/domain/chat/verbs/claim-chat.ts";
@@ -642,14 +639,14 @@ test("already transferred facts refuse a stale batch before all economic inverse
     generationId: null,
   });
   expect(await appendGenerationObservation(ctx, parent, { ordinal: 0, funderUserId: funder.id, connectionId: null, leg })).toBe(true);
-  const facts = await loadGenerationObservations(ctx, parent);
-  await db.batch(batchMany(generationObservationTransferStatements(ctx, parent, facts)));
+  const facts = await createGenerationObservationSession(ctx, parent).load();
+  await db.batch(batchMany(createGenerationObservationSession(ctx, parent).transferStatements(facts)));
   const afterFirst = await db.select().from(ownerStats).where(eq(ownerStats.ownerId, funder.id));
   expect(afterFirst).toMatchObject([{ tokensIn: 0, tokensOut: 0, costUsd: 0, costSamples: 0 }]);
   await expect(
     db.batch(
       batchMany([
-        ...generationObservationTransferStatements(ctx, parent, facts),
+        ...createGenerationObservationSession(ctx, parent).transferStatements(facts),
         batchStmt(db.update(chats).set({ title: "must not land" }).where(eq(chats.id, room.id))),
       ]),
     ),
@@ -671,10 +668,9 @@ test("an unrelated later NOTNULL remains the original failure even when the sour
   const session = createGenerationObservationSession(ctx, parent);
   const facts = await session.load();
   const predicate = sql`exists (select 1 from ${messageVariants} where ${messageVariants.id} = ${variant.id} and ${messageVariants.content} = 'Before')`;
-  const statements = [
-    generationObservationFenceStatement(ctx, parent, facts, predicate),
-    batchStmt(db.insert(users).values({ id: newId<UserId>(), handle: sql`null`, handleKey: castId<HandleKey>("late_constraint") })),
-  ];
+  const [fence] = session.transferStatements(facts, predicate);
+  assert(fence !== undefined);
+  const statements = [fence, batchStmt(db.insert(users).values({ id: newId<UserId>(), handle: sql`null`, handleKey: castId<HandleKey>("late_constraint") }))];
   const batch = db.batch.bind(db);
   let original: unknown;
   const race = vi.spyOn(db, "batch").mockImplementationOnce(async (items): Promise<Awaited<ReturnType<typeof db.batch>>> => {

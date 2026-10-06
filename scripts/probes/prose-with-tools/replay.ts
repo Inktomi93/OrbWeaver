@@ -9,10 +9,10 @@
 import { appendFileSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import type { Shape } from "./contract.ts";
 
 const MODES = ["stream", "nonstream"] as const;
 type Mode = (typeof MODES)[number];
-type Shape = "both" | "prose-only" | "tools-only" | "empty";
 
 const REQUEST_TIMEOUT_MS = 900_000;
 const DEFAULT_REPS = 10;
@@ -130,7 +130,7 @@ async function stream(body: Record<string, unknown>): Promise<Reply> {
   let buffer = "";
   for await (const chunk of res.body ?? []) {
     buffer += decoder.decode(chunk, { stream: true });
-    const lines = buffer.split("\n");
+    const lines = buffer.split(/\r?\n/u);
     buffer = lines.pop() ?? "";
     for (const line of lines.map((l) => l.trim()).filter((l) => l.startsWith("data:"))) {
       foldChunk(reply, names, line.slice("data:".length).trim());
