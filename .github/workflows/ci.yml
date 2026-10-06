@@ -119,6 +119,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: $/.github/actions/setup
+      # The media tests generate their sample videos with the system ffmpeg, which runners don't ship.
+      - run: sudo apt-get update -qq && sudo -A apt-get install -y -qq --no-install-recommends ffmpeg
       - run: pnpm test:node --shard=${{ matrix.shard }}/3
       - if: failure()
         name: Say how to reproduce
