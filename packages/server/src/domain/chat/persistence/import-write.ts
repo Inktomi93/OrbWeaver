@@ -6,12 +6,22 @@
 // per-chat provenance while `chat_import_claims` is the scoped atomic dedup oracle. Each chat + claim commits
 // as ONE db.batch — db.transaction() is BANNED (the :memory: trap) — so a kill mid-import leaves zero rows.
 
-import type { BulkImportChatInput, BulkImportChatsResult, ChatMetadata, ImportedChatIdentity, MessageKind } from "@orb/contracts/chat";
+import type { BulkImportChatInput, BulkImportChatsResult, BulkImportVariantInput, ChatMetadata, ImportedChatIdentity, MessageKind } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
-import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
+import { generationUsageSchema, modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
-import { characters, chatImportClaims, chatInjections, chatParticipants, chats, messageAssets, messages, messageVariants } from "@orb/db";
+import {
+  characters,
+  chatGenerationObservations,
+  chatImportClaims,
+  chatInjections,
+  chatParticipants,
+  chats,
+  messageAssets,
+  messages,
+  messageVariants,
+} from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/kit";
 import { tokenizeContent } from "@orb/kit/content";
@@ -22,6 +32,7 @@ import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { BulkImportChats, ChatImportContext } from "../contract/import.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
+import { importedObservationRows } from "../substrate/import-observations.ts";
 import { carriesAssetBackground, guardedChatId } from "./background-write.ts";
 
 /** The distinct inline `asset:<id>` refs in a message's content, across all its variants. */
@@ -307,6 +318,38 @@ function hasNarratorSlot(ci: BulkImportChatInput): boolean {
 /** Statements for ONE imported message: slot (pointer null) → its variant pool → set the pointer. `variantIds`
  *  comes back INDEX-ALIGNED to `message.variants` — the R6 remap the orb-native bundle re-links its carried
  *  rpg planes through (`ImportedChatIdentity`). */
+function importedUsageColumns(
+  v: BulkImportVariantInput,
+): Pick<
+  typeof messageVariants.$inferInsert,
+  | "tokensIn"
+  | "tokensOut"
+  | "reasoningTokens"
+  | "cacheReadTokens"
+  | "cacheWriteTokens"
+  | "costUsd"
+  | "costDetails"
+  | "costProvenance"
+  | "servedModel"
+  | "tokenDetails"
+  | "responseCache"
+> {
+  const usage = v.usage === undefined ? undefined : generationUsageSchema.parse(v.usage);
+  return {
+    tokensIn: usage === undefined ? (v.tokensIn ?? null) : usage.tokensIn,
+    tokensOut: usage === undefined ? v.tokensOut : usage.tokensOut,
+    reasoningTokens: usage?.reasoningTokens ?? null,
+    cacheReadTokens: usage?.cacheReadTokens ?? null,
+    cacheWriteTokens: usage?.cacheWriteTokens ?? null,
+    costUsd: usage?.costUsd ?? null,
+    costDetails: usage?.costDetails ?? null,
+    costProvenance: usage?.costProvenance ?? "unrecorded",
+    servedModel: usage?.servedModel ?? null,
+    tokenDetails: usage?.tokenDetails ?? null,
+    responseCache: usage?.responseCache ?? null,
+  };
+}
+
 function messageStatements(args: MessageStatementsArgs): {
   readonly stmts: BatchStmt[];
   readonly variantIds: readonly MessageVariantId[];
@@ -354,8 +397,7 @@ function messageStatements(args: MessageStatementsArgs): {
           connectionAttributionProvenance: "unrecorded",
           // `tokensIn` is supplied by the orb-native bundle AND by the ST arm's user/system slots (the
           // role-routed `extra.token_count`); `variableDelta` stays orb-native-only.
-          tokensIn: v.tokensIn ?? null,
-          tokensOut: v.tokensOut,
+          ...importedUsageColumns(v),
           tokenProvenance: v.tokenProvenance,
           reasoning: v.reasoning,
           ttftMs: v.ttftMs,
@@ -528,6 +570,10 @@ function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs)
   ];
 }
 
+function pendingObservationStmts(ctx: ChatImportContext, ownerId: UserId, ci: BulkImportChatInput, identity: ImportedChatIdentity): BatchStmt[] {
+  return importedObservationRows(ctx.newChatTurnId, ownerId, ci, identity).map((row) => batchStmt(ctx.db.insert(chatGenerationObservations).values(row)));
+}
+
 /** All statements for ONE imported chat (header + roster + message slots/variants) + the identity of what it
  *  writes. `identity` is INDEX-ALIGNED to `ci.messages` — the R6 remap (`ImportedChatIdentity`); the tallies
  *  the caller reports are derived from it rather than counted separately, so the count and the remap cannot
@@ -559,7 +605,9 @@ function buildChatStatements(args: OneChatArgs): {
     variantIds.push(built.variantIds);
     seq += 1;
   }
-  return { stmts, identity: { chatId, messageIds, variantIds } };
+  const identity = { chatId, messageIds, variantIds };
+  stmts.push(...pendingObservationStmts(ctx, ownerId, ci, identity));
+  return { stmts, identity };
 }
 
 /** EVERY character id a run could seat or attribute: the primary, each chat's extra roster, and each slot's

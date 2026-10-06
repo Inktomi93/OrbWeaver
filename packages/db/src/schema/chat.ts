@@ -1,8 +1,8 @@
-// schema/chat — the chat cluster (producer: domain/chat; the biggest, most intricate slice). Fifteen tables:
+// schema/chat — the chat cluster (producer: domain/chat; the biggest, most intricate slice). The retained chat tables:
 // chats · messages · message_variants · message_assets · message_reactions · chat_participants ·
 // chat_invites · pending_turns · chat_events ·
 // chat_stream_events · chat_injections · chat_locks · chat_import_claims · chat_handoff_resumptions ·
-// compaction_spend. Built
+// compaction_spend · chat_generation_observations. Built
 // WHOLE (no feature-phasing — ledger D16); the authoritative spec is `docs/law/Tier-1-DB.md`.
 //
 // THE LOAD-BEARING DECISIONS encoded here:
@@ -73,8 +73,8 @@ import {
 } from "@orb/contracts/chat";
 // PARTICIPANT_ROLES is one-homed in @orb/contracts/identity (the can() resource-role axis).
 import { AUTH_MODES, PARTICIPANT_ROLES } from "@orb/contracts/identity";
-import type { CostDetails, NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
-import { NORMALIZED_FINISH_REASONS } from "@orb/contracts/inference";
+import type { CostDetails, NormalizedFinishReason, ProviderId, ResponseCache, TokenDetails, Wire } from "@orb/contracts/inference";
+import { NORMALIZED_FINISH_REASONS, WIRES } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent, UserMacroValues } from "@orb/contracts/preset";
 import { EFFORT_LEVELS } from "@orb/contracts/preset";
 import type {
@@ -87,6 +87,7 @@ import type {
   ChatParticipantId,
   ChatStreamEventId,
   ChatStreamGenerationId,
+  ChatTurnId,
   CompactionSpendId,
   MessageAssetId,
   MessageId,
@@ -462,6 +463,10 @@ export const messageVariants = sqliteTable(
     cue: text("cue"),
     cueRole: text("cue_role", { enum: CUE_ROLES }).$type<CueRole>(),
     model: text("model").$type<ModelId>(),
+    // Reported serving identity, never the requested model copied into a missing response field.
+    servedModel: text("served_model"),
+    tokenDetails: text("token_details", { mode: "json" }).$type<TokenDetails>(),
+    responseCache: text("response_cache", { mode: "json" }).$type<ResponseCache>(),
     // ATTRIBUTION (inference program §5.3b): which of the user's connections generated this swipe. SET NULL —
     // a deleted connection never deletes history (`selectedVariantId`'s idiom). The required provenance
     // below distinguishes that deletion from rows whose connection was never recorded (imports, edits,
@@ -1093,4 +1098,77 @@ export const compactionSpend = sqliteTable(
     createdAt: integer("created_at").notNull(),
   },
   (t) => [index("compaction_spend_owner_idx").on(t.ownerId, t.createdAt)],
+);
+
+// Completed responses awaiting a transcript generation, including refusals and nonpersisting drafts.
+// Required retained parents CASCADE; successful commit transfers these facts into the variant and removes
+// these rows in the same economic batch. This is not an owner-retained execution history or a job queue.
+export const chatGenerationObservations = sqliteTable(
+  "chat_generation_observations",
+  {
+    chatId: text("chat_id")
+      .$type<ChatId>()
+      .notNull()
+      .references(() => chats.id, { onDelete: "cascade" }),
+    turnId: text("turn_id").$type<ChatTurnId>().notNull(),
+    ordinal: integer("ordinal").notNull(),
+    sourceMessageId: text("source_message_id")
+      .$type<MessageId>()
+      .references(() => messages.id, { onDelete: "cascade" }),
+    sourceVariantId: text("source_variant_id")
+      .$type<MessageVariantId>()
+      .references(() => messageVariants.id, { onDelete: "cascade" }),
+    // D19 attribution is frozen independently of D18 membership scope and a later host handoff.
+    funderUserId: text("funder_user_id")
+      .$type<UserId>()
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    connectionId: text("connection_id")
+      .$type<UserConnectionId>()
+      .references(() => userConnections.id, { onDelete: "set null" }),
+    connectionAttributionProvenance: text("connection_attribution_provenance", { enum: CONNECTION_ATTRIBUTION_PROVENANCES })
+      .$type<ConnectionAttributionProvenance>()
+      .notNull(),
+    model: text("model").$type<ModelId>().notNull(),
+    servedModel: text("served_model"),
+    provider: text("provider").$type<ProviderId>().notNull(),
+    wire: text("wire", { enum: WIRES }).$type<Wire>().notNull(),
+    tokensIn: integer("tokens_in"),
+    tokensOut: integer("tokens_out"),
+    reasoningTokens: integer("reasoning_tokens"),
+    cacheReadTokens: integer("cache_read_tokens"),
+    cacheWriteTokens: integer("cache_write_tokens"),
+    tokenDetails: text("token_details", { mode: "json" }).$type<TokenDetails>(),
+    responseCache: text("response_cache", { mode: "json" }).$type<ResponseCache>(),
+    costUsd: real("cost_usd"),
+    costProvenance: text("cost_provenance", { enum: TOKEN_PROVENANCES }).$type<TokenProvenance>().notNull(),
+    costDetails: text("cost_details", { mode: "json" }).$type<CostDetails>(),
+    contextWindow: integer("context_window"),
+    maxOutputTokens: integer("max_output_tokens"),
+    modelCalls: integer("model_calls"),
+    durationApiMs: real("duration_api_ms"),
+    ttftMs: real("ttft_ms"),
+    finishReason: text("finish_reason", { enum: NORMALIZED_FINISH_REASONS }).$type<NormalizedFinishReason>(),
+    stopReason: text("stop_reason"),
+    terminalReason: text("terminal_reason"),
+    generationId: text("generation_id"),
+    observedAt: integer("observed_at").notNull(),
+  },
+  (t) => [
+    sqliteCore.primaryKey({ columns: [t.chatId, t.turnId, t.ordinal] }),
+    index("chat_generation_observations_source_message_idx").on(t.sourceMessageId),
+    index("chat_generation_observations_source_variant_idx").on(t.sourceVariantId),
+    index("chat_generation_observations_funder_idx").on(t.funderUserId, t.observedAt),
+    index("chat_generation_observations_connection_idx").on(t.connectionId),
+    check("chat_generation_observations_ordinal_check", sql.raw("ordinal >= 0")),
+    check("chat_generation_observations_source_shape", sql.raw("source_variant_id is null or source_message_id is not null")),
+    check("chat_generation_observations_wire_check", sql.raw(`wire in (${checkList(WIRES)})`)),
+    check("chat_generation_observations_cost_provenance_check", sql.raw(`cost_provenance in (${checkList(TOKEN_PROVENANCES)})`)),
+    check(
+      "chat_generation_observations_connection_provenance_check",
+      sql.raw(`connection_attribution_provenance in (${checkList(CONNECTION_ATTRIBUTION_PROVENANCES)})`),
+    ),
+    check("chat_generation_observations_connection_shape", sql.raw("connection_id is null or connection_attribution_provenance = 'recorded'")),
+    check("chat_generation_observations_finish_reason_check", sql.raw(`finish_reason is null or finish_reason in (${checkList(NORMALIZED_FINISH_REASONS)})`)),
+  ],
 );

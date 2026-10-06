@@ -54,6 +54,8 @@ export const ID_PREFIX = {
   // mid-turn tool writes to its commit/abort flush under lock-free concurrency.
   chatTurn: "chat_turn",
   characterEmbedding: "character_embedding",
+  embeddingCall: "embedding_call",
+  embeddingInvocation: "embedding_invocation",
   chatDigest: "chat_digest",
   chatSegment: "chat_segment",
   themeCluster: "theme_cluster",
@@ -222,6 +224,8 @@ export type ChatTurnId = TypeIdOf<"chat_turn">;
 
 // --- Corpus / vectors --------------------------------------------------------
 export type CharacterEmbeddingId = TypeIdOf<"character_embedding">;
+export type EmbeddingCallId = TypeIdOf<"embedding_call">;
+export type EmbeddingInvocationId = TypeIdOf<"embedding_invocation">;
 export type ChatDigestId = TypeIdOf<"chat_digest">;
 export type ChatSegmentId = TypeIdOf<"chat_segment">;
 export type ImageEmbeddingId = TypeIdOf<"image_embedding">;

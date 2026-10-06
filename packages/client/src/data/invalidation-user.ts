@@ -29,6 +29,8 @@ export const USER_BUS_FILTERS: UserBusFilterMap = {
     trpc.regex.listScriptUsage.pathFilter(),
     trpc.search.fields.pathFilter(),
     trpc.tag.pathFilter(),
+    // Bundle completion also carries newly restored history for existing, previously-unattributed assets.
+    trpc.imagery.readProvenance.queryFilter(),
   ],
   personasChanged: (_e, trpc) => [trpc.persona.pathFilter(), trpc.tag.pathFilter()],
   // A preset edit changes the effective params (maxOutput/maxContext) the fit reserves against, so the

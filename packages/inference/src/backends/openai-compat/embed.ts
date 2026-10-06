@@ -13,21 +13,26 @@
 // Empty inputs filter to `null` (the `EmbedResult` contract); vectors land L2-normalized (the same primitive
 // local-light uses — the local↔hosted swap needs byte-identical norms).
 
-import type { EmbeddingModelV4, JSONObject } from "@ai-sdk/provider";
+import type { EmbeddingModelV4, EmbeddingModelV4Result, JSONObject } from "@ai-sdk/provider";
+import type { EmbeddingBatchObservation } from "@orb/contracts/embeddings";
 import type { EmbeddingCapability } from "@orb/contracts/inference";
-import type { EmbedResult } from "@orb/contracts/providers";
+import type { EmbedResult, EmbedUsage } from "@orb/contracts/providers";
 import { clampToTokenBudget, estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
+import { z } from "zod";
 import { ProviderError } from "../../contract/errors.ts";
 import type { Resolved } from "../../contract/resolved.ts";
 import type { EmbedRequest } from "../../contract/roles.ts";
 import { embedRequestTimeoutMs } from "../../contract/roles.ts";
 import type { InferenceLog } from "../../deps.ts";
 import { deadlineSignal } from "../kit/abort-flatten.ts";
+import { embeddingCostOf } from "../kit/embedding-cost.ts";
 import type { VectorFit } from "../kit/embedding-input.ts";
 import { embeddingPrompt, fitToDim } from "../kit/embedding-input.ts";
 import { providerErrorFromHttp } from "../kit/error-classify.ts";
 import { providerLogger } from "../kit/provider-log.ts";
+import { responseCacheOf } from "../kit/response-cache.ts";
 import { resolvedScrubSet } from "../kit/sanitize.ts";
+import { measuredCostOf } from "../v4/result.ts";
 import type { ModelCall, TransportDeps } from "./model.ts";
 import { embeddingModelFor } from "./model.ts";
 
@@ -35,6 +40,11 @@ const DIMENSIONS_REJECTED_RE = /dimensions/iu;
 const PROMPT_SCAFFOLD_RESERVE_TOKENS = 64;
 const DEFAULT_CHUNK_ITEMS = 128;
 const MS_PER_SEC = 1000;
+const reportedCount = z.number().int().nonnegative().nullish().catch(null);
+const embeddingResponseSchema = z.object({
+  model: z.string().min(1).nullish().catch(null),
+  usage: z.looseObject({ prompt_tokens: reportedCount, total_tokens: reportedCount }).nullish().catch(null),
+});
 
 export interface EmbedDeps {
   readonly log: InferenceLog;
@@ -112,12 +122,10 @@ interface EmbedOnceArgs {
   readonly signal: AbortSignal;
 }
 
-async function embedOnce(args: EmbedOnceArgs): Promise<{ readonly embeddings: number[][]; readonly tokens: number | undefined }> {
+async function embedOnce(args: EmbedOnceArgs): Promise<EmbeddingModelV4Result> {
   const options = (dims: number | undefined): JSONObject => (dims !== undefined ? { dimensions: dims } : {});
-  const run = async (dims: number | undefined): Promise<{ readonly embeddings: number[][]; readonly tokens: number | undefined }> => {
-    const result = await args.model.doEmbed({ values: [...args.values], abortSignal: args.signal, providerOptions: { [args.key]: options(dims) } });
-    return { embeddings: result.embeddings, tokens: result.usage?.tokens };
-  };
+  const run = (dims: number | undefined): Promise<EmbeddingModelV4Result> =>
+    Promise.resolve(args.model.doEmbed({ values: [...args.values], abortSignal: args.signal, providerOptions: { [args.key]: options(dims) } }));
   try {
     return await run(args.dimensions);
   } catch (err) {
@@ -144,8 +152,29 @@ interface BatchRun {
   readonly vectors: (Float32Array<ArrayBuffer> | null)[];
 }
 
+function batchObservationOf(req: EmbedRequest, result: EmbeddingModelV4Result, inputCount: number): EmbeddingBatchObservation {
+  const parsed = embeddingResponseSchema.safeParse(result.response?.body);
+  const responseCache =
+    req.connection.provider.dialect === "openrouter" ? responseCacheOf(result.response?.headers, resolvedScrubSet(req.connection)) : undefined;
+  const usage = {
+    promptTokens: parsed.success ? (parsed.data.usage?.prompt_tokens ?? null) : null,
+    totalTokens: parsed.success ? (parsed.data.usage?.total_tokens ?? null) : null,
+    ...(responseCache === undefined ? {} : { responseCache }),
+  };
+  const measured = measuredCostOf(result.providerMetadata, parsed.success ? (parsed.data.usage ?? undefined) : undefined);
+  const price = measured ?? (responseCache?.status === "hit" ? { costUsd: 0, costDetails: { totalUsd: 0 } } : null);
+  return {
+    inputCount,
+    inputModalities: ["text"],
+    servedModel: parsed.success ? (parsed.data.model ?? null) : null,
+    usage,
+    tokenDetails: null,
+    cost: embeddingCostOf(usage.promptTokens, req.connection.features.pricing, price, true),
+  };
+}
+
 /** ONE POST: the deadline sized by the batch's tokens, the count asserted, every vector fitted into its slot. */
-async function runBatch(run: BatchRun, batch: readonly KeptInput[]): Promise<number | undefined> {
+async function runBatch(run: BatchRun, batch: readonly KeptInput[]): Promise<EmbedUsage> {
   const { req, call, model, label, secrets } = run;
   const { features } = req.connection;
   const tokens = batch.reduce((sum, item) => sum + item.tokens, 0);
@@ -161,6 +190,8 @@ async function runBatch(run: BatchRun, batch: readonly KeptInput[]): Promise<num
     }).catch((err: unknown) => {
       throw err instanceof ProviderError ? err : providerErrorFromHttp(err, label, secrets);
     });
+    const observation = batchObservationOf(req, result, batch.length);
+    await req.embeddingAccounting?.recordBatch(observation);
     if (result.embeddings.length !== batch.length) {
       throw new ProviderError({
         kind: "invalid",
@@ -174,7 +205,7 @@ async function runBatch(run: BatchRun, batch: readonly KeptInput[]): Promise<num
         run.vectors[slot.index] = fitToDim(vec, run.fit, label);
       }
     }
-    return result.tokens;
+    return observation.usage;
   } finally {
     post.dispose();
   }
@@ -221,7 +252,7 @@ export async function runOpenAiCompatEmbed(req: EmbedRequest, deps: EmbedDeps): 
     fit: { dims: req.dimensions ?? capability.dims, mrl: capability.mrl },
     vectors,
   };
-  const usages: (number | undefined)[] = new Array(batches.length).fill(undefined);
+  const usages: (EmbedUsage | undefined)[] = new Array(batches.length).fill(undefined);
   let next = 0;
   const worker = async (): Promise<void> => {
     for (let i = next; i < batches.length; i = next) {
@@ -233,7 +264,15 @@ export async function runOpenAiCompatEmbed(req: EmbedRequest, deps: EmbedDeps): 
     }
   };
   await Promise.all(Array.from({ length: Math.min(connection.features.concurrency?.embed ?? 1, batches.length) }, () => worker()));
-  const seen = usages.filter((u): u is number => u !== undefined);
-  const totalTokens = seen.length === 0 ? null : seen.reduce((a, b) => a + b, 0);
-  return { vectors, model: connection.model, usage: { promptTokens: totalTokens, totalTokens } };
+  const sum = (key: keyof Omit<EmbedUsage, "responseCache">): number | null =>
+    usages.reduce<number | null>((total, usage) => (total !== null && usage?.[key] !== undefined && usage[key] !== null ? total + usage[key] : null), 0);
+  return {
+    vectors,
+    model: connection.model,
+    usage: {
+      promptTokens: sum("promptTokens"),
+      totalTokens: sum("totalTokens"),
+      ...(usages.length === 1 && usages[0]?.responseCache !== undefined ? { responseCache: usages[0].responseCache } : {}),
+    },
+  };
 }

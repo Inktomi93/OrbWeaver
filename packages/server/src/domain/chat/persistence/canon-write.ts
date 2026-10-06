@@ -26,10 +26,10 @@ import type {
 } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND, parseVariantMetadata } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
-import type { CostDetails, NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
+import type { CostDetails, NormalizedFinishReason, ProviderId, ResponseCache, TokenDetails } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import { chatParticipants, messageAssets, messages, messageVariants } from "@orb/db";
+import { chatParticipants, chats, messageAssets, messages, messageVariants } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/kit";
 import type { ReasoningContentPart } from "@orb/inference";
@@ -42,12 +42,31 @@ import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { DeliveredCue } from "../contract/results.ts";
 import { loadMaxMessageSeq } from "./queries.ts";
 
+/** Only the known first required-parent write may become a stale-source domain refusal. */
+export function isRetainedParentFenceViolation(error: unknown): boolean {
+  const violation = isConstraintViolation(error);
+  return violation?.kind === "not-null" && violation.statementIndex === 0;
+}
+
+/** First write: an admitted existing chat id survives unchanged; a declined selection rolls the batch back. */
+export function retainedChatFenceStatement(db: Db, selection: SQL): BatchStmt {
+  return batchStmt(
+    db
+      .insert(chats)
+      .values({ id: sql`(${selection})` })
+      .onConflictDoUpdate({ target: chats.id, set: { id: sql`excluded.id` } }),
+  );
+}
+
 /** The generation record for one `message_variants` row: all content + economics + the per-swipe snapshot.
  *  Every field but `content` is optional — an unreported economics field stays absent. */
 interface CanonVariantInput {
   readonly content: string;
   readonly reasoning?: string | null | undefined;
   readonly model?: ModelId | null | undefined;
+  readonly servedModel?: string | null | undefined;
+  readonly tokenDetails?: TokenDetails | null | undefined;
+  readonly responseCache?: ResponseCache | null | undefined;
   readonly provider?: ProviderId | null | undefined;
   /** ATTRIBUTION (§5.3b): the connection row that generated this swipe (SET NULL on delete); null on a
    *  user-authored row, an import or an edit. */
@@ -273,6 +292,9 @@ function variantColumns(args: {
     messageId: args.messageId,
     idx: args.idx,
     ...variantEconomics(args.variant),
+    servedModel: args.variant.servedModel ?? null,
+    tokenDetails: args.variant.tokenDetails ?? null,
+    responseCache: args.variant.responseCache ?? null,
     metadata: args.variant.metadata ?? null,
     maxOutputTokens: args.variant.maxOutputTokens ?? null,
     reasoningEffort: args.variant.reasoningEffort ?? null,
@@ -533,6 +555,9 @@ export function continueVariantStatements(
         .set({
           // A continue re-generates: `variantEconomics` re-stamps the gen window to the continuation's.
           ...variantEconomics(params.variant),
+          servedModel: params.variant.servedModel ?? null,
+          tokenDetails: params.variant.tokenDetails ?? null,
+          responseCache: params.variant.responseCache ?? null,
           // The continuation's `tokensOut`/`costUsd` land above, so the effort it applied, its reasoning share
           // and its cost breakdown follow — a stale `costDetails` beside a fresh `costUsd` would contradict
           // itself (B1/B5/B8). `maxOutputTokens` stays insert-only as before.

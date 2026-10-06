@@ -17,12 +17,20 @@
 // and this refusal is what makes the content-less canon row — which leaked into export, digests, plugin
 // reads, automation facts, counts, forks and every client cache — UNREPRESENTABLE rather than filtered.
 
+import { chats } from "@orb/db";
+import { sql } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";
 import type { PostNarratorMessage, PostNarratorMessageDeps } from "../contract/context.ts";
-import { buildCommittedMessageView, commitCanonAppend, insertCanonMessageStatements, insertMessageAssetStatements } from "../persistence/canon-write.ts";
+import {
+  buildCommittedMessageView,
+  commitCanonAppend,
+  insertCanonMessageStatements,
+  insertMessageAssetStatements,
+  retainedChatFenceStatement,
+} from "../persistence/canon-write.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
-import { assistantTurnDelta } from "../substrate/stats-delta.ts";
+import { appendStatsDeltas, assistantTurnDelta, retainedCanonDeltas } from "../substrate/stats-delta.ts";
 
 /** The alt text stamped on each embedded narrator-media ref (one home — no scattered magic string). */
 const NARRATOR_MEDIA_ALT = "illustration";
@@ -74,6 +82,7 @@ export function createPostNarratorMessage(ctx: ChatContext, deps: PostNarratorMe
     // The head allocation + its one expected collision ride the SHARED retry (`commitCanonAppend`): a
     // concurrent canon writer may have taken this seq, in which case the whole attempt — ids included — is
     // discarded and re-minted against the new head. Every id is minted INSIDE the attempt for that reason.
+    const scope = await ctx.resolveRetainedChatAccountingScope(chatId, group.characterId);
     const { view, messageId, variantId } = await commitCanonAppend(ctx.db, chatId, (seq) => {
       const now = ctx.now();
       const attemptMessageId = ctx.newMessageId();
@@ -101,7 +110,12 @@ export function createPostNarratorMessage(ctx: ChatContext, deps: PostNarratorMe
       };
       const assetRows = mediaRefs.map((assetId) => ({ id: ctx.newMessageAssetId(), messageId: attemptMessageId, assetId }));
       const statements = insertCanonMessageStatements(ctx.db, params);
-      ctx.applyStatsDelta(statements, ctx.db, assistantTurnDelta({ ownerId: hostUserId, characterId: group.characterId, economics: { content: body }, now }));
+      statements.unshift(retainedChatFenceStatement(ctx.db, sql`select ${chats.id} from ${chats} where ${chats.id} = ${chatId} and ${scope.predicate}`));
+      appendStatsDeltas(
+        ctx,
+        statements,
+        retainedCanonDeltas(scope, assistantTurnDelta({ ownerId: hostUserId, characterId: group.characterId, economics: { content: body }, now })),
+      );
       // An `/imagine` post is an ASSISTANT row with real `asset:` spans — stamped `illustration` so the
       // wire-history projection never rides it back as a model-emitted picture (§5.3b/§6.7).
       statements.push(...insertMessageAssetStatements(ctx.db, { rows: assetRows, origin: "illustration", now }));

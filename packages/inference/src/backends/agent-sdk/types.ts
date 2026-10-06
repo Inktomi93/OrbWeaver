@@ -6,7 +6,7 @@ import type { EffortLevel } from "@orb/contracts/preset";
 import type { ChatId, ModelId } from "@orb/kit/ids";
 import type { AgentSdkSessionTotals, SessionEntryWriter } from "../../contract/agent.ts";
 import type { WireCaptureSink } from "../../contract/backend.ts";
-import type { ContextUsage } from "../../contract/chat.ts";
+import type { ChatResult, ContextUsage } from "../../contract/chat.ts";
 import type { ProviderScrubSet } from "../../contract/errors.ts";
 import type { ChatDeltaEvent, ChatEvent } from "../../contract/events.ts";
 import type { AgentSdkSessionId } from "../../contract/identity.ts";
@@ -50,6 +50,7 @@ export interface AgentSdkDeps {
 
 /** `consumeTurnStream` parameter shape. */
 export interface TurnStreamContext {
+  readonly onObservedResult?: ((result: ChatResult) => Promise<void>) | undefined;
   readonly turnId?: string | undefined;
   readonly model: ModelId;
   readonly providerId: string;

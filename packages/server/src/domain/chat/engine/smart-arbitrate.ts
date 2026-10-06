@@ -9,7 +9,7 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat, SummarizeOptions } from "@orb/contracts/role-clients";
 import { RPG_SCENE_LINE_LABEL } from "@orb/contracts/rpg";
-import { runStructuredTurn } from "@orb/inference";
+import { GenerationObservationPersistenceError, runStructuredTurn } from "@orb/inference";
 import type { CharacterId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { clampToTokenBudget, safeTokenWindow } from "@orb/kit/tokens";
@@ -170,26 +170,34 @@ export async function smartArbitrate(params: SmartArbitrateParams): Promise<Smar
     return fallback();
   }
   const choices: readonly [Named, ...Named[]] = [first, ...rest];
-  let chosen: readonly string[];
-  // @orb-waive caught-failure-ownership(catch): classified by signal state — a settled signal returns CANCELLED
-  // (the user stopped it); an unservable row, a failed call or an invalid payload after the one bounded retry
-  // degrades to the visible `fallback()`, the arbiter's documented best-effort contract.
-  try {
-    const arbiter = await params.arbiter();
-    if (arbiter === null) {
-      return cancelled() ? CANCELLED : fallback();
-    }
-    chosen = await askArbiter(params, arbiter, choices, labels);
-  } catch {
-    return cancelled() ? CANCELLED : fallback();
-  }
+  const chosen = await boundArbiterChoice(params, choices, labels);
   if (cancelled()) {
     return CANCELLED;
+  }
+  if (chosen === null) {
+    return fallback();
   }
   // Lenient on length: a wire that strips the array bounds may send more than the cap, which is trimmed rather
   // than spent on a retry. Only an empty answer degrades.
   const refs = [...new Set(chosen)].flatMap((label) => choices.find((c) => c.label === label)?.ref ?? []).slice(0, MAX_SMART_RESPONDERS);
   return refs.length === 0 ? fallback() : picked(refs);
+}
+
+async function boundArbiterChoice(params: SmartArbitrateParams, choices: readonly [Named, ...Named[]], labels: RoundLabels): Promise<readonly string[] | null> {
+  // (the caller checks cancellation before consuming null); an unservable row, provider failure or invalid
+  // payload becomes the caller's visible fallback. Durable capture failures must remain failures.
+  try {
+    const arbiter = await params.arbiter();
+    if (arbiter === null) {
+      return null;
+    }
+    return await askArbiter(params, arbiter, choices, labels);
+  } catch (error) {
+    if (error instanceof GenerationObservationPersistenceError) {
+      throw error;
+    }
+    return null;
+  }
 }
 
 /** One schema-constrained call (with the shared one bounded retry): the candidate labels the model chose. */

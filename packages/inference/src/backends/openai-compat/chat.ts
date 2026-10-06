@@ -29,6 +29,7 @@ import { effortWordOf } from "../kit/applied-effort.ts";
 import type { ExplicitCachePlan, OpenRouterRouting } from "../kit/cache-control.ts";
 import { automaticCachePlan, effectiveProviderRouting, explicitCachePlan, isAnthropicModel, placeExplicitCacheMarkers } from "../kit/cache-control.ts";
 import { extractHttpErrorDiagnostic, providerErrorFromHttp, withSchemaRejection } from "../kit/error-classify.ts";
+import { observeChatResult } from "../kit/generation-observation.ts";
 import { turnAbortSignal } from "../kit/idle-timeout.ts";
 import type { ProviderLogger } from "../kit/provider-log.ts";
 import { providerLogger } from "../kit/provider-log.ts";
@@ -40,6 +41,7 @@ import { emitTurnSpanEvents } from "../kit/turn-span.ts";
 import { plannedOptions, standardSampling } from "../v4/options.ts";
 import type { WirePlan } from "../v4/prompt.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
+import type { ResultContext } from "../v4/result.ts";
 import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
 import type { StreamDrain } from "../v4/stream.ts";
 import { drainStream } from "../v4/stream.ts";
@@ -71,6 +73,32 @@ const OLLAMA_THINK_KEY = "think";
 const SESSION_ID_HEADER = "x-session-id";
 const SESSION_ID_MAX_LENGTH = 256;
 const openRouterSessionSchema = z.string().max(SESSION_ID_MAX_LENGTH);
+
+const reportedCount = z.number().int().nonnegative().nullish().catch(null);
+const nativeOpenAiUsageSchema = z.object({
+  prompt_tokens: reportedCount,
+  completion_tokens: reportedCount,
+  prompt_tokens_details: z.object({ cached_tokens: reportedCount, cache_write_tokens: reportedCount }).nullish().catch(null),
+  completion_tokens_details: z.object({ reasoning_tokens: reportedCount }).nullish().catch(null),
+});
+
+function nativeOpenAiUsageOverlay(drain: StreamDrain, generation: GenerationCapability, providerId: string): Pick<ResultContext, "tokenUsage"> {
+  if (providerId !== "openai" || generation.turns?.promptCacheFormat !== "openai-breakpoint") {
+    return {};
+  }
+  // The compatible SDK drops cache_write_tokens and defaults absent axes to zero; only raw reports establish these facts.
+  const parsed = nativeOpenAiUsageSchema.safeParse(drain.usage?.raw);
+  const raw = parsed.success ? parsed.data : null;
+  return {
+    tokenUsage: {
+      tokensIn: raw?.prompt_tokens ?? null,
+      tokensOut: raw?.completion_tokens ?? null,
+      cacheReadTokens: raw?.prompt_tokens_details?.cached_tokens ?? null,
+      cacheWriteTokens: raw?.prompt_tokens_details?.cache_write_tokens ?? null,
+      reasoningTokens: raw?.completion_tokens_details?.reasoning_tokens ?? null,
+    },
+  };
+}
 
 export interface OpenAiCompatChatDeps {
   readonly now: () => number;
@@ -540,14 +568,19 @@ function emitReceipts(args: {
 }): void {
   const { log, req, generation, knobs, turn, written, warnings } = args;
   if (generation.turns?.explicitPromptCache === true && req.connection.provider.dialect === "openrouter") {
-    const total = turn.usage.cacheReadTokens + turn.usage.cacheWriteTokens;
+    const { cacheReadTokens, cacheWriteTokens } = turn.usage;
+    const total = cacheReadTokens !== null && cacheWriteTokens !== null ? cacheReadTokens + cacheWriteTokens : null;
+    let hitRatio: number | null = null;
+    if (total !== null && cacheReadTokens !== null) {
+      hitRatio = total > 0 ? cacheReadTokens / total : 0;
+    }
     log.cache({
       turnId: knobs.turnId,
       cacheReadTokens: turn.usage.cacheReadTokens,
       cacheWriteTokens: turn.usage.cacheWriteTokens,
       breakpointsPlaced: written.systemBlocks + written.historyDepths.length + written.requestBlocks,
       breakpointOffsets: written.historyDepths,
-      hitRatio: total > 0 ? turn.usage.cacheReadTokens / total : 0,
+      hitRatio,
       minCacheTokens: cacheMinTokensOf(generation),
     });
   }
@@ -801,6 +834,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     now: finishedAt,
     measuredCost: measuredCostOf(drain.providerMetadata, drain.usage?.raw),
     responseCache: attempt.responseCache,
+    ...nativeOpenAiUsageOverlay(drain, generation, connection.providerId),
     pricing: connection.features.pricing,
     // The provider's response id (B7): OpenRouter's `gen-…` (the cost-settlement key) or an endpoint's own
     // `chatcmpl-…` — both opaque provenance on the row.
@@ -810,6 +844,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     warnings,
   });
   const canary = rateLimitCanaryEvent(attempt.rateLimit, finishedAt);
+  await observeChatResult(req, folded);
   const turn: ChatResult = structuredChatResult(canary === null ? folded : { ...folded, events: [...folded.events, canary] }, structured);
   if (attempt.rateLimit !== null) {
     log.emit(attempt.rateLimit.status === "allowed" ? "debug" : "warn", "provider.rate_limit", { turnId: knobs.turnId, ...attempt.rateLimit });

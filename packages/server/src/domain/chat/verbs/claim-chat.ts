@@ -40,7 +40,7 @@ import type { ClaimChatOp } from "../contract/context.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { characterSeatedInAnotherChat, loadParticipants } from "../persistence/participants-read.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
-import { canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
+import { appendStatsDeltas, canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
 
 /** The canon present at claim (slots + every variant), the delta replay's input. */
 interface ClaimCanon {
@@ -103,9 +103,9 @@ async function pushClaimStatsDeltas(
     const own = variantsByMessage.get(slot.id) ?? [];
     const selected = own.find((v) => v.id === slot.selectedVariantId);
     if (selected !== undefined) {
-      ctx.applyStatsDelta(
+      appendStatsDeltas(
+        ctx,
         stmts,
-        ctx.db,
         canonMessageDelta({
           ownerId,
           row: { ...selected, characterId: slot.characterId, role: slot.role, createdAt: slot.createdAt, selectedIdx: selected.idx, variantCount: own.length },
@@ -116,11 +116,7 @@ async function pushClaimStatsDeltas(
     }
     for (const v of own) {
       if (v.id !== slot.selectedVariantId) {
-        ctx.applyStatsDelta(
-          stmts,
-          ctx.db,
-          swipeVariantDelta({ ownerId, row: { ...v, characterId: slot.characterId, msgCreatedAt: slot.createdAt }, sign: 1, now }),
-        );
+        appendStatsDeltas(ctx, stmts, swipeVariantDelta({ ownerId, row: { ...v, characterId: slot.characterId, msgCreatedAt: slot.createdAt }, sign: 1, now }));
       }
     }
   }

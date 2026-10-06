@@ -2,40 +2,19 @@
 // `satisfies` the input shape without importing the registry that parses it (no cycle). See `providers.ts`
 // for the doctrine (rows are data, the id is half the credential AAD, namespaced plugin ids).
 
-import type { Branded } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { z } from "zod";
 import type { ChatApi } from "./apis.ts";
 import { CHAT_APIS } from "./apis.ts";
 import { endpointFeaturesSchema } from "./features.ts";
+import { pluginNameOfProviderId, providerIdSchema } from "./provider-id.ts";
 import type { Task } from "./tasks.ts";
 import { TASKS } from "./tasks.ts";
 import type { Wire } from "./wires.ts";
 import { WIRE_DEFS, WIRES } from "./wires.ts";
 
-/** Built-ins are bare `[a-z0-9-]+`; runtime rows are `plugin:<name>/<id>`. */
-export const PROVIDER_ID = /^(?:[a-z0-9-]+|plugin:[a-z0-9-]+\/[a-z0-9-]+)$/;
-const PLUGIN_PROVIDER_ID = /^plugin:([a-z0-9-]+)\/[a-z0-9-]+$/;
-/** The namespace a plugin-contributed provider id starts with; the provider tables CHECK it. */
-export const PLUGIN_PROVIDER_ID_PREFIX = "plugin:";
-
-/** A registry id — branded so a bare string never flows where a validated provider id is expected.
- *  Validated at the producer against the registry, NO SQL CHECK (a plugin row is runtime data — a CHECK
- *  would be the closed-`BACKEND_KEYS` mistake again; §5.3c class 2). */
-export type ProviderId = Branded<"ProviderId">;
-export const providerIdSchema: z.ZodType<ProviderId, string> = z
-  .string()
-  .regex(PROVIDER_ID, "a provider id is bare [a-z0-9-]+ (built-in) or plugin:<name>/<id>")
-  .transform((value): ProviderId => castId<ProviderId>(value));
-
-export function isPluginProviderId(id: string): boolean {
-  return PLUGIN_PROVIDER_ID.test(id);
-}
-
-/** The plugin NAME segment of a namespaced id, or `undefined` for a built-in id. */
-export function pluginNameOfProviderId(id: string): string | undefined {
-  return PLUGIN_PROVIDER_ID.exec(id)?.[1];
-}
+export type { ProviderId } from "./provider-id.ts";
+// biome-ignore lint/performance/noBarrelFile: compatibility reexports preserve the provider-row API after the required usage-cycle leaf move; this module still owns the provider row schema.
+export { isPluginProviderId, PLUGIN_PROVIDER_ID_PREFIX, PROVIDER_ID, pluginNameOfProviderId, providerIdSchema } from "./provider-id.ts";
 
 /** The name a person sees for a provider row. A plugin row carries its plugin's name, so a manifest label
  *  such as "Anthropic" never reads as the built-in row of that name. */

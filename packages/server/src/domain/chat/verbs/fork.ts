@@ -58,7 +58,7 @@ import { toChatDetail } from "../substrate/chat-detail.ts";
 import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
 import { memberToolCalls, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { foldChain } from "../substrate/runtime-variables.ts";
-import { canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
+import { appendStatsDeltas, canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 
 /** The collaborators not on `ChatContext`. `emit` is the chat bus; `loadParticipantViews` resolves the
@@ -96,6 +96,7 @@ function forkVariantMetadata(metadata: VariantMetadata | null, stripHostPlane: b
     [VARIANT_METADATA_TOKEN_COUNT_KEY]: parsed[VARIANT_METADATA_TOKEN_COUNT_KEY],
     systemTokens: parsed.systemTokens,
     providerMetadata: parsed.providerMetadata,
+    usageLegs: parsed.usageLegs,
     contentSignatures: undefined,
     continuationTools:
       snapshot === undefined
@@ -206,6 +207,9 @@ function forkVariantValues(args: {
     // off-view but are scalar knobs/diagnostics that carry no authored prose.
     idx: variant.idx,
     model: variant.model,
+    servedModel: variant.servedModel,
+    tokenDetails: variant.tokenDetails,
+    responseCache: variant.responseCache,
     provider: variant.provider,
     // Attribution outlives the row it names (SET NULL) and reveals only WHICH of the generator's connections
     // wrote the swipe — an id, not a secret; it rides beside `provider`/`model` as the same readout.
@@ -394,9 +398,9 @@ function pushForkStatsDeltas(
     const own = variantsByMessage.get(slot.id) ?? [];
     const selected = own.find((v) => v.id === slot.selectedVariantId);
     if (selected !== undefined) {
-      ctx.applyStatsDelta(
+      appendStatsDeltas(
+        ctx,
         stmts,
-        ctx.db,
         canonMessageDelta({
           ownerId,
           row: {
@@ -414,9 +418,9 @@ function pushForkStatsDeltas(
     }
     for (const v of own) {
       if (v.id !== slot.selectedVariantId) {
-        ctx.applyStatsDelta(
+        appendStatsDeltas(
+          ctx,
           stmts,
-          ctx.db,
           swipeVariantDelta({
             ownerId,
             row: { ...v, characterId: slot.characterId, msgCreatedAt: slot.createdAt },

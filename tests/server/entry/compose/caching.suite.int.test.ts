@@ -3,12 +3,23 @@ import type { Principal } from "@orb/contracts/identity";
 import type { PromptCacheSettings } from "@orb/contracts/inference";
 import { clampRoleHandling, turnsLevelFor, USER_ROLE_HANDLING } from "@orb/contracts/inference";
 import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { chatParticipants, connectionBindings, messages, userConnections } from "@orb/db";
+import {
+  chatGenerationObservations,
+  chatParticipants,
+  connectionBindings,
+  dailyStats,
+  messages,
+  messageVariants,
+  modelStats,
+  ownerStats,
+  userConnections,
+} from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
-import type { RecordedRequest } from "../../../inference/backends/_hosted-support.ts";
+import { reconcileStats } from "../../../../packages/server/src/domain/stats/index.ts";
+import type { RecordedRequest, SseEvent } from "../../../inference/backends/_hosted-support.ts";
 import { anthropicTextStream, openAiTextStream, scriptedSseFetch } from "../../../inference/backends/_hosted-support.ts";
 import { seedUser } from "../../../support/factories/user.ts";
 import type { Fixtures } from "../../../support/fixtures.ts";
@@ -17,6 +28,7 @@ import { seedCharacter } from "../../domain/chat/_support.ts";
 
 const CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions";
 const SCRIPTED_SECRET_BOX_KEY = Buffer.from("00".repeat(32), "hex");
+const CACHE_ACCOUNTING_SENTINEL = "REPLAY_ACCOUNTING_REQUEST";
 const QWEN_CATALOG_FIXTURE = {
   id: "qwen/qwen3-coder-plus",
   ["context_length"]: 1_000_000,
@@ -37,6 +49,20 @@ const shapedMessagesSchema = z.array(
     content: z.union([z.string(), z.array(z.object({ text: z.string().optional() }))]),
   }),
 );
+
+function replayAccountingStream(text: string, hit: boolean): readonly SseEvent[] {
+  return openAiTextStream(text).map((frame) => {
+    const { usage: _usage, ...data } = frame.data;
+    return {
+      ...frame,
+      data: {
+        ...data,
+        id: hit ? "gen-replay-current" : "gen-paid-current",
+        ...(hit || frame.data["usage"] === undefined ? {} : { usage: { ["prompt_tokens"]: 10, ["completion_tokens"]: 5, ["total_tokens"]: 15, cost: 0.125 } }),
+      },
+    };
+  });
+}
 
 const test = base.extend<{ requests: RecordedRequest[]; providerFetch: typeof fetch; secretBoxKey: Buffer }>({
   secretBoxKey: async ({}, use): Promise<void> => {
@@ -76,6 +102,21 @@ const test = base.extend<{ requests: RecordedRequest[]; providerFetch: typeof fe
       }
       const stream = String(input).endsWith("/messages") ? anthropicTextStream(text) : openAiTextStream(text);
       return scriptedSseFetch([stream], requests)(input, init);
+    });
+  },
+});
+
+const replayAccountingTest = test.extend<{ providerFetch: typeof fetch }>({
+  providerFetch: async ({ requests }, use): Promise<void> => {
+    await use((input, init) => {
+      if (new URL(String(input)).pathname.endsWith("/models")) {
+        return Promise.resolve(Response.json({ data: [] }));
+      }
+      const hit = requests.length === 0;
+      return scriptedSseFetch([replayAccountingStream(`CACHE_REPLY_${requests.length}`, hit)], requests, {
+        "x-openrouter-cache-status": hit ? "HIT" : "MISS",
+        "x-openrouter-cache-source-id": "gen-original",
+      })(input, init);
     });
   },
 });
@@ -152,68 +193,108 @@ for (const enabled of [false, true]) {
   });
 }
 
-test("persisted member sends permit deliberate replay while a real swipe requests fresh output", async ({ app, db, services, clock, requests }) => {
-  const host = await seedUser(db, { id: newId<UserId>(), handle: castId("cachehost") });
-  const member = await seedUser(db, { id: newId<UserId>(), handle: castId("cachemember") });
-  const principal = (user: typeof host): Principal => ({ userId: user.id, handle: user.handle, role: user.role, externalId: null, via: "header" });
-  const hostPrincipal = principal(host);
-  const memberPrincipal = principal(member);
-  await services.settings.updateUserSettingsSection({ principal: hostPrincipal, input: { section: "memory", patch: { enabled: false } } });
-  const credential = await services.credentials.add({ principal: hostPrincipal, provider: "openrouter", key: "scripted-host-cache-key" });
-  const connectionId = mintTypeId(ID_PREFIX.userConnection);
-  await db.insert(userConnections).values({
-    id: connectionId,
-    ownerId: host.id,
-    credentialId: credential.id,
-    label: "Scripted caching",
-    providerId: castId("openrouter"),
-    model: castId("anthropic/claude-sonnet-5"),
-    transport: { headers: { "X-OpenRouter-Cache": "true" } },
-    createdAt: clock.now(),
-    updatedAt: clock.now(),
-  });
-  await db.insert(connectionBindings).values({ id: mintTypeId(ID_PREFIX.connectionBinding), actorKind: "user", userId: host.id, task: "chat", connectionId });
-  const preset = await services.preset.create({ userId: host.id, name: "Inherited cache controls", kind: "custom", config: DEFAULT_PROMPT_CONFIG });
-  const effective = await services.preset.resolveEffective({ principal: hostPrincipal, id: preset.id });
-  expect(effective.cache.replay).toMatchObject({ supported: true, enabled: true, provenance: "connection", refresh: false });
-  expect(effective).not.toHaveProperty("responseCache");
-  const characterId = await seedCharacter(db, host.id, "cachearia", { id: mintTypeId(ID_PREFIX.character) });
-  const { chat } = await services.chat.startChat({ principal: hostPrincipal, characterIds: [characterId], opening: "none" });
-  await db.insert(chatParticipants).values({
-    id: mintTypeId(ID_PREFIX.chatParticipant),
-    chatId: chat.id,
-    kind: "human",
-    userId: member.id,
-    role: "member",
-    joinedAt: clock.now(),
-    joinSeq: 0,
-  });
-  const live = new AbortController();
-  app.presence.connect(host.id, live.signal);
-  try {
-    await services.chat.send({ principal: memberPrincipal, chatId: chat.id, content: "Tell me what you see." });
-    const [reply] = await db
-      .select({ id: messages.id })
-      .from(messages)
-      .where(and(eq(messages.chatId, chat.id), eq(messages.role, "assistant")));
-    if (reply === undefined) {
-      throw new Error("The composed member turn did not persist a character reply.");
+replayAccountingTest(
+  "H/K composed replay and fresh accounting retain normalized legs and live rebuild parity",
+  async ({ app, db, services, clock, requests }) => {
+    const host = await seedUser(db, { id: newId<UserId>(), handle: castId("cachehost") });
+    const member = await seedUser(db, { id: newId<UserId>(), handle: castId("cachemember") });
+    const principal = (user: typeof host): Principal => ({ userId: user.id, handle: user.handle, role: user.role, externalId: null, via: "header" });
+    const hostPrincipal = principal(host);
+    const memberPrincipal = principal(member);
+    await services.settings.updateUserSettingsSection({ principal: hostPrincipal, input: { section: "memory", patch: { enabled: false } } });
+    const credential = await services.credentials.add({ principal: hostPrincipal, provider: "openrouter", key: "scripted-host-cache-key" });
+    const connectionId = mintTypeId(ID_PREFIX.userConnection);
+    await db.insert(userConnections).values({
+      id: connectionId,
+      ownerId: host.id,
+      credentialId: credential.id,
+      label: "Scripted caching",
+      providerId: castId("openrouter"),
+      model: castId("anthropic/claude-sonnet-5"),
+      transport: { headers: { "X-OpenRouter-Cache": "true" } },
+      createdAt: clock.now(),
+      updatedAt: clock.now(),
+    });
+    await db.insert(connectionBindings).values({ id: mintTypeId(ID_PREFIX.connectionBinding), actorKind: "user", userId: host.id, task: "chat", connectionId });
+    const preset = await services.preset.create({ userId: host.id, name: "Inherited cache controls", kind: "custom", config: DEFAULT_PROMPT_CONFIG });
+    const effective = await services.preset.resolveEffective({ principal: hostPrincipal, id: preset.id });
+    expect(effective.cache.replay).toMatchObject({ supported: true, enabled: true, provenance: "connection", refresh: false });
+    expect(effective).not.toHaveProperty("responseCache");
+    const characterId = await seedCharacter(db, host.id, "cachearia", { id: mintTypeId(ID_PREFIX.character) });
+    const { chat } = await services.chat.startChat({ principal: hostPrincipal, characterIds: [characterId], opening: "none" });
+    await db.insert(chatParticipants).values({
+      id: mintTypeId(ID_PREFIX.chatParticipant),
+      chatId: chat.id,
+      kind: "human",
+      userId: member.id,
+      role: "member",
+      joinedAt: clock.now(),
+      joinSeq: 0,
+    });
+    const live = new AbortController();
+    app.presence.connect(host.id, live.signal);
+    try {
+      await services.chat.send({ principal: memberPrincipal, chatId: chat.id, content: CACHE_ACCOUNTING_SENTINEL });
+      const [reply] = await db
+        .select({ id: messages.id })
+        .from(messages)
+        .where(and(eq(messages.chatId, chat.id), eq(messages.role, "assistant")));
+      if (reply === undefined) {
+        throw new Error("The composed member turn did not persist a character reply.");
+      }
+      const replay = (await db.select().from(messageVariants).where(eq(messageVariants.messageId, reply.id)))[0];
+      expect(replay).toMatchObject({
+        costUsd: 0,
+        costProvenance: "measured",
+        tokensIn: null,
+        tokensOut: null,
+        responseCache: { status: "hit", sourceGenerationId: "gen-original" },
+        metadata: { usageLegs: [{ generationId: "gen-replay-current", costUsd: 0, tokensIn: null, tokensOut: null, responseCache: { status: "hit" } }] },
+      });
+      expect(replay?.metadata?.usageLegs).toHaveLength(1);
+      expect(replay?.metadata?.usageLegs?.[0]).not.toHaveProperty("funderUserId");
+      expect(replay?.metadata?.usageLegs?.[0]).not.toHaveProperty("connectionId");
+      expect(await db.select().from(chatGenerationObservations)).toEqual([]);
+      await services.chat.swipe({ principal: hostPrincipal, chatId: chat.id, messageId: reply.id });
+      const turns = requests.filter((request) => request.url === CHAT_COMPLETIONS_URL);
+      expect(turns).toHaveLength(2);
+      expect(turns[0]?.headers?.["x-openrouter-cache"]).toBe("true");
+      expect(turns[1]?.headers?.["x-openrouter-cache"]).toBe("false");
+      expect(turns[1]?.headers).not.toHaveProperty("x-openrouter-cache-clear");
+      for (const turn of turns) {
+        expect(turn.headers?.["authorization"]).toBe("Bearer scripted-host-cache-key");
+        expect(turn.body["session_id"]).toBe(chat.id);
+        expect(JSON.stringify(turn.body)).toContain(CACHE_ACCOUNTING_SENTINEL);
+      }
+      const variants = await db.select().from(messageVariants).where(eq(messageVariants.messageId, reply.id)).orderBy(messageVariants.idx);
+      expect(variants).toHaveLength(2);
+      expect(variants[1]).toMatchObject({
+        costUsd: 0.125,
+        costProvenance: "measured",
+        tokensIn: 10,
+        tokensOut: 5,
+        responseCache: { status: "miss", sourceGenerationId: "gen-original" },
+        metadata: { usageLegs: [{ generationId: "gen-paid-current", costUsd: 0.125, tokensIn: 10, tokensOut: 5, responseCache: { status: "miss" } }] },
+      });
+      expect(variants[1]?.metadata?.usageLegs).toHaveLength(1);
+      expect(await db.select().from(chatGenerationObservations)).toEqual([]);
+      const liveStats = await db.select().from(ownerStats).where(eq(ownerStats.ownerId, host.id));
+      expect(liveStats).toMatchObject([{ costUsd: 0.125, tokensIn: 10, tokensOut: 5 }]);
+      const daily = await db.select().from(dailyStats).where(eq(dailyStats.ownerId, host.id));
+      const models = await db.select().from(modelStats).where(eq(modelStats.ownerId, host.id));
+      await reconcileStats(db, { ownerId: host.id, now: clock.now });
+      expect(await db.select().from(ownerStats).where(eq(ownerStats.ownerId, host.id))).toEqual(liveStats);
+      expect((await db.select().from(dailyStats).where(eq(dailyStats.ownerId, host.id))).map(({ id: _id, ...row }) => row)).toEqual(
+        daily.map(({ id: _id, ...row }) => row),
+      );
+      expect((await db.select().from(modelStats).where(eq(modelStats.ownerId, host.id))).map(({ id: _id, ...row }) => row)).toEqual(
+        models.map(({ id: _id, ...row }) => row),
+      );
+    } finally {
+      live.abort();
     }
-    await services.chat.swipe({ principal: hostPrincipal, chatId: chat.id, messageId: reply.id });
-    const turns = requests.filter((request) => request.url === CHAT_COMPLETIONS_URL);
-    expect(turns).toHaveLength(2);
-    expect(turns[0]?.headers?.["x-openrouter-cache"]).toBe("true");
-    expect(turns[1]?.headers?.["x-openrouter-cache"]).toBe("false");
-    expect(turns[1]?.headers).not.toHaveProperty("x-openrouter-cache-clear");
-    for (const turn of turns) {
-      expect(turn.headers?.["authorization"]).toBe("Bearer scripted-host-cache-key");
-      expect(turn.body["session_id"]).toBe(chat.id);
-      expect(JSON.stringify(turn.body)).toContain("Tell me what you see.");
-    }
-  } finally {
-    live.abort();
-  }
-});
+  },
+);
 
 const CACHE_OFF = { enabled: false, cacheSystem: true, historyDepth: null, ttl: "5m" } as const satisfies PromptCacheSettings;
 const CACHE_5M = { ...CACHE_OFF, enabled: true } as const;

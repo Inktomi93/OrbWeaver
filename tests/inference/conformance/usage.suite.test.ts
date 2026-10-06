@@ -70,7 +70,7 @@ for (const wire of CONFORMANCE_WIRES) {
 // U4 — `tokensIn` is the WHOLE prompt on every wire, cache included, so the stats plane's cache-hit share
 // (`cacheRead / tokensIn`) is at most 1. Anthropic's own `input_tokens` counts only the uncached part; a wire
 // that copied it into `tokensIn` reported a hit share far above 1 on every cached turn.
-const CACHED: ChatScript = { deltas: ["ok"], stop: "stop", tokensIn: 18_580, tokensOut: 20, cacheRead: 18_568 };
+const CACHED = { deltas: ["ok"], stop: "stop", tokensIn: 18_580, tokensOut: 20, cacheRead: 18_568 } satisfies ChatScript;
 
 for (const wire of CONFORMANCE_WIRES) {
   cellTest(wire, "chat", "tokensIn is the whole prompt, so the cache read is a part of it", async () => {
@@ -78,7 +78,7 @@ for (const wire of CONFORMANCE_WIRES) {
     const { turn } = await driveChat(wire, { script });
     expect(turn.usage.tokensIn).toBe(CACHED.tokensIn);
     expect(turn.usage.cacheReadTokens).toBe(CACHED.cacheRead);
-    expect(turn.usage.cacheReadTokens / (turn.usage.tokensIn ?? 0)).toBeLessThanOrEqual(1);
+    expect(CACHED.cacheRead / (turn.usage.tokensIn ?? 0)).toBeLessThanOrEqual(1);
   });
 }
 

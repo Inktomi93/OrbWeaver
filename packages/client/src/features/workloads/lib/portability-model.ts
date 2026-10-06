@@ -30,6 +30,7 @@ export const PORTABLE_KIND_LABELS: Record<PortableKind, string> = {
   tag: "Tags",
   gallery: "Gallery",
   assets: "Media",
+  imagery: "Image generation history",
 };
 
 /** Build the `/api/export/library` download href for the picked kinds. All selected ⇒ no `kinds` param; a partial pick appends `assets` so blobs always travel. */

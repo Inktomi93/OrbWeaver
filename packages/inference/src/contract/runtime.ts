@@ -2,6 +2,7 @@
 // implementation modules import these downward and the package root re-exports only the public subset.
 
 import type { ResolvedSecret } from "@orb/contracts/credentials";
+import type { BeginEmbeddingAccounting } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
 import type { BindingActorKind, ConnectionBinding, ProviderDef, ProviderId, RoutableTask, UserConnection } from "@orb/contracts/inference";
 import { modalitySchema, modelCatalogEntrySchema, PREFILL_MODES } from "@orb/contracts/inference";
@@ -180,6 +181,7 @@ export interface ProviderStore {
 }
 
 export interface InferenceDeps {
+  readonly beginEmbeddingAccounting: BeginEmbeddingAccounting;
   readonly now: () => number;
   readonly log: InferenceLog;
   readonly span: SpanFn;

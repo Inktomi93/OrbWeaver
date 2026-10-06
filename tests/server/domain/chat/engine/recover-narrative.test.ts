@@ -6,6 +6,7 @@
 
 import type { AssembleContext, ChatDeltaEvent, ChatReasoningPart, MessageView } from "@orb/contracts/chat";
 import type { GenerationCapability } from "@orb/contracts/inference";
+import { generationUsageLegSchema } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
@@ -15,10 +16,11 @@ import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
 import type { DeliveredCue, TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
-import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline.ts";
+import { aggregateEconomics, runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline.ts";
 import { resolveTurnNarrative } from "../../../../../packages/server/src/domain/chat/engine/recover-narrative.ts";
 import type { ToolCallInput } from "../../../../../packages/server/src/domain/tool-use/contract/params.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
+import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { makeCapability, makeGenerationCapability, makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId } from "../../../../support/inference-identities.ts";
@@ -179,6 +181,138 @@ async function driveTurn(
 }
 
 describe("resolveTurnNarrative — the recoverable class", () => {
+  test("recovery aggregation retains leg bases and does not project the final leg's cache hit onto the whole turn", () => {
+    const responseCache = { status: "hit" as const, ageSeconds: 0, ttlSeconds: null, sourceGenerationId: null };
+    const leg = generationUsageLegSchema.parse({
+      ...makeGenerationUsage(0.125, { costProvenance: "estimated", costDetails: null }),
+      model: testModelId("test-model"),
+      provider: "claude-sub",
+      wire: "agent-sdk",
+      observedAt: FROZEN_AT_MS,
+      contextWindow: null,
+      maxOutputTokens: null,
+      modelCalls: 1,
+      durationApiMs: null,
+      ttftMs: null,
+      finishReason: "stop",
+      stopReason: null,
+      terminalReason: null,
+      generationId: null,
+    });
+    const apiLeg = generationUsageLegSchema.parse({
+      ...leg,
+      provider: "openrouter",
+      wire: "openai-compat",
+      costUsd: 0,
+      costDetails: { totalUsd: 0 },
+      costProvenance: "measured",
+      tokensIn: 0,
+      tokensOut: 0,
+      reasoningTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      responseCache,
+    });
+    const result = aggregateEconomics({ ...leg, content: "", usageLegs: [leg] }, { ...apiLeg, content: "Torchlight.", usageLegs: [apiLeg] });
+    expect(result?.costUsd).toBeNull();
+    expect(result?.costDetails).toBeNull();
+    expect(result?.costProvenance).toBe("unrecorded");
+    expect(result?.responseCache).toBeUndefined();
+    expect(result?.usageLegs).toEqual([leg, apiLeg]);
+    expect(aggregateEconomics(null, { ...apiLeg, content: "", usageLegs: [apiLeg] })?.responseCache).toEqual(responseCache);
+  });
+
+  test("successful recovery preserves both paid passes without counting reasoning twice", async () => {
+    const { result } = await driveTurn([
+      [
+        {
+          kind: "final",
+          economics: {
+            content: "",
+            model: testModelId("test-model"),
+            finishReason: "stop",
+            toolCalls: [TERMINAL_CALL],
+            tokensIn: 10,
+            tokensOut: 3,
+            reasoningTokens: 2,
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+            costUsd: 2,
+            costProvenance: "measured",
+          },
+        },
+      ],
+      [
+        { kind: "text", text: "Torchlight." },
+        {
+          kind: "final",
+          economics: {
+            content: "Torchlight.",
+            model: testModelId("test-model"),
+            finishReason: "stop",
+            tokensIn: 5,
+            tokensOut: 4,
+            reasoningTokens: 1,
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+            costUsd: 1,
+            costProvenance: "estimated",
+          },
+        },
+      ],
+    ]);
+    expect(result.economics).toMatchObject({ tokensIn: 15, tokensOut: 7, reasoningTokens: 3, costUsd: 3, costProvenance: "estimated" });
+  });
+
+  test("an unknown paid leg prevents a known subtotal from becoming a complete total", async () => {
+    const { result } = await driveTurn([
+      [
+        {
+          kind: "final",
+          economics: {
+            content: "",
+            model: testModelId("test-model"),
+            finishReason: "stop",
+            toolCalls: [TERMINAL_CALL],
+            tokensIn: 10,
+            tokensOut: null,
+            costUsd: 2,
+          },
+        },
+      ],
+      [
+        { kind: "text", text: "Torchlight." },
+        {
+          kind: "final",
+          economics: { content: "Torchlight.", model: testModelId("test-model"), finishReason: "stop", tokensIn: 5, tokensOut: 4, costUsd: null },
+        },
+      ],
+    ]);
+    expect(result.economics).toMatchObject({ tokensIn: 15, tokensOut: null, costUsd: null });
+  });
+
+  test("a double-empty refusal preserves the paid recovery facts and original refusal reason", async () => {
+    const { result } = await driveTurn([
+      [
+        {
+          kind: "final",
+          economics: {
+            content: "",
+            model: testModelId("test-model"),
+            finishReason: "stop",
+            toolCalls: [TERMINAL_CALL],
+            tokensIn: 10,
+            tokensOut: 3,
+            costUsd: 2,
+          },
+        },
+      ],
+      [{ kind: "final", economics: { content: "", model: testModelId("test-model"), finishReason: "length", tokensIn: 5, tokensOut: 4, costUsd: 1 } }],
+    ]);
+    expect(result.content).toBe("");
+    expect(result.economics).toMatchObject({ tokensIn: 15, tokensOut: 7, costUsd: 3, finishReason: "stop" });
+  });
+
   test("recovers a prose-less turn: the narrative is pass 2's, the terminal calls stay pass 1's", async () => {
     const { first, result, requests, recoveries } = await driveTurn([PROSELESS_PASS, prosePass("The door groans open onto torchlight.")]);
 
@@ -226,7 +360,9 @@ describe("resolveTurnNarrative — the recoverable class", () => {
     const { first, result, requests, recoveries } = await driveTurn([PROSELESS_PASS, prosePass("")]);
 
     // The caller's empty-generation guard then reports the completion that discharged into tool calls.
-    expect(result).toBe(first);
+    expect(result.content).toBe(first.content);
+    expect(result.terminalToolCalls).toEqual(first.terminalToolCalls);
+    expect(result.economics?.finishReason).toBe(first.economics?.finishReason);
     expect(result.content).toBe("");
     // The doubled spend still happened, so it is still recorded.
     expect(requests).toHaveLength(2);

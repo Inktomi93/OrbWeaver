@@ -10,7 +10,8 @@ import type { ChatId } from "@orb/kit/ids";
 import type { NormalizeImageBytes } from "../backends/kit/image-normalize.ts";
 import { toImageUrl } from "../backends/kit/image-normalize.ts";
 import { providerLogger } from "../backends/kit/provider-log.ts";
-import type { ChatHistoryMessage, ChatRequest, ChatResult } from "../contract/chat.ts";
+import type { ChatHistoryMessage, ChatRequest, ChatResult, GenerationObservationCallback } from "../contract/chat.ts";
+import { GenerationObservationPersistenceError } from "../contract/chat.ts";
 import { ProviderError } from "../contract/errors.ts";
 import type { ResolvedWarning } from "../contract/resolve.ts";
 import type { Resolved } from "../contract/resolved.ts";
@@ -46,6 +47,7 @@ export interface SideGenItem {
 /** The request one item sends: a non-delivered chat turn on the connection's own api, with the role's params. */
 export function sideGenChatRequest(args: {
   readonly connection: Resolved<"chat">;
+  readonly onObservedResult?: GenerationObservationCallback | undefined;
   readonly item: SideGenItem;
   readonly params: UserIntent;
   readonly responseFormat?: ResponseFormat | undefined;
@@ -61,6 +63,7 @@ export function sideGenChatRequest(args: {
   const images = item.images ?? [];
   const common = {
     connection,
+    onObservedResult: args.onObservedResult,
     params: args.params,
     posture: SIDE_GEN_POSTURE,
     systemPrompt: { static: item.systemPrompt, dynamic: "" },
@@ -103,6 +106,15 @@ function warningKey(warning: ResolvedWarning): string {
   return [warning.code, warning.knob ?? "", warning.key ?? "", warning.message].join("\0");
 }
 
+function sideGenFailureOf(error: unknown, label: string, index: number): ProviderError {
+  if (error instanceof GenerationObservationPersistenceError) {
+    throw error;
+  }
+  return error instanceof ProviderError
+    ? error.rewrap(`${label} item ${index} failed: ${error.message}`)
+    : new ProviderError({ kind: "unknown", retryable: false, message: `${label} item ${index} failed`, cause: error });
+}
+
 /**
  * Run a summarize or structured batch: each item one chat turn on the connection's own wire, under the role preset's
  * window (`withPresetWindow`), at most `concurrency` at a time, in input order. A failed item stops the batch from
@@ -129,7 +141,15 @@ export async function runSideGen(req: SummarizeRequest | StructuredRequest, deps
     try {
       const images = await Promise.all((input.images ?? []).map((image) => toImageUrl(image, deps.normalize)));
       const result = await deps.runChatTurn(
-        sideGenChatRequest({ connection, item: { ...input, images }, params, responseFormat, reasoningTags, signal: req.signal }),
+        sideGenChatRequest({
+          connection,
+          onObservedResult: req.onObservedResult,
+          item: { ...input, images },
+          params,
+          responseFormat,
+          reasoningTags,
+          signal: req.signal,
+        }),
       );
       for (const event of result.events) {
         if (event.kind === "warning" && !seen.has(warningKey(event))) {
@@ -142,10 +162,7 @@ export async function runSideGen(req: SummarizeRequest | StructuredRequest, deps
       log.summarizeItem({ ...base, index, durationMs: deps.now() - startedAt, ok: true, tokensIn, tokensOut, finishReason: result.stopReason });
       return { text, usage: { tokensIn, tokensOut, costUsd } };
     } catch (err) {
-      const failure =
-        err instanceof ProviderError
-          ? err.rewrap(`${label} item ${index} failed: ${err.message}`)
-          : new ProviderError({ kind: "unknown", retryable: false, message: `${label} item ${index} failed`, cause: err });
+      const failure = sideGenFailureOf(err, label, index);
       log.summarizeItem({
         ...base,
         index,

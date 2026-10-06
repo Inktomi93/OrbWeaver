@@ -46,7 +46,7 @@ function executorWith(args: { readonly fetch?: typeof fetch; readonly agentSdkQu
     ...(args.fetch !== undefined ? { fetch: args.fetch } : {}),
     ...(args.agentSdkQuery !== undefined ? { agentSdkQuery: args.agentSdkQuery } : {}),
   });
-  return createProviderExecutor({ registry: buildBackends(deps).registry, span: deps.span });
+  return createProviderExecutor({ registry: buildBackends(deps).registry, span: deps.span, beginEmbeddingAccounting: deps.beginEmbeddingAccounting });
 }
 
 function warnedCodes(lines: readonly LogLine[]): readonly unknown[] {

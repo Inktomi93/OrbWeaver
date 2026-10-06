@@ -51,6 +51,7 @@ export interface ModelCall {
   readonly cacheMarkers?: ReadonlyMap<number, Record<string, unknown>> | undefined;
   readonly responseCache?: ResponseCacheControl | undefined;
   readonly responseCacheSettings?: ResponseCacheSettings | undefined;
+  readonly translateResponse?: WrapFetchArgs["translateResponse"];
   readonly imageDetail?: ImageDetail | undefined;
   readonly connection: Resolved;
   readonly deps: TransportDeps;
@@ -109,6 +110,7 @@ function fetchArgs(call: ModelCall, shapeBody: WrapFetchArgs["shapeBody"]): Wrap
     responseMap: connection.transport?.responseMap,
     reasoningKeys: connection.features.reasoningKeys,
     shapeBody,
+    translateResponse: call.translateResponse,
     ...(deps.captureWire !== undefined
       ? {
           capture: {

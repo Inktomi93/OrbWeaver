@@ -9,15 +9,43 @@
 //     that points past the end of its plane must be PRUNED at parse rather than handed to a write boundary
 //     that would refuse it (NOT NULL FKs) and take the whole restore down with it.
 
+import type { PendingGenerationObservationInput } from "@orb/contracts/chat";
+import { generationUsageLegSchema } from "@orb/contracts/inference";
 import type { PortableParse } from "@orb/contracts/portability";
 import { rpgGameConfigSchema, rpgSheetSchema, rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import type { PortableChat, PortableChatMessage, PortableRpgGame } from "@orb/server/kit/serde/chat-bundle";
 import { buildChatBundleFile, CHAT_BUNDLE_SCHEMA_KIND, CHAT_BUNDLE_SCHEMA_VERSION, parseChatBundleFile } from "@orb/server/kit/serde/chat-bundle";
 import { describe } from "vitest";
+import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const ENC = new TextEncoder();
 const DEC = new TextDecoder();
+
+function pendingObservation(): PendingGenerationObservationInput {
+  return {
+    turnIndex: 0,
+    ordinal: 0,
+    sourceMessageIndex: 0,
+    sourceVariantIdx: 0,
+    leg: generationUsageLegSchema.parse({
+      ...makeGenerationUsage(0.125, { tokensIn: 70, tokensOut: 2048, reasoningTokens: 2048 }),
+      model: "gemini-3.1-pro-preview",
+      provider: "google",
+      wire: "google-generative-ai",
+      observedAt: 1_700_000_000_000,
+      modelCalls: 1,
+      contextWindow: null,
+      maxOutputTokens: 2048,
+      durationApiMs: 1,
+      ttftMs: null,
+      finishReason: "length",
+      stopReason: "MAX_TOKENS",
+      terminalReason: null,
+      generationId: "provider-observation",
+    }),
+  };
+}
 
 function must<T>(result: PortableParse<T>): T {
   if (!result.ok) {
@@ -128,6 +156,57 @@ function chat(over: Partial<PortableChat> = {}): PortableChat {
 }
 
 describe("kit/serde/chat-bundle", () => {
+  test("pending completed facts carry normalized legs and positional parents without private payer or connection identity", () => {
+    const wire = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as Record<string, unknown>;
+    const pending = [pendingObservation(), { ...pendingObservation(), turnIndex: 1, sourceMessageIndex: null, sourceVariantIdx: null }];
+    wire["pendingGenerationObservations"] = pending;
+    const parsed = must(parseChatBundleFile(ENC.encode(JSON.stringify(wire))));
+    expect(parsed).toHaveProperty("pendingGenerationObservations", pending);
+    const bytes = buildChatBundleFile(parsed);
+    expect(must(parseChatBundleFile(bytes))).toHaveProperty("pendingGenerationObservations", pending);
+    expect(buildChatBundleFile(must(parseChatBundleFile(bytes)))).toEqual(bytes);
+  });
+
+  test("duplicate pending logical ordinals refuse instead of collapsing two completed facts at restore", () => {
+    const wire = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as Record<string, unknown>;
+    wire["pendingGenerationObservations"] = [pendingObservation(), pendingObservation()];
+    expect(parseChatBundleFile(ENC.encode(JSON.stringify(wire)))).toMatchObject({ ok: false });
+  });
+  test("native usage preserves actual zero, unknown axes, served model, partial modalities and configured price provenance", () => {
+    const usage = makeGenerationUsage(0, {
+      tokensIn: 120,
+      tokensOut: 42,
+      cacheReadTokens: null,
+      cacheWriteTokens: 0,
+      reasoningTokens: null,
+      servedModel: "served-model-version",
+      tokenDetails: { input: [{ modality: "file", tokens: 12 }], output: [{ modality: "text", tokens: 8 }] },
+      costProvenance: "estimated",
+      costDetails: { totalUsd: 0, pricing: { inputPerMTok: 0, outputPerMTok: 0, cacheWritePerMTok: 0 } },
+    });
+    const wire = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as { messages: { variants: Record<string, unknown>[] }[] };
+    const variant = wire.messages[0]?.variants[0];
+    if (variant === undefined) {
+      throw new Error("chat fixture has no variant");
+    }
+    variant["usage"] = usage;
+    const parsed = must(parseChatBundleFile(ENC.encode(JSON.stringify(wire))));
+    expect(parsed.messages[0]?.variants[0]).toHaveProperty("usage", usage);
+    const bytes = buildChatBundleFile(parsed);
+    expect(must(parseChatBundleFile(bytes)).messages[0]?.variants[0]).toHaveProperty("usage", usage);
+    expect(buildChatBundleFile(must(parseChatBundleFile(bytes)))).toEqual(bytes);
+  });
+
+  test("native usage refuses contradictory legacy token copies rather than silently choosing one", () => {
+    const wire = JSON.parse(DEC.decode(buildChatBundleFile(chat()))) as { messages: { variants: Record<string, unknown>[] }[] };
+    const variant = wire.messages[0]?.variants[0];
+    if (variant === undefined) {
+      throw new Error("chat fixture has no variant");
+    }
+    variant["usage"] = makeGenerationUsage(null, { tokensIn: 120, tokensOut: 41 });
+    expect(parseChatBundleFile(ENC.encode(JSON.stringify(wire)))).toMatchObject({ ok: false });
+  });
+
   test("build stamps the envelope and parse returns the canonical value unchanged", () => {
     const bytes = buildChatBundleFile(chat());
     const wire = JSON.parse(DEC.decode(bytes)) as Record<string, unknown>;

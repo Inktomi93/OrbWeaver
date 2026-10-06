@@ -113,6 +113,9 @@ const FORK_COLUMN_CLASS = {
   // On the member-visible `MessageView` (economics readout / tool chips / the cost key) …
   idx: "copied",
   model: "copied",
+  servedModel: "copied",
+  tokenDetails: "copied",
+  responseCache: "copied",
   provider: "copied",
   tokensIn: "copied",
   tokensOut: "copied",

@@ -95,6 +95,7 @@ import {
   loadSlotTarget,
   loadStoredUserMacroValues,
 } from "../persistence/queries.ts";
+import { commitRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../substrate/assembly-access.ts";
 import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
@@ -863,8 +864,9 @@ async function persistUserMessage(
       }),
     );
     // characterId null — the stats rebuild's per-char grain is assistant-only.
-    ctx.applyStatsDelta(statements, ctx.db, userMessageDelta({ ownerId: args.hostUserId, characterId: null, content: args.content, now }));
-    await ctx.db.batch(batchMany(statements));
+    await commitRetainedCanonStats(ctx, args.chatId, statements, [
+      userMessageDelta({ ownerId: args.hostUserId, characterId: null, content: args.content, now }),
+    ]);
     return buildCommittedMessageView(params);
   };
   const view = await attempt().catch((err: unknown) => {
@@ -1020,7 +1022,7 @@ async function smartPick(ctx: ChatContext, deps: TurnDeps, args: SmartPickArgs):
   const arbiterSampling = resolveSideGenSampling(SIDE_GEN_POSTURES.arbiter, await ctx.resolveUtilityPresetParams(args.funderUserId));
   return await smartArbitrateVia({
     ...shared,
-    arbiter: () => ctx.resolveSpeakerArbiter(args.funderUserId),
+    arbiter: () => ctx.resolveSpeakerArbiter(args.funderUserId, args.chatId),
     transcript,
     room: args.assembled,
     sampling: arbiterSampling,

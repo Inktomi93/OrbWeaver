@@ -19,16 +19,20 @@
 // `no-inline-union-redecl`) on BOTH tiers — the column's `{ enum }` gives the row-type union and the
 // tuple-built CHECK gates the SQL; the column never re-spells the union on either side.
 
+import type { TokenProvenance } from "@orb/contracts/chat";
+import { TOKEN_PROVENANCES } from "@orb/contracts/chat";
+import type { ImageryImportSource } from "@orb/contracts/imagery";
 import { PROMPT_TEMPLATE_MODES } from "@orb/contracts/imagery";
-import type { ProviderId } from "@orb/contracts/inference";
-import type { AssetId, CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserConnectionId } from "@orb/kit/ids";
+import type { CostDetails, ProviderId, ResponseCache, TokenDetails } from "@orb/contracts/inference";
+import type { AssetId, CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-import { check, index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { checkList } from "../kit/check-list.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
 import { userConnections } from "./connection.ts";
+import { users } from "./users.ts";
 
 // CHECK list derived from the canonical tuple (NOT re-spelled) — a static DDL fragment (no bound params).
 const MODE_CHECK_LIST = checkList(PROMPT_TEMPLATE_MODES);
@@ -71,12 +75,27 @@ export const imageryGenerations = sqliteTable(
       .references(() => userConnections.id, { onDelete: "set null" }),
     // The summed generation cost (extraction + caption + generate). Nullable when any component is unknown.
     costUsd: real("cost_usd"),
+    servedModel: text("served_model"),
+    tokensIn: integer("tokens_in"),
+    tokensOut: integer("tokens_out"),
+    reasoningTokens: integer("reasoning_tokens"),
+    cacheReadTokens: integer("cache_read_tokens"),
+    cacheWriteTokens: integer("cache_write_tokens"),
+    costProvenance: text("cost_provenance", { enum: TOKEN_PROVENANCES }).$type<TokenProvenance>(),
+    costDetails: text("cost_details", { mode: "json" }).$type<CostDetails>(),
+    // Reported modality subsets may be incomplete; this sidecar never defines the scalar totals.
+    tokenDetails: text("token_details", { mode: "json" }).$type<TokenDetails>(),
+    responseCache: text("response_cache", { mode: "json" }).$type<ResponseCache>(),
     // An edit/reference input was used (reserved — the Phase-7 edit seam). Default false.
     edited: integer("edited", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     // The provider call this picture came from, shared by every picture of one fanned-out call: the stats
     // rebuild counts one priced generation per call id. NULL only on rows written before the column existed.
     callId: text("call_id").$type<ImageryCallId>(),
+    // Restore identity is per output, not per asset bytes or retained output cohort. Source ids confer
+    // no authority; the owning import verb admits the entire asset group in the same batch.
+    importHash: text("import_hash"),
+    importSource: text("import_source", { mode: "json" }).$type<ImageryImportSource>(),
   },
   (t) => [
     // The Phase-7 reuse lookup key (subject + mode + identity); harmless as a plain index in v1.
@@ -87,6 +106,23 @@ export const imageryGenerations = sqliteTable(
     // room's `chat_id` — both scan this table without a LEADING index (`fk-columns-indexed` gate).
     index("imagery_generations_asset_idx").on(t.assetId),
     index("imagery_generations_chat_idx").on(t.chatId),
+    uniqueIndex("imagery_generations_import_unique").on(t.assetId, t.importHash).where(sql`${t.importHash} is not null`),
     check("imagery_generations_mode_check", sql.raw(`mode in (${MODE_CHECK_LIST})`)),
   ],
+);
+
+// D23 parentless per-user import identity aggregate, not a reservation or a fee ledger. It commits
+// with admitted generation rows. A retained subset shares this identity with later missing outputs;
+// native calls have no row here and their call_id deliberately has no FK to this import-only table.
+export const imageryImportCalls = sqliteTable(
+  "imagery_import_calls",
+  {
+    id: text("id").$type<ImageryCallId>().primaryKey(),
+    ownerId: text("owner_id")
+      .$type<UserId>()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    identity: text("identity").notNull(),
+  },
+  (t) => [uniqueIndex("imagery_import_calls_owner_identity_unique").on(t.ownerId, t.identity)],
 );

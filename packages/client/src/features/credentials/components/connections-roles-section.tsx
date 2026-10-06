@@ -86,11 +86,10 @@ function ModelRolesBody(): ReactElement {
 
   return (
     <Section divider={true} heading={CONNECTIONS_ROLES_SUBCATEGORY.label} id={configAnchorId("connections", CONNECTIONS_ROLES_SUBCATEGORY.id)}>
-      {/* The F20 sentence rides the SECTION BODY, not just the nav teach text: the body is where a user
-          forms the expectation that a room might override this, and it is the width-independent one. */}
+      {/* Funding belongs to the frozen room host; triggering a shared turn does not spend this viewer's role. */}
       <Text voice="gloss" className={PROSE_MEASURE}>
-        Pick which connection each role uses. An unset role does nothing — there is no default model. Rooms never override this: a turn always runs on the
-        connection of whoever triggered it.
+        Pick which connection each role uses. An unset role does nothing — there is no default model. These roles apply in rooms you host and to your work
+        outside rooms. Shared-room turns use the room host's connections, frozen when the turn starts.
       </Text>
       <Stack gap="block">
         {ROLE_ROWS_ORDERED.map((row) => (

@@ -28,7 +28,8 @@ export const CONNECTIONS_LIST_SUBCATEGORY: ConfigSubcategory = {
   label: "Connections",
   keywords: ["connection", "provider", "model", "key", "url", "openrouter", "anthropic", "vllm", "ollama", "claude"],
   teach: {
-    summary: "Each connection is one provider + one model, with its own key or server URL. Every turn you trigger runs on YOUR connections, in any room.",
+    summary:
+      "Each connection is one provider + one model, with its own key or server URL. Your roles use these in rooms you host and for your work outside rooms. Shared-room turns use the room host's connections.",
     affects: ["which models your roles can pick from"],
   },
   settings: [
@@ -50,7 +51,7 @@ export const CONNECTIONS_ROLES_SUBCATEGORY: ConfigSubcategory = {
   keywords: ["chat", "embed", "rerank", "summarize", "utility", "image", "model", "provider"],
   teach: {
     summary:
-      "Which of your connections each role uses: chat, the utility model, embeddings and the rest. Rooms never override this — a turn always runs on the connection of whoever triggered it.",
+      "Which of your connections each role uses: chat, the utility model, embeddings and the rest. These roles apply in rooms you host and to your work outside rooms. Shared-room turns use the room host's connections, frozen when the turn starts.",
     affects: ["the connection every role resolves to, for you"],
   },
   settings: [
@@ -59,7 +60,7 @@ export const CONNECTIONS_ROLES_SUBCATEGORY: ConfigSubcategory = {
       label: "Chat model",
       keywords: ["chat", "conversation", "provider"],
       teach: {
-        summary: "The connection every conversation turn you trigger runs on — in your rooms and in anyone else's.",
+        summary: "The connection conversation turns use in rooms you host. In another host's shared room, turns use that host's connection.",
         affects: ["every turn you send"],
         related: [{ group: "connections", sub: "connections", setting: ADD_CONNECTION_SETTING }],
       },

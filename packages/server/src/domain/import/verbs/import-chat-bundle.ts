@@ -134,6 +134,7 @@ function toMessageInput(
       genFinishedAt: v.genFinishedAt,
       variableDelta: v.variableDelta,
       metadata: v.metadata,
+      ...(v.usage === undefined ? {} : { usage: v.usage }),
     })),
   };
 }
@@ -170,6 +171,7 @@ function toChatInput(args: {
     injections: bundle.injections,
     isRealConversation: isRealConversation(bundle),
     messages: bundle.messages.map((m) => toMessageInput(m, characterIds, personaIdByName)),
+    ...(bundle.pendingGenerationObservations === undefined ? {} : { pendingGenerationObservations: bundle.pendingGenerationObservations }),
     characterIds: characterIds.seats,
     ...(bundle.metadata === null ? {} : { metadata: bundle.metadata }),
     starred: bundle.starred,

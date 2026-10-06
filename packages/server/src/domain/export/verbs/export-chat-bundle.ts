@@ -17,8 +17,10 @@
 // SAME ordered canon read it serializes, so a carried anchor and the message it points at are the same
 // derivation rather than two agreeing ones.
 
-import { characters, chatInjections, chatParticipants, chats, chatTags, messages, messageVariants, personas, tags } from "@orb/db";
-import type { CharacterHandle, CharacterId, ChatId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
+import type { PendingGenerationObservationInput } from "@orb/contracts/chat";
+import { costDetailsSchema, generationUsageLegSchema, generationUsageSchema, responseCacheSchema, tokenDetailsSchema } from "@orb/contracts/inference";
+import { characters, chatGenerationObservations, chatInjections, chatParticipants, chats, chatTags, messages, messageVariants, personas, tags } from "@orb/db";
+import type { CharacterHandle, CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { RpgPortableGame } from "#domain/rpg";
 import type { PortableChat, PortableChatInjection, PortableChatMessage, PortableChatVariant, PortableRpgGame } from "#kit/serde/chat-bundle";
@@ -32,6 +34,7 @@ import { slug } from "../substrate/download-slug.ts";
 type ChatRow = typeof chats.$inferSelect;
 type MessageRow = typeof messages.$inferSelect;
 type VariantRow = typeof messageVariants.$inferSelect;
+type PortableObservation = Omit<PendingGenerationObservationInput, "turnIndex">;
 
 const LIMIT_ONE = 1;
 
@@ -116,6 +119,12 @@ function toPortableVariant(v: VariantRow): PortableChatVariant {
     genFinishedAt: v.genFinishedAt,
     variableDelta: v.variableDelta ?? null,
     metadata: v.metadata ?? null,
+    usage: generationUsageSchema.parse({
+      ...v,
+      tokenDetails: tokenDetailsSchema.safeParse(v.tokenDetails).data ?? null,
+      costDetails: costDetailsSchema.safeParse(v.costDetails).data ?? null,
+      responseCache: responseCacheSchema.safeParse(v.responseCache).data,
+    }),
   };
 }
 
@@ -232,28 +241,64 @@ function toPortableMetadata(metadata: ChatRow["metadata"]): PortableChat["metada
 async function loadCanonRows(
   ctx: ExportContext,
   chatId: ChatId,
-): Promise<{ slots: readonly MessageRow[]; variantsByMessage: ReadonlyMap<MessageId, readonly VariantRow[]> }> {
-  const slots = await ctx.db.select().from(messages).where(eq(messages.chatId, chatId)).orderBy(asc(messages.seq));
+): Promise<{
+  slots: readonly MessageRow[];
+  variantsByMessage: ReadonlyMap<MessageId, readonly VariantRow[]>;
+  observations: readonly (typeof chatGenerationObservations.$inferSelect)[];
+}> {
+  // One read snapshot cannot straddle an observation's atomic move into its retained variant.
+  const [slots, joinedVariants, observations] = await ctx.db.batch([
+    ctx.db.select().from(messages).where(eq(messages.chatId, chatId)).orderBy(asc(messages.seq)),
+    ctx.db
+      .select({ variant: messageVariants })
+      .from(messageVariants)
+      .innerJoin(messages, eq(messages.id, messageVariants.messageId))
+      .where(eq(messages.chatId, chatId))
+      .orderBy(asc(messageVariants.idx), asc(messageVariants.id)),
+    ctx.db
+      .select()
+      .from(chatGenerationObservations)
+      .where(eq(chatGenerationObservations.chatId, chatId))
+      .orderBy(asc(chatGenerationObservations.turnId), asc(chatGenerationObservations.ordinal)),
+  ]);
   const variantsByMessage = new Map<MessageId, VariantRow[]>();
-  if (slots.length === 0) {
-    return { slots, variantsByMessage };
-  }
-  const variantRows = await ctx.db
-    .select()
-    .from(messageVariants)
-    .where(
-      inArray(
-        messageVariants.messageId,
-        slots.map((m) => m.id),
-      ),
-    )
-    .orderBy(asc(messageVariants.idx), asc(messageVariants.id));
-  for (const v of variantRows) {
+  for (const { variant: v } of joinedVariants) {
     const pool = variantsByMessage.get(v.messageId) ?? [];
     pool.push(v);
     variantsByMessage.set(v.messageId, pool);
   }
-  return { slots, variantsByMessage };
+  return { slots, variantsByMessage, observations };
+}
+
+function portableObservations(args: {
+  readonly rows: readonly (typeof chatGenerationObservations.$inferSelect)[];
+  readonly messageIndexById: ReadonlyMap<MessageId, number>;
+  readonly variantPositionById: ReadonlyMap<MessageVariantId, VariantPosition>;
+}): PendingGenerationObservationInput[] {
+  const groups = new Map<ChatTurnId, [PortableObservation, ...PortableObservation[]]>();
+  for (const row of args.rows) {
+    const sourceMessageIndex = row.sourceMessageId === null ? null : args.messageIndexById.get(row.sourceMessageId);
+    const position = row.sourceVariantId === null ? null : args.variantPositionById.get(row.sourceVariantId);
+    if (sourceMessageIndex === undefined || position === undefined || (position !== null && position.messageIndex !== sourceMessageIndex)) {
+      continue;
+    }
+    const fact: PortableObservation = {
+      ordinal: row.ordinal,
+      sourceMessageIndex,
+      sourceVariantIdx: position?.variantIdx ?? null,
+      leg: generationUsageLegSchema.parse({ ...row, responseCache: responseCacheSchema.safeParse(row.responseCache).data }),
+    };
+    const group = groups.get(row.turnId);
+    if (group === undefined) {
+      groups.set(row.turnId, [fact]);
+    } else {
+      group.push(fact);
+    }
+  }
+  // Local turn ids are re-minted on restore; normalized positions/facts define stable group order.
+  return [...groups.values()]
+    .sort((a, b) => a[0].leg.observedAt - b[0].leg.observedAt || JSON.stringify(a).localeCompare(JSON.stringify(b)))
+    .flatMap((group, turnIndex) => group.map((row) => ({ turnIndex, ...row })));
 }
 
 /** The host gate — the caller must be the present `role='host'` row. A non-host caller and a missing chat
@@ -278,7 +323,7 @@ export function createExportChatBundle(ctx: ExportContext): ExportService["expor
     if (chat === null) {
       return null;
     }
-    const [{ handles, byId: handleById }, tagNames, injections, { slots, variantsByMessage }, rawRpg] = await Promise.all([
+    const [{ handles, byId: handleById }, tagNames, injections, { slots, variantsByMessage, observations }, rawRpg] = await Promise.all([
       loadSeatHandles(ctx, params.chatId),
       loadTagNames(ctx, params.chatId, params.principal.userId),
       loadInjections(ctx, params.chatId),
@@ -311,6 +356,9 @@ export function createExportChatBundle(ctx: ExportContext): ExportService["expor
       tagNames,
       injections,
       messages: portable,
+      ...(observations.length === 0
+        ? {}
+        : { pendingGenerationObservations: portableObservations({ rows: observations, messageIndexById, variantPositionById }) }),
       rpg,
     };
     // A FLAT, human-meaningful download name (the `exportChat` slug shape) — the single-chat HTTP door serves

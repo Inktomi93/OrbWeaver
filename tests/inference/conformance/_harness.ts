@@ -306,7 +306,11 @@ function buildRuntime(options: { readonly fetch?: typeof fetch | undefined; read
     ...(options.agentSdkQuery !== undefined ? { agentSdkQuery: options.agentSdkQuery } : {}),
   });
   const built = buildBackends(deps);
-  return { executor: createProviderExecutor({ registry: built.registry, span: deps.span }), captured, skipped: built.skipped };
+  return {
+    executor: createProviderExecutor({ registry: built.registry, span: deps.span, beginEmbeddingAccounting: deps.beginEmbeddingAccounting }),
+    captured,
+    skipped: built.skipped,
+  };
 }
 
 /** The deps `BACKEND_DEFS[wire].needs` is evaluated against for {@link skipReasonFor} — the SAME shape every

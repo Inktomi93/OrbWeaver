@@ -255,6 +255,8 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
     appliedEffort: null,
     usage: {
       model: castId<ModelId>("test-model"),
+      servedModel: null,
+      tokenDetails: null,
       tokensIn: 1,
       tokensOut: 1,
       cacheReadTokens: 0,
@@ -598,6 +600,8 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
     appliedEffort: null,
     usage: {
       model: castId<ModelId>("test-model"),
+      servedModel: null,
+      tokenDetails: null,
       tokensIn: 1,
       tokensOut: 1,
       cacheReadTokens: 0,
@@ -788,7 +792,16 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
       ],
       execFromFrame(principal),
     );
-    expect(result.toolRecords).toEqual(direct);
+    expect(result.toolRecords).toEqual(
+      direct.map((record, index) => ({
+        ...record,
+        turnId: frame.turnId,
+        callOrdinal: index,
+        exchangeOrdinal: index,
+        textOffset: 0,
+        exchangeTextEnd: 0,
+      })),
+    );
     expect(runner.seen.results[0]).toEqual({ content: [{ type: "text", text: JSON.stringify({ text: "hi" }) }] });
   });
 });

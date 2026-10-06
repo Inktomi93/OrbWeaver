@@ -284,8 +284,8 @@ test("every routable task gets a row, in the pane's own render order", async ({ 
   // §5.3a's RENAME is the full string, and it is the row's HEADING: a user who reads "Summaries" and binds
   // a cheap text-only model silently breaks captioning, so the third consumer is named in the label itself.
   await expect(page.getByText("Utility model — summaries, structured extraction, captions", { exact: true })).toBeVisible();
-  // …and F20 rides the section BODY, not only the nav teach text. A room never overrides a role.
-  await expect(page.getByText("Rooms never override this", { exact: false })).toBeVisible();
+  await expect(page.getByText("These roles apply in rooms you host and to your work outside rooms.", { exact: false })).toBeVisible();
+  await expect(page.getByText("Shared-room turns use the room host's connections, frozen when the turn starts.", { exact: false })).toBeVisible();
 });
 
 test("a connection row speaks in Model roles and carries the exact bulk/background actions", async ({ mount, page }) => {
@@ -1047,7 +1047,7 @@ async function stubTheTwoDotStates(page: Page): Promise<void> {
 /** The teaching copy that must survive BOTH widths. §13 step 3b's rule: a row gloss WRAPS at 486, it does
  *  not lose its second sentence — and the F20 sentence is exempt from any cut anyone ever writes down. */
 const COPY_THAT_NEVER_CUTS = [
-  "Rooms never override this: a turn always runs on the connection of whoever triggered it.",
+  "Shared-room turns use the room host's connections, frozen when the turn starts.",
   "Utility model — summaries, structured extraction, captions",
   "Unset falls back to the captioned-text lens.",
   // The badge rail is the row's one unbounded element and it WRAPS rather than truncating — a requirement
@@ -1122,7 +1122,7 @@ test("at 870px the intro and every role description stop at the prose measure", 
   await mount(<ConnectionsPaneWideStory />);
 
   const roles = page.locator("#config-anchor-connections-model-roles");
-  await expect(roles.getByText("Rooms never override this", { exact: false })).toBeVisible();
+  await expect(roles.getByText("Shared-room turns use the room host's connections", { exact: false })).toBeVisible();
   await expect
     .poll(() =>
       roles.evaluate((section) => {

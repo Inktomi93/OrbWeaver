@@ -116,6 +116,7 @@ export const ownerStats = sqliteTable("owner_stats", {
   // `real` — cost is fractional USD (the additive `col += delta` metric).
   costUsd: real("cost_usd").notNull().default(0),
   costSamples: integer("cost_samples").notNull().default(0),
+  notionalCostSamples: integer("notional_cost_samples").notNull().default(0),
   genTimeMs: integer("gen_time_ms").notNull().default(0),
   genSamples: integer("gen_samples").notNull().default(0),
   reasoningGenerations: integer("reasoning_generations").notNull().default(0),
@@ -165,6 +166,7 @@ export const characterStats = sqliteTable(
     tokensOutEstimatedSamples: integer("tokens_out_estimated_samples").notNull().default(0),
     costUsd: real("cost_usd").notNull().default(0),
     costSamples: integer("cost_samples").notNull().default(0),
+    notionalCostSamples: integer("notional_cost_samples").notNull().default(0),
     genTimeMs: integer("gen_time_ms").notNull().default(0),
     genSamples: integer("gen_samples").notNull().default(0),
     reasoningGenerations: integer("reasoning_generations").notNull().default(0),
@@ -216,6 +218,7 @@ export const dailyStats = sqliteTable(
     tokensOutEstimatedSamples: integer("tokens_out_estimated_samples").notNull().default(0),
     costUsd: real("cost_usd").notNull().default(0),
     costSamples: integer("cost_samples").notNull().default(0),
+    notionalCostSamples: integer("notional_cost_samples").notNull().default(0),
     genTimeMs: integer("gen_time_ms").notNull().default(0),
     // OR-merged in the upsert: once a day is flagged migration-approximate it stays (esoteric #7).
     messageDatesApprox: integer("message_dates_approx", { mode: "boolean" }).notNull().default(false),
@@ -256,6 +259,7 @@ export const modelStats = sqliteTable(
     reasoningMs: integer("reasoning_ms").notNull().default(0),
     costUsd: real("cost_usd").notNull().default(0),
     costSamples: integer("cost_samples").notNull().default(0),
+    notionalCostSamples: integer("notional_cost_samples").notNull().default(0),
     // Cache economics — owner + MODEL grain (esoteric #5).
     cacheReadTokens: integer("cache_read_tokens").notNull().default(0),
     cacheWriteTokens: integer("cache_write_tokens").notNull().default(0),

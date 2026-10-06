@@ -77,9 +77,9 @@ for (const width of [320, 720] as const) {
           await expect(figure.locator('[data-slot="stat-figure-value"]')).toHaveText(accounting.tokenValue);
           await expect(figure.locator('[data-slot="stat-figure-label"]')).toHaveText(`${label} · ${accounting.label}`);
         }
-        const spend = component.locator('[data-slot="stat-figure"]', { hasText: "Spend" });
+        const spend = component.locator('[data-slot="stat-figure"]', { hasText: "Cost" });
         await expect(spend.locator('[data-slot="stat-figure-value"]')).toHaveText(accounting.costValue);
-        await expect(spend.locator('[data-slot="stat-figure-label"]')).toHaveText(`Spend · ${accounting.cost === null ? "Not recorded" : "Recorded"}`);
+        await expect(spend.locator('[data-slot="stat-figure-label"]')).toHaveText(accounting.cost === null ? "Cost · Unavailable" : "Cost");
         await expect(component.getByText("This character · Aggregate only", { exact: true })).toBeVisible();
         await expect(component.getByText("~ marks estimates", { exact: false })).toBeVisible();
         await expect(component.getByText("Reasoning (of replies + swipes)", { exact: true })).toBeVisible();

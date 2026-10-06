@@ -11,6 +11,7 @@ import type { ImageEmbedInput, ImageEmbedPair } from "@orb/contracts/role-client
 import { z } from "zod";
 import { ProviderError } from "../../contract/errors.ts";
 import type { ImageEmbedRequest } from "../../contract/roles.ts";
+import { embeddingCostOf } from "../kit/embedding-cost.ts";
 import { decodeEmbeddingVector } from "../kit/embedding-decode.ts";
 import { DOC_INSTRUCTION, fitToDim, QUERY_INSTRUCTION } from "../kit/embedding-input.ts";
 import { authHeaders, fetchJson, openAiPath } from "../kit/fetch-json.ts";
@@ -32,7 +33,11 @@ interface WireMessage {
   readonly content: ContentPart[];
 }
 const embeddingsResponseSchema = z
-  .object({ data: z.array(z.object({ index: z.number(), embedding: z.union([z.array(z.number()), z.string()]) }).loose()) })
+  .object({
+    data: z.array(z.object({ index: z.number(), embedding: z.union([z.array(z.number()), z.string()]) }).loose()),
+    model: z.string().min(1).nullish(),
+    usage: z.object({ prompt_tokens: z.number().int().nonnegative().nullish(), total_tokens: z.number().int().nonnegative().nullish() }).nullish().catch(null),
+  })
   .loose();
 type EmbeddingsResponse = z.infer<typeof embeddingsResponseSchema>;
 
@@ -101,6 +106,18 @@ async function embedOne(args: PostArgs): Promise<EmbeddingsResponse> {
   }
 }
 
+async function observeImageBatch(req: ImageEmbedRequest, response: EmbeddingsResponse): Promise<void> {
+  const textOnly = req.input.kind === "text";
+  await req.embeddingAccounting?.recordBatch({
+    inputCount: 1,
+    inputModalities: textOnly ? ["text"] : ["image", "text"],
+    servedModel: response.model ?? null,
+    usage: { promptTokens: response.usage?.prompt_tokens ?? null, totalTokens: response.usage?.total_tokens ?? null },
+    tokenDetails: null,
+    cost: embeddingCostOf(response.usage?.prompt_tokens ?? null, req.connection.features.pricing, null, textOnly),
+  });
+}
+
 export async function runOpenAiCompatImageEmbed(req: ImageEmbedRequest, deps: ImageEmbedDeps): Promise<ImageEmbedResult> {
   const { connection } = req;
   const label = `${connection.providerId} imageEmbed (${connection.model})`;
@@ -113,6 +130,7 @@ export async function runOpenAiCompatImageEmbed(req: ImageEmbedRequest, deps: Im
   const { dims: dim, mrl } = connection.capability.embedding;
   const conversations = await toConversations(req.input, deps.normalize);
   const vectors: (Float32Array<ArrayBuffer> | null)[] = new Array(conversations.length).fill(null);
+  const reported: EmbeddingsResponse["usage"][] = [];
   let next = 0;
   const worker = async (): Promise<void> => {
     while (next < conversations.length) {
@@ -126,6 +144,8 @@ export async function runOpenAiCompatImageEmbed(req: ImageEmbedRequest, deps: Im
         continue;
       }
       const response = await embedOne({ req, deps, label, messages, dim });
+      await observeImageBatch(req, response);
+      reported.push(response.usage);
       const item = response.data[0];
       if (item !== undefined) {
         vectors[i] = fitToDim(Array.from(decodeEmbeddingVector(item.embedding, label)), { dims: dim, mrl }, label);
@@ -134,5 +154,13 @@ export async function runOpenAiCompatImageEmbed(req: ImageEmbedRequest, deps: Im
   };
   const workerCount = Math.min(connection.features.concurrency?.imageEmbed ?? 1, conversations.length);
   await Promise.all(Array.from({ length: workerCount }, () => worker()));
-  return { vectors, model: connection.model };
+  const promptTokens =
+    reported.length > 0 && reported.every((usage) => typeof usage?.prompt_tokens === "number")
+      ? reported.reduce((sum, usage) => sum + (usage?.prompt_tokens ?? 0), 0)
+      : null;
+  const totalTokens =
+    reported.length > 0 && reported.every((usage) => typeof usage?.total_tokens === "number")
+      ? reported.reduce((sum, usage) => sum + (usage?.total_tokens ?? 0), 0)
+      : null;
+  return { vectors, model: connection.model, usage: { promptTokens, totalTokens } };
 }

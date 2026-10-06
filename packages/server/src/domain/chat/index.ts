@@ -61,6 +61,7 @@ export { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "./contract
 // The turn's identity axis (`ResolveForeignInputsOp`'s `trigger`) — the composition root dispatches over it
 // to bind prompt-config `{{user}}`, so the union has to reach entry.
 export type { HumanSeatPersona, ResolvedPersonas, ResolveForeignInputsOp, TurnTrigger, TurnVoice } from "./contract/foreign.ts";
+export type { BeginGenerationObservation } from "./contract/generation-observation.ts";
 export type { BulkImportChats, ChatImportContext } from "./contract/import.ts";
 export type {
   MemoryConfig,
@@ -109,6 +110,7 @@ export { loadChatMeta } from "./memory/persistence/queries.ts";
 export { resolveTier0Range } from "./memory/recall/bridge.ts";
 // The recall flight recorder (#250) — the composition root builds ONE and wires its sink onto `ChatContext`.
 export { createMemoryRecallRecorder } from "./memory/recall/recorder.ts";
+export { createGenerationObservationSession } from "./persistence/generation-observation.ts";
 export { createBulkImportChats } from "./persistence/import-write.ts";
 export { reclaimChatLocksOnBoot } from "./persistence/lock.ts";
 // The #1391 plugin tool wire-name rewrite over `message_variants.tool_calls` — the same boot-step shape

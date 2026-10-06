@@ -15,6 +15,7 @@
 import { z } from "zod";
 import type { SamplerKnob, SamplerStage } from "./capability/generation.ts";
 import { SAMPLER_KNOBS } from "./capability/generation.ts";
+import { tokenPricingSchema } from "./usage.ts";
 import { WIRE_SCHEMA_MODES } from "./wire-subset.ts";
 
 /** The request key each sampler rides under when the row names no other: the OpenAI / vLLM / llama.cpp
@@ -200,7 +201,7 @@ export const endpointFeaturesSchema = z.object({
   /** Ollama's native route: the prompt batch size (`options.num_batch`); a change reloads the model. */
   numBatch: z.number().int().positive().optional(),
   /** Feeds the `estimated` cost arm when the wire reports no usage cost (§5.3c). */
-  pricing: z.object({ inputPerMTok: z.number().nonnegative(), outputPerMTok: z.number().nonnegative() }).optional(),
+  pricing: tokenPricingSchema.optional(),
   /** Fan-out caps — THREE, one per surface that takes a `concurrency` dep. Wire default 4/8. NO env key. */
   concurrency: z
     .object({

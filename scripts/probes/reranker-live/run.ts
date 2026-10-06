@@ -136,6 +136,9 @@ async function buildStack(cacheDir: string, allowRemoteModels: boolean): Promise
   const now = (): number => Date.now();
   const ports = createConnectionPorts({ db, now });
   const deps: InferenceDeps = {
+    beginEmbeddingAccounting: () => {
+      throw new Error("reranker-live scripts its query vectors; unexpected embedding execution");
+    },
     now,
     log: silent,
     span: (_name, fn) => Promise.resolve(fn()),

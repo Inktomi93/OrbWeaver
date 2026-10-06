@@ -1,9 +1,10 @@
+import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 // persistence: imagery/queries — the ONE `imagery_generations` writer. Proves the
 // INSERT statement, committed through a batch the way the generation tail commits it, lands a well-formed provenance row against the real schema (the FK to `assets`, the mode CHECK, the
 // nullable free-mode columns left at their defaults).
 
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
-import { providerIdSchema } from "@orb/contracts/inference";
+import { generationUsageDetailsSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { assets, characters, imageryGenerations, userConnections, users } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
@@ -76,6 +77,7 @@ describe("insertGenerationStatement", () => {
           providerId: PROVIDER_ID,
           connectionId,
           costUsd: 0.05,
+          usage: makeGenerationUsage(0.05),
           edited: false,
           createdAt: FROZEN_AT,
         }),
@@ -94,6 +96,15 @@ describe("insertGenerationStatement", () => {
       provider: PROVIDER_ID,
       connectionId,
       costUsd: 0.05,
+      tokensIn: null,
+      tokensOut: null,
+      reasoningTokens: null,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      servedModel: null,
+      tokenDetails: null,
+      costDetails: { totalUsd: 0.05 },
+      costProvenance: "measured",
       edited: false,
       // The free-mode call leaves the portrait/negative columns null.
       subjectCharacterId: null,
@@ -121,6 +132,7 @@ describe("insertGenerationStatement", () => {
           providerId: PROVIDER_ID,
           connectionId,
           costUsd: null,
+          usage: makeGenerationUsage(null),
           edited: false,
           createdAt: FROZEN_AT,
         }),
@@ -173,6 +185,7 @@ async function seedGeneration(args: SeedArgs): Promise<void> {
         providerId: PROVIDER_ID,
         connectionId,
         costUsd: 0.02,
+        usage: makeGenerationUsage(0.02),
         edited: false,
         createdAt,
       }),
@@ -232,6 +245,7 @@ describe("readProvenanceByAsset", () => {
       subjectCharacterId: "character_aria",
       model: "img-model",
       costUsd: 0.02,
+      usage: generationUsageDetailsSchema.parse(makeGenerationUsage(0.02)),
       edited: false,
     });
   });

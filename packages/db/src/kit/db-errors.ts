@@ -16,6 +16,8 @@ export type ConstraintKind = (typeof CONSTRAINT_KINDS)[number];
 export interface ConstraintViolation {
   readonly kind: ConstraintKind;
   readonly detail: string;
+  /** The driver's zero-based batch statement, absent for standalone or unreported failures. */
+  readonly statementIndex?: number;
 }
 
 // libSQL nests the original driver error under `.cause` (drizzle wraps it, the client wraps that). The
@@ -71,14 +73,21 @@ function classify(code: string, message: string): ConstraintKind | undefined {
  * `foreign-key` ⇒ "missing referent").
  */
 export function isConstraintViolation(err: unknown): ConstraintViolation | undefined {
+  let statementIndex: number | undefined;
   let found: ConstraintViolation | undefined;
   for (const level of causeChain(err)) {
+    if (statementIndex === undefined && isPlainObject(level)) {
+      const index = level["statementIndex"];
+      if (typeof index === "number" && Number.isSafeInteger(index) && index >= 0) {
+        statementIndex = index;
+      }
+    }
     found = classifyLevel(level);
     if (found !== undefined) {
       break;
     }
   }
-  return found;
+  return found !== undefined && statementIndex !== undefined ? { ...found, statementIndex } : found;
 }
 
 /** Classify ONE level of a cause chain — `undefined` when it is not a readable SQLITE_CONSTRAINT error. */

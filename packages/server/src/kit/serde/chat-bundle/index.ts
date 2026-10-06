@@ -40,8 +40,17 @@
 //
 // Round-trip drift guard: buildChatBundleFile(parseChatBundleFile(buildChatBundleFile(c))) === build(c).
 
-import type { MessageKind, TokenProvenance } from "@orb/contracts/chat";
-import { CHAT_INJECTION_POSITIONS, messageKindSchema, messageRoleSchema, tokenProvenanceSchema, varOpSchema } from "@orb/contracts/chat";
+import type { MessageKind, PendingGenerationObservationInput, TokenProvenance } from "@orb/contracts/chat";
+import {
+  CHAT_INJECTION_POSITIONS,
+  messageKindSchema,
+  messageRoleSchema,
+  pendingGenerationObservationsSchema,
+  tokenProvenanceSchema,
+  varOpSchema,
+} from "@orb/contracts/chat";
+import type { GenerationUsage } from "@orb/contracts/inference";
+import { generationUsageSchema } from "@orb/contracts/inference";
 import type { PortableParse } from "@orb/contracts/portability";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
 import type {
@@ -95,6 +104,8 @@ export interface PortableChatVariant {
    *  re-derive `chats.runtimeVariables` instead of shipping a snapshot of it. */
   readonly variableDelta: readonly z.infer<typeof varOpSchema>[] | null;
   readonly metadata: Record<string, unknown> | null;
+  /** Canonical normalized economics; legacy token fields must agree when this snapshot is present. */
+  readonly usage?: GenerationUsage;
 }
 
 /** One message slot. `speakerHandle` re-links an assistant turn's voice by the character HANDLE it was
@@ -208,6 +219,7 @@ export interface PortableChat {
   readonly tagNames: readonly string[];
   readonly injections: readonly PortableChatInjection[];
   readonly messages: readonly PortableChatMessage[];
+  readonly pendingGenerationObservations?: readonly PendingGenerationObservationInput[];
   readonly rpg: PortableRpgGame | null;
 }
 
@@ -216,27 +228,34 @@ export interface PortableChat {
 const nullableIndex = z.number().int().nonnegative().nullish().catch(null);
 const index = z.number().int().nonnegative();
 
-const wireVariantSchema = z.object({
-  idx: z.number().int().nonnegative(),
-  content: z.string(),
-  model: z.string().nullish().catch(null),
-  provider: z.string().nullish().catch(null),
-  tokensIn: z.number().int().nullish().catch(null),
-  tokensOut: z.number().int().nullish().catch(null),
-  // NOT refined against the token axes — the contradiction is RESOLVED on read, in `variantFromWire`.
-  // See {@link resolveTokenProvenance} for why a contradictory pair is a live durable row and not a
-  // malformed file.
-  tokenProvenance: tokenProvenanceSchema.optional(),
-  reasoning: z.string().nullish().catch(null),
-  ttftMs: z.number().int().nullish().catch(null),
-  genStartedAt: z.number().int().nullish().catch(null),
-  genFinishedAt: z.number().int().nullish().catch(null),
-  // A malformed delta degrades THIS VARIANT's ops to none, never the file. The ops feed a DERIVED cache
-  // (`chats.runtimeVariables`), so losing one turn's ops costs a fold; refusing the file costs the chat.
-  // Same trade the spine's "drop" row policy makes one level up.
-  variableDelta: z.array(varOpSchema).nullish().catch(null),
-  metadata: z.record(z.string(), z.unknown()).nullish().catch(null),
-});
+const wireVariantSchema = z
+  .object({
+    idx: z.number().int().nonnegative(),
+    content: z.string(),
+    model: z.string().nullish().catch(null),
+    provider: z.string().nullish().catch(null),
+    tokensIn: z.number().int().nullish().catch(null),
+    tokensOut: z.number().int().nullish().catch(null),
+    // NOT refined against the token axes — the contradiction is RESOLVED on read, in `variantFromWire`.
+    // See {@link resolveTokenProvenance} for why a contradictory pair is a live durable row and not a
+    // malformed file.
+    tokenProvenance: tokenProvenanceSchema.optional(),
+    reasoning: z.string().nullish().catch(null),
+    ttftMs: z.number().int().nullish().catch(null),
+    genStartedAt: z.number().int().nullish().catch(null),
+    genFinishedAt: z.number().int().nullish().catch(null),
+    // A malformed delta degrades THIS VARIANT's ops to none, never the file. The ops feed a DERIVED cache
+    // (`chats.runtimeVariables`), so losing one turn's ops costs a fold; refusing the file costs the chat.
+    // Same trade the spine's "drop" row policy makes one level up.
+    variableDelta: z.array(varOpSchema).nullish().catch(null),
+    metadata: z.record(z.string(), z.unknown()).nullish().catch(null),
+    usage: generationUsageSchema.optional(),
+  })
+  .superRefine((variant, ctx) => {
+    if (variant.usage !== undefined && ((variant.tokensIn ?? null) !== variant.usage.tokensIn || (variant.tokensOut ?? null) !== variant.usage.tokensOut)) {
+      ctx.addIssue({ code: "custom", path: ["usage"], message: "normalized usage contradicts the legacy token fields" });
+    }
+  });
 
 const wireMessageSchema = z.object({
   role: messageRoleSchema,
@@ -336,6 +355,7 @@ const wireChatSchema = z.object({
   tagNames: z.array(z.string().trim().min(1)).catch([]),
   injections: z.array(wireInjectionSchema).catch([]),
   messages: z.array(wireMessageSchema),
+  pendingGenerationObservations: pendingGenerationObservationsSchema.optional(),
   rpg: wireRpgSchema.nullish().catch(null),
 });
 
@@ -404,6 +424,7 @@ function variantToWire(v: PortableChatVariant): WireChat["messages"][number]["va
     genFinishedAt: v.genFinishedAt,
     variableDelta: v.variableDelta === null ? null : [...v.variableDelta],
     metadata: v.metadata,
+    ...(v.usage === undefined ? {} : { usage: v.usage }),
   };
 }
 
@@ -450,6 +471,7 @@ function variantFromWire(v: NonNullable<WireChat["messages"][number]["variants"]
     genFinishedAt: v.genFinishedAt ?? null,
     variableDelta: v.variableDelta ?? null,
     metadata: v.metadata ?? null,
+    ...(v.usage === undefined ? {} : { usage: v.usage }),
   };
 }
 
@@ -564,6 +586,7 @@ const chatBundleSerde = defineJsonObjectSerde<PortableChat, WireChat>({
       variants: m.variants.map(variantToWire),
     })),
     rpg: chat.rpg === null ? null : rpgToWire(chat.rpg),
+    ...(chat.pendingGenerationObservations === undefined ? {} : { pendingGenerationObservations: [...chat.pendingGenerationObservations] }),
   }),
   fromWire: (body) => {
     const messages = body.messages.map(
@@ -603,6 +626,17 @@ const chatBundleSerde = defineJsonObjectSerde<PortableChat, WireChat>({
         }),
       ),
       messages,
+      ...(body.pendingGenerationObservations === undefined
+        ? {}
+        : {
+            pendingGenerationObservations: body.pendingGenerationObservations.filter(
+              (row) =>
+                row.sourceMessageIndex === null ||
+                (row.sourceVariantIdx === null
+                  ? messages[row.sourceMessageIndex] !== undefined
+                  : variantExists(messages, row.sourceMessageIndex, row.sourceVariantIdx)),
+            ),
+          }),
       rpg,
     };
   },

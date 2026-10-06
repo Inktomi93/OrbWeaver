@@ -55,6 +55,7 @@ export function toForcedToolRoundRequest(input: ForcedToolRoundInput): ChatReque
   }
   return {
     api,
+    onObservedResult: input.onObservedResult,
     chatId: input.chatId,
     connection: input.connection,
     params: {},
@@ -72,6 +73,7 @@ export async function runStructuredChat(executor: Pick<ProviderExecutor, "runCha
   const result = await executor.runChatTurn(
     sideGenChatRequest({
       connection: input.connection,
+      onObservedResult: input.onObservedResult,
       item: { systemPrompt: input.systemPrompt, userPrompt: input.userPrompt },
       params: {},
       responseFormat: input.responseFormat,

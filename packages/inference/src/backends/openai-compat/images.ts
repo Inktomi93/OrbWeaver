@@ -8,16 +8,21 @@
 // negative prompt folds into the text on the chat arm (no hosted chat wire has a native negative field).
 
 import type { ImageModelV4File } from "@ai-sdk/provider";
-import { acceptsImageEdit, modelIdSchema } from "@orb/contracts/inference";
+import type { GenerationUsage, ResponseCache, TokenDetails, TokenUsage } from "@orb/contracts/inference";
+import { acceptsImageEdit } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
+import { z } from "zod";
+import type { ProviderScrubSet } from "../../contract/errors.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { ResolvedWarning } from "../../contract/resolve.ts";
 import type { GeneratedImage, ImageGenerateRequest, ImageGenerateResult } from "../../contract/roles.ts";
 import { providerErrorFromHttp } from "../kit/error-classify.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import { toImageUrl } from "../kit/image-normalize.ts";
+import { responseCacheOf } from "../kit/response-cache.ts";
 import { resolvedScrubSet } from "../kit/sanitize.ts";
-import { measuredCostOf } from "../v4/result.ts";
+import type { MeasuredCost } from "../v4/result.ts";
+import { generationUsageOf, measuredCostOf, rawMeasuredOpenRouterCostOf } from "../v4/result.ts";
 import { generatedImageOf } from "../v4/stream.ts";
 import type { ModelCall, TransportDeps } from "./model.ts";
 import { imageModelFor, languageModelFor } from "./model.ts";
@@ -27,6 +32,100 @@ const NEGATIVE_LINE_PREFIX = "\nDo not include: ";
 const DEFAULT_N = 1;
 const PNG_MEDIA = "image/png";
 const DATA_URL_RE = /^data:(?<mime>[^;,]+);base64,(?<data>.*)$/su;
+const reportedCount = z.number().int().nonnegative().nullish().catch(null);
+const imageTokenDetailFieldsSchema = z.object({
+  text_tokens: reportedCount,
+  image_tokens: reportedCount,
+  audio_tokens: reportedCount,
+  video_tokens: reportedCount,
+  file_tokens: reportedCount,
+  cached_tokens: reportedCount,
+  cache_write_tokens: reportedCount,
+  reasoning_tokens: reportedCount,
+});
+const imageTokenDetailSchema = imageTokenDetailFieldsSchema.nullish().catch(null);
+const imageResponseSchema = z.object({
+  usage: z
+    .looseObject({
+      input_tokens: reportedCount,
+      output_tokens: reportedCount,
+      prompt_tokens: reportedCount,
+      completion_tokens: reportedCount,
+      input_tokens_details: imageTokenDetailSchema,
+      output_tokens_details: imageTokenDetailSchema,
+      prompt_tokens_details: imageTokenDetailSchema,
+      completion_tokens_details: imageTokenDetailSchema,
+    })
+    .nullish()
+    .catch(null),
+});
+const IMAGE_USAGE_MODALITIES = [
+  ["text_tokens", "text"],
+  ["image_tokens", "image"],
+  ["audio_tokens", "audio"],
+  ["video_tokens", "video"],
+  ["file_tokens", "file"],
+] as const;
+
+function imageTokenDetails(details: z.infer<typeof imageTokenDetailFieldsSchema> | null | undefined): TokenDetails["input"] {
+  if (details === null || details === undefined) {
+    return;
+  }
+  const known = IMAGE_USAGE_MODALITIES.flatMap(([key, modality]) => {
+    const tokens = details[key];
+    return typeof tokens === "number" ? [{ modality, tokens }] : [];
+  });
+  return known.length === 0 ? undefined : known;
+}
+
+function imageApiTokenUsage(usage: z.infer<typeof imageResponseSchema>["usage"], openrouter: boolean): TokenUsage {
+  const input = openrouter ? usage?.prompt_tokens_details : usage?.input_tokens_details;
+  const output = openrouter ? usage?.completion_tokens_details : usage?.output_tokens_details;
+  return {
+    tokensIn: (openrouter ? usage?.prompt_tokens : usage?.input_tokens) ?? null,
+    tokensOut: (openrouter ? usage?.completion_tokens : usage?.output_tokens) ?? null,
+    cacheReadTokens: input?.cached_tokens ?? null,
+    cacheWriteTokens: input?.cache_write_tokens ?? null,
+    reasoningTokens: output?.reasoning_tokens ?? null,
+  };
+}
+
+function normalizedImageUsage(
+  usage: z.infer<typeof imageResponseSchema>["usage"],
+  promptFields: boolean,
+  measured: MeasuredCost | null,
+  responseCache: ResponseCache | undefined,
+): GenerationUsage {
+  const input = promptFields ? usage?.prompt_tokens_details : usage?.input_tokens_details;
+  const output = promptFields ? usage?.completion_tokens_details : usage?.output_tokens_details;
+  const inputDetails = imageTokenDetails(input);
+  const outputDetails = imageTokenDetails(output);
+  const cost = measured ?? (responseCache?.status === "hit" ? { costUsd: 0, costDetails: { totalUsd: 0 } } : null);
+  return {
+    ...generationUsageOf(undefined, undefined, cost),
+    ...imageApiTokenUsage(usage, promptFields),
+    tokenDetails:
+      inputDetails === undefined && outputDetails === undefined
+        ? null
+        : {
+            ...(inputDetails === undefined ? {} : { input: inputDetails }),
+            ...(outputDetails === undefined ? {} : { output: outputDetails }),
+          },
+    ...(responseCache === undefined ? {} : { responseCache }),
+  };
+}
+
+/** Normalize only the reported accounting fields; the SDK still receives the original image response. */
+function imageApiUsage(body: unknown, headers: Headers, openrouter: boolean, secrets: ProviderScrubSet): GenerationUsage {
+  const raw = imageResponseSchema.safeParse(body);
+  const usage = raw.success ? raw.data.usage : null;
+  return normalizedImageUsage(
+    usage,
+    openrouter,
+    openrouter ? rawMeasuredOpenRouterCostOf(usage) : null,
+    openrouter ? responseCacheOf(Object.fromEntries(headers.entries()), secrets) : undefined,
+  );
+}
 
 export interface ImagesDeps {
   readonly transport: TransportDeps;
@@ -75,7 +174,19 @@ async function runImagesApi(req: ImageGenerateRequest, deps: ImagesDeps, call: M
   const sources = editSources(req, warnings);
   const files = await Promise.all(sources.map((image) => toImageFile(image, deps.normalize)));
   const mask = req.edit?.mask !== undefined && sources.length > 0 ? await toImageFile(req.edit.mask, deps.normalize) : undefined;
-  const model = imageModelFor(call);
+  let usage = generationUsageOf(undefined, undefined, null);
+  const model = imageModelFor({
+    ...call,
+    translateResponse: async (response) => {
+      if (!response.ok) {
+        return response;
+      }
+      const bytes = await response.text();
+      // ImageModelV4 drops the raw usage; this per-call normalized value settles before its result returns.
+      usage = imageApiUsage(JSON.parse(bytes), response.headers, req.connection.provider.dialect === "openrouter", resolvedScrubSet(req.connection));
+      return new Response(bytes, { status: response.status, statusText: response.statusText, headers: response.headers });
+    },
+  });
   const result = await model.doGenerate({
     prompt: foldNegative(req.prompt, req.negativePrompt),
     n: req.n ?? DEFAULT_N,
@@ -95,7 +206,7 @@ async function runImagesApi(req: ImageGenerateRequest, deps: ImagesDeps, call: M
   if (images.length === 0) {
     throw new ProviderError({ kind: "server", retryable: result.isRetryable ?? true, message: `${call.label}: image generation returned no images` });
   }
-  return { images, model: modelIdSchema.parse(result.response.modelId), usage: { costUsd: null }, warnings };
+  return { images, model: req.connection.model, usage, warnings };
 }
 
 async function runChatModalities(req: ImageGenerateRequest, deps: ImagesDeps, call: ModelCall, warnings: ResolvedWarning[]): Promise<ImageGenerateResult> {
@@ -125,9 +236,12 @@ async function runChatModalities(req: ImageGenerateRequest, deps: ImagesDeps, ca
   if (images.length === 0) {
     throw new ProviderError({ kind: "server", retryable: true, message: `${call.label}: image generation returned no images` });
   }
-  // An image result carries no V4 `usage.raw` — the BYOK split is a chat-usage fact; the total is what rides.
-  const measured = measuredCostOf(result.providerMetadata, undefined);
-  return { images, model: req.connection.model, usage: { costUsd: measured === null ? null : measured.costUsd }, warnings };
+  const measured = measuredCostOf(result.providerMetadata, result.usage.raw);
+  const raw = imageResponseSchema.safeParse({ usage: result.usage.raw });
+  const responseCache =
+    req.connection.provider.dialect === "openrouter" ? responseCacheOf(result.response?.headers, resolvedScrubSet(req.connection)) : undefined;
+  const usage = normalizedImageUsage(raw.success ? raw.data.usage : null, true, measured, responseCache);
+  return { images, model: req.connection.model, usage: { ...usage, servedModel: result.response?.modelId ?? null }, warnings };
 }
 
 export async function runOpenAiCompatGenerateImage(req: ImageGenerateRequest, deps: ImagesDeps): Promise<ImageGenerateResult> {

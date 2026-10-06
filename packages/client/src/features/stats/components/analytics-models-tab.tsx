@@ -30,6 +30,7 @@ import {
   formatAccountingLabel,
   formatCompact,
   formatCompactNoun,
+  formatCostLabel,
   formatMs,
   formatThroughput,
   formatTokens,
@@ -100,8 +101,7 @@ function ModelsBody(): ReactElement {
                     }
                   />
                   <Text voice="gloss">
-                    Aggregate only · {formatAccountingLabel("Output tokens", model.tokensOut, model.tokensOutProvenance)} ·{" "}
-                    {formatAccountingLabel("Cost", model.costUsd)}
+                    Aggregate only · {formatAccountingLabel("Output tokens", model.tokensOut, model.tokensOutProvenance)} · {formatCostLabel(model.costUsd)}
                   </Text>
                   <ModelSpeed model={model} />
                 </Stack>
@@ -122,7 +122,7 @@ function ModelSpeed({ model }: { readonly model: ModelStatRow }): ReactElement {
   return (
     <Text voice="gloss">
       {formatAccountingLabel("Time to first token", model.avgTtftMs)}: {formatMs(model.avgTtftMs)} avg, {formatMs(model.p90TtftMs)} p90 ·{" "}
-      {formatAccountingLabel("Throughput", throughput, throughputOrigin)}: {formatThroughput(model.throughputTps, throughputOrigin)}
+      {formatAccountingLabel("Throughput", throughput, throughputOrigin)}: {formatThroughput(throughput, throughputOrigin)}
     </Text>
   );
 }

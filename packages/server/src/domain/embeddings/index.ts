@@ -5,6 +5,7 @@
 
 // The entry root wires these; transport/tests reference them directly.
 export type { EmbeddingsContext } from "./context.ts";
+export type { EmbeddingAccountingContext } from "./contract/accounting.ts";
 export { EmbedFailedError, SpaceMismatchError } from "./contract/errors.ts";
 export type { EmbedMoveRefusal, GenerationReceipt } from "./contract/generation.ts";
 export type { EmbeddingsHandoffRestampContext, HandoffRestampPair, HandoffRestampStatements } from "./contract/handoff-restamp.ts";
@@ -26,4 +27,5 @@ export type {
 export { createEmbeddingsIndexer } from "./indexer/index.ts";
 export { createHandoffRestampStatements } from "./persistence/handoff-restamp.ts";
 export { createEmbeddingsService } from "./service.ts";
+export { createRecordUsage } from "./verbs/record-usage.ts";
 export { createEmbeddingsWorkloadContributions } from "./workload-contributions.ts";

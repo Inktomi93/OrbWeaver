@@ -15,6 +15,7 @@ import { SessionCache } from "../../../../packages/inference/src/backends/agent-
 import type { AgentSdkDeps, TurnStreamContext } from "../../../../packages/inference/src/backends/agent-sdk/types.ts";
 import { passthroughImageNormalizer } from "../../../../packages/inference/src/backends/kit/image-normalize.ts";
 import { resolvedScrubSet } from "../../../../packages/inference/src/backends/kit/sanitize.ts";
+import type { ChatResult } from "../../../../packages/inference/src/contract/chat.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { agentSdkSessionIdSchema } from "../../../../packages/inference/src/contract/identity.ts";
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
@@ -210,6 +211,32 @@ test("an is_error result the runtime attributes to an overloaded upstream stays 
 // session. `usage` is this turn's main loop, and its `input_tokens` is the uncached part only. The numbers are
 // a live resumed turn's (session 1d9ddf80): `modelUsage` carried two turns' reads, `usage` carried one.
 const RESUMED_TURN = { uncached: 487, cacheRead: 18_578, cacheWrite: 514, out: 40 } as const;
+
+test("a failed SDK terminal result preserves its aggregate before the error is returned", async () => {
+  const observed: ChatResult[] = [];
+  const context = {
+    ...ctx("claude-opus-5"),
+    onObservedResult: (result: ChatResult) => {
+      observed.push(result);
+      return Promise.resolve();
+    },
+  };
+  await expect(
+    consumeTurnStream(
+      apiErrorTurn({ model: "claude-opus-5", code: "invalid_request", status: 400, text: CLI_TOO_OLD }),
+      context,
+      createAgentSdkLog(quietLog, "claude-sub"),
+    ),
+  ).rejects.toMatchObject({ kind: "invalid", retryable: false });
+  expect(observed).toHaveLength(1);
+  expect(observed[0]).toMatchObject({ usage: { tokensIn: 0, tokensOut: 0, costUsd: null }, numTurns: 1, terminalReason: "api_error" });
+});
+
+test("SDK durable observation failure escapes unchanged instead of becoming a retryable provider failure", async () => {
+  const failure = new Error("fixture SDK observation append failed");
+  const context = { ...ctx("claude-sonnet-5"), onObservedResult: (): Promise<void> => Promise.reject(failure) };
+  await expect(consumeTurnStream(resumedTurn(), context, createAgentSdkLog(quietLog, "claude-sub"))).rejects.toBe(failure);
+});
 const SESSION_TOTALS = { inputTokens: 972, outputTokens: 61, cacheReadInputTokens: 37_156, cacheCreationInputTokens: 19_092 } as const;
 
 /** A hand-built SDK frame list as the stream the reducer consumes. */
@@ -260,7 +287,7 @@ test("a resumed turn records this turn's tokens, with tokensIn as the whole prom
   expect(turn.usage.cacheReadTokens).toBe(RESUMED_TURN.cacheRead);
   expect(turn.usage.cacheWriteTokens).toBe(RESUMED_TURN.cacheWrite);
   // The stats plane's cache-hit share for this subscription row.
-  expect(cacheHitRate(turn.usage.cacheReadTokens, turn.usage.cacheWriteTokens, turn.usage.tokensIn ?? 0)).toBeLessThanOrEqual(1);
+  expect(cacheHitRate(RESUMED_TURN.cacheRead, RESUMED_TURN.cacheWrite, turn.usage.tokensIn ?? 0)).toBeLessThanOrEqual(1);
 });
 
 // The live session's first turn cost 0.0049 and the runtime saved that total in the transcript; the resumed

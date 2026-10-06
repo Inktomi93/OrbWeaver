@@ -43,8 +43,10 @@
 // `embedding` is the native `vector32` F32_BLOB column (../custom-types). `chat_digest_speakers` is an
 // identity-keyed join (composite PK — there is no TypeID brand for it).
 
+import { TOKEN_PROVENANCES } from "@orb/contracts/chat";
 import type { ImageCaptionMeta } from "@orb/contracts/embeddings";
-import { IMAGE_LENSES, IMAGE_SKIP_REASONS, VECTOR_SCOPES } from "@orb/contracts/embeddings";
+import { EMBEDDING_INVOCATION_OUTCOMES, EMBEDDING_TASKS, IMAGE_LENSES, IMAGE_SKIP_REASONS, VECTOR_SCOPES } from "@orb/contracts/embeddings";
+import type { CostDetails, Modality, ProviderId, ResponseCache, TokenDetails, Wire } from "@orb/contracts/inference";
 import type {
   AssetId,
   CharacterEmbeddingId,
@@ -54,6 +56,8 @@ import type {
   ChatSegmentId,
   DocumentChunkId,
   DocumentId,
+  EmbeddingCallId,
+  EmbeddingInvocationId,
   EmbedGenerationId,
   ImageEmbeddingId,
   UserConnectionId,
@@ -90,14 +94,55 @@ import { users } from "./users.ts";
 // because `vector_distance_cos` throws on a cross-width pair.
 const DECLARED_VECTOR_DIM = 1024;
 
+// Execution canon is independent of vector geometry and successful storage. One row is one observed
+// physical batch; invocationId groups batches without duplicating their usage per vector. Owner deletion
+// matches the existing spend/rollup RESTRICT posture, while connection deletion only loses attribution.
+export const embeddingCalls = sqliteTable(
+  "embedding_calls",
+  {
+    id: text("id").$type<EmbeddingCallId>().primaryKey(),
+    invocationId: text("invocation_id").$type<EmbeddingInvocationId>().notNull(),
+    ownerId: text("owner_id")
+      .$type<UserId>()
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    connectionId: text("connection_id")
+      .$type<UserConnectionId>()
+      .references(() => userConnections.id, { onDelete: "set null" }),
+    provider: text("provider").$type<ProviderId>().notNull(),
+    model: text("model").notNull(),
+    servedModel: text("served_model"),
+    wire: text("wire").$type<Wire>().notNull(),
+    task: text("task", { enum: EMBEDDING_TASKS }).notNull(),
+    inputCount: integer("input_count").notNull(),
+    inputModalities: text("input_modalities", { mode: "json" }).$type<readonly Modality[]>().notNull(),
+    promptTokens: integer("prompt_tokens"),
+    totalTokens: integer("total_tokens"),
+    tokenDetails: text("token_details", { mode: "json" }).$type<TokenDetails>(),
+    responseCache: text("response_cache", { mode: "json" }).$type<ResponseCache>(),
+    costUsd: real("cost_usd"),
+    costProvenance: text("cost_provenance", { enum: TOKEN_PROVENANCES }).notNull(),
+    costDetails: text("cost_details", { mode: "json" }).$type<CostDetails>(),
+    outcome: text("outcome", { enum: EMBEDDING_INVOCATION_OUTCOMES }),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [
+    index("embedding_calls_owner_idx").on(t.ownerId, t.createdAt),
+    index("embedding_calls_connection_idx").on(t.connectionId),
+    index("embedding_calls_invocation_idx").on(t.invocationId),
+    check("embedding_calls_task_check", sql.raw(`task in (${checkList(EMBEDDING_TASKS)})`)),
+    check("embedding_calls_outcome_check", sql.raw(`outcome is null or outcome in (${checkList(EMBEDDING_INVOCATION_OUTCOMES)})`)),
+    check("embedding_calls_cost_provenance_check", sql.raw(`cost_provenance in (${checkList(TOKEN_PROVENANCES)})`)),
+  ],
+);
+
 // CHECK list derived from the canonical tuple (NOT re-spelled): `lens in ('image-raw', 'image-captioned')`.
 const IMAGE_LENS_CHECK_LIST = checkList(IMAGE_LENSES);
 
 // CHECK list derived from the canonical tuple (NOT re-spelled): `reason in ('below-dimension-floor')`.
 const IMAGE_SKIP_REASON_CHECK_LIST = checkList(IMAGE_SKIP_REASONS);
 
-const EMBED_GENERATION_TASKS = ["embed", "imageEmbed"] as const;
-const EMBED_GENERATION_TASK_CHECK_LIST = checkList(EMBED_GENERATION_TASKS);
+const EMBED_GENERATION_TASK_CHECK_LIST = checkList(EMBEDDING_TASKS);
 
 /** Immutable provenance for one actual encoder geometry. The id is a hash of the complete non-secret
  * resolved configuration, so equal model tags on different endpoints remain distinct generations. */
@@ -109,8 +154,8 @@ export const embedGenerations = sqliteTable(
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    task: text("task", { enum: EMBED_GENERATION_TASKS }).notNull(),
-    via: text("via", { enum: EMBED_GENERATION_TASKS }).notNull(),
+    task: text("task", { enum: EMBEDDING_TASKS }).notNull(),
+    via: text("via", { enum: EMBEDDING_TASKS }).notNull(),
     connectionId: text("connection_id")
       .$type<UserConnectionId>()
       .references(() => userConnections.id, { onDelete: "set null" }),
@@ -138,7 +183,7 @@ export const embedGenerationTargets = sqliteTable(
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    task: text("task", { enum: EMBED_GENERATION_TASKS }).notNull(),
+    task: text("task", { enum: EMBEDDING_TASKS }).notNull(),
     generationId: text("generation_id")
       .$type<EmbedGenerationId>()
       .notNull()
