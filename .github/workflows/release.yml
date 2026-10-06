@@ -99,6 +99,16 @@ jobs:
           echo "version.json: $stamp"
           echo "$stamp" | jq -e --arg version "$VERSION" '.version == $version and .channel == "stable"'
 
+      # A critical CVE with a fix available in the image's own packages stops the release before anything is
+      # pushed; the weekly Security scans job watches the published image for the rest.
+      - name: Refuse critical fixable vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}:${{ env.VERSION }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
@@ -123,6 +133,22 @@ jobs:
         with:
           subject-name: ${{ env.IMAGE }}
           subject-digest: ${{ steps.digest.outputs.digest }}
+          push-to-registry: true
+
+      # What is inside the image, attached to it the same way: `gh attestation verify --predicate-type
+      # https://spdx.dev/Document` reads it back.
+      - name: Write the image SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}:${{ env.VERSION }}
+          format: spdx-json
+          output: sbom.spdx.json
+      - name: Attest the SBOM
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          sbom-path: sbom.spdx.json
           push-to-registry: true
 
       # GHCR publishes a new package as private, and docker-compose.yaml pulls with no login. Pull through an

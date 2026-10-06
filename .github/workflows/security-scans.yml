@@ -1,0 +1,99 @@
+name: Security scans
+run-name: Security scans · ${{ github.event_name == 'schedule' && 'weekly' || github.event_name }}
+
+# The scans that look at what CodeQL and Dependabot cannot: the workflows themselves (zizmor), the operating
+# system packages and binaries inside the published image (Trivy), and the running app from the outside, the
+# way a browser sees it (ZAP baseline, passive: it reads responses, it does not attack). Findings land in the
+# Security tab; the ZAP report is an artifact on the run.
+on:
+  push:
+    branches: [main]
+    paths: [".github/**"]
+  schedule:
+    - cron: "11 8 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-scans-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  workflows:
+    name: workflows (zizmor)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+
+  image:
+    name: published image (Trivy)
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    env:
+      IMAGE: ghcr.io/inktomi93/orbweaver:latest
+    steps:
+      # Before the first stable release there is no :latest to scan.
+      - id: exists
+        run: |
+          if docker manifest inspect "$IMAGE" > /dev/null 2>&1; then echo "found=true" >> "$GITHUB_OUTPUT"; else echo "No $IMAGE yet; skipping."; fi
+      - if: steps.exists.outputs.found == 'true'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}
+          format: sarif
+          output: trivy.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+      - if: steps.exists.outputs.found == 'true'
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-image
+
+  app:
+    name: running app (ZAP baseline)
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+      # With no terminal, `pnpm start` asks nothing and starts on the defaults: just me, on 127.0.0.1:8788.
+      - name: Start Orbweaver
+        id: app
+        run: pnpm start
+        background: true
+        env:
+          OPEN_BROWSER: "off"
+      - name: Wait for it to answer
+        run: |
+          for _ in $(seq 1 120); do
+            curl -fsS http://127.0.0.1:8788/healthz > /dev/null 2>&1 && exit 0
+            sleep 5
+          done
+          echo "::error::Orbweaver never answered /healthz"
+          exit 1
+      - name: Baseline scan
+        uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25 # v0.15.0
+        with:
+          target: http://127.0.0.1:8788
+          allow_issue_writing: false
+          fail_action: false
+          artifact_name: zap-baseline-report
+      - name: Stop Orbweaver
+        cancel: app
