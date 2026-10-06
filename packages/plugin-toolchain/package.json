@@ -8,9 +8,7 @@
   "engines": {
     "node": ">=26.3.0"
   },
-  "files": [
-    "src"
-  ],
+  "files": ["src"],
   "scripts": {
     "build:package": "tsc -p tsconfig.json --noEmit false --declaration --outDir dist --rootDir src --rewriteRelativeImportExtensions --skipLibCheck false"
   },

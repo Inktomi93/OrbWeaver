@@ -4,12 +4,7 @@
   "private": true,
   "description": "Type declarations for Orbweaver plugin authoring runtimes",
   "license": "AGPL-3.0-only",
-  "files": [
-    "main.d.ts",
-    "ui.d.ts",
-    "frame.d.ts",
-    "shared.d.ts"
-  ],
+  "files": ["main.d.ts", "ui.d.ts", "frame.d.ts", "shared.d.ts"],
   "exports": {
     "./package.json": "./package.json",
     "./main": "./main.d.ts",
