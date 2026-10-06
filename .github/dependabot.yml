@@ -13,6 +13,10 @@ updates:
     groups:
       npm-minor-patch:
         update-types: [minor, patch]
+      # One PR for all security fixes instead of one per advisory.
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
     commit-message:
       prefix: chore
       include: scope
