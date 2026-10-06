@@ -1,4 +1,4 @@
-FROM node:26
+FROM node:26@sha256:39cff0f037088f0d8faf3e5a3ca055d653a15b66faaba8af3daf72f0102f375f
 
 ARG TZ
 ENV TZ="$TZ"
