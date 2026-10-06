@@ -12,6 +12,7 @@
 // can drop its own indicator (Base UI's `Radio.Indicator`) into the frame.
 
 import type { ComponentProps, ReactElement, ReactNode } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
 import { Text } from "#primitives/text";
 import { pickerCellVariants } from "./variants.ts";
@@ -25,8 +26,8 @@ export interface PickerCellProps extends ComponentProps<"span"> {
   readonly description?: string | undefined;
   /** A short trailing datum on the label row ("current", an age) — visual, never part of the name. */
   readonly meta?: ReactNode | undefined;
-  /** `landscape` (a wide picture), `square` (a thumbnail), `none` (no picture at all). */
-  readonly shape?: "landscape" | "square" | "none" | undefined;
+  /** The art aperture's aspect, derived from the shared cell recipe. */
+  readonly shape?: VariantProps<typeof pickerCellVariants>["shape"];
   /** DOM id for the label span — the host's `aria-labelledby` target (N1: the name is the visible text). */
   readonly labelId?: string | undefined;
   /** DOM id for the description — the host's `aria-describedby` target. */

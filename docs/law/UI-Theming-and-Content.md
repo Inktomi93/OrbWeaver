@@ -35,24 +35,13 @@ Every user-supplied rendering input is exactly one trust level, and that determi
 
 #### Chat-style picker artwork
 
-`packages/client/src/features/chat/components/appearance-chat-style-cards.tsx` displays representative renderer captures through `CrossfadeImage`.
-The pictures use owned illustration assets, not uploaded portraits or gallery images.
-They illustrate message anatomy in representative palettes, not the viewer's exact custom appearance settings.
-The picker keeps readable labels, descriptions and radio controls outside its decorative artwork.
+`packages/client/src/features/chat/components/appearance-chat-style-cards.tsx` displays decorative skeleton diagrams of message anatomy.
+The diagrams emphasize bubble, avatar, header and portrait placement from `MESSAGE_ROW_SKINS` without reproducing a transcript or custom appearance settings.
+Current-color ink follows the viewer's palette. Readable labels, descriptions and radio controls remain outside the artwork.
 
-`tests/client/features/chat/_chat-style-preview-stories.tsx` composes the production skin, bubble, avatar and markdown renderers without miniature geometry overrides.
-Its coupled capture cases compare rendered images with `packages/client/public/illustrations/chat-styles/` to detect stale artwork.
-
-Refresh the artwork after changing its renderer or owned example content:
-
-```bash
-pnpm test:ct tests/client/features/chat/components/appearance-message-style-section.ct.tsx --workers=1 --grep='renderer capture '
-```
-
-An outdated image fails comparison while preserving the new capture in the completed test artifacts.
-Inspect the captures, then copy their `owned-preview-capture` attachments into the matching style and palette paths.
-Rerun the affected capture cases after copying.
-Scale the raster image through its image primitive; keep live UI typography unscaled.
+Keep each diagram consistent with its renderer when message anatomy changes.
+`tests/client/features/chat/components/appearance-message-style-section.ct.tsx` checks schematic geometry, palette readability and picker behavior.
+Inspect the rendered picker in light and dark palettes at narrow and wide widths. Keep live UI typography unscaled.
 
 ### 12.2 Rich message content — the HTML story (two tiers; Tier B = sandboxed iframe, NOT Shadow DOM)
 

@@ -61,6 +61,27 @@ test("cells in ONE row are the same height even when one gloss wraps and another
   expect(new Set(boxes.map((box) => box.height)).size).toBe(1);
 });
 
+test("detailed standard pictures keep two equal columns and pixel-snapped 4:3 apertures", async ({ mount, page }) => {
+  await mount(<PickerStory width="640px" detail={true} shape="standard" />);
+  const group = page.getByRole("radiogroup", { name: "Sample picker" });
+  await expect(group.getByRole("radio")).toHaveCount(3);
+  await expect.poll(() => group.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length)).toBe(2);
+  await expect
+    .poll(() =>
+      group.locator('[data-slot="picker-cell-art"]').evaluateAll((apertures) => {
+        const boxes = apertures.map((aperture) => aperture.getBoundingClientRect());
+        return boxes.length === 3 && boxes.every((box) => box.width > 0 && box.width === boxes[0]?.width && box.height === Math.round((box.width * 3) / 4));
+      }),
+    )
+    .toBe(true);
+  const third = group.getByRole("radio", { name: "Three", exact: true });
+  const before = await third.boundingBox();
+  await third.focus();
+  await third.click();
+  await expect(third).toHaveAttribute("aria-checked", "true");
+  await expect.poll(() => third.boundingBox()).toEqual(before);
+});
+
 test("the cell's box is IDENTICAL at rest, on hover, on focus and when checked", async ({ mount, page }) => {
   await mount(<PickerStory />);
   const third = page.getByRole("radio", { name: "Three" });

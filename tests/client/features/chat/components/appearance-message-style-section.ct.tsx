@@ -12,7 +12,6 @@ import type { Page } from "@playwright/test";
 import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
 import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { ChatStyleRendererCaptureStory } from "../_chat-style-preview-stories.tsx";
 import { AppearanceMessageStyleNarrowStory, AppearanceMessageStyleSectionStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_message_style", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
@@ -89,126 +88,142 @@ test("every chat-display CELL carries its name, its gloss and its preview — an
   await expect(cards.getByRole("radio", { name: "Bubble", exact: true })).toHaveAttribute("aria-checked", "false");
 });
 
-test("all eight picker pictures load their renderer captures", async ({ mount, page }) => {
+test("all eight picker diagrams keep their labels outside decorative artwork", async ({ mount, page }) => {
   await stub(page);
   await mount(<AppearanceMessageStyleSectionStory />);
-  for (const style of ["bubble", "flat", "document", "echo", "whisper", "hush", "ripple", "tide"] as const) {
-    const picture = page.locator(`[data-chat-style="${style}"] [data-slot="crossfade-image-current"]:visible`);
-    await expect(picture).toBeVisible();
-    await expect(picture).toHaveAttribute("src", `/illustrations/chat-styles/${style}-dark.png`);
-    await expect.poll(() => picture.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
+  const cards = page.getByRole("radiogroup", { name: "Chat display" });
+  await expect(cards.locator('[data-slot="chat-style-diagram"]')).toHaveCount(CHAT_STYLE_COUNT);
+  await expect(cards.getByRole("img")).toHaveCount(0);
+  for (const diagram of await cards.locator('[data-slot="chat-style-diagram"]').all()) {
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute("aria-hidden", "true");
+    await expect(diagram).toHaveAttribute("focusable", "false");
   }
-  await expect(page.getByRole("radio", { name: "Flat", exact: true })).toHaveAccessibleDescription("Unboxed messages in a centered reading column.");
-  await expect(page.getByRole("radio", { name: "Whisper", exact: true })).toHaveAccessibleDescription("Character art forms a wide banner above the message.");
+  await expect(cards.getByRole("radio", { name: "Flat", exact: true })).toHaveAccessibleDescription("Unboxed messages in a centered reading column.");
+  await expect(cards.getByRole("radio", { name: "Whisper", exact: true })).toHaveAccessibleDescription("Character art forms a wide banner above the message.");
 });
 
-for (const style of ["flat", "hush"] as const) {
-  test(`light inherited ink ${style} stays paired with its capture background`, async ({ mount, page }, testInfo) => {
+for (const style of ["Flat", "Hush"] as const) {
+  test("light inherited ink " + style + " stays paired with its picker background", async ({ mount, page }, testInfo) => {
     await stub(page);
-    const component = await mount(<ChatStyleRendererCaptureStory style={style} light={true} />);
-    const prose = component.getByText("Wait by the old gate.", { exact: true });
-    await expect(prose).toBeVisible();
-    const receipt = await pixelContrast(page, prose);
-    await testInfo.attach("light-inherited-ink", { body: await component.screenshot(), contentType: "image/png" });
+    await mount(
+      <div data-theme="light">
+        <AppearanceMessageStyleSectionStory />
+      </div>,
+    );
+    const cell = page.getByRole("radio", { name: style, exact: true });
+    const label = cell.getByText(style, { exact: true });
+    await expect(label).toBeVisible();
+    await label.scrollIntoViewIfNeeded();
+    const receipt = await pixelContrast(page, label);
+    await testInfo.attach("light-inherited-ink", { body: await cell.screenshot(), contentType: "image/png" });
     expect(receipt.ratio, receipt.describe).toBeGreaterThanOrEqual(4.5);
   });
 }
 
 for (const light of [false, true]) {
   for (const style of ["bubble", "flat", "document", "echo", "whisper", "hush", "ripple", "tide"] as const) {
-    test(`renderer capture ${style} ${light ? "light" : "dark"} preserves role anatomy`, async ({ mount, page }, testInfo) => {
+    test("schematic " + style + " " + (light ? "light" : "dark") + " preserves role anatomy", async ({ mount, page }, testInfo) => {
       await stub(page);
-      const component = await mount(<ChatStyleRendererCaptureStory style={style} light={light} />);
-      await expect(component.locator('[data-slot="chat-style-preview-message"]')).toHaveCount(2);
-      await expect(component.getByText("Mira", { exact: true })).toBeVisible();
-      await expect(component.getByText("You", { exact: true })).toBeVisible();
+      await mount(
+        <div data-theme={light ? "light" : undefined}>
+          <AppearanceMessageStyleSectionStory />
+        </div>,
+      );
+      const diagram = page.locator('[data-chat-style="' + style + '"] [data-slot="chat-style-diagram"]');
+      await expect(diagram).toBeVisible();
+      await expect(diagram.locator('[data-slot="chat-style-diagram-message"]')).toHaveCount(2);
+      await expect(diagram).toHaveAttribute("data-header-placement", style === "tide" ? "outside" : "inside");
+      const filledBubbleCount = style === "tide" ? 4 : 2;
       await expect
         .poll(() =>
-          component
-            .locator('[data-slot="avatar-image"]')
-            .evaluateAll((elements) => elements.every((element) => element instanceof HTMLImageElement && element.complete && element.naturalWidth > 0)),
-        )
-        .toBe(true);
-      await expect
-        .poll(() =>
-          component.evaluate((root) => {
-            const band = root.querySelector('[data-slot="message-band"]');
-            const bandBox = band?.getBoundingClientRect();
-            const userBubble = root.querySelector('[data-role="user"] [data-slot="message-bubble"]');
-            const assistantBubble = root.querySelector('[data-role="assistant"] [data-slot="message-bubble"]');
+          diagram.evaluate((root: SVGSVGElement) => {
+            const view = root.viewBox.baseVal;
+            const boxFor = (selector: string): DOMRect | undefined => {
+              const element = root.querySelector(selector);
+              return element instanceof SVGGraphicsElement ? element.getBBox() : undefined;
+            };
+            const userPortrait = boxFor('[data-role="user"] [data-slot="chat-style-portrait"]');
+            const characterPortrait = boxFor('[data-role="assistant"] [data-slot="chat-style-portrait"]');
+            const userBubble = boxFor('[data-role="user"] [data-slot="chat-style-bubble"]');
+            const characterBubble = boxFor('[data-role="assistant"] [data-slot="chat-style-bubble"]');
+            const userProse = boxFor('[data-role="user"] [data-slot="chat-style-prose"]');
+            const characterProse = boxFor('[data-role="assistant"] [data-slot="chat-style-prose"]');
+            const banner = boxFor('[data-slot="chat-style-banner"]');
+            const characterHeader = boxFor('[data-role="assistant"] [data-slot="chat-style-header"]');
             return {
-              bands: root.querySelectorAll('[data-slot="message-band"]').length,
-              userBands: root.querySelectorAll('[data-role="user"] [data-slot="message-band"]').length,
-              ratio: bandBox === undefined ? 0 : Math.round((bandBox.width / bandBox.height) * 100),
-              bannerArt: band !== null && getComputedStyle(band).backgroundImage.includes("chat-style-banner.svg"),
-              echoInset:
-                userBubble !== null &&
-                assistantBubble !== null &&
-                Number.parseFloat(getComputedStyle(userBubble).paddingLeft) > 100 &&
-                Number.parseFloat(getComputedStyle(assistantBubble).paddingRight) > 100,
-              echoArt: userBubble !== null && getComputedStyle(userBubble).backgroundImage.includes("chat-style-portrait.svg"),
-              welded: root.querySelectorAll('[data-slot="message-bubble"] [data-slot="avatar-root"]').length,
-              outside: root.querySelectorAll('[data-slot="message-name-row"][data-placement="outside"]').length,
-              trains: root.querySelectorAll('[data-slot="message-bubble-train"]').length,
-              bubbles: root.querySelectorAll('[data-slot="message-bubble"]').length,
+              bubbles: root.querySelectorAll('[data-slot="chat-style-bubble"]').length,
+              portraits: root.querySelectorAll('[data-slot="chat-style-portrait"]').length,
+              avatars: root.querySelectorAll('[data-slot="chat-style-avatar"]').length,
+              banners: root.querySelectorAll('[data-slot="chat-style-banner"]').length,
+              stripes: root.querySelectorAll('[data-slot="chat-style-stripe"]').length,
+              trains: root.querySelectorAll('[data-slot="chat-style-train"]').length,
+              headers: root.querySelectorAll('[data-slot="chat-style-header"]').length,
+              headersOutside: [...root.querySelectorAll('[data-slot="chat-style-diagram-message"]')].every((message) => {
+                const header = message.querySelector('[data-slot="chat-style-header"]');
+                const bubble = message.querySelector('[data-slot="chat-style-bubble"]');
+                if (!(header instanceof SVGGraphicsElement && bubble instanceof SVGGraphicsElement)) {
+                  return false;
+                }
+                const headerBox = header.getBBox();
+                return headerBox.y + headerBox.height <= bubble.getBBox().y;
+              }),
+              prose: root.querySelectorAll('[data-slot="chat-style-prose"]').length,
+              contained: [...root.querySelectorAll("rect,circle,path")].every((element) => {
+                if (!(element instanceof SVGGraphicsElement)) {
+                  return false;
+                }
+                const box = element.getBBox();
+                const computed = getComputedStyle(element);
+                const stroke = computed.stroke === "none" ? 0 : Number.parseFloat(computed.strokeWidth) / 2;
+                return (
+                  box.width > 0 &&
+                  box.height > 0 &&
+                  box.x - stroke >= view.x &&
+                  box.y - stroke >= view.y &&
+                  box.x + box.width + stroke <= view.x + view.width &&
+                  box.y + box.height + stroke <= view.y + view.height
+                );
+              }),
+              portraitSides:
+                userPortrait !== undefined &&
+                characterPortrait !== undefined &&
+                userBubble !== undefined &&
+                characterBubble !== undefined &&
+                userPortrait.x === userBubble.x &&
+                characterPortrait.x > characterBubble.x + characterBubble.width / 2,
+              weldedPortraits:
+                userPortrait !== undefined &&
+                characterPortrait !== undefined &&
+                userBubble !== undefined &&
+                characterBubble !== undefined &&
+                userPortrait.x + userPortrait.width === userBubble.x + userBubble.width &&
+                characterPortrait.x === characterBubble.x &&
+                userPortrait.height === userBubble.height &&
+                characterPortrait.height === characterBubble.height,
+              bannerBeforeHeader: banner !== undefined && characterHeader !== undefined && characterHeader.y >= banner.y + banner.height,
+              centeredMeasure:
+                userProse !== undefined && characterProse !== undefined && userProse.x === characterProse.x && userProse.width === characterProse.width,
             };
           }),
         )
         .toEqual({
-          bands: style === "whisper" ? 1 : 0,
-          userBands: 0,
-          ratio: style === "whisper" ? 300 : 0,
-          bannerArt: style === "whisper",
-          echoInset: style === "echo",
-          echoArt: style === "echo",
-          welded: style === "ripple" ? 2 : 0,
-          outside: style === "tide" ? 2 : 0,
+          bubbles: ["flat", "document", "hush"].includes(style) ? 0 : filledBubbleCount,
+          portraits: style === "echo" || style === "ripple" ? 2 : 0,
+          avatars: style === "ripple" ? 0 : 2,
+          banners: style === "whisper" ? 1 : 0,
+          stripes: style === "hush" ? 2 : 0,
           trains: style === "tide" ? 2 : 0,
-          bubbles: style === "tide" ? 4 : 2,
+          headers: 2,
+          headersOutside: style === "tide",
+          prose: style === "tide" ? 4 : 2,
+          contained: true,
+          portraitSides: style === "echo",
+          weldedPortraits: style === "ripple",
+          bannerBeforeHeader: style === "whisper",
+          centeredMeasure: style === "document",
         });
-      const capture = testInfo.outputPath(`${style}-${light ? "light" : "dark"}.png`);
-      await page.evaluate(async () => await document.fonts.ready);
-      const image = await component.screenshot({ path: capture });
-      await testInfo.attach("owned-preview-capture", { path: capture, contentType: "image/png" });
-      const pixels = await page.evaluate(
-        async ({ captured, committed }) => {
-          const bytes = Uint8Array.from(atob(captured), (character) => character.charCodeAt(0));
-          const captureUrl = URL.createObjectURL(new Blob([bytes], { type: "image/png" }));
-          try {
-            const actual = new Image();
-            const expected = new Image();
-            actual.src = captureUrl;
-            expected.src = committed;
-            await Promise.all([actual.decode(), expected.decode()]);
-            const sameSize = actual.naturalWidth === expected.naturalWidth && actual.naturalHeight === expected.naturalHeight;
-            const canvas = document.createElement("canvas");
-            canvas.width = actual.naturalWidth;
-            canvas.height = actual.naturalHeight;
-            const context = canvas.getContext("2d");
-            if (context === null) {
-              throw new Error("renderer comparison needs a native canvas context");
-            }
-            context.drawImage(actual, 0, 0);
-            const actualPixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-            context.clearRect(0, 0, canvas.width, canvas.height);
-            context.drawImage(expected, 0, 0);
-            const expectedPixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-            let differing = 0;
-            for (let index = 0; index < actualPixels.length; index += 4) {
-              if (actualPixels.subarray(index, index + 4).some((channel, offset) => channel !== expectedPixels[index + offset])) {
-                differing += 1;
-              }
-            }
-            return { sameSize, differing };
-          } finally {
-            URL.revokeObjectURL(captureUrl);
-          }
-        },
-        { captured: image.toString("base64"), committed: `/illustrations/chat-styles/${style}-${light ? "light" : "dark"}.png` },
-      );
-      expect(pixels.sameSize, "the picker image retains its source renderer dimensions").toBe(true);
-      // Native captures differ at two antialiased Whisper corner pixels; anatomy and all other pixels stay pinned.
-      expect(pixels.differing, "refresh the owned picker image from the production renderer capture").toBeLessThanOrEqual(style === "whisper" ? 2 : 0);
+      await testInfo.attach("owned-schematic-" + style + "-" + (light ? "light" : "dark"), { body: await diagram.screenshot(), contentType: "image/png" });
     });
   }
 }
@@ -339,14 +354,44 @@ test("at a narrow width the horizontal field stacks — the control column can't
   expect(geo.fieldW).toBeGreaterThan(0); // positive control: a zero-width field would pass both reads
 });
 
-for (const width of [1440, 360]) {
-  test(`message-style miniatures render readable examples at ${width}`, async ({ mount, page }, testInfo) => {
-    await page.setViewportSize({ width, height: 900 });
-    await stub(page);
-    await mount(width === 360 ? <AppearanceMessageStyleNarrowStory /> : <AppearanceMessageStyleSectionStory />);
-    const cards = page.getByRole("radiogroup", { name: "Chat display" });
-    await expect(cards.getByRole("radio")).toHaveCount(CHAT_STYLE_COUNT);
-    await expect(cards.locator('[data-slot="crossfade-image-current"]:visible')).toHaveCount(CHAT_STYLE_COUNT);
-    await testInfo.attach(`chat-style-miniatures-${width}`, { body: await cards.screenshot(), contentType: "image/png" });
-  });
+for (const light of [false, true]) {
+  for (const width of [1440, 360]) {
+    test(`message-style diagrams fill their apertures at ${width} ${light ? "light" : "dark"}`, async ({ mount, page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await stub(page);
+      await mount(
+        <div data-theme={light ? "light" : undefined}>{width === 360 ? <AppearanceMessageStyleNarrowStory /> : <AppearanceMessageStyleSectionStory />}</div>,
+      );
+      const cards = page.getByRole("radiogroup", { name: "Chat display" });
+      await expect(cards.getByRole("radio")).toHaveCount(CHAT_STYLE_COUNT);
+      await expect(cards.locator('[data-slot="chat-style-diagram"]')).toHaveCount(CHAT_STYLE_COUNT);
+      const geometry = await cards.locator('[data-slot="picker-cell-art"]').evaluateAll((apertures) =>
+        apertures.map((aperture) => {
+          const box = aperture.getBoundingClientRect();
+          const picture = aperture.querySelector('[data-slot="chat-style-diagram"]')?.getBoundingClientRect();
+          return {
+            width: box.width,
+            height: box.height,
+            expectedHeight: Math.round((box.width * 3) / 4),
+            pictureWidth: picture?.width,
+            pictureHeight: picture?.height,
+          };
+        }),
+      );
+      await testInfo.attach("picker-geometry", { body: JSON.stringify(geometry), contentType: "application/json" });
+      await expect.poll(() => cards.evaluate((root) => getComputedStyle(root).gridTemplateColumns.split(" ").length)).toBe(width === 360 ? 1 : 2);
+      await expect
+        .poll(() =>
+          cards.locator('[data-slot="picker-cell-art"]').evaluateAll((apertures) =>
+            apertures.every((aperture) => {
+              const box = aperture.getBoundingClientRect();
+              const picture = aperture.querySelector('[data-slot="chat-style-diagram"]')?.getBoundingClientRect();
+              return box.width > 0 && box.height === Math.round((box.width * 3) / 4) && picture?.width === box.width && picture.height === box.height;
+            }),
+          ),
+        )
+        .toBe(true);
+      await testInfo.attach(`chat-style-diagrams-${width}-${light ? "light" : "dark"}`, { body: await cards.screenshot(), contentType: "image/png" });
+    });
+  }
 }

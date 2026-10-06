@@ -3,11 +3,13 @@ import { Radio } from "@base-ui/react/radio";
 import type { RadioGroupProps as BaseRadioGroupProps } from "@base-ui/react/radio-group";
 import { RadioGroup as BaseRadioGroup } from "@base-ui/react/radio-group";
 import type { ReactElement, ReactNode } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
 import { Check, Icon, Lock } from "#primitives/icons";
 // SIBLING-PRIMITIVE COMPOSITION BY RELATIVE PATH (§13.7 — `index.ts` never re-exports `./variants`, and a
 // sibling reaches a recipe through the file, never the public subpath). The picker item wears the SHARED
 // cell frame so the app has ONE picture-choice anatomy; only the ARIA composite lives here.
+import type { PickerCellProps } from "../picker-cell/picker-cell.tsx";
 import { PickerCell } from "../picker-cell/picker-cell.tsx";
 import { pickerCellVariants } from "../picker-cell/variants.ts";
 import { radioGroupVariants } from "./variants.ts";
@@ -45,7 +47,7 @@ export function RadioGroupItem({ className, children, ...rest }: RadioGroupItemP
   );
 }
 
-export interface RadioGroupPickerProps extends BaseRadioGroupProps {
+export interface RadioGroupPickerProps extends BaseRadioGroupProps, Pick<VariantProps<typeof pickerCellVariants>, "detail"> {
   className?: string;
 }
 
@@ -61,8 +63,8 @@ export interface RadioGroupPickerProps extends BaseRadioGroupProps {
  * `MediaGrid` with `gridcell` semantics and its own roving arrows (#981's scope correction) — one VISUAL
  * family does not mean one SEMANTIC model.
  */
-export function RadioGroupPicker({ className, ...rest }: RadioGroupPickerProps): ReactElement {
-  return <BaseRadioGroup className={cn(pickerCellVariants().grid(), className)} data-slot="radio-group-picker" {...rest} />;
+export function RadioGroupPicker({ className, detail, ...rest }: RadioGroupPickerProps): ReactElement {
+  return <BaseRadioGroup className={cn(pickerCellVariants({ detail }).grid(), className)} data-slot="radio-group-picker" {...rest} />;
 }
 
 export interface RadioGroupPickerItemProps extends Omit<RadioRootProps, "children"> {
@@ -75,7 +77,7 @@ export interface RadioGroupPickerItemProps extends Omit<RadioRootProps, "childre
   readonly description?: string | undefined;
   /** A short trailing datum on the label row ("current"). Visual only. */
   readonly meta?: ReactNode | undefined;
-  readonly shape?: "landscape" | "square" | "none" | undefined;
+  readonly shape?: PickerCellProps["shape"];
   /** DOM id prefix for the label/description targets — the caller owns the id space (one `useId` per group). */
   readonly idPrefix: string;
 }

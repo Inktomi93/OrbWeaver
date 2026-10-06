@@ -81,12 +81,18 @@ export const pickerCellVariants = tv({
     check: "absolute top-field right-field flex items-center justify-center rounded-full bg-primary p-tight text-primary-foreground",
   },
   variants: {
-    /** The art aperture's shape — the ONE thing a picker family gets to choose about the cell's geometry. */
+    /** Detailed pictures need two readable columns rather than three miniature ones. */
+    detail: { true: { grid: "@lg:grid-cols-2" } },
+    /** The art aperture's aspect, independent of how many detailed choices share a row. */
     shape: {
       /** A wide picture: a transcript, a shell diagram, a spacing stack, a palette.
        *  16:9 → height = width * 9/16 = width * 0.5625, pixel-snapped. */
       // @orb-waive css-length-tokens(1px): the `1px` is the CSS `round()` rounding precision, not a design token — a structural mechanic, not a size; ends when round() accepts a token
       landscape: { art: "h-[calc(round(nearest,100cqw*0.5625,1px))]" },
+      /** A 4:3 picture with room for detailed anatomy. */
+      // Snap the queried width first so cqw conversion cannot round an exact half-pixel height downward.
+      // @orb-waive css-length-tokens(1px): the CSS round() precision pixel-snaps the aperture, as in landscape
+      standard: { art: "h-[calc(round(nearest,round(nearest,100cqw,1px)*0.75,1px))]" },
       /** A square picture: a wallpaper thumbnail, an avatar shape.
        *  1:1 → height = width, pixel-snapped. */
       // @orb-waive css-length-tokens(1px): same structural pixel-snap precision as landscape above
@@ -95,5 +101,5 @@ export const pickerCellVariants = tv({
       none: { art: "hidden" },
     },
   },
-  defaultVariants: { shape: "landscape" },
+  defaultVariants: { shape: "landscape", detail: false },
 });

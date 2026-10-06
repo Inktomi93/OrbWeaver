@@ -2,6 +2,7 @@
 // deliberately a bare coloured box per option: this file tests the FRAME, and a real feature diagram would
 // make the geometry assertions depend on somebody else's drawing.
 
+import type { PickerCellProps } from "@orb/ui/picker-cell";
 import { PickerCell } from "@orb/ui/picker-cell";
 import { RadioGroupPicker, RadioGroupPickerItem } from "@orb/ui/radio-group";
 import type { ReactElement } from "react";
@@ -15,7 +16,17 @@ const OPTIONS = [
 
 /** The picker as a feature mounts it: a radiogroup of card cells, one checked. `width` picks the arm —
  *  480px WRAPS the three cells into 2 + 1 (the ragged-last-row subject), 640px keeps them on one row. */
-export function PickerStory({ onPick, width = "480px" }: { readonly onPick?: (value: string) => void; readonly width?: string }): ReactElement {
+export function PickerStory({
+  onPick,
+  width = "480px",
+  detail = false,
+  shape,
+}: {
+  readonly onPick?: (value: string) => void;
+  readonly width?: string;
+  readonly detail?: boolean;
+  readonly shape?: PickerCellProps["shape"];
+}): ReactElement {
   const [value, setValue] = useState<string>("one");
   return (
     // `containerType: inline-size` is the picker's own contract, not test scaffolding: its column steps
@@ -23,6 +34,7 @@ export function PickerStory({ onPick, width = "480px" }: { readonly onPick?: (va
     <div data-testid="picker-host" style={{ containerType: "inline-size", width }}>
       <RadioGroupPicker
         aria-label="Sample picker"
+        detail={detail}
         onValueChange={(next): void => {
           setValue(next as string);
           onPick?.(next as string);
@@ -36,6 +48,7 @@ export function PickerStory({ onPick, width = "480px" }: { readonly onPick?: (va
             {...("description" in option ? { description: option.description } : {})}
             idPrefix={`picker-${option.value}`}
             label={option.label}
+            shape={shape}
             value={option.value}
           />
         ))}
