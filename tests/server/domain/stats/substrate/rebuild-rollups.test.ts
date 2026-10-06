@@ -106,7 +106,7 @@ test("retained selected legs replace legacy totals, while swipe legs retain toke
     a,
   );
   const meta = buildChatMeta([], [], { characters: 1, chats: 1, forkedChats: 0 });
-  const rows = buildOwnerRows(ownerId, a, meta, now, [characterId]);
+  const rows = buildOwnerRows({ ownerId, ownedCharacterIds: [characterId] }, a, meta, now);
   expect(rows.ownerRow).toMatchObject({
     assistantTurns: 1,
     swipes: 1,
@@ -164,7 +164,7 @@ test("census retains silent seats and departed authorship but character rows nev
     { characters: 2, chats: 2, forkedChats: 1 },
   );
   ownerExtrema(a.owner, meta);
-  const rows = buildOwnerRows(ownerId, a, meta, now, [silent, departed]);
+  const rows = buildOwnerRows({ ownerId, ownedCharacterIds: [silent, departed] }, a, meta, now);
   expect(rows.charRows.map((row) => row.characterId)).toEqual([silent, departed].sort());
   expect(rows.charRows.find((row) => row.characterId === silent)).toMatchObject({
     chats: 2,

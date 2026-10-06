@@ -22,6 +22,7 @@ import type {
   ModelEntry,
   OwnerAccum,
   OwnerRollupRows,
+  OwnerRollupScope,
   SpendGrains,
   SwipeRow,
   TokenSampleAccum,
@@ -676,7 +677,7 @@ export function buildChatMeta(
 }
 
 /** Character rollups inherit ownership from characters, not from the room's retained accounting cohort. */
-export function buildOwnerRows(ownerId: UserId, a: Accums, meta: ChatMeta, now: number, ownedCharacterIds: readonly CharacterId[]): OwnerRollupRows {
+export function buildOwnerRows({ ownerId, ownedCharacterIds }: OwnerRollupScope, a: Accums, meta: ChatMeta, now: number): OwnerRollupRows {
   const ownedCharacters = new Set(ownedCharacterIds);
   return {
     ownerRow: buildOwnerRow(ownerId, a.owner, meta, now),

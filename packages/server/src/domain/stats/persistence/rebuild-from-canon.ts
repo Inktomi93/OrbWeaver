@@ -377,7 +377,7 @@ async function computeOwner(db: Db, ownerId: string, now: number): Promise<{ cha
 
   const oid = castId<UserId>(ownerId);
   const ownedCharacters = (await db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, oid))).map((row) => row.id);
-  const rows = buildOwnerRows(oid, a, meta, now, ownedCharacters);
+  const rows = buildOwnerRows({ ownerId: oid, ownedCharacterIds: ownedCharacters }, a, meta, now);
   await writeOwner(db, ownerId, rows);
   return {
     charCount: rows.charRows.length,

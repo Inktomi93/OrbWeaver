@@ -1,7 +1,7 @@
 import type { TokenProvenance } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
-import type { ModelId } from "@orb/kit/ids";
+import type { CharacterId, ModelId, UserId } from "@orb/kit/ids";
 
 export interface TokenSampleAccum {
   tokensInMeasuredSamples: number;
@@ -179,6 +179,11 @@ export interface ChatMeta {
   chatByChar: Map<string, CharChatMeta>;
   chatsCreatedByBucket: Map<number, number>;
   library: { characters: number; chats: number; forkedChats: number };
+}
+
+export interface OwnerRollupScope {
+  readonly ownerId: UserId;
+  readonly ownedCharacterIds: readonly CharacterId[];
 }
 
 export interface OwnerRollupRows {
