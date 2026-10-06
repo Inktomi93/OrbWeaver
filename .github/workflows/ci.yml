@@ -88,6 +88,12 @@ jobs:
             if: needs.changes.outputs.code == 'true'
             run: pnpm test:scoped tests/tooling/tool-guard.int.test.ts
       - if: failure()
+        name: Show what failed
+        # check:show names every failing stage of the run with its own extracted failure lines.
+        run: |
+          pnpm check:show --limit 20 2>&1 | tee check-show.txt
+          { echo '### What failed'; echo; echo '```text'; head -c 60000 check-show.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - if: failure()
         name: Say how to reproduce
         run: |
           {
@@ -265,6 +271,12 @@ jobs:
         with:
           path: .product-verified
           key: product-verified-${{ steps.sha.outputs.sha }}
+      - if: failure()
+        name: Show what failed
+        # check:show names every failing stage of the run with its own extracted failure lines.
+        run: |
+          pnpm check:show --limit 20 2>&1 | tee check-show.txt
+          { echo '### What failed'; echo; echo '```text'; head -c 60000 check-show.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - if: failure()
         name: Say how to reproduce
         run: |
