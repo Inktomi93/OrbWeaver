@@ -191,7 +191,7 @@ catalog:
   # import this exact package (pnpm-strict hides a packages/server dep from tests/).
   # ^8.9.0 (not 8.10.0 — published <24h ago, minimumReleaseAge-blocked); 8.9.0 is the latest mature 8.x
   # and the caret floats to 8.10.0 on the next install once it ages past the gate.
-  undici: ^8.9.0
+  undici: ^8.10.2
   # --- foundation observability (Phase 4a — Tier-2-Foundation.md › Runtime dependencies) ---
   # pino: the structured logger (pino.multistream([stdout, ringStream])).
   pino: ^10.3.1
