@@ -16,7 +16,7 @@ import { requireGenerationCapability, SAMPLING_RANGE_KNOBS } from "@orb/contract
 import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_MAX_OUTPUT_TOKENS, parsePromptConfig, QUALITY_EFFORT, QUALITY_SAMPLING } from "@orb/contracts/preset";
 import type { ResolvedChatKnobs } from "@orb/inference";
-import { postureOfTask, resolveChat } from "@orb/inference";
+import { postureOfTask, resolveCachePolicy, resolveChat } from "@orb/inference";
 import type { PresetContext } from "../context.ts";
 import { PresetNotFoundError } from "../contract/errors.ts";
 import type { ResolveEffectiveParams } from "../contract/params.ts";
@@ -247,7 +247,21 @@ export function createResolveEffective(ctx: PresetContext): Pick<PresetService, 
       }
     }
     stale.push(...staleCollections(intent, turn.sampling));
-    return { presetId: params.id, model, knobs, stale, qualityMapping: qualityMappingOf(intent.quality, capability) };
+    const cache = resolveCachePolicy({
+      context: resolved.cacheContext,
+      generation: capability,
+      preset: intent.responseCache,
+      requestedRoleHandling: intent.advanced?.roleHandling,
+    });
+    return {
+      presetId: params.id,
+      model,
+      knobs,
+      stale,
+      qualityMapping: qualityMappingOf(intent.quality, capability),
+      cache: cache.plan,
+      cacheWarnings: cache.warnings,
+    };
   }
   return { resolveEffective };
 }

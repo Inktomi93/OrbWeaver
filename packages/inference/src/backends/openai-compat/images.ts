@@ -150,6 +150,7 @@ export async function runOpenAiCompatGenerateImage(req: ImageGenerateRequest, de
     foldSameRole: false,
     replyImages: false,
     warnings,
+    responseCache: { enabled: false },
   };
   try {
     return arm === "images-api" ? await runImagesApi(req, deps, call, warnings) : await runChatModalities(req, deps, call, warnings);

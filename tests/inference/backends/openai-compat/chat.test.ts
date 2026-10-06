@@ -40,6 +40,192 @@ const SIGNATURE = "sig-anthropic-claude-v1";
 
 const APP = { name: "orbweaver-test", url: "http://localhost:0" };
 
+test.each(["credential", "header", "body"] as const)("OpenRouter source generation identity cannot expose a reflected %s secret", async (source) => {
+  const literals = { credential: "opaque-cache-credential", header: "opaque-cache-header", body: 'opaque-cache-body-"quoted"' };
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "openrouter",
+    model: "openai/gpt-6-sol",
+    capability: generationCapability(),
+    secret: fakeApiKeySecret(literals.credential),
+    transport: { headers: { "X-Custom-Secret": literals.header }, includeBody: { api_key: literals.body } },
+  });
+  const result = await runOpenAiCompatChatTurn(
+    orRequest({ connection, tools: undefined }),
+    turnDeps(
+      scriptedSseFetch([openAiTextStream("safe reply")], [], {
+        "x-openrouter-cache-status": "MISS",
+        "x-openrouter-cache-source-id": `gen:${literals[source]}:tail`,
+        "x-openrouter-cache-age": "3",
+        "x-openrouter-cache-ttl": "60",
+      }),
+    ),
+  );
+  expect(result.usage.responseCache).toEqual({ status: "miss", ageSeconds: 3, ttlSeconds: 60, sourceGenerationId: null });
+  expect(JSON.stringify(result)).not.toContain(literals[source]);
+  expect(result.reply).toBe("safe reply");
+});
+
+test("native legacy cache retention and chat affinity survive SDK conversion without overruling configured body", async () => {
+  const chatId = mintTypeId(ID_PREFIX.chat);
+  const { capability } = synthesizeCapability("generation", "openai", {
+    curated: curatedRows({ model: "gpt-5.5", providerId: castId<ProviderId>("openai"), wire: "openai-compat", api: "chat-completions" }),
+  });
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "openai",
+    model: "gpt-5.5",
+    capability,
+    promptCache: { ...SHIPPED_PROMPT_CACHE, enabled: false, retention: "24h" },
+  });
+  const req = orRequest({ connection, chatId, tools: undefined });
+  expect(await sentBody(req)).toMatchObject({ prompt_cache_retention: "24h", prompt_cache_key: chatId });
+  expect(await sentBody({ ...req, connection: { ...connection, extras: { prompt_cache_key: "configured-key" } } })).toHaveProperty(
+    "prompt_cache_key",
+    "configured-key",
+  );
+  const excluded = await sentBody({ ...req, connection: { ...connection, transport: { excludeBody: ["prompt_cache_key", "prompt_cache_retention"] } } });
+  expect(excluded).not.toHaveProperty("prompt_cache_key");
+  expect(excluded).not.toHaveProperty("prompt_cache_retention");
+  const inherited = await sentBody({ ...req, connection: { ...connection, promptCache: { ...SHIPPED_PROMPT_CACHE, enabled: false } } });
+  expect(inherited).not.toHaveProperty("prompt_cache_retention");
+  const configured = await sentBody({ ...req, connection: { ...connection, extras: { prompt_cache_retention: "in_memory" } } });
+  expect(configured).toHaveProperty("prompt_cache_retention", "in_memory");
+  for (const providerId of ["openrouter", "custom-openai"] as const) {
+    const model = providerId === "openrouter" ? "openai/gpt-5.5" : "gpt-5.5";
+    const unsupportedCapability = synthesizeCapability("generation", "openai", {
+      curated: curatedRows({ model, providerId: castId<ProviderId>(providerId), wire: "openai-compat", api: "chat-completions" }),
+    }).capability;
+    const unsupported = await sentBody({
+      ...req,
+      connection: fakeResolved({ ...connection, providerId, model, capability: unsupportedCapability, secret: fakeApiKeySecret("test-key") }),
+    });
+    expect(unsupported).not.toHaveProperty("prompt_cache_retention");
+    expect(unsupported).not.toHaveProperty("prompt_cache_key");
+  }
+});
+
+test("OpenRouter response replay is explicitly off unless the connection opts in", async () => {
+  const recorded: RecordedRequest[] = [];
+  await runOpenAiCompatChatTurn(orRequest(), turnDeps(scriptedSseFetch([openAiTextStream("A fresh answer.")], recorded)));
+  expect(recorded[0]?.headers?.["x-openrouter-cache"]).toBe("false");
+});
+
+test("OpenRouter preserves configured headers and intentional response-cache opt-in", async () => {
+  const recorded: RecordedRequest[] = [];
+  const req = orRequest();
+  const connection = {
+    ...req.connection,
+    transport: { headers: { "X-Custom-Header": "configured", "X-OpenRouter-Cache": "true", "X-OpenRouter-Cache-TTL": "60" } },
+  };
+  await runOpenAiCompatChatTurn({ ...req, connection }, turnDeps(scriptedSseFetch([openAiTextStream("An answer.")], recorded)));
+  expect(recorded[0]?.headers?.["x-custom-header"]).toBe("configured");
+  expect(recorded[0]?.headers?.["x-openrouter-cache"]).toBe("true");
+  expect(recorded[0]?.headers?.["x-openrouter-cache-ttl"]).toBe("60");
+});
+
+test("OpenRouter affinity defaults to this chat while explicit body, header and cache-key routing win", async () => {
+  const chatId = mintTypeId(ID_PREFIX.chat);
+  const req = orRequest({ chatId, onDelta: () => undefined });
+  expect((await sentBody(req))["session_id"]).toBe(chatId);
+  expect((await sentBody({ ...req, connection: { ...req.connection, extras: { session_id: "configured-session" } } }))["session_id"]).toBe(
+    "configured-session",
+  );
+  for (const connection of [
+    { ...req.connection, transport: { headers: { "X-Session-ID": "configured-header" } } },
+    { ...req.connection, extras: { prompt_cache_key: "configured-cache-key" } },
+  ]) {
+    expect(await sentBody({ ...req, connection })).not.toHaveProperty("session_id");
+  }
+  expect(await sentBody(orRequest())).not.toHaveProperty("session_id");
+});
+
+test("OpenRouter typed replay controls override configured headers and fresh bypass does not clear", async () => {
+  const req = orRequest();
+  const connection = {
+    ...req.connection,
+    transport: { headers: { "X-OpenRouter-Cache": "true", "X-OpenRouter-Cache-TTL": "60", "X-Custom": "kept" } },
+  };
+  const recorded: RecordedRequest[] = [];
+  const deps = turnDeps(
+    scriptedSseFetch(
+      Array.from({ length: 3 }, () => openAiTextStream("An answer.")),
+      recorded,
+    ),
+  );
+  await runOpenAiCompatChatTurn({ ...req, connection, params: { responseCache: { enabled: false } } }, deps);
+  await runOpenAiCompatChatTurn(
+    { ...req, connection, params: { responseCache: { enabled: false, ttlSeconds: 120 } }, responseCache: { enabled: true, ttlSeconds: 300, refresh: true } },
+    deps,
+  );
+  await runOpenAiCompatChatTurn({ ...req, connection, params: { responseCache: { enabled: true } }, responseCache: { enabled: false } }, deps);
+  expect(recorded[0]?.headers).toMatchObject({ "x-openrouter-cache": "false", "x-openrouter-cache-ttl": "60", "x-custom": "kept" });
+  expect(recorded[1]?.headers).toMatchObject({ "x-openrouter-cache": "true", "x-openrouter-cache-ttl": "300", "x-openrouter-cache-clear": "true" });
+  expect(recorded[2]?.headers?.["x-openrouter-cache"]).toBe("false");
+  expect(recorded[2]?.headers).not.toHaveProperty("x-openrouter-cache-clear");
+});
+
+test("OpenRouter response HIT retains nonempty replay, fresh generation identity and measured free cost", async () => {
+  const events = openAiTextStream("Replayed answer.").map((event) => ({
+    ...event,
+    data: { ...event.data, ...(event.data["usage"] === undefined ? {} : { usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } }) },
+  }));
+  const result = await runOpenAiCompatChatTurn(
+    orRequest(),
+    turnDeps(
+      scriptedSseFetch([events], [], {
+        "X-OpenRouter-Cache-Status": "HIT",
+        "X-OpenRouter-Cache-Age": "12",
+        "X-OpenRouter-Cache-TTL": "288",
+        "X-OpenRouter-Cache-Source-Id": "gen-original",
+      }),
+    ),
+  );
+  expect(result.reply).toBe("Replayed answer.");
+  expect(result.generationId).toBe("gen-leg2");
+  expect(result.usage.responseCache).toEqual({ status: "hit", ageSeconds: 12, ttlSeconds: 288, sourceGenerationId: "gen-original" });
+  expect(result.usage).toMatchObject({ costUsd: 0, costProvenance: "measured", costDetails: { totalUsd: 0 } });
+  expect(result.usage).toMatchObject({ tokensIn: 0, tokensOut: 0 });
+});
+
+test("native and OpenRouter OpenAI explicit prefix controls survive the installed adapters", async () => {
+  for (const providerId of ["openai", "openrouter"] as const) {
+    const connection = fakeResolved({
+      task: "chat",
+      providerId,
+      model: providerId === "openai" ? "gpt-5.6-sol" : "openai/gpt-5.6-sol",
+      capability: generationCapability({
+        turns: {
+          assistantPrefill: false,
+          midConversationSystem: true,
+          historySystemRows: true,
+          roleHandlingFloor: "none",
+          explicitPromptCache: true,
+          promptCacheFormat: "openai-breakpoint",
+          cacheMinTokens: 1,
+          cacheRetentionSeconds: 1800,
+          providerImplicitPromptCache: true,
+          disablesImplicitPromptCache: true,
+        },
+      }),
+      secret: fakeApiKeySecret("fixture-key"),
+      promptCache: { ...SHIPPED_PROMPT_CACHE, disableImplicit: true },
+    });
+    const req = orRequest({ connection, tools: undefined, systemPrompt: { static: "Stable prefix.", dynamic: "Dynamic tail." } });
+    const explicit = await sentBody(req);
+    expect(explicit["prompt_cache_options"], providerId).toEqual({ mode: "explicit", ttl: "30m" });
+    expect(explicit["messages"], providerId).toMatchObject([
+      { role: "system", content: [{ type: "text", text: "Stable prefix.", prompt_cache_breakpoint: { mode: "explicit" } }] },
+      { role: "system", content: providerId === "openai" ? "Dynamic tail." : [{ type: "text", text: "Dynamic tail." }] },
+      { role: "user", content: "What is the weather in Paris?" },
+    ]);
+    expect(JSON.stringify(explicit)).not.toContain("cache_control");
+    const off = await sentBody({ ...req, connection: { ...connection, promptCache: { ...connection.promptCache, enabled: false, disableImplicit: true } } });
+    expect(off["prompt_cache_options"]).toEqual({ mode: "explicit", ttl: "30m" });
+    expect(JSON.stringify(off)).not.toContain("prompt_cache_breakpoint");
+  }
+});
+
 function silentLog(): Parameters<typeof runOpenAiCompatChatTurn>[1]["log"] {
   const noop = (): void => undefined;
   return { debug: noop, info: noop, warn: noop, error: noop };
@@ -1100,6 +1286,7 @@ function orCacheTurn(promptCache: PromptCacheSettings, cacheBreakpointDepth = 1)
         roleHandlingFloor: "strict",
         explicitPromptCache: true,
         cacheMinTokens: 1,
+        requestAutomaticPromptCache: true,
       },
     }),
     secret: fakeApiKeySecret("sk-or-not-a-real-key"),
@@ -1120,6 +1307,13 @@ function orCacheTurn(promptCache: PromptCacheSettings, cacheBreakpointDepth = 1)
     ],
   });
 }
+
+test("OpenRouter Anthropic automatic caching carries one root directive and preserves manual routing law", async () => {
+  const body = await sentBody(orCacheTurn({ ...SHIPPED_PROMPT_CACHE, requestAutomatic: true, ttl: "1h" }));
+  expect(body["cache_control"]).toEqual({ type: "ephemeral", ttl: "1h" });
+  expect(orMarkers(body)).toEqual([]);
+  expect(body["provider"]).toEqual({ order: ["Anthropic"], allow_fallbacks: false });
+});
 
 for (const ttl of ["5m", "1h"] as const) {
   test(`OR prompt cache ttl ${ttl}: the system part and the history pair all carry it`, async () => {

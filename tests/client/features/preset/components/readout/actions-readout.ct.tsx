@@ -12,6 +12,7 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { makeCachePolicy } from "../../../../../support/factories/resolved-connection.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../../support/node/route-trpc.ts";
 import {
@@ -75,7 +76,15 @@ function readoutRoutes(): TrpcRoutes<
     "preset.list": () => [PRESET_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "connection.resolveChatCapability": () => trpcError({ message: "no chat connection configured" }),
-    "preset.resolveEffective": () => ({ presetId: PRESET, model: "qwen3-32b", knobs: {}, stale: [], qualityMapping: null }),
+    "preset.resolveEffective": () => ({
+      presetId: PRESET,
+      model: "qwen3-32b",
+      knobs: {},
+      stale: [],
+      qualityMapping: null,
+      cache: makeCachePolicy(),
+      cacheWarnings: [],
+    }),
     // #649 — the CONTEXT panel's backward-BINDINGS read (`preset.listUsage`). Not this file's subject, but
     // every readout mount fires it, and unfed it rode `routeTrpc`'s null so the usage/gm-room resolve path
     // ran INERT here. The honest default for a preset nobody has picked and no room routes its GM voice to;

@@ -791,7 +791,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     emitChatEventLive,
     // preset's ONE cross-feature op (`resolveEffective` projects the funnel against the caller's own chat
     // model) — the SAME verb the client's params panel already reads, so the two can't disagree.
-    resolveChatCapability: (args) => connection.resolveChatCapability(args),
+    resolveChatCapability: (args) => connection.resolveChatCacheContext(args),
     getContributions: getWorkloadContributions,
     isMemoryEnabled: (ownerId) => isMemoryEnabled(ownerId),
   });

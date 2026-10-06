@@ -29,7 +29,13 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import { MIROSTAT_SKIPPED_GLOSS } from "../../../../../../packages/client/src/features/preset/lib/effective-knobs.ts";
-import { makeCapability, makeGenerationCapability, makeResolvedView, TEST_CONNECTION_ID } from "../../../../../support/factories/resolved-connection.ts";
+import {
+  makeCachePolicy,
+  makeCapability,
+  makeGenerationCapability,
+  makeResolvedView,
+  TEST_CONNECTION_ID,
+} from "../../../../../support/factories/resolved-connection.ts";
 import type { TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../../support/node/route-trpc.ts";
 import {
@@ -298,7 +304,15 @@ function failingResolve(): ReturnType<typeof trpcError> {
 }
 
 function settledResolve(): TrpcWireOutput<"preset.resolveEffective"> {
-  return { presetId: PRESET, model: "qwen3-32b", knobs: { maxOutputTokens: { value: 2048, provenance: "floor" } }, stale: [], qualityMapping: null };
+  return {
+    presetId: PRESET,
+    model: "qwen3-32b",
+    knobs: { maxOutputTokens: { value: 2048, provenance: "floor" } },
+    stale: [],
+    qualityMapping: null,
+    cache: makeCachePolicy(),
+    cacheWarnings: [],
+  };
 }
 
 /** A settled resolve carrying a STALE knob — the one arm that renders the "…this model ignores…" sentence
@@ -310,6 +324,8 @@ function staleResolve(): TrpcWireOutput<"preset.resolveEffective"> {
     knobs: { maxOutputTokens: { value: 2048, provenance: "floor" } },
     stale: [{ knob: "topK", value: 40 }],
     qualityMapping: null,
+    cache: makeCachePolicy(),
+    cacheWarnings: [],
   };
 }
 

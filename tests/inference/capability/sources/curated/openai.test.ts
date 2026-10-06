@@ -106,6 +106,75 @@ test("native GPT-6 tool restrictions refuse before SDK fetch; none still reaches
   expect(recorded[0]?.body).toMatchObject({ reasoning_effort: "low" });
 });
 
+test("documented earlier OpenAI chat models state implicit caching without modern controls or guessed thresholds", () => {
+  for (const id of [
+    "gpt-4o",
+    "gpt-4o-mini",
+    "gpt-4.1",
+    "gpt-4.1-mini",
+    "gpt-4.1-nano",
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano",
+    "gpt-5.1",
+    "gpt-5.1-chat-latest",
+    "gpt-5.2",
+    "gpt-5.4",
+    "gpt-5.5",
+    "o1",
+    "o3",
+    "o3-mini",
+    "o4-mini",
+  ]) {
+    for (const model of [id, `openai/${id}`]) {
+      expect(generation(model).turns, model).toMatchObject({
+        providerImplicitPromptCache: true,
+        explicitPromptCache: false,
+        disablesImplicitPromptCache: false,
+      });
+      expect(generation(model).turns?.promptCacheFormat, model).toBeUndefined();
+      expect(generation(model).turns?.cacheMinTokens, model).toBeUndefined();
+      expect(generation(model).turns?.cacheRetentionSeconds, model).toBeUndefined();
+    }
+  }
+  for (const id of ["gpt-5-codex", "gpt-5.1-codex", "gpt-5.1-codex-max", "gpt-5.1-codex-mini", "gpt-5.5-pro"]) {
+    expect(generation(id).turns?.providerImplicitPromptCache, id).toBeUndefined();
+    expect(generation(id).turns?.promptCacheKey, id).toBeUndefined();
+    expect(generation(id).turns?.promptCacheRetentions, id).toBeUndefined();
+    expect(generation(`openai/${id}`).turns, id).toMatchObject({
+      providerImplicitPromptCache: true,
+      explicitPromptCache: false,
+      disablesImplicitPromptCache: false,
+    });
+  }
+  for (const model of ["gpt-4o-future", "gpt-5.5-2099-01-01", "openai/o3-high", "gpt-6-sol-2099-01-01", "openai/gpt-oss-120b"]) {
+    expect(generation(model).turns?.providerImplicitPromptCache, model).toBeUndefined();
+  }
+  const custom = synthesizeCapability("generation", "openai", {
+    curated: curatedRows({ model: "gpt-5.5", providerId: castId<ProviderId>("custom-openai"), wire: "openai-compat", api: "chat-completions" }),
+  });
+  expect(custom.capability.kind === "generation" ? custom.capability.generation.turns?.providerImplicitPromptCache : null).toBeUndefined();
+});
+
+test("explicit OpenAI caching facts apply only to documented native and OpenRouter routes", () => {
+  for (const model of ["gpt-5.6-sol", "gpt-6-sol", "gpt-6.1-sol", "openai/gpt-5.6-sol"]) {
+    expect(generation(model).turns, model).toMatchObject({
+      promptCacheFormat: "openai-breakpoint",
+      explicitPromptCache: true,
+      cacheMinTokens: 1024,
+      cacheRetentionSeconds: 1800,
+      promptCacheDefaultEnabled: false,
+    });
+  }
+  for (const model of ["gpt-5.5", "gpt-4.1", "openai/gpt-oss-120b"]) {
+    expect(generation(model).turns?.promptCacheFormat, model).toBeUndefined();
+  }
+  const local = synthesizeCapability("generation", "openai", {
+    curated: curatedRows({ model: "gpt-5.6-sol", providerId: castId<ProviderId>("custom-openai"), wire: "openai-compat", api: "chat-completions" }),
+  });
+  expect(local.capability.kind === "generation" ? local.capability.generation.turns?.promptCacheFormat : null).toBeUndefined();
+});
+
 test("o3-mini and o4-mini clamp disabled reasoning before a request is built", () => {
   for (const model of ["o3-mini", "o4-mini-2025-04-16", "openai/o4-mini"]) {
     const capability = generation(model);

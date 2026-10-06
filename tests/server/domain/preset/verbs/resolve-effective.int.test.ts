@@ -10,14 +10,14 @@
 import type { CapabilityTarget, GenerationCapability, Wire } from "@orb/contracts/inference";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, QUALITY_SAMPLING } from "@orb/contracts/preset";
-import { resolveChat } from "@orb/inference";
+import { resolveCachePolicy, resolveChat } from "@orb/inference";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { EffectivePreset } from "@orb/server/domain/preset";
 import { createPresetService, PresetNotFoundError } from "@orb/server/domain/preset";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { makeCapability, makeGenerationCapability, makeResolvedView } from "../../../../support/factories/index.ts";
+import { makeCapability, makeGenerationCapability, makeResolvedCacheView, makeResolvedView } from "../../../../support/factories/index.ts";
 import { principal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, seedPreset, seedUser } from "../_support.ts";
@@ -45,7 +45,7 @@ async function resolveWith(
   on: { readonly wire?: Wire; readonly target?: CapabilityTarget } = {},
 ): Promise<EffectivePreset> {
   const db = await freshDb();
-  const view = makeResolvedView({ capability: makeCapability(capability), ...(on.wire !== undefined ? { wire: on.wire } : {}) });
+  const view = makeResolvedCacheView({ capability: makeCapability(capability), ...(on.wire !== undefined ? { wire: on.wire } : {}) });
   const svc = createPresetService(makeHarness(db, { capability: view }).ctx);
   const owner = await seedUser(db);
   await seedPreset(db, { id: PRESET_ID, ownerId: owner, config: configWith(params) });
@@ -53,6 +53,38 @@ async function resolveWith(
 }
 
 describe("resolveEffective — parity with the turn pipeline's own funnel", () => {
+  test("inherited header opt-in, typed opt-out and unsupported prompt warnings use the execution resolver", async () => {
+    const capability = makeGenerationCapability();
+    const view = makeResolvedCacheView({ capability: makeCapability(capability) });
+    view.cacheContext.responseReplaySupported = true;
+    view.cacheContext.configuredReplay = { enabled: true, ttlSeconds: 60, refresh: true };
+    const cases: readonly UserIntent[] = [{}, { responseCache: { enabled: false } }];
+    for (const params of cases) {
+      const db = await freshDb();
+      const owner = await seedUser(db);
+      await seedPreset(db, { id: PRESET_ID, ownerId: owner, config: configWith(params) });
+      const effective = await createPresetService(makeHarness(db, { capability: view }).ctx).resolveEffective({ principal: principal(owner), id: PRESET_ID });
+      const actual = resolveCachePolicy({ context: view.cacheContext, generation: capability, preset: params.responseCache });
+      expect(effective.cache).toEqual(actual.plan);
+      expect(effective.cacheWarnings).toEqual(actual.warnings);
+      expect(effective.cache.replay.enabled).toBe(params.responseCache === undefined);
+      expect(effective.cache.replay.provenance).toBe(params.responseCache === undefined ? "connection" : "preset");
+      expect(effective.cache.prefix.action).toBe("none");
+      expect(effective.cacheWarnings).not.toHaveLength(0);
+    }
+  });
+  test("an inherited replay policy is projected separately from sampling without claiming a cache hit", async () => {
+    const effective = await resolveWith({}, makeGenerationCapability());
+    expect(effective).toHaveProperty("cache.replay", {
+      supported: false,
+      enabled: false,
+      ttlSeconds: null,
+      refresh: false,
+      provenance: "default",
+    });
+    expect(effective).toHaveProperty("cacheWarnings");
+    expect(effective).not.toHaveProperty("responseCache");
+  });
   test("every projected value equals what `resolveChat` computes for the same inputs", async () => {
     const capability = makeGenerationCapability({
       ...SAMPLING_CAPABLE,

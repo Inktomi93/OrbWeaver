@@ -10,8 +10,12 @@ import { z } from "zod";
 export const PROMPT_CACHE_TTLS = ["5m", "1h"] as const;
 export type PromptCacheTtl = (typeof PROMPT_CACHE_TTLS)[number];
 
-/** A cache WRITE's price as a multiple of base input tokens, per TTL. A read is 0.1x at either TTL. */
-export const PROMPT_CACHE_WRITE_MULTIPLIER: Readonly<Record<PromptCacheTtl, number>> = { "5m": 1.25, "1h": 2 };
+/** Earlier OpenAI retention controls are distinct from marker TTLs and modern request options. */
+export const PROMPT_CACHE_RETENTIONS = ["in_memory", "24h"] as const;
+export type PromptCacheRetention = (typeof PROMPT_CACHE_RETENTIONS)[number];
+
+export const PROMPT_CACHE_FORMATS = ["cache-control", "openai-breakpoint"] as const;
+export type PromptCacheFormat = (typeof PROMPT_CACHE_FORMATS)[number];
 
 /** The shallowest user depth: depth 0 is the volatile tail, which SHAPE never hands the placer. */
 export const PROMPT_CACHE_DEPTH_MIN = 1;
@@ -20,6 +24,12 @@ export const PROMPT_CACHE_DEPTH_MIN = 1;
 export const PROMPT_CACHE_DEPTH_CEIL = 20;
 
 export const promptCacheSettingsSchema = z.object({
+  /** Unset leaves the provider's model/organization retention default unchanged. */
+  retention: z.enum(PROMPT_CACHE_RETENTIONS).optional(),
+  /** Request-wide automatic caching is an opt-in control only on routes that support it. */
+  requestAutomatic: z.boolean().optional(),
+  /** Disable provider-managed implicit breakpoints only where the route has a documented control. */
+  disableImplicit: z.boolean().optional(),
   /** Off ⇒ no `cache_control` anywhere in the request: tools, system block, history. */
   enabled: z.boolean(),
   /** Mark the static system block. Off leaves the history breakpoints (and the tool list) in place. */

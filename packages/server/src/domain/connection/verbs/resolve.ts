@@ -5,6 +5,7 @@
 
 import type { CapabilityTarget, ResolvedConnectionView, SendAvailability, TokenizeResult } from "@orb/contracts/inference";
 import type { ResolveOutcome } from "@orb/inference";
+import { cachePolicyContextOf, resolveCachePolicy, responseReplaySupportedFor } from "@orb/inference";
 import { ConnectionNotFoundError } from "../contract/errors.ts";
 import type { ResolveChatCapabilityParams, ResolveTaskParams, TokenizeWordsParams } from "../contract/params.ts";
 import type { ConnectionCapabilityView } from "../contract/results.ts";
@@ -52,6 +53,13 @@ export function createResolveChatCapability(ctx: ConnectionContext): ConnectionS
   return async (params: ResolveChatCapabilityParams): Promise<ResolvedConnectionView> => toResolvedView(await resolveChatTarget(ctx, params));
 }
 
+export function createResolveChatCacheContext(ctx: ConnectionContext): ConnectionService["resolveChatCacheContext"] {
+  return async (params) => {
+    const resolved = await resolveChatTarget(ctx, params);
+    return { ...toResolvedView(resolved), cacheContext: cachePolicyContextOf(resolved, responseReplaySupportedFor(resolved)) };
+  };
+}
+
 /** What each word tokenizes to on the targeted connection's server (the logit-bias editor's live display),
  *  through the runtime's cache. Only the token ids and pieces cross; never the credential. */
 export function createTokenizeWords(ctx: ConnectionContext): ConnectionService["tokenizeWords"] {
@@ -73,8 +81,15 @@ export function createCapabilities(ctx: ConnectionContext): ConnectionService["c
       throw new ConnectionNotFoundError(params.connectionId);
     }
     const read = await ctx.runtime.capabilities.for({ connectionId: params.connectionId, principal: params.principal });
+    const cache = resolveCachePolicy({
+      context: read.cacheContext,
+      ...(read.capability.kind === "generation" ? { generation: read.capability.generation } : {}),
+    });
     return {
+      cache: cache.plan,
+      cacheWarnings: cache.warnings,
       capability: read.capability,
+      cacheContext: read.cacheContext,
       baseline: read.baseline,
       warnings: read.warnings,
       tasks: read.tasks,

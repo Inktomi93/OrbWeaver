@@ -32,7 +32,7 @@ import type { Locator, Page } from "@playwright/test";
 import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "../../../../support/browser/autosave-status-transcript.ts";
 import { pixelExtremaContrast, pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { readPhantomScrollers } from "../../../../support/browser/scroll-containing-block.ts";
-import { makeCapability, makeGenerationCapability, makeResolvedView } from "../../../../support/factories/resolved-connection.ts";
+import { makeCachePolicy, makeCapability, makeGenerationCapability, makeResolvedView } from "../../../../support/factories/resolved-connection.ts";
 import { assertTokenRoundtrip } from "../../../../support/node/assert-token-roundtrip.ts";
 import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
 import type { TrpcFixtureOutput, TrpcRecorder, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
@@ -197,6 +197,8 @@ const CAPABILITY = makeResolvedView({
 // The funnel's own projection for this preset (`preset.resolveEffective`, §4.3) — `maxOutputTokens` resolves
 // to the engine FLOOR (nothing explicit, nothing dialed), which is exactly what the ghost must show.
 const EFFECTIVE_FLOOR: TrpcWireOutput<"preset.resolveEffective"> = {
+  cache: makeCachePolicy(),
+  cacheWarnings: [],
   presetId: PRESET_A,
   model: "qwen3-32b",
   knobs: { maxOutputTokens: { value: 2048, provenance: "floor" } },

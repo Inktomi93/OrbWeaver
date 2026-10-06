@@ -7,6 +7,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type {
   AgentSdkModel,
+  CachePolicyContext,
   Capability,
   EmbeddingCapability,
   GenerationCapability,
@@ -26,6 +27,7 @@ import type { UserIntent } from "@orb/contracts/preset";
 import type { UserId } from "@orb/kit/ids";
 import { z } from "zod";
 import { fetchAnthropicModels } from "./backends/anthropic-messages/index.ts";
+import { cachePolicyContextOf, responseReplaySupportedFor } from "./backends/kit/response-cache.ts";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "./backends/kit/sanitize.ts";
 import type { LocalLightBackend } from "./backends/local-light/index.ts";
 import { tokenTargetOf } from "./backends/openai-compat/tokens.ts";
@@ -72,8 +74,9 @@ import { createRoleClientsFor } from "./roles/role-clients.ts";
 export { resolveClaudeExecutable } from "./backends/agent-sdk/executable.ts";
 export type { AgentToolResult, AgentToolSpec, SessionEntryWriter } from "./backends/agent-sdk/index.ts";
 export { createAgentToolServer } from "./backends/agent-sdk/index.ts";
-export { cacheDepthCovering, cachesByAnthropicMarkers, rowIndexAtCacheDepth } from "./backends/kit/cache-control.ts";
+export { cacheDepthCovering, preservesCacheBlockEnds, rowIndexAtCacheDepth } from "./backends/kit/cache-control.ts";
 export { providerErrorFromHttp } from "./backends/kit/error-classify.ts";
+export { cachePolicyContextOf, responseReplaySupportedFor } from "./backends/kit/response-cache.ts";
 export { resolvedScrubSet } from "./backends/kit/sanitize.ts";
 export type {
   LocalLightBackend,
@@ -106,6 +109,7 @@ export type {
   SnapshotStore,
   SpanFn,
 } from "./deps.ts";
+export { resolveCachePolicy } from "./funnel/resolve-cache.ts";
 // `resolveCarryReasoning` is exported BESIDE the whole funnel because the chat engine needs exactly one of
 // its answers BEFORE the first wire call: the `conversation` rung materializes prior thinking at the
 // history-build seam, which runs upstream of `resolveChat`. One policy home, two readers (§8.8).
@@ -128,6 +132,7 @@ const OPENROUTER_CATALOG_KEY = "catalog:openrouter";
 const AGENT_SDK_CATALOG_KEY = "catalog:agent-sdk";
 
 export interface CapabilityRead extends SynthesizedCapability {
+  readonly cacheContext: CachePolicyContext;
   /** The same evidence fold with this row's declaration omitted. */
   readonly baseline: Capability;
   /** The tasks this row may serve (`connectionTasks`), so the pane's requirement badges and the Model-roles
@@ -479,6 +484,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
         const detected = behaveAs(ctx, provider, connection);
         return {
           capability: outcome.resolved.capability,
+          cacheContext: cachePolicyContextOf(outcome.resolved, responseReplaySupportedFor(outcome.resolved)),
           baseline: outcome.baseline,
           warnings: outcome.warnings,
           tasks: await modelTasks(ctx, connection, { cachedFacts: true }),

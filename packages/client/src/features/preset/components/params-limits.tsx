@@ -50,6 +50,7 @@ import { COMPACTION_MODE_ITEMS, compactionModeLabel } from "../lib/preset-nav.ts
 import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
 import { KnobGrid, KnobRow } from "./knob-row.tsx";
 import { LogitBiasEditor } from "./logit-bias-editor.tsx";
+import { ResponseReplayCluster } from "./response-replay-controls.tsx";
 import { BannedPhrases, StopSequences } from "./sequence-chips.tsx";
 
 type AppForm = AppFormInstance<PromptConfig>;
@@ -66,6 +67,7 @@ export function ParamsLimits({ form, capability, effective }: ParamsLimitsProps)
       {/* No capability ⇒ OUTPUT is absent with its two sibling clusters, under the deck's ONE gate note
           (side-eye F-02: three per-cluster notes printed the same sentence three times). */}
       {capability === undefined ? null : <OutputCluster capability={capability} effective={effective} form={form} />}
+      {effective === undefined ? null : <ResponseReplayCluster effective={effective} form={form} />}
       <ContextCluster form={form} />
       <AdvancedCluster form={form} />
     </>

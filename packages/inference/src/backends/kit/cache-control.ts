@@ -1,11 +1,14 @@
-// Shared explicit-cache planning and placement; route capabilities own TTL and prefix constraints.
+// Cache directive spelling and shared placement; the funnel owns activation, TTL and depth policy.
 // Conversational depth ignores within-turn tool exchanges and never moves authored prompt content.
-import type { GenerationCapability, PromptCacheSettings } from "@orb/contracts/inference";
-import { cacheMinTokensOf, PROMPT_CACHE_TTLS } from "@orb/contracts/inference";
+import type { CachePolicy, GenerationCapability, PromptCacheTtl } from "@orb/contracts/inference";
+import { cacheMinTokensOf } from "@orb/contracts/inference";
+import type { UserIntent } from "@orb/contracts/preset";
 import { estimateTokens } from "@orb/kit/tokens";
 import { detectModelFamily } from "../../capability/families.ts";
 import type { Resolved } from "../../contract/resolved.ts";
+import { resolveCachePolicy } from "../../funnel/resolve-cache.ts";
 import type { ProviderLogger } from "./provider-log.ts";
+import { cachePolicyContextOf } from "./response-cache.ts";
 
 /** The openrouter routing-prefs slice this pin reads/writes. The full block is validated by the transport's
  *  own zod schema at the call site; this is the structural minimum the pin needs. */
@@ -17,34 +20,15 @@ export interface OpenRouterRouting {
 
 const EPHEMERAL = "ephemeral";
 
-// The two TTLs the Anthropic cache accepts (`PROMPT_CACHE_TTLS`, the contract's one tuple). The allowlist is
-// load-bearing, not decoration: an UNKNOWN ttl is NOT an upstream error — OpenRouter answers 200 and silently
-// drops the WHOLE `cache_control` block (measured `ttl:"9z"` → cacheWrite 0, cacheRead 0, ~10x the cost of a
-// cached turn, no signal anywhere; `scripts/probes/openrouter/RESULTS.md`). The settings column is typed, not
-// re-parsed on read, so this guard is what stands between a stored bad value and a silent 10x bill.
-
 interface AnthropicCacheDirective {
   readonly type: typeof EPHEMERAL;
-  /** Absent = the provider default (5m). Only a PROMPT_CACHE_TTLS member ever reaches the wire. */
-  readonly ttl?: (typeof PROMPT_CACHE_TTLS)[number] | undefined;
+  /** Absent leaves the provider's default TTL. */
+  readonly ttl?: PromptCacheTtl | undefined;
 }
 
-// The ONE seam a ttl becomes a wire directive by. An off-allowlist value is STRIPPED (leaving the bare
-// ephemeral directive — the always-accepted 5m default) and logged loud rather than shipped: upstream gives
-// no signal at all, so this warning IS the signal (D41 no-silent-degrade).
-function anthropicCacheDirective(ttl: string, log?: ProviderLogger): AnthropicCacheDirective {
-  const allowed = PROMPT_CACHE_TTLS.find((candidate) => candidate === ttl);
-  if (allowed !== undefined) {
-    return { type: EPHEMERAL, ttl: allowed };
-  }
-  log?.emit("warn", "provider.cache_ttl_rejected", { ttl, accepted: [...PROMPT_CACHE_TTLS], applied: null });
-  return { type: EPHEMERAL };
+function anthropicCacheDirective(ttl: PromptCacheTtl | null): AnthropicCacheDirective {
+  return { type: EPHEMERAL, ...(ttl === null ? {} : { ttl }) };
 }
-
-// NEITHER TTL NEEDS A BETA HEADER, on either route: OpenRouter measured it on the cache-write price multiplier
-// (findings §1), and Anthropic's docs spell a direct `{"type":"ephemeral","ttl":"1h"}` with no `anthropic-beta`
-// entry. Do not add one; `tests/inference/backends/anthropic-messages/chat.test.ts` pins its absence. The ttl is
-// the user's per connection (`PromptCacheSettings.ttl`); `SHIPPED_PROMPT_CACHE` keeps 1h.
 
 /** One turn's explicit-cache plan. ONE directive for every marker the turn places — tools, system block,
  *  history — which is how the TTL ORDER rule holds (a longer-TTL breakpoint must precede any shorter one, so a
@@ -58,29 +42,20 @@ export interface ExplicitCachePlan {
   readonly historyDepth: number | undefined;
 }
 
-/** The connection's settings × the request's depth → the turn's plan; `null` ⇒ caching is OFF and the turn
- *  places no `cache_control` anywhere. THE DEPTH RULE (`prompt-cache.ts` header): the request's depth already
- *  carries max(SHAPE's volatile boundary, the admin floor `promptCacheMinDepth`), and the user's
- *  `historyDepth` is one more minimum on top of it, so the user can move the breakpoint deeper and never
- *  shallower than the admin floor. A request with no depth gets no history breakpoint whatever the setting. */
-export function explicitCachePlan(args: {
-  readonly connection: Pick<Resolved, "promptCache">;
-  readonly requestedDepth: number | undefined;
-  readonly fixedTtl?: PromptCacheSettings["ttl"] | undefined;
-  readonly log?: ProviderLogger | undefined;
-}): ExplicitCachePlan | null {
-  const settings: PromptCacheSettings = args.connection.promptCache;
-  if (!settings.enabled) {
-    return null;
-  }
-  if (args.fixedTtl !== undefined && settings.ttl !== args.fixedTtl) {
-    args.log?.emit("warn", "provider.cache_ttl_rejected", { ttl: settings.ttl, accepted: [args.fixedTtl], applied: args.fixedTtl });
-  }
-  return {
-    directive: anthropicCacheDirective(args.fixedTtl ?? settings.ttl, args.log),
-    cacheSystem: settings.cacheSystem,
-    historyDepth: args.requestedDepth === undefined ? undefined : Math.max(args.requestedDepth, settings.historyDepth ?? 0),
-  };
+/** Translate the resolved manual prefix action to the placer's wire directive. */
+export function explicitCachePlan(policy: CachePolicy): ExplicitCachePlan | null {
+  return cachePlanForAction(policy, "markers");
+}
+
+/** Spell a resolved automatic request directive without choosing its activation policy. */
+export function automaticCachePlan(policy: CachePolicy): ExplicitCachePlan | null {
+  return cachePlanForAction(policy, "automatic-request");
+}
+
+function cachePlanForAction(policy: CachePolicy, action: CachePolicy["prefix"]["action"]): ExplicitCachePlan | null {
+  return policy.prefix.action === action
+    ? { directive: anthropicCacheDirective(policy.prefix.ttl), cacheSystem: policy.prefix.cacheSystem, historyDepth: policy.prefix.historyDepth ?? undefined }
+    : null;
 }
 
 const ANTHROPIC_PROVIDER_NAME = "Anthropic";
@@ -92,12 +67,17 @@ export function isAnthropicModel(connection: Pick<Resolved, "factsModel">): bool
   return detectModelFamily(connection.factsModel) === "anthropic";
 }
 
-/** Does this connection's turn cache by explicit Anthropic block markers? The capability says explicit caching
- *  is worth placing (`turns.explicitPromptCache`) and the resolved model is Anthropic's. Chat's SHAPE keeps the
- *  stored rows of a same-role run apart on such a wire, and the openai-compat body folds them back into one
- *  message of parts (`openai-compat/body.ts` rule 10); both read this one answer. */
-export function cachesByAnthropicMarkers(connection: Pick<Resolved, "factsModel">, generation: GenerationCapability): boolean {
-  return generation.turns?.explicitPromptCache === true && isAnthropicModel(connection);
+/** SHAPE and the compatible wire fold consume the same admitted prefix action and effective role floor. */
+export function preservesCacheBlockEnds(
+  connection: Pick<Resolved, "factsModel" | "promptCache" | "transport" | "wire" | "provider" | "extras">,
+  generation: GenerationCapability,
+  params: UserIntent,
+): boolean {
+  return resolveCachePolicy({
+    context: cachePolicyContextOf(connection, false),
+    generation,
+    requestedRoleHandling: params.advanced?.roleHandling,
+  }).plan.prefix.preservesBlockEnds;
 }
 
 // A caller-supplied routing always wins; otherwise pin Anthropic (order + NO fallbacks) so cache_control is

@@ -13,6 +13,42 @@ import { fakeApiKeySecret, fakeConnection, fakeDeps, fakeResolved, memoryStores,
 import type { RecordedRequest } from "../_hosted-support.ts";
 import { scriptedJsonFetch } from "../_hosted-support.ts";
 
+test.each([undefined, "true", "false"])("OpenRouter embedding replay header %s reaches the physical embeddings endpoint", async (enabled) => {
+  const model = "openai/text-embedding-3-small";
+  const capability = synthesizeCapability("embedding", "other", {
+    curated: curatedRows({ providerId: providerIdSchema.parse("openrouter"), model }),
+  }).capability;
+  const connection = fakeResolved({
+    task: "embed",
+    providerId: "openrouter",
+    model,
+    capability,
+    secret: fakeApiKeySecret("test-key"),
+    transport: { headers: { "X-Trace-Control": "kept", ...(enabled !== undefined ? { "X-OpenRouter-Cache": enabled } : {}) } },
+  });
+  const requests: Request[] = [];
+  const sdkFetch: typeof fetch = (input, init) => {
+    requests.push(new Request(input, init));
+    return Promise.resolve(
+      Response.json({ object: "list", model, data: [{ object: "embedding", index: 0, embedding: [3, 4] }], usage: { prompt_tokens: 2, total_tokens: 2 } }),
+    );
+  };
+  const deps = fakeDeps();
+  const result = await runOpenAiCompatEmbed(
+    { connection, input: "lighthouse keeper", dimensions: 2 },
+    { log: deps.log, transport: { fetch: sdkFetch, app: deps.app } },
+  );
+  expect(Array.from(result.vectors[0] ?? [])).toEqual([expect.closeTo(0.6), expect.closeTo(0.8)]);
+  expect(requests).toHaveLength(1);
+  const request = requests[0];
+  expect(new URL(request?.url ?? "").pathname).toBe("/api/v1/embeddings");
+  expect(request?.method).toBe("POST");
+  expect(request?.headers.get("x-openrouter-cache")).toBe(enabled ?? "false");
+  expect(request?.headers.has("x-openrouter-cache-clear")).toBe(false);
+  expect(request?.headers.get("x-trace-control")).toBe("kept");
+  expect(await request?.json()).toMatchObject({ model, input: ["lighthouse keeper"], dimensions: 2 });
+});
+
 test.each([
   { providerId: "openai", model: "text-embedding-3-small" },
   { providerId: "openrouter", model: "openai/text-embedding-3-small" },

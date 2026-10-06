@@ -11,6 +11,7 @@ import {
   provenanceSuffix,
 } from "../../../../../packages/client/src/features/preset/lib/effective-knobs.ts";
 import { SAMPLING_FLAG_LABELS, SAMPLING_KNOBS } from "../../../../../packages/client/src/features/preset/lib/sampling-knob-catalog.ts";
+import { makeCachePolicy } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A camelCase key is a schema identifier; a one-word key (`seed`) may stand as its own label. */
@@ -70,6 +71,8 @@ test("the server's Mirostat skips apply only while the resolved Mirostat mode is
     knobs: mode === undefined ? {} : { mirostatMode: { value: mode, provenance } },
     stale: [],
     qualityMapping: null,
+    cache: makeCachePolicy(),
+    cacheWarnings: [],
   });
   const skips = ["topP", "topK"];
   expect([...mirostatSkipped(profile(2), skips)]).toEqual(skips);

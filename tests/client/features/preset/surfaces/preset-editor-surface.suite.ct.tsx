@@ -3,7 +3,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ModelId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { makeCapability, makeGenerationCapability, makeResolvedView } from "../../../../support/factories/resolved-connection.ts";
+import { makeCachePolicy, makeCapability, makeGenerationCapability, makeResolvedView } from "../../../../support/factories/resolved-connection.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ALL_AVAILABLE, connectionRow } from "../../credentials/_connection-fixtures.ts";
 import { PresetConnectionTruthStory } from "./_connection-truth-stories.tsx";
@@ -50,6 +50,8 @@ test("Utility view leaves the named Chat editor and its sampling target unchange
       knobs: {},
       stale: [],
       qualityMapping: null,
+      cache: makeCachePolicy(),
+      cacheWarnings: [],
     }),
     "connection.tokenizeWords": { available: true, words: [] },
     "regex.listScripts": [],

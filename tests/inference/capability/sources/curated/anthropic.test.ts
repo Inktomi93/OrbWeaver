@@ -35,6 +35,16 @@ import { fakeConnection, fakeDeps, newUserId } from "../../../_support.ts";
 
 const DIRECT = { providerId: castId<ProviderId>("anthropic"), wire: "anthropic-messages", api: "anthropic-messages" } as const;
 
+test("Anthropic request-wide automatic caching is an opt-in route control, not provider implicit caching", () => {
+  for (const generation of [direct("claude-sonnet-5-5"), viaOpenRouter("anthropic/claude-sonnet-5.5")]) {
+    expect(generation.turns).toMatchObject({ requestAutomaticPromptCache: true, providerImplicitPromptCache: false, cacheRetentionRefresh: true });
+  }
+  const custom = synthesizeCapability("generation", "anthropic", {
+    curated: curatedRows({ model: "claude-sonnet-5-5", providerId: castId<ProviderId>("custom-openai"), wire: "openai-compat" }),
+  }).capability;
+  expect(custom.kind === "generation" ? custom.generation.turns?.requestAutomaticPromptCache : "wrong kind").toBeUndefined();
+});
+
 const FABLE_IDS = [
   { providerId: "anthropic", model: "claude-fable-5-1" },
   { providerId: "anthropic", model: "claude-fable-5" },

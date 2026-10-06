@@ -35,6 +35,7 @@ import {
   reindexConfirmDescription,
 } from "../../../../../packages/client/src/lib/embedder-rebuild.ts";
 import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
+import { makeCachePolicy, makeResolvedCacheView } from "../../../../support/factories/resolved-connection.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
@@ -80,6 +81,9 @@ const RERANK_CAPABILITY: TrpcWireOutput<"connection.capabilities">["capability"]
   rerank: { maxInputTokens: 2048, input: ["text"], instructionAware: false },
 };
 const RERANK_CAPABILITY_VIEW: TrpcWireOutput<"connection.capabilities"> = {
+  cacheContext: makeResolvedCacheView({ task: "rerank" }).cacheContext,
+  cache: makeCachePolicy(),
+  cacheWarnings: [],
   capability: RERANK_CAPABILITY,
   baseline: RERANK_CAPABILITY,
   warnings: [],

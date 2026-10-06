@@ -3,6 +3,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { makeCachePolicy, makeResolvedCacheView } from "../../../../support/factories/resolved-connection.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { PluginProviderConnectionLifecycleStory } from "../_ct-stories.tsx";
@@ -37,6 +38,9 @@ const GENERATION_CAPABILITY: NonNullable<TrpcWireOutput<"connection.capabilities
 };
 
 const CAPABILITIES = {
+  cacheContext: makeResolvedCacheView({ wire: "anthropic-messages" }).cacheContext,
+  cache: makeCachePolicy(),
+  cacheWarnings: [],
   capability: GENERATION_CAPABILITY,
   baseline: GENERATION_CAPABILITY,
   warnings: [],

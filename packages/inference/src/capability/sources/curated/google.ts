@@ -7,6 +7,19 @@ import type { CapabilityOverrideInput } from "@orb/contracts/inference";
 export const googleRows = [
   {
     match: {
+      model: "^(google/|models/)?gemini-(2[-.]5-(flash|flash-lite|pro)|3-flash-preview|3[-.]1-(flash-lite|pro-preview)|3[-.]5-flash(-lite)?|3[-.][678]-flash)$",
+      provider: "google",
+      wire: "google-generative-ai",
+    },
+    generation: { turns: { providerImplicitPromptCache: true, explicitPromptCache: false, promptCacheDefaultEnabled: false } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-05",
+      cite: "https://ai.google.dev/gemini-api/docs/generate-content/caching: implicit caching automatically enabled on Gemini 2.5 and newer, no hit/savings guarantee and no request opt-in. This row covers current native text models only; managed cachedContents resource creation is owner-parked, not an app marker control.",
+    },
+  },
+  {
+    match: {
       model: "^(google/|models/)?gemini-(?!embedding)",
     },
     kind: "generation",

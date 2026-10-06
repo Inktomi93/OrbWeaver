@@ -508,6 +508,17 @@ function outOfBandChunks(events: readonly ChatEvent[]): TurnStreamChunk[] {
   return refused ? [...seen.values(), { kind: "refusal" }] : [...seen.values()];
 }
 
+const FRESH_RESPONSE_BY_KIND: Readonly<Record<TurnRequest["kind"], boolean>> = {
+  send: false,
+  swipe: true,
+  continue: true,
+  generate: true,
+  impersonate: true,
+  opening: true,
+  auto: true,
+  force: true,
+};
+
 /** The domain {@link TurnRequest} → the BACKEND-NEUTRAL {@link ChatTurnInput}. No wire branch lives here: how
  *  the history and the tools reach a backend (Agent SDK seed frames + an MCP server, or a history array + a
  *  `tools[]` declaration) is `@orb/inference`'s `toChatRequest` (D177). What
@@ -523,6 +534,7 @@ function chatTurnInputOf(args: {
     // extras and capability — the runtime picks the wire off it; nothing here re-derives a routing fact.
     connection: req.connection,
     params: req.intent,
+    responseCache: FRESH_RESPONSE_BY_KIND[req.kind] ? { enabled: false, refresh: false } : undefined,
     attachmentQuality: req.attachmentQuality,
     systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
     // Carried so the wire-capture sink keys the recorded body by chat (the debug endpoint's `chatId` filter),

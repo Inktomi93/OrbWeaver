@@ -7,6 +7,22 @@ import type { CapabilityOverrideInput } from "@orb/contracts/inference";
 export const qwenRows = [
   {
     match: {
+      provider: "openrouter",
+      wire: "openai-compat",
+      api: "chat-completions",
+      model: "^qwen/(qwen3-max|qwen-plus|qwen3\\.6-plus|qwen3-coder-plus|qwen3-coder-flash)$",
+    },
+    generation: {
+      turns: { explicitPromptCache: true, promptCacheFormat: "cache-control", fixedCacheTtl: "5m", promptCacheDefaultEnabled: false },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-05",
+      cite: "https://openrouter.ai/docs/guides/best-practices/prompt-caching#alibaba-qwen — explicit content-block breakpoints, fixed five-minute writes; snapshot endpoints excluded",
+    },
+  },
+  {
+    match: {
       model: "(^|/)qwen",
     },
     kind: "generation",

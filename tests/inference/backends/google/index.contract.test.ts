@@ -12,6 +12,53 @@ import { fakeApiKeySecret, fakeDeps, fakeResolved } from "../../_support.ts";
 
 const SIGNATURE = "signed-native-tool-fixture";
 const NOW = 1_700_000_000_000;
+
+test("native implicit caching cannot be disabled by app-marker off; unsupported disable is reported without altering the prompt", async () => {
+  let body: Record<string, unknown> = {};
+  const native = backend((_url, init) => {
+    body = z.record(z.string(), z.unknown()).parse(JSON.parse(String(init?.body)));
+    return Promise.resolve(sse([{ text: "ok" }]));
+  });
+  const req = request();
+  const result = await native.runChatTurn({
+    ...req,
+    connection: { ...req.connection, promptCache: { ...req.connection.promptCache, enabled: false, disableImplicit: true } },
+    systemPrompt: { static: "Stable instructions.", dynamic: "Changing lore." },
+  });
+  expect(result.events).toContainEqual(expect.objectContaining({ kind: "warning", code: "sdk_unsupported_setting" }));
+  expect(body["systemInstruction"]).toEqual({ parts: [{ text: "Stable instructions.\n\nChanging lore." }] });
+  expect(body["contents"]).toMatchObject([{ role: "user", parts: [{ text: "Weather?" }] }]);
+  expect(body).not.toHaveProperty("cachedContent");
+  expect(body).not.toHaveProperty("cache_control");
+});
+
+test("native cached-content refuses malformed references and immutable system/tool conflicts before fetch", async () => {
+  const bodies: Record<string, unknown>[] = [];
+  const native = backend((_url, init) => {
+    bodies.push(z.record(z.string(), z.unknown()).parse(JSON.parse(String(init?.body))));
+    return Promise.resolve(sse([{ text: "ok" }]));
+  });
+  const req = request();
+  const cached = { ...req.connection, extras: { cachedContent: "cachedContents/reference" } };
+  await native.runChatTurn({ ...req, connection: cached, systemPrompt: { static: "", dynamic: "" }, tools: undefined });
+  expect(bodies[0]?.["cachedContent"]).toBe("cachedContents/reference");
+  expect(bodies[0]).not.toHaveProperty("systemInstruction");
+  expect(bodies[0]).not.toHaveProperty("tools");
+  for (const invalid of [
+    { ...req, connection: cached },
+    { ...req, connection: cached, tools: undefined },
+    { ...req, connection: cached, systemPrompt: { static: "", dynamic: "" } },
+    {
+      ...req,
+      connection: { ...cached, extras: { cachedContent: "https://other.example/cache" } },
+      tools: undefined,
+      systemPrompt: { static: "", dynamic: "" },
+    },
+  ]) {
+    await expect(native.runChatTurn(invalid)).rejects.toMatchObject({ kind: "invalid", retryable: false });
+  }
+  expect(bodies).toHaveLength(1);
+});
 function connection<T extends Task>(task: T, model = "gemini-3-flash-preview"): Resolved<T> {
   const kind = task === "embed" || task === "imageEmbed" ? "embedding" : "generation";
   const capability = synthesizeCapability(kind, "google", {
@@ -470,7 +517,11 @@ test("native cached-content references and implicit cache usage keep the shared 
       return Promise.resolve(new Response(`data: ${JSON.stringify(chunk)}\n\n`, { headers: { "content-type": "text/event-stream" } }));
     });
     const req = request();
-    const result = await native.runChatTurn({ ...req, connection: { ...req.connection, extras: cachedContent === undefined ? null : { cachedContent } } });
+    const result = await native.runChatTurn({
+      ...req,
+      connection: { ...req.connection, extras: cachedContent === undefined ? null : { cachedContent } },
+      ...(cachedContent === undefined ? {} : { systemPrompt: { static: "", dynamic: "" }, tools: undefined }),
+    });
     expect(body["cachedContent"]).toBe(cachedContent);
     expect(body).not.toHaveProperty("cache_control");
     expect(result.usage).toMatchObject({ tokensIn: 5000, cacheReadTokens: 4096, cacheWriteTokens: 0 });

@@ -5,8 +5,8 @@
 // tracked-value wire shape, the mirror never learned it, and a live spec's `toEqual` on a stored reading
 // failed under an UNRELATED title.
 //
-// THIS file is the only place in the e2e tree that imports `@orb/contracts` — the mirror keeps its
-// import-free posture and the coupling is expressed HERE instead of being expressed nowhere. Two axes per
+// Locally projected shapes remain independent of the contract; the nested response replay settings reuse
+// their canonical type-only home. The projection coupling is expressed HERE. Two axes per
 // shape:
 //
 //  1. `pin<Expected>(keys<Mirror, Contract>())` — the KEY axis, and the one that catches a field ADDED to a
@@ -417,6 +417,7 @@ test("ActivePresetConfig mirrors PromptConfig (the FE-layer round-trip read)", (
   expectTypeOf<PromptConfig["sections"][number]["enabled"]>().toExtend<ActivePresetConfig["sections"][number]["enabled"]>();
   expectTypeOf<PromptConfig["params"]["maxOutputTokens"]>().toExtend<ActivePresetConfig["params"]["maxOutputTokens"]>();
   expectTypeOf<PromptConfig["params"]["maxContextTokens"]>().toExtend<ActivePresetConfig["params"]["maxContextTokens"]>();
+  expectTypeOf<PromptConfig["params"]["responseCache"]>().toEqualTypeOf<ActivePresetConfig["params"]["responseCache"]>();
 });
 
 /** The blob keys that are NOT registered `USER_SETTINGS_SECTIONS` members: the version stamp only (`prose`

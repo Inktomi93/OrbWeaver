@@ -168,6 +168,8 @@ export type SessionToken = Branded<"SessionToken">;
 // Both Claude model ids and OpenRouter routes; branded so a plain string can't
 // flow where a vetted model id is expected.
 export type ModelId = Branded<"ModelId">;
+/** An opaque provider-issued generation identity, never an application TypeID. */
+export type ProviderGenerationId = Branded<"ProviderGenerationId">;
 
 // --- Library entities --------------------------------------------------------
 export type CharacterId = TypeIdOf<"character">;
