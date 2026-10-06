@@ -24,4 +24,4 @@ A closed provider and endpoint matrix cites primary documentation and installed 
 
 ## Evidence
 
-Implementation is integrated in `fc9074aa6b534c3e4bdfad76af8dffe2c03a3e9f`. Independent security and rendered reviews cleared required findings. Integrated affected tests and the staged static check passed. The representative live calls and scripted chat matrix remain separate evidence under `scripts/probes/caching/`. Keyed acceptance for the remaining persisted app variations waits for combined accounting integration. The item remains open.
+Implementation is integrated in `fc9074aa6b534c3e4bdfad76af8dffe2c03a3e9f`. Independent security and rendered reviews cleared required findings. Integrated affected tests and the staged static check passed. The representative live calls and scripted chat matrix remain separate evidence under `scripts/probes/caching/`. Combined accounting integration remains required. The owner deferred additional paid live qualification because of cost. Do not describe scripted variations as individually live-proven. The item remains open.
