@@ -1,5 +1,11 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Orbweaver Work project
-    url: https://github.com/users/Inktomi93/projects/1
-    about: Query and update mutable work state, dependencies, dispositions, lanes, and verification progress.
+  - name: Questions and ideas
+    url: https://github.com/Inktomi93/orbweaver/discussions
+    about: Ask for help, share setups, and suggest features.
+  - name: User guide
+    url: https://github.com/Inktomi93/orbweaver/wiki
+    about: Install, connecting a model, and every feature.
+  - name: Report a security vulnerability
+    url: https://github.com/Inktomi93/orbweaver/security/advisories/new
+    about: Report privately. Do not open a public issue for a vulnerability.

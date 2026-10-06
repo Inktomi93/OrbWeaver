@@ -1,83 +1,47 @@
-name: Bug
-description: Reproducible behavior that contradicts the current contract.
+name: Bug report
+description: Something in Orbweaver is broken or behaves wrongly.
 title: "bug: "
 labels: ["bug", "triage"]
-projects: ["Inktomi93/1"]
 body:
   - type: markdown
     attributes:
       value: |
-        Report observed behavior, not a theory. Paths and line numbers must describe the current tree.
+        The **Report a bug** button in the app fills most of this in for you. Everything here is public, so leave out keys, chat text and anything else you do not want to share.
   - type: input
     id: version
     attributes:
-      label: Version (Settings → About)
-      description: "The version line this box reports, copied verbatim — Settings → Admin → About this install has a Copy button. `/healthz` and the boot log's first line carry the same block."
-      placeholder: "v0.4.1 (f4cdde34be59, container)"
+      label: Version
+      description: Settings → This install has a Copy button for the version line.
+      placeholder: "v0.1.0 (f4cdde34be59, container)"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you run it
+      options:
+        - Docker
+        - From source
+        - Other
     validations:
       required: true
   - type: textarea
-    id: behavior
+    id: what-happened
     attributes:
-      label: Observed behavior
-      description: What happens, and why is it wrong?
+      label: What happened
+      description: What you did, what went wrong, and what you expected instead.
     validations:
       required: true
   - type: textarea
-    id: reproduction
+    id: steps
     attributes:
-      label: Reproduction
-      description: Smallest deterministic sequence, fixture, command, or live path that reproduces it.
+      label: Steps to reproduce
       placeholder: |
         1.
         2.
         3.
-    validations:
-      required: true
   - type: textarea
-    id: expected
+    id: extra
     attributes:
-      label: Expected contract
-      description: Cite the code, type, test, law, or owner ruling that defines the expected behavior.
-    validations:
-      required: true
-  - type: textarea
-    id: evidence
-    attributes:
-      label: Evidence
-      description: Current path:line receipts, logs, screenshots, wire captures, commits, and coverage boundaries.
-    validations:
-      required: true
-  - type: textarea
-    id: rederived
-    attributes:
-      label: Re-derivation receipt
-      description: Record the current source/test reads and recent commits checked before filing.
-    validations:
-      required: true
-  - type: textarea
-    id: done
-    attributes:
-      label: Done when
-      description: Behavioral result and regression proof required to close this issue.
-    validations:
-      required: true
-  - type: textarea
-    id: dod
-    attributes:
-      label: Definition of Done (optional command)
-      description: "ONE shell command that reproduces the bug (FAILS today) and must pass before this row can close. A maintainer minting the item with `pnpm doc item` carries this into the --done text. Spell with pnpm scripts or pnpm exec, never npx."
-      render: dod
-  - type: dropdown
-    id: review
-    attributes:
-      label: Required review
-      options:
-        - Technical
-        - Security
-        - UX
-        - Owner
-        - None
-      default: 0
-    validations:
-      required: true
+      label: Logs or screenshots
+      description: Paste server log lines, or drag in screenshots or the diagnostics file.
