@@ -13,11 +13,11 @@ import { MODEL_PROVIDER_UNKNOWN, statsBucketStart, wordCount } from "@orb/kit/st
 import type {
   Accums,
   BucketAccum,
+  CanonMessage,
   CharAccum,
   CharChatMeta,
   ChatMeta,
   GenRow,
-  MessageRow,
   ModelAccum,
   ModelEntry,
   OwnerAccum,
@@ -237,7 +237,7 @@ function foldVariantLegs(
 }
 
 /** Owner-grain economics from a message's SELECTED variant (tokens/cost/cache/ctx/chars/gen/reasoning). */
-function foldOwnerMessage(owner: OwnerAccum, bucket: BucketAccum, r: MessageRow): void {
+function foldOwnerMessage(owner: OwnerAccum, bucket: BucketAccum, r: CanonMessage): void {
   const chars = r.content?.length ?? 0;
   owner.contentChars += chars;
   owner.tokensIn += r.ti ?? 0;
@@ -268,7 +268,7 @@ function foldOwnerMessage(owner: OwnerAccum, bucket: BucketAccum, r: MessageRow)
 }
 
 /** Turn/word counts split on role (ST is_user binary: userWords vs non-user assistant+system words). */
-function foldRoleCounts(owner: OwnerAccum, bucket: BucketAccum, r: MessageRow): void {
+function foldRoleCounts(owner: OwnerAccum, bucket: BucketAccum, r: CanonMessage): void {
   const words = wordCount(r.content);
   if (r.role === "user") {
     owner.userTurns++;
@@ -289,7 +289,7 @@ function foldRoleCounts(owner: OwnerAccum, bucket: BucketAccum, r: MessageRow): 
 }
 
 /** Per-character grain (assistant only; system/user carry no characterId). */
-function foldMessageChar(charMap: Map<string, CharAccum>, r: MessageRow): void {
+function foldMessageChar(charMap: Map<string, CharAccum>, r: CanonMessage): void {
   const c = get(charMap, r.cid as string, freshChar);
   c.assistantTurns++;
   c.assistantWords += wordCount(r.content);
@@ -318,7 +318,7 @@ function foldMessageChar(charMap: Map<string, CharAccum>, r: MessageRow): void {
 }
 
 /** Fold one message (its SELECTED variant — the kept take) across owner/char/bucket/model accumulators. */
-function foldMessage(r: MessageRow, a: Accums): void {
+function foldMessage(r: CanonMessage, a: Accums): void {
   const notionalSamples = legacyNotionalCostSamples(r.cost, parseVariantMetadata(r.metadata === null ? null : JSON.parse(r.metadata)));
   const bucket = get(a.bucketMap, statsBucketStart(r.createdAt), freshBucket);
   if (r.createdAt - r.chatCreatedAt > MIGRATION_GAP_MS) {
@@ -688,7 +688,7 @@ export function buildOwnerRows({ ownerId, ownedCharacterIds }: OwnerRollupScope,
 }
 
 /** Retained usage legs replace legacy totals while keeping the selected message's other counters. */
-export function foldCanonMessage(ownerId: string, r: MessageRow, a: Accums): void {
+export function foldCanonMessage(ownerId: string, r: CanonMessage, a: Accums): void {
   const legs = usageLegsOf(r.usageLegs);
   foldMessage(legs.length === 0 ? r : { ...r, ti: null, tout: null, cost: null, cacheR: null, cacheW: null, tokenProvenance: "unrecorded" }, a);
   foldVariantLegs({ ownerId, cid: r.role === "assistant" ? r.cid : null, legs, selected: true }, a);

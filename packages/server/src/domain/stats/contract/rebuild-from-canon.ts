@@ -119,7 +119,7 @@ export interface ReconcileOpts {
   signal?: AbortSignal;
 }
 
-export interface MessageRow {
+export interface CanonMessage {
   mid: string;
   cid: string | null;
   role: string;

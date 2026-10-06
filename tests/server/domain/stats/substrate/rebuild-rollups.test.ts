@@ -3,7 +3,7 @@ import { generationUsageLegSchema } from "@orb/contracts/inference";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { statsBucketStart } from "@orb/kit/stats-tally";
-import type { MessageRow } from "../../../../../packages/server/src/domain/stats/contract/rebuild-from-canon.ts";
+import type { CanonMessage } from "../../../../../packages/server/src/domain/stats/contract/rebuild-from-canon.ts";
 import {
   buildChatMeta,
   buildOwnerRows,
@@ -16,7 +16,7 @@ import { makeUser } from "../../../../support/factories/user.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 
-function message(cid: string, now: number, mid: string): MessageRow {
+function message(cid: string, now: number, mid: string): CanonMessage {
   return {
     mid,
     cid,

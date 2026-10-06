@@ -27,7 +27,7 @@ import type { ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 import { calendarBucketStartSql } from "#kit/calendar-bucket-sql";
-import type { Accums, CharChatMeta, ChatMeta, MessageRow, OwnerRollupRows, ReconcileOpts, SwipeRow } from "../contract/rebuild-from-canon.ts";
+import type { Accums, CanonMessage, CharChatMeta, ChatMeta, OwnerRollupRows, ReconcileOpts, SwipeRow } from "../contract/rebuild-from-canon.ts";
 import type { ReconcileStatsResult } from "../contract/results.ts";
 import { ownerChatIds, retainedCharacterSeatPredicate } from "../substrate/owner-chat-scope.ts";
 import {
@@ -142,7 +142,7 @@ async function scanMessages(db: Db, ownerId: string, a: Accums): Promise<void> {
   let lastId = "";
   for (;;) {
     // @orb-waive no-await-db-in-loop(all): keyset PAGINATION over the owner's whole message corpus — the loop exists to bound memory, and one round trip per page is what streaming means. Ends if the rebuild folds server-side.
-    const rows = await db.all<MessageRow>(sql`
+    const rows = await db.all<CanonMessage>(sql`
       SELECT m.id AS mid, m.character_id AS cid, m.role AS role, m.created_at AS createdAt,
              ch.created_at AS chatCreatedAt, v.content AS content,
              v.tokens_in AS ti, v.tokens_out AS tout, v.token_provenance AS tokenProvenance,
