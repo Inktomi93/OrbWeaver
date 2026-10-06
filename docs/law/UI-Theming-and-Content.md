@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-30
+updated: 2026-10-06
 ---
 
 # UI-Theming-and-Content
@@ -32,6 +32,27 @@ Every user-supplied rendering input is exactly one trust level, and that determi
 - **The settings SHELL that hosts these (D62):** a full-bleed overlay with a left category nav; the IA is law at `UI-Architecture-and-Layout.md` §4.2. This § owns only the appearance/theme CONTENT.
 - **APPEARANCE settings — the NON-color surface (ST parity; a separate layer from the color theme).** Applied as root `data-*` attrs / CSS vars (`app-shell/hooks/use-appearance-root-effects.ts`), read by the shell + message render. The code is the live axis inventory (8 chat skins, avatars, surfaces/glass, background image, message chrome/metadata toggles, sizing/motion/density); **OUT (deliberately):** `movingUI` free-form dragging, `waifuMode` VN-fullscreen (VN cut, D49). **Also OUT — homed elsewhere:** ST's content-processing knobs (trim/collapse/regex post-processing) live on the **PRESET** (they mutate text — generation territory, D53). Appearance settings are **display-only** (never touch stored content); they're user/AppSettings-level, not per-character — the card-carriable plane is the two CARRIED TWINS (`ThemeOverride`, `ThemeBackground`), partitioned by `CARD_EMBEDDABLE_THEME_KEYS` (identity/atmosphere rides a card; ergonomics/accessibility/cost/treatment stay the viewer's).
 - **PERSISTENCE — the server `UserSettings` blob, NOT localStorage.** Theme + appearance prefs live server-side in the `user_settings` blob via `updateUserSettingsSection` (section-scoped writes). Two additive namespaces: **`theme`** (holds ONLY `selectedThemeId` — override values live on the selected `themes` ROW, never inline; one-home) and **`appearance`**. **localStorage / Zustand-`persist` is reserved for DEVICE-LOCAL transient state ONLY** (panel dock/collapse · focus toggle · drafts) — prefs that follow the user across devices go in the synced blob (enforced by the `persistence-boundary` gate). Custom themes are a first-class single-owned `themes` ENTITY with CRUD (the preset pattern: `ownerId` + `fetchOwned`). Per-character themes ride the character row (§12.5). **The server/contracts/db design is IMPLEMENTED; the code is the doc.**
+
+#### Chat-style picker artwork
+
+`packages/client/src/features/chat/components/appearance-chat-style-cards.tsx` displays representative renderer captures through `CrossfadeImage`.
+The pictures use owned illustration assets, not uploaded portraits or gallery images.
+They illustrate message anatomy in representative palettes, not the viewer's exact custom appearance settings.
+The picker keeps readable labels, descriptions and radio controls outside its decorative artwork.
+
+`tests/client/features/chat/_chat-style-preview-stories.tsx` composes the production skin, bubble, avatar and markdown renderers without miniature geometry overrides.
+Its coupled capture cases compare rendered images with `packages/client/public/illustrations/chat-styles/` to detect stale artwork.
+
+Refresh the artwork after changing its renderer or owned example content:
+
+```bash
+pnpm test:ct tests/client/features/chat/components/appearance-message-style-section.ct.tsx --workers=1 --grep='renderer capture '
+```
+
+An outdated image fails comparison while preserving the new capture in the completed test artifacts.
+Inspect the captures, then copy their `owned-preview-capture` attachments into the matching style and palette paths.
+Rerun the affected capture cases after copying.
+Scale the raster image through its image primitive; keep live UI typography unscaled.
 
 ### 12.2 Rich message content — the HTML story (two tiers; Tier B = sandboxed iframe, NOT Shadow DOM)
 

@@ -113,17 +113,17 @@ test("echo's art pane sits OUTSIDE the prose measure, is sized to the pane (neve
   // the two copies of this geometry from drifting. Rendered width stays pinned in chat-room-track CT.
   expect(painted?.style?.maxWidth).toBeDefined();
   expect(painted?.style?.maxWidth).toBe(echo.columnStyle?.maxWidth);
-  expect(painted?.style?.paddingRight).toBe("var(--immersive-echo-art-width)");
+  expect(painted?.style?.paddingRight).toBe("min(var(--immersive-echo-art-width), 25cqi)");
   // THE CROP FIX (#212-3): the art layer is sized to the PANE and anchored to its top outer corner. Sized
   // `cover` against the whole bubble it was a 4.94x upscale cropped past the subject on a long turn.
-  expect(painted?.style?.backgroundSize).toBe("100% 100%, var(--immersive-echo-art-width) auto");
+  expect(painted?.style?.backgroundSize).toBe("100% 100%, min(var(--immersive-echo-art-width), 25cqi) auto");
   expect(painted?.style?.backgroundPosition).toBe("0 0, right top");
   // The with-image path carries NO fallback tile.
   expect(painted?.edgeTile).toBeUndefined();
   // THE USER ROW IS DECORATED NOW (#212-5, reversing hide-user-portrait for this skin — see the header):
   // same geometry, mirrored to the row's own outer edge.
   const own = echo.bubbleDecoration?.(decoArgs("persona", "abababab"));
-  expect(own?.style?.paddingLeft).toBe("var(--immersive-echo-art-width)");
+  expect(own?.style?.paddingLeft).toBe("min(var(--immersive-echo-art-width), 25cqi)");
   expect(own?.style?.paddingRight).toBeUndefined();
   expect(own?.style?.backgroundPosition).toBe("0 0, left top");
   // An unattributed row still has no identity to paint.
@@ -148,7 +148,7 @@ test("echo's no-image character row paints the first-class FALLBACK tile (owner 
   // The tile IS the art source now — the mode no longer degrades to a plain bubble for an imageless
   // character. Reading geometry is IDENTICAL to the with-image case (same padding-right token).
   expect(fallback).not.toBeNull();
-  expect(fallback?.style?.paddingRight).toBe("var(--immersive-echo-art-width)");
+  expect(fallback?.style?.paddingRight).toBe("min(var(--immersive-echo-art-width), 25cqi)");
   expect(fallback?.edgeTile?.initial).toBe("AL");
   // The tile IS the art pane, so it names the same side the portrait would take.
   expect(fallback?.edgeTile?.side).toBe("right");
@@ -188,6 +188,33 @@ test("whisper's no-image character band is the first-class FALLBACK tile (hue fi
   expect(fallback?.headerBand?.style.backgroundColor).toBe(avatarFallbackHueColor("char_alice"));
   // A hue FIELD, never a banner <img>.
   expect(fallback?.headerBand?.style.backgroundImage).not.toContain("?v=banner");
+});
+
+test("owned renderer artwork uses the same geometry and respects identity-art admission", () => {
+  const requests: Parameters<NonNullable<BubbleDecorationArgs["imageUrlFor"]>>[] = [];
+  const art = "/illustrations/owned-preview.svg";
+  const imageUrlFor: NonNullable<BubbleDecorationArgs["imageUrlFor"]> = (...request) => {
+    requests.push(request);
+    return art;
+  };
+  const args = decoArgs("character", null, { imageUrlFor });
+  const echo = MESSAGE_ROW_SKINS.echo.bubbleDecoration?.(args);
+  const whisper = MESSAGE_ROW_SKINS.whisper.bubbleDecoration?.(args);
+  expect(echo?.style?.backgroundImage).toContain(art);
+  expect(echo?.style?.maxWidth).toBe(MESSAGE_ROW_SKINS.echo.columnStyle?.maxWidth);
+  expect(echo?.style?.paddingRight).toBe("min(var(--immersive-echo-art-width), 25cqi)");
+  expect(echo?.edgeTile).toBeUndefined();
+  expect(whisper?.headerBand?.style.backgroundImage).toContain(art);
+  expect(whisper?.headerBand?.style.aspectRatio).toBe("var(--aspect-banner)");
+  expect(requests).toEqual([
+    ["portrait", 400],
+    ["banner", 800],
+  ]);
+  expect(MESSAGE_ROW_SKINS.echo.bubbleDecoration?.({ ...args, kind: null })).toBeNull();
+  expect(MESSAGE_ROW_SKINS.echo.bubbleDecoration?.({ ...args, showInChatAvatars: false })).toBeNull();
+  expect(MESSAGE_ROW_SKINS.whisper.bubbleDecoration?.({ ...args, kind: "persona" })?.headerBand).toBeUndefined();
+  expect(MESSAGE_ROW_SKINS.whisper.bubbleDecoration?.({ ...args, showInChatAvatars: false })?.headerBand).toBeUndefined();
+  expect(requests).toHaveLength(2);
 });
 
 test("hush's stripe paints for every kind (chrome, not portrait art — not hide-user-portrait's concern)", () => {

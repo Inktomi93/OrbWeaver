@@ -4,6 +4,7 @@
 // in message-row.tsx. Echo/Whisper's feather is a layered background-image gradient, not literal
 // `mask-image` (that would also fade the text painted on top).
 
+import type { VariantKind } from "@orb/contracts/assets";
 import { blobBannerUrl, blobPortraitUrl, blobUrl } from "@orb/contracts/assets";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -86,6 +87,8 @@ type ColumnPlacement = "anchored" | "gutterCentred";
 export interface BubbleDecorationArgs {
   readonly kind: RowAttribution["kind"];
   readonly avatarHash: string | null;
+  /** Static illustration consumers resolve their own art; absent keeps the owned-blob path. */
+  readonly imageUrlFor?: (variant: VariantKind, width?: number) => string;
   /** Seed for the deterministic fallback hue tile, used only on the no-image path. */
   readonly hueSeed: string;
   readonly initial: string;
@@ -132,10 +135,7 @@ export interface RowSkin {
 function bubbleOuter(role: MessageRole): string {
   return cx(CHAT_TRACK, alignFor(role));
 }
-// The bubble box itself is single-homed in `#lib/messageBubbleClass` — the theme editor's live preview
-// paints from the same builder, so the preview and the transcript can never drift apart (side-eye P2,
-// 2026-08-01). Inherited by exactly the five bubble-family skins whose `inner: bubbleInner`
-// (bubble/echo/whisper/ripple/tide) — flat/document/hush own their own full-width inner and are untouched.
+// Filled skins share the role-bubble recipe; centered unboxed skins own their reading treatment.
 const bubbleInner = messageBubbleClass;
 // The full-width skins take the SAME centred track as the bubble family (#213), and CENTRE their capped
 // column inside it. They used to carry a bare `w-full items-stretch`: the track was the whole pane (a
@@ -178,31 +178,11 @@ function hushDecoration(): BubbleDecoration {
 
 const ECHO_PORTRAIT_REQUEST_WIDTH = 400;
 
-// ECHO'S GEOMETRY, REBUILT ON THE MEASURE (#212-2/-3). The art pane is a FIXED column that lives OUTSIDE
-// the prose measure, on the row's OUTER side per role — the reference's anatomy, and the only shape that
-// keeps both promises at once (art present, line readable).
-//
-// What it replaced, and why the old shape could not be tuned: the pane was `--immersive-echo-feather: 55%`
-// spent as `padding-right` INSIDE the bubble's own `max-w-prose` box. Two defects fell out of that single
-// decision. (1) The reading line was whatever the percentage left — 239px of a 558px box = **28 characters
-// per line** against the house 65-75ch law (side-eye 2026-08-18). (2) `background-size: cover` sized the
-// art against the WHOLE bubble, which grows with the message: a 400x600 portrait painted into a measured
-// 558x2965 box is a **4.94x upscale** with 28% of the asset visible and the subject's head off-frame, so
-// the longer the turn the less it looked like anybody. Both are gone by construction now:
-//   · the box is `--reading-measure-min + --immersive-echo-art-width`, so the PROSE keeps the band's floor
-//     and the art is additive — the measure wins over the feather, never the reverse;
-//   · the art layer is painted at `<art-width> auto` anchored to the pane's TOP outer corner, so it is
-//     DOWN-scaled from its 400px request (the portrait variant's own smart crop does the framing) and a
-//     three-screen turn shows the same head as a one-line one.
-// The gradient is still a layered background rather than a literal mask (a mask would fade the TEXT too),
-// and its stop is now the same art width — the art is fully dissolved exactly where the text may start.
-// The box is CONTENT + the art pane + the bubble's own inner inset on the text side (`px-block`, which
-// `box-sizing: border-box` counts inside a max-width) — so what survives for prose is exactly the floor.
-// The SAME arithmetic caps echo's content column (`ECHO_MAX_WIDTH_STYLE`): without that, the styles tier's
-// prose-only measure fenced the bubble first and the art went back to eating the line.
-// The box and column share one inline CSSProperties value because they consume the same skin-owned
-// geometry. The track remains authored CSS: unlike these two component styles, it is a selector mechanism.
-const ECHO_MAX_WIDTH_STYLE: CSSProperties = { maxWidth: "calc(var(--reading-measure-min) + var(--immersive-echo-art-width) + var(--spacing-block))" };
+// The full art reservation is additive to the prose measure when the row has room.
+// On narrow rows the art shares that row's budget, leaving room for header and pager targets.
+const ECHO_MAX_WIDTH_STYLE: CSSProperties = {
+  maxWidth: "min(100%, calc(var(--reading-measure-min) + var(--immersive-echo-art-width) + var(--spacing-block)))",
+};
 
 // ECHO'S TRACK IS THE SHARED TRACK PLUS ITS ART PANE. A max-width only ALLOWS width — the column is a flex
 // child, so what it can actually occupy is what the track hands the row. Inside the plain track the art
@@ -216,7 +196,7 @@ const ECHO_TRACK = "mx-auto w-full orb-echo-track";
 function echoOuter(role: MessageRole): string {
   return cx(ECHO_TRACK, alignFor(role));
 }
-const ECHO_ART_WIDTH = "var(--immersive-echo-art-width)";
+const ECHO_ART_WIDTH = "min(var(--immersive-echo-art-width), 25cqi)";
 
 /** The art side: a character speaks from the row's leading edge, the viewer's persona from its trailing
  *  one, exactly as the reference mirrors the two roles. */
@@ -234,20 +214,23 @@ function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | null {
   const padding: CSSProperties = side === "left" ? { paddingLeft: ECHO_ART_WIDTH } : { paddingRight: ECHO_ART_WIDTH };
   // The gradient always fades FROM the art edge INTO the bubble fill, so it mirrors with the pane.
   const fade = `linear-gradient(to ${side === "left" ? "right" : "left"}, transparent, var(--color-ai-bubble) ${ECHO_ART_WIDTH})`;
-  if (args.avatarHash === null) {
+  const portraitUrl =
+    args.imageUrlFor?.("portrait", ECHO_PORTRAIT_REQUEST_WIDTH) ??
+    (args.avatarHash === null ? null : blobPortraitUrl(args.avatarHash, ECHO_PORTRAIT_REQUEST_WIDTH));
+  if (portraitUrl === null) {
     return {
       style: { ...ECHO_MAX_WIDTH_STYLE, ...padding },
       edgeTile: {
         initial: args.initial,
         side,
         style: {
+          width: ECHO_ART_WIDTH,
           backgroundColor: avatarFallbackHueColor(args.hueSeed),
           backgroundImage: `linear-gradient(to ${side === "left" ? "right" : "left"}, transparent, var(--color-ai-bubble))`,
         },
       },
     };
   }
-  const portraitUrl = blobPortraitUrl(args.avatarHash, ECHO_PORTRAIT_REQUEST_WIDTH);
   return {
     style: {
       ...ECHO_MAX_WIDTH_STYLE,
@@ -281,7 +264,10 @@ function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
   if (args.kind !== "character" || !args.showInChatAvatars) {
     return { style: WHISPER_STRIPE };
   }
-  if (args.avatarHash === null) {
+  const bannerUrl =
+    args.imageUrlFor?.("banner", WHISPER_BANNER_REQUEST_WIDTH) ??
+    (args.avatarHash === null ? null : blobBannerUrl(args.avatarHash, WHISPER_BANNER_REQUEST_WIDTH));
+  if (bannerUrl === null) {
     return {
       style: WHISPER_STRIPE,
       headerBand: {
@@ -294,7 +280,6 @@ function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
       },
     };
   }
-  const bannerUrl = blobBannerUrl(args.avatarHash, WHISPER_BANNER_REQUEST_WIDTH);
   return {
     style: WHISPER_STRIPE,
     headerBand: {

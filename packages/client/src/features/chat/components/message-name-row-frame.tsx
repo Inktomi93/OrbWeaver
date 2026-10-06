@@ -68,8 +68,7 @@ export interface NameRowFrameProps {
   readonly actions: ReactNode;
   readonly stickyAttribution: boolean;
   readonly placement: HeaderPlacement;
-  /** ST's user side packs the whole header against the container's trailing edge (#288); every other
-   *  arm keeps identity-leading / actions-trailing. */
+  /** User identity sits at the trailing edge; its action cluster takes the opposite edge. */
   readonly mirrored: boolean;
 }
 
@@ -78,7 +77,7 @@ export function NameRowFrame(args: NameRowFrameProps): ReactElement {
   return (
     <Row
       ref={ref}
-      justify={args.mirrored ? "end" : "between"}
+      justify="between"
       align="center"
       gap="field"
       data-slot="message-name-row"
@@ -86,6 +85,7 @@ export function NameRowFrame(args: NameRowFrameProps): ReactElement {
       data-sticky={args.stickyAttribution ? "" : undefined}
       data-pinned={pinned ? "" : undefined}
       className={cn(
+        args.mirrored && "flex-row-reverse",
         headerBacking(args.placement, args.stickyAttribution, pinned),
         // THE ACTION RAIL'S ONLY RESERVATION. The rail is centred on this row, so a content height of
         // `control-md - 2 * row` makes it span exactly the container's top inset, this row and the

@@ -32,7 +32,7 @@
 // but the pane's edge), and its hairline rule is the seam between the word and the cells.
 
 import { Badge } from "@orb/ui/badge";
-import { ChevronLeft, ChevronRight, Icon, Lock } from "@orb/ui/icons";
+import { ChevronLeft, ChevronRight, Crown, Icon, Lock } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
 import { TabsList, TabsTab } from "@orb/ui/tabs";
@@ -114,15 +114,6 @@ const CELL_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
 const KICKER_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
   owning: "text-foreground/80",
   receded: "text-muted-foreground/90",
-};
-
-/** THE CROWN INHERITS THE RECEDE (side-eye 08-01). Crown gold marks a host-only cell, but painted as an
- *  absolute `text-accolade` a RECEDED rail's brightest pixel was its crown. The gold is a treatment WITHIN
- *  a rail's own voice, so it steps with that voice: full gold while the rail owns, the cell's inherited
- *  (muted) colour while it recedes. */
-const CROWN_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
-  owning: "text-accolade",
-  receded: "text-inherit",
 };
 
 /** The narrow-panel WRAP: below the `xs` container step a rail of exactly six cells lays out as ROWS of three, because
@@ -380,10 +371,6 @@ function ContextCell({
 }): ReactElement {
   const locked = tab.disabledReason !== null;
   const count = typeof tab.badge === "number" ? tab.badge : 0;
-  // CROWN GOLD AT REST: the host-only cells read as host-only without spending a word on it. AT REST only —
-  // once the cell is active the accent state is the answer to "where am I", and a gold glyph inside an
-  // accent cell would argue with it. At rest the gold rides its RAIL'S ownership voice.
-  const crowned = tab.crown && !isActive;
   return (
     <TabsTab
       layout="stacked"
@@ -406,9 +393,7 @@ function ContextCell({
       className={`relative data-active:bg-primary/15 data-active:text-foreground ${CELL_EDGE_CLASSES} ${CELL_OWNERSHIP_CLASSES[ownership]} ${CONTEXT_CELL_FLOOR_AT_COARSE}`}
       {...(tab.disabledReason !== null ? { title: tab.disabledReason } : {})}
     >
-      {tab.icon !== undefined ? (
-        <Icon icon={tab.icon} size="sm" className={`${crowned ? CROWN_OWNERSHIP_CLASSES[ownership] : ""} ${locked ? "opacity-60" : ""}`} />
-      ) : null}
+      {renderCellIcon(tab, isActive, locked)}
       {/* voice=LABEL, not `gloss` (side-eye #102): this caption is the pane's PRIMARY NAVIGATION, and `gloss` is
           the 10.5px `micro` step — under the 11px readable floor. The mock draws its captions at 10.5px and is
           NOT followed on this axis: the readable-floor ruling stands. text-inherit so the cell's own state
@@ -424,6 +409,17 @@ function ContextCell({
       {locked || isActive ? null : <ContextCellBadge count={count} dot={tab.badge === true} />}
     </TabsTab>
   );
+}
+
+function renderCellIcon(tab: ResolvedContextTab, isActive: boolean, locked: boolean): ReactElement | null {
+  if (tab.icon === undefined) {
+    return null;
+  }
+  const className = locked ? "opacity-60" : "";
+  if (tab.icon === Crown) {
+    return <Icon icon={Crown} size="sm" fill={isActive ? "solid" : "none"} className={className} />;
+  }
+  return <Icon icon={tab.icon} size="sm" className={className} />;
 }
 
 function ContextCellBadge({ count, dot }: { readonly count: number; readonly dot: boolean }): ReactElement | null {

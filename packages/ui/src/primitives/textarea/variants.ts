@@ -5,7 +5,7 @@ import { DISABLED_STATE_NATIVE, FIELD_CONTROL, FOCUS_RING, FOCUS_RING_DESTRUCTIV
 export const textareaVariants = tv({
   base: [
     FIELD_CONTROL,
-    "field-sizing-content min-h-control-lg py-field",
+    "field-sizing-content py-field",
     "placeholder:text-muted-foreground",
     "outline-none",
     FOCUS_RING,
@@ -17,4 +17,11 @@ export const textareaVariants = tv({
     "data-invalid:border-destructive",
     FOCUS_RING_DESTRUCTIVE,
   ],
+  variants: {
+    size: {
+      default: "min-h-control-lg",
+      compact: "min-h-control-md",
+    },
+  },
+  defaultVariants: { size: "default" },
 });

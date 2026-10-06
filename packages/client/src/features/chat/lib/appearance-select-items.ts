@@ -36,10 +36,10 @@ const CHAT_STYLE_LABELS: Record<AppearanceSettings["chatStyle"], string> = {
  *  until someone writes its line (spine §5.5). */
 const CHAT_STYLE_DESCRIPTIONS: Record<AppearanceSettings["chatStyle"], string> = {
   bubble: "Each message sits in its own tinted bubble.",
-  flat: "Full-width rows with no bubble, like a script.",
+  flat: "Unboxed messages in a centered reading column.",
   document: "One centered manuscript column.",
   echo: "The speaker's portrait bleeds into the edge of the bubble.",
-  whisper: "A wide banner of the speaker's art sits above the text.",
+  whisper: "Character art forms a wide banner above the message.",
   hush: "Flat rows, each marked with the speaker's color stripe.",
   ripple: "A tall portrait sticks beside the text as you scroll.",
   tide: "Every paragraph becomes its own small bubble.",

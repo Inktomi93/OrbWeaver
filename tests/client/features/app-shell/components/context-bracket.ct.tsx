@@ -165,6 +165,24 @@ for (const theme of SHIPPED_THEMES) {
 }
 
 // ── #878 F17: THE RAIL'S TRAIL IS NOT A SEVENTH CELL ───────────────────────────────────────────────────
+test("only the active Game crown fills; inactive host cells do not advertise selection", async ({ mount }) => {
+  const component = await mount(<ContextMetaRailStory paneWidth={640} />);
+  const preview = component.getByRole("button", { name: "Preview", exact: true });
+  const game = component.getByRole("button", { name: "Game", exact: true });
+  const activity = component.getByRole("button", { name: "Activity", exact: true });
+  await preview.click();
+  await expect(preview).toHaveAttribute("aria-current", "true");
+  await expect
+    .poll(() => activity.evaluate((element) => getComputedStyle(element.querySelector("svg") as Element).color === getComputedStyle(element).color))
+    .toBe(true);
+  await expect(game.locator("svg")).toHaveAttribute("fill", "none");
+  await game.click();
+  await expect(game).toHaveAttribute("aria-current", "true");
+  await expect(game.locator("svg")).toHaveAttribute("fill", "currentColor");
+  await preview.click();
+  await expect(game.locator("svg")).toHaveAttribute("fill", "none");
+});
+
 test("#878 F17: the rail's trail actions are separated from the cell track by a rule", async ({ mount }) => {
   // The host kebab sat INSIDE the cell row — a 34×34 glyph with no caption, beside captioned cells, in a
   // rail whose law is "icon + caption always" (#208). It reads as a cell that forgot its word. It is not a

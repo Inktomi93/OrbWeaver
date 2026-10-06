@@ -1,5 +1,5 @@
-// The composer's compact action rail: four direct guided actions, adjacent room/tools doors and terminal Send.
-// The layout primitive moves whole keyed groups when their measured widths do not fit. The connection readout is the next-turn line under
+// The composer uses two rows: guided utilities above; menu doors, draft and terminal Send below.
+// The connection readout is the next-turn line under
 // the composer card (`composer-next-turn-line.tsx`), not a slot here.
 //
 // DUAL-MODE: empty composer = the plain action; typed text = the guided action (the text IS the steer,
@@ -39,7 +39,6 @@
 import type { GuidedImpersonatePerson } from "@orb/contracts/preset";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { ActionBar } from "@orb/ui/action-bar";
 import { FastForward, RotateCcw } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -83,6 +82,7 @@ export interface ComposerGuidedClusterProps {
   readonly mediaContributions: readonly ReactNode[];
   /** The composer-owned terminal send/stop control; kept beside attachment tools as one physical cluster. */
   readonly sendControl: ReactNode;
+  readonly messageInput: ReactNode;
 }
 
 /** The paired menu doors, intact guided actions and terminal Send, with the refusal line below. */
@@ -102,6 +102,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
     roomContributions,
     mediaContributions,
     sendControl,
+    messageInput,
   } = props;
   const guided = useGuidedActions({ chatId, onFireError: (firedText): void => onChange(firedText) });
   const utilities = useComposerUtilities(chatId);
@@ -155,80 +156,77 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
           than a margin (`Container` is a plain block — the house rule is "space via Stack/Grid gap",
           variants.ts). With no refusal the Stack has one child and spends nothing. */}
       <Stack gap="field" data-slot="composer-guided-cluster">
-        <ActionBar
-          leading={
-            <Row aria-label="Chat and message tools" gap="field" role="group">
-              {chatControl}
-              <ComposerGuidedUtilityMenu
+        <Row align="center" justify="between" gap="field" className="min-w-0 flex-wrap" data-slot="composer-utilities">
+          <Row align="center" gap="field" className="min-w-0 flex-wrap">
+            <Row aria-label="Your message" className="shrink-0" data-slot="composer-you-actions" gap="field" role="group">
+              <ImpersonateGuidedButton
+                disabled={!idle}
                 hasText={hasText}
-                trimmed={trimmed}
-                idle={idle}
-                generationUnavailableReason={reasonFor("Wait for the current reply to finish")}
-                canTargetTail={canTargetTail}
-                guided={guided}
-                utilities={utilities}
-                onChange={onChange}
-                onRewrite={rewrite.open}
-                game={game}
-                image={imageControls}
-                roomContributions={roomContributions}
-                mediaContributions={mediaContributions}
+                onPick={fireImpersonate}
+                reason={reasonFor(IMPERSONATE_WAIT_FOR_TURN)}
+                refusalStatedBy={offStatedBy}
               />
+              {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
             </Row>
-          }
-          primary={
-            <Row aria-label="Guided actions" className="shrink-0" gap="field" role="group">
-              <Row aria-label="Your message" className="shrink-0" data-slot="composer-you-actions" gap="field" role="group">
-                <ImpersonateGuidedButton
-                  disabled={!idle}
-                  hasText={hasText}
-                  onPick={fireImpersonate}
-                  reason={reasonFor(IMPERSONATE_WAIT_FOR_TURN)}
-                  refusalStatedBy={offStatedBy}
-                />
-                {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
-              </Row>
-              <Row aria-label="Their reply" className="min-w-0 shrink-0" data-slot="composer-them-actions" gap="field" role="group">
-                <GuidedIconButton
-                  icon={RotateCcw}
-                  label={hasText ? "Try another reply with this direction" : "Try another reply"}
-                  steerCue={STEER_CUE_SWIPE}
-                  hasText={hasText}
-                  disabled={!(canTargetTail && idle)}
-                  reason={reasonFor(SWIPE_NEEDS_REPLY)}
-                  buttonTestId="composerGuidedSwipe"
-                  refusalStatedBy={offStatedBy}
-                  onFire={(): void => guided.fireSwipe(trimmed)}
-                />
-                <ResponseGuidedButton
-                  hasText={hasText}
-                  idle={idle}
-                  characters={characters}
-                  onFire={fireResponse}
-                  disabledReason={persistentOffReason}
-                  refusalStatedBy={offStatedBy}
-                />
-                <GuidedIconButton
-                  icon={FastForward}
-                  label={hasText ? "Continue the reply with this direction" : "Continue the reply"}
-                  steerCue={STEER_CUE_CONTINUE}
-                  hasText={hasText}
-                  disabled={!(canTargetTail && idle)}
-                  reason={reasonFor(SWIPE_NEEDS_REPLY)}
-                  buttonTestId="composerGuidedContinue"
-                  refusalStatedBy={offStatedBy}
-                  onFire={(): void => fireAndClear(guided.fireContinue)}
-                />
-              </Row>
-            </Row>
-          }
-          fill={actionContributions}
-          trailing={
-            <Row aria-label="Send controls" gap="field" role="group">
-              {sendControl}
-            </Row>
-          }
-        />
+            {actionContributions}
+          </Row>
+          <Row aria-label="Their reply" className="min-w-0 shrink-0" data-slot="composer-them-actions" gap="field" role="group">
+            <GuidedIconButton
+              icon={RotateCcw}
+              label={hasText ? "Try another reply with this direction" : "Try another reply"}
+              steerCue={STEER_CUE_SWIPE}
+              hasText={hasText}
+              disabled={!(canTargetTail && idle)}
+              reason={reasonFor(SWIPE_NEEDS_REPLY)}
+              buttonTestId="composerGuidedSwipe"
+              refusalStatedBy={offStatedBy}
+              onFire={(): void => guided.fireSwipe(trimmed)}
+            />
+            <ResponseGuidedButton
+              hasText={hasText}
+              idle={idle}
+              characters={characters}
+              onFire={fireResponse}
+              disabledReason={persistentOffReason}
+              refusalStatedBy={offStatedBy}
+            />
+            <GuidedIconButton
+              icon={FastForward}
+              label={hasText ? "Continue the reply with this direction" : "Continue the reply"}
+              steerCue={STEER_CUE_CONTINUE}
+              hasText={hasText}
+              disabled={!(canTargetTail && idle)}
+              reason={reasonFor(SWIPE_NEEDS_REPLY)}
+              buttonTestId="composerGuidedContinue"
+              refusalStatedBy={offStatedBy}
+              onFire={(): void => fireAndClear(guided.fireContinue)}
+            />
+          </Row>
+        </Row>
+        <Row align="center" gap="field" className="min-w-0" data-slot="composer-input">
+          <Row aria-label="Chat and message tools" className="shrink-0" gap="field" role="group">
+            {chatControl}
+            <ComposerGuidedUtilityMenu
+              hasText={hasText}
+              trimmed={trimmed}
+              idle={idle}
+              generationUnavailableReason={reasonFor("Wait for the current reply to finish")}
+              canTargetTail={canTargetTail}
+              guided={guided}
+              utilities={utilities}
+              onChange={onChange}
+              onRewrite={rewrite.open}
+              game={game}
+              image={imageControls}
+              roomContributions={roomContributions}
+              mediaContributions={mediaContributions}
+            />
+          </Row>
+          {messageInput}
+          <Row aria-label="Send controls" className="shrink-0" gap="field" role="group">
+            {sendControl}
+          </Row>
+        </Row>
         <RewriteDialog
           open={rewrite.isOpen}
           onOpenChange={rewrite.setOpen}

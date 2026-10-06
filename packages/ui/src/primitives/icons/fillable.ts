@@ -26,6 +26,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Bookmark as BookmarkGlyph,
   Circle as CircleGlyph,
+  Crown as CrownGlyph,
   Droplet as DropletGlyph,
   Flag as FlagGlyph,
   Flame as FlameGlyph,
@@ -49,6 +50,8 @@ export const Bookmark: FillableIcon = BookmarkGlyph as FillableIcon;
  *  a clean vertical wipe. It is the row STATE dot (a pressed one-of-N pick reads as filled vs hollow —
  *  a shape delta, WCAG 1.4.1). */
 export const Circle: FillableIcon = CircleGlyph as FillableIcon;
+/** The closed crown silhouette fills; its separate open baseline remains a stroke. */
+export const Crown: FillableIcon = CrownGlyph as FillableIcon;
 export const Droplet: FillableIcon = DropletGlyph as FillableIcon;
 export const Flag: FillableIcon = FlagGlyph as FillableIcon;
 export const Flame: FillableIcon = FlameGlyph as FillableIcon;

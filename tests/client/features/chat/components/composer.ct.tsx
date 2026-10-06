@@ -44,12 +44,49 @@ const GENERATED_IMAGE_MESSAGE = makeMessageView({ content: "generated image" });
 // widened the copy to images + video).
 const ATTACH_NAME = /^Attach images & video, up to [\d.]+ MB per file$/u;
 
+for (const width of [1440, 360]) {
+  test.describe(`compact two-row composer at ${width}`, () => {
+    test.use({ viewport: { width, height: 900 }, hasTouch: width === 360 });
+    test("utilities split above the real input with menu and send on its lower row", async ({ mount, page }) => {
+      await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
+      const component = await mount(<ComposerStory />);
+      const message = component.getByRole("textbox", { name: "Message", exact: true });
+      const controls = ["Chat options", "Message tools", "Send message"];
+      await expect(message).toBeVisible();
+      const input = await message.boundingBox();
+      if (input === null) {
+        throw new Error("message input has no layout box");
+      }
+      for (const name of controls) {
+        const control = component.getByRole("button", { name, exact: true });
+        await expect(control).toBeVisible();
+        const box = await control.boundingBox();
+        if (box === null) {
+          throw new Error(`${name} has no layout box`);
+        }
+        expect(Math.abs(box.y + box.height / 2 - input.y - input.height / 2), name).toBeLessThan(1);
+      }
+      const you = await component.getByRole("group", { name: "Your message", exact: true }).boundingBox();
+      const them = await component.getByRole("group", { name: "Their reply", exact: true }).boundingBox();
+      if (you === null || them === null) {
+        throw new Error("guided utilities have no layout boxes");
+      }
+      expect(you.y + you.height).toBeLessThanOrEqual(input.y);
+      expect(Math.abs(you.y - them.y)).toBeLessThan(1);
+      expect(you.x + you.width).toBeLessThan(them.x);
+      await message.fill("First line\nSecond line\nThird line");
+      await expect(message).toHaveValue("First line\nSecond line\nThird line");
+      expect((await message.boundingBox())?.height ?? 0).toBeGreaterThan(input.height);
+    });
+  });
+}
+
 // ── D111 ☰ RELOCATION: the chat-options menu lives in the composer's LEFT gutter, and ONLY there ──
 // Owner ruling 2026-08-09 closed D111's parked "topbar vs composer" fork on the composer and removed the
 // topbar trail widget in the same change. These assert the PLACEMENT (the sibling composer-chat-options.ct
 // owns the menu's contents): present in both phases, and geometrically LEFT of the guided cluster — a
 // mount that landed it on the right would satisfy a presence-only assertion.
-test("D111: the ☰ chat-options menu renders in the composer, LEFT of the guided cluster (committed)", async ({ mount, page }) => {
+test("D111: the ☰ chat-options menu renders in the composer, LEFT of the message input (committed)", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": () => ({ title: "Council", participants: [], viewerIsHost: true }) });
   const component = await mount(<ComposerStory />);
   const options = component.getByRole("button", { name: "Chat options" });
@@ -59,7 +96,7 @@ test("D111: the ☰ chat-options menu renders in the composer, LEFT of the guide
   await expect.poll(async () => options.boundingBox()).not.toBeNull();
   await expect.poll(async () => component.getByRole("group", { name: "Your message", exact: true }).boundingBox()).not.toBeNull();
   const optionsBox = await options.boundingBox();
-  const guidedBox = await component.getByRole("group", { name: "Your message", exact: true }).boundingBox();
+  const guidedBox = await component.getByRole("textbox", { name: "Message", exact: true }).boundingBox();
   expect(optionsBox?.x ?? 0).toBeLessThan(guidedBox?.x ?? 0);
 });
 
@@ -373,13 +410,12 @@ interface ActionSpec {
 async function controlBoxes(component: Locator, actions: readonly ActionSpec[]): Promise<readonly ControlBox[]> {
   const order = await component
     .getByTestId("composer")
-    .getByRole("button")
+    .locator("button, textarea")
     .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("aria-label")));
-  const ordered = actions.toSorted((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
   const controls = [
     { name: "Message", locator: component.getByRole("textbox", { name: "Message", exact: true }) },
-    ...ordered.map(({ name }) => ({ name, locator: component.getByRole("button", { name, exact: true }) })),
-  ];
+    ...actions.map(({ name }) => ({ name, locator: component.getByRole("button", { name, exact: true }) })),
+  ].toSorted((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
   return await Promise.all(
     controls.map(async ({ name, locator }) => {
       const box = await locator.boundingBox();
@@ -405,25 +441,16 @@ function expectRowMajorOrder(boxes: readonly ControlBox[]): void {
     if (previous === undefined || current === undefined) {
       throw new Error(`Missing control geometry at index ${String(index)}`);
     }
-    expect(current.y, `${current.name} must not paint above ${previous.name}`).toBeGreaterThanOrEqual(previous.y - 0.5);
-    const followsPrevious = Math.abs(current.y - previous.y) > 0.5 || current.x > previous.x;
+    const previousCenter = previous.y + previous.height / 2;
+    const currentCenter = current.y + current.height / 2;
+    expect(currentCenter, `${current.name} must not paint above ${previous.name}`).toBeGreaterThanOrEqual(previousCenter - 0.5);
+    const followsPrevious = Math.abs(currentCenter - previousCenter) > 0.5 || current.x > previous.x;
     expect(followsPrevious, `${current.name} must follow ${previous.name} on their shared row`).toBe(true);
   }
 }
 
-// THE #206 COARSE ROW LAW, RE-INPUT BY #531 (2026-08-23). #206 pinned the coarse arm's rows LITERALLY —
-// "Their reply follows the first explicit row", "Their reply and Attach and send share the second", and at
-// 320 "Their reply is centered on its owned row". Those clauses described the hand-placed 2×2 (+ `@max-xs`
-// third row) grid, and #531 measured that grid as the larger half of the phone composer's chrome tax: it
-// spent a whole 48px row + a 24px gap at EVERY width below the `@md` container step, including 430, where
-// the four homes provably fit one line (372px of homes in a 392px card).
-//
-// #206's MECHANISM survives verbatim and is still asserted by its caller: the 44px target floor, painted-
-// centre ownership, containment inside the composer and the viewport, zero overlap, row-major reading order,
-// one truthful nearest owner per control, and no horizontal scroll. What is retired is only the ROW COUNT
-// and the hand-placed 320px centring — the two clauses #531 exists to change. In their place: the homes read
-// in order across however many rows FIT requires, and the last row still ends at the composer's right edge,
-// so the terminal Send home is never orphaned into the left gutter.
+// Keep row order, target size, painted-center ownership and containment while utilities precede the
+// menu/input/send row. A multiline draft changes height, not DOM or keyboard order.
 async function expectExplicitCoarseRows(component: Locator): Promise<void> {
   const barBox = await component.locator('[data-slot="composer-guided-cluster"]').boundingBox();
   expect(barBox, "the action bar must have rendered geometry").not.toBeNull();
@@ -435,13 +462,14 @@ async function expectExplicitCoarseRows(component: Locator): Promise<void> {
       return { name, ...(box ?? { x: 0, y: 0, width: 0, height: 0 }) };
     }),
   );
-  const [chat, yours, theirs] = groupBoxes;
-  if (chat === undefined || yours === undefined || theirs === undefined) {
+  const [chat, yours, theirs, send] = groupBoxes;
+  if (chat === undefined || yours === undefined || theirs === undefined || send === undefined) {
     throw new Error("Missing composer group geometry");
   }
   expect(yours.y).toBe(theirs.y);
-  const stacked = await component.locator('[data-slot="action-bar"]').getAttribute("data-stacked");
-  expect(stacked === "true" ? chat.y > yours.y : chat.y === yours.y && chat.x < yours.x).toBe(true);
+  expect(chat.y).toBeGreaterThanOrEqual(yours.y + yours.height);
+  expect(send.y).toBe(chat.y);
+  expect(send.x).toBeGreaterThan(chat.x);
   // Whatever the fit produces, the FINAL row reaches the composer's right edge: the terminal Send home is
   // right-anchored on a wrapped line exactly as it is on a full one (the auto margins, not a grid column).
   const lastRowY = Math.max(...groupBoxes.map((group) => group.y));
@@ -476,7 +504,7 @@ async function expectCoarseComposerLayout(page: Page, component: Locator, action
   const boxes = await controlBoxes(component, actions);
   const viewportWidth = await page.evaluate(() => innerWidth);
 
-  const actionBoxes = boxes.slice(1);
+  const actionBoxes = boxes.filter((box) => box.name !== "Message");
   for (const action of actionBoxes) {
     expect(Math.min(action.width, action.height), `${action.name} must meet the coarse 44px target floor`).toBeGreaterThanOrEqual(44);
   }
@@ -571,7 +599,7 @@ test("#206: every icon control exposes plain-language names and tooltips on hove
   expect(names).not.toContain("Swipe");
 });
 
-test("#206: the message leads one compact, truthfully grouped action rail", async ({ mount, page }) => {
+test("#206: utility groups lead the compact menu/input/send row in keyboard order", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": groupedComposerChat });
   const component = await mount(<ComposerStory />);
 
@@ -590,10 +618,10 @@ test("#206: the message leads one compact, truthfully grouped action rail", asyn
   const boxes = await controlBoxes(component, COMPOSER_ACTIONS);
   expectRowMajorOrder(boxes);
   const input = await component.locator('[data-slot="composer-input"]').boundingBox();
-  const bar = await component.locator('[data-slot="composer-guided-cluster"]').boundingBox();
+  const bar = await component.locator('[data-slot="composer-utilities"]').boundingBox();
   expect(input, "the message field must have rendered geometry").not.toBeNull();
   expect(bar, "the action rail must have rendered geometry").not.toBeNull();
-  expect((input?.y ?? 0) + (input?.height ?? 0), "the message stays visually above its actions").toBeLessThanOrEqual(bar?.y ?? 0);
+  expect((bar?.y ?? 0) + (bar?.height ?? 0), "the utilities precede the menu/input/send row").toBeLessThanOrEqual(input?.y ?? 0);
 });
 
 test("#206: a disabled reply action remains focusable and exposes its reason", async ({ mount, page }) => {
@@ -1443,23 +1471,8 @@ test("#376 paste: a clipboard carrying BOTH text and an image attaches the image
   await expect(component.locator(ATTACHMENT_PREVIEW)).toHaveCount(1);
 });
 
-// ── #531 THE MOBILE COMPOSER'S CHROME TAX: the action bar spends rows it does not need ──────────────
-// The composer is the larger half of the phone chrome tax (#511 fixed the cast half). The defect was NOT a
-// wrap: below the `@md` container step the action bar's recipe was an unconditional 2×2 grid (plus a hand-
-// placed `@max-xs` THIRD row), so it spent a whole 48px control row + a 24px section gap at EVERY phone
-// width — including widths where all four action homes provably fit on one line. Measured on the phone stage
-// before the fix: 196px at 430 · 199px at 390 · 271px at 320, with the homes on 2 · 2 · 3 rows.
-//
-// The law these pin is a RANGE property, not three point measurements: the bar takes ONE row wherever its
-// four homes fit and a second only when they do not — so the expected row count is DERIVED from the measured
-// homes, not restated as a pixel budget, and it stays honest when a home gains or loses a control.
-//
-// THE PACKING GAP IS THE HOMES' OWN `field` GAP, NEVER THE BAR'S RESOLVED `column-gap`. Reading the bar's own
-// gap makes the pin self-fulfilling: the old bar spaced its homes at `section` (24px), which by its own
-// arithmetic "could not" fit four homes in a 430px phone's 392px card — so a gap-derived pin rated the
-// two-row render CORRECT and went green on the defect (measured: it did). The homes are already spaced at
-// `field` INSIDE themselves, so `field` is the bar's own floor for what "fits" means, and packing against it
-// is what makes this red on the old source at 430 (372px of homes in a 392px card, rendered as two rows).
+// Utilities and input keep the same two-row organization at every production width, without buying
+// compactness by shrinking any touch target.
 const PHONE_ROOM_STUB: TrpcRoutes<"chat.getChat"> = {
   ...CHAT_AMBIENT_ROUTES,
   ...CHAT_ROOM_ROUTES,
@@ -1480,8 +1493,9 @@ function measureActionBar(page: Page): Promise<{
   return page.evaluate(() => {
     const bar = document.querySelector<HTMLElement>('[data-testid="composer"] [data-slot="composer-guided-cluster"]');
     const homes = [
-      ...(bar?.querySelectorAll<HTMLElement>('[data-slot="action-bar-leading"], [data-slot="action-bar-primary-content"], [data-slot="action-bar-trailing"]') ??
-        []),
+      ...(bar?.querySelectorAll<HTMLElement>(
+        '[aria-label="Your message"], [aria-label="Their reply"], [aria-label="Chat and message tools"], [aria-label="Send controls"]',
+      ) ?? []),
     ];
     const firstHome = homes[0];
     if (bar === null || firstHome === undefined) {
@@ -1494,7 +1508,7 @@ function measureActionBar(page: Page): Promise<{
       coarse: matchMedia("(pointer: coarse)").matches,
       barWidth: Math.round(bar.getBoundingClientRect().width),
       // The `field` gap the homes already use BETWEEN their own controls — the bar's own floor for "fits".
-      homeInnerGap: Math.round(Number.parseFloat(getComputedStyle(bar.querySelector('[data-slot="action-bar"]') ?? bar).columnGap)),
+      homeInnerGap: Math.round(Number.parseFloat(getComputedStyle(firstHome).columnGap)),
       rows: new Set(tops).size,
       homeWidths: homes.map((el) => Math.round(el.getBoundingClientRect().width)),
       // Every focusable control in the bar — the row saving must not have been bought by crushing targets.
@@ -1514,7 +1528,7 @@ for (const width of [430, 390, 320]) {
   test.describe(`#531 phone composer at ${width}px`, () => {
     test.use({ viewport: { width, height: 932 }, hasTouch: true });
 
-    test(`the action bar takes ONE row while its homes fit, never a breakpoint's extra row (${width}px)`, async ({ mount, page }) => {
+    test(`utilities and input stay on two rows with full touch targets (${width}px)`, async ({ mount, page }) => {
       await routeTrpc(page, PHONE_ROOM_STUB);
       const room = await mount(<ChatRoomPhoneStory paneHeight={822} />);
       // Barrier on the SETTLED bar: all four homes plus the terminal Send painted. Reading geometry before
@@ -1536,10 +1550,8 @@ for (const width of [430, 390, 320]) {
       for (const height of bar.controlHeights) {
         expect(height).toBeGreaterThanOrEqual(COARSE_TOUCH_FLOOR);
       }
-      // THE RANGE PROPERTY: rows are driven by FIT, so the expected count is derived, not asserted.
-      const needed = bar.homeWidths.reduce((sum, w) => sum + w, 0) + bar.homeInnerGap * (bar.homeWidths.length - 1);
-      const expectedRows = needed <= bar.barWidth ? 1 : 2;
-      expect(bar.rows, `homes need ${needed}px of a ${bar.barWidth}px bar at ${width}px, yet rendered ${bar.rows} rows`).toBe(expectedRows);
+      expect(bar.homeWidths).toHaveLength(ACTION_HOMES.length);
+      expect(bar.rows).toBe(2);
       // …and a wrapped line still ENDS at the bar's right edge, so the terminal Send home never falls back to
       // the left gutter on the second row (the old grid parked it in an explicit right-hand column, and a
       // plain `flex-wrap` without the auto margins would have left it hard left).
@@ -1548,10 +1560,10 @@ for (const width of [430, 390, 320]) {
   });
 }
 
-test.describe("the desktop composer keeps the same compact flex rail", () => {
+test.describe("the desktop composer keeps the same two-row organization", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test("at a wide container the four action homes hold one flex row", async ({ mount, page }) => {
+  test("at a wide container the utilities still precede the input row", async ({ mount, page }) => {
     await routeTrpc(page, PHONE_ROOM_STUB);
     const room = await mount(<ChatRoomPhoneStory paneHeight={822} />);
     await expect(room.getByRole("group", { name: "Send controls", exact: true })).toBeVisible();
@@ -1560,9 +1572,9 @@ test.describe("the desktop composer keeps the same compact flex rail", () => {
     await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
 
     const bar = await measureActionBar(page);
-    expect(bar.rows).toBe(1);
+    expect(bar.rows).toBe(2);
     await expect(page.locator('[data-slot="composer-guided-cluster"]')).toHaveCSS("display", "flex");
-    await expect(page.locator('[data-slot="action-bar"]')).toHaveCSS("flex-wrap", "wrap");
+    await expect(page.locator('[data-slot="composer-utilities"]')).toHaveCSS("justify-content", "space-between");
   });
 });
 
@@ -1593,7 +1605,7 @@ const GROUP_PHONE_STUB: TrpcRoutes<"chat.getChat"> = {
 test.describe("#539 the group-room phone composer", () => {
   test.use({ viewport: { width: 430, height: 932 }, hasTouch: true });
 
-  test("Their reply hosts ONE speaker door, and the group bar holds a single row", async ({ mount, page }) => {
+  test("Their reply hosts ONE speaker door without adding a third composer row", async ({ mount, page }) => {
     await routeTrpc(page, GROUP_PHONE_STUB);
     const room = await mount(<ChatRoomPhoneStory paneHeight={822} />);
     const them = room.getByRole("group", { name: "Their reply", exact: true });
@@ -1615,9 +1627,8 @@ test.describe("#539 the group-room phone composer", () => {
     for (const height of bar.controlHeights) {
       expect(height).toBeGreaterThanOrEqual(COARSE_TOUCH_FLOOR);
     }
-    const needed = bar.homeWidths.reduce((sum, w) => sum + w, 0) + bar.homeInnerGap * (bar.homeWidths.length - 1);
-    expect(needed, `a group room's four homes must fit a ${String(bar.barWidth)}px phone bar`).toBeLessThanOrEqual(bar.barWidth);
-    expect(bar.rows, "a group room must not buy a second action row for a duplicate door").toBe(1);
+    expect(bar.homeWidths).toHaveLength(ACTION_HOMES.length);
+    expect(bar.rows, "a group room must not buy a third row for a duplicate door").toBe(2);
   });
 });
 
@@ -1676,7 +1687,7 @@ for (const viewport of [
             return {
               paired: options.y === tools.y && tools.left - options.right <= gap,
               narrow: guided.y < options.y && send.y === options.y,
-              wide: guided.x > tools.x && send.x > guided.x,
+              wide: guided.y < options.y && send.y === options.y,
             };
           });
           return { paired: layout.paired, fit: viewport.touch ? layout.narrow : layout.wide };

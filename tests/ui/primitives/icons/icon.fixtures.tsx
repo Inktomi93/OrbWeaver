@@ -2,7 +2,7 @@
 // boundary (`icon={X}` would arrive as a callback proxy, not a component), so every composition is
 // pre-bound here and the tests mount the story (the standard CT wrapper pattern).
 import type { FillableIcon, IconProps } from "@orb/ui/icons";
-import { Bookmark, Circle, Droplet, Flag, Flame, Heart, Icon, Menu, Pause, Play, Settings, Shield, Square, Star, SunMoon, X, Zap } from "@orb/ui/icons";
+import { Bookmark, Circle, Crown, Droplet, Flag, Flame, Heart, Icon, Menu, Pause, Play, Settings, Shield, Square, Star, SunMoon, X, Zap } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 
 type IconSize = NonNullable<IconProps["size"]>;
@@ -45,6 +45,7 @@ export function TwoPartialStarsStory(): ReactElement {
 // claims, so it must show all of them, not a sample.
 const FILLABLE: readonly [string, FillableIcon][] = [
   ["Circle", Circle],
+  ["Crown", Crown],
   ["Star", Star],
   ["Heart", Heart],
   ["Bookmark", Bookmark],

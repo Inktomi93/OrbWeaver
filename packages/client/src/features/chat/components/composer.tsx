@@ -29,7 +29,7 @@ import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement, ReactNode } from "react";
 import { useId, useState } from "react";
@@ -354,52 +354,52 @@ export function Composer({
             the text CHANGE announces (its own header states the never-unmount rule). */}
         <AriaAnnouncer message={stripOpen ? `${String(slashMatches.length)} slash commands` : ""} />
         <ComposerAttachmentStrip attachments={attachments} onRemove={removeAttachment} />
-        {/* One shallow frame keeps the message central and its actions on a compact rail below it. DOM and
-            visual order now agree: Tab leaves the textarea for the action buttons without crossing the room. */}
+        {/* Utilities precede the input row; the menu doors and terminal Send stay beside the draft. */}
         <ComposerDropTarget dragActive={mediaDrop.dragActive} dropTargetProps={mediaDrop.dropTargetProps}>
-          <Row gap="field" align="center" data-slot="composer-input">
-            <Textarea
-              ref={textareaRef}
-              aria-label="Message"
-              // Editable-combobox wiring for the slash strip (a11y): while the strip is open the textarea
-              // advertises the listbox it CONTROLS and, when a row is highlighted, the active descendant — so a
-              // screen reader announces the highlighted offer without focus ever leaving the textarea.
-              {...slashCompletionAria(stripOpen)}
-              aria-activedescendant={activeSlashOptionId}
-              // SOFT-KEYBOARD HYGIENE (#1871 item 6, owner ruling 2026-09-19). NOTHING upstream sets these:
-              // `@orb/ui`'s Textarea renders a plain <textarea> through Base UI `Field.Control`, and
-              // Field.Control sets no input-hygiene attribute at all (in @base-ui/react 1.7.0 the three
-              // components that DO are OTPFieldInput, AriaCombobox — `autoCorrect: 'off'` +
-              // `autoCapitalize: 'none'` — and NumberFieldInput; the field/ tree carries none of them). So
-              // the composer states them itself.
-              // The Enter label FOLLOWS THE SETTING rather than being pinned: `enterSends` decides whether a
-              // bare Enter submits (composer-send-keys.ts), so a fixed "send" key lies for every reader who
-              // turned it off, and a fixed "enter" lies for the default. One live value, one truth.
-              enterKeyHint={behaviorPrefs.enterSends ? "send" : "enter"}
-              // A chat draft is prose the reader is composing in their own voice — autocorrect rewriting a
-              // character name and autocapitalise re-casing a deliberate lowercase line are both corruption
-              // of the message, not help. (Spellcheck is deliberately left ON: it MARKS, it never rewrites.)
-              autoCorrect="off"
-              autoCapitalize="off"
-              placeholder={placeholder}
-              value={value}
-              onChange={(e): void => {
-                // The refusal explained the PREVIOUS send attempt — the next keystroke retires it. The highlight
-                // resets too: the match set narrows as the token grows, so a stale index would point elsewhere.
-                setSlashNotice(null);
-                setSlashHighlight(-1);
-                onChange(e.target.value);
-              }}
-              onKeyDown={onKeyDown}
-              // Ctrl/Cmd+V attach (#376). Deliberately does NOT preventDefault: a clipboard carrying text
-              // AND an image must attach the image and still paste the text (see the hook's header).
-              onPaste={mediaDrop.onPaste}
-              disabled={sendMessage.isPending}
-              className="max-h-48 min-w-0 flex-1 resize-none border-0 bg-transparent px-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-              rows={1}
-            />
-          </Row>
           <ComposerGuidedCluster
+            messageInput={
+              <Textarea
+                ref={textareaRef}
+                aria-label="Message"
+                // Editable-combobox wiring for the slash strip (a11y): while the strip is open the textarea
+                // advertises the listbox it CONTROLS and, when a row is highlighted, the active descendant — so a
+                // screen reader announces the highlighted offer without focus ever leaving the textarea.
+                {...slashCompletionAria(stripOpen)}
+                aria-activedescendant={activeSlashOptionId}
+                // SOFT-KEYBOARD HYGIENE (#1871 item 6, owner ruling 2026-09-19). NOTHING upstream sets these:
+                // `@orb/ui`'s Textarea renders a plain <textarea> through Base UI `Field.Control`, and
+                // Field.Control sets no input-hygiene attribute at all (in @base-ui/react 1.7.0 the three
+                // components that DO are OTPFieldInput, AriaCombobox — `autoCorrect: 'off'` +
+                // `autoCapitalize: 'none'` — and NumberFieldInput; the field/ tree carries none of them). So
+                // the composer states them itself.
+                // The Enter label FOLLOWS THE SETTING rather than being pinned: `enterSends` decides whether a
+                // bare Enter submits (composer-send-keys.ts), so a fixed "send" key lies for every reader who
+                // turned it off, and a fixed "enter" lies for the default. One live value, one truth.
+                enterKeyHint={behaviorPrefs.enterSends ? "send" : "enter"}
+                // A chat draft is prose the reader is composing in their own voice — autocorrect rewriting a
+                // character name and autocapitalise re-casing a deliberate lowercase line are both corruption
+                // of the message, not help. (Spellcheck is deliberately left ON: it MARKS, it never rewrites.)
+                autoCorrect="off"
+                autoCapitalize="off"
+                placeholder={placeholder}
+                value={value}
+                onChange={(e): void => {
+                  // The refusal explained the PREVIOUS send attempt — the next keystroke retires it. The highlight
+                  // resets too: the match set narrows as the token grows, so a stale index would point elsewhere.
+                  setSlashNotice(null);
+                  setSlashHighlight(-1);
+                  onChange(e.target.value);
+                }}
+                onKeyDown={onKeyDown}
+                // Ctrl/Cmd+V attach (#376). Deliberately does NOT preventDefault: a clipboard carrying text
+                // AND an image must attach the image and still paste the text (see the hook's header).
+                onPaste={mediaDrop.onPaste}
+                disabled={sendMessage.isPending}
+                className="max-h-48 min-w-0 flex-1 resize-none border-0 bg-transparent px-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                rows={1}
+                size="compact"
+              />
+            }
             chatId={chatId}
             value={value}
             onChange={onChange}

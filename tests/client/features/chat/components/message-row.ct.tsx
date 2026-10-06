@@ -710,7 +710,8 @@ test("whisper: the header band renders a 3:1 aspect box (matches the server's ba
 // why echo was "half-built" — the references decorate BOTH roles, mirrored to each row's outer edge
 // (#212-3/-5). The MECHANISM both pins really guarded is intact and still pinned below: the decoration is
 // kind-gated, and the reading geometry of the with-art and no-art arms is identical.
-test("echo: the art pane is a FIXED column outside the prose measure, sized to the art-width token", async ({ mount }) => {
+test("echo: the art pane is a FIXED column outside the prose measure, sized to the art-width token", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const component = await mount(<MessageRowStory chatStyle="echo" messageRole="assistant" characterId={ALICE_ID} participants={[aliceWithAvatar()]} />);
   const bubble = component.locator(BUBBLE);
   const artWidthPx = remTokenPx(TOKENS["immersive.echo-art-width"].value);
@@ -728,7 +729,8 @@ test("echo: the art pane is a FIXED column outside the prose measure, sized to t
   expect(bgPos).toBe("0px 0px, 100% 0%");
 });
 
-test("echo: a persona-kind (user) row is decorated too, mirrored to its own outer edge", async ({ mount }) => {
+test("echo: a persona-kind (user) row is decorated too, mirrored to its own outer edge", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const component = await mount(
     <MessageRowStory chatStyle="echo" messageRole="user" personaId={ALEX_PERSONA_ID} personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]} />,
   );
@@ -744,7 +746,8 @@ test("echo: a persona-kind (user) row is decorated too, mirrored to its own oute
   expect(paddingRight).toBeLessThan(artWidthPx);
 });
 
-test("echo: an UNATTRIBUTED row still gets no art (the kind gate survives the both-roles change)", async ({ mount }) => {
+test("echo: an UNATTRIBUTED row still gets no art (the kind gate survives the both-roles change)", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const component = await mount(<MessageRowStory chatStyle="echo" messageRole="system" content="System notice." />);
   const bubble = component.locator(BUBBLE);
   await expect.poll(async () => bubble.evaluate((el) => (el as HTMLElement).style.paddingLeft)).toBe("");
@@ -939,7 +942,9 @@ test("bubble: a different no-avatar character resolves a DISTINCT hue (per-entit
 
 test("echo (no avatar): the FALLBACK edge tile IS the art — hue field + initial, SAME feather padding as with-image, aligned to the bled edge", async ({
   mount,
+  page,
 }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const component = await mount(
     <MessageRowStory chatStyle="echo" messageRole="assistant" content={LONG_BODY} characterId={ALICE_ID} participants={[alice()]} />,
   );
@@ -955,7 +960,7 @@ test("echo (no avatar): the FALLBACK edge tile IS the art — hue field + initia
     .toBe(SNAPPED_LENGTH_BASE_PX["spacing.avatar-hero"]);
   // Reading geometry is IDENTICAL to the with-image echo (the regression pin above): text is padded
   // clear by the art pane's own width token, never a reserved-but-empty gap.
-  await expect.poll(async () => bubble.evaluate((el) => (el as HTMLElement).style.paddingRight)).toBe("var(--immersive-echo-art-width)");
+  await expect.poll(async () => bubble.evaluate((el) => (el as HTMLElement).style.paddingRight)).toBe("min(var(--immersive-echo-art-width), 25cqi)");
   // The tile's field is the entity's deterministic hue — the SAME color the row's chip paints (one
   // entity, one hue everywhere).
   const chip = component.locator(`${AVATAR} ${FALLBACK}`);
@@ -2600,7 +2605,8 @@ test("#935 custom-light inside headers inherit the role bubble's paired ink, not
 // report's :219 MINOR row. Taken here rather than deferred, but as PAINT: the identity cluster reverses
 // with `flex-row-reverse`, so the DOM (and every assistive reading order) still names the SPEAKER first
 // and the timestamp second, exactly as the assistant row does.
-test("#288 a user row mirrors its header like the ST ref — time paints before the name, DOM order unchanged", async ({ mount }) => {
+test("#288 a user row mirrors its header like the ST ref — time paints before the name, DOM order unchanged", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const component = await mount(
     <MessageRowStory
       chatStyle="bubble"
@@ -2613,6 +2619,8 @@ test("#288 a user row mirrors its header like the ST ref — time paints before 
   const nameBox = await component.locator(ATTRIBUTION).boundingBox();
   const timeBox = await component.locator(TIMESTAMP).boundingBox();
   expect(timeBox?.x ?? 0).toBeLessThan(nameBox?.x ?? 0);
+  const headerBox = await component.locator(NAME_ROW).boundingBox();
+  expect(Math.abs((nameBox?.x ?? 0) + (nameBox?.width ?? 0) - (headerBox?.x ?? 0) - (headerBox?.width ?? 0))).toBeLessThan(1);
   // The a11y order is the one that did NOT flip: the speaker still comes first in the tree.
   await expect
     .poll(async () =>

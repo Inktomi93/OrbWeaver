@@ -30,8 +30,8 @@
 //
 // STATE IS THE TOGGLE (O-1): pressed = a FILLED lucide dot (the seal's `fill` axis on the `Circle`
 // FillableIcon), unpressed = a hollow ring that reveals with the row. One element carries both the datum
-// and the affordance — and the pressed dot NEVER hides. A static "Active" chip on the title line names the
-// same state in words (it never swaps on hover, so it cannot cause the old hover loop).
+// and the affordance — and the pressed dot NEVER hides. Its accessible radio state names the active pick
+// without spending the title's reading space on a duplicate status label.
 //
 // ACTIVATE HAS ONE HOME ON THIS ROW: the radio (side-eye 2026-08-22 P2-6, issue #481). Both kebabs used to
 // carry an `Activate` menuitem — the ordinary row's and the built-in's — sitting 40px from the radio that
@@ -146,17 +146,6 @@ export function PresetLibraryRow({
               </Badge>
             ),
           })}
-      // The state in words beside the dot, as the editor header names it. A static chip on the TITLE line
-      // (never the subtitle, whose stamp must survive the docked width), so nothing enters or leaves layout on hover.
-      {...(active
-        ? {
-            markers: (
-              <Badge intent="primary" size="inline" tone="soft">
-                Active
-              </Badge>
-            ),
-          }
-        : {})}
       stateToggle={
         <RowToggleAction
           // The dot, not the bolt (owner ruling O-1): a ⚡ reads as a one-shot zap ACTION and had no visible
@@ -172,8 +161,7 @@ export function PresetLibraryRow({
           // 1.4.1).
           pressedFill={true}
           // `when-on`, the D11 default: the PRESSED dot is permanently visible and only the unpressed ring
-          // rides the reveal. It must never be `never`/`hidden` — that swap is the P0 loop. The row's
-          // title-line Active chip names the same state in words.
+          // rides the reveal. It must never be `never`/`hidden` — that swap is the P0 loop.
           rest="when-on"
           // ONE-OF-N, not a toggle (side-eye F-19 / ARIA rec 3): pressing the active row is a NO-OP, so
           // `aria-pressed`'s "press to release" contract was a promise this control refuses to keep.

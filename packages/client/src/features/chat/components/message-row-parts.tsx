@@ -18,7 +18,7 @@ import type { RowAttribution } from "../lib/attribution.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { MESSAGE_REASONING_NAME } from "../lib/message-action-names.ts";
 import { BG_PHOTO_CHROME_PLATE } from "../lib/message-row-backing.ts";
-import type { BubbleDecoration, RowSkin } from "../lib/message-row-variants.ts";
+import type { BubbleDecoration, BubbleDecorationArgs, RowSkin } from "../lib/message-row-variants.ts";
 import { avatarPortraitSrcProp, avatarSrcProp } from "../lib/message-row-variants.ts";
 import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
 import { GreetingSwipeStrip } from "./greeting-swipe-strip.tsx";
@@ -260,6 +260,7 @@ export function renderRowAvatar(args: {
    *  trailing one. Inert below the crossover and inert for every `anchored` skin, where the row body is
    *  still a flex line and `justify-self` has no grid to resolve against. */
   readonly gutterRail: "none" | "leading" | "trailing";
+  readonly imageUrlFor?: BubbleDecorationArgs["imageUrlFor"];
 }): ReactElement | null {
   if (args.attribution.name === null || !args.showInChatAvatars) {
     return null;
@@ -281,7 +282,7 @@ export function renderRowAvatar(args: {
         fallbackDelay={0}
         hueSeed={args.attribution.hueSeed}
         className={cn("sticky top-0 h-auto w-(--immersive-ripple-portrait-width)", weldRounding) ?? ""}
-        {...avatarPortraitSrcProp(args.attribution.avatarHash)}
+        {...(args.imageUrlFor === undefined ? avatarPortraitSrcProp(args.attribution.avatarHash) : { src: args.imageUrlFor("portrait") })}
       >
         {initialsFor(args.attribution.name)}
       </Avatar>
@@ -296,7 +297,7 @@ export function renderRowAvatar(args: {
       fallbackDelay={0}
       hueSeed={args.attribution.hueSeed}
       {...headerOffset}
-      {...avatarSrcProp(args.attribution.avatarHash)}
+      {...(args.imageUrlFor === undefined ? avatarSrcProp(args.attribution.avatarHash) : { src: args.imageUrlFor("icon") })}
     >
       {initialsFor(args.attribution.name)}
     </Avatar>

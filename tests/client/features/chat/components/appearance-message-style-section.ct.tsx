@@ -9,8 +9,10 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
 import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { ChatStyleRendererCaptureStory } from "../_chat-style-preview-stories.tsx";
 import { AppearanceMessageStyleNarrowStory, AppearanceMessageStyleSectionStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_message_style", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
@@ -87,101 +89,129 @@ test("every chat-display CELL carries its name, its gloss and its preview — an
   await expect(cards.getByRole("radio", { name: "Bubble", exact: true })).toHaveAttribute("aria-checked", "false");
 });
 
-// #1099 F8 — THE DEFECT THIS ARM EXISTS FOR. Five of the eight cards drew the IDENTICAL picture (two grey
-// blobs): bubble/echo/whisper/ripple/tide share `outer`/`inner`, and the old preview read nothing else off
-// the skin. Five identical pictures in a picker OF PICTURES is worse than none — it asserts the options are
-// the same. The pin is therefore the whole population, not a spot check between two modes.
-test("all EIGHT previews are structurally distinct — no two modes draw the same picture", async ({ mount, page }) => {
+test("all eight picker pictures load their renderer captures", async ({ mount, page }) => {
   await stub(page);
   await mount(<AppearanceMessageStyleSectionStory />);
-  const cards = page.getByRole("radiogroup", { name: "Chat display" });
-  await expect(cards.getByRole("radio")).toHaveCount(CHAT_STYLE_COUNT);
-
-  const previews = await cards.evaluate((group): readonly string[] =>
-    [...group.querySelectorAll('[data-slot="picker-cell-art"]')].map((art) =>
-      [...art.querySelectorAll("*")]
-        .map((element) =>
-          [
-            element.tagName,
-            element.className,
-            element.getAttribute("data-slot"),
-            element.getAttribute("data-placement"),
-            element.getAttribute("data-side"),
-            element
-              .getAttribute("style")
-              ?.split(";")
-              .map((declaration) => declaration.split(":")[0])
-              .join(","),
-          ].join("|"),
-        )
-        .join("\n"),
-    ),
-  );
-  // Positive control first: an empty list would satisfy "all distinct" vacuously — and an empty preview
-  // set is a live defect class here (the Layered elevation diagram painted nothing for a whole era).
-  // @orb-waive ct-no-oneshot-live-read-assert(expect): read after the awaited toHaveCount barrier — the eight cells are mounted and their art is static markup.
-  expect(previews).toHaveLength(CHAT_STYLE_COUNT);
-  for (const markup of previews) {
-    expect(markup.length).toBeGreaterThan(0);
-  }
-  expect(new Set(previews).size).toBe(CHAT_STYLE_COUNT);
-});
-
-test("each miniature draws the runtime mode's defining message anatomy", async ({ mount, page }) => {
-  await stub(page);
-  await mount(<AppearanceMessageStyleSectionStory />);
-  const preview = (style: string): ReturnType<Page["locator"]> => page.locator(`[data-slot="chat-style-preview"][data-chat-style="${style}"]`);
-
   for (const style of ["bubble", "flat", "document", "echo", "whisper", "hush", "ripple", "tide"] as const) {
-    const messageCount = style === "whisper" || style === "tide" ? 1 : 2;
-    await expect(preview(style).locator('[data-slot="chat-style-preview-message"]')).toHaveCount(messageCount);
-    await expect(preview(style).locator('[data-slot="chat-style-preview-header"]')).toHaveCount(messageCount);
-    await expect(preview(style).getByText("Mira", { exact: true })).toBeVisible();
-    await expect(preview(style).getByText("The lantern is still warm.", { exact: true })).toBeVisible();
+    const picture = page.locator(`[data-chat-style="${style}"] [data-slot="crossfade-image-current"]:visible`);
+    await expect(picture).toBeVisible();
+    await expect(picture).toHaveAttribute("src", `/illustrations/chat-styles/${style}-dark.png`);
+    await expect.poll(() => picture.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
   }
-
-  // Ordinary avatar gutters mirror with role: assistant leads, user trails.
-  await expect
-    .poll(
-      async (): Promise<(string | null)[][]> =>
-        preview("bubble")
-          .locator('[data-slot="chat-style-preview-message"]')
-          .evaluateAll((messages) =>
-            messages.map((message) => [...(message.querySelector('[class*="justify-"]')?.children ?? [])].map((child) => child.getAttribute("data-slot"))),
-          ),
-    )
-    .toEqual([
-      ["chat-style-preview-bubble", "chat-style-preview-avatar"],
-      ["chat-style-preview-avatar", "chat-style-preview-bubble"],
-    ]);
-
-  await expect(preview("echo").locator('[data-slot="chat-style-preview-edge"]')).toHaveCount(2);
-  await expect(preview("echo").locator('[data-role="user"] [data-slot="chat-style-preview-edge"]')).toHaveAttribute("data-side", "left");
-  await expect(preview("echo").locator('[data-role="assistant"] [data-slot="chat-style-preview-edge"]')).toHaveAttribute("data-side", "right");
-  // Whisper carries character art only on the assistant row; the persona row keeps the accent without
-  // pretending that the character's banner belongs to the user.
-  await expect(preview("whisper").locator('[data-role="assistant"] [data-slot="chat-style-preview-band"]')).toHaveCount(1);
-  await expect(preview("whisper").locator('[data-role="user"] [data-slot="chat-style-preview-band"]')).toHaveCount(0);
-  const whisperBand = preview("whisper").locator('[data-slot="chat-style-preview-band"]');
-  await expect.poll(async (): Promise<number> => (await whisperBand.boundingBox())?.width ?? 0).toBeGreaterThan(90);
-  await expect.poll(async (): Promise<number> => (await whisperBand.boundingBox())?.height ?? 0).toBeGreaterThan(30);
-  await expect(preview("hush").locator('[data-slot="chat-style-preview-bubble"]').first()).toHaveCSS("border-left-style", "solid");
-  await expect(preview("hush").locator('[data-slot="chat-style-preview-edge-accent"]')).toHaveCount(0);
-
-  // Ripple replaces the outside chip with a portrait inside each message container.
-  await expect(preview("ripple").locator('[data-slot="chat-style-preview-avatar"]')).toHaveCount(0);
-  await expect(preview("ripple").locator('[data-slot="chat-style-preview-bubble"] [data-slot="chat-style-preview-welded-avatar"]')).toHaveCount(2);
-
-  // Tide is a train: its illustrated message owns an outside attribution row and two paragraph bubbles.
-  await expect(preview("tide").locator('[data-slot="chat-style-preview-header"][data-placement="outside"]')).toHaveCount(1);
-  await expect(preview("tide").locator('[data-slot="chat-style-preview-train"]')).toHaveCount(1);
-  await expect(preview("tide").locator('[data-slot="chat-style-preview-bubble"]')).toHaveCount(2);
-
-  // Document seats the production manuscript cap in one centered miniature column; Flat stays full width.
-  await expect(preview("document").locator('[data-slot="chat-style-preview-manuscript"]')).toHaveClass(/w-3\/5/u);
-  await expect(preview("document").locator('[data-slot="chat-style-preview-bubble"]').first()).toHaveClass(/max-w-prose/u);
-  await expect(preview("flat").locator('[data-slot="chat-style-preview-bubble"]').first()).not.toHaveClass(/max-w-prose/u);
+  await expect(page.getByRole("radio", { name: "Flat", exact: true })).toHaveAccessibleDescription("Unboxed messages in a centered reading column.");
+  await expect(page.getByRole("radio", { name: "Whisper", exact: true })).toHaveAccessibleDescription("Character art forms a wide banner above the message.");
 });
+
+for (const style of ["flat", "hush"] as const) {
+  test(`light inherited ink ${style} stays paired with its capture background`, async ({ mount, page }, testInfo) => {
+    await stub(page);
+    const component = await mount(<ChatStyleRendererCaptureStory style={style} light={true} />);
+    const prose = component.getByText("Wait by the old gate.", { exact: true });
+    await expect(prose).toBeVisible();
+    const receipt = await pixelContrast(page, prose);
+    await testInfo.attach("light-inherited-ink", { body: await component.screenshot(), contentType: "image/png" });
+    expect(receipt.ratio, receipt.describe).toBeGreaterThanOrEqual(4.5);
+  });
+}
+
+for (const light of [false, true]) {
+  for (const style of ["bubble", "flat", "document", "echo", "whisper", "hush", "ripple", "tide"] as const) {
+    test(`renderer capture ${style} ${light ? "light" : "dark"} preserves role anatomy`, async ({ mount, page }, testInfo) => {
+      await stub(page);
+      const component = await mount(<ChatStyleRendererCaptureStory style={style} light={light} />);
+      await expect(component.locator('[data-slot="chat-style-preview-message"]')).toHaveCount(2);
+      await expect(component.getByText("Mira", { exact: true })).toBeVisible();
+      await expect(component.getByText("You", { exact: true })).toBeVisible();
+      await expect
+        .poll(() =>
+          component
+            .locator('[data-slot="avatar-image"]')
+            .evaluateAll((elements) => elements.every((element) => element instanceof HTMLImageElement && element.complete && element.naturalWidth > 0)),
+        )
+        .toBe(true);
+      await expect
+        .poll(() =>
+          component.evaluate((root) => {
+            const band = root.querySelector('[data-slot="message-band"]');
+            const bandBox = band?.getBoundingClientRect();
+            const userBubble = root.querySelector('[data-role="user"] [data-slot="message-bubble"]');
+            const assistantBubble = root.querySelector('[data-role="assistant"] [data-slot="message-bubble"]');
+            return {
+              bands: root.querySelectorAll('[data-slot="message-band"]').length,
+              userBands: root.querySelectorAll('[data-role="user"] [data-slot="message-band"]').length,
+              ratio: bandBox === undefined ? 0 : Math.round((bandBox.width / bandBox.height) * 100),
+              bannerArt: band !== null && getComputedStyle(band).backgroundImage.includes("chat-style-banner.svg"),
+              echoInset:
+                userBubble !== null &&
+                assistantBubble !== null &&
+                Number.parseFloat(getComputedStyle(userBubble).paddingLeft) > 100 &&
+                Number.parseFloat(getComputedStyle(assistantBubble).paddingRight) > 100,
+              echoArt: userBubble !== null && getComputedStyle(userBubble).backgroundImage.includes("chat-style-portrait.svg"),
+              welded: root.querySelectorAll('[data-slot="message-bubble"] [data-slot="avatar-root"]').length,
+              outside: root.querySelectorAll('[data-slot="message-name-row"][data-placement="outside"]').length,
+              trains: root.querySelectorAll('[data-slot="message-bubble-train"]').length,
+              bubbles: root.querySelectorAll('[data-slot="message-bubble"]').length,
+            };
+          }),
+        )
+        .toEqual({
+          bands: style === "whisper" ? 1 : 0,
+          userBands: 0,
+          ratio: style === "whisper" ? 300 : 0,
+          bannerArt: style === "whisper",
+          echoInset: style === "echo",
+          echoArt: style === "echo",
+          welded: style === "ripple" ? 2 : 0,
+          outside: style === "tide" ? 2 : 0,
+          trains: style === "tide" ? 2 : 0,
+          bubbles: style === "tide" ? 4 : 2,
+        });
+      const capture = testInfo.outputPath(`${style}-${light ? "light" : "dark"}.png`);
+      await page.evaluate(async () => await document.fonts.ready);
+      const image = await component.screenshot({ path: capture });
+      await testInfo.attach("owned-preview-capture", { path: capture, contentType: "image/png" });
+      const pixels = await page.evaluate(
+        async ({ captured, committed }) => {
+          const bytes = Uint8Array.from(atob(captured), (character) => character.charCodeAt(0));
+          const captureUrl = URL.createObjectURL(new Blob([bytes], { type: "image/png" }));
+          try {
+            const actual = new Image();
+            const expected = new Image();
+            actual.src = captureUrl;
+            expected.src = committed;
+            await Promise.all([actual.decode(), expected.decode()]);
+            const sameSize = actual.naturalWidth === expected.naturalWidth && actual.naturalHeight === expected.naturalHeight;
+            const canvas = document.createElement("canvas");
+            canvas.width = actual.naturalWidth;
+            canvas.height = actual.naturalHeight;
+            const context = canvas.getContext("2d");
+            if (context === null) {
+              throw new Error("renderer comparison needs a native canvas context");
+            }
+            context.drawImage(actual, 0, 0);
+            const actualPixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            context.drawImage(expected, 0, 0);
+            const expectedPixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+            let differing = 0;
+            for (let index = 0; index < actualPixels.length; index += 4) {
+              if (actualPixels.subarray(index, index + 4).some((channel, offset) => channel !== expectedPixels[index + offset])) {
+                differing += 1;
+              }
+            }
+            return { sameSize, differing };
+          } finally {
+            URL.revokeObjectURL(captureUrl);
+          }
+        },
+        { captured: image.toString("base64"), committed: `/illustrations/chat-styles/${style}-${light ? "light" : "dark"}.png` },
+      );
+      expect(pixels.sameSize, "the picker image retains its source renderer dimensions").toBe(true);
+      // Native captures differ at two antialiased Whisper corner pixels; anatomy and all other pixels stay pinned.
+      expect(pixels.differing, "refresh the owned picker image from the production renderer capture").toBeLessThanOrEqual(style === "whisper" ? 2 : 0);
+    });
+  }
+}
 
 test("narrow message-style picker keeps every illustrated choice inside the phone viewport", async ({ mount, page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -316,7 +346,7 @@ for (const width of [1440, 360]) {
     await mount(width === 360 ? <AppearanceMessageStyleNarrowStory /> : <AppearanceMessageStyleSectionStory />);
     const cards = page.getByRole("radiogroup", { name: "Chat display" });
     await expect(cards.getByRole("radio")).toHaveCount(CHAT_STYLE_COUNT);
-    await expect(cards.getByText("The lantern is still warm.").first()).toBeVisible();
+    await expect(cards.locator('[data-slot="crossfade-image-current"]:visible')).toHaveCount(CHAT_STYLE_COUNT);
     await testInfo.attach(`chat-style-miniatures-${width}`, { body: await cards.screenshot(), contentType: "image/png" });
   });
 }
