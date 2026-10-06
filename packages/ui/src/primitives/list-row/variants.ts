@@ -89,6 +89,10 @@ export const listRowVariants = tv({
     actions: "flex shrink-0 items-center justify-end gap-field",
   },
   variants: {
+    titleQualifierFace: {
+      mono: {},
+      body: { titleQualifier: "font-sans" },
+    },
     // THE STACKING ARM (#2486). A row whose controls are REST-VISIBLE cannot buy the identity any width by
     // hiding them, and below roughly twice the cluster's own width the two stop fitting on one line at all:
     // at the 486px settings body the connections row rendered a 52-character name as

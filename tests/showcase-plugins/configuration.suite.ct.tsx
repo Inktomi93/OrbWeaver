@@ -8,13 +8,15 @@ import { packPluginDirectory } from "@orb/plugin-toolchain";
 import { AMBIENT_STUBS } from "@orb/server/infra/plugin-host";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { unzipSync } from "fflate";
-import { PluginConfigurationStory } from "../client/features/plugin/_ct-stories.tsx";
+import { ExtensionsSectionStory, PluginConfigurationStory } from "../client/features/plugin/_ct-stories.tsx";
 import type { TrpcInput, TrpcWireOutput } from "../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../support/node/route-trpc.ts";
 
 const PLUGIN_ID = castId<PluginId>("plugin_ct_configuration");
 
 async function configuredBundle(slug: string): Promise<{
+  states: Map<string, Record<string, unknown>>;
+  kv: Map<string, string>;
   row: TrpcWireOutput<"plugin.list">[number];
   surfaces: TrpcWireOutput<"plugin.listSurfaces">;
   ui: string;
@@ -33,20 +35,32 @@ async function configuredBundle(slug: string): Promise<{
   const manifest = pluginManifestSchema.parse(JSON.parse(new TextDecoder().decode(entries["manifest.json"])));
   const main = entries["main.js"];
   const ui = entries["ui.js"];
-  if (main === undefined || ui === undefined) {
-    throw new Error(`${slug} has no complete guest pair`);
+  if (main === undefined) {
+    throw new Error(`${slug} has no server guest`);
   }
   const surfaces: TrpcWireOutput<"plugin.listSurfaces">[number][] = [];
   const actions = new Map<string, (input: { actionId: string; values: Record<string, string>; chat: null }) => Promise<void> | void>();
   let openDialog: string | undefined;
+  const states = new Map<string, Record<string, unknown>>();
+  const kv = new Map<string, string>();
   const context = vm.createContext({});
   vm.runInContext(AMBIENT_STUBS, context);
   context["orb"] = {
     host: (): Record<string, unknown> => ({
       grants: manifest.capabilities,
+      clock: { nowEpochMs: (): number => 1_750_000_000_000 },
       events: { on: (): void => undefined },
-      log: { info: (): void => undefined },
+      log: { info: (): void => undefined, warn: (): void => undefined },
+      storage: {
+        list: (prefix: string): Promise<string[]> => Promise.resolve([...kv.keys()].filter((key) => key.startsWith(prefix))),
+        get: (key: string): Promise<string | null> => Promise.resolve(kv.get(key) ?? null),
+      },
       ui: {
+        registerCommand: (): void => undefined,
+        setState: (id: string, state: Record<string, unknown>): Promise<void> => {
+          states.set(id, state);
+          return Promise.resolve();
+        },
         register: (definition: { onAction?: typeof actions extends Map<string, infer Handler> ? Handler : never }): void => {
           const meta = pluginSurfaceRegistrationMetaSchema.parse(definition);
           surfaces.push({ pluginId: PLUGIN_ID, ...meta });
@@ -84,9 +98,11 @@ async function configuredBundle(slug: string): Promise<{
     updatedAt: 1_750_000_000_000,
   } satisfies TrpcWireOutput<"plugin.list">[number];
   return {
+    states,
+    kv,
     row,
     surfaces,
-    ui: new TextDecoder().decode(ui),
+    ui: new TextDecoder().decode(ui ?? new Uint8Array()),
     invoke: (input): ReturnType<typeof trpcHold> => {
       const held = trpcHold();
       const handler = actions.get(input.surfaceId);
@@ -177,4 +193,70 @@ test("Affinity's explicit Browse action opens its real dialog; a failed boot ret
   await expect(dialog.getByRole("textbox", { name: "Filter rooms", exact: true })).toBeVisible();
   await expect(dialog.getByText("No readings yet. The tracker takes one every few messages once a room gets going.", { exact: true })).toBeVisible();
   await expect.poll(() => recorder.count("plugin.reportUiCrash")).toBe(1);
+});
+
+test("Affinity's real settings guest renders no reading before refresh and after an empty read", async ({ mount, page }) => {
+  const bundle = await configuredBundle("affinity-tracker");
+  await routeTrpc(page, {
+    "plugin.list": () => [bundle.row],
+    "plugin.listSurfaces": () => bundle.surfaces,
+    "plugin.getSurfaceState": (input) => bundle.states.get(input.surfaceId) ?? null,
+    "plugin.invokeUiAction": bundle.invoke,
+  });
+  await mount(
+    <PluginConfigurationStory pluginId={PLUGIN_ID} pluginName={bundle.row.name} grants={bundle.row.grantedCapabilities as readonly PluginCapability[]} />,
+  );
+  await expect(page.getByText("First reading after 8 messages", { exact: true })).toBeVisible();
+  await expect(page.getByRole("meter")).toHaveCount(0);
+  await page.getByRole("button", { name: "Refresh readings", exact: true }).click();
+  await expect(page.getByText("First reading after 8 messages", { exact: true })).toBeVisible();
+  await expect(page.getByRole("meter")).toHaveCount(0);
+  await expect(page.getByText("Chats tracked", { exact: true })).toHaveCount(0);
+});
+
+for (const score of ["0", "7"]) {
+  test(`Affinity's real settings guest renders a real ${score} reading`, async ({ mount, page }) => {
+    const bundle = await configuredBundle("affinity-tracker");
+    bundle.kv.set("score:room", score);
+    await routeTrpc(page, {
+      "plugin.list": () => [bundle.row],
+      "plugin.listSurfaces": () => bundle.surfaces,
+      "plugin.getSurfaceState": (input) => bundle.states.get(input.surfaceId) ?? null,
+      "plugin.invokeUiAction": bundle.invoke,
+    });
+    await mount(
+      <PluginConfigurationStory pluginId={PLUGIN_ID} pluginName={bundle.row.name} grants={bundle.row.grantedCapabilities as readonly PluginCapability[]} />,
+    );
+    await page.getByRole("button", { name: "Refresh readings", exact: true }).click();
+    await expect(page.getByRole("meter")).toHaveAttribute("aria-valuenow", score);
+    await expect(page.getByText(`${score} / 10`, { exact: true })).toBeVisible();
+  });
+}
+
+test("Keepsake's real empty album teaches the in-chat command and uses body-face attribution", async ({ mount, page }) => {
+  const bundle = await configuredBundle("keepsake-camera");
+  await routeTrpc(page, {
+    "plugin.list": () => [bundle.row],
+    "plugin.listSurfaces": () => bundle.surfaces,
+    "plugin.getSurfaceState": (input) => bundle.states.get(input.surfaceId) ?? null,
+    "sessions.me": () => ({ userId: "user_ct_plugin", handle: "plugin_user", globalRole: "user" }),
+  });
+  await mount(<ExtensionsSectionStory />);
+  const row = page.getByRole("button", { name: "The Album · Keepsake Camera", exact: true });
+  await row.click();
+  const body = page.getByRole("group", { name: "Keepsake Camera — The Album", exact: true });
+  await expect(body.getByText(/The camera paints/)).toBeVisible();
+  await expect(body.getByText(/Plugin commands/)).toBeVisible();
+  await expect(body.getByText("0 keepsakes", { exact: true })).toHaveCount(0);
+  const qualifier = row.locator('[data-slot="list-row-title-qualifier"]');
+  await expect(qualifier).toContainText("Keepsake Camera");
+  await expect
+    .poll(() =>
+      row.evaluate(
+        (node) =>
+          getComputedStyle(node.querySelector('[data-slot="list-row-title"]') ?? node).fontFamily ===
+          getComputedStyle(node.querySelector('[data-slot="list-row-title-qualifier"]') ?? node).fontFamily,
+      ),
+    )
+    .toBe(true);
 });

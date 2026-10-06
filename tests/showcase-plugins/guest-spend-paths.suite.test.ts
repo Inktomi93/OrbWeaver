@@ -216,3 +216,62 @@ test("Keepsake Camera never reports a painted postcard as unpainted when only th
   // Its own sentence, never the "nothing was painted" one a real paint failure gets.
   expect(savedFailed[0]?.message).not.toBe(unknown[0]?.message);
 });
+
+test("Keepsake Camera titles long scenes within the host cap and files the modeled postcard", { timeout: BUILD_TIMEOUT }, async () => {
+  const source = await releasedMain("keepsake-camera");
+  const prompts: string[] = [];
+  const paint: string[] = [];
+  const storage = memoryStorage();
+  const publications: Record<string, unknown>[] = [];
+  let run: ((a: { values: Record<string, unknown> }) => Promise<void>) | undefined;
+  boot(source, {
+    grants: ["chat.read", "storage.kv", "imagery.generate", "ui.surface", "llm.quiet"],
+    log: quietLog,
+    clock: { nowEpochMs: (): number => 1_700_000_000_000 },
+    storage,
+    chat: { current: (): string => "chat-handle", listMessages: (): Promise<View[]> => Promise.resolve(longScene(10)) },
+    llm: {
+      quiet: (prompt: string, options: { schema: { name: string } }): Promise<string> => {
+        prompts.push(prompt);
+        expect(options.schema.name).toBe("keepsake");
+        return prompt.length > PLUGIN_QUIET_PROMPT_MAX_CHARS
+          ? Promise.reject(new Error("prompt exceeds cap"))
+          : Promise.resolve(JSON.stringify({ title: "Lanterns at dusk", imagePrompt: "Two travelers in lantern light." }));
+      },
+    },
+    imagery: {
+      generatePicture: (_chat: string, args: { prompt: string; quiet: boolean }): Promise<{ assetId: string }> => {
+        expect(args.quiet).toBe(false);
+        paint.push(args.prompt);
+        return Promise.resolve({ assetId: "asset-1" });
+      },
+    },
+    ui: {
+      register: (): void => undefined,
+      registerCommand: (command: { onRun: typeof run }): void => {
+        run = command.onRun;
+      },
+      setState: (_id: string, state: Record<string, unknown>): Promise<void> => {
+        publications.push(state);
+        return Promise.resolve();
+      },
+      toast: (): Promise<void> => Promise.resolve(),
+    },
+  });
+  if (run === undefined) {
+    throw new Error("camera command absent");
+  }
+  await settle();
+  await run({ values: {} });
+  await settle();
+  expect(prompts).toHaveLength(1);
+  const sent = prompts[0] ?? "";
+  expect(sent.length).toBeLessThanOrEqual(PLUGIN_QUIET_PROMPT_MAX_CHARS);
+  expect(sent).toContain("Title this scene moment and describe it for a painter.");
+  expect(sent).toContain("Wren: beat-08");
+  expect(sent).toContain("You: beat-09");
+  expect(sent.indexOf("beat-08")).toBeLessThan(sent.indexOf("beat-09"));
+  expect(sent).not.toContain("beat-00");
+  expect(paint[0]).toContain("Two travelers in lantern light.");
+  expect(publications.at(-1)?.["tiles"]).toEqual([expect.objectContaining({ title: "Lanterns at dusk", assetId: "asset-1" })]);
+});

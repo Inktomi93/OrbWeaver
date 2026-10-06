@@ -43,6 +43,8 @@ export interface ListRowProps {
    * qualifier satisfies 2.5.3 the stronger way — BY IDENTITY: the visible label and the accessible name
    * are the same string, so a voice user says exactly what is on screen. */
   titleQualifier?: string;
+  /** Read a prose attribution in the body face; identifiers retain the default monospace face. */
+  titleQualifierFace?: "mono" | "body";
   /** Optional secondary line (subtitle/meta — one slot, caller's call which it means). */
   subtitle?: string;
   /** Opts a functional subtitle into the ratified label step instead of the instrument tier's micro gloss. */
@@ -244,6 +246,7 @@ export function ListRow({
   leading,
   title,
   titleQualifier,
+  titleQualifierFace = "mono",
   fullTitle,
   subtitle,
   subtitleLead,
@@ -268,7 +271,18 @@ export function ListRow({
   onClick,
   className,
 }: ListRowProps): ReactElement {
-  const slots = listRowVariants({ density, clickable, float: actionsFloat, stackActions, stackActionsAt, subtitleWrap, subtitlePlacement, rowTint, titleStep });
+  const slots = listRowVariants({
+    density,
+    clickable,
+    float: actionsFloat,
+    stackActions,
+    stackActionsAt,
+    subtitleWrap,
+    subtitlePlacement,
+    rowTint,
+    titleStep,
+    titleQualifierFace,
+  });
   // Stable per-row id base for the describedby wiring; the subtitle/meta ids only attach where the slot renders.
   const baseId = useId();
   const subtitleId = subtitle === undefined || subtitleDecorative ? undefined : `${baseId}-subtitle`;

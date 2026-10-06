@@ -13,7 +13,7 @@
 //   2. BUSY IS PER MODE — a turn in flight disables the SEND chip (reason on `title`) while the COMPOSE
 //      chip beside it stays live and the EXECUTE chip stays live. A band that reused the `:::choices`
 //      block's blanket rule would pass the send arm and fail both others.
-//   3. THE ATTENTION BUDGET — one visible card + "+N pending"; chips collapsed behind one expander.
+//   3. THE ATTENTION BUDGET — one visible card + "+N pending"; small chip groups inline; larger groups disclosed.
 //   4. THE STACK — cards above chips, asserted by GEOMETRY, from a fixture that publishes the chip FIRST
 //      so DOM order cannot accidentally produce the right answer.
 //
@@ -50,6 +50,10 @@ const CHIPS = '[data-slot="chat-control-chips"]';
 
 async function expandChips(component: Locator): Promise<void> {
   const disclosure = component.locator(`${CHIPS} button[aria-expanded]`);
+  await expect(component.locator(CHIPS)).toBeVisible();
+  if ((await disclosure.count()) === 0) {
+    return;
+  }
   await expect(disclosure).toBeVisible();
   await expect(disclosure).toHaveAttribute("aria-expanded", "false");
   await disclosure.click();
@@ -396,7 +400,7 @@ test("send mode: a chip click fires chat.send with the chip's text and leaves th
   await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("");
 });
 
-test("compose mode: a chip click seeds THIS room's draft, fires no send, and collapses the standing set", async ({ mount, page }) => {
+test("compose mode: an inline chip seeds THIS room's draft without sending or hiding its siblings", async ({ mount, page }) => {
   const trpc = await routeRoom(page);
 
   const component = await mount(<ChatControlsStory fixture="chips" />);
@@ -406,9 +410,9 @@ test("compose mode: a chip click seeds THIS room's draft, fires no send, and col
   const composer = component.getByRole("textbox", { name: "Message" });
   await expect(composer).toHaveValue("Some hours later,");
   await expect(composer).toBeFocused();
-  // A used standing action returns the band to its compact resting door without disturbing the action.
-  await expect(component.getByRole("button", { name: "Time skip" })).toHaveCount(0);
-  await expect(component.getByRole("button", { name: "Show 2 controls" })).toHaveAttribute("aria-expanded", "false");
+  // Small groups remain directly usable after invocation.
+  await expect(component.getByRole("button", { name: "Time skip" })).toBeVisible();
+  await expect(component.locator(`${CHIPS} button[aria-expanded]`)).toHaveCount(0);
   // Settled snapshot: a NEGATIVE about a synchronous click path that has already produced its full effect (the
   // draft landed and focus moved, both asserted web-first above) — there is no later moment at which a send
   // this click did not make could appear.
@@ -520,27 +524,19 @@ test("the chips row rests as one disclosure and expands the whole set", async ({
   const component = await mount(<ChatControlsStory fixture="chips-over-cap" />);
 
   await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(0);
-  await expect(component.getByRole("button", { name: "Show 6 controls" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Show 6 suggestions" })).toBeVisible();
   await expandChips(component);
   await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(6);
   await expect(component.locator(CHIPS)).toHaveCSS("flex-wrap", "wrap");
 });
 
-test("separate non-dice control sources keep contextual disclosure groups", async ({ mount, page }) => {
+test("small contextual groups remain inline without hiding another source", async ({ mount, page }) => {
   await routeRoom(page);
-
   const component = await mount(<ChatControlsStory fixture="grouped-chips" />);
-  const rules = component.getByRole("button", { name: "Show Rule prompts (2)", exact: true });
-  const automation = component.getByRole("button", { name: "Show 2 controls", exact: true });
-  await expect(rules).toBeVisible();
-  await expect(automation).toBeVisible();
-  await expect(component.getByRole("button", { name: "Show 4 controls", exact: true })).toHaveCount(0);
-
-  await rules.click();
-  await expect(component.getByRole("region", { name: "Show fewer Rule prompts", exact: true })).toBeVisible();
-  // The visible label is "Choose one"; the accessible name carries the execute mode's word prefix (#684 P1).
+  await expect(component.getByRole("group", { name: "Rule prompts", exact: true })).toBeVisible();
   await expect(component.getByRole("button", { name: "Run Choose one", exact: true })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Accept the clue", exact: true })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Send Accept the clue", exact: true })).toBeVisible();
+  await expect(component.locator(`${CHIPS} button[aria-expanded]`)).toHaveCount(0);
 });
 
 // ── Every collapsed chip is reachable by keyboard ────────────────────────────────────────────────────
@@ -553,7 +549,7 @@ test("#684 the chip disclosure is an EXPANDER: all N chips reachable by keyboard
 
   const component = await mount(<ChatControlsStory fixture="chips-over-cap" />);
 
-  const disclosure = component.getByRole("button", { name: "Show 6 controls" });
+  const disclosure = component.getByRole("button", { name: "Show 6 suggestions" });
   await expect(disclosure).toHaveAttribute("aria-expanded", "false");
   await expect(component.getByRole("button", { name: "Chip six" })).toHaveCount(0);
 
@@ -563,12 +559,12 @@ test("#684 the chip disclosure is an EXPANDER: all N chips reachable by keyboard
   await page.keyboard.press("Enter");
 
   // The accessible name flips to the collapse label on expand, so re-resolve rather than reuse `disclosure`.
-  const expanded = component.getByRole("button", { name: "Show fewer 6 controls" });
+  const expanded = component.getByRole("button", { name: "Show fewer 6 suggestions" });
 
   // ALL SIX are now in the row — the resting strip hid no partial, misleading subset.
   await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(6);
   await expect(expanded).toHaveAttribute("aria-controls", NON_EMPTY);
-  await expect(component.getByRole("region", { name: "Show fewer 6 controls", exact: true })).toBeVisible();
+  await expect(component.getByRole("region", { name: "Show fewer 6 suggestions", exact: true })).toBeVisible();
   await expect(component.getByRole("button", { name: "Chip five" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Chip six" })).toBeVisible();
   await page.keyboard.press("Tab");
@@ -672,7 +668,7 @@ test.describe("#2426 the coarse resting strip", () => {
     // The strip IS the band: every chip is out of layout, and the one thing left is the disclosure, whose
     // label names the whole row it reveals.
     await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(0);
-    const strip = component.getByRole("button", { name: "Show 6 controls" });
+    const strip = component.getByRole("button", { name: "Show 6 suggestions" });
     await expect(strip).toBeVisible();
     await expect(strip).toHaveAttribute("aria-expanded", "false");
     // Hidden overflow copy is absent from the accessibility tree, so the disclosure announces one sentence.
@@ -692,7 +688,7 @@ test.describe("#2426 the coarse resting strip", () => {
 
     const component = await mount(<ChatControlsStory fixture="chips-over-cap" columnHeight={PHONE_COLUMN_PX} />);
 
-    const strip = component.getByRole("button", { name: "Show 6 controls" });
+    const strip = component.getByRole("button", { name: "Show 6 suggestions" });
     await strip.tap();
 
     // ALL SIX, visible, with the accessible names the fine arm has always had (`<mode> <label>`) — the
@@ -710,13 +706,33 @@ test.describe("#2426 the coarse resting strip", () => {
     await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(0);
   });
 
-  test("the strip exists for a two-chip set too", async ({ mount, page }) => {
+  test("four suggestions remain inline and within the narrow room", async ({ mount, page }) => {
+    await routeRoom(page);
+    const component = await mount(<ChatControlsStory fixture="changing-chips" columnHeight={PHONE_COLUMN_PX} />);
+    await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(4);
+    await expect(component.locator(`${CHIPS} button[aria-expanded]`)).toHaveCount(0);
+    await expect
+      .poll(() =>
+        component.locator(CHIPS).evaluate((row) =>
+          [...row.querySelectorAll("button")].every((button) => {
+            const box = button.getBoundingClientRect();
+            return box.left >= 0 && box.right <= document.documentElement.clientWidth;
+          }),
+        ),
+      )
+      .toBe(true);
+    await component.getByRole("button", { name: "Draft Choice 4", exact: true }).tap();
+    await expect(component.getByRole("textbox", { name: "Message", exact: true })).toHaveValue("Choice 4");
+    await expect(component.getByRole("textbox", { name: "Message", exact: true })).toBeFocused();
+  });
+
+  test("a two-chip set stays inline at a coarse pointer", async ({ mount, page }) => {
     await routeRoom(page);
 
     const component = await mount(<ChatControlsStory fixture="chips" columnHeight={PHONE_COLUMN_PX} />);
 
-    await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(0);
-    await expect(component.getByRole("button", { name: "Show 2 controls" })).toBeVisible();
+    await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(2);
+    await expect(component.locator(`${CHIPS} button[aria-expanded]`)).toHaveCount(0);
   });
 });
 
@@ -727,14 +743,96 @@ test("fine pointers get the same compact resting disclosure as touch", async ({ 
   const component = await mount(<ChatControlsStory fixture="chips-over-cap" />);
 
   await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(0);
-  await expect(component.getByRole("button", { name: "Show 6 controls" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Show 6 suggestions" })).toBeVisible();
 });
 
-test("a short chip set still rests behind one disclosure on desktop", async ({ mount, page }) => {
+test("small chip groups show inline without a disclosure", async ({ mount, page }) => {
   await routeRoom(page);
+  const component = await mount(<ChatControlsStory fixture="grouped-chips" />);
+  await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(4);
+  await expect(component.locator(`${CHIPS} button[aria-expanded]`)).toHaveCount(0);
+  await component.getByRole("button", { name: "Draft Answer later", exact: true }).click();
+  await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("Later,");
+  await expect(component.getByRole("textbox", { name: "Message" })).toBeFocused();
+});
 
-  const component = await mount(<ChatControlsStory fixture="chips" />);
+test("chip groups cross the inline threshold without retaining an expanded disclosure", async ({ mount, page }) => {
+  await routeRoom(page);
+  const component = await mount(<ChatControlsStory fixture="changing-chips" />);
+  await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(4);
+  await component.getByTestId("drive-source-republish").click();
+  await expect(component.getByRole("button", { name: "Show 6 suggestions", exact: true })).toBeVisible();
+  await expandChips(component);
+  await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(6);
+  await component.getByTestId("drive-source-relabel").click();
+  await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(4);
+  await expect(component.locator(`${CHIPS} button[aria-expanded]`)).toHaveCount(0);
+  await component.getByTestId("drive-source-republish").click();
+  await expect(component.getByRole("button", { name: "Show 6 suggestions", exact: true })).toHaveAttribute("aria-expanded", "false");
+});
 
-  await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(0);
-  await expect(component.getByRole("button", { name: "Show 2 controls" })).toBeVisible();
+const CONTEXT_GROUP_PROFILES = [
+  { label: "wide", width: 1280, height: 800, touch: false },
+  { label: "narrow", width: 430, height: 800, touch: false },
+  { label: "coarse", width: 430, height: 740, touch: true },
+] as const;
+
+for (const profile of CONTEXT_GROUP_PROFILES) {
+  test.describe(`inline context ${profile.label}`, () => {
+    test.use({ viewport: { width: profile.width, height: profile.height }, hasTouch: profile.touch });
+    test("the supplied group label stays visible without hiding choices or naming the unnamed group", async ({ mount, page }) => {
+      await routeRoom(page);
+      const component = await mount(<ChatControlsStory fixture="grouped-chips" columnHeight={PHONE_COLUMN_PX} />);
+      const named = component.getByRole("group", { name: "Rule prompts", exact: true });
+      await expect(named.getByText("Rule prompts", { exact: true })).toBeVisible();
+      await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(4);
+      await expect(component.locator(`${CHIPS} button[aria-expanded]`)).toHaveCount(0);
+      await expect(component.locator(`${CHIPS} [role="group"]`).nth(1)).toHaveAccessibleName("");
+      await expect
+        .poll(() =>
+          component.locator(CHIPS).evaluate((row) =>
+            [...row.querySelectorAll("button")].every((button) => {
+              const box = button.getBoundingClientRect();
+              return box.left >= 0 && box.right <= document.documentElement.clientWidth;
+            }),
+          ),
+        )
+        .toBe(true);
+      await expect
+        .poll(() => component.locator(LIST_SCROLL).evaluate((node) => node.getBoundingClientRect().height))
+        .toBeGreaterThanOrEqual(CHAT_READING_PORT_MIN_PX);
+      const first = component.getByRole("button", { name: "Run Choose one", exact: true });
+      await first.focus();
+      await page.keyboard.press("Tab");
+      await expect(component.getByRole("button", { name: "Run Choose two", exact: true })).toBeFocused();
+      await page.keyboard.press("Tab");
+      await expect(component.getByRole("button", { name: "Send Accept the clue", exact: true })).toBeFocused();
+      await component.getByRole("button", { name: "Draft Answer later", exact: true }).click();
+      await expect(component.getByRole("textbox", { name: "Message", exact: true })).toHaveValue("Later,");
+      await expect(component.getByRole("textbox", { name: "Message", exact: true })).toBeFocused();
+    });
+  });
+}
+
+test("inline group boundaries are wider than the space between related chips", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await routeRoom(page);
+  const component = await mount(<ChatControlsStory fixture="grouped-chips" />);
+  await expect(component.getByRole("button", { name: "Run Choose two", exact: true })).toBeVisible();
+  await expect
+    .poll(() =>
+      component.locator(CHIPS).evaluate((row) => {
+        const groups = row.querySelectorAll('[role="group"]');
+        const first = groups[0];
+        const next = groups[1];
+        const buttons = first?.querySelectorAll("button");
+        const a = buttons?.[0];
+        const b = buttons?.[1];
+        if (first === undefined || next === undefined || a === undefined || b === undefined) {
+          return false;
+        }
+        return next.getBoundingClientRect().left - first.getBoundingClientRect().right > b.getBoundingClientRect().left - a.getBoundingClientRect().right;
+      }),
+    )
+    .toBe(true);
 });

@@ -3757,6 +3757,7 @@ const CHAT_CONTROLS_FIXTURES = [
   "chips",
   "grouped-chips",
   "chips-over-cap",
+  "changing-chips",
   "card",
   "card-unstyled-detail",
   "cards-stacked",
@@ -3826,6 +3827,10 @@ function buildCtControls(fixture: ChatControlsFixture, deps: CtControlDeps): rea
         chip("chip-automation-send", "Accept the clue", "send", "I accept the clue."),
         chip("chip-automation-compose", "Answer later", "compose", "Later,"),
       ];
+    }
+    case "changing-chips": {
+      const count = deps.epoch === 1 ? 6 : 4;
+      return Array.from({ length: count }, (_, i) => chip(`chip-${i}`, `Choice ${i + 1}`, "compose", `Choice ${i + 1}`));
     }
     case "chips-over-cap": {
       // SIX chips against the band's display cap of four (one rule's arm caps at 4; N rules do not).
