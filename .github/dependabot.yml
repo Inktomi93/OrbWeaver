@@ -8,6 +8,8 @@ version: 2
 
 multi-ecosystem-groups:
   infrastructure:
+    # A grouped ecosystem may not set its own target-branch; the group carries it.
+    target-branch: main
     schedule:
       interval: monthly
     commit-message:
@@ -37,7 +39,6 @@ updates:
   # Actions, base images (pinned by digest; tag and digest move together), Compose images and the dev
   # container share the infrastructure PR.
   - package-ecosystem: github-actions
-    target-branch: main
     directory: /
     patterns: ["*"]
     multi-ecosystem-group: infrastructure
@@ -45,7 +46,6 @@ updates:
       default-days: 14
 
   - package-ecosystem: docker
-    target-branch: main
     directories: [/, /.devcontainer]
     patterns: ["*"]
     multi-ecosystem-group: infrastructure
@@ -53,7 +53,6 @@ updates:
       default-days: 14
 
   - package-ecosystem: docker-compose
-    target-branch: main
     directories: [/, /docker]
     patterns: ["*"]
     multi-ecosystem-group: infrastructure
@@ -61,7 +60,6 @@ updates:
       default-days: 14
 
   - package-ecosystem: devcontainers
-    target-branch: main
     directory: /
     patterns: ["*"]
     multi-ecosystem-group: infrastructure

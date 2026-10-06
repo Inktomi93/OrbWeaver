@@ -265,7 +265,9 @@ jobs:
       - if: steps.seen.outputs.cache-hit != 'true'
         run: pnpm verify --product
       - if: steps.seen.outputs.cache-hit != 'true'
-        run: echo "${{ steps.sha.outputs.sha }}" > .product-verified
+        env:
+          VERIFIED_SHA: ${{ steps.sha.outputs.sha }}
+        run: echo "$VERIFIED_SHA" > .product-verified
       - if: steps.seen.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
