@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "112bfecd-9c1c-4b93-bb50-9a1760b0a5b2",
+  "id": "09a7653f-1c5d-4531-ace8-11e92e0ba706",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -1228,6 +1228,341 @@
         "chat_events_type_check": {
           "name": "chat_events_type_check",
           "value": "type in ('delta', 'messageCommitted', 'messageEdited', 'messageHidden', 'variantSelected', 'messagesDeleted', 'messagesReordered', 'reasoningEdited', 'reasoningCleared', 'reasoningStreamDone', 'turnAccepted', 'turnStarted', 'turnCompleted', 'turnAborted', 'warning', 'worldInfoActivated', 'personaSwitched', 'reactionsChanged', 'wiBookAttached', 'wiBookDetached', 'wiEntryAttached', 'wiEntryDetached', 'wiEntryScopeChanged', 'chatCreated', 'chatOpened', 'historyTruncated', 'chatUpdated')"
+        }
+      }
+    },
+    "chat_generation_observations": {
+      "name": "chat_generation_observations",
+      "columns": {
+        "chat_id": {
+          "name": "chat_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "turn_id": {
+          "name": "turn_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ordinal": {
+          "name": "ordinal",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_message_id": {
+          "name": "source_message_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "source_variant_id": {
+          "name": "source_variant_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "funder_user_id": {
+          "name": "funder_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "connection_id": {
+          "name": "connection_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "connection_attribution_provenance": {
+          "name": "connection_attribution_provenance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "served_model": {
+          "name": "served_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "wire": {
+          "name": "wire",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tokens_in": {
+          "name": "tokens_in",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tokens_out": {
+          "name": "tokens_out",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reasoning_tokens": {
+          "name": "reasoning_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cache_read_tokens": {
+          "name": "cache_read_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cache_write_tokens": {
+          "name": "cache_write_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "token_details": {
+          "name": "token_details",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "response_cache": {
+          "name": "response_cache",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cost_usd": {
+          "name": "cost_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cost_provenance": {
+          "name": "cost_provenance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cost_details": {
+          "name": "cost_details",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "context_window": {
+          "name": "context_window",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "max_output_tokens": {
+          "name": "max_output_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "model_calls": {
+          "name": "model_calls",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "duration_api_ms": {
+          "name": "duration_api_ms",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "ttft_ms": {
+          "name": "ttft_ms",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "finish_reason": {
+          "name": "finish_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "stop_reason": {
+          "name": "stop_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "terminal_reason": {
+          "name": "terminal_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "generation_id": {
+          "name": "generation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "observed_at": {
+          "name": "observed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "chat_generation_observations_source_message_idx": {
+          "name": "chat_generation_observations_source_message_idx",
+          "columns": ["source_message_id"],
+          "isUnique": false
+        },
+        "chat_generation_observations_source_variant_idx": {
+          "name": "chat_generation_observations_source_variant_idx",
+          "columns": ["source_variant_id"],
+          "isUnique": false
+        },
+        "chat_generation_observations_funder_idx": {
+          "name": "chat_generation_observations_funder_idx",
+          "columns": ["funder_user_id", "observed_at"],
+          "isUnique": false
+        },
+        "chat_generation_observations_connection_idx": {
+          "name": "chat_generation_observations_connection_idx",
+          "columns": ["connection_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "chat_generation_observations_chat_id_chats_id_fk": {
+          "name": "chat_generation_observations_chat_id_chats_id_fk",
+          "tableFrom": "chat_generation_observations",
+          "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "chat_generation_observations_source_message_id_messages_id_fk": {
+          "name": "chat_generation_observations_source_message_id_messages_id_fk",
+          "tableFrom": "chat_generation_observations",
+          "tableTo": "messages",
+          "columnsFrom": ["source_message_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "chat_generation_observations_source_variant_id_message_variants_id_fk": {
+          "name": "chat_generation_observations_source_variant_id_message_variants_id_fk",
+          "tableFrom": "chat_generation_observations",
+          "tableTo": "message_variants",
+          "columnsFrom": ["source_variant_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "chat_generation_observations_funder_user_id_users_id_fk": {
+          "name": "chat_generation_observations_funder_user_id_users_id_fk",
+          "tableFrom": "chat_generation_observations",
+          "tableTo": "users",
+          "columnsFrom": ["funder_user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "chat_generation_observations_connection_id_user_connections_id_fk": {
+          "name": "chat_generation_observations_connection_id_user_connections_id_fk",
+          "tableFrom": "chat_generation_observations",
+          "tableTo": "user_connections",
+          "columnsFrom": ["connection_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "chat_generation_observations_chat_id_turn_id_ordinal_pk": {
+          "columns": ["chat_id", "turn_id", "ordinal"],
+          "name": "chat_generation_observations_chat_id_turn_id_ordinal_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "chat_generation_observations_ordinal_check": {
+          "name": "chat_generation_observations_ordinal_check",
+          "value": "ordinal >= 0"
+        },
+        "chat_generation_observations_source_shape": {
+          "name": "chat_generation_observations_source_shape",
+          "value": "source_variant_id is null or source_message_id is not null"
+        },
+        "chat_generation_observations_wire_check": {
+          "name": "chat_generation_observations_wire_check",
+          "value": "wire in ('openai-compat', 'anthropic-messages', 'google-generative-ai', 'agent-sdk', 'local-light')"
+        },
+        "chat_generation_observations_cost_provenance_check": {
+          "name": "chat_generation_observations_cost_provenance_check",
+          "value": "cost_provenance in ('measured', 'estimated', 'unrecorded')"
+        },
+        "chat_generation_observations_connection_provenance_check": {
+          "name": "chat_generation_observations_connection_provenance_check",
+          "value": "connection_attribution_provenance in ('recorded', 'unrecorded')"
+        },
+        "chat_generation_observations_connection_shape": {
+          "name": "chat_generation_observations_connection_shape",
+          "value": "connection_id is null or connection_attribution_provenance = 'recorded'"
+        },
+        "chat_generation_observations_finish_reason_check": {
+          "name": "chat_generation_observations_finish_reason_check",
+          "value": "finish_reason is null or finish_reason in ('stop', 'length', 'filter', 'tool', 'other')"
         }
       }
     },
@@ -2526,6 +2861,27 @@
         },
         "model": {
           "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "served_model": {
+          "name": "served_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "token_details": {
+          "name": "token_details",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "response_cache": {
+          "name": "response_cache",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -5694,6 +6050,204 @@
         }
       }
     },
+    "embedding_calls": {
+      "name": "embedding_calls",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "invocation_id": {
+          "name": "invocation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "connection_id": {
+          "name": "connection_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "served_model": {
+          "name": "served_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "wire": {
+          "name": "wire",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "task": {
+          "name": "task",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "input_count": {
+          "name": "input_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "input_modalities": {
+          "name": "input_modalities",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "prompt_tokens": {
+          "name": "prompt_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "total_tokens": {
+          "name": "total_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "token_details": {
+          "name": "token_details",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "response_cache": {
+          "name": "response_cache",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cost_usd": {
+          "name": "cost_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cost_provenance": {
+          "name": "cost_provenance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cost_details": {
+          "name": "cost_details",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "embedding_calls_owner_idx": {
+          "name": "embedding_calls_owner_idx",
+          "columns": ["owner_id", "created_at"],
+          "isUnique": false
+        },
+        "embedding_calls_connection_idx": {
+          "name": "embedding_calls_connection_idx",
+          "columns": ["connection_id"],
+          "isUnique": false
+        },
+        "embedding_calls_invocation_idx": {
+          "name": "embedding_calls_invocation_idx",
+          "columns": ["invocation_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "embedding_calls_owner_id_users_id_fk": {
+          "name": "embedding_calls_owner_id_users_id_fk",
+          "tableFrom": "embedding_calls",
+          "tableTo": "users",
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "embedding_calls_connection_id_user_connections_id_fk": {
+          "name": "embedding_calls_connection_id_user_connections_id_fk",
+          "tableFrom": "embedding_calls",
+          "tableTo": "user_connections",
+          "columnsFrom": ["connection_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "embedding_calls_task_check": {
+          "name": "embedding_calls_task_check",
+          "value": "task in ('embed', 'imageEmbed')"
+        },
+        "embedding_calls_outcome_check": {
+          "name": "embedding_calls_outcome_check",
+          "value": "outcome is null or outcome in ('completed', 'failed')"
+        },
+        "embedding_calls_cost_provenance_check": {
+          "name": "embedding_calls_cost_provenance_check",
+          "value": "cost_provenance in ('measured', 'estimated', 'unrecorded')"
+        }
+      }
+    },
     "image_embeddings": {
       "name": "image_embeddings",
       "columns": {
@@ -6047,6 +6601,76 @@
           "notNull": false,
           "autoincrement": false
         },
+        "served_model": {
+          "name": "served_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tokens_in": {
+          "name": "tokens_in",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tokens_out": {
+          "name": "tokens_out",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reasoning_tokens": {
+          "name": "reasoning_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cache_read_tokens": {
+          "name": "cache_read_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cache_write_tokens": {
+          "name": "cache_write_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cost_provenance": {
+          "name": "cost_provenance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cost_details": {
+          "name": "cost_details",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "token_details": {
+          "name": "token_details",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "response_cache": {
+          "name": "response_cache",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "edited": {
           "name": "edited",
           "type": "integer",
@@ -6065,6 +6689,20 @@
         },
         "call_id": {
           "name": "call_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "import_hash": {
+          "name": "import_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "import_source": {
+          "name": "import_source",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -6091,6 +6729,12 @@
           "name": "imagery_generations_chat_idx",
           "columns": ["chat_id"],
           "isUnique": false
+        },
+        "imagery_generations_import_unique": {
+          "name": "imagery_generations_import_unique",
+          "columns": ["asset_id", "import_hash"],
+          "isUnique": true,
+          "where": "\"imagery_generations\".\"import_hash\" is not null"
         }
       },
       "foreignKeys": {
@@ -6139,6 +6783,53 @@
           "value": "mode in ('free', 'character', 'face', 'scenario', 'background', 'character_multimodal', 'face_multimodal')"
         }
       }
+    },
+    "imagery_import_calls": {
+      "name": "imagery_import_calls",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "identity": {
+          "name": "identity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "imagery_import_calls_owner_identity_unique": {
+          "name": "imagery_import_calls_owner_identity_unique",
+          "columns": ["owner_id", "identity"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "imagery_import_calls_owner_id_users_id_fk": {
+          "name": "imagery_import_calls_owner_id_users_id_fk",
+          "tableFrom": "imagery_import_calls",
+          "tableTo": "users",
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "notifications": {
       "name": "notifications",
@@ -9386,6 +10077,14 @@
           "autoincrement": false,
           "default": 0
         },
+        "notional_cost_samples": {
+          "name": "notional_cost_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
         "gen_time_ms": {
           "name": "gen_time_ms",
           "type": "integer",
@@ -9639,6 +10338,14 @@
           "autoincrement": false,
           "default": 0
         },
+        "notional_cost_samples": {
+          "name": "notional_cost_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
         "gen_time_ms": {
           "name": "gen_time_ms",
           "type": "integer",
@@ -9816,6 +10523,14 @@
         },
         "cost_samples": {
           "name": "cost_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "notional_cost_samples": {
+          "name": "notional_cost_samples",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -10009,6 +10724,14 @@
         },
         "cost_samples": {
           "name": "cost_samples",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "notional_cost_samples": {
+          "name": "notional_cost_samples",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,

@@ -190,6 +190,58 @@ CREATE TABLE `chat_events` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `chat_events_chat_seq_unique` ON `chat_events` (`chat_id`,`seq`);--> statement-breakpoint
+CREATE TABLE `chat_generation_observations` (
+	`chat_id` text NOT NULL,
+	`turn_id` text NOT NULL,
+	`ordinal` integer NOT NULL,
+	`source_message_id` text,
+	`source_variant_id` text,
+	`funder_user_id` text NOT NULL,
+	`connection_id` text,
+	`connection_attribution_provenance` text NOT NULL,
+	`model` text NOT NULL,
+	`served_model` text,
+	`provider` text NOT NULL,
+	`wire` text NOT NULL,
+	`tokens_in` integer,
+	`tokens_out` integer,
+	`reasoning_tokens` integer,
+	`cache_read_tokens` integer,
+	`cache_write_tokens` integer,
+	`token_details` text,
+	`response_cache` text,
+	`cost_usd` real,
+	`cost_provenance` text NOT NULL,
+	`cost_details` text,
+	`context_window` integer,
+	`max_output_tokens` integer,
+	`model_calls` integer,
+	`duration_api_ms` real,
+	`ttft_ms` real,
+	`finish_reason` text,
+	`stop_reason` text,
+	`terminal_reason` text,
+	`generation_id` text,
+	`observed_at` integer NOT NULL,
+	PRIMARY KEY(`chat_id`, `turn_id`, `ordinal`),
+	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`source_message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`source_variant_id`) REFERENCES `message_variants`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`funder_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE restrict,
+	FOREIGN KEY (`connection_id`) REFERENCES `user_connections`(`id`) ON UPDATE no action ON DELETE set null,
+	CONSTRAINT "chat_generation_observations_ordinal_check" CHECK(ordinal >= 0),
+	CONSTRAINT "chat_generation_observations_source_shape" CHECK(source_variant_id is null or source_message_id is not null),
+	CONSTRAINT "chat_generation_observations_wire_check" CHECK(wire in ('openai-compat', 'anthropic-messages', 'google-generative-ai', 'agent-sdk', 'local-light')),
+	CONSTRAINT "chat_generation_observations_cost_provenance_check" CHECK(cost_provenance in ('measured', 'estimated', 'unrecorded')),
+	CONSTRAINT "chat_generation_observations_connection_provenance_check" CHECK(connection_attribution_provenance in ('recorded', 'unrecorded')),
+	CONSTRAINT "chat_generation_observations_connection_shape" CHECK(connection_id is null or connection_attribution_provenance = 'recorded'),
+	CONSTRAINT "chat_generation_observations_finish_reason_check" CHECK(finish_reason is null or finish_reason in ('stop', 'length', 'filter', 'tool', 'other'))
+);
+--> statement-breakpoint
+CREATE INDEX `chat_generation_observations_source_message_idx` ON `chat_generation_observations` (`source_message_id`);--> statement-breakpoint
+CREATE INDEX `chat_generation_observations_source_variant_idx` ON `chat_generation_observations` (`source_variant_id`);--> statement-breakpoint
+CREATE INDEX `chat_generation_observations_funder_idx` ON `chat_generation_observations` (`funder_user_id`,`observed_at`);--> statement-breakpoint
+CREATE INDEX `chat_generation_observations_connection_idx` ON `chat_generation_observations` (`connection_id`);--> statement-breakpoint
 CREATE TABLE `chat_handoff_resumptions` (
 	`chat_id` text PRIMARY KEY NOT NULL,
 	`accepted_by_user_id` text NOT NULL,
@@ -393,6 +445,9 @@ CREATE TABLE `message_variants` (
 	`cue` text,
 	`cue_role` text,
 	`model` text,
+	`served_model` text,
+	`token_details` text,
+	`response_cache` text,
 	`connection_id` text,
 	`connection_attribution_provenance` text DEFAULT 'unrecorded' NOT NULL,
 	`provider` text,
@@ -890,6 +945,37 @@ CREATE TABLE `embed_space_state` (
 --> statement-breakpoint
 CREATE INDEX `embed_space_state_active_generation_idx` ON `embed_space_state` (`active_generation_id`);--> statement-breakpoint
 CREATE INDEX `embed_space_state_candidate_generation_idx` ON `embed_space_state` (`candidate_generation_id`);--> statement-breakpoint
+CREATE TABLE `embedding_calls` (
+	`id` text PRIMARY KEY NOT NULL,
+	`invocation_id` text NOT NULL,
+	`owner_id` text NOT NULL,
+	`connection_id` text,
+	`provider` text NOT NULL,
+	`model` text NOT NULL,
+	`served_model` text,
+	`wire` text NOT NULL,
+	`task` text NOT NULL,
+	`input_count` integer NOT NULL,
+	`input_modalities` text NOT NULL,
+	`prompt_tokens` integer,
+	`total_tokens` integer,
+	`token_details` text,
+	`response_cache` text,
+	`cost_usd` real,
+	`cost_provenance` text NOT NULL,
+	`cost_details` text,
+	`outcome` text,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE restrict,
+	FOREIGN KEY (`connection_id`) REFERENCES `user_connections`(`id`) ON UPDATE no action ON DELETE set null,
+	CONSTRAINT "embedding_calls_task_check" CHECK(task in ('embed', 'imageEmbed')),
+	CONSTRAINT "embedding_calls_outcome_check" CHECK(outcome is null or outcome in ('completed', 'failed')),
+	CONSTRAINT "embedding_calls_cost_provenance_check" CHECK(cost_provenance in ('measured', 'estimated', 'unrecorded'))
+);
+--> statement-breakpoint
+CREATE INDEX `embedding_calls_owner_idx` ON `embedding_calls` (`owner_id`,`created_at`);--> statement-breakpoint
+CREATE INDEX `embedding_calls_connection_idx` ON `embedding_calls` (`connection_id`);--> statement-breakpoint
+CREATE INDEX `embedding_calls_invocation_idx` ON `embedding_calls` (`invocation_id`);--> statement-breakpoint
 CREATE TABLE `image_embeddings` (
 	`id` text PRIMARY KEY NOT NULL,
 	`asset_id` text NOT NULL,
@@ -945,9 +1031,21 @@ CREATE TABLE `imagery_generations` (
 	`provider` text,
 	`connection_id` text,
 	`cost_usd` real,
+	`served_model` text,
+	`tokens_in` integer,
+	`tokens_out` integer,
+	`reasoning_tokens` integer,
+	`cache_read_tokens` integer,
+	`cache_write_tokens` integer,
+	`cost_provenance` text,
+	`cost_details` text,
+	`token_details` text,
+	`response_cache` text,
 	`edited` integer DEFAULT false NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`call_id` text,
+	`import_hash` text,
+	`import_source` text,
 	FOREIGN KEY (`asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE set null,
 	FOREIGN KEY (`subject_character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE set null,
@@ -959,6 +1057,15 @@ CREATE INDEX `imagery_generations_reuse_idx` ON `imagery_generations` (`subject_
 CREATE INDEX `imagery_generations_connection_idx` ON `imagery_generations` (`connection_id`);--> statement-breakpoint
 CREATE INDEX `imagery_generations_asset_idx` ON `imagery_generations` (`asset_id`);--> statement-breakpoint
 CREATE INDEX `imagery_generations_chat_idx` ON `imagery_generations` (`chat_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `imagery_generations_import_unique` ON `imagery_generations` (`asset_id`,`import_hash`) WHERE "imagery_generations"."import_hash" is not null;--> statement-breakpoint
+CREATE TABLE `imagery_import_calls` (
+	`id` text PRIMARY KEY NOT NULL,
+	`owner_id` text NOT NULL,
+	`identity` text NOT NULL,
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `imagery_import_calls_owner_identity_unique` ON `imagery_import_calls` (`owner_id`,`identity`);--> statement-breakpoint
 CREATE TABLE `notifications` (
 	`id` text PRIMARY KEY NOT NULL,
 	`recipient_user_id` text NOT NULL,
@@ -1464,6 +1571,7 @@ CREATE TABLE `character_stats` (
 	`tokens_out_estimated_samples` integer DEFAULT 0 NOT NULL,
 	`cost_usd` real DEFAULT 0 NOT NULL,
 	`cost_samples` integer DEFAULT 0 NOT NULL,
+	`notional_cost_samples` integer DEFAULT 0 NOT NULL,
 	`gen_time_ms` integer DEFAULT 0 NOT NULL,
 	`gen_samples` integer DEFAULT 0 NOT NULL,
 	`reasoning_generations` integer DEFAULT 0 NOT NULL,
@@ -1498,6 +1606,7 @@ CREATE TABLE `daily_stats` (
 	`tokens_out_estimated_samples` integer DEFAULT 0 NOT NULL,
 	`cost_usd` real DEFAULT 0 NOT NULL,
 	`cost_samples` integer DEFAULT 0 NOT NULL,
+	`notional_cost_samples` integer DEFAULT 0 NOT NULL,
 	`gen_time_ms` integer DEFAULT 0 NOT NULL,
 	`message_dates_approx` integer DEFAULT false NOT NULL,
 	`computed_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
@@ -1523,6 +1632,7 @@ CREATE TABLE `model_stats` (
 	`reasoning_ms` integer DEFAULT 0 NOT NULL,
 	`cost_usd` real DEFAULT 0 NOT NULL,
 	`cost_samples` integer DEFAULT 0 NOT NULL,
+	`notional_cost_samples` integer DEFAULT 0 NOT NULL,
 	`cache_read_tokens` integer DEFAULT 0 NOT NULL,
 	`cache_write_tokens` integer DEFAULT 0 NOT NULL,
 	`computed_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
@@ -1549,6 +1659,7 @@ CREATE TABLE `owner_stats` (
 	`tokens_out_estimated_samples` integer DEFAULT 0 NOT NULL,
 	`cost_usd` real DEFAULT 0 NOT NULL,
 	`cost_samples` integer DEFAULT 0 NOT NULL,
+	`notional_cost_samples` integer DEFAULT 0 NOT NULL,
 	`gen_time_ms` integer DEFAULT 0 NOT NULL,
 	`gen_samples` integer DEFAULT 0 NOT NULL,
 	`reasoning_generations` integer DEFAULT 0 NOT NULL,
