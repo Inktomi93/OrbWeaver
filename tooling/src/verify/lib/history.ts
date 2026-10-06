@@ -178,7 +178,7 @@ export function batteryCadenceLines(history: readonly RunHistoryEntry[], report:
     if (report.noVerdict.includes(BATTERY_STAGE)) {
       return [`[verify] ${BATTERY_STAGE}: RAN but produced NO VERDICT — no complete battery result was collected.`];
     }
-    return [`[verify] ${BATTERY_STAGE}: RAN in this run — the merge train's instrument battery is covered by this verdict (#1983).`];
+    return [`[verify] ${BATTERY_STAGE}: RAN in this run, so this verdict covers the instrument battery.`];
   }
   const last = lastRanAt(history, BATTERY_STAGE);
   const since =
@@ -186,10 +186,9 @@ export function batteryCadenceLines(history: readonly RunHistoryEntry[], report:
       ? "NOT WITHIN THE RETAINED HISTORY WINDOW on this checkout"
       : `last RAN at ${last.sha} (${last.at}, tier ${last.tier}) — ${String(history.length - history.indexOf(last) - 1)} verify run(s) ago`;
   return [
-    `[verify] ${BATTERY_STAGE} did NOT run here (it is --full-only, #1842): ${since}.`,
-    "[verify]   A tests/tooling/** red is invisible until it does — four sat unobserved for five days (#1983). It is OWED ONCE PER MERGE TRAIN at the quiescent barrier.",
-    "[verify]   This line reports when the battery last RAN, never that it passed — history records a stage's mode, not its exit.",
-    "[verify]   Cadence enforcement remains the quiescent-barrier procedure; this bounded per-checkout history cannot identify a merge train or prove a prior pass.",
+    `[verify] ${BATTERY_STAGE} did NOT run here (it runs only under --full): ${since}.`,
+    "[verify]   A tests/tooling/** failure stays invisible until it runs. Run `pnpm verify --full` once per merge train.",
+    "[verify]   This says when the battery last ran, not whether it passed.",
   ];
 }
 
