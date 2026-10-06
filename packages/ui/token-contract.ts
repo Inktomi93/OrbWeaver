@@ -840,6 +840,14 @@ export function readTokenRemovalBaseline(repoRoot: string, baseRef = TOKEN_REMOV
     // silent skip this whole reader exists to end. The two are different conditions and answer differently.
     return { status: "empty", reason: `${repoRoot} has no commits, so there is no token history to ratchet against` };
   }
+  try {
+    execFileSync("git", ["rev-parse", "--verify", "--quiet", `${baseRef}^{commit}`], { cwd: repoRoot, encoding: "utf8", stdio: "pipe" });
+  } catch {
+    // A user's install clones only the stable branch, so the mainline ref does not exist and nothing on it can
+    // have been removed from this checkout. `pnpm start` builds the tokens there; it must not fail on a ratchet
+    // that only development checkouts, which always carry the mainline, can answer.
+    return { status: "empty", reason: `${repoRoot} has no ${baseRef}, so there is no mainline token history to ratchet against` };
+  }
   // `previousTokenDocument` pushes exactly one diagnostic on every path that returns null, which is why the
   // reason is read off it rather than re-spelled here — one wording, and it stays the wording the worktree
   // arm has always emitted.
