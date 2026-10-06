@@ -2,8 +2,8 @@
   "format": 1,
   "bundles": {
     "affinity-tracker": {
-      "main.js": "08f84302297ffc065e55f33029cedad79047d52c3ed0549c5be1a60e57081eb4",
-      "manifest.json": "615c0169123ac637ea4a952f9f97b19fc7b76d78e8adba38a7fcc58326a6caf8",
+      "main.js": "81c19df32fdc7429e6f07cacf015d72da245f0fd3dcbab1ec4d11973853a3519",
+      "manifest.json": "9ca789d6b80ba324b5a781a376f5abb0d5d986b4cbc97f67fdc9bdcb841a1c41",
       "ui.js": "a6670fa7b241009ba426d1db615945dfb75be4e9ab2a3618d68bb6e818cc8834"
     },
     "card-atlas": {
@@ -15,8 +15,8 @@
       "manifest.json": "07c6c7a278404b59c44b6122aa708f3bb5fe522e1d942b98cba239dc1447c3d5"
     },
     "keepsake-camera": {
-      "main.js": "8374d4453887496174bf94cbf16fb089ab49b25d282c2f69707b490ef57793a8",
-      "manifest.json": "31c479ff02f6fb62951dcc811dc25f4db58f150640e457def180925d7722c44d"
+      "main.js": "94244343df12bcbc9df1d41fba731aca03b0eadbb5f5f504cf2fabeb0edb9ca7",
+      "manifest.json": "722e0350a37c5e11c54ec9459200ea66c2f206aae0dda73c03d1b08b92519a29"
     },
     "oracle-deck": {
       "main.js": "79cd38f52e88f66dab58c0e40cae2f4e92e34a1a5b90caa865fff1f9e80762c2",

@@ -194,6 +194,9 @@ host.events.on("messageCommitted", async (fact) => {
     // whole shape of a live plugin widget: a room event lands, you compute, you `setState`, and the app
     // repaints the surface for you. Nothing here draws anything — the spec below is the drawing.
     await publishFlank(chat, score);
+    if (host.grants.includes("ui.surface")) {
+      await publishSummary();
+    }
   } catch (err) {
     // A handler must never throw — three consecutive rejections auto-disable the plugin. The two failures
     // this one actually meets are the hourly `llm.quiet` floor and a model provider having a bad minute;
@@ -212,8 +215,8 @@ host.events.on("messageCommitted", async (fact) => {
 //
 // THE STATE MODEL, because it is the whole point of `setState`: the spec's values are bound with `{ $state }`
 // to a state object you PUBLISH. `setState` replaces the whole object and the app refetches — so the panel is
-// always a projection of what you last published, never a value you hand-wove into the tree. The panel starts
-// empty (nothing published yet), and the button's action is what fills it.
+// always a projection of what you last published. The empty stage is honest before the initial read,
+// and activation, a new reading, or Refresh republishes the roll-up.
 //
 // The `onAction` handler runs SERVER-SIDE in this same guest, under the invocation budget, when a button is
 // clicked — exactly like an event handler. It reads the plugin's OWN storage (no new capability: `storage.kv`
@@ -233,14 +236,31 @@ const AFFINITY_PANEL_SPEC = {
       value: "A private summary of the warmth readings this plugin has taken across your rooms. Nothing here is ever visible in a room — it is yours to read.",
     },
     {
-      kind: "keyValue",
-      rows: [
-        { key: "Chats tracked", value: { $state: "trackedChats" } },
-        { key: "Average warmth", value: { $state: "averageLabel" } },
+      kind: "masterDetail",
+      active: { $state: "stage" },
+      stages: [
+        { id: "empty", kind: "browse", body: { kind: "text", value: `First reading after ${SCORE_EVERY} messages` } },
+        {
+          id: "readings",
+          kind: "browse",
+          body: {
+            kind: "stack",
+            gap: "field",
+            children: [
+              {
+                kind: "keyValue",
+                rows: [
+                  { key: "Chats tracked", value: { $state: "trackedChats" } },
+                  { key: "Average warmth", value: { $state: "averageLabel" } },
+                ],
+              },
+              { kind: "meter", label: "Average warmth", max: SCORE_MAX, value: { $state: "averageWarmth" } },
+              { kind: "text", value: { $state: "summary" } },
+            ],
+          },
+        },
       ],
     },
-    { kind: "meter", label: "Average warmth", max: SCORE_MAX, value: { $state: "averageWarmth" } },
-    { kind: "text", value: { $state: "summary" } },
     { kind: "button", actionId: "refresh", label: "Refresh readings", variant: "outline" },
     { kind: "button", actionId: "browse", label: "Browse readings", variant: "outline" },
   ],
@@ -256,20 +276,25 @@ async function publishSummary(): Promise<void> {
   const raw = await Promise.all(keys.map((key) => host.storage.get(key)));
   let sum = 0;
   let count = 0;
-  for (const value of raw.map(Number)) {
+  for (const stored of raw) {
+    if (stored === null) {
+      continue;
+    }
+    const value = Number(stored);
     if (Number.isFinite(value)) {
       sum += value;
       count += 1;
     }
   }
-  const average = count === 0 ? 0 : Math.round((sum / count) * AVERAGE_DIVISOR) / AVERAGE_DIVISOR;
+  const average = count === 0 ? null : Math.round((sum / count) * AVERAGE_DIVISOR) / AVERAGE_DIVISOR;
   await host.ui.setState("affinity_summary", {
+    stage: count === 0 ? "empty" : "readings",
     trackedChats: count,
     averageWarmth: average,
     averageLabel: count === 0 ? "no readings yet" : `${average} / ${SCORE_MAX}`,
     summary:
       count === 0
-        ? "No readings yet. The tracker takes one every few messages once a room gets going — come back after some conversation."
+        ? `First reading after ${SCORE_EVERY} messages`
         : `Tracking ${count} chat${count === 1 ? "" : "s"}, at an average warmth of ${average} out of ${SCORE_MAX}.`,
   });
 }
@@ -296,6 +321,7 @@ if (host.grants.includes("ui.surface")) {
       }
     },
   });
+  void publishSummary().catch((err) => host.log.warn(`summary skipped: ${String(err)}`));
 }
 
 // ── THE ROOM WIDGET (ui.surface at the `chat-flank` anchor) ──────────────────────────────────────────────

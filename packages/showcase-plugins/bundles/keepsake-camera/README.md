@@ -53,6 +53,9 @@ The album still keeps the postcard when that read is absent or refused.
    returns the installer's own asset metadata. Foreign and absent ids collapse to `null`; a refused read is
    logged and the album keeps the original title, style and image without metadata.
 
+The titling prompt reserves space for its instruction and keeps contiguous recent beats within the host prompt cap.
+Each beat is bounded so a long reply does not displace the whole scene.
+
 ## The album (the bound-collection vocabulary)
 
 The album page is a `masterDetail` whose browse stage is a BOUND grid — `tilesFrom: { $state: "tiles" }` —
@@ -61,22 +64,25 @@ image (`assetFrom`), and its `open`/`back`/`discard` navigation is ordinary publ
 Plugin pages and returning lands where you were. Published with NO chat handle: the album is a
 cross-room roll-up (the deliberate contrast with the story-clocks' per-room `setState(…, chat)`).
 
+The empty album explains the camera and the in-chat Plugin commands menu, with the slash command as an alternative.
+It cannot run a room-scoped snapshot from the album page.
+
 One realm rule this file paid for so you don't: **there is no `Date` in the guest.** `new Date(x)` THROWS
 (the determinism stubs) — time exists only as `host.clock.nowEpochMs()`, so the "kept … ago" caption is plain
 arithmetic over the injected clock.
 
 ## Adapting it
 
-* **Different subjects** — portraits (`mode` + `subjectCharacterId` on the same args), locations, item cards:
+- **Different subjects** — portraits (`mode` + `subjectCharacterId` on the same args), locations, item cards:
   the pipeline shape (read → title → paint → keep) carries.
-* **Different triggers** — an `events.on("messageCommitted")` arm could auto-snapshot chapter breaks; budget
+- **Different triggers** — an `events.on("messageCommitted")` arm could auto-snapshot chapter breaks; budget
   it like the affinity-tracker (every Nth, never every) because BOTH halves of this pipeline are spend.
-* **No titling model** — drop `llm.quiet` from the manifest entirely; the local fallback already carries the
+- **No titling model** — drop `llm.quiet` from the manifest entirely; the local fallback already carries the
   camera.
 
 ## Honest gaps
 
-* **The album only keeps what the camera catches in time** (the deadline design above). The room's transcript
+- **The album only keeps what the camera catches in time** (the deadline design above). The room's transcript
   is the complete record; the album is the fast-path bonus.
-* **The style list is the plugin's taste.** Four suffixes in `STYLES`; the image model's own vocabulary is
+- **The style list is the plugin's taste.** Four suffixes in `STYLES`; the image model's own vocabulary is
   far richer — the `note` arg is the escape valve.

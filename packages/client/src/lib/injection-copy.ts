@@ -97,7 +97,7 @@ export const CONTROL_CHIPS_COLLAPSE = "Show fewer";
 /** The chip row's resting label. The disclosure reveals the whole set; a shared contextual label names
  *  related controls such as dice rolls, while mixed sources use the generic count. */
 export function controlStripNotice(count: number, disclosureLabel?: string): string {
-  return disclosureLabel === undefined ? `Show ${String(count)} ${count === 1 ? "control" : "controls"}` : `Show ${disclosureLabel} (${String(count)})`;
+  return disclosureLabel === undefined ? `Show ${String(count)} ${count === 1 ? "suggestion" : "suggestions"}` : `Show ${disclosureLabel} (${String(count)})`;
 }
 
 // The composer GUIDED-CLUSTER phase reasons (W-D — the four always-visible dual-mode icons). Each icon is

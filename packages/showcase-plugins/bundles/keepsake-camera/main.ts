@@ -83,6 +83,28 @@ function styleFor(key: string): string {
 /** How much transcript a snapshot reads. A postcard is about the MOMENT, not the saga. */
 const WINDOW = 10;
 
+const TITLING_PROMPT_MAX_CHARS = 8000;
+const TRANSCRIPT_LINE_MAX_CHARS = 1500;
+const TITLING_INSTRUCTION = "Title this scene moment and describe it for a painter.";
+
+// Keep contiguous recent beats in reading order, with room reserved for the full instruction.
+function titlingPrompt(messages: readonly PluginMessageView[]): string {
+  const separator = "\n\n";
+  let room = TITLING_PROMPT_MAX_CHARS - TITLING_INSTRUCTION.length - separator.length;
+  const kept: string[] = [];
+  for (const message of [...messages].reverse()) {
+    const full = `${message.authorDisplayName}: ${message.content}`;
+    const line = full.length > TRANSCRIPT_LINE_MAX_CHARS ? `${full.slice(0, TRANSCRIPT_LINE_MAX_CHARS - 1)}…` : full;
+    const cost = line.length + (kept.length === 0 ? 0 : 1);
+    if (cost > room) {
+      break;
+    }
+    kept.push(line);
+    room -= cost;
+  }
+  return `${TITLING_INSTRUCTION}${separator}${kept.reverse().join("\n")}`;
+}
+
 /** How many keepsakes the album keeps. Storage allows 256 keys; an album is a shelf, not an archive —
  *  the oldest is discarded when a new one lands past the cap. */
 const ALBUM_MAX = 24;
@@ -178,8 +200,7 @@ async function takeSnapshot(chat: ChatHandle, styleKey: string, note: string): P
   let keepsake: Keepsake | null = null;
   if (host.grants.includes("llm.quiet")) {
     try {
-      const transcript = messages.map((m) => `${m.authorDisplayName}: ${m.content}`).join("\n");
-      const answer = await host.llm.quiet(`Title this scene moment and describe it for a painter.\n\n${transcript}`, { schema: SNAPSHOT_SCHEMA });
+      const answer = await host.llm.quiet(titlingPrompt(messages), { schema: SNAPSHOT_SCHEMA });
       keepsake = parseKeepsake(answer);
     } catch (err) {
       host.log.info(`titling pass skipped: ${String(err)}`); // The floor or the deadline — the fallback covers it.
@@ -386,7 +407,6 @@ async function publishAlbum(detail?: AlbumDetail): Promise<void> {
   const moments = await loadMoments();
   await host.ui.setState("album_page", {
     stage: detail === undefined ? "album" : "moment",
-    count: moments.length === 1 ? "1 keepsake" : `${moments.length} keepsakes`,
     tiles: moments.map(([key, m]) => ({
       id: `m${key.slice("moment:".length)}`,
       title: m.title,
@@ -452,13 +472,17 @@ if (canShoot) {
             kind: "stack",
             gap: "block",
             children: [
-              { kind: "text", voice: "gloss", value: { $state: "count" } },
+              {
+                kind: "text",
+                value:
+                  "The camera paints a moment from your scene into a postcard, then keeps it here. Open a chat and choose Plugin commands → Keepsake Camera → Run snapshot, or type /plugin keepsake-camera snapshot. The album cannot take a picture outside a chat.",
+              },
               {
                 kind: "grid",
                 tilesFrom: { $state: "tiles" },
                 tileAction: "open",
                 aspect: "landscape",
-                empty: "No keepsakes yet — run /plugin keepsake-camera snapshot inside a chat.",
+                empty: "No keepsakes yet",
               },
             ],
           },

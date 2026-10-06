@@ -1,7 +1,7 @@
 {
   "id": "affinity-tracker",
   "name": "Affinity Tracker",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "hostVersion": 1,
   "entry": "main.js",
   "uiEntry": "ui.js",

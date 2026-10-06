@@ -37,7 +37,7 @@ test("a clean source tree materializes the complete deterministic runtime zip tr
   const emittedSources = result.artifacts.map(({ sourcePath }) => relative(BUNDLES_ROOT, sourcePath)).toSorted();
 
   expect(emittedSources).toEqual(authoredSources.toSorted((left, right) => left.localeCompare(right)));
-  expect(result.artifacts).toHaveLength(10);
+  expect(result.artifacts).toHaveLength(11);
   expect(result.bundles.map(({ slug }) => slug)).toHaveLength(9);
   expect(result.bundles.map(({ bytes }) => bytes)).toEqual(repeated.bundles.map(({ bytes }) => bytes));
   const output = join(scratch, "bundles");

@@ -630,3 +630,26 @@ test("subtitleDecorative keeps the subtitle visible but out of the row's descrip
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(described.join(" ")).not.toContain("{{input}}");
 });
+
+test("prose qualifiers opt into the body face while identifier qualifiers retain monospace", async ({ mount, page }) => {
+  await mount(
+    <>
+      <ListRow clickable={true} title="Album" titleQualifier="Keepsake Camera" titleQualifierFace="body" />
+      <ListRow clickable={true} title="Character" titleQualifier="handle" />
+    </>,
+  );
+  const prose = page.getByRole("button", { name: "Album · Keepsake Camera", exact: true });
+  const identifier = page.getByRole("button", { name: "Character · handle", exact: true });
+  await expect(prose).toBeVisible();
+  await expect(identifier).toBeVisible();
+  await expect
+    .poll(() =>
+      prose.evaluate(
+        (row) =>
+          getComputedStyle(row.querySelector('[data-slot="list-row-title"]') ?? row).fontFamily ===
+          getComputedStyle(row.querySelector('[data-slot="list-row-title-qualifier"]') ?? row).fontFamily,
+      ),
+    )
+    .toBe(true);
+  await expect(identifier.locator('[data-slot="list-row-title-qualifier"]')).toHaveCSS("font-family", /Geist Mono/);
+});

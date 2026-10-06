@@ -86,6 +86,7 @@ function ExtensionsPageList(): ReactElement {
               onClick={(): void => selectPluginPageFromList(page.key)}
               selected={page.key === active}
               title={page.title}
+              titleQualifierFace="body"
               // Two plugins may legitimately register a page with the same title ("Browse"). The plugin name
               // is the disambiguator, and `titleQualifier` both renders it after the title and carries it into
               // the accessible name, so it is not repeated as a subtitle. A page titled exactly like its plugin

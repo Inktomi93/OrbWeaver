@@ -18,8 +18,7 @@
 // THE STACKING LAW (§3-S1 + authoring law 5, the attention budget). `CHAT_CONTROL_KINDS` declares the
 // stack order (cards above chips) and the renderer map below is exhaustive over it, so a new kind fails
 // `tsc` until it has both. Cards: exactly ONE visible (the newest), the rest disclosed as a mono count.
-// Chips rest behind contextual named disclosures on every pointer, so distinct sources remain legible
-// without becoming a permanent strip between the reader and the composer.
+// Named chip groups retain visible context. Larger groups disclose to protect the reading column.
 // Card buttons are neutral/outline and each card
 // carries an explicit dismiss; the composer's Send stays CONTENT's one `primary` (UI §4.3 rule 3).
 //
@@ -47,6 +46,7 @@ import { resolveControlAvailability } from "../lib/chat-control-availability.ts"
 
 /** How many cards are visible at once. ONE, by law: the newest; the rest are a "+N pending" count. */
 const CARD_DISPLAY_CAP = 1;
+const CHIP_INLINE_CAP = 4;
 
 // The transcript's reading-port floor this band's coarse strip protects is asserted from rendered geometry
 // by `chat-controls-band.ct.tsx`; the numeric budget belongs to that test because production never reads it.
@@ -302,32 +302,53 @@ function groupChips(controls: readonly ChipControl[]): readonly ChipGroup[] {
   return [...groups].map(([disclosureLabel, groupedControls]) => ({ disclosureLabel, controls: groupedControls }));
 }
 
-/** One contextual disclosure. Its controlled region follows the trigger in DOM order, so expanding from
- *  the keyboard leaves the first revealed chip at the next Tab stop instead of inserting it behind focus. */
+/** Related chips keep their context. A disclosed region follows its trigger so the next Tab reaches
+ *  the first revealed chip instead of inserting it behind focus. */
 function ControlChipGroup({ group, consumer }: { readonly group: ChipGroup; readonly consumer: ControlConsumer }): ReactElement {
   const [expanded, setExpanded] = useState(false);
+  const collapsed = group.controls.length > CHIP_INLINE_CAP;
+  const [previousCollapsed, setPreviousCollapsed] = useState(collapsed);
+  if (previousCollapsed !== collapsed) {
+    setPreviousCollapsed(collapsed);
+    setExpanded(false);
+  }
   const disclosureId = useId();
   const regionId = useId();
   const restingLabel = controlStripNotice(group.controls.length, group.disclosureLabel);
-  const expandedLabel = `${CONTROL_CHIPS_COLLAPSE} ${group.disclosureLabel ?? `${String(group.controls.length)} controls`}`;
+  const expandedLabel = `${CONTROL_CHIPS_COLLAPSE} ${group.disclosureLabel ?? `${String(group.controls.length)} suggestions`}`;
   const visibleLabel: string = expanded ? CONTROL_CHIPS_COLLAPSE : restingLabel;
   return (
     <>
-      <Button
-        aria-controls={regionId}
-        aria-expanded={expanded}
-        aria-label={expanded ? expandedLabel : undefined}
-        id={disclosureId}
-        intent="ghost"
-        onClick={(): void => setExpanded((open) => !open)}
-        shape="pill"
-        size="chip"
+      {collapsed ? (
+        <Button
+          aria-controls={regionId}
+          aria-expanded={expanded}
+          aria-label={expanded ? expandedLabel : undefined}
+          id={disclosureId}
+          intent="ghost"
+          onClick={(): void => setExpanded((open) => !open)}
+          shape="pill"
+          size="chip"
+        >
+          <Text as="span" ink="inherit" voice="label">
+            {visibleLabel}
+          </Text>
+        </Button>
+      ) : null}
+      <Row
+        aria-label={collapsed ? undefined : group.disclosureLabel}
+        aria-labelledby={collapsed ? disclosureId : undefined}
+        className="flex-wrap"
+        gap="field"
+        hidden={collapsed && !expanded}
+        id={regionId}
+        role={collapsed ? "region" : "group"}
       >
-        <Text as="span" ink="inherit" voice="interactiveKicker">
-          {visibleLabel}
-        </Text>
-      </Button>
-      <Row aria-labelledby={disclosureId} className="flex-wrap" gap="field" hidden={!expanded} id={regionId} role="region">
+        {!collapsed && group.disclosureLabel !== undefined ? (
+          <Text aria-hidden={true} as="span" voice="label">
+            {group.disclosureLabel}
+          </Text>
+        ) : null}
         {group.controls.map((chip) => (
           <ControlActionButton action={chip.action} as="chip" consumer={consumer} key={chip.id} onInvoked={(): void => setExpanded(false)} />
         ))}
@@ -336,15 +357,14 @@ function ControlChipGroup({ group, consumer }: { readonly group: ChipGroup; read
   );
 }
 
-/** Standing chips are grouped by their source-supplied contextual label. Unlabeled controls retain the
- * generic count grammar. RPG dice actions live in the composer utility menu under D269. */
+/** Standing chips are grouped by their source-supplied contextual label. Unlabeled controls use the suggestion count. RPG dice actions live in the composer utility menu under D269. */
 function ControlChips({ controls, consumer }: { readonly controls: readonly ChatControl[]; readonly consumer: ControlConsumer }): ReactElement | null {
   const chips = controls.filter((control): control is ChipControl => control.kind === "chip");
   if (chips.length === 0) {
     return null;
   }
   return (
-    <Row align="center" className="flex-wrap" data-slot="chat-control-chips" gap="field">
+    <Row align="center" className="flex-wrap" data-slot="chat-control-chips" gap="block">
       {groupChips(chips).map((group) => (
         <ControlChipGroup consumer={consumer} group={group} key={group.disclosureLabel === undefined ? "unlabeled" : `labeled:${group.disclosureLabel}`} />
       ))}
