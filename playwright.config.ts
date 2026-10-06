@@ -57,7 +57,24 @@ const projects = MODE_PROJECTS.map((mode) => ({
 // operator's already-running dev stack, so it must REUSE it rather than try to boot a second one on :8788.
 // The actor clients target their stack via the spec's per-project Playwright `baseURL` (not an env), so no
 // `E2E_BASE_URL` threading is needed here.
-const webServers = MODE_PROJECTS.map((mode) => ({
+// Playwright starts every configured webServer even when `--project` selects fewer projects, so a
+// `--project=single-user` run (the @smoke tier) would still boot and warm all three stacks; on a 4-vCPU CI
+// runner that starves the cold vite transforms past the warm-up budget. Boot only the selected modes. Read
+// from argv because only the runner process starts webServers; workers re-load this file without the flag.
+function selectedProjects(argv: readonly string[]): ReadonlySet<string> | undefined {
+  const names = argv.flatMap((arg, i) => {
+    if (arg.startsWith("--project=")) {
+      return [arg.slice("--project=".length)];
+    }
+    const next = argv[i + 1];
+    return arg === "--project" && next !== undefined ? [next] : [];
+  });
+  return names.length > 0 ? new Set(names) : undefined;
+}
+const selected = selectedProjects(process.argv);
+const bootedModes = selected === undefined ? MODE_PROJECTS : MODE_PROJECTS.filter((mode) => selected.has(mode.name));
+
+const webServers = bootedModes.map((mode) => ({
   command: "node tooling/src/stack/cli.ts up-fg",
   url: mode.baseUrl,
   reuseExistingServer: mode.name === SINGLE_USER.name && DEV_TARGET_ALLOWED && !inCI,
