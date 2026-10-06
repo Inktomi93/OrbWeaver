@@ -11,7 +11,21 @@
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": false,
       "skip-changelog": true,
-      "pull-request-footer": "Merging this tags the release, publishes the GitHub release and builds the image. Next time, run `pnpm release` from main: it merges this version bump back into main before pushing."
+      "pull-request-footer": "Merging this tags the release, publishes the GitHub release and builds the image. Next time, run `pnpm release` from main: it merges this version bump back into main before pushing.",
+      "pull-request-header": "Merging this publishes the release below.",
+      "exclude-paths": [
+        ".agents",
+        ".claude",
+        ".codex",
+        ".github",
+        ".vscode",
+        "docs",
+        "playwright",
+        "reports",
+        "scripts",
+        "tests",
+        "tooling"
+      ]
     }
   }
 }
