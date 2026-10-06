@@ -1,10 +1,9 @@
 ---
 kind: work
-status: doing
-updated: 2026-10-05
+status: open
+updated: 2026-10-06
 priority: P2
 area: inference
-lane: codex/launch-caching
 ---
 
 # Map provider prompt caching and OpenRouter response caching controls
@@ -25,4 +24,4 @@ A closed provider and endpoint matrix cites primary documentation and installed 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Implementation is integrated in `fc9074aa6b534c3e4bdfad76af8dffe2c03a3e9f`. Independent security and rendered reviews cleared required findings. Integrated affected tests and the staged static check passed. The representative live calls and scripted chat matrix remain separate evidence under `scripts/probes/caching/`. Keyed acceptance for the remaining persisted app variations waits for combined accounting integration. The item remains open.

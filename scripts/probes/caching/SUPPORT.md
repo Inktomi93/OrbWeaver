@@ -59,7 +59,7 @@ Current implemented SDK physical witnesses:
 ## Evidence denominator and remaining limits
 
 - Persisted scripted matrix: 34 route/control partitions × three cohorts × two actual naming values × four requested floors = **816** cells. Cohorts are 1H/1C, 2H/1C and 3H/2C. Names map owner Default/Always to `default`/`content`. Every cell includes ordinary and adjacent human/character turns; actual effective clamps, names, chunk order, funding, block ends, send and fresh traces are asserted.
-- Bounded live matrix: seven prefix route representatives × cold/identical prepared retry/appended turn, plus three response replay/fresh calls = **24 physical POSTs**. See [RESULTS](RESULTS.md) and retained raw `results.jsonl`. No additional paid calls are authorized.
+- Bounded live matrix: seven prefix route representatives × cold/identical prepared retry/appended turn, plus three response replay/fresh calls = **24 physical POSTs**. See [RESULTS](RESULTS.md) and retained raw `results.jsonl`. The original battery keeps its fixed request guard. Further acceptance uses a separate declared case inventory and physical-call budget.
 - UI: full affected editor/preset run passed 126 cases; an affected-only preset rerun after explicit associated-label correction passed 48. Source/editor intent is not a HIT claim.
 - Canonical H ordered-leg, image/embed private persistence and native-backup integration must be verified on the combined branch. Raw live wire facts are retained so normalization regressions can be verified without another paid sweep.
 - Exact upstream-transformed OpenRouter ordering is not echoed by the captured responses. Application/SDK final request order is proved; transformed upstream order remains unobserved.
