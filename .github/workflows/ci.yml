@@ -154,6 +154,8 @@ jobs:
       - uses: $/.github/actions/setup
         with:
           browsers: "true"
+      # Showcase CT mounts the release-built plugin bundles, which a fresh checkout does not have.
+      - run: pnpm --filter @orb/showcase-plugins build
       - run: pnpm test:ct --retries=2 --shard=${{ matrix.shard }}/4
       - if: failure()
         name: Say how to reproduce
@@ -205,9 +207,11 @@ jobs:
           retention-days: 7
 
   # The one required check. A skipped suite (docs-only change) passes; a failed or cancelled one does not.
+  # e2e-smoke still runs and shows red, but stays out of the gate for now: its three full app stacks have taken
+  # down the 16 GB runner itself, so a red there is not yet a verdict on the code.
   ci-ok:
     if: always() && github.event_name != 'schedule' && inputs.tier != 'product'
-    needs: [changes, static, node, ct, e2e-smoke]
+    needs: [changes, static, node, ct]
     runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:
