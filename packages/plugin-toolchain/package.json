@@ -1,6 +1,6 @@
 {
   "name": "@orb/plugin-toolchain",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Strict deterministic compiler and packer for Orbweaver plugin runtimes",
   "license": "AGPL-3.0-only",
@@ -8,7 +8,9 @@
   "engines": {
     "node": ">=26.3.0"
   },
-  "files": ["src"],
+  "files": [
+    "src"
+  ],
   "scripts": {
     "build:package": "tsc -p tsconfig.json --noEmit false --declaration --outDir dist --rootDir src --rewriteRelativeImportExtensions --skipLibCheck false"
   },
