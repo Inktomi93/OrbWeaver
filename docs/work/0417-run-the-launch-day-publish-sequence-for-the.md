@@ -1,10 +1,10 @@
 ---
 kind: work
-status: blocked
-updated: 2026-10-02
+status: doing
+updated: 2026-10-06
 priority: P1
 area: launch
-blocked: owner
+lane: codex/launch-packages
 ---
 
 # Run the launch-day publish sequence for the repo, SDK release, template repos and wiki

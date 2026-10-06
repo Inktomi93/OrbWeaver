@@ -23,4 +23,4 @@ The owner-approved description and published homepage are verified through GitHu
 
 ## Evidence
 
-Delegated source audit: `/tmp/claude-launch-punchlist/items.json`, proposal `25`. The report contains exact source paths, coupled tests and independent skeptic findings. Runtime and implementation acceptance remain required.
+The owner authorized publication and the metadata update. GitHub reports the approved alpha description and the published wiki homepage. An unauthenticated repository metadata read confirms both fields. The public wiki and its install page answer successfully.
