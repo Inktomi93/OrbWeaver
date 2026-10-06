@@ -118,6 +118,19 @@ async function loadGreetings(
   return characterIds.map((characterId, i) => ({ characterId, text: cards[i]?.greetings[0]?.text ?? "" }));
 }
 
+/** A chat started with no characters seats the caller's welcome assistant, so the room has someone to answer.
+ *  An unset setting or a card the caller can no longer read leaves the roster empty. */
+async function resolveFoundingCharacters(ctx: ChatContext, hostUserId: UserId, characterIds: readonly CharacterId[]): Promise<readonly CharacterId[]> {
+  if (characterIds.length > 0) {
+    return characterIds;
+  }
+  const welcome = await ctx.resolveWelcomeAssistantId(hostUserId);
+  if (welcome === null || (await ctx.getCard({ ownerId: hostUserId, characterId: welcome })) === null) {
+    return [];
+  }
+  return [welcome];
+}
+
 /** One home for the persona precedence chain; keeping each async fallback sequential avoids reads whose
  * result cannot be used once an earlier source resolves.
  *
@@ -159,7 +172,7 @@ function planGameBirth(ctx: ChatContext, chatId: ChatId, startAsGame: StartChatP
 function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService["startChat"] {
   return async ({
     principal,
-    characterIds,
+    characterIds: requestedCharacterIds,
     anchorPersonaId,
     title,
     opening,
@@ -170,6 +183,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     const now = ctx.now();
     const chatId = ctx.newChatId();
     const hostUserId = principal.userId;
+    const characterIds = await resolveFoundingCharacters(ctx, hostUserId, requestedCharacterIds);
     // Anchor seed chain: explicit anchor > the connected persona (solo-character founding with exactly
     // one connection) > the starter's current persona > the starter's default persona.
     const anchor = await resolveFoundingAnchor(ctx, hostUserId, characterIds, anchorPersonaId);
