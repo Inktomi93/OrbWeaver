@@ -6,7 +6,9 @@
 import type { WebWeaveProps } from "@orb/ui/web-weave";
 import { WeaveVeil, WebWeave } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { bakeWeaveGlow } from "../../../../packages/ui/src/art/web-weave/web-weave-glow.ts";
+import { capturePixelFacts } from "./web-weave-glow-probe.ts";
 
 export interface WeaveBoxProps extends WebWeaveProps {
   readonly width?: number;
@@ -18,6 +20,129 @@ export function WeaveBox({ width = 640, height = 420, ...weave }: WeaveBoxProps)
   return (
     <div style={{ width, height, position: "relative" }}>
       <WebWeave {...weave} />
+    </div>
+  );
+}
+
+function captureContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
+  const ctx = canvas.getContext("2d");
+  if (ctx === null) {
+    throw new Error("capture probe requires native 2D canvas");
+  }
+  return ctx;
+}
+
+/** Native canvas comparison against the established three-slice capture glow, outside timing windows. */
+export function CaptureGlowProbe({
+  dpr,
+  length,
+  angle,
+  palette = "var(--color-primary)",
+  pressure = false,
+}: {
+  readonly dpr: number;
+  readonly length: number;
+  readonly angle: number;
+  readonly palette?: string;
+  readonly pressure?: boolean;
+}): ReactElement {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const [facts, setFacts] = useState<string>("");
+  useEffect(() => {
+    const canvas = ref.current;
+    if (canvas === null) {
+      return;
+    }
+    const ctx = captureContext(canvas);
+    canvas.style.color = palette;
+    const color = getComputedStyle(canvas).color;
+    const paint = bakeWeaveGlow(canvas.ownerDocument, color);
+    let composites = 0;
+    let detachedComposites = 0;
+    const nativeDraw = CanvasRenderingContext2D.prototype.drawImage;
+    CanvasRenderingContext2D.prototype.drawImage = function (image: CanvasImageSource, ...coordinates: number[]): void {
+      if (this === ctx) {
+        composites += 1;
+      } else {
+        detachedComposites += 1;
+      }
+      Reflect.apply(nativeDraw, this, [image, ...coordinates]);
+    };
+    try {
+      const origin = { x: 60, y: 60 };
+      const end = { x: origin.x + Math.cos(angle) * length, y: origin.y + Math.sin(angle) * length };
+      const frame = (alpha: number): Uint8ClampedArray => {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.globalAlpha = alpha;
+        paint(ctx, "capture", origin, end);
+        return ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      };
+      frame(0.6);
+      composites = 0;
+      for (let i = 0; i < 24; i += 1) {
+        frame(0.6);
+      }
+      const warmComposites = composites;
+      const actual = frame(0.6);
+      const reference = canvas.ownerDocument.createElement("canvas");
+      reference.width = canvas.width;
+      reference.height = canvas.height;
+      const referenceCtx = captureContext(reference);
+      const source = canvas.ownerDocument.createElement("canvas");
+      source.width = 68;
+      source.height = 36;
+      const sourceCtx = captureContext(source);
+      sourceCtx.scale(2, 2);
+      sourceCtx.strokeStyle = color;
+      sourceCtx.lineWidth = 0.8;
+      sourceCtx.lineCap = "round";
+      sourceCtx.shadowColor = color;
+      sourceCtx.shadowBlur = 6;
+      sourceCtx.shadowOffsetY = 36;
+      sourceCtx.beginPath();
+      sourceCtx.moveTo(9, -9);
+      sourceCtx.lineTo(25, -9);
+      sourceCtx.stroke();
+      referenceCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      referenceCtx.globalAlpha = 0.6;
+      referenceCtx.translate(origin.x, origin.y);
+      referenceCtx.rotate(angle);
+      referenceCtx.drawImage(source, 0, 0, 18, 36, -9, -9, 9, 18);
+      referenceCtx.drawImage(source, 18, 0, 32, 36, 0, -9, length, 18);
+      referenceCtx.drawImage(source, 50, 0, 18, 36, length, -9, 9, 18);
+      const previous = referenceCtx.getImageData(0, 0, reference.width, reference.height).data;
+      const pixels = capturePixelFacts(actual, previous, frame(0.3));
+      let coldAfterPressure = 0;
+      let warmAfterPressure = 0;
+      if (pressure) {
+        for (let i = 0; i <= 1024; i += 1) {
+          paint(ctx, "capture", origin, { x: origin.x + 80 + i / 16, y: origin.y });
+        }
+        detachedComposites = 0;
+        frame(0.6);
+        coldAfterPressure = detachedComposites;
+        detachedComposites = 0;
+        frame(0.6);
+        warmAfterPressure = detachedComposites;
+      }
+      setFacts(
+        JSON.stringify({
+          warmComposites,
+          frames: 24,
+          ...pixels,
+          coldAfterPressure,
+          warmAfterPressure,
+        }),
+      );
+    } finally {
+      CanvasRenderingContext2D.prototype.drawImage = nativeDraw;
+    }
+  }, [dpr, length, angle, palette, pressure]);
+  return (
+    <div>
+      <canvas ref={ref} width={200 * dpr} height={200 * dpr} style={{ color: palette, width: 200, height: 200 }} />
+      <output>{facts}</output>
     </div>
   );
 }

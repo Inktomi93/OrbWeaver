@@ -15,6 +15,12 @@ export type WeaveGlowPainter = (ctx: CanvasRenderingContext2D, kind: keyof typeo
 const SPRITE_SCALE = 2;
 const CORE_LENGTH = 16;
 const BLUR_PADDING = 3;
+// Halo bins move only the blurred endpoint; crisp strand and physics coordinates stay exact.
+const CAPTURE_LENGTH_STEPS = 16;
+const CAPTURE_MAX_SPAN = 144;
+const MEBIBYTE = 1_048_576;
+const CAPTURE_CACHE_BYTES = 24 * MEBIBYTE;
+const PIXEL_BYTES = 4;
 
 function strokePadding(style: { readonly width: number; readonly blur: number }): number {
   return Math.ceil(Math.max(style.blur * BLUR_PADDING, style.width));
@@ -45,7 +51,55 @@ function bakeStroke(document: Document, color: string, style: { readonly width: 
   return canvas;
 }
 
-/** Bake each glow shape once; the returned painter preserves round caps while stretching its middle. */
+function drawSlices(ctx: CanvasRenderingContext2D, sprite: HTMLCanvasElement, length: number, pad: number): void {
+  const cap = pad * SPRITE_SCALE;
+  const core = CORE_LENGTH * SPRITE_SCALE;
+  ctx.drawImage(sprite, 0, 0, cap, sprite.height, -pad, -pad, pad, pad * 2);
+  ctx.drawImage(sprite, cap, 0, core, sprite.height, 0, -pad, length, pad * 2);
+  ctx.drawImage(sprite, cap + core, 0, cap, sprite.height, length, -pad, pad, pad * 2);
+}
+
+function captureSprites(document: Document, source: HTMLCanvasElement): (length: number) => HTMLCanvasElement | null {
+  const cache = new Map<number, HTMLCanvasElement>();
+  const pad = strokePadding(WEAVE_GLOW_STYLES.capture);
+  let bytes = 0;
+  return (length): HTMLCanvasElement | null => {
+    if (length > CAPTURE_MAX_SPAN) {
+      return null;
+    }
+    const key = Math.round(length * CAPTURE_LENGTH_STEPS);
+    const cached = cache.get(key);
+    if (cached !== undefined) {
+      cache.delete(key);
+      cache.set(key, cached);
+      return cached;
+    }
+    const quantized = key / CAPTURE_LENGTH_STEPS;
+    const width = Math.ceil((quantized + pad * 2) * SPRITE_SCALE);
+    const nextBytes = width * source.height * PIXEL_BYTES;
+    for (const [oldKey, old] of cache) {
+      if (bytes + nextBytes <= CAPTURE_CACHE_BYTES) {
+        break;
+      }
+      cache.delete(oldKey);
+      bytes -= old.width * old.height * PIXEL_BYTES;
+    }
+    const assembled = document.createElement("canvas");
+    assembled.width = width;
+    assembled.height = source.height;
+    const ctx = assembled.getContext("2d");
+    if (ctx === null) {
+      throw new Error("WebWeave: no canvas context for assembled capture glow");
+    }
+    ctx.setTransform(SPRITE_SCALE, 0, 0, SPRITE_SCALE, pad * SPRITE_SCALE, pad * SPRITE_SCALE);
+    drawSlices(ctx, source, quantized, pad);
+    cache.set(key, assembled);
+    bytes += nextBytes;
+    return assembled;
+  };
+}
+
+/** Bake palette-owned glow; capture sprites retain round caps within a bounded raster cache. */
 export function bakeWeaveGlow(document: Document, color: string): WeaveGlowPainter {
   const sprites = {
     capture: bakeStroke(document, color, WEAVE_GLOW_STYLES.capture),
@@ -54,20 +108,22 @@ export function bakeWeaveGlow(document: Document, color: string): WeaveGlowPaint
     softGlint: bakeStroke(document, color, WEAVE_GLOW_STYLES.softGlint),
     softStrandOut: bakeStroke(document, color, WEAVE_GLOW_STYLES.softStrandOut),
   };
+  const capture = captureSprites(document, sprites.capture);
   return (ctx, kind, start, end): void => {
     const sprite = sprites[kind];
     const style = WEAVE_GLOW_STYLES[kind];
     const pad = strokePadding(style);
-    const cap = pad * SPRITE_SCALE;
-    const core = CORE_LENGTH * SPRITE_SCALE;
     const length = Math.hypot(end.x - start.x, end.y - start.y);
     ctx.save();
     ctx.globalAlpha *= style.opacity;
     ctx.translate(start.x, start.y);
     ctx.rotate(Math.atan2(end.y - start.y, end.x - start.x));
-    ctx.drawImage(sprite, 0, 0, cap, sprite.height, -pad, -pad, pad, pad * 2);
-    ctx.drawImage(sprite, cap, 0, core, sprite.height, 0, -pad, length, pad * 2);
-    ctx.drawImage(sprite, cap + core, 0, cap, sprite.height, length, -pad, pad, pad * 2);
+    const assembled = kind === "capture" ? capture(length) : null;
+    if (assembled === null) {
+      drawSlices(ctx, sprite, length, pad);
+    } else {
+      ctx.drawImage(assembled, -pad, -pad, assembled.width / SPRITE_SCALE, assembled.height / SPRITE_SCALE);
+    }
     ctx.restore();
   };
 }

@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-19
+updated: 2026-10-06
 ---
 
 # Motion & Animation Guide
@@ -527,6 +527,10 @@ per-block `dir` wrapper and drops to a new line).
   re-blocking, and a replaced node loses its running animation. The reveal-time CSS anchor in
   §4.2 item 10 survives that replacement and keeps the one reduced-motion path. ADR 0168 owns the
   mechanism.
+
+### 4.4 Brand canvas drawing
+
+`packages/ui/src/art/web-weave/web-weave-glow.ts` owns the brand web's palette-baked glow and bounded capture-sprite retention. Warm capture segments composite assembled round caps without repeating slice assembly. Halo length quantization changes the blurred endpoint by at most 1/32 CSS pixel; crisp silk and physics coordinates stay exact. Oversized spans retain the uncached slice painter. Palette replacement discards the associated sprites; raster-byte limits exclude browser and GPU allocation overhead. `tests/ui/art/web-weave/web-weave-glow.ct.tsx` compares native pixels, alpha, palette changes, retention and DPR behavior. Hardware comparisons must retain actual frame timing, native gestures and host-load evidence; fewer composites alone do not establish smoothness.
 
 ## 5. The Base UI animation/styling contract (house law)
 
