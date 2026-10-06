@@ -474,6 +474,12 @@ overrides:
 # Supply-chain delay: refuse versions published < 1440 min (24h) ago — a just-published malicious
 # version is usually yanked within that window. (The Exclude was orphaned without this — the guard was
 # OFF.) --frozen-lockfile installs are unaffected (no re-resolution); only new/updated deps are gated.
+# jsx-a11y 6.10.2 (the latest) never widened its eslint peer past ^9; it loads and lints clean under eslint 10.
+# Scoped to that one edge so any other unmet peer still warns.
+peerDependencyRules:
+  allowedVersions:
+    eslint-plugin-jsx-a11y>eslint: "10"
+
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - dependency-cruiser@18.0.0
