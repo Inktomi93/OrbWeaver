@@ -545,12 +545,12 @@ overrides:
   ip-address: ^10.3.1
   '@modelcontextprotocol/sdk>@hono/node-server': ^1.19.15
   '@vitejs/plugin-react': ^6.0.3
-  sharp: ^0.35.0
+  sharp: ^0.35.5
   '@typescript-eslint/utils': 8.65.0
   '@playwright/experimental-ct-core>vite': 6.4.3
   mermaid: '>=11.16.1'
   dompurify: '>=3.4.13'
-  katex: ^0.18.2
+  katex: ^0.18.10
 
 patchedDependencies:
   '@stryker-mutator/core@10.0.0': f00084f08a7438e9b000cccdc037e6aaa88edeb99a271eb6484988e970956ea4
@@ -736,7 +736,7 @@ importers:
         specifier: 'catalog:'
         version: 19.2.7(react@19.2.7)
       sharp:
-        specifier: ^0.35.0
+        specifier: ^0.35.5
         version: 0.35.5(@types/node@26.1.1)
       tailwindcss:
         specifier: 'catalog:'
@@ -1054,7 +1054,7 @@ importers:
         specifier: 'catalog:'
         version: 0.32.0
       sharp:
-        specifier: ^0.35.0
+        specifier: ^0.35.5
         version: 0.35.5(@types/node@26.1.1)
       undici:
         specifier: 'catalog:'
@@ -1135,7 +1135,7 @@ importers:
         specifier: 'catalog:'
         version: 3.0.6(echarts@6.1.0)(react@19.2.7)
       katex:
-        specifier: ^0.18.2
+        specifier: ^0.18.10
         version: 0.18.10
       lucide-react:
         specifier: 'catalog:'
@@ -1281,7 +1281,7 @@ importers:
         specifier: 'catalog:'
         version: 4.0.1(supports-color@7.2.0)
       sharp:
-        specifier: ^0.35.0
+        specifier: ^0.35.5
         version: 0.35.5(@types/node@26.1.1)
 
 packages:

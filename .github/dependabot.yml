@@ -39,6 +39,12 @@ updates:
       npm-security:
         applies-to: security-updates
         patterns: ["*"]
+    # TypeScript moves by hand. The checker runs two compilers side by side (6.x as `typescript`, 7.x through
+    # the `ts7` and `@typescript/native` catalog aliases), and typescript-eslint caps its peer below 6.1, so
+    # anything past a 6.0 patch breaks lint while every resolver still calls it compatible.
+    ignore:
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
     commit-message:
       prefix: chore
       include: scope
