@@ -28,6 +28,11 @@ updates:
     # Majors get their own PR: each is a migration to read on purpose, and one red major must not hold
     # back the routine minor and patch batch.
     groups:
+      # Playwright's runner and its component-testing package must sit on the same version, and the CT package
+      # publishes later, so the two move together and only on patches (minors by hand, below).
+      playwright:
+        applies-to: version-updates
+        patterns: ["@playwright/*"]
       npm:
         applies-to: version-updates
         patterns: ["*"]
@@ -44,6 +49,8 @@ updates:
     # anything past a 6.0 patch breaks lint while every resolver still calls it compatible.
     ignore:
       - dependency-name: typescript
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "@playwright/*"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
     commit-message:
       prefix: chore

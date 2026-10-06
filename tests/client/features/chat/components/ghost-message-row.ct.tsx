@@ -385,12 +385,15 @@ test("#116/#288: a streaming turn names its speaker — the header leads the gho
 test("the ghost's streamed body follows its header at the container's row gap, with no empty band", async ({ mount }) => {
   const component = await mount(<GhostRowScriptedStory chunks={["The lantern gutters. "]} speakerName="Marguerite" />);
   await driveScript(component, 1);
+  await expect(component.locator('[data-slot="ghost-stream-body"]')).toBeAttached();
   const gap = await component.locator(NAME_ROW).evaluate((header: HTMLElement) => {
+    // The stream body is `display: contents` (it adds no box), so the first box after the header is its child.
     const body = header.nextElementSibling;
-    if (body === null) {
-      throw new Error("the ghost's header has no body after it");
+    const firstBox = body?.getAttribute("data-slot") === "ghost-stream-body" ? body.firstElementChild : null;
+    if (firstBox === null) {
+      throw new Error("the ghost's header is not followed by its streamed body");
     }
-    return body.getBoundingClientRect().top - header.getBoundingClientRect().bottom;
+    return firstBox.getBoundingClientRect().top - header.getBoundingClientRect().bottom;
   });
   expect(Math.abs(gap - SNAPPED_LENGTH_BASE_PX["spacing.row"])).toBeLessThan(1);
 });
