@@ -28,7 +28,7 @@ import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { MESSAGE_EDIT_NAME } from "../../../../packages/client/src/features/chat/lib/message-action-names.ts";
+import { MESSAGE_EDIT_NAME, VARIANT_NEXT_NAME } from "../../../../packages/client/src/features/chat/lib/message-action-names.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../support/node/route-trpc.ts";
 import { ChatRoomTrackStory } from "./_ct-stories.tsx";
@@ -685,6 +685,8 @@ test("the reserved edit footprint is a minimum: a longer draft grows and Cancel 
   await routeRoom(page, "bubble", LONG_PROSE);
   await mount(<ChatRoomTrackStory paneWidth={894} />);
   await expect(page.locator(CONTENT_COLUMN).first()).toBeVisible();
+  // The pending variant-history status adds a line; compare Cancel with the settled read box.
+  await expect(page.getByRole("button", { name: VARIANT_NEXT_NAME, exact: true })).toBeEnabled();
   const read = await rowGeometry(page);
   await enterEdit(page);
   await page.getByRole("textbox", { name: MESSAGE_EDIT_NAME, exact: true }).fill(LONG_PROSE.repeat(8));

@@ -26,7 +26,7 @@ import {
   VARIANT_PREV_NAME,
 } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
 import { projectViewForMember } from "../../../../../packages/server/src/domain/chat/substrate/member-visibility.ts";
-import { pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
+import { pixelContrast, pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GroupTranscriptAttributionStory, MessageRowStory, NarratorTranscriptStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, makeMessageView } from "../fixtures.ts";
@@ -2252,12 +2252,12 @@ test("#106 CONTROL: with no background photo the same row is byte-identically ba
 // ── #221: THE SWIPE STRIP over a bg photo — the last naked band under the bubble ───────────────────
 // The metadata row and the message footer take `BG_PHOTO_CHROME_PLATE` mode-independently (#106); the
 // swipe strip sits BETWEEN them and took nothing, so its chevrons floated on the raw wallpaper —
-// measured 1.60:1 live (rescore-chats-2026-08-18), against WCAG 1.4.11's 3:1 for a UI component. It is
-// the SAME mechanism, not a new one: the row owns the backing and threads it (`renderRowSwipe`), so a
-// strip component still knows nothing about the shell's wallpaper flag.
+// measured 1.60:1 live (rescore-chats-2026-08-18), against WCAG 1.4.11's 3:1 for a UI component.
+// The row owns the backing and threads it (`renderRowSwipe`), so a strip knows nothing about the shell's
+// wallpaper flag. The pager takes the opaque card and its paired ink: its counter must stay readable over art.
 const SWIPE_STRIP = '[data-slot="swipe-strip"]';
 
-test("the swipe strip over a bg image is backed by the chrome chip, not the raw photo (#221)", async ({ mount, page }) => {
+test("the swipe strip over a bg image uses the opaque card and its paired ink (#221)", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
   const component = await mount(
     <div data-has-bg-image="">
@@ -2267,13 +2267,17 @@ test("the swipe strip over a bg image is backed by the chrome chip, not the raw 
   const strip = component.locator(SWIPE_STRIP);
   await expect(strip).toHaveCount(1);
   await expect(strip.getByRole("button", { name: VARIANT_NEXT_NAME })).toBeVisible();
-  const { bg, backdrop } = await strip.evaluate((el) => {
+  const { bg, ink, backdrop } = await strip.evaluate((el) => {
     const cs = getComputedStyle(el);
-    return { bg: cs.backgroundColor, backdrop: cs.backdropFilter };
+    return { bg: cs.backgroundColor, ink: cs.color, backdrop: cs.backdropFilter };
   });
   expect(bg).not.toBe(TRANSPARENT);
-  expect(parseOklch(bg)).toEqual(parseOklch(await cssVar(strip, "--color-reading-plate")));
-  expect(backdrop).not.toBe("none");
+  expect(parseOklch(bg)).toEqual(parseOklch(await cssVar(strip, "--color-card")));
+  expect(parseOklch(bg)[3]).toBe(1);
+  expect(parseOklch(ink)).toEqual(parseOklch(await cssVar(strip, "--color-card-foreground")));
+  expect(backdrop).toBe("none");
+  const counterContrast = await pixelContrast(page, strip.locator('[data-slot="swipe-strip-counter"]'));
+  expect(counterContrast.ratio, counterContrast.describe).toBeGreaterThanOrEqual(4.5);
 });
 
 test("without a bg image the swipe strip stays unbacked — don't chip what doesn't need it (#221)", async ({ mount, page }) => {

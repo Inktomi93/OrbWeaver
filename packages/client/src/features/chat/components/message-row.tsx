@@ -13,9 +13,9 @@ import { initialsFor } from "@orb/kit/initials";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
-import type { CSSProperties, ReactElement } from "react";
+import type { ReactElement } from "react";
 import { Fragment, useEffect } from "react";
-import type { ChatMessageSurfaceState, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
+import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { cn, resolveRowRenderPolicy } from "#lib";
 import {
   toggleMessageSelected,
@@ -44,6 +44,9 @@ import {
   renderRowReasoning,
   renderRowSwipe,
   renderRowToolCalls,
+  resolveColumnStyle,
+  resolveGenerationCredit,
+  resolveMessageFooter,
   resolveRowContent,
   themedColumnContent,
   trainParagraphsFor,
@@ -119,39 +122,6 @@ export interface MessageRowProps {
   /** The §6c per-tool-name renderer registry; absent ⇒ every record renders through the generic
    *  `ToolCallBlock`. */
   readonly toolRenderers?: ContributorRegistry<ToolRenderer> | undefined;
-}
-
-/** Resolves the `when`-filtered `message-footer` contributions for one row (§6c/M8) — a bare helper
- *  (not inlined) so the component body stays under the cognitive-complexity ceiling. */
-function resolveMessageFooter(
-  registry: ContributorRegistry<ChatSurfaceContribution> | undefined,
-  message: MessageView,
-): readonly Extract<ChatSurfaceContribution, { anchor: "message-footer" }>[] {
-  const state: ChatMessageSurfaceState = { message };
-  return (registry?.list() ?? []).filter(
-    (c): c is Extract<ChatSurfaceContribution, { anchor: "message-footer" }> => c.anchor === "message-footer" && (c.when?.(state) ?? true),
-  );
-}
-
-/** THE GENERATION CREDIT RIDES THE ACTION CLUSTER, not the metadata row: it is an attribution ABOUT
- *  the reply, and at rest the transcript owes the reader prose. Gated by `showModelIcon`, the "Show model"
- *  appearance toggle; `GenerationCredit` itself renders nothing for a row with no model (a greeting/draft).
- *  A bare helper, not inlined, so the row body stays under the cognitive-complexity ceiling. */
-function resolveGenerationCredit(visibility: MessageMetadataVisibility): boolean {
-  return visibility.showModelIcon;
-}
-
-/** #245 — the content column's style: the skin's own width override (echo's art pane) plus, while this row
- *  is being EDITED, the read-mode footprint the Edit action measured. A bare helper, not inlined, so the row
- *  body stays under the cognitive-complexity ceiling. */
-function resolveColumnStyle(
-  skinStyle: CSSProperties | undefined,
-  reservedInlineSize: number | null,
-  reservedBlockSize: number | null,
-): CSSProperties | undefined {
-  return reservedInlineSize === null && reservedBlockSize === null
-    ? skinStyle
-    : { ...skinStyle, minInlineSize: reservedInlineSize ?? undefined, minBlockSize: reservedBlockSize ?? undefined };
 }
 
 const NO_METADATA_VISIBLE: MessageMetadataVisibility = {

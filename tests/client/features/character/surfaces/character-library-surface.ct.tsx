@@ -22,6 +22,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { dropFiles } from "../../../../support/browser/drop-files.ts";
+import { makeImportedCard } from "../../../../support/factories/imported-card.ts";
 import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { chatListResponder } from "../../chat/fixtures.ts";
@@ -757,6 +758,7 @@ async function openImportDialog(page: Page): Promise<Locator> {
 }
 
 test("dropping a card on the Import dialog fires the multipart POST and reports success", async ({ mount, page }) => {
+  const importedCard = makeImportedCard({ filename: "villain.png" });
   await routeThree(page);
   const uploads: string[] = [];
   await page.route("**/api/import", async (route) => {
@@ -764,7 +766,7 @@ test("dropping a card on the Import dialog fires the multipart POST and reports 
     await route.fulfill({
       status: 200,
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ imported: [{ filename: "villain.png", characterId: "char_imported_villain", created: true }], failed: [] }),
+      body: JSON.stringify({ imported: [importedCard], failed: [] }),
     });
   });
 
@@ -776,7 +778,7 @@ test("dropping a card on the Import dialog fires the multipart POST and reports 
   await expect(page.locator(TOAST_ROOT)).toContainText("Card imported.");
   // A successful import closes the dialog and opens the card that landed.
   await expect(page.getByRole("dialog", { name: IMPORT_DIALOG_TITLE })).toHaveCount(0);
-  await expect(page.getByText("selected: char_imported_villain")).toBeVisible();
+  await expect(page.getByText(`selected: ${importedCard.characterId}`)).toBeVisible();
 });
 
 test("a PNG with no character data gets a LOUD toast naming why, and the dialog stays open", async ({ mount, page }) => {

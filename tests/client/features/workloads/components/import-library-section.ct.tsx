@@ -20,6 +20,7 @@ import { join } from "node:path";
 import { driveFileDrop, driveFileUpload } from "@orb/tooling/_shared/upload";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { dropFiles } from "../../../../support/browser/drop-files.ts";
+import { makeImportedCard } from "../../../../support/factories/imported-card.ts";
 import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { BackupSettingsStory, LibraryImportEpochStory } from "../_ct-stories.tsx";
@@ -82,7 +83,7 @@ test("DRAGGING a card onto the dropzone fires the same POST /api/import the pick
     await route.fulfill({
       status: 200,
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ imported: [{ filename: "villain.png", created: true }], failed: [] }),
+      body: JSON.stringify({ imported: [makeImportedCard({ filename: "villain.png" })], failed: [] }),
     });
   });
 
@@ -108,7 +109,7 @@ test("a CLEAN card import shows the success ✓ and a success toast", async ({ m
       status: 200,
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        imported: [{ filename: "hero.png", created: true }],
+        imported: [makeImportedCard({ filename: "hero.png" })],
         failed: [],
       }),
     });
@@ -136,7 +137,7 @@ test("a card import's per-card notes render beside its own row", async ({ mount,
       status: 200,
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        imported: [{ filename: "hero.png", created: false, notes: ["book kept: primary already exists"] }],
+        imported: [makeImportedCard({ filename: "hero.png", created: false, notes: ["book kept: primary already exists"] })],
         failed: [],
       }),
     });
@@ -169,14 +170,14 @@ test("an older import completion cannot replace the newer batch outcome", async 
   await held[1]?.fulfill({
     status: 200,
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ imported: [{ filename: "new.png", created: true }], failed: [] }),
+    body: JSON.stringify({ imported: [makeImportedCard({ filename: "new.png" })], failed: [] }),
   });
   await expect(story.getByTestId("import-outcome")).toHaveText("new.png");
 
   await held[0]?.fulfill({
     status: 200,
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ imported: [{ filename: "old.png", created: true }], failed: [] }),
+    body: JSON.stringify({ imported: [makeImportedCard({ filename: "old.png" })], failed: [] }),
   });
   await page.evaluate(
     () =>
@@ -208,7 +209,7 @@ test("reset revokes an in-flight import instead of letting its completion resurr
   await held.fulfill({
     status: 200,
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ imported: [{ filename: "old.png", created: true }], failed: [] }),
+    body: JSON.stringify({ imported: [makeImportedCard({ filename: "old.png" })], failed: [] }),
   });
   await page.evaluate(
     () =>
@@ -250,7 +251,7 @@ test("a stale workload terminal callback cannot replace a later card-import resu
   await cardRoute.fulfill({
     status: 200,
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ imported: [{ filename: "new.png", created: true }], failed: [] }),
+    body: JSON.stringify({ imported: [makeImportedCard({ filename: "new.png" })], failed: [] }),
   });
   await expect(story.getByTestId("import-outcome")).toHaveText("new.png");
 

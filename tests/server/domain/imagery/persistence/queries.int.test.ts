@@ -237,6 +237,7 @@ describe("readProvenanceByAsset", () => {
     const owner = await seedUser(castId<Handle>("owner"));
     await seedGeneration({ owner, generationId: "g1", assetId: castId<AssetId>("asset_1"), createdAt: FROZEN_AT });
     const prov = await readProvenanceByAsset(db, owner, castId<AssetId>("asset_1"));
+    const { costUsd, ...usage } = makeGenerationUsage(0.02);
     expect(prov).toMatchObject({
       generationId: "g1",
       assetId: castId<AssetId>("asset_1"),
@@ -244,8 +245,8 @@ describe("readProvenanceByAsset", () => {
       prompt: PORTRAIT_PROMPT,
       subjectCharacterId: "character_aria",
       model: "img-model",
-      costUsd: 0.02,
-      usage: generationUsageDetailsSchema.parse(makeGenerationUsage(0.02)),
+      costUsd,
+      usage: generationUsageDetailsSchema.parse(usage),
       edited: false,
     });
   });

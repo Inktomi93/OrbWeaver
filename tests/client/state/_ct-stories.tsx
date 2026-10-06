@@ -1939,7 +1939,7 @@ export function ConnectionEditorRequestProbe({ first, second }: { readonly first
       <button type="button" onClick={(): void => requestConnectionEditor(second, { openAdvanced: true })}>
         request advanced
       </button>
-      <button type="button" onClick={clearConnectionEditorRequest}>
+      <button type="button" onClick={(): void => clearConnectionEditorRequest()}>
         clear request
       </button>
     </div>

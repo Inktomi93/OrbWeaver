@@ -3472,14 +3472,17 @@ test("HUD-1 §7.1: the HUD's chrome stays inside its vertical budget at the 30re
   // never a px count, and it is asserted at the geometry §7.1 names: a 30rem docked panel, 900px tall.
   await stubTakeover(page, { tracker: ambientLessTrackerView() });
   const component = await mount(<RpgTakeoverReferenceStory />);
-  const region = component.locator("[data-context-bracket]");
+  const region = component.locator('[data-context-bracket]:has([data-slot="rpg-hud-band"])');
+  await expect(region).toHaveCount(1);
   await expect(region).toBeVisible();
-  await expect.poll(() => component.locator('[data-slot="tabs-panel"]:visible').count(), { intervals: [20, 50, 100, 200] }).toBe(1);
+  // Suspense retains hidden brackets; the HUD budget belongs to the one settled visible bracket.
+  await expect(component.locator("[data-context-bracket]:visible")).toHaveCount(1);
+  await expect.poll(() => region.locator('[data-slot="tabs-panel"]:visible').count(), { intervals: [20, 50, 100, 200] }).toBe(1);
 
-  const rails = await component.locator('[data-slot="context-rail"]').all();
+  const rails = await region.locator('[data-slot="context-rail"]').all();
   // Both rails are really there — a budget met by a rail that failed to render is not a budget met.
   expect(rails).toHaveLength(2);
-  const [regionBox, bandBox] = await Promise.all([region.boundingBox(), component.locator('[data-slot="rpg-hud-band"]').boundingBox()]);
+  const [regionBox, bandBox] = await Promise.all([region.boundingBox(), region.locator('[data-slot="rpg-hud-band"]').boundingBox()]);
   if (regionBox === null || bandBox === null) {
     throw new Error("expected the region and the band to be laid out");
   }

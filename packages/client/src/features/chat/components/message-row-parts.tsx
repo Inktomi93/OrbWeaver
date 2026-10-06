@@ -11,8 +11,8 @@ import { Avatar } from "@orb/ui/avatar";
 import { Stack } from "@orb/ui/layout";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
-import type { ReactElement, ReactNode } from "react";
-import type { ContributorRegistry, MessageRenderContext, RowRenderPolicy, ToolRenderer } from "#lib";
+import type { CSSProperties, ReactElement, ReactNode } from "react";
+import type { ChatMessageSurfaceState, ChatSurfaceContribution, ContributorRegistry, MessageRenderContext, RowRenderPolicy, ToolRenderer } from "#lib";
 import { cn, renderMessageForDisplay } from "#lib";
 import type { RowAttribution } from "../lib/attribution.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
@@ -24,6 +24,7 @@ import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
 import { GreetingSwipeStrip } from "./greeting-swipe-strip.tsx";
 import { MessageContent } from "./message-content.tsx";
 import { MessageEditTextarea } from "./message-edit-textarea.tsx";
+import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { renderSingleBubble } from "./message-row-bubble.tsx";
 import { MessageToolCalls } from "./message-tool-calls.tsx";
 import { ReasoningBlock } from "./reasoning-block.tsx";
@@ -345,4 +346,37 @@ export function renderRowSwipe(args: {
     );
   }
   return args.showSwipes && args.role === "assistant" ? <SwipeStrip message={args.message} backingClass={BG_PHOTO_PAGER_PLATE} /> : null;
+}
+
+/** Resolves the `when`-filtered `message-footer` contributions for one row (§6c/M8) — a bare helper
+ *  (not inlined) so the component body stays under the cognitive-complexity ceiling. */
+export function resolveMessageFooter(
+  registry: ContributorRegistry<ChatSurfaceContribution> | undefined,
+  message: MessageView,
+): readonly Extract<ChatSurfaceContribution, { anchor: "message-footer" }>[] {
+  const state: ChatMessageSurfaceState = { message };
+  return (registry?.list() ?? []).filter(
+    (c): c is Extract<ChatSurfaceContribution, { anchor: "message-footer" }> => c.anchor === "message-footer" && (c.when?.(state) ?? true),
+  );
+}
+
+/** THE GENERATION CREDIT RIDES THE ACTION CLUSTER, not the metadata row: it is an attribution ABOUT
+ *  the reply, and at rest the transcript owes the reader prose. Gated by `showModelIcon`, the "Show model"
+ *  appearance toggle; `GenerationCredit` itself renders nothing for a row with no model (a greeting/draft).
+ *  A bare helper, not inlined, so the row body stays under the cognitive-complexity ceiling. */
+export function resolveGenerationCredit(visibility: MessageMetadataVisibility): boolean {
+  return visibility.showModelIcon;
+}
+
+/** #245 — the content column's style: the skin's own width override (echo's art pane) plus, while this row
+ *  is being EDITED, the read-mode footprint the Edit action measured. A bare helper, not inlined, so the row
+ *  body stays under the cognitive-complexity ceiling. */
+export function resolveColumnStyle(
+  skinStyle: CSSProperties | undefined,
+  reservedInlineSize: number | null,
+  reservedBlockSize: number | null,
+): CSSProperties | undefined {
+  return reservedInlineSize === null && reservedBlockSize === null
+    ? skinStyle
+    : { ...skinStyle, minInlineSize: reservedInlineSize ?? undefined, minBlockSize: reservedBlockSize ?? undefined };
 }

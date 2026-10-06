@@ -336,6 +336,8 @@ test("EXPORT: the chat transcript download 404s for a seated MEMBER and 200s for
 
 // ══ 4. D122 — the multi-human persona plane ═════════════════════════════════════════════════════════════
 
+const HOST_PERSONA_NAME = "D122 host cartographer";
+const HOST_PERSONA_DESCRIPTION = "the host voice with a nonempty persona marker";
 const MEMBER_PERSONA_NAME = "Zaraine";
 const MEMBER_PERSONA_DESCRIPTION = "a wandering cartographer of the salt flats";
 const CARD_USER_PROBE = "{{user}} is my brother";
@@ -344,6 +346,18 @@ const PERSONA_SECTION_ID = "persona";
 /** The persona marker's row labels in a preview, voice part first. Empty when the section rendered nothing. */
 function personaRowLabels(preview: PreviewBudget): readonly string[] {
   return preview.budget.sections.find((section) => section.sectionId === PERSONA_SECTION_ID)?.rows.map((row) => row.label) ?? [];
+}
+
+// Probe cleanup must retain one persona under each actor's own authority, including a fresh or crashed harness.
+async function createProbePersona(actor: ActorClient, name: string, description: string): Promise<PersonaRow> {
+  const owned = await actor.query<readonly PersonaRow[]>("persona.list", {});
+  if (owned.every((p) => p.name === name)) {
+    await actor.mutation("persona.create", { input: { name: "D122 fixture baseline", description: "" } });
+  }
+  for (const stale of owned.filter((p) => p.name === name)) {
+    await actor.mutation("persona.remove", { personaId: stale.id });
+  }
+  return await actor.mutation<PersonaRow>("persona.create", { input: { name, description } });
 }
 
 test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane (card + assembly), and is not a dead pin", async ({ baseURL }) => {
@@ -359,16 +373,12 @@ test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane
   const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
   // The persona is the MEMBER's OWN library entity (owner-sacred — minted under their principal, never the
   // host's). Idempotent across crashed runs.
-  const owned = await member.query<readonly PersonaRow[]>("persona.list", {});
-  for (const stale of owned.filter((p) => p.name === MEMBER_PERSONA_NAME)) {
-    await member.mutation("persona.remove", { personaId: stale.id });
-  }
-  const persona = await member.mutation<PersonaRow>("persona.create", {
-    input: { name: MEMBER_PERSONA_NAME, description: MEMBER_PERSONA_DESCRIPTION },
-  });
+  const persona = await createProbePersona(member, MEMBER_PERSONA_NAME, MEMBER_PERSONA_DESCRIPTION);
+  // Empty persona descriptions produce no voice row; the ordering proof needs an explicit host voice.
+  const hostPersona = await createProbePersona(host, HOST_PERSONA_NAME, HOST_PERSONA_DESCRIPTION);
 
   try {
-    const started = await host.mutation<StartedChat>("chat.startChat", { characterIds: [characterId] });
+    const started = await host.mutation<StartedChat>("chat.startChat", { characterIds: [characterId], anchorPersonaId: hostPersona.id });
     const chatId = started.chat.id;
     await addMemberToChat(host, member, chatId, LOCAL_MEMBER.handle);
 
@@ -385,8 +395,11 @@ test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane
     expect(unpinnedBytes).toContain(MEMBER_PERSONA_NAME);
     expect(unpinnedBytes).toContain(MEMBER_PERSONA_DESCRIPTION);
     const unpinnedRows = personaRowLabels(unpinned);
+    expect(unpinnedRows[0]).toContain(HOST_PERSONA_NAME);
+    expect(unpinnedBytes).toContain(HOST_PERSONA_DESCRIPTION);
     expect(unpinnedRows.findIndex((label) => label.includes(MEMBER_PERSONA_NAME))).toBeGreaterThan(0);
     const unpinnedCard = await member.query<MemberCard>("chat.getMemberCard", { chatId, characterId, timeZone: UTC_TIME_ZONE });
+    expect(unpinnedCard.description).toBe(`${HOST_PERSONA_NAME} is my brother`);
     expect(unpinnedCard.description).not.toBe(`${MEMBER_PERSONA_NAME} is my brother`);
 
     // ── The HOST pins the MEMBER-OWNED persona as the room ANCHOR. Consent is the persona OWNER's present
@@ -427,6 +440,7 @@ test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane
   } finally {
     await host.mutation("character.remove", { characterId });
     await member.mutation("persona.remove", { personaId: persona.id });
+    await host.mutation("persona.remove", { personaId: hostPersona.id });
   }
 });
 
