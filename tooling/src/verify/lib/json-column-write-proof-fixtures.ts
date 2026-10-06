@@ -15,9 +15,10 @@ export interface Client { select<const Fields = undefined>(fields?: Fields): Sel
 `;
 const ZOD = `
 export interface RefinementCtx { addIssue(issue: { readonly code: "custom"; readonly message: string }): void }
-export interface ZodType<T = unknown, Input = unknown> { readonly _output: T; readonly _input: Input; parse(value: unknown): T; int(): ZodType<T, Input>; min(n: number): ZodType<T, Input>; max(n: number): ZodType<T, Input>; optional(): ZodType<T | undefined, Input>; nullable(): ZodType<T | null, Input>; catch(value: T | (() => T)): ZodType<T, Input>; refine(check: (value: T) => boolean, message?: string): ZodType<T, Input>; transform<U>(map: (value: T, ctx: RefinementCtx) => U): ZodType<U, Input> }
+export interface ZodType<T = unknown, Input = unknown> { readonly _output: T; readonly _input: Input; parse(value: unknown): T; int(): ZodType<T, Input>; min(n: number): ZodType<T, Input>; max(n: number): ZodType<T, Input>; optional(): ZodType<T | undefined, Input>; nullable(): ZodType<T | null, Input>; catch(value: T | (() => T)): ZodType<T, Input>; refine(check: (value: T) => boolean, message?: string): ZodType<T, Input>; superRefine(check: (value: T, ctx: RefinementCtx) => void): ZodType<T, Input>; default(value: T): ZodType<T, Input>; transform<U>(map: (value: T, ctx: RefinementCtx) => U): ZodType<U, Input> }
 type ObjectOutput<Shape extends Record<string, ZodType>> = { [Key in keyof Shape as undefined extends Shape[Key]["_output"] ? never : Key]: Shape[Key]["_output"] } & { [Key in keyof Shape as undefined extends Shape[Key]["_output"] ? Key : never]?: Shape[Key]["_output"] };
 export declare function object<const Shape extends Record<string, ZodType>>(shape: Shape): ZodType<ObjectOutput<Shape>>;
+export declare function looseObject<const Shape extends Record<string, ZodType>>(shape: Shape): ZodType<ObjectOutput<Shape>>;
 export declare function array<T>(schema: ZodType<T>): ZodType<T[]>;
 export declare function number(): ZodType<number>;
 export declare function string(): ZodType<string, string>;

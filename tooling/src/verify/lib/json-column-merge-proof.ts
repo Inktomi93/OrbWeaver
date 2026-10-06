@@ -246,12 +246,31 @@ function objectProof(object: import("ts-morph").ObjectLiteralExpression, target:
   };
 }
 
+const DRIZZLE_PACKAGE = "/drizzle-orm/";
+// `json_set`/`json_remove`, nested or not, edit keys of their first argument; the template's first
+// interpolation must then be the stored column itself for the write to preserve every other key.
+const KEYWISE_SQL_HEAD = /^\s*(?:json_(?:set|remove)\(\s*)+$/u;
+
+function inDrizzle(file: import("ts-morph").SourceFile): boolean {
+  return file.getFilePath().replaceAll("\\", "/").includes(DRIZZLE_PACKAGE);
+}
+
+// Drizzle declares `sql` as a function and a same-named namespace, which the module resolver reports as
+// ambiguous. Both halves are Drizzle's, so a tag whose every declaration lives in the package is its `sql`.
+function drizzleSqlTag(tag: MorphNode): boolean {
+  const origin = resolveModuleMemberOrigin(tag);
+  if (origin.kind === "resolved") {
+    return origin.value.canonical.kind === "project" && inDrizzle(origin.value.canonical.sourceFile);
+  }
+  const symbol = tag.getSymbol();
+  const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
+  return origin.reason === "ambiguous" && declarations.length > 0 && declarations.every((declaration) => inDrizzle(declaration.getSourceFile()));
+}
+
 function sqlProof(node: import("ts-morph").TaggedTemplateExpression, target: JsonColumnTarget, context: JsonColumnOriginContext): JsonColumnMergeProof {
-  const origin = resolveModuleMemberOrigin(node.getTag());
-  const source = origin.kind === "resolved" ? origin.value.canonical : undefined;
-  const installed = source?.kind === "project" && source.sourceFile.getFilePath().replaceAll("\\", "/").includes("/drizzle-orm/");
+  const installed = drizzleSqlTag(node.getTag());
   const template = node.getTemplate();
-  if (!(installed && Node.isTemplateExpression(template) && /^\s*json_set\(\s*$/u.test(template.getHead().getLiteralText()))) {
+  if (!(installed && Node.isTemplateExpression(template) && KEYWISE_SQL_HEAD.test(template.getHead().getLiteralText()))) {
     return WHOLE;
   }
   const input = template.getTemplateSpans()[0]?.getExpression();

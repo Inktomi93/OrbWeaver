@@ -13,7 +13,7 @@
 //     library id; the import LIFT mints a real row from it and the export RE-EMBED projects back onto it.
 //
 // THE TWO ACCEPT-AND-DROP HEALS (both card-boundary only, both ruled by the regex-model review):
-//   • `placement` parses leniently — an unknown member (ST's `SLASH_COMMAND`, which has no orbweaver leg
+//   • `placement` is filtered at the card boundary — an unknown member (ST's `SLASH_COMMAND`, which has no orbweaver leg
 //     and was struck from `REGEX_PLACEMENTS`) is dropped from the ARRAY rather than failing the whole
 //     script. A strict enum would silently delete the entire script instead of the dead value.
 //   • ST's flat `minDepth`/`maxDepth` are still GONE from the card wire (unknown keys are stripped by zod's
@@ -56,20 +56,11 @@ function isRegexPlacement(value: string): value is RegexPlacement {
   return PLACEMENT_SET.has(value);
 }
 
-/** The placement list, parsed LENIENTLY: unknown members are dropped from the array (see the header's
- *  accept-and-drop clause) instead of rejecting the script. Capped at the tuple length AFTER filtering —
- *  no value can repeat usefully. */
-const placementSchema = z
-  .array(z.string())
-  .transform((values): RegexPlacement[] => values.filter(isRegexPlacement))
-  .pipe(z.array(z.enum(REGEX_PLACEMENTS)).max(REGEX_PLACEMENTS.length));
-
-/** The STRICT placement-list wire shape — the REGX2 bulk-placement verb's input. Unlike the lenient
- *  {@link placementSchema} above (which drops unknown members for the ST card-boundary heal), this rejects a
- *  non-member: the only caller is the first-party bulk dialog, which sends canonical `RegexPlacement`s off
- *  the shared `REGEX_PLACEMENT_ITEMS`, so a garbage value is a bug to surface, not a card to salvage. The
- *  server re-derives each script's tier flags + history-depth scope FROM this set (`@orb/kit/regex`), so no
- *  flag or depth rides the wire. */
+/** The placement list: strict, so a stored behavior re-parses to itself. Unknown members are a card-boundary
+ *  concern, dropped by {@link normalizeStScriptWire} before the card schema sees them (the header's
+ *  accept-and-drop clause). The bulk-placement verb takes it as input too: the server re-derives each
+ *  script's tier flags and history-depth scope FROM this set (`@orb/kit/regex`), so no flag or depth rides
+ *  the wire. */
 export const regexPlacementListSchema = z.array(z.enum(REGEX_PLACEMENTS)).max(REGEX_PLACEMENTS.length) satisfies z.ZodType<RegexPlacement[]>;
 
 /** How deep in the assembled history a `PROMPT_HISTORY` script applies — DEPTH 0 IS THE NEWEST MESSAGE,
@@ -95,7 +86,7 @@ const regexScriptBehaviorFields = z.object({
   // pattern can't even be persisted (it would otherwise only be rejected at execution).
   findRegex: z.string().max(MAX_FIND_REGEX_LENGTH),
   replaceString: z.string().max(MAX_REPLACE_LENGTH),
-  placement: placementSchema,
+  placement: regexPlacementListSchema,
 
   // Options mimicking the legacy ST card-format. `markdownOnly` = the per-user DISPLAY tier (D53's
   // preserved clause — the flags ARE the tier discriminant); `promptOnly` is its complement.
@@ -178,7 +169,7 @@ const regexScriptCardFieldsSchema = regexScriptBehaviorSchema.extend({
  *  `public/scripts/extensions/regex/engine.js:281` — MD_DISPLAY 0 · USER_INPUT 1 · AI_OUTPUT 2 ·
  *  SLASH_COMMAND 3 · WORLD_INFO 5 · REASONING 6; 4 is a struck legacy sendAs arm). `3`/`4` are
  *  DELIBERATELY absent — orb has no slash-command text leg (D107; the header's accept-and-drop clause),
- *  so they fall through the lenient placement filter like the string `"SLASH_COMMAND"` does. */
+ *  so they are dropped by the card normalizer like the string `"SLASH_COMMAND"` is. */
 const ST_REGEX_PLACEMENT_BY_NUMBER: Readonly<Record<number, RegexPlacement>> = {
   0: "DISPLAY",
   1: "USER_INPUT",
@@ -191,8 +182,8 @@ const ST_REGEX_PLACEMENT_BY_NUMBER: Readonly<Record<number, RegexPlacement>> = {
  *  `scriptName` (`extensions/regex/index.js:850`) and INTEGER placements — the orb-exported dialect
  *  (`name`, string placements) is what the fields schema reads, so a real ST script failed `safeParse`
  *  wholesale and the lift silently dropped it (measured: all 15 corpus preset scripts). Ours wins when
- *  both spellings are present (the enabled/disabled precedent above); an unmapped placement NUMBER is
- *  stringified so the lenient filter drops the MEMBER, never the script. */
+ *  both spellings are present (the enabled/disabled precedent above); an unmapped or unknown placement is
+ *  dropped from the array here, so the card loses the MEMBER, never the script. */
 /** ST's older BOOLEAN spelling of `substituteRegex`: `true` substituted macros into the pattern raw, `false`
  *  did not. Any other value is the current enum form and passes through to the schema. */
 function stSubstituteRegex(value: unknown): unknown {
@@ -209,7 +200,9 @@ function normalizeStScriptWire(raw: unknown): unknown {
   const obj = raw as Record<string, unknown>;
   const name = obj["name"] ?? obj["scriptName"];
   const placement = Array.isArray(obj["placement"])
-    ? obj["placement"].map((member) => (typeof member === "number" ? (ST_REGEX_PLACEMENT_BY_NUMBER[member] ?? String(member)) : member))
+    ? obj["placement"]
+        .map((member) => (typeof member === "number" ? ST_REGEX_PLACEMENT_BY_NUMBER[member] : member))
+        .filter((member): member is RegexPlacement => typeof member === "string" && isRegexPlacement(member))
     : obj["placement"];
   const substituteRegex = stSubstituteRegex(obj["substituteRegex"]);
   return {

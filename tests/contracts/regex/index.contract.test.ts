@@ -66,12 +66,19 @@ test("a row id must be a regex_script TypeID — a foreign-prefixed or bare id i
 // Both are load-bearing as DROPS, not rejections: an ST card that carries a retired value must still
 // import its script. A strict enum / strict object would have deleted the whole script instead.
 
-test("an unknown placement member is dropped from the array, not fatal to the script", () => {
+test("an unknown placement member is dropped from a card script, and refused on a stored row", () => {
   // `SLASH_COMMAND` was a tuple member with ZERO execution legs — struck from `REGEX_PLACEMENTS`.
-  const carried = { ...FULL_ROW, placement: ["AI_OUTPUT", "SLASH_COMMAND", "DISPLAY"] };
-  const parsed = regexScriptSchema.parse(carried);
-  expect(parsed.placement).toEqual(["AI_OUTPUT", "DISPLAY"]);
   expect(REGEX_PLACEMENTS).not.toContain("SLASH_COMMAND");
+  const card = regexScriptCardSchema.parse({
+    id: "st-uuid-1",
+    name: "ST script",
+    findRegex: "a",
+    replaceString: "b",
+    placement: ["AI_OUTPUT", "SLASH_COMMAND", "DISPLAY"],
+  });
+  expect(card.placement).toEqual(["AI_OUTPUT", "DISPLAY"]);
+  // Storage is strict so a stored behavior re-parses to itself; only the card boundary heals.
+  expect(regexScriptSchema.safeParse({ ...FULL_ROW, placement: ["AI_OUTPUT", "SLASH_COMMAND"] }).success).toBe(false);
 });
 
 test("the retired minDepth/maxDepth keys are stripped from a carried card script", () => {

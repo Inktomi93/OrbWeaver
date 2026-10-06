@@ -20,8 +20,9 @@ export function jsonColumnPropertyValue(property: MorphNode | undefined): MorphN
 }
 
 const ZOD_PACKAGE = "/node_modules/zod/";
-const VALIDATORS = ["int", "min", "max", "nonnegative", "positive", "finite", "optional", "nullable", "readonly", "strict", "strip"] as const;
-const CONSTRUCTORS = ["object", "strictObject", "array", "record", "union", "enum", "literal", "number", "string", "boolean"] as const;
+// `default` fills only an undefined key, and a stored row is the schema's own output, so its keys are present.
+const VALIDATORS = ["int", "min", "max", "nonnegative", "positive", "finite", "optional", "nullable", "default", "readonly", "strict", "strip"] as const;
+const CONSTRUCTORS = ["object", "strictObject", "looseObject", "array", "record", "union", "enum", "literal", "number", "string", "boolean"] as const;
 
 function zodMethod(node: MorphNode, name: string): boolean {
   const member = readMemberAccess(node);
@@ -72,6 +73,79 @@ function pureUniqueness(callback: MorphNode): boolean {
     origin.value.target.kind === "global" &&
     origin.value.target.globalName === "Set"
   );
+}
+
+// Built-in reads a refinement may call: each is declared in TypeScript's own lib and never mutates its receiver.
+const READ_ONLY_BUILTINS = ["includes", "has", "startsWith", "endsWith"] as const;
+const TS_LIB = /\/typescript\/lib\/lib\.[^/]+\.d\.ts$/u;
+const MUTATING_OPERATORS = new Set<SyntaxKind>([
+  SyntaxKind.EqualsToken,
+  SyntaxKind.PlusEqualsToken,
+  SyntaxKind.MinusEqualsToken,
+  SyntaxKind.AsteriskEqualsToken,
+  SyntaxKind.SlashEqualsToken,
+  SyntaxKind.QuestionQuestionEqualsToken,
+  SyntaxKind.BarBarEqualsToken,
+  SyntaxKind.AmpersandAmpersandEqualsToken,
+]);
+
+function refinementFunction(callback: MorphNode): MorphNode | undefined {
+  const fn = unwrapExpression(callback);
+  if (Node.isArrowFunction(fn) || Node.isFunctionExpression(fn)) {
+    return fn;
+  }
+  const declarations = Node.isIdentifier(fn) ? (fn.getSymbol()?.getDeclarations() ?? []) : [];
+  return declarations.length === 1 && Node.isFunctionDeclaration(declarations[0]) ? declarations[0] : undefined;
+}
+
+function readOnlyBuiltinCall(call: import("ts-morph").CallExpression): boolean {
+  const member = readMemberAccess(call.getExpression());
+  if (member === undefined || !READ_ONLY_BUILTINS.some((name) => name === member.name)) {
+    return false;
+  }
+  // A type-only augmentation (ts-reset's `includes` overload) merges into the lib declaration without
+  // changing what runs, so ambient `.d.ts` siblings are allowed beside the lib's own.
+  const files = (member.receiver.getType().getNonNullableType().getProperty(member.name)?.getDeclarations() ?? []).map((declaration) =>
+    declaration.getSourceFile().getFilePath().replaceAll("\\", "/"),
+  );
+  return files.some((file) => TS_LIB.test(file)) && files.every((file) => file.endsWith(".d.ts") || file.endsWith(".d.cts") || file.endsWith(".d.mts"));
+}
+
+// A superRefine that only reads its input and reports through `ctx.addIssue` cannot change the parsed value,
+// so a valid row passes through it unchanged. Anything that could write (assignment, update, delete, `new`,
+// a nested function, any other call) refuses.
+function pureIssueRefinement(callback: MorphNode): boolean {
+  const fn = refinementFunction(callback);
+  if (!(Node.isArrowFunction(fn) || Node.isFunctionExpression(fn) || Node.isFunctionDeclaration(fn)) || fn.getParameters().length !== 2) {
+    return false;
+  }
+  const ctx = fn.getParameters()[1];
+  const body = fn.getBody();
+  if (ctx === undefined || body === undefined || fn.getParameters().some((parameter) => !Node.isIdentifier(parameter.getNameNode()))) {
+    return false;
+  }
+  return body.getDescendants().every((node) => {
+    if (Node.isBinaryExpression(node)) {
+      return !MUTATING_OPERATORS.has(node.getOperatorToken().getKind());
+    }
+    if (
+      Node.isPrefixUnaryExpression(node) ||
+      Node.isPostfixUnaryExpression(node) ||
+      Node.isDeleteExpression(node) ||
+      Node.isNewExpression(node) ||
+      Node.isAwaitExpression(node) ||
+      Node.isArrowFunction(node) ||
+      Node.isFunctionExpression(node)
+    ) {
+      return Node.isPrefixUnaryExpression(node) && ![SyntaxKind.PlusPlusToken, SyntaxKind.MinusMinusToken].includes(node.getOperatorToken());
+    }
+    if (Node.isCallExpression(node)) {
+      const member = readMemberAccess(node.getExpression());
+      const issue = member?.name === "addIssue" && sameParameter(member.receiver, ctx);
+      return issue || readOnlyBuiltinCall(node);
+    }
+    return true;
+  });
 }
 
 function refusal(node: MorphNode, detail: string): never {
@@ -125,7 +199,7 @@ function constructorProof(call: import("ts-morph").CallExpression, seen: Readonl
   if (name === "array") {
     return argument === undefined ? refusal(call, "array has no element schema") : schemaProof(argument, seen);
   }
-  if (name === "object" || name === "strictObject") {
+  if (name === "object" || name === "strictObject" || name === "looseObject") {
     return objectConstructorProof(call, seen);
   }
   return { historicalHeal: false };
@@ -172,6 +246,9 @@ function schemaCallProof(call: import("ts-morph").CallExpression, seen: Readonly
     return base;
   }
   if (member.name === "refine" && pureUniqueness(call.getArguments()[0] ?? call)) {
+    return base;
+  }
+  if (member.name === "superRefine" && pureIssueRefinement(call.getArguments()[0] ?? call)) {
     return base;
   }
   if (member.name === "catch") {

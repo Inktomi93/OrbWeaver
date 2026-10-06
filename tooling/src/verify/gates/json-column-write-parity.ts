@@ -137,6 +137,32 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "userSettings.config", operation: "json-column-straddle" },
+      files: jsonWriteProofFiles({
+        "node_modules/drizzle-orm/index.d.ts":
+          "export declare function sql(template: TemplateStringsArray, ...values: readonly unknown[]): object;\nexport declare namespace sql { function raw(text: string): object; }\n",
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const userSettings = sqliteTable("user_settings", { config: text("config", { mode: "json" }), other: text("other", { mode: "json" }) });',
+        "packages/server/src/domain/settings/persistence/proof.ts":
+          "export async function merge(db, id) { await db.update(userSettings).set({ config: sql`json_remove(json_set(\u0024{userSettings.config}, '$.next', json('null')), '$.prior')` }).where(id); } export async function replace(db, snapshot, id) { await db.update(userSettings).set({ config: snapshot }).where(id); }",
+      }),
+      expect: { count: 1 },
+      why: "Drizzle's `sql` is a function and a same-named namespace; nested json_remove(json_set(stored column)) through that tag is still the key-wise merge the whole replace straddles",
+    },
+    {
+      mode: "types",
+      grant: { subject: "userSettings.config", operation: "json-column-straddle" },
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const userSettings = sqliteTable("user_settings", { config: text("config", { mode: "json" }), other: text("other", { mode: "json" }) });',
+        "packages/server/src/domain/settings/persistence/proof.ts":
+          "export async function merge(db, id) { await db.update(userSettings).set({ config: sql`json_set(\u0024{userSettings.config}, '$.theme', json('null'))` }).where(id); } export async function replace(db, snapshot, id) { await db.update(userSettings).set({ config: sql`json_remove(json_set(\u0024{JSON.stringify(snapshot)}, '$.a', 1), '$.b')` }).where(id); }",
+      }),
+      expect: { count: 1 },
+      why: "nesting json_remove around json_set does not launder a snapshot passed as the innermost first argument",
+    },
+    {
+      mode: "types",
       files: jsonStageConfigProofFiles(
         "export async function run(ctx, patch, id) { const row = await loadOwnedSessionRow(ctx.db, id); const current = stageViewOf(row).stageConfig; await ctx.db.update(refinerySessions).set({ stageConfig: { score: patch.score ?? current.score, rewrite: patch.rewrite ?? current.rewrite, analyze: patch.analyze ?? current.analyze } }).where(id); }",
         {
@@ -386,6 +412,32 @@ export const gate = defineGate({
     },
   ],
   mustRefuse: [
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; import type { Values } from "../../../contracts/src/macros.ts"; export const userSettings = sqliteTable("user_settings", { config: text("config", { mode: "json" }).$type<Values>() });',
+        "packages/contracts/src/macros.ts":
+          'import * as z from "zod"; export const valuesSchema = z.object({ enabled: z.boolean() }).superRefine((value, ctx) => { value.enabled = false; }); export type Values = z.output<typeof valuesSchema>;',
+        "packages/server/src/domain/settings/persistence/proof.ts":
+          'import { valuesSchema } from "../../../../../contracts/src/macros.ts"; export async function run(db, id) { const row = await readStored(db); await db.update(userSettings).set({ config: { ...valuesSchema.parse(row.config) } }).where(id); }',
+      }),
+      expect: { messageIncludes: "unsupported superRefine" },
+      why: "a superRefine that assigns into its input can change the parsed row",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; import type { Values } from "../../../contracts/src/macros.ts"; export const userSettings = sqliteTable("user_settings", { config: text("config", { mode: "json" }).$type<Values>() });',
+        "packages/contracts/src/macros.ts":
+          'import * as z from "zod"; declare function reset(value: object): void; export const valuesSchema = z.object({ enabled: z.boolean() }).superRefine((value, ctx) => { reset(value); }); export type Values = z.output<typeof valuesSchema>;',
+        "packages/server/src/domain/settings/persistence/proof.ts":
+          'import { valuesSchema } from "../../../../../contracts/src/macros.ts"; export async function run(db, id) { const row = await readStored(db); await db.update(userSettings).set({ config: { ...valuesSchema.parse(row.config) } }).where(id); }',
+      }),
+      expect: { messageIncludes: "unsupported superRefine" },
+      why: "a superRefine that hands its input to an arbitrary function is not provably read-only",
+    },
     {
       mode: "types",
       files: jsonStageConfigProofFiles(
@@ -858,6 +910,30 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; import type { Values } from "../../../contracts/src/macros.ts"; export const userSettings = sqliteTable("user_settings", { config: text("config", { mode: "json" }).$type<Values>() });',
+        "packages/contracts/src/macros.ts":
+          '/// <reference lib="es2022" />\nimport * as z from "zod"; function tagsKnown(value: { readonly tags: readonly string[] }, ctx: z.RefinementCtx): void { if (!value.tags.includes("core")) { ctx.addIssue({ code: "custom", message: "core tag missing" }); } } export const valuesSchema = z.looseObject({ tags: z.array(z.string()) }).superRefine(tagsKnown); export type Values = z.output<typeof valuesSchema>;',
+        "packages/server/src/domain/settings/persistence/proof.ts":
+          'import { valuesSchema } from "../../../../../contracts/src/macros.ts"; export async function run(db, id) { const row = await readStored(db); await db.update(userSettings).set({ config: { ...valuesSchema.parse(row.config) } }).where(id); }',
+      }),
+      why: "a named superRefine that only reads its input through built-in reads and reports through ctx.addIssue preserves the row, as does a loose object",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; import type { Values } from "../../../contracts/src/macros.ts"; export const userSettings = sqliteTable("user_settings", { config: text("config", { mode: "json" }).$type<Values>() });',
+        "packages/contracts/src/macros.ts":
+          'import * as z from "zod"; export const valuesSchema = z.object({ enabled: z.boolean().default(false), tags: z.array(z.string()).default([]) }); export type Values = z.output<typeof valuesSchema>;',
+        "packages/server/src/domain/settings/persistence/proof.ts":
+          'import { valuesSchema } from "../../../../../contracts/src/macros.ts"; export async function run(db, id) { const row = await readStored(db); await db.update(userSettings).set({ config: { ...valuesSchema.parse(row.config) } }).where(id); }',
+      }),
+      why: "a default fills only an absent key, and a stored row is the schema's own output, so re-parsing it through defaulted members preserves it",
+    },
     {
       mode: "types",
       files: jsonStageConfigProofFiles(

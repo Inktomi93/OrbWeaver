@@ -105,27 +105,11 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
       "the composition root imports the definition directly, the barrel moves, or the re-export disappears; central zero-use reconciliation then stales this exact row.",
   },
   {
-    id: "json-column-write-parity:automation-rules-actions",
-    policyId: "json-column-write-parity",
-    subject: "automationRules.actions",
-    operation: "json-column-straddle",
-    why: "the only key-wise sibling is the one-shot plugin-tool wire-name migration; authored rule edits replace the whole action document.",
-    endsWhen: "the migration/heal is retired, the writer provenance changes, or all writers adopt one write shape.",
-  },
-  {
     id: "json-column-write-parity:chats-pending-handoff-offer",
     policyId: "json-column-write-parity",
     subject: "chats.pendingHandoffOffer",
     operation: "json-column-straddle",
     why: "real offer writers replace or clear the whole offer; the key-wise sibling is the one-shot boot vocabulary rename.",
-    endsWhen: "the migration/heal is retired, the writer provenance changes, or all writers adopt one write shape.",
-  },
-  {
-    id: "json-column-write-parity:message-variants-tool-calls",
-    policyId: "json-column-write-parity",
-    subject: "messageVariants.toolCalls",
-    operation: "json-column-straddle",
-    why: "the only key-wise sibling is the one-shot plugin-tool wire-name migration; turn persistence replaces the generated list.",
     endsWhen: "the migration/heal is retired, the writer provenance changes, or all writers adopt one write shape.",
   },
   {
@@ -150,14 +134,6 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     subject: "presets.config",
     operation: "json-column-straddle",
     why: "the key-wise sibling is the one-shot prose-slot vocabulary migration; guarded edits and packaged replacements own the whole blob.",
-    endsWhen: "the migration/heal is retired, the writer provenance changes, or all writers adopt one write shape.",
-  },
-  {
-    id: "json-column-write-parity:regex-scripts-behavior",
-    policyId: "json-column-write-parity",
-    subject: "regexScripts.behavior",
-    operation: "json-column-straddle",
-    why: "the bulk placement writer reads each stored row before crossing the module boundary; the shared taint reader deliberately stops at that boundary.",
     endsWhen: "the migration/heal is retired, the writer provenance changes, or all writers adopt one write shape.",
   },
   {
