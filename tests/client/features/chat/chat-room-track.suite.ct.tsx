@@ -650,6 +650,8 @@ for (const chatStyle of ["flat", "bubble"] as const) {
       await expect(page.locator(CONTENT_COLUMN).first()).toBeVisible();
       await expect(page.locator(COMPOSER)).toBeVisible();
 
+      // A font swap changes the prose footprint independently of entering edit mode.
+      await page.evaluate(async () => await document.fonts.ready.then(() => undefined));
       const read = await rowGeometry(page);
       await enterEdit(page);
       const editing = await rowGeometry(page);

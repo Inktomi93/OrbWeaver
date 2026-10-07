@@ -28,11 +28,6 @@ updates:
     # Majors get their own PR: each is a migration to read on purpose, and one red major must not hold
     # back the routine minor and patch batch.
     groups:
-      # Playwright's runner and its component-testing package must sit on the same version, and the CT package
-      # publishes later, so the two move together and only on patches (minors by hand, below).
-      playwright:
-        applies-to: version-updates
-        patterns: ["@playwright/*"]
       npm:
         applies-to: version-updates
         patterns: ["*"]
@@ -50,8 +45,22 @@ updates:
     ignore:
       - dependency-name: typescript
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # This release rejects required null checks on regex results and sparse dictionaries.
+      - dependency-name: "@biomejs/biome"
+        versions: ["2.5.14"]
+      # Its public types force DOM globals into the pure Node compiler world.
+      - dependency-name: colorjs.io
+        versions: ["0.7.1"]
+      # The runner and CT package share a pinned Chromium revision; update them together by hand.
       - dependency-name: "@playwright/*"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # Version-keyed patches must be ported before a dependency bump; unused patches fail installation.
+      # Stryker's core, runner, checker and API are a pinned lockstep suite.
+      - dependency-name: "@stryker-mutator/*"
+      - dependency-name: "@ts-morph/common"
+      - dependency-name: chrome-devtools-mcp
+      - dependency-name: isomorphic-git
+      - dependency-name: ts-morph
+      - dependency-name: node-av
     commit-message:
       prefix: chore
       include: scope

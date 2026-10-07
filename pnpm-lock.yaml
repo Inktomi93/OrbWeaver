@@ -249,10 +249,10 @@ catalogs:
       specifier: ^1.41.1
       version: 1.41.1
     '@playwright/experimental-ct-react':
-      specifier: ^1.61.1
+      specifier: 1.61.1
       version: 1.61.1
     '@playwright/test':
-      specifier: ^1.61.1
+      specifier: 1.61.1
       version: 1.61.1
     '@rolldown/plugin-babel':
       specifier: ^0.2.3
@@ -558,6 +558,7 @@ patchedDependencies:
   '@ts-morph/common@0.29.0': 3dfce2339c755602f60d026b39533d68760eca1b0a2a966b9f0397ddaecd7b5e
   chrome-devtools-mcp@1.8.0: 67db8089f861f501bdd6ba80a83641bb7f8cee56d9a3378a2ffc137abfc0af7a
   isomorphic-git@1.42.2: be8fb8a37b59f0ba20092772c50d4f678b0d6a8c6e0d5556808cdbb8c6297047
+  node-av@6.1.1: 36551009254ba2f04a7116d9f5c2e58bd9a276f4f026daac918fc75c72088039
   ts-morph@28.0.0: 4f99d1111d1538dd0d85eb3a63a13ab431df81c9bafbfd0ddced9d5b7615eb37
 
 importers:
@@ -1040,7 +1041,7 @@ importers:
         version: 7.2.0
       node-av:
         specifier: 'catalog:'
-        version: 6.1.1(supports-color@7.2.0)
+        version: 6.1.1(patch_hash=36551009254ba2f04a7116d9f5c2e58bd9a276f4f026daac918fc75c72088039)(supports-color@7.2.0)
       openid-client:
         specifier: 'catalog:'
         version: 6.8.4
@@ -14507,7 +14508,7 @@ snapshots:
 
   negotiator@1.0.0: {}
 
-  node-av@6.1.1(supports-color@7.2.0):
+  node-av@6.1.1(patch_hash=36551009254ba2f04a7116d9f5c2e58bd9a276f4f026daac918fc75c72088039)(supports-color@7.2.0):
     dependencies:
       unzipper: 0.12.5
     optionalDependencies:

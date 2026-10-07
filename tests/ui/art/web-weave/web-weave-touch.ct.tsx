@@ -19,8 +19,16 @@
 //     the page).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ambientCeiling, boxCentre, fingerprintDelta, frameFingerprint, touchDrag, waitFrames } from "../../../support/browser/weave-drive.ts";
-import { WeaveBox, WeaveScrollBox, WeaveTouchBox } from "./web-weave.fixtures.tsx";
+import {
+  ambientCeiling,
+  boxCentre,
+  fingerprintDelta,
+  frameFingerprint,
+  frameFingerprintPair,
+  touchDrag,
+  waitFrames,
+} from "../../../support/browser/weave-drive.ts";
+import { WeaveInertTwinBox, WeaveScrollBox, WeaveTouchBox } from "./web-weave.fixtures.tsx";
 
 // The whole suite runs as a touch device: `hasTouch` flips `matchMedia("(pointer: coarse)")` in
 // chromium and enables the touch input pipeline (the tests/ui/touch-target-floor.suite.ct.tsx precedent).
@@ -60,19 +68,22 @@ test("a THUMB dragged across the silk rings it — the painted web changes beyon
 test("instrument control: the SAME thumb drag over a non-interactive weave changes nothing", async ({ mount, page }) => {
   // Without this the ring verdict above is unfalsifiable: a web whose own beat outran the baseline
   // would read identically. Decoration by default must stay inert under a finger.
-  await mount(<WeaveBox state="settled" />);
-  const canvas = page.locator('[data-slot="web-weave-canvas"]');
-  await expect.poll(async () => Number(await canvas.getAttribute("data-orb-weave-frames"))).toBeGreaterThan(2);
-  const ceiling = await ambientCeiling(page, canvas);
-  const mid = await boxCentre(canvas);
+  await mount(<WeaveInertTwinBox />);
+  const canvases = page.locator('[data-slot="web-weave-canvas"]');
+  const target = page.getByTestId("ct-weave-inert-target").locator("canvas");
+  const reference = page.getByTestId("ct-weave-inert-reference").locator("canvas");
+  await expect(canvases).toHaveCount(2);
+  await expect.poll(async () => Number(await target.getAttribute("data-orb-weave-frames"))).toBeGreaterThan(2);
+  await expect.poll(async () => Number(await reference.getAttribute("data-orb-weave-frames"))).toBeGreaterThan(2);
+  const before = await frameFingerprintPair(canvases);
+  const mid = await boxCentre(target);
   await touchDrag(page, { x: mid.x - 140, y: mid.y - 60 }, { x: mid.x + 40, y: mid.y + 20 }, 12);
-  // A SINGLE 2-frame delta right after the drag races the same ambient beat `ambientCeiling` exists to
-  // absorb (16k–136k on one settled mount, per the module header) — the drag window can land on a burst
-  // the pre-drag ceiling never sampled. Re-measure with the SAME multi-span max technique post-drag
-  // instead of one reading, so the verdict is the settled post-drag motion LEVEL, not one lucky/unlucky
-  // frame pair.
-  const after = await ambientCeiling(page, canvas);
-  expect(after, "an inert weave must stay within its own ambient motion").toBeLessThanOrEqual(ceiling * RING_FACTOR);
+  // The twin measures ambient motion over the touch protocol's actual frames, not another time window.
+  await waitFrames(page, 2);
+  const after = await frameFingerprintPair(canvases);
+  const moved = fingerprintDelta(before[0], after[0]);
+  const ambient = fingerprintDelta(before[1], after[1]);
+  expect(moved, "an inert weave must stay within its simultaneous twin's ambient motion").toBeLessThanOrEqual(ambient * RING_FACTOR);
 });
 
 test("reduced motion: a thumb rings NOTHING — the one static frame stays exactly as painted (§3.9 REMOVE)", async ({ mount, page }) => {

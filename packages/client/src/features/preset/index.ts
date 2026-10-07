@@ -5,9 +5,9 @@
 
 export type { PresetLibraryAnchorProps } from "./anchors/preset-library-anchor.tsx";
 export { PresetLibraryAnchor } from "./anchors/preset-library-anchor.tsx";
+export { PresetEditorSurface } from "./components/preset-content.tsx";
 export { PresetLibraryWelcome } from "./components/preset-library-welcome.tsx";
 export { PresetReadout } from "./components/readout/preset-readout.tsx";
 export { presetsSection } from "./lib/presets-section.tsx";
 export type { PresetEditorSurfaceProps } from "./surfaces/preset-editor-surface.tsx";
-export { PresetEditorSurface } from "./surfaces/preset-editor-surface.tsx";
 export { PresetLibrarySurface } from "./surfaces/preset-library-surface.tsx";

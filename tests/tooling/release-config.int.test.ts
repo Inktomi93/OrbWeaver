@@ -10,7 +10,7 @@ import type { SpawnNicedOptions } from "@orb/tooling/_shared/proc";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { parse } from "yaml";
 import { z } from "zod";
-import { expect, test } from "../support/tool-fixtures.ts";
+import { expect, fixturePath, test } from "../support/tool-fixtures.ts";
 
 function read(repoRoot: string, rel: string): string {
   return readFileSync(join(repoRoot, rel), "utf8");
@@ -129,6 +129,62 @@ const pluginAuthoring = z.object({
   "force-tag-creation": z.boolean(),
 });
 const AUTHORING_PACKAGES = ["plugin-sdk", "plugin-toolchain"];
+
+test("version-keyed patches cannot be invalidated by automatic dependency updates", ({ repoRoot }) => {
+  const workspace = z.object({ patchedDependencies: z.record(z.string(), z.string()) }).parse(parse(read(repoRoot, "pnpm-workspace.yaml")));
+  const dependabot = z
+    .object({
+      updates: z.array(
+        z.object({
+          "package-ecosystem": z.string(),
+          ignore: z.array(z.object({ "dependency-name": z.string(), "update-types": z.array(z.string()).optional() })).optional(),
+        }),
+      ),
+    })
+    .parse(parse(read(repoRoot, ".github/dependabot.yml")));
+  const ignored = dependabot.updates.find((entry) => entry["package-ecosystem"] === "npm")?.ignore ?? [];
+  const names = [
+    ...Object.keys(workspace.patchedDependencies).map((key) => key.slice(0, key.lastIndexOf("@"))),
+    "@stryker-mutator/api",
+    "@stryker-mutator/vitest-runner",
+  ];
+  for (const name of names) {
+    const held = ignored.find(
+      (entry) => entry["dependency-name"] === name || (entry["dependency-name"].endsWith("/*") && name.startsWith(entry["dependency-name"].slice(0, -1))),
+    );
+    expect(held, name).toBeDefined();
+    expect(held?.["update-types"], name).toBeUndefined();
+  }
+});
+
+test("release-please JSON version bumps remain formatted without relaxing whitespace checks", async ({ repoRoot, plantedTree }) => {
+  const paths = pluginAuthoringConfig(repoRoot)["extra-files"].map((file) => `packages/${file.path}`);
+  const config = z.object({ overrides: z.array(z.record(z.string(), z.json())) }).parse(JSON.parse(read(repoRoot, "biome.json")));
+  const override = config.overrides.find((entry) => JSON.stringify(entry["includes"]) === JSON.stringify(paths));
+  expect(override).toEqual({ includes: paths, json: { formatter: { expand: "always" } } });
+  const generated = paths.map((path) => {
+    const data = z.record(z.string(), z.json()).parse(JSON.parse(read(repoRoot, path)));
+    data["version"] = "9.8.7";
+    // GenericJson serializes the entire document with the detected two-space indent.
+    return [path, `${JSON.stringify(data, null, 2)}\n`] as const;
+  });
+  const tree = await plantedTree(Object.fromEntries([...generated, ["biome.json", read(repoRoot, "biome.json")]]));
+  const args = ["format", ...paths, "--diagnostic-level=error", "--vcs-enabled=false"];
+  const biome = join(repoRoot, "node_modules/.bin/biome");
+  const clean = await spawnNiced(biome, args, { cwd: tree });
+  expect(clean.code, clean.stderr).toBe(0);
+  expect(clean.stdout).toContain(`Checked ${paths.length} files`);
+  for (const [path, content] of generated) {
+    expect(read(tree, path)).toBe(content);
+    expect(z.object({ version: z.string() }).parse(JSON.parse(content)).version).toBe("9.8.7");
+  }
+  for (const path of paths) {
+    await writeFile(fixturePath(tree, path), read(tree, path).replace('  "version":', '    "version":'));
+  }
+  const malformed = await spawnNiced(biome, args, { cwd: tree });
+  expect(malformed.code, malformed.stderr).toBe(1);
+  expect(malformed.stderr).toContain("format");
+});
 
 function pluginAuthoringConfig(repoRoot: string): z.infer<typeof pluginAuthoring> {
   const config = z.object({ packages: z.record(z.string(), z.unknown()) }).parse(JSON.parse(read(repoRoot, "release-please-config.json")));

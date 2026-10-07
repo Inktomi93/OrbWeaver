@@ -56,8 +56,9 @@ catalog:
   # Typecheck integration is experimental; validate upgrades explicitly and keep coverage in lockstep.
   vitest: 4.1.11
   "@vitest/coverage-v8": 4.1.11
-  "@playwright/test": ^1.61.1
-  "@playwright/experimental-ct-react": ^1.61.1
+  # Pin both packages together: the install CLI and test runners must use the same Chromium revision.
+  "@playwright/test": 1.61.1
+  "@playwright/experimental-ct-react": 1.61.1
   # --- rendered instruments ---
   # lighthouse: the audit ENGINE the retired chrome-devtools MCP wrapped (#1195/#1198). WHY THE DEPENDENCY
   # IS WORTH IT (every dependency is a liability): the retirement census
@@ -513,6 +514,7 @@ patchedDependencies:
   '@stryker-mutator/core@10.0.0': patches/@stryker-mutator__core@10.0.0.patch
   '@stryker-mutator/typescript-checker@10.0.0': patches/@stryker-mutator__typescript-checker@10.0.0.patch
   '@ts-morph/common@0.29.0': patches/@ts-morph__common@0.29.0.patch
+  node-av@6.1.1: patches/node-av@6.1.1.patch
   chrome-devtools-mcp@1.8.0: patches/chrome-devtools-mcp@1.8.0.patch
   # #0081: clone packs are attacker-controlled. This exact-version patch bounds object count, declared and
   # actual inflation, aggregate work, delta depth, and pre-concat delta output. A dependency bump must port it.

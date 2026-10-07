@@ -1,0 +1,42 @@
+diff --git a/dist/ffmpeg/install.js b/dist/ffmpeg/install.js
+--- a/dist/ffmpeg/install.js
++++ b/dist/ffmpeg/install.js
+@@ -15,7 +15,7 @@
+ const __filename = fileURLToPath(import.meta.url);
+ const __dirname = dirname(__filename);
+ const __require = createRequire(import.meta.url);
+-const releasesUrl = 'https://api.github.com/repos/seydx/node-av/releases';
++const releasesUrl = 'https://github.com/seydx/node-av/releases/download';
+ const pJson = __require('../../package.json');
+ const ffmpegVersion = `v${FFMPEG_VERSION}`;
+ const binaries = {
+@@ -127,27 +127,9 @@
+         await rename(ffmpegFilePath, ffmpegExtractedFilePath);
+     }
+ };
+-const getReleaseAssets = async (version) => {
+-    const url = `${releasesUrl}/tags/v${version}`;
+-    console.log(`Fetching release info from ${url}...`);
+-    const response = await fetch(url);
+-    if (!response.ok) {
+-        throw new Error(`HTTP error! status: ${response.status}`);
+-    }
+-    const data = await response.json();
+-    const assets = data.assets.map((asset) => asset.browser_download_url);
+-    const files = assets.map((asset) => asset.split(`${version}/`)[1]);
+-    return {
+-        assets,
+-        files,
+-    };
+-};
+ const downloadFFmpeg = async () => {
+-    const release = await getReleaseAssets(pJson.version);
+-    if (!filename || !release.assets.find((r) => r.endsWith(filename))) {
+-        throw new Error(`No ffmpeg binary found for architecture (${sysPlatform} / ${arch})`);
+-    }
+-    const downloadUrl = release.assets.find((r) => r.endsWith(filename));
++    // The pinned package already owns the asset filename; release metadata adds an API rate-limit failure.
++    const downloadUrl = `${releasesUrl}/v${pJson.version}/${filename}`;
+     await downloadFile(downloadUrl);
+     if (sysPlatform === 'linux' || sysPlatform === 'darwin') {
+         console.log(`Making ${ffmpegExtractedFilePath} executable...`);
