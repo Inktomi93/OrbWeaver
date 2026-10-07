@@ -47,7 +47,10 @@
 //     evidence the next assertion consumes, using the same 10s evidence-delivery budget as every other
 //     observer arm in this file.
 
+import { once } from "node:events";
+import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
+import { errorMessage } from "@orb/kit/error-message";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { loafOverBudget, loafTotals } from "../../../tooling/src/motion-audit/index.ts";
@@ -62,6 +65,9 @@ const SCORE_RE = /shift 0\.\d{4}/u;
  *  agent-driven shift landed in 34–135ms — so this is ~70× the observed worst case, and a run that spends
  *  it has lost the evidence (law A), not merely been slow. Well under the 30s test timeout. */
 const EVIDENCE_TIMEOUT_MS = 10_000;
+const SOURCE_REQUEST_TIMEOUT_MS = 1000;
+const SOURCE_TOTAL_TIMEOUT_MS = 2000;
+const SOURCE_DEADLINE_CONTROL_MS = 200;
 
 /** The ONE poll schedule this file uses — a NEW object every call, because the poll loop mutates the
  *  interval array it is given (header law B). The tail is fine (250ms) so the deadline-crossing break
@@ -91,7 +97,14 @@ interface MotionRead {
     readonly duration: number;
     readonly blockingDuration: number;
     readonly styleAndLayoutStart: number;
-    readonly scripts: readonly { readonly sourceURL: string; readonly duration: number; readonly sourceFunctionName: string }[];
+    readonly scripts: readonly {
+      readonly sourceURL: string;
+      readonly duration: number;
+      readonly sourceFunctionName: string;
+      readonly invoker: string;
+      readonly sourceCharPosition?: number;
+      readonly executionStart?: number;
+    }[];
     readonly selectEntrance?: {
       readonly id: number;
       readonly startedAt: number;
@@ -116,6 +129,49 @@ interface MotionRead {
     readonly virtualized: boolean;
     readonly sources: readonly string[];
   }[];
+}
+
+interface SourceLocation {
+  readonly script: MotionRead["loafs"][number]["scripts"][number];
+  readonly responseStatus: number | null;
+  readonly excerptStart: number | null;
+  readonly source: string | null;
+  readonly error: string | null;
+}
+
+async function readSourceLocation(script: SourceLocation["script"], position: number, signal: AbortSignal): Promise<SourceLocation> {
+  let responseStatus: number | null = null;
+  try {
+    const response = await fetch(script.sourceURL, { signal });
+    responseStatus = response.status;
+    if (!response.ok) {
+      await response.body?.cancel();
+      return { script, responseStatus: response.status, excerptStart: null, source: null, error: `source diagnostic HTTP ${response.status}` };
+    }
+    const excerptStart = Math.max(0, position - 250);
+    return { script, responseStatus: response.status, excerptStart, source: (await response.text()).slice(excerptStart, position + 750), error: null };
+  } catch (error) {
+    const cause = Error.isError(error) && error.cause !== undefined ? `; cause: ${errorMessage(error.cause)}` : "";
+    const abort = signal.aborted ? `; deadline: ${errorMessage(signal.reason)}` : "";
+    return { script, responseStatus, excerptStart: null, source: null, error: `source diagnostic transport: ${errorMessage(error)}${cause}${abort}` };
+  }
+}
+
+async function attachSourceLocations(motion: MotionRead, budgetMs = SOURCE_TOTAL_TIMEOUT_MS): Promise<readonly SourceLocation[]> {
+  const locations: SourceLocation[] = [];
+  const deadline = AbortSignal.timeout(budgetMs);
+  for (const script of motion.loafs.flatMap((loaf) => loaf.scripts).filter((entry) => entry.duration > 50)) {
+    if (script.sourceCharPosition === undefined || script.sourceCharPosition < 0) {
+      continue;
+    }
+    if (deadline.aborted) {
+      locations.push({ script, responseStatus: null, excerptStart: null, source: null, error: "source diagnostic aggregate deadline exhausted" });
+      continue;
+    }
+    locations.push(await readSourceLocation(script, script.sourceCharPosition, AbortSignal.any([deadline, AbortSignal.timeout(SOURCE_REQUEST_TIMEOUT_MS)])));
+  }
+  await test.info().attach("select-first-source-locations", { body: JSON.stringify(locations, null, 2), contentType: "application/json" });
+  return locations;
 }
 
 async function resetMotion(page: Page): Promise<void> {
@@ -288,62 +344,130 @@ test("the checkpoint reset clears accumulated shifts without reinstalling the ob
   await expect.poll(async () => await readMotion(page), evidencePoll()).toMatchObject({ cls: 0, observedCls: 0, shifts: [] });
 });
 
-test("a real sealed Select classifies its confirmed first and repeat entrance lifetimes only", async ({ mount, page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
+test("a native timer retains its exact source offset and execution start in motion evidence", async ({ mount, page }) => {
   await mount(<MotionAnchoredPortalStory />);
-  const trigger = page.getByRole("combobox", { name: "Anchored portal control" });
-  const triggerPoint = await hitPoint(trigger);
-  await delay(500);
-  const cdp = await page.context().newCDPSession(page);
-  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
   await resetMotion(page);
-  await page.mouse.click(triggerPoint.x, triggerPoint.y);
-  const first = await motionWhen(page, (motion) =>
-    motion.loafs.some(
-      (loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.endedAt !== undefined && loaf.selectEntrance.firstForTrigger,
-    ),
+  await page.getByRole("button", { name: "plant app style", exact: true }).click();
+  const motion = await motionWhen(page, (snapshot) =>
+    snapshot.loafs.some((loaf) => loaf.scripts.some((script) => script.invoker === "TimerHandler:setTimeout")),
   );
-  await test
-    .info()
-    .attach("select-first-loaf", { body: JSON.stringify({ motion: first, totals: loafTotals(first) }, null, 2), contentType: "application/json" });
-  expect(first.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.firstForTrigger)).toBe(true);
-  expect(loafTotals(first).classifiedInitializations).toBe(1);
-  expect(loafOverBudget(first)).toBe(false);
-
-  await page.keyboard.press("Escape");
-  await expect(trigger).toHaveAttribute("aria-expanded", "false");
-  await page.getByRole("button", { name: "arm Select blocking" }).click();
-  await resetMotion(page);
-  await page.mouse.click(triggerPoint.x, triggerPoint.y);
-  const repeated = await motionWhen(page, (motion) =>
-    motion.loafs.some(
-      (loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.endedAt !== undefined && !loaf.selectEntrance.firstForTrigger,
-    ),
-  );
-  expect(repeated.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined && !loaf.selectEntrance.firstForTrigger)).toBe(true);
-  expect(loafTotals(repeated).budgetedStyleLayout).toBe(0);
-  // The entrance classification may accept Base UI's style/positioning frame, but a repeat receives no
-  // blocking allowance: this planted app-owned 120ms handler must still fail the unchanged 50ms budget.
-  expect(loafOverBudget(repeated)).toBe(true);
-  await page.keyboard.press("Escape");
-  await expect(trigger).toHaveAttribute("aria-expanded", "false");
-
-  const blockingPoint = await hitPoint(page.getByRole("button", { name: "plant app blocking" }));
-  await resetMotion(page);
-  await page.mouse.click(blockingPoint.x, blockingPoint.y);
-  const blocked = await motionWhen(page, loafOverBudget);
-  expect(blocked.loafs.every((loaf) => loaf.selectEntrance === undefined)).toBe(true);
-  expect(loafOverBudget(blocked)).toBe(true);
-
-  const stylePoint = await hitPoint(page.getByRole("button", { name: "plant app style" }));
-  await resetMotion(page);
-  await page.mouse.click(stylePoint.x, stylePoint.y);
-  const styled = await motionWhen(page, (motion) => loafTotals(motion).budgetedStyleLayout > 0);
-  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
-  expect(styled.loafs.every((loaf) => loaf.selectEntrance === undefined)).toBe(true);
-  expect(loafTotals(styled).budgetedStyleLayout).toBeGreaterThan(0);
-  expect(loafOverBudget(styled)).toBe(true);
+  const frame = motion.loafs.find((loaf) => loaf.scripts.some((script) => script.invoker === "TimerHandler:setTimeout"));
+  const timer = frame?.scripts.find((script) => script.invoker === "TimerHandler:setTimeout");
+  expect(timer?.sourceCharPosition).toBeGreaterThan(0);
+  if (frame === undefined || timer?.sourceCharPosition === undefined || timer.executionStart === undefined) {
+    throw new Error("native timer source offset or execution start was dropped");
+  }
+  expect(Math.round(timer.executionStart)).toBeGreaterThanOrEqual(frame.startTime);
+  expect(Math.round(timer.executionStart)).toBeLessThan(frame.startTime + frame.duration);
+  const source = await (await page.request.get(timer.sourceURL)).text();
+  expect(source.slice(timer.sourceCharPosition, timer.sourceCharPosition + 500)).toContain('"180px"');
+  const locations = await attachSourceLocations(motion);
+  expect(locations.some((location) => location.responseStatus === 200 && location.source?.includes('"180px"') && location.error === null)).toBe(true);
 });
+
+for (const sourceTransport of ["normal", "missing", "aborted", "deadline"] as const) {
+  test(
+    sourceTransport === "normal"
+      ? "a real sealed Select classifies its confirmed first and repeat entrance lifetimes only"
+      : `Select budget and lifecycle acceptance survives ${sourceTransport} source diagnostics`,
+    async ({ mount, page }) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await mount(<MotionAnchoredPortalStory />);
+      const trigger = page.getByRole("combobox", { name: "Anchored portal control" });
+      const triggerPoint = await hitPoint(trigger);
+      await delay(500);
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+      await resetMotion(page);
+      await page.mouse.click(triggerPoint.x, triggerPoint.y);
+      const first = await motionWhen(page, (motion) =>
+        motion.loafs.some(
+          (loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.endedAt !== undefined && loaf.selectEntrance.firstForTrigger,
+        ),
+      );
+      await test
+        .info()
+        .attach("select-first-loaf", { body: JSON.stringify({ motion: first, totals: loafTotals(first) }, null, 2), contentType: "application/json" });
+      // Diagnostic transport starts only after the cold opening's snapshot is settled.
+      await using server = createServer((_request, response) => {
+        if (sourceTransport === "missing") {
+          response.writeHead(404).end();
+        } else if (sourceTransport === "aborted") {
+          response.destroy();
+        } else if (sourceTransport === "deadline") {
+          response.writeHead(200, { "content-type": "application/javascript" });
+          response.flushHeaders();
+          response.write("partial source body");
+        }
+      });
+      let diagnostic = first;
+      server.listen(0, "127.0.0.1");
+      await once(server, "listening");
+      if (sourceTransport !== "normal") {
+        const address = server.address();
+        if (address === null || typeof address === "string") {
+          throw new Error("source diagnostic fault server has no TCP address");
+        }
+        diagnostic = {
+          ...first,
+          loafs: first.loafs.map((loaf) => ({
+            ...loaf,
+            scripts: loaf.scripts.map((script) => ({ ...script, sourceURL: `http://127.0.0.1:${address.port}/source.js` })),
+          })),
+        };
+      }
+      const sources = await attachSourceLocations(diagnostic, sourceTransport === "deadline" ? SOURCE_DEADLINE_CONTROL_MS : SOURCE_TOTAL_TIMEOUT_MS);
+      server.closeAllConnections();
+      expect(first.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.firstForTrigger)).toBe(true);
+      expect(loafTotals(first).classifiedInitializations).toBe(1);
+      expect(loafOverBudget(first)).toBe(false);
+
+      await page.keyboard.press("Escape");
+      await expect(trigger).toHaveAttribute("aria-expanded", "false");
+      await page.getByRole("button", { name: "arm Select blocking" }).click();
+      await resetMotion(page);
+      await page.mouse.click(triggerPoint.x, triggerPoint.y);
+      const repeated = await motionWhen(page, (motion) =>
+        motion.loafs.some(
+          (loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.endedAt !== undefined && !loaf.selectEntrance.firstForTrigger,
+        ),
+      );
+      expect(repeated.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined && !loaf.selectEntrance.firstForTrigger)).toBe(true);
+      expect(loafTotals(repeated).budgetedStyleLayout).toBe(0);
+      // The entrance classification may accept Base UI's style/positioning frame, but a repeat receives no
+      // blocking allowance: this planted app-owned 120ms handler must still fail the unchanged 50ms budget.
+      expect(loafOverBudget(repeated)).toBe(true);
+      await page.keyboard.press("Escape");
+      await expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+      const blockingPoint = await hitPoint(page.getByRole("button", { name: "plant app blocking" }));
+      await resetMotion(page);
+      await page.mouse.click(blockingPoint.x, blockingPoint.y);
+      const blocked = await motionWhen(page, loafOverBudget);
+      expect(blocked.loafs.every((loaf) => loaf.selectEntrance === undefined)).toBe(true);
+      expect(loafOverBudget(blocked)).toBe(true);
+
+      const stylePoint = await hitPoint(page.getByRole("button", { name: "plant app style" }));
+      await resetMotion(page);
+      await page.mouse.click(stylePoint.x, stylePoint.y);
+      const styled = await motionWhen(page, (motion) => loafTotals(motion).budgetedStyleLayout > 0);
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+      expect(styled.loafs.every((loaf) => loaf.selectEntrance === undefined)).toBe(true);
+      expect(loafTotals(styled).budgetedStyleLayout).toBeGreaterThan(0);
+      expect(loafOverBudget(styled)).toBe(true);
+      await test.info().attach("select-acceptance-complete", {
+        body: JSON.stringify({ first: loafTotals(first), repeated: loafTotals(repeated), blocked: loafTotals(blocked), styled: loafTotals(styled) }),
+        contentType: "application/json",
+      });
+      const expectedError = { normal: /$/u, missing: /HTTP 404/u, deadline: /timeout/iu, aborted: /fetch failed/u }[sourceTransport];
+      expect(sourceTransport === "normal" || (sources.length > 0 && sources.every((location) => location.error !== null && location.source === null))).toBe(
+        true,
+      );
+      expect(sourceTransport === "normal" || sources.some((location) => expectedError.test(location.error ?? ""))).toBe(true);
+      expect(sourceTransport !== "deadline" || sources.some((location) => location.responseStatus === 200 && location.error?.includes("deadline:"))).toBe(true);
+    },
+  );
+}
 
 test("a slow first Select render confirms its entrance without hiding its app blocking", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
