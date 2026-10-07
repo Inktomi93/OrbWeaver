@@ -77,39 +77,42 @@ export default [{ files: ["src/**/*.ts"], languageOptions: { parser: ts.parser, 
     optimizeDeps: { noDiscovery: true },
     server: { port: 0, host: "127.0.0.1" },
   });
-  server.config.logger.error = (message): void => {
-    logs.push(message);
-  };
-  server.config.logger.info = (message): void => {
-    logs.push(message);
-  };
-  await server.listen();
-  const browser = await chromium.launch({ headless: true });
   try {
-    await expect.poll(() => logs.join("\n"), { timeout: POLL }).toContain(ERROR);
-    const page = await browser.newPage();
-    const address = server.httpServer?.address();
-    if (address === null || typeof address !== "object") {
-      throw new Error("Vite did not listen");
+    server.config.logger.error = (message): void => {
+      logs.push(message);
+    };
+    server.config.logger.info = (message): void => {
+      logs.push(message);
+    };
+    await server.listen();
+    const browser = await chromium.launch({ headless: true });
+    try {
+      await expect.poll(() => logs.join("\n"), { timeout: POLL }).toContain(ERROR);
+      const page = await browser.newPage();
+      const address = server.httpServer?.address();
+      if (address === null || typeof address !== "object") {
+        throw new Error("Vite did not listen");
+      }
+      await page.goto(`http://127.0.0.1:${address.port}`);
+      const overlay = page.locator("vite-error-overlay");
+      await expect.poll(() => overlay.locator(".message-body").allTextContents(), { timeout: POLL }).toEqual([expect.stringContaining("TS2322")]);
+      expect(await overlay.locator(".message-body").isVisible()).toBe(true);
+      control(scratch, 0, "");
+      writeFileSync(join(root, "src", "example.ts"), "export const value = 'fixed';");
+      await expect.poll(() => overlay.count(), { timeout: POLL }).toBe(0);
+      await expect.poll(() => logs.join("\n"), { timeout: POLL }).toContain("No type errors");
+      const lint = page.locator("vite-plugin-checker-error-overlay");
+      await expect.poll(() => lint.locator(".message-body").allTextContents(), { timeout: POLL }).toEqual([expect.stringContaining("no-floating-promises")]);
+      await lint.getByRole("button").click();
+      await expect.poll(() => lint.locator(".message-body").isVisible(), { timeout: POLL }).toBe(true);
+      control(scratch, 2, "compiler unavailable");
+      writeFileSync(join(root, "src", "example.ts"), "export const value = 'edited again';");
+      await expect.poll(() => overlay.locator(".message-body").allTextContents(), { timeout: POLL }).toEqual([expect.stringContaining("no verdict")]);
+      expect(await lint.locator(".message-body").allTextContents()).toEqual([expect.stringContaining("no-floating-promises")]);
+    } finally {
+      await browser.close();
     }
-    await page.goto(`http://127.0.0.1:${address.port}`);
-    const overlay = page.locator("vite-error-overlay");
-    await expect.poll(() => overlay.locator(".message-body").allTextContents(), { timeout: POLL }).toEqual([expect.stringContaining("TS2322")]);
-    expect(await overlay.locator(".message-body").isVisible()).toBe(true);
-    control(scratch, 0, "");
-    writeFileSync(join(root, "src", "example.ts"), "export const value = 'fixed';");
-    await expect.poll(() => overlay.count(), { timeout: POLL }).toBe(0);
-    await expect.poll(() => logs.join("\n"), { timeout: POLL }).toContain("No type errors");
-    const lint = page.locator("vite-plugin-checker-error-overlay");
-    await expect.poll(() => lint.locator(".message-body").allTextContents(), { timeout: POLL }).toEqual([expect.stringContaining("no-floating-promises")]);
-    await lint.getByRole("button").click();
-    await expect.poll(() => lint.locator(".message-body").isVisible(), { timeout: POLL }).toBe(true);
-    control(scratch, 2, "compiler unavailable");
-    writeFileSync(join(root, "src", "example.ts"), "export const value = 'edited again';");
-    await expect.poll(() => overlay.locator(".message-body").allTextContents(), { timeout: POLL }).toEqual([expect.stringContaining("no verdict")]);
-    expect(await lint.locator(".message-body").allTextContents()).toEqual([expect.stringContaining("no-floating-promises")]);
   } finally {
-    await browser.close();
     await server.close();
   }
 });

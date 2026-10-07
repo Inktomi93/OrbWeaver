@@ -1,7 +1,7 @@
 export const QUALIFICATION_AUTHORITIES = ["qualified", "publication"] as const;
-export type QualificationAuthority = (typeof QUALIFICATION_AUTHORITIES)[number];
+type QualificationAuthority = (typeof QUALIFICATION_AUTHORITIES)[number];
 export const VERIFY_TOOL_MODES = ["affected", "full"] as const;
-export type VerifyToolMode = (typeof VERIFY_TOOL_MODES)[number];
+type VerifyToolMode = (typeof VERIFY_TOOL_MODES)[number];
 export const VERIFY_TOOL_MODE_ENV = "ORB_VERIFY_TOOL_MODE";
 
 export interface CiQualificationConfig {
