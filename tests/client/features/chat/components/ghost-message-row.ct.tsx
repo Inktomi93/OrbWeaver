@@ -29,6 +29,23 @@ async function driveScript(component: MountResult, chunkCount: number): Promise<
 
 const THREE_HI = /Hi\s+Hi\s+Hi/u;
 
+test("script controls stay stationary while the streamed body grows", async ({ mount }) => {
+  const component = await mount(<GhostRowScriptedStory chunks={["Here is code:\n```js\n", "const x = 1;\n"]} />);
+  const nextChunk = component.getByTestId("next-chunk");
+  const before = await nextChunk.boundingBox();
+  if (before === null) {
+    throw new Error("the script control has no initial box");
+  }
+  await driveScript(component, 1);
+  await expect(component.locator("pre code")).toBeVisible();
+  await expect
+    .poll(async () => {
+      const after = await nextChunk.boundingBox();
+      return after === null ? null : { x: after.x, y: after.y };
+    })
+    .toEqual({ x: before.x, y: before.y });
+});
+
 test("pending shows the typing dots, then streaming reveals paced markdown", async ({ mount }) => {
   const component = await mount(<GhostRowStory />);
   const phase = component.getByTestId("phase");

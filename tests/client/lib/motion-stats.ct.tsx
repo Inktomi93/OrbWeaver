@@ -52,6 +52,8 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { loafOverBudget, loafTotals } from "../../../tooling/src/motion-audit/index.ts";
 import { MotionAnchoredPortalStory, MotionShiftFlaggerStory, MotionVirtualizedShiftStory } from "./_ct-stories.tsx";
+import { SELECT_OPENING_TEST_CASES } from "./select-opening-cases.ts";
+import type { SelectOpeningProbe } from "./select-opening-fixtures.tsx";
 
 /** The score the flagger prints — `shift 0.1234`. */
 const SCORE_RE = /shift 0\.\d{4}/u;
@@ -89,7 +91,7 @@ interface MotionRead {
     readonly duration: number;
     readonly blockingDuration: number;
     readonly styleAndLayoutStart: number;
-    readonly scripts: readonly { readonly sourceURL: string; readonly duration: number }[];
+    readonly scripts: readonly { readonly sourceURL: string; readonly duration: number; readonly sourceFunctionName: string }[];
     readonly selectEntrance?: {
       readonly id: number;
       readonly startedAt: number;
@@ -158,6 +160,14 @@ function captureClsLines(page: Page): string[] {
 function readMotion(page: Page): Promise<MotionRead> {
   // @orb-waive no-test-fabrication(unknown): the probe slot the story writes; declared and read in this spec alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return page.evaluate(() => (globalThis as unknown as { __motionRead: () => MotionRead }).__motionRead());
+}
+
+function readOpening(page: Page): Promise<SelectOpeningProbe> {
+  return page.evaluate(() => (globalThis as typeof globalThis & { __motionOpeningRead: () => SelectOpeningProbe }).__motionOpeningRead());
+}
+
+function entranceTaskMotion(page: Page): Promise<MotionRead> {
+  return motionWhen(page, (snapshot) => snapshot.loafs.some((loaf) => loaf.scripts.some((script) => script.sourceFunctionName === "plantEntranceFrame")));
 }
 
 async function motionWhen(page: Page, predicate: (motion: MotionRead) => boolean): Promise<MotionRead> {
@@ -293,6 +303,9 @@ test("a real sealed Select classifies its confirmed first and repeat entrance li
       (loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.endedAt !== undefined && loaf.selectEntrance.firstForTrigger,
     ),
   );
+  await test
+    .info()
+    .attach("select-first-loaf", { body: JSON.stringify({ motion: first, totals: loafTotals(first) }, null, 2), contentType: "application/json" });
   expect(first.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.firstForTrigger)).toBe(true);
   expect(loafTotals(first).classifiedInitializations).toBe(1);
   expect(loafOverBudget(first)).toBe(false);
@@ -330,6 +343,316 @@ test("a real sealed Select classifies its confirmed first and repeat entrance li
   expect(styled.loafs.every((loaf) => loaf.selectEntrance === undefined)).toBe(true);
   expect(loafTotals(styled).budgetedStyleLayout).toBeGreaterThan(0);
   expect(loafOverBudget(styled)).toBe(true);
+});
+
+test("a slow first Select render confirms its entrance without hiding its app blocking", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  // The intent precedes the render; the 300ms lifecycle cap must begin only after the popup mounts.
+  await mount(<MotionAnchoredPortalStory firstRenderBlockMs={350} />);
+  const trigger = page.getByRole("combobox", { name: "Anchored portal control" });
+  const point = await hitPoint(trigger);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+  await resetMotion(page);
+  await page.mouse.click(point.x, point.y);
+  const motion = await motionWhen(page, (snapshot) =>
+    snapshot.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.endedAt !== undefined),
+  );
+  const entrance = motion.loafs.find((loaf) => loaf.selectEntrance?.confirmedAt !== undefined)?.selectEntrance;
+  expect(entrance?.firstForTrigger).toBe(true);
+  expect((entrance?.confirmedAt ?? 0) - (entrance?.startedAt ?? 0)).toBeGreaterThan(300);
+  expect((entrance?.endedAt ?? 0) - (entrance?.confirmedAt ?? 0)).toBeLessThanOrEqual(300);
+  expect(loafOverBudget(motion)).toBe(true);
+  expect(loafTotals(motion).budgetedWorstBlocking).toBeGreaterThan(50);
+  await page.keyboard.press("Escape");
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  const capEnd = (entrance?.confirmedAt ?? 0) + 300;
+  await delay(300);
+  await page.getByRole("button", { name: "plant app blocking" }).click();
+  const outside = await motionWhen(page, (snapshot) => snapshot.loafs.some((loaf) => loaf.startTime > capEnd && loaf.blockingDuration > 50));
+  expect(outside.loafs.filter((loaf) => loaf.startTime > capEnd).every((loaf) => loaf.selectEntrance === undefined)).toBe(true);
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+});
+
+test("a rejected Select intent cannot classify a later app-controlled mount", async ({ mount, page }) => {
+  await mount(<MotionAnchoredPortalStory rejectTriggerOpen={true} />);
+  const trigger = page.getByRole("combobox", { name: "Anchored portal control" });
+  await resetMotion(page);
+  await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await page.getByRole("button", { name: "mount without Select intent" }).click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  const motion = await motionWhen(page, (snapshot) =>
+    snapshot.loafs.some((loaf) => loaf.scripts.some((script) => script.sourceFunctionName === "plantEntranceFrame")),
+  );
+  expect(motion.loafs.every((loaf) => loaf.selectEntrance?.confirmedAt === undefined)).toBe(true);
+});
+
+test("a controlled timer mount without another gesture never confirms the ignored native request", async ({ mount, page }) => {
+  await mount(<MotionAnchoredPortalStory automaticControlledOpen={true} />);
+  await resetMotion(page);
+  await page.getByRole("combobox", { name: "Anchored portal control" }).click();
+  await expect(page.getByRole("listbox")).toBeVisible();
+  const motion = await motionWhen(page, (snapshot) =>
+    snapshot.loafs.some((loaf) => loaf.scripts.some((script) => script.sourceFunctionName === "plantEntranceFrame")),
+  );
+  expect(motion.loafs.every((loaf) => loaf.selectEntrance?.confirmedAt === undefined)).toBe(true);
+});
+
+for (const key of ["mouse", "ArrowDown", "ArrowUp", "Enter", "Space"] as const) {
+  test(`the uncontrolled ${key} opening authorizes its exact native request after the caller`, async ({ mount, page }) => {
+    await mount(<MotionAnchoredPortalStory eachEntranceTask={true} />);
+    const trigger = page.getByRole("combobox", { name: "Anchored portal control" });
+    await resetMotion(page);
+    if (key === "mouse") {
+      await trigger.click();
+    } else {
+      await trigger.press(key);
+    }
+    await expect(page.getByRole("listbox")).toBeVisible();
+    const motion = await entranceTaskMotion(page);
+    await expect.poll(() => readOpening(page), evidencePoll()).toMatchObject({ callbacks: [{ open: true, trusted: true, canceled: false }] });
+    const probe = await readOpening(page);
+    const captured = probe.observations.find((observation) => observation.phase === "captured");
+    const accepted = probe.observations.find((observation) => observation.phase === "accepted");
+    expect(accepted).toMatchObject({ requestId: captured?.requestId, originTrusted: true, callbackTrusted: true, sameCallerEvent: true });
+    expect(captured?.originType).toBe(key === "mouse" ? "pointerdown" : "keydown");
+    expect(motion.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.firstForTrigger)).toBe(true);
+  });
+}
+
+for (const openingCase of SELECT_OPENING_TEST_CASES.filter((value) => value.startsWith("controlled-") && value !== "controlled-ignore")) {
+  test(`${openingCase} remains ordinary despite its genuine native callback and real mount`, async ({ mount, page }) => {
+    await mount(<MotionAnchoredPortalStory openingCase={openingCase} eachEntranceTask={true} />);
+    await resetMotion(page);
+    await page.getByRole("combobox", { name: "Anchored portal control" }).click();
+    await expect(page.getByRole("listbox")).toBeVisible();
+    const motion = await entranceTaskMotion(page);
+    const probe = await readOpening(page);
+    expect(probe.callbacks).toMatchObject([{ open: true, trusted: true, canceled: false }]);
+    expect(probe.observations.filter((observation) => observation.phase === "accepted")).toEqual([]);
+    expect(motion.loafs.every((loaf) => loaf.selectEntrance?.confirmedAt === undefined)).toBe(true);
+    expect(loafTotals(motion).classifiedInitializations).toBe(0);
+  });
+}
+
+test("caller cancellation rejects the native request before any later synthetic mount", async ({ mount, page }) => {
+  await mount(<MotionAnchoredPortalStory openingCase="cancel" eachEntranceTask={true} />);
+  const trigger = page.getByRole("combobox", { name: "Anchored portal control" });
+  await resetMotion(page);
+  await trigger.click();
+  await expect.poll(() => readOpening(page), evidencePoll()).toMatchObject({ callbacks: [{ open: true, trusted: true, canceled: true }] });
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  const canceled = await readOpening(page);
+  expect(canceled.callbacks).toMatchObject([{ open: true, trusted: true, canceled: true }]);
+  expect(canceled.observations.some((observation) => observation.phase === "invalidated")).toBe(true);
+  expect(canceled.observations.some((observation) => observation.phase === "accepted")).toBe(false);
+  await trigger.evaluate((element: HTMLButtonElement) => element.click());
+  await expect(page.getByRole("listbox")).toBeVisible();
+  const motion = await entranceTaskMotion(page);
+  expect(motion.loafs.every((loaf) => loaf.selectEntrance?.confirmedAt === undefined)).toBe(true);
+});
+
+test("a canceled native callback followed by its timer's synthetic mount remains ordinary without another gesture", async ({ mount, page }) => {
+  await mount(<MotionAnchoredPortalStory openingCase="cancel-timer" eachEntranceTask={true} />);
+  await resetMotion(page);
+  await page.getByRole("combobox", { name: "Anchored portal control" }).click();
+  await expect(page.getByRole("listbox")).toBeVisible();
+  const motion = await entranceTaskMotion(page);
+  const probe = await readOpening(page);
+  expect(probe.callbacks).toMatchObject([
+    { open: true, trusted: true, canceled: true },
+    { open: true, trusted: false, canceled: false },
+  ]);
+  expect(probe.observations.some((observation) => observation.phase === "accepted")).toBe(false);
+  expect(motion.loafs.every((loaf) => loaf.selectEntrance?.confirmedAt === undefined)).toBe(true);
+});
+
+for (const openingCase of ["default-open", "synthetic"] as const) {
+  test(`an ordinary ${openingCase} mount prevents a later native reopen receiving the first allowance`, async ({ mount, page }) => {
+    await mount(
+      <MotionAnchoredPortalStory openingCase={openingCase === "synthetic" ? "native" : openingCase} eachEntranceTask={true} firstRenderBlockMs={60} />,
+    );
+    const trigger = page.getByRole("combobox", { name: "Anchored portal control" });
+    if (openingCase === "synthetic") {
+      await trigger.evaluate((element: HTMLButtonElement) => element.click());
+    }
+    await expect(page.getByRole("listbox")).toBeVisible();
+    await page.getByRole("button", { name: "plant app blocking", exact: true }).evaluate((element: HTMLButtonElement) => element.click());
+    const ordinary = await motionWhen(page, (motion) => motion.loafs.some((loaf) => loaf.blockingDuration > 50));
+    expect(ordinary.loafs.every((loaf) => loaf.selectEntrance?.confirmedAt === undefined)).toBe(true);
+    await page.keyboard.press("Escape");
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await resetMotion(page);
+    await trigger.click();
+    const repeated = await motionWhen(page, (motion) => motion.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined));
+    expect(repeated.loafs.filter((loaf) => loaf.selectEntrance?.confirmedAt !== undefined).every((loaf) => !loaf.selectEntrance?.firstForTrigger)).toBe(true);
+    expect(loafTotals(repeated).classifiedInitializations).toBe(0);
+  });
+}
+
+test("a checkpoint between native request and mount cannot revive it or relabel the next reopen first", async ({ mount, page }) => {
+  await mount(<MotionAnchoredPortalStory openingCase="reset-request" eachEntranceTask={true} firstRenderBlockMs={60} />);
+  const trigger = page.getByRole("combobox", { name: "Anchored portal control" });
+  await trigger.click();
+  await expect(page.getByRole("listbox")).toBeVisible();
+  const ordinary = await entranceTaskMotion(page);
+  expect((await readOpening(page)).observations.some((observation) => observation.phase === "accepted")).toBe(true);
+  expect(ordinary.loafs.every((loaf) => loaf.selectEntrance?.confirmedAt === undefined)).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await resetMotion(page);
+  await trigger.click();
+  const repeated = await motionWhen(page, (motion) => motion.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined));
+  expect(repeated.loafs.filter((loaf) => loaf.selectEntrance?.confirmedAt !== undefined).every((loaf) => !loaf.selectEntrance?.firstForTrigger)).toBe(true);
+});
+
+test("removing the trigger during its accepted callback invalidates its request before a fresh mount", async ({ mount, page }) => {
+  await mount(<MotionAnchoredPortalStory openingCase="remove-request" eachEntranceTask={true} />);
+  const trigger = page.getByRole("combobox", { name: "Anchored portal control" });
+  await trigger.click();
+  await expect(trigger).toHaveCount(0);
+  await expect
+    .poll(() => readOpening(page), evidencePoll())
+    .toMatchObject({ observations: [{ phase: "captured" }, { phase: "accepted" }, { phase: "invalidated" }] });
+  expect((await readMotion(page)).loafs.every((loaf) => loaf.selectEntrance?.confirmedAt === undefined)).toBe(true);
+  await page.getByRole("button", { name: "mount Select", exact: true }).click();
+  await resetMotion(page);
+  await trigger.click();
+  const fresh = await motionWhen(page, (motion) => motion.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined));
+  expect(fresh.loafs.some((loaf) => loaf.selectEntrance?.firstForTrigger)).toBe(true);
+});
+
+test("a superseded native mouse callback cannot clear the newer keyboard request", async ({ mount, page }) => {
+  await mount(<MotionAnchoredPortalStory eachEntranceTask={true} />);
+  const trigger = page.getByRole("combobox", { name: "Anchored portal control" });
+  const point = await hitPoint(trigger);
+  const cdp = await page.context().newCDPSession(page);
+  // Queue both genuine inputs together: useClick defers the mouse callback, while the opening key
+  // reaches Root immediately. Assert that actual callback order below rather than infer it from time.
+  await Promise.all([
+    cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: point.x, y: point.y, button: "left", clickCount: 1 }),
+    cdp.send("Input.dispatchKeyEvent", { type: "keyDown", key: "ArrowDown", code: "ArrowDown", windowsVirtualKeyCode: 40 }),
+    cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "ArrowDown", code: "ArrowDown", windowsVirtualKeyCode: 40 }),
+  ]);
+  await expect(page.getByRole("listbox")).toBeVisible();
+  await expect.poll(async () => (await readOpening(page)).callbacks.map((callback) => callback.eventType), evidencePoll()).toEqual(["keydown", "mousedown"]);
+  const probe = await readOpening(page);
+  const keyboard = probe.observations.find((observation) => observation.phase === "captured" && observation.originType === "keydown");
+  expect(keyboard).toBeDefined();
+  expect(probe.observations.filter((observation) => observation.phase === "accepted")).toMatchObject([
+    { requestId: keyboard?.requestId, callbackType: "keydown", sameCallerEvent: true, originTrusted: true, callbackTrusted: true },
+  ]);
+  expect(probe.observations.some((observation) => observation.phase === "invalidated" && observation.requestId === keyboard?.requestId)).toBe(false);
+  const motion = await entranceTaskMotion(page);
+  expect(motion.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined)).toBe(true);
+  await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: point.x, y: point.y, button: "left", clickCount: 1 });
+  await cdp.detach();
+});
+
+test("rapid native double-click requests never authorize a superseded gesture", async ({ mount, page }) => {
+  await mount(<MotionAnchoredPortalStory eachEntranceTask={true} firstRenderBlockMs={60} />);
+  const trigger = page.getByRole("combobox", { name: "Anchored portal control" });
+  const point = await hitPoint(trigger);
+  await page.mouse.dblclick(point.x, point.y);
+  await expect
+    .poll(async () => (await readOpening(page)).observations.filter((observation) => observation.phase === "captured").length, evidencePoll())
+    .toBeGreaterThanOrEqual(2);
+  await expect.poll(async () => (await readOpening(page)).observations.some((observation) => observation.phase === "accepted"), evidencePoll()).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await trigger.click();
+  await expect(page.getByRole("listbox")).toBeVisible();
+  await entranceTaskMotion(page);
+  const observations = (await readOpening(page)).observations;
+  const activeRequests = new Set<number>();
+  const acceptedOwnership: boolean[] = [];
+  for (const observation of observations) {
+    if (observation.phase === "captured") {
+      activeRequests.add(observation.requestId);
+    } else if (observation.phase === "invalidated") {
+      activeRequests.delete(observation.requestId);
+    } else {
+      acceptedOwnership.push(
+        activeRequests.has(observation.requestId) && observation.sameCallerEvent && observation.originTrusted && observation.callbackTrusted,
+      );
+    }
+  }
+  expect(acceptedOwnership.length).toBeGreaterThan(0);
+  expect(acceptedOwnership.every(Boolean)).toBe(true);
+  const captures = observations.filter((observation) => observation.phase === "captured");
+  expect(observations.filter((observation) => observation.phase === "accepted").at(-1)?.requestId).toBe(captures.at(-1)?.requestId);
+});
+
+test("a native mouse close and retained-positioner reopen keep separate request identities", async ({ mount, page }) => {
+  await mount(<MotionAnchoredPortalStory eachEntranceTask={true} />);
+  const trigger = page.getByRole("combobox", { name: "Anchored portal control" });
+  await trigger.click();
+  await expect(page.getByRole("listbox")).toBeVisible();
+  const first = await motionWhen(page, (motion) => motion.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined));
+  expect(first.loafs.some((loaf) => loaf.selectEntrance?.firstForTrigger)).toBe(true);
+  await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await resetMotion(page);
+  await trigger.click();
+  await expect(page.getByRole("listbox")).toBeVisible();
+  const repeated = await motionWhen(page, (motion) => motion.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined));
+  expect(repeated.loafs.filter((loaf) => loaf.selectEntrance?.confirmedAt !== undefined).every((loaf) => !loaf.selectEntrance?.firstForTrigger)).toBe(true);
+  const accepted = (await readOpening(page)).observations.filter((observation) => observation.phase === "accepted");
+  expect(accepted).toHaveLength(2);
+  expect(accepted[0]?.requestId).not.toBe(accepted[1]?.requestId);
+  expect(accepted.every((observation) => observation.sameCallerEvent)).toBe(true);
+});
+
+test("independent triggers do not share the native request or first-page allowance identity", async ({ mount, page }) => {
+  await mount(<MotionAnchoredPortalStory eachEntranceTask={true} secondTrigger={true} />);
+  for (const name of ["Anchored portal control", "Second portal control"]) {
+    await resetMotion(page);
+    await page.getByRole("combobox", { name, exact: true }).click();
+    await expect(page.getByRole("listbox")).toBeVisible();
+    const motion = await motionWhen(page, (snapshot) => snapshot.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined));
+    expect(motion.loafs.some((loaf) => loaf.selectEntrance?.firstForTrigger)).toBe(true);
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("combobox", { name, exact: true })).toHaveAttribute("aria-expanded", "false");
+  }
+  const accepted = (await readOpening(page)).observations.filter((observation) => observation.phase === "accepted");
+  expect(accepted.map((observation) => observation.triggerName)).toEqual(["Anchored portal control", "Second portal control"]);
+  expect(accepted[0]?.requestId).not.toBe(accepted[1]?.requestId);
+});
+
+test("a genuinely disabled Select cannot capture or accept a native opening", async ({ mount, page }) => {
+  await mount(<MotionAnchoredPortalStory disabled={true} />);
+  const trigger = page.getByRole("combobox", { name: "Anchored portal control" });
+  await expect(trigger).toBeDisabled();
+  const point = await hitPoint(trigger);
+  await page.mouse.click(point.x, point.y);
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  const probe = await readOpening(page);
+  expect(probe.callbacks).toEqual([]);
+  expect(probe.observations).toEqual([]);
+});
+
+test("reduced motion uses only the unchanged post-confirmation hard cap", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await mount(<MotionAnchoredPortalStory firstRenderBlockMs={60} />);
+  await resetMotion(page);
+  await page.getByRole("combobox", { name: "Anchored portal control" }).click();
+  await expect(page.locator('[data-slot="select-popup"]')).toHaveCSS("transition-property", "none");
+  const motion = await motionWhen(page, (snapshot) => snapshot.loafs.some((loaf) => loaf.selectEntrance?.endedAt !== undefined));
+  const entrance = motion.loafs.find((loaf) => loaf.selectEntrance?.endedAt !== undefined)?.selectEntrance;
+  expect((entrance?.endedAt ?? 0) - (entrance?.confirmedAt ?? 0)).toBe(300);
+  expect((await readOpening(page)).transitions).toEqual([]);
+});
+
+test("real transition cancellation ends accepted evidence before the unchanged hard cap", async ({ mount, page }) => {
+  await mount(<MotionAnchoredPortalStory openingCase="cancel-transition" />);
+  await resetMotion(page);
+  await page.getByRole("combobox", { name: "Anchored portal control" }).click();
+  await expect(page.getByRole("listbox")).toBeVisible();
+  const motion = await motionWhen(page, (snapshot) => snapshot.loafs.some((loaf) => loaf.selectEntrance?.endedAt !== undefined));
+  const entrance = motion.loafs.find((loaf) => loaf.selectEntrance?.endedAt !== undefined)?.selectEntrance;
+  expect((await readOpening(page)).transitions.some((transition) => transition.type === "transitioncancel" && transition.trusted)).toBe(true);
+  expect((entrance?.endedAt ?? 0) - (entrance?.confirmedAt ?? 0)).toBeLessThan(300);
 });
 
 test("a virtualized shift INSIDE the input window moves only the OBSERVED virtualized share (#1071)", async ({ mount, page }) => {

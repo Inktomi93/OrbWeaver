@@ -11,7 +11,8 @@ import { AppToaster } from "@orb/client/features/app-shell";
 import { bindNotify, createToastNotify, notify } from "@orb/client/lib";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
-import { Select } from "@orb/ui/select";
+import type { SelectOpeningRequest, SelectProps } from "@orb/ui/select";
+import { Select, subscribeSelectOpening } from "@orb/ui/select";
 import { createToastManager, ToastProvider } from "@orb/ui/toast";
 import { QueryClient, QueryClientProvider, useMutation } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
@@ -41,6 +42,8 @@ import {
 import { perfMeasureFromLoad } from "../../../packages/client/src/lib/perf-marks.ts";
 import { recordRender } from "../../../packages/client/src/lib/render-stats.ts";
 import { blockMainThread } from "../../support/node/block-main-thread.ts";
+import type { SelectOpeningTestCase } from "./select-opening-cases.ts";
+import type { SelectOpeningProbe } from "./select-opening-fixtures.tsx";
 
 // Minted OUTSIDE React and bound ONCE — exactly the main.tsx posture. Fresh browser context per CT
 // test (ct-data-providers.tsx header) → module state starts clean, so the bind is per-test-clean.
@@ -216,43 +219,154 @@ const SELECT_EVIDENCE_TASK_MS = 60;
 
 /** A real sealed anchored portal for the LoAF first-mount classifier. Both accessors come from the
  * story's module instance; a page-side import would read a second empty ring. */
-export function MotionAnchoredPortalStory(): ReactElement {
+export function MotionAnchoredPortalStory({
+  firstRenderBlockMs = 0,
+  rejectTriggerOpen = false,
+  automaticControlledOpen = false,
+  openingCase = "native",
+  eachEntranceTask = false,
+  secondTrigger = false,
+  disabled = false,
+}: {
+  readonly firstRenderBlockMs?: number;
+  readonly rejectTriggerOpen?: boolean;
+  readonly automaticControlledOpen?: boolean;
+  readonly openingCase?: SelectOpeningTestCase;
+  readonly eachEntranceTask?: boolean;
+  readonly secondTrigger?: boolean;
+  readonly disabled?: boolean;
+} = {}): ReactElement {
   const styleTargetRef = useRef<HTMLDivElement>(null);
   const [blockSelectOpen, setBlockSelectOpen] = useState(false);
+  const [controlledOpen, setControlledOpen] = useState(false);
+  const [mounted, setMounted] = useState(true);
+  const callerEvents = useRef<Event[]>([]);
+  const callbacks = useRef<SelectOpeningProbe["callbacks"][number][]>([]);
   useEffect(() => {
     installMotionObservers();
     let evidenceFramePlanted = false;
+    const transitions: SelectOpeningProbe["transitions"][number][] = [];
+    const recordTransition = (event: TransitionEvent): void => {
+      if (event.target instanceof Element && event.target.matches('[data-slot="select-popup"]')) {
+        transitions.push({ type: event.type, property: event.propertyName, trusted: event.isTrusted });
+      }
+    };
     const plantEntranceFrame = (event: TransitionEvent): void => {
-      if (!evidenceFramePlanted && event.propertyName === "opacity" && event.target instanceof Element && event.target.matches('[data-slot="select-popup"]')) {
+      if (
+        (!evidenceFramePlanted || eachEntranceTask) &&
+        event.propertyName === "opacity" &&
+        event.target instanceof Element &&
+        event.target.matches('[data-slot="select-popup"]')
+      ) {
         evidenceFramePlanted = true;
         blockMainThread(SELECT_EVIDENCE_TASK_MS);
+        if (openingCase === "cancel-transition") {
+          for (const animation of event.target.getAnimations()) {
+            animation.cancel();
+          }
+        }
       }
     };
     document.addEventListener("transitionstart", plantEntranceFrame, { capture: true });
+    document.addEventListener("transitionend", recordTransition, { capture: true });
+    document.addEventListener("transitioncancel", recordTransition, { capture: true });
     const probes = globalThis as typeof globalThis & {
       __motionRead: typeof motionSnapshot | undefined;
       __motionReset: typeof __resetMotionStats | undefined;
+      __motionOpeningRead: (() => SelectOpeningProbe) | undefined;
     };
+    const requestIds = new Map<SelectOpeningRequest, number>();
+    const observations: SelectOpeningProbe["observations"][number][] = [];
+    const unsubscribe = subscribeSelectOpening((observation) => {
+      const requestId = requestIds.getOrInsertComputed(observation.request, () => requestIds.size + 1);
+      observations.push({
+        requestId,
+        phase: observation.phase,
+        triggerName: observation.request.trigger.getAttribute("aria-label"),
+        originType: observation.request.event.type,
+        originTrusted: observation.request.event.isTrusted,
+        originTime: observation.request.startedAt,
+        callbackType: observation.event.type,
+        callbackTrusted: observation.event.isTrusted,
+        sameCallerEvent: observation.event === callerEvents.current.at(-1),
+      });
+    });
     probes.__motionRead = motionSnapshot;
     probes.__motionReset = __resetMotionStats;
+    probes.__motionOpeningRead = (): SelectOpeningProbe => ({ callbacks: callbacks.current, observations, transitions });
     return (): void => {
+      unsubscribe();
       document.removeEventListener("transitionstart", plantEntranceFrame, { capture: true });
+      document.removeEventListener("transitionend", recordTransition, { capture: true });
+      document.removeEventListener("transitioncancel", recordTransition, { capture: true });
       probes.__motionRead = undefined;
       probes.__motionReset = undefined;
+      probes.__motionOpeningRead = undefined;
     };
-  }, []);
+  }, [eachEntranceTask, openingCase]);
+  const controlled = [rejectTriggerOpen, automaticControlledOpen, openingCase.startsWith("controlled-")].includes(true);
+  const cancelFirstOpening: NonNullable<SelectProps["onOpenChange"]> = (open, details): void => {
+    if ((openingCase === "cancel" || openingCase === "cancel-timer") && open && callbacks.current.length === 0) {
+      details.cancel();
+      if (openingCase === "cancel-timer" && details.trigger instanceof HTMLElement) {
+        const trigger = details.trigger;
+        setTimeout(() => trigger.click(), 0);
+      }
+    }
+  };
+  const onOpenChange: NonNullable<SelectProps["onOpenChange"]> = (open, details): void => {
+    callerEvents.current.push(details.event);
+    cancelFirstOpening(open, details);
+    callbacks.current.push({ open, eventType: details.event.type, trusted: details.event.isTrusted, canceled: details.isCanceled });
+    if (openingCase === "controlled-accept") {
+      setControlledOpen(open);
+    }
+    if (openingCase === "controlled-defer" || automaticControlledOpen) {
+      setTimeout(() => setControlledOpen(open), 0);
+    }
+    if (openingCase === "reset-request" && open && callbacks.current.length === 1) {
+      __resetMotionStats();
+    }
+    if (openingCase === "remove-request" && open && callbacks.current.length === 1) {
+      setMounted(false);
+    }
+  };
   return (
     <div style={{ width: 240 }}>
-      <div onPointerDownCapture={blockSelectOpen ? (): void => blockMainThread(120) : undefined}>
-        <Select
-          aria-label="Anchored portal control"
-          items={[
-            { label: "Alpha", value: "alpha" },
-            { label: "Beta", value: "beta", description: "A described option exercises the production popup anatomy." },
-            { label: "Gamma", value: "gamma" },
-          ]}
-        />
+      <div
+        onPointerDownCapture={(): void => {
+          if (blockSelectOpen || firstRenderBlockMs > 0) {
+            blockMainThread(blockSelectOpen ? 120 : firstRenderBlockMs);
+          }
+          if (openingCase === "controlled-timer") {
+            setTimeout(() => setControlledOpen(true), 0);
+          }
+        }}
+      >
+        {mounted ? (
+          <Select
+            aria-label="Anchored portal control"
+            {...(controlled ? { open: controlledOpen } : {})}
+            defaultOpen={openingCase === "default-open"}
+            disabled={disabled}
+            onOpenChange={rejectTriggerOpen ? undefined : onOpenChange}
+            items={[
+              { label: "Alpha", value: "alpha" },
+              { label: "Beta", value: "beta", description: "A described option exercises the production popup anatomy." },
+              { label: "Gamma", value: "gamma" },
+            ]}
+          />
+        ) : null}
       </div>
+      {secondTrigger ? <Select aria-label="Second portal control" items={[{ label: "Other", value: "other" }]} onOpenChange={onOpenChange} /> : null}
+      {rejectTriggerOpen ? (
+        <button type="button" onClick={(): void => setControlledOpen(true)}>
+          mount without Select intent
+        </button>
+      ) : null}
+      <button type="button" onClick={(): void => setMounted(true)}>
+        mount Select
+      </button>
       <button type="button" onClick={(): void => setBlockSelectOpen(true)}>
         arm Select blocking
       </button>

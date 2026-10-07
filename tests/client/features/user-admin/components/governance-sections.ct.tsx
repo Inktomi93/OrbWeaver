@@ -155,11 +155,28 @@ function signInPanel(page: Page): Locator {
 /** The env how-tos sit behind this disclosure; every assertion about the lines they hold opens it first. */
 async function openHowTo(page: Page): Promise<void> {
   await signInPanel(page).getByRole("button", { name: "How to change sign-in mode" }).click();
+  const panel = signInPanel(page).locator('[data-slot="collapsible-panel"]');
+  await expect(panel).toHaveAttribute("data-open", "");
+  await expect(panel).not.toHaveAttribute("data-starting-style");
+  // Copy controls move with the disclosure and with late fonts; neither may move during the next click.
+  await panel.evaluate(async (element) => {
+    await document.fonts.ready;
+    await Promise.all(element.getAnimations().map((animation) => animation.finished.catch(() => undefined)));
+  });
 }
 
 function targetBlocks(page: Page): Locator {
   return signInPanel(page).getByTestId("admin-sign-in-target");
 }
+
+test("the how-to drive settles the disclosure before exposing copy targets to another gesture", async ({ mount, page }) => {
+  await stub(page, OWNER);
+  await mount(<GovernanceSectionsStory />);
+  await openHowTo(page);
+  const panel = signInPanel(page).locator('[data-slot="collapsible-panel"]');
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): openHowTo awaits this panel's animation.finished; retrying here would conceal a broken return-time barrier.
+  expect(await panel.evaluate((element) => element.getAnimations().filter((animation) => animation.playState === "running").length)).toBe(0);
+});
 
 interface NativeClipboardWrite {
   text: string;
