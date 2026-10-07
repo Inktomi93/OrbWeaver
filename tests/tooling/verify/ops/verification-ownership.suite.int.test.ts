@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import YAML from "yaml";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 interface WorkflowStep {
   readonly id?: string;
@@ -107,7 +108,7 @@ test("CI event qualification passes the actual target/before and tested SHA, not
   expect(environment["ORB_VERIFY_HEAD"]).toBe("${{ needs.changes.outputs.head }}");
   expect(environment["ORB_VERIFY_TOOL_MODE"]).toBe("${{ needs.changes.outputs.tool_mode }}");
   const producer = ci.jobs.changes.steps.find((candidate) => candidate.id === "diff");
-  expect(producer?.run).toBe('node scripts/ci-qualification.ts baseline "$GITHUB_SHA" "$BEFORE"');
+  expect(producer?.run).toBe('pnpm exec node scripts/ci-qualification.ts baseline "$GITHUB_SHA" "$BEFORE"');
   expect(producer?.env?.["BEFORE"]).toBe(
     "${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || inputs.base }}",
   );
@@ -116,6 +117,27 @@ test("CI event qualification passes the actual target/before and tested SHA, not
   expect(ci.env["ORB_CI_QUALIFICATION_GENERATION"]).toBe("Orbweaver qualification ancestor-v1");
   expect(ci.env["ORB_CI_PUBLICATION_BOOTSTRAP_SHA"]).toBe("ac6cfc19ea9db59644426b37f6b8c842c33473ad");
   expect(ci.env["ORB_CI_REPOSITORY"]).toBe("Inktomi93/OrbWeaver");
+});
+
+test("qualification enters through the pinned runtime in CI and release promotion and loads its native module graph", {
+  timeout: scaledBudget(20_000),
+}, ({ repoRoot }) => {
+  const producer = workflow(repoRoot).jobs.changes.steps.find((candidate) => candidate.id === "diff");
+  const command = producer?.run;
+  expect(command).toBe('pnpm exec node scripts/ci-qualification.ts baseline "$GITHUB_SHA" "$BEFORE"');
+  expect(readFileSync(join(repoRoot, "scripts/github-sync.sh"), "utf8")).toContain('pnpm exec node scripts/ci-qualification.ts release "$sha"');
+  if (command === undefined) {
+    throw new Error("missing CI qualification invocation");
+  }
+  const result = spawnSync("bash", ["-e", "-c", command], {
+    cwd: repoRoot,
+    env: inheritedProcessEnv({ ["GITHUB_SHA"]: "invalid-head", ["BEFORE"]: "" }),
+    encoding: "utf8",
+    timeout: scaledBudget(15_000),
+  });
+  expect(result.status, result.stdout + result.stderr).toBe(3);
+  expect(result.stderr).toContain("CI qualification head differs from the tested HEAD");
+  expect(result.stderr).not.toContain("SyntaxError");
 });
 
 test("uncached nightly and manual qualification provision media and showcase artifacts before full or product verification", async ({

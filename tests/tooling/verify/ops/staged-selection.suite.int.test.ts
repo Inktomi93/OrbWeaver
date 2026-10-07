@@ -137,6 +137,7 @@ test("both live commit hooks keep staged tooling out of branch-wide recertificat
 });
 
 function plantSyncRepo(repoRoot: string, scratch: string): string {
+  writeFileSync(join(scratch, "package.json"), readFileSync(join(repoRoot, "package.json")));
   writeFileSync(join(scratch, "lefthook.yml"), readFileSync(join(repoRoot, "lefthook.yml")));
   mkdirSync(join(scratch, "scripts"), { recursive: true });
   writeFileSync(join(scratch, "scripts/github-sync.sh"), readFileSync(join(repoRoot, "scripts/github-sync.sh")));

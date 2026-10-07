@@ -46,7 +46,7 @@ git push "$@" origin main
 if [ "$release" = 1 ]; then
   sha=$(git rev-parse HEAD)
   # Promotion cannot inherit a weak or old-generation green workflow.
-  node scripts/ci-qualification.ts release "$sha"
+  pnpm exec node scripts/ci-qualification.ts release "$sha"
   git push "$@" origin main:release
   echo "release: pushed. Merge the release PR on GitHub to publish; it updates within a minute or two:"
   echo "         https://github.com/Inktomi93/orbweaver/pulls?q=is%3Aopen+label%3A%22autorelease%3A+pending%22"
