@@ -18,6 +18,7 @@
 // behaviour is stated in the source header.
 import { createTrpcClient } from "@orb/client/data";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { TRPC_BATCH_MAX_ITEMS, TRPC_BATCH_MAX_URL_LENGTH } from "@orb/contracts/rpc";
 import type { SocketId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, beforeEach, describe, vi } from "vitest";
@@ -80,6 +81,44 @@ async function requestFor(client: ReturnType<typeof createTrpcClient>): Promise<
 }
 
 describe("the client's tRPC wiring", () => {
+  test.each([false, true])("count overflow splits without dropping calls (mutation=%s)", async (mutation) => {
+    const client = createTrpcClient("http://localhost/api/trpc");
+    const count = TRPC_BATCH_MAX_ITEMS + 1;
+    await Promise.allSettled(Array.from({ length: count }, () => (mutation ? client.tag.pruneUnusedTags.mutate() : client.health.query())));
+    const sizes = recorded.map((request) => new URL(request.url).pathname.split("/").at(-1)?.split(",").length);
+    expect(sizes).toEqual([TRPC_BATCH_MAX_ITEMS, 1]);
+    expect(recorded.every((request) => request.method === "POST")).toBe(true);
+    expect(recorded.every((request) => request.headers[CSRF_HEADER] === "1")).toBe(true);
+  });
+
+  test("an exact-cap POST URL is admitted and an extra procedure splits below the item ceiling", async () => {
+    const suffix = "/api/trpc/search.suggest?batch=1";
+    const origin = "http://localhost/";
+    const base = `${origin}${"a".repeat(TRPC_BATCH_MAX_URL_LENGTH - origin.length - suffix.length)}/api/trpc`;
+    const client = createTrpcClient(base);
+    const input = { query: "界", limit: 1 };
+    await Promise.allSettled([client.search.suggest.query(input), client.search.suggest.query(input)]);
+    expect(recorded).toHaveLength(2);
+    for (const request of recorded) {
+      expect(request.method).toBe("POST");
+      expect(request.url).toHaveLength(TRPC_BATCH_MAX_URL_LENGTH);
+      expect(new URL(request.url).searchParams.has("input")).toBe(false);
+      expect(JSON.parse(request.body ?? "null")).toEqual({ 0: input });
+    }
+  });
+
+  test("a valid query larger than the URL ceiling rides JSON POST without losing its input", async () => {
+    const client = createTrpcClient("http://localhost/api/trpc");
+    const input = { query: "界".repeat(TRPC_BATCH_MAX_URL_LENGTH), limit: 1 };
+    await client.search.suggest.query(input).catch(() => undefined);
+    const over = onlyRequest();
+    expect(over.method).toBe("POST");
+    expect(new URL(over.url).searchParams.has("input")).toBe(false);
+    expect(JSON.parse(over.body ?? "null")).toEqual({ 0: input });
+    expect(over.headers[CSRF_HEADER]).toBe("1");
+    expect(over.headers["content-type"]).toBe("application/json");
+  });
+
   test("every non-subscription request carries the CSRF header", async () => {
     const request = await requestFor(createTrpcClient("http://localhost/api/trpc"));
     // The server's cookie-auth gate 403s a mutation without it; `SameSite=Lax` plus this header IS the
@@ -136,12 +175,12 @@ describe("the client's tRPC wiring", () => {
     expect(JSON.parse(request.body ?? "null")).toEqual(input);
   });
 
-  test("CONTROL: a query with input still rides GET with the input in the query string", async () => {
+  test("CONTROL: a query with input rides plain JSON POST with the input in the body", async () => {
     const client = createTrpcClient("http://localhost/api/trpc");
     await client.settings.getGlobalSetting.query({ key: "leg-t" }).catch(() => undefined);
     const request = onlyRequest();
-    expect(request.method).toBe("GET");
-    expect(request.body).toBeNull();
-    expect(new URL(request.url).searchParams.get("input")).toBe(JSON.stringify({ 0: { key: "leg-t" } }));
+    expect(request.method).toBe("POST");
+    expect(JSON.parse(request.body ?? "null")).toEqual({ 0: { key: "leg-t" } });
+    expect(new URL(request.url).searchParams.has("input")).toBe(false);
   });
 });
