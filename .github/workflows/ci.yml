@@ -83,6 +83,8 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: $/.github/actions/setup
+        with:
+          browsers: "true"
       - name: ${{ env.ORB_CI_QUALIFICATION_GENERATION }}
         run: pnpm check
       # The push tier's remaining whole-repo checks are light enough to share the runner.

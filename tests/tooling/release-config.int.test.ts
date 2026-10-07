@@ -6,11 +6,13 @@ import { readdirSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { releaseTagRef } from "@orb/kit/version-identity";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import type { SpawnNicedOptions } from "@orb/tooling/_shared/proc";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { parse } from "yaml";
 import { z } from "zod";
 import { expect, fixturePath, test } from "../support/tool-fixtures.ts";
+import { scaledBudget } from "./_load-budget.ts";
 
 function read(repoRoot: string, rel: string): string {
   return readFileSync(join(repoRoot, rel), "utf8");
@@ -258,31 +260,108 @@ test("CI gives the static floor its full budget", ({ repoRoot }) => {
   expect(workflowJobs(repoRoot, "ci")["static"]?.["timeout-minutes"]).toBe(120);
 });
 
+test("static tooling qualification provisions the pinned Chromium and retains cache-hit dependencies and failed-install refusal", async ({
+  repoRoot,
+  scratch,
+  fakeBin,
+}) => {
+  const steps = workflowJobs(repoRoot, "ci")["static"]?.steps ?? [];
+  const setup = steps.find((step) => step.uses === "$/.github/actions/setup");
+  expect(setup?.with?.["browsers"]).toBe("true");
+  expect(steps.findIndex((step) => step.uses === "$/.github/actions/setup")).toBeLessThan(steps.findIndex((step) => step.run === "pnpm check"));
+  const composite = setupSteps(repoRoot);
+  const version = composite.find((step) => step.id === "playwright");
+  expect(version?.run).toContain("pnpm exec playwright --version");
+  const cold = composite.find((step) => step.run === "pnpm exec playwright install --with-deps chromium");
+  const warm = composite.find((step) => step.run === "pnpm exec playwright install-deps chromium");
+  expect(cold?.if).toBe("inputs.browsers == 'true' && steps.browser-cache.outputs.cache-hit != 'true'");
+  expect(warm?.if).toBe("inputs.browsers == 'true' && steps.browser-cache.outputs.cache-hit == 'true'");
+  await fakeBin(
+    "pnpm",
+    "import fs from 'node:fs';fs.writeFileSync('browser-call.json',JSON.stringify(process.argv.slice(2)));process.exitCode=Number(process.env.PROVISION_EXIT);",
+  );
+  for (const [cacheHit, exit] of [
+    [false, 0],
+    [true, 0],
+    [false, 71],
+    [true, 71],
+  ] as const) {
+    const selected = cacheHit ? warm : cold;
+    const proof = join(scratch, "proof-ready");
+    await writeFile(proof, "");
+    const result = await spawnNiced("bash", ["-euo", "pipefail", "-c", `${selected?.run ?? ""}\nprintf ready > proof-ready`], {
+      cwd: scratch,
+      env: { ["PROVISION_EXIT"]: String(exit) },
+    });
+    expect(result.code, result.stderr).toBe(exit);
+    expect(JSON.parse(read(scratch, "browser-call.json"))).toEqual(
+      cacheHit ? ["exec", "playwright", "install-deps", "chromium"] : ["exec", "playwright", "install", "--with-deps", "chromium"],
+    );
+    expect(readFileSync(proof, "utf8")).toBe(exit === 0 ? "ready" : "");
+  }
+});
+
 test("CI preserves successful retry artifacts", ({ repoRoot }) => {
   const jobs = workflowJobs(repoRoot, "ci");
-  for (const name of ["e2e-smoke", "product"]) {
+  for (const name of ["e2e-smoke", "qualification"]) {
     const upload = jobs[name]?.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@") === true);
     expect(upload?.if, name).toBe("always()");
     expect(upload?.with?.["path"], name).toBe("reports/\ntest-results/\n");
   }
 });
 
-test("CI's actual diff classifier treats agent hooks and configs as code, not documentation", async ({ repoRoot, scratch, plantedTree }) => {
-  const script = z.string().parse(workflowJobs(repoRoot, "ci")["changes"]?.steps.find((step) => step.id === "diff")?.run);
-  const tree = await plantedTree({ "README.md": "base\n" });
-  for (const args of [
-    ["init"],
-    ["config", "user.name", "Workflow proof"],
-    ["config", "user.email", "proof@example.invalid"],
-    ["add", "."],
-    ["commit", "-m", "base"],
-  ]) {
-    const result = await spawnNiced("git", args, { cwd: tree });
-    expect(result.code, result.stderr).toBe(0);
-  }
-  const base = await spawnNiced("git", ["rev-parse", "HEAD"], { cwd: tree });
-  expect(base.code, base.stderr).toBe(0);
+const QUALIFIED_DIFF_API = [
+  "import fs from 'node:fs';const [command,endpoint]=process.argv.slice(2);const proof=JSON.parse(fs.readFileSync('api-proof.json','utf8'));",
+  "if(command!=='api'||!endpoint.startsWith('repos/'+proof.repository+'/actions/'))process.exit(74);",
+  "const run={id:1,workflow_id:7,run_attempt:1,head_sha:proof.base,head_branch:'main',event:'push',status:'completed',conclusion:'success',repository:{full_name:proof.repository}};",
+  "let response;if(endpoint.endsWith('/workflows/ci.yml'))response={id:7,path:'.github/workflows/ci.yml'};",
+  "else if(endpoint.includes('/workflows/7/runs?'))response={total_count:endpoint.includes('head_sha='+proof.base)?1:0,workflow_runs:endpoint.includes('head_sha='+proof.base)?[run]:[]};",
+  "else if(endpoint.endsWith('/runs/1'))response=run;",
+  "else if(endpoint.includes('/runs/1/attempts/1/jobs?'))response={total_count:1,jobs:[{id:1,run_id:1,head_sha:proof.base,name:'static',status:'completed',conclusion:'success',steps:[{name:proof.generation,status:'completed',conclusion:'success'}]}]};",
+  "else process.exit(74);process.stdout.write(JSON.stringify(response));",
+].join("\n");
+
+test("CI's actual diff classifier treats agent hooks and configs as code, not documentation", {
+  timeout: scaledBudget(60_000),
+}, async ({ repoRoot, scratch, plantedTree, fakeBin }) => {
+  const invocation = z.string().parse(workflowJobs(repoRoot, "ci")["changes"]?.steps.find((step) => step.id === "diff")?.run);
+  const script = invocation.replace("scripts/ci-qualification.ts", JSON.stringify(join(repoRoot, "scripts/ci-qualification.ts")));
+  const workflow = read(repoRoot, ".github/workflows/ci.yml");
+  const environment = z.object({ env: z.record(z.string(), z.string()) }).parse(parse(workflow)).env;
+  const runtime = z.object({ devEngines: z.json(), packageManager: z.string() }).parse(JSON.parse(read(repoRoot, "package.json")));
+  const tree = await plantedTree({
+    "README.md": "base\n",
+    ".gitignore": "api-proof.json\n",
+    ".github/workflows/ci.yml": workflow,
+    "package.json": JSON.stringify(runtime),
+  });
+  await fakeBin("gh", QUALIFIED_DIFF_API);
+  execFixtureGit(tree, ["init", "--initial-branch=main"]);
+  execFixtureGit(tree, ["config", "user.name", "Workflow proof"]);
+  execFixtureGit(tree, ["config", "user.email", "proof@example.invalid"]);
+  const prepared = await spawnNiced("pnpm", ["install", "--lockfile-only", "--ignore-scripts"], { cwd: tree });
+  expect(prepared.code, prepared.stderr).toBe(0);
+  const commit = (): string => {
+    execFixtureGit(tree, ["add", "."]);
+    execFixtureGit(tree, ["commit", "-m", "fixture"]);
+    return execFixtureGit(tree, ["rev-parse", "HEAD"]).trim();
+  };
+  const base = commit();
+  let previous = base;
   const output = join(scratch, "diff-output");
+  const run = async (qualified: string, before: string, head: string): Promise<string> => {
+    await writeFile(
+      join(tree, "api-proof.json"),
+      JSON.stringify({ base: qualified, repository: environment["ORB_CI_REPOSITORY"], generation: environment["ORB_CI_QUALIFICATION_GENERATION"] }),
+    );
+    await writeFile(output, "");
+    const result = await spawnNiced("bash", ["-euo", "pipefail", "-c", script], {
+      cwd: tree,
+      env: { ["BEFORE"]: before, ["GITHUB_SHA"]: head, ["GITHUB_OUTPUT"]: output },
+    });
+    expect(result.code, `${result.stdout}${result.stderr}\n${execFixtureGit(tree, ["status", "--porcelain=v1", "--untracked-files=all"])}`).toBe(0);
+    return readFileSync(output, "utf8");
+  };
   for (const [path, expected] of [
     [".claude/hooks/check.mjs", true],
     [".codex/config.toml", true],
@@ -294,32 +373,20 @@ test("CI's actual diff classifier treats agent hooks and configs as code, not do
   ] as const) {
     await mkdir(join(tree, path, ".."), { recursive: true });
     await writeFile(fixturePath(tree, path), "proof\n");
-    for (const args of [
-      ["add", path],
-      ["commit", "-m", "case", "--", path],
-    ]) {
-      const result = await spawnNiced("git", args, { cwd: tree });
-      expect(result.code, result.stderr).toBe(0);
-    }
-    const head = await spawnNiced("git", ["rev-parse", "HEAD"], { cwd: tree });
-    expect(head.code, head.stderr).toBe(0);
-    await writeFile(output, "");
-    const result = await spawnNiced("bash", ["-euo", "pipefail", "-c", script], {
-      cwd: tree,
-      env: { ["BEFORE"]: "HEAD^", ["GITHUB_SHA"]: head.stdout.trim(), ["GITHUB_OUTPUT"]: output },
-    });
-    expect(result.code, result.stderr).toBe(0);
-    expect(readFileSync(output, "utf8"), path).toBe(`code=${expected}\n`);
+    const head = commit();
+    expect(await run(previous, previous, head), path).toBe(
+      `base=${previous}\nhead=${head}\nevent_base=${previous}\ncode=${expected}\ntool_mode=affected\nauthority=qualified\n`,
+    );
+    previous = head;
   }
-  for (const before of [base.stdout.trim(), "0".repeat(40), "missing-commit"]) {
-    await writeFile(output, "");
-    const result = await spawnNiced("bash", ["-euo", "pipefail", "-c", script], {
-      cwd: tree,
-      env: { ["BEFORE"]: before, ["GITHUB_SHA"]: "HEAD", ["GITHUB_OUTPUT"]: output },
-    });
-    expect(result.code, result.stderr).toBe(0);
-    expect(readFileSync(output, "utf8")).toBe("code=true\n");
+  for (const before of [base, "0".repeat(40), "b".repeat(40), ""]) {
+    expect(await run(base, before, previous)).toBe(
+      `base=${base}\nhead=${previous}\nevent_base=${before}\ncode=true\ntool_mode=affected\nauthority=qualified\n`,
+    );
   }
+  const malformed = await spawnNiced("bash", ["-euo", "pipefail", "-c", script], { cwd: tree, env: { ["BEFORE"]: "HEAD^", ["GITHUB_SHA"]: previous } });
+  expect(malformed.code).toBe(3);
+  expect(malformed.stderr).toContain("CI event base must be empty or a commit ID");
 });
 
 test("stable publication rejects a wrong source stamp or OCI revision before scanning and publishing", async ({ repoRoot, fakeBin }) => {
