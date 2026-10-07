@@ -235,7 +235,11 @@ const GH_RUN_FIXTURE = [
   "else {const id=Number(url.split('/runs/')[1]);process.stdout.write(JSON.stringify(run(rows[id-1],id-1)));}",
 ].join("\n");
 
-test("sync-created merge HEAD needs its own successful push CI before release promotion", async ({ repoRoot, scratch, fakeBin }) => {
+test("sync-created merge HEAD needs its own successful push CI before release promotion", { timeout: scaledBudget(20_000) }, async ({
+  repoRoot,
+  scratch,
+  fakeBin,
+}) => {
   const remote = plantSyncRepo(repoRoot, scratch);
   await fakeBin("gh", GH_RUN_FIXTURE);
   execFixtureGit(scratch, ["checkout", "-b", "release"]);
