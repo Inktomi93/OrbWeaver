@@ -108,6 +108,19 @@ const API_FIXTURE = [
   "process.stdout.write(JSON.stringify(responses[endpoint]));",
 ].join("\n");
 
+test("tight fractional metadata deadlines reach the native process, and sub-millisecond deadlines refuse without spawning", async ({ scratch, fakeBin }) => {
+  await fakeBin("gh", API_FIXTURE);
+  writeFileSync(join(scratch, "ci-api.json"), JSON.stringify(metadata()));
+  const config = { repository: REPOSITORY, generation: GENERATION, publication: SHA, hasCurrentGeneration: () => true };
+  expect(hasQualifiedMainPush(scratch, SHA, config, performance.now() + 1000.75)).toBe(true);
+  const requests = readFileSync(join(scratch, "ci-requests.jsonl"), "utf8");
+  expect(requests).toContain("/workflows/ci.yml");
+  expect(() => hasQualifiedMainPush(scratch, SHA, config, performance.now() + 0.5)).toThrow("exceeded its supported bound");
+  expect(readFileSync(join(scratch, "ci-requests.jsonl"), "utf8")).toBe(requests);
+  expect(() => hasQualifiedMainPush(scratch, SHA, config, performance.now() - 1)).toThrow("exceeded its supported bound");
+  expect(readFileSync(join(scratch, "ci-requests.jsonl"), "utf8")).toBe(requests);
+});
+
 test("native metadata timeout keeps its quiet ceiling and receives shared load headroom", { timeout: scaledBudget(60_000) }, async ({
   scratch,
   repoRoot,

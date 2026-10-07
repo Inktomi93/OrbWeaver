@@ -73,8 +73,8 @@ function latestMainPush(runs: readonly z.infer<typeof RUN>[], sha: string): z.in
 }
 
 function api(root: string, endpoint: string, deadline: number): string {
-  const remaining = deadline - performance.now();
-  if (remaining <= 0) {
+  const remaining = Math.floor(deadline - performance.now());
+  if (remaining < 1) {
     throw new Error("CI qualification metadata discovery exceeded its supported bound");
   }
   const result = runNicedSync("gh", ["api", endpoint], { cwd: root, timeout: Math.min(budget(API_TIMEOUT_BASE_MS), remaining) });
