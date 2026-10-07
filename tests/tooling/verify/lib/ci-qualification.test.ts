@@ -108,15 +108,21 @@ const API_FIXTURE = [
   "process.stdout.write(JSON.stringify(responses[endpoint]));",
 ].join("\n");
 
-test("tight fractional metadata deadlines reach the native process, and sub-millisecond deadlines refuse without spawning", async ({ scratch, fakeBin }) => {
+test("tight fractional metadata deadlines reach the native process, and sub-millisecond deadlines refuse without spawning", {
+  timeout: scaledBudget(20_000),
+}, async ({ scratch, fakeBin }) => {
   await fakeBin("gh", API_FIXTURE);
   writeFileSync(join(scratch, "ci-api.json"), JSON.stringify(metadata()));
   const config = { repository: REPOSITORY, generation: GENERATION, publication: SHA, hasCurrentGeneration: () => true };
-  expect(hasQualifiedMainPush(scratch, SHA, config, performance.now() + 1000.75)).toBe(true);
+  const windowMs = scaledBudget(5000);
+  // @orb-waive test-determinism(performance.now): the subject is native conversion of a fractional remaining monotonic deadline, below the request cap; no clock injection exists, and completion headroom follows shared load scaling.
+  expect(hasQualifiedMainPush(scratch, SHA, config, performance.now() + windowMs + 0.75)).toBe(true);
   const requests = readFileSync(join(scratch, "ci-requests.jsonl"), "utf8");
   expect(requests).toContain("/workflows/ci.yml");
+  // @orb-waive test-determinism(performance.now): the subject is refusing a real remaining deadline below one millisecond without spawning; elapsed time can only strengthen refusal, and no clock injection exists.
   expect(() => hasQualifiedMainPush(scratch, SHA, config, performance.now() + 0.5)).toThrow("exceeded its supported bound");
   expect(readFileSync(join(scratch, "ci-requests.jsonl"), "utf8")).toBe(requests);
+  // @orb-waive test-determinism(performance.now): the subject is refusing an already exhausted real monotonic deadline without spawning; elapsed time can only strengthen refusal, and no clock injection exists.
   expect(() => hasQualifiedMainPush(scratch, SHA, config, performance.now() - 1)).toThrow("exceeded its supported bound");
   expect(readFileSync(join(scratch, "ci-requests.jsonl"), "utf8")).toBe(requests);
 });
