@@ -240,6 +240,10 @@ test("the env door reads the committed file end to end and derives for the machi
 test("the CT ceiling FOLLOWS ctWorkers, covers the host-slot wait, and never dips under the default", () => {
   const shared = parseConcurrencyProfile(BODY, "shared");
   const budgets = stageBudgetsFor(shared, BODY);
+  expect(budgets.defaultMs).toBe(90 * 60_000);
+  expect(budgets.ctHostWaitMs).toBe(90 * 60_000);
+  expect(budgets.verifyHostSlotWaitMs).toBe(90 * 60_000);
+  expect(budgets.vitestHardCeilingMs).toBe(90 * 60_000);
   const halfTheWorkers = stageBudgetsFor({ ...shared, ctWorkers: Math.max(1, Math.floor(shared.ctWorkers / 2)) }, BODY);
   expect(halfTheWorkers.ctSuiteMs, "half the workers ⇒ a strictly longer honest run ⇒ a longer ceiling").toBeGreaterThan(budgets.ctSuiteMs);
   // A queued run spends the host-slot wait INSIDE the stage's wall clock, so the ceiling has to contain it
@@ -269,6 +273,14 @@ test("a broken stageBudgets row REFUSES loudly — never a defaulted ceiling", (
   );
   expect(() => stageBudgetsFor(shared, BODY.replace(/"ts7HostSlotWaitMinutes": \d+/u, '"ts7HostSlotWaitMinutes": 0'))).toThrow(
     /field "ts7HostSlotWaitMinutes" is 0/u,
+  );
+  expect(() => stageBudgetsFor(shared, BODY.replace(/"verifyHostSlotWaitMinutes": \d+,\n/u, ""))).toThrow(/field "verifyHostSlotWaitMinutes" is undefined/u);
+  expect(() => stageBudgetsFor(shared, BODY.replace(/"verifyHostSlotWaitMinutes": \d+/u, '"verifyHostSlotWaitMinutes": 0'))).toThrow(
+    /field "verifyHostSlotWaitMinutes" is 0/u,
+  );
+  expect(() => stageBudgetsFor(shared, BODY.replace(/"vitestHardCeilingMinutes": \d+,\n/u, ""))).toThrow(/field "vitestHardCeilingMinutes" is undefined/u);
+  expect(() => stageBudgetsFor(shared, BODY.replace(/"vitestHardCeilingMinutes": \d+/u, '"vitestHardCeilingMinutes": 0'))).toThrow(
+    /field "vitestHardCeilingMinutes" is 0/u,
   );
   expect(() => stageBudgetsFor(shared, BODY.replace(/"mutationGateMinutes": \d+/u, '"mutationGateMinutes": -1'))).toThrow(/field "mutationGateMinutes" is -1/u);
 });

@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { readStageBudgets } from "@orb/tooling/_shared/concurrency-profile";
 import type { HostSlotLease } from "@orb/tooling/_shared/host-slots";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
 import { parseRequest } from "../../../../tooling/src/verify/lib/run-argv.ts";
@@ -37,6 +38,7 @@ test("two whole runs queued behind a stuck battery start one ceiling apart, in a
   const beats = new Set<() => void>();
   const admitted: number[] = [];
   const leases = new Map<number, HostSlotLease | null>();
+  const startMs = clockMs;
   const pending = [41_002, 41_003].map((pid) =>
     enterWholeRunQueue(process.cwd(), wholeRun(["--static"]), {
       env,
@@ -63,7 +65,6 @@ test("two whole runs queued behind a stuck battery start one ceiling apart, in a
       leases.set(pid, lease);
     }),
   );
-  const startMs = clockMs;
   const until = async (count: number): Promise<number> => {
     for (let i = 0; i < MACROTASKS_PER_CHECK && admitted.length < count; i += 1) {
       await new Promise<void>((resolve) => setImmediate(resolve));
@@ -73,10 +74,13 @@ test("two whole runs queued behind a stuck battery start one ceiling apart, in a
 
   const firstAt = await until(1);
   expect(admitted, "past the ceiling only the first waiter starts; the second stays queued").toStrictEqual([41_002]);
+  const queueCeilingMs = readStageBudgets().verifyHostSlotWaitMs;
+  expect(firstAt, "a live holder keeps the first waiter queued until its configured ceiling").toBeGreaterThanOrEqual(queueCeilingMs);
+  expect(firstAt, "the simulated poll crosses the configured ceiling without a real long wait").toBeLessThan(queueCeilingMs + 2 * CLOCK_STEP_MS);
   expect(leases.get(41_002)?.slot, "it runs as the overflow run, beside the stuck battery").toBeNull();
   const secondAt = await until(2);
   expect(admitted, "the second waiter starts at the hard ceiling while both runs are still live").toStrictEqual([41_002, 41_003]);
-  expect(secondAt, "the hard ceiling is twice the first").toBeGreaterThanOrEqual(2 * firstAt - CLOCK_STEP_MS * 4);
+  expect(secondAt, "the hard ceiling is twice the configured wait ceiling").toBeGreaterThanOrEqual(2 * queueCeilingMs);
   leases.get(41_002)?.release();
   await Promise.all(pending);
   leases.get(41_003)?.release();
