@@ -221,7 +221,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D271 | [Phone tabs and Corpus mode landings](0271-phone-tabs-and-corpus-mode-landings.md) | active |
 | D272 | [A container shares through the pinned relay download](0272-a-container-shares-through-the-pinned-relay-download.md) | active |
 | D273 | [Pre-commit runs the static tier over the staged change](0273-pre-commit-runs-the-static-tier-over-the-staged-change.md) | superseded by [0274-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md](0274-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md) |
-| D274 | [The commit gate runs only what narrows to the staged files](0274-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md) | active |
+| D274 | [The commit gate runs only what narrows to the staged files](0274-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md) | superseded by [0306-verification-qualification-ownership.md](0306-verification-qualification-ownership.md) |
 | D275 | [The IP certificate comes from acme-client over HTTP-01](0275-the-ip-certificate-comes-from-acme-client-over-http-01.md) | active |
 | D276 | [Every plugin install door lands through the one bundle funnel](0276-plugin-install-doors-share-one-funnel.md) | superseded by [0280-plugin-supported-install-sources.md](0280-plugin-supported-install-sources.md) |
 | D277 | [Rooms attribute each reply and picture honestly without exposing another user's connection](0277-room-connection-attribution-and-pictures.md) | superseded by [0300-room-attribution-and-host-owned-pictures.md](0300-room-attribution-and-host-owned-pictures.md) |
@@ -252,3 +252,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D303 | [Side generation runs through the chat turn and splits with the role's tag pair](0303-side-generation-runs-through-the-chat-turn-with-the-role-tag-pair.md) | active |
 | D304 | [Each model role picks its preset, including its reasoning tag pair](0304-each-model-role-picks-its-preset-and-tag-pair.md) | active |
 | D305 | [The admin tier wires four AppSettings system-tuning knobs](0305-admin-tier-wires-four-system-tuning-knobs.md) | active |
+| D306 | [Qualify cumulative changes before release](0306-verification-qualification-ownership.md) | active |

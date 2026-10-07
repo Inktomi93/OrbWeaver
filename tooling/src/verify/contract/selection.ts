@@ -77,3 +77,12 @@ export type SelectionRequest =
   | { readonly kind: "file"; readonly paths: readonly string[] } // sugar for changed + explicit paths
   | { readonly kind: "package"; readonly name: string }
   | { readonly kind: "scope"; readonly glob: string };
+
+export const VERIFY_BASE_ENV = "ORB_VERIFY_BASE";
+export const VERIFY_HEAD_ENV = "ORB_VERIFY_HEAD";
+
+/** An explicit event or merge-train boundary, resolved to immutable commits on the tested checkout. */
+export interface MeasurementBoundary {
+  readonly base: string;
+  readonly head: string;
+}

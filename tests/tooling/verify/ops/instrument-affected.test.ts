@@ -11,10 +11,16 @@
 //     battery, and this pin asserts the flag that makes it do so.
 //   · A PRODUCT-ONLY change selects nothing, which is what keeps the stage cheap enough to sit below
 //     `--full` at all.
-import { mkdirSync, symlinkSync } from "node:fs";
+import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../../../../tooling/src/verify/contract/selection.ts";
+import { stagesForTier } from "../../../../tooling/src/verify/lib/registry.ts";
+import { resolveSelection } from "../../../../tooling/src/verify/lib/selection.ts";
+import { planStage } from "../../../../tooling/src/verify/lib/stage-plan.ts";
 import { selectAffectedInstrumentTests } from "../../../../tooling/src/verify/ops/instrument-affected.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$/u, "");
 const REAL_CORPUS_LIVENESS_SPEC = "tests/tooling/verify/gates/real-corpus-liveness-family.suite.repo.int.test.ts";
@@ -224,13 +230,233 @@ test("an UNCOMPUTABLE branch answer is flagged, never read as an empty changed s
   expect(selection.specs).toEqual([]);
 });
 
-test("a DELETED instrument source is dropped — a path that is not there is not a runnable claim", () => {
+test("a deleted instrument cannot silently lose its prior importer reach", () => {
   const selection = selectAffectedInstrumentTests(ROOT, ["tooling/src/verify/gates/this-policy-was-deleted.ts"]);
   expect(selection.sources).toEqual([]);
+  expect(selection.unknown).toBe(true);
+  expect(selection.livenessScope).toMatchObject({ reason: expect.stringContaining("this-policy-was-deleted") });
 });
 
 test("a gates/_proof helper is not a policy, so it takes the mirror reach and not the ID reach", () => {
   const selection = selectAffectedInstrumentTests(ROOT, ["tooling/src/verify/gates/_proof/client-vendors.ts"]);
   // Whatever it reaches, it must not have been read as a policy whose ID is `_proof/client-vendors`.
   expect(selection.specs.every((spec) => !spec.includes("_proof/client-vendors.test"))).toBe(true);
+});
+
+test("a changed tooling test selects itself without any changed instrument source", async ({ plantedTree }) => {
+  const spec = "tests/tooling/verify/ops/changed.test.ts";
+  const root = await plantedTree({ [spec]: 'import { test } from "vitest"; test("changed", () => {});\n' });
+  expect(selectAffectedInstrumentTests(root, [spec]).specs).toEqual([spec]);
+});
+
+test("changed tooling helpers reach native consumers; deleted or renamed tests and executable config request conservative proof", async ({ plantedTree }) => {
+  const helper = "tests/tooling/helper.ts";
+  const spec = "tests/tooling/verify/ops/helper.test.ts";
+  const root = await plantedTree({
+    "tooling/tsconfig.json": TOOLING_TSCONFIG,
+    [helper]: "export const helper = 1;\n",
+    [spec]: 'import { helper } from "../../helper.ts"; void helper;\n',
+  });
+  expect(selectAffectedInstrumentTests(root, [helper]).specs).toEqual([spec]);
+  for (const changed of [
+    ["tests/tooling/old.test.ts", spec],
+    ["tooling/src/old.ts"],
+    ["vitest.config.ts"],
+    ["tooling/concurrency-profile.json"],
+    ["tooling/biome.edit.jsonc"],
+    ["tooling/runner/custom.config.ts"],
+    [".github/actions/setup/action.yml"],
+    ["tests/support/fixtures.ts"],
+    ["scripts/vitest-supervised.ts"],
+    ["tests/tooling/fixture.json"],
+  ]) {
+    expect(selectAffectedInstrumentTests(root, changed).unknown, changed.join(",")).toBe(true);
+  }
+  const stage = stagesForTier("changed").find((candidate) => candidate.name === "tests:instrument-affected");
+  if (stage === undefined) {
+    throw new Error("changed verification lost affected tooling qualification");
+  }
+  execFixtureGit(root, ["init", "--quiet"]);
+  for (const path of ["tooling/concurrency-profile.json", "tooling/biome.edit.jsonc", "tooling/runner/custom.config.ts", ".github/actions/setup/action.yml"]) {
+    const selected = resolveSelection({ kind: "changed", paths: [path] }, root);
+    expect(planStage(stage, selected, "changed", root), path).toMatchObject({ mode: "scoped", argv: stage.argv });
+    expect(selectAffectedInstrumentTests(root, selected.paths).unknown, path).toBe(true);
+  }
+});
+
+test("native type and browser tooling test kinds name their separate executor rather than disappearing as helpers", async ({ plantedTree }) => {
+  const paths = ["tests/tooling/view.ct.tsx", "tests/tooling/type.test-d.ts"];
+  const root = await plantedTree(Object.fromEntries(paths.map((path) => [path, "export {};\n"])));
+  const selected = selectAffectedInstrumentTests(root, paths);
+  expect(selected.delegatedTests).toEqual(paths);
+  expect(selected.unreachedSources).toEqual([]);
+});
+
+test("broken test-only and source-only events fail actual affected qualification at published remote HEAD", { timeout: scaledBudget(60_000) }, async ({
+  repoRoot,
+  plantedTree,
+  runCli,
+}) => {
+  const spec = "tests/tooling/verify/ops/event.test.ts";
+  const source = "tooling/src/event.ts";
+  const passing =
+    'import { test, expect } from "vitest"; import { value } from "../../../../tooling/src/event.ts"; test("event", () => expect(value).toBe(1));\n';
+  for (const changed of ["test", "source"]) {
+    const root = await plantedTree({
+      ".gitignore": "node_modules\nreports\n",
+      "package.json": '{"type":"module","private":true}\n',
+      "vitest.runtime.config.ts":
+        'import { defineConfig } from "vitest/config"; export default defineConfig({ test: { include: ["tests/**/*.test.ts"], maxWorkers: 1, fileParallelism: false } });\n',
+      "tooling/tsconfig.json": TOOLING_TSCONFIG,
+      [source]: "export const value = 1;\n",
+      [spec]: passing,
+    });
+    mkdirSync(join(root, "scripts"));
+    symlinkSync(join(repoRoot, "scripts/vitest-supervised.ts"), join(root, "scripts/vitest-supervised.ts"));
+    symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
+    const git = (args: readonly string[]): string => execFixtureGit(root, ["-c", "user.name=Orb Test", "-c", "user.email=orb@example.invalid", ...args]).trim();
+    git(["init", "--quiet", "--initial-branch=main"]);
+    git(["add", "--all"]);
+    git(["commit", "--quiet", "-m", "baseline"]);
+    const base = git(["rev-parse", "HEAD"]);
+    if (changed === "test") {
+      writeFileSync(join(root, spec), passing.replace("toBe(1)", "toBe(2)"));
+    } else {
+      writeFileSync(join(root, source), "export const value = 2;\n");
+    }
+    git(["add", "--all"]);
+    git(["commit", "--quiet", "-m", "broken event"]);
+    mkdirSync(join(root, "packages/client/src"), { recursive: true });
+    writeFileSync(join(root, "packages/client/src/application.ts"), "export const applicationB = true;\n");
+    git(["add", "packages/client/src/application.ts"]);
+    git(["commit", "--quiet", "-m", "application B after broken tool A"]);
+    const head = git(["rev-parse", "HEAD"]);
+    git(["update-ref", "refs/remotes/origin/main", head]);
+    const refused = await runCli("verify", ["instrument-affected"], { cwd: root, env: { [VERIFY_BASE_ENV]: base, [VERIFY_HEAD_ENV]: head } });
+    expect(refused.code, refused.stdout + refused.stderr).toBe(1);
+    expect(refused.stdout + refused.stderr).toContain("event.test.ts");
+    expect(refused.stdout + refused.stderr).toContain(`${base}..${head}`);
+    const conservative = await runCli("verify", ["instrument-affected"], {
+      cwd: root,
+      env: { [VERIFY_BASE_ENV]: base, [VERIFY_HEAD_ENV]: head, ["ORB_VERIFY_TOOL_MODE"]: "full" },
+    });
+    expect(conservative.code, conservative.stdout + conservative.stderr).toBe(1);
+    expect(conservative.stdout + conservative.stderr).toContain("running the whole instrument battery");
+    const ordinary = await runCli("verify", ["instrument-affected"], { cwd: root });
+    expect(ordinary.code, ordinary.stdout + ordinary.stderr).toBe(0);
+    expect(ordinary.stdout).toContain("measured NOTHING");
+    const invalid = await runCli("verify", ["instrument-affected"], { cwd: root, env: { [VERIFY_BASE_ENV]: "0".repeat(40), [VERIFY_HEAD_ENV]: head } });
+    expect(invalid.code, invalid.stdout + invalid.stderr).toBe(2);
+    expect(invalid.stderr).toContain("paired nonzero commit IDs");
+  }
+});
+
+test("unrecognized tooling test kinds refuse rather than claiming a clean empty native population", ({ scratch }) => {
+  expect(() => selectAffectedInstrumentTests(scratch, ["tests/tooling/unsupported.test.js"])).toThrow("unsupported test kind");
+});
+
+test("an explicit product-only event explains the empty tooling population instead of reporting HEAD-as-base", async ({ plantedTree, runCli }) => {
+  const path = "packages/client/src/event.ts";
+  const root = await plantedTree({ [path]: "export const value = 1;\n" });
+  const git = (args: readonly string[]): string => execFixtureGit(root, ["-c", "user.name=Orb Test", "-c", "user.email=orb@example.invalid", ...args]).trim();
+  git(["init", "--quiet", "--initial-branch=main"]);
+  git(["add", "--all"]);
+  git(["commit", "--quiet", "-m", "baseline"]);
+  const base = git(["rev-parse", "HEAD"]);
+  writeFileSync(join(root, path), "export const value = 2;\n");
+  git(["add", path]);
+  git(["commit", "--quiet", "-m", "application change"]);
+  const head = git(["rev-parse", "HEAD"]);
+  git(["update-ref", "refs/remotes/origin/main", head]);
+  const result = await runCli("verify", ["instrument-affected"], { cwd: root, env: { [VERIFY_BASE_ENV]: base, [VERIFY_HEAD_ENV]: head } });
+  expect(result.code, result.stdout + result.stderr).toBe(0);
+  expect(result.stdout).toContain("no affected native tooling inputs in measured");
+  expect(result.stdout).not.toContain("measured NOTHING");
+});
+
+test("enclosing CI measurement ends at the native tooling subprocess while fixture ranges and liveness scope remain valid", {
+  timeout: scaledBudget(60_000),
+}, async ({ repoRoot, plantedTree, runCli }) => {
+  const source = "tooling/src/verify/gates/scope-policy.ts";
+  const gate =
+    'function defineGate(input: { readonly id: string }): { readonly id: string } { return input; }\nexport const gate = defineGate({ id: "scope-policy" });\nexport const value = 1;\n';
+  const root = await plantedTree({
+    ".gitignore": "node_modules\nreports\ninner\n",
+    "package.json": '{"type":"module","private":true}\n',
+    "vitest.runtime.config.ts":
+      'import { defineConfig } from "vitest/config"; export default defineConfig({ test: { include: ["tests/**/*.test.ts"], maxWorkers: 1, fileParallelism: false } });\n',
+    "tooling/tsconfig.json": TOOLING_TSCONFIG,
+    [source]: gate,
+  });
+  const inner = join(root, "inner");
+  mkdirSync(inner);
+  const git = (directory: string, args: readonly string[]): string =>
+    execFixtureGit(directory, ["-c", "user.name=Orb Test", "-c", "user.email=orb@example.invalid", ...args]).trim();
+  git(inner, ["init", "--quiet", "--initial-branch=main"]);
+  writeFileSync(join(inner, "fixture.ts"), "export const value = 1;\n");
+  git(inner, ["add", "."]);
+  git(inner, ["commit", "--quiet", "-m", "inner base"]);
+  const innerBase = git(inner, ["rev-parse", "HEAD"]);
+  writeFileSync(join(inner, "fixture.ts"), "export const value = 2;\n");
+  git(inner, ["add", "."]);
+  git(inner, ["commit", "--quiet", "-m", "inner candidate"]);
+  const innerHead = git(inner, ["rev-parse", "HEAD"]);
+  mkdirSync(join(root, "tests/tooling/verify/gates"), { recursive: true });
+  writeFileSync(
+    join(root, REAL_CORPUS_LIVENESS_SPEC),
+    [
+      'import { test, expect } from "vitest";',
+      'import "../../../../tooling/src/verify/gates/scope-policy.ts";',
+      `import { resolveMeasurementBoundary } from ${JSON.stringify(join(repoRoot, "tooling/src/verify/lib/repo-paths.ts"))};`,
+      `import { inheritedProcessEnv } from ${JSON.stringify(join(repoRoot, "tooling/src/_shared/process-env.ts"))};`,
+      'test("nested fixture owns its measurement", () => {',
+      "const env = inheritedProcessEnv();",
+      'for (const key of ["ORB_VERIFY_BASE", "ORB_VERIFY_HEAD", "ORB_VERIFY_TOOL_MODE"]) expect(env[key]).toBeUndefined();',
+      `expect(resolveMeasurementBoundary(${JSON.stringify(inner)})).toBeNull();`,
+      `expect(resolveMeasurementBoundary(${JSON.stringify(inner)}, { ORB_VERIFY_BASE: ${JSON.stringify(innerBase)}, ORB_VERIFY_HEAD: ${JSON.stringify(innerHead)} })).toEqual({ base: ${JSON.stringify(innerBase)}, head: ${JSON.stringify(innerHead)} });`,
+      'expect(env["ORB_INSTRUMENT_AFFECTED_POLICIES"]).toBe(env["FIXTURE_EXPECT_SCOPE"] === "affected" ? JSON.stringify(["scope-policy"]) : undefined);',
+      "});",
+    ].join("\n"),
+  );
+  mkdirSync(join(root, "scripts"));
+  symlinkSync(join(repoRoot, "scripts/vitest-supervised.ts"), join(root, "scripts/vitest-supervised.ts"));
+  symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
+  git(root, ["init", "--quiet", "--initial-branch=main"]);
+  git(root, ["add", "."]);
+  git(root, ["commit", "--quiet", "-m", "outer base"]);
+  const base = git(root, ["rev-parse", "HEAD"]);
+  writeFileSync(join(root, source), gate.replace("value = 1", "value = 2"));
+  git(root, ["add", "."]);
+  git(root, ["commit", "--quiet", "-m", "outer candidate"]);
+  const head = git(root, ["rev-parse", "HEAD"]);
+  for (const mode of ["affected", "full"]) {
+    const result = await runCli("verify", ["instrument-affected"], {
+      cwd: root,
+      env: {
+        [VERIFY_BASE_ENV]: base,
+        [VERIFY_HEAD_ENV]: head,
+        ["ORB_VERIFY_TOOL_MODE"]: mode,
+        ["FIXTURE_EXPECT_SCOPE"]: mode,
+      },
+    });
+    expect(result.code, result.stdout + result.stderr).toBe(0);
+    expect(result.stdout).toContain("real-corpus-liveness-family.suite.repo.int.test.ts");
+    expect(result.stdout + result.stderr).toContain(`${base}..${head}`);
+  }
+  writeFileSync(join(root, "tooling/concurrency-profile.json"), "{}\n");
+  git(root, ["add", "tooling/concurrency-profile.json"]);
+  git(root, ["commit", "--quiet", "-m", "runner configuration only"]);
+  const configHead = git(root, ["rev-parse", "HEAD"]);
+  const configuration = await runCli("verify", ["instrument-affected"], {
+    cwd: root,
+    env: {
+      [VERIFY_BASE_ENV]: head,
+      [VERIFY_HEAD_ENV]: configHead,
+      ["ORB_VERIFY_TOOL_MODE"]: "affected",
+      ["FIXTURE_EXPECT_SCOPE"]: "full",
+    },
+  });
+  expect(configuration.code, configuration.stdout + configuration.stderr).toBe(0);
+  expect(configuration.stdout).toContain("real-corpus-liveness-family.suite.repo.int.test.ts");
+  expect(configuration.stdout + configuration.stderr).toContain("running the whole instrument battery");
 });

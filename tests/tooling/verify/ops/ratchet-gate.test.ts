@@ -77,7 +77,7 @@ test("classifyRatchetFiles: gate-conformance.repo.int.test.ts matches the naming
   expect(included).not.toContain(gateConformance);
   const row = excluded.find((e) => e.path === gateConformance);
   expect(row).toBeDefined();
-  expect(row?.reason).toContain("push-tier");
+  expect(row?.reason).toContain("Full tooling and affected-instrument qualification");
 });
 
 test("classifyRatchetFiles: a file matching NOTHING never rides the aggregate", () => {

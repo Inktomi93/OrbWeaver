@@ -118,16 +118,26 @@ The `lane` skill carries the standing lane rules. Restate only the deltas.
 
 ## Merge trains
 
-A merge train lands several drained lane branches on main. The barrier is `pnpm check`, run on main
-after the train.
+A merge train lands frozen lane results on main. Its start and end commits define the combined change.
+Scoped lane green does not prove the combined tree, including a fast-forward with no commit hook.
 
-1. Run `scripts/commit-msg-check.sh --range main..<branch>` for each branch. Reword a refused commit on the branch.
-2. Check that no whole-tree check is running. A merge during a whole-tree check voids it, because it reads the working tree.
-3. Merge. Confirm HEAD moved with `git rev-parse HEAD`. A fast-forward prints its "Updating" line before checkout can still refuse.
-4. Run the barrier alone, with no live lanes running gate-heavy checks.
-5. Read the verdict from `reports/verify.json` and the slot the run printed.
+1. Read lane results. Reuse completed checks only while their files, dependencies, scope and execution population still match.
+2. Run `scripts/commit-msg-check.sh --range main..<branch>` for each branch. Reword a refused commit on the branch.
+3. Record the starting HEAD before integration. Check that no whole-tree check is reading the checkout.
+4. Merge the frozen batch. Confirm HEAD moved and review conflict resolutions and shared composition changes.
+5. Commit integration changes, then record the ending HEAD. Keep the tested checkout clean.
+6. Run `pnpm check` once using the qualification measurement contract in `UNIFIED-VERIFICATION-DESIGN.md` §4.4.
+7. Run `pnpm test:ratchets`, or credit matching completed broader evidence that actually includes its current member population.
+8. Run affected integration and rendered checks not established by matching lane evidence. Product qualification does not replace instrument proof.
+9. Read completed artifacts from the printed slots. Return concrete failures to their owning lanes together.
+10. Recheck only changed behavior or invalidated evidence after corrections.
 
-- Fold a drained branch when it arrives. Do not hold it behind a running check; a check that finishes on an older tip is not the new tip's verdict.
+Use the recorded start incrementally only with matching prior qualified evidence. Follow `UNIFIED-VERIFICATION-DESIGN.md` §4.4 when that evidence is unavailable.
+The range uses explicit Git commit IDs, not a stale remote backlog. Empty, missing, unresolvable or dirty boundaries refuse.
+Run broad application qualification with `pnpm verify --product` when the batch requires it.
+Nightly full verification is a backstop, not a replacement for pre-release event qualification.
+
+- Freeze the batch before its combined-tree check. A merge or edit changes the tested tree and invalidates affected evidence.
 - A merge that combines shared-interface edits needs typechecking. The barrier covers it; run a separate typecheck only for earlier feedback.
 - A merge touching `packages/server/src/transport/trpc/routers/**` runs `tests/server/transport/cross-tenant-sweep.suite.int.test.ts` first.
 - The sweep does not cover a room's resume read. A merge touching a room's `authorizeAttach` or replay verb also runs that room's recipient-scope test, for example `tests/server/domain/notifications/verbs/replay-since.int.test.ts`.

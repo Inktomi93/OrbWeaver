@@ -1,8 +1,9 @@
 ---
 kind: adr
-status: active
-updated: 2026-09-26
+status: superseded
+updated: 2026-10-07
 supersedes: docs/adr/0273-pre-commit-runs-the-static-tier-over-the-staged-change.md
+superseded-by: docs/adr/0306-verification-qualification-ownership.md
 ---
 
 # The commit gate runs only what narrows to the staged files

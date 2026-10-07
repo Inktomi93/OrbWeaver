@@ -45,17 +45,8 @@ done
 git push "$@" origin main
 if [ "$release" = 1 ]; then
   sha=$(git rev-parse HEAD)
-  result=$(gh run list --workflow ci.yml --commit "$sha" --event push --limit 1 --json status,conclusion,url \
-    --jq '.[0] // empty | "\(.status) \(.conclusion) \(.url)"' 2>/dev/null || true)
-  case "$result" in
-    "completed success "*) ;;
-    "")
-      echo "release: CI has not started for ${sha:0:10} yet. Run pnpm release again once it is green."
-      exit 1 ;;
-    *)
-      echo "release: CI for ${sha:0:10} is not green ($result). Fix it or wait, then run pnpm release again."
-      exit 1 ;;
-  esac
+  # Promotion cannot inherit a weak or old-generation green workflow.
+  node scripts/ci-qualification.ts release "$sha"
   git push "$@" origin main:release
   echo "release: pushed. Merge the release PR on GitHub to publish; it updates within a minute or two:"
   echo "         https://github.com/Inktomi93/orbweaver/pulls?q=is%3Aopen+label%3A%22autorelease%3A+pending%22"

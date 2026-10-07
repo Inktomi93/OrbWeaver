@@ -14,7 +14,7 @@ export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
     argv: ["pnpm", "test:ratchets"],
     classify: asViolations,
     manualReason:
-      "the ORCHESTRATOR's train-gate command (#667): the sub-minute vitest-tier ratchet aggregate `pnpm check`/`check:structure` structurally cannot see. Run by hand after each merge train, not part of the changed/push/full flow — `pnpm test` (push) already runs its member suites, so an auto tier here would double-run them.",
+      "the ORCHESTRATOR's train-gate command (#667): the sub-minute vitest-tier ratchet aggregate `pnpm check`/`check:structure` structurally cannot see. Run by hand after each merge train, not an automatic tier. Credit broader evidence only when its actual population includes the current member suites; product Node tests do not cover tooling ratchets.",
   },
   {
     // THE EXPLICIT PRODUCT-TEST COMPOSITE. `pnpm test` still runs the vitest projects AND the CT suite in

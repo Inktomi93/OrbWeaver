@@ -10,12 +10,14 @@ import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../../../../tooling/src/verify/contract/selection.ts";
 import {
   branchChangedPaths,
   FIXTURE_GIT_CONFIG_ARGS,
   fixtureGitEnvironment,
   publishChangedPaths,
   repoGitEnvironment,
+  resolveMeasurementBoundary,
   resolveMergeBase,
   resolvePublishBase,
 } from "../../../../tooling/src/verify/lib/repo-paths.ts";
@@ -294,4 +296,52 @@ test("no origin/main ref at all falls back to the plain merge-base answer, inclu
   expect(base?.ref).toBe("main");
   expect(base?.isHead).toBe(true);
   expect(publishChangedPaths(repo)).toEqual([]);
+});
+
+test("explicit multi-commit push and train boundaries exclude remote backlog and retain the complete event delta", ({ scratch }) => {
+  const repo = laneRepo(scratch, "event-boundary");
+  const base = git(repo, "rev-parse", "HEAD");
+  commit(repo, "first-event.ts");
+  commit(repo, "second-event.ts");
+  const head = git(repo, "rev-parse", "HEAD");
+  git(repo, "update-ref", "refs/remotes/origin/main", head);
+  git(repo, "update-ref", "refs/heads/main", head);
+  expect(publishChangedPaths(repo)).toEqual([]);
+  const boundary = resolveMeasurementBoundary(repo, { [VERIFY_BASE_ENV]: base, [VERIFY_HEAD_ENV]: head });
+  expect(publishChangedPaths(repo, boundary)).toEqual(["first-event.ts", "second-event.ts"]);
+});
+
+test("explicit PR boundaries use the actual target, including release, without rewriting ordinary lane semantics", ({ scratch }) => {
+  const repo = laneRepo(scratch, "pr-release");
+  git(repo, "checkout", "--quiet", "-b", "release", "main");
+  commit(repo, "release-target.ts");
+  const base = git(repo, "rev-parse", "HEAD");
+  git(repo, "checkout", "--quiet", "lane");
+  git(repo, "merge", "--quiet", "--no-edit", "release");
+  const head = git(repo, "rev-parse", "HEAD");
+  expect(publishChangedPaths(repo, resolveMeasurementBoundary(repo, { [VERIFY_BASE_ENV]: base, [VERIFY_HEAD_ENV]: head }))).toEqual(["lane.ts"]);
+  expect(branchChangedPaths(repo)).toContain("release-target.ts");
+});
+
+test("explicit measurement refuses missing, zero, unavailable, stale and non-ancestor commits instead of falling back to HEAD", ({ scratch }) => {
+  const repo = laneRepo(scratch, "invalid-events");
+  const base = git(repo, "rev-parse", "main");
+  const head = git(repo, "rev-parse", "HEAD");
+  for (const environment of [
+    { [VERIFY_BASE_ENV]: base },
+    { [VERIFY_HEAD_ENV]: head },
+    { [VERIFY_BASE_ENV]: "0".repeat(40), [VERIFY_HEAD_ENV]: head },
+    { [VERIFY_BASE_ENV]: "a".repeat(40), [VERIFY_HEAD_ENV]: head },
+    { [VERIFY_BASE_ENV]: base, [VERIFY_HEAD_ENV]: base },
+    { [VERIFY_BASE_ENV]: head, [VERIFY_HEAD_ENV]: head },
+  ]) {
+    expect(() => resolveMeasurementBoundary(repo, environment)).toThrow();
+  }
+  git(repo, "checkout", "--quiet", "-b", "other", base);
+  commit(repo, "other.ts");
+  const unrelated = git(repo, "rev-parse", "HEAD");
+  git(repo, "checkout", "--quiet", "lane");
+  expect(() => resolveMeasurementBoundary(repo, { [VERIFY_BASE_ENV]: unrelated, [VERIFY_HEAD_ENV]: head })).toThrow();
+  writeFileSync(join(repo, "lane.ts"), "uncommitted\n");
+  expect(() => resolveMeasurementBoundary(repo, { [VERIFY_BASE_ENV]: base, [VERIFY_HEAD_ENV]: head })).toThrow("clean tested checkout");
 });
