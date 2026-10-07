@@ -1,31 +1,6 @@
-// A SCRIPTED OpenAI-compatible chat provider — harness test infra (like a mock IdP), NOT a product backdoor.
-// It is a real, external, OpenAI-compatible endpoint the app talks to through a REAL `custom-openai` (BYO
-// endpoint) connection + turn/SSE path — the only thing "special" is that WE control what it streams, so a
-// turn produces a DETERMINISTIC reasoning channel + hidden `<lie>` body (a live 8B emits neither reliably).
-//
-// WHY this exists (the reasoning-channel proof): D110 §3.6's deception reasoning-host-only cut is applied in
-// the REAL member SSE path (`chatEventStream`/`resolveLiveYield` + `replayChatEvents`), keyed on the model's
-// streamed `reasoning` deltas + committed `view.reasoning`. There is NO product surface that lets a caller
-// PLANT reasoning (reasoning is model-generated; `editReasoning` is deliberately unwired), so the ONLY
-// legitimate deterministic input is a provider that EMITS a known reasoning stream — driven through the real
-// turn. The app's `custom-openai` connection (a user-declared OpenAI-compatible baseUrl) is exactly that
-// seam: a real product feature, here pointed at this fixture.
-//
-// THE SCRIPT (one turn): the SSE stream emits, in order — a `reasoning` channel that SPELLS the lie's truth
-// ("I'll tell them ... but secretly <truth>"), then body `content` carrying visible cover prose, then a
-// `<lie truth="<truth>"/>` span SPLIT ACROSS TWO CHUNKS mid-attribute, then `[DONE]`. So a deception-active
-// member turn produces BOTH hidden-class channels; the member SSE strip must withhold the reasoning channel
-// (whole) AND the `<lie>` body span, while the host sees both.
-//
-// WHY THE SPAN IS SPLIT (808ba09cc6): a one-chunk span cannot falsify the MID-SLOT RESUME defect — a reader
-// that starts after the opener is the whole bug, and it only exists when the tag straddles a chunk boundary.
-// See the `LIE_SPAN_*` block below for the full rationale + the exported comparands.
-//
-// It streams `choices[0].delta.{reasoning,content}` — the shape the custom-byo runner reshapes (its
-// STREAM_DEFAULT_MAP reads `choices.0.delta.reasoning` + `choices.0.delta.content`). Content-type is
-// `text/event-stream` (the runner's streaming path). Kept in the e2e-support tree, import-free of the app.
-
-import type { Server } from "node:http";
+// External scripted OpenAI-compatible wire fixture; the app still owns HTTP, SSE and persistence.
+// Held turns advance only when the browser has observed a prefix, so completion cannot fake streaming.
+import type { Server, ServerResponse } from "node:http";
 import { createServer } from "node:http";
 
 /** The lie's TRUTH string — the comparand the member payload must never carry (body OR reasoning). Exported
@@ -118,42 +93,123 @@ function writeScriptedTurn(write: (frame: string) => void): void {
   write(doneFrames());
 }
 
+/** A bounded synthetic turn; a wrong outbound user message refuses the response. */
+export interface FixtureTurn {
+  readonly userMessage: string;
+  readonly prefix: string;
+  readonly suffix: string;
+}
+
+/** Captured wire bytes and peer closure, observed before fixture cleanup. */
+export interface FixtureRequest {
+  readonly body: string;
+  closed: boolean;
+  socketClosed: boolean;
+  finished: boolean;
+}
+
 export interface FixtureProvider {
-  /** The baseUrl to write on the `custom-openai` connection (the runner appends `/chat/completions`). */
   readonly baseUrl: string;
-  /** The bare host (for the egress allowlist). */
   readonly host: string;
+  readonly requests: readonly FixtureRequest[];
+  readonly release: (index: number) => void;
   readonly close: () => Promise<void>;
 }
 
-/** Boot the scripted provider on `127.0.0.1:<port>`. Answers `POST <anything>/chat/completions` with the
- *  scripted deception SSE stream; every other route is a 404. Returns the baseUrl to wire onto the credential. */
-export function startFixtureProvider(port: number): Promise<FixtureProvider> {
+interface ChatRequest {
+  readonly messages: readonly { readonly role: string; readonly content: string }[];
+}
+
+/** Scripted turns require exact latest-user content; deception input accepts a name-stamped first line. */
+export function startFixtureProvider(port: number, turns?: readonly FixtureTurn[], expectedUserMarker?: string): Promise<FixtureProvider> {
+  const requests: FixtureRequest[] = [];
+  const held = new Map<number, ServerResponse>();
   const server: Server = createServer((req, res) => {
-    if (req.method === "POST" && req.url !== undefined && req.url.endsWith("/chat/completions")) {
-      // Drain the request body (the assembled prompt) — we ignore it; the script is fixed — then stream.
-      req.on("data", () => undefined);
-      req.on("end", () => {
-        res.writeHead(200, SSE_HEADERS);
-        writeScriptedTurn((frame) => res.write(frame));
-        res.end();
-      });
+    if (req.method === "GET" && req.url?.endsWith("/models")) {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ object: "list", data: [{ id: "fixture-model", object: "model", created: 0, owned_by: "fixture" }] }));
       return;
     }
-    res.writeHead(404, { "content-type": "application/json" });
-    res.end(JSON.stringify({ error: { message: "fixture-provider: only POST .../chat/completions is served" } }));
+    if (req.method !== "POST" || req.url === undefined || !req.url.endsWith("/chat/completions")) {
+      res.writeHead(404, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: { message: "fixture-provider: only POST .../chat/completions is served" } }));
+      return;
+    }
+    let body = "";
+    req.setEncoding("utf8");
+    req.on("data", (part: string) => {
+      body += part;
+    });
+    req.on("end", () => {
+      const index = requests.length;
+      const request: FixtureRequest = { body, closed: false, socketClosed: false, finished: false };
+      requests.push(request);
+      req.socket.once("close", () => {
+        request.socketClosed = true;
+      });
+      res.on("close", () => {
+        request.closed = true;
+        held.delete(index);
+      });
+      const parsed = JSON.parse(body) as ChatRequest;
+      const lastUser = parsed.messages.findLast((message) => message.role === "user");
+      const userLine = lastUser?.content.split("\n")[0];
+      if (expectedUserMarker !== undefined && userLine !== expectedUserMarker && !userLine?.endsWith(`: ${expectedUserMarker}`)) {
+        res.writeHead(422, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: { message: "fixture-provider: wrong user turn" } }));
+        return;
+      }
+      if (turns === undefined) {
+        res.writeHead(200, SSE_HEADERS);
+        writeScriptedTurn((frame) => res.write(frame));
+        request.finished = true;
+        res.end();
+        return;
+      }
+      const turn = turns[index];
+      if (turn === undefined || lastUser?.content !== turn.userMessage) {
+        res.writeHead(422, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: { message: "fixture-provider: exhausted script or wrong user turn" } }));
+        return;
+      }
+      res.writeHead(200, SSE_HEADERS);
+      res.write(chunk({ content: turn.prefix }));
+      held.set(index, res);
+    });
   });
 
   return new Promise((resolve, reject) => {
     server.once("error", reject);
     server.listen(port, "127.0.0.1", () => {
-      const host = "127.0.0.1";
+      const address = server.address();
+      if (address === null || typeof address === "string") {
+        reject(new Error("fixture-provider: no TCP address"));
+        return;
+      }
       resolve({
-        baseUrl: `http://${host}:${port}/v1`,
-        host,
+        baseUrl: `http://127.0.0.1:${address.port}/v1`,
+        host: "127.0.0.1",
+        requests,
+        release: (index) => {
+          const response = held.get(index);
+          const turn = turns?.[index];
+          const request = requests[index];
+          if (response === undefined || turn === undefined || request === undefined) {
+            throw new Error(`fixture-provider: turn ${index} is not held`);
+          }
+          response.write(chunk({ content: turn.suffix }));
+          response.write(doneFrames());
+          request.finished = true;
+          response.end();
+          held.delete(index);
+        },
         close: () =>
-          new Promise<void>((res) => {
-            server.close(() => res());
+          new Promise<void>((done) => {
+            for (const response of held.values()) {
+              response.destroy();
+            }
+            server.close(() => done());
+            server.closeAllConnections();
           }),
       });
     });

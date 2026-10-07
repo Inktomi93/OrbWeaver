@@ -7,7 +7,7 @@
 // settings patch back then) rewrote the operator's REAL configuration.
 
 import { describe, expect, test } from "vitest";
-import { LOCAL_OWNER, MODE_PROJECTS, SINGLE_USER } from "./modes.ts";
+import { LOCAL_OWNER, MODE_PROJECTS, SINGLE_USER, selectedModeProjects } from "./modes.ts";
 import { ALLOW_DEV_TARGET_ENV, DEV_STACK_PORTS, devTargetAllowed, targetRefusal } from "./target-guard.ts";
 
 const HARNESS_TARGET = { name: "single-user", baseUrl: "http://localhost:5181", backendUrl: "http://127.0.0.1:8796" } as const;
@@ -97,4 +97,12 @@ describe("mode projects (default, no override)", () => {
       expect(mode.webServerEnv["ORB_ENV_NO_FILE"], mode.name).toBe("1");
     }
   });
+});
+
+test("boot and seed share exact project selection, leaving unrelated stamped mode origins untouched", () => {
+  expect(selectedModeProjects(["--project=single-user"]).map((mode) => mode.name)).toEqual(["single-user"]);
+  expect(selectedModeProjects(["--project", "local", "--project=forward-header"]).map((mode) => mode.name)).toEqual(["local", "forward-header"]);
+  expect(selectedModeProjects(["--project", "single-user", "local", "--list"]).map((mode) => mode.name)).toEqual(["single-user", "local"]);
+  expect(selectedModeProjects([])).toEqual(MODE_PROJECTS);
+  expect(selectedModeProjects(["--project=missing"])).toEqual([]);
 });

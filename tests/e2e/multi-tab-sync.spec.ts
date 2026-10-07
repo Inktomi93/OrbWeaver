@@ -1,28 +1,17 @@
-// E2E: the dual-device / bus-driven live-sync proof (neo 11-multi-tab-sync port) — the browser-level
-// verification of orb's "stateless → DB-is-truth → multi-device by design" claim the redesign leans on,
-// currently verified nowhere end-to-end. If this regresses, multi-device divergence is silent (no error
-// surfaces), so it is the load-bearing assertion.
-//
-// SHAPE A (the truest orb dual-device proof, list-only, zero room navigation): both browser contexts sit on
-// the Chats-section LIST. Tab A renames chat X via its LIST-ROW kebab; tab B's LIST row for X must update LIVE —
-// no reload — via the USER-BUS `chatsChanged` event → `listChats` query invalidation → refetch. This is
-// exactly the multi-device mechanism, and needs no `/chat/$id` URL (orb has none — the active chat is
-// store-only, so a room can't be deep-linked across tabs; SHAPE A sidesteps that entirely).
-//
-// Bootstrap: openOrCreateChat on a throwaway page guarantees ≥1 committed chat exists (one real turn the
-// first time), then both tabs read the list fresh. The unique minted title makes `getByText` unambiguous.
-
+// Passive two-tab smoke: a known room renamed in A must update B without reload.
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import { gotoChatsList, openOrCreateChat, renameFirstChatViaRowKebab } from "./support/chat-room.ts";
+import { gotoChatsList, renameFirstChatViaRowKebab } from "./support/chat-room.ts";
 
-test("rename in tab A propagates live to tab B's list via the user-bus", async ({ browser }) => {
+import { deleteChat, mintFreshCharacter, removeCharacter, startGroupChat, trpcQuery } from "./support/trpc.ts";
+
+test("rename in tab A propagates live to tab B's list via the user-bus", { tag: "@smoke" }, async ({ browser }) => {
+  const characterId = await mintFreshCharacter(castId<CharacterHandle>("e2e-passive-sync"), "Passive Sync", "A known sync greeting.");
+  const title = "Smoke passive sync original";
+  const { id: chatId } = await startGroupChat({ characterIds: [characterId], title });
   const ctx = await browser.newContext();
   try {
-    // Ensure a committed chat exists (bootstrap once on a scratch page if the DB is empty).
-    const boot = await ctx.newPage();
-    await openOrCreateChat(boot);
-    await boot.close();
-
     // Both tabs sit on the Chats-section LIST — no room opened, no URL deep-link. (The list moved off `/`
     // in the variant-C home rework; `gotoChatsList` lands the Chats section where the `aria-label="Chats list"`
     // list lives, which is exactly the surface SHAPE A's live-sync proof needs.)
@@ -33,15 +22,20 @@ test("rename in tab A propagates live to tab B's list via the user-bus", async (
     // Both list the same first chat.
     const listRowB = tabB.getByRole("list", { name: "Chats list" }).getByRole("button").first();
     await expect(listRowB).toBeVisible({ timeout: 15_000 });
+    await expect(listRowB).toContainText(title);
+    await expect(tabA.getByRole("list", { name: "Chats list" }).getByRole("button").first()).toContainText(title);
 
-    const newTitle = `e2e-multitab-${Date.now()}`;
+    const newTitle = "e2e-multitab-smoke-renamed";
     await renameFirstChatViaRowKebab(tabA, newTitle);
     // Tab A reflects its own rename in its list row.
     await expect(tabA.getByText(newTitle).first()).toBeVisible({ timeout: 5000 });
 
     // THE load-bearing assertion: tab B's LIST updates via the user-bus with NO manual reload.
-    await expect(tabB.getByText(newTitle).first()).toBeVisible({ timeout: 10_000 });
+    await expect(listRowB).toContainText(newTitle, { timeout: 10_000 });
+    expect((await trpcQuery<{ readonly title: string }>("chat.getChat", { chatId })).title).toBe(newTitle);
   } finally {
     await ctx.close();
+    await deleteChat(chatId);
+    await removeCharacter(characterId);
   }
 });

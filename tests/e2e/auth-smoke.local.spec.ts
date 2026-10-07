@@ -83,6 +83,8 @@ test("a logged-in NON-ADMIN is refused /api/_debug, and the refusal NAMES the ar
 
   // POSITIVE CONTROL on the same stack, same route: the operator token still opens it, so the 401 above is
   // the ROLE gate biting and not a dead route.
-  const authorized = await fetch(`${origin}/api/_debug/info`, { headers: { "x-debug-token": E2E_DEBUG_TOKEN } });
+  const badToken = await fetch(`${origin}/api/_debug/info`, { headers: { ...member.headers, "x-debug-token": "wrong-fixture-token" } });
+  expect(badToken.status).toBe(401);
+  const authorized = await fetch(`${origin}/api/_debug/info`, { headers: { ...member.headers, "x-debug-token": E2E_DEBUG_TOKEN } });
   expect(authorized.status).toBe(200);
 });
