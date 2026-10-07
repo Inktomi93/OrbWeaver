@@ -228,11 +228,9 @@ jobs:
           retention-days: 7
 
   # The one required check. A skipped suite (docs-only change) passes; a failed or cancelled one does not.
-  # e2e-smoke still runs and shows red, but stays out of the gate for now: its three full app stacks have taken
-  # down the 16 GB runner itself, so a red there is not yet a verdict on the code.
   ci-ok:
     if: always() && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full'
-    needs: [changes, static, node, ct]
+    needs: [changes, static, node, ct, e2e-smoke]
     runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:
