@@ -61,7 +61,9 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     await updateSettingsSection("appearance", { backgroundImageKind: "none", backgroundAssetId: "", backgroundAssetHash: "", elevation: "flat" });
   });
 
-  test("theme + background change through the UI are visible immediately AND survive a plain reload with storage intact", async ({ page }) => {
+  test("theme + background change through the UI are visible immediately AND survive a plain reload with storage intact", { tag: "@smoke" }, async ({
+    page,
+  }) => {
     test.setTimeout(90_000);
 
     // A stable pre-state: no theme, no background (the afterEach values). Set via API so the spec starts

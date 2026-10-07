@@ -8,9 +8,8 @@
 //   2. ≥1 committed CHAT with ≥1 durable message — the persistence/sequence/injection/multi-tab specs reuse
 //      an existing chat; seeding one model-free (chat.startChat, then a title write that claims the husk)
 //      keeps the non-live suite MODEL-FREE.
-//   3. ONE `vllm` CONNECTION at the shared local generation engine, with the `chat` + `summarize` Model
-//      roles bound to it (the @live specs' local chat wire). There is no `routing` settings section any
-//      more and there are no defaults: without this row every task reads `no-connection`.
+//   3. Chat + Utility bind to an owned scripted endpoint by default; only explicit E2E_LIVE selects the
+//      shared local model engine. Routine setup never discovers or generates against the operator's model.
 //   4. LOCAL mode ONLY: the multi-user seed (localMultiUser AppSetting on + a member account) by shelling the
 //      dev `seed multi-user` (@orb/tooling) — the ONE source of truth for that sequence, not a reimplementation.
 //   5. The CLIENT IS WARMED in a real browser (#571) — each mode's vite dev server transforms its route graph
@@ -33,6 +32,7 @@ import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import type { Browser } from "@playwright/test";
 import { chromium, devices } from "@playwright/test";
 import { openNewestChat } from "./chat-room.ts";
+import { startFixtureProvider } from "./fixture-provider.ts";
 import type { ModeProject } from "./modes.ts";
 import {
   DEV_TARGET_ALLOWED,
@@ -42,7 +42,7 @@ import {
   E2E_LOCAL_ENGINE_PROVIDER,
   LOCAL_MEMBER,
   LOCAL_OWNER,
-  MODE_PROJECTS,
+  selectedModeProjects,
 } from "./modes.ts";
 import { probeTarget, targetRefusal } from "./target-guard.ts";
 // TYPE-ONLY: `trpc.ts` is bound to the single-user origin at runtime, while this module seeds each mode by
@@ -153,7 +153,7 @@ async function engineConnectionInput(baseUrl: string): Promise<NewConnection> {
 }
 
 /**
- * Author the harness's ONE local-engine connection and point the chat-side Model roles at it.
+ * Bind Chat and Utility to the owned scripted endpoint, or the explicitly opted-in local engine.
  *
  * WHY A CONNECTION AND NOT A SETTINGS PATCH: `routing` left `USER_SETTINGS_SECTIONS` with the inference
  * program — a per-task model pick is a `connection_bindings` row pointing at a `user_connections` row
@@ -178,7 +178,21 @@ async function engineConnectionInput(baseUrl: string): Promise<NewConnection> {
  * `summarize` is `spend: "background"`, so the row is created with `allowBackground: true` — otherwise the
  * binding is refused inline (`canFund`, F5).
  */
-async function pinChatConnection(baseUrl: string): Promise<void> {
+async function pinChatConnection(baseUrl: string, fixtureBaseUrl?: string): Promise<void> {
+  if (fixtureBaseUrl !== undefined) {
+    const row = await mutation<SeededConnection>(baseUrl, "connection.create", {
+      label: "e2e scripted default",
+      providerId: "custom-openai",
+      credentialId: null,
+      baseUrl: fixtureBaseUrl,
+      model: "fixture-default",
+      allowBackground: true,
+    });
+    for (const task of ["chat", "summarize"]) {
+      await mutation(baseUrl, "connection.setBinding", { task, connectionId: row.id });
+    }
+    return;
+  }
   const existing = (await query<readonly SeededConnection[]>(baseUrl, "connection.list", undefined)).find(
     (connection) => connection.label === E2E_LOCAL_ENGINE_LABEL,
   );
@@ -208,10 +222,10 @@ function seedMultiUser(mode: ModeProject): void {
 }
 
 /** Seed one mode-project's stack (the common library/chat/connection floor + the local multi-user seed). */
-async function seedMode(mode: ModeProject): Promise<void> {
+async function seedMode(mode: ModeProject, fixtureBaseUrl?: string): Promise<void> {
   const characterId = await ensureCharacter(mode.baseUrl);
   await ensureChat(mode.baseUrl, characterId);
-  await pinChatConnection(mode.baseUrl);
+  await pinChatConnection(mode.baseUrl, fixtureBaseUrl);
   if (mode.seedMultiUser) {
     seedMultiUser(mode);
   }
@@ -297,19 +311,30 @@ async function warmClients(modes: readonly ModeProject[]): Promise<void> {
  *  don't answer). Every origin that DOES answer must pass the target guard: an unreachable mode is a skip, an
  *  unowned one is a THROW (Playwright aborts the run) — never a silent seed into someone's real data.
  *  Seeding is idempotent, so a full run seeds all three. */
-export default async function globalSetup(): Promise<void> {
-  // Probe every mode's origin in parallel; seed only the stacks that actually booted (distinct DBs/ports ⇒
+export default async function globalSetup(): Promise<() => Promise<void>> {
+  // Probe only selected modes; an unrelated stamped harness is not owned by this run (distinct DBs/ports ⇒
   // seeding them concurrently is safe — no shared state).
-  const probes = await Promise.all(MODE_PROJECTS.map((mode) => probeTarget(mode.backendUrl)));
-  const booted = MODE_PROJECTS.map((mode, i) => ({ mode, probe: probes[i] ?? { reachable: false, stamped: false } })).filter(({ probe }) => probe.reachable);
+  const selected = selectedModeProjects(process.argv);
+  const probes = await Promise.all(selected.map((mode) => probeTarget(mode.backendUrl)));
+  const booted = selected.map((mode, i) => ({ mode, probe: probes[i] ?? { reachable: false, stamped: false } })).filter(({ probe }) => probe.reachable);
   const refusals = booted
     .map(({ mode, probe }) => targetRefusal(mode, probe, DEV_TARGET_ALLOWED))
     .filter((message): message is string => message !== undefined);
   if (refusals.length > 0) {
     throw new Error(refusals.join("\n"));
   }
-  await Promise.all(booted.map(({ mode }) => seedMode(mode)));
-  // AFTER the seed, never before: the `room` warm pass opens a chat from the list, which only exists once
-  // `ensureChat` has run.
-  await warmClients(booted.map(({ mode }) => mode));
+  // Routine selection cannot discover or generate against the operator's model engine.
+  const fixture = process.env["E2E_LIVE"] === "1" ? undefined : await startFixtureProvider(0, []);
+  try {
+    await Promise.all(booted.map(({ mode }) => seedMode(mode, fixture?.baseUrl)));
+    // AFTER the seed, never before: the `room` warm pass opens a chat from the list, which only exists once
+    // `ensureChat` has run.
+    await warmClients(booted.map(({ mode }) => mode));
+  } catch (error) {
+    await fixture?.close();
+    throw error;
+  }
+  return async (): Promise<void> => {
+    await fixture?.close();
+  };
 }

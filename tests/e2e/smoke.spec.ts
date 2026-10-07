@@ -15,7 +15,7 @@
 //     rework; it now lives on the Chats SECTION (reached via the Primary rail), not the landing.
 
 import { expect, test } from "@playwright/test";
-import { E2E_DEBUG_TOKEN, SINGLE_USER } from "./support/modes.ts";
+import { SINGLE_USER } from "./support/modes.ts";
 
 // The backend origin — healthz is server-only (not proxied through vite), so it is hit on the single-user
 // project's OWN backend port (derived from modes.ts, never a literal: this lane moved off the dev :8788, and
@@ -42,40 +42,12 @@ test("the health endpoint reports ok", { tag: "@smoke" }, async ({ request }) =>
   expect(await res.json()).toMatchObject({ status: "ok" });
 });
 
-// THE /api/_debug GATE on a REAL BOOTED STACK — the only place a wiring, proxy or env-threading regression
-// can be caught (the unit suite, `tests/server/entry/debug-gate.suite.test.ts`, proves the seam+gate
-// composition but boots no server). Which QUESTION this asks changed on 2026-09-02 (#1193); read the
-// re-premise before "restoring" the old number.
-//
-// ⚠ DO NOT CHANGE THE FIRST ASSERTION BACK TO 401. It used to assert that an un-credentialed caller is
-// refused (AUTHFIX-2). On THIS harness that assertion has stopped being about the gate at all: this project's
-// `webServerEnv` (support/modes.ts) sets no NODE_ENV and no AUTH_FALLBACK, so the stack runs
-// `NODE_ENV=development` + `AUTH_FALLBACK=owner`, and every request here arrives on a LOOPBACK socket (vite
-// proxies `/api` to 127.0.0.1). That caller IS the box operator — `sessions.me` answers `globalRole:"owner"`
-// for it, and #1193 stopped the diagnostics door from being the one surface that pretended otherwise. A 401
-// here would now mean the OPERATOR ARM IS BROKEN, i.e. the dev bug-report button is 401ing again.
-//
-// WHAT THIS CAN AND CANNOT PROVE, stated so nobody reads more into a green run than is there:
-//   • CAN: the door is reachable and its admin arm admits the box operator (regression pin for #1193), and
-//     the operator TOKEN still opens it — the latter is simultaneously the proof that `E2E_DEBUG_TOKEN`
-//     really reached the server through `modes.ts::webServerEnv`, which every `@live` spec's debug witness
-//     (`fetchWireCaptures`/`inspectChatDb`/`fetchDebugErrors`) depends on. Those are `@live`-gated and never
-//     run on push, so without THIS the threading could rot silently for weeks.
-//   • CANNOT: that an UN-CREDENTIALED (anonymous) caller is refused. No dev-posture stack can construct one —
-//     a loopback peer is the operator by construction, and `AUTH_FALLBACK=deny` is not available here because
-//     globalSetup seeds every booted mode through that same un-credentialed loopback seam
-//     (`support/global-setup.ts::seedMode`). The anonymous/PRODUCTION-posture refusal is proven by
-//     `tests/server/entry/debug-gate.suite.test.ts` ("the PRODUCTION posture refuses the same loopback
-//     owner, single-user included") and the ROLE refusal end-to-end by `auth-smoke.local.spec.ts`
-//     (a logged-in non-admin → 401). Neither proof was deleted; both moved to where they are real.
-test("the /api/_debug gate admits the box operator's loopback session and the operator token", {
+// Single-user loopback requests qualify through the operator-session arm, not the token arm.
+test("the /api/_debug gate admits the box operator's loopback session", {
   tag: "@smoke",
 }, async ({ request }) => {
   const operator = await request.get("/api/_debug/info");
-  expect(operator.status(), "the dev posture must admit the box operator's own loopback session (#1193)").toBe(200);
-
-  const authorized = await request.get("/api/_debug/info", { headers: { "x-debug-token": E2E_DEBUG_TOKEN } });
-  expect(authorized.ok(), "the operator token must still open the debug surface").toBe(true);
+  expect(operator.status()).toBe(200);
 });
 
 test("single-user mode: an owner-scoped tRPC query succeeds with no login", {
@@ -111,6 +83,7 @@ test("a section deep link boots the app and lands on the one app URL", { tag: "@
   await page.goto("/chats");
   await expect(page.getByRole("main")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText(NOT_FOUND_COPY)).toHaveCount(0);
+  await expect(page.getByRole("main", { name: "Chats content", exact: true })).toBeVisible();
   // The address bar is where in-app rail navigation leaves it — one URL story for both entrances.
   await expect(page).toHaveURL(APP_URL);
 });

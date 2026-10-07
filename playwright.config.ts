@@ -3,7 +3,7 @@ import process from "node:process";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import type { ReporterDescription } from "@playwright/test";
 import { defineConfig, devices } from "@playwright/test";
-import { DEV_TARGET_ALLOWED, MODE_PROJECTS, SINGLE_USER } from "./tests/e2e/support/modes.ts";
+import { DEV_TARGET_ALLOWED, MODE_PROJECTS, SINGLE_USER, selectedModeProjects } from "./tests/e2e/support/modes.ts";
 
 // E2E — full-stack `.spec.ts` under tests/e2e (NOT a src mirror; spans the whole app). Browser lane =
 // Playwright, never vitest (browser-mode hangs — docs/law/Spine-Testing.md §7). Separate runner, NOT in `pnpm
@@ -61,18 +61,7 @@ const projects = MODE_PROJECTS.map((mode) => ({
 // `--project=single-user` run (the @smoke tier) would still boot and warm all three stacks; on a 4-vCPU CI
 // runner that starves the cold vite transforms past the warm-up budget. Boot only the selected modes. Read
 // from argv because only the runner process starts webServers; workers re-load this file without the flag.
-function selectedProjects(argv: readonly string[]): ReadonlySet<string> | undefined {
-  const names = argv.flatMap((arg, i) => {
-    if (arg.startsWith("--project=")) {
-      return [arg.slice("--project=".length)];
-    }
-    const next = argv[i + 1];
-    return arg === "--project" && next !== undefined ? [next] : [];
-  });
-  return names.length > 0 ? new Set(names) : undefined;
-}
-const selected = selectedProjects(process.argv);
-const bootedModes = selected === undefined ? MODE_PROJECTS : MODE_PROJECTS.filter((mode) => selected.has(mode.name));
+const bootedModes = selectedModeProjects(process.argv);
 
 const webServers = bootedModes.map((mode) => ({
   command: "node tooling/src/stack/cli.ts up-fg",

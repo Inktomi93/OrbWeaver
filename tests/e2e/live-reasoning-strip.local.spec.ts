@@ -21,7 +21,7 @@
 //   2. REPLAY: the same two viewers replay from `sinceSeq: 0` (the durable log the client seeds on attach)
 //      — the member's replay is reasoning-free; the host's carries it. Same verdict, both halves of the stream.
 //
-// `@live` — it drives a REAL turn (through the fixture, not an 8B) on the local multi-user stack.
+// Routine model-free selection: the real turn uses only the external scripted provider.
 
 import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -68,14 +68,15 @@ function sawReply(values: readonly StreamValue[]): boolean {
   return replyCommit(values) !== undefined;
 }
 
-test("P3 reasoning host-only: a deception turn's reasoning channel is withheld from the MEMBER's live SSE + replay, delivered to the HOST", {
-  tag: "@live",
-}, async ({ baseURL }) => {
+test("P3 reasoning host-only: a deception turn's reasoning channel is withheld from the MEMBER's live SSE + replay, delivered to the HOST", async ({
+  baseURL,
+}) => {
   test.setTimeout(180_000);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
 
-  const fixture = await startFixtureProvider(E2E_FIXTURE_PROVIDER_PORT);
+  const fixture = await startFixtureProvider(E2E_FIXTURE_PROVIDER_PORT, undefined, "What happened to the well?");
+  let restoreProvider: (() => Promise<void>) | undefined;
 
   // Fresh spec-owned character (idempotent across crashed runs).
   const priorList = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: CharacterHandle }[] }>("character.list", {});
@@ -90,7 +91,7 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
   try {
     // HOST: point the chat Model role at the scripted fixture (a real `custom-openai` connection), a lite game with
     // deception active, and seat the member.
-    await configureCustomProvider(host, fixture.baseUrl, "fixture-model");
+    restoreProvider = await configureCustomProvider(host, fixture.baseUrl, "fixture-model");
     const started = await host.mutation<StartedChat>("chat.startChat", { characterIds: [character.id] });
     const chatId = started.chat.id;
     await host.mutation("rpg.createGame", { chatId, mode: "lite" });
@@ -165,6 +166,7 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
     expect(hostReplyCommit?.event.view?.reasoning ?? "").toContain(FIXTURE_LIE_TRUTH);
   } finally {
     await host.mutation("character.remove", { characterId: character.id });
+    await restoreProvider?.();
     await fixture.close();
   }
 });

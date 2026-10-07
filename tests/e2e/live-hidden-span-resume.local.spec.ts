@@ -25,7 +25,7 @@
 //   • a DELIVERY floor: the member MUST receive the post-`/>` prose that rides the SAME chunk as the tail
 //     (so "delivered nothing at all" cannot pass as "correctly withheld").
 //
-// `@live` — it drives a REAL streamed turn (through the scripted fixture, not an 8B).
+// Routine model-free selection: the real turn uses only the external scripted provider.
 
 import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -71,11 +71,12 @@ function openerSeq(values: readonly StreamValue[]): number | undefined {
   return values.find((v) => v.event.delta?.kind === "text" && (v.event.delta.text ?? "").includes(OPENER_MARKER))?.seq;
 }
 
-test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never receives its tail; the HOST does", { tag: "@live" }, async ({ baseURL }) => {
+test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never receives its tail; the HOST does", async ({ baseURL }) => {
   test.setTimeout(180_000);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
-  const fixture = await startFixtureProvider(E2E_FIXTURE_PROVIDER_PORT);
+  const fixture = await startFixtureProvider(E2E_FIXTURE_PROVIDER_PORT, undefined, "What happened to the well?");
+  let restoreProvider: (() => Promise<void>) | undefined;
 
   const priorList = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: CharacterHandle }[] }>("character.list", {});
   const prior = priorList.items.find((c) => c.handle === CARD_HANDLE);
@@ -87,7 +88,7 @@ test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never recei
   });
 
   try {
-    await configureCustomProvider(host, fixture.baseUrl, "fixture-model");
+    restoreProvider = await configureCustomProvider(host, fixture.baseUrl, "fixture-model");
     const started = await host.mutation<StartedChat>("chat.startChat", { characterIds: [character.id] });
     const chatId = started.chat.id;
     await host.mutation("rpg.createGame", { chatId, mode: "lite" });
@@ -150,6 +151,7 @@ test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never recei
     expect(hostBytes, "the host resuming from the same cursor must receive the tail (else the cursor proved nothing)").toContain(FIXTURE_LIE_TAIL);
   } finally {
     await host.mutation("character.remove", { characterId: character.id });
+    await restoreProvider?.();
     await fixture.close();
   }
 });
