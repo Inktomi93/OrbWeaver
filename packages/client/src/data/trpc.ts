@@ -5,6 +5,7 @@
 // source edge; dependency-cruiser rejects every other backend type edge and every runtime edge.
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { TRPC_BATCH_MAX_ITEMS, TRPC_BATCH_MAX_URL_LENGTH } from "@orb/contracts/rpc";
 import type { AppRouter } from "@orb/server";
 import type { QueryClient } from "@tanstack/react-query";
 import type { TRPCClient, TRPCClientErrorLike } from "@trpc/client";
@@ -42,7 +43,7 @@ export const { TRPCProvider, useTRPC, useTRPCClient } = createTRPCContext<AppRou
  * (`httpSubscriptionLink` with {@link PostEventSource}, because a relay that buffers GET bodies freezes a
  * native EventSource; cookies flow same-origin, and the server's auth gate exempts subscriptions from the
  * CSRF check by type, Tier-4 §7.1, though the POST carries the header anyway), everything else batches
- * over HTTP with the custom CSRF header on EVERY request (`SameSite=Lax` + this header is the whole CSRF
+ * over JSON POST with the custom CSRF header on EVERY request (`SameSite=Lax` + this header is the whole CSRF
  * story — the server gate 403s a cookie-authed mutation without it).
  *
  * The `[trpc]` console channel (the loggerLink) sits in the query/mutation branch ONLY — the
@@ -84,7 +85,15 @@ export function createTrpcClient(url: string = TRPC_URL): TrpcClient {
             logger: formatTrpcOp,
             colorMode: "css",
           }),
-          httpBatchLink({ url, headers: () => ({ [CSRF_HEADER]: "1" }) }),
+          // Query inputs can exceed a URL ceiling; POST preserves them under the server's JSON-body cap.
+          // TanStack Query owns read caching, and the mount already admits native method overrides.
+          httpBatchLink({
+            url,
+            maxItems: TRPC_BATCH_MAX_ITEMS,
+            maxURLLength: TRPC_BATCH_MAX_URL_LENGTH,
+            methodOverride: "POST",
+            headers: () => ({ [CSRF_HEADER]: "1" }),
+          }),
         ],
       }),
     ],

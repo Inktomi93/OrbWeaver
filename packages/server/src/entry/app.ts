@@ -6,6 +6,7 @@
 
 import type { AuthMode, Principal, RelayStatus } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
+import { TRPC_BATCH_MAX_ITEMS } from "@orb/contracts/rpc";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
@@ -346,6 +347,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
       endpoint: TRPC_ENDPOINT,
       req: c.req.raw,
       router: appRouter,
+      maxBatchSize: TRPC_BATCH_MAX_ITEMS,
       createContext: () =>
         createContext({
           auth: c.get("principal"),
@@ -359,8 +361,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
           clientIp: clientIp(c),
         }),
       responseMeta: ({ errors }) => rateLimitResponseMeta(errors),
-      // Subscriptions ride POST: a relay that buffers every GET body (a Cloudflare quick tunnel) would
-      // freeze a GET EventSource. The override never lets a mutation leave POST.
+      // Subscriptions avoid buffering relays; query inputs avoid URL ceilings. Mutations stay POST-only.
       allowMethodOverride: true,
     }),
   );

@@ -3,19 +3,22 @@
 // then 401s an anonymous caller); the seam is consulted exactly once per request (no double-resolve). The
 // tRPC mount + the multipart routes are exercised by their own slice tests; here we prove the assembly.
 
+import { createTrpcClient } from "@orb/client/data";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortableEntity, PortableFile } from "@orb/contracts/portability";
+import { TRPC_BATCH_MAX_ITEMS, TRPC_BATCH_MAX_URL_LENGTH } from "@orb/contracts/rpc";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
 import type { Handle, SocketId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { SearchSuggestion, SuggestParams } from "@orb/server/domain/search";
 import type { AuthSeam, SeamResult } from "@orb/server/entry/auth";
 import { getTraceByRequestId, initTracing, recentRequests } from "@orb/server/foundation/observability";
 import { versionIdentity } from "@orb/server/foundation/version";
 import { classifyDomainError, createSocketRegistry } from "@orb/server/transport/trpc";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { layer } from "../../../packages/server/src/domain/settings/effective-config/layer.ts";
 import type { AppDeps } from "../../../packages/server/src/entry/app.ts";
 import { createApp, rateLimitResponseMeta } from "../../../packages/server/src/entry/app.ts";
@@ -151,6 +154,119 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
 }
 
 describe("createApp", () => {
+  test("the production client splits against the real mount and preserves each query's input, result and principal", async () => {
+    const queries = Array.from({ length: TRPC_BATCH_MAX_ITEMS + 1 }, (_, index) =>
+      index === 0 ? "界".repeat(TRPC_BATCH_MAX_URL_LENGTH) : `batch-query-${index}`,
+    );
+    const seen: SuggestParams[] = [];
+    const batchSizes: number[] = [];
+    const app = createApp(
+      deps({
+        seam: fakeSeam(COOKIE_OWNER),
+        services: testServices({
+          search: {
+            suggest: (input: SuggestParams): Promise<SearchSuggestion[]> => {
+              seen.push(input);
+              return Promise.resolve([{ suggestion: input.query, score: 1 }]);
+            },
+          },
+        }),
+      }),
+    );
+    vi.stubGlobal("fetch", (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      const request = new Request(input, init);
+      batchSizes.push(new URL(request.url).pathname.split("/").at(-1)?.split(",").length ?? 0);
+      return hit(app, request);
+    });
+    try {
+      const client = createTrpcClient("http://localhost/api/trpc");
+      const results = await Promise.all(queries.map((query) => client.search.suggest.query({ query, limit: 1 })));
+      expect(batchSizes).toEqual([TRPC_BATCH_MAX_ITEMS, 1]);
+      expect(results).toEqual(queries.map((query) => [{ suggestion: query, score: 1 }]));
+      expect(seen).toEqual(queries.map((query) => ({ ownerId: COOKIE_OWNER.userId, query, limit: 1 })));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  test.each(["GET", "POST"])("%s batches admit exactly the limit and reject overflow before procedure work", async (method) => {
+    const calls: string[] = [];
+    let enforced = 0;
+    const tag = {
+      listTags: (): Promise<readonly never[]> => {
+        calls.push("listTags");
+        return Promise.resolve([]);
+      },
+      pruneUnusedTags: (): Promise<{ removed: number }> => {
+        calls.push("pruneUnusedTags");
+        return Promise.resolve({ removed: 0 });
+      },
+    };
+    const app = createApp(
+      deps({
+        seam: fakeSeam(COOKIE_OWNER),
+        services: testServices({ tag }),
+        rateLimit: {
+          enforce: (): Promise<void> => {
+            enforced += 1;
+            return Promise.resolve();
+          },
+        },
+      }),
+    );
+    const path = method === "GET" ? "tag.listTags" : "tag.pruneUnusedTags";
+    const request = (count: number): Request =>
+      new Request(`http://localhost/api/trpc/${Array.from({ length: count }, () => path).join(",")}?batch=1`, {
+        method,
+        ...(method === "POST" ? { headers: { "content-type": "application/json", "x-orb-csrf": "1" }, body: "{}" } : {}),
+      });
+    const admitted = await hit(app, request(TRPC_BATCH_MAX_ITEMS));
+    expect(admitted.status).toBe(OK);
+    expect(await admitted.json()).toEqual(Array.from({ length: TRPC_BATCH_MAX_ITEMS }, () => ({ result: { data: method === "GET" ? [] : { removed: 0 } } })));
+    expect(calls).toEqual(Array.from({ length: TRPC_BATCH_MAX_ITEMS }, () => (method === "GET" ? "listTags" : "pruneUnusedTags")));
+    expect(enforced).toBe(TRPC_BATCH_MAX_ITEMS);
+
+    calls.length = 0;
+    enforced = 0;
+    const refused = await hit(app, request(TRPC_BATCH_MAX_ITEMS + 1));
+    expect(calls).toEqual([]);
+    expect(enforced).toBe(0);
+    expect(refused.status).toBe(400);
+    const body = await refused.text();
+    expect(body).toContain("BAD_REQUEST");
+    expect(body).toContain("Batch call exceeds maximum size");
+    expect(body).not.toContain("stack");
+  });
+
+  test("a valid long query is admitted over JSON POST without losing its input or principal", async () => {
+    const query = "界".repeat(TRPC_BATCH_MAX_URL_LENGTH);
+    const seen: SuggestParams[] = [];
+    const app = createApp(
+      deps({
+        seam: fakeSeam(COOKIE_OWNER),
+        services: testServices({
+          search: {
+            suggest: (input: SuggestParams): Promise<SearchSuggestion[]> => {
+              seen.push(input);
+              return Promise.resolve([]);
+            },
+          },
+        }),
+      }),
+    );
+    const res = await hit(
+      app,
+      new Request("http://localhost/api/trpc/search.suggest?batch=1", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-orb-csrf": "1" },
+        body: JSON.stringify({ 0: { query, limit: 1 } }),
+      }),
+    );
+    expect(res.status).toBe(OK);
+    expect(await res.json()).toEqual([{ result: { data: [] } }]);
+    expect(seen).toEqual([{ ownerId: COOKIE_OWNER.userId, query, limit: 1 }]);
+  });
+
   test("GET /healthz → 200 ok when live", async () => {
     const app = createApp(deps({}));
     const res = await hit(app, new Request("http://localhost/healthz"));
@@ -586,7 +702,7 @@ describe("createApp", () => {
   // actually wired onto the tRPC mount (not just unit-testable in isolation) — a DomainRateLimitError
   // thrown from the real rate-limit gate, through the real mount, must surface Retry-After +
   // X-RateLimit-Remaining on the real Response.
-  test("Task 2: a DomainRateLimitError thrown by the rate-limit gate at the real mount surfaces Retry-After + X-RateLimit-Remaining", async () => {
+  test.each([false, true])("a DomainRateLimitError at the real mount surfaces Retry-After + X-RateLimit-Remaining (batch=%s)", async (batch) => {
     const app = createApp(
       deps({
         rateLimit: {
@@ -594,7 +710,19 @@ describe("createApp", () => {
         },
       }),
     );
-    const res = await hit(app, new Request("http://localhost/api/trpc/health"));
+    const res = await hit(
+      app,
+      new Request(
+        `http://localhost/api/trpc/${batch ? "health,health?batch=1" : "health"}`,
+        batch
+          ? {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: "{}",
+            }
+          : {},
+      ),
+    );
     expect(res.status).toBe(TOO_MANY_REQUESTS);
     expect(res.headers.get("Retry-After")).toBe("2");
     expect(res.headers.get("X-RateLimit-Remaining")).toBe("0");
