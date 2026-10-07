@@ -3,7 +3,7 @@ import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/p
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { brotliCompress, gzip, constants as zlibConstants } from "node:zlib";
+import { brotliCompress, gzip, constants as zlibConstants, zstdCompress } from "node:zlib";
 import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
@@ -500,6 +500,7 @@ export async function devServerServes(absolutePath: string): Promise<boolean> {
 
 const compressBrotli = promisify(brotliCompress);
 const compressGzip = promisify(gzip);
+const compressZstd = promisify(zstdCompress);
 const BROTLI_BUILD_QUALITY = 6;
 const COMPRESSED_ASSET_EXTENSIONS = /\.(?:js|css|html)$/;
 
@@ -518,11 +519,16 @@ function precompressedAssets(): Plugin {
           .map(async (asset) => {
             const source = asset.type === "chunk" ? asset.code : asset.source;
             // Moderate Brotli quality keeps rebuilding cheap while moving compression off the request path.
-            const [brotliBytes, gzipBytes] = await Promise.all([
+            const [brotliBytes, gzipBytes, zstdBytes] = await Promise.all([
               compressBrotli(source, { params: { [zlibConstants.BROTLI_PARAM_QUALITY]: BROTLI_BUILD_QUALITY } }),
               compressGzip(source),
+              compressZstd(source),
             ]);
-            await Promise.all([writeFile(join(directory, `${asset.fileName}.br`), brotliBytes), writeFile(join(directory, `${asset.fileName}.gz`), gzipBytes)]);
+            await Promise.all([
+              writeFile(join(directory, `${asset.fileName}.br`), brotliBytes),
+              writeFile(join(directory, `${asset.fileName}.gz`), gzipBytes),
+              writeFile(join(directory, `${asset.fileName}.zst`), zstdBytes),
+            ]);
           }),
       );
     },

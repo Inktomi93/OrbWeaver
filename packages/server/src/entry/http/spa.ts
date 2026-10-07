@@ -2,12 +2,15 @@
 // the LAST registration on the app — every API/auth/healthz route wins by order, and an /api/* miss
 // stays a plain 404 (never HTML) via the explicit prefix bail below.
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { earlyHints } from "@hono/node-server/early-hints";
 import { serveStatic } from "@hono/node-server/serve-static";
 import type { Hono } from "hono";
-import { compress } from "hono/compress";
+import { COMPRESSIBLE_CONTENT_TYPE_REGEX, compress } from "hono/compress";
 import { etag } from "hono/etag";
+import { parseAccept } from "hono/utils/accept";
+import { getMimeType } from "hono/utils/mime";
 import { getLog } from "#foundation/observability";
 
 // Only vite's content-hashed output lives under /assets/ — cacheable forever. Everything name-stable
@@ -23,7 +26,78 @@ const HTML_MEDIA_TYPE = "text/html";
 // `vite.config.ts sourcemap:false`; this is defense-in-depth so a config flip can't re-leak the whole
 // first-party `src/**` via `sourcesContent`); `.ts`/`.tsx` = raw source that has no place in a prod
 // bundle. Non-global regex → no lastIndex state.
-const SOURCE_ARTIFACT_EXT = /\.(?:map|tsx?)$/;
+const SOURCE_ARTIFACT_EXT = /\.(?:map|tsx?)(?:\.(?:br|gz|zst))?$/;
+const PRECOMPRESSED_ENCODINGS = [
+  ["br", ".br"],
+  ["zstd", ".zst"],
+  ["gzip", ".gz"],
+] as const;
+const RUNTIME_ENCODINGS = ["gzip", "deflate"] as const;
+const IDENTITY_ENCODING = "identity";
+const NOT_ACCEPTABLE = 406;
+const OK_STATUS = 200;
+
+function staticFile(distDir: string, path: string, navigation: boolean): string | null {
+  let file = join(distDir, path);
+  if (statSync(file, { throwIfNoEntry: false })?.isDirectory() === true) {
+    file = join(file, "index.html");
+  }
+  if (!existsSync(file) && navigation) {
+    file = join(distDir, "index.html");
+  }
+  return existsSync(file) ? file : null;
+}
+
+function selectEncoding(header: string | undefined, file: string, runtimeCompression: boolean): string | null {
+  if (header === undefined) {
+    return IDENTITY_ENCODING;
+  }
+  const accepted = parseAccept(header);
+  const wildcard = accepted.find((value) => value.type === "*");
+  const identity = accepted.find((value) => value.type.toLowerCase() === IDENTITY_ENCODING);
+  const compressible = COMPRESSIBLE_CONTENT_TYPE_REGEX.test(getMimeType(file) ?? "");
+  const supports = compressible
+    ? [
+        ...new Set([
+          ...PRECOMPRESSED_ENCODINGS.filter(([, suffix]) => existsSync(file + suffix)).map(([encoding]) => encoding),
+          ...(runtimeCompression ? RUNTIME_ENCODINGS : []),
+        ]),
+      ]
+    : [];
+  let selected = IDENTITY_ENCODING;
+  let quality = identity?.q ?? 0;
+  for (const encoding of supports) {
+    const preference = accepted.find((value) => value.type.toLowerCase() === encoding);
+    const candidateQuality = preference?.q ?? wildcard?.q ?? 0;
+    if (candidateQuality > quality) {
+      selected = encoding;
+      quality = candidateQuality;
+    }
+  }
+  if (quality === 0 && (identity?.q === 0 || (identity === undefined && wildcard?.q === 0))) {
+    return null;
+  }
+  return selected;
+}
+
+function assetHints(distDir: string): string[] {
+  const html = readFileSync(join(distDir, "index.html"), "utf8").replace(/<!--[\s\S]*?-->/g, "");
+  const hints = new Set<string>();
+  for (const [, tag = "", attributes = ""] of html.matchAll(/<(script|link)\b([^>]*)>/giu)) {
+    const script = tag.toLowerCase() === "script" && /\btype\s*=\s*["']module["']/iu.test(attributes);
+    const stylesheet = /\brel\s*=\s*["']stylesheet["']/iu.test(attributes);
+    const modulepreload = /\brel\s*=\s*["']modulepreload["']/iu.test(attributes);
+    if (!(script || stylesheet || modulepreload)) {
+      continue;
+    }
+    const path = /\b(?:src|href)\s*=\s*["']([^"']+)["']/iu.exec(attributes)?.[1];
+    // Hint only real, same-origin build assets; comments, public files and external URLs are ineligible.
+    if (path !== undefined && /^\/assets\/[\w.-]+\.(?:js|css)$/.test(path) && existsSync(join(distDir, path))) {
+      hints.add(`<${path}>; rel=${stylesheet ? "preload; as=style" : "modulepreload"}; crossorigin`);
+    }
+  }
+  return [...hints];
+}
 
 export interface SpaDeps {
   /** The built client bundle root (contains index.html); absolute or cwd-relative. */
@@ -54,12 +128,59 @@ export function resolveSpaDistDir(opts: { readonly distDir: string; readonly pro
 
 /** Register the bundle file-serve + the history fallback on `app` (GET/HEAD only; call LAST). */
 export function registerSpa(app: Hono, deps: SpaDeps): void {
+  // Reject source files and compressed copies before negotiation, hints or file serving.
+  app.get("*", (c, next) => (isApiPath(c.req.path) || !SOURCE_ARTIFACT_EXT.test(c.req.path) ? next() : c.notFound()));
+  app.use("*", async (c, next) => {
+    if (isApiPath(c.req.path) || (c.req.method !== "GET" && c.req.method !== "HEAD")) {
+      return next();
+    }
+    const file = staticFile(deps.distDir, c.req.path, (c.req.header("accept") ?? "").includes(HTML_MEDIA_TYPE));
+    if (file === null) {
+      return next();
+    }
+    const original = c.req.header("Accept-Encoding");
+    const encoding = selectEncoding(original, file, c.req.method === "GET" && c.req.header("Range") === undefined);
+    if (encoding === null) {
+      c.header("Vary", "Accept-Encoding");
+      return c.body(null, NOT_ACCEPTABLE);
+    }
+    // Normalize for node-server's literal-token sidecar matcher, then restore the request for outer observers.
+    c.req.raw.headers.set("Accept-Encoding", encoding);
+    try {
+      await next();
+      c.res.headers.set("Vary", "Accept-Encoding");
+    } finally {
+      if (original === undefined) {
+        c.req.raw.headers.delete("Accept-Encoding");
+      } else {
+        c.req.raw.headers.set("Accept-Encoding", original);
+      }
+    }
+  });
   // Register after the API routes so compression cannot buffer their streaming responses.
-  app.use("*", compress());
+  app.use("*", compress({ threshold: 0 }));
+  app.use("*", (c, next) => {
+    if (
+      c.req.method !== "GET" ||
+      isApiPath(c.req.path) ||
+      c.req.path.startsWith(HASHED_ASSET_PREFIX) ||
+      c.req.header("If-None-Match") !== undefined ||
+      !(c.req.header("accept") ?? "").includes(HTML_MEDIA_TYPE)
+    ) {
+      return next();
+    }
+    if (c.req.path === "/" || c.req.path === "/index.html" || !existsSync(join(deps.distDir, c.req.path))) {
+      const hints = assetHints(deps.distDir);
+      if (hints.length > 0) {
+        return earlyHints({ link: hints })(c, next);
+      }
+    }
+    return next();
+  });
   const revalidate = etag({ weak: true });
   app.use("*", async (c, next) => {
     await next();
-    if (c.req.method === "GET" && c.res.headers.get("content-type")?.startsWith(HTML_MEDIA_TYPE) === true) {
+    if (c.req.method === "GET" && c.res.status === OK_STATUS && c.res.headers.get("content-type")?.startsWith(HTML_MEDIA_TYPE) === true) {
       // Hono replaces the response on 304; restore the cache policy and negotiated representation key.
       const cacheControl = c.res.headers.get("cache-control");
       const vary = c.res.headers.get("vary");
@@ -83,17 +204,6 @@ export function registerSpa(app: Hono, deps: SpaDeps): void {
     res.headers.set("Cache-Control", value);
     return res;
   };
-
-  // F1 belt: 404 any non-/api request for a source artifact (`.map`/`.ts`/`.tsx`) BEFORE serveStatic can
-  // read it off disk — a plain (non-HTML) 404, matching the /api-miss posture. Fires ahead of the
-  // file-serve and history-fallback handlers below so a re-shipped map never lands. (/api/* .map paths
-  // don't exist, but stay a plain API 404 either way — the belt only owns the static tree.)
-  app.get("*", (c, next) => {
-    if (isApiPath(c.req.path) || !SOURCE_ARTIFACT_EXT.test(c.req.path)) {
-      return next();
-    }
-    return c.notFound();
-  });
 
   // Real files first. serveStatic's own guard rejects traversal (`..` / `\` / `//`, percent-decoded
   // included) and falls through to next() on a miss.
