@@ -16,18 +16,13 @@
 // tooling-size cap; this is one self-contained decision with one seam.
 import process from "node:process";
 import { checkoutName } from "@orb/tooling/_shared/artifacts";
-import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
+import { readConcurrencyProfile, readStageBudgets } from "@orb/tooling/_shared/concurrency-profile";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import type { HostSlotDeps, HostSlotLease, HostSlotPool } from "@orb/tooling/_shared/host-slots";
 import { acquireHostSlot } from "@orb/tooling/_shared/host-slots";
 import type { Tier } from "../contract/stage.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm verify [--push|--full])");
-
-/** A whole `--push` run is long and `--full` is longer, so a second run legitimately waits a long time.
- *  This QUIET-BOX base is load-scaled at acquire time; past it the head of the queue runs as an overflow
- *  run, one at a time, and every later waiter stays queued (_shared/host-slots.ts header). */
-const VERIFY_QUEUE_WAIT_BASE_MS = 2_700_000; // 45 minutes
 
 /** What the queue asks of a run: its tier, for the slot label, and whether it is scoped. */
 export interface WholeRunAsk {
@@ -36,7 +31,8 @@ export interface WholeRunAsk {
 }
 
 /** Take the whole-run slot, or `null` when this run is exempt (scoped, or the profile turned the queue
- *  off). The caller releases in a `finally`.
+ *  off). The quiet-box wait base comes from the concurrency profile and is load-scaled at acquisition;
+ *  past it the queue admits one overflow run while later waiters stay queued. The caller releases in a `finally`.
  *
  *  `deps` exists for the tests: they drive this with their own runtime dir and process table, never the
  *  REAL host pool, where a planted holder would block an operator's live `pnpm check`. */
@@ -44,7 +40,12 @@ export async function enterWholeRunQueue(root: string, run: WholeRunAsk, deps: H
   if (run.scoped || !readConcurrencyProfile().wholeVerifyQueue) {
     return null;
   }
-  const pool: HostSlotPool = { name: "verify", label: `${run.tier} ${checkoutName(root)}`, slots: 1, waitBaseMs: VERIFY_QUEUE_WAIT_BASE_MS };
+  const pool: HostSlotPool = {
+    name: "verify",
+    label: `${run.tier} ${checkoutName(root)}`,
+    slots: 1,
+    waitBaseMs: readStageBudgets().verifyHostSlotWaitMs,
+  };
   const lease = await acquireHostSlot(pool, {
     onQueued: (holder) => process.stderr.write(`[verify] verify: queued behind pid ${String(holder.pid)} since ${holder.startedAt} (${holder.label})\n`),
     onNotice: (message) => process.stderr.write(`[verify] ${message}\n`),

@@ -1369,8 +1369,8 @@ test("a second whole run QUEUES behind a live holder and says whose pid it is be
     pid: 31_002,
     alive: (pid) => pid === 31_001 || pid === 31_002,
     now: () => new Date(clockMs),
-    // The wait is BUDGET-SCALED off a 45-minute base, so a real ceiling would take 45 wall-clock minutes to
-    // reach; the injected clock jumps a day per poll and lands on the overflow arm in one iteration.
+    // The wait is BUDGET-SCALED from the concurrency profile, so a real ceiling would take 90 wall-clock
+    // minutes to reach; the injected clock jumps a day per poll and lands on the overflow arm in one iteration.
     sleep: (ms) => {
       clockMs += ms + 86_400_000;
       return Promise.resolve();

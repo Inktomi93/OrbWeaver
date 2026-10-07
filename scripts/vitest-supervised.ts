@@ -52,7 +52,7 @@
 //      /proc) on each tick: CPU burned anywhere in the tree counts as activity exactly like output does. A
 //      shard is killed only when it has been silent for ORB_TEST_HANG_TIMEOUT_MS (default 300000 = 5 min)
 //      AND the whole tree burned no CPU across that window — which is precisely the true wedge, where every
-//      process sits idle in `ep_poll` at zero CPU. `ORB_TEST_HANG_MAX_MS` (default 30 min) is the absolute
+//      process sits idle in `ep_poll` at zero CPU. `ORB_TEST_HANG_MAX_MS` (default 90 min) is the absolute
 //      ceiling: past it the group dies even if something is still spinning.
 //   3. WEDGE DUMP. Before the kill, `<slot>/test-wedge-<project>-<attempt>-<timestamp>.txt` records the
 //      parent pid, its `/proc` state/wchan/threads, the whole surviving descendant tree with the same per
@@ -118,6 +118,7 @@ import { dirname, isAbsolute, join, resolve as pathResolve, relative } from "nod
 import process from "node:process";
 import type { RunAlias } from "@orb/tooling/_shared/artifacts";
 import { openRunSlot, publishRunSlot, reportsPath, runFile } from "@orb/tooling/_shared/artifacts";
+import { readStageBudgets } from "@orb/tooling/_shared/concurrency-profile";
 import { LOAD_SUSPECT_META_KEY } from "@orb/tooling/_shared/load-budget";
 import { listProcesses, processDiagnostics, processTreeCpuMs } from "@orb/tooling/_shared/platform";
 import { signalOfExitCode } from "@orb/tooling/_shared/proc-signals";
@@ -158,7 +159,7 @@ const NON_VERDICT_PATTERNS = [
 /** CPU jiffies (10 ms each) the process tree must burn between ticks to count as ALIVE. A wedged tree sits
  *  in `ep_poll` at exactly 0; any real work is orders of magnitude above this. */
 const CPU_PROGRESS_JIFFIES = 5;
-const DEFAULT_HARD_CEILING_MS = 1_800_000;
+const DEFAULT_HARD_CEILING_MS = readStageBudgets().vitestHardCeilingMs;
 /** The repo's exit-code contract (`UNIFIED-VERIFICATION-DESIGN.md`): 0 clean · 1 violations · 2 TOOL ERROR
  *  · 3 misuse. A run whose LAST attempt had to be KILLED never finished, so its number is 2 — see the
  *  "A CONTAINED WEDGE IS A TOOL ERROR" note in the header. */

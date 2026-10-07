@@ -314,7 +314,7 @@ test("a run in ANOTHER worktree WAITS for a host slot rather than being refused,
         pid: 9299,
         alive: () => true,
         now: () => new Date(clockMs),
-        // The real ceiling is load-scaled off 45 minutes; the injected clock jumps a day per poll so the
+        // The real ceiling is load-scaled off the configured 90 minutes; the injected clock jumps a day per poll so the
         // overflow arm is reached in one iteration instead of in wall-clock time.
         sleep: (ms) => {
           clockMs += ms + 86_400_000;

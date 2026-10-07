@@ -304,6 +304,8 @@ export function readMachine(): Machine {
  *  · `ctSuiteMs`   → the whole-CT-suite stage, which is the one that outgrew the constant
  *  · `ctHostWaitMs`→ how long a CT run may queue for a host-wide slot (the CT host pool reads it too, so
  *                    the wait a run may spend and the ceiling that must cover it cannot drift apart).
+ *  · `verifyHostSlotWaitMs` → how long a whole verify run may queue before starting as an overflow run.
+ *  · `vitestHardCeilingMs` → Vitest's absolute no-output backstop, even while its process tree burns CPU.
  *  · `ts7HostWaitMs` → how long a whole-program typecheck may queue for a host-wide ts7 slot before the head
  *                    of the queue runs as an overflow run (scripts/ts7.ts).
  *  · `mutationGateMs` → the Stryker mutation stage: a whole-corpus mutant run is measured in HOURS, not
@@ -313,6 +315,8 @@ export interface StageBudgets {
   readonly ctSuiteMs: number;
   readonly toolingSuiteMs: number;
   readonly ctHostWaitMs: number;
+  readonly verifyHostSlotWaitMs: number;
+  readonly vitestHardCeilingMs: number;
   readonly ts7HostWaitMs: number;
   readonly mutationGateMs: number;
 }
@@ -336,7 +340,7 @@ function positiveField(row: Record<string, unknown>, field: string): number {
  *  measured number of WORKER-minutes, so its wall clock is that divided by the workers actually running;
  *  the factor is the slack a HANG detector needs over an honest run (a contended box, a retry pass); and
  *  the host-slot wait is added because a queued run spends it INSIDE the stage's wall clock. The default
- *  is a FLOOR, so shrinking the suite can never leave a stage with a ceiling under 45 minutes. */
+ *  is a FLOOR, so shrinking a suite can never leave a stage with a ceiling under the configured 90 minutes. */
 export function stageBudgetsFor(profile: ConcurrencyProfile, body: string): StageBudgets {
   const budgets = objectAt(parseFile(body)["stageBudgets"], 'has no "stageBudgets" object');
   const defaultMinutes = positiveField(budgets, "defaultMinutes");
@@ -352,6 +356,8 @@ export function stageBudgetsFor(profile: ConcurrencyProfile, body: string): Stag
     toolingSuiteMs: Math.max(defaultMinutes, toolingMinutes) * MS_PER_MINUTE,
     ctSuiteMs: Math.max(defaultMinutes, ctMinutes) * MS_PER_MINUTE,
     ctHostWaitMs: hostWaitMinutes * MS_PER_MINUTE,
+    verifyHostSlotWaitMs: positiveField(budgets, "verifyHostSlotWaitMinutes") * MS_PER_MINUTE,
+    vitestHardCeilingMs: positiveField(budgets, "vitestHardCeilingMinutes") * MS_PER_MINUTE,
     ts7HostWaitMs: positiveField(budgets, "ts7HostSlotWaitMinutes") * MS_PER_MINUTE,
     mutationGateMs: Math.max(defaultMinutes, positiveField(budgets, "mutationGateMinutes")) * MS_PER_MINUTE,
   };
