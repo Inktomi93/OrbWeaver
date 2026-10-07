@@ -15,8 +15,56 @@ const BASIC_OPTION: OrbChartOption = {
   series: [{ type: "bar", data: [1, 2, 3] }],
 };
 
+test("a cold renderer import announces loading and preserves numeric and percentage chart geometry", async ({ mount, page }, testInfo) => {
+  const rendererGate = Promise.withResolvers<void>();
+  let rendererRequests = 0;
+  await page.route("**/assets/chart-renderer-*.js", async (route) => {
+    rendererRequests += 1;
+    await rendererGate.promise;
+    await route.continue();
+  });
+  await page.emulateMedia({ reducedMotion: "no-preference", colorScheme: "dark", forcedColors: "none" });
+  try {
+    const component = await mount(
+      <div style={{ width: 280 }}>
+        <Chart height={160} label="Numeric chart" option={BASIC_OPTION} />
+        <div style={{ display: "flex", flexDirection: "column", height: 400 }}>
+          <Chart height="100%" label="Percentage chart" option={BASIC_OPTION} />
+        </div>
+      </div>,
+    );
+    const numeric = component.locator('[data-slot="chart"]').nth(0);
+    const percentage = component.locator('[data-slot="chart"]').nth(1);
+    await expect.poll(() => rendererRequests).toBe(1);
+    await expect(component.locator("canvas")).toHaveCount(0);
+    await expect(numeric.getByRole("status")).toHaveText("Loading Numeric chart");
+    await expect(percentage.getByRole("status")).toHaveText("Loading Percentage chart");
+    await expect(numeric.locator('[data-slot="web-spinner"] svg')).toBeVisible();
+    await expect(percentage.locator('[data-slot="web-spinner"] svg')).toBeVisible();
+    await expect(component.getByRole("img")).toHaveCount(0);
+    await expect.poll(() => numeric.boundingBox()).toMatchObject({ width: 280, height: 160 });
+    await expect.poll(() => percentage.boundingBox()).toMatchObject({ width: 280, height: 400 });
+    await testInfo.attach("chart-loading", { body: await component.screenshot(), contentType: "image/png" });
+    await testInfo.attach("chart-loading-aria", { body: await component.ariaSnapshot(), contentType: "text/plain" });
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
+    await expect(component.locator('[data-slot="web-spinner"][data-animate]')).toHaveCount(0);
+    await expect(numeric.locator('[data-slot="web-spinner"] svg')).toBeVisible();
+    rendererGate.resolve();
+    await expect(numeric.locator("canvas")).toBeVisible();
+    await expect(percentage.locator("canvas")).toBeVisible();
+    await expect(component.getByRole("status")).toHaveCount(0);
+    await expect(numeric.getByRole("img", { name: "Numeric chart", exact: true })).toBeVisible();
+    await expect(percentage.getByRole("img", { name: "Percentage chart", exact: true })).toBeVisible();
+    await expect.poll(() => numeric.locator("canvas").boundingBox()).toMatchObject({ width: 280, height: 160 });
+    await expect.poll(() => percentage.locator("canvas").boundingBox()).toMatchObject({ width: 280, height: 400 });
+  } finally {
+    rendererGate.resolve();
+  }
+});
+
 test("renders and exposes its accessible name via ECharts' native aria component", async ({ mount }) => {
   const component = await mount(<Chart label="Widget usage" option={BASIC_OPTION} />);
+  await expect(component.locator("canvas")).toBeVisible();
   await expect(component.getByRole("img", { name: "Widget usage" })).toBeVisible();
 });
 

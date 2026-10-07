@@ -18,6 +18,7 @@ import type { ResponseMeta } from "@trpc/server/http";
 import type { Context, MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { timing } from "hono/timing";
 import type { ExportService } from "#domain/export";
 import type { SettleImportMemory } from "#domain/import";
 import type { ImportCardScripts } from "#domain/regex";
@@ -252,8 +253,9 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   // Hono's onError is the only hook for a handler that throws without returning a Response; without this
   // the request-root span would seal as "ok" and the error would bypass pino/`/api/_debug`.
   app.onError(observabilityErrorHandler);
+  app.use("*", timing({ totalDescription: "Response preparation" }));
 
-  // Security headers first so every response — including the allowlist 403 below — carries them. The CSP's
+  // Security headers cover every response — including the allowlist 403 below. The CSP's
   // external-media allowance is read PER REQUEST off the live resolved config, so flipping the admin
   // "Block external media" setting changes the very next response's header (see security-headers.ts).
   app.use(

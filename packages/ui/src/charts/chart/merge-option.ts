@@ -3,6 +3,9 @@
 // component-test RPC boundary, so the reduced-motion/aria wiring is proven here instead).
 import type { OrbChartOption } from "./echarts-setup.ts";
 
+/** Shared axis-label bounds, independent from ECharts runtime registration. */
+export const AXIS_LABEL_OUTER_BOUNDS = { outerBoundsMode: "same", outerBoundsContain: "axisLabel" } as const;
+
 export interface MergeChartOptionParams {
   readonly label: string;
   readonly reducedMotion: boolean;

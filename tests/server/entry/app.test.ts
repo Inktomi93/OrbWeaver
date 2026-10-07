@@ -151,6 +151,15 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
 }
 
 describe("createApp", () => {
+  test("reports response preparation timing on successful and refused responses", async () => {
+    const app = createApp(deps({}));
+    for (const path of ["/healthz", "/api/no-such-route"]) {
+      const res = await hit(app, new Request(`http://localhost${path}`));
+      expect(res.headers.get("server-timing")).toMatch(/total;dur=\d+(?:\.\d+)?;desc="Response preparation"/);
+      expect(res.headers.get("timing-allow-origin")).toBeNull();
+    }
+  });
+
   test("GET /healthz → 200 ok when live", async () => {
     const app = createApp(deps({}));
     const res = await hit(app, new Request("http://localhost/healthz"));

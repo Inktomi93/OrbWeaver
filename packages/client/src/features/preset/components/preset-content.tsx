@@ -6,26 +6,10 @@
 // CONTEXT readout the thing that answers, and on a narrow/mobile regime that panel is a closed sheet. It
 // names no tab — the Presets CONTEXT is a single per-view readout (§7), not a tab strip.
 
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { lazy, Suspense } from "react";
 import { revealContextPanel, useSelectedPresetId } from "#state";
-import type { PresetEditorSurfaceProps } from "../surfaces/preset-editor-surface.tsx";
+import { PresetEditorSurface } from "./lazy-preset-editor.tsx";
 import { PresetLibraryWelcome } from "./preset-library-welcome.tsx";
-
-// The public entry shares this lazy boundary so re-exporting the editor cannot make its tree eager.
-const LazyPresetEditorSurface = lazy(async () => {
-  const mod = await import("../surfaces/preset-editor-surface.tsx");
-  return { default: mod.PresetEditorSurface };
-});
-
-export function PresetEditorSurface(props: PresetEditorSurfaceProps): ReactElement {
-  return (
-    <Suspense fallback={<Text voice="gloss">Loading the preset…</Text>}>
-      <LazyPresetEditorSurface {...props} />
-    </Suspense>
-  );
-}
 
 export function PresetContent(): ReactElement {
   const selectedPresetId = useSelectedPresetId();

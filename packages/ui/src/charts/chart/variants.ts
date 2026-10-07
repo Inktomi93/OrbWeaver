@@ -4,6 +4,7 @@ import { tv } from "#lib";
 export const chartVariants = tv({
   slots: {
     root: "relative w-full",
+    loading: "flex items-center justify-center text-muted-foreground",
   },
   variants: {
     /** The wrapper CARRIES a percentage height instead of passing it inward (see `chart.tsx`'s `fill`
