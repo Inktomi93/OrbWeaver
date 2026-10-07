@@ -708,3 +708,36 @@ describe("startChat — temporary rooms are HIDDEN from the library", () => {
     expect(await db.select().from(chats).where(eq(chats.id, temp.chat.id))).toHaveLength(1);
   });
 });
+
+describe("startChat — a blank start seats the welcome assistant", () => {
+  test("no characters seats the caller's welcome assistant and seeds its greeting", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const helper = await seedCharacter(db, host, "helper");
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardWith("Helper", "How can I help?")),
+      resolveWelcomeAssistantId: () => Promise.resolve(helper),
+    });
+    const { startChat } = createStartChat(ctx, makeDeps());
+
+    const { chat } = await startChat({ principal: principal(host), characterIds: [] });
+
+    const seats = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chat.id));
+    expect(seats.filter((s) => s.kind === "character").map((s) => s.characterId)).toEqual([helper]);
+    expect(await db.select().from(messages).where(eq(messages.chatId, chat.id))).toHaveLength(1);
+  });
+
+  test("an unset or unreadable welcome assistant leaves the room character-free", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const gone = castId<CharacterId>("character_gone");
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(null),
+      resolveWelcomeAssistantId: () => Promise.resolve(gone),
+    });
+    const { startChat } = createStartChat(ctx, makeDeps());
+
+    const { chat } = await startChat({ principal: principal(host), characterIds: [] });
+
+    const seats = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chat.id));
+    expect(seats.filter((s) => s.kind === "character")).toEqual([]);
+  });
+});

@@ -1541,10 +1541,16 @@ export interface ChatContext {
    *  FOREIGN-inputs seam: chat never reads the settings domain; wired at compose from `loadUserSettings`).
    *  Always resolves (the setting is `.default`ed); `reapTemporaryChats` converts hours→ms for its cutoff. */
   readonly resolveTempChatTtlHours: ResolveTempChatTtlHoursOp;
+  /** The caller's `UserSettings.seeds.welcomeAssistantCharacterId` — the card a chat started with no characters
+   *  seats, so a blank chat still has someone to answer. Raw and unvalidated: the start verb reads the card. */
+  readonly resolveWelcomeAssistantId: ResolveWelcomeAssistantIdOp;
 }
 
 /** Resolve a user's temporary-chat reap TTL in HOURS (`UserSettings.chat.tempChatTtlHours`). */
 type ResolveTempChatTtlHoursOp = (userId: UserId) => Promise<number>;
+
+/** Resolve a user's welcome assistant card id, or null when unset. */
+type ResolveWelcomeAssistantIdOp = (userId: UserId) => Promise<CharacterId | null>;
 
 /** What `createChatService` receives from the entry root: collaborators not on {@link ChatContext} and not
  *  built inside the composition root. */

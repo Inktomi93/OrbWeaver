@@ -20,7 +20,7 @@ import { characterPersonas, chatParticipants, personas, users } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type { BindingActor, ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, ChatTurnInput, Resolved, RoleClientsWithSignal } from "@orb/inference";
 import { carriesStructured, NoConnectionError, toChatRequest, unavailableRefusal } from "@orb/inference";
-import type { AssetId, ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
@@ -1524,6 +1524,10 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     getRoomOverrides: (rawMetadata) => getRoomOverrides(rawMetadata),
     // ⑧(a) — the caller's temporary-chat reap TTL (hours), from the settings domain via the FOREIGN op.
     resolveTempChatTtlHours: async (userId) => (await input.settings.loadUserSettings(userId)).chat.tempChatTtlHours,
+    resolveWelcomeAssistantId: async (userId) => {
+      const id = (await input.settings.loadUserSettings(userId)).seeds.welcomeAssistantCharacterId;
+      return id === null ? null : castId<CharacterId>(id);
+    },
     // B7 — the VERB-TIME half of the reaction-posture resolve (the reaction verbs gate on the PRESENT
     // host's per-user defaults; the turn path reads the same two fields off `chatBehavior` below). The
     // same settings FOREIGN op as its TTL neighbour — chat never imports settings.

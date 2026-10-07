@@ -128,18 +128,15 @@ test("a selected scripted page distinguishes booting from a ready guest with no 
     "assets.resolveBlobRefs": () => [],
     "sessions.me": () => USER_VIEWER,
   });
-  let releaseSource = (): void => {
-    throw new Error("the plugin source request did not start");
-  };
+  const requestGate = Promise.withResolvers<() => void>();
   await page.route("**/api/plugin-ui/**", async (route) => {
-    await new Promise<void>((resolve) => {
-      releaseSource = resolve;
-    });
+    await new Promise<void>((release) => requestGate.resolve(release));
     await route.fulfill({ status: 200, contentType: "application/octet-stream", body: "orb.ui(1);" });
   });
 
   await mount(<ExtensionsPageStory selectKey={{ pluginId: PAGE_PLUGIN_ID, surfaceId: surface.id }} />);
   await expect(page.getByText("Loading plugin content…", { exact: true })).toBeVisible();
+  const releaseSource = await requestGate.promise;
   releaseSource();
   await expect(page.getByText("This plugin has no content to show here yet.", { exact: true })).toBeVisible({ timeout: GUEST_BOOT_TIMEOUT_MS });
   await expect(page.getByTestId("plugin-page-attribution")).toContainText("Page Plugin");

@@ -5,6 +5,16 @@ import { Button } from "@orb/ui/button";
 import { SelectionBar } from "@orb/ui/selection-bar";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
+
+async function flushCallbackDelivery(page: Page): Promise<void> {
+  await page.exposeFunction("__selectionCallbackBarrier", (): void => undefined);
+  // A browser action acknowledges input, not delivery of CT's fire-and-forget Node callbacks.
+  await page.evaluate(async () => {
+    const bridge = globalThis as typeof globalThis & { __selectionCallbackBarrier: () => Promise<void> };
+    await bridge.__selectionCallbackBarrier();
+  });
+}
 
 test("placement variants ride the token surface (sticky vs floating)", async ({ mount }) => {
   const sticky = await mount(<SelectionBar count={1} onClear={(): void => undefined} />);
@@ -25,26 +35,32 @@ test("the count region is aria-live polite", async ({ mount }) => {
 });
 
 test("the clear button fires onClear", async ({ mount, page }) => {
-  let cleared = false;
+  let clears = 0;
+  const delivered = Promise.withResolvers<void>();
   await mount(
     <SelectionBar
       count={2}
       onClear={(): void => {
-        cleared = true;
+        clears += 1;
+        delivered.resolve();
       }}
     />,
   );
   await page.getByRole("button", { name: "Clear selection" }).click();
-  expect(cleared).toBe(true);
+  await delivered.promise;
+  await flushCallbackDelivery(page);
+  expect(clears).toBe(1);
 });
 
 test("Escape fires onClear when focus is within the bar", async ({ mount, page }) => {
-  let cleared = false;
+  let clears = 0;
+  const delivered = Promise.withResolvers<void>();
   await mount(
     <SelectionBar
       count={2}
       onClear={(): void => {
-        cleared = true;
+        clears += 1;
+        delivered.resolve();
       }}
     >
       <button type="button">Archive</button>
@@ -52,25 +68,28 @@ test("Escape fires onClear when focus is within the bar", async ({ mount, page }
   );
   await page.getByRole("button", { name: "Archive" }).focus();
   await page.keyboard.press("Escape");
-  expect(cleared).toBe(true);
+  await delivered.promise;
+  await flushCallbackDelivery(page);
+  expect(clears).toBe(1);
 });
 
 test("Escape does nothing when focus is outside the bar", async ({ mount, page }) => {
-  let cleared = false;
+  let clears = 0;
   await mount(
     <div>
       <input data-testid="outside" />
       <SelectionBar
         count={2}
         onClear={(): void => {
-          cleared = true;
+          clears += 1;
         }}
       />
     </div>,
   );
   await page.getByTestId("outside").focus();
   await page.keyboard.press("Escape");
-  expect(cleared).toBe(false);
+  await flushCallbackDelivery(page);
+  expect(clears).toBe(0);
 });
 
 test("the actions slot renders the caller's children", async ({ mount, page }) => {

@@ -553,6 +553,14 @@
   },
   "overrides": [
     {
+      "includes": ["packages/plugin-sdk/package.json", "packages/plugin-toolchain/package.json"],
+      "json": {
+        "formatter": {
+          "expand": "always"
+        }
+      }
+    },
+    {
       "includes": [
         "packages/db/src/schema/**",
         "packages/server/src/transport/trpc/routers/**",

@@ -565,6 +565,10 @@ test("an endpoint lists its models and the pick is saved as listed; a failed lis
   // id, so nothing is highlighted until the arrow.
   const search = dialog.getByRole("combobox", { name: "Search 127.0.0.1:8000 models" });
   await search.fill("8B");
+  // The picker defers filtering; no highlight alone does not mean the new results have landed.
+  const firstResult = dialog.getByRole("option").first();
+  await expect(firstResult).toBeVisible();
+  await expect(firstResult).toContainText("Qwen/Qwen3-8B");
   await expect(dialog.locator('[role="option"][aria-selected="true"]')).toHaveCount(0);
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Enter");

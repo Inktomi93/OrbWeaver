@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-06
+updated: 2026-10-07
 priority: P2
 area: security
 ---
@@ -10,11 +10,11 @@ area: security
 
 ## What
 
-CodeQL security-extended reports 12 open alerts outside tests: request forgery in tooling/src/snap/ops/materialize-devtools.ts:78 (critical); tainted format strings in packages/client/src/lib/long-task-tracer.ts (199, 208, 238, 250); polynomial ReDoS in packages/client/src/lib/download-json.ts:76 and packages/ui/src/tokens/index.ts:304; incomplete sanitization in packages/server/src/domain/character/substrate/embed-text.ts:31 and tooling/src/verify/ops/gen/active-gates-index.ts:131; bad code sanitization in packages/server/src/entry/http/plugin-frame.ts:163 and tooling/src/cpu-profile/ops/boot-trace.ts:192.
+Classify the open CodeQL findings for generated Unicode content and the local debug-token request. Preserve source evidence for each disposition.
 
 ## Why
 
-The repository is public and the Security tab shows these to anyone; plugin-frame.ts and embed-text.ts sit on product trust boundaries.
+A successful scan can publish findings. Review the actual source and destination before changing code or dismissing an alert.
 
 ## Done when
 
@@ -22,4 +22,8 @@ Each alert is fixed in code, or dismissed in GitHub code scanning with a reason 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+`tooling/src/verify/ops/gen/unicode-handle-key.ts` validates fetched content against pinned hashes before writing to a fixed path.
+
+`tooling/src/stack/ops/prod-state.ts` sends the debug token to loopback after matching the listener process with the recorded process.
+
+These flows have source evidence for false-positive dispositions. The alerts remain open; no dismissal occurred.
