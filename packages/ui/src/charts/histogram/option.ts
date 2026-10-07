@@ -1,8 +1,8 @@
 // Pure ECharts option builder behind <Histogram> — split out (no React/echarts-for-react import) so
 // it's cheaply unit-testable. Chrome colors arrive as concrete resolved values, never var() literals.
 import type { OrbChartOption } from "../chart/echarts-setup.ts";
-import { AXIS_LABEL_OUTER_BOUNDS } from "../chart/echarts-setup.ts";
 import { CHART_LABEL_FONT_FAMILY, CHART_LABEL_FONT_SIZE_PX } from "../chart/label-metrics.ts";
+import { AXIS_LABEL_OUTER_BOUNDS } from "../chart/merge-option.ts";
 import type { ChartColors } from "../chart/use-chart-theme.ts";
 
 export interface HistogramBucket {

@@ -7,7 +7,7 @@
 // `onPointClick` (that click→id resolution is why this primitive exists: raw SVG scatters can't be made
 // interactive under the feature belt).
 import type { OrbChartOption } from "../chart/echarts-setup.ts";
-import { AXIS_LABEL_OUTER_BOUNDS } from "../chart/echarts-setup.ts";
+import { AXIS_LABEL_OUTER_BOUNDS } from "../chart/merge-option.ts";
 import type { ChartColors } from "../chart/use-chart-theme.ts";
 
 export interface ScatterPoint {

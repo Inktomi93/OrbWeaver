@@ -7,7 +7,8 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { registerSpa, resolveSpaDistDir } from "@orb/server/entry/http";
+import { brotliCompressSync, brotliDecompressSync, gunzipSync, gzipSync, zstdCompressSync, zstdDecompressSync } from "node:zlib";
+import { registerSpa, resolveSpaDistDir, securityHeaders } from "@orb/server/entry/http";
 import { Hono } from "hono";
 import { afterAll, beforeAll, describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -16,12 +17,14 @@ const OK = 200;
 const NOT_FOUND = 404;
 const INDEX_HTML = "<!doctype html><title>orb</title>";
 const HASHED_JS = "console.log('hashed')";
+const LARGE_HASHED_JS = HASHED_JS.repeat(256);
 const NAV_HEADERS = { accept: "text/html,application/xhtml+xml" };
 /** The shipped directive, in the shape a crawler must receive — never an HTML document. */
 const ROBOTS_TXT = "User-agent: *\nDisallow: /\n";
 
 let distDir: string;
 let app: Hono;
+let hinted: Hono;
 
 const SECRET_CONTENTS = "top-secret-outside-the-bundle";
 let secretPath: string;
@@ -29,12 +32,19 @@ let secretPath: string;
 beforeAll(async () => {
   distDir = await mkdtemp(join(tmpdir(), "orb-spa-"));
   await writeFile(join(distDir, "index.html"), INDEX_HTML);
+  await writeFile(join(distDir, "index.html.br"), brotliCompressSync(INDEX_HTML));
   await mkdir(join(distDir, "assets"));
   await writeFile(join(distDir, "assets", "app-abc123.js"), HASHED_JS);
+  await writeFile(join(distDir, "assets", "large-abc123.js"), LARGE_HASHED_JS);
+  await writeFile(join(distDir, "assets", "precompressed-abc123.js"), LARGE_HASHED_JS);
+  await writeFile(join(distDir, "assets", "precompressed-abc123.js.br"), brotliCompressSync(LARGE_HASHED_JS));
+  await writeFile(join(distDir, "assets", "precompressed-abc123.js.gz"), gzipSync(LARGE_HASHED_JS));
+  await writeFile(join(distDir, "assets", "precompressed-abc123.js.zst"), zstdCompressSync(LARGE_HASHED_JS));
   // F1 belt teeth: a sourcemap + a raw source file that REALLY exist in the served dir — without the
   // belt serveStatic would 200 them (a re-shipped map leaks all of `src/**` via sourcesContent). The
   // belt must 404 them despite their presence on disk.
   await writeFile(join(distDir, "assets", "app-abc123.js.map"), '{"version":3,"sourcesContent":["SECRET SOURCE"]}');
+  await writeFile(join(distDir, "assets", "app-abc123.js.map.gz"), gzipSync("SECRET SOURCE"));
   await writeFile(join(distDir, "assets", "leak.ts"), "export const secret = 1;");
   // public/-copied files are name-stable (NOT hashed) — must revalidate.
   await mkdir(join(distDir, "backgrounds"));
@@ -50,9 +60,28 @@ beforeAll(async () => {
   await writeFile(secretPath, SECRET_CONTENTS);
 
   app = new Hono();
+  app.use("*", securityHeaders({ dev: false, allowExternalMedia: () => false }));
   // A stand-in API route registered BEFORE the SPA (mirrors app.ts order: SPA is last).
   app.get("/api/known", (c) => c.json({ ok: true }));
   registerSpa(app, { distDir });
+  const hintsDir = join(distDir, "hinted");
+  await mkdir(join(hintsDir, "assets"), { recursive: true });
+  await writeFile(join(hintsDir, "assets", "entry-abc.js"), HASHED_JS);
+  await writeFile(join(hintsDir, "assets", "style-abc.css"), "body{color:inherit}");
+  await writeFile(join(hintsDir, "robots.txt"), ROBOTS_TXT);
+  await writeFile(
+    join(hintsDir, "index.html"),
+    `<!doctype html>
+    <!-- <link rel="modulepreload" href="/assets/comment.js"> -->
+    <script src="/assets/entry-abc.js" type="module"></script>
+    <link href="/assets/style-abc.css" rel="stylesheet">
+    <link rel="modulepreload" href="/assets/entry-abc.js">
+    <link rel="stylesheet" href="https://example.com/assets/style-abc.css">
+    <link rel="modulepreload" href="/assets/missing.js">`,
+  );
+  hinted = new Hono();
+  hinted.get("/api/known", (c) => c.json({ ok: true }));
+  registerSpa(hinted, { distDir: hintsDir });
 });
 
 afterAll(async () => {
@@ -61,6 +90,160 @@ afterAll(async () => {
 });
 
 describe("registerSpa", () => {
+  test.each([
+    ["GET", "*/*"],
+    ["GET", "text/html"],
+    ["HEAD", "*/*"],
+    ["HEAD", "text/html"],
+  ])("refuses a decoded NUL filename before file lookup: %s %s", async (method, accept) => {
+    const res = await app.request("/assets/app-abc123.js%00", { method, headers: { accept } });
+    expect(res.status).toBe(NOT_FOUND);
+    expect(await res.text()).toBe(method === "HEAD" ? "" : "404 Not Found");
+  });
+
+  test.each([
+    ["zstd;q=1, br;q=0.5", "zstd"],
+    ["gzip;q=1, br;q=0.1", "gzip"],
+    ["BR;q=1, gzip;q=0.5", "br"],
+    ["*;q=1, br;q=0", "zstd"],
+    ["identity;q=1, gzip;q=0.5", null],
+  ])("honors encoding preferences: %s", async (encoding, expected) => {
+    const res = await app.request("/assets/precompressed-abc123.js", { headers: { "accept-encoding": encoding } });
+    expect(res.headers.get("content-encoding")).toBe(expected);
+    const bytes = Buffer.from(await res.arrayBuffer());
+    let decoded = bytes;
+    if (expected === "zstd") {
+      decoded = zstdDecompressSync(bytes);
+    } else if (expected === "br") {
+      decoded = brotliDecompressSync(bytes);
+    } else if (expected === "gzip") {
+      decoded = gunzipSync(bytes);
+    }
+    expect(decoded.toString()).toBe(LARGE_HASHED_JS);
+  });
+
+  test("refuses a request that explicitly rejects every available representation", async () => {
+    const res = await app.request("/assets/precompressed-abc123.js", { headers: { "accept-encoding": "*;q=0, identity;q=0" } });
+    expect(res.status).toBe(406);
+  });
+
+  test("does not promise runtime compression for a byte-range response", async () => {
+    const res = await app.request("/assets/large-abc123.js", { headers: { "accept-encoding": "gzip, identity;q=0", range: "bytes=0-9" } });
+    expect(res.status).toBe(406);
+  });
+
+  test("a precompressed byte range describes and returns the encoded representation", async () => {
+    const res = await app.request("/assets/precompressed-abc123.js", { headers: { "accept-encoding": "br, identity;q=0", range: "bytes=0-9" } });
+    const encoded = brotliCompressSync(LARGE_HASHED_JS);
+    expect(res.status).toBe(206);
+    expect(res.headers.get("content-encoding")).toBe("br");
+    expect(res.headers.get("content-range")).toBe(`bytes 0-9/${encoded.length}`);
+    expect(Buffer.from(await res.arrayBuffer())).toEqual(encoded.subarray(0, 10));
+  });
+
+  test("serves build-time Brotli bytes ahead of gzip when both are accepted", async () => {
+    const res = await app.request("/assets/precompressed-abc123.js", { headers: { "accept-encoding": "gzip, br" } });
+    expect(res.headers.get("content-encoding")).toBe("br");
+    const compressed = Buffer.from(await res.arrayBuffer());
+    expect(compressed).toEqual(brotliCompressSync(LARGE_HASHED_JS));
+    expect(brotliDecompressSync(compressed).toString()).toBe(LARGE_HASHED_JS);
+    expect(res.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+  });
+
+  test.each(["/", "/index.html", "/chats/example"])("revalidates the HTML shell at %s with a body-free 304", async (path) => {
+    const first = await app.request(path, { headers: NAV_HEADERS });
+    const tag = first.headers.get("etag");
+    expect(tag).toBeTruthy();
+    const cached = await app.request(path, { headers: { ...NAV_HEADERS, "if-none-match": tag ?? "" } });
+    expect(cached.status).toBe(304);
+    expect(await cached.text()).toBe("");
+    expect(cached.headers.get("cache-control")).toBe("no-cache");
+    expect(cached.headers.get("etag")).toBe(tag);
+    expect(cached.headers.get("content-security-policy")).toContain("script-src 'self'");
+  });
+
+  test("compresses a negotiated static bundle and preserves its immutable cache", async () => {
+    const res = await app.request("/assets/large-abc123.js", { headers: { "accept-encoding": "gzip" } });
+    expect(res.status).toBe(OK);
+    expect(res.headers.get("content-encoding")).toBe("gzip");
+    expect(res.headers.get("vary")).toContain("Accept-Encoding");
+    expect(res.headers.get("content-length")).toBeNull();
+    expect(res.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+    expect(res.headers.get("content-security-policy")).toContain("script-src 'self'");
+    const compressed = Buffer.from(await res.arrayBuffer());
+    expect(compressed.byteLength).toBeLessThan(Buffer.byteLength(LARGE_HASHED_JS));
+    expect(gunzipSync(compressed).toString()).toBe(LARGE_HASHED_JS);
+  });
+
+  test.each([undefined, "identity", "gzip;q=0, br;q=0, deflate;q=0"])("keeps the original bytes when compression is not accepted: %s", async (encoding) => {
+    const res = await app.request("/assets/precompressed-abc123.js", { headers: encoding === undefined ? {} : { "accept-encoding": encoding } });
+    expect(res.headers.get("content-encoding")).toBeNull();
+    expect(res.headers.get("vary")).toContain("Accept-Encoding");
+    expect(await res.text()).toBe(LARGE_HASHED_JS);
+  });
+
+  test("compressed HTML retains Vary and the cache policy on revalidation", async () => {
+    const headers = { ...NAV_HEADERS, "accept-encoding": "br, gzip" };
+    const first = await app.request("/", { headers });
+    expect(first.headers.get("content-encoding")).toBe("br");
+    const tag = first.headers.get("etag");
+    expect(tag).toBeTruthy();
+    const cached = await app.request("/", { headers: { ...headers, "if-none-match": tag ?? "" } });
+    expect(cached.status).toBe(304);
+    expect(cached.headers.get("vary")).toContain("Accept-Encoding");
+    expect(cached.headers.get("cache-control")).toBe("no-cache");
+    expect(await cached.text()).toBe("");
+  });
+
+  test("a redeployed HTML shell invalidates its old ETag", async () => {
+    const root = join(distDir, "updated");
+    await mkdir(root);
+    await writeFile(join(root, "index.html"), INDEX_HTML);
+    const isolated = new Hono();
+    registerSpa(isolated, { distDir: root });
+    const first = await isolated.request("/", { headers: NAV_HEADERS });
+    const tag = first.headers.get("etag");
+    expect(tag).toBeTruthy();
+    const updated = "<!doctype html><title>updated</title>";
+    await writeFile(join(root, "index.html"), updated);
+    const res = await isolated.request("/", { headers: { ...NAV_HEADERS, "if-none-match": tag ?? "" } });
+    expect(res.status).toBe(OK);
+    expect(res.headers.get("etag")).not.toBe(tag);
+    expect(await res.text()).toBe(updated);
+  });
+
+  test("HTML HEAD does not advertise an ETag computed from its empty response body", async () => {
+    const res = await app.request("/", { method: "HEAD", headers: NAV_HEADERS });
+    expect(res.status).toBe(OK);
+    expect(res.headers.get("etag")).toBeNull();
+    expect(await res.text()).toBe("");
+  });
+
+  test("preserves byte-range responses without compression", async () => {
+    const res = await app.request("/assets/large-abc123.js", { headers: { "accept-encoding": "gzip", range: "bytes=0-9" } });
+    expect(res.status).toBe(206);
+    expect(res.headers.get("content-encoding")).toBeNull();
+    expect(res.headers.get("content-range")).toBe(`bytes 0-9/${Buffer.byteLength(LARGE_HASHED_JS)}`);
+    expect(await res.text()).toBe(LARGE_HASHED_JS.slice(0, 10));
+  });
+
+  test("HEAD keeps its original content length and no response body", async () => {
+    const res = await app.request("/assets/large-abc123.js", { method: "HEAD", headers: { "accept-encoding": "gzip" } });
+    expect(res.status).toBe(OK);
+    expect(res.headers.get("content-encoding")).toBeNull();
+    expect(res.headers.get("content-length")).toBe(String(Buffer.byteLength(LARGE_HASHED_JS)));
+    expect(await res.text()).toBe("");
+  });
+
+  test("does not compress an API response registered before the SPA", async () => {
+    const isolated = new Hono();
+    isolated.get("/api/stream", (c) => c.body(LARGE_HASHED_JS, OK, { "content-type": "text/event-stream" }));
+    registerSpa(isolated, { distDir });
+    const res = await isolated.request("/api/stream", { headers: { "accept-encoding": "gzip" } });
+    expect(res.headers.get("content-encoding")).toBeNull();
+    expect(await res.text()).toBe(LARGE_HASHED_JS);
+  });
+
   test("a hashed /assets/* file serves with the long immutable cache", async () => {
     const res = await app.request("/assets/app-abc123.js");
     expect(res.status).toBe(OK);
@@ -178,5 +361,64 @@ describe("resolveSpaDistDir", () => {
 
   test("missing bundle in prod is boot-fatal (an API-only origin must not pose as the app)", () => {
     expect(() => resolveSpaDistDir({ distDir: join(distDir, "nope"), prod: true })).toThrow("no client bundle");
+  });
+});
+
+describe("SPA early hints", () => {
+  test("refreshes hints when a deployment replaces the HTML while the server stays up", async () => {
+    const root = join(distDir, "redeployed-hints");
+    await mkdir(join(root, "assets"), { recursive: true });
+    await writeFile(join(root, "assets", "old.js"), HASHED_JS);
+    await writeFile(join(root, "assets", "new.js"), HASHED_JS);
+    await writeFile(join(root, "index.html"), '<script type="module" src="/assets/old.js"></script>');
+    const isolated = new Hono();
+    registerSpa(isolated, { distDir: root });
+    const sent: string[][] = [];
+    const bindings = {
+      outgoing: {
+        headersSent: false,
+        writeEarlyHints: ({ link }: { link: string[] }): void => {
+          sent.push(link);
+        },
+      },
+    };
+    await isolated.fetch(new Request("http://localhost/", { headers: NAV_HEADERS }), bindings);
+    await writeFile(join(root, "index.html"), '<script type="module" src="/assets/new.js"></script>');
+    await isolated.fetch(new Request("http://localhost/", { headers: NAV_HEADERS }), bindings);
+    expect(sent).toEqual([["</assets/old.js>; rel=modulepreload; crossorigin"], ["</assets/new.js>; rel=modulepreload; crossorigin"]]);
+  });
+
+  test.each([
+    ["/", "GET", {}, true],
+    ["/chats/example", "GET", {}, true],
+    ["/assets/entry-abc.js", "GET", {}, false],
+    ["/api/known", "GET", {}, false],
+    ["/api/missing", "GET", {}, false],
+    ["/robots.txt", "GET", {}, false],
+    ["/", "HEAD", {}, false],
+    ["/", "GET", { "if-none-match": "cached" }, false],
+    ["/", "GET", { "sec-fetch-mode": "cors" }, false],
+    ["/", "GET", { "sec-fetch-dest": "iframe" }, false],
+  ])("hints only eligible document navigations: %s %s %j", async (path, method, headers, eligible) => {
+    const sent: string[][] = [];
+    await hinted.fetch(new Request(`http://localhost${path}`, { method, headers: { ...NAV_HEADERS, ...headers } }), {
+      outgoing: {
+        headersSent: false,
+        writeEarlyHints: ({ link }: { link: string[] }): void => {
+          sent.push(link);
+        },
+      },
+    });
+    const expected = eligible
+      ? [["</assets/entry-abc.js>; rel=modulepreload; crossorigin", "</assets/style-abc.css>; rel=preload; as=style; crossorigin"]]
+      : [];
+    expect(sent).toEqual(expected);
+  });
+});
+
+describe("source artifacts", () => {
+  test.each(["/assets/app-abc123%2Ejs%2Emap", "/assets/app-abc123.js.map.gz"])("blocks source copies at %s", async (path) => {
+    const res = await app.request(path, { headers: NAV_HEADERS });
+    expect(res.status).toBe(NOT_FOUND);
   });
 });
