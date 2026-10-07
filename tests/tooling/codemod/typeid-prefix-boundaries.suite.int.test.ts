@@ -1,3 +1,4 @@
+import { basename } from "node:path";
 import { migrateTypeIdBoundarySchemas } from "../../../scripts/codemods/typeid-prefix-boundaries.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { withTree } from "./_kit-tree.ts";
@@ -13,6 +14,30 @@ export type UserId = Branded<"UserId">;
 export function brandedId<T extends Branded<string>>(): T { throw new Error("fixture"); }
 export function typeIdSchema<P extends string>(_prefix: P): TypeIdOf<P> { throw new Error("fixture"); }
 `;
+
+const ALIASED_SUBJECT =
+  'import { brandedId, type ChatId as MigratedChatId } from "../../kit/src/ids/index.ts";\n' +
+  'import type { ChatId as SurvivingChatId } from "../../kit/src/ids/index.ts";\n' +
+  "export const room = brandedId<MigratedChatId>();\n" +
+  "export type Keep = SurvivingChatId;\n" +
+  "export const checked: SurvivingChatId = room;\n";
+const ALIASED_FILES = {
+  "tsconfig.json": JSON.stringify({
+    compilerOptions: {
+      target: "es2022",
+      lib: ["es2022"],
+      types: [],
+      module: "esnext",
+      moduleResolution: "bundler",
+      allowImportingTsExtensions: true,
+      strict: true,
+      noEmit: true,
+      paths: { "@orb/kit/ids": ["./packages/kit/src/ids/index.ts"] },
+    },
+  }),
+  "packages/kit/src/ids/index.ts": IDS,
+  "packages/server/src/aliased.ts": ALIASED_SUBJECT,
+};
 
 function runMigration(ctx: Parameters<typeof migrateTypeIdBoundarySchemas>[0]): void {
   ctx.plan(migrateTypeIdBoundarySchemas(ctx));
@@ -51,29 +76,24 @@ test("checker-resolved TypeIDs migrate through a renamed barrel while prefixless
 });
 
 test("a surviving alias for the same exported TypeID keeps its import binding", async () => {
-  const subject =
-    'import { brandedId, type ChatId as MigratedChatId } from "../../kit/src/ids/index.ts";\n' +
-    'import type { ChatId as SurvivingChatId } from "../../kit/src/ids/index.ts";\n' +
-    "export const room = brandedId<MigratedChatId>();\n" +
-    "export type Keep = SurvivingChatId;\n";
   await withTree(
-    {
-      "tsconfig.json": JSON.stringify({
-        compilerOptions: {
-          target: "es2022",
-          module: "esnext",
-          moduleResolution: "bundler",
-          allowImportingTsExtensions: true,
-          strict: true,
-          noEmit: true,
-          paths: { "@orb/kit/ids": ["./packages/kit/src/ids/index.ts"] },
-        },
-      }),
-      "packages/kit/src/ids/index.ts": IDS,
-      "packages/server/src/aliased.ts": subject,
-    },
+    ALIASED_FILES,
     async ({ read, run }) => {
-      const { result } = await run(runMigration, { apply: true });
+      const { result } = await run(
+        (ctx) => {
+          const programs = ctx.semantic().programs.map((program) => program.project().getProgram().compilerObject);
+          const libraries = programs.flatMap((program) =>
+            program
+              .getSourceFiles()
+              .filter((source) => program.isSourceFileDefaultLibrary(source))
+              .map((source) => basename(source.fileName)),
+          );
+          expect(libraries).toContain("lib.es2022.d.ts");
+          expect(libraries).not.toContain("lib.dom.d.ts");
+          runMigration(ctx);
+        },
+        { apply: true },
+      );
 
       expect(result.diagnosticErrors).toBe(0);
       const output = read("packages/server/src/aliased.ts");
@@ -81,6 +101,18 @@ test("a surviving alias for the same exported TypeID keeps its import binding", 
       expect(output).toContain("ChatId as SurvivingChatId");
       expect(output).not.toContain("ChatId as MigratedChatId");
       expect(output).toContain("export type Keep = SurvivingChatId");
+      expect(output).toContain("export const checked: SurvivingChatId = room");
+    },
+    { skipDiagnosticsCheck: false },
+  );
+});
+
+test("the ES-only fixture still refuses a migration that breaks the surviving TypeID binding", async () => {
+  await withTree(
+    { ...ALIASED_FILES, "packages/kit/src/ids/index.ts": IDS.replace("(_prefix: P): TypeIdOf<P>", '(_prefix: P): TypeIdOf<"persona">') },
+    async ({ read, run }) => {
+      await expect(run(runMigration, { apply: true })).rejects.toThrow("Refused to apply: 1 TypeScript diagnostic(s)");
+      expect(read("packages/server/src/aliased.ts")).toBe(ALIASED_SUBJECT);
     },
     { skipDiagnosticsCheck: false },
   );
