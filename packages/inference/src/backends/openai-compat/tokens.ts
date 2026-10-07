@@ -1,6 +1,6 @@
 // What a word tokenizes to on one server (`features.tokenizeApi`), cached per (server URL, model, word) in memory and
-// beside the endpoint facts, so neither a turn nor a restart asks twice. A failed word is reported, never cached,
-// and never fails the caller: the turn drops that bias entry with a warning.
+// beside the endpoint facts, so neither a turn nor a restart asks twice. Ordinary tokenize failures drop the
+// bias entry with a warning and are never cached; cancellation aborts the turn.
 
 import type { TokenizeApi, WordTokens } from "@orb/contracts/inference";
 import { TOKEN_ID_KEY } from "@orb/contracts/inference";
@@ -8,6 +8,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
 import { endpointTokensKey, endpointTokensPrefix } from "../../catalog/keys.ts";
 import type { ProviderScrubSet } from "../../contract/errors.ts";
+import { ProviderError } from "../../contract/errors.ts";
 import type { ResolvedSampling, ResolvedWarning } from "../../contract/resolve.ts";
 import type { Resolved } from "../../contract/resolved.ts";
 import type { SnapshotStore } from "../../deps.ts";
@@ -84,7 +85,7 @@ export interface TokenTarget {
 
 export interface TokenLexicon {
   /** Each word's tokens, from the cache where held; every missing word is asked once, in parallel, and cached. */
-  readonly lookup: (target: TokenTarget, words: readonly string[]) => Promise<readonly WordTokens[]>;
+  readonly lookup: (target: TokenTarget, words: readonly string[], signal?: AbortSignal) => Promise<readonly WordTokens[]>;
   /** Forget one server's lookups (or every server's), in memory and in the store. */
   readonly forget: (baseUrl: string | undefined) => Promise<void>;
 }
@@ -105,6 +106,10 @@ export function tokenTargetOf(connection: Resolved): TokenTarget | null {
   };
 }
 
+function tokenizeAbort(cause: unknown): ProviderError {
+  return new ProviderError({ kind: "aborted", retryable: false, message: "tokenize: request aborted", cause });
+}
+
 export function createTokenLexicon(deps: { readonly fetch: typeof fetch; readonly snapshotStore: SnapshotStore }): TokenLexicon {
   const held = new Map<string, Cached>();
 
@@ -120,7 +125,7 @@ export function createTokenLexicon(deps: { readonly fetch: typeof fetch; readonl
     return cached;
   };
 
-  const ask = async (target: TokenTarget, word: string): Promise<WordTokens> => {
+  const ask = async (target: TokenTarget, word: string, signal?: AbortSignal): Promise<WordTokens> => {
     const spec = TOKENIZE_SPECS[target.api];
     try {
       const result = await fetchJson({
@@ -131,20 +136,24 @@ export function createTokenLexicon(deps: { readonly fetch: typeof fetch; readonl
         body: spec.body(word, target.model),
         secrets: target.secrets,
         label: "tokenize",
+        signal,
       });
       const read = spec.read(result.json);
       return { ok: true, word, ids: read.ids, ...(read.pieces !== undefined ? { pieces: read.pieces } : {}) };
     } catch (err) {
+      if (signal?.aborted === true) {
+        throw tokenizeAbort(err);
+      }
       return { ok: false, word, reason: errorMessage(err) };
     }
   };
 
   return {
-    lookup: async (target, words): Promise<readonly WordTokens[]> => {
+    lookup: async (target, words, signal): Promise<readonly WordTokens[]> => {
       const key = endpointTokensKey(target.baseUrl, target.model);
       const cached = await load(key);
       const missing = [...new Set(words)].filter((word) => !cached.has(word));
-      const asked = await Promise.all(missing.map((word) => ask(target, word)));
+      const asked = await Promise.all(missing.map((word) => ask(target, word, signal)));
       const learned = asked.filter((answer) => answer.ok);
       if (learned.length > 0) {
         // Onto what is held now, so a lookup that finished meanwhile keeps its words.
@@ -182,12 +191,14 @@ export function createTokenLexicon(deps: { readonly fetch: typeof fetch; readonl
 /** A logit bias with its word keys made sendable on this connection: kept where the server's own `logit_bias`
  *  takes words, turned into each word's token ids where the server only takes ids, and dropped with a warning
  *  where the row names no tokenize endpoint or the word could not be tokenized. Id keys pass through. */
-export async function resolveWordBias(
-  sampling: ResolvedSampling,
-  connection: Resolved,
-  lexicon: TokenLexicon,
-  warnings: ResolvedWarning[],
-): Promise<ResolvedSampling> {
+export async function resolveWordBias(args: {
+  readonly sampling: ResolvedSampling;
+  readonly connection: Resolved;
+  readonly lexicon: TokenLexicon;
+  readonly warnings: ResolvedWarning[];
+  readonly signal?: AbortSignal | undefined;
+}): Promise<ResolvedSampling> {
+  const { sampling, connection, lexicon, warnings, signal } = args;
   const bias = sampling.logitBias;
   const words = bias === undefined ? [] : Object.keys(bias).filter((key) => !TOKEN_ID_KEY.test(key));
   if (bias === undefined || words.length === 0) {
@@ -201,7 +212,7 @@ export async function resolveWordBias(
   const answers =
     target === null
       ? words.map((word): WordTokens => ({ ok: false, word, reason: "this endpoint's row names no tokenize endpoint" }))
-      : await lexicon.lookup(target, words);
+      : await lexicon.lookup(target, words, signal);
   for (const answer of answers) {
     const value = bias[answer.word];
     if (!answer.ok || value === undefined) {
