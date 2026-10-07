@@ -1090,13 +1090,6 @@ export function GhostRowScriptedStory({ chunks, speakerName, cardTier, stickyAtt
   return (
     <div style={{ width: 360 }}>
       <div data-testid="phase">{phase}</div>
-      {scrollportHeight === undefined ? (
-        ghost
-      ) : (
-        <div data-testid="ghost-scrollport" style={{ height: scrollportHeight, overflowY: "auto" }}>
-          {ghost}
-        </div>
-      )}
       <button
         type="button"
         data-testid="begin"
@@ -1126,6 +1119,14 @@ export function GhostRowScriptedStory({ chunks, speakerName, cardTier, stickyAtt
       <button type="button" data-testid="abort" onClick={(): void => chatStream.abortTurn(SCRIPTED_CHAT_ID, "user")}>
         abort
       </button>
+      {/* The drive controls must not move between pointer down and up as the streamed body grows. */}
+      {scrollportHeight === undefined ? (
+        ghost
+      ) : (
+        <div data-testid="ghost-scrollport" style={{ height: scrollportHeight, overflowY: "auto" }}>
+          {ghost}
+        </div>
+      )}
     </div>
   );
 }

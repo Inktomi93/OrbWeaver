@@ -466,6 +466,15 @@ describe("F6 — the guided-steer wire boundary refuses a malformed body (BAD_RE
 });
 
 describe("chat.impersonateStream — the NON-PERSISTING, STREAMING guided-impersonate verb (composer fill)", () => {
+  test("a resume ID is rejected before generation instead of silently starting from scratch", async () => {
+    const impersonateStream = vi.fn<ChatService["impersonateStream"]>(() => deltaStream(["second attempt"]));
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { impersonateStream } } });
+    await expect(caller(ctx).chat.impersonateStream({ timeZone: UTC_TIME_ZONE, chatId: CHAT, lastEventId: "0" })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+    expect(impersonateStream).not.toHaveBeenCalled();
+  });
+
   /** An async iterable over fixed deltas (each resolved through a microtask, so it's a genuine async stream) —
    *  the verb returns an AsyncIterable, so a mock just needs one. */
   function deltaStream(deltas: readonly string[]): AsyncIterable<{ delta: string }> {

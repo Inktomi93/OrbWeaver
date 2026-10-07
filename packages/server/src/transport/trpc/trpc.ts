@@ -7,6 +7,7 @@
 // The gates read the seam-resolved ctx.auth and gate on plain fields — no db round-trip. adminMiddleware
 // is transport's layer-1 authority gate; the domain verb's requireAdmin is layer-2 (defense in depth).
 
+import { STREAM_INACTIVITY_TIMEOUT_MS } from "@orb/contracts/stream";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { initTRPC, TRPCError } from "@trpc/server";
 import { requireAdmin } from "#domain/admin";
@@ -23,7 +24,6 @@ import { classifyDomainError, domainDetail, domainReason, providerFaultOf } from
 // verified against @trpc/server 11.18 (`SSEPingOptions` / `SSEClientOptions`). Strictly an improvement for
 // the per-proc streams too, which is why it lands before any of them fold.
 const SSE_PING_MS = 15_000;
-const SSE_RECONNECT_AFTER_INACTIVITY_MS = 45_000;
 
 /**
  * THE MESSAGE EVERY UNCLASSIFIED THROW GETS, in place of its own.
@@ -84,7 +84,7 @@ export const t = initTRPC.context<Context>().create({
   },
   sse: {
     ping: { enabled: true, intervalMs: SSE_PING_MS },
-    client: { reconnectAfterInactivityMs: SSE_RECONNECT_AFTER_INACTIVITY_MS },
+    client: { reconnectAfterInactivityMs: STREAM_INACTIVITY_TIMEOUT_MS },
   },
 });
 

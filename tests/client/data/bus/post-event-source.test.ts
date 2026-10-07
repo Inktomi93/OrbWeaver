@@ -23,7 +23,12 @@ const BYTE_ORDER_MARK = String.fromCodePoint(BYTE_ORDER_MARK_CODE_POINT);
 let timer: ManualTimer = createManualTimer();
 
 function open(url: string = URL_WITH_INPUT): PostEventSource {
-  return new PostEventSource(url, { schedule: timer.schedule });
+  return new PostEventSource(url, { schedule: scheduleStep, random: () => 1 });
+}
+
+// Real timer callbacks cannot also fire the timers they arm in the same task.
+function scheduleStep(fn: () => void, ms: number): () => void {
+  return timer.schedule(() => queueMicrotask(fn), ms);
 }
 
 /** An SSE response that delivers `chunks` then ends, honoring the request's abort like a real fetch body. */
@@ -77,6 +82,283 @@ afterEach(() => {
 });
 
 describe("PostEventSource", () => {
+  test("configured retry cap and budget remain bounded with jitter", async () => {
+    answerWith(() => new Response("unavailable", { status: 503 }));
+    answerWith(() => new Response("unavailable", { status: 503 }));
+    const source = new PostEventSource(URL_WITH_INPUT, { schedule: scheduleStep, maxRetries: 1, maxRetryDelayMs: 1000, random: () => 0 });
+    await nextEvent(source, "error");
+    expect(timer.armed()).toEqual([500]);
+    timer.fire();
+    await nextEvent(source, "error");
+    expect(source.readyState).toBe(source.CLOSED);
+    expect(timer.armed()).toEqual([]);
+    expect(sent).toHaveLength(2);
+  });
+
+  test("close before late headers cancels the response body and publishes no late events", async () => {
+    const answer = Promise.withResolvers<Response>();
+    vi.stubGlobal("fetch", (_input: string, init: RequestInit): Promise<Response> => {
+      sent.push({ url: URL_WITH_INPUT, init });
+      return answer.promise;
+    });
+    const source = open();
+    const events: string[] = [];
+    source.addEventListener("open", () => events.push("open"));
+    source.addEventListener("message", () => events.push("message"));
+    source.close();
+    let cancelled = false;
+    answer.resolve(
+      new Response(
+        new ReadableStream<Uint8Array>({
+          cancel: (): void => {
+            cancelled = true;
+          },
+        }),
+        { headers: { "content-type": "text/event-stream" } },
+      ),
+    );
+    await settle();
+    expect(cancelled).toBe(true);
+    expect(events).toEqual([]);
+    expect(timer.armed()).toEqual([]);
+    expect(sent).toHaveLength(1);
+  });
+
+  test("close cancels a pending reader and releases its lock", async () => {
+    const answer = eventStream(["event: connected\ndata: {}\n\n"], undefined, true);
+    answerWith(() => answer);
+    const source = open();
+    await nextEvent(source, "connected");
+    expect(answer.body?.locked).toBe(true);
+    source.close();
+    await settle();
+    expect(answer.body?.locked).toBe(false);
+    expect(timer.armed()).toEqual([]);
+  });
+
+  test("a truncated UTF-8 sequence and unfinished event are discarded across attempts", async () => {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller): void {
+        controller.enqueue(encoder.encode("id: safe\ndata: first\n\ndata: "));
+        controller.enqueue(new Uint8Array([0xe7, 0x95]));
+        controller.close();
+      },
+    });
+    answerWith(() => new Response(body, { headers: { "content-type": "text/event-stream" } }));
+    const source = open();
+    await nextEvent(source, "error");
+    answerWith((signal) => eventStream(["data: second\n\n"], signal));
+    const values: string[] = [];
+    source.addEventListener("message", (event) => values.push(String((event as MessageEvent).data)));
+    timer.fire();
+    await nextEvent(source, "error");
+    expect(values).toEqual(["second"]);
+    expect(header(sent[1], "last-event-id")).toBe("safe");
+    source.close();
+  });
+
+  test("consecutive transient HTTP failures back off to the cap and exhaust the retry budget", async () => {
+    for (let index = 0; index < 6; index += 1) {
+      answerWith(() => new Response("unavailable", { status: 503 }));
+    }
+    const source = open();
+    await nextEvent(source, "error");
+    for (const delay of [3000, 6000, 12_000, 24_000, 30_000]) {
+      expect(timer.armed()).toEqual([delay]);
+      timer.fire();
+      await nextEvent(source, "error");
+    }
+    expect(source.readyState).toBe(source.CLOSED);
+    expect(sent).toHaveLength(6);
+    expect(timer.armed()).toEqual([]);
+  });
+
+  test.each([
+    ["7", 7000],
+    ["999", 30_000],
+    ["Wed, 15 Jun 2005 12:26:47 GMT", 7000],
+    ["invalid", 1500],
+    ["-1", 1500],
+    ["0.5", 1500],
+  ])("Retry-After %s is honored within bounds with independent jitter", async (retryAfter, expected) => {
+    answerWith(() => new Response("unavailable", { status: 503, headers: { "retry-after": retryAfter } }));
+    const source = new PostEventSource(URL_WITH_INPUT, {
+      schedule: scheduleStep,
+      random: () => 0,
+      now: () => Date.UTC(2005, 5, 15, 12, 26, 40),
+    });
+    await nextEvent(source, "error");
+    expect(timer.armed()).toEqual([expected]);
+    source.close();
+  });
+
+  test("only a valid connected frame resets backoff, not 200 headers", async () => {
+    answerWith(() => new Response("unavailable", { status: 503 }));
+    answerWith((signal) => eventStream([], signal));
+    answerWith((signal) => eventStream(["event: connected\ndata: {}\n\n"], signal));
+    const source = open();
+    await nextEvent(source, "error");
+    expect(timer.armed()).toEqual([3000]);
+    timer.fire();
+    await nextEvent(source, "error");
+    expect(timer.armed()).toEqual([6000]);
+    timer.fire();
+    await nextEvent(source, "error");
+    expect(timer.armed()).toEqual([3000]);
+    source.close();
+  });
+
+  test("empty IDs and no-data ID blocks commit normally, while NUL IDs are ignored", async () => {
+    answerWith((signal) => eventStream(["id: 7\n\nid:\n\ndata: cleared\n\nid: kept\n\nid: bad\0id\ndata: inherited\n\n"], signal));
+    const source = open();
+    const seen: string[] = [];
+    source.addEventListener("message", (event) => seen.push((event as MessageEvent).lastEventId));
+    await nextEvent(source, "error");
+    expect(seen).toEqual(["", "kept"]);
+    timer.fire();
+    await settle();
+    expect(header(sent[1], "last-event-id")).toBe("kept");
+    source.close();
+  });
+
+  test.each(["not-json", "[]", "null"])("invalid connected metadata %s is terminal", async (payload) => {
+    answerWith((signal) => eventStream([`event: connected\ndata: ${payload}\n\n`], signal));
+    const source = open();
+    await nextEvent(source, "error");
+    expect(source.readyState).toBe(source.CLOSED);
+    expect(timer.armed()).toEqual([]);
+    expect(sent).toHaveLength(1);
+  });
+
+  test("a cancelled deadline callback cannot close a successor attempt; a cancelled retry cannot reopen after close", async () => {
+    const callbacks: (() => void)[] = [];
+    const schedule = (fn: () => void, ms: number): (() => void) => {
+      callbacks.push(fn);
+      return scheduleStep(fn, ms);
+    };
+    answerWith((signal) => eventStream(["event: connected\ndata: {}\n\n"], signal));
+    answerWith((signal) => eventStream(["event: connected\ndata: {}\n\n"], signal, true));
+    const source = new PostEventSource(URL_WITH_INPUT, { schedule, random: () => 1 });
+    await nextEvent(source, "error");
+    const staleDeadline = callbacks[0];
+    const reconnect = callbacks.at(-1);
+    timer.fire();
+    await nextEvent(source, "connected");
+    staleDeadline?.();
+    expect(sent[1]?.init.signal?.aborted).toBe(false);
+    source.close();
+    reconnect?.();
+    await settle();
+    expect(sent).toHaveLength(2);
+    expect(timer.armed()).toEqual([]);
+  });
+
+  test("a cancelled opening deadline cannot abort the same attempt after it connected", async () => {
+    const callbacks: (() => void)[] = [];
+    answerWith((signal) => eventStream(["event: connected\ndata: {}\n\n"], signal, true));
+    const source = new PostEventSource(URL_WITH_INPUT, {
+      schedule: (fn, ms) => {
+        callbacks.push(fn);
+        return scheduleStep(fn, ms);
+      },
+    });
+    await nextEvent(source, "connected");
+    expect(callbacks[0]).toBeTypeOf("function");
+    expect(timer.cancelled()).toContain(15_000);
+    callbacks[0]?.();
+    expect(sent[0]?.init.signal?.aborted).toBe(false);
+    source.close();
+  });
+
+  test("opening timeout cancels and releases the old reader before any reconnect is armed", async () => {
+    const cleanup = Promise.withResolvers<void>();
+    let cancellationStarted = false;
+    const body = new ReadableStream<Uint8Array>({
+      cancel: () => {
+        cancellationStarted = true;
+        return cleanup.promise;
+      },
+    });
+    answerWith(() => new Response(body, { headers: { "content-type": "text/event-stream" } }));
+    const source = open();
+    await nextEvent(source, "open");
+    expect(body.locked).toBe(true);
+    timer.fire();
+    await settle();
+    expect(sent[0]?.init.signal?.aborted).toBe(true);
+    expect(cancellationStarted).toBe(true);
+    expect(timer.armed()).toEqual([]);
+    expect(sent).toHaveLength(1);
+    cleanup.resolve();
+    await nextEvent(source, "error");
+    expect(body.locked).toBe(false);
+    expect(timer.armed()).toEqual([3000]);
+    timer.fire();
+    await settle();
+    expect(sent).toHaveLength(2);
+    source.close();
+  });
+
+  test("opening has a deadline even when fetch never returns headers", async () => {
+    const source = open();
+    expect(timer.armed()).toEqual([15_000]);
+    timer.fire();
+    await settle();
+    expect(sent[0]?.init.signal?.aborted).toBe(true);
+    source.close();
+  });
+
+  test("opening still has a deadline after headers until the tRPC connected frame arrives", async () => {
+    answerWith((signal) => eventStream([], signal, true));
+    const source = open();
+    await nextEvent(source, "open");
+    expect(timer.armed()).toEqual([15_000]);
+    timer.fire();
+    await settle();
+    expect(sent[0]?.init.signal?.aborted).toBe(true);
+    source.close();
+  });
+
+  test.each(["eof", "eof-untracked", "http"])("one-shot %s failure is terminal, not a second generation request", async (mode) => {
+    answerWith((signal) =>
+      mode === "http"
+        ? new Response("unavailable", { status: 503 })
+        : eventStream([`event: connected\ndata: {}\n\n${mode === "eof" ? "id: 0\n" : ""}data: partial\n\n`], signal),
+    );
+    const source = new PostEventSource(URL_WITH_INPUT, { schedule: scheduleStep, reconnect: false });
+    await nextEvent(source, "error");
+    await settle();
+    expect(source.readyState).toBe(source.CLOSED);
+    expect(timer.armed()).toEqual([]);
+    expect(sent).toHaveLength(1);
+  });
+
+  test("an uncommitted ID and partial decoder/event state do not contaminate the next attempt", async () => {
+    answerWith((signal) => eventStream(["id: committed\ndata: first\n\nid: unfinished\ndata: lost\n"], signal));
+    const source = open();
+    await nextEvent(source, "error");
+    answerWith((signal) => eventStream(["data: second\n\n"], signal));
+    const second: MessageEvent[] = [];
+    source.addEventListener("message", (event) => second.push(event as MessageEvent));
+    timer.fire();
+    await nextEvent(source, "error");
+    expect(header(sent[1], "last-event-id")).toBe("committed");
+    expect(second.map((event) => [event.data, event.lastEventId])).toEqual([["second", "committed"]]);
+    source.close();
+  });
+
+  test("the native outer consumer cannot bypass adapter budgets with a connected inactivity instruction", async () => {
+    answerWith((signal) =>
+      eventStream(['event: connected\ndata: {"reconnectAfterInactivityMs":1,"feature":"fixture","nested":{"keep":true}}\n\n'], signal, true),
+    );
+    const source = open();
+    const connected = (await nextEvent(source, "connected")) as MessageEvent;
+    expect(JSON.parse(connected.data)).toEqual({ feature: "fixture", nested: { keep: true } });
+    expect(timer.armed()).toEqual([45_000]);
+    source.close();
+  });
+
   test("sends the query's input as a JSON POST body with the CSRF header, keeping every other parameter", () => {
     const source = open();
     source.close();
@@ -127,6 +409,7 @@ describe("PostEventSource", () => {
     expect(timer.armed()).toEqual([250]);
     expect(sent).toHaveLength(1);
     timer.fire();
+    await settle();
     expect(sent).toHaveLength(2);
     expect(header(sent[1], "last-event-id")).toBe("7");
     source.close();
@@ -175,6 +458,7 @@ describe("PostEventSource", () => {
     expect(timer.armed()).toEqual([SERVER_DEFAULT_RETRY_MS]);
     expect(sent).toHaveLength(1);
     timer.fire();
+    await settle();
     expect(sent).toHaveLength(2);
     source.close();
   });
@@ -203,7 +487,7 @@ describe("PostEventSource", () => {
     expect(timer.armed()).toEqual([SERVER_DEFAULT_RETRY_MS]);
 
     source.close();
-    expect(timer.cancelled()).toEqual([SERVER_DEFAULT_RETRY_MS]);
+    expect(timer.cancelled()).toEqual([15_000, SERVER_DEFAULT_RETRY_MS]);
     expect(timer.armed()).toEqual([]);
     expect(sent).toHaveLength(1);
   });

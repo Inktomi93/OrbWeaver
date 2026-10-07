@@ -27,7 +27,8 @@ import type { GuidedActionKind, GuidedImpersonatePerson, RewriteToggleId } from 
 import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type { TrpcClient } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC, useTRPCClient } from "#data";
 import { GENERATION_FAILED_DETAIL, isSilencedTurnAbort, turnMutationToast, viewerTimeZone } from "#lib";
 import { pushFiredSteer } from "#state";
@@ -63,6 +64,12 @@ interface GuidedSlotVars {
   readonly timeZone: string;
   readonly messageId: MessageId;
   readonly guided?: GuidedSteerInput | undefined;
+}
+
+interface ActiveImpersonation {
+  readonly chatId: ChatId;
+  readonly client: TrpcClient;
+  readonly cancel: () => void;
 }
 
 const useGuidedGenerateMutation = createEntityMutation<GuidedTurnVars, unknown>({
@@ -156,7 +163,6 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   const rewrite = useGuidedRewriteMutation({ trpc, invalidation });
   // The impersonation stream is in flight — idles the cluster (one action at a time) exactly like a pending
   // mutation. Set when the subscription starts, cleared on complete/error.
-  const [impersonatePending, setImpersonatePending] = useState(false);
   // IMP-2 — the live stream's cancel lever: the subscription's own unsubscribe, wrapped so it SETTLES the
   // flow as a normal completion. Non-null EXACTLY while a stream is filling the composer, which is what the
   // cluster renders its Stop off (a draft commit that precedes the stream is not cancellable — there is no
@@ -164,7 +170,14 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   // the composer: a deliberate divergence from ST, which clears the draft at start and overwrites per tick
   // (2026-08-01) — ours is a review flow, so a half-drafted line
   // the user stopped BECAUSE they liked its start is the thing they wanted to keep.
-  const [stopImpersonation, setStopImpersonation] = useState<(() => void) | null>(null);
+  const [activeImpersonation, setActiveImpersonation] = useState<ActiveImpersonation | null>(null);
+  const stopImpersonation = activeImpersonation?.cancel ?? null;
+  useEffect(() => {
+    if (activeImpersonation !== null && (activeImpersonation.chatId !== chatId || activeImpersonation.client !== trpcClient)) {
+      activeImpersonation.cancel();
+    }
+    return (): void => activeImpersonation?.cancel();
+  }, [activeImpersonation, chatId, trpcClient]);
 
   // F3 — the fired-steer side-effects, applied around every committed guided fire: record the steer into
   // the session recovery ring, and on a NON-ABORT failure hand the text back so the wand can restore the
@@ -219,6 +232,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
    *  genuinely unmodelled throw — which is exactly the shape this guard was written for. */
   const streamImpersonation = (targetChatId: ChatId, guided: GuidedSteerInput | undefined, fill: (accumulated: string) => void): Promise<void> =>
     new Promise<void>((resolve, reject) => {
+      activeImpersonation?.cancel();
       let accumulated = "";
       let settled = false;
       // Assigned right after `subscribe` returns — the observer fires SYNCHRONOUSLY during the call (the link's
@@ -232,7 +246,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
         }
         settled = true;
         close?.();
-        setStopImpersonation(null);
+        setActiveImpersonation(null);
         finish();
       };
       const handle = trpcClient.chat.impersonateStream.subscribe(
@@ -257,12 +271,10 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
           // copy — the caller's toast uses the generic detail and the raw error rides `cause` for the console.
           onError: (error) => settle(() => reject(new Error(GENERATION_FAILED_DETAIL, { cause: error }))),
           // The retry-instead-of-fail arm (see the doc comment): `connecting` WITH an error means the link is
-          // about to silently re-open the stream. Terminal ONLY when the error carries a tRPC error SHAPE
-          // (`.data`) — i.e. the SERVER reported the failure and the link chose to retry it. A shapeless error
-          // is the socket dropping (`TRPCClientError.from(<DOM Event>)`, message "Unknown error"), which stays
-          // on tRPC's own reconnect path.
+          // about to re-open the stream. Every such failure is terminal for this non-resumable generation,
+          // including shapeless network failures: another request would generate again, not resume.
           onConnectionStateChange: (state) => {
-            if (state.error !== null && state.error.data !== undefined) {
+            if (state.error !== null) {
               settle(() => reject(new Error(GENERATION_FAILED_DETAIL, { cause: state.error })));
             }
           },
@@ -271,11 +283,11 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       close = (): void => handle.unsubscribe();
       // The user's Stop: unsubscribe + resolve. A cancel is NOT a failure — resolving means no toast fires and
       // the D57 steer-restore never runs, so the drafted text the user chose to keep survives untouched.
-      setStopImpersonation(() => (): void => settle(resolve));
+      setActiveImpersonation({ chatId: targetChatId, client: trpcClient, cancel: (): void => settle(resolve) });
     });
 
   return {
-    isPending: generate.isPending || swipe.isPending || continueTurn.isPending || rewrite.isPending || impersonatePending,
+    isPending: generate.isPending || swipe.isPending || continueTurn.isPending || rewrite.isPending || activeImpersonation !== null,
     tailAssistantMessageId,
     tailHasContinuation,
     fireResponse: (input, respOpts): void => {
@@ -343,22 +355,19 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       // AS IT GENERATES (progressive fill) — nothing about the user's line is committed, so the old
       // persist→refetch flash-and-vanish is mooted. The typed steer is consumed and REPLACED by the streamed
       // line (that IS the review). Idles the cluster while streaming; restores the steer on a non-abort error.
-      setImpersonatePending(true);
       const restore = perFire(input);
       // No navigation and no commit: the composer stays mounted, so the fill goes through the caller's own
       // onChange, called with the GROWING accumulation on each delta (progressive fill).
       // @orb-waive caught-failure-ownership(streamImpersonation): the .catch below explicitly
       // toasts via notifyImpersonateFailure before restoring the typed steer — the failure is surfaced, not
       // swallowed. Ends if the toast call is ever removed from the handler.
-      streamImpersonation(chatId, guided, onDrafted)
-        .catch((error: unknown) => {
-          // The D57 input-restore is NOT an error surface (it silently re-types the steer, and does nothing at
-          // all when the composer was empty) — impersonate rides a subscription, so it has no `meta.errorToast`
-          // and every failure here used to die silent. Toast first, then restore.
-          notifyImpersonateFailure(error);
-          restore?.onError(error);
-        })
-        .finally(() => setImpersonatePending(false));
+      streamImpersonation(chatId, guided, onDrafted).catch((error: unknown) => {
+        // The D57 input-restore is NOT an error surface (it silently re-types the steer, and does nothing at
+        // all when the composer was empty) — impersonate rides a subscription, so it has no `meta.errorToast`
+        // and every failure here used to die silent. Toast first, then restore.
+        notifyImpersonateFailure(error);
+        restore?.onError(error);
+      });
     },
     stopImpersonation,
   };

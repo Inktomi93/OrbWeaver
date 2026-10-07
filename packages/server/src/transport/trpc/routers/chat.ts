@@ -63,7 +63,7 @@ import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { reportedTimeZoneSchema } from "@orb/kit/time";
 import type { TrackedEnvelope } from "@trpc/server";
-import { tracked } from "@trpc/server";
+import { TRPCError, tracked } from "@trpc/server";
 import { z } from "zod";
 import type { ImpersonateStreamDelta } from "#domain/chat";
 import { toolRecurseLimitSchema } from "#domain/chat";
@@ -191,6 +191,8 @@ const impersonateStreamSchema = z.object({
   intent: userIntentSchema.optional(),
   guided: guidedSteerSchema.optional(),
   timeZone: reportedTimeZoneSchema,
+  // @orb-waive no-raw-id(lastEventId): SSE's opaque resume token, not an entity identity; any supplied token is refused before generation. Ends if this one-shot operation supports replay.
+  lastEventId: z.string().optional(),
 });
 
 const generateSchema = z.object({
@@ -655,13 +657,16 @@ export const chatRouter = t.router({
   // normal send. Replaced the persisting `impersonate` (flash-and-vanish on the post-commit refetch race) + its
   // one-shot draft mutation (text plopped in after the wait). chatId-scoped, participant-gated inside the verb;
   // `signal` (subscription teardown) cancels the in-flight generation, keeping the partial text in the composer.
-  impersonateStream: authedProcedure
-    .input(impersonateStreamSchema)
-    .subscription(({ ctx, input, signal }) =>
-      withSubscriptionErrors(
-        trackedImpersonationDeltas(ctx.services.chat.impersonateStream({ principal: ctx.auth, ...input, signal: signal ?? new AbortController().signal })),
-      ),
-    ),
+  impersonateStream: authedProcedure.input(impersonateStreamSchema).subscription(({ ctx, input, signal }) => {
+    // Delta IDs discriminate the wire, not durable history. Replaying must never start generation again.
+    if (input.lastEventId !== undefined) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Impersonation cannot resume. Start a new generation explicitly." });
+    }
+    const { lastEventId: _resume, ...params } = input;
+    return withSubscriptionErrors(
+      trackedImpersonationDeltas(ctx.services.chat.impersonateStream({ principal: ctx.auth, ...params, signal: signal ?? new AbortController().signal })),
+    );
+  }),
   generate: authedProcedure
     .output(turnOutcomeSchema)
     .input(generateSchema)

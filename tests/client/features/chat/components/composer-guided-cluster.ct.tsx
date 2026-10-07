@@ -108,7 +108,7 @@ test("Draft your line on a COMMITTED chat STREAMS into the composer PROGRESSIVEL
   // The streaming subscription yields deltas; the composer fills delta-by-delta. Two scripted deltas so the
   // CT can assert the value GROWS (partial after delta 1, full after delta 2) — not a one-shot dump.
   const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES }); // no startChat/mutation traffic on the committed path
-  await routeImpersonateStream(page, ["I step into the tavern, ", "cloak dripping."]);
+  const stream = await routeImpersonateStream(page, ["I step into the tavern, ", "cloak dripping."]);
   const component = await mount(<ComposerStory />); // committed, empty composer
   const box = component.getByRole("textbox", { name: "Message" });
 
@@ -119,12 +119,25 @@ test("Draft your line on a COMMITTED chat STREAMS into the composer PROGRESSIVEL
   // fill happens DURING generation, not a plop at the end (EventSource dispatches each frame as its own task,
   // so React commits the partial before the second frame lands).
   await expect(box).toHaveValue("I step into the tavern, ");
+  stream.releaseNext();
   await expect(box).toHaveValue("I step into the tavern, cloak dripping.");
   // NO user turn was persisted — nothing committed on the committed path (no startChat, and the stream writes
   // no canon). The composer-fill assertions above prove the whole stream completed.
   // Settled snapshot: the full-fill assertion above proves the stream COMPLETED; on a committed chat `fireImpersonate`
   // never calls `commitDraft`, so `chat.startChat` is provably never invoked (stable at 0).
   await expect.poll(async () => trpc.count("chat.startChat")).toBe(0);
+});
+
+test("unmounting the composer closes its live one-shot request before fixture cleanup", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
+  const stream = await routeImpersonateStream(page, ["partial draft", "never delivered"]);
+  const component = await mount(<ComposerStory />);
+  await component.getByRole("button", { name: "Draft your line" }).click();
+  await page.getByRole("menuitem", { name: "1st person" }).click();
+  await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("partial draft");
+  await component.unmount();
+  await stream.closed;
+  await expect.poll(() => stream.count()).toBe(1);
 });
 
 // ── The impersonate stream is a ONE-SHOT drive, not a live feed ──────────────────────────────────────────
@@ -193,9 +206,8 @@ test("a RETRYABLE server fault is terminal (the dead-engine zombie): one connect
 // — a turn that does not exist. These two tests are the fix's two halves: the Stop really unsubscribes, and
 // the wait reason is honest.
 //
-// The staged stub's reconnect delay is PINNED here (`STOP_RETRY_MS`) so the inter-delta gap — the window in
-// which the stream is provably still live — is a known quantity: wide enough to click Stop inside, short
-// enough that STOP_WATCH_MS with no reconnect is a real observation.
+// The advertised retry delay bounds the observation for an unwanted reconnect. The fixture holds the
+// next delta until manual release, so the progressive-output and Stop assertions do not race a timer.
 const STOP_RETRY_MS = 2000;
 const STOP_WATCH_MS = 2500;
 const PARTIAL = "I step into the tavern, ";
@@ -233,16 +245,15 @@ test("Stop appears while impersonating, unsubscribes the stream, and KEEPS the p
 
   await component.getByRole("button", { name: "Draft your line" }).click();
   await page.getByRole("menuitem", { name: "1st person" }).click();
-  // Mid-stream: the first delta landed, the second is still pending its staged reconnect.
+  // Mid-stream: the first delta landed, the second is held on the same HTTP response.
   await expect(box).toHaveValue(PARTIAL);
 
   const stop = component.getByRole("button", { name: IMPERSONATE_STOP_LABEL });
   await expect(stop).toBeVisible();
   await stop.click();
+  await sse.closed;
 
-  // The UNSUBSCRIBE fired ([[assert-the-mutation-fired]]): the staged reconnect that would have delivered
-  // delta 2 never happens — proven the two ways expectNoReconnect does, over a window LONGER than the pinned
-  // retry (a still-live subscription would have re-opened inside it).
+  // The real HTTP close above observes unsubscribe before fixture disposal; no later request may reopen it.
   await expectNoReconnect(page, sse, STOP_WATCH_MS);
   // The deliberate divergence from ST (which clears the draft and overwrites per tick): a cancel KEEPS what
   // was written. And a cancel is not a failure — no toast, and the composer is NOT restored to the old steer.
