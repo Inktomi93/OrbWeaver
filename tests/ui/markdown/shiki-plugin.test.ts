@@ -17,23 +17,7 @@ type ThemeSlot = ReturnType<typeof MARKDOWN_SHIKI_PLUGIN.getThemes>[number];
 type HighlightOptions = Parameters<typeof MARKDOWN_SHIKI_PLUGIN.highlight>[0];
 type HighlightResult = Parameters<NonNullable<Parameters<typeof MARKDOWN_SHIKI_PLUGIN.highlight>[1]>>[0];
 
-// A `ThemeSlot` is `string (BundledTheme name) | ThemeRegistrationAny (all-optional object)`, so the
-// fields this token-source proof reads are statically absent. Rather than cast a fabricated shape over
-// the pair, RUNTIME-narrow each real theme object and fail loudly if the plugin ever stops emitting a
-// field the assertions below depend on.
-function asShikiTheme(theme: ThemeSlot): {
-  readonly type: "light" | "dark";
-  readonly bg: string;
-  readonly fg: string;
-  readonly colors: Record<string, string>;
-  readonly settings: readonly {
-    readonly scope: readonly string[];
-    readonly settings: { readonly foreground: string };
-  }[];
-} {
-  if (typeof theme === "string") {
-    throw new Error(`getThemes() returned a bundled-theme NAME (${theme}), not the seeded theme object`);
-  }
+function asShikiTheme(theme: ThemeSlot): Required<Pick<ThemeSlot, "type" | "bg" | "fg" | "colors" | "settings">> {
   const { type, bg, fg, colors, settings } = theme;
   if (type === undefined || bg === undefined || fg === undefined || colors === undefined || settings === undefined) {
     throw new Error("a seeded theme is missing a field the token-source proof asserts on");
@@ -76,15 +60,15 @@ test("EVERY syntax-scope color in the DARK theme is a generated token value (no 
   expect(dark.settings.length).toBeGreaterThan(0);
   for (const entry of dark.settings) {
     // The load-bearing R6/R7 assertion: a hand-typed color would not be in the generated token set.
-    expect(DARK_TOKEN_VALUES.has(entry.settings.foreground)).toBe(true);
+    expect(DARK_TOKEN_VALUES.has(entry.settings.foreground ?? "")).toBe(true);
   }
-  const keyword = dark.settings.find((s) => s.scope.includes("keyword"));
+  const keyword = dark.settings.find((s) => Array.isArray(s.scope) && s.scope.includes("keyword"));
   expect(keyword?.settings.foreground).toBe(TOKENS["color.primary"].value);
 });
 
 test("chart-backed Shiki scopes use distinct concrete polarity arms in Light and Dark", () => {
   const foreground = (theme: typeof light, scope: string): string | undefined =>
-    theme.settings.find((setting) => setting.scope.includes(scope))?.settings.foreground;
+    theme.settings.find((setting) => Array.isArray(setting.scope) && setting.scope.includes(scope))?.settings.foreground;
   const cases = [
     ["string", "color.chart-4"],
     ["constant.numeric", "color.chart-2"],
@@ -105,7 +89,7 @@ test("Shiki receives only concrete colors, never CSS functions it cannot resolve
       expect(entry.settings.foreground).not.toContain("var(");
     }
   }
-  const lightKeyword = light.settings.find((setting) => setting.scope.includes("keyword"));
+  const lightKeyword = light.settings.find((setting) => Array.isArray(setting.scope) && setting.scope.includes("keyword"));
   expect(lightKeyword?.settings.foreground).toBe(SEED_THEME_VALUE_SETS.light.vars["--color-primary"]);
 });
 

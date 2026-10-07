@@ -11,7 +11,7 @@
 // THREE outcome classes, not two (EDITSNAP-OK): resolved-and-committed · threw (`errorToast`) · RESOLVED AND
 // REFUSED (`refusal`). The third is the one that goes silently wrong — see the `refusal` doc below.
 
-import type { DefaultError, MutateOptions, QueryClient, QueryKey, UseMutationOptions } from "@tanstack/react-query";
+import type { DefaultError, QueryClient, QueryKey, UseMutateFunction, UseMutationOptions } from "@tanstack/react-query";
 import { hashKey, useMutation } from "@tanstack/react-query";
 import { notify } from "#lib";
 import type { InvalidateFilter, Invalidation } from "./invalidation.ts";
@@ -105,7 +105,7 @@ export interface EntityMutationResult<TVars, TData> {
   /** `options` forwards react-query's per-call `MutateOptions` — the callbacks run IN ADDITION to the
    *  factory's baked cache recipe + the global error toast (e.g. a call-site `onError` for the guided
    *  input-restore, F3). */
-  readonly mutate: (vars: TVars, options?: MutateOptions<TData, DefaultError, TVars>) => void;
+  readonly mutate: UseMutateFunction<TData, DefaultError, TVars>;
   readonly mutateAsync: (vars: TVars) => Promise<TData>;
   readonly isPending: boolean;
   /** The in-flight variables — render as the ghost row in variables-mode (§13.1). */

@@ -30,3 +30,36 @@ test("descriptions survive (they ARE prompt surface) and the projection is deter
   expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   expect(JSON.stringify(a)).toContain("how far to advance the clock");
 });
+
+test("scalar unions keep canonical anyOf arms, constraints and descriptions", () => {
+  const schema = z.object({
+    value: z.union([z.number(), z.string()]).describe("number or authored text"),
+    constrained: z.union([z.number().min(0), z.string().min(2)]),
+    nullable: z.string().nullable(),
+  });
+  const projected = projectJsonSchema(schema);
+  expect(projected["properties"]).toEqual({
+    value: { anyOf: [{ type: "number" }, { type: "string" }], description: "number or authored text" },
+    constrained: {
+      anyOf: [
+        { type: "number", minimum: 0 },
+        { type: "string", minLength: 2 },
+      ],
+    },
+    nullable: { anyOf: [{ type: "string" }, { type: "null" }] },
+  });
+  expect(schema.safeParse({ value: "text", constrained: "ok", nullable: null }).success).toBe(true);
+  expect(schema.safeParse({ value: true, constrained: "x", nullable: 0 }).success).toBe(false);
+});
+
+test("schema normalization never rewrites defaults or metadata that look like schema nodes", () => {
+  const literal = { type: ["number", "string"] };
+  const schema = z
+    .object({ type: z.array(z.string()) })
+    .default(literal)
+    .meta({ examples: [literal], "x-author": literal });
+  const projected = projectJsonSchema(schema);
+  expect(projected["default"]).toEqual(literal);
+  expect(projected["examples"]).toEqual([literal]);
+  expect(projected["x-author"]).toEqual(literal);
+});

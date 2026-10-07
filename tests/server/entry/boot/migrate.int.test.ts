@@ -5,6 +5,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFile
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pid } from "node:process";
+import type { LibSqlWrap } from "@orb/db";
 import { checkBaseline, closeDb, createDb, runMigrations } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { DB_LAUNCHED, resolveMigrationsFolder, runBootMigrations } from "@orb/server/entry/boot";
@@ -224,9 +225,9 @@ test("the pre-migration backup restores a commit that remains in the live WAL", 
 
 // Seed a file db that is one back-dated migration record away from a DESTRUCTIVE regenerated-baseline
 // boot, with a probe row whose survival proves the reset did not run.
-async function seedResetPendingDb(dir: string): Promise<{ db: Awaited<ReturnType<typeof createDb>>; url: string }> {
+async function seedResetPendingDb(dir: string, wrap?: LibSqlWrap): Promise<{ db: Awaited<ReturnType<typeof createDb>>; url: string }> {
   const url = `file:${join(dir, "orb.db")}`;
-  const db = await createDb(url);
+  const db = await createDb(url, wrap);
   await runBootMigrations({ db, databaseUrl: url, backupDir: dir, launched: false });
   await db.run(sql`CREATE TABLE backup_failure_probe (value integer not null)`);
   await db.run(sql`INSERT INTO backup_failure_probe (value) VALUES (1)`);
@@ -246,14 +247,35 @@ async function seedResetPendingDb(dir: string): Promise<{ db: Awaited<ReturnType
 test("backup failure aborts before a regenerated-baseline reset", async () => {
   const dir = mkdtempSync(join(tmpdir(), `orb-bootbackup-fail-${pid}-`));
   try {
-    const { db, url } = await seedResetPendingDb(dir);
+    let client: Parameters<LibSqlWrap>[0] | undefined;
+    let transaction: Awaited<ReturnType<Parameters<LibSqlWrap>[0]["transaction"]>> | undefined;
+    const { db, url } = await seedResetPendingDb(dir, (base) => {
+      client = base;
+      return new Proxy(base, {
+        get(target, prop): unknown {
+          if (prop === "execute") {
+            return (...args: Parameters<typeof target.execute>) => (transaction ?? target).execute(...args);
+          }
+          const value = Reflect.get(target, prop, target);
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      });
+    });
     expect(await db.all(sql`SELECT value FROM backup_failure_probe`)).toEqual([{ value: 1 }]);
     // The seeding boot took its own backup; only what the FAILING boot leaves behind is under test.
     const priorBackups = readdirSync(dir).filter((name) => BACKUP_RE.test(name));
 
-    await db.run(sql`BEGIN`);
-    await expect(runBootMigrations({ db, databaseUrl: url, backupDir: dir, launched: false })).rejects.toThrow(BACKUP_FAILED_RE);
-    await db.run(sql`ROLLBACK`);
+    if (client === undefined) {
+      throw new Error("the backup fixture did not capture its real client");
+    }
+    // Route boot reads and VACUUM through one leased native connection, not independently pooled executes.
+    transaction = await client.transaction("deferred");
+    try {
+      await expect(runBootMigrations({ db, databaseUrl: url, backupDir: dir, launched: false })).rejects.toThrow(BACKUP_FAILED_RE);
+    } finally {
+      await transaction.rollback();
+      transaction = undefined;
+    }
 
     // The abort came BEFORE the reset: the data is still there and the baseline is still the pending one.
     expect(await db.all(sql`SELECT value FROM backup_failure_probe`)).toEqual([{ value: 1 }]);

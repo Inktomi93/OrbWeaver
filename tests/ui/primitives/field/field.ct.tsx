@@ -199,19 +199,18 @@ test("composes Checkbox/Switch/RadioGroup — every control registers independen
 });
 
 test("validate/validationMode flow through — internal validation drives data-invalid", async ({ mount, page }) => {
-  // Field only renders its OWN `error` prop as visible text (§ field.tsx doc-comment); internal
-  // `validate` results still drive `data-invalid` on the control without one (see FieldValidity
-  // below for surfacing the message text itself). Confirms passing `validate` doesn't force
-  // `invalid` — Base UI's own computation must be free to run un-overridden.
-  await mount(
-    <Field label="Age" validate={(value): string | null => (value === "13" ? "Too young" : null)} validationMode="onChange">
-      <Input />
-    </Field>,
-  );
+  // Validators must execute in-browser: Playwright's inline callback proxy discards return values.
+  await mount(<FieldValidityStory />);
   const input = page.getByLabel("Age");
   await expect(input).not.toHaveAttribute("data-invalid", "");
+  await input.fill("20");
+  await expect(input).toHaveAttribute("data-valid", "");
   await input.fill("13");
   await expect(input).toHaveAttribute("data-invalid", "");
+  await expect(input).toHaveAttribute("aria-invalid", "true");
+  await input.fill("21");
+  await expect(input).toHaveAttribute("data-valid", "");
+  await expect(input).not.toHaveAttribute("data-invalid", "");
 });
 
 // ── The description-less horizontal row's baseline (side-eye 2026-08-06 P2) ────────────────────────

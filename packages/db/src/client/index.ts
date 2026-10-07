@@ -49,6 +49,7 @@ const WAL = "wal";
  * see {@link TUNING_PRAGMAS} for which mechanism guards which connection.
  */
 const BUSY_TIMEOUT_MS = 5000;
+const LOCAL_CONNECTIONS = 1;
 
 // Per-connection tuning, set at every createDb. journal_mode goes first — the others assume WAL.
 // busy_timeout is load-bearing: the workloads worker races HTTP request writes, and without a wait a
@@ -56,31 +57,10 @@ const BUSY_TIMEOUT_MS = 5000;
 // is the safe-under-WAL fsync level; cache_size/mmap_size/temp_store are throughput. libSQL honors all
 // six (readback: mmap_size floors to a page boundary, busy_timeout reads back under the `timeout` column).
 //
-// WHICH MECHANISM GUARDS WHICH CONNECTION (probed against @libsql/client 0.17.4 + libsql 0.5.29, the
-// pinned pair — the driver docs' "each execute() runs in its own logical connection" is TRUE of the HTTP
-// client and FALSE here, so do not reason from them):
-//   · A `file:`/`:memory:` url builds a `Sqlite3Client` (sqlite3.js:55) holding ONE native `libsql`
-//     `Database`. Every execute/batch/executeMultiple goes through `#getDb()` and reuses it — so this
-//     PRAGMA block, applied once here, covers the WHOLE process lifetime. (Probed: 50 executes later all
-//     six still read back.)
-//   · EXCEPT `client.transaction()` (sqlite3.js:155-159): it hands the native connection to the
-//     transaction object and sets `#db = null`, so the NEXT execute lazily opens a FRESH connection
-//     (`new Database(path, options)`) with NONE of these PRAGMAs re-applied. drizzle's `db.transaction()`
-//     is exactly that call (drizzle-orm/libsql/session.js:61). Probed fallout on that second connection:
-//     busy_timeout → 0 (lost, and every wait-instead-of-throw guarantee with it); synchronous/cache_size/
-//     mmap_size/temp_store → defaults (throughput only); journal_mode → still WAL (it is persisted in the
-//     db FILE, not the connection); foreign_keys → still 1 (libsql's native `databaseOpen` enables FK
-//     enforcement by default, verified by an orphan-FK insert being rejected on that fresh connection —
-//     the FK readback below is still the boot gate, but the replacement is not a hole in it).
-//   · So the ONE genuinely lost setting is busy_timeout — hence the BELT: `Config.timeout` on
-//     `createClient`. It is stored in the client's `#options` and re-passed to every lazily re-opened
-//     `Database` (libsql/index.js:93 → the native `databaseOpen`, in MILLISECONDS), which is why it — and
-//     only it — survives a connection replacement. It is NOT HTTP-only: probed on `file:` mode, a second
-//     writer against a held `BEGIN IMMEDIATE` waited the configured 3000ms before SQLITE_BUSY (vs 0ms
-//     with neither mechanism). Both are set: the PRAGMA is what the boot readback + Tier-1-DB.md describe
-//     on the primary connection; `Config.timeout` is what covers a connection this module never sees.
-//     (`db.transaction()` is separately BANNED in product code — a replaced `:memory:` connection is an
-//     EMPTY database — but the belt must not depend on that ban holding.)
+// The local driver pools native handles. Limit file clients to ONE so every operation inherits this
+// connection's tuning and the migration FK suspension; a second handle would inherit neither.
+// A leased transaction returns the same handle when settled. Config.timeout also guards any handle
+// the driver replaces, but cannot carry the other connection-local PRAGMAs. Remote concurrency is unchanged.
 const TUNING_PRAGMAS = [
   "journal_mode = WAL",
   `busy_timeout = ${BUSY_TIMEOUT_MS}`,
@@ -137,9 +117,7 @@ export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
   if (path !== undefined) {
     mkdirSync(dirname(path), { recursive: true });
   }
-  // `timeout` is the busy-timeout BELT (see TUNING_PRAGMAS) — the only setting here that survives the
-  // connection replacement `client.transaction()` triggers, because the client re-passes it on re-open.
-  const base = createClient({ url, timeout: BUSY_TIMEOUT_MS });
+  const base = createClient({ url, timeout: BUSY_TIMEOUT_MS, ...(path === undefined ? {} : { concurrency: LOCAL_CONNECTIONS }) });
   const client = wrap === undefined ? base : wrap(base);
   await client.execute("PRAGMA foreign_keys = ON");
   const readback = await client.execute("PRAGMA foreign_keys");

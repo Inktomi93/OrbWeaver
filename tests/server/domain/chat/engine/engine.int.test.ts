@@ -2406,6 +2406,7 @@ async function* accountingSdkFrames(reply: string, cost: number, refused = false
     ["cache_creation_input_tokens"]: 3,
     ["cache_read_input_tokens"]: 2,
     ["cache_creation"]: { ["ephemeral_5m_input_tokens"]: 3, ["ephemeral_1h_input_tokens"]: 0 },
+    ["fallback_credit"]: { status: { type: "not_applied" as const, reason: "not_enabled" as const } },
     ["inference_geo"]: "not_available",
     iterations: [],
     ["output_tokens_details"]: { ["thinking_tokens"]: 4 },

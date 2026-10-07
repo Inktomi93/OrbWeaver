@@ -47,23 +47,46 @@ export type WireReady = Record<string, unknown> & { readonly [wireReadyBrand]: t
 export { JsonSchemaLiftError, LIFTABLE_JSON_SCHEMA, liftJsonSchema, MAX_LIFT_DEPTH, RENDER_HINT_KEY } from "./lift.ts";
 
 const OBJECT_TYPE = "object";
+const SCHEMA_MAP_KEYS = new Set(["properties", "patternProperties", "dependentSchemas", "$defs", "definitions"]);
+const SCHEMA_CHILD_KEYS = new Set([
+  "items",
+  "additionalProperties",
+  "propertyNames",
+  "contains",
+  "not",
+  "if",
+  "then",
+  "else",
+  "unevaluatedProperties",
+  "unevaluatedItems",
+  "allOf",
+  "anyOf",
+  "oneOf",
+  "prefixItems",
+]);
 
-function pinObjectNodes(node: unknown): void {
+function normalizeSchemaChild(node: unknown): unknown {
   if (Array.isArray(node)) {
-    for (const item of node) {
-      pinObjectNodes(item);
+    return node.map(normalizeSchemaChild);
+  }
+  return isPlainObject(node) ? normalizeSchemaNode(node) : node;
+}
+
+function normalizeSchemaNode(node: Record<string, unknown>): Record<string, unknown> {
+  const { type, ...fields } = node;
+  // Keep the union form the inverse lift and tool-schema consumers share, independent of Zod's compaction.
+  const normalized: Record<string, unknown> = Array.isArray(type) ? { ...fields, anyOf: type.map((member) => ({ type: member })) } : { ...node };
+  if (normalized["type"] === OBJECT_TYPE && normalized["additionalProperties"] === undefined) {
+    normalized["additionalProperties"] = false;
+  }
+  for (const [key, value] of Object.entries(normalized)) {
+    if (SCHEMA_MAP_KEYS.has(key) && isPlainObject(value)) {
+      normalized[key] = Object.fromEntries(Object.entries(value).map(([name, child]) => [name, normalizeSchemaChild(child)]));
+    } else if (SCHEMA_CHILD_KEYS.has(key)) {
+      normalized[key] = normalizeSchemaChild(value);
     }
-    return;
   }
-  if (!isPlainObject(node)) {
-    return;
-  }
-  if (node["type"] === OBJECT_TYPE && node["additionalProperties"] === undefined) {
-    node["additionalProperties"] = false;
-  }
-  for (const value of Object.values(node)) {
-    pinObjectNodes(value);
-  }
+  return normalized;
 }
 
 /** Project a zod schema (a tool's args OR a structured-output payload) to the wire JSON Schema. The ONE
@@ -71,6 +94,5 @@ function pinObjectNodes(node: unknown): void {
  *  provable answer and a send-site cannot skip it. */
 export function projectJsonSchema<Schema extends z.ZodType>(schema: Schema): WireReady {
   const projected: Record<string, unknown> = { ...z.toJSONSchema(schema) };
-  pinObjectNodes(projected);
-  return projected as WireReady;
+  return normalizeSchemaNode(projected) as WireReady;
 }

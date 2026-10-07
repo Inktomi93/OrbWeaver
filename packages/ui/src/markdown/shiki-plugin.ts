@@ -11,10 +11,10 @@
 //
 // Async contract: highlight() returns null while the grammar hasn't loaded yet, and calls `callback`
 // once loading + tokenizing finishes; HighlightedCodeBlockBody is written for exactly this.
-import type { HighlighterCore } from "@shikijs/core";
+import type { HighlighterCore, ThemeRegistration } from "@shikijs/core";
 import { createHighlighterCore } from "@shikijs/core";
 import { createJavaScriptRegexEngine } from "@shikijs/engine-javascript";
-import type { CodeHighlighterPlugin, HighlightOptions, ThemeInput } from "streamdown";
+import type { CodeHighlighterPlugin, HighlightOptions } from "streamdown";
 import { SEED_THEME_VALUE_SETS, TOKEN_POLARITY_ARMS, TOKENS } from "#tokens";
 
 // HighlightResult is declared in streamdown's .d.ts but not exported publicly — reconstructed here
@@ -83,7 +83,7 @@ interface ThemeSpec {
   readonly palette: SyntaxPalette;
 }
 
-function buildTheme({ name, type, fg, bg, palette }: ThemeSpec): ThemeInput {
+function buildTheme({ name, type, fg, bg, palette }: ThemeSpec): ThemeRegistration {
   return {
     name,
     type,
@@ -133,7 +133,7 @@ function buildTheme({ name, type, fg, bg, palette }: ThemeSpec): ThemeInput {
         settings: { foreground: palette.destructive },
       },
     ],
-  };
+  } satisfies ThemeRegistration;
 }
 
 // Dark literals: TOKENS["color.*"].value (the base/dark palette). Light literals: DERIVED from
@@ -173,7 +173,7 @@ const ORB_LIGHT = buildTheme({
   palette: LIGHT_SYNTAX,
 });
 
-const THEMES: [ThemeInput, ThemeInput] = [ORB_LIGHT, ORB_DARK];
+const THEMES = [ORB_LIGHT, ORB_DARK] satisfies [ThemeRegistration, ThemeRegistration];
 
 // Lazily constructed on first `highlight()` call — nothing here runs (no engine construction, no
 // grammar fetch) until a fenced code block actually mounts.
@@ -210,12 +210,12 @@ async function highlightAsync(code: string, language: string): Promise<ShikiHigh
  * top-level `shikiTheme` prop, so this plugin alone determines both fenced-code palettes.
  * `highlight()` always returns `null` synchronously and delivers the real result via `callback`.
  */
-export const MARKDOWN_SHIKI_PLUGIN: CodeHighlighterPlugin = {
+export const MARKDOWN_SHIKI_PLUGIN = {
   name: "shiki",
   type: "code-highlighter",
-  getThemes: () => THEMES,
-  getSupportedLanguages: () => Object.keys(LANGUAGE_LOADERS) as never[],
-  supportsLanguage: (language) => language in LANGUAGE_LOADERS,
+  getThemes: (): typeof THEMES => THEMES,
+  getSupportedLanguages: (): ReturnType<CodeHighlighterPlugin["getSupportedLanguages"]> => Object.keys(LANGUAGE_LOADERS) as never[],
+  supportsLanguage: (language): boolean => language in LANGUAGE_LOADERS,
   highlight(options: HighlightOptions, callback?: (result: ShikiHighlightResult) => void): ShikiHighlightResult | null {
     // @orb-waive caught-failure-ownership(highlightAsync): the unfired callback is the
     // RESOLVED state, not a dropped one — re-derived against the vendor 2026-09-04 (#1498 item 2). Streamdown's
@@ -231,4 +231,4 @@ export const MARKDOWN_SHIKI_PLUGIN: CodeHighlighterPlugin = {
       });
     return null;
   },
-};
+} satisfies CodeHighlighterPlugin;

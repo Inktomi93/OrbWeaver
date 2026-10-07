@@ -34,28 +34,31 @@ function sqlOf(arg: unknown): string {
   if (typeof arg === "string") {
     return arg;
   }
-  return arg !== null && typeof arg === "object" && "sql" in arg ? String((arg as { readonly sql?: string }).sql ?? "") : "";
+  return arg !== null && typeof arg === "object" && "sql" in arg && typeof arg.sql === "string" ? arg.sql : "";
 }
 
 async function runInterleavedBatch(
-  execute: (statement: unknown) => Promise<unknown>,
-  statements: readonly unknown[],
+  client: Parameters<LibSqlWrap>[0],
+  statements: Parameters<Parameters<LibSqlWrap>[0]["batch"]>[0],
   mutate: () => Promise<void>,
 ): Promise<unknown[]> {
-  await execute("BEGIN DEFERRED");
+  const transaction = await client.transaction("deferred");
   const results: unknown[] = [];
   try {
     for (const statement of statements) {
-      results.push(await execute(statement));
-      if (sqlOf(statement).includes('from "rpg_snapshots"')) {
+      const input = Array.isArray(statement) ? { sql: statement[0], args: statement[1] ?? [] } : statement;
+      results.push(await transaction.execute(input));
+      if (sqlOf(input).includes('from "rpg_snapshots"')) {
         await mutate();
       }
     }
-    await execute("COMMIT");
+    await transaction.commit();
     return results;
   } catch (err) {
-    await execute("ROLLBACK");
+    await transaction.rollback();
     throw err;
+  } finally {
+    transaction.close();
   }
 }
 
@@ -92,10 +95,7 @@ function interleaveAfterSnapshots(mutate: () => Promise<void>): LibSqlWrap {
           };
         }
         if (prop === "batch") {
-          // @orb-waive no-test-fabrication(unknown): this proxy deliberately narrows libSQL's overloaded execute method to the Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-          // single statement shape exercised by the interleaved batch fault injector.
-          const execute = (statement: unknown): Promise<unknown> => (target.execute as unknown as (stmt: unknown) => Promise<unknown>).call(target, statement);
-          return (statements: readonly unknown[]): Promise<unknown[]> => runInterleavedBatch(execute, statements, once);
+          return (statements: Parameters<typeof target.batch>[0]): Promise<unknown[]> => runInterleavedBatch(target, statements, once);
         }
         return value.bind(target);
       },

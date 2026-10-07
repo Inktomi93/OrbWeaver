@@ -263,6 +263,18 @@ async function warmMode(browser: Browser, mode: ModeProject): Promise<void> {
         });
         break;
     }
+  } catch (cause) {
+    const transformErrors = await page
+      .locator("vite-error-overlay")
+      .evaluateAll((overlays) =>
+        overlays
+          .map((overlay) => [".plugin", ".message-body", ".file"].map((selector) => overlay.shadowRoot?.querySelector(selector)?.textContent ?? "").join(" "))
+          .join("\n"),
+      );
+    if (transformErrors.length > 0) {
+      throw new Error(`e2e warm-up: ${mode.name} Vite error: ${transformErrors}`, { cause });
+    }
+    throw cause;
   } finally {
     await context.close();
   }
