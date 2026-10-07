@@ -4,19 +4,14 @@
 // end-to-end: EventSource → httpSubscriptionLink → the imperative `trpcClient.chat.impersonateStream.subscribe`
 // → useGuidedActions' `streamImpersonation` → the composer-draft store. Only the NETWORK is stubbed.
 //
-// PROGRESSIVE FILL: Playwright's `route.fulfill` sends the body WHOLE (no chunked/delayed delivery), so all
-// frames in one response are dispatched before a CT can poll the DOM — the intermediate state is invisible.
-// To make the accumulation OBSERVABLE, this stub stages ONE delta per EventSource CONNECT: the first response
-// serves `connected + delta[0]` then closes WITHOUT a `return` frame, so the client's `PostEventSource`
-// RECONNECTS (carrying `Last-Event-ID`); the Nth reconnect serves the next delta; the final connect
-// serves the terminal `return`. The reconnect IS the timing gap a CT observes between deltas — modeling the
-// real network's frame-by-frame arrival without needing a streaming body Playwright can't produce.
+// Progressive fill uses a real local chunked response: releaseNext sends another delta on the SAME
+// connection. An impersonation is not resumable, so reconnecting between deltas would model another generation.
 //
 // Wire shape (matches route-orb-socket.ts, verified against @trpc/server 11.18 sse.ts): a `connected`
 // frame first, then each tracked value as `data: <JSON>` + `id: <seq>`, then a terminal `return` frame that
 // closes the EventSource cleanly (the stream's natural completion → the subscription's onComplete).
 //
-// TWO STUBS, two jobs: `routeImpersonateStream` (progressive fill — one delta per staged reconnect) and
+// TWO STUBS, two jobs: `routeImpersonateStream` (progressive fill — released chunks on one connection) and
 // `routeImpersonateStreamOnce` (a ONE-SHOT body: deltas + one terminal end, every connect identical) for the
 // zombie-subscription cases, where the connect COUNT is the assertion and a staged reconnect would be noise.
 //
@@ -24,6 +19,8 @@
 // then routeImpersonateStream. Registered last, this handler runs first and either serves the event-stream
 // request or falls through (route.fallback) to routeTrpc for everything else.
 
+import { once } from "node:events";
+import { createServer } from "node:http";
 import type { Page, Request } from "@playwright/test";
 
 /** A subscription's input: `PostEventSource` sends it as the JSON POST body, never the query. */
@@ -50,23 +47,8 @@ function sseFrame(fields: { event?: string; data: string; id?: string; retry?: n
   return `${frame}\n`;
 }
 
-/** The Nth CONNECT's body: `connected` + ONE scripted delta (the Nth), no `return` — so the EventSource
- *  reconnects for the next. Once every delta is served, the final connect sends `connected` + `return` (clean
- *  close → the subscription's onComplete). A connect past the script (a stray reconnect) gets a bare close. */
-function connectBody(deltas: readonly string[], connectIndex: number, retryMs: number | undefined): string {
-  const frames: string[] = [sseFrame({ event: "connected", data: JSON.stringify({}), ...(retryMs === undefined ? {} : { retry: retryMs }) })];
-  const delta = deltas[connectIndex];
-  if (delta !== undefined) {
-    // One delta this connect; its tracked id is the delta index (the reconnect's Last-Event-ID resume cursor).
-    frames.push(sseFrame({ data: JSON.stringify({ delta }), id: String(connectIndex) }));
-  } else {
-    frames.push(sseFrame({ event: "return", data: "" }));
-  }
-  return frames.join("");
-}
-
 export interface ImpersonateStreamRecorder {
-  /** How many EventSource connects were served (first subscribe + each staged reconnect). */
+  /** How many subscription requests were served. */
   readonly count: () => number;
   /** The decoded input of the FIRST subscribe (the reconnects carry the same input). */
   readonly firstInput: () => unknown;
@@ -74,16 +56,53 @@ export interface ImpersonateStreamRecorder {
   readonly lastInput: () => unknown;
 }
 
-/** Stub `chat.impersonateStream` with a scripted SSE stream that stages ONE `{ delta }` per EventSource
- *  CONNECT (see the header) — the browser auto-reconnects between deltas, giving a CT an observable gap to
- *  assert the composer grows delta-by-delta. Non-event-stream requests fall through (`route.fallback()`).
- *
- *  `retryMs` pins the browser's reconnect delay (default: the browser's own ~3s), which makes the INTER-DELTA
- *  GAP a known quantity — the window in which the stream is provably still LIVE. A CT that acts mid-stream
- *  (the IMP-2 Stop) needs both halves of that: enough time to act, and a bound short enough that "no
- *  reconnect arrived" is a real observation rather than an impatient one. */
-export async function routeImpersonateStream(page: Page, deltas: readonly string[], retryMs?: number): Promise<ImpersonateStreamRecorder> {
+export interface StagedImpersonateStreamRecorder extends ImpersonateStreamRecorder {
+  readonly releaseNext: () => void;
+  readonly closed: Promise<void>;
+}
+
+/** Stream the first delta immediately and release later deltas explicitly on the same local HTTP response.
+ *  A page close disposes its listener; `closed` observes client cancellation before fixture cleanup. */
+export async function routeImpersonateStream(page: Page, deltas: readonly string[], retryMs?: number): Promise<StagedImpersonateStreamRecorder> {
   const inputs: unknown[] = [];
+  let release = Promise.withResolvers<void>();
+  const closed = Promise.withResolvers<void>();
+  const failure = Promise.withResolvers<never>();
+  const server = createServer((_request, response) => {
+    response.on("close", () => {
+      closed.resolve();
+      release.resolve();
+    });
+    void (async (): Promise<void> => {
+      response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
+      response.write(sseFrame({ event: "connected", data: "{}", ...(retryMs === undefined ? {} : { retry: retryMs }) }));
+      for (const [index, delta] of deltas.entries()) {
+        if (index > 0) {
+          await release.promise;
+          release = Promise.withResolvers<void>();
+        }
+        if (response.destroyed) {
+          return;
+        }
+        response.write(sseFrame({ data: JSON.stringify({ delta }), id: String(index) }));
+      }
+      response.end(sseFrame({ event: "return", data: "" }));
+    })().catch((error: Error) => {
+      failure.reject(error);
+      response.destroy();
+    });
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const address = server.address();
+  if (address === null || typeof address === "string") {
+    throw new Error("expected loopback streaming fixture port");
+  }
+  page.once("close", () => {
+    release.resolve();
+    server.closeAllConnections();
+    server.close();
+  });
   await page.route("**/api/trpc/**", async (route) => {
     const req = route.request();
     const accept = req.headers()["accept"] ?? "";
@@ -96,17 +115,14 @@ export async function routeImpersonateStream(page: Page, deltas: readonly string
       return;
     }
     inputs.push(subscriptionInput(req));
-    // The connect index = how many connects we've seen so far (0-based) → which delta to serve this connect.
-    await route.fulfill({
-      status: 200,
-      headers: { "content-type": "text/event-stream", "cache-control": "no-cache" },
-      body: connectBody(deltas, inputs.length - 1, retryMs),
-    });
+    await route.continue({ url: `http://127.0.0.1:${address.port}/impersonate` });
   });
   return {
     count: (): number => inputs.length,
     firstInput: (): unknown => inputs.at(0),
     lastInput: (): unknown => inputs.at(-1),
+    releaseNext: (): void => release.resolve(),
+    closed: Promise.race([closed.promise, failure.promise]),
   };
 }
 
@@ -171,8 +187,7 @@ function terminalFrames(script: OneShotScript): readonly string[] {
 /**
  * Stub `chat.impersonateStream` as a ONE-SHOT stream: every connect serves the SAME scripted body (deltas +
  * one terminal end), so `count()` reads directly as "how many times did the client open this subscription".
- * The sibling {@link routeImpersonateStream} stages one delta per connect to make progressive fill observable
- * — that fiction is useless here, because the thing under test IS the connect count.
+ * The sibling {@link routeImpersonateStream} releases chunks on one connection to make progressive fill observable.
  */
 export async function routeImpersonateStreamOnce(page: Page, script: OneShotScript): Promise<ImpersonateStreamRecorder> {
   const inputs: unknown[] = [];
