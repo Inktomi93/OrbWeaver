@@ -498,16 +498,16 @@ test("RESET pin — reset-to-starter shows the starter config and never writes t
 // generate anything"). The built-in is copy-on-write SERVER-side (`preset.update` against the system default
 // inserts a fork and returns ITS id); the editor is what must close that loop, and didn't.
 //
-// The race arm is the flood MECHANISM, so it is DRIVEN, not assumed: the mint response is held in flight (a
-// route handler ahead of routeTrpc delays exactly the built-in-targeted POST, then falls back) while a SECOND
-// field's debounce fires. Unserialized, that second save still carries the built-in id → mint #2.
-const MINT_DELAY_MS = 2000;
+// Hold the update response by procedure: native tRPC queries also use POST and carry the built-in id.
+// A second field's full debounce runs before release, so an unserialized save targets the built-in again.
+const RACING_SAVE_WINDOW_MS = 900;
 const BUILT_IN_DETAIL = { ...presetDetail(BUILT_IN, "Default", undefined), isSystemDefault: true };
 /** The numeric TWIN's accessible name — `<label> value`, distinct from the slider's bare `<label>` since the
  *  2026-08-19 P1-2 name split (the pair used to share one name, so a walk could not tell them apart). */
 const MAX_OUTPUT_LABEL = "Max output tokens value";
 
 test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the racing save and the active pick all retarget to it", async ({ mount, page }) => {
+  const mint = trpcHold();
   // The server's fork row, accumulating every patch — the CT's stand-in for the persisted copy.
   let forkConfig: PromptConfig = promptConfigSchema.parse(BUILT_IN_DETAIL.config);
   let activeId: string | null = null;
@@ -534,40 +534,44 @@ test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the 
     },
     "connection.resolveChatCapability": () => CAPABILITY,
     // Every write lands on the fork row; targeting the built-in is what MINTS it (a NEW id in the response).
-    "preset.update": (input: unknown) => {
-      forkConfig = (input as { config: PromptConfig }).config;
+    "preset.update": (input: PresetUpdateInput) => {
+      forkConfig = promptConfigSchema.parse(input.config ?? forkConfig);
       minted = true;
-      return forkDetail();
+      return input.id === BUILT_IN ? mint : forkDetail();
     },
-  });
-
-  // Hold the mint in flight. Registered AFTER routeTrpc so it runs FIRST and defers via fallback(); only the
-  // built-in-targeted MUTATION body matches (queries carry their input on the URL, so reads stay fast).
-  let mintRequests = 0;
-  await page.route("**/api/trpc/**", async (route) => {
-    if ((route.request().postData() ?? "").includes(`"${BUILT_IN}"`)) {
-      mintRequests += 1;
-      await new Promise<void>((resolve) => setTimeout(resolve, MINT_DELAY_MS));
-    }
-    await route.fallback();
   });
 
   const component = await mount(<PresetForkOnceStory />);
   await expect(component.getByText(`selected=${BUILT_IN}`)).toBeVisible();
   await expect(qualityDial(component)).toHaveText(QUALITY_OFF_LABEL);
 
-  // FIELD 1 — the Quality dial. Its debounce fires the first save, which the route handler holds open.
+  // FIELD 1 — only its write reaches the hold; the built-in's POST reads must settle normally.
   await pickQuality(component, page, BALANCED);
-  await expect.poll(() => mintRequests, { intervals: [50, 100, 200, 300] }).toBe(1);
+  await mint.requested;
+  const mintedDetail = forkDetail();
 
   // FIELD 2, fired INSIDE the mint's in-flight window — the race arm. Serialized, it must wait for the fork id
   // and patch the copy; unserialized it re-targets the built-in and mints a second "(edited)" row.
-  await component.getByRole("textbox", { name: MAX_OUTPUT_LABEL, exact: true }).fill("1234");
+  const output = component.getByRole("textbox", { name: MAX_OUTPUT_LABEL, exact: true });
+  await output.fill("1234");
+  await expect(output).toHaveValue("1234");
+  await expect(component.getByRole("region", { name: "Preset editor" }).getByRole("status")).toHaveText("Saving…");
+  try {
+    await page.evaluate((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)), RACING_SAVE_WINDOW_MS);
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): negative recorder read after the rendered edit and full debounce, while the first response remains held.
+    expect(trpc.inputs("preset.update")).toHaveLength(1);
+    expect(updatesAgainst(trpc, BUILT_IN).at(0)?.config?.params).toEqual({ quality: "balanced" });
+    await expect(component.getByText(`selected=${BUILT_IN}`)).toBeVisible();
+  } finally {
+    mint.release(mintedDetail);
+  }
 
   // THE PIN: the retarget is complete — the selection, the editor's own save target, and the
   // active-for-generation pick are all the fork (a fork nothing generates with is a no-op edit).
   await expect.poll(() => activeId, { intervals: [100, 200, 300, 500, 500] }).toBe(FORK);
   await expect(component.getByText(`selected=${FORK}`)).toBeVisible();
+  await expect(qualityDial(component)).toHaveText(BALANCED);
+  await expect(output).toHaveValue("1234");
   // Both field values landed on the ONE copy (the racing save patched it, never a second fork).
   await expect
     .poll(() => updatesAgainst(trpc, FORK).at(-1)?.config?.params, { intervals: [100, 200, 300, 500] })
@@ -577,6 +581,8 @@ test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the 
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 900)));
   expect(updatesAgainst(trpc, BUILT_IN).length).toBe(1);
   expect(updatesAgainst(trpc, FORK).length).toBeGreaterThanOrEqual(1);
+  expect(forkConfig.params).toMatchObject({ quality: "balanced", maxOutputTokens: 1234 });
+  expect(trpc.unstubbed()).toEqual([]);
 });
 
 // ── THE COPY-ON-WRITE IS NO LONGER SILENT (side-eye 2026-08-30 P2-A, #856) ──────────────────────────────
