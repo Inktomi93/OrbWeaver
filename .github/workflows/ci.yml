@@ -161,7 +161,7 @@ jobs:
           packages=("$media_root"/archives/*.deb)
           test "${#packages[@]}" -gt 0
           printf '%s\n' "$ID:$VERSION_ID:$(dpkg --print-architecture)" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$GITHUB_SHA" > "$media_root/identity"
-          (cd "$media_root" && tar -cf payload.tar identity archives/*.deb)
+          (cd "$media_root" && tar --exclude=lists/lock --exclude=lists/partial -cf payload.tar identity sources.list lists archives/*.deb)
           echo "sha256=$(sha256sum "$media_root/payload.tar" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
           echo "producer_attempt=$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
       - id: upload
@@ -225,9 +225,10 @@ jobs:
           shopt -s nullglob
           packages=("$media_root"/archives/*.deb)
           test "${#packages[@]}" -gt 0
-          # Disabling repositories and downloads prevents an incomplete payload reaching a mirror.
+          # Resolve only FFmpeg against the authenticated snapshot; retain compatible installed dependencies.
           timeout 300s sudo -n DEBIAN_FRONTEND=noninteractive apt-get --no-download --no-remove -y --no-install-recommends \
-            -o Dir::Etc::sourcelist=/dev/null -o Dir::Etc::sourceparts=- -o "Dir::Cache::archives=$media_root/archives" install "${packages[@]}"
+            -o "Dir::Etc::sourcelist=$media_root/sources.list" -o Dir::Etc::sourceparts=- \
+            -o "Dir::State::lists=$media_root/lists" -o "Dir::Cache::archives=$media_root/archives" install ffmpeg
           timeout 10s ffmpeg -version
           timeout 10s ffprobe -version
       - run: pnpm test:node --shard=${{ matrix.shard }}/3
