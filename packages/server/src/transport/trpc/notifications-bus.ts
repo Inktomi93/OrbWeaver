@@ -12,14 +12,19 @@ import { defineBusChannel } from "./bus-channel.ts";
 
 const channelFor = (userId: UserId): string => `notify:${userId}`;
 
-const bus = defineBusChannel<UserId, InboxView>(channelFor);
+interface NotificationPublication {
+  readonly view: InboxView;
+  readonly inPlace: boolean;
+}
 
-/** Publish a persisted notification to the recipient's live channel. */
-export function publishNotification(view: InboxView): void {
-  bus.publish(view.payload.recipientUserId, view);
+const bus = defineBusChannel<UserId, NotificationPublication>(channelFor);
+
+/** Publish a persisted notification; in-place corrections and settlements retain the row's original seq. */
+export function publishNotification(view: InboxView, inPlace = false): void {
+  bus.publish(view.payload.recipientUserId, { view, inPlace });
 }
 
 /** The recipient's live notification stream, scoped to one `userId` and torn down on `signal` abort. */
-export function subscribeNotifications(userId: UserId, signal: AbortSignal): AsyncIterable<InboxView> {
+export function subscribeNotifications(userId: UserId, signal: AbortSignal): AsyncIterable<NotificationPublication> {
   return bus.subscribe(userId, signal);
 }
