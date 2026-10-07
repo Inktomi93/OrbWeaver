@@ -2,6 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
+import { promisify } from "node:util";
+import { brotliCompress, gzip, constants as zlibConstants } from "node:zlib";
 import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
@@ -496,6 +498,37 @@ export async function devServerServes(absolutePath: string): Promise<boolean> {
   return isFileLoadingAllowed(await fsFilter, absolutePath);
 }
 
+const compressBrotli = promisify(brotliCompress);
+const compressGzip = promisify(gzip);
+const BROTLI_BUILD_QUALITY = 6;
+const COMPRESSED_ASSET_EXTENSIONS = /\.(?:js|css|html)$/;
+
+function precompressedAssets(): Plugin {
+  return {
+    name: "orb:precompressed-assets",
+    apply: "build",
+    async writeBundle(options, bundle): Promise<void> {
+      const directory = options.dir;
+      if (directory === undefined) {
+        throw new Error("orb: precompressed assets require a directory output");
+      }
+      await Promise.all(
+        Object.values(bundle)
+          .filter((asset) => COMPRESSED_ASSET_EXTENSIONS.test(asset.fileName))
+          .map(async (asset) => {
+            const source = asset.type === "chunk" ? asset.code : asset.source;
+            // Moderate Brotli quality keeps rebuilding cheap while moving compression off the request path.
+            const [brotliBytes, gzipBytes] = await Promise.all([
+              compressBrotli(source, { params: { [zlibConstants.BROTLI_PARAM_QUALITY]: BROTLI_BUILD_QUALITY } }),
+              compressGzip(source),
+            ]);
+            await Promise.all([writeFile(join(directory, `${asset.fileName}.br`), brotliBytes), writeFile(join(directory, `${asset.fileName}.gz`), gzipBytes)]);
+          }),
+      );
+    },
+  };
+}
+
 export default defineConfig({
   resolve: {
     // pnpm can hoist devtools' peer deps under their own node_modules → TWO React instances →
@@ -503,6 +536,7 @@ export default defineConfig({
     dedupe: ["react", "react-dom"],
   },
   plugins: [
+    precompressedAssets(),
     // React Compiler (stable 1.0, FULL-compile per D54) runs as a @rolldown/plugin-babel preset —
     // plugin-react v6 dropped internal Babel, so the compiler needs its own Babel pass. Order matches
     // the canonical react.dev / plugin-react snippet (`react()` then `babel()`) and is COSMETIC here:
@@ -615,29 +649,15 @@ export default defineConfig({
     // Same location as the `true` default (`.vite/` under outDir), so the SPA registrar's dist layout
     // is unchanged.
     license: { fileName: ".vite/license.json" },
-    // Skip the per-build gzip-size calc (build speed; we don't gate on it).
-    reportCompressedSize: false,
+    // Report transfer estimates alongside raw sizes; the boot gate still measures all preloaded JS.
+    reportCompressedSize: true,
     // Vite generates index.html and Hono serves it as-is → no manifest needed. REVISIT if Hono ever
     // injects hashed asset tags server-side (then flip to true and read the manifest).
     manifest: false,
-    // Sized to the ACCEPTED bundle, not to an aspiration (owner ruling 2026-09-05, #1752). The lazy
-    // seals (echarts/codemirror class) were always large; what moved the number is that `@orb/client`
-    // no longer declares `sideEffects`. That allowlist existed for the Aug-14 boot code-split
-    // (12e98e88f5: 4,936 kB → 1,056 kB by letting barrels shake), but Rolldown applies the NEAREST
-    // package.json's `sideEffects` to the app's OWN files (vitejs/vite#22620), so every module imported
-    // purely for effect had to be ENUMERATED — and when the CSS front door `src/styles/index.ts`
-    // arrived on Aug 31, nobody added the entry. The bare `import "./styles/index.ts"` was shaken away
-    // and the production bundle shipped with NO app stylesheet for five days (#1752): zero
-    // `display:flex` in `dist`, and every chat room hit the MessageList unbounded-window guard. No gate,
-    // typecheck or test could see it. The allowlist is gone rather than re-enumerated: an app is not a
-    // library, and the enumeration duty was a silent-failure machine.
-    // MEASURED here (`pnpm --filter @orb/client build`, 2026-09-05): largest chunk authed-app
-    // 2,604 kB (was 3,360 kB with the allowlist — chunk boundaries moved), entry index 2,527 kB (was
-    // 692 kB), boot payload 3,012,985 B (was 818,188 B). The limit sits above the largest chunk with
-    // ~7% headroom; the real fence on the boot payload is `pnpm check:boot-chunk`, re-calibrated in the
-    // same commit. (Use build.rolldownOptions — NEVER the deprecated rollupOptions — for any manual
-    // output config; the Zod group above preserves client configuration order.)
-    chunkSizeWarningLimit: 2800,
+    // The accepted entry is 3,137 kB; allow ~8% per-chunk headroom. check:boot-chunk separately
+    // enforces the 3,357,000-byte aggregate boot ceiling, including every modulepreloaded sibling.
+    // Keep app sideEffects undeclared so effect-only imports, including the stylesheet, survive.
+    chunkSizeWarningLimit: 3400,
     // The canonical bundle location: the server's SPA registrar (entry/http/spa.ts) serves this dir —
     // CLIENT_DIST_DIR defaults to packages/client/dist and must move with any change here.
     outDir: "dist",

@@ -6,16 +6,18 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { serveStatic } from "@hono/node-server/serve-static";
 import type { Hono } from "hono";
+import { compress } from "hono/compress";
+import { etag } from "hono/etag";
 import { getLog } from "#foundation/observability";
 
 // Only vite's content-hashed output lives under /assets/ — cacheable forever. Everything name-stable
 // (index.html, public/-copied files) must revalidate so a new deploy is picked up on the next request.
 const IMMUTABLE_CACHE = "public, max-age=31536000, immutable";
-// no-cache, not no-store: the copy may be kept but must revalidate — serveStatic's Last-Modified gives
-// cheap 304s while a redeployed index.html still lands immediately.
+// Keep the shell cacheable but revalidate its ETag on every navigation to pick up deployments.
 const REVALIDATE_CACHE = "no-cache";
 const HASHED_ASSET_PREFIX = "/assets/";
 const API_PREFIX = "/api/";
+const HTML_MEDIA_TYPE = "text/html";
 // F1 belt (pre-auth-attack-surface audit 2026-08-09): source artifacts must NEVER leave the edge, even
 // if a build regression re-ships them into the served dist. `.map` = sourcemaps (the root fix is
 // `vite.config.ts sourcemap:false`; this is defense-in-depth so a config flip can't re-leak the whole
@@ -52,6 +54,25 @@ export function resolveSpaDistDir(opts: { readonly distDir: string; readonly pro
 
 /** Register the bundle file-serve + the history fallback on `app` (GET/HEAD only; call LAST). */
 export function registerSpa(app: Hono, deps: SpaDeps): void {
+  // Register after the API routes so compression cannot buffer their streaming responses.
+  app.use("*", compress());
+  const revalidate = etag({ weak: true });
+  app.use("*", async (c, next) => {
+    await next();
+    if (c.req.method === "GET" && c.res.headers.get("content-type")?.startsWith(HTML_MEDIA_TYPE) === true) {
+      // Hono replaces the response on 304; restore the cache policy and negotiated representation key.
+      const cacheControl = c.res.headers.get("cache-control");
+      const vary = c.res.headers.get("vary");
+      await revalidate(c, () => Promise.resolve());
+      if (cacheControl !== null) {
+        c.res.headers.set("Cache-Control", cacheControl);
+      }
+      if (vary !== null) {
+        c.res.headers.set("Vary", vary);
+      }
+    }
+  });
+
   // Cache headers are set on the RETURNED Response — serveStatic constructs it before onFound fires,
   // so a c.header() there is silently lost (node-server 2.x).
   const withCache = (res: unknown, value: string): Response | undefined => {
@@ -76,7 +97,7 @@ export function registerSpa(app: Hono, deps: SpaDeps): void {
 
   // Real files first. serveStatic's own guard rejects traversal (`..` / `\` / `//`, percent-decoded
   // included) and falls through to next() on a miss.
-  const serveFiles = serveStatic({ root: deps.distDir });
+  const serveFiles = serveStatic({ root: deps.distDir, precompressed: true });
   app.get("*", async (c, next) => {
     if (isApiPath(c.req.path)) {
       return next();
@@ -86,9 +107,9 @@ export function registerSpa(app: Hono, deps: SpaDeps): void {
 
   // History fallback: only a navigation (Accept: text/html) gets index.html — a missed hashed-asset or
   // fetch request 404s instead of receiving HTML-as-JS.
-  const serveIndex = serveStatic({ root: deps.distDir, path: "index.html" });
+  const serveIndex = serveStatic({ root: deps.distDir, path: "index.html", precompressed: true });
   app.get("*", async (c, next) => {
-    if (isApiPath(c.req.path) || !(c.req.header("accept") ?? "").includes("text/html")) {
+    if (isApiPath(c.req.path) || !(c.req.header("accept") ?? "").includes(HTML_MEDIA_TYPE)) {
       return next();
     }
     return withCache(await serveIndex(c, next), REVALIDATE_CACHE);
