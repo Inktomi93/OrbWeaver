@@ -9,8 +9,8 @@ updated: 2026-10-06
 > The ONE verification surface. `pnpm verify` is the single entry that runs every check the repo can run —
 > lint, types, structure, imports, deps, docs, tests, browser, quality — over named tiers, one scope
 > convention, one exit contract, one summary artifact, generalized over a self-describing stage registry.
-> Root `AGENTS.md` "Verification tiers" states the doctrine ("iterate on `--changed`, claim done only after `pnpm check`, pre-push is
-> `--push`, the works is `--full`"); this doc is its as-built spec. The CODE is truth on any conflict:
+> Root `AGENTS.md` "Verification tiers" states the completion policy. This document defines the harness and local/CI division.
+> The code is truth on any conflict:
 > `tooling/src/verify/ops/{run,scoped,tests-type-membership,tests-execution-membership}.ts`,
 > `tooling/src/verify/lib/{registry,selection,run-render}.ts`,
 > `tooling/src/verify/gates/verify-registry-parity.ts`, `lefthook.yml`,
@@ -91,18 +91,17 @@ resolver. `pnpm check` = `pnpm verify --static` (byte-compatible with the origin
 Runnable tiers + a `manual` bucket. The WHOLE-TREE ladder nests by MEMBERSHIP: **static ⊂ push ⊂ full**
 — each tier ADDS stages, never drops one, and every step's membership is UNCONDITIONAL data (the
 `tierPrecondition` mechanism survives for the next row that needs it — see the note under the table —
-but no row declares one). `changed` is the SCOPED inner loop and is deliberately NOT ⊆ static: it carries
-related tests selected from the changed-file graph that static omits by doctrine — static is the
-born-compliant TEST-FREE commit gate. The honest containment for the inner loop is
-**changed ⊆ push**.
+but no row declares one). `changed` is the scoped inner loop and is deliberately not contained in static.
+It includes related product tests selected from the changed-file graph. The commit gate selects static stages that narrow to the index.
+The inner loop's membership is contained in push.
 
 | tier | what it runs | role |
 | - | - | - |
 | `changed` | scoped structural checks over the changed set plus related behavioral tests | fast iteration; `verify --changed` |
-| `static` | every STRUCTURAL surface — lint, the type programs, the structure/registry/ledger reconciliations, imports, deps, docs — and **no behavioral suite**. That characterization is the doctrine; the MEMBERSHIP is data (`pnpm verify --list`) and is never enumerated here | `pnpm check` = `verify --static`, the barrier; the commit gate runs its stages over the working change (§4.3) |
-| `push` | static + the BEHAVIORAL surfaces a commit gate cannot afford: product behavior, component and browser smoke, tool guards, whole-graph liveness, and bounded quality/build checks. Membership is `pnpm verify --list` | pre-push bar; `verify --push` |
+| `static` | whole-tree structural checks and affected instrument recertification. Membership is `pnpm verify --list` | `pnpm check` = `verify --static`, the barrier; the commit gate narrows its stages to the index (§4.3) |
+| `push` | static + the BEHAVIORAL surfaces a commit gate cannot afford: product behavior, component and browser smoke, tool guards, whole-graph liveness, and bounded quality/build checks. Membership is `pnpm verify --list` | CI push-tier verification; `verify --push` |
 | `product` | whole application checks, complete application CT and model-free E2E; excludes tooling test populations, tool-corpus proofs and mutation. Static analysis of tooling remains. Membership is `pnpm verify --list` | application verification; `verify --product`; scope selectors are refused |
-| `full` | push + exhaustive surfaces whose cost belongs on the works: the whole instrument battery, exhaustive browser coverage, mutation quality, and stricter dependency analysis. Membership is `pnpm verify --list` | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
+| `full` | push + exhaustive surfaces whose cost belongs on the works: the whole instrument battery, exhaustive browser coverage, mutation quality, and stricter dependency analysis. Membership is `pnpm verify --list` | complete explicit verification; `verify --full` |
 
 **The instrument battery lives on the full tier, not pre-push.** A lane iterating on an instrument gets
 related tests through native configured-project selection and can run the whole battery directly on
@@ -123,7 +122,9 @@ clean wearing a tier's clothes. That polarity is the contract's (`contract/stage
 The static tier's exact membership and order live in `registry.ts`, are rendered by `pnpm verify --list`,
 and are pinned by the registry/run integration tests. This keeps `pnpm check`'s compatibility contract
 machine-checked instead of copying its roster here.
-`.github/workflows/ci.yml` runs the full tier (§3.2, the "nothing omitted" bar).
+`.github/workflows/ci.yml` runs push-tier checks for main and PRs, and full verification nightly and product/full verification manually.
+Product verification excludes instrument proofs and mutation; it does not recertify the complete tooling battery.
+Nightly full verification includes that proof, but does not replace event qualification before release.
 
 ### 3.3 The exit contract
 
@@ -301,8 +302,7 @@ resolves ONCE into a `Selection`, the superset every stage's `scopedArgv` reads 
   docs, which hand CONCRETE file args to a child that hard-errors on a gone path) DROP them.
 - **`--strict-scope`:** a whole-only stage at a scoped tier REFUSES (exit 3) instead of deferring — for a
   caller who wants a scoped run to fail loudly rather than silently skip the whole-project gates.
-- **A SCOPED green is NOT done.** It defers every whole-project gate (the exact gates that catch
-  half-registration across maps). The whole `pnpm check` (= `--static`) is the verdict — root `AGENTS.md` "Verification tiers".
+- **A scoped green is not whole-tree qualification.** Deferred cross-file checks remain owed at the orchestrator's merged-tree boundary and in CI. The `lane` skill defines assignment completion and matching evidence reuse.
 
 ### 3.6 The parity gates
 
@@ -485,20 +485,19 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
 
 ## 4. Hook + CI wiring
 
-**The tiers ARE the hook wiring (§3):** "run everything" is a named tier, not a folklore N-command pipe
-(`lefthook.yml`).
+`lefthook.yml` defines local integrity checks. CI owns whole-tree verification before release.
+`pnpm verify --product` is explicit operator qualification, not an automatic local push hook.
 
 - **pre-commit and pre-merge-commit → `pnpm verify --static --changed staged`.** A type, lint, boundary or file-local structure red in the staged change ⇒ cannot commit (§4.3).
-- **pre-push → the GitHub sync guard, then `pnpm check`** (the whole static tier). `pnpm verify --push`
-  stays available by hand; it is the same tier CI runs.
+- **pre-push → the GitHub sync guard only.** Whole-tree static and behavioral checks run in CI, not again during local push.
 - **CI → the push tier** (`.github/workflows/ci.yml`) on every push to main and every PR: `pnpm check`, the
   push tier's whole-only checks, `test:node` and the CT suite sharded across runners, and `e2e:smoke`. Its
   `ci-ok` job is the required check, and `pnpm release` refuses a commit whose run is not green. Nightly,
-  `pnpm verify --product` runs on main when main changed since the last green nightly.
+  `pnpm verify --full` runs on main when main changed since its last successful full qualification.
 
 ### 4.3 Scoped static at commit
 
-Pre-commit runs the stages that narrow to the staged change, not the whole tree (D274): `--changed staged`
+Pre-commit runs the stages that narrow to the staged change, not the whole tree: `--changed staged`
 selects the index against `HEAD`, so an unstaged or untracked file stays out of the commit's scope. `--changed`
 beside an explicit tier is only the selector, so the related tests of the `changed` tier stay out of the
 commit gate. A scoped run takes no host-wide whole-run slot, so a commit never waits behind another
@@ -509,6 +508,39 @@ checkout's run.
 - A whole-only stage defers when its path trigger matches and skips when it does not
   (`tooling/src/verify/lib/registry-triggers.ts`). Other scoped selections run a triggered whole command.
 
-The whole static tier (`pnpm check`) stays the verdict for done. It runs at pre-push inside `verify --push`
-and as the merge-train barrier on main. A half-registration across two maps can commit clean and fail
-there. Browser suites never gate the static tier (vitest-browser hangs, `Spine-Testing.md` §7).
+CI runs whole static verification, including branch-wide affected instrument recertification, before a revision can promote to release.
+Local scoped green does not establish whole-tree green. Applicable local completion checks follow the `lane` skill and `AGENTS.md`.
+The merge-train barrier remains separate from the local pre-push hook. Browser suites never gate the static tier (`Spine-Testing.md` §7).
+
+### 4.4 Verification ownership
+
+Lanes own meaningful affected behavior, compiler, lint, gate and rendered checks. Reuse completed checks while their inputs, scope and execution population match.
+The staged commit and merge hooks are index checks, not whole-tree or behavioral qualification. Fast-forward merges create no commit hook.
+The orchestrator freezes a drained batch and records its starting and ending commits. Reconcile the combined tree once, including `pnpm test:ratchets` and affected integration.
+Credit broader evidence only when its actual population includes the owed checks. Return concrete failures together and recheck invalidated evidence after corrections.
+`pnpm verify --product` qualifies application behavior. It does not replace the instrument proof of a mixed application/tooling train.
+
+`ORB_VERIFY_BASE` and `ORB_VERIFY_HEAD` supply paired nonzero Git commit IDs for qualification measurement.
+The base must be an ancestor of the tested HEAD. The boundary requires a clean checkout and a nonempty commit range.
+The changes job records the actual PR target, push before SHA, or manual input separately from the measurement base.
+`scripts/ci-qualification.ts` selects the nearest current-generation qualified ancestor by Git topology.
+Inherited authority requires exact-SHA main-push workflow success and a successful real static step from that run attempt.
+The workflow owns the generation marker. Release callers read its canonical value, not a caller-supplied environment override.
+Failed, cancelled, incomplete, skipped, old-generation, PR, schedule and manual runs cannot authorize inherited qualification.
+Attempt-specific job pagination must complete. Metadata failures and bounded-search exhaustion refuse qualification because newer version authority remains ambiguous.
+Inspect the complete ancestry before admitting publication bootstrap. Historical workflow sources without the current generation cannot grant inherited qualification.
+After positively establishing no qualified ancestor, use the workflow's explicitly admitted publication source for version comparison.
+This bootstrap requires complete tooling proof and application execution. It does not credit the publication's previous tests.
+Refuse qualification when the admitted publication source cannot resolve as an ancestor of the tested HEAD.
+Affected tooling, application skip decisions and showcase release comparisons use the cumulative measurement range.
+This preserves defects and version debt from failed predecessors. Policy inventory identity keeps its existing semantics.
+
+The orchestrator records train start/end. Use the start incrementally only when matching qualified evidence establishes its state.
+Otherwise use an established qualified ancestor, or prove none exists before admitting publication bootstrap. Refuse ambiguous local version authority.
+Do not substitute accumulated unpublished remote history. Other callers retain ordinary nearest-base and local-publication semantics.
+Set `ORB_VERIFY_TOOL_MODE=full` for conservative tooling proof; this mode requires the paired validated boundary.
+Deleted inputs and executable configuration require conservative instrument proof; changed native tests select themselves or name their separate executor.
+
+Nightly full and manual product qualification use separate exact-SHA success markers. Red, no-verdict and cancelled runs cannot save success.
+The bounded hosted-runner job limit does not prove the full tier completes on that runner. Read the completed run before claiming qualification.
+Release promotion requires successful push-event CI for the exact HEAD after synchronization. A sync-created merge needs its own qualification.

@@ -8,9 +8,10 @@ import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { execGit } from "@orb/tooling/_shared/git";
 import { compileShowcasePlugins, renderShowcaseReleaseReceipt, showcaseReleaseReceipt, staleShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
-import { showcaseVersionViolations } from "@orb/tooling/verify";
+import { resolveCiQualification, showcaseVersionViolations } from "@orb/tooling/verify";
 import { zipSync } from "fflate";
 import { vi } from "vitest";
+import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../../../tooling/src/verify/contract/selection.ts";
 import {
   baseReceipt,
   candidateShowcaseCompilerInputs,
@@ -470,4 +471,72 @@ test("missing base receipt is reconstructed, but a Git read failure cannot masqu
   execGit(root, ["add", "--", "packages/showcase-plugins/release-entries.json"]);
   execGit(root, ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "invalid receipt"]);
   expect(() => baseReceipt(root, execGit(root, ["rev-parse", "HEAD"]).trim())).toThrow("base showcase release receipt is incomplete");
+});
+
+test("qualified CI boundary retains failed predecessor showcase version debt after application-only B", { timeout: scaledBudget(90_000) }, async ({
+  scratch,
+  fakeBin,
+}) => {
+  await fakeBin("gh", "process.exitCode = 74;");
+  const root = join(scratch, "event-showcase");
+  const project = plantCompilerProject(root, "const value = 1;\n");
+  mkdirSync(join(root, ".github/workflows"), { recursive: true });
+  writeFileSync(join(root, ".github/workflows/ci.yml"), "env: { ORB_CI_QUALIFICATION_GENERATION: current }\n");
+  for (const slug of SHOWCASE_PLUGIN_SLUGS) {
+    if (slug !== "oracle-deck") {
+      const directory = join(root, "packages/showcase-plugins/bundles", slug);
+      mkdirSync(directory, { recursive: true });
+      writeFileSync(join(directory, "main.ts"), "const value = 1;\n");
+      writeFileSync(join(directory, "manifest.json"), '{"version":"1.0.0"}\n');
+    }
+  }
+  const receiptPath = join(root, "packages/showcase-plugins/release-entries.json");
+  const save = async (): Promise<string> => {
+    const compiled = await compileShowcasePlugins(root);
+    expect(compiled.diagnostics).toEqual([]);
+    writeFileSync(receiptPath, renderShowcaseReleaseReceipt(showcaseReleaseReceipt(compiled.bundles)));
+    execGit(root, ["add", "--all"]);
+    execGit(root, ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "entries"]);
+    return execGit(root, ["rev-parse", "HEAD"]).trim();
+  };
+  const base = await save();
+  writeFileSync(join(project.pluginDirectory, "main.ts"), "const value = 2;\n");
+  const failed = await save();
+  writeFileSync(join(root, "application.ts"), "export const application = true;\n");
+  const head = await save();
+  execGit(root, ["update-ref", "refs/remotes/origin/main", head]);
+  expect(await runShowcaseRelease(root), "ordinary publication comparison remains unchanged").toBe(EXIT.clean);
+  vi.stubEnv(VERIFY_BASE_ENV, base);
+  vi.stubEnv(VERIFY_HEAD_ENV, head);
+  try {
+    expect(await runShowcaseRelease(root), "CI cannot borrow HEAD as its own version baseline").toBe(EXIT.violations);
+    vi.stubEnv(VERIFY_BASE_ENV, failed);
+    expect(await runShowcaseRelease(root), "the event base hides the failed predecessor's version debt").toBe(EXIT.clean);
+    vi.stubEnv(VERIFY_BASE_ENV, base);
+    writeFileSync(join(project.pluginDirectory, "manifest.json"), '{"version":"1.0.1"}\n');
+    const repaired = await save();
+    vi.stubEnv(VERIFY_HEAD_ENV, repaired);
+    expect(await runShowcaseRelease(root), "a newer manifest repays the cumulative installable-byte debt").toBe(EXIT.clean);
+    writeFileSync(join(project.pluginDirectory, "manifest.json"), '{"version":"1.0.2"}\n');
+    const qualifiedNewer = await save();
+    writeFileSync(join(project.pluginDirectory, "main.ts"), "const value = 3;\n");
+    writeFileSync(join(project.pluginDirectory, "manifest.json"), '{"version":"1.0.1"}\n');
+    const rollback = await save();
+    vi.stubEnv(VERIFY_HEAD_ENV, rollback);
+    expect(await runShowcaseRelease(root), "publication-only comparison would permit this rollback").toBe(EXIT.clean);
+    vi.stubEnv(VERIFY_BASE_ENV, qualifiedNewer);
+    expect(await runShowcaseRelease(root), "the newer qualified version must retain its authority").toBe(EXIT.violations);
+    expect(
+      () =>
+        resolveCiQualification(root, rollback, qualifiedNewer, {
+          repository: "Inktomi93/orbweaver",
+          generation: "Orbweaver qualification ancestor-v1",
+          publication: base,
+          hasCurrentGeneration: () => true,
+        }),
+      "metadata outage must not replace newer qualified version authority with older publication",
+    ).toThrow("qualified ancestry is ambiguous");
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });

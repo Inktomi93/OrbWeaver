@@ -1,74 +1,24 @@
-// THE AFFECTED-INSTRUMENT TEST LANE (#1967) — the family tests of the instruments THIS BRANCH CHANGED,
-// run at a tier below `--full`.
-//
-// THE GAP IT CLOSES, read off `pnpm verify --list` rather than remembered: `structure:policy-conformance`
-// runs in changed/static/push/full, so a policy's DECLARED `mustFlag`/`mustPass`/`mustRefuse` rows bind at
-// every tier — but everything a declared row structurally CANNOT express runs in `tests:tooling`, which is
-// `full` ONLY. That is the §4.2 production-dispatched identity arm (`waivedFindings === 1`,
-// `authorityAlarms === []`), the central grant table's wrong-identity/duplicate/stale boundaries, and the
-// §4.5 refusal and receipt pins. Measured cost, twice, five days each:
-// `tests/tooling/verify/gates/registry-family.test.ts` red from `40f2b3014a` (95 refused proof rows across
-// eight policies, #1953) and `tests/tooling/static-class-consumers.int.test.ts` red from `0cd914649a`
-// (#1956). Both commits ran and passed their named scoped floor; NEITHER TOUCHED A FAMILY TEST, which is
-// exactly why the per-conversion floor rule — prose, "run the family test(s) you touched" — did not fire.
-//
-// THE #1842 PLACEMENT IS NOT REVERTED, and this row is careful to be the narrow thing rather than the
-// battery: `tests:tooling` is 71 CPU-minutes over 284 files recertifying our tools, and it stays at
-// `--full`. This lane runs the AFFECTED subset and nothing else, and refuses to run anything when the
-// branch touched no instrument.
-//
-// THREE REACHES:
-//   1. THE MIRROR — `tooling/src/X.ts` → `tests/tooling/X<suffix>.ts`, through the shared
-//      `_shared/test-mirror.ts#resolveMirrors` the mutation probe already reads. Never re-derived here:
-//      `test-layout` enforces that relation in the other direction and one spelling of it is the point.
-//   2. THE IMPORT GRAPH — a data/helper module reaches every tooling spec that transitively imports it,
-//      including re-exports and cycles. This is the production path for split tables such as reviewed grants.
-//   3. THE GATE-ID STRING — a changed `tooling/src/verify/gates/<id>.ts` also selects every spec under
-//      `tests/tooling/verify/gates/` whose TEXT contains `"<id>"`. This is load-bearing and is the whole
-//      reason the mirror alone is not enough: a family test routinely lives under its WAVE's name rather
-//      than its gate's (`contract-shape-wave-1.test.ts`, `simple-visitors-wave-2.test.ts`, …), so the
-//      mirror maps a converted policy to a file that does not exist while its real proofs sit one
-//      directory over. `.claude/rules/verify-and-gates.md` states this as a rule for humans; this is the
-//      same rule with a machine behind it.
-//
-// THE HEAVY SHARED SUITE IS NARROWED ONLY AFTER PROVEN POLICY REACH. The source import graph also
-// answers which flat gate modules import every changed source. When every source has that answer, the one
-// real-corpus liveness file receives those policy IDs and runs their unchanged arms over its one shared
-// corpus. A source with no policy reach, an unprovable filename↔descriptor ID, or a shared
-// contract/registry/loader/pass source keeps the full roster. Direct `tests:tooling` runs receive no value
-// and retain the complete roster and runner controls.
-//
-// THE BRANCH ANSWER, NEVER THE WORKING-TREE ONE. At `--push` the changes are COMMITTED and the working
-// tree is clean, so a working-tree read selects nothing and the stage passes vacuously — the #1967 defect
-// in a new costume. `publishChangedPaths` unions the merge-base diff with the working tree and returns
-// `null` when it cannot answer; `null` RUNS THE WHOLE BATTERY rather than selecting nothing, because an
-// uncomputable precondition that reads as "nothing changed" is a silent false clean (the bare-zero law).
-//
-// …AND THE BRANCH POINT IS DERIVED, NOT ASSUMED (#2472). That base used to be a hardcoded `origin/main`,
-// which on this checkout — the owner pushes by hand and rarely — sat 280 commits behind local main, so
-// "the instruments this branch changed" resolved to 488 `tooling/src` sources: essentially the whole
-// `tests:tooling` battery #1842 deliberately moved to `--full`, run at every `static` barrier, forever.
-// `lib/repo-paths.ts#resolveMergeBase` now takes the candidate base CLOSEST to HEAD, which on a real
-// branch is its own fork point. `resolvePublishBase` widens ONLY the one case that derivation cannot
-// answer: a checkout that IS `main` itself, with commits `origin/main` has never seen. Those are exactly
-// the commits a push or a merge-train landing is about to publish, so this stage measures the gap against
-// `origin/main` there instead of reporting `isHead` over unrecertified work — a push tier that always saw
-// `isHead` never recertifies the instruments it is about to publish. `isHead` still reports through the
-// `[verify-notice]` channel when there truly is nothing unpublished (origin/main IS the tip, or no remote
-// answers at all).
+// Affected tooling qualification uses an explicit CI-event/train range when supplied, otherwise the local publish delta.
+// Native changed tests join source mirror/import/policy-ID reach. Deleted inputs and executable configuration
+// need conservative proof because the current import graph cannot establish their prior reach.
+// The real-corpus liveness suite narrows only after proven policy reach; direct full runs retain its complete corpus.
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { emitLine, warn } from "@orb/tooling/_shared/log";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
+import { classifyTestFilename, looksLikeTestFilename, runtimeForTestFamily } from "@orb/tooling/_shared/test-kinds";
 import { resolveMirrors } from "@orb/tooling/_shared/test-mirror";
-import type { InstrumentAffectedLivenessScope, InstrumentAffectedPolicyReach } from "../contract/instrument-affected.ts";
+import type { InstrumentAffectedLivenessScope, InstrumentAffectedPolicyReach, InstrumentAffectedSelection } from "../contract/instrument-affected.ts";
 import { INSTRUMENT_AFFECTED_POLICIES_ENV } from "../contract/instrument-affected.ts";
+import { VERIFY_TOOL_MODE_ENV, VERIFY_TOOL_MODES } from "../contract/qualification.ts";
+import type { MeasurementBoundary } from "../contract/selection.ts";
+import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../contract/selection.ts";
 import { NOTICE_MARKER } from "../contract/stage.ts";
 import { encodeInstrumentAffectedPolicyIds } from "../lib/instrument-affected-liveness.ts";
-import { toolingImportReach, toolingTestsNaming } from "../lib/instrument-affected-reach.ts";
-import { existsRel, publishChangedPaths, resolvePublishBase } from "../lib/repo-paths.ts";
+import { isRunnableToolingSpec, toolingImportReach, toolingTestsNaming } from "../lib/instrument-affected-reach.ts";
+import { existsRel, publishChangedPaths, resolveMeasurementBoundary, resolvePublishBase } from "../lib/repo-paths.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm verify --push  /  pnpm check:instrument-affected");
 
@@ -95,14 +45,13 @@ const SHARED_LIVENESS_PREFIXES = [
 
 /** The instrument sources in a changed set — the only inputs that can select a family test. */
 function instrumentSources(root: string, changed: readonly string[]): readonly string[] {
-  // A DELETED source is filtered out deliberately: its specs go with it, and selecting a path that is not
-  // there would hand vitest an operand the preflight refuses.
-  return changed.filter((path) => path.startsWith(INSTRUMENT_SRC_PREFIX) && path.endsWith(TS_SUFFIX) && existsRel(path, root));
+  // Missing prior sources require conservative proof before this current-filesystem graph is used.
+  return changed.filter((path) => path.startsWith(INSTRUMENT_SRC_PREFIX) && /\.tsx?$/u.test(path) && existsRel(path, root));
 }
 
 /** The policy ID a changed gate module carries, or undefined — the loader's filename contract. */
 function policyIdOf(path: string): string | undefined {
-  if (!path.startsWith(GATES_PREFIX)) {
+  if (!(path.startsWith(GATES_PREFIX) && path.endsWith(TS_SUFFIX))) {
     return;
   }
   const id = path.slice(GATES_PREFIX.length, -TS_SUFFIX.length);
@@ -141,19 +90,6 @@ function affectedLivenessScope(sources: readonly string[], policyReach: Readonly
   return { kind: "policies", policyIds: [...policyIds].toSorted() };
 }
 
-export interface InstrumentAffectedSelection {
-  /** The instrument sources this branch changed. */
-  readonly sources: readonly string[];
-  /** The `tests/tooling/**` specs those sources reach, sorted and de-duplicated. */
-  readonly specs: readonly string[];
-  /** Changed sources with no mirror, import-graph or policy-family spec reach. */
-  readonly unreachedSources: readonly string[];
-  /** Real-corpus liveness roster to run; only proven policy reach may narrow it. */
-  readonly livenessScope: InstrumentAffectedLivenessScope;
-  /** Set when the branch answer was UNCOMPUTABLE: the caller must run the whole battery, never nothing. */
-  readonly unknown: boolean;
-}
-
 function specsForSource(root: string, source: string, importReach: ReadonlyMap<string, readonly string[]>): ReadonlySet<string> {
   const specs = new Set(importReach.get(source) ?? []);
   for (const mirror of resolveMirrors(root, source)) {
@@ -171,17 +107,63 @@ function specsForSource(root: string, source: string, importReach: ReadonlyMap<s
 /** THE SELECTION, as a pure function of a changed set so the pin can drive it without a git repository. */
 export function selectAffectedInstrumentTests(root: string, changed: readonly string[] | null): InstrumentAffectedSelection {
   if (changed === null) {
-    return { sources: [], specs: [], unreachedSources: [], livenessScope: { kind: "full", reason: "changed paths are unknown" }, unknown: true };
+    return {
+      sources: [],
+      specs: [],
+      unreachedSources: [],
+      livenessScope: { kind: "full", reason: "changed paths are unknown" },
+      unknown: true,
+      delegatedTests: [],
+    };
   }
+  const unsupported = changed.find((path) => path.startsWith("tests/tooling/") && looksLikeTestFilename(path) && classifyTestFilename(path) === undefined);
+  if (unsupported !== undefined) {
+    throw new Error(`affected-tooling cannot qualify an unsupported test kind: ${unsupported}`);
+  }
+  // Deleted/renamed inputs and executable runner configuration cannot be traced through the current import graph.
+  const opaque = changed.find(
+    (path) =>
+      ((path.startsWith(INSTRUMENT_SRC_PREFIX) || path.startsWith("tests/tooling/")) && !existsRel(path, root)) ||
+      ((path.startsWith(INSTRUMENT_SRC_PREFIX) || path.startsWith("tests/tooling/")) && !/\.tsx?$/u.test(path) && !path.endsWith(".md")) ||
+      (path.startsWith("tooling/") && !path.startsWith(INSTRUMENT_SRC_PREFIX) && !path.endsWith(".md")) ||
+      (/^(?:scripts\/|tests\/support\/|\.claude\/hooks\/|\.github\/(?:workflows|actions)\/)/u.test(path) && !path.endsWith(".md")) ||
+      (!path.includes("/") && /\.(?:[cm]?[jt]sx?|json|ya?ml)$/u.test(path)),
+  );
+  if (opaque !== undefined) {
+    return {
+      sources: [],
+      specs: [],
+      unreachedSources: [],
+      livenessScope: { kind: "full", reason: `unbounded changed input: ${opaque}` },
+      unknown: true,
+      delegatedTests: [],
+    };
+  }
+  const delegatedTests = changed.filter((path) => {
+    const kind = path.startsWith("tests/tooling/") ? classifyTestFilename(path) : undefined;
+    return kind !== undefined && runtimeForTestFamily(kind.definition.family) !== "vitest";
+  });
+  const directSpecs = changed.filter((path) => isRunnableToolingSpec(path) && existsRel(path, root));
   const sources = instrumentSources(root, changed);
-  if (sources.length === 0) {
-    return { sources, specs: [], unreachedSources: [], livenessScope: { kind: "full", reason: "no changed instrument sources" }, unknown: false };
+  const helpers = changed.filter(
+    (path) => path.startsWith("tests/tooling/") && /\.tsx?$/u.test(path) && !isRunnableToolingSpec(path) && classifyTestFilename(path) === undefined,
+  );
+  const subjects = [...sources, ...helpers];
+  if (subjects.length === 0) {
+    return {
+      sources,
+      specs: directSpecs.toSorted(),
+      unreachedSources: [],
+      livenessScope: { kind: "full", reason: "no changed instrument sources" },
+      unknown: false,
+      delegatedTests,
+    };
   }
-  const [importReach, policyReach] = toolingImportReach(root, sources);
-  const specs = new Set<string>();
+  const [importReach, policyReach] = toolingImportReach(root, subjects);
+  const specs = new Set(directSpecs);
   const unreachedSources: string[] = [];
   const livenessSources: string[] = [];
-  for (const source of sources) {
+  for (const source of subjects) {
     const sourceSpecs = specsForSource(root, source, importReach);
     if (sourceSpecs.size === 0) {
       unreachedSources.push(source);
@@ -199,42 +181,64 @@ export function selectAffectedInstrumentTests(root: string, changed: readonly st
     unreachedSources,
     livenessScope: affectedLivenessScope(livenessSources, policyReach),
     unknown: false,
+    delegatedTests,
   };
+}
+
+function reportNoAffectedTooling(root: string, boundary: MeasurementBoundary | null): void {
+  if (boundary !== null) {
+    emitLine(`instrument-affected: no affected native tooling inputs in measured ${boundary.base}..${boundary.head}.`);
+    return;
+  }
+  // THE EMPTY ANSWER IS ANNOUNCED IN THE ARTIFACT, NOT ONLY IN A LOG NOBODY OPENS (#2472). Since the base
+  // became the real branch point, `pnpm check` ON MAIN resolves it to HEAD and this stage correctly
+  // measures nothing — which is exactly the shape a reader must never mistake for coverage. The
+  // `[verify-notice]` channel puts the ref, the commit and the reason into `reports/verify.json`'s
+  // `notices` for this stage, where the tail block renders it beside the ✓ (contract/stage.ts).
+  const base = resolvePublishBase(root);
+  emitLine(
+    base !== null && base.isHead
+      ? `${NOTICE_MARKER} instrument-affected measured NOTHING: the merge base resolved to HEAD itself (${base.ref} @ ${base.commit.slice(0, SHORT_SHA)}), so this checkout is ON the mainline tip and has no branch to recertify. This is a fact about the checkout, not a clean bill of health for tooling/src — the whole instrument battery is \`pnpm verify --full\`.`
+      : `instrument-affected: this branch changed no tooling/src source since ${base === null ? "its merge base" : `${base.ref} @ ${base.commit.slice(0, SHORT_SHA)}`} — nothing to recertify.`,
+  );
 }
 
 /** `pnpm check:instrument-affected` — the stage body. */
 export function runInstrumentAffected(root: string): number {
-  const selection = selectAffectedInstrumentTests(root, publishChangedPaths(root));
-  if (selection.unknown) {
-    warn(
-      "instrument-affected: the branch's changed set could not be computed (no usable merge base, or git failed) — running the WHOLE instrument battery rather than selecting nothing, because an uncomputable precondition that reads as 'nothing changed' is a silent false clean.",
-    );
-    return runSpecs(root, ["tests/tooling"], selection.livenessScope);
+  const boundary = resolveMeasurementBoundary(root);
+  const mode = inheritedProcessEnv()[VERIFY_TOOL_MODE_ENV];
+  if (mode !== undefined && !VERIFY_TOOL_MODES.some((candidate) => candidate === mode)) {
+    throw new Error(`${VERIFY_TOOL_MODE_ENV} must be affected or full`);
   }
-  if (selection.sources.length === 0) {
-    // THE EMPTY ANSWER IS ANNOUNCED IN THE ARTIFACT, NOT ONLY IN A LOG NOBODY OPENS (#2472). Since the base
-    // became the real branch point, `pnpm check` ON MAIN resolves it to HEAD and this stage correctly
-    // measures nothing — which is exactly the shape a reader must never mistake for coverage. The
-    // `[verify-notice]` channel puts the ref, the commit and the reason into `reports/verify.json`'s
-    // `notices` for this stage, where the tail block renders it beside the ✓ (contract/stage.ts).
-    // The COMPENSATING control for that inertness is the orchestrator's, not this predicate's: a merge
-    // train touching `tooling/src` owes `pnpm verify --full`, the tier that runs the whole battery.
-    const base = resolvePublishBase(root);
-    emitLine(
-      base !== null && base.isHead
-        ? `${NOTICE_MARKER} instrument-affected measured NOTHING: the merge base resolved to HEAD itself (${base.ref} @ ${base.commit.slice(0, SHORT_SHA)}), so this checkout is ON the mainline tip and has no branch to recertify. This is a fact about the checkout, not a clean bill of health for tooling/src — the whole instrument battery is \`pnpm verify --full\`.`
-        : `instrument-affected: this branch changed no tooling/src source since ${base === null ? "its merge base" : `${base.ref} @ ${base.commit.slice(0, SHORT_SHA)}`} — nothing to recertify.`,
-    );
-    return EXIT.clean;
+  if (mode !== undefined && boundary === null) {
+    throw new Error(`${VERIFY_TOOL_MODE_ENV} requires an explicit validated measurement boundary`);
+  }
+  if (boundary !== null) {
+    emitLine(`${NOTICE_MARKER} measurement boundary: ${boundary.base}..${boundary.head}`);
+  }
+  const selection = selectAffectedInstrumentTests(root, mode === "full" ? null : publishChangedPaths(root, boundary));
+  for (const path of selection.delegatedTests) {
+    const kind = classifyTestFilename(path);
+    if (kind !== undefined) {
+      emitLine(`${NOTICE_MARKER} changed test ${path} is owned by ${runtimeForTestFamily(kind.definition.family)}, not affected-tooling Vitest runtime`);
+    }
+  }
+  if (selection.unknown) {
+    warn(`instrument-affected: ${selection.livenessScope.reason} — running the whole instrument battery rather than selecting nothing.`);
+    return runSpecs(root, ["tests/tooling"], selection.livenessScope);
   }
   if (selection.unreachedSources.length > 0) {
     // A CHANGED INSTRUMENT THAT REACHES NO SPEC IS A FINDING, NOT A PASS. `test-presence` owns the
     // obligation; this stage would otherwise print a clean zero over the exact blindness #1967 is about.
     warn(
-      `instrument-affected: ${String(selection.unreachedSources.length)} of ${String(selection.sources.length)} changed instrument source(s) reach NO spec under tests/tooling — ` +
+      `instrument-affected: ${String(selection.unreachedSources.length)} changed instrument/test input(s) reach NO spec under tests/tooling — ` +
         `${selection.unreachedSources.join(", ")}. A changed instrument with no test that reaches it is unrecertified, not clean (tooling/src/verify/gates/GATE-AUTHORING.md §8).`,
     );
     return EXIT.violations;
+  }
+  if (selection.sources.length === 0 && selection.specs.length === 0) {
+    reportNoAffectedTooling(root, boundary);
+    return EXIT.clean;
   }
   const livenessDetail =
     selection.livenessScope.kind === "policies"
@@ -256,6 +260,9 @@ function runSpecs(root: string, specs: readonly string[], livenessScope: Instrum
     {
       cwd: root,
       env: inheritedProcessEnv({
+        [VERIFY_BASE_ENV]: undefined,
+        [VERIFY_HEAD_ENV]: undefined,
+        [VERIFY_TOOL_MODE_ENV]: undefined,
         [INSTRUMENT_AFFECTED_POLICIES_ENV]: livenessScope.kind === "policies" ? encodeInstrumentAffectedPolicyIds(livenessScope.policyIds) : undefined,
       }),
       stdio: "inherit",

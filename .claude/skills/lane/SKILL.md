@@ -43,7 +43,7 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 
 - Commit implementation work through the hooks. Review-only assignments never commit.
 - Allow the commit command to finish: killing it can leave its hook running. Follow "Long runs" for your host.
-- Pre-commit runs `pnpm verify --static --changed`. Commit-msg runs `scripts/commit-msg-check.sh`.
+- Pre-commit runs `pnpm verify --static --changed staged`. Commit-msg runs `scripts/commit-msg-check.sh`.
 - Write the header as `type(scope): subject`, name the floor you ran, and end with a `Co-Authored-By` trailer.
 - Keep your own checks scoped. Do not run the full battery only to commit.
 - Bypass a hook only when the user or orchestrator names the exception. Use `LEFTHOOK_EXCLUDE=check git commit ...`, which keeps the commit-msg check, and record the reason and the owed checks.
@@ -109,6 +109,8 @@ List each command and its result in the report. The whole-tree check is the orch
 - Define the requested outcome and the checks that establish it before implementation. Keep simple tasks in the brief; no separate plan artifact.
 - Use automatic edit feedback for routine lint, imports and types. Run explicit checks for uncovered files or skipped checks.
 - Complete implementation before final verification. Count completed hook and lane checks toward the floor when their scope and files still match.
+- Reuse matching completed checks. Do not repeat static checks manually for unchanged files, dependencies and scope.
+- Report deferred whole-tree and integration checks. The orchestrator reconciles the frozen merged batch, not each lane commit.
 - Before another check, name the unresolved question and how its answer could change the result. Extra confidence alone is insufficient.
 - Repeat only checks affected by a relevant edit, failure or conflicting result. Read existing artifacts instead of rerunning for their output.
 - Report unrelated findings separately. If they block a required check, state the blocked verdict without expanding the assignment.

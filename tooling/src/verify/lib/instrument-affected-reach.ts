@@ -112,7 +112,7 @@ function moduleResolver(root: string): (importer: string, specifier: string) => 
   };
 }
 
-function isRunnableToolingSpec(path: string): boolean {
+export function isRunnableToolingSpec(path: string): boolean {
   if (!path.startsWith(TOOLING_TESTS_PREFIX)) {
     return false;
   }

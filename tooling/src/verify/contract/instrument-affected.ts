@@ -25,3 +25,16 @@ export interface InstrumentAffectedPolicyReach {
   readonly policyIds: readonly string[];
   readonly unclassifiableGatePaths: readonly string[];
 }
+
+interface InstrumentAffectedSelectionFields {
+  readonly sources: readonly string[];
+  readonly specs: readonly string[];
+  readonly unreachedSources: readonly string[];
+  readonly delegatedTests: readonly string[];
+}
+
+export type InstrumentAffectedSelection = InstrumentAffectedSelectionFields &
+  (
+    | { readonly unknown: true; readonly livenessScope: InstrumentAffectedLivenessFullScope }
+    | { readonly unknown: false; readonly livenessScope: InstrumentAffectedLivenessScope }
+  );

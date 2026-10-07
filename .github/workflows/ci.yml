@@ -1,14 +1,14 @@
 name: CI
 run-name: >-
-  ${{ github.event_name == 'schedule' && 'Nightly product verify on main'
+  ${{ github.event_name == 'schedule' && 'Nightly full verify on main'
   || github.event_name == 'pull_request' && format('PR #{0} · {1}', github.event.pull_request.number, github.event.pull_request.title)
   || github.event_name == 'workflow_dispatch' && format('Manual {0} tier on {1}', inputs.tier, github.ref_name)
   || github.event.head_commit.message }}
 
-# The push tier, run on GitHub's runners instead of the pushing machine (lefthook's pre-push keeps the sync
-# guard and `pnpm check`). Every push to main and every PR runs it; a newer push cancels the older run.
-# Docs-only changes run the static tier and skip the test suites. `ci-ok` is the one required check, and
-# `pnpm release` refuses a commit whose run is not green. Nightly, the product tier runs on main when main
+# CI qualifies published candidates; local staged hooks check commits and pre-push checks synchronization.
+# Every push to main and every PR runs qualification; a newer push cancels the older run.
+# A qualified ancestor permits docs-only test skips. `ci-ok` is the one required check, and
+# `pnpm release` refuses a commit whose run is not green. Nightly, the full tier runs on main when main
 # has changed since the last green nightly.
 on:
   push:
@@ -20,10 +20,14 @@ on:
   workflow_dispatch:
     inputs:
       tier:
-        description: push runs the per-push suites; product runs the nightly product verify.
+        description: Choose push qualification, application product checks, or exhaustive full verification.
         type: choice
-        options: [push, product]
+        options: [push, product, full]
         default: push
+      base:
+        description: Actual event boundary to record for manual push qualification.
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -34,44 +38,52 @@ concurrency:
 
 env:
   CI: "true"
+  ORB_CI_REPOSITORY: Inktomi93/OrbWeaver
+  ORB_CI_QUALIFICATION_GENERATION: Orbweaver qualification ancestor-v1
+  ORB_CI_PUBLICATION_BOOTSTRAP_SHA: ac6cfc19ea9db59644426b37f6b8c842c33473ad
 
 jobs:
   changes:
-    if: github.event_name != 'schedule' && inputs.tier != 'product'
+    if: github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       code: ${{ steps.diff.outputs.code }}
+      base: ${{ steps.diff.outputs.base }}
+      head: ${{ steps.diff.outputs.head }}
+      tool_mode: ${{ steps.diff.outputs.tool_mode }}
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           filter: blob:none
           persist-credentials: false
+      - uses: $/.github/actions/setup
       - id: diff
         env:
-          BEFORE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
-        run: |
-          if [ -z "$BEFORE" ] || [ "$BEFORE" = 0000000000000000000000000000000000000000 ] || ! git cat-file -e "$BEFORE" 2>/dev/null; then
-            echo "code=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          # Documentation and editor-only changes do not change test outcomes; executable agent hooks/configs do.
-          code=$(git diff --name-only "$BEFORE" "$GITHUB_SHA" \
-            | { grep -v -E '^(docs/|\.vscode/|\.github/ISSUE_TEMPLATE/)|\.md$' || true; } \
-            | head -1)
-          echo "code=$([ -n "$code" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || inputs.base }}
+        run: node scripts/ci-qualification.ts baseline "$GITHUB_SHA" "$BEFORE"
 
   static:
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      ORB_VERIFY_BASE: ${{ needs.changes.outputs.base }}
+      ORB_VERIFY_HEAD: ${{ needs.changes.outputs.head }}
+      ORB_VERIFY_TOOL_MODE: ${{ needs.changes.outputs.tool_mode }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Release and affected-tooling checks need a resolvable mainline merge base.
+          fetch-depth: 0
           persist-credentials: false
       - uses: $/.github/actions/setup
-      - name: Static tier
+      - name: ${{ env.ORB_CI_QUALIFICATION_GENERATION }}
         run: pnpm check
       # The push tier's remaining whole-repo checks are light enough to share the runner.
       - parallel:
@@ -219,7 +231,7 @@ jobs:
   # e2e-smoke still runs and shows red, but stays out of the gate for now: its three full app stacks have taken
   # down the 16 GB runner itself, so a red there is not yet a verdict on the code.
   ci-ok:
-    if: always() && github.event_name != 'schedule' && inputs.tier != 'product'
+    if: always() && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full'
     needs: [changes, static, node, ct]
     runs-on: ubuntu-slim
     timeout-minutes: 5
@@ -236,19 +248,21 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           echo "$NEEDS" | jq -e 'all(.[]; .result == "success" or .result == "skipped")' > /dev/null
 
-  # The product tier: complete application CT and E2E without the tooling batteries. Scheduled runs use
-  # the default branch's copy of this file, so the job checks out main explicitly, and it skips a main
-  # commit that already passed a nightly.
-  product:
-    if: github.event_name == 'schedule' || inputs.tier == 'product'
+  # Nightly owns exhaustive verification; product remains an explicit application-only command.
+  # The bounded runner limit is not evidence that the complete full tier fits this machine.
+  qualification:
+    if: github.event_name == 'schedule' || inputs.tier == 'product' || inputs.tier == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 330
+    env:
+      VERIFY_TIER: ${{ github.event_name == 'schedule' && 'full' || inputs.tier }}
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event_name == 'schedule' && 'main' || github.ref }}
+          fetch-depth: 0
           persist-credentials: false
       - id: sha
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
@@ -256,24 +270,29 @@ jobs:
         if: github.event_name == 'schedule'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: .product-verified
-          key: product-verified-${{ steps.sha.outputs.sha }}
+          path: .${{ env.VERIFY_TIER }}-verified
+          key: ${{ env.VERIFY_TIER }}-verified-${{ steps.sha.outputs.sha }}
           lookup-only: true
       - if: steps.seen.outputs.cache-hit != 'true'
         uses: $/.github/actions/setup
         with:
           browsers: "true"
-      - if: steps.seen.outputs.cache-hit != 'true'
-        run: pnpm verify --product
-      - if: steps.seen.outputs.cache-hit != 'true'
+      - id: media
+        if: steps.seen.outputs.cache-hit != 'true'
+        run: sudo apt-get update -qq && sudo -A apt-get install -y -qq --no-install-recommends ffmpeg
+      - id: verify
+        if: steps.seen.outputs.cache-hit != 'true'
+        run: pnpm verify --"$VERIFY_TIER"
+      - id: mark
+        if: success() && steps.verify.outcome == 'success'
         env:
           VERIFIED_SHA: ${{ steps.sha.outputs.sha }}
-        run: echo "$VERIFIED_SHA" > .product-verified
-      - if: steps.seen.outputs.cache-hit != 'true'
+        run: echo "$VERIFIED_SHA" > ".${VERIFY_TIER}-verified"
+      - if: success() && steps.mark.outcome == 'success'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: .product-verified
-          key: product-verified-${{ steps.sha.outputs.sha }}
+          path: .${{ env.VERIFY_TIER }}-verified
+          key: ${{ env.VERIFY_TIER }}-verified-${{ steps.sha.outputs.sha }}
       - if: failure()
         name: Show what failed
         # check:show names every failing stage of the run with its own extracted failure lines.
@@ -286,14 +305,14 @@ jobs:
           {
             echo "### $GITHUB_JOB failed"
             echo
-            echo "Reproduce locally: \`pnpm verify --product\`"
+            echo "Reproduce locally: \`pnpm verify --$VERIFY_TIER\`"
             echo
-            echo "Logs and reports are in the \`reports-product\` artifact on this run."
+            echo "Logs and reports are in the reports-$VERIFY_TIER artifact on this run."
           } >> "$GITHUB_STEP_SUMMARY"
       - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: reports-product
+          name: reports-${{ env.VERIFY_TIER }}
           path: |
             reports/
             test-results/

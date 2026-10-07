@@ -5,8 +5,10 @@ import { existsSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 import process from "node:process";
 import { GIT_READ_PREFIX, runGit } from "@orb/tooling/_shared/git";
+import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
-import type { ChangedPath, ChangedPathClassification, ChangedPathStatus } from "../contract/selection.ts";
+import type { ChangedPath, ChangedPathClassification, ChangedPathStatus, MeasurementBoundary } from "../contract/selection.ts";
+import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../contract/selection.ts";
 
 export const ROOT = process.cwd();
 
@@ -230,9 +232,56 @@ export function resolvePublishBase(root: string = ROOT): MergeBaseResolution | n
   return { ref: "origin/main", commit: origin.stdout, isHead: false };
 }
 
-/** Every path unpublished on this checkout, against `resolvePublishBase` rather than the plain closest
- *  base. Same `null`-is-uncomputable contract as `branchChangedPaths`. */
-export function publishChangedPaths(root: string = ROOT): readonly string[] | null {
+/** Resolve an explicit event/train boundary without changing ordinary branch or policy inventory semantics. */
+export function resolveMeasurementBoundary(root: string = ROOT, environment: NodeJS.ProcessEnv = inheritedProcessEnv()): MeasurementBoundary | null {
+  const baseInput = environment[VERIFY_BASE_ENV];
+  const headInput = environment[VERIFY_HEAD_ENV];
+  if (baseInput === undefined && headInput === undefined) {
+    return null;
+  }
+  const objectId = /^[0-9a-f]{40,64}$/u;
+  const zero = /^0+$/u;
+  if (
+    baseInput === undefined ||
+    headInput === undefined ||
+    !objectId.test(baseInput) ||
+    !objectId.test(headInput) ||
+    zero.test(baseInput) ||
+    zero.test(headInput)
+  ) {
+    throw new Error(`${VERIFY_BASE_ENV} and ${VERIFY_HEAD_ENV} require paired nonzero commit IDs`);
+  }
+  const git = (args: readonly string[]): string => {
+    const result = runGit(root, [...GIT_READ_PREFIX, ...args]);
+    if (result.status !== 0) {
+      throw new Error(`verification measurement boundary cannot resolve Git ${args.join(" ")}: ${result.stderr.trim()}`);
+    }
+    return result.stdout.trim();
+  };
+  const base = git(["rev-parse", "--verify", `${baseInput}^{commit}`]);
+  const head = git(["rev-parse", "--verify", `${headInput}^{commit}`]);
+  if (base === head) {
+    throw new Error("verification measurement base equals the tested HEAD; no event or train delta was supplied");
+  }
+  if (head !== git(["rev-parse", "HEAD"])) {
+    throw new Error("verification measurement head differs from the tested HEAD");
+  }
+  git(["merge-base", "--is-ancestor", base, head]);
+  if (git(["status", "--porcelain", "--untracked-files=normal"]) !== "") {
+    throw new Error("verification measurement boundary requires a clean tested checkout");
+  }
+  return { base, head };
+}
+
+/** Explicit event/train callers measure their recorded range. Other callers retain local publication semantics. */
+export function publishChangedPaths(root: string = ROOT, boundary: MeasurementBoundary | null = resolveMeasurementBoundary(root)): readonly string[] | null {
+  if (boundary !== null) {
+    const result = runGit(root, [...GIT_READ_PREFIX, "diff", "--name-only", "--no-renames", "-z", boundary.base, boundary.head]);
+    if (result.status !== 0) {
+      throw new Error(`verification measurement diff failed: ${result.stderr.trim()}`);
+    }
+    return result.stdout.split("\0").filter((path) => path !== "");
+  }
   const base = resolvePublishBase(root);
   return base === null ? null : changedPathsSince(root, base);
 }

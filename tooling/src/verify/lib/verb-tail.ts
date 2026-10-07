@@ -66,7 +66,7 @@ const VERB_TAIL: Readonly<Record<VerifyVerb, TailGrammar>> = {
   typecheck: "own",
   eslint: { tail: "none", scopedDoor: "pnpm exec eslint <files>" },
   "eslint-scoped": "own",
-  // The branch diff IS the selection, so a path tail would be a second, contradicting selector. An
+  // The event/train boundary or local publish delta owns selection; a path tail would contradict it. An
   // operator who wants named instrument specs is reaching for the scoped test door.
   "instrument-affected": { tail: "none", scopedDoor: "pnpm test:scoped <tests/tooling paths…>" },
   "showcase-release": NO_TAIL,
