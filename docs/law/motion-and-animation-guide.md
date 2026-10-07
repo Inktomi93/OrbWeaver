@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Motion & Animation Guide
@@ -381,9 +381,10 @@ natural repeat opens; Base UI Menu and Radix Select showed the same headless-lib
 minimal one-state React portal was clean. The calibrated input is deliberately narrower than that
 cross-library cause: only this repo's sealed Select entrance qualifies.
 
-`packages/client/src/lib/select-entrance-evidence.ts` starts provisionally on a trusted pointer or
-opening-key action at `[data-slot="select-trigger"]`. It confirms only when that trigger's ARIA-related
-`[data-slot="select-positioner"]` mounts or reactivates, and ends after the two measured
+The Select seal owns native request identity in `packages/ui/src/primitives/select/opening.ts`. Capture preserves the native timestamp and binds the deferred Root callback to that event. The seal calls the caller's `onOpenChange` once with the original details, then reads `isCanceled`. Only accepted native uncontrolled requests may qualify. Controlled, default-open, synthetic, programmatic, and unidentified opens remain ordinary budget inputs. Controlled callbacks do not establish acceptance, including immediate and deferred owner updates. Close, cancellation, supersession, and unmount invalidate pending request identity.
+
+`packages/client/src/lib/select-entrance-evidence.ts` retains the same provisional evidence object from native capture through acceptance. It confirms only when the ARIA-related
+`[data-slot="select-positioner"]` for the accepted request's trigger mounts or reactivates, and ends after the two measured
 "PRESENTED_PARTIAL" cleanup frames following the popup's real opacity/scale transition, with a 300ms
 post-confirmation hard cap. The cap is
 post-confirmation because the first render can itself consume much of the pre-confirmation interval;
@@ -394,7 +395,7 @@ later/concurrent frame plus every repeat receives zero subtraction. Recognizable
 script attribution vetoes both the allowance and style/layout classification for that LoAF. Empty
 attribution and production hashed bundles are unknown, not positive library attribution. Style/layout is
 otherwise classified only on overlapping confirmed entrance frames. Reports retain raw, classified, and
-budgeted totals.
+budgeted totals. Actual ordinary mounts consume the trigger's first-page identity too. Checkpoint resets clear request bindings but preserve that identity; a late callback cannot revive discarded evidence or relabel a natural reopen first.
 
 The same helper emits paired User Timing start/confirmed/end marks. `pnpm snap --motion [selector]` pairs those with real
 CDP `PipelineReporter` begin/end intervals and excludes only overlapping frames from its budgeted dropped

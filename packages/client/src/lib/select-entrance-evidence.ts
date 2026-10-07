@@ -3,10 +3,12 @@
 // A trigger intent is provisional until its ARIA-related Positioner actually mounts, and the range ends
 // with the real opacity/scale transition (plus one small stale-evidence safety cap).
 
+import type { SelectOpeningObservation, SelectOpeningRequest } from "@orb/ui/select";
+import { SELECT_OPENING_PHASES, subscribeSelectOpening } from "@orb/ui/select";
+
 const SELECT_TRIGGER_SELECTOR = '[data-slot="select-trigger"]';
 const SELECT_POSITIONER_SELECTOR = '[data-slot="select-positioner"]';
 const SELECT_POPUP_SELECTOR = '[data-slot="select-popup"]';
-const OPEN_KEYS = new Set(["ArrowDown", "ArrowUp", "Enter", " "]);
 const ENTRANCE_PROPERTIES = new Set(["opacity", "scale"]);
 const ARIA_REFERENCE_SEPARATOR = /\s+/u;
 const SELECT_ENTRANCE_MAX_MS = 300;
@@ -33,9 +35,12 @@ interface MutableEntrance {
   popup: Element | undefined;
   timeoutId: ReturnType<typeof globalThis.setTimeout> | undefined;
   finishFrameId: number | undefined;
+  request: SelectOpeningRequest;
+  accepted: boolean;
 }
 
 const entrances: MutableEntrance[] = [];
+const requests = new Map<SelectOpeningRequest, MutableEntrance>();
 const seenTriggers = new WeakSet<Element>();
 let nextEntranceId = 0;
 
@@ -46,58 +51,72 @@ function traceMark(entrance: MutableEntrance, phase: "start" | "confirmed" | "en
 function pruneEvidence(now: number): void {
   for (let index = entrances.length - 1; index >= 0; index -= 1) {
     const entrance = entrances[index];
-    const capStart = entrance?.confirmedAt ?? entrance?.startedAt;
-    if (entrance !== undefined && capStart !== undefined && now > capStart + SELECT_ENTRANCE_MAX_MS + OBSERVER_DELIVERY_GRACE_MS) {
+    const capStart = entrance?.confirmedAt;
+    if (
+      entrance !== undefined &&
+      (!entrance.trigger.isConnected || (capStart !== undefined && now > capStart + SELECT_ENTRANCE_MAX_MS + OBSERVER_DELIVERY_GRACE_MS))
+    ) {
+      requests.delete(entrance.request);
       entrances.splice(index, 1);
     }
   }
 }
 
-function triggerFromEvent(event: Event): Element | null {
-  const target = event.target;
-  if (!(target instanceof Element && event.isTrusted)) {
-    return null;
-  }
-  const trigger = target.closest(SELECT_TRIGGER_SELECTOR);
-  if (trigger === null || trigger.getAttribute("aria-disabled") === "true") {
-    return null;
-  }
-  return trigger;
-}
-
-function beginIntent(trigger: Element): void {
-  const now = performance.now();
-  pruneEvidence(now);
-  const existing = entrances.findLast(
-    (candidate) => candidate.trigger === trigger && candidate.confirmedAt === undefined && now <= candidate.startedAt + SELECT_ENTRANCE_MAX_MS,
-  );
-  if (existing !== undefined) {
-    return;
-  }
+function beginRequest(request: SelectOpeningRequest): void {
+  pruneEvidence(performance.now());
   nextEntranceId += 1;
   const entrance: MutableEntrance = {
     id: nextEntranceId,
-    startedAt: now,
+    startedAt: request.startedAt,
     firstForTrigger: false,
-    trigger,
+    trigger: request.trigger,
     activeProperties: new Set<string>(),
     popup: undefined,
     timeoutId: undefined,
     finishFrameId: undefined,
+    request,
+    accepted: false,
   };
   // The LoAF ring exposes this object's evidence fields. Keep observer-only DOM/lifecycle state out of
   // that snapshot so the bridge neither retains nor serializes portal nodes as accidental evidence.
-  for (const key of ["trigger", "popup", "activeProperties", "timeoutId", "finishFrameId"] as const) {
+  for (const key of ["trigger", "popup", "activeProperties", "timeoutId", "finishFrameId", "request", "accepted"] as const) {
     Object.defineProperty(entrance, key, { configurable: true, enumerable: false, value: entrance[key], writable: true });
   }
   entrances.push(entrance);
-  traceMark(entrance, "start", now);
-  // Base UI may reuse a Positioner that is still completing its exit instead of adding a fresh node on
-  // a quick reopen. Its discrete event update flushes before this microtask, so confirm that existing
-  // ARIA-related node through the same narrow relation the MutationObserver uses for a first mount.
-  queueMicrotask(() => {
-    confirmPositionerForTrigger(trigger);
-  });
+  requests.set(request, entrance);
+  traceMark(entrance, "start", request.startedAt);
+}
+
+function observeOpening(observation: SelectOpeningObservation): void {
+  const phase = observation.phase;
+  switch (phase) {
+    case SELECT_OPENING_PHASES[0]:
+      beginRequest(observation.request);
+      return;
+    case SELECT_OPENING_PHASES[1]: {
+      const entrance = requests.get(observation.request);
+      if (entrance !== undefined) {
+        entrance.accepted = true;
+        confirmPositionerForTrigger(entrance.trigger);
+      }
+      return;
+    }
+    case SELECT_OPENING_PHASES[2]: {
+      const entrance = requests.get(observation.request);
+      requests.delete(observation.request);
+      if (entrance !== undefined && entrance.confirmedAt === undefined) {
+        const index = entrances.indexOf(entrance);
+        if (index !== -1) {
+          entrances.splice(index, 1);
+        }
+      }
+      return;
+    }
+    default: {
+      const exhaustive: never = phase;
+      throw new Error("Unrecognized Select opening observation", { cause: exhaustive });
+    }
+  }
 }
 
 function controlledIds(positioner: Element): Set<string> {
@@ -142,19 +161,20 @@ function finishEntrance(entrance: MutableEntrance, at: number): void {
 function confirmPositioner(positioner: Element): void {
   const trigger = relatedTrigger(positioner);
   const now = performance.now();
-  if (trigger === undefined) {
+  if (trigger === undefined || trigger.getAttribute("aria-expanded") !== "true") {
     return;
   }
+  const firstForTrigger = !seenTriggers.has(trigger);
+  seenTriggers.add(trigger);
   const entrance = entrances.findLast(
-    (candidate) => candidate.trigger === trigger && candidate.confirmedAt === undefined && now <= candidate.startedAt + SELECT_ENTRANCE_MAX_MS,
+    (candidate) => candidate.trigger === trigger && candidate.accepted && requests.has(candidate.request) && candidate.confirmedAt === undefined,
   );
   if (entrance === undefined) {
     return;
   }
   entrance.confirmedAt = now;
-  entrance.firstForTrigger = !seenTriggers.has(trigger);
+  entrance.firstForTrigger = firstForTrigger;
   entrance.popup = positioner.querySelector(SELECT_POPUP_SELECTOR) ?? undefined;
-  seenTriggers.add(trigger);
   traceMark(entrance, "confirmed", now);
   entrance.timeoutId = globalThis.setTimeout(() => finishEntrance(entrance, performance.now()), SELECT_ENTRANCE_MAX_MS);
 }
@@ -215,26 +235,10 @@ function onTransitionStop(event: TransitionEvent): void {
 /** Install once beside the LoAF observer. Trigger identity deliberately survives evidence resets: a
  * checkpoint cannot turn a natural reopen into the trigger's first page-lifetime entrance. */
 export function installSelectEntranceObserver(): void {
-  document.addEventListener(
-    "pointerdown",
-    (event) => {
-      const trigger = triggerFromEvent(event);
-      if (trigger !== null) {
-        beginIntent(trigger);
-      }
-    },
-    { capture: true, passive: true },
-  );
-  document.addEventListener(
-    "keydown",
-    (event) => {
-      const trigger = triggerFromEvent(event);
-      if (trigger !== null && event instanceof KeyboardEvent && OPEN_KEYS.has(event.key)) {
-        beginIntent(trigger);
-      }
-    },
-    { capture: true, passive: true },
-  );
+  subscribeSelectOpening(observeOpening);
+  for (const positioner of document.querySelectorAll(SELECT_POSITIONER_SELECTOR)) {
+    confirmPositioner(positioner);
+  }
   for (const type of ["transitionrun", "transitionstart"]) {
     document.addEventListener(type, onTransitionStart as EventListener, { capture: true, passive: true });
   }
@@ -267,7 +271,7 @@ export function selectEntranceForFrame(entry: PerformanceEntry): SelectEntranceE
   const frameEnd = entry.startTime + entry.duration;
   pruneEvidence(frameEnd);
   return entrances.findLast((entrance) => {
-    const entranceEnd = entrance.endedAt ?? (entrance.confirmedAt ?? entrance.startedAt) + SELECT_ENTRANCE_MAX_MS;
+    const entranceEnd = entrance.endedAt ?? (entrance.confirmedAt === undefined ? Number.POSITIVE_INFINITY : entrance.confirmedAt + SELECT_ENTRANCE_MAX_MS);
     return entrance.startedAt <= frameEnd && entranceEnd >= entry.startTime;
   });
 }
@@ -283,4 +287,5 @@ export function resetSelectEntranceEvidence(): void {
     }
   }
   entrances.length = 0;
+  requests.clear();
 }

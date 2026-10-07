@@ -2,13 +2,14 @@ import { Field as BaseField } from "@base-ui/react/field";
 import type { SelectPositionerProps, SelectRootProps } from "@base-ui/react/select";
 import { Select as BaseSelect } from "@base-ui/react/select";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_INPUT, cn, usePortalContainer } from "#lib";
 import { useFieldControlDocksEnd } from "#primitives/field";
 import { Check, ChevronDown, Icon } from "#primitives/icons";
 import type { SelectItems, SelectOption, SelectOptionGroup } from "./items.ts";
+import { createSelectOpeningObserver } from "./opening.ts";
 import { selectVariants } from "./variants.ts";
 
 // Breathing room between trigger and popup.
@@ -197,6 +198,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledby,
     "aria-describedby": ariaDescribedby,
+    onOpenChange,
     ...rootProps
   } = props;
   // The grouped shape ({ label, items }) is a Base UI `Group` structurally; the union widening to
@@ -219,6 +221,10 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
   // unlabeled interactive element; give it a fallback accessible name.
   const triggerRef = useRef<HTMLButtonElement>(null);
   const hiddenInputRef = useRef<HTMLInputElement>(null);
+  const uncontrolled = rootProps.open === undefined;
+  // Base UI fixes controlled mode at mount; a later prop change cannot establish uncontrolled ownership.
+  const [opening] = useState(() => createSelectOpeningObserver(uncontrolled));
+  useEffect(() => (): void => opening.clear(), [opening]);
   useEffect(() => {
     if (hiddenInputRef.current) {
       const node = hiddenInputRef.current as AttributeSettable;
@@ -228,7 +234,16 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
   }, [ariaLabel, ariaLabelledby]);
 
   return (
-    <BaseSelect.Root items={rootItems} inputRef={hiddenInputRef} {...rootProps}>
+    <BaseSelect.Root
+      items={rootItems}
+      inputRef={hiddenInputRef}
+      {...rootProps}
+      onOpenChange={(open, details): void => {
+        const event = details.event;
+        onOpenChange?.(open, details);
+        opening.change(open, details, uncontrolled, event);
+      }}
+    >
       {hasLabel ? (
         <BaseSelect.Label className={slots.label()} data-slot="select-label">
           <span id={labelId}>{label}</span>
@@ -240,6 +255,10 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
           // would beat the context-injected aria-labelledby from Field.Control.
           <BaseSelect.Trigger
             ref={triggerRef}
+            onPointerDownCapture={(event): void => opening.pointer(event.currentTarget, event.nativeEvent, uncontrolled)}
+            onMouseDownCapture={(event): void => opening.mouse(event.currentTarget, event.nativeEvent, uncontrolled)}
+            onKeyDownCapture={(event): void => opening.key(event.currentTarget, event.nativeEvent, uncontrolled)}
+            onClickCapture={(event): void => opening.click(event.currentTarget, event.nativeEvent, uncontrolled)}
             {...(ariaDescribedby !== undefined ? { "aria-describedby": ariaDescribedby } : {})}
             {...(ariaLabel !== undefined ? { "aria-label": ariaLabel } : {})}
             {...((ariaLabelledby ?? labelId) !== undefined ? { "aria-labelledby": ariaLabelledby ?? labelId } : {})}
