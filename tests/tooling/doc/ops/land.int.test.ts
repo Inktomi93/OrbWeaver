@@ -6,7 +6,7 @@ import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { vi } from "vitest";
 import { REPO_ROOT } from "../../../../tooling/src/_shared/artifacts.ts";
-import { execFixtureGit, runFixtureGit } from "../../../../tooling/src/_shared/git-fixture.ts";
+import { configureFixtureGitIdentity, execFixtureGit, runFixtureGit } from "../../../../tooling/src/_shared/git-fixture.ts";
 import { landItems, newAdr, newItem, nextAdrId } from "../../../../tooling/src/doc/index.ts";
 import { commitPaths } from "../../../../tooling/src/doc/ops/tree.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -15,10 +15,9 @@ import { scaledBudget } from "../../_load-budget.ts";
 const TODAY = "2026-09-23";
 /** Every case spawns a dozen git children; under a merge train that is seconds, not the runner default. */
 const GIT_ARM_TIMEOUT_MS = scaledBudget(60_000);
-const IDENTITY = ["-c", "user.name=Doc Test", "-c", "user.email=doc@example.invalid"];
 
 function git(root: string, ...args: readonly string[]): string {
-  return execFixtureGit(root, [...IDENTITY, ...args]).trim();
+  return execFixtureGit(root, args).trim();
 }
 
 function commitAll(root: string, message: string): string {
@@ -30,6 +29,7 @@ function commitAll(root: string, message: string): string {
 async function repoWithItem(plantedTree: (files: Readonly<Record<string, string>>) => Promise<string>): Promise<string> {
   const root = await plantedTree({ "README.md": "# planted\n" });
   git(root, "init", "-q", "-b", "main");
+  configureFixtureGitIdentity(root);
   commitAll(root, "chore: base");
   newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
   commitAll(root, "chore(work): items");
@@ -67,7 +67,7 @@ test("land --merged commits from INSIDE a real post-merge hook, while git's MERG
   git(root, "checkout", "-q", "main");
   const { hooksDir, outcomePath } = plantLandingHook(scratch);
   // The fixture door disables hooks; a later `-c` outranks it, so THIS merge runs the planted hook.
-  const merged = runFixtureGit(root, [...IDENTITY, "-c", `core.hooksPath=${hooksDir}`, "merge", "-q", "--no-ff", "-m", "Merge lane", "lane"]);
+  const merged = runFixtureGit(root, ["-c", `core.hooksPath=${hooksDir}`, "merge", "-q", "--no-ff", "-m", "Merge lane", "lane"]);
   expect(merged.status, merged.stderr).toBe(0);
   const outcome = JSON.parse(readFileSync(outcomePath, "utf8")) as { readonly refusals: readonly string[] };
   expect(outcome.refusals).toEqual([]);
@@ -109,6 +109,7 @@ test("a mint after a landing never reuses the landed id — the next id is one p
 test("a removed ADR's id is never minted again either", { timeout: GIT_ARM_TIMEOUT_MS }, async ({ plantedTree }) => {
   const root = await plantedTree({ "README.md": "# planted\n" });
   git(root, "init", "-q", "-b", "main");
+  configureFixtureGitIdentity(root);
   commitAll(root, "chore: base");
   expect(newAdr({ slug: "first", title: "First" }, root, TODAY).written[0]).toBe("docs/adr/0001-first.md");
   commitAll(root, "docs: first ruling");

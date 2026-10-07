@@ -55,7 +55,7 @@ async function uncoveredFiles(root: string, files: readonly string[]): Promise<r
     // 2470 ms inside a three-file `pnpm test:scoped`. The word "regardless" used to sit here and was the one
     // item #2218's retraction kept: it is a range that moves with the box, not a constant, which is why the
     // arm leans on the config's own `budget(5000)` rather than on this sentence.
-    const config = await eslint.calculateConfigForFile(rel).catch(() => undefined);
+    const config = await eslint.calculateConfigForFile(rel);
     if (config === undefined) {
       out.push(rel);
     }
@@ -111,7 +111,29 @@ test("every tracked non-browser package source resolves to a real eslint config 
 });
 
 test("the Node-tool surface executes the type-aware promise diagnostic", { timeout: scaledBudget(15_000) }, async ({ repoRoot }) => {
-  const eslint = new ESLint({ cwd: repoRoot });
+  // CI's single-run parser reads on-disk source rather than the first lintText replacement.
+  const eslint = new ESLint({
+    cwd: repoRoot,
+    overrideConfig: { languageOptions: { parserOptions: { disallowAutomaticSingleRunInference: true } } },
+  });
   const [result] = await eslint.lintText("Promise.resolve('dropped');\n", { filePath: "knip.ts", warnIgnored: true });
+  expect(result?.fatalErrorCount).toBe(0);
   expect(result?.messages.map(({ ruleId }) => ruleId)).toContain("@typescript-eslint/no-floating-promises");
+  const [handled] = await eslint.lintText("await Promise.resolve('handled');\n", { filePath: "knip.ts", warnIgnored: true });
+  expect(handled?.messages).toEqual([]);
+});
+
+test("hyphenated client fixtures execute React hook diagnostics without a typed Node program", async ({ repoRoot }) => {
+  const eslint = new ESLint({ cwd: repoRoot });
+  const [broken] = await eslint.lintText("function Probe({ enabled }) { if (enabled) useState(0); return null; }\n", {
+    filePath: "tests/client/lib/select-opening-fixtures.tsx",
+    warnIgnored: true,
+  });
+  expect(broken?.fatalErrorCount).toBe(0);
+  expect(broken?.messages.map(({ ruleId }) => ruleId)).toContain("react-hooks/rules-of-hooks");
+  const [valid] = await eslint.lintText("function Probe() { useState(0); return null; }\n", {
+    filePath: "tests/client/lib/select-opening-fixtures.tsx",
+    warnIgnored: true,
+  });
+  expect(valid?.messages).toEqual([]);
 });

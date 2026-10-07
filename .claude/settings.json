@@ -94,6 +94,12 @@
           {
             "type": "command",
             "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/orchestrator-inject.mjs", "3"],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node",
             "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/playwright-revision-shim.mjs"],
             "timeout": 30
           }

@@ -3,16 +3,15 @@
 // drift reads the tree's facts.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { execFixtureGit, runFixtureGit } from "../../../../tooling/src/_shared/git-fixture.ts";
+import { configureFixtureGitIdentity, execFixtureGit, runFixtureGit } from "../../../../tooling/src/_shared/git-fixture.ts";
 import { drift, driftFacts, landItems, landMerged, newItem, newPlan, overview, setStatus } from "../../../../tooling/src/doc/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const TODAY = "2026-09-23";
-const IDENTITY = ["-c", "user.name=Doc Test", "-c", "user.email=doc@example.invalid"];
 
 function git(root: string, ...args: readonly string[]): string {
-  return execFixtureGit(root, [...IDENTITY, ...args]).trim();
+  return execFixtureGit(root, args).trim();
 }
 
 function commitAll(root: string, message: string): string {
@@ -24,6 +23,7 @@ function commitAll(root: string, message: string): string {
 async function repo(plantedTree: (files: Readonly<Record<string, string>>) => Promise<string>): Promise<string> {
   const root = await plantedTree({ "README.md": "# planted\n" });
   git(root, "init", "-q", "-b", "main");
+  configureFixtureGitIdentity(root);
   commitAll(root, "chore: base");
   return root;
 }
@@ -162,7 +162,7 @@ test("land --merged --head-merge lands a Closes trailer through a conflicted mer
   commitAll(root, "chore: main readme");
   // The two branches touch the same line, so `git merge` stops with a conflict rather than committing —
   // exactly the shape a plain `execFixtureGit` (throws on any nonzero exit) cannot express.
-  const conflicted = runFixtureGit(root, [...IDENTITY, "merge", "-q", "lane"]);
+  const conflicted = runFixtureGit(root, ["merge", "-q", "lane"]);
   expect(conflicted.status).not.toBe(0);
   writeFileSync(join(root, "README.md"), "# resolved\n");
   git(root, "add", "-A");
@@ -288,6 +288,7 @@ test("drift keeps a close when no file for the id exists at the closer's parent 
   // A root commit: it has no parent to read.
   const rootCommit = await plantedTree({ "README.md": "# planted\n" });
   git(rootCommit, "init", "-q", "-b", "main");
+  configureFixtureGitIdentity(rootCommit);
   newItem(item, rootCommit, TODAY);
   const rootCloser = commitAll(rootCommit, closes);
   expect(drift(rootCommit)).toEqual([unlanded(rootCloser)]);

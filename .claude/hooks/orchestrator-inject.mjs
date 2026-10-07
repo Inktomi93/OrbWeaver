@@ -19,7 +19,7 @@ import process from "node:process";
 const SKILL_PATH = new URL("../skills/orchestrator/SKILL.md", import.meta.url);
 const SKILL_REPO_PATH = ".claude/skills/orchestrator/SKILL.md";
 const CONTEXT_CAP = 10_000;
-const REGISTERED_PARTS = 2;
+const REGISTERED_PARTS = 3;
 const FRONTMATTER = /^---\n[\s\S]*?\n---\n+/;
 // A lookahead split keeps each heading with its section, so the pieces rejoin to the exact body.
 const SECTION_SPLIT = /(?=^## )/m;

@@ -130,16 +130,17 @@ function sizedSection(name: string, size: number): string {
 
 test("a skill that outgrows the registered parts makes the last part name the unread sections, within the cap", ({ scratch }) => {
   const intro = "# Orchestrator\n\n";
-  const loose = [1, 2, 3, 4, 5].map((n) => sizedSection(`Loose${n}`, 4511)).join("");
-  // Parts 1 and 2 each fill the packing budget exactly, so the notice has no room unless it is reserved.
-  const tight = `${intro}${sizedSection("A", 9874 - intro.length)}${sizedSection("B", 9874)}${sizedSection("C", 200)}`;
+  const parts = registeredParts();
+  const looseCount = parts.length * 2 + 1;
+  const loose = Array.from({ length: looseCount }, (_, index) => sizedSection(`Loose${index + 1}`, 4511)).join("");
+  // Each registered part fills the packing budget, so the notice must reserve room.
+  const tight = `${intro}${parts.map((part, index) => sizedSection(`Tight${part}`, 9874 - (index === 0 ? intro.length : 0))).join("")}${sizedSection("Unread", 200)}`;
 
   for (const [body, unread] of [
-    [tight, "## C"],
-    [`${intro}${loose}`, "## Loose5"],
+    [tight, "## Unread"],
+    [`${intro}${loose}`, `## Loose${looseCount}`],
   ] as const) {
     const hook = plantHook(join(scratch, unread.slice(3)), `---\nname: orchestrator\n---\n\n${body}`);
-    const parts = registeredParts();
     const contexts = parts.map((part) => injected(runHook(hook, part, MAIN_PAYLOAD)));
     for (const [index, context] of contexts.entries()) {
       expect(context.length, unread).toBeLessThanOrEqual(HARNESS_CAP);

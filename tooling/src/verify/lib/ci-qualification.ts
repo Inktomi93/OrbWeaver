@@ -6,7 +6,7 @@ import { execGit, GIT_READ_PREFIX, runGit } from "@orb/tooling/_shared/git";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { z } from "zod";
-import type { CiQualificationConfig, QualificationDecision, QualificationMeasurement } from "../contract/qualification.ts";
+import type { CiQualificationConfig, QUALIFICATION_AUTHORITIES, QualificationDecision, QualificationMeasurement } from "../contract/qualification.ts";
 import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../contract/selection.ts";
 import { resolveMeasurementBoundary } from "./repo-paths.ts";
 
@@ -45,6 +45,10 @@ const MAX_ANCESTORS = 40;
 const API_TIMEOUT_BASE_MS = 10_000;
 const METADATA_BUDGET_BASE_MS = 120_000;
 const WORKFLOW_PATH = ".github/workflows/ci.yml";
+const QUALIFICATION_REQUIREMENTS = {
+  qualified: { code: false, toolMode: "affected" },
+  publication: { code: true, toolMode: "full" },
+} as const satisfies Record<(typeof QUALIFICATION_AUTHORITIES)[number], Pick<QualificationDecision, "code" | "toolMode">>;
 
 function commitHasGeneration(root: string, commit: string, config: CiQualificationConfig): boolean {
   const entry = execGit(root, [...GIT_READ_PREFIX, "ls-tree", commit, "--", WORKFLOW_PATH]).trim();
@@ -200,8 +204,9 @@ export function qualificationDecision(root: string, { head, eventBase, base, aut
   const paths = execGit(root, [...GIT_READ_PREFIX, "diff", "--name-only", "--no-renames", "-z", base, head])
     .split("\0")
     .filter(Boolean);
-  const code = authority === "publication" || paths.some((path) => !/^(?:docs\/|\.vscode\/|\.github\/ISSUE_TEMPLATE\/)|\.md$/u.test(path));
-  return { ...boundary, eventBase, authority, paths, code, toolMode: authority === "publication" ? "full" : "affected" };
+  const requirement = QUALIFICATION_REQUIREMENTS[authority];
+  const code = requirement.code || paths.some((path) => !/^(?:docs\/|\.vscode\/|\.github\/ISSUE_TEMPLATE\/)|\.md$/u.test(path));
+  return { ...boundary, eventBase, authority, paths, code, toolMode: requirement.toolMode };
 }
 
 /** Select the nearest qualified ancestor by Git topology, never the newest unrelated successful run. */

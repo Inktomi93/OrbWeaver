@@ -100,8 +100,8 @@ export interface FixtureTurn {
   readonly suffix: string;
 }
 
-/** Captured wire bytes and peer closure, observed before fixture cleanup. */
-export interface FixtureRequest {
+// Capture peer closure before fixture cleanup can cause it.
+interface FixtureRequest {
   readonly body: string;
   closed: boolean;
   socketClosed: boolean;

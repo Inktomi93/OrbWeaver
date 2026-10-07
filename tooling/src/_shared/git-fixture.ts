@@ -11,6 +11,8 @@ import { inheritedProcessEnv } from "./process-env.ts";
  * refuses `.git` destinations. Both controls remain pinned by `verify/lib/repo-paths.test.ts`. */
 export const FIXTURE_GIT_CONFIG_ARGS: readonly string[] = ["-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false"];
 
+export const FIXTURE_GIT_IDENTITY = { name: "Doc Test", email: "doc@example.invalid" } as const;
+
 /** The git variables a fixture ADDS after the door's drop: no global and no system config. */
 const FIXTURE_GIT_EXTRA: Readonly<Record<string, string>> = { ["GIT_CONFIG_GLOBAL"]: "/dev/null", ["GIT_CONFIG_NOSYSTEM"]: "1" };
 
@@ -37,4 +39,10 @@ export function execFixtureGit(root: string, args: readonly string[], environmen
     throw new Error(`fixture Git ${args[0] ?? "command"} failed: ${detail}`);
   }
   return result.stdout;
+}
+
+/** Persist identity for production Git children that do not use the fixture command door. */
+export function configureFixtureGitIdentity(root: string): void {
+  execFixtureGit(root, ["config", "--local", "user.name", FIXTURE_GIT_IDENTITY.name]);
+  execFixtureGit(root, ["config", "--local", "user.email", FIXTURE_GIT_IDENTITY.email]);
 }

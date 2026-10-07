@@ -2,21 +2,21 @@
 // commit-message contract is checked by this door itself, and git's own refusal text reaches the caller.
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { execFixtureGit } from "../../../../tooling/src/_shared/git-fixture.ts";
+import { configureFixtureGitIdentity, execFixtureGit } from "../../../../tooling/src/_shared/git-fixture.ts";
 import { withProcessEnv } from "../../../../tooling/src/_shared/process-env.ts";
 import { commitPaths } from "../../../../tooling/src/doc/ops/tree.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-const IDENTITY = ["-c", "user.name=Doc Test", "-c", "user.email=doc@example.invalid"];
 const TRAILER = "Co-Authored-By: t <t@example.invalid>";
 
 function git(root: string, ...args: readonly string[]): string {
-  return execFixtureGit(root, [...IDENTITY, ...args]).trim();
+  return execFixtureGit(root, args).trim();
 }
 
 async function repo(plantedTree: (files: Readonly<Record<string, string>>) => Promise<string>): Promise<string> {
   const root = await plantedTree({ "README.md": "# planted\n", "docs/a.md": "a\n" });
   git(root, "init", "-q", "-b", "main");
+  configureFixtureGitIdentity(root);
   git(root, "add", "-A");
   git(root, "commit", "-qm", "chore: base");
   return root;

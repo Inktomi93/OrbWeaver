@@ -152,7 +152,7 @@ const CLIENT_CT = componentTestGlobs("tests/client");
 const CLIENT_STORIES = "tests/client/**/_*.tsx";
 // #1590: `*.fixtures.tsx` under `tests/client/**` had no home (only `tests/ui/**/*.fixtures.tsx` did) —
 // 12 files (11 `components/*.fixtures.tsx` + `state/config-row-annotation.fixtures.tsx`) were uncovered.
-const CLIENT_FIXTURES = "tests/client/**/*.fixtures.tsx";
+const CLIENT_FIXTURES = ["tests/client/**/*.fixtures.tsx", "tests/client/**/*-fixtures.tsx"];
 // tests/tooling grew a browser tree of its own (the design-audit walker + snap's overflow op are
 // in-page instruments, so their proofs MOUNT), and tests/support/browser carries the shared CT providers.
 // Both are React under playwright-ct exactly like the ui/client trees — without these rows the
@@ -171,7 +171,7 @@ const CT_SURFACE = [
   UI_STORIES_SUFFIX,
   ...CLIENT_CT,
   CLIENT_STORIES,
-  CLIENT_FIXTURES,
+  ...CLIENT_FIXTURES,
   ...TOOLING_CT,
   TOOLING_STORIES,
   SUPPORT_CT,
