@@ -557,6 +557,7 @@ test("a floated continuation keeps its accepted command's authority to publish a
 
 test("a continuation that keeps calling after its command settled is cut off at the tail's call budget", { timeout: LONG }, async () => {
   let served = 0;
+  const firstRead = Promise.withResolvers<null>();
   const base = bridge();
   const countingBridge: PluginBridge = {
     ...base,
@@ -564,13 +565,13 @@ test("a continuation that keeps calling after its command settled is cut off at 
       ...base.storage,
       get: () => {
         served += 1;
-        return Promise.resolve(null);
+        return served === 1 ? firstRead.promise : Promise.resolve(null);
       },
     },
   };
   const host = createPluginHost(seams());
   const probe = await activateHandler(host, {
-    // The first read is posted inside the command; every later one rides the tail.
+    // Hold the first read until command completion; an immediate result can post another read before the tail arms.
     handler: `async () => {
       void (async () => {
         for (;;) {
@@ -583,6 +584,8 @@ test("a continuation that keeps calling after its command settled is cut off at 
     bridge: countingBridge,
   });
   await expect(host.invoke(probe.instance, probe.handler, "{}", noChat)).resolves.toBe("accepted");
+  expect(served).toBe(1);
+  firstRead.resolve(null);
   await vi.waitFor(() => expect(host.readLog(probe.instance).some((line) => line.message.startsWith("continuation stopped"))).toBe(true));
   expect(served).toBe(PLUGIN_AUTHORITY_TAIL_CALLS_MAX + 1);
   expect(host.readLog(probe.instance).find((line) => line.message.startsWith("continuation stopped"))?.message).toMatch(/continuation call budget/u);
