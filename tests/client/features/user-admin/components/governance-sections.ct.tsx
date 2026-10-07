@@ -14,7 +14,7 @@
 import type { ShareStatus, SignInModeView } from "@orb/contracts/identity";
 import { copyActionName } from "@orb/ui/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Locator, Page } from "@playwright/test";
+import type { JSHandle, Locator, Page } from "@playwright/test";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GovernanceSectionsStory } from "../_ct-stories.tsx";
@@ -161,6 +161,72 @@ function targetBlocks(page: Page): Locator {
   return signInPanel(page).getByTestId("admin-sign-in-target");
 }
 
+interface NativeClipboardWrite {
+  text: string;
+  settled: boolean;
+  error: string | null;
+}
+
+interface NativeClipboardObservation {
+  calls: NativeClipboardWrite[];
+  events: { type: string; target: string; trusted: boolean; timeStamp: number }[];
+}
+
+/** Observe the real browser write without replacing its permission or clipboard channel. */
+function observeNativeClipboardWrites(page: Page): Promise<JSHandle<NativeClipboardObservation>> {
+  return page.evaluateHandle(() => {
+    const calls: NativeClipboardWrite[] = [];
+    const events: NativeClipboardObservation["events"] = [];
+    for (const type of ["pointerdown", "pointerup", "click"]) {
+      document.addEventListener(
+        type,
+        (event) => {
+          const element = event.target instanceof Element ? event.target : null;
+          events.push({
+            type: event.type,
+            target: element?.closest("button")?.getAttribute("aria-label") ?? element?.tagName ?? "",
+            trusted: event.isTrusted,
+            timeStamp: event.timeStamp,
+          });
+        },
+        { capture: true, passive: true },
+      );
+    }
+    const write = navigator.clipboard.writeText.bind(navigator.clipboard);
+    navigator.clipboard.writeText = (text): Promise<void> => {
+      const call: NativeClipboardWrite = { text, settled: false, error: null };
+      calls.push(call);
+      return write(text).then(
+        () => {
+          call.settled = true;
+        },
+        (error: Error) => {
+          call.settled = true;
+          call.error = error.message;
+          throw error;
+        },
+      );
+    };
+    return { calls, events };
+  });
+}
+
+async function copyWithNativeEvidence(page: Page, what: string): Promise<void> {
+  const writes = await observeNativeClipboardWrites(page);
+  const target = signInPanel(page)
+    .locator('[data-slot="copy-button-root"]')
+    .filter({ has: page.getByRole("button", { name: copyActionName(what), exact: true }) });
+  try {
+    await target.getByRole("button", { name: copyActionName(what), exact: true }).click();
+    await expect(target.getByRole("status")).toHaveAttribute("data-outcome", "copied");
+  } finally {
+    const observation = await writes.evaluate((recorded) => recorded);
+    const state = await target.getAttribute("data-state");
+    const pageState = await page.evaluate(() => ({ focused: document.hasFocus(), secure: globalThis.isSecureContext, visibility: document.visibilityState }));
+    await test.info().attach("native-clipboard", { body: JSON.stringify({ ...observation, state, pageState }, null, 2), contentType: "application/json" });
+  }
+}
+
 test("single-user on bare metal: the setup command, then a switch for each login mode", async ({ mount, page }) => {
   await stub(page, OWNER);
   await mount(<GovernanceSectionsStory />);
@@ -204,9 +270,7 @@ test.describe("the sharing panel's copy", () => {
     await mount(<GovernanceSectionsStory />);
     await openHowTo(page);
 
-    await signInPanel(page)
-      .getByRole("button", { name: copyActionName("the local lines"), exact: true })
-      .click();
+    await copyWithNativeEvidence(page, "the local lines");
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe("AUTH_MODE=local");
   });
 
@@ -215,9 +279,7 @@ test.describe("the sharing panel's copy", () => {
     await mount(<GovernanceSectionsStory />);
     await openHowTo(page);
 
-    await signInPanel(page)
-      .getByRole("button", { name: copyActionName("the forward-header lines"), exact: true })
-      .click();
+    await copyWithNativeEvidence(page, "the forward-header lines");
     await expect
       .poll(() => page.evaluate(() => navigator.clipboard.readText()))
       .toBe("AUTH_MODE=forward-header\nAUTH_FALLBACK=deny\nAUTH_FALLBACK_TRUSTED_PEERS=\nFORWARD_AUTH_TRUSTED_PROXIES=172.18.0.100/32");

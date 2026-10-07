@@ -795,8 +795,7 @@ test("an unreachable or blocked URL shows one leak-free line, and never forwards
 });
 
 test("an installed plugin says whether it is on and what it is allowed to do", async ({ mount, page }) => {
-  // Stateful again, so the toggle's barrier is the SETTLED "On" the invalidate repaints — not the
-  // optimistic flash, which exists only while the write is in flight.
+  // Stateful so the settled toggle can be checked after the optimistic paint and the actual write.
   let enabled = false;
   const recorder = await routeTrpc(page, {
     "plugin.list": () => [{ ...INSTALLED_ROW, status: enabled ? "enabled" : "disabled" }],
@@ -829,10 +828,10 @@ test("an installed plugin says whether it is on and what it is allowed to do", a
   await expect(page.getByRole("checkbox", { name: "Ask for a reply on its own" })).toHaveCount(0);
 
   await page.getByRole("switch", { name: "Turn Weather Teller on" }).click();
-  // SETTLED: the invalidate repainted the row from the server's new truth.
+  // "On" also appears optimistically, before the request. The exact payload and enabled switch close both async boundaries.
   await expect(page.getByText("On", { exact: true })).toBeVisible();
-  // @orb-waive ct-no-oneshot-live-read-assert(expect): the "On" assertion above settled on the post-invalidate repaint, which the stub only serves AFTER `plugin.setEnabled` was called and recorded — the call is provably complete at this read.
-  expect(recorder.lastInput("plugin.setEnabled")).toEqual({ pluginId: INSTALLED_ROW.id, enabled: true });
+  await expect.poll(() => recorder.lastInput("plugin.setEnabled")).toEqual({ pluginId: INSTALLED_ROW.id, enabled: true });
+  await expect(page.getByRole("switch", { name: "Turn Weather Teller off", exact: true })).toBeEnabled();
 });
 
 test("a same-task repeat admits one enable write, owns only its plugin row, and rejection releases retry", async ({ mount, page }) => {

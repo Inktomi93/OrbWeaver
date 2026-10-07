@@ -650,6 +650,8 @@ for (const chatStyle of ["flat", "bubble"] as const) {
       await expect(page.locator(CONTENT_COLUMN).first()).toBeVisible();
       await expect(page.locator(COMPOSER)).toBeVisible();
 
+      // The pending variant-history status changes this footprint; it is not the read box the editor replaces.
+      await expect(page.getByRole("button", { name: VARIANT_NEXT_NAME, exact: true })).toBeEnabled();
       // A font swap changes the prose footprint independently of entering edit mode.
       await page.evaluate(async () => await document.fonts.ready.then(() => undefined));
       const read = await rowGeometry(page);
