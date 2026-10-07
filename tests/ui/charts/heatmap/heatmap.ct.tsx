@@ -17,16 +17,17 @@ const MATRIX = {
 
 test("renders the heading and a populated chart canvas for a non-empty matrix", async ({ mount }) => {
   const component = await mount(<Heatmap label="Activity" matrix={MATRIX} />);
-  await expect(component.getByText("Activity")).toBeVisible();
-  await expect(component.getByRole("img", { name: "Activity" })).toBeVisible();
+  await expect(component.getByText("Activity", { exact: true })).toBeVisible();
+  await expect(component.getByRole("img", { name: "Activity", exact: true })).toBeVisible();
   // ECharts paints the heatmap + its VisualMap gradient on separate zrender layers → several
   // stacked <canvas> elements; asserting the first one drew is the "populated, not thrown" guard.
   await expect(component.locator("canvas").first()).toBeVisible();
+  await expect(component.locator('[data-slot="chart-loading"]')).toHaveCount(0);
 });
 
 test("renders the empty state instead of a chart when the matrix has no rows", async ({ mount }) => {
   const component = await mount(<Heatmap label="Activity" matrix={{ rows: [], cols: [], values: [] }} />);
-  await expect(component.getByText("Activity")).toBeVisible();
+  await expect(component.getByText("Activity", { exact: true })).toBeVisible();
   await expect(component.getByText("No data yet.")).toBeVisible();
   await expect(component.getByRole("img")).toHaveCount(0);
 });

@@ -13,11 +13,12 @@ const BUCKETS = [
 
 test("renders the heading and a populated chart canvas for non-empty buckets", async ({ mount }) => {
   const component = await mount(<Histogram buckets={BUCKETS} label="Chunk size distribution" />);
-  await expect(component.getByText("Chunk size distribution")).toBeVisible();
-  await expect(component.getByRole("img", { name: "Chunk size distribution" })).toBeVisible();
+  await expect(component.getByText("Chunk size distribution", { exact: true })).toBeVisible();
+  await expect(component.getByRole("img", { name: "Chunk size distribution", exact: true })).toBeVisible();
   // Regression guard: populated data must actually draw an ECharts canvas — the CJS/ESM interop
   // regression rendered the wrapper as an object and threw before any canvas mounted.
   await expect(component.locator("canvas")).toBeVisible();
+  await expect(component.locator('[data-slot="chart-loading"]')).toHaveCount(0);
 });
 
 test("renders the empty state instead of a chart when buckets is empty", async ({ mount }) => {

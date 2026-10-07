@@ -21,16 +21,17 @@ const ITEMS = [
 
 test("renders the heading and a populated chart canvas for a non-empty item list", async ({ mount }) => {
   const component = await mount(<BarList items={ITEMS} label="Top sources" />);
-  await expect(component.getByText("Top sources")).toBeVisible();
-  await expect(component.getByRole("img", { name: "Top sources" })).toBeVisible();
+  await expect(component.getByText("Top sources", { exact: true })).toBeVisible();
+  await expect(component.getByRole("img", { name: "Top sources", exact: true })).toBeVisible();
   // Regression guard: populated data must actually draw an ECharts canvas — the CJS/ESM interop
   // regression rendered the wrapper as an object and threw before any canvas mounted.
   await expect(component.locator("canvas")).toBeVisible();
+  await expect(component.locator('[data-slot="chart-loading"]')).toHaveCount(0);
 });
 
 test("renders the empty state instead of a chart when items is empty", async ({ mount }) => {
   const component = await mount(<BarList items={[]} label="Top sources" />);
-  await expect(component.getByText("Top sources")).toBeVisible();
+  await expect(component.getByText("Top sources", { exact: true })).toBeVisible();
   await expect(component.getByText("No data yet.")).toBeVisible();
   await expect(component.getByRole("img")).toHaveCount(0);
 });

@@ -33,14 +33,15 @@ const SPREAD_IDS = new Set(["p1", "p2", "p3", "p4"]);
 
 test("renders the heading and a populated chart canvas for a non-empty series list", async ({ mount }) => {
   const component = await mount(<Scatter label="Semantic map" series={SERIES} />);
-  await expect(component.getByText("Semantic map")).toBeVisible();
-  await expect(component.getByRole("img", { name: "Semantic map" })).toBeVisible();
+  await expect(component.getByText("Semantic map", { exact: true })).toBeVisible();
+  await expect(component.getByRole("img", { name: "Semantic map", exact: true })).toBeVisible();
   await expect(component.locator("canvas")).toBeVisible();
+  await expect(component.locator('[data-slot="chart-loading"]')).toHaveCount(0);
 });
 
 test("renders the empty state instead of a chart when every series is empty", async ({ mount }) => {
   const component = await mount(<Scatter label="Semantic map" series={[{ name: "fantasy", points: [] }]} />);
-  await expect(component.getByText("Semantic map")).toBeVisible();
+  await expect(component.getByText("Semantic map", { exact: true })).toBeVisible();
   await expect(component.getByText("No data yet.")).toBeVisible();
   await expect(component.getByRole("img")).toHaveCount(0);
 });

@@ -807,7 +807,8 @@ const POP_FAMILIES: TrpcWireOutput<"discovery.visualArchetypes"> = FAMILY_SIZES.
 }));
 
 /** 50 keywords, counts 6 → 2 — a synthetic spread, where every bar is 72-100% of its track. */
-const KEYWORDS = Array.from({ length: 50 }, (_, index) => ({ keyword: `keyword-${index}`, count: Math.max(2, 6 - Math.floor(index / 12)) }));
+const KEYWORD_HEAD_COUNT = 6;
+const KEYWORDS = Array.from({ length: 50 }, (_, index) => ({ keyword: `keyword-${index}`, count: Math.max(2, KEYWORD_HEAD_COUNT - Math.floor(index / 12)) }));
 
 /** 30 routes, ONE of which reports a dollar cost. Generations and tokens are complete on all of them —
  *  which is the whole of [P1-1]: the section charted the one field its data does not carry. */
@@ -1089,9 +1090,14 @@ test("#557: the keyword chart caps its series and states the denominator (P2-3)"
   const component = await mount(<CorpusHomePopulatedStory />);
   await settled(page);
 
-  const rows = component.getByRole("table", { name: "Top keywords" }).locator("tbody tr");
+  const label = `Top keywords · ${KEYWORD_BAR_CAP.toString()} of ${KEYWORDS.length.toString()} keywords · ${KEYWORD_HEAD_COUNT.toString()} uses each`;
+  const chart = component.getByTestId("corpus-keyword-explorer").locator('[data-slot="bar-list"]');
+  await expect(chart.getByText(label, { exact: true })).toBeVisible();
+  const rows = chart.getByRole("table", { name: label, exact: true }).locator("tbody tr");
   await expect(rows).toHaveCount(KEYWORD_BAR_CAP);
-  await expect(component.getByText(new RegExp(`${KEYWORD_BAR_CAP.toString()} of ${KEYWORDS.length.toString()}`))).toBeVisible();
+  await expect(chart.getByRole("img", { name: label, exact: true })).toBeVisible();
+  await expect(chart.locator("canvas")).toBeVisible();
+  await expect(chart.locator('[data-slot="chart-loading"]')).toHaveCount(0);
 });
 
 // ── #556: THE CANVAS AREA IS THE ATTRIBUTED CAUSE OF THE 287ms ENTRY BLOCK ──────────────────────────
