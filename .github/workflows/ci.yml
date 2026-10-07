@@ -69,6 +69,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Release and affected-tooling checks need a resolvable mainline merge base.
+          fetch-depth: 0
           persist-credentials: false
       - uses: $/.github/actions/setup
       - name: Static tier
@@ -249,6 +251,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event_name == 'schedule' && 'main' || github.ref }}
+          fetch-depth: 0
           persist-credentials: false
       - id: sha
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
