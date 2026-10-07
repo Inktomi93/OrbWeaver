@@ -93,7 +93,7 @@ interface NativeVitestConfig {
 }
 
 interface NativeVitestResolution {
-  readonly vitestConfig: NativeVitestConfig;
+  readonly test: NativeVitestConfig;
 }
 
 interface NativeVitestModule {
@@ -116,7 +116,7 @@ async function loadVitest(): Promise<NativeVitestModule> {
 export async function snapshotVitestConfig(root: string, config: string): Promise<VitestConfigSnapshot> {
   const { resolveConfig } = await loadVitest();
   const resolved = await resolveConfig({ root, config, watch: false, run: true });
-  const rootConfig = resolved.vitestConfig;
+  const rootConfig = resolved.test;
   const projects = rootConfig.projects;
   if (projects !== undefined && !Array.isArray(projects)) {
     throw new Error(`${config} native projects resolved to a non-array`);

@@ -113,7 +113,7 @@ test("the native runner supports negative tag filtering", ({ repoRoot, scratch }
 
 test("strictTags refuses an unknown runtime tag", ({ repoRoot, scratch }) => {
   writeHarness(scratch, repoRoot, "slwo");
-  const result = run(scratch);
+  const result = run(scratch, "--reporter=default");
   expect(result.status).not.toBe(0);
   expect(`${result.stdout}\n${result.stderr}`).toContain("slwo");
 });

@@ -163,13 +163,11 @@ expect.extend({
 });
 
 // ── Type augmentation ────────────────────────────────────────────────────────────────────────────────
-// Vitest 4's signature is `interface Matchers<T = any>` — ONE generic param (the value type). Augmenting
-// with a different arity fails with "All declarations of 'Matchers' must have identical type parameters."
-// Living in this .ts file (not a .d.ts) guarantees TS picks it up the moment matchers.ts is imported.
+// The augmentation must match Vitest's result/value parameters exactly so every compiler world merges it.
+// Living in this .ts file guarantees TS picks it up the moment matchers.ts is imported.
 
 declare module "vitest" {
-  // biome-ignore lint/suspicious/noExplicitAny: matches Vitest's own `Matchers<T = any>` signature — a different arity is a compile error.
-  interface Matchers<T = any> {
+  interface Matchers<R extends void | Promise<void> = void | Promise<void>, T = unknown> {
     /**
      * Assert the awaited Promise (or thunk) rejects with a tRPC error whose `.code` equals the given
      * value. Specific where `.rejects.toThrow()` is not — the wrong error can no longer pass.

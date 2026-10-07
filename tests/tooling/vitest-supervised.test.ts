@@ -389,11 +389,18 @@ test("resolves and runs the REAL default vitest entry (not the .bin sh shim) —
   // the repo root so vitest.config + node_modules resolve; the contract project is small (~5s, pure zod).
   const report = join(dir, "rreal.json");
   const args = [SUPERVISOR, "run", "--project", "contract", "--reporter=json", `--outputFile.json=${report}`];
+  let output = "";
   const res = await new Promise<RunResult>((resolve) => {
-    const child = spawn(process.execPath, args, { cwd: process.cwd(), stdio: "ignore" });
+    const child = spawn(process.execPath, args, { cwd: process.cwd(), stdio: ["ignore", "pipe", "pipe"] });
+    child.stdout.on("data", (chunk: Buffer): void => {
+      output += chunk.toString();
+    });
+    child.stderr.on("data", (chunk: Buffer): void => {
+      output += chunk.toString();
+    });
     child.on("exit", (code, signal) => resolve({ code, signal }));
   });
-  expect(res.code).toBe(0);
+  expect(res.code, output).toBe(0);
 });
 
 test("real native collection keeps runtime-only inside the caller's exact project", { timeout: scaledBudget(30_000) }, async () => {

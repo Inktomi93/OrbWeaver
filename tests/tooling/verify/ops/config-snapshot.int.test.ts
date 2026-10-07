@@ -61,7 +61,17 @@ export default async () => ({
 test("refuses a selector that the native loader resolves to a non-string array", async ({ scratch }) => {
   await plant(scratch, "export default { test: { projects: [{ test: { include: [42] } }] } };\n");
 
-  await expect(snapshotVitestConfig(scratch, CONFIG_REL)).rejects.toThrow("project[0].test.include resolved to a non-string-array selector");
+  await expect(snapshotVitestConfig(scratch, CONFIG_REL)).rejects.toMatchObject({
+    name: "AggregateError",
+    message: "Failed to initialize projects. There were errors during projects setup. See below for more details.",
+    errors: [expect.objectContaining({ name: "TypeError", message: "pattern.startsWith is not a function" })],
+  });
+});
+
+test("refuses malformed typecheck selectors after native project resolution", async ({ scratch }) => {
+  await plant(scratch, 'export default { test: { projects: [{ test: { name: "typed", typecheck: { include: [42] } } }] } };\n');
+
+  await expect(snapshotVitestConfig(scratch, CONFIG_REL)).rejects.toThrow("project[0]:typed.typecheck.include resolved to a non-string-array selector");
 });
 
 test("loads dependency-cruiser through its public API and preserves imported, called and spread-derived selectors", async ({ scratch }) => {
@@ -305,7 +315,7 @@ test("Vitest natively collects exact files, not empty or directory includes, whi
 ] } };\n`,
   );
 
-  const vitest = await createVitest("test", { root: scratch, config: CONFIG_REL, run: true, watch: false });
+  const vitest = await createVitest({ root: scratch, config: CONFIG_REL, run: true, watch: false });
   try {
     const collected = new Map<string, readonly string[]>();
     for (const project of vitest.projects) {
@@ -331,7 +341,7 @@ test("Vitest accepts a globalSetup directory and executes its index module", asy
   await writeFile(join(scratch, "tests/live.test.ts"), 'import { expect, test } from "vitest";\ntest("live", () => expect(1).toBe(1));\n', "utf8");
   await plant(scratch, 'export default { test: { include: ["tests/live.test.ts"], globalSetup: ["tests/setup"], reporters: [] } };\n');
 
-  const vitest = await createVitest("test", { root: scratch, config: CONFIG_REL, run: true, watch: false, reporters: [] });
+  const vitest = await createVitest({ root: scratch, config: CONFIG_REL, run: true, watch: false, reporters: [] });
   try {
     await vitest.start();
     expect(existsSync(marker)).toBe(true);
