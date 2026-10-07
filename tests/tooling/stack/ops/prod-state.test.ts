@@ -82,6 +82,7 @@ test("the debug token is never presented to a listener the socket table does not
   try {
     for (const record of [prodRecord(process.ppid), null]) {
       const observed = await observe(squatter.port, record);
+      expect(squatter.tokensSeen.at(-1)).toBeUndefined();
       expect(observed.posture).toBe("token");
       expect(observed.listenerPid).toBe(process.pid);
     }

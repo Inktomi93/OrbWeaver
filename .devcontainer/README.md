@@ -66,7 +66,8 @@ host sessions keep whatever the host user settings say.
 | File | Purpose |
 |------|---------|
 | `devcontainer.json` | Container definition: image build, mounts, run args, lifecycle commands, container-only VS Code settings. |
-| `Dockerfile` | The sandbox image: `node:26` + Claude Code + ast-grep + pnpm (npm-installed, the version `packageManager` pins) + git/gh/delta/zsh/iptables + the baked Playwright Chromium. |
+| `Dockerfile` | The sandbox image: `node:26` + Claude Code + ast-grep + pnpm + git/gh/delta/zsh/iptables + the baked Playwright Chromium. |
+| `tools/package.json`, `tools/package-lock.json` | Exact coding-tool versions and integrity-locked dependencies, installed with `npm ci`. The pnpm version matches the repository's `packageManager`. |
 | `init-firewall.sh` | Default-deny egress firewall. Runs on every start (`postStartCommand`). Allowlists only what dev needs (npm, GitHub, Anthropic, VS Code); self-tests at the end. |
 
 ---

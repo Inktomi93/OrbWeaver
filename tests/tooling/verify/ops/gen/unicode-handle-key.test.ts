@@ -1,7 +1,14 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { renderUnicodeHandleKeyData, sourcesMismatchingPins, UNICODE_SOURCE_PINS } from "../../../../../tooling/src/verify/ops/gen/unicode-handle-key.ts";
+import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { vi } from "vitest";
+import {
+  generateUnicodeHandleKeyData,
+  renderUnicodeHandleKeyData,
+  sourcesMismatchingPins,
+  UNICODE_SOURCE_PINS,
+} from "../../../../../tooling/src/verify/ops/gen/unicode-handle-key.ts";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 
 const SOURCES = {
@@ -62,5 +69,25 @@ test("the pins are the digests recorded in the committed tables, so a pin bump w
   const header = readFileSync(join(repoRoot, "packages/kit/src/handle-key/unicode-data.ts"), "utf8");
   for (const pin of Object.values(UNICODE_SOURCE_PINS)) {
     expect(header).toContain(`sha256 ${pin}`);
+  }
+});
+
+test("the generator refuses altered downloaded bytes before overwriting a vendored module", async ({ scratch }) => {
+  const output = join(scratch, "packages/kit/src/handle-key/unicode-data.ts");
+  mkdirSync(join(scratch, "packages/kit/src/handle-key"), { recursive: true });
+  writeFileSync(output, "existing pinned module");
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(new Response(SOURCES.caseFolding))
+    .mockResolvedValueOnce(new Response(SOURCES.derivedCore))
+    .mockResolvedValueOnce(new Response(SOURCES.confusables))
+    .mockResolvedValueOnce(new Response(SOURCES.aliases));
+  vi.stubGlobal("fetch", fetch);
+  try {
+    expect(await generateUnicodeHandleKeyData(scratch)).toBe(EXIT.toolError);
+    expect(fetch).toHaveBeenCalledTimes(4);
+    expect(readFileSync(output, "utf8")).toBe("existing pinned module");
+  } finally {
+    vi.unstubAllGlobals();
   }
 });
