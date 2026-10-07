@@ -25,6 +25,7 @@ interface Workflow {
       readonly steps: readonly (WorkflowStep & { readonly env?: Readonly<Record<string, string>> })[];
     };
     readonly static: { readonly env: Readonly<Record<string, string>>; readonly steps: readonly (WorkflowStep & { readonly name?: string })[] };
+    readonly "ci-ok": { readonly if: string; readonly needs: readonly string[]; readonly steps: readonly WorkflowStep[] };
   };
 }
 
@@ -39,6 +40,26 @@ function step(job: QualificationJob, id: string): WorkflowStep {
   }
   return found;
 }
+
+test("required CI includes smoke and refuses its failures or cancellation while allowing docs-only skips", ({ repoRoot, scratch }) => {
+  const gate = workflow(repoRoot).jobs["ci-ok"];
+  expect(gate.needs).toContain("e2e-smoke");
+  expect(gate.if).toContain("always()");
+  const run = gate.steps[0]?.run;
+  if (run === undefined) {
+    throw new Error("missing required CI verdict command");
+  }
+  for (const result of ["success", "skipped", "failure", "cancelled"]) {
+    const needs = Object.fromEntries(gate.needs.map((job) => [job, { result: job === "e2e-smoke" ? result : "success" }]));
+    const verdict = spawnSync("bash", ["-e", "-c", run], {
+      cwd: scratch,
+      env: inheritedProcessEnv({ ["NEEDS"]: JSON.stringify(needs), ["GITHUB_STEP_SUMMARY"]: join(scratch, "summary.md") }),
+      encoding: "utf8",
+    });
+    expect(verdict.status, `${result}: ${verdict.stdout}${verdict.stderr}`).toBe(result === "success" || result === "skipped" ? 0 : 1);
+    expect(readFileSync(join(scratch, "summary.md"), "utf8")).toContain(`| e2e-smoke | ${result} |`);
+  }
+});
 
 test("nightly full uses a distinct exact-SHA cache, and red/no-verdict native verification cannot create its success marker", async ({
   repoRoot,
