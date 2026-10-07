@@ -240,6 +240,7 @@ export const SINGLE_USER: ModeProject = {
           STACK_RUN_DIR: `./.cache/e2e/single/${STACK_RUN_SUBDIR}`,
           OWNER_HANDLES: HARNESS_OWNER_HANDLE,
           PRIVATE_ENDPOINT_ALLOWLIST: LOOPBACK_ENDPOINT_ALLOWLIST,
+          EGRESS_ALLOWLIST: "127.0.0.1",
           ORB_ENV_NO_FILE: "1",
         }),
   },
@@ -348,3 +349,36 @@ const FORWARD_HEADER: ModeProject = {
 
 /** Every mode project the config builds a project + webServer for (oidc excluded — deferred). */
 export const MODE_PROJECTS: readonly ModeProject[] = [SINGLE_USER, LOCAL, FORWARD_HEADER];
+
+const PROJECT_OPTION = "--project";
+const PROJECT_OPTION_PREFIX = `${PROJECT_OPTION}=`;
+
+/** The exact CLI-selected modes, shared by stack boot and seed so an unrelated stamped peer is never seeded. */
+export function selectedModeProjects(argv: readonly string[]): readonly ModeProject[] {
+  const names: string[] = [];
+  let specified = false;
+  let collecting = false;
+  for (const arg of argv) {
+    if (arg === "--") {
+      break;
+    }
+    if (arg.length > 1 && arg.startsWith("-")) {
+      collecting = false;
+    }
+    if (arg === PROJECT_OPTION) {
+      specified = true;
+      collecting = true;
+    } else if (arg.startsWith(PROJECT_OPTION_PREFIX)) {
+      // Native equals syntax binds one value; only the separate flag consumes following non-option tokens.
+      specified = true;
+      names.push(arg.slice(PROJECT_OPTION_PREFIX.length));
+    } else if (collecting) {
+      names.push(arg);
+    }
+  }
+  if (!specified) {
+    return MODE_PROJECTS;
+  }
+  const patterns = names.map((name) => new RegExp(`^${name.toLocaleLowerCase().split("*").map(RegExp.escape).join(".*")}$`, "i"));
+  return MODE_PROJECTS.filter((mode) => patterns.some((pattern) => pattern.test(mode.name.toLocaleLowerCase())));
+}

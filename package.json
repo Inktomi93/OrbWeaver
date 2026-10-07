@@ -92,7 +92,7 @@
     "test:ct": "node tooling/src/verify/cli.ts scoped-test ct",
     "test:scoped": "node tooling/src/verify/cli.ts scoped-test node",
     "e2e": "node tooling/src/_shared/niced-exec.ts playwright test -c playwright.config.ts",
-    "e2e:smoke": "node tooling/src/_shared/niced-exec.ts playwright test -c playwright.config.ts --project=single-user --grep @smoke",
+    "e2e:smoke": "E2E_LIVE=0 E2E_ALLOW_DEV_TARGET=0 node tooling/src/_shared/niced-exec.ts playwright test -c playwright.config.ts --project=single-user --grep @smoke",
     "e2e:live": "E2E_LIVE=1 E2E_REQUIRE_EVIDENCE=1 node tooling/src/_shared/niced-exec.ts playwright test -c playwright.config.ts start-chat-with-character.spec.ts",
     "cpd": "node scripts/cpd.ts -c jscpd.json",
     "cpd:report": "node scripts/cpd.ts -c jscpd.json --reporters html --output reports/cpd",

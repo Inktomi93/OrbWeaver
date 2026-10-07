@@ -4,9 +4,8 @@
 // is that drive: every assertion reads the SERIALIZED wire payload a member's devtools would show, taken as
 // the seeded `member` account (a real cookie session), against the same room the HOST reads unclamped.
 //
-// MODEL-FREE by construction (no `@live` tag): every canon row is planted through `chat.commitMessage` (the
-// D56 post-without-generate lever) and every card/persona read is a query. The two `@live` siblings
-// (live-member-strip / live-reasoning-strip) own the hidden-span half, which needs a streamed turn.
+// Model-free: canon reads use committed synthetic rows; the trigger proof streams only the scripted endpoint.
+// Hidden reasoning and mid-span replay have their own routine scripted-provider siblings.
 //
 // THE NOISE FILTER (D121-B / Spine-Identity §2e): a member seeing history they were ADMITTED to is the
 // DESIGN, not a leak. So each arm here names the host option it is testing — the D22 level, the D16
@@ -469,12 +468,13 @@ async function pollForReply(host: ActorClient, chatId: ChatId): Promise<Messages
 // proves the trigger-plane read — the bytes a member's OWN turn actually shipped. The instrument is the
 // STAMPED wire record (`chat.getVariantWire`, host-gated, immutable), not a dry-run preview: `previewAssembly`
 // previews the HOST's next turn, so it resolves the HOST's persona by construction and can never observe
-// this. `@live` — it needs a real streamed turn (through the scripted fixture provider, not an 8B).
-test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled prompt (the stamped wire record)", { tag: "@live" }, async ({ baseURL }) => {
+// this. The real streamed turn uses only the external scripted provider.
+test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled prompt (the stamped wire record)", async ({ baseURL }) => {
   test.setTimeout(180_000);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
-  const fixture = await startFixtureProvider(E2E_FIXTURE_PROVIDER_PORT);
+  const fixture = await startFixtureProvider(E2E_FIXTURE_PROVIDER_PORT, undefined, "What happened to the well?");
+  let restoreProvider: (() => Promise<void>) | undefined;
   const characterId = await freshCharacter(host, castId<CharacterHandle>("e2e-d122-trigger"), {
     name: "Marrow",
     description: "e2e member-triggered persona probe",
@@ -490,7 +490,7 @@ test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled
   });
 
   try {
-    await configureCustomProvider(host, fixture.baseUrl, "fixture-model");
+    restoreProvider = await configureCustomProvider(host, fixture.baseUrl, "fixture-model");
     const started = await host.mutation<StartedChat>("chat.startChat", { characterIds: [characterId] });
     const chatId = started.chat.id;
     await addMemberToChat(host, member, chatId, LOCAL_MEMBER.handle);
@@ -536,6 +536,7 @@ test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled
   } finally {
     await host.mutation("character.remove", { characterId });
     await member.mutation("persona.remove", { personaId: persona.id });
+    await restoreProvider?.();
     await fixture.close();
   }
 });

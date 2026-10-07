@@ -29,7 +29,7 @@ import { exportJWK, generateKeyPair, SignJWT } from "jose";
 // TYPE-ONLY: `trpc.ts`'s client is bound to the single-user origin, while an actor carries its own cookie
 // jar — importing the create-input SHAPE keeps the literal in `configureCustomProvider` under that file's
 // mirror pin without borrowing its client.
-import type { NewConnection } from "./trpc.ts";
+import type { NewConnection, TaskBinding } from "./trpc.ts";
 
 // Every actor constructor takes the stack's `baseUrl` explicitly — the spec passes Playwright's per-project
 // `baseURL` fixture (its vite origin), so an actor ALWAYS targets the same stack as the project, with no
@@ -235,7 +235,7 @@ interface CreatedConnection {
 }
 
 /**
- * Point the HOST's `chat` Model role at a BYO OpenAI-compatible endpoint — the REAL product seam a user uses
+ * Point the HOST's Chat and Utility roles at a BYO OpenAI-compatible endpoint — the REAL product seam a user uses
  * to aim orbweaver at any OpenAI-compatible server. Used to drive the harness fixture provider (a scripted
  * deterministic stream); NOT a product backdoor, because the endpoint is external and the app only ever knows
  * it as a user-authored connection row.
@@ -247,17 +247,30 @@ interface CreatedConnection {
  * `metadata` and called `credentials.setActive`; both are gone — a credential is now a sealed secret with a
  * label, and WHICH key resolves is the connection's decision, so there is no `active` axis to set.)
  *
+ * The returned cleanup restores prior role picks before removing the fixture connection.
  * No model check because nothing dialled the endpoint's `/v1/models` for this id — `model` is a bare
  * label here, exactly as before (the openai-compat runner reads capabilities, not a baked model).
  */
-export async function configureCustomProvider(host: ActorClient, baseUrl: string, model: string): Promise<void> {
+export async function configureCustomProvider(host: ActorClient, baseUrl: string, model: string): Promise<() => Promise<void>> {
+  const previous = (await host.query<readonly TaskBinding[]>("connection.listBindings", undefined)).filter(
+    (binding) => binding.task === "chat" || binding.task === "summarize",
+  );
   const input: NewConnection = {
     label: `e2e-fixture-provider-${model}`,
     providerId: "custom-openai",
     credentialId: null,
     baseUrl,
     model,
+    allowBackground: true,
   };
   const connection = await host.mutation<CreatedConnection>("connection.create", input);
-  await host.mutation("connection.setBinding", { task: "chat", connectionId: connection.id });
+  for (const task of ["chat", "summarize"]) {
+    await host.mutation("connection.setBinding", { task, connectionId: connection.id });
+  }
+  return async (): Promise<void> => {
+    for (const binding of previous) {
+      await host.mutation("connection.setBinding", { task: binding.task, connectionId: binding.binding?.connectionId ?? null });
+    }
+    await host.mutation("connection.remove", { connectionId: connection.id });
+  };
 }
