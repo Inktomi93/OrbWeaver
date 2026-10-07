@@ -122,10 +122,60 @@ jobs:
           path: reports/
           retention-days: 7
 
-  node:
+  media:
     needs: changes
     if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
+    runs-on: &media-runner ubuntu-24.04
+    timeout-minutes: 25
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      sha256: ${{ steps.prepare.outputs.sha256 }}
+      producer_attempt: ${{ steps.prepare.outputs.producer_attempt }}
+    steps:
+      - id: prepare
+        name: Download the complete signed Ubuntu media dependency closure
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          . /etc/os-release
+          test "$ID:$VERSION_ID:$(dpkg --print-architecture)" = ubuntu:24.04:amd64
+          media_root="$RUNNER_TEMP/media-apt"
+          mkdir -p "$media_root/archives/partial" "$media_root/lists/partial"
+          : > "$media_root/status"
+          cat > "$media_root/sources.list" <<'SOURCES'
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://archive.ubuntu.com/ubuntu noble main restricted universe multiverse
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://archive.ubuntu.com/ubuntu noble-updates main restricted universe multiverse
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://security.ubuntu.com/ubuntu noble-security main restricted universe multiverse
+          SOURCES
+          apt_options=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30
+            -o Acquire::AllowInsecureRepositories=false -o Acquire::AllowDowngradeToInsecureRepositories=false
+            -o APT::Get::AllowUnauthenticated=false -o "Dir::Etc::sourcelist=$media_root/sources.list"
+            -o Dir::Etc::sourceparts=- -o "Dir::State::lists=$media_root/lists"
+            -o "Dir::State::status=$media_root/status" -o "Dir::Cache::archives=$media_root/archives")
+          timeout 300s sudo -n apt-get "${apt_options[@]}" update --error-on=any
+          # Empty installed state fetches dependencies even when the producer already has them.
+          timeout 600s sudo -n DEBIAN_FRONTEND=noninteractive apt-get "${apt_options[@]}" install -y --download-only --no-install-recommends ffmpeg
+          shopt -s nullglob
+          packages=("$media_root"/archives/*.deb)
+          test "${#packages[@]}" -gt 0
+          printf '%s\n' "$ID:$VERSION_ID:$(dpkg --print-architecture)" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$GITHUB_SHA" > "$media_root/identity"
+          (cd "$media_root" && tar -cf payload.tar identity archives/*.deb)
+          echo "sha256=$(sha256sum "$media_root/payload.tar" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "producer_attempt=$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        timeout-minutes: 5
+        with:
+          name: media-apt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/media-apt/payload.tar
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  node:
+    needs: [changes, media]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: *media-runner
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -137,8 +187,47 @@ jobs:
         with:
           persist-credentials: false
       - uses: $/.github/actions/setup
-      # The media tests generate their sample videos with the system ffmpeg, which runners don't ship.
-      - run: sudo apt-get update -qq && sudo -A apt-get install -y -qq --no-install-recommends ffmpeg
+      - id: media-reference
+        name: Require the media producers immutable artifact reference
+        env:
+          MEDIA_ARTIFACT_ID: ${{ needs.media.outputs.artifact_id }}
+          MEDIA_SHA256: ${{ needs.media.outputs.sha256 }}
+          MEDIA_PRODUCER_ATTEMPT: ${{ needs.media.outputs.producer_attempt }}
+        run: |
+          [[ "$MEDIA_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$MEDIA_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$MEDIA_PRODUCER_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
+      - id: media-download
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 5
+        with:
+          artifact-ids: ${{ needs.media.outputs.artifact_id }}
+          path: ${{ runner.temp }}/media-apt
+          merge-multiple: true
+          digest-mismatch: error
+      - id: media
+        name: Install media prerequisites without mirror access
+        timeout-minutes: 8
+        env:
+          MEDIA_SHA256: ${{ needs.media.outputs.sha256 }}
+          MEDIA_PRODUCER_ATTEMPT: ${{ needs.media.outputs.producer_attempt }}
+        run: |
+          set -euo pipefail
+          media_root="$RUNNER_TEMP/media-apt"
+          [[ "$MEDIA_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          printf '%s  %s\n' "$MEDIA_SHA256" "$media_root/payload.tar" | sha256sum --check --strict
+          tar -xf "$media_root/payload.tar" -C "$media_root" --no-same-owner
+          . /etc/os-release
+          printf '%s\n' "$ID:$VERSION_ID:$(dpkg --print-architecture)" "$GITHUB_RUN_ID" "$MEDIA_PRODUCER_ATTEMPT" "$GITHUB_SHA" > "$media_root/expected"
+          cmp "$media_root/identity" "$media_root/expected"
+          shopt -s nullglob
+          packages=("$media_root"/archives/*.deb)
+          test "${#packages[@]}" -gt 0
+          # Disabling repositories and downloads prevents an incomplete payload reaching a mirror.
+          timeout 300s sudo -n DEBIAN_FRONTEND=noninteractive apt-get --no-download --no-remove -y --no-install-recommends \
+            -o Dir::Etc::sourcelist=/dev/null -o Dir::Etc::sourceparts=- -o "Dir::Cache::archives=$media_root/archives" install "${packages[@]}"
+          timeout 10s ffmpeg -version
+          timeout 10s ffprobe -version
       - run: pnpm test:node --shard=${{ matrix.shard }}/3
       - if: failure()
         name: Say how to reproduce
@@ -230,7 +319,7 @@ jobs:
   # The one required check. A skipped suite (docs-only change) passes; a failed or cancelled one does not.
   ci-ok:
     if: always() && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full'
-    needs: [changes, static, node, ct, e2e-smoke]
+    needs: [changes, static, media, node, ct, e2e-smoke]
     runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:
@@ -277,7 +366,17 @@ jobs:
           browsers: "true"
       - id: media
         if: steps.seen.outputs.cache-hit != 'true'
-        run: sudo apt-get update -qq && sudo -A apt-get install -y -qq --no-install-recommends ffmpeg
+        name: Set up FFmpeg and FFprobe
+        timeout-minutes: 15
+        run: |
+          if timeout 10s ffmpeg -version >/dev/null 2>&1 && timeout 10s ffprobe -version >/dev/null 2>&1; then
+            exit 0
+          fi
+          apt_options=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+          timeout 300s sudo -n apt-get "${apt_options[@]}" update --error-on=any
+          timeout 600s sudo -n DEBIAN_FRONTEND=noninteractive apt-get "${apt_options[@]}" install -y --no-install-recommends ffmpeg
+          timeout 10s ffmpeg -version
+          timeout 10s ffprobe -version
       - id: showcase
         if: steps.seen.outputs.cache-hit != 'true'
         run: pnpm --filter @orb/showcase-plugins build
