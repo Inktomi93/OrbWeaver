@@ -3,8 +3,6 @@ FROM node:26@sha256:39cff0f037088f0d8faf3e5a3ca055d653a15b66faaba8af3daf72f0102f
 ARG TZ
 ENV TZ="$TZ"
 
-ARG CLAUDE_CODE_VERSION=latest
-
 # Install basic development tools and iptables/ipset
 RUN apt-get update && apt-get install -y --no-install-recommends \
   less \
@@ -76,9 +74,10 @@ RUN ARCH=$(dpkg --print-architecture) && \
 # Set up non-root user
 USER node
 
-# Install global packages
-ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
-ENV PATH=$PATH:/usr/local/share/npm-global/bin
+# Native and optional tool packages share one integrity-locked install.
+ENV PATH=$PATH:/usr/local/share/npm-global/node_modules/.bin
+COPY --chown=node:node tools/package.json tools/package-lock.json /usr/local/share/npm-global/
+RUN npm ci --prefix /usr/local/share/npm-global
 
 # Set the default shell to zsh rather than sh
 ENV SHELL=/bin/zsh
@@ -96,15 +95,6 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
   -a "source /usr/share/doc/fzf/examples/completion.zsh" \
   -a "export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
   -x
-
-# Install Claude + ast-grep (the house structural-sweep tool — agents lean on `sg`)
-RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} @ast-grep/cli
-
-# The pnpm this project pins (package.json packageManager; a container config test holds the two equal).
-# Node 26 ships without corepack, so npm installs it, at build time while the network is open. No store-dir
-# wrapper: the pnpm_config_store_dir env var in devcontainer.json points the store at its volume.
-ARG PNPM_VERSION=12.6.0
-RUN npm install -g pnpm@${PNPM_VERSION}
 
 # Playwright Chromium for the client CT (`pnpm test:ct`) and e2e (`pnpm e2e`) suites.
 # The browser binary AND its OS libs must be baked in at build time: the runtime

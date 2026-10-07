@@ -1,11 +1,13 @@
 import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { parse } from "yaml";
 import { z } from "zod";
 import { expect, test } from "../support/tool-fixtures.ts";
+import { scaledBudget } from "./_load-budget.ts";
 
 // ── the container surface's load-bearing shape (docker/README.md is the prose; these are the pins) ────
 //
@@ -54,7 +56,8 @@ test("the dev container installs the pinned pnpm and gives every workspace packa
   const packageManager = z.object({ packageManager: z.string() }).parse(JSON.parse(read(repoRoot, "package.json"))).packageManager;
   // Node 26 has no corepack; the sandbox installs pnpm with npm at the version package.json pins.
   expect(read(repoRoot, ".devcontainer/Dockerfile")).not.toMatch(/^RUN .*corepack/mu);
-  expect(read(repoRoot, ".devcontainer/Dockerfile")).toContain(`ARG PNPM_VERSION=${packageManager.replace(/^pnpm@/u, "").replace(/\+.*$/u, "")}`);
+  const tools = z.object({ dependencies: z.record(z.string(), z.string()) }).parse(JSON.parse(read(repoRoot, ".devcontainer/tools/package.json")));
+  expect(tools.dependencies["pnpm"]).toBe(packageManager.replace(/^pnpm@/u, "").replace(/\+.*$/u, ""));
   // A package without a volume makes pnpm write its node_modules into the bind-mounted host checkout.
   const config = read(repoRoot, ".devcontainer/devcontainer.json");
   const packages = readdirSync(join(repoRoot, "packages"), { withFileTypes: true })
@@ -63,6 +66,89 @@ test("the dev container installs the pinned pnpm and gives every workspace packa
   for (const dir of ["tooling", ...packages]) {
     expect(config, `${dir} has a node_modules volume`).toContain(`target=/workspace/${dir}/node_modules,type=volume`);
   }
+});
+
+test("the sandbox tools install from an integrity-locked dependency closure instead of mutable global packages", ({ repoRoot }) => {
+  const manifest = z.object({ dependencies: z.record(z.string(), z.string()) }).parse(JSON.parse(read(repoRoot, ".devcontainer/tools/package.json")));
+  const lock = z
+    .object({
+      packages: z.record(
+        z.string(),
+        z.object({
+          version: z.string().optional(),
+          resolved: z.string().optional(),
+          integrity: z.string().optional(),
+          dependencies: z.record(z.string(), z.string()).optional(),
+        }),
+      ),
+    })
+    .parse(JSON.parse(read(repoRoot, ".devcontainer/tools/package-lock.json")));
+  for (const [name, version] of Object.entries(manifest.dependencies)) {
+    expect(version).toMatch(/^\d+\.\d+\.\d+$/u);
+    expect(lock.packages[`node_modules/${name}`]?.version, name).toBe(version);
+  }
+  expect(lock.packages[""]?.dependencies).toEqual(manifest.dependencies);
+  for (const [path, entry] of Object.entries(lock.packages)) {
+    if (path === "") {
+      continue;
+    }
+    expect(entry.resolved, path).toMatch(/^https:\/\/registry\.npmjs\.org\//u);
+    expect(entry.integrity, path).toMatch(/^sha512-[A-Za-z0-9+/]+={0,2}$/u);
+  }
+  const dockerfile = read(repoRoot, ".devcontainer/Dockerfile");
+  expect(dockerfile).toContain("COPY --chown=node:node tools/package.json tools/package-lock.json /usr/local/share/npm-global/");
+  expect(dockerfile).toContain("RUN npm ci --prefix /usr/local/share/npm-global");
+  expect(dockerfile).toContain("/usr/local/share/npm-global/node_modules/.bin");
+  expect(dockerfile).not.toMatch(/npm install -g|CLAUDE_CODE_VERSION/u);
+  expect(read(repoRoot, ".devcontainer/devcontainer.json")).not.toContain("CLAUDE_CODE_VERSION");
+});
+
+test("native npm ci executes a matching locked package but rejects altered integrity before its install script", {
+  timeout: scaledBudget(30_000),
+}, ({ scratch }) => {
+  const source = join(scratch, "source");
+  const install = join(scratch, "install");
+  mkdirSync(source);
+  mkdirSync(install);
+  writeFileSync(
+    join(source, "package.json"),
+    JSON.stringify({
+      name: "orb-integrity-control",
+      version: "1.0.0",
+      scripts: { postinstall: "node -e \"require('node:fs').writeFileSync('installed','yes')\"" },
+    }),
+  );
+  const pack = spawnSync("npm", ["pack", "--ignore-scripts", "--pack-destination", scratch], { cwd: source, encoding: "utf8", timeout: scaledBudget(10_000) });
+  expect(pack.status, pack.stdout + pack.stderr).toBe(0);
+  const archive = join(scratch, "orb-integrity-control-1.0.0.tgz");
+  const integrity = `sha512-${createHash("sha512").update(readFileSync(archive)).digest("base64")}`;
+  const dependency = { "orb-integrity-control": `file:${archive}` };
+  writeFileSync(join(install, "package.json"), JSON.stringify({ name: "integrity-consumer", version: "1.0.0", dependencies: dependency }));
+  const lock = (hash: string): void =>
+    writeFileSync(
+      join(install, "package-lock.json"),
+      JSON.stringify({
+        name: "integrity-consumer",
+        version: "1.0.0",
+        lockfileVersion: 3,
+        packages: {
+          "": { name: "integrity-consumer", version: "1.0.0", dependencies: dependency },
+          "node_modules/orb-integrity-control": { version: "1.0.0", resolved: `file:${archive}`, integrity: hash, hasInstallScript: true },
+        },
+      }),
+    );
+  const run = (): SpawnSyncReturns<string> =>
+    spawnSync("npm", ["ci", "--offline", "--cache", join(scratch, "cache"), "--prefix", install], { encoding: "utf8", timeout: scaledBudget(10_000) });
+  lock(integrity);
+  const positive = run();
+  expect(positive.status, positive.stdout + positive.stderr).toBe(0);
+  const marker = join(install, "node_modules/orb-integrity-control/installed");
+  expect(readFileSync(marker, "utf8")).toBe("yes");
+  lock(`sha512-${Buffer.alloc(64).toString("base64")}`);
+  const refused = run();
+  expect(refused.status, refused.stdout + refused.stderr).not.toBe(0);
+  expect(refused.stderr).toContain("EINTEGRITY");
+  expect(() => readFileSync(marker)).toThrow();
 });
 
 test("the client build excludes stamp-only git refs while the assembler keeps its separate ref mount", ({ repoRoot }) => {

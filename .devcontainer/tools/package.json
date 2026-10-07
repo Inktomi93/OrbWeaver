@@ -1,0 +1,10 @@
+{
+  "name": "orbweaver-sandbox-tools",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "@anthropic-ai/claude-code": "2.1.293",
+    "@ast-grep/cli": "0.45.3",
+    "pnpm": "12.6.0"
+  }
+}
