@@ -1,9 +1,10 @@
 import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { BOX_LOAD_ENV } from "@orb/tooling/_shared/load-budget";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { hasQualifiedMainPush, qualificationDecision, resolveCiQualification, selectAffectedInstrumentTests } from "@orb/tooling/verify";
 import type { CiQualificationConfig } from "../../../../tooling/src/verify/contract/qualification.ts";
@@ -106,6 +107,34 @@ const API_FIXTURE = [
   "if(command!=='api'||!(endpoint in responses))process.exit(74);",
   "process.stdout.write(JSON.stringify(responses[endpoint]));",
 ].join("\n");
+
+test("native metadata timeout keeps its quiet ceiling and receives shared load headroom", { timeout: scaledBudget(60_000) }, async ({
+  scratch,
+  repoRoot,
+  fakeBin,
+}) => {
+  const delayed = API_FIXTURE.replace(
+    "process.stdout.write(JSON.stringify(responses[endpoint]));",
+    "if(endpoint.endsWith('/workflows/ci.yml')&&!fs.existsSync('ci-delayed')){fs.writeFileSync('ci-delayed','yes');await new Promise(resolve=>setTimeout(resolve,11200));}process.stdout.write(JSON.stringify(responses[endpoint]));",
+  );
+  await fakeBin("gh", delayed);
+  writeFileSync(join(scratch, "ci-api.json"), JSON.stringify(metadata()));
+  const probe = join(scratch, "qualification-probe.mjs");
+  writeFileSync(
+    probe,
+    [
+      `import { hasQualifiedMainPush } from ${JSON.stringify(join(repoRoot, "tooling/src/verify/lib/ci-qualification.ts"))};`,
+      `try { if(!hasQualifiedMainPush(process.cwd(), ${JSON.stringify(SHA)}, ${JSON.stringify({ repository: REPOSITORY, generation: GENERATION, publication: SHA })})) throw new Error('qualification refused'); process.stdout.write('qualified'); } catch(error) { process.stderr.write(error.message); process.exitCode=2; }`,
+    ].join("\n"),
+  );
+  const quiet = spawnSync(process.execPath, [probe], { cwd: scratch, encoding: "utf8", env: inheritedProcessEnv({ [BOX_LOAD_ENV]: "0.2/1" }) });
+  expect(quiet.status, quiet.stdout + quiet.stderr).toBe(2);
+  expect(quiet.stderr).toContain("metadata unavailable");
+  rmSync(join(scratch, "ci-delayed"));
+  const loaded = spawnSync(process.execPath, [probe], { cwd: scratch, encoding: "utf8", env: inheritedProcessEnv({ [BOX_LOAD_ENV]: "2/1" }) });
+  expect(loaded.status, loaded.stdout + loaded.stderr).toBe(0);
+  expect(loaded.stdout).toBe("qualified");
+});
 
 test("the shared qualifier rejects false authority and partial reruns, and paginates the exact run attempt", async ({ scratch, fakeBin }) => {
   await fakeBin("gh", API_FIXTURE);

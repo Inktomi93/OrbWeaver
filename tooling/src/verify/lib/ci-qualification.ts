@@ -3,6 +3,7 @@
 
 import process from "node:process";
 import { execGit, GIT_READ_PREFIX, runGit } from "@orb/tooling/_shared/git";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { z } from "zod";
 import type { CiQualificationConfig, QualificationDecision, QualificationMeasurement } from "../contract/qualification.ts";
@@ -41,8 +42,8 @@ const WORKFLOW = z.object({ id: z.number().int().positive(), path: z.literal(".g
 const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
 const MAX_ANCESTORS = 40;
-const API_TIMEOUT_MS = 10_000;
-const METADATA_BUDGET_MS = 120_000;
+const API_TIMEOUT_BASE_MS = 10_000;
+const METADATA_BUDGET_BASE_MS = 120_000;
 const WORKFLOW_PATH = ".github/workflows/ci.yml";
 
 function commitHasGeneration(root: string, commit: string, config: CiQualificationConfig): boolean {
@@ -76,7 +77,7 @@ function api(root: string, endpoint: string, deadline: number): string {
   if (remaining <= 0) {
     throw new Error("CI qualification metadata discovery exceeded its supported bound");
   }
-  const result = runNicedSync("gh", ["api", endpoint], { cwd: root, timeout: Math.min(API_TIMEOUT_MS, remaining) });
+  const result = runNicedSync("gh", ["api", endpoint], { cwd: root, timeout: Math.min(budget(API_TIMEOUT_BASE_MS), remaining) });
   if (result.status !== 0) {
     throw new Error(`CI qualification metadata unavailable for ${endpoint} (${String(result.status)})`);
   }
@@ -120,7 +121,12 @@ function jobsForAttempt(root: string, repository: string, run: z.infer<typeof RU
 }
 
 /** Check the latest run for this exact SHA, including smoke via whole-workflow success and one attempt's real static step. */
-export function hasQualifiedMainPush(root: string, sha: string, config: CiQualificationConfig, deadline = performance.now() + METADATA_BUDGET_MS): boolean {
+export function hasQualifiedMainPush(
+  root: string,
+  sha: string,
+  config: CiQualificationConfig,
+  deadline = performance.now() + budget(METADATA_BUDGET_BASE_MS),
+): boolean {
   COMMIT_ID.parse(sha);
   const workflow = WORKFLOW.parse(JSON.parse(api(root, `repos/${config.repository}/actions/workflows/ci.yml`, deadline)));
   const runQuery = `repos/${config.repository}/actions/workflows/${workflow.id}/runs?head_sha=${sha}&event=push&branch=main`;
@@ -190,7 +196,7 @@ export function resolveCiQualification(root: string, head: string, eventBase: st
     .trim()
     .split(/\r?\n/u)
     .slice(1);
-  const deadline = performance.now() + METADATA_BUDGET_MS;
+  const deadline = performance.now() + budget(METADATA_BUDGET_BASE_MS);
   let candidates = 0;
   try {
     const candidatesToInspect = ancestryHasGeneration(root, head, config, deadline) ? ancestors : [];

@@ -97,22 +97,34 @@ test("CI event qualification passes the actual target/before and tested SHA, not
   expect(ci.env["ORB_CI_REPOSITORY"]).toBe("Inktomi93/OrbWeaver");
 });
 
-test("uncached nightly and manual qualification provision media executables before full or product verification", async ({ repoRoot, scratch, fakeBin }) => {
+test("uncached nightly and manual qualification provision media and showcase artifacts before full or product verification", async ({
+  repoRoot,
+  scratch,
+  fakeBin,
+}) => {
   const job = workflow(repoRoot).jobs.qualification;
   const media = step(job, "media");
+  const showcase = step(job, "showcase");
   const verify = step(job, "verify");
   expect(media.if).toBe(verify.if);
+  expect(showcase.if).toBe(verify.if);
   expect(job.steps.indexOf(media)).toBeLessThan(job.steps.indexOf(verify));
+  expect(job.steps.indexOf(showcase)).toBeLessThan(job.steps.indexOf(verify));
   await fakeBin(
     "sudo",
     "import fs from 'node:fs';const args=process.argv.slice(2);fs.appendFileSync('apt.jsonl',JSON.stringify(args)+'\\n');if(args.includes('install')&&args.includes('ffmpeg'))fs.writeFileSync('media-ready','yes');",
   );
   await fakeBin(
     "pnpm",
-    "import fs from 'node:fs';if(!fs.existsSync('media-ready'))throw new Error('media prerequisite absent');fs.writeFileSync('called.json',JSON.stringify(process.argv.slice(2)));",
+    [
+      "import fs from 'node:fs';const args=process.argv.slice(2);fs.appendFileSync('pnpm.jsonl',JSON.stringify(args)+'\\n');",
+      "const artifact='packages/showcase-plugins/dist/bundles/pocket-arcade.zip';",
+      "if(args[0]==='--filter'&&args[1]==='@orb/showcase-plugins'&&args[2]==='build'){fs.mkdirSync('packages/showcase-plugins/dist/bundles',{recursive:true});fs.writeFileSync(artifact,'fixture bundle');}",
+      "else {if(!fs.existsSync('media-ready'))throw new Error('media prerequisite absent');if(fs.readFileSync(artifact).length===0)throw new Error('showcase prerequisite absent');fs.writeFileSync('called.json',JSON.stringify(args));}",
+    ].join("\n"),
   );
   for (const tier of ["full", "product"]) {
-    const result = spawnSync("bash", ["-e", "-c", `${media.run ?? ""}\n${verify.run ?? ""}`], {
+    const result = spawnSync("bash", ["-e", "-c", `${media.run ?? ""}\n${showcase.run ?? ""}\n${verify.run ?? ""}`], {
       cwd: scratch,
       env: inheritedProcessEnv({ ["VERIFY_TIER"]: tier }),
       encoding: "utf8",
@@ -130,5 +142,16 @@ test("uncached nightly and manual qualification provision media executables befo
     ["-A", "apt-get", "install", "-y", "-qq", "--no-install-recommends", "ffmpeg"],
     ["apt-get", "update", "-qq"],
     ["-A", "apt-get", "install", "-y", "-qq", "--no-install-recommends", "ffmpeg"],
+  ]);
+  expect(
+    readFileSync(join(scratch, "pnpm.jsonl"), "utf8")
+      .trim()
+      .split(/\r?\n/u)
+      .map((row) => JSON.parse(row)),
+  ).toEqual([
+    ["--filter", "@orb/showcase-plugins", "build"],
+    ["verify", "--full"],
+    ["--filter", "@orb/showcase-plugins", "build"],
+    ["verify", "--product"],
   ]);
 });

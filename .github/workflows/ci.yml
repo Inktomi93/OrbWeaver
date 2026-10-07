@@ -280,6 +280,9 @@ jobs:
       - id: media
         if: steps.seen.outputs.cache-hit != 'true'
         run: sudo apt-get update -qq && sudo -A apt-get install -y -qq --no-install-recommends ffmpeg
+      - id: showcase
+        if: steps.seen.outputs.cache-hit != 'true'
+        run: pnpm --filter @orb/showcase-plugins build
       - id: verify
         if: steps.seen.outputs.cache-hit != 'true'
         run: pnpm verify --"$VERIFY_TIER"
