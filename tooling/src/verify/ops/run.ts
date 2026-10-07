@@ -150,7 +150,7 @@ interface RunContext {
 /** The stage door's HANG ceiling (#1508) — the line past which a stage is WEDGED, never a performance
  *  budget. The BASE is data now (`../lib/stage-budget.ts`, #1848: one typed 45 minutes for every stage
  *  turned a quiet-box CT run into a false `[tool-error]`); the load STRETCH is applied here, because
- *  `budget()` never shrinks a base — a 45-minute base is 45 minutes on a quiet box and can only grow
+ *  `budget()` never shrinks a base — the configured 90-minute default is its quiet-box floor and can only grow
  *  (`tooling-clock-budget`). */
 function stageTimeoutMs(stage: StageDef): number {
   return budget(stageHangCeilingBaseMs(stage));

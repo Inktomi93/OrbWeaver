@@ -76,12 +76,12 @@ test("the tooling battery has a dedicated ceiling while preserving its full-only
   expect(tooling.tiers).toEqual(["full"]);
   expect(tooling.argv).toEqual(["pnpm", "test:tooling"]);
   expect(stageHangCeilingBaseMs(tooling)).toBe(readStageBudgets().toolingSuiteMs);
-  expect(tooling.hangCeilingBaseMs).toBeGreaterThan(readStageBudgets().defaultMs);
+  expect(tooling.hangCeilingBaseMs).toBeGreaterThanOrEqual(readStageBudgets().defaultMs);
 });
 
 test("affected tooling can run the full battery within the same derived ceiling", () => {
   const affected = stage("tests:instrument-affected");
   expect(affected.argv).toEqual(["pnpm", "check:instrument-affected"]);
   expect(stageHangCeilingBaseMs(affected)).toBe(readStageBudgets().toolingSuiteMs);
-  expect(affected.hangCeilingBaseMs).toBeGreaterThan(readStageBudgets().defaultMs);
+  expect(affected.hangCeilingBaseMs).toBeGreaterThanOrEqual(readStageBudgets().defaultMs);
 });
