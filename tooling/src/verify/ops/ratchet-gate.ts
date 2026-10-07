@@ -28,9 +28,8 @@
 // sub-minute budget on that run (isolated it measured 22-24s standalone, so the combined total is
 // contention-sensitive, not a fixed cost). `gate-conformance.repo.int.test.ts` is therefore EXCLUDED (below):
 // it is the heaviest single candidate (~20-24s, driving every contract-form gate's mustFlag/mustPass proof
-// over the real registry) and it is ALREADY covered at push-tier — it is an ordinary `.int.test.ts` file
-// under `tests/`, so `pnpm test` (and therefore `pnpm verify --push`) already runs it; dropping it from
-// THIS aggregate loses no coverage, it only moves its cadence from every-merge to pre-push. The
+// over the real registry). Its execution belongs to full tooling and affected-instrument qualification,
+// not product Node tests. Exclusion from this aggregate therefore does not establish another run's coverage.
 // cross-tenant sweep stays IN (measured 2.2-9.3s across runs) because it is escape #1's own reproduction,
 // not a discretionary heavy row.
 //
@@ -91,8 +90,7 @@ const EXCLUDED: readonly RatchetExclusion[] = [
     reason:
       "measured 20-24s standalone, the heaviest single candidate — folding it in pushed the aggregate's " +
       "wall time to 67s under sibling-lane contention (over the sub-minute train-gate budget; #667). " +
-      "It is a registered repository-resource integration test, so pnpm test / pnpm verify --push already run it at push-tier — " +
-      "excluding it here costs no coverage, only cadence (every-push instead of every-merge).",
+      "Full tooling and affected-instrument qualification own its execution; product Node tests do not include tooling tests.",
   },
 ];
 

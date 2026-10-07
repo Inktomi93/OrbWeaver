@@ -22,4 +22,4 @@ Prove timer and parser failure paths, native HTTP reconnect and cancellation, an
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The frozen implementation passes independent transport and rendered review. Both dependency candidates pass the combined tRPC wiring, adapter, native HTTP, router and cross-tenant suites. Both pass progressive fill, Stop, unmount and reconnect exhaustion component tests without retries. Main integration and hosted qualification remain pending.

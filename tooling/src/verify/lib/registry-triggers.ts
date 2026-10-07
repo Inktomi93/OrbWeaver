@@ -99,8 +99,8 @@ export const WHOLE_COMMAND_PATH_TRIGGERS: Readonly<Record<string, StageTrigger>>
     why: "every tests/** runner-suffixed file against the union of vitest's and both playwright configs' own --list views. A file enters or leaves that set only by a tests/ path change or a runner-config change.",
   },
   "tests:instrument-affected": {
-    paths: /^(?:tooling\/src\/|tests\/tooling\/)/u,
-    why: "its subject is the instruments a branch CHANGED and the specs those reach — `tooling/src/**` on the one side, `tests/tooling/**` on the other. Nothing outside those two trees can move the selection or the verdict, and the stage's own derivation narrows further from there (a `tooling/src` change that reaches no spec is a finding, not a skip).",
+    paths: /^(?:tooling\/|tests\/(?:tooling|support)\/|scripts\/|\.claude\/hooks\/|\.github\/(?:workflows|actions)\/)|^[^/]+$/u,
+    why: "affected qualification reads changed tooling sources/tests, their shared support, and executable root/runner configuration. Configuration and unavailable prior inputs deliberately request conservative proof; the stage derives source/test reach rather than copying a test roster.",
   },
   "types:ownership": {
     paths: /(?:\.(?:ts|tsx|mts|cts)$|tsconfig[^/]*\.json$)/u,
@@ -149,8 +149,8 @@ const CHANGED: Tier = "changed";
  *
  *  A triggered stage gains the `changed` tier and a `scopedArgv` that returns its OWN WHOLE `argv` when the
  *  selection matches and `skip-empty` when it does not. The commit gate (a `staged` selection) DEFERS a matched
- *  stage instead (D274): a whole command costs a commit its whole-tree price, and pre-push runs the whole static
- *  tier anyway. The match still decides between "deferred" (owed at push) and "skipped" (not owed at all). It is a DECORATION of the authored rows rather than
+ *  stage instead: a whole command cannot narrow to the index. CI runs the whole static tier before release.
+ *  The match still decides between "deferred" (owed in whole verification) and "skipped" (not owed at all). It is a DECORATION of the authored rows rather than
  *  a field on each row because the trigger table is one concept with one home: spelling twelve regexes
  *  inline would put the accounting (which stages are covered, which are declined and why) in twelve places,
  *  which is how the lone `DOC_CATALOG_PATH_RE` stayed lone. */

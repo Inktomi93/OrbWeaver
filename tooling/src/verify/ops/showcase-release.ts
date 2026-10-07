@@ -11,7 +11,7 @@ import ts from "typescript";
 import { z } from "zod";
 import type { ShowcaseReleaseReceipt } from "../../plugin-author-showcase/index.ts";
 import { compileShowcasePlugins, renderShowcaseReleaseReceipt, SHOWCASE_RELEASE_RECEIPT, showcaseReleaseReceipt } from "../../plugin-author-showcase/index.ts";
-import { resolveMergeBase } from "../lib/repo-paths.ts";
+import { resolveMeasurementBoundary, resolveMergeBase } from "../lib/repo-paths.ts";
 import { candidateIndexGitEnvironment } from "./resource-index.ts";
 
 const SOURCE_ROOT = "packages/showcase-plugins/bundles";
@@ -313,9 +313,17 @@ export function baseReceipt(root: string, base: string): ShowcaseReleaseReceipt 
   return parsed.data;
 }
 
+function showcaseComparisonBase(root: string): string | undefined {
+  const boundary = resolveMeasurementBoundary(root);
+  if (boundary !== null) {
+    return boundary.base;
+  }
+  return resolveMergeBase(root)?.commit;
+}
+
 export async function runShowcaseRelease(root: string): Promise<number> {
-  const base = resolveMergeBase(root);
-  if (base === null) {
+  const base = showcaseComparisonBase(root);
+  if (base === undefined) {
     process.stderr.write("showcase-release: could not resolve the branch diff; refusing a false-clean version verdict\n");
     return EXIT.toolError;
   }
@@ -341,20 +349,20 @@ export async function runShowcaseRelease(root: string): Promise<number> {
     process.stderr.write("showcase-release: committed entry receipt is stale against current admitted bundle bytes\n");
     return EXIT.violations;
   }
-  const historical = baseReceipt(root, base.commit);
+  const historical = baseReceipt(root, base);
   const removed = removedShowcaseSlugs(Object.keys(historical.bundles), SHOWCASE_PLUGIN_SLUGS);
   if (removed.length > 0) {
     process.stderr.write(`showcase-release: base showcase slug(s) removed without a release contract: ${removed.join(", ")}\n`);
     return EXIT.violations;
   }
-  const historicalPaths = new Set(basePaths(root, base.commit, SOURCE_ROOT));
+  const historicalPaths = new Set(basePaths(root, base, SOURCE_ROOT));
   const versions: ShowcaseVersionInput[] = [];
   for (const slug of SHOWCASE_PLUGIN_SLUGS) {
     const manifestPath = `${SOURCE_ROOT}/${slug}/manifest.json`;
     const candidate = candidateShowcaseManifest(root, slug);
     const before = historicalPaths.has(manifestPath)
       ? manifestVersion(
-          execGitBytes(root, [...GIT_READ_PREFIX, "cat-file", "blob", `${base.commit}:${manifestPath}`], { maxBuffer: GIT_BLOB_MAX_BYTES }).toString("utf8"),
+          execGitBytes(root, [...GIT_READ_PREFIX, "cat-file", "blob", `${base}:${manifestPath}`], { maxBuffer: GIT_BLOB_MAX_BYTES }).toString("utf8"),
           manifestPath,
         )
       : null;

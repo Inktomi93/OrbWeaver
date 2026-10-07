@@ -213,7 +213,7 @@ function renderDeferredNotice(deferred: readonly GatePolicy[]): string {
   const lines = [
     "",
     `  ⚠ ${names.length} polic(ies) DEFERRED — a scoped run does NOT judge cross-file`,
-    "    (registry/coverage/parity/uniqueness) rules. Run the full `pnpm check` before pushing:",
+    "    (registry/coverage/parity/uniqueness) rules. The orchestrator reconciles the merged batch; CI qualifies the published revision:",
   ];
   for (const name of names) {
     lines.push(`      · ${name}`);

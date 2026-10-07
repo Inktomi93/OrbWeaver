@@ -11,20 +11,15 @@
 # GREEN-TO-COMMIT is enforced here, not by discipline: the stages that narrow to what the commit records
 # run over it, so a type/lint/boundary-red change cannot be committed.
 #
-# Split (scoped static gate at commit, whole static + behavioral tests at push) — both via the one
-# `pnpm verify` entry: the tiers are the hook wiring.
-#   • pre-commit → `pnpm verify --static --changed staged`: scoped to the index vs HEAD. An unstaged or
-#     untracked file is not in the commit, so it is not in scope, and lefthook hides the unstaged hunks
-#     of a partially staged file while the hook runs. Every whole-command stage, the cross-file structure
-#     policies and `deps:knip` defer to the whole static tier, which runs at pre-push and at the
-#     merge-train barrier (`pnpm check` on main). A scoped run takes no host-wide whole-run slot, so a
-#     commit never queues behind another checkout's battery.
-#   • pre-push → the GitHub sync guard, then `pnpm check` (the whole static tier, minutes). The behavioral
-#     rest of the push tier (node tests, the CT suite, `e2e:smoke`) runs in `.github/workflows/ci.yml` on
-#     every push to main, sharded across GitHub's runners, and the product tier runs there nightly.
-#     `pnpm verify --push` still runs the whole push tier locally by hand.
-#   • The full e2e suite stays out of the per-push gate (`pnpm e2e`, or the nightly product tier). The
-#     live-model spec (`@live`) is excluded from every gate.
+# Commit hooks run the index-scoped static floor. CI owns whole-tree verification before release.
+#   • pre-commit → `pnpm verify --static --changed staged`: scoped to the index vs HEAD. Lefthook hides
+#     unstaged hunks while the hook runs. Whole-command stages, including branch-wide instrument
+#     recertification, defer with a notice. A scoped run takes no host-wide whole-run slot.
+#   • pre-push → the GitHub sync guard only. Whole static and behavioral push-tier checks run in
+#     `.github/workflows/ci.yml` for main and PRs. `pnpm release` requires green CI for the exact revision.
+#   • Nightly full verification includes exhaustive tooling proof. Manual product qualification excludes
+#     instrument proofs and mutation; event-qualified affected tooling remains owed before release.
+#   • The live-model spec (`@live`) is excluded from every gate.
 # The only sanctioned bypass is `LEFTHOOK_EXCLUDE=check`, used when the owner or orchestrator authorizes
 # it (`.claude/skills/orchestrator/SKILL.md` "Hooks and pushes"); lanes and the orchestrator never use
 # `--no-verify`.
@@ -130,19 +125,7 @@ post-commit:
 
 pre-push:
   follow: true
-  # Stop at the first failure so a push GitHub would refuse never pays for the verify tier.
-  piped: true
   commands:
-    # Merges made on GitHub (Dependabot PRs, the release PR) must come into local main first, or the
-    # push is refused after the whole verify tier has run. `pnpm sync` folds them in.
+    # Remote merges must enter local main before promotion; CI cannot reconcile a local branch.
     github-sync-check:
-      priority: 1
       run: bash scripts/github-sync.sh --check
-    # The whole static tier. The behavioral push-tier suites took about an hour here, so they run in CI
-    # (owner ruling); `pnpm release` refuses a commit CI has not passed. `pnpm verify --list` prints every
-    # stage with its tier.
-    check:
-      priority: 2
-      run: pnpm check
-      env:
-        NO_COLOR: "1"

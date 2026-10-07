@@ -29,6 +29,7 @@ export { GATE_CONTRACT_KINDS } from "./contract/gate-corpus.ts";
 export type { GateIgnoreMarker } from "./contract/gate-ignore-marker.ts";
 export type { CheckContext, Violation } from "./contract/harness.ts";
 export type { RunHistoryEntry, RunHistoryStage, SlowdownAdvisory } from "./contract/history.ts";
+export type { InstrumentAffectedSelection } from "./contract/instrument-affected.ts";
 export type { ContractBannedShape, SchemaBannedShape } from "./contract/ledger-banned-shapes.ts";
 export { ACTIVE_GATES_INDEX_REL, SNAP_FLAGS_INDEX_REL } from "./contract/ledger-paths.ts";
 export type { GatePolicy, GatePolicyContext, GatePolicyHooks, GatePolicyProof } from "./contract/policy.ts";
@@ -108,6 +109,7 @@ export {
 } from "./lib/baseui-read.ts";
 export { BASE_UI_MODULE_PREFIX } from "./lib/baseui-surface-derive.ts";
 export { auditBiomeTranscript, biomeStageAudit, controlProbeCount, parseCheckedFileCount } from "./lib/biome-verdict.ts";
+export { hasQualifiedMainPush, qualificationDecision, resolveCiQualification } from "./lib/ci-qualification.ts";
 export { VERB_HELP } from "./lib/cli-help.ts";
 export { aggregateExit, asViolations, eslintScheme, noVerdictStages, ownScheme, producedNoVerdict } from "./lib/exit-classifiers.ts";
 export { inspectGateContract } from "./lib/gate-contract.ts";
@@ -171,7 +173,6 @@ export {
 export { generateProseBaseline } from "./ops/gen/prose.ts";
 export { deriveSnapFlagsIndexMarkdown, generateSnapFlagsIndex } from "./ops/gen/snap-flags-index.ts";
 export { deriveTypeConfigFiles, generateTypeConfigs } from "./ops/gen/type-configs.ts";
-export type { InstrumentAffectedSelection } from "./ops/instrument-affected.ts";
 export { runInstrumentAffected, selectAffectedInstrumentTests } from "./ops/instrument-affected.ts";
 export { runKnipNegativeLiveness } from "./ops/knip-negative-liveness.ts";
 export {

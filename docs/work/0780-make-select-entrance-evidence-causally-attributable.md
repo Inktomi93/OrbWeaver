@@ -22,4 +22,4 @@ Prove accepted, rejected, canceled, stale and reset request lifetimes through na
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The frozen implementation passes independent authority and fixture review. Both dependency candidates pass controlled timer, stale native callback, existing pointer and keyboard Select behavior, stationary ghost controls and exact native clipboard component tests without retries. Main integration and hosted qualification remain pending. Hosted blocking-budget failures remain unresolved; this work does not widen budgets.

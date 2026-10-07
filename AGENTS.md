@@ -109,12 +109,12 @@ as the new one. If you cannot go green without a hatch, stop and report.
 | `pnpm verify --changed` | the inner loop, scoped to changed files; whole-project stages are deferred |
 | `pnpm check` (same as `pnpm verify`, `--static`) | the static whole tree: lint, types and type tests, structure, imports, docs; no product runtime tests |
 | `pnpm verify --push` | adds node tests, CT and e2e smoke |
-| `pnpm verify --full` | adds the tooling test battery and the slow quality stages |
+| `pnpm verify --full` | exhaustive verification, including tooling proofs and slow quality stages; nightly and explicit full qualification |
 | `pnpm verify --product` | whole application checks, complete application CT and E2E; excludes tool proofs and mutation |
 
 - Read stage membership from `pnpm verify --list`. Exit codes: 0 clean, 1 violations, 2 tool error (not a verdict), 3 misuse.
 - Use the `lane` skill's "Completion" policy to select checks. Run `pnpm check` after merge trains, for cross-package contracts or shared build/verification changes, or when requested. Routine local changes finish with relevant scoped checks.
-- Do not run `pnpm verify --push` by hand. The pre-push hook runs it on a push the owner authorized.
+- The local pre-push hook checks GitHub synchronization. CI owns whole-tree verification before release; see `UNIFIED-VERIFICATION-DESIGN.md` §4.
 - The `commit-msg` hook enforces the message format (`scripts/commit-msg-check.sh`).
 
 ## Read the harness artifacts

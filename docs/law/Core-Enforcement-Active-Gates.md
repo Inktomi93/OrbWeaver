@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-23
+updated: 2026-10-07
 ---
 
 # Orbweaver — Enforcement Registry: Active Gates
@@ -25,11 +25,8 @@ ordering, an owner-scoped route) is routinely held by a behavioural suite by des
 structural gate, and a resolve-time or lint-time fact (the package cake, dependency-cruiser) can hold a
 property a structural gate would only restate.
 
-**Fast lane** — `pnpm check` = biome (lint+format) → eslint (doc-comment + react-surface rules) → tsc
-→ test:types → check:structure (Layer 3, below) → depcruise (Layer 4). lefthook runs the stages that narrow
-to the staged change at pre-commit (`pnpm verify --static --changed staged`, D274) and `pnpm check` at
-pre-push. `.github/workflows/ci.yml` runs the rest of the push tier (node tests, the CT suite and
-`e2e:smoke`) on every push to main and every PR, and the product tier nightly.
+**Verification** — `pnpm verify --list` owns stage membership. Hook, CI, nightly and merge-train responsibilities
+live in `UNIFIED-VERIFICATION-DESIGN.md` §4. Scoped commit checks do not establish whole-tree qualification.
 
 **On-demand lanes** — `pnpm cpd` (jscpd, Layer 5) and `pnpm test:mutation[:gate]` (Stryker, Layer 6).
 Enforced — they fail the build — just not in the pre-commit budget.
