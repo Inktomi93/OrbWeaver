@@ -10,8 +10,8 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { BACK_TO_PARENT_CHAT_LABEL } from "../../../../../packages/client/src/features/chat/lib/chat-options-names.ts";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { ChatForkMenuStory, ChatGameModeMenuStory, ChatOptionsMenuStory } from "../_ct-stories.tsx";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { ChatForkMenuStory, ChatGameModeMenuStory, ChatOptionsMenuStory, ChatStartFailureMenuStory } from "../_ct-stories.tsx";
 import { CHAT_ID, CHAT_ROOM_ROUTES } from "../fixtures.ts";
 
 /** One chats-list row — the fields the row's markers read; the census counts `isGame`. */
@@ -240,4 +240,25 @@ test("a chat that is not a fork offers no Back to parent chat and never reads li
   await expect(page.getByRole("menuitem", { name: "Rename", exact: true })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: BACK_TO_PARENT_CHAT_LABEL })).toHaveCount(0);
   await expect.poll(() => trpc.count("chat.getChatLineage")).toBe(0);
+});
+
+test("a failed new chat with the same characters reports once and stays in the current room", async ({ mount, page }) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error): void => {
+    pageErrors.push(error.message);
+  });
+  const trpc = await routeTrpc(page, {
+    ...CHAT_ROOM_ROUTES,
+    "chat.startChat": trpcError({ code: "INTERNAL_SERVER_ERROR", message: "creation failed" }),
+  });
+  const component = await mount(<ChatStartFailureMenuStory />);
+  await expect(component.getByTestId("ct-active-chat")).toHaveText(`active=${CHAT_ID}`);
+  await component.getByRole("button", { name: "Chat options", exact: true }).click();
+  await page.getByRole("menuitem", { name: "New chat with the same characters", exact: true }).click();
+  const toast = page.locator('[data-slot="toast-root"]');
+  await expect(toast).toHaveCount(1);
+  await expect(toast.locator('[data-slot="toast-title"]')).toHaveText("Couldn't start the chat.");
+  await expect(component.getByTestId("ct-active-chat")).toHaveText(`active=${CHAT_ID}`);
+  await expect.poll(() => trpc.count("chat.startChat")).toBe(1);
+  expect(pageErrors).toEqual([]);
 });

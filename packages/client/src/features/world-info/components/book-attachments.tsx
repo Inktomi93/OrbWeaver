@@ -73,7 +73,13 @@ export function BookAttachments({ bookId }: BookAttachmentsProps): ReactElement 
           <Text className="text-destructive" voice="gloss">
             Couldn&apos;t load attachment status.
           </Text>
-          <Button aria-label="Retry attachment status" intent="secondary" onClick={(): void => void attachments.refetch()} size="sm" type="button">
+          <Button
+            aria-label="Retry attachment status"
+            intent="secondary"
+            onClick={(): void => void attachments.refetch().catch(globalThis.reportError)}
+            size="sm"
+            type="button"
+          >
             Retry
           </Button>
         </Row>
@@ -105,7 +111,7 @@ function GlobalSection({ bookId }: BookAttachmentsProps): ReactElement {
           Fires in every chat
         </Text>
         {globalQuery.isError ? (
-          <Button intent="ghost" onClick={(): void => void globalQuery.refetch()} size="sm" type="button">
+          <Button intent="ghost" onClick={(): void => void globalQuery.refetch().catch(globalThis.reportError)} size="sm" type="button">
             Retry
           </Button>
         ) : null}
@@ -148,7 +154,13 @@ function PersonasSection({ bookId, attachments, queryPending, queryError }: Atta
           <Text className="text-destructive" voice="gloss">
             Couldn&apos;t load personas.
           </Text>
-          <Button aria-label="Retry personas" intent="secondary" onClick={(): void => void personasQuery.refetch()} size="sm" type="button">
+          <Button
+            aria-label="Retry personas"
+            intent="secondary"
+            onClick={(): void => void personasQuery.refetch().catch(globalThis.reportError)}
+            size="sm"
+            type="button"
+          >
             Retry
           </Button>
         </Row>

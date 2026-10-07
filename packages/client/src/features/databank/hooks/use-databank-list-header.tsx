@@ -87,7 +87,7 @@ export function useDatabankListHeader(): ListPaneHeaderView {
                     hovered, so the re-read is its own item — the same "a read failure is never a dead end"
                     rule `QueryErrorState` carries, spelled in the one grammar a menu has. */}
             {health.isError ? (
-              <MenuItem onClick={(): void => void health.refetch()}>
+              <MenuItem onClick={(): void => void health.refetch().catch(globalThis.reportError)}>
                 <Icon icon={RefreshCw} size="sm" />
                 Check the bank again
               </MenuItem>

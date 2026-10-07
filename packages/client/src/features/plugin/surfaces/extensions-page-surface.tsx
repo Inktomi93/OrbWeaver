@@ -165,7 +165,7 @@ export function ExtensionsPageSurface(): ReactElement {
   // fresh (the approval's own refetch may not have landed yet) and open that plugin's first page by title.
   const openFirstPageOf = (pluginId: PluginId): void => {
     queryClient
-      .fetchQuery(trpc.plugin.listSurfaces.queryOptions())
+      .query(trpc.plugin.listSurfaces.queryOptions())
       .then((surfaces) => {
         const first = surfaces
           .filter((surface) => surface.pluginId === pluginId && surface.anchor === "page")

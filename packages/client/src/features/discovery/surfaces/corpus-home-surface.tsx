@@ -285,7 +285,7 @@ function CorpusHomeBody(): ReactElement {
           </Stack>
           <Stack className="min-w-0" gap="section">
             <CorpusReadinessRail
-              queue={{ failed: runs.error !== null, onRetry: (): void => void runs.refetch() }}
+              queue={{ failed: runs.error !== null, onRetry: (): void => void runs.refetch().catch(globalThis.reportError) }}
               showRerun={mapIsFocal}
               stages={state.stages}
             />
@@ -300,7 +300,7 @@ function CorpusHomeBody(): ReactElement {
           // `refetch` takes an OPTIONS BAG, and `onRetry` is wired to a Button's onClick — passing the method
           // by reference handed React's MouseEvent in as `RefetchOptions` (side-eye 2026-08-21). Every retry
           // on this surface goes through a wrapper for that reason.
-          <QueryErrorState label="your top keywords" onRetry={(): void => void keywords.refetch()} />
+          <QueryErrorState label="your top keywords" onRetry={(): void => void keywords.refetch().catch(globalThis.reportError)} />
         ) : (
           <KeywordExplorer pending={keywords.isPending} top={keywords.data} />
         )}
@@ -310,12 +310,12 @@ function CorpusHomeBody(): ReactElement {
           characters={unused.data}
           failed={unused.error !== null}
           libraryCharacters={home.coverage.characters}
-          onRetry={(): void => void unused.refetch()}
+          onRetry={(): void => void unused.refetch().catch(globalThis.reportError)}
           pending={unused.isPending}
         />
         <CorpusModelEconomicsSection
           failed={routing.error !== null}
-          onRetry={(): void => void routing.refetch()}
+          onRetry={(): void => void routing.refetch().catch(globalThis.reportError)}
           pending={routing.isPending}
           routes={routing.data}
         />

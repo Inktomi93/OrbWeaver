@@ -4,6 +4,8 @@ import { z } from "zod";
 import type { EvidenceWindowId } from "../../_shared/artifact-scope.ts";
 import { evidenceWindowIdSchema } from "../../_shared/artifact-scope.ts";
 
+export const REACT_PROFILE_SUPPORTED_MINOR = "19.3";
+
 /** @public Cross-file Snap React profile evidence contract. */
 export interface ReactRendererEvidence {
   readonly id: number;

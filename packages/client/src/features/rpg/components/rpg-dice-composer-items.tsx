@@ -57,7 +57,6 @@ export function RpgDiceComposerItems({ chatId }: { readonly chatId: ChatId }): R
             disabled={rollDice.isPending}
             key={notation}
             onClick={(): void => {
-              // @orb-waive caught-failure-ownership(rollIntoDraft): mutation failures already show a notice; any later exceptional rejection reaches the browser error reporter. Ends if the reporter stops surfacing errors.
               rollIntoDraft(chatId, notation, rollDice).catch(globalThis.reportError);
             }}
           >

@@ -38,6 +38,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ChatId } from "@orb/kit/ids";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { peekQueryData } from "./peek-query.ts";
 import type { Trpc } from "./trpc.ts";
 import { useTRPC } from "./trpc.ts";
 import { useGatedQuery } from "./use-gated-query.ts";
@@ -108,23 +109,15 @@ export function useDisplayScripts(chatId: ChatId | null): readonly RegexScriptRo
  * chat-open click, ~500ms of which was pure boundary wait. Neither read depends on a byte of what the
  * boundary is waiting for (`listScripts` is not even chat-keyed). So the fix is not to move the READ (a row
  * component must never fetch, and the consumer that needs the data is inside) — it is to start the FETCH at
- * the boundary's owner. The warm-up subscribes to nothing and renders nothing: `ensureQueryData` fetches a
- * COLD key and resolves from cache for a warm one (`staleTime: Infinity`, `query-client.ts`), so the read
- * inside the boundary is the same read it always was — it just finds the entry filled or already in flight.
- * It fires from an EFFECT, not from the render body: a fetch is a side effect, and the mount commit that
- * schedules it is the same commit that renders the boundary's fallback, i.e. one frame after the suspending
- * reads left — against ~500ms of boundary wait. (`usePrefetchQuery` would put it in render, but its options
- * type EXCLUDES `skipToken`, which tRPC's `queryOptions()` output always carries in its `queryFn` union;
- * `ensureQueryData` takes that output as-is, which is why it is the shape the one precedent already uses.)
- *
- * The one-home rule that makes it safe: the warm-up and the read take their keys from the two query-builder
- * functions above, so no drift can make this warm a key nobody reads. A prefetch that warms the wrong key is
- * INVISIBLE — it looks exactly like a working one, plus a wasted round trip.
- *
- * The repo's other prefetch precedent (`use-open-refinery.ts`'s `ensureQueryData`) is the DECIDING flavour —
- * an action AWAITS a read it must have before it branches. This is the WARMING flavour: nobody awaits it, so
- * a rejection is dropped here rather than handled — the consumer inside the boundary is an ordinary query
- * that will refetch and surface its own error through `QueryBoundary`, exactly as it did before this existed.
+ * the boundary's owner. The warm-up subscribes to nothing and renders nothing: it queries only absent
+ * cache entries, including no revalidation of an invalidated warm entry. `useDisplayScripts`' ordinary
+ * query readers own freshness; unavailable optional transforms fall back to NO_SCRIPTS, preserving canonical
+ * text. The native query cache retains error/retry state, and the own-library key also has the suspending
+ * `RegexOnScreenGroup` consumer. This warm-up fires from an effect, not from the render body.
+ * `usePrefetchQuery` excludes `skipToken`, which tRPC's `queryOptions()` output carries; the imperative
+ * `query` accepts the options as-is. Both warm-up and read take their keys from the builders above.
+ * A deciding action (`use-open-refinery.ts`) awaits its cache miss; this optional warming action adds no
+ * second error surface and does not turn a failed display-only read into a failed transcript.
  *
  * REQUIRED `ChatId`, where the read takes `ChatId | null`: the chat-less arm (a draft-greeting preview) has
  * no room tier to warm and no boundary to beat. `useGatedQuery` keeps that arm keyless instead of inventing
@@ -137,7 +130,15 @@ export function usePrefetchDisplayScripts(chatId: ChatId): void {
   // depping on it would re-run this on every unrelated re-render of the surface. `trpc`/`queryClient` are
   // context values (stable), and the room cannot change without a remount — so this runs once per open.
   useEffect(() => {
-    void queryClient.ensureQueryData(ownDisplayScriptQuery(trpc)).catch(() => undefined);
-    void queryClient.ensureQueryData(roomDisplayScriptQuery(trpc, chatId)).catch(() => undefined);
+    const own = ownDisplayScriptQuery(trpc);
+    const room = roomDisplayScriptQuery(trpc, chatId);
+    if (peekQueryData(queryClient, own.queryKey) === undefined) {
+      // @orb-waive caught-failure-ownership(queryClient.query): optional display transforms fall back to NO_SCRIPTS without changing canonical text; the native query cache owns error/retry state and RegexOnScreenGroup also reads this key through suspense. Ends if the optional fallback or query-error ownership changes.
+      void queryClient.query(own).catch(() => undefined);
+    }
+    if (peekQueryData(queryClient, room.queryKey) === undefined) {
+      // @orb-waive caught-failure-ownership(queryClient.query): useDisplayScripts' optional room transforms fall back to NO_SCRIPTS without changing canonical text; the native query cache retains error/retry state. Ends if the optional fallback or query-error ownership changes.
+      void queryClient.query(room).catch(() => undefined);
+    }
   }, [queryClient, trpc, chatId]);
 }

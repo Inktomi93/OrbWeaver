@@ -62,7 +62,7 @@ export function ActiveInSection({ documentId, documentName }: { readonly documen
   // basis for. A read that failed says so, and offers the re-read.
   let body: ReactElement;
   if (attachments.isError) {
-    body = <QueryErrorState label="where this document is active" onRetry={(): void => void attachments.refetch()} />;
+    body = <QueryErrorState label="where this document is active" onRetry={(): void => void attachments.refetch().catch(globalThis.reportError)} />;
   } else if (attachments.isPending) {
     body = <Text voice="gloss">Checking…</Text>;
   } else {

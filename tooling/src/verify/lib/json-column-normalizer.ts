@@ -278,6 +278,17 @@ function schemaProof(node: MorphNode, seen: ReadonlySet<object>): SchemaBodyProo
   if (binding.kind === "unresolved" && binding.reason === "dynamic" && Node.isCallExpression(binding.node)) {
     return schemaCallProof(binding.node, next);
   }
+  if (binding.kind === "unresolved" && binding.reason === "write") {
+    return refusal(current, binding.detail);
+  }
+  const origin = resolveModuleMemberOrigin(current);
+  const declaration =
+    origin.kind === "resolved" && origin.value.memberPath.length === 0 && origin.value.canonical.kind === "project"
+      ? origin.value.canonical.declaration
+      : undefined;
+  if (Node.isVariableDeclaration(declaration) && declaration.getInitializer() !== undefined) {
+    return schemaProof(declaration.getNameNode(), next);
+  }
   return refusal(current, "schema constructor/body is opaque");
 }
 

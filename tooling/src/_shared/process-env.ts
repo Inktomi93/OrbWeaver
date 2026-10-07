@@ -24,6 +24,19 @@ export function inheritedProcessEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.P
   return { ...ambientProcessEnv(), ...overrides };
 }
 
+const TEST_NODE_WEB_STORAGE_OPTION = "--no-webstorage";
+
+/** Node's lazy storage getter warns on browser-code imports even when no storage file exists. Test
+ * runners need absent Node storage globals, not a shared persistence file; Chromium storage is separate. */
+export function testProcessEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
+  const environment = inheritedProcessEnv(overrides);
+  const nodeOptions = environment["NODE_OPTIONS"];
+  if (nodeOptions?.trimEnd().split(/\s+/u).at(-1) !== TEST_NODE_WEB_STORAGE_OPTION) {
+    environment["NODE_OPTIONS"] = [nodeOptions, TEST_NODE_WEB_STORAGE_OPTION].filter(Boolean).join(" ");
+  }
+  return environment;
+}
+
 /** Read one ambient tooling/test protocol value without creating another process.env policy site. */
 export function processEnvValue(key: string): string | undefined {
   return ambientProcessEnv()[key];

@@ -344,7 +344,7 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
   // states into that one sentence — and its empty state offers to MINT the first snapshot, so a reader whose
   // list merely failed to load was being invited to write a version of a card that already has a dozen.
   if (snapshots.isError) {
-    return <QueryErrorState label="this card's versions" onRetry={(): void => void snapshots.refetch()} />;
+    return <QueryErrorState label="this card's versions" onRetry={(): void => void snapshots.refetch().catch(globalThis.reportError)} />;
   }
   if (snapshots.isPending) {
     return <SkeletonRows count={SNAPSHOT_PENDING_ROWS} shape="line" />;

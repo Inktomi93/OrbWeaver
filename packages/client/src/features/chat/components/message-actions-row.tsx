@@ -269,7 +269,13 @@ export function MessageActionsRow({
           <Button intent="ghost" size="icon" aria-label={MESSAGE_EDIT_NAME} onClick={onEdit}>
             <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Pencil} size="sm" />
           </Button>
-          <Button intent="ghost" size="icon" loading={fork.isPending} aria-label={MESSAGE_FORK_NAME} onClick={(): void => void onFork()}>
+          <Button
+            intent="ghost"
+            size="icon"
+            loading={fork.isPending}
+            aria-label={MESSAGE_FORK_NAME}
+            onClick={(): void => void onFork().catch(globalThis.reportError)}
+          >
             <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={GitFork} size="sm" />
           </Button>
         </Row>
@@ -304,7 +310,7 @@ export function MessageActionsRow({
           </MenuItem>
         ) : null}
         {editable ? (
-          <MenuItem onClick={(): void => void onFork()}>
+          <MenuItem onClick={(): void => void onFork().catch(globalThis.reportError)}>
             <Icon icon={GitFork} size="sm" />
             Fork chat here
           </MenuItem>

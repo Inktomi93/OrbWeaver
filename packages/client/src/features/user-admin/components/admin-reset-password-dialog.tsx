@@ -91,7 +91,7 @@ function ResetPasswordBody({ userId, onDone }: { readonly userId: UserId; readon
       <FormSubmitButton
         disabled={resetPassword.isPending}
         label={resetPassword.isPending ? "Resetting…" : "Reset password"}
-        onSubmit={(): void => void submit()}
+        onSubmit={(): void => void submit().catch(globalThis.reportError)}
         testKey="adminResetPasswordSubmit"
       />
     </Stack>

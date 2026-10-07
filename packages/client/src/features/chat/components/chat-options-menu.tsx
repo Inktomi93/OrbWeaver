@@ -242,7 +242,12 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters }
       >
         <ParentChatItem chatId={chatId} />
         {characterIds.length > 0 ? (
-          <MenuItem onClick={(): void => void startChat({ characterIds })}>
+          <MenuItem
+            onClick={(): void => {
+              // @orb-waive caught-failure-ownership(startChat): useStartChat's mutation carries errorToast "Couldn't start the chat."; this launcher stays in the current room on failure. Ends if useStartChat drops errorToast.
+              startChat({ characterIds }).catch(() => undefined);
+            }}
+          >
             <Icon icon={MessagesSquare} size="sm" />
             New chat with the same characters
           </MenuItem>

@@ -77,7 +77,7 @@ export function IconGalleryStory(): ReactElement {
   return (
     <div className="flex flex-col gap-block bg-background p-block text-foreground">
       <div className="flex flex-col gap-field">
-        <span className="text-label text-muted-foreground">weight × size (absoluteStrokeWidth — optical weight is size-independent)</span>
+        <span className="text-label text-muted-foreground">weight × size (nonScalingStroke — optical weight is size-independent)</span>
         {WEIGHTS.map((weight) => (
           <div className="flex items-center gap-row" key={weight}>
             <span className="w-24 text-label">{weight}</span>

@@ -1,5 +1,5 @@
 // `usePrefetchRoom` — WARM the room's ROSTER read, from the surface that offers the door into it. The
-// WARMING flavour of the repo's one typed prefetch channel (`queryClient.ensureQueryData` in an effect —
+// WARMING flavour of the repo's one typed prefetch channel (cache-first `queryClient.query` in an effect —
 // `data/use-display-scripts.ts` states the idiom and why `usePrefetchQuery` is unusable with tRPC's
 // `queryOptions()` output; `data/use-open-refinery.ts` is the DECIDING flavour).
 //
@@ -39,7 +39,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { useTRPC } from "#data";
+import { peekQueryData, useTRPC } from "#data";
 
 /**
  * Warm the room's roster read for `chatId`. `null` warms nothing — the caller's surface has no room to
@@ -58,7 +58,11 @@ export function usePrefetchRoom(chatId: ChatId | null): void {
     if (chatId === null) {
       return;
     }
-    void queryClient.ensureQueryData(trpc.chat.getChat.queryOptions({ chatId })).catch(() => undefined);
+    const options = trpc.chat.getChat.queryOptions({ chatId });
+    if (peekQueryData(queryClient, options.queryKey) === undefined) {
+      // @orb-waive caught-failure-ownership(queryClient.query): this only warms chat.getChat; ChatThread's ordinary useSuspenseQuery and QueryBoundary own the same key's user-visible error/retry surface. Ends if consumer ownership changes or this warmer owns a user operation.
+      void queryClient.query(options).catch(() => undefined);
+    }
   }, [queryClient, trpc, chatId]);
 }
 
@@ -75,8 +79,8 @@ export function usePrefetchRoom(chatId: ChatId | null): void {
  * refused the both-reads arm because it moves the transcript render into the click step
  * (`usePrefetchRoom`'s header carries the measured trade).
  *
- * Idempotent by construction: `ensureQueryData` resolves from cache for a warm key and de-duplicates an
- * in-flight one, so a reader sweeping back over the same row costs nothing after the first.
+ * Idempotent by construction: the cache check skips a warm key and `query` de-duplicates an
+ * in-flight cold one, so a reader sweeping back over the same row costs nothing after the first.
  */
 export function useWarmRoomOnIntent(): (chatId: ChatId) => void {
   const trpc = useTRPC();
@@ -85,6 +89,10 @@ export function useWarmRoomOnIntent(): (chatId: ChatId) => void {
   // memoizes it already (`no-manual-memo`, D54). Nothing here depends on referential stability anyway:
   // the callback is invoked from an event handler, never passed as an effect dependency.
   return (chatId: ChatId): void => {
-    void queryClient.ensureQueryData(trpc.chat.getChat.queryOptions({ chatId })).catch(() => undefined);
+    const options = trpc.chat.getChat.queryOptions({ chatId });
+    if (peekQueryData(queryClient, options.queryKey) === undefined) {
+      // @orb-waive caught-failure-ownership(queryClient.query): intent warming owns no user result; ChatThread's useSuspenseQuery and QueryBoundary own chat.getChat's error/retry surface. Ends if consumer ownership changes or warming becomes a user operation.
+      void queryClient.query(options).catch(() => undefined);
+    }
   };
 }

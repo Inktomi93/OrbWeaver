@@ -14,7 +14,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcFixtureOutput, TrpcRoutes } from "../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { OpenRefineryStory } from "./_ct-stories.tsx";
 
 // MINTED, never hand-written (`typeIdSchema` validates the 26-char suffix at runtime).
@@ -129,4 +129,42 @@ test("the roster is AWAITED, not gated on — a first-ever click still resumes r
   await expect(component.getByTestId("open-refinery-state")).toHaveText(`session=${NEWEST_OPEN_SESSION} section=refinery pending=false`);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): same settled barrier.
   expect(trpc.count("refinery.startSession")).toBe(0);
+});
+
+for (const invalidated of [false, true]) {
+  test(`a ${invalidated ? "invalidated" : "fresh"} cached roster resumes without a new decision read`, async ({ mount, page }) => {
+    let reads = 0;
+    const cached = [rosterRow({ id: NEWEST_OPEN_SESSION, characterId: CHARACTER_ID, status: "active", updatedAt: FROZEN_AT })];
+    const trpc = await routeTrpc(page, {
+      ...routes(cached),
+      "refinery.listSessions": () => (reads++ === 0 ? cached : []),
+    });
+    const component = await mount(<OpenRefineryStory characterId={CHARACTER_ID} />);
+    await component.getByRole("button", { name: "read roster", exact: true }).click();
+    await expect(component.getByTestId("refinery-cache-state")).toHaveText("rows=1");
+    if (invalidated) {
+      await component.getByRole("button", { name: "invalidate roster", exact: true }).click();
+    }
+    await expect(component.getByTestId("refinery-cache-state")).toHaveText(invalidated ? "invalidated" : "rows=1");
+    await component.getByRole("button", { name: "open refinery", exact: true }).click();
+    await expect(component.getByTestId("open-refinery-state")).toHaveText(`session=${NEWEST_OPEN_SESSION} section=refinery pending=false`);
+    await expect.poll(() => trpc.count("refinery.listSessions")).toBe(1);
+    await expect.poll(() => trpc.count("refinery.startSession")).toBe(0);
+    await expect(component.getByTestId("refinery-cache-state")).toHaveText("opened");
+    await component.getByRole("button", { name: "read roster", exact: true }).click();
+    await expect(component.getByTestId("refinery-cache-state")).toHaveText(invalidated ? "rows=0" : "rows=1");
+    await expect.poll(() => trpc.count("refinery.listSessions")).toBe(invalidated ? 2 : 1);
+  });
+}
+
+test("a failed cold roster read still mints and opens a session", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...routes([]),
+    "refinery.listSessions": () => trpcError({ message: "roster unavailable" }),
+  });
+  const component = await mount(<OpenRefineryStory characterId={CHARACTER_ID} />);
+  await component.getByRole("button", { name: "open refinery", exact: true }).click();
+  await expect(component.getByTestId("open-refinery-state")).toHaveText(`session=${MINTED_SESSION} section=refinery pending=false`);
+  await expect.poll(() => trpc.count("refinery.listSessions")).toBe(1);
+  await expect.poll(() => trpc.count("refinery.startSession")).toBe(1);
 });

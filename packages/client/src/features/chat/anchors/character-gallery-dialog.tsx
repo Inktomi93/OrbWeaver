@@ -149,6 +149,7 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
   // Settled on nothing: the Order strip and the header's add yield to the empty state's one action.
   const galleryEmpty = !gallery.isPending && gallery.error === null && items.length === 0;
   const gridRef = useRef<MediaGridHandle>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const focus = useGalleryFocus({
     gridRef,
@@ -184,7 +185,8 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
       <Dialog open={open} onOpenChange={onOpenChange}>
         {/* Top-anchored: the scope filter changes the body's height, and a centred popup would move the
             heading and the filter out from under the pointer. */}
-        <DialogPopup anchor="top" size="lg">
+        {/* The first tabbable changes as loading settles; initial focus targets the popup that stays mounted. */}
+        <DialogPopup anchor="top" initialFocus={popupRef} ref={popupRef} size="lg">
           {/* The container the grid's height reads: a phone-width dialog keeps the grid short enough that the
               zone above it and "Load more" below it stay on screen. */}
           <Stack gap="block" className="@container">

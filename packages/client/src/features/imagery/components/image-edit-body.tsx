@@ -92,7 +92,7 @@ function ImageEdit({ subject }: { readonly subject: ImageSubject }): ReactElemen
         // explicitly toasts a dedicated "saved but not openable" message before returning. Ends if that toast
         // call is removed.
         try {
-          refs = await queryClient.fetchQuery(trpc.assets.resolveBlobRefs.queryOptions({ assetIds: [first.assetId] }));
+          refs = await queryClient.query(trpc.assets.resolveBlobRefs.queryOptions({ assetIds: [first.assetId] }));
         } catch {
           toast.add({ title: "Edited image saved", description: "Couldn't open it here — it's in your gallery." });
           return;

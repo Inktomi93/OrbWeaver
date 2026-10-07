@@ -142,7 +142,7 @@ function PickerBody({
               aria-label={`Attach ${book.name} to this chat`}
               disabled={isOwned}
               intent="secondary"
-              onClick={(): void => void onAttach(book.id)}
+              onClick={(): void => void onAttach(book.id).catch(globalThis.reportError)}
               size="sm"
               type="button"
             >

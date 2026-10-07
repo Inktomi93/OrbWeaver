@@ -41,8 +41,9 @@ export function useReindexConfirm(trpc: Trpc, finalFocus?: ConfirmDialogProps["f
   const guard = (change: EmbedSpaceChange, write: GuardedWrite): void => {
     setAsking(true);
     // `staleTime: 0`: the answer depends on rows that change between asks, so a cached one could skip the confirm.
+    // @orb-waive caught-failure-ownership(query): an unreadable preview opens the existing confirm without counts; no write proceeds without consent. Ends if preview failure bypasses confirmation.
     void queryClient
-      .fetchQuery({ ...trpc.connection.embedSpaceChangePreview.queryOptions({ change }), staleTime: 0 })
+      .query({ ...trpc.connection.embedSpaceChangePreview.queryOptions({ change }), staleTime: 0 })
       .then((preview): void => {
         if (reindexNeedsConfirm(preview)) {
           setPending({ preview, write });

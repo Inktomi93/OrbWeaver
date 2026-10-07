@@ -17,7 +17,7 @@ export function useRosterCount(): CollectionCount {
   const trpc = useTRPC();
   const census = useQuery(trpc.rosterPreset.list.queryOptions());
   // `refetch` takes an OPTIONS BAG, so it is wrapped rather than passed by reference.
-  return { count: census.data?.length, failed: census.error !== null, retry: (): void => void census.refetch() };
+  return { count: census.data?.length, failed: census.error !== null, retry: (): void => void census.refetch().catch(globalThis.reportError) };
 }
 
 /**

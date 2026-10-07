@@ -91,10 +91,7 @@ export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProp
     }
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      // @orb-waive caught-failure-ownership(save): save() already catches the mutation's own
-      // errorToast-backed rejection internally; this outer catch is belt-and-suspenders. Ends if save() stops
-      // catching its own rejection.
-      save().catch(() => undefined); // save owns the mutation failure and preserves the draft.
+      save().catch(globalThis.reportError);
     }
   };
 
@@ -124,7 +121,7 @@ export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProp
           loading={editMessage.isPending}
           disabled={onSave === undefined && text.length === 0}
           aria-label="Save edit"
-          onClick={(): void => void save()}
+          onClick={(): void => void save().catch(globalThis.reportError)}
         >
           <Icon icon={Check} size="sm" />
         </Button>

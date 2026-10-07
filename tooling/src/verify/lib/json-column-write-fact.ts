@@ -7,6 +7,7 @@ import { defineFact } from "../contract/fact.ts";
 import type { SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
 import type { JsonColumnWriter } from "./json-column-writers.ts";
 import { collectJsonWritersByColumn, collectWriters, DOMAIN_DIR, jsonWriterColumn, updatedTable } from "./json-column-writers.ts";
+import { readMemberAccess } from "./symbol-reference.ts";
 
 const CONTRACTS_DIR = "/packages/contracts/src/";
 
@@ -224,18 +225,19 @@ const WRITE_VERBS: ReadonlyMap<string, string> = new Map([
 function versionedSetArg(
   call: CallExpression,
   versionedColumns: ReadonlyMap<string, ReadonlySet<string>>,
+  schema: SchemaModel,
 ): { readonly arg: TsNode | undefined; readonly cols: ReadonlySet<string>; readonly table: string } | undefined {
-  const callee = call.getExpression();
-  if (!Node.isPropertyAccessExpression(callee)) {
+  const callee = readMemberAccess(call.getExpression());
+  if (callee === undefined) {
     return;
   }
-  const chainVerb = WRITE_VERBS.get(callee.getName());
-  const table = chainVerb === undefined ? undefined : updatedTable(callee.getExpression(), chainVerb);
+  const chainVerb = WRITE_VERBS.get(callee.name);
+  const table = chainVerb === undefined ? undefined : updatedTable(callee.receiver, schema, chainVerb);
   const cols = table === undefined ? undefined : versionedColumns.get(table);
   if (cols === undefined || table === undefined) {
     return;
   }
-  return { arg: callee.getName() === CONFLICT_UPDATE ? conflictSetObject(call) : call.getArguments()[0], cols, table };
+  return { arg: callee.name === CONFLICT_UPDATE ? conflictSetObject(call) : call.getArguments()[0], cols, table };
 }
 
 /** Every versioned-config write site in the domain corpus, classified. */
@@ -248,7 +250,7 @@ function collectJsonGuardTargets(
   const out: JsonGuardTarget[] = [];
   for (const call of calls) {
     if (call.getSourceFile().getFilePath().includes(DOMAIN_DIR)) {
-      const target = versionedSetArg(call, versionedColumns);
+      const target = versionedSetArg(call, versionedColumns, schema);
       if (target !== undefined) {
         const table = schema.tables.find((candidate) => candidate.identity.declarationName === target.table);
         if (table === undefined) {

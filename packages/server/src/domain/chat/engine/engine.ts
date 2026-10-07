@@ -2216,7 +2216,16 @@ async function runInLockWithHeartbeat(ctx: ChatContext, deps: EngineDeps, prep: 
     heartbeatController.abort(new StaleLockAbort());
     rejectLockLost(new ChatOperationError(CHAT_OP_CODES.aborted, "turn-lock lost mid-turn (stolen or gone)"));
   };
-  const beat = setInterval((): void => void tick(), Math.floor(deps.lockTtlMs / LOCK_HEARTBEAT_DIVISOR));
+  const beat = setInterval(
+    (): void => {
+      void tick().catch((err: unknown): void => {
+        getLog().error({ err, chatId: prep.chatId, holder: deps.holder }, "chat: turn-lock heartbeat FAILED — aborting the turn");
+        heartbeatController.abort(new StaleLockAbort());
+        rejectLockLost(err);
+      });
+    },
+    Math.floor(deps.lockTtlMs / LOCK_HEARTBEAT_DIVISOR),
+  );
   // THE RELEASE IS BOUND TO THE BODY, NOT TO THE CALLER (#1393). Releasing the lock while the turn body is
   // still live hands the next holder a room a zombie can still write to — the exact canon race the lock
   // exists to prevent — so the release rides the body's settlement on EVERY path. It is deliberately NOT in

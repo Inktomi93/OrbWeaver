@@ -24,6 +24,8 @@ async function seed(page: Page, state: Record<string, unknown>): Promise<void> {
 }
 
 test("a device that remembers a MULTI-HUMAN deployment answers TRUE on its first render", async ({ mount, page }) => {
+  expect("localStorage" in globalThis).toBe(false);
+  expect("sessionStorage" in globalThis).toBe(false);
   await seed(page, { multiHumanCapable: true });
 
   const probe = await mount(<DeploymentBootHintProbe />);

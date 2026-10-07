@@ -80,7 +80,26 @@ const CT_CSS_SOURCE_PLUGIN: CtVitePlugin = {
   transform: CT_CSS_TRANSFORM,
 };
 
+// Zod's prose mentions the annotation spelling; these are not misplaced call annotations. Keep the
+// exact comment and module paired so new dependency warnings and authored annotations remain visible.
+const CT_ZOD_PROSE_ANNOTATIONS = [
+  [
+    "/node_modules/zod/v4/core/util.js",
+    "// Wrapped in a `@__PURE__` IIFE: esbuild never tree-shakes a top-level initializer that contains a member access on `Number`, so the bare object literal survived into every bundle.",
+  ],
+  [
+    "/node_modules/zod/v4/core/regexes.js",
+    "/** Anchors a pattern source. The interpolation lives here rather than at the call site because\n * esbuild will not drop a `@__PURE__` call whose own argument interpolates a variable, but it\n * will drop `anchor(dateSource)`. Keeping it inline pinned `date` into every bundle. */",
+  ],
+] as const;
+
 const CT_ROLLUP_ONWARN: CtOnWarn = (...[warning, defaultHandler]: Parameters<CtOnWarn>): void => {
+  if (
+    warning.code === "INVALID_ANNOTATION" &&
+    CT_ZOD_PROSE_ANNOTATIONS.some(([moduleId, comment]) => warning.id?.endsWith(moduleId) === true && warning.message.includes(`"${comment}"`))
+  ) {
+    return;
+  }
   if (warning.code === "MODULE_LEVEL_DIRECTIVE") {
     return;
   }
@@ -229,6 +248,9 @@ export function ctConfig(applicationOnly = false): PlaywrightTestConfig {
         // harness pins vite 6, so the format has to be said out loud HERE or a Tier-C CT can never build.
         worker: { format: "es" },
         build: {
+          // The launcher owns this invocation's private directory and removes it with its CT lease.
+          // Explicit false preserves Vite's outside-root default without an ambiguous cleanup advisory.
+          emptyOutDir: false,
           rollupOptions: {
             // Silence the advisory floods that drown the CT build output (~dozens of lines each): react-query's
             // "use client" module-level directives (meaningless in a CT bundle), the playwright/index.tsx

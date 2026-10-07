@@ -34,7 +34,7 @@ const releaseWorkflow = z.object({
     image: z.object({
       if: z.string(),
       env: z.record(z.string(), z.string()),
-      steps: z.array(z.object({ uses: z.string().optional(), with: z.record(z.string(), z.unknown()).optional() })),
+      steps: z.array(z.object({ name: z.string().optional(), uses: z.string().optional(), with: z.record(z.string(), z.json()).optional() })),
     }),
   }),
 });
@@ -129,6 +129,287 @@ const pluginAuthoring = z.object({
   "force-tag-creation": z.boolean(),
 });
 const AUTHORING_PACKAGES = ["plugin-sdk", "plugin-toolchain"];
+
+for (const [workflowName, cacheTag, publishName, proofName] of [
+  ["release", "buildcache-release", "Push both tags", "Prove the image is this stable release"],
+  ["development-image", "buildcache-development", "Push development tags", "Prove fresh runtime boot"],
+] as const) {
+  test(`${workflowName} exports intermediate build cache without publishing an unverified runtime image`, ({ repoRoot }) => {
+    const workflow = z
+      .object({
+        on: z.object({ push: z.object({ branches: z.array(z.string()) }), ["workflow_dispatch"]: z.null().optional() }).strict(),
+        jobs: z.object({
+          image: z.object({
+            permissions: z.object({ packages: z.literal("write") }),
+            env: z.record(z.string(), z.string()),
+            steps: z.array(
+              z.object({
+                name: z.string().optional(),
+                uses: z.string().optional(),
+                run: z.string().optional(),
+                with: z.record(z.string(), z.json()).optional(),
+              }),
+            ),
+          }),
+        }),
+      })
+      .parse(parse(read(repoRoot, `.github/workflows/${workflowName}.yml`)));
+    const { env, steps } = workflow.jobs.image;
+    const buildIndex = steps.findIndex((step) => step.uses?.startsWith("docker/build-push-action@") === true);
+    const loginIndex = steps.findIndex((step) => step.uses?.startsWith("docker/login-action@") === true);
+    expect(buildIndex).toBeGreaterThan(-1);
+    expect(loginIndex).toBeGreaterThan(-1);
+    expect(loginIndex).toBeLessThan(buildIndex);
+    expect(steps[loginIndex]?.with).toEqual({ registry: "ghcr.io", username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" });
+    const build = steps[buildIndex]?.with;
+    const exportIndex = steps.findIndex((step) => step.with?.["outputs"] === "type=cacheonly");
+    const cacheExport = steps[exportIndex]?.with;
+    expect(build?.["cache-from"]).toBe("type=registry,ref=${{ env.BUILD_CACHE }}");
+    expect(build?.["cache-to"]).toBeUndefined();
+    expect(cacheExport?.["cache-to"]).toBe("type=registry,ref=${{ env.BUILD_CACHE }},mode=max,ignore-error=true");
+    expect(env["BUILD_CACHE"]).toBe(`${env["IMAGE"]}:${cacheTag}`);
+    expect(build?.["tags"]).not.toContain(env["BUILD_CACHE"]);
+    expect(build?.["load"]).toBe(true);
+    expect(build?.["builder"]).toBe("${{ steps.builder.outputs.name }}");
+    expect(build?.["push"]).not.toBe(true);
+    expect(cacheExport?.["load"]).not.toBe(true);
+    expect(cacheExport?.["push"]).not.toBe(true);
+    expect(steps[exportIndex]?.uses).toBe(steps[buildIndex]?.uses);
+    for (const key of ["context", "target", "platforms", "build-args", "builder"]) {
+      expect(cacheExport?.[key], key).toBe(build?.[key]);
+    }
+    const publishIndex = steps.findIndex((step) => step.name === publishName);
+    const proofIndex = steps.findIndex((step) => step.name === proofName);
+    expect(proofIndex).toBeGreaterThan(buildIndex);
+    expect(exportIndex).toBeGreaterThan(proofIndex);
+    expect(publishIndex).toBeGreaterThan(exportIndex);
+    expect(publishIndex).toBeGreaterThan(proofIndex);
+    expect(
+      steps
+        .slice(0, publishIndex)
+        .map((step) => step.run ?? "")
+        .join("\n"),
+    ).not.toMatch(/\bdocker push\b/u);
+  });
+}
+
+test("registry cache authentication does not move runtime publication ahead of the critical vulnerability gate", ({ repoRoot }) => {
+  const { steps } = releaseWorkflow.parse(parse(read(repoRoot, ".github/workflows/release.yml"))).jobs.image;
+  const buildIndex = steps.findIndex((step) => step.uses?.startsWith("docker/build-push-action@") === true);
+  const scanIndex = steps.findIndex((step) => step.name === "Refuse critical fixable vulnerabilities");
+  const publishIndex = steps.findIndex((step) => step.name === "Push both tags");
+  const exportIndex = steps.findIndex((step) => step.with?.["outputs"] === "type=cacheonly");
+  expect(scanIndex).toBeGreaterThan(buildIndex);
+  expect(exportIndex).toBeGreaterThan(scanIndex);
+  expect(publishIndex).toBeGreaterThan(exportIndex);
+  expect(steps[scanIndex]?.with).toMatchObject({ severity: "CRITICAL", "ignore-unfixed": true, "exit-code": "1" });
+});
+
+const setupStep = z.object({
+  name: z.string().optional(),
+  id: z.string().optional(),
+  uses: z.string().optional(),
+  run: z.string().optional(),
+  if: z.string().optional(),
+  with: z.record(z.string(), z.json()).optional(),
+});
+
+function setupSteps(repoRoot: string): z.infer<typeof setupStep>[] {
+  return z.object({ runs: z.object({ steps: z.array(setupStep) }) }).parse(parse(read(repoRoot, ".github/actions/setup/action.yml"))).runs.steps;
+}
+
+const workflowConfig = z.object({
+  jobs: z.record(
+    z.string(),
+    z.object({
+      if: z.string().optional(),
+      env: z.record(z.string(), z.string()).optional(),
+      "timeout-minutes": z.number().optional(),
+      steps: z.array(setupStep),
+    }),
+  ),
+});
+
+function workflowJobs(repoRoot: string, name: string): z.infer<typeof workflowConfig>["jobs"] {
+  return workflowConfig.parse(parse(read(repoRoot, `.github/workflows/${name}.yml`))).jobs;
+}
+
+test("published-image scans cannot turn registry failure into a successful skip", async ({ repoRoot, fakeBin }) => {
+  const image = workflowJobs(repoRoot, "security-scans")["image"];
+  expect(image?.if).toBe("github.event_name != 'push'");
+  const steps = image?.steps ?? [];
+  // The obsolete prelaunch probe swallowed every manifest error, including authentication/network errors.
+  await fakeBin("docker", "process.exit(1);");
+  const probe = steps.find((step) => step.id === "exists");
+  const result = probe?.run === undefined ? undefined : await spawnNiced("bash", ["-euo", "pipefail", "-c", probe.run], { env: { ["IMAGE"]: "proof-image" } });
+  expect(result?.code, "registry failure must not be reported as a successful skipped scan").not.toBe(0);
+  expect(probe).toBeUndefined();
+  const scan = steps.find((step) => step.uses?.startsWith("aquasecurity/trivy-action@") === true);
+  const upload = steps.find((step) => step.uses?.startsWith("github/codeql-action/upload-sarif@") === true);
+  expect(scan).toBeDefined();
+  expect(scan?.if).toBeUndefined();
+  expect(scan?.with).toMatchObject({ "image-ref": "${{ env.IMAGE }}", severity: "HIGH,CRITICAL", "ignore-unfixed": true, output: "trivy.sarif" });
+  expect(upload).toBeDefined();
+  expect(upload?.if).toBeUndefined();
+  expect(upload?.with?.["sarif_file"]).toBe("trivy.sarif");
+});
+
+test("CI gives the static floor its full budget", ({ repoRoot }) => {
+  expect(workflowJobs(repoRoot, "ci")["static"]?.["timeout-minutes"]).toBe(120);
+});
+
+test("CI preserves successful retry artifacts", ({ repoRoot }) => {
+  const jobs = workflowJobs(repoRoot, "ci");
+  for (const name of ["e2e-smoke", "product"]) {
+    const upload = jobs[name]?.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@") === true);
+    expect(upload?.if, name).toBe("always()");
+    expect(upload?.with?.["path"], name).toBe("reports/\ntest-results/\n");
+  }
+});
+
+test("CI's actual diff classifier treats agent hooks and configs as code, not documentation", async ({ repoRoot, scratch, plantedTree }) => {
+  const script = z.string().parse(workflowJobs(repoRoot, "ci")["changes"]?.steps.find((step) => step.id === "diff")?.run);
+  const tree = await plantedTree({ "README.md": "base\n" });
+  for (const args of [
+    ["init"],
+    ["config", "user.name", "Workflow proof"],
+    ["config", "user.email", "proof@example.invalid"],
+    ["add", "."],
+    ["commit", "-m", "base"],
+  ]) {
+    const result = await spawnNiced("git", args, { cwd: tree });
+    expect(result.code, result.stderr).toBe(0);
+  }
+  const base = await spawnNiced("git", ["rev-parse", "HEAD"], { cwd: tree });
+  expect(base.code, base.stderr).toBe(0);
+  const output = join(scratch, "diff-output");
+  for (const [path, expected] of [
+    [".claude/hooks/check.mjs", true],
+    [".codex/config.toml", true],
+    [".agents/hooks/check.py", true],
+    ["docs/example.txt", false],
+    [".claude/README.md", false],
+    [".vscode/settings.json", false],
+    [".github/ISSUE_TEMPLATE/bug.yml", false],
+  ] as const) {
+    await mkdir(join(tree, path, ".."), { recursive: true });
+    await writeFile(fixturePath(tree, path), "proof\n");
+    for (const args of [
+      ["add", path],
+      ["commit", "-m", "case", "--", path],
+    ]) {
+      const result = await spawnNiced("git", args, { cwd: tree });
+      expect(result.code, result.stderr).toBe(0);
+    }
+    const head = await spawnNiced("git", ["rev-parse", "HEAD"], { cwd: tree });
+    expect(head.code, head.stderr).toBe(0);
+    await writeFile(output, "");
+    const result = await spawnNiced("bash", ["-euo", "pipefail", "-c", script], {
+      cwd: tree,
+      env: { ["BEFORE"]: "HEAD^", ["GITHUB_SHA"]: head.stdout.trim(), ["GITHUB_OUTPUT"]: output },
+    });
+    expect(result.code, result.stderr).toBe(0);
+    expect(readFileSync(output, "utf8"), path).toBe(`code=${expected}\n`);
+  }
+  for (const before of [base.stdout.trim(), "0".repeat(40), "missing-commit"]) {
+    await writeFile(output, "");
+    const result = await spawnNiced("bash", ["-euo", "pipefail", "-c", script], {
+      cwd: tree,
+      env: { ["BEFORE"]: before, ["GITHUB_SHA"]: "HEAD", ["GITHUB_OUTPUT"]: output },
+    });
+    expect(result.code, result.stderr).toBe(0);
+    expect(readFileSync(output, "utf8")).toBe("code=true\n");
+  }
+});
+
+test("stable publication rejects a wrong source stamp or OCI revision before scanning and publishing", async ({ repoRoot, fakeBin }) => {
+  const image = workflowJobs(repoRoot, "release")["image"];
+  const script = z.string().parse(image?.steps.find((step) => step.name === "Prove the image is this stable release")?.run);
+  await fakeBin(
+    "docker",
+    `
+    const args = process.argv.slice(2);
+    if (args[0] === "run") console.log(JSON.stringify({ version: "0.1.3", channel: "stable", commit: process.env.STAMP_SHA }));
+    else if (args[0] === "image" && args[1] === "inspect") console.log(process.env.LABEL_SHA);
+    else process.exit(1);
+  `,
+  );
+  const sha = "a".repeat(40);
+  for (const [stamp, label, accepted] of [
+    [sha, sha, true],
+    ["b".repeat(40), sha, false],
+    [sha, "b".repeat(40), false],
+  ] as const) {
+    const result = await spawnNiced("bash", ["-euo", "pipefail", "-c", script], {
+      env: { ["IMAGE"]: "proof-image", ["VERSION"]: "0.1.3", ["SOURCE_SHA"]: sha, ["STAMP_SHA"]: stamp, ["LABEL_SHA"]: label },
+    });
+    expect(result.code === 0, `${stamp}/${label}: ${result.stderr}`).toBe(accepted);
+  }
+  expect(image?.env?.["SOURCE_SHA"]).toBe("${{ needs.release-please.outputs.sha }}");
+  const steps = image?.steps ?? [];
+  const proof = steps.findIndex((step) => step.name === "Prove the image is this stable release");
+  for (const boundary of ["Refuse critical fixable vulnerabilities", "Export the verified build cache", "Push both tags"]) {
+    expect(
+      steps.findIndex((step) => step.name === boundary),
+      boundary,
+    ).toBeGreaterThan(proof);
+  }
+});
+
+test("setup has one cache owner and only saves successful misses from trusted triggers", ({ repoRoot }) => {
+  const steps = setupSteps(repoRoot);
+  const pnpm = steps.find((step) => step.uses?.startsWith("pnpm/action-setup@") === true);
+  expect(pnpm?.with?.["cache"]).toBe(false);
+  expect(steps.filter((step) => step.uses?.startsWith("actions/cache@") === true)).toEqual([]);
+  const restores = steps.filter((step) => step.uses?.startsWith("actions/cache/restore@") === true);
+  const saves = steps.filter((step) => step.uses?.startsWith("actions/cache/save@") === true);
+  expect(restores.map((step) => step.id)).toEqual(["pnpm-cache", "browser-cache"]);
+  expect(saves).toHaveLength(restores.length);
+  const installIndex = steps.findIndex((step) => step.run === "pnpm install --frozen-lockfile");
+  expect(installIndex).toBeGreaterThan(steps.findIndex((step) => step.id === "pnpm-cache"));
+  for (const [index, restore] of restores.entries()) {
+    const save = saves[index];
+    expect(save?.with?.["path"]).toBe(restore.with?.["path"]);
+    expect(save?.with?.["key"]).toBe(`\${{ steps.${restore.id}.outputs.cache-primary-key }}`);
+    const browserOnly = restore.id === "browser-cache" ? "inputs.browsers == 'true' && " : "";
+    expect(save?.if).toBe(`${browserOnly}steps.pnpm.outputs.save == 'true' && steps.${restore.id}.outputs.cache-hit != 'true'`);
+    expect(steps.findIndex((step) => step === save)).toBeGreaterThan(installIndex);
+  }
+  expect(restores[0]?.with?.["path"]).toBe("${{ steps.pnpm.outputs.paths }}");
+  expect(restores[0]?.with?.["key"]).toBe("pnpm-${{ runner.os }}-${{ runner.arch }}-${{ steps.pnpm.outputs.version }}-${{ hashFiles('pnpm-lock.yaml') }}");
+  expect(restores[0]?.with?.["restore-keys"]).toBe("pnpm-${{ runner.os }}-${{ runner.arch }}-${{ steps.pnpm.outputs.version }}-\n");
+  expect(restores[1]?.with?.["key"]).toBe("playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}");
+  expect(restores[1]?.with?.["restore-keys"]).toBeUndefined();
+});
+
+test("setup derives cache paths from pnpm and denies cache writes to every untrusted event", async ({ repoRoot, scratch, fakeBin }) => {
+  const script = z.string().parse(setupSteps(repoRoot).find((step) => step.id === "pnpm")?.run);
+  await fakeBin(
+    "pnpm",
+    `
+    const args = process.argv.slice(2);
+    if (args[0] === "--version") console.log("12.6.0");
+    else if (args.join(" ") === "store path --silent") console.log("/resolved pnpm/store/v11");
+    else if (args.join(" ") === "cache path --silent") console.log("/resolved pnpm/cache");
+    else process.exit(1);
+  `,
+  );
+  const output = join(scratch, "cache-output");
+  for (const event of ["push", "workflow_dispatch", "schedule", "pull_request", "pull_request_target", "workflow_run", "issue_comment"]) {
+    await writeFile(output, "");
+    const result = await spawnNiced("bash", ["-euo", "pipefail", "-c", script], {
+      env: Object.fromEntries([
+        ["GITHUB_EVENT_NAME", event],
+        ["GITHUB_OUTPUT", output],
+      ]),
+    });
+    expect(result.code, result.stderr).toBe(0);
+    const values = readFileSync(output, "utf8");
+    expect(values).toContain("version=12.6.0\n");
+    expect(values).toContain("paths<<EOF\n/resolved pnpm/store/v11\n/resolved pnpm/cache\nEOF\n");
+    expect(values).toContain(`save=${["push", "workflow_dispatch", "schedule"].includes(event)}\n`);
+  }
+});
 
 test("version-keyed patches cannot be invalidated by automatic dependency updates", ({ repoRoot }) => {
   const workspace = z.object({ patchedDependencies: z.record(z.string(), z.string()) }).parse(parse(read(repoRoot, "pnpm-workspace.yaml")));

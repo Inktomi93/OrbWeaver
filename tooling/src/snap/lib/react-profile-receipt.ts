@@ -6,7 +6,7 @@ import { aggregateScope } from "../../_shared/artifact-scope.ts";
 import { print } from "../../_shared/artifacts.ts";
 import type { EvidenceGap } from "../../_shared/evidence.ts";
 import type { RankedReactComponent, ReactProfilePageEvidence, ReactProfileSummaryArtifact } from "../contract/react-profile.ts";
-import { REACT_PROFILE_SUMMARY_COMPONENT_LIMIT, reactProfileSummaryArtifactSchema } from "../contract/react-profile.ts";
+import { REACT_PROFILE_SUMMARY_COMPONENT_LIMIT, REACT_PROFILE_SUPPORTED_MINOR, reactProfileSummaryArtifactSchema } from "../contract/react-profile.ts";
 import { REACT_PROFILE_LIMITS, rankReactComponents, summarizeReactActivity } from "./react-profile.ts";
 
 const PRINTED_COMPONENTS = 20;
@@ -48,8 +48,7 @@ export interface ReactProfileReceipt {
 }
 
 const PROFILE_LIMITATIONS = {
-  selfTime:
-    "actualDuration minus direct changed-child actualDuration, matching React 19.2 development instrumentation; it is profiler scheduling time, not CPU attribution",
+  selfTime: `actualDuration minus direct changed-child actualDuration, matching React ${REACT_PROFILE_SUPPORTED_MINOR} development instrumentation; it is profiler scheduling time, not CPU attribution`,
   hooks: "slot-indexed memoized values; hook names/custom-hook source stacks require the omitted DevTools inspect backend",
   reasons: "shallow alternate comparison plus PerformedWork; rendered-without-shallow-change is explicit when no direct change is attributable",
   source: "React development _debugStack when present; no source-map reconstruction",

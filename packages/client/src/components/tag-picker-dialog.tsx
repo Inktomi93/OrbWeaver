@@ -160,7 +160,7 @@ export function TagPickerDialog({
             {helperText(state, candidates.length, trimmed, existing === undefined ? undefined : { name: existing.name, attached: alreadyAttached })}
           </Text>
           {state === "error" ? (
-            <Button intent="secondary" onClick={(): void => void libraryQuery.refetch()} size="sm" type="button">
+            <Button intent="secondary" onClick={(): void => void libraryQuery.refetch().catch(globalThis.reportError)} size="sm" type="button">
               Try again
             </Button>
           ) : null}

@@ -1128,12 +1128,46 @@ export function StartChatStory({ characterIds = [] }: { readonly characterIds?: 
  *  the point — the CT reads it off the wire (`refinery.startSession`'s call count) beside them. */
 function OpenRefineryProbe({ characterId }: { readonly characterId: CharacterId }): ReactElement {
   const { openRefinery, isPending } = useOpenRefinery();
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const [cacheState, setCacheState] = useState("cold");
   const sessionId = useSelectedRefinerySessionId();
   const activeSection = useActiveSection();
   return (
     <div>
       <output data-testid="open-refinery-state">{`session=${sessionId ?? "none"} section=${activeSection} pending=${String(isPending)}`}</output>
-      <button type="button" onClick={(): void => void openRefinery(characterId).catch(() => undefined)}>
+      <output data-testid="refinery-cache-state">{cacheState}</output>
+      <button
+        type="button"
+        onClick={(): void => {
+          void queryClient.query(trpc.refinery.listSessions.queryOptions()).then(
+            (roster) => setCacheState(`rows=${roster.length}`),
+            () => setCacheState("failed"),
+          );
+        }}
+      >
+        read roster
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          void queryClient.invalidateQueries({ ...trpc.refinery.listSessions.queryFilter(), refetchType: "none" }).then(
+            () => setCacheState("invalidated"),
+            () => setCacheState("failed"),
+          );
+        }}
+      >
+        invalidate roster
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          void openRefinery(characterId).then(
+            () => setCacheState("opened"),
+            () => setCacheState("failed"),
+          );
+        }}
+      >
         open refinery
       </button>
     </div>

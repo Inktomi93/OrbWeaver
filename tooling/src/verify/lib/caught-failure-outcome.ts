@@ -345,7 +345,16 @@ function ambientSinkOwns(call: CallExpression, name: string, member: { readonly 
     const processId = member.receiver.getFirstDescendantByKind(SyntaxKind.Identifier);
     return processId !== undefined && ambientIdentifier(processId, "process", new Set(["node:process"]));
   }
-  return name === "reportError" && member.receiver.getText() === "globalThis" && ambientIdentifier(member.receiver, "globalThis", new Set());
+  return isNativeReportError(call.getExpression());
+}
+
+/** The native exception reporter, not a reporter-shaped member on a local or optional receiver. */
+export function isNativeReportError(node: Node): boolean {
+  const value = unwrapExpression(node);
+  const optionalMember =
+    (value.isKind(SyntaxKind.PropertyAccessExpression) || value.isKind(SyntaxKind.ElementAccessExpression)) && value.getQuestionDotTokenNode() !== undefined;
+  const member = literalMember(value);
+  return !optionalMember && member?.name === "reportError" && ambientIdentifier(member.receiver, "globalThis", new Set());
 }
 
 /** A genuine React setter slot fed a failure-valued argument — the observable-state owner. The `Error`/`Failed`

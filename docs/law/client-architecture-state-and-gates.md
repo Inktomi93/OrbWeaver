@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-23
+updated: 2026-10-07
 ---
 
 # Client architecture: state, data, error handling, sync spine and the gate spec
@@ -95,7 +95,7 @@ question that selects it.
 | - | - | - | - | - |
 | 1 | state commons — narrow hooks + intent-named module actions | `state/*` | `state-files`, both selector guards, `no-effect-on-shared-selection`, `client-state-below-data` | client-ephemeral cross-cutting state: selection, panel modes, drafts, filters |
 | 2 | tRPC query cache, cache-first | `trpc.*` queryOptions; `staleTime: Infinity` + bus freshness | `no-array-literal-querykey`, `no-static-staletime`, G9 seals | another feature's server-persisted entity — the router IS the cross-feature contract (D43(3)) |
-| 2b | `peekQueryData` — hookless sync cache peek | `data/peek-query.ts` | its own header law + `client-cache-surgery-only-in-data` | a pure resolve-time predicate that cannot run a hook — never a substitute for a hook read |
+| 2b | `peekQueryData` — hookless sync cache peek | `data/peek-query.ts` | its own header law + `client-cache-surgery-only-in-data` | hookless cache checks for resolution, action decisions or warming; reactive reads and freshness remain query-owned |
 | 2c | door-injected `trpcProxy` into a contributor factory | `main.tsx` `createTrpcProxy(trpcClient, queryClient)` | convention + the door's comments | a contributor whose `when`/resolve logic needs the cache outside render |
 | 3 | total registries (closed vocabulary, tsc-total) | sections · modals · config-groups | G1/G2/G4/G8/G13 + the `Record<Id, Def>` assembly | a member of a closed shell vocabulary |
 | 4 | contributor registries (open) | chrome · settings-sections · chat-context tabs · chat-context regions · chat-surface anchors · tool-renderers · message-tools-renderers · slash-commands · character-detail · home-tiles, assembled in `main.tsx` | G3 · G8 · the matching `*-registry-completeness` gate (settings-sections: `settings-section-anchored` + the door's `assertSettingsKeyPartition`) · duplicate-id throws at mint | a foreign feature extending a host surface — the graft channel |

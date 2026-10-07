@@ -1,5 +1,5 @@
 {
-  "version": "1.7.0",
+  "version": "1.8.0",
   "components": {
     "Accordion": {
       "module": "@base-ui/react/accordion",
@@ -431,7 +431,6 @@
             "virtualized"
           ],
           "handlers": {
-            "filter": 3,
             "itemToStringValue": 1,
             "onItemHighlighted": 2,
             "onOpenChange": 2,
@@ -482,7 +481,7 @@
           "from": "./trigger/AutocompleteTrigger.js",
           "props": ["disabled"],
           "handlers": {},
-          "state": ["dirty", "disabled", "filled", "focused", "listEmpty", "open", "popupSide", "touched", "valid"],
+          "state": ["dirty", "disabled", "filled", "focused", "listEmpty", "open", "popupSide", "readOnly", "touched", "valid"],
           "inherits": ["BaseUIComponentProps<'button', AutocompleteTriggerState>", "NativeButtonProps"],
           "disposition": "sealed-away",
           "why": "This seal opens on focus/typing, not on a chevron press — a trigger button beside a text input reads as a Select and invites the wrong primitive (R4). Pick `Select` for a button-opened fixed list. Ends if the open-on-press interaction is ever wanted here. (docs/law/ui-package-design.md §14)"
@@ -543,7 +542,7 @@
           "kind": "part",
           "symbol": "AvatarImage",
           "from": "./image/AvatarImage.js",
-          "props": ["onLoadingStatusChange"],
+          "props": ["keepMounted", "onLoadingStatusChange"],
           "handlers": {
             "onLoadingStatusChange": 1
           },
@@ -769,6 +768,17 @@
           "inherits": [],
           "disposition": "exposed",
           "why": ""
+        },
+        "createItems": {
+          "kind": "hook",
+          "symbol": "createComboboxItems",
+          "from": "./items/createItems.js",
+          "props": [],
+          "handlers": {},
+          "state": [],
+          "inherits": [],
+          "disposition": "n-a",
+          "why": "The factory maps object records to primitive selection IDs. The seal uses plain string chips. Revisit when the seal accepts object-backed collections."
         },
         "Empty": {
           "kind": "part",
@@ -1032,7 +1042,7 @@
           "from": "./trigger/ComboboxTrigger.js",
           "props": ["disabled"],
           "handlers": {},
-          "state": ["dirty", "disabled", "filled", "focused", "listEmpty", "open", "placeholder", "popupSide", "touched", "valid"],
+          "state": ["dirty", "disabled", "filled", "focused", "listEmpty", "open", "placeholder", "popupSide", "readOnly", "touched", "valid"],
           "inherits": ["BaseUIComponentProps<'button', ComboboxTriggerState>", "NativeButtonProps"],
           "disposition": "sealed-away",
           "why": "Same as Autocomplete's: this is a chips-and-typing surface, not a button-opened list. Ends with `Autocomplete.Trigger`'s row. (docs/law/ui-package-design.md §14)"
@@ -1194,8 +1204,8 @@
         },
         "Positioner": {
           "kind": "part",
-          "symbol": "MenuPositioner",
-          "from": "../menu/positioner/MenuPositioner.js",
+          "symbol": "ContextMenuPositioner",
+          "from": "./positioner/ContextMenuPositioner.js",
           "props": [
             "align",
             "alignOffset",
@@ -1210,11 +1220,9 @@
             "sideOffset",
             "sticky"
           ],
-          "handlers": {
-            "anchor": 0
-          },
+          "handlers": {},
           "state": ["align", "anchorHidden", "instant", "nested", "open", "side"],
-          "inherits": ["BaseUIComponentProps<'div', MenuPositionerState>"],
+          "inherits": ["BaseUIComponentProps<'div', ContextMenuPositionerState>", "BaseUIComponentProps<'div', MenuPositionerState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -1257,7 +1265,7 @@
           "kind": "part",
           "symbol": "ContextMenuRoot",
           "from": "./root/ContextMenuRoot.js",
-          "props": ["children", "onOpenChange"],
+          "props": ["children", "closeParentOnEsc", "onOpenChange"],
           "handlers": {
             "onOpenChange": 2
           },
@@ -2405,9 +2413,9 @@
           "kind": "part",
           "symbol": "NavigationMenuTrigger",
           "from": "./trigger/NavigationMenuTrigger.js",
-          "props": [],
+          "props": ["disabled"],
           "handlers": {},
-          "state": ["open"],
+          "state": ["disabled", "open"],
           "inherits": ["BaseUIComponentProps<'button', NavigationMenuTriggerState>", "NativeButtonProps"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."

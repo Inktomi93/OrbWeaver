@@ -6,7 +6,7 @@ import type { Block, CatchClause, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { unwrapExpression } from "./ast-read.ts";
 import { hasInterveningWrite, isFallback } from "./caught-failure-core.ts";
-import { isExplicitOwnerCall, isFailureOutcome, isNativePromiseReject } from "./caught-failure-outcome.ts";
+import { isExplicitOwnerCall, isFailureOutcome, isNativePromiseReject, isNativeReportError } from "./caught-failure-outcome.ts";
 import { escapingDescendants, hasExplicitOwner } from "./caught-failure-scope.ts";
 
 export function unownedCatch(clause: CatchClause): boolean {
@@ -60,6 +60,9 @@ function namedHandlerDiscards(identifier: Node): boolean {
 
 export function isDiscardingHandler(handler: Node): boolean {
   const fn = unwrapExpression(handler);
+  if (isNativeReportError(fn)) {
+    return false;
+  }
   if (fn.isKind(SyntaxKind.Identifier)) {
     return namedHandlerDiscards(fn);
   }

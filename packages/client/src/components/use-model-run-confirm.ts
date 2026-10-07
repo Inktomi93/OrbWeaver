@@ -35,8 +35,8 @@ export function useModelRunConfirm(): {
     const answers = await Promise.all(
       estimates.map((request) =>
         "retryOf" in request
-          ? queryClient.fetchQuery({ ...trpc.workloads.estimateRetryModelCalls.queryOptions({ id: request.retryOf }), staleTime: 0 })
-          : queryClient.fetchQuery({ ...trpc.workloads.estimateModelCalls.queryOptions(request), staleTime: 0 }),
+          ? queryClient.query({ ...trpc.workloads.estimateRetryModelCalls.queryOptions({ id: request.retryOf }), staleTime: 0 })
+          : queryClient.query({ ...trpc.workloads.estimateModelCalls.queryOptions(request), staleTime: 0 }),
       ),
     ).catch((err: unknown) => {
       notify.error({ title: ESTIMATE_FAILED, description: errorMessage(err) });

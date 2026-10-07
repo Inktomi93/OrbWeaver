@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-05
+updated: 2026-10-07
 ---
 
 <!-- This is the @orb/ui law under D66. §-numbers are cited by code as spec provenance. Never renumber. -->
@@ -434,6 +434,7 @@ components with no part list.
 | `Combobox.Clear` | sealed-away | The per-chip `ChipRemove` (exposed) is the removal affordance; a clear-all button that silently drops N committed chips has no undo at this seam. Add it WITH a confirmation story, not as a bare part. |
 | `Combobox.Row` / `Combobox.Separator` | sealed-away | Same reasons as the Autocomplete rows above. |
 | `Combobox.useFilter` | n/a | Reachable as the `filter` passthrough prop. |
+| `Combobox.createItems` | n/a | Maps objects to primitive IDs; the seal uses string chips. Revisit when it accepts object-backed collections. |
 | `Meter.Track` / `Meter.Indicator` | sealed-away | THE §10 hybrid: `MeterIndicator` hardcodes `width:%` (linear only), so the arc/bipolar geometry is hand-drawn SVG riding as `Meter.Root`'s children. Using the native pair would forbid two of the three kinds. |
 | `Progress.Status` | n/a | A TYPE alias (`'indeterminate' \| 'progressing' \| 'complete'`), not a part; it surfaces as Base UI's own `data-*` on the root. |
 | `Toast.Positioner` / `Toast.Arrow` | sealed-away | Every toast shares ONE bottom-right stack (`Toaster` bundles Portal → Viewport); Positioner/Arrow are for per-toast ANCHORED placement, which that single-stack decision cuts. |

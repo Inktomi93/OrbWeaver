@@ -98,7 +98,10 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
     return (
       <Stack gap="field" data-slot="rpg-card-archive">
         <Kicker>Cards</Kicker>
-        <QueryErrorState label="the card archive" onRetry={(): void => void Promise.all([messagesQuery.refetch(), chatQuery.refetch()])} />
+        <QueryErrorState
+          label="the card archive"
+          onRetry={(): void => void Promise.all([messagesQuery.refetch(), chatQuery.refetch()]).catch(globalThis.reportError)}
+        />
       </Stack>
     );
   }

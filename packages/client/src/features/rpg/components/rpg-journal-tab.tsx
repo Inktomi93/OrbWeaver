@@ -311,7 +311,7 @@ export function RpgJournalTab({ state }: RpgJournalTabProps): ReactElement {
   if (!cardsEnabled) {
     archive = { status: "ready", cards: [] };
   } else if (messagesQuery.isError || chatQuery.isError) {
-    archive = { status: "failed", retry: (): void => void Promise.all([messagesQuery.refetch(), chatQuery.refetch()]) };
+    archive = { status: "failed", retry: (): void => void Promise.all([messagesQuery.refetch(), chatQuery.refetch()]).catch(globalThis.reportError) };
   } else if (messagesQuery.isSuccess && chatQuery.isSuccess) {
     archive = {
       status: "ready",

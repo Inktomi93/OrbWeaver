@@ -81,7 +81,7 @@ function AnchoredThread({
           intent="ghost"
           size="sm"
           disabled={!pages.hasPreviousPage || pages.isFetchingPreviousPage}
-          onClick={(): void => void pages.fetchPreviousPage()}
+          onClick={(): void => void pages.fetchPreviousPage().catch(globalThis.reportError)}
         >
           Earlier messages
         </Button>
@@ -90,7 +90,7 @@ function AnchoredThread({
           intent="ghost"
           size="sm"
           disabled={!pages.hasNextPage || pages.isFetchingNextPage}
-          onClick={(): void => void pages.fetchNextPage()}
+          onClick={(): void => void pages.fetchNextPage().catch(globalThis.reportError)}
         >
           Later messages
         </Button>

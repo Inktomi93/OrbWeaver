@@ -6,11 +6,39 @@
 // child as a real path), and a present key restored byte-for-byte even when the window REJECTED.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { inheritedProcessEnv, processEnvValue, withProcessEnv } from "@orb/tooling/_shared/process-env";
+import process from "node:process";
+import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { inheritedProcessEnv, processEnvValue, testProcessEnv, withProcessEnv } from "@orb/tooling/_shared/process-env";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const ABSENT_ENV_KEY = "ORB_PROC_TEST_ABSENT";
 const PRESENT_ENV_KEY = "ORB_PROC_TEST_PRESENT";
+
+test("test environment preserves explicit overrides and adds the storage option without ambient mutation", () => {
+  const ambient = inheritedProcessEnv();
+  const overrides = {
+    ["NODE_OPTIONS"]: '--max-old-space-size=16384 --import="/a path/preload.js"',
+    ["ORB_CT_CACHE_DIR"]: "/owned/ct",
+    ["ORB_RUN_MARKER"]: "proof-run",
+  };
+  const environment = testProcessEnv(overrides);
+  expect(environment).toEqual({ ...ambient, ...overrides, ["NODE_OPTIONS"]: `${overrides["NODE_OPTIONS"]} --no-webstorage` });
+  expect(inheritedProcessEnv()).toEqual(ambient);
+  expect(testProcessEnv(environment)).toEqual(environment);
+});
+
+test("test environment disables storage after an inherited enabling option in an actual Node child", () => {
+  const environment = testProcessEnv({ ["NODE_OPTIONS"]: "--max-old-space-size=16384 --no-webstorage --experimental-webstorage" });
+  const child = runNicedSync(
+    process.execPath,
+    ["-e", 'console.log(JSON.stringify({ localStorage: "localStorage" in globalThis, sessionStorage: "sessionStorage" in globalThis }))'],
+    { env: environment },
+  );
+  expect(child.status, child.stderr).toBe(0);
+  expect(JSON.parse(child.stdout)).toEqual({ localStorage: false, sessionStorage: false });
+  expect(environment["NODE_OPTIONS"]).toBe("--max-old-space-size=16384 --no-webstorage --experimental-webstorage --no-webstorage");
+  expect(testProcessEnv(environment)).toEqual(environment);
+});
 
 test("withProcessEnv restores an absent key as actual absence across consecutive worker windows", async ({ repoRoot, scratch }) => {
   expect(Object.hasOwn(inheritedProcessEnv(), ABSENT_ENV_KEY)).toBe(false);

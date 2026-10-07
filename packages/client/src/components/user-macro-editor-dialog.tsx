@@ -243,7 +243,7 @@ function InputList({ form, index }: { readonly form: UserMacroEditorForm; readon
                 macroIndex={index}
                 inputIndex={j}
                 kind={input.kind}
-                onRemove={(): void => void form.removeFieldValue(inputsName, j)}
+                onRemove={(): void => void form.removeFieldValue(inputsName, j).catch(() => notify.error("Couldn't update the macro."))}
               />
             ))}
             <Row>

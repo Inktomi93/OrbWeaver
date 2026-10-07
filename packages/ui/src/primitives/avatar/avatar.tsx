@@ -16,13 +16,15 @@ export interface AvatarProps extends Omit<BaseRootProps, "className">, VariantPr
   /** Delay in ms before the fallback appears, to avoid an initials-flash on a fast load. @defaultValue 0 */
   fallbackDelay?: BaseFallbackProps["delay"];
   onLoadingStatusChange?: BaseImageProps["onLoadingStatusChange"];
+  /** Retain the image while loading or failed; its native hidden state leaves the fallback's box intact. */
+  keepMounted?: BaseImageProps["keepMounted"];
   /** Fallback content — typically initials. */
   children?: ReactNode;
 }
 
 /** Seals Base UI Avatar (image with automatic fallback-on-error). */
 export function Avatar(props: AvatarProps): ReactElement {
-  const { className, src, alt = "", children, size, shape, aspect, ring, hueSeed, fallbackDelay, onLoadingStatusChange, ...rest } = props;
+  const { className, src, alt = "", children, size, shape, aspect, ring, hueSeed, fallbackDelay, onLoadingStatusChange, keepMounted, ...rest } = props;
   const slots = avatarVariants({ size, shape, aspect, ring });
   const seed = hueSeed ?? alt;
   return (
@@ -40,6 +42,7 @@ export function Avatar(props: AvatarProps): ReactElement {
           data-slot="avatar-image"
           decoding="async"
           height={1}
+          keepMounted={keepMounted}
           onLoadingStatusChange={onLoadingStatusChange}
           src={src}
           width={1}

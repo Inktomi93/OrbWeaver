@@ -72,8 +72,8 @@ test("a value the grammar can already hold comes back unchanged — the split co
 
 test("a value the grammar cannot hold narrows to its leading paren-free slice", () => {
   expect(
-    ["oklch(0.5 0.2 30)", "[&:where(.x:y)]:dark:bg-card", "translate(1px, 2px)", "supports-[selector(:has(*))]:dark:bg-card", "process.cwd()"].map((value) =>
-      waivableCoordinate(value),
+    ["oklch(0.5 0.2 30)", "[&:where(.x:hover)]:dark:bg-card", "translate(1px, 2px)", "supports-[selector(:has(*))]:dark:bg-card", "process.cwd()"].map(
+      (value) => waivableCoordinate(value),
     ),
   ).toEqual(["oklch", "[&:where", "translate", "supports-[selector", "process.cwd"]);
 });

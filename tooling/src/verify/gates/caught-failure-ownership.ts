@@ -163,6 +163,24 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      files: {
+        "packages/client/src/features/probe/shadowed-native-reporter.ts":
+          "export function shadowed(p: Promise<void>, globalThis: { reportError: (error: unknown) => void }): void {\n  const report = globalThis.reportError;\n  void p.catch(globalThis.reportError);\n  void p.catch(globalThis['reportError']);\n  void p.catch(report);\n}\n",
+      },
+      expect: { count: 3, token: "p" },
+      why: "a shadowed globalThis does not turn direct, computed, or aliased reporter callbacks into the native exception surface",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/unowned-reporter-callbacks.ts":
+          "export function unowned(p: Promise<void>, other: { reportError: (error: unknown) => void }): void {\n  void p.catch(other.reportError);\n  void p.catch(globalThis?.reportError);\n  let report = globalThis.reportError;\n  report = () => undefined;\n  void p.catch(report);\n}\n",
+      },
+      expect: { count: 3, token: "p" },
+      why: "an arbitrary receiver, optional member, or reassigned native alias does not prove an unconditional native exception owner",
+    },
+    {
+      mode: "types",
       files: { "packages/client/src/features/probe/raw.ts": "export function raw(): void {\n  void save().catch(() => undefined);\n}\n" },
       expect: { count: 1, token: "save" },
       why: "an unowned raw promise absorber is syntactically handled but has no failure owner",
@@ -718,6 +736,14 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/native-reporter.ts":
+          "export function surfaced(p: Promise<void>): void {\n  const report = globalThis.reportError;\n  void p.catch(globalThis.reportError);\n  void p.catch(globalThis['reportError']);\n  void p.catch(report);\n  void p.then(undefined, globalThis.reportError);\n  void p.catch((error) => globalThis.reportError(error));\n}\n",
+      },
+      why: "the native reportError function reports its argument as an exception whether invoked inline or passed directly, by static member spelling or an unchanged alias, as the rejection callback",
+    },
     {
       mode: "types",
       files: {

@@ -10,6 +10,9 @@ import type { SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
 import { readCallReturns } from "./authored-key-set.ts";
 import { proveJsonColumnMerge } from "./json-column-merge-proof.ts";
 import { jsonColumnCallContext } from "./json-column-value-origin.ts";
+import { tableFromReference } from "./schema-fact-resolve.ts";
+import { schemaDeclarationKey } from "./schema-fact-value.ts";
+import { readMemberAccess } from "./symbol-reference.ts";
 
 /** The producer scope both arms judge: a write outside the domain tier is wiring, never a writer. */
 export const DOMAIN_DIR = "/packages/server/src/domain/";
@@ -20,21 +23,24 @@ export interface JsonColumnWriter {
   readonly historicalHeal: boolean;
 }
 
-/** The table variable a `.set(` call updates — walk the fluent chain back to `.update(<table>)` (or, for an
- *  upsert's `onConflictDoUpdate`, back to `.insert(<table>)`). */
-export function updatedTable(setCallee: TsNode, chainVerb = "update"): string | undefined {
+/** The bound schema table a fluent write targets; a namespace or alias retains declaration identity. */
+export function updatedTable(setCallee: TsNode, schema: SchemaModel, chainVerb = "update"): string | undefined {
   let cur: TsNode = setCallee;
   let table: string | undefined;
-  while (table === undefined && (Node.isCallExpression(cur) || Node.isPropertyAccessExpression(cur))) {
-    if (Node.isCallExpression(cur)) {
-      const callee = cur.getExpression();
-      table = Node.isPropertyAccessExpression(callee) && callee.getName() === chainVerb ? (cur.getArguments()[0]?.getText() ?? "") : undefined;
-      cur = callee;
-    } else {
-      cur = cur.getExpression();
+  while (table === undefined) {
+    const call = Node.isCallExpression(cur) ? cur : undefined;
+    const member = readMemberAccess(call?.getExpression() ?? cur);
+    if (member === undefined) {
+      break;
     }
+    const argument = member.name === chainVerb ? call?.getArguments()[0] : undefined;
+    if (argument !== undefined) {
+      const bound = tableFromReference(argument, new Map(schema.tables.map((candidate) => [schemaDeclarationKey(candidate.declaration), candidate])));
+      table = bound.kind === "resolved" ? bound.value.identity.declarationName : undefined;
+    }
+    cur = member.receiver;
   }
-  return table === "" ? undefined : table;
+  return table;
 }
 
 /** A sink keeps its schema table identity; coincident JSON property names are not provenance. */
@@ -128,12 +134,13 @@ export function jsonWriterColumn(writer: JsonColumnWriter): string {
 function jsonTableOf(
   call: CallExpression,
   jsonColumns: ReadonlyMap<string, ReadonlySet<string>>,
+  schema: SchemaModel,
 ): { readonly table: string; readonly cols: ReadonlySet<string> } | undefined {
-  const callee = call.getExpression();
-  if (!Node.isPropertyAccessExpression(callee) || callee.getName() !== "set") {
+  const callee = readMemberAccess(call.getExpression());
+  if (callee?.name !== "set") {
     return;
   }
-  const table = updatedTable(callee.getExpression());
+  const table = updatedTable(callee.receiver, schema);
   const cols = table === undefined ? undefined : jsonColumns.get(table);
   return table === undefined || cols === undefined ? undefined : { table, cols };
 }
@@ -147,7 +154,7 @@ export function collectJsonWritersByColumn(
   const byColumn = new Map<string, JsonColumnWriter[]>();
   for (const call of calls) {
     if (call.getSourceFile().getFilePath().includes(DOMAIN_DIR)) {
-      const target = jsonTableOf(call, jsonColumns);
+      const target = jsonTableOf(call, jsonColumns, schema);
       if (target === undefined) {
         continue;
       }

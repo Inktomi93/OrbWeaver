@@ -66,6 +66,7 @@ for (let i = 0; i < args.length; i += 1) {
 if (process.env.FAKE_PID_FILE) writeFileSync(process.env.FAKE_PID_FILE, String(process.pid));
 if (process.env.FAKE_SPAWN_LOG) appendFileSync(process.env.FAKE_SPAWN_LOG, project + "\\n");
 if (process.env.FAKE_ARGS_LOG) writeFileSync(process.env.FAKE_ARGS_LOG, JSON.stringify(args));
+if (process.env.FAKE_RUNTIME_LOG) writeFileSync(process.env.FAKE_RUNTIME_LOG, JSON.stringify({ localStorage: "localStorage" in globalThis, sessionStorage: "sessionStorage" in globalThis, nodeOptions: process.env.NODE_OPTIONS }));
 if (args.some((arg) => arg.startsWith("--runtime-only"))) process.exit(1);
 // FAKE_WEDGE_ONCE names a project that wedges on its FIRST spawn and passes on its second — the #1012
 // retry arm. The attempt counter is the spawn log, so the fake needs no state of its own.
@@ -137,6 +138,8 @@ interface SupervisorOptions {
   readonly hangMaxMs?: string;
   /** Captures the argv received by the fake Vitest child. */
   readonly argsLog?: string;
+  readonly runtimeLog?: string;
+  readonly nodeOptions?: string;
   /** Additional wrapper argv, used by argument-translation controls. */
   readonly extraArgs?: readonly string[];
 }
@@ -166,6 +169,12 @@ function runSupervisor(options: SupervisorOptions): Promise<RunResult> {
   }
   if (options.argsLog !== undefined) {
     env["FAKE_ARGS_LOG"] = options.argsLog;
+  }
+  if (options.runtimeLog !== undefined) {
+    env["FAKE_RUNTIME_LOG"] = options.runtimeLog;
+  }
+  if (options.nodeOptions !== undefined) {
+    env["NODE_OPTIONS"] = options.nodeOptions;
   }
   const args = [
     SUPERVISOR,
@@ -226,6 +235,22 @@ function wedgeDumps(cwd: string): readonly string[] {
 test("mirrors a clean child's exit 0", { timeout: scaledBudget(15_000) }, async () => {
   const res = await runSupervisor({ mode: "exit0", reportFile: join(dir, "r0.json") });
   expect(res.code).toBe(0);
+});
+
+test("the actual Vitest child has no Node Web Storage and retains its heap option", { timeout: scaledBudget(15_000) }, async () => {
+  const runtimeLog = join(dir, "runtime-storage.json");
+  const res = await runSupervisor({
+    mode: "pass",
+    reportFile: join(dir, "runtime-storage-report.json"),
+    runtimeLog,
+    nodeOptions: "--max-old-space-size=16384",
+  });
+  expect(res.code).toBe(0);
+  expect(readJson(runtimeLog)).toEqual({
+    localStorage: false,
+    sessionStorage: false,
+    nodeOptions: "--max-old-space-size=16384 --no-webstorage",
+  });
 });
 
 test("mirrors a failing child's exit 1", { timeout: scaledBudget(15_000) }, async () => {

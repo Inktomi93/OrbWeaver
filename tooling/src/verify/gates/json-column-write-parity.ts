@@ -137,6 +137,45 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const userSettings = sqliteTable("user_settings", { userId: text("user_id"), config: text("config", { mode: "json" }) });\n',
+        "packages/server/src/domain/settings/persistence/namespace.ts":
+          'import * as schema from "../../../../../db/src/schema/settings.ts";\nexport async function merge(db, id) { const row = await readStored(db); await db.update(userSettings).set({ config: { ...row.config } }).where(id); }\nexport async function replace(db, config, id) { await db.update(schema.userSettings).set({ config }).where(id); }\n',
+      }),
+      expect: { count: 1, token: "config" },
+      why: "a namespace target retains the canonical JSON-column straddle",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const userSettings = sqliteTable("user_settings", { userId: text("user_id"), config: text("config", { mode: "json" }) });\n',
+        "packages/server/src/domain/settings/persistence/bracket.ts":
+          'export async function merge(db, id) { const row = await readStored(db); await db.update(userSettings).set({ config: { ...row.config } }).where(id); } export async function replace(db, config, id) { await db["update"](userSettings)["set"]({ config })["where"](id); }\n',
+      }),
+      expect: { count: 1, token: "config" },
+      why: "a static bracket fluent write retains the canonical JSON-column straddle",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const userSettings = sqliteTable("user_settings", { userId: text("user_id"), config: text("config", { mode: "json" }).$type<UserSettings>() });\n',
+        "packages/contracts/src/settings/index.ts":
+          "export const userSettingsConfig = defineVersionedConfig<UserSettings>({ schema: s, version: 1, lifts: {}, default: d });\n",
+        "packages/server/src/domain/settings/persistence/namespace.ts":
+          'import * as schema from "../../../../../db/src/schema/settings.ts";\nexport async function replace(db, config, id) { await db.update(schema.userSettings).set({ config }).where(id); }\n',
+        "packages/server/src/domain/settings/persistence/bracket.ts":
+          'import * as schema from "../../../../../db/src/schema/settings.ts";\nexport async function replace(db, config, id) { await db["update"](userSettings)["set"]({ config })["where"](id); }\n',
+        "packages/server/src/domain/settings/persistence/upsert.ts":
+          'import * as schema from "../../../../../db/src/schema/settings.ts";\nexport async function seed(db, config, id) { await db["insert"](schema["userSettings"])["values"]({ userId: id, config })["onConflictDoUpdate"]({ target: schema.userSettings.userId, set: { config } }); }\n',
+      }),
+      expect: { count: 3, token: "config" },
+      why: "namespace updates, bracket updates and bracket upserts retain the versioned-config guard obligation",
+    },
+    {
+      mode: "types",
       grant: { subject: "userSettings.config", operation: "json-column-straddle" },
       files: jsonWriteProofFiles({
         "node_modules/drizzle-orm/index.d.ts":
@@ -412,6 +451,58 @@ export const gate = defineGate({
     },
   ],
   mustRefuse: [
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; import type { Values } from "../../../contracts/src/macros.ts"; export const userSettings = sqliteTable("user_settings", { config: text("config", { mode: "json" }).$type<Values>() });',
+        "packages/server/src/domain/settings/persistence/namespace.ts":
+          'import * as schemas from "../../../../../contracts/src/macros.ts"; export async function run(db, id) { const row = await readStored(db); await db.update(userSettings).set({ config: { ...schemas.valuesSchema.parse(row.config) } }).where(id); }',
+        "packages/contracts/src/macros.ts":
+          'import * as z from "zod"; export const valuesSchema = z.object({ enabled: z.boolean() }).transform(() => ({ enabled: false })); export type Values = z.output<typeof valuesSchema>;',
+      }),
+      expect: { messageIncludes: "unsupported transform" },
+      why: "following a namespace schema export does not acquit a value-changing transform",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; import type { Values } from "../../../contracts/src/macros.ts"; export const userSettings = sqliteTable("user_settings", { config: text("config", { mode: "json" }).$type<Values>() });',
+        "packages/server/src/domain/settings/persistence/namespace.ts":
+          'import * as schemas from "../../../../../contracts/src/macros.ts"; export async function run(db, id) { const row = await readStored(db); await db.update(userSettings).set({ config: { ...schemas.valuesSchema.parse(row.config) } }).where(id); }',
+        "packages/contracts/src/macros.ts":
+          'import * as z from "zod"; export declare const valuesSchema: z.ZodType<{ enabled: boolean }>; export type Values = z.output<typeof valuesSchema>;',
+      }),
+      expect: { messageIncludes: "schema constructor/body is opaque" },
+      why: "a namespace export with only a schema type has no authored normalization body",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; import type { Values } from "../../../contracts/src/macros.ts"; export const userSettings = sqliteTable("user_settings", { config: text("config", { mode: "json" }).$type<Values>() });',
+        "packages/server/src/domain/settings/persistence/namespace.ts":
+          'import * as schemas from "../../../../../contracts/src/macros.ts"; export async function run(db, id) { const row = await readStored(db); await db.update(userSettings).set({ config: { ...schemas.valuesSchema.parse(row.config) } }).where(id); }',
+        "packages/contracts/src/macros.ts":
+          'import * as z from "zod"; export let valuesSchema = z.object({ enabled: z.boolean() }); export type Values = z.output<typeof valuesSchema>;',
+      }),
+      expect: { messageIncludes: "mutable" },
+      why: "a mutable namespace schema export cannot inherit its initializer as a stable normalization contract",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; import type { Values } from "../../../contracts/src/macros.ts"; export const userSettings = sqliteTable("user_settings", { config: text("config", { mode: "json" }).$type<Values>() });',
+        "packages/server/src/domain/settings/persistence/namespace.ts":
+          'import * as schemas from "../../../../../contracts/src/macros.ts"; export async function run(db, id) { const row = await readStored(db); await db.update(userSettings).set({ config: { ...schemas.valuesSchema.parse(row.config) } }).where(id); }',
+        "packages/contracts/src/macros.ts":
+          "export const valuesSchema = { parse(value: object): { enabled: boolean } { return { enabled: false }; } }; export type Values = { enabled: boolean };",
+      }),
+      expect: { messageIncludes: "custom parse" },
+      why: "a foreign namespace parse member is not the installed Zod normalization boundary",
+    },
     {
       mode: "types",
       files: jsonWriteProofFiles({
@@ -910,6 +1001,32 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const userSettings = sqliteTable("user_settings", { userId: text("user_id"), config: text("config", { mode: "json" }).$type<UserSettings>() });\n',
+        "packages/contracts/src/settings/index.ts":
+          "export const userSettingsConfig = defineVersionedConfig<UserSettings>({ schema: s, version: 1, lifts: {}, default: d });\n",
+        "packages/server/src/domain/settings/persistence/namespace.ts":
+          'import * as schema from "../../../../../db/src/schema/settings.ts";\nexport async function replace(db, config, id) { requireIntactStoredConfig(config, "user_settings"); await db.update(schema.userSettings).set({ config }).where(id); }\n',
+        "packages/server/src/domain/settings/persistence/bracket.ts":
+          'import * as schema from "../../../../../db/src/schema/settings.ts";\nexport async function replace(db, config, id) { requireIntactStoredConfig(config, "user_settings"); await db["update"](userSettings)["set"]({ config })["where"](id); }\n',
+        "packages/server/src/domain/settings/persistence/upsert.ts":
+          'import * as schema from "../../../../../db/src/schema/settings.ts";\nexport async function seed(db, config, id) { requireIntactStoredConfig(config, "user_settings"); await db["insert"](schema["userSettings"])["values"]({ userId: id, config })["onConflictDoUpdate"]({ target: schema.userSettings.userId, set: { config } }); }\n',
+      }),
+      why: "the earlier stored-config guard acquits the same canonical namespace and bracket writes",
+    },
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const userSettings = sqliteTable("user_settings", { userId: text("user_id"), config: text("config", { mode: "json" }) });\n',
+        "packages/server/src/domain/settings/persistence/lookalike.ts":
+          "export async function merge(db, id) { const row = await readStored(db); await db.update(userSettings).set({ config: { ...row.config } }).where(id); }\nconst fake = { userSettings: {} }; export async function foreign(db, config, id) { await db.update(fake.userSettings).set({ config }).where(id); }\n",
+      }),
+      why: "a local object member named userSettings is not the bound schema table and cannot create a false straddle",
+    },
     {
       mode: "types",
       files: jsonWriteProofFiles({

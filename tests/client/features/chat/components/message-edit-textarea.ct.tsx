@@ -105,3 +105,35 @@ test("an unchanged save (identical text) exits WITHOUT calling chat.editMessage"
   await expect.poll(() => trpc.count("chat.editMessage")).toBe(0);
   await expect(textarea).toHaveValue(""); // still exits edit mode (draft cleared, no save fired)
 });
+
+for (const trigger of ["Save edit", "Enter"] as const) {
+  test(`an escaping save override error is reported once and keeps the draft (${trigger})`, async ({ mount, page }) => {
+    const message = makeMessageView({ content: "original text" });
+    const trpc = await routeTrpc(page, { "chat.editMessage": () => message });
+    const reports: string[] = [];
+    await page.exposeFunction("recordSaveFailure", (error: string): void => {
+      reports.push(error);
+    });
+    await page.evaluate(() => {
+      globalThis.reportError = (error): void => {
+        const record = Reflect.get(globalThis, "recordSaveFailure") as (message: string) => Promise<void>;
+        record(error instanceof Error ? error.message : String(error)).catch(console.error);
+      };
+    });
+    await page.evaluate(() => globalThis.reportError(new Error("Save reporter control")));
+    await expect.poll(() => reports).toEqual(["Save reporter control"]);
+    reports.length = 0;
+    const component = await mount(<MessageEditTextareaStory message={message} failSave={true} />);
+    const textarea = component.getByRole("textbox", { name: MESSAGE_EDIT_NAME });
+    await textarea.fill("keep this draft");
+    if (trigger === "Enter") {
+      await textarea.press("Enter");
+    } else {
+      await component.getByRole("button", { name: trigger }).click();
+    }
+    await expect.poll(() => reports).toEqual(["The save override failed"]);
+    await expect.poll(() => trpc.count("chat.editMessage")).toBe(0);
+    await expect(textarea).toHaveValue("keep this draft");
+    await expect(component.getByRole("button", { name: "Save edit" })).toBeEnabled();
+  });
+}

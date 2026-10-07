@@ -47,7 +47,7 @@ export function isWaivablePosition(position: string): boolean {
 }
 
 /** THE COORDINATE for a value the grammar cannot hold whole (#2107 arm c, guide §2.1): the value's own leading
- *  paren-free slice, so `oklch(0.5 0.2 30)` → `oklch` and `[&:where(.x:y)]:dark:bg-card` → `[&:where`. A
+ *  paren-free slice, so `oklch(0.5 0.2 30)` → `oklch` and `[&:where(.x:hover)]:dark:bg-card` → `[&:where`. A
  *  value that IS waivable is returned unchanged, which is what keeps the split free for `#ff0000`.
  *
  *  `undefined` means NO anchorable head exists, and every caller must treat that as a refusal rather than

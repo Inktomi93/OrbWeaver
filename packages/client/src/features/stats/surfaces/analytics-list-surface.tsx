@@ -104,7 +104,14 @@ function LeaderboardRows({ sort, search }: { readonly sort: SortId; readonly sea
   // it is also the roving container (the Arrow-key contract over the windowed row bodies).
   return (
     <Stack ref={rowsRef} className="min-h-0 flex-1">
-      <LeaderboardBody isError={isError} isPending={isPending} onRetry={(): void => void refetch()} page={page} selectedId={selectedId} trimmed={trimmed} />
+      <LeaderboardBody
+        isError={isError}
+        isPending={isPending}
+        onRetry={(): void => void refetch().catch(globalThis.reportError)}
+        page={page}
+        selectedId={selectedId}
+        trimmed={trimmed}
+      />
     </Stack>
   );
 }

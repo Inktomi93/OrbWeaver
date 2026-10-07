@@ -1,10 +1,10 @@
 // Lucide components take a `size` NUMBER prop, so icon sizes are named px consts pinned to the
 // type-scale tokens below instead of raw/arbitrary Tailwind classes. The token linkage IS this table.
 //
-// The three appearance axes ride lucide-react 1.22.0's OWN surface wherever it has one and hand-build
+// The three appearance axes ride lucide-react's OWN surface wherever it has one and hand-build
 // only what it genuinely lacks (verified against the shipped dist, not memory — §13.8 R1):
-//   weight      → `strokeWidth` + `absoluteStrokeWidth` (dist/esm/Icon.mjs computes
-//                 `strokeWidth * 24 / size`, so the px weight is size-independent).
+//   weight      → `strokeWidth` + `nonScalingStroke` (Lucide adds `vector-effect="non-scaling-stroke"`
+//                 to each shape, so the px weight is size-independent).
 //   fill=solid  → the plain SVG `fill` pass-through. lucide's own recipe; note the library states
 //                 "Fills are officially not supported … will work fine on certain icons"
 //                 (https://lucide.dev/guide/react/advanced/filled-icons) — which is exactly why the
@@ -32,7 +32,7 @@ export const ICON_LG = 24;
 const ICON_SIZES = { xs: ICON_XS, sm: ICON_SM, md: ICON_MD, lg: ICON_LG } as const;
 
 /** The house line-weight table (owner taste dial). `regular` is the app-wide default; every arm is
- *  paired with lucide's `absoluteStrokeWidth` so the stroke is a CONSTANT px width across every icon
+ *  paired with lucide's `nonScalingStroke` so the stroke is a CONSTANT px width across every icon
  *  size — an `xs` glyph and an `lg` glyph read at the same weight (without it lucide scales the
  *  stroke with the box, so small icons look heavier). Named arms, never a raw number from a caller:
  *  a weight is a design decision with three legal answers, not a free float. */
@@ -48,7 +48,7 @@ const FULL_FILL = 1;
 
 interface IconBaseProps {
   size?: keyof typeof ICON_SIZES;
-  /** Named stroke weight; `absoluteStrokeWidth` makes it OPTICAL (constant px), not size-relative. */
+  /** Named stroke weight; `nonScalingStroke` makes it OPTICAL (constant px), not size-relative. */
   weight?: keyof typeof ICON_WEIGHTS;
   /** Accessible name. Omitted = decorative (`aria-hidden`), the default for icons beside text. */
   label?: string;
@@ -90,7 +90,7 @@ export function Icon({ icon: Glyph, size = "md", weight = "regular", fill = "non
   return (
     <Glyph
       size={ICON_SIZES[size]}
-      absoluteStrokeWidth={true}
+      nonScalingStroke={true}
       strokeWidth={ICON_WEIGHTS[weight]}
       aria-hidden={label === undefined}
       aria-label={label}

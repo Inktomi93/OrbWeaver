@@ -77,7 +77,7 @@ function LinkSsoBody({ userId, onDone }: { readonly userId: UserId; readonly onD
       <FormSubmitButton
         disabled={link.isPending || trimmed.length === 0}
         label={link.isPending ? "Linking…" : "Link identity"}
-        onSubmit={(): void => void submit()}
+        onSubmit={(): void => void submit().catch(globalThis.reportError)}
         testKey="adminLinkSsoSubmit"
       />
     </Stack>

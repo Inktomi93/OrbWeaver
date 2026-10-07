@@ -14,7 +14,7 @@
 // creation verb are one concept, and leaving the mutation in the feature would have made this module the
 // second home of "start a refinery session".
 //
-// THE RESUME DECISION AWAITS ITS INPUT (`ensureQueryData`), it does not gate a control on it. The roster is
+// THE RESUME DECISION AWAITS ITS INPUT (cache-first read), it does not gate a control on it. The roster is
 // the whole input to resume-vs-mint (#79), and the previous shape defended that by DISABLING the landing's
 // pick button until `listSessions` landed — which is a dead-looking control in the exact first frames a
 // cold-open user is looking at, i.e. the defect #157 is about, one control over. Awaiting the read at
@@ -30,6 +30,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import { selectRefinerySession, setActiveSection } from "#state";
 import { createEntityMutation } from "./create-entity-mutation.ts";
+import { peekQueryData } from "./peek-query.ts";
 import type { Trpc } from "./trpc.ts";
 import { useTRPC } from "./trpc.ts";
 import { useInvalidation } from "./use-invalidation.ts";
@@ -95,7 +96,9 @@ export function useOpenRefinery(): UseOpenRefineryResult {
     openRefinery: async (characterId): Promise<RefinerySessionId> => {
       // The roster decides resume-vs-mint, so the decision waits for it (header). A failed read falls
       // through to the mint arm rather than refusing to open anything.
-      const roster = await queryClient.ensureQueryData(trpc.refinery.listSessions.queryOptions()).catch((): SessionList => []);
+      const options = trpc.refinery.listSessions.queryOptions();
+      // @orb-waive caught-failure-ownership(queryClient.query): a failed roster explicitly takes the mint arm rather than locking this door (header); createEntityMutation's errorToast owns a failed startSession. Ends if roster failure stops permitting mint or the mutation loses its failure owner.
+      const roster = await (peekQueryData(queryClient, options.queryKey) ?? queryClient.query(options).catch((): SessionList => []));
       const resumable = resumableSessionIdOf(roster, characterId);
       const sessionId = resumable ?? castId<RefinerySessionId>((await start.mutateAsync({ characterId })).id);
       selectRefinerySession(sessionId);

@@ -10,7 +10,7 @@
 import { createAppQueryClient, retryUnlessBadRequest } from "@orb/client/data";
 import type { Notify, NotifyInput } from "@orb/client/lib";
 import { bindNotify, toNotice } from "@orb/client/lib";
-import { MutationObserver } from "@tanstack/react-query";
+import { MutationObserver, QueryObserver } from "@tanstack/react-query";
 import { afterEach, describe, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -65,13 +65,33 @@ describe("createAppQueryClient — pinned defaults", () => {
   });
 });
 
+describe("createAppQueryClient — imperative query freshness", () => {
+  test("a cold read fills the cache, Infinity reuses it, and invalidation or staleTime zero re-reads", async () => {
+    const client = createAppQueryClient();
+    const queryKey = ["__query_client_test__", "freshness"];
+    let reads = 0;
+    const options = { queryKey, queryFn: () => Promise.resolve(++reads) };
+
+    expect(await client.query(options)).toBe(1);
+    expect(await client.query(options)).toBe(1);
+    expect(reads).toBe(1);
+
+    await client.invalidateQueries({ queryKey, refetchType: "none" });
+    expect(await client.query(options)).toBe(2);
+    expect(await client.query({ ...options, staleTime: 0 })).toBe(3);
+    expect(await client.query({ ...options, staleTime: 0 })).toBe(4);
+    expect(reads).toBe(4);
+    client.clear();
+  });
+});
+
 describe("createAppQueryClient — global error → toast wiring", () => {
   test("a failed query with meta.errorToast routes the message through notify.error", async () => {
     const notify = spyNotify();
     const client = createAppQueryClient();
 
     await client
-      .fetchQuery({
+      .query({
         queryKey: ["__query_client_test__", "boom"],
         queryFn: () => Promise.reject(new Error("query boom")),
         retry: false,
@@ -87,7 +107,7 @@ describe("createAppQueryClient — global error → toast wiring", () => {
     const client = createAppQueryClient();
 
     await client
-      .fetchQuery({
+      .query({
         queryKey: ["__query_client_test__", "derived"],
         queryFn: () => Promise.reject(new Error("derived boom")),
         retry: false,
@@ -103,7 +123,7 @@ describe("createAppQueryClient — global error → toast wiring", () => {
     const client = createAppQueryClient();
 
     await client
-      .fetchQuery({
+      .query({
         queryKey: ["__query_client_test__", "silent"],
         queryFn: () => Promise.reject(new Error("silent boom")),
         retry: false,
@@ -132,7 +152,7 @@ describe("createAppQueryClient — default retry", () => {
     const client = createAppQueryClient();
     let calls = 0;
     await client
-      .fetchQuery({
+      .query({
         queryKey: ["__query_client_test__", "default-retry"],
         queryFn: () => {
           calls += 1;
@@ -159,7 +179,7 @@ describe("retryUnlessBadRequest", () => {
     const client = createAppQueryClient();
     let calls = 0;
     await client
-      .fetchQuery({
+      .query({
         queryKey: ["__query_client_test__", "retry"],
         queryFn: () => {
           calls += 1;
@@ -179,5 +199,52 @@ describe("retryUnlessBadRequest", () => {
   test("any other failure keeps the default schedule: the first call plus two retries", async () => {
     expect(await callsUntilSettled({ message: "boom", data: { code: "INTERNAL_SERVER_ERROR" } })).toBe(3);
     expect(await callsUntilSettled(new Error("socket dropped"))).toBe(3);
+  });
+});
+
+describe("createAppQueryClient — observer retry error ownership", () => {
+  test("default refetch resolves with the failed query state and surfaces its error only once", async () => {
+    const notify = spyNotify();
+    const client = createAppQueryClient();
+    const error = new Error("retry failed");
+    const queryKey = ["__query_client_test__", "observer-default-retry"];
+    const observer = new QueryObserver(client, {
+      queryKey,
+      queryFn: () => Promise.reject(error),
+      retry: false,
+      meta: { errorToast: "query retry failed" },
+    });
+    try {
+      const result = await observer.refetch();
+      expect(result.status).toBe("error");
+      expect(result.error).toBe(error);
+      expect(client.getQueryState(queryKey)?.error).toBe(error);
+      expect(notify.errorCalls).toEqual(["query retry failed"]);
+    } finally {
+      observer.destroy();
+      client.clear();
+    }
+  });
+
+  test("an explicit throwing refetch rejects but still keeps the canonical query error state", async () => {
+    const notify = spyNotify();
+    const client = createAppQueryClient();
+    const error = new Error("throwing retry failed");
+    const queryKey = ["__query_client_test__", "observer-throwing-retry"];
+    const observer = new QueryObserver(client, {
+      queryKey,
+      queryFn: () => Promise.reject(error),
+      retry: false,
+      meta: { errorToast: "query retry failed" },
+    });
+    try {
+      await expect(observer.refetch({ throwOnError: true })).rejects.toBe(error);
+      expect(client.getQueryState(queryKey)?.status).toBe("error");
+      expect(client.getQueryState(queryKey)?.error).toBe(error);
+      expect(notify.errorCalls).toEqual(["query retry failed"]);
+    } finally {
+      observer.destroy();
+      client.clear();
+    }
   });
 });

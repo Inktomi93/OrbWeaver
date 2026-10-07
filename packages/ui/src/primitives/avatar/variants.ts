@@ -5,7 +5,8 @@ import { tv } from "#lib";
 export const avatarVariants = tv({
   slots: {
     root: "relative inline-flex shrink-0 items-center justify-center overflow-hidden bg-muted align-middle select-none",
-    image: "size-full object-cover",
+    // Retained native images need a box for lazy loading, but must neither paint nor share the fallback's flex space.
+    image: "size-full object-cover data-loading:absolute data-loading:invisible data-error:absolute data-error:invisible",
     // The fallback's FILL is not a variant (#103): it derives from the active theme's own `--color-primary`
     // per seed, which is a relative-color expression rather than a class — `avatar.tsx` sets it as the one
     // inline `backgroundColor` (see `hue.ts` for why a token/utility cannot carry it). The INK stays the

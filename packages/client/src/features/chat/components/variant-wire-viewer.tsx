@@ -213,7 +213,7 @@ export function VariantWireViewer({ chatId, variantId, open, onOpenChange }: Var
       <DialogPopup size="lg" data-testid={testId("variantWireViewer")}>
         <Stack gap="block" className="min-h-0">
           <DialogTitle>What this reply sent</DialogTitle>
-          <WireDialogBody isError={wire.isError} error={wire.error} data={wire.data} onRetry={(): void => void wire.refetch()} />
+          <WireDialogBody isError={wire.isError} error={wire.error} data={wire.data} onRetry={(): void => void wire.refetch().catch(globalThis.reportError)} />
           <Row justify="end" className="shrink-0">
             <DialogClose render={<Button intent="secondary">Close</Button>} />
           </Row>

@@ -50,7 +50,7 @@ function LinkedBooksSection({ characterId }: CharacterRelationsTabProps): ReactE
       <Section heading="Linked world books">
         <QueryErrorState
           label="this character's linked world books"
-          onRetry={(): void => void Promise.all([attachedQuery.refetch(), allBooksQuery.refetch()])}
+          onRetry={(): void => void Promise.all([attachedQuery.refetch(), allBooksQuery.refetch()]).catch(globalThis.reportError)}
         />
       </Section>
     );
@@ -94,7 +94,7 @@ function ConnectedPersonasSection({ characterId }: CharacterRelationsTabProps): 
       <Section heading="Connected personas">
         <QueryErrorState
           label="this character's connected personas"
-          onRetry={(): void => void Promise.all([connectedQuery.refetch(), allPersonasQuery.refetch()])}
+          onRetry={(): void => void Promise.all([connectedQuery.refetch(), allPersonasQuery.refetch()]).catch(globalThis.reportError)}
         />
       </Section>
     );

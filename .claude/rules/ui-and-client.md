@@ -55,7 +55,7 @@ paths:
 - Never read or write `ref.current` during render, including passing a ref into a render-called function. Use setState-during-render with a prev check, or `useState`.
 - A controlled Base UI popover closed by your own `setOpen(false)` does not fire `onOpenChange`. Route every close path through one setter.
 - `.then(fn, fn)` with a void-returning handler resolves instead of propagating a rejection. Use `.finally()` for cleanup.
-- `usePrefetchQuery` does not type-check against tRPC's `queryOptions`. Prefetch with `queryClient.ensureQueryData` in an effect, sharing query keys with the reader.
+- `usePrefetchQuery` does not type-check against tRPC's `queryOptions`. Warm absent cache entries with `peekQueryData` and `queryClient.query` in an effect, sharing query keys with the reader.
 - A persisted zustand store's `reset` writes through to storage. Clear storage directly around a reset instead of setting initial state alone.
 - An editable id-less form array needs a real parallel `rowIds` field synced at every mutation site, never a uuid generated from the array index.
 - A one-off labeled control in a feature uses static `label` + `htmlFor` + `aria-labelledby` instead of the `@orb/ui` `Field`, which associates at runtime and forces an a11y suppression.

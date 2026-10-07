@@ -121,7 +121,7 @@ import { openRunSlot, publishRunSlot, reportsPath, runFile } from "@orb/tooling/
 import { LOAD_SUSPECT_META_KEY } from "@orb/tooling/_shared/load-budget";
 import { listProcesses, processDiagnostics, processTreeCpuMs } from "@orb/tooling/_shared/platform";
 import { signalOfExitCode } from "@orb/tooling/_shared/proc-signals";
-import { processEnvValue } from "@orb/tooling/_shared/process-env";
+import { processEnvValue, testProcessEnv } from "@orb/tooling/_shared/process-env";
 import { nicedCommand } from "@orb/tooling/_shared/process-priority";
 
 const DEFAULT_HANG_MS = 300_000;
@@ -560,6 +560,7 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }: AttemptReq
   const niced = nicedCommand(process.execPath, [vitestBin(), ...args]);
   const child = spawn(niced.command, niced.args, {
     cwd: root,
+    env: testProcessEnv(),
     detached: true,
     stdio: ["inherit", "pipe", "pipe"],
   });

@@ -21,6 +21,7 @@ jobs:
       packages: write
     env:
       IMAGE: ghcr.io/inktomi93/orbweaver
+      BUILD_CACHE: ghcr.io/inktomi93/orbweaver:buildcache-development
       SOURCE_SHA: ${{ github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -30,19 +31,26 @@ jobs:
           fetch-tags: false
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        id: builder
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build the development image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
-          context: .
-          target: runtime
-          platforms: linux/amd64
+          builder: &development-builder ${{ steps.builder.outputs.name }}
+          context: &development-context .
+          target: &development-target runtime
+          platforms: &development-platforms linux/amd64
           load: true
-          cache-from: type=gha,scope=development-image
-          cache-to: type=gha,scope=development-image,mode=max,ignore-error=true
+          cache-from: type=registry,ref=${{ env.BUILD_CACHE }}
           tags: |
             ${{ env.IMAGE }}:sha-${{ github.sha }}
-          build-args: |
+          build-args: &development-build-args |
             GIT_SHA=${{ github.sha }}
             IMAGE_VERSION=development
 
@@ -71,11 +79,18 @@ jobs:
           docker exec "$container" node -e 'const response = await fetch("http://127.0.0.1:8788/healthz"); if (!response.ok) process.exit(1); console.log(await response.text());' > "$RUNNER_TEMP/development-operator-health.json"
           jq -e --arg sha "$SOURCE_SHA" '.version.commit == $sha and .version.channel == "main"' "$RUNNER_TEMP/development-operator-health.json"
 
-      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+      # Only a source-stamped, boot-proven build can warm the development cache. The same builder and
+      # inputs reuse its local result; max keeps dependency stages without spending Actions-cache quota.
+      - name: Export the verified build cache
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          builder: *development-builder
+          context: *development-context
+          target: *development-target
+          platforms: *development-platforms
+          build-args: *development-build-args
+          outputs: type=cacheonly
+          cache-to: type=registry,ref=${{ env.BUILD_CACHE }},mode=max,ignore-error=true
 
       - name: Push development tags
         run: |

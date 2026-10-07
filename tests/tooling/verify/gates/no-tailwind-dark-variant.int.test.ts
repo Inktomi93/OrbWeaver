@@ -51,7 +51,7 @@ test("a multi-file real run with a runtime prefix and an unresolved static cycle
 // that split, which is the whole reason the split happened; nothing asserted that it is waivable now. The
 // POSITIVE arm only: a negative arm under `knownPolicies: [gate]` rides the unknown-policy short-circuit.
 test("an arbitrary-variant candidate is waivable at its leading paren-free slice, the coordinate the policy reports", () => {
-  const carrier = (marker: string): string => `${marker}export const X = <div className="[&:where(.x:y)]:dark:bg-card" />;\n`;
+  const carrier = (marker: string): string => `${marker}export const X = <div className="[&:where(.x:hover)]:dark:bg-card" />;\n`;
   const passOf = (marker: string): PolicyPassResult => {
     const project = projectFor({ "packages/ui/src/arbitrary.tsx": carrier(marker) });
     return runPolicyPass({ knownPolicies: [gate], policies: [gate], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
@@ -62,6 +62,7 @@ test("an arbitrary-variant candidate is waivable at its leading paren-free slice
   const unmarked = passOf("");
   expect(unmarked.toolErrors).toEqual([]);
   expect(unmarked.authority.effectiveFindings.map(({ token }) => token)).toEqual(["[&:where"]);
+  expect(unmarked.authority.effectiveFindings[0]?.message).toContain("Token: [&:where(.x:hover)]:dark:bg-card.");
 
   const waived = passOf("// @orb-waive no-tailwind-dark-variant([&:where): the proof's stand-in reason and its end condition.\n");
 

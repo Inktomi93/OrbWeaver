@@ -670,27 +670,40 @@ export function MessageActionsRowStory({ message, generationCredit = false }: Me
 
 interface MessageEditTextareaStoryInnerProps {
   readonly message: MessageView;
+  readonly failSave: boolean;
 }
 
 /** Drives the external edit-draft store so the textarea mounts already "in edit mode" —
  *  the same store `<MessageActionsRow>`'s Edit button flips in the real row. */
-function MessageEditTextareaStoryInner({ message }: MessageEditTextareaStoryInnerProps): ReactElement {
+function MessageEditTextareaStoryInner({ message, failSave }: MessageEditTextareaStoryInnerProps): ReactElement {
   useEffect(() => {
     startEditingMessage(message.id, message.content);
     return (): void => cancelEditingMessage(message.id);
   }, [message.id, message.content]);
-  return <MessageEditTextarea message={message} />;
+  return (
+    <MessageEditTextarea
+      message={message}
+      {...(failSave
+        ? {
+            onSave: (): never => {
+              throw new Error("The save override failed");
+            },
+          }
+        : {})}
+    />
+  );
 }
 
 export interface MessageEditTextareaStoryProps {
   readonly message?: MessageView;
+  readonly failSave?: boolean;
 }
 
 /** The edit-in-place textarea in isolation, pre-seeded into edit mode via the real draft store. */
-export function MessageEditTextareaStory({ message }: MessageEditTextareaStoryProps = {}): ReactElement {
+export function MessageEditTextareaStory({ message, failSave = false }: MessageEditTextareaStoryProps = {}): ReactElement {
   return (
     <CtDataProviders>
-      <MessageEditTextareaStoryInner message={message ?? makeMessageView({ content: "Hello there" })} />
+      <MessageEditTextareaStoryInner message={message ?? makeMessageView({ content: "Hello there" })} failSave={failSave} />
     </CtDataProviders>
   );
 }
@@ -2742,6 +2755,23 @@ export function ChatOptionsMenuStory({ withCharacters = false }: ChatOptionsMenu
         />
       </div>
     </CtDataProviders>
+  );
+}
+
+/** The failed new-chat launcher on the real mutation cache and toast surface. */
+export function ChatStartFailureMenuStory(): ReactElement {
+  useEffect(() => {
+    selectChat(CHAT_ID);
+  }, []);
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
+        <div>
+          <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characters={CT_OPTIONS_CHARACTERS} galleryCharacters={[]} />
+          <ActiveChatReadout />
+        </div>
+      </CtToastSurface>
+    </CtAppDataProviders>
   );
 }
 

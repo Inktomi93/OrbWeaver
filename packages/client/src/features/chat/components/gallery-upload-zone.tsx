@@ -125,7 +125,7 @@ export function GalleryUploadZone({ characterId, characterName, inputRef }: Gall
       loading={progress !== null}
       maxSizeBytes={caps.image}
       multiple={true}
-      onFilesSelected={(result): void => void receive(result)}
+      onFilesSelected={(result): void => void receive(result).catch(globalThis.reportError)}
       ref={inputRef}
       success={landed}
     />

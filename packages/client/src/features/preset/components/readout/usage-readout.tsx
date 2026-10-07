@@ -60,7 +60,7 @@ export function UsageReadout({ presetId }: { readonly presetId: PresetId }): Rea
   // and it carries a Retry that really re-reads (the `QueryErrorState` grammar).
   let body: ReactElement;
   if (usage.isError) {
-    body = <QueryErrorState label="what uses this preset" onRetry={(): void => void usage.refetch()} />;
+    body = <QueryErrorState label="what uses this preset" onRetry={(): void => void usage.refetch().catch(globalThis.reportError)} />;
   } else if (usage.data === undefined) {
     body = <Text voice="gloss">Checking…</Text>;
   } else {

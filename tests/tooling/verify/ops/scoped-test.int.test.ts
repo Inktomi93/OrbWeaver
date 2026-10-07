@@ -16,9 +16,13 @@
 // collection pass costs a chromium-config load; the CT arm is proven at the refusal tier, where the point
 // is that NOTHING is spawned at all. The near-miss's own three-path shape (two real + one stale) is a case
 // here on purpose: the defect was never a single bad path, it was a bad path HIDDEN AMONG GOOD ONES.
+
+import { readFile, writeFile } from "node:fs/promises";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
+import { z } from "zod";
 import { acquireCtRunnerLock } from "../../../../tooling/src/verify/lib/ct-runner-lock.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
+import { expect, fixturePath, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const REAL_A = "tests/tooling/smoke.test.ts";
@@ -67,6 +71,49 @@ test("the passing direction: a real path with real tests still runs and exits cl
   const res = await runCli("verify", ["scoped-test", "node", REAL_A, "--maxWorkers=2"], { timeoutMs: COLLECT_TIMEOUT_MS });
   await expect(res).toExitWith(0);
   expect(res.stdout + res.stderr, "the preflight delegates — it does not replace the runner").toContain(REAL_A);
+});
+
+test("native scoped collection and workers have no Node storage without losing heap or preloads", { timeout: COLLECT_TIMEOUT_MS }, async ({
+  runCli,
+  scratch,
+}) => {
+  const log = fixturePath(scratch, "node-storage.jsonl");
+  const preload = fixturePath(scratch, "node-storage-preload.mjs");
+  await writeFile(
+    preload,
+    `
+    import { appendFileSync } from "node:fs";
+    appendFileSync(${JSON.stringify(log)}, JSON.stringify({
+      entry: process.argv[1] ?? "",
+      localStorage: "localStorage" in globalThis,
+      sessionStorage: "sessionStorage" in globalThis,
+      nodeOptions: process.env.NODE_OPTIONS ?? "",
+    }) + "\\n");
+  `,
+  );
+  const options = `--max-old-space-size=16384 --import=${pathToFileURL(preload).href}`;
+  const result = await runCli("verify", ["scoped-test", "node", REAL_A, "--maxWorkers=2"], {
+    env: { ["NODE_OPTIONS"]: options },
+    timeoutMs: COLLECT_TIMEOUT_MS,
+  });
+  await expect(result).toExitWith(0);
+  const record = z.object({
+    entry: z.string().transform((value) => value.replaceAll("\\", "/")),
+    localStorage: z.boolean(),
+    sessionStorage: z.boolean(),
+    nodeOptions: z.string(),
+  });
+  const rows = (await readFile(log, "utf8"))
+    .trim()
+    .split("\n")
+    .map((line) => record.parse(JSON.parse(line)));
+  const processes = rows.filter(({ entry }) => /\/(?:vitest\.mjs|vitest-supervised\.ts|forks\.js)$/u.test(entry));
+  expect(processes.some(({ entry }) => entry.endsWith("/vitest.mjs"))).toBe(true);
+  expect(processes.some(({ entry }) => entry.endsWith("/forks.js"))).toBe(true);
+  expect(processes.some(({ entry }) => entry.endsWith("/vitest-supervised.ts"))).toBe(true);
+  expect(processes.map(({ localStorage, sessionStorage, nodeOptions }) => ({ localStorage, sessionStorage, nodeOptions }))).toEqual(
+    processes.map(() => ({ localStorage: false, sessionStorage: false, nodeOptions: `${options} --no-webstorage` })),
+  );
 });
 
 test("the related-source direction reaches a real runtime test through the supervised door", { timeout: COLLECT_TIMEOUT_MS }, async ({ runCli }) => {

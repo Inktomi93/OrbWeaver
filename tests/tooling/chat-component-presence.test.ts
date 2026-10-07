@@ -91,6 +91,10 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     coveredBy: "message-row",
     why: "the header (speaker name · timestamp · action cluster) is a #288 concept-split of message-row-parts — pure (args) => ReactNode helpers with no state, rendered only inside MessageRow; message-row.ct drives the real header slots (message-attribution / message-name-row / message-metadata-timestamp) and the name+actions structure on real rows.",
   },
+  "message-name-row-frame": {
+    coveredBy: "message-row",
+    why: "The settled and streaming headers render NameRowFrame; message-row.ct checks in-container anatomy and sticky layout across skins, and ghost-message-row.ct checks the leading named header.",
+  },
   "composer-media-group": {
     coveredBy: "composer-utility-menu",
     why: "the ✨ menu's Media group is a size-cap split of composer-utility-menu.tsx and renders only inside it; composer-utility-menu.ct drives its gallery door for the owner and its absence for a guest.",

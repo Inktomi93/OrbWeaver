@@ -246,8 +246,8 @@ export function ReportBugChromeButton(): ReactElement {
   const queryClient = useQueryClient();
   const loadServerFacts = async (): Promise<BugReportServerFacts> => {
     const [version, diagnostics] = await Promise.allSettled([
-      queryClient.fetchQuery(trpc.settings.getVersion.queryOptions()),
-      queryClient.fetchQuery({ ...trpc.bugReportDiagnostics.queryOptions(), staleTime: 0 }),
+      queryClient.query(trpc.settings.getVersion.queryOptions()),
+      queryClient.query({ ...trpc.bugReportDiagnostics.queryOptions(), staleTime: 0 }),
     ]);
     return {
       version: version.status === "fulfilled" ? version.value : null,

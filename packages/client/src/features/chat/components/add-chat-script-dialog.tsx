@@ -162,7 +162,12 @@ function PickerBody({
       )}
       <Row gap="field" justify="end">
         <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-        <Button disabled={picked.length === 0 || attach.isPending} intent="primary" onClick={(): void => void commit()} type="button">
+        <Button
+          disabled={picked.length === 0 || attach.isPending}
+          intent="primary"
+          onClick={(): void => void commit().catch(globalThis.reportError)}
+          type="button"
+        >
           Attach to this chat
         </Button>
       </Row>

@@ -23,4 +23,8 @@ The upgraded tree preserves application contracts and exact browser pins. Focuse
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Affected compatibility node suites, isolated E2E smoke, Avatar and gallery browser checks pass. The affected compiler programs pass. The complete spelling census and live caught-failure census pass without adding grants or blindness entries.
+
+The shared static run found coupled instrument, manifest and census defects. Corrected cases pass through their affected checks; unchanged completed checks remain valid. Incompatible formatter and pure-package updates remain held. Browser versions stay exact.
+
+Native macOS installation and hosted workflow results remain unverified. The branch remains unpublished.

@@ -230,6 +230,21 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      files: {
+        "packages/db/src/schema/databank.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const chatDocuments = sqliteTable("chat_documents", { chatId: text("chat_id") }); export const characterDocuments = sqliteTable("character_documents", { characterId: text("character_id") });\n',
+        "packages/server/src/domain/databank/verbs/insert.ts":
+          'import * as schema from "@orb/db"; export async function write(ctx, id) { await ctx.db["insert"](schema["chatDocuments"])["values"]({ chatId: id }); ctx.emitUserEvent("owner", { type: "databankChanged" }); }\n',
+        "packages/server/src/domain/databank/verbs/update.ts":
+          'import * as schema from "@orb/db"; export async function write(ctx, id) { await ctx.db["update"](schema["chatDocuments"])["set"]({ chatId: id }); ctx.emitUserEvent("owner", { type: "databankChanged" }); }\n',
+        "packages/server/src/domain/databank/verbs/delete.ts":
+          'import * as schema from "@orb/db"; export async function write(ctx, id) { await ctx.db["delete"](schema["chatDocuments"])["where"](id); ctx.emitUserEvent("owner", { type: "databankChanged" }); }\n',
+      },
+      expect: { count: 3, token: "emitUserEvent" },
+      why: "insert, update and delete chains written with static brackets still identify actor-only membership writes",
+    },
+    {
+      mode: "types",
       grant: { subject: "packages/server/src/domain/databank/persistence/scope.ts#chatDocuments", operation: OPERATION },
       files: {
         "packages/db/src/schema/databank.ts":
@@ -304,6 +319,20 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/databank.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const chatDocuments = sqliteTable("chat_documents", { chatId: text("chat_id") }); export const characterDocuments = sqliteTable("character_documents", { characterId: text("character_id") });\n',
+        "packages/server/src/domain/databank/verbs/fanned.ts":
+          'import * as schema from "@orb/db"; export async function write(ctx, id) { await ctx.db["update"](schema["chatDocuments"])["set"]({ chatId: id }); ctx.emitRoomDatabankChanged(id); ctx.emitUserEvent("owner", { type: "databankChanged" }); }\n',
+        "packages/server/src/domain/databank/verbs/private.ts":
+          'import * as schema from "@orb/db"; export async function write(ctx, id) { await ctx.db["delete"](schema["characterDocuments"])["where"](id); ctx.emitUserEvent("owner", { type: "databankChanged" }); }\n',
+        "packages/server/src/domain/databank/verbs/cache.ts":
+          'import * as schema from "@orb/db"; export async function write(ctx, id) { ctx.cache["delete"](schema["chatDocuments"]); ctx.emitUserEvent("owner", { type: "databankChanged" }); }\n',
+      },
+      why: "bracket spelling preserves the room-fan and non-membership acquittals without turning a chain-free cache delete into a Drizzle write",
+    },
     {
       mode: "types",
       files: {

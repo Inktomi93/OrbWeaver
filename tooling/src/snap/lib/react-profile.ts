@@ -11,6 +11,7 @@ import type {
   ReactProfileLimits,
   ReactProfilePageEvidence,
 } from "../contract/react-profile.ts";
+import { REACT_PROFILE_SUPPORTED_MINOR } from "../contract/react-profile.ts";
 
 const COMPOSITE_KINDS = new Set(["ClassComponent", "ForwardRef", "FunctionComponent", "LazyComponent", "MemoComponent", "SimpleMemoComponent"]);
 const ROUND_FACTOR = 1000;
@@ -130,6 +131,7 @@ export function summarizeReactActivity(pages: readonly ReactProfilePageEvidence[
 export function reactProfileInitScript(windowId: EvidenceWindowId): string {
   return `(() => {
   const WINDOW_ID = ${JSON.stringify(windowId)};
+  const SUPPORTED_MINOR = ${JSON.stringify(REACT_PROFILE_SUPPORTED_MINOR)};
   const LIMITS = ${JSON.stringify(REACT_PROFILE_LIMITS)};
   const GLOBAL_KEY = "__ORB_SNAP_REACT_PROFILE__";
   const existing = globalThis[GLOBAL_KEY];
@@ -326,7 +328,7 @@ export function reactProfileInitScript(windowId: EvidenceWindowId): string {
       const bundleType = Number.isFinite(renderer.bundleType) ? renderer.bundleType : null;
       const incompatibilities = [];
       if (packageName !== "react-dom") incompatibilities.push("renderer package " + packageName + " is not react-dom");
-      if (!/^19\\.2\\./.test(version)) incompatibilities.push("renderer version " + version + " is outside supported ReactDOM 19.2.x");
+      if (!version.startsWith(SUPPORTED_MINOR + ".")) incompatibilities.push("renderer version " + version + " is outside supported ReactDOM " + SUPPORTED_MINOR + ".x");
       if (bundleType !== 1) incompatibilities.push("bundleType " + String(bundleType) + " is not the development renderer");
       state.renderers.push({ id, packageName, version, bundleType, compatible: incompatibilities.length === 0, incompatibilities, injectedAtEpochMs: Date.now() });
       for (const incompatibility of incompatibilities) recordError("renderer " + id + " incompatible: " + incompatibility);
@@ -346,7 +348,7 @@ export function reactProfileInitScript(windowId: EvidenceWindowId): string {
         if (!Number.isFinite(current.treeBaseDuration)) shapeErrors.push("treeBaseDuration is absent");
         if (current.child !== null && typeof current.child !== "object") shapeErrors.push("child link is malformed");
         shapeErrors.push(...compositeShapeErrors(current));
-        if (shapeErrors.length) { recordError("React 19.2 Fiber shape drift: " + shapeErrors.join(", ")); return; }
+        if (shapeErrors.length) { recordError("React " + SUPPORTED_MINOR + " Fiber shape drift: " + shapeErrors.join(", ")); return; }
         const roots = rootsByRenderer.get(rendererId); if (roots) { if (current.memoizedState?.element === null) roots.delete(root); else roots.add(root); }
         const read = readTree(current); if (!read.fibers.length) { state.errors.push("commit tree was empty"); return; }
         const updaters = []; if (root.memoizedUpdaters) for (const updater of root.memoizedUpdaters) updaters.push({ id: fiberId(updater) });

@@ -203,7 +203,7 @@ function PickerCandidates({
               aria-label={`Add ${document.name} to this chat`}
               disabled={isOwned}
               intent="secondary"
-              onClick={(): void => void onAttach(document.id)}
+              onClick={(): void => void onAttach(document.id).catch(globalThis.reportError)}
               size="sm"
               type="button"
             >

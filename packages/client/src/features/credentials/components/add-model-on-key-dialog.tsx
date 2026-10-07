@@ -172,6 +172,6 @@ function SavedCatalogPicker({
 }): ReactElement {
   const catalog = useSuspenseQuery({ ...trpc.connection.catalogModels.queryOptions({ connectionId }), retry: false });
   // `refetch` resolves with the query's own state (a failed read lands in `catalog`, not a rejection).
-  const retry = (): void => void catalog.refetch();
+  const retry = (): void => void catalog.refetch().catch(globalThis.reportError);
   return <ModelPicker {...picker} source={catalog.isRefetching ? { status: "loading" } : modelListSource(catalog.data, retry)} />;
 }

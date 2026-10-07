@@ -33,7 +33,7 @@ export function LoginSurface(): ReactElement {
   const config = useAuthConfig();
   const navigate = useNavigate();
   const replaceUrl = useRouterUrlReplace();
-  const goHome = (): void => void navigate({ to: "/", replace: true });
+  const goHome = (): void => void navigate({ to: "/", replace: true }).catch(globalThis.reportError);
   // D259 — a signed-out invite visit stashed its token before the guard sent it here; the URL never carries it.
   const [joinToken, setJoinToken] = useState(peekJoinStash);
   const dismissJoin = (): void => {
@@ -69,7 +69,7 @@ export function LoginSurface(): ReactElement {
       return <LoginLoading />;
     }
     if (config.data === undefined) {
-      return <LoginUnreachable onRetry={(): void => void config.refetch()} />;
+      return <LoginUnreachable onRetry={(): void => void config.refetch().catch(globalThis.reportError)} />;
     }
     if (autoRedirect) {
       // The effect above is navigating away — show a settled "redirecting" note, not the manual button that

@@ -151,7 +151,7 @@ function CooccurringKeywords({ keyword }: { readonly keyword: string }): ReactEl
   if (cooccurring.error !== null) {
     // Wrapped, never passed by reference: `onRetry` rides a Button's onClick, so a bare `refetch` receives
     // React's MouseEvent as its options bag (side-eye 2026-08-21).
-    return <QueryErrorState label="the cooccurrences" onRetry={(): void => void cooccurring.refetch()} />;
+    return <QueryErrorState label="the cooccurrences" onRetry={(): void => void cooccurring.refetch().catch(globalThis.reportError)} />;
   }
   if (cooccurring.data.length === 0) {
     // The ONE surviving note in this file, and it earns its place: the user PICKED this keyword, so an
@@ -214,7 +214,7 @@ function StoryThemeDriftBody({
     return <SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />;
   }
   if (drift.error !== null) {
-    return <QueryErrorState label="story-theme drift" onRetry={(): void => void drift.refetch()} />;
+    return <QueryErrorState label="story-theme drift" onRetry={(): void => void drift.refetch().catch(globalThis.reportError)} />;
   }
   if (drift.data.length === 0) {
     return null;

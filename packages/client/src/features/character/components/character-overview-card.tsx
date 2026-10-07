@@ -76,7 +76,7 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
   // the panel's whole content, stuck, claiming to be working. The error arm comes FIRST because it is the
   // narrower claim: `isError` implies `data === undefined`, never the reverse.
   if (isError) {
-    return <QueryErrorState label="this character" onRetry={(): void => void refetch()} />;
+    return <QueryErrorState label="this character" onRetry={(): void => void refetch().catch(globalThis.reportError)} />;
   }
   if (data === undefined) {
     return <Text voice="quiet">Loading…</Text>;

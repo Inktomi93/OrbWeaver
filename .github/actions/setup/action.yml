@@ -13,16 +13,44 @@ runs:
     # devEngines-pinned Node itself, so there is no separate Node setup.
     - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       with:
-        cache: true
+        cache: false
+    # PR caches cannot warm main or release. One explicit owner restores for every trigger but only
+    # trusted push, manual and scheduled runs write the store and lockfile-verification metadata.
+    - id: pnpm
+      shell: bash
+      run: |
+        echo "version=$(pnpm --version)" >> "$GITHUB_OUTPUT"
+        {
+          echo 'paths<<EOF'
+          pnpm store path --silent
+          pnpm cache path --silent
+          echo EOF
+        } >> "$GITHUB_OUTPUT"
+        case "$GITHUB_EVENT_NAME" in
+          push|workflow_dispatch|schedule) echo 'save=true' >> "$GITHUB_OUTPUT" ;;
+          *) echo 'save=false' >> "$GITHUB_OUTPUT" ;;
+        esac
+    - id: pnpm-cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.pnpm.outputs.paths }}
+        key: pnpm-${{ runner.os }}-${{ runner.arch }}-${{ steps.pnpm.outputs.version }}-${{ hashFiles('pnpm-lock.yaml') }}
+        restore-keys: |
+          pnpm-${{ runner.os }}-${{ runner.arch }}-${{ steps.pnpm.outputs.version }}-
     - shell: bash
       run: pnpm install --frozen-lockfile
+    - if: steps.pnpm.outputs.save == 'true' && steps.pnpm-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.pnpm.outputs.paths }}
+        key: ${{ steps.pnpm-cache.outputs.cache-primary-key }}
     - id: playwright
       if: inputs.browsers == 'true'
       shell: bash
       run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
     - if: inputs.browsers == 'true'
       id: browser-cache
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/.cache/ms-playwright
         key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
@@ -33,3 +61,8 @@ runs:
     - if: inputs.browsers == 'true' && steps.browser-cache.outputs.cache-hit == 'true'
       shell: bash
       run: pnpm exec playwright install-deps chromium
+    - if: inputs.browsers == 'true' && steps.pnpm.outputs.save == 'true' && steps.browser-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ steps.browser-cache.outputs.cache-primary-key }}

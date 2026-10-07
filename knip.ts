@@ -61,10 +61,12 @@ export const config = {
         "scripts/**/*.ts",
         "!scripts/probes/st-goldens/sillytavern-runtime/**",
         "playwright/**/*.{ts,tsx}",
+        // The CT Vite transform reads this stylesheet as text rather than through an ESM import.
+        "playwright/index.css",
         "tests/support/**/*.{ts,tsx}",
         "tests/server/infra/plugin-host/_broker-containment-proof.ts",
       ],
-      project: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx}"],
+      project: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx,css}"],
       // The full binary analysis sees these deliberately fake executables in missing-binary and PATH-shim controls.
       // mkfifo is the POSIX coreutils binary the orchestrator-inject hook test uses to plant a FIFO transcript path;
       // it is an OS tool, never an npm dependency, so knip has no package to credit it to.
@@ -103,9 +105,6 @@ export const config = {
       // subpath held in a constant. Knip cannot resolve that indirection, while the heap suite exercises
       // the installed module and its exact-version compatibility fence.
       ignoreDependencies: ["chrome-devtools-mcp"],
-      // taskkill is the win32 OS binary killPidGroup's win32 arm execs (_shared/proc.ts) — never an npm
-      // dependency, so knip has no package to credit it to.
-      ignoreBinaries: ["taskkill"],
     },
     "packages/kit": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/contracts": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
@@ -151,7 +150,7 @@ export const config = {
       // must stay accounted for) and NOT to the production view. Without the row, dropping `./token-contract`
       // from the exports map in #1847 left `token-contract.ts` outside every project glob, and its ajv imports
       // read as unused devDependencies of @orb/ui. `src/**` keeps the `!` — that IS the shipped surface.
-      project: ["src/**/*.{ts,tsx}!", "*.ts"],
+      project: ["src/**/*.{ts,tsx,css}!", "*.ts"],
     },
     "packages/server": {
       // Entry auto-detected from package.json exports (`./*` → src/*/index.ts, covers src/entry/index.ts).
@@ -161,7 +160,7 @@ export const config = {
     "packages/client": {
       // main.tsx is auto-detected as an entry from index.html's <script type="module"> tag.
       entry: ["index.html"],
-      project: ["src/**/*.{ts,tsx}!"],
+      project: ["src/**/*.{ts,tsx,css}!"],
       // Tailwind v4: the vite plugin (@tailwindcss/vite) requires the bare `tailwindcss` package
       // resolvable at build; nothing imports it directly.
       ignoreDependencies: ["tailwindcss"],

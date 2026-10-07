@@ -142,7 +142,11 @@ function ContextBody({ documentId }: { readonly documentId: DocumentId }): React
     return <Text voice="gloss">Loading…</Text>;
   }
   if (error !== null) {
-    return isDocumentGone(error) ? <DocumentGone /> : <QueryErrorState label="this document" onRetry={(): void => void refetch()} />;
+    return isDocumentGone(error) ? (
+      <DocumentGone />
+    ) : (
+      <QueryErrorState label="this document" onRetry={(): void => void refetch().catch(globalThis.reportError)} />
+    );
   }
 
   return (

@@ -2,36 +2,36 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 694,
+    "sites": 700,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 694,
+      "deliberate-absorb": 700,
       "unproven": 0
     },
     "byGrammar": {
       "default": 159,
       "empty": 356,
-      "promise": 179
+      "promise": 185
     }
   },
   "rows": [
     {
-      "siteId": "packages/client/src/agent-nav/index.ts::buildAgentNav.openCharacter::queryClient.fetchQuery::1",
+      "siteId": "packages/client/src/agent-nav/index.ts::buildAgentNav.openCharacter::queryClient.query::1",
       "verdict": "deliberate-absorb",
       "reason": "a fetch failure is indistinguishable from an invalid id — the id arm falls through to the honest name-search arm below, same as resolveDirectChatId. Ends if this arm stops sharing its miss path with the invalid-id case."
     },
     {
-      "siteId": "packages/client/src/agent-nav/index.ts::buildAgentNav.openCharacter::queryClient.fetchQuery::2",
+      "siteId": "packages/client/src/agent-nav/index.ts::buildAgentNav.openCharacter::queryClient.query::2",
       "verdict": "deliberate-absorb",
       "reason": "the rejection is converted into an explicit `ok:false` NavResult the caller consumes as the verdict. Ends if this arm stops returning the failure as a NavResult."
     },
     {
-      "siteId": "packages/client/src/agent-nav/index.ts::resolveDirectChatId::queryClient.fetchQuery::1",
+      "siteId": "packages/client/src/agent-nav/index.ts::resolveDirectChatId::queryClient.query::1",
       "verdict": "deliberate-absorb",
       "reason": "a fetch failure is indistinguishable from an invalid id here — both collapse to the honest \"not found\" the caller already handles. Ends if this arm stops sharing its miss path with the invalid-id case."
     },
     {
-      "siteId": "packages/client/src/agent-nav/index.ts::resolveListedChat::queryClient.fetchQuery::1",
+      "siteId": "packages/client/src/agent-nav/index.ts::resolveListedChat::queryClient.query::1",
       "verdict": "deliberate-absorb",
       "reason": "the rejection is converted into an explicit `ok:false` NavResult the caller consumes as the verdict. Ends if this arm stops returning the failure as a NavResult."
     },
@@ -69,6 +69,11 @@
       "siteId": "packages/client/src/components/regex-script-picker.tsx::PickerRow::toggle::1",
       "verdict": "deliberate-absorb",
       "reason": "the selected mutation's own errorToast surfaces the failure. Ends if the mutation stops wiring an errorToast."
+    },
+    {
+      "siteId": "packages/client/src/components/reindex-confirm.tsx::useReindexConfirm.guard::query::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable preview opens the existing confirm without counts; no write proceeds without consent. Ends if preview failure bypasses confirmation."
     },
     {
       "siteId": "packages/client/src/data/auth-bootstrap.ts::confirmPendingJoin::res.json::1",
@@ -191,6 +196,21 @@
       "reason": "mintCardFrame's own catch already collapsed any failure to `undefined`; the reject arm here only exists for symmetry and sets the same render-floor state as the resolve arm. Ends if mintCardFrame stops swallowing its own failures."
     },
     {
+      "siteId": "packages/client/src/data/use-display-scripts.ts::usePrefetchDisplayScripts::queryClient.query::1",
+      "verdict": "deliberate-absorb",
+      "reason": "optional display transforms fall back to NO_SCRIPTS without changing canonical text; the native query cache owns error/retry state and RegexOnScreenGroup also reads this key through suspense. Ends if the optional fallback or query-error ownership changes."
+    },
+    {
+      "siteId": "packages/client/src/data/use-display-scripts.ts::usePrefetchDisplayScripts::queryClient.query::2",
+      "verdict": "deliberate-absorb",
+      "reason": "useDisplayScripts' optional room transforms fall back to NO_SCRIPTS without changing canonical text; the native query cache retains error/retry state. Ends if the optional fallback or query-error ownership changes."
+    },
+    {
+      "siteId": "packages/client/src/data/use-open-refinery.ts::useOpenRefinery.openRefinery::queryClient.query::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed roster explicitly takes the mint arm rather than locking this door (header); createEntityMutation's errorToast owns a failed startSession. Ends if roster failure stops permitting mint or the mutation loses its failure owner."
+    },
+    {
       "siteId": "packages/client/src/data/use-plugin-frame.ts::mintPluginFrame::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "documented in the JSDoc above — any failure resolves to undefined and the caller renders nothing. Ends if rendering nothing stops being an acceptable fallback."
@@ -276,6 +296,11 @@
       "reason": "useDeleteChat carries errorToast: \"Couldn't delete the chat.\" — the toast is the surface. Ends if useDeleteChat drops errorToast."
     },
     {
+      "siteId": "packages/client/src/features/chat/components/chat-options-menu.tsx::ChatOptionsMenu::startChat::1",
+      "verdict": "deliberate-absorb",
+      "reason": "useStartChat's mutation carries errorToast \"Couldn't start the chat.\"; this launcher stays in the current room on failure. Ends if useStartChat drops errorToast."
+    },
+    {
       "siteId": "packages/client/src/features/chat/components/gallery-upload-zone.tsx::GalleryUploadZone.landOne::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "a failed add is named on the dropzone's error line (`notAdded`); the mutation carries no toast. Ends if that line stops rendering."
@@ -296,11 +321,6 @@
       "reason": "the fork mutation's sticky error + global errorToast already surfaced the failure. Ends if the mutation drops its errorToast."
     },
     {
-      "siteId": "packages/client/src/features/chat/components/message-edit-textarea.tsx::MessageEditTextarea.onKeyDown::save::1",
-      "verdict": "deliberate-absorb",
-      "reason": "save() already catches the mutation's own errorToast-backed rejection internally; this outer catch is belt-and-suspenders. Ends if save() stops catching its own rejection."
-    },
-    {
       "siteId": "packages/client/src/features/chat/components/message-edit-textarea.tsx::MessageEditTextarea.save::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "useEditMessageMutation carries errorToast \"Couldn't save that edit.\" — the toast is the surface; staying in edit mode preserves the draft. Ends if the mutation drops its errorToast."
@@ -309,6 +329,16 @@
       "siteId": "packages/client/src/features/chat/hooks/use-guided-actions.ts::useGuidedActions.fireImpersonate::streamImpersonation::1",
       "verdict": "deliberate-absorb",
       "reason": "the .catch below explicitly toasts via notifyImpersonateFailure before restoring the typed steer — the failure is surfaced, not swallowed. Ends if the toast call is ever removed from the handler."
+    },
+    {
+      "siteId": "packages/client/src/features/chat/hooks/use-prefetch-room.ts::usePrefetchRoom::queryClient.query::1",
+      "verdict": "deliberate-absorb",
+      "reason": "this only warms chat.getChat; ChatThread's ordinary useSuspenseQuery and QueryBoundary own the same key's user-visible error/retry surface. Ends if consumer ownership changes or this warmer owns a user operation."
+    },
+    {
+      "siteId": "packages/client/src/features/chat/hooks/use-prefetch-room.ts::useWarmRoomOnIntent::queryClient.query::1",
+      "verdict": "deliberate-absorb",
+      "reason": "intent warming owns no user result; ChatThread's useSuspenseQuery and QueryBoundary own chat.getChat's error/retry surface. Ends if consumer ownership changes or warming becomes a user operation."
     },
     {
       "siteId": "packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx::NewChatPicker.found::startChat::1",
@@ -359,6 +389,11 @@
       "siteId": "packages/client/src/features/imagery/components/image-detail-body.tsx::ImageDetail.onSetBackground::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "the header comment above explains — the mutation carries errorToast: \"Couldn't set the chat background.\", which IS the handling; re-throwing would reach the outer .catch and double-toast. Ends if the mutation drops its errorToast."
+    },
+    {
+      "siteId": "packages/client/src/features/imagery/components/image-detail-body.tsx::ImageDetail.onSetBackground::query::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the resolver failure emits the existing \"Couldn't set the background\" toast; the nested mutation failure owns its separate errorToast. Ends if either failure loses its toast."
     },
     {
       "siteId": "packages/client/src/features/imagery/components/image-edit-body.tsx::ImageEdit.runEdit::catch::1",
@@ -509,11 +544,6 @@
       "siteId": "packages/client/src/features/roster-preset/hooks/use-start-roster.ts::useStartRoster.startRoster::startChat::1",
       "verdict": "deliberate-absorb",
       "reason": "startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning, and the roster survives for retry. Ends if either mutation stops owning its failure copy."
-    },
-    {
-      "siteId": "packages/client/src/features/rpg/components/rpg-dice-composer-items.tsx::RpgDiceComposerItems::rollIntoDraft::1",
-      "verdict": "deliberate-absorb",
-      "reason": "mutation failures already show a notice; any later exceptional rejection reaches the browser error reporter. Ends if the reporter stops surfacing errors."
     },
     {
       "siteId": "packages/client/src/features/rpg/components/rpg-dice-tool-card.tsx::parseDiceResult::catch::1",

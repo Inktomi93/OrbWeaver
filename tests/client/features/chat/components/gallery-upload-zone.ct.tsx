@@ -184,8 +184,9 @@ for (const viewport of [
     const zone = page.locator(DROPZONE);
     const input = zone.locator('input[type="file"]');
     await expect(zone.getByText(CAP_HINT)).toBeVisible();
-    // The dialog places its own initial focus a frame after it opens; take focus only once that has landed.
-    await expect.poll(() => page.evaluate(() => document.activeElement?.getAttribute("data-slot"))).toBe("dialog-popup");
+    // Native initial focus may target the popup or a tabbable child; take focus only after it enters this dialog.
+    const dialog = page.getByRole("dialog", { name: "Aria's gallery", exact: true });
+    await expect.poll(() => dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     await input.focus();
     await expect(input).toBeFocused();

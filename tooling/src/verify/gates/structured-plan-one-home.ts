@@ -10,6 +10,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import { resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { STRUCTURED_VEHICLES_NAME, structuredVehiclesFact } from "../lib/structured-vehicles-fact.ts";
+import { readMemberAccess } from "../lib/symbol-reference.ts";
 import { WIRE_SCHEMA_ENGINE } from "../lib/wire-schema-vocabulary-fact.ts";
 
 /** Names that spell a structured request: the scrub, its violation readers, and the forced-choice capability reads.
@@ -27,7 +28,7 @@ const TOOL_CHOICE = "toolChoice";
 const MESSAGE =
   "a structured-output or tool-call spelling outside the structured planner — how a schema or tool choice goes out is packages/inference/src/structured/plan.ts's alone.";
 const FIX =
-  "state the need and let the planner decide: pass the schema as a ResponseFormat, ask `planStructuredFor` / `carriesStructured` / `forcesToolRound` from `@orb/inference`, or build a forced round with `toForcedToolRoundRequest`. A reviewed exception waives the reported token with `@orb-waive structured-plan-one-home(<token>): <reason + end condition>`, where the token is the imported name, the vehicle string, or `toolChoice`.";
+  "state the need and let the planner decide: pass the schema as a ResponseFormat, ask `planStructuredFor` / `carriesStructured` / `forcesToolRound` from `@orb/inference`, or build a forced round with `toForcedToolRoundRequest`. A reviewed exception waives the reported token with `@orb-waive structured-plan-one-home(<token>): <reason + end condition>`, where the token is the imported name, the vehicle string, or the authored tool-choice property key.";
 
 /** A literal's text and the offset of that text inside the node (the opening quote). */
 function literalSlice(node: MorphNode): { readonly text: string; readonly offset: number } | undefined {
@@ -69,7 +70,8 @@ function toolChoiceName(node: MorphNode): MorphNode | undefined {
     return node.getNameNode();
   }
   const left = Node.isBinaryExpression(node) && node.getOperatorToken().getKind() === SyntaxKind.EqualsToken ? node.getLeft() : undefined;
-  return left !== undefined && Node.isPropertyAccessExpression(left) && left.getName() === TOOL_CHOICE ? left.getNameNode() : undefined;
+  const read = left === undefined ? undefined : readMemberAccess(left);
+  return read?.name === TOOL_CHOICE ? read.nameNode : undefined;
 }
 
 export const gate = defineGate({
@@ -120,7 +122,8 @@ export const gate = defineGate({
           visit: (node) => {
             const name = toolChoiceName(node);
             if (name !== undefined) {
-              ctx.report.node(name, { token: TOOL_CHOICE, offset: 0 });
+              const slice = literalSlice(name);
+              ctx.report.node(name, slice === undefined ? { token: name.getText(), offset: 0 } : { token: slice.text, offset: slice.offset });
             }
           },
         },
@@ -138,6 +141,24 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        [WIRE_SCHEMA_ENGINE]: `export const ${STRUCTURED_VEHICLES_NAME} = ["response-format", "forced-tool", "offered-tool"] as const;\n`,
+        "packages/client/src/features/x/bracket.ts": 'export function f(req: { toolChoice?: string }): void { req["toolChoice"] = "auto"; }\n',
+      },
+      expect: { count: 1, token: "toolChoice" },
+      why: "a quoted static bracket assignment is the same tool-choice decision and anchors inside its quote",
+    },
+    {
+      mode: "types",
+      files: {
+        [WIRE_SCHEMA_ENGINE]: `export const ${STRUCTURED_VEHICLES_NAME} = ["response-format", "forced-tool", "offered-tool"] as const;\n`,
+        "packages/client/src/features/x/key.ts": 'const KEY = "toolChoice"; export function f(req: { toolChoice?: string }): void { req[KEY] = "auto"; }\n',
+      },
+      expect: { count: 1, token: "KEY" },
+      why: "a static key binding names the same tool-choice write while its authored KEY remains the report position",
+    },
     {
       mode: "types",
       files: {
@@ -195,6 +216,24 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        [WIRE_SCHEMA_ENGINE]: `export const ${STRUCTURED_VEHICLES_NAME} = ["response-format", "forced-tool", "offered-tool"] as const;\n`,
+        "packages/client/src/features/x/waived-bracket.ts":
+          'export function f(req: { toolChoice?: string }): void {\n  // @orb-waive structured-plan-one-home(toolChoice): this exact bracket decision is reviewed; ends if the fixture stops writing it.\n  req["toolChoice"] = "auto";\n}\n',
+      },
+      why: "the quoted bracket position binds exactly one existing ordinary waiver",
+    },
+    {
+      mode: "types",
+      files: {
+        [WIRE_SCHEMA_ENGINE]: `export const ${STRUCTURED_VEHICLES_NAME} = ["response-format", "forced-tool", "offered-tool"] as const;\n`,
+        "packages/client/src/features/x/read.ts":
+          'export function read(req: { toolChoice?: string; label?: string }, key: string): string | undefined { req["label"] = "auto"; req[key] = "auto"; return req["toolChoice"]; }\n',
+      },
+      why: "reading toolChoice, writing another member, and an unreadable dynamic key are not a proved tool-choice write",
+    },
     {
       mode: "types",
       files: {

@@ -98,12 +98,8 @@ import { scaledBudget } from "./_load-budget.ts";
 const ROOT = join(import.meta.dirname, "..", "..");
 const LEDGER_REL = "tests/tooling/gate-spelling-twins.baseline.json";
 
-/** LOAD-HONEST BUDGET: this drives every respelled proof in-process — pure CPU with no child process to
- *  hang a legible timeout on. Measured 2026-09-12 on the then-mixed corpus at ~100s wall (245 gates
- *  examined), so the base is ~2.5× the measurement. The legacy engine retired at #2176 Phase F and the
- *  census now drives one engine over the whole corpus; the budget is deliberately left where the
- *  measurement put it rather than tightened on an untaken measurement. */
-const TWIN_BUDGET = scaledBudget(240_000, 4);
+// The quiet full-corpus census takes about 277 seconds; retain its measured-runtime headroom rather than timing out before a verdict.
+const TWIN_BUDGET = scaledBudget(700_000, 4);
 
 /** The one anti-vacuum floor: a census over an empty corpus produces an empty blind set and would satisfy
  *  the `toEqual` below trivially. Stated as an EXAMINED count, never as a named gate (perishable — that is

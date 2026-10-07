@@ -13,19 +13,10 @@ const ICON_SM_PX = "16";
 const ICON_MD_PX = "20";
 const ICON_LG_PX = "24";
 
-// lucide's absoluteStrokeWidth math (dist/esm/Icon.mjs): attribute = strokeWidth * 24 / size, so the
-// OPTICAL px weight is `strokeWidth` at every size. regular = 1.75, hairline = 1, bold = 2.5.
-// getComputedStyle reports stroke-width in px units even though the attribute is in viewBox units.
-const REGULAR_AT_MD = "2.1px"; // 1.75 * 24 / 20
-const HAIRLINE_AT_LG = "1px"; // 1 * 24 / 24
-const BOLD_AT_XS = "5px"; // 2.5 * 24 / 12
+const REGULAR_PX = "1.75px";
+const HAIRLINE_PX = "1px";
+const BOLD_PX = "2.5px";
 const OPTICAL_REGULAR_PX = 1.75;
-
-// The exact markup HEAD renders for `<Icon icon={X} />` — the default arm must stay byte-identical
-// after the axes landed (captured from HEAD's component via react-dom/server, then re-verified here
-// against the live DOM).
-const DEFAULT_ARM_SVG =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>';
 
 test("renders the glyph at the token size, decorative by default", async ({ mount }) => {
   const component = await mount(<CloseIconStory size="sm" />);
@@ -42,38 +33,54 @@ test("md is the default size and label makes the icon accessible", async ({ moun
   await expect(component).toHaveAttribute("aria-hidden", "false");
 });
 
-test("the default arm is byte-identical to the pre-axes seal", async ({ mount }) => {
+test("the default arm retains the glyph geometry with native non-scaling strokes", async ({ mount }) => {
   const component = await mount(<CloseIconStory />);
-  await expect.poll(async () => await component.evaluate((el) => el.outerHTML)).toBe(DEFAULT_ARM_SVG);
+  await expect(component).toHaveAttribute("viewBox", "0 0 24 24");
+  await expect(component.locator("path")).toHaveCount(2);
+  await expect(component.locator("path").nth(0)).toHaveAttribute("d", "M18 6 6 18");
+  await expect(component.locator("path").nth(1)).toHaveAttribute("d", "m6 6 12 12");
+  await expect(component.locator("path").nth(0)).toHaveCSS("vector-effect", "non-scaling-stroke");
+  await expect(component.locator("path").nth(1)).toHaveCSS("vector-effect", "non-scaling-stroke");
 });
 
-test("weight lands as a COMPUTED stroke-width and stays optically constant across sizes", async ({ mount }) => {
-  const regular = await mount(<CloseIconStory />);
-  await expect(regular).toHaveCSS("stroke-width", REGULAR_AT_MD);
-  await regular.unmount();
+test("weight lands on the painted paths and stays optically constant across sizes", async ({ mount }) => {
+  const component = await mount(<CloseIconStory />);
+  await expect(component.locator("path").first()).toHaveCSS("stroke-width", REGULAR_PX);
 
-  const hairline = await mount(<CloseIconStory size="lg" weight="hairline" />);
-  await expect(hairline).toHaveAttribute("width", ICON_LG_PX);
-  await expect(hairline).toHaveCSS("stroke-width", HAIRLINE_AT_LG);
-  await hairline.unmount();
+  await component.update(<CloseIconStory size="lg" weight="hairline" />);
+  await expect(component).toHaveAttribute("width", ICON_LG_PX);
+  await expect(component.locator("path").first()).toHaveCSS("stroke-width", HAIRLINE_PX);
 
-  const bold = await mount(<CloseIconStory size="xs" weight="bold" />);
-  await expect(bold).toHaveAttribute("width", ICON_XS_PX);
-  await expect(bold).toHaveCSS("stroke-width", BOLD_AT_XS);
+  await component.update(<CloseIconStory size="xs" weight="bold" />);
+  await expect(component).toHaveAttribute("width", ICON_XS_PX);
+  await expect(component.locator("path").first()).toHaveCSS("stroke-width", BOLD_PX);
 });
 
-test("absoluteStrokeWidth keeps the RENDERED px weight identical at xs and lg", async ({ mount }) => {
-  // The point of the axis: the stroke-width attribute is in viewBox units, so the on-screen px weight
-  // is attribute * (renderedSize / 24). Both sizes must resolve to the same 1.75px.
-  const small = await mount(<CloseIconStory size="xs" />);
-  await small.unmount();
-
-  const large = await mount(<CloseIconStory size="lg" />);
+test("nonScalingStroke keeps the rendered px weight identical at xs and lg", async ({ mount }) => {
+  const component = await mount(<CloseIconStory size="xs" />);
+  await expect(component).toHaveAttribute("width", ICON_XS_PX);
+  await expect(component.locator("path").first()).toHaveCSS("vector-effect", "non-scaling-stroke");
   await expect
-    .poll(async () => await small.evaluate((el) => Number.parseFloat(getComputedStyle(el).strokeWidth) * (el.getBoundingClientRect().width / 24)))
+    .poll(
+      async () =>
+        await component
+          .locator("path")
+          .first()
+          .evaluate((el) => Number.parseFloat(getComputedStyle(el).strokeWidth)),
+    )
     .toBeCloseTo(OPTICAL_REGULAR_PX);
+
+  await component.update(<CloseIconStory size="lg" />);
+  await expect(component).toHaveAttribute("width", ICON_LG_PX);
+  await expect(component.locator("path").first()).toHaveCSS("vector-effect", "non-scaling-stroke");
   await expect
-    .poll(async () => await large.evaluate((el) => Number.parseFloat(getComputedStyle(el).strokeWidth) * (el.getBoundingClientRect().width / 24)))
+    .poll(
+      async () =>
+        await component
+          .locator("path")
+          .first()
+          .evaluate((el) => Number.parseFloat(getComputedStyle(el).strokeWidth)),
+    )
     .toBeCloseTo(OPTICAL_REGULAR_PX);
 });
 

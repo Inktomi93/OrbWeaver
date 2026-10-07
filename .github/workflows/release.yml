@@ -57,7 +57,9 @@ jobs:
     env:
       # The name docker-compose.yaml pulls by default. GHCR names are lowercase.
       IMAGE: ghcr.io/inktomi93/orbweaver
+      BUILD_CACHE: ghcr.io/inktomi93/orbweaver:buildcache-release
       VERSION: ${{ needs.release-please.outputs.version }}
+      SOURCE_SHA: ${{ needs.release-please.outputs.sha }}
     steps:
       # The tag itself, so the build context carries `.git/refs/tags/v<version>` and the image's version
       # stamp derives the `stable` channel from it (docker/assemble-runtime.sh).
@@ -67,37 +69,42 @@ jobs:
           persist-credentials: false
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        id: builder
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       # A path context, not the action's default git context: only the checkout carries the ref files the
       # version stamp reads.
-      # The layer cache lives in the GitHub Actions cache between releases (docs.docker.com/build/cache/backends/gha),
-      # so a release whose lockfile did not change reuses the store fetch, the bulk of the dependency download. The
-      # stages after it re-run, because every release changes package.json's version and the source. `max` exports
-      # the intermediate stages too, which is where the fetch layer is. The cache mounts are not carried (the
-      # Dockerfile's `deps` stage says why that is safe). A failed cache export must not cost the release, so it
-      # is ignored; the next release just builds colder.
+      # Registry cache avoids the shared Actions-cache quota. This first pass only imports: no layers
+      # are published until identity and the critical vulnerability gate pass below.
       - name: Build the runtime image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
-          context: .
-          target: runtime
-          platforms: linux/amd64
+          builder: &release-builder ${{ steps.builder.outputs.name }}
+          context: &release-context .
+          target: &release-target runtime
+          platforms: &release-platforms linux/amd64
           load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max,ignore-error=true
+          cache-from: type=registry,ref=${{ env.BUILD_CACHE }}
           tags: |
             ${{ env.IMAGE }}:${{ env.VERSION }}
             ${{ env.IMAGE }}:latest
-          build-args: |
+          build-args: &release-build-args |
             GIT_SHA=${{ needs.release-please.outputs.sha }}
             IMAGE_VERSION=${{ env.VERSION }}
 
-      # Refuse to publish an image that would report itself as a development build or another version.
+      # The stamp and OCI revision must both identify the release source, not merely a matching version.
       - name: Prove the image is this stable release
         run: |
           stamp=$(docker run --rm --entrypoint cat "$IMAGE:$VERSION" /app/version.json)
           echo "version.json: $stamp"
-          echo "$stamp" | jq -e --arg version "$VERSION" '.version == $version and .channel == "stable"'
+          echo "$stamp" | jq -e --arg version "$VERSION" --arg sha "$SOURCE_SHA" '.version == $version and .channel == "stable" and .commit == $sha'
+          revision=$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$IMAGE:$VERSION")
+          test "$revision" = "$SOURCE_SHA"
 
       # A critical CVE with a fix available in the image's own packages stops the release before anything is
       # pushed; the weekly Security scans job watches the published image for the rest.
@@ -109,11 +116,18 @@ jobs:
           ignore-unfixed: true
           exit-code: "1"
 
-      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+      # Reuse this builder's verified result, without exporting a runtime image. max retains the
+      # intermediate fetch/install stages; cache mounts remain local. A failed export only costs warmth.
+      - name: Export the verified build cache
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          builder: *release-builder
+          context: *release-context
+          target: *release-target
+          platforms: *release-platforms
+          build-args: *release-build-args
+          outputs: type=cacheonly
+          cache-to: type=registry,ref=${{ env.BUILD_CACHE }},mode=max,ignore-error=true
 
       - name: Push both tags
         run: |

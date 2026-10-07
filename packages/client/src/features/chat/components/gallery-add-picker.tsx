@@ -149,7 +149,10 @@ function OwnedAssetPicker({ characterId, failure, isOwned, onConfirm, onUploadIn
 
   /** Runs the batch and keeps only what did not land — so a retry submits the remainder, never the whole
    *  set again. Every failure path leaves the selection intact, which is what makes the retry meaningful. */
-  const submit = (): void => void onConfirm([...selected]).then((stillOutstanding) => setSelected(new Set(stillOutstanding)));
+  const submit = (): void =>
+    void onConfirm([...selected])
+      .then((stillOutstanding) => setSelected(new Set(stillOutstanding)))
+      .catch(globalThis.reportError);
 
   let body: ReactElement;
   if (candidates.isPending) {

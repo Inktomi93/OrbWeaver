@@ -73,7 +73,7 @@ export function MemberCardViewer({ chatId, characterId, open, onOpenChange }: Me
             isError={card.isError}
             error={card.error}
             data={card.data}
-            onRetry={(): void => void card.refetch()}
+            onRetry={(): void => void card.refetch().catch(globalThis.reportError)}
           />
           <Row justify="end" className="shrink-0">
             <DialogClose render={<Button intent="ghost">Close</Button>} />

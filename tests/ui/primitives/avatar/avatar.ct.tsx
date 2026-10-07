@@ -40,6 +40,45 @@ test("falls back when no image source is given", async ({ mount, page }) => {
   await expect(page.locator('[data-slot="avatar-image"]')).toHaveCount(0);
 });
 
+test("keepMounted retains a hidden failed image without shrinking the fallback; default still unmounts", async ({ mount, page }) => {
+  await page.route("**/avatar-retained-error.png", (route) => route.abort("aborted"));
+  await mount(
+    <div>
+      <Avatar data-testid="retained-avatar" keepMounted={true} src="/avatar-retained-error.png" size="lg">
+        RT
+      </Avatar>
+      <Avatar data-testid="default-avatar" src="/avatar-retained-error.png" size="lg">
+        DF
+      </Avatar>
+    </div>,
+  );
+  const retained = page.getByTestId("retained-avatar");
+  const image = retained.locator('[data-slot="avatar-image"]');
+  await expect(image).toHaveCount(1);
+  await expect(image).toHaveAttribute("data-error", "");
+  await expect(image).toHaveAttribute("aria-hidden", "true");
+  await expect(image).toBeHidden();
+  for (const root of [retained, page.getByTestId("default-avatar")]) {
+    const fallback = root.locator('[data-slot="avatar-fallback"]');
+    await expect(fallback).toBeVisible();
+    await expect(fallback).toHaveAttribute("aria-hidden", "true");
+    await expect
+      .poll(async () => {
+        const [rootBox, fallbackBox] = await Promise.all([root.boundingBox(), fallback.boundingBox()]);
+        return rootBox === null || fallbackBox === null
+          ? null
+          : {
+              x: fallbackBox.x - rootBox.x,
+              y: fallbackBox.y - rootBox.y,
+              width: fallbackBox.width - rootBox.width,
+              height: fallbackBox.height - rootBox.height,
+            };
+      })
+      .toEqual({ x: 0, y: 0, width: 0, height: 0 });
+  }
+  await expect(page.getByTestId("default-avatar").locator('[data-slot="avatar-image"]')).toHaveCount(0);
+});
+
 // The initials fallback is DECORATIVE: still visible in the DOM, but aria-hidden so its letters never
 // leak into an accessible name (chat rows / message rows / cast bars all sit avatars beside a real text
 // label). A fallback-only avatar contributes NO accessible text — identity comes from the adjacent

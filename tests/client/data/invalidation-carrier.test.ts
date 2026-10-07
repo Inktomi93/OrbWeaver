@@ -157,7 +157,7 @@ describe("applyCanonView — the view carrier written into the room's message li
     const { queryClient, trpc } = setup();
     const key = trpc.chat.listMessages.queryKey({ chatId: CHAT_ID });
     const initial = Promise.withResolvers<ReturnType<typeof page>>();
-    const read = queryClient.fetchQuery({ queryKey: [...key], queryFn: () => initial.promise });
+    const read = queryClient.query({ queryKey: [...key], queryFn: () => initial.promise });
 
     applyCanonView(queryClient, trpc, {
       type: "messageCommitted",

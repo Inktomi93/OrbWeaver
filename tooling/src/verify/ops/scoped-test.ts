@@ -14,7 +14,7 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { warn } from "@orb/tooling/_shared/log";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
+import { testProcessEnv } from "@orb/tooling/_shared/process-env";
 import { runLeaseEnv, runMarkerEnv } from "@orb/tooling/_shared/run-marker";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { ScopedOperand } from "@orb/tooling/_shared/scoped-run-paths";
@@ -95,6 +95,7 @@ function collectNode(root: string, rest: readonly string[]): ScopedTestCollectio
   try {
     const res = runNicedSync(process.execPath, [vitestBin(root), "list", "--filesOnly", `--json=${out}`, ...rest], {
       cwd: root,
+      env: testProcessEnv(),
       maxBuffer: LIST_MAX_BUFFER,
     });
     if (res.status !== 0) {
@@ -133,7 +134,7 @@ function collectCt(root: string, rest: readonly string[]): ScopedTestCollection 
   try {
     res = runNicedSync(process.execPath, [playwrightBin(root), "test", "-c", CT_CONFIG, "--list", "--reporter=json", ...rest], {
       cwd: root,
-      env: inheritedProcessEnv({ [CT_RUN_SLOT_ENV]: dir, [CT_RUN_RACING_ENV]: "" }),
+      env: testProcessEnv({ [CT_RUN_SLOT_ENV]: dir, [CT_RUN_RACING_ENV]: "" }),
       maxBuffer: LIST_MAX_BUFFER,
     });
   } finally {
@@ -153,7 +154,7 @@ function spawnCt(root: string, rest: readonly string[], lease: { readonly cacheD
   const slot = openRunSlot(root, "ct");
   const ct = runNicedSync(process.execPath, [playwrightBin(root), "test", "-c", CT_CONFIG, ...rest], {
     cwd: root,
-    env: inheritedProcessEnv({
+    env: testProcessEnv({
       [CT_RUN_SLOT_ENV]: slot.dir,
       [CT_RUN_RACING_ENV]: slot.racing.join("\n"),
       ...runMarkerEnv(lease.runMarker),
@@ -228,7 +229,7 @@ function spawnNode(root: string, rest: readonly string[], mode: "run" | "related
       "--reporter=default",
       "--reporter=json",
     ],
-    { cwd: root, stdio: "inherit" },
+    { cwd: root, env: testProcessEnv(), stdio: "inherit" },
   );
   return node.status ?? EXIT.toolError;
 }

@@ -45,20 +45,14 @@ jobs:
     env:
       IMAGE: ghcr.io/inktomi93/orbweaver:latest
     steps:
-      # Before the first stable release there is no :latest to scan.
-      - id: exists
-        run: |
-          if docker manifest inspect "$IMAGE" > /dev/null 2>&1; then echo "found=true" >> "$GITHUB_OUTPUT"; else echo "No $IMAGE yet; skipping."; fi
-      - if: steps.exists.outputs.found == 'true'
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.IMAGE }}
           format: sarif
           output: trivy.sarif
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-      - if: steps.exists.outputs.found == 'true'
-        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           sarif_file: trivy.sarif
           category: trivy-image

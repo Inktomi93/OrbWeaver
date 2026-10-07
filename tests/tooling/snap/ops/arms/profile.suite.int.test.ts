@@ -1,4 +1,4 @@
-// @instrument-proof: a real Vite development page imports this checkout's React 19.2.7 renderer, mounts
+// @instrument-proof: a real Vite development page imports this checkout's React development renderer, mounts
 // a named expensive component beside a cheap twin, and schedules an update through Snap's real argv
 // drive. The ranked artifact must put the planted hot path above the twin and retain the component tree,
 // read-only inspection values, update/boundary evidence, page identity and React timing population.
@@ -16,6 +16,7 @@ import { pathToFileURL } from "node:url";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
 import { vi } from "vitest";
+import { REACT_PROFILE_SUPPORTED_MINOR } from "../../../../../tooling/src/snap/contract/react-profile.ts";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../../_load-budget.ts";
 
@@ -24,6 +25,7 @@ vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
 
 const QUIET = ["--no-shot", "--no-deadcss"];
 const SESSION_HOME_ENV = "ORB_SNAP_SESSION_HOME";
+const INCOMPATIBLE_VERSIONS = ["18.3.0", "19.4.0"] as const;
 const INDEX_HTML = `<!doctype html><html lang="en"><head><title>React profile fixture</title></head><body><main><div id="root"></div></main><script>window.__orb={consoleErrors:()=>({records:[],dropped:0,cap:128}),resetEvidence:()=>{}}</script><script type="module" src="/main.tsx"></script></body></html>`;
 const PLAIN_HTML = `<!doctype html><html lang="en" data-app-ready="settled"><head><title>No React</title></head><body><main>plain</main></body></html>`;
 const RENDERER_HTML = `<!doctype html><html lang="en"><head><title>Renderer only</title></head><body><main>renderer only</main><script type="module" src="/renderer.js"></script></body></html>`;
@@ -74,19 +76,19 @@ createRoot(document.getElementById("root")).render(e(App));
 const RENDERER_JS = `import "react-dom/client"; document.documentElement.dataset.appReady = "settled";`;
 const INCOMPATIBLE_JS = `
 const hook = globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;
-const rendererId = hook.inject({ rendererPackageName: "react-dom", version: "18.3.0", bundleType: 1 });
+const rendererId = hook.inject({ rendererPackageName: "react-dom", version: new URL(location.href).searchParams.get("version"), bundleType: 1 });
 hook.onCommitFiberRoot(rendererId, { current: { tag: 3, actualDuration: 1, treeBaseDuration: 1, child: null } });
 document.documentElement.dataset.appReady = "settled";
 `;
 const SHAPE_DRIFT_JS = `
 const hook = globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;
-const rendererId = hook.inject({ rendererPackageName: "react-dom", version: "19.2.7", bundleType: 1 });
+const rendererId = hook.inject({ rendererPackageName: "react-dom", version: "${REACT_PROFILE_SUPPORTED_MINOR}.0", bundleType: 1 });
 hook.onCommitFiberRoot(rendererId, { current: { tag: 3, treeBaseDuration: 1, child: null } });
 document.documentElement.dataset.appReady = "settled";
 `;
 const COMPOSITE_SHAPE_DRIFT_JS = `
 const hook = globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;
-const rendererId = hook.inject({ rendererPackageName: "react-dom", version: "19.2.7", bundleType: 1 });
+const rendererId = hook.inject({ rendererPackageName: "react-dom", version: "${REACT_PROFILE_SUPPORTED_MINOR}.0", bundleType: 1 });
 function MalformedComposite() {}
 const child = { tag: 0, type: MalformedComposite, elementType: MalformedComposite, key: null, alternate: null, flags: 1, memoizedProps: {}, memoizedState: null, child: null, sibling: null };
 hook.onCommitFiberRoot(rendererId, { current: { tag: 3, actualDuration: 1, treeBaseDuration: 1, memoizedState: { element: {} }, child } });
@@ -94,7 +96,7 @@ document.documentElement.dataset.appReady = "settled";
 `;
 const SERIALIZATION_STRESS_JS = `
 const hook = globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;
-const rendererId = hook.inject({ rendererPackageName: "react-dom", version: "19.2.7", bundleType: 1 });
+const rendererId = hook.inject({ rendererPackageName: "react-dom", version: "${REACT_PROFILE_SUPPORTED_MINOR}.0", bundleType: 1 });
 function DeepFiber() {}
 const cyclic = { label: "cyclic inspection value" };
 cyclic.self = cyclic;
@@ -370,21 +372,25 @@ test("unsupported renderers and Fiber shape drift refuse with observed compatibi
     await expect(contexts).toExitWith(EXIT.misuse);
     expect(contexts.stdout).toContain("scenario/contexts would bypass the analyzer lifecycle");
 
-    const incompatible = await runCli("snap", ["/incompatible.html", "--base", fixture.base, "--react-profile", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
-    await expect(incompatible).toExitWith(EXIT.toolError);
-    expect(incompatible.stdout).toContain("renderer version 18.3.0 is outside supported ReactDOM 19.2.x");
-    expect(incompatible.stdout).toContain("react-profile=REFUSED");
+    for (const version of INCOMPATIBLE_VERSIONS) {
+      const incompatible = await runCli("snap", [`/incompatible.html?version=${version}`, "--base", fixture.base, "--react-profile", ...QUIET], {
+        timeoutMs: CLI_TIMEOUT_MS,
+      });
+      await expect(incompatible).toExitWith(EXIT.toolError);
+      expect(incompatible.stdout).toContain(`renderer version ${version} is outside supported ReactDOM ${REACT_PROFILE_SUPPORTED_MINOR}.x`);
+      expect(incompatible.stdout).toContain("react-profile=REFUSED");
+    }
 
     const drift = await runCli("snap", ["/shape-drift.html", "--base", fixture.base, "--react-profile", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
     await expect(drift).toExitWith(EXIT.toolError);
-    expect(drift.stdout).toContain("React 19.2 Fiber shape drift: actualDuration is absent");
+    expect(drift.stdout).toContain(`React ${REACT_PROFILE_SUPPORTED_MINOR} Fiber shape drift: actualDuration is absent`);
     expect(drift.stdout).toContain("react-profile=REFUSED");
 
     const compositeDrift = await runCli("snap", ["/composite-shape-drift.html", "--base", fixture.base, "--react-profile", ...QUIET], {
       timeoutMs: CLI_TIMEOUT_MS,
     });
     await expect(compositeDrift).toExitWith(EXIT.toolError);
-    expect(compositeDrift.stdout).toContain("React 19.2 Fiber shape drift: MalformedComposite.actualDuration is absent");
+    expect(compositeDrift.stdout).toContain(`React ${REACT_PROFILE_SUPPORTED_MINOR} Fiber shape drift: MalformedComposite.actualDuration is absent`);
     expect(compositeDrift.stdout).toContain("MalformedComposite.treeBaseDuration is absent");
     expect(compositeDrift.stdout).toContain("react-profile=REFUSED");
   } finally {

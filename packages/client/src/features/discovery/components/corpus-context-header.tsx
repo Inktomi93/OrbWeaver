@@ -42,7 +42,7 @@ export function CorpusContextHeader(): ReactElement {
   let census: ReactElement | null = null;
   if (catalog.isError) {
     census = (
-      <Button intent="ghost" onClick={(): void => void catalog.refetch()} size="sm" type="button">
+      <Button intent="ghost" onClick={(): void => void catalog.refetch().catch(globalThis.reportError)} size="sm" type="button">
         Census unavailable — retry
       </Button>
     );
