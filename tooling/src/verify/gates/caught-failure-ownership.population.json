@@ -2,14 +2,14 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 700,
+    "sites": 701,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 700,
+      "deliberate-absorb": 701,
       "unproven": 0
     },
     "byGrammar": {
-      "default": 159,
+      "default": 160,
       "empty": 356,
       "promise": 185
     }
@@ -101,9 +101,14 @@
       "reason": "an absent or malformed error body degrades to the empty object, which reads as the unknown refusal (`null`); the refusal is still reported. Ends if every refusal body becomes guaranteed."
     },
     {
+      "siteId": "packages/client/src/data/bus/post-event-source.ts::PostEventSource.#connectedPayload::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "malformed connected metadata is a terminal wire refusal, surfaced by #fail to the existing subscription error UI. Ends if that terminal error is removed."
+    },
+    {
       "siteId": "packages/client/src/data/bus/post-event-source.ts::PostEventSource.#start::this.#connect::1",
       "verdict": "deliberate-absorb",
-      "reason": "a failed fetch or a broken body is a dropped connection, exactly like a clean end; its owner is the `error` event `#scheduleReconnect` dispatches to the tRPC consumer, and it does nothing once the source is closed."
+      "reason": "transport failures are owned by the bounded reconnect policy; one-shot/exhausted streams emit a terminal error consumed by the existing failure UI. Ends if #scheduleReconnect stops publishing those failures."
     },
     {
       "siteId": "packages/client/src/data/bus/room-registry.ts::createRoomRegistry.attemptAnnounce::wire.attach::1",
