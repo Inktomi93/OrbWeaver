@@ -642,12 +642,12 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       },
       refreshStanding: async (event) => {
         for (const view of await notifications.refreshStanding({ event })) {
-          publishNotification(view);
+          publishNotification(view, true);
         }
       },
       retractStanding: async ({ recipientUserId, type }) => {
         for (const view of await notifications.retract({ recipientUserId, type })) {
-          publishNotification(view);
+          publishNotification(view, true);
         }
       },
       post: async ({ pluginId, installerUserId, chatId, recipient, message }) => {

@@ -569,16 +569,16 @@ describe("notifications fan-out — record (durable) → publishNotification (li
       // LIVE half: the PERSISTED InboxView (with its seq) arrives on the per-user bus…
       const live = await nextLive;
       expect(live.done).toBe(false);
-      expect(live.value?.payload).toMatchObject({
+      expect(live.value?.view.payload).toMatchObject({
         type: "kicked",
         recipientUserId: member,
         chatId,
       });
-      expect(live.value?.seq).toBeGreaterThan(0);
+      expect(live.value?.view.seq).toBeGreaterThan(0);
       // …DURABLE half: the same event is on the recipient's inbox (deliverable without the bus).
       const inbox = await result.services.notifications.list({ principal: principal(member) });
       expect(inbox.items.map((i) => i.type)).toContain("kicked");
-      expect(inbox.items.find((i) => i.type === "kicked")?.seq).toBe(live.value?.seq);
+      expect(inbox.items.find((i) => i.type === "kicked")?.seq).toBe(live.value?.view.seq);
     } finally {
       // Pre-arm the terminal next() so the abort's AbortError rejection is HANDLED (no unhandled noise).
       const closed = iter.next().catch(() => undefined);
