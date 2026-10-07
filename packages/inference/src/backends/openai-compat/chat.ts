@@ -739,7 +739,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   };
 
   // A word-keyed logit bias resolves once per turn, from the cache where held (one tokenize call per new word).
-  const sampling = await resolveWordBias(knobs.sampling, connection, deps.tokens, warnings);
+  const sampling = await resolveWordBias({ sampling: knobs.sampling, connection, lexicon: deps.tokens, warnings, signal: req.signal });
   const turnKnobs: TurnKnobs = {
     automaticCache,
     knobs,
