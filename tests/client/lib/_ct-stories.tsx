@@ -210,6 +210,10 @@ export function MotionVirtualizedShiftStory(): ReactElement {
   );
 }
 
+// LoAF delivery needs a >50ms frame, not merely a completed entrance. This real transition task
+// supplies that precondition on fast hosts; the ordinary blocking budget remains unchanged.
+const SELECT_EVIDENCE_TASK_MS = 60;
+
 /** A real sealed anchored portal for the LoAF first-mount classifier. Both accessors come from the
  * story's module instance; a page-side import would read a second empty ring. */
 export function MotionAnchoredPortalStory(): ReactElement {
@@ -217,6 +221,14 @@ export function MotionAnchoredPortalStory(): ReactElement {
   const [blockSelectOpen, setBlockSelectOpen] = useState(false);
   useEffect(() => {
     installMotionObservers();
+    let evidenceFramePlanted = false;
+    const plantEntranceFrame = (event: TransitionEvent): void => {
+      if (!evidenceFramePlanted && event.propertyName === "opacity" && event.target instanceof Element && event.target.matches('[data-slot="select-popup"]')) {
+        evidenceFramePlanted = true;
+        blockMainThread(SELECT_EVIDENCE_TASK_MS);
+      }
+    };
+    document.addEventListener("transitionstart", plantEntranceFrame, { capture: true });
     const probes = globalThis as typeof globalThis & {
       __motionRead: typeof motionSnapshot | undefined;
       __motionReset: typeof __resetMotionStats | undefined;
@@ -224,6 +236,7 @@ export function MotionAnchoredPortalStory(): ReactElement {
     probes.__motionRead = motionSnapshot;
     probes.__motionReset = __resetMotionStats;
     return (): void => {
+      document.removeEventListener("transitionstart", plantEntranceFrame, { capture: true });
       probes.__motionRead = undefined;
       probes.__motionReset = undefined;
     };

@@ -190,6 +190,24 @@ describe("the notifications room — durable-first resume", () => {
     // 6 was withheld as a duplicate; the next frame is 7, not a second 6.
     expect(inboxFrame(next).seq).toBe(7);
   });
+
+  test("a live settlement behind the resume cursor is delivered without rewinding it", async () => {
+    const { replaySince } = inboxLog([11]);
+    const iterator = await openInboxRoom(ctxWith({ replaySince }), { sinceSeq: 10 });
+    try {
+      expect(inboxFrame(await iterator.next()).seq).toBe(11);
+      const next = iterator.next();
+      const settled = { ...inboxView(6), readAt: 12, dismissedAt: 13 };
+      publishNotification(settled, true);
+      publishNotification(inboxView(12));
+      const delivered = inboxFrame(await next);
+      expect(delivered.event).toEqual(settled);
+      expect(delivered.seq).toBe(11);
+      expect(inboxFrame(await iterator.next()).seq).toBe(12);
+    } finally {
+      await iterator.return?.(undefined);
+    }
+  });
 });
 
 // ── #1627 — THE BELT IS OFF THIS ROOM. ─────────────────────────────────────────────────────────

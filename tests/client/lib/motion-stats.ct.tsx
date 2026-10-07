@@ -162,12 +162,23 @@ function readMotion(page: Page): Promise<MotionRead> {
 
 async function motionWhen(page: Page, predicate: (motion: MotionRead) => boolean): Promise<MotionRead> {
   let motion = await readMotion(page);
-  await expect
-    .poll(async () => {
-      motion = await readMotion(page);
-      return predicate(motion);
-    }, evidencePoll())
-    .toBe(true);
+  try {
+    await expect
+      .poll(async () => {
+        motion = await readMotion(page);
+        return predicate(motion);
+      }, evidencePoll())
+      .toBe(true);
+  } catch (error) {
+    const entranceMarks = await page.evaluate(() =>
+      performance
+        .getEntriesByType("mark")
+        .filter((entry) => entry.name.startsWith("orb:select-entrance:"))
+        .map(({ name, startTime }) => ({ name, startTime })),
+    );
+    await test.info().attach("motion-evidence", { body: JSON.stringify({ motion, entranceMarks }, null, 2), contentType: "application/json" });
+    throw error;
+  }
   return motion;
 }
 

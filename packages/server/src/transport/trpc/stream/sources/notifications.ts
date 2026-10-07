@@ -6,7 +6,9 @@
 //
 // Attach the live listener FIRST (`on()` buffers from that instant), replay the durable rows newer than the
 // room's cursor through the inbox's own ASCENDING resume read (`replaySince`), then drain live — the
-// overlap deduped by the monotonic `seq`. A CURSOR-LESS attach replays NOTHING and goes straight live: the
+// insert overlap deduped by the monotonic `seq`. In-place corrections and settlements always go live,
+// carrying the non-advancing resume watermark instead of their older row seq. A CURSOR-LESS attach replays
+// NOTHING and goes straight live: the
 // client already loaded the inbox through `notifications.list`, and re-sending the whole inbox on a first
 // attach would be a second copy of a read it just did. That is the same first-subscribe-vs-reconnect
 // asymmetry `lastEventId` expressed before the fold.
@@ -77,13 +79,14 @@ export const notificationsRoomSource: RoomSourceDef<"notifications"> = {
       }
     }
 
-    for await (const view of live) {
-      // Dedup the replay/live overlap (and any out-of-order delivery) by the monotonic `seq`.
-      if (view.seq <= maxSeq) {
+    for await (const { view, inPlace } of live) {
+      // Row seq identifies an insert, not a revision: quiet standing-ask writes retain it.
+      if (!inPlace && view.seq <= maxSeq) {
         continue;
       }
-      yield { channel: "notifications", seq: view.seq, event: view };
-      maxSeq = view.seq;
+      const nextSeq = Math.max(maxSeq, view.seq);
+      yield { channel: "notifications", seq: nextSeq, event: view };
+      maxSeq = nextSeq;
     }
   },
 };
