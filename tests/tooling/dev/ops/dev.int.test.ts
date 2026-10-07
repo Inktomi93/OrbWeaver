@@ -22,10 +22,13 @@ const POLL_MS = 250;
 const SIGTERM_EXIT = 143;
 const VIOLATIONS_EXIT = 1;
 const STACK_FRAME_RE = /^\s+at /mu;
+const VITE_HOST = "localhost";
+const SERVER_HOST = "127.0.0.1";
+const IPV6_LOOPBACK = "::1";
 
 async function freePort(): Promise<number> {
   const server = createServer();
-  server.listen(0, "127.0.0.1");
+  server.listen(0, SERVER_HOST);
   await once(server, "listening");
   const address = server.address();
   server.close();
@@ -36,8 +39,8 @@ async function freePort(): Promise<number> {
   return address.port;
 }
 
-async function portRefuses(port: number): Promise<boolean> {
-  const socket = connect(port, "127.0.0.1");
+async function portRefuses(port: number, host: string): Promise<boolean> {
+  const socket = connect(port, host);
   try {
     await once(socket, "connect");
     return false;
@@ -83,6 +86,24 @@ function startLauncher(repoRoot: string, cwd: string): { readonly child: ChildPr
   return { child, pid: child.pid, output: () => chunks.join("") };
 }
 
+test("the shutdown probe distinguishes an IPv6 listener from a refused IPv4 twin", async () => {
+  const server = createServer();
+  server.listen(0, IPV6_LOOPBACK);
+  await once(server, "listening");
+  const address = server.address();
+  if (address === null || typeof address === "string") {
+    throw new Error("IPv6 control did not bind a TCP port");
+  }
+  try {
+    expect(await portRefuses(address.port, SERVER_HOST)).toBe(true);
+    expect(await portRefuses(address.port, IPV6_LOOPBACK)).toBe(false);
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+  expect(await portRefuses(address.port, IPV6_LOOPBACK)).toBe(true);
+});
+
 async function exitOf(child: ChildProcess, ceilingMs: number): Promise<number | null | "timeout"> {
   if (child.exitCode !== null) {
     return child.exitCode;
@@ -106,7 +127,7 @@ test("a SIGTERM to the launcher stops the server and vite it started, and it exi
     const polls = Math.ceil(BOOT_CEILING_MS / POLL_MS);
     let up = false;
     for (let i = 0; i < polls && !up && child.exitCode === null; i += 1) {
-      up = (await answers(`http://127.0.0.1:${serverPort}/healthz`)) && (await answers(`http://127.0.0.1:${vitePort}/`));
+      up = (await answers(`http://${SERVER_HOST}:${serverPort}/healthz`)) && (await answers(`http://${VITE_HOST}:${vitePort}/`));
       if (!up) {
         await new Promise((resolve) => setTimeout(resolve, POLL_MS));
       }
@@ -114,13 +135,13 @@ test("a SIGTERM to the launcher stops the server and vite it started, and it exi
     expect(up, `both children must answer before the signal:\n${output()}`).toBe(true);
 
     // Through vite's proxy: the client reaches this launch's server, and no `.env` auth key means single-user.
-    const config: unknown = await (await fetch(`http://127.0.0.1:${vitePort}/api/auth/config`)).json();
+    const config: unknown = await (await fetch(`http://${VITE_HOST}:${vitePort}/api/auth/config`)).json();
     expect(config).toMatchObject({ mode: "single-user" });
 
     process.kill(pid, "SIGTERM");
     expect(await exitOf(child, STOP_CEILING_MS), output()).toBe(SIGTERM_EXIT);
-    expect(await portRefuses(serverPort), "the server must not outlive the launcher").toBe(true);
-    expect(await portRefuses(vitePort), "vite must not outlive the launcher").toBe(true);
+    expect(await portRefuses(serverPort, SERVER_HOST), "the server must not outlive the launcher").toBe(true);
+    expect(await portRefuses(vitePort, VITE_HOST), "vite must not outlive the launcher").toBe(true);
   } finally {
     killPidGroup(pid, "SIGKILL");
   }
@@ -137,8 +158,8 @@ test("a setting the server would refuse stops the launch before either child sta
     expect(output()).toContain("OIDC_ISSUER");
     expect(output(), "a refusal is the named keys alone, never a stack").not.toMatch(STACK_FRAME_RE);
     expect(existsSync(join(scratch, "data")), "the server never booted, so it created no data dir").toBe(false);
-    expect(await portRefuses(serverPort)).toBe(true);
-    expect(await portRefuses(vitePort)).toBe(true);
+    expect(await portRefuses(serverPort, SERVER_HOST)).toBe(true);
+    expect(await portRefuses(vitePort, VITE_HOST)).toBe(true);
   } finally {
     killPidGroup(pid, "SIGKILL");
   }

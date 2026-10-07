@@ -126,7 +126,7 @@ test("existing opt-in flags remove only their corresponding default tag exclusio
   expect(testTagFilters(flags(["E2E_LIVE", "1"], ["ORB_LOCAL_LIGHT_E2E", "1"]))).toEqual([]);
 });
 
-test("every test module that directly invokes process.chdir registers the worker-thread capability", ({ repoRoot }) => {
+test("every test module that directly invokes process.chdir registers the worker-thread capability", { tags: "slow" }, ({ repoRoot }) => {
   const sourceFiles = getWorkspace({ root: repoRoot, globs: vitestRuntimeGlobs(repoRoot) }).getSourceFiles();
   const directModules = directProcessChdirModules(sourceFiles);
 
