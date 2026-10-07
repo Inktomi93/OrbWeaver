@@ -256,6 +256,23 @@ test("ONE socket fault raises ONE alert, and it is the socket's own copy — not
   await expect(toasts.locator('[data-slot="toast-action"]')).toHaveText("Try again");
 });
 
+test("exhausted reconnects surface the existing actionable socket failure and explicit retry starts a fresh budget", async ({ mount, page }) => {
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "chat.getChat": getChat });
+  let connects = 0;
+  await page.route("**/api/trpc/stream.connect**", async (route) => {
+    connects += 1;
+    // No connected frame: these attempts must consume the same budget rather than reset it.
+    await route.fulfill({ status: 200, headers: { "content-type": "text/event-stream" }, body: "retry: 100\n\n" });
+  });
+  await mount(<SocketFaultToastStory chatId={GAME_CHAT} />);
+  const toast = page.locator('[data-slot="toast-root"]');
+  await expect(toast.locator('[data-slot="toast-title"]')).toHaveText("Lost the live connection");
+  await expect(toast.getByRole("button", { name: "Try again" })).toBeVisible();
+  expect(connects).toBe(6);
+  await toast.getByRole("button", { name: "Try again" }).click();
+  await expect.poll(() => connects).toBeGreaterThan(6);
+});
+
 test("a SIBLING stream stub does not eat the socket — both route on the PROCEDURE (#1491)", async ({ mount, page }) => {
   // THE DEFECT: both stubs registered `**/api/trpc/**` and branched on the ACCEPT HEADER alone, so whichever
   // was installed LAST answered every tRPC subscription in the test — playwright runs route handlers in

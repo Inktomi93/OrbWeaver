@@ -37,6 +37,9 @@ import type { RpgBusEvent } from "#rpg";
 import type { UserBusEvent } from "#user-bus";
 import type { WorkloadEvent } from "#workloads";
 
+/** The SSE inactivity window, shared by server-advertised native options and the browser adapter. */
+export const STREAM_INACTIVITY_TIMEOUT_MS = 45_000;
+
 /** A room the client may attach to. `user`/`notifications` are self-scoped (the channel key IS the caller's
  *  principal — no input can widen them); the three chat-scoped rooms carry the `chatId` they address, and
  *  `workloads` carries the ONE run it tails (owner-scoped at attach, inside the room's own gate). */

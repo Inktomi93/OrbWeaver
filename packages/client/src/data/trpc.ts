@@ -77,8 +77,13 @@ export function createTrpcClient(url: string = TRPC_URL): TrpcClient {
     links: [
       splitLink({
         condition: (op) => op.type === "subscription",
-        // biome-ignore lint/style/useNamingConvention: `EventSource` is the option name `@trpc/client` defines.
-        true: httpSubscriptionLink({ url, EventSource: PostEventSource }),
+        true: httpSubscriptionLink({
+          url,
+          // biome-ignore lint/style/useNamingConvention: `EventSource` is the option name `@trpc/client` defines.
+          EventSource: PostEventSource,
+          // Only the multiplexed feed replays; a new impersonation connection would generate again.
+          eventSourceOptions: ({ op }) => ({ reconnect: op.path === "stream.connect" }),
+        }),
         false: [
           loggerLink({
             enabled: (op) => IS_DEV || (op.direction === "down" && op.result instanceof Error),
