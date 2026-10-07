@@ -395,3 +395,104 @@ test("workflow-history exclusion follows a merged generation on the second paren
     }),
   ).toMatchObject({ base: qualified, head, eventBase, authority: "qualified", code: false, toolMode: "affected" });
 });
+
+test("unqualified current-generation ancestry enumerates workflow boundaries rather than reading each legacy tree", { timeout: scaledBudget(60_000) }, async ({
+  scratch,
+  fakeBin,
+}) => {
+  execFixtureGit(scratch, ["init", "--initial-branch=main"]);
+  execFixtureGit(scratch, ["config", "user.name", "Orb Test"]);
+  execFixtureGit(scratch, ["config", "user.email", "orb@example.invalid"]);
+  writeFileSync(join(scratch, ".gitignore"), "fake-bin\nci-*\n");
+  mkdirSync(join(scratch, ".github/workflows"), { recursive: true });
+  const workflowPath = join(scratch, ".github/workflows/ci.yml");
+  writeFileSync(workflowPath, "env: { generation: legacy }\n");
+  execFixtureGit(scratch, ["add", "."]);
+  execFixtureGit(scratch, ["commit", "-m", "publication"]);
+  const publication = execFixtureGit(scratch, ["rev-parse", "HEAD"]).trim();
+  for (let index = 0; index < 150; index += 1) {
+    execFixtureGit(scratch, ["commit", "--allow-empty", "-m", "legacy"]);
+  }
+  writeFileSync(workflowPath, "env: { generation: current }\n");
+  execFixtureGit(scratch, ["add", "."]);
+  execFixtureGit(scratch, ["commit", "-m", "unqualified generation"]);
+  const current = execFixtureGit(scratch, ["rev-parse", "HEAD"]).trim();
+  execFixtureGit(scratch, ["commit", "--allow-empty", "-m", "candidate"]);
+  const head = execFixtureGit(scratch, ["rev-parse", "HEAD"]).trim();
+  await fakeBin(
+    "gh",
+    [
+      "import fs from 'node:fs';const endpoint=process.argv[3];fs.appendFileSync('ci-requests.jsonl',endpoint+'\\n');",
+      "process.stdout.write(JSON.stringify(endpoint.endsWith('/workflows/ci.yml')?{id:7,path:'.github/workflows/ci.yml'}:{total_count:0,workflow_runs:[]}));",
+    ].join("\n"),
+  );
+  await fakeBin(
+    "git",
+    [
+      "import fs from 'node:fs';import {delimiter} from 'node:path';import {execFileSync} from 'node:child_process';",
+      "const args=process.argv.slice(2);fs.appendFileSync('ci-git.jsonl',JSON.stringify(args)+'\\n');",
+      "const env={...process.env,PATH:process.env.PATH.split(delimiter).filter(part=>part!==import.meta.dirname).join(delimiter)};",
+      "try{process.stdout.write(execFileSync('git',args,{env,encoding:'utf8'}));}catch(error){process.stderr.write(String(error.stderr??error.message));process.exitCode=error.status??1;}",
+    ].join("\n"),
+  );
+  const config = {
+    repository: REPOSITORY,
+    generation: GENERATION,
+    publication,
+    hasCurrentGeneration: (source: string): boolean => source.includes("generation: current"),
+  };
+  expect(resolveCiQualification(scratch, head, current, config)).toMatchObject({ base: publication, authority: "publication", toolMode: "full", code: true });
+  const reads = readFileSync(join(scratch, "ci-git.jsonl"), "utf8")
+    .trim()
+    .split(/\r?\n/u)
+    .map((line) => JSON.parse(line) as string[]);
+  expect(reads.filter((args) => args.includes("ls-tree") || args.includes("show")).length).toBeLessThanOrEqual(4);
+  expect(
+    readFileSync(join(scratch, "ci-requests.jsonl"), "utf8")
+      .split(/\r?\n/u)
+      .filter((line) => line.includes("head_sha=")),
+  ).toEqual([`${API_ROOT}/workflows/7/runs?head_sha=${current}&event=push&branch=main&per_page=100&page=1`]);
+});
+
+test("generation reverts and merges retaining a legacy workflow preserve older qualified second-parent authority", async ({ scratch, fakeBin }) => {
+  await fakeBin("gh", API_FIXTURE);
+  execFixtureGit(scratch, ["init", "--initial-branch=main"]);
+  execFixtureGit(scratch, ["config", "user.name", "Orb Test"]);
+  execFixtureGit(scratch, ["config", "user.email", "orb@example.invalid"]);
+  writeFileSync(join(scratch, ".gitignore"), "fake-bin\nci-*\n");
+  mkdirSync(join(scratch, ".github/workflows"), { recursive: true });
+  const workflowPath = join(scratch, ".github/workflows/ci.yml");
+  writeFileSync(workflowPath, "env: { generation: legacy }\n");
+  execFixtureGit(scratch, ["add", "."]);
+  execFixtureGit(scratch, ["commit", "-m", "publication"]);
+  const publication = execFixtureGit(scratch, ["rev-parse", "HEAD"]).trim();
+  execFixtureGit(scratch, ["checkout", "-b", "generation"]);
+  writeFileSync(workflowPath, "env: { generation: current }\n");
+  execFixtureGit(scratch, ["add", "."]);
+  execFixtureGit(scratch, ["commit", "-m", "qualified generation"]);
+  const qualified = execFixtureGit(scratch, ["rev-parse", "HEAD"]).trim();
+  writeFileSync(workflowPath, "env: { generation: legacy }\n");
+  execFixtureGit(scratch, ["add", "."]);
+  execFixtureGit(scratch, ["commit", "-m", "generation revert"]);
+  execFixtureGit(scratch, ["checkout", "main"]);
+  execFixtureGit(scratch, ["commit", "--allow-empty", "-m", "legacy main"]);
+  execFixtureGit(scratch, ["merge", "--no-ff", "--no-edit", "-s", "ours", qualified]);
+  const legacyMerge = execFixtureGit(scratch, ["rev-parse", "HEAD"]).trim();
+  execFixtureGit(scratch, ["merge", "--no-ff", "--no-edit", "generation"]);
+  const revertedMerge = execFixtureGit(scratch, ["rev-parse", "HEAD"]).trim();
+  writeFileSync(workflowPath, "env: { generation: current }\n");
+  execFixtureGit(scratch, ["add", "."]);
+  execFixtureGit(scratch, ["commit", "-m", "current candidate"]);
+  const head = execFixtureGit(scratch, ["rev-parse", "HEAD"]).trim();
+  writeFileSync(join(scratch, "ci-api.json"), JSON.stringify(metadata(qualified)));
+  const result = resolveCiQualification(scratch, head, revertedMerge, {
+    repository: REPOSITORY,
+    generation: GENERATION,
+    publication,
+    hasCurrentGeneration: (source: string): boolean => source.includes("generation: current"),
+  });
+  expect(result).toMatchObject({ base: qualified, head, authority: "qualified", toolMode: "affected" });
+  const requests = readFileSync(join(scratch, "ci-requests.jsonl"), "utf8");
+  expect(requests).not.toContain(`head_sha=${legacyMerge}`);
+  expect(requests).not.toContain(`head_sha=${revertedMerge}`);
+});

@@ -51,21 +51,36 @@ function commitHasGeneration(root: string, commit: string, config: CiQualificati
   return entry !== "" && config.hasCurrentGeneration(execGit(root, [...GIT_READ_PREFIX, "show", `${commit}:${WORKFLOW_PATH}`]));
 }
 
-function ancestryHasGeneration(root: string, head: string, config: CiQualificationConfig, deadline: number): boolean {
-  // Full history follows every parent; a current generation introduced on a merged branch cannot disappear from this inventory.
-  const revisions = execGit(root, [...GIT_READ_PREFIX, "log", "--full-history", "--format=%H", `${head}^@`, "--", WORKFLOW_PATH])
+function currentGenerationAncestors(root: string, head: string, config: CiQualificationConfig, deadline: number): readonly string[] {
+  const graph = execGit(root, [...GIT_READ_PREFIX, "rev-list", "--topo-order", "--parents", head])
     .trim()
     .split(/\r?\n/u)
-    .filter(Boolean);
-  for (const revision of revisions) {
+    .filter(Boolean)
+    .map((line) => line.split(" "));
+  const revisions = new Set(
+    execGit(root, [...GIT_READ_PREFIX, "log", "--full-history", "--format=%H", head, "--", WORKFLOW_PATH])
+      .trim()
+      .split(/\r?\n/u)
+      .filter(Boolean),
+  );
+  const current = new Set<string>();
+  const order: string[] = [];
+  for (const [commit, ...parents] of graph.toReversed()) {
+    if (commit === undefined) {
+      throw new Error("qualified ancestry contains an incomplete Git commit row");
+    }
     if (performance.now() >= deadline) {
       throw new Error("qualified-ancestor discovery exceeded its supported time bound");
     }
-    if (commitHasGeneration(root, revision, config)) {
-      return true;
+    order.push(commit);
+    const inherited = parents.some((parent) => current.has(parent));
+    // Unlisted commits inherit an unchanged parent workflow; mixed-generation merges require their own tree.
+    const inspect = revisions.has(commit) || (inherited && parents.some((parent) => !current.has(parent)));
+    if (inspect ? commitHasGeneration(root, commit, config) : inherited) {
+      current.add(commit);
     }
   }
-  return false;
+  return order.toReversed().filter((commit) => commit !== head && current.has(commit));
 }
 
 function latestMainPush(runs: readonly z.infer<typeof RUN>[], sha: string): z.infer<typeof RUN> | undefined {
@@ -192,20 +207,13 @@ export function qualificationDecision(root: string, { head, eventBase, base, aut
 /** Select the nearest qualified ancestor by Git topology, never the newest unrelated successful run. */
 export function resolveCiQualification(root: string, head: string, eventBase: string, config: CiQualificationConfig): QualificationDecision {
   COMMIT_ID.parse(head);
-  const ancestors = execGit(root, [...GIT_READ_PREFIX, "rev-list", "--topo-order", head])
-    .trim()
-    .split(/\r?\n/u)
-    .slice(1);
   const deadline = performance.now() + budget(METADATA_BUDGET_BASE_MS);
   let candidates = 0;
   try {
-    const candidatesToInspect = ancestryHasGeneration(root, head, config, deadline) ? ancestors : [];
+    const candidatesToInspect = currentGenerationAncestors(root, head, config, deadline);
     for (const ancestor of candidatesToInspect) {
       if (performance.now() >= deadline) {
         throw new Error("qualified-ancestor discovery exceeded its supported time bound");
-      }
-      if (!commitHasGeneration(root, ancestor, config)) {
-        continue;
       }
       candidates += 1;
       if (candidates > MAX_ANCESTORS) {
