@@ -17,6 +17,7 @@ const BASIC_OPTION: OrbChartOption = {
 
 test("renders and exposes its accessible name via ECharts' native aria component", async ({ mount }) => {
   const component = await mount(<Chart label="Widget usage" option={BASIC_OPTION} />);
+  await expect(component.locator("canvas")).toBeVisible();
   await expect(component.getByRole("img", { name: "Widget usage" })).toBeVisible();
 });
 

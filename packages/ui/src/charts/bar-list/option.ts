@@ -10,8 +10,8 @@
 // the widest formatted label, the category column from a share of the container width, with the name
 // ellipsized inside it (the untruncated name survives in the tooltip).
 import type { OrbChartOption } from "../chart/echarts-setup.ts";
-import { AXIS_LABEL_OUTER_BOUNDS } from "../chart/echarts-setup.ts";
 import { CHART_LABEL_FONT_FAMILY, CHART_LABEL_FONT_SIZE_PX, widestChartLabelPx } from "../chart/label-metrics.ts";
+import { AXIS_LABEL_OUTER_BOUNDS } from "../chart/merge-option.ts";
 import type { ChartColors } from "../chart/use-chart-theme.ts";
 
 export interface BarListItem {

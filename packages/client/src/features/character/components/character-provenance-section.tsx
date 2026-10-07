@@ -4,16 +4,9 @@
 
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Row, Section, Stack } from "@orb/ui/layout";
-import type { StatFigureProps } from "@orb/ui/stat-figure";
+import { StatFigure } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { lazy, Suspense } from "react";
-
-// Lazy so the ~60MB echarts package (pulled in by @orb/ui/stat-figure) never lands in the entry chunk.
-const StatFigure = lazy(async () => {
-  const mod = await import("@orb/ui/stat-figure");
-  return { default: mod.StatFigure };
-}) as (props: StatFigureProps) => ReactElement;
 
 /** The derived refinery signals (a numeric quality score + an opaque analysis blob), or null. */
 interface CharacterRefinery {
@@ -38,9 +31,7 @@ export function CharacterProvenanceSection({ importedFrom, importHash, extension
         {refinery === null || refinery.score === null ? (
           <Text voice="quiet">Not analyzed yet.</Text>
         ) : (
-          <Suspense fallback={null}>
-            <StatFigure label="Refinery score" value={refinery.score.toFixed(SCORE_DECIMALS)} />
-          </Suspense>
+          <StatFigure label="Refinery score" value={refinery.score.toFixed(SCORE_DECIMALS)} />
         )}
       </Section>
 

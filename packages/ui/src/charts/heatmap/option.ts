@@ -4,7 +4,7 @@
 // can't resolve. The gradient runs `background` → `series` (chart-1), a single-hue sequential ramp that
 // retints with a custom theme.
 import type { OrbChartOption } from "../chart/echarts-setup.ts";
-import { AXIS_LABEL_OUTER_BOUNDS } from "../chart/echarts-setup.ts";
+import { AXIS_LABEL_OUTER_BOUNDS } from "../chart/merge-option.ts";
 import type { ChartColors } from "../chart/use-chart-theme.ts";
 
 export interface HeatmapMatrix {

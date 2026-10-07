@@ -393,9 +393,8 @@ async function withCompilerTransformCache(pluginPromise: ReturnType<typeof babel
 // Intra-package imports use the package.json `#*` subpath field (resolved natively by Vite) — there is
 // NO `@`/tsconfig-paths alias (orbweaver principle #2). No `base` (served at root), no version
 // `define`s (foundation/env owns runtime config). Zod and its client configuration share one chunk;
-// Rolldown auto-chunks the rest. The heavy seals — @orb/ui/stat-figure (ECharts) and @orb/ui/code-editor
-// (CodeMirror) — are `React.lazy`'d at their client call sites (character-provenance-section.tsx,
-// theme-editor.tsx), each getting its own chunk instead of riding the entry bundle (P1, rollup audit).
+// Rolldown auto-chunks the rest. ECharts loads behind the shared Chart renderer, while CodeMirror
+// loads at the theme editor's existing lazy boundary.
 //
 // ── HOW TO PROFILE THIS BUILD (nothing is wired permanently — it is one flag) ──────────────────────
 //   pnpm --filter @orb/client build -- --profile     # or: vite build --configLoader native --profile
