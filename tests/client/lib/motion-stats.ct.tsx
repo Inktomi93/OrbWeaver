@@ -73,6 +73,8 @@ const SOURCE_REQUEST_TIMEOUT_MS = 1000;
 const SOURCE_TOTAL_TIMEOUT_MS = 2000;
 const SOURCE_DEADLINE_CONTROL_MS = 200;
 const SELECT_CPU_DIAGNOSTIC_ENV = "ORB_SELECT_CPU_DIAGNOSTIC";
+const APP_BLOCKING_FRAME_CALLBACK = "plantAppBlockingFrame";
+const APP_BLOCKING_FRAME_INVOKER = "FrameRequestCallback";
 
 async function profileSelectOpening(cdp: CDPSession, opening: () => Promise<MotionRead>): Promise<MotionRead> {
   await cdp.send("Profiler.enable");
@@ -257,6 +259,17 @@ function readOpening(page: Page): Promise<SelectOpeningProbe> {
 
 function entranceTaskMotion(page: Page): Promise<MotionRead> {
   return motionWhen(page, (snapshot) => snapshot.loafs.some((loaf) => loaf.scripts.some((script) => script.sourceFunctionName === "plantEntranceFrame")));
+}
+
+function isAppBlockingFrame(loaf: MotionRead["loafs"][number]): boolean {
+  return (
+    loaf.blockingDuration > 50 &&
+    loaf.scripts.some((script) => script.sourceFunctionName === APP_BLOCKING_FRAME_CALLBACK && script.invoker === APP_BLOCKING_FRAME_INVOKER)
+  );
+}
+
+function appBlockingMotion(page: Page): Promise<MotionRead> {
+  return motionWhen(page, (motion) => motion.loafs.some(isAppBlockingFrame));
 }
 
 async function motionWhen(page: Page, predicate: (motion: MotionRead) => boolean): Promise<MotionRead> {
@@ -521,7 +534,7 @@ for (const sourceTransport of ["normal", "missing", "aborted", "deadline"] as co
       const blockingPoint = await hitPoint(page.getByRole("button", { name: "plant app blocking" }));
       await resetMotion(page);
       await page.mouse.click(blockingPoint.x, blockingPoint.y);
-      const blocked = await motionWhen(page, loafOverBudget);
+      const blocked = await appBlockingMotion(page);
       expect(blocked.loafs.every((loaf) => loaf.selectEntrance === undefined)).toBe(true);
       expect(loafOverBudget(blocked)).toBe(true);
 
@@ -571,7 +584,7 @@ test("a slow first Select render confirms its entrance without hiding its app bl
   const capEnd = (entrance?.confirmedAt ?? 0) + 300;
   await delay(300);
   await page.getByRole("button", { name: "plant app blocking" }).click();
-  const outside = await motionWhen(page, (snapshot) => snapshot.loafs.some((loaf) => loaf.startTime > capEnd && loaf.blockingDuration > 50));
+  const outside = await motionWhen(page, (snapshot) => snapshot.loafs.some((loaf) => loaf.startTime > capEnd && isAppBlockingFrame(loaf)));
   expect(outside.loafs.filter((loaf) => loaf.startTime > capEnd).every((loaf) => loaf.selectEntrance === undefined)).toBe(true);
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
 });
@@ -681,8 +694,17 @@ for (const openingCase of ["default-open", "synthetic"] as const) {
     }
     await expect(page.getByRole("listbox")).toBeVisible();
     await page.getByRole("button", { name: "plant app blocking", exact: true }).evaluate((element: HTMLButtonElement) => element.click());
-    const ordinary = await motionWhen(page, (motion) => motion.loafs.some((loaf) => loaf.blockingDuration > 50));
+    const ordinary = await appBlockingMotion(page);
+    const appFrame = ordinary.loafs.find(isAppBlockingFrame);
+    const appScript = appFrame?.scripts.find((script) => script.sourceFunctionName === APP_BLOCKING_FRAME_CALLBACK);
+    expect(appFrame).toBeDefined();
+    expect(appScript?.invoker).toBe(APP_BLOCKING_FRAME_INVOKER);
+    // LoAF subtracts 50ms: this callback alone must supply more than 50ms blocking, not borrow another task.
+    expect(appScript?.duration).toBeGreaterThan(100);
+    expect(appFrame?.blockingDuration).toBeGreaterThan(50);
+    await test.info().attach("ordinary-app-blocking", { body: JSON.stringify(appFrame), contentType: "application/json" });
     expect(ordinary.loafs.every((loaf) => loaf.selectEntrance?.confirmedAt === undefined)).toBe(true);
+    expect(loafOverBudget(ordinary)).toBe(true);
     await page.keyboard.press("Escape");
     await expect(trigger).toHaveAttribute("aria-expanded", "false");
     await resetMotion(page);
