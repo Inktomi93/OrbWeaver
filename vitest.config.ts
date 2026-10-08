@@ -3,7 +3,7 @@ import { budget } from "@orb/tooling/_shared/load-budget";
 import type { TestCompilerWorld, TestFamily, TestResource } from "@orb/tooling/_shared/test-kinds";
 import { runtimeForTestFamily, SEMANTIC_CORPUS_RESOURCE, TEST_KIND_DEFINITIONS, vitestTypecheckGroupName } from "@orb/tooling/_shared/test-kinds";
 import { applicationTestExclusions } from "@orb/tooling/_shared/test-population";
-import { TEST_TAGS } from "@orb/tooling/_shared/test-tags";
+import { LONG_TEST_TIMEOUT_BASE_MS, TEST_TAGS } from "@orb/tooling/_shared/test-tags";
 import type { TestProjectConfiguration, ViteUserConfig } from "vitest/config";
 import { defineConfig } from "vitest/config";
 import type { TestUserConfig } from "vitest/node";
@@ -182,7 +182,7 @@ export function vitestConfig(runtimeOnly = false, applicationOnly = false): Vite
             sequence: { groupOrder: REPOSITORY_GROUP_ORDER },
             include: withIgnored(REPOSITORY_TEST_GLOBS),
             fileParallelism: false,
-            testTimeout: budget(30_000),
+            testTimeout: budget(LONG_TEST_TIMEOUT_BASE_MS),
           },
         },
         {

@@ -8,14 +8,14 @@ import { budget } from "./load-budget.ts";
 // Project only the circular field to string; every executable tag option remains vendor-owned.
 type AuthoredTagDefinition = Omit<TestTagDefinition, "name"> & { readonly name: string };
 
-/** The quiet-box ceiling a `slow` test is allowed; the runner pays `budget()` of it on a contended box. */
-const SLOW_TIMEOUT_BASE_MS = 30_000;
+/** The quiet-box ceiling shared by slow cases and repository integration; contention scaling stays with the runner. */
+export const LONG_TEST_TIMEOUT_BASE_MS = 30_000;
 
 export const TEST_TAGS = [
   {
     name: "slow",
     description: "A test whose proven runtime needs the existing 30 second timeout.",
-    timeout: budget(SLOW_TIMEOUT_BASE_MS),
+    timeout: budget(LONG_TEST_TIMEOUT_BASE_MS),
   },
   {
     name: "requires-process-chdir",
