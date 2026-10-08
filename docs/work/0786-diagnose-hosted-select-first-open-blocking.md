@@ -27,6 +27,8 @@ The ordinary first-open budget fails in hosted and local native runs. Select pro
 
 Profiler-on and trace-only diagnostics execute the same cold render and compilation path with different observed durations. These observations do not establish the original failure's cause.
 
-The original-cohort capture records a native budget failure with matching emitted sources. The failing focus-origin task contains cold React work and compilation. Intra-React function attribution remains unresolved.
+The original-cohort capture records a native budget failure with matching emitted sources. The failing focus-origin task contains cold React work and compilation. Its intra-React attribution remains unresolved.
+
+Source-complete sampled diagnostics identify Select render and commit work without proving a product defect.
 
 Native trace finalization retains its referenced emitted bundles and source maps before CT lease cleanup without changing measurement. Native and deterministic file tests prove retention.
