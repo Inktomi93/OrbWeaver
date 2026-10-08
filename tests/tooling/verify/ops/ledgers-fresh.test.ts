@@ -185,7 +185,7 @@ const SELECTION_TIMEOUT = scaledBudget(12_000);
 test("the stage runs at every whole-tree tier and uses its complete argv for selected paths", { timeout: SELECTION_TIMEOUT }, () => {
   const stage = REGISTRY.find((entry) => entry.name === STAGE);
   expect(stage, `${STAGE} must be registered`).toBeDefined();
-  expect(stage?.tiers).toEqual(["changed", "static", "push", "full", "product"]);
+  expect(stage?.tiers).toEqual(["changed", "static", "push", "full", "product", "weekly"]);
   expect(stage?.argv).toEqual(["pnpm", "check:ledgers-fresh"]);
   // The trigger changes when the stage runs, never the population it derives: source and a markdown ledger run the
   // whole command, and plain markdown, which no ledger derives from, owes nothing.

@@ -375,7 +375,7 @@ test("the real membership stage blocks missing, wrong, duplicate, import-only, u
   expect(report.unknownPrograms).toContain("packages/fresh/tsconfig.json");
 });
 
-test("broken, empty and malformed native closure observations are tool errors", ({ repoRoot, scratch }) => {
+test("broken, empty and malformed native closure observations are tool errors", async ({ repoRoot, scratch }) => {
   const base =
     '{"compilerOptions":{"noEmit":true,"strict":true,"target":"es2025","module":"nodenext","moduleResolution":"nodenext","lib":["es2025"],"types":[]},"files":[]}';
   plantNativeMembershipRepo(repoRoot, scratch, {
@@ -393,10 +393,21 @@ test("broken, empty and malformed native closure observations are tool errors", 
   expect(runMembershipQuietly(scratch)).toBe(2);
   const source = join(scratch, "packages/kit/src/value.ts");
   const list = `if (process.argv.includes("--listFilesOnly")) process.stdout.write(${JSON.stringify(`${source}\n`)}); else `;
-  writeFileSync(script, `${list}process.stdout.write('{"files":["src/value.ts"]}');\n`);
-  expect(runMembershipQuietly(scratch)).toBe(0);
-  writeFileSync(script, `${list}process.stdout.write('not-json');\n`);
-  expect(runMembershipQuietly(scratch)).toBe(2);
+  // The root reader uses the canonical launcher; route only its native observation to the planted process.
+  const proc = await import("@orb/tooling/_shared/proc");
+  const runNative = proc.runNicedSync;
+  const native = vi
+    .spyOn(proc, "runNicedSync")
+    .mockImplementation((command, args, options) => runNative(command, args.includes("--showConfig") ? [script, ...args.slice(1)] : args, options));
+  try {
+    writeFileSync(script, `${list}process.stdout.write('{"files":["src/value.ts"]}');\n`);
+    expect(runMembershipQuietly(scratch)).toBe(0);
+    expect(native.mock.calls.filter(([, args]) => args.includes("--showConfig")).map(([, args]) => args[0])).toEqual([join(repoRoot, "scripts", "ts7.ts")]);
+    writeFileSync(script, `${list}process.stdout.write('not-json');\n`);
+    expect(runMembershipQuietly(scratch)).toBe(2);
+  } finally {
+    native.mockRestore();
+  }
 });
 
 test("native/shared root parity remains an independent two-sided comparison", () => {

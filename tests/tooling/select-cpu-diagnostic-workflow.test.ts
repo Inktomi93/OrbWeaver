@@ -32,8 +32,8 @@ const workflowSchema = z.object({
   ),
 });
 type Workflow = z.infer<typeof workflowSchema>;
-const ENTRY_JOBS = ["changes", "ci-ok", "qualification", "select-cpu-diagnostic"] as const;
-const NORMAL_JOBS = ["changes", "semantic-corpus", "static", "media", "node", "ct", "e2e-smoke", "ci-ok", "qualification"] as const;
+const ENTRY_JOBS = ["changes", "ci-ok", "qualification", "weekly-head", "weekly-ok", "select-cpu-diagnostic"] as const;
+const NORMAL_JOBS = ["changes", "static", "media", "node", "ct", "e2e-smoke", "ci-ok", "qualification", "weekly-head", "weekly-tooling", "weekly-ok"] as const;
 const WITHHELD_GUARD = "!inputs.select_cpu_diagnostic && ";
 
 function readWorkflow(repoRoot: string): Workflow {
@@ -46,13 +46,14 @@ function guard(expression: string, context: object): boolean {
   return Boolean(runInNewContext(expression.replace(/^\$\{\{\s*|\s*\}\}$/gu, ""), context));
 }
 
-function entries(workflow: Workflow, event: string, tier: string | undefined, diagnostic: boolean | undefined): readonly string[] {
+function entries(workflow: Workflow, event: string, mode: { tier: string | undefined; diagnostic: boolean | undefined; schedule?: string }): readonly string[] {
+  const { tier, diagnostic, schedule = "" } = mode;
   return ENTRY_JOBS.filter((name) => {
     const job = workflow.jobs[name];
     return (
       job !== undefined &&
       guard(job.if ?? "true", {
-        github: { ["event_name"]: event },
+        github: { ["event_name"]: event, event: { schedule } },
         inputs: { tier, ["select_cpu_diagnostic"]: diagnostic },
         always: () => true,
       })
@@ -63,18 +64,20 @@ function entries(workflow: Workflow, event: string, tier: string | undefined, di
 const MODES = [
   { event: "push", tier: undefined, diagnostic: undefined, enabled: ["changes", "ci-ok"] },
   { event: "pull_request", tier: undefined, diagnostic: undefined, enabled: ["changes", "ci-ok"] },
-  { event: "schedule", tier: undefined, diagnostic: undefined, enabled: ["qualification"] },
+  { event: "schedule", tier: undefined, diagnostic: undefined, schedule: "37 9 * * *", enabled: ["qualification"] },
+  { event: "schedule", tier: undefined, diagnostic: undefined, schedule: "37 9 * * 0", enabled: ["weekly-head", "weekly-ok"] },
   { event: "workflow_dispatch", tier: "push", diagnostic: undefined, enabled: ["changes", "ci-ok"] },
   { event: "workflow_dispatch", tier: "push", diagnostic: false, enabled: ["changes", "ci-ok"] },
   { event: "workflow_dispatch", tier: "product", diagnostic: false, enabled: ["qualification"] },
   { event: "workflow_dispatch", tier: "full", diagnostic: false, enabled: ["qualification"] },
-  ...["push", "product", "full"].map((tier) => ({ event: "workflow_dispatch", tier, diagnostic: true, enabled: ["select-cpu-diagnostic"] })),
+  { event: "workflow_dispatch", tier: "weekly", diagnostic: false, enabled: ["weekly-head", "weekly-ok"] },
+  ...["push", "product", "full", "weekly"].map((tier) => ({ event: "workflow_dispatch", tier, diagnostic: true, enabled: ["select-cpu-diagnostic"] })),
 ] as const;
 
 test("existing CI dispatch isolates diagnostic authority across every normal trigger and manual tier", ({ repoRoot }) => {
   const workflow = readWorkflow(repoRoot);
   for (const mode of MODES) {
-    expect(entries(workflow, mode.event, mode.tier, mode.diagnostic), JSON.stringify(mode)).toEqual(mode.enabled);
+    expect(entries(workflow, mode.event, mode), JSON.stringify(mode)).toEqual(mode.enabled);
   }
   expect(workflow.on.workflow_dispatch.inputs["select_cpu_diagnostic"]).toEqual({
     description: "Capture Select CPU diagnostics only; this run does not qualify the commit.",
@@ -82,22 +85,26 @@ test("existing CI dispatch isolates diagnostic authority across every normal tri
     default: false,
   });
   expect(Object.keys(workflow.jobs).toSorted()).toEqual([...NORMAL_JOBS, "select-cpu-diagnostic"].toSorted());
-  expect(workflow.jobs["static"]?.needs).toEqual(["changes", "semantic-corpus"]);
+  expect(workflow.jobs["static"]?.needs).toEqual(["changes"]);
   expect(workflow.jobs["static"]?.if).toBeUndefined();
-  expect(workflow.jobs["semantic-corpus"]?.needs).toBe("changes");
-  expect(workflow.jobs["semantic-corpus"]?.if).toBeUndefined();
   for (const name of ["media", "ct", "e2e-smoke"]) {
     expect(workflow.jobs[name]?.needs).toBe("changes");
     expect(workflow.jobs[name]?.if).toBe("needs.changes.outputs.code == 'true'");
   }
   expect(workflow.jobs["node"]?.needs).toEqual(["changes", "media"]);
   expect(workflow.jobs["node"]?.if).toBe("needs.changes.outputs.code == 'true'");
-  expect(workflow.jobs["ci-ok"]?.needs).toEqual(["changes", "semantic-corpus", "static", "media", "node", "ct", "e2e-smoke"]);
+  expect(workflow.jobs["ci-ok"]?.needs).toEqual(["changes", "static", "media", "node", "ct", "e2e-smoke"]);
   expect(workflow.concurrency.group).toContain("inputs.select_cpu_diagnostic && 'select-cpu-diagnostic'");
   expect(workflow["run-name"]).toContain("Select CPU diagnostic only");
 });
 
-for (const name of ["changes", "ci-ok", "qualification"] as const) {
+for (const [name, tier] of [
+  ["changes", "push"],
+  ["ci-ok", "push"],
+  ["qualification", "full"],
+  ["weekly-head", "weekly"],
+  ["weekly-ok", "weekly"],
+] as const) {
   test(`removing the actual ${name} diagnostic guard exposes forbidden qualification work`, ({ repoRoot }) => {
     const workflow = readWorkflow(repoRoot);
     const job = workflow.jobs[name];
@@ -106,9 +113,8 @@ for (const name of ["changes", "ci-ok", "qualification"] as const) {
     }
     expect(job.if).toContain(WITHHELD_GUARD);
     const mutant = { ...workflow, jobs: { ...workflow.jobs, [name]: { ...job, if: job.if.replace(WITHHELD_GUARD, "") } } };
-    const tier = name === "qualification" ? "full" : "push";
-    expect(entries(workflow, "workflow_dispatch", tier, true)).toEqual(["select-cpu-diagnostic"]);
-    expect(entries(mutant, "workflow_dispatch", tier, true)).toContain(name);
+    expect(entries(workflow, "workflow_dispatch", { tier, diagnostic: true })).toEqual(["select-cpu-diagnostic"]);
+    expect(entries(mutant, "workflow_dispatch", { tier, diagnostic: true })).toContain(name);
   });
 }
 

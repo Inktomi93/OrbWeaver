@@ -1462,7 +1462,7 @@ test("the public context type and runtime surface expose neither Project nor roo
   run([gate], project);
 
   expect(noForbiddenKeys).toBe(true);
-  expect(keys).toEqual(["checker", "fact", "files", "receipt", "relativePath", "report", "resourcePaths", "resources", "sourceFile"]);
+  expect(keys).toEqual(["checker", "fact", "files", "includesSubject", "receipt", "relativePath", "report", "resourcePaths", "resources", "sourceFile"]);
   expect(frozen).toEqual([true, true, true, true]);
   expect(mutations).toEqual([false, false, true]);
 });

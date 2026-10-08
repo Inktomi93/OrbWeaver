@@ -29,7 +29,12 @@ test("the WHOLE-CT-SUITE stage runs at push and full, with a ceiling derived fro
   const ct = stage("browser:ct");
   expect(ct.tiers, "the CT suite IS the push bar's coverage verdict — it must run there").toContain("push");
   expect(ct.tiers).toContain("full");
-  expect(ct.argv, "and it retries parallelism flakes VISIBLY at the gate tiers").toEqual(["pnpm", "test:ct", "--retries=2"]);
+  expect(ct.argv, "and it retries parallelism flakes VISIBLY at the gate tiers").toEqual([
+    "pnpm",
+    "test:ct",
+    "--retries=2",
+    "--config=playwright-ct.product.config.ts",
+  ]);
   // The load-bearing relation: this stage's ceiling is the DERIVED one, and it is strictly larger than the
   // default every other stage gets. A regression to a shared constant makes these two equal.
   expect(stageHangCeilingBaseMs(ct)).toBe(ctSuiteHangCeilingMs());
@@ -71,9 +76,9 @@ test("no two GATING stages invoke the same script — a split that double-runs i
   expect(new Set(invocations).size, `duplicate stage invocations: ${invocations.join(" · ")}`).toBe(invocations.length);
 });
 
-test("the tooling battery has a dedicated ceiling while preserving its full-only command", () => {
+test("the tooling battery has a dedicated ceiling while preserving its weekly-only command", () => {
   const tooling = stage("tests:tooling");
-  expect(tooling.tiers).toEqual(["full"]);
+  expect(tooling.tiers).toEqual(["weekly"]);
   expect(tooling.argv).toEqual(["pnpm", "test:tooling"]);
   expect(stageHangCeilingBaseMs(tooling)).toBe(readStageBudgets().toolingSuiteMs);
   expect(tooling.hangCeilingBaseMs).toBeGreaterThanOrEqual(readStageBudgets().defaultMs);
@@ -81,7 +86,8 @@ test("the tooling battery has a dedicated ceiling while preserving its full-only
 
 test("affected tooling can run the full battery within the same derived ceiling", () => {
   const affected = stage("tests:instrument-affected");
-  expect(affected.argv).toEqual(["pnpm", "check:instrument-affected"]);
+  expect(affected.tiers).toEqual(["manual"]);
+  expect(affected.argv).toEqual(["pnpm", "check:instrument-affected", "--weekly", "--affected"]);
   expect(stageHangCeilingBaseMs(affected)).toBe(readStageBudgets().toolingSuiteMs);
   expect(affected.hangCeilingBaseMs).toBeGreaterThanOrEqual(readStageBudgets().defaultMs);
 });

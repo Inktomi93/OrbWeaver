@@ -649,7 +649,16 @@ test("the push tier carries the behavioral suites the static tier omits (the `bo
   expect(rootPkg.scripts["test:ct"]).toContain("tooling/src/verify/cli.ts scoped-test ct");
   expect(rootPkg.scripts["test:ct"]).not.toContain("playwright test");
   expect(rootPkg.scripts["ct:scoped"]).toBeUndefined();
-  expect(REGISTRY.filter(({ argv }) => argv[0] === "pnpm" && argv[1] === "test:ct")).toHaveLength(1);
+  expect(
+    stagesForTier("push")
+      .filter(({ argv }) => argv[0] === "pnpm" && argv[1] === "test:ct")
+      .map(({ name }) => name),
+  ).toEqual(["browser:ct"]);
+  expect(
+    stagesForTier("weekly")
+      .filter(({ argv }) => argv[0] === "pnpm" && argv[1] === "test:ct")
+      .map(({ name }) => name),
+  ).toEqual(["browser:tooling-ct"]);
   // …and the static tier does NOT run behavioral suites (the core hole §2.1).
   const staticT = new Set(stagesForTier("static").map((s) => s.name));
   expect(staticT.has("tests:node")).toBe(false);

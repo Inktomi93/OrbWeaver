@@ -657,6 +657,7 @@ const DISPATCHER_INVARIANTS: readonly string[] = [
   "policy receipt must be an object with an exact discriminant",
   "resolved fact source path has no SourceFile: …",
   "resolved source population path has no SourceFile: …",
+  "resource-only policy has no application subject admission: …",
   "runPolicyPass accepts only policies branded by defineGate",
   "runPolicyPass owner plan mode is invalid for …",
   "runPolicyPass owner plan reason disagrees with mode for …",

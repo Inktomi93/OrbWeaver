@@ -20,7 +20,7 @@ import { populationIncludes } from "./population-resolver.ts";
 const LIST_FILES_MAX_BUFFER = 67_108_864;
 const TS7_WRAPPER = fileURLToPath(new URL("../../../../scripts/ts7.ts", import.meta.url));
 
-export function nativeApplicationClosure(root: string, program: ApplicationProgram): ReadonlySet<string> {
+function nativeApplicationClosure(root: string, program: ApplicationProgram): ReadonlySet<string> {
   const result = runNicedSync(process.execPath, [TS7_WRAPPER, "--noEmit", "--listFilesOnly", "-p", program.config], {
     cwd: root,
     maxBuffer: LIST_FILES_MAX_BUFFER,

@@ -86,7 +86,7 @@ test("an explicit changed path outside the repository is CLI misuse, not a tool 
 const TAIL_REFUSALS: readonly (readonly [string, readonly string[], string])[] = [
   ["run", ["--product", "--changed"], "product runs the whole tree"],
   ["run", ["--tier=product", "--package=kit"], "product runs the whole tree"],
-  ["ledgers-fresh", ["--scope", "packages/ui"], "takes no arguments"],
+  ["ledgers-fresh", ["--scope", "packages/ui"], "accepts only --application"],
   // `structure` now owns the final-policy scope grammar. An actually unknown token is still refused before
   // the run slot opens; `--changed` is a supported planner request and is exercised by the policy command tests.
   ["structure", ["--not-a-policy-flag"], "structure argument refusal"],
@@ -113,12 +113,19 @@ test("run help and the registry listing name product without promising tooling p
   expect(help.stdout).toContain("Scope selectors are refused");
   const list = await runCli("verify", ["run", "--product", "--list"], { env: smallHeapEnvWithPath(CALLER_PATH), timeoutMs: HELP_TIMEOUT_MS });
   await expect(list).toExitWith(0);
-  const product = list.stdout.split("  product:\n")[1]?.split("\n  manual")[0] ?? "";
+  const product = list.stdout.split("  product:\n")[1]?.split(/\n {2}\S/u)[0] ?? "";
   const names = product.split("\n").flatMap((line) => /^ {4}· (\S+)/u.exec(line)?.[1] ?? []);
   expect(names).toEqual(stagesForTier("product").map(({ name }) => name));
   expect(product).not.toContain("CONDITIONAL");
-  expect(product).toContain("argv: pnpm test:types --config=vitest.product.config.ts");
-  expect(product).toContain("argv: pnpm test:ct --retries=2 --config=playwright-ct.product.config.ts");
+  expect(product).not.toContain("tests:tooling");
+  expect(product).not.toContain("browser:tooling-ct");
+  const productStages = stagesForTier("product");
+  expect(productStages.find(({ name }) => name === "types:testd")?.argv).toEqual(["pnpm", "test:types", "--config=vitest.product.config.ts"]);
+  expect(productStages.find(({ name }) => name === "browser:ct")?.argv).toEqual(["pnpm", "test:ct", "--retries=2", "--config=playwright-ct.product.config.ts"]);
+  const weekly = list.stdout.split("  weekly:\n")[1]?.split(/\n {2}\S/u)[0] ?? "";
+  expect(weekly.split("\n").flatMap((line) => /^ {4}· (\S+)/u.exec(line)?.[1] ?? [])).toEqual(stagesForTier("weekly").map(({ name }) => name));
+  expect(weekly).toContain("tests:tooling");
+  expect(weekly).toContain("browser:tooling-ct");
 });
 
 test.for(TAIL_REFUSALS)(
