@@ -19,6 +19,7 @@ export type ConcurrencyProfileName = (typeof CONCURRENCY_PROFILE_NAMES)[number];
 /** Caps priced per UNIT of work: a worker, a checker, a pool slot. Each names its unit in {@link UNIT_OF}. */
 export const UNIT_PRICED_CAPS = [
   "vitestMaxWorkers",
+  "semanticCorpusMaxWorkers",
   "ctWorkers",
   "ts7Checkers",
   "eslintConcurrency",
@@ -36,7 +37,7 @@ export type RunPricedCap = (typeof RUN_PRICED_CAPS)[number];
 export type DerivedCap = UnitPricedCap | RunPricedCap;
 
 /** The measured kinds of work. The JSON's `unitCosts` row carries one cost per name. */
-export const UNIT_COST_NAMES = ["vitestWorker", "ctWorker", "ts7Checker", "eslintWorker", "cpdWorker", "hookLeg"] as const;
+export const UNIT_COST_NAMES = ["vitestWorker", "semanticCorpusWorker", "ctWorker", "ts7Checker", "eslintWorker", "cpdWorker", "hookLeg"] as const;
 export type UnitCostName = (typeof UNIT_COST_NAMES)[number];
 
 /** One unit's measured cost: the cores it keeps busy, the resident memory it adds, and the resident memory
@@ -57,6 +58,7 @@ export interface Machine {
 /** Which unit prices each unit cap. Stryker's worker pool is Vitest runner processes. */
 const UNIT_OF: Readonly<Record<UnitPricedCap, UnitCostName>> = {
   vitestMaxWorkers: "vitestWorker",
+  semanticCorpusMaxWorkers: "semanticCorpusWorker",
   strykerConcurrency: "vitestWorker",
   ctWorkers: "ctWorker",
   ts7Checkers: "ts7Checker",
@@ -77,6 +79,7 @@ const RUN_OF: Readonly<Record<RunPricedCap, { readonly of: UnitPricedCap; readon
 
 /** One profile's caps as a reader applies them. Every field has a reader:
  *  · `vitestMaxWorkers`        → vitest.config.ts `maxWorkers` (a CLI `--maxWorkers` still overrides)
+ *  · `semanticCorpusMaxWorkers` → vitest.config.ts isolated full-corpus project
  *  · `ctWorkers`               → playwright-ct.config.ts `workers` (a CLI `--workers` still overrides)
  *  · `ts7Checkers`             → scripts/ts7.ts injects `--checkers` when the caller named none
  *  · `pnpmWorkspaceConcurrency`→ verify/ops/typecheck.ts's native-program execution pool
@@ -183,6 +186,7 @@ function ceilingsFrom(file: Record<string, unknown>, name: ConcurrencyProfileNam
     name,
     machineShare: share,
     vitestMaxWorkers: intField(row, where, "vitestMaxWorkers"),
+    semanticCorpusMaxWorkers: intField(row, where, "semanticCorpusMaxWorkers"),
     ctWorkers: intField(row, where, "ctWorkers"),
     ts7Checkers: intField(row, where, "ts7Checkers"),
     pnpmWorkspaceConcurrency: intField(row, where, "pnpmWorkspaceConcurrency"),
@@ -216,6 +220,7 @@ function unitCostsFrom(file: Record<string, unknown>): UnitCosts {
   const row = objectAt(file["unitCosts"], 'has no "unitCosts" object');
   return {
     vitestWorker: unitCostFrom(row, "vitestWorker"),
+    semanticCorpusWorker: unitCostFrom(row, "semanticCorpusWorker"),
     ctWorker: unitCostFrom(row, "ctWorker"),
     ts7Checker: unitCostFrom(row, "ts7Checker"),
     eslintWorker: unitCostFrom(row, "eslintWorker"),
@@ -262,6 +267,7 @@ export function deriveConcurrencyProfile(committed: ProfileCeilings, costs: Unit
   };
   const units: Readonly<Record<UnitPricedCap, number>> = {
     vitestMaxWorkers: unit("vitestMaxWorkers"),
+    semanticCorpusMaxWorkers: unit("semanticCorpusMaxWorkers"),
     ctWorkers: unit("ctWorkers"),
     ts7Checkers: unit("ts7Checkers"),
     eslintConcurrency: unit("eslintConcurrency"),

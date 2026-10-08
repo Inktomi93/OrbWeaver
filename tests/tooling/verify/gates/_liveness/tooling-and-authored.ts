@@ -1,6 +1,6 @@
 // Real-corpus liveness arms (#2149) for the policies whose declared population is `@tooling` or `@authored`
-// (0042's third chunk). DATA, collected by the one runner (`../real-corpus-liveness-family.suite.repo.int.test.ts`),
-// which loads the structure run's own corpus once and runs every arm against it (docs/work/0043).
+// (0042's third chunk). DATA, collected by the one runner (`./runner.ts`),
+// which loads each isolated structure corpus once and runs every arm against it (docs/work/0043).
 //
 // EACH ARM IS ITS POLICY'S OWN `mustFlag` ROW, TRANSPLANTED ONTO THE REAL TREE: a new file inside a real tool
 // or package for an occurrence policy, every real subject taken away for a blindness tripwire, and a planted

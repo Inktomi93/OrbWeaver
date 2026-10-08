@@ -1,6 +1,8 @@
 // Canonical authored test vocabulary: one suffix definition owns family, compiler world, mirror behavior,
 // source compatibility, and the runtime runner derived from family. Native glob syntax stays with runners.
 
+export const SEMANTIC_CORPUS_RESOURCE = "semantic-corpus";
+
 const RAW_TEST_KIND_DEFINITIONS = [
   { suffix: ".test.ts", family: "unit", compilerWorld: "node", mirror: "module", sourceExtensions: [".ts"], resource: null },
   { suffix: ".dom.test.ts", family: "unit", compilerWorld: "browser", mirror: "module", sourceExtensions: [".ts", ".tsx"], resource: null },
@@ -14,6 +16,14 @@ const RAW_TEST_KIND_DEFINITIONS = [
     resource: "repository",
   },
   { suffix: ".suite.int.test.ts", family: "integration", compilerWorld: "node", mirror: "suite", sourceExtensions: [".ts"], resource: null },
+  {
+    suffix: ".suite.corpus.int.test.ts",
+    family: "integration",
+    compilerWorld: "node",
+    mirror: "suite",
+    sourceExtensions: [".ts"],
+    resource: SEMANTIC_CORPUS_RESOURCE,
+  },
   {
     suffix: ".suite.repo.int.test.ts",
     family: "integration",

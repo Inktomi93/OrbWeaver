@@ -1,6 +1,6 @@
 // Real-corpus liveness arms (#2149) for the leftover policies whose declared population is `@product`, `@db`,
 // or `@server` + `@inference` (0042's seventh chunk). DATA, collected by the one runner
-// (`../real-corpus-liveness-family.suite.repo.int.test.ts`), which loads the structure run's own corpus once
+// (`./runner.ts`), which loads each isolated structure corpus once
 // and runs every arm against it (docs/work/0043).
 //
 // EACH ARM IS ITS POLICY'S OWN `mustFlag` ROW, TRANSPLANTED ONTO THE REAL TREE: new modules import the real

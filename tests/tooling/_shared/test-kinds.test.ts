@@ -38,6 +38,13 @@ test("distinguishes DOM runtime and type kinds from their node-world twins", () 
   expect(classifyTestFilename("view.test-d.ts")?.definition).toMatchObject({ family: "type", compilerWorld: "node" });
 });
 
+test("isolated semantic corpus suites have a separately priced native resource", () => {
+  expect(classifyTestFilename("liveness.suite.corpus.int.test.ts")).toMatchObject({
+    definition: { family: "integration", compilerWorld: "node", mirror: "suite", resource: "semantic-corpus" },
+    sourceBasename: "liveness",
+  });
+});
+
 test("component mirrors accept TSX or TS sources and unknown suffixes stay unclassified", () => {
   expect(classifyTestFilename("button.ct.tsx")?.definition.sourceExtensions).toEqual([".tsx", ".ts"]);
   expect(classifyTestFilename("matrix.suite.ct.tsx")?.definition).toMatchObject({ mirror: "suite", compilerWorld: "browser" });
@@ -62,7 +69,7 @@ test("derived selectors and runtime dispatch cover the registry without duplicat
     ".suite.repo.int.test.ts",
     ".repo.int.test.ts",
   ]);
-  expect(TEST_RESOURCE_NAMES).toEqual(["repository"]);
+  expect(TEST_RESOURCE_NAMES).toEqual(["repository", "semantic-corpus"]);
   expect(VITEST_RUNTIME_FAMILY_GROUPS).toEqual(["contract", "integration", "unit"]);
   expect(VITEST_TYPECHECK_GROUP_NAMES).toEqual([vitestTypecheckGroupName("browser"), vitestTypecheckGroupName("node")]);
   expect(VITEST_RUNTIME_ONLY_GROUP_FILTER).toBe("!types-*");

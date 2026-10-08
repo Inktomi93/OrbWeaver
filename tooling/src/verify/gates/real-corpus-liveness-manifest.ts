@@ -19,13 +19,9 @@
 // every `PropertyAssignment` named `policy` whose initializer is one of the tracked gate imports counts as a
 // pin for that policy ID.
 //
-// WHY THE HOME IS A DIRECTORY AND NOT "ANY TEST" (docs/work/0043). The owner ruling made liveness ONE runner
-// (`real-corpus-liveness-family.suite.repo.int.test.ts`) that collects arm data from `_liveness/<chunk>.ts`
-// and loads verify's corpus once. An arm declared inline in a family test is data that runner never
-// reads, so crediting it would count a pin that runs nowhere. The census could instead follow the runner's
-// import graph, but that is a second reader for a fact knip already enforces: a `_liveness/` chunk the
-// runner does not import is an unused file. So the census is keyed on the home path, and the path is the
-// whole rule.
+// The canonical `_liveness/runner.ts` collects arm data for native corpus partitions. An inline arm that
+// registration never reads proves nothing. This census reads the arm home; knip and native collection
+// separately prove its imports and registered callbacks remain live.
 //
 // FAMILY `real-corpus-liveness-manifest` — a declared SINGLETON. Its subject is the cross-reference between
 // the gate roster and the liveness-arm vocabulary in family tests, which no existing shared reader serves.
@@ -176,7 +172,7 @@ const MESSAGE =
 
 const FIX =
   `Add a RealCorpusLivenessArm for this policy to a ${LIVENESS_HOME}<chunk>.ts file that ` +
-  "real-corpus-liveness-family.suite.repo.int.test.ts imports, then run that suite to prove the arm fires in " +
+  "_liveness/runner.ts imports, then run the native corpus suites to prove the arm fires in " +
   "both directions. An arm declared inline in a family test is not collected by the runner and does not count.";
 
 const POLICY_CONTRACT_STUB = `export function ${DEFINE_GATE}<const Policy>(policy: Policy): Policy {\n  return policy;\n}\n`;
