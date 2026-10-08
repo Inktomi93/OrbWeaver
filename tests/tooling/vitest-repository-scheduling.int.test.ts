@@ -203,5 +203,5 @@ test("native runtime realms execute product and tooling repository kinds in thei
 test("package runtime scripts use the proven native realms and quote shell globs", () => {
   const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as { readonly scripts?: Record<string, string> };
   expect(packageJson.scripts?.["test:node"]).toContain("run --exclude 'tests/tooling/**' --runtime-only");
-  expect(packageJson.scripts?.["test:tooling"]).toContain("run tests/tooling --runtime-only");
+  expect(packageJson.scripts?.["test:tooling"]).toBe("node tooling/src/verify/cli.ts instrument-affected --weekly");
 });

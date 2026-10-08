@@ -1,5 +1,5 @@
-// Only current-generation main-push workflow success can authorize inherited qualification.
-// Publication admits a version baseline, not old test success; it requires complete current proof.
+// Only current-generation main-push product evidence can authorize inherited qualification.
+// Publication admits a version baseline, not old tests; unrelated weekly proof never grants or vetoes authority.
 
 import process from "node:process";
 import { execGit, GIT_READ_PREFIX, runGit } from "@orb/tooling/_shared/git";
@@ -50,9 +50,9 @@ const API_TIMEOUT_BASE_MS = 10_000;
 const METADATA_BUDGET_BASE_MS = 120_000;
 const WORKFLOW_PATH = ".github/workflows/ci.yml";
 const QUALIFICATION_REQUIREMENTS = {
-  qualified: { code: false, toolMode: "affected" },
-  publication: { code: true, toolMode: "full" },
-} as const satisfies Record<(typeof QUALIFICATION_AUTHORITIES)[number], Pick<QualificationDecision, "code" | "toolMode">>;
+  qualified: { code: false },
+  publication: { code: true },
+} as const satisfies Record<(typeof QUALIFICATION_AUTHORITIES)[number], Pick<QualificationDecision, "code">>;
 
 function commitHasGeneration(root: string, commit: string, config: CiQualificationConfig): boolean {
   const entry = execGit(root, [...GIT_READ_PREFIX, "ls-tree", commit, "--", WORKFLOW_PATH]).trim();
@@ -164,19 +164,36 @@ function inventoryIdentity(rows: readonly z.infer<typeof RUN>[]): string {
   return JSON.stringify(rows.toSorted((a, b) => a.id - b.id));
 }
 
+function generationStepSucceeded(steps: readonly z.infer<typeof STEP>[], generation: string): boolean {
+  const matching = steps.filter((step) => step.name === generation);
+  return matching.length === 1 && matching[0]?.status === "completed" && matching[0].conclusion === "success";
+}
+
 function proofJobsSucceeded(jobs: readonly z.infer<typeof JOB>[], run: z.infer<typeof RUN>, sha: string, config: CiQualificationConfig): boolean {
-  const required = ["static", ...config.corpusJobs];
-  if (new Set(required).size !== required.length || jobs.some((job) => job.run_id !== run.id || job.head_sha !== sha || job.run_attempt !== run.run_attempt)) {
+  const required = [...config.requiredJobs, ...config.runtimeJobs];
+  if (
+    required.length === 0 ||
+    new Set(required).size !== required.length ||
+    jobs.some((job) => job.run_id !== run.id || job.head_sha !== sha || job.run_attempt !== run.run_attempt)
+  ) {
     return false;
   }
+  const aggregate = jobs.find((job) => job.name === "ci-ok");
+  const runtimeMarkers =
+    aggregate?.steps.filter((step) => step.name === `${config.generation} (runtime)` || step.name === `${config.generation} (inherited)`) ?? [];
+  const marker = runtimeMarkers[0];
+  if (runtimeMarkers.length !== 1 || marker?.status !== "completed" || marker.conclusion !== "success") {
+    return false;
+  }
+  const runtimeRequired = marker.name === `${config.generation} (runtime)`;
   for (const name of required) {
     const matching = jobs.filter((job) => job.name === name);
     const marked = matching[0];
-    if (matching.length !== 1 || marked === undefined || marked.status !== "completed" || marked.conclusion !== "success") {
+    const expected = config.runtimeJobs.includes(name) && !runtimeRequired ? "skipped" : "success";
+    if (matching.length !== 1 || marked === undefined || marked.status !== "completed" || marked.conclusion !== expected) {
       return false;
     }
-    const steps = marked.steps.filter((step) => step.name === config.generation);
-    if (steps.length !== 1 || steps[0]?.status !== "completed" || steps[0].conclusion !== "success") {
+    if (name === "static" && !generationStepSucceeded(marked.steps, config.generation)) {
       return false;
     }
   }
@@ -199,7 +216,7 @@ function qualifiedMainPush(
     run.workflow_id !== workflow.id ||
     run.repository.full_name !== config.repository ||
     run.status !== "completed" ||
-    run.conclusion !== "success"
+    run.conclusion === null
   ) {
     return false;
   }
@@ -214,7 +231,7 @@ function qualifiedMainPush(
     latest?.id === run.id &&
     latest.run_attempt === run.run_attempt &&
     latest.status === "completed" &&
-    latest.conclusion === "success" &&
+    latest.conclusion === run.conclusion &&
     current.id === run.id &&
     current.workflow_id === workflow.id &&
     current.repository.full_name === config.repository &&
@@ -223,11 +240,11 @@ function qualifiedMainPush(
     current.event === "push" &&
     current.run_attempt === run.run_attempt &&
     current.status === "completed" &&
-    current.conclusion === "success"
+    current.conclusion === run.conclusion
   );
 }
 
-/** Check the latest run for this exact SHA, including smoke via whole-workflow success and one attempt's real static and corpus steps. */
+/** Check the latest run for this exact SHA, including every required product job and the same attempt's real generation-marked steps. */
 export function hasQualifiedMainPush(
   root: string,
   sha: string,
@@ -250,7 +267,7 @@ export function qualificationDecision(root: string, { head, eventBase, base, aut
     .filter(Boolean);
   const requirement = QUALIFICATION_REQUIREMENTS[authority];
   const code = requirement.code || paths.some((path) => !/^(?:docs\/|\.vscode\/|\.github\/ISSUE_TEMPLATE\/)|\.md$/u.test(path));
-  return { ...boundary, eventBase, authority, paths, code, toolMode: requirement.toolMode };
+  return { ...boundary, eventBase, authority, paths, code };
 }
 
 function nearestQualifiedAncestor(root: string, head: string, config: CiQualificationConfig, deadline: number): string | undefined {
@@ -308,6 +325,6 @@ export function resolveCiQualification(root: string, head: string, eventBase: st
   if (runGit(root, [...GIT_READ_PREFIX, "merge-base", "--is-ancestor", config.publication, head]).status !== 0) {
     throw new Error("CI qualification refused: no current-generation qualified ancestor; admitted publication is not an ancestor of tested HEAD");
   }
-  process.stderr.write("CI qualification: no current-generation qualified ancestor; publication bootstrap requires complete tools and application proof\n");
+  process.stderr.write("CI qualification: no current-generation qualified ancestor; publication bootstrap requires complete application proof\n");
   return qualificationDecision(root, { head, eventBase, base: config.publication, authority: "publication" });
 }

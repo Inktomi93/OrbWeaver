@@ -100,7 +100,10 @@ function hooks(repoRoot: string): Readonly<Record<string, HookConfig>> {
   return YAML.parse(readFileSync(join(repoRoot, "lefthook.yml"), "utf8")) as Readonly<Record<string, HookConfig>>;
 }
 
-test("both live commit hooks keep staged tooling out of branch-wide recertification while ordinary verification retains it", ({ repoRoot, scratch }) => {
+test("both live commit hooks keep staged tooling out of branch-wide recertification and ordinary verification out of recertification", ({
+  repoRoot,
+  scratch,
+}) => {
   plantRepo(repoRoot, scratch);
   const tool = "tooling/src/verify/lib/changed-tool.ts";
   mkdirSync(join(scratch, "tooling/src/verify/lib"), { recursive: true });
@@ -120,14 +123,9 @@ test("both live commit hooks keep staged tooling out of branch-wide recertificat
     expect(selection.paths).toContain(tool);
     expect(selection.paths).not.toContain(FILES.unstaged);
     expect(selection.paths).not.toContain(FILES.untracked);
-    const instrument = stagesForTier(request.tier).find((row) => row.name === "tests:instrument-affected");
-    if (instrument === undefined) {
-      throw new Error("static tier lost affected instrument recertification");
-    }
-    expect(planStage(instrument, selection, request.tier, scratch)).toMatchObject({ mode: "deferred", argv: null });
-    const working = resolveSelection({ kind: "changed", paths: [] }, scratch);
-    expect(planStage(instrument, working, "static", scratch)).toMatchObject({ mode: "scoped", argv: instrument.argv });
-    expect(planStage(instrument, undefined, "static", scratch)).toMatchObject({ mode: "full", argv: instrument.argv });
+    expect(stagesForTier(request.tier).some((row) => row.name === "tests:instrument-affected")).toBe(false);
+    expect(stagesForTier("changed").some((row) => row.name === "tests:instrument-affected")).toBe(false);
+    expect(stagesForTier("weekly").some((row) => row.name === "tests:tooling")).toBe(true);
     const lint = stagesForTier(request.tier).find((row) => row.name === "lint:biome");
     if (lint === undefined) {
       throw new Error("commit hook lost lint");
@@ -232,7 +230,7 @@ const GH_RUN_FIXTURE = [
   "const run=(row,index)=>({id:index+1,workflow_id:7,run_attempt:row.attempt??1,head_sha:row.sha,head_branch:row.branch??'main',event:row.event,status:row.status,conclusion:row.conclusion,repository:{full_name:row.repository??'Inktomi93/OrbWeaver'}});",
   "if(url.endsWith('/workflows/ci.yml'))process.stdout.write(JSON.stringify({id:7,path:'.github/workflows/ci.yml'}));",
   "else if(url.includes('/runs?')){const u=new URL('https://example.invalid/'+url);const runs=rows.map(run).filter(row=>row.head_sha===u.searchParams.get('head_sha')&&row.event==='push'&&row.head_branch==='main');process.stdout.write(JSON.stringify({total_count:runs.length,workflow_runs:runs}));}",
-  "else if(url.includes('/jobs?')){const id=Number(url.split('/runs/')[1].split('/')[0]);const row=rows[id-1];const job={id:1,run_id:id,run_attempt:row.attempt??1,head_sha:row.sha,name:'static',status:'completed',conclusion:'success',steps:[{name:row.generation??'Orbweaver qualification corpus-v1',status:'completed',conclusion:row.marker??'success'}]};const corpus=['semantic-corpus (1/2)','semantic-corpus (2/2)'].map((name,index)=>({...job,id:index+2,name,run_attempt:row.corpusAttempt??row.attempt??1,steps:[{name:row.corpusGeneration??'Orbweaver qualification corpus-v1',status:'completed',conclusion:row.corpusMarker??'success'}]}));process.stdout.write(JSON.stringify({total_count:3,jobs:[job,...corpus]}));}",
+  "else if(url.includes('/jobs?')){const id=Number(url.split('/runs/')[1].split('/')[0]);const row=rows[id-1];const names=['static','changes','ci-ok','media','node (1/3)','node (2/3)','node (3/3)','ct (1/4)','ct (2/4)','ct (3/4)','ct (4/4)','e2e-smoke'];const jobs=names.map((name,index)=>({id:index+1,run_id:id,run_attempt:row.attempt??1,head_sha:row.sha,name,status:'completed',conclusion:row.conclusion==='success'?'success':'failure',steps:[{name:(row.generation??'Orbweaver qualification product-v2')+(name==='ci-ok'?' (runtime)':''),status:'completed',conclusion:row.marker??'success'}]}));process.stdout.write(JSON.stringify({total_count:jobs.length,jobs}));}",
   "else {const id=Number(url.split('/runs/')[1]);process.stdout.write(JSON.stringify(run(rows[id-1],id-1)));}",
 ].join("\n");
 

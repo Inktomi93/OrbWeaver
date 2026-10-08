@@ -20,7 +20,7 @@ import { TYPECHECK_PLAN_HELP } from "../ops/typecheck-plan.ts";
 import { STRUCTURE_USAGE } from "./structure-tail.ts";
 
 export const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
-  run: "usage: node tooling/src/verify/cli.ts run [--static|--push|--full|--product|--changed] [--scope <glob>|--package <name>|--file <paths…>] [--tier <name>] [--strict-scope] [--list] [--json] [--verbose]\n  --product: whole application checks, complete application CT and E2E; no tooling test populations, tool proofs or mutation. Scope selectors are refused.",
+  run: "usage: node tooling/src/verify/cli.ts run [--static|--push|--full|--product|--weekly|--changed] [--scope <glob>|--package <name>|--file <paths…>] [--tier <name>] [--application] [--strict-scope] [--list] [--json] [--verbose]\n  --product: whole application checks, complete application CT and E2E; no tooling test populations, tool proofs or mutation. Scope selectors are refused.",
   structure: STRUCTURE_USAGE,
   "structure-delta": STRUCTURE_DELTA_USAGE,
   show: SHOW_HELP,
@@ -51,7 +51,7 @@ export const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
     "usage: node tooling/src/verify/cli.ts knip-negative-liveness\n  Reds when a LITERAL negative entry/project/ignore pattern in knip.ts names a path that is not a tracked file. Wildcard negations are out of scope. An unreadable index is exit 2.",
   "typecheck-plan": TYPECHECK_PLAN_HELP,
   typecheck: TYPECHECK_HELP,
-  "instrument-affected": `usage: node tooling/src/verify/cli.ts instrument-affected [--shard=<index>/<count>]\n  Partial ${INSTRUMENT_EXECUTION_COMPONENT_ENV}=corpus|non-corpus requires a validated event boundary; only corpus accepts a native shard. Default execution retains all tooling. Qualifies changed tooling sources and native tests. ${VERIFY_BASE_ENV}/${VERIFY_HEAD_ENV} provide paired event/train commit IDs; absent values retain local publication semantics. Missing or invalid explicit boundaries refuse. Deleted inputs and executable configuration select conservative proof.`,
+  "instrument-affected": `usage: node tooling/src/verify/cli.ts instrument-affected --weekly [--affected] [--shard=<index>/<count>]\n  Weekly ownership is required. Default: complete tooling population, without a Git baseline. --affected selects the measured or local publication delta inside weekly ownership. ${INSTRUMENT_EXECUTION_COMPONENT_ENV}=corpus|non-corpus partitions execution; corpus requires its native shard. ${VERIFY_BASE_ENV}/${VERIFY_HEAD_ENV} provide paired commit IDs for --affected. Named focused tests use test:scoped.`,
   eslint:
     "usage: node tooling/src/verify/cli.ts eslint\n  Runs whole-repository ESLint in sequential native compiler-owner processes. It takes NO paths: a SCOPED run is `pnpm lint:eslint-scoped <files>`, one native compiler-owner process per owner.",
   "eslint-scoped": ESLINT_SCOPED_USAGE,

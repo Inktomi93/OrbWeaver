@@ -5,7 +5,8 @@
 //   pnpm verify --changed    → the inner loop (scoped, related tests)
 //   pnpm verify --static     → the whole static tier (= `pnpm check`); pre-commit adds `--changed staged`
 //   pnpm verify --push       → static + node tests + CT + e2e-smoke (the pre-push bar)
-//   pnpm verify --full       → every automated check, including instrument proofs and mutation
+//   pnpm verify --full       → complete application checks and mutation; no tooling recertification
+//   pnpm verify --weekly     → complete checker recertification, independent of product qualification
 //   pnpm verify --product    → full application checks without instrument proofs or mutation
 //   pnpm verify --list       → print every registry row (incl. manual) with its tiers/reason
 //   pnpm verify --json       → mirror reports/verify.json to stdout
@@ -56,7 +57,7 @@ import { refuseUnrunnableRows, resolveStageCommand, unresolvableCommandTranscrip
 import { invocationVariant, nonRunningStageResult, planStage } from "../lib/stage-plan.ts";
 import { enterWholeRunQueue } from "../lib/whole-run-queue.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm verify [--push|--full|--product])");
+refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm verify [--push|--full|--product|--weekly])");
 
 /** Where per-stage transcripts live inside a run's slot; published as the `reports/verify/` alias. */
 const STAGES_SEGMENT = "stages";

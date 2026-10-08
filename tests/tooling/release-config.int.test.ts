@@ -10,12 +10,10 @@ import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import type { SpawnNicedOptions, TranscriptResult } from "@orb/tooling/_shared/proc";
 import { spawnNiced, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import { inheritedProcessEnv, withProcessEnv } from "@orb/tooling/_shared/process-env";
-import { SEMANTIC_CORPUS_RESOURCE } from "@orb/tooling/_shared/test-kinds";
 import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/_shared/test-tags";
 import { parse } from "yaml";
 import { z } from "zod";
 import { INSTRUMENT_EXECUTION_COMPONENT_ENV } from "../../tooling/src/verify/contract/instrument-affected.ts";
-import { VERIFY_TOOL_MODE_ENV } from "../../tooling/src/verify/contract/qualification.ts";
 import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../../tooling/src/verify/contract/selection.ts";
 import { expect, fixturePath, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
@@ -234,6 +232,7 @@ const workflowConfig = z.object({
     z.string(),
     z.object({
       name: z.string().optional(),
+      needs: z.union([z.string(), z.array(z.string())]).optional(),
       if: z.string().optional(),
       env: z.record(z.string(), z.string()).optional(),
       strategy: z.object({ matrix: z.object({ shard: z.array(z.number()).optional() }) }).optional(),
@@ -284,7 +283,7 @@ test("static tooling qualification provisions the pinned Chromium and retains ca
   expect(setup?.with?.["browsers"]).toBe("true");
   const proof = steps.findIndex((step) => step.name === "${{ env.ORB_CI_QUALIFICATION_GENERATION }}");
   expect(proof).toBeGreaterThan(-1);
-  expect(steps[proof]?.run).toBe("pnpm check --verbose");
+  expect(steps[proof]?.run).toBe("pnpm check --application --verbose");
   expect(steps.findIndex((step) => step.uses === "$/.github/actions/setup")).toBeLessThan(proof);
   const composite = setupSteps(repoRoot);
   const version = composite.find((step) => step.id === "playwright");
@@ -327,11 +326,10 @@ test("CI preserves successful retry artifacts", ({ repoRoot }) => {
   }
 });
 
-const QUALIFICATION_CONTEXT = [VERIFY_BASE_ENV, VERIFY_HEAD_ENV, VERIFY_TOOL_MODE_ENV, INSTRUMENT_EXECUTION_COMPONENT_ENV] as const;
+const QUALIFICATION_CONTEXT = [VERIFY_BASE_ENV, VERIFY_HEAD_ENV, INSTRUMENT_EXECUTION_COMPONENT_ENV] as const;
 const ISOLATED_QUALIFICATION_ENV = {
   [VERIFY_BASE_ENV]: undefined,
   [VERIFY_HEAD_ENV]: undefined,
-  [VERIFY_TOOL_MODE_ENV]: undefined,
   [INSTRUMENT_EXECUTION_COMPONENT_ENV]: undefined,
 };
 const QUALIFIED_DIFF_API = [
@@ -342,7 +340,7 @@ const QUALIFIED_DIFF_API = [
   "let response;if(endpoint.endsWith('/workflows/ci.yml'))response={id:7,path:'.github/workflows/ci.yml'};",
   "else if(endpoint.includes('/workflows/7/runs?')){const sha=new URL('https://fixture.invalid/'+endpoint).searchParams.get('head_sha');const present=sha===null||sha===proof.base;response={total_count:present?1:0,workflow_runs:present?[run]:[]};}",
   "else if(endpoint.endsWith('/runs/1'))response=run;",
-  "else if(endpoint.includes('/runs/1/attempts/'+run.run_attempt+'/jobs?')){const jobs=proof.jobs.map((name,index)=>({id:index+1,run_id:1,run_attempt:name==='static'?run.run_attempt:proof.corpusAttempt??run.run_attempt,head_sha:proof.base,name,status:'completed',conclusion:'success',steps:[{name:proof.generation,status:'completed',conclusion:'success'}]}));response={total_count:jobs.length,jobs};}",
+  "else if(endpoint.includes('/runs/1/attempts/'+run.run_attempt+'/jobs?')){const jobs=proof.jobs.map((name,index)=>({id:index+1,run_id:1,run_attempt:name==='static'?run.run_attempt:proof.productAttempt??run.run_attempt,head_sha:proof.base,name,status:'completed',conclusion:'success',steps:[{name:proof.generation+(name==='ci-ok'?' (runtime)':''),status:'completed',conclusion:'success'}]}));response={total_count:jobs.length,jobs};}",
   "else process.exit(74);process.stdout.write(JSON.stringify(response));",
 ].join("\n");
 
@@ -357,9 +355,9 @@ const CLASSIFIER_PATH_CASES = [
 ] as const;
 const CLASSIFIER_EVENT_BASE_CASES = [null, "0".repeat(40), "b".repeat(40), ""] as const;
 const CLASSIFIER_PROOF_REFUSALS = [
-  { jobCount: 1, attempt: 1, corpusAttempt: 1 },
-  { jobCount: 2, attempt: 1, corpusAttempt: 1 },
-  { jobCount: null, attempt: 2, corpusAttempt: 1 },
+  { jobCount: 1, attempt: 1, productAttempt: 1 },
+  { jobCount: 2, attempt: 1, productAttempt: 1 },
+  { jobCount: null, attempt: 2, productAttempt: 1 },
 ] as const;
 const CLASSIFIER_INVALID_EVENT_BASE_CASES = ["HEAD^"] as const;
 const CLASSIFIER_SETUP_TIMEOUT_MS = scaledBudget(LONG_TEST_TIMEOUT_BASE_MS);
@@ -381,12 +379,26 @@ test("CI's actual diff classifier treats agent hooks and configs as code, not do
   const script = invocation.replace("scripts/ci-qualification.ts", JSON.stringify(join(repoRoot, "scripts/ci-qualification.ts")));
   const workflow = read(repoRoot, ".github/workflows/ci.yml");
   const environment = z.object({ env: z.record(z.string(), z.string()) }).parse(parse(workflow)).env;
-  const corpus = workflowJobs(repoRoot, "ci")[SEMANTIC_CORPUS_RESOURCE];
-  const corpusName = z.string().parse(corpus?.name);
-  const shards = z.array(z.number()).parse(corpus?.strategy?.matrix.shard);
+  const jobs = workflowJobs(repoRoot, "ci");
+  const needs = z.array(z.string()).parse(jobs["ci-ok"]?.needs);
   const proofJobs = [
-    "static",
-    ...shards.map((shard) => corpusName.replace("${{ matrix.shard }}", String(shard)).replace("${{ strategy.job-total }}", String(shards.length))),
+    "ci-ok",
+    ...needs.flatMap((id) => {
+      const job = jobs[id];
+      const shards = job?.strategy?.matrix.shard;
+      return shards === undefined
+        ? [id]
+        : z
+            .array(z.number())
+            .parse(shards)
+            .map((shard) =>
+              z
+                .string()
+                .parse(job?.name)
+                .replace("${{ matrix.shard }}", String(shard))
+                .replace("${{ strategy.job-total }}", String(z.array(z.number()).parse(shards).length)),
+            );
+    }),
   ];
   const runtime = z.object({ devEngines: z.json(), packageManager: z.string() }).parse(JSON.parse(read(repoRoot, "package.json")));
   const tree = await plantedTree({
@@ -437,23 +449,19 @@ test("CI's actual diff classifier treats agent hooks and configs as code, not do
     await mkdir(join(tree, path, ".."), { recursive: true });
     await writeFile(fixturePath(tree, path), "proof\n");
     const head = commit();
-    expect(await run(previous, previous, head), path).toBe(
-      `base=${previous}\nhead=${head}\nevent_base=${previous}\ncode=${expected}\ntool_mode=affected\nauthority=qualified\n`,
-    );
+    expect(await run(previous, previous, head), path).toBe(`base=${previous}\nhead=${head}\nevent_base=${previous}\ncode=${expected}\nauthority=qualified\n`);
     previous = head;
   }
   for (const eventBase of CLASSIFIER_EVENT_BASE_CASES) {
     const before = eventBase ?? base;
-    expect(await run(base, before, previous)).toBe(
-      `base=${base}\nhead=${previous}\nevent_base=${before}\ncode=true\ntool_mode=affected\nauthority=qualified\n`,
-    );
+    expect(await run(base, before, previous)).toBe(`base=${base}\nhead=${previous}\nevent_base=${before}\ncode=true\nauthority=qualified\n`);
   }
   for (const key of QUALIFICATION_CONTEXT) {
     await withProcessEnv(key, "hosted-context", async () => {
       expect(await run(base, base, previous)).toContain("authority=qualified\n");
     });
   }
-  for (const { jobCount, attempt, corpusAttempt } of CLASSIFIER_PROOF_REFUSALS) {
+  for (const { jobCount, attempt, productAttempt } of CLASSIFIER_PROOF_REFUSALS) {
     await writeFile(
       join(tree, "api-proof.json"),
       JSON.stringify({
@@ -462,7 +470,7 @@ test("CI's actual diff classifier treats agent hooks and configs as code, not do
         generation: environment["ORB_CI_QUALIFICATION_GENERATION"],
         jobs: jobCount === null ? proofJobs : proofJobs.slice(0, jobCount),
         attempt,
-        corpusAttempt,
+        productAttempt,
       }),
     );
     await writeFile(output, "");

@@ -12,6 +12,7 @@ import { resolveSelection } from "./selection.ts";
 
 export interface Parsed {
   readonly tier: Tier;
+  readonly applicationOnly: boolean;
   readonly selection: Selection | undefined; // undefined = whole scope
   readonly strictScope: boolean;
   readonly list: boolean;
@@ -37,6 +38,8 @@ const OPTIONS = {
   push: { type: "boolean" },
   full: { type: "boolean" },
   product: { type: "boolean" },
+  weekly: { type: "boolean" },
+  application: { type: "boolean" },
   // run-shaping booleans:
   "strict-scope": { type: "boolean" },
   json: { type: "boolean" },
@@ -61,6 +64,8 @@ interface ParsedValues {
   readonly push?: boolean;
   readonly full?: boolean;
   readonly product?: boolean;
+  readonly weekly?: boolean;
+  readonly application?: boolean;
   readonly "strict-scope"?: boolean;
   readonly json?: boolean;
   readonly list?: boolean;
@@ -184,8 +189,9 @@ function tierFor(v: ParsedValues, scoped: boolean): Tier | { readonly error: str
   if (named.size > 1) {
     return { error: `at most one tier: got ${[...named].join(" ")}` };
   }
-  if (scoped && named.has("product")) {
-    return { error: "product runs the whole tree; remove --changed / --file / --package / --scope" };
+  const wholeOnly = (["product", "weekly"] as const).find((tier) => named.has(tier));
+  if (scoped && wholeOnly !== undefined) {
+    return { error: `${wholeOnly} runs the whole tree; remove --changed / --file / --package / --scope` };
   }
   // Push and full are whole-tree bars, and a scoped run skips the whole-run queue, so a scoped test battery
   // would run beside another checkout's. Only the commit gate's `--static --changed` pairs a tier with it.
@@ -220,6 +226,10 @@ export function parseRequest(argv: readonly string[]): ParsedRequest | { readonl
   if (typeof tier === "object") {
     return { error: tier.error };
   }
+  if (values.application === true && (scoped || tier === "weekly")) {
+    return { error: "--application requires a whole nonweekly request" };
+  }
+  const applicationOnly = values.application === true || (!scoped && (tier === "push" || tier === "full" || tier === "product"));
   const strictScope = values["strict-scope"] === true;
   const list = values.list === true;
   const json = values.json === true;
@@ -228,7 +238,7 @@ export function parseRequest(argv: readonly string[]): ParsedRequest | { readonl
   // every `git push` (a hook's stdout IS a TTY), streaming ~full vitest/playwright/vite output through
   // lefthook (2026-07-17). A human who wants the live stream passes --verbose.
   const verbose = values.verbose === true;
-  return { tier, request: "none" in req ? undefined : req, strictScope, list, json, verbose };
+  return { tier, applicationOnly, request: "none" in req ? undefined : req, strictScope, list, json, verbose };
 }
 
 /** Parse argv into a run plan or a misuse error. Exported for the exit-code matrix unit test — a returned

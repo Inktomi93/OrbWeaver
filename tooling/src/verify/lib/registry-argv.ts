@@ -6,9 +6,11 @@
 // Each builder answers the same question — "given the selection's paths for this tool, what child do we
 // spawn?" — and each may answer `skip-empty` (nothing in scope) or `whole-only` (this stage cannot be
 // narrowed honestly). That vocabulary is `../contract/stage.ts`'s `ScopedArgv`.
+import { applicationTestExclusions } from "@orb/tooling/_shared/test-population";
 import type { Selection } from "../contract/selection.ts";
 import type { ScopedArgv } from "../contract/stage.ts";
 
+const PRODUCT_RUNTIME_EXCLUDES = applicationTestExclusions(true).map((glob) => `--exclude=${glob}`);
 const NODE_TEST_RE = /\.test\.tsx?$/u;
 
 /** Vitest scope composition, using its native selectors instead of a copied project roster.
@@ -20,21 +22,23 @@ const NODE_TEST_RE = /\.test\.tsx?$/u;
  * related graph runs — Vitest compares related subjects by exact module id, not directory prefix. */
 export function vitestScopedArgv(selection: Selection): ScopedArgv {
   if (selection.kind === "changed" && selection.gitRef !== undefined) {
-    return ["pnpm", "test:scoped", "--passWithNoTests", "--changed", selection.gitRef];
+    return ["pnpm", "test:scoped", "--passWithNoTests", "--changed", selection.gitRef, ...PRODUCT_RUNTIME_EXCLUDES];
   }
   if (selection.kind === "package") {
     const prefix = selection.paths[0];
     const packageName = prefix === "tooling/" ? "tooling" : prefix?.match(/^packages\/([^/]+)\/$/u)?.[1];
-    return packageName === undefined || packageName.length === 0 ? "skip-empty" : ["pnpm", "test:scoped", `tests/${packageName}`];
+    return packageName === undefined || packageName.length === 0 || packageName === "tooling"
+      ? "skip-empty"
+      : ["pnpm", "test:scoped", `tests/${packageName}`, ...PRODUCT_RUNTIME_EXCLUDES];
   }
-  const subjects = selection.runtimeSubjects;
+  const subjects = selection.runtimeSubjects.filter((path) => !path.startsWith("tests/tooling/"));
   if (subjects.length === 0) {
     return "skip-empty";
   }
   if (subjects.every((path) => NODE_TEST_RE.test(path)) === true) {
-    return ["pnpm", "test:scoped", ...subjects];
+    return ["pnpm", "test:scoped", ...subjects, ...PRODUCT_RUNTIME_EXCLUDES];
   }
-  return ["pnpm", "test:scoped", "--related", ...subjects];
+  return ["pnpm", "test:scoped", "--related", ...subjects, ...PRODUCT_RUNTIME_EXCLUDES];
 }
 
 /** The unified typecheck door receives the complete affected native-program plan. */

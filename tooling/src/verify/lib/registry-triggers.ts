@@ -90,17 +90,9 @@ export const WHOLE_COMMAND_PATH_TRIGGERS: Readonly<Record<string, StageTrigger>>
     paths: /^(?:packages\/db\/src\/|packages\/server\/src\/domain\/assets\/)/u,
     why: "every live FK→`assets.id` column (the db schema) against the ONE classification registry in domain/assets/persistence/asset-refs.ts. Both sides, nothing else.",
   },
-  "structure:policy-conformance": {
-    paths: /^tooling\/src\/verify\/(?:gates\/|contract\/policy|lib\/policy-)/u,
-    why: "every final defineGate policy's own mustFlag/mustPass rows through the production dispatcher — the gate modules plus the policy contract and dispatcher they run on.",
-  },
   "tests:execution-membership": {
     paths: /^(?:tests\/|vitest\.config\.ts$|playwright[^/]*\.config\.ts$|playwright\/)/u,
     why: "every tests/** runner-suffixed file against the union of vitest's and both playwright configs' own --list views. A file enters or leaves that set only by a tests/ path change or a runner-config change.",
-  },
-  "tests:instrument-affected": {
-    paths: /^(?:tooling\/|tests\/(?:tooling|support)\/|scripts\/|\.claude\/hooks\/|\.github\/(?:workflows|actions)\/)|^[^/]+$/u,
-    why: "affected qualification reads changed tooling sources/tests, their shared support, and executable root/runner configuration. Configuration and unavailable prior inputs deliberately request conservative proof; the stage derives source/test reach rather than copying a test roster.",
   },
   "types:ownership": {
     paths: /(?:\.(?:ts|tsx|mts|cts)$|tsconfig[^/]*\.json$)/u,
@@ -140,7 +132,7 @@ export const WHOLE_COMMAND_PATH_TRIGGERS: Readonly<Record<string, StageTrigger>>
  *  real scoped derivation, and layering a path trigger over it would silently replace a narrowed run with a
  *  whole one. */
 function triggerFor(stage: StageDef): RegExp | undefined {
-  return stage.scopedArgv === undefined ? (WHOLE_COMMAND_PATH_TRIGGERS[stage.name]?.paths ?? undefined) : undefined;
+  return stage.tiers.includes("static") && stage.scopedArgv === undefined ? (WHOLE_COMMAND_PATH_TRIGGERS[stage.name]?.paths ?? undefined) : undefined;
 }
 
 const CHANGED: Tier = "changed";
