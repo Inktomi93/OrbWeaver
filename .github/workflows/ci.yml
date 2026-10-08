@@ -104,7 +104,10 @@ jobs:
           persist-credentials: false
       - uses: $/.github/actions/setup
       - name: ${{ env.ORB_CI_QUALIFICATION_GENERATION }}
-        run: pnpm check:instrument-affected --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+        env:
+          ORB_CORPUS_SHARD: ${{ matrix.shard }}
+          ORB_CORPUS_SHARD_TOTAL: ${{ strategy.job-total }}
+        run: pnpm check:instrument-affected --shard="$ORB_CORPUS_SHARD/$ORB_CORPUS_SHARD_TOTAL"
       - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

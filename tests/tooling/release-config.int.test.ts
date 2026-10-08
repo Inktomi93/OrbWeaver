@@ -219,6 +219,7 @@ const setupStep = z.object({
   uses: z.string().optional(),
   run: z.string().optional(),
   if: z.string().optional(),
+  env: z.record(z.string(), z.string()).optional(),
   with: z.record(z.string(), z.json()).optional(),
 });
 
@@ -272,6 +273,26 @@ test("CI gives the static floor its full budget", ({ repoRoot }) => {
   expect(jobs["qualification"]?.["timeout-minutes"]).toBe(330);
   expect(jobs["static"]?.["timeout-minutes"]).toBe(jobs["qualification"]?.["timeout-minutes"]);
   expect(jobs["select-cpu-diagnostic"]?.["timeout-minutes"]).toBe(SELECT_DIAGNOSTIC_TIMEOUT);
+});
+
+test("semantic corpus passes the complete qualification shard roster as shell data, not template source", async ({ repoRoot, scratch, fakeBin }) => {
+  const corpus = workflowJobs(repoRoot, "ci")[SEMANTIC_CORPUS_RESOURCE];
+  const shards = z.array(z.number()).parse(corpus?.strategy?.matrix.shard);
+  const proof = corpus?.steps.find((step) => step.name === "${{ env.ORB_CI_QUALIFICATION_GENERATION }}");
+  expect(shards).toEqual([1, 2]);
+  expect(corpus?.name).toBe("semantic-corpus (${{ matrix.shard }}/${{ strategy.job-total }})");
+  expect(proof?.env).toEqual({ ["ORB_CORPUS_SHARD"]: "${{ matrix.shard }}", ["ORB_CORPUS_SHARD_TOTAL"]: "${{ strategy.job-total }}" });
+  const script = z.string().parse(proof?.run);
+  expect(script).not.toContain("${{");
+  await fakeBin("pnpm", "import fs from 'node:fs';fs.writeFileSync('corpus-call.json',JSON.stringify(process.argv.slice(2)));");
+  for (const shard of [...shards.map(String), "literal shard with spaces; $ORB_CORPUS_SHARD_TOTAL"]) {
+    const result = await spawnNiced("bash", ["-euo", "pipefail", "-c", script], {
+      cwd: scratch,
+      env: { ["ORB_CORPUS_SHARD"]: shard, ["ORB_CORPUS_SHARD_TOTAL"]: String(shards.length) },
+    });
+    expect(result.code, result.stderr).toBe(0);
+    expect(JSON.parse(read(scratch, "corpus-call.json"))).toEqual(["check:instrument-affected", `--shard=${shard}/${shards.length}`]);
+  }
 });
 
 test("static tooling qualification provisions the pinned Chromium and retains cache-hit dependencies and failed-install refusal", async ({
