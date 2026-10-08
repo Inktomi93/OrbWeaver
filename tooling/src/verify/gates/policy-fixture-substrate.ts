@@ -198,6 +198,7 @@ const PLANT = (body: string, fs = 'import { writeFileSync } from "node:fs";\n'):
 
 export const gate = defineGate({
   id: "policy-fixture-substrate",
+  application: "implementation",
   family: "policy-soundness",
   authority: "hard",
   severity: "error",

@@ -84,12 +84,12 @@ test("the commit gate defers every whole command its change triggers, and the wo
   const working = resolveSelection({ kind: "changed", paths: [] }, scratch);
   const wholeAt = (selection: typeof staged): readonly string[] =>
     stagesForTier("static")
-      .filter((stage) => JSON.stringify(planStage(stage, selection, "static", scratch).argv) === JSON.stringify(stage.argv))
+      .filter((stage) => JSON.stringify(planStage(stage, selection, "static", { root: scratch }).argv) === JSON.stringify(stage.argv))
       .map((stage) => stage.name);
   expect(wholeAt(staged)).toEqual([]);
   expect(wholeAt(working)).toEqual(expect.arrayContaining(["types:testd", "ledgers:fresh", "types:ownership"]));
   const testd = stagesForTier("static").find((stage) => stage.name === "types:testd");
-  expect(testd === undefined ? null : planStage(testd, staged, "static", scratch).mode).toBe("deferred");
+  expect(testd === undefined ? null : planStage(testd, staged, "static", { root: scratch }).mode).toBe("deferred");
 });
 
 interface HookConfig {
@@ -130,7 +130,7 @@ test("both live commit hooks keep staged tooling out of branch-wide recertificat
     if (lint === undefined) {
       throw new Error("commit hook lost lint");
     }
-    expect(planStage(lint, selection, request.tier, scratch).argv).toContain(tool);
+    expect(planStage(lint, selection, request.tier, { root: scratch }).argv).toContain(tool);
   }
 });
 

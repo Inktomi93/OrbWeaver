@@ -282,6 +282,7 @@ const INSTALLED_EMPTY_ROOT: Readonly<Record<string, string>> = {
 
 export const gate = defineGate({
   id: "baseui-surface-manifest",
+  application: "resources",
   family: "baseui-read",
   // HARD by construction, not by preference: every arm reports a FILE-anchored verdict about a generated
   // artifact, and a file-anchored ordinary finding has no authored token at its coordinate, so it has no

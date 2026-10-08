@@ -30,6 +30,7 @@ export const VERIFY_VERBS = [
   "knip-negative-liveness",
   "typecheck-plan",
   "typecheck",
+  "application-static",
   "eslint",
   "eslint-scoped",
   "instrument-affected",

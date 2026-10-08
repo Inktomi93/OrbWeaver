@@ -140,6 +140,7 @@ interface RunContext {
   readonly root: string;
   readonly slot: RunSlot;
   readonly verbose: boolean;
+  readonly applicationOnly: boolean;
   /** This run's process marker (#1848) — in every stage child's env so a browser that left the process group
    *  still dies with the run that started it. INHERITED inside a marked run, which is why it is NOT what the
    *  kill paths sweep (#2504): that is `runLease`, MINTED here, stamped beside it, one per RUN not per stage
@@ -157,9 +158,13 @@ function stageTimeoutMs(stage: StageDef): number {
   return budget(stageHangCeilingBaseMs(stage));
 }
 
+function classifyStageExit(stage: StageDef, status: number | null, applicationOnly: boolean): 0 | 1 | 2 | 3 {
+  return (applicationOnly ? (stage.applicationClassify ?? stage.classify) : stage.classify)(status);
+}
+
 async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selection | undefined, tier: Tier): Promise<StageResult> {
   const { root, slot, verbose } = ctx;
-  const plan = planStage(stage, selection, tier, root);
+  const plan = planStage(stage, selection, tier, { root, applicationOnly: ctx.applicationOnly });
   if (plan.mode === "deferred" || plan.mode === "skipped") {
     return nonRunningStageResult(stage, plan);
   }
@@ -205,7 +210,7 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
   // OUTPUT HONESTY (#1245): the child's exit is not always its whole verdict — biome under a config it
   // failed to parse checks ZERO files, says nothing about it, and exits 0. The audit reads the transcript
   // the run already captured, so it costs nothing for the stages whose exit IS their verdict.
-  const classified = stage.classify(result.code);
+  const classified = classifyStageExit(stage, result.code, ctx.applicationOnly);
   const audit = auditOf(stage, classified, body, root);
   const transcript = `${body}${auditLine(audit)}`;
   writeFileAtomic(runFile(slot, STAGES_SEGMENT, `${stage.name.replace(/:/gu, "-")}.log`), `${header}${transcript}`);
@@ -274,6 +279,9 @@ function announceRacing(slot: RunSlot): void {
 
 /** The run's scope label for the banner + the artifact. */
 function scopeLabel(parsed: Parsed): string {
+  if (parsed.applicationOnly) {
+    return "application";
+  }
   return parsed.selection === undefined ? "whole" : parsed.selection.label;
 }
 
@@ -289,7 +297,7 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
   const stages = stagesForTier(parsed.tier);
   const results: StageResult[] = [];
   for (const stage of stages) {
-    const plan = planStage(stage, parsed.selection, parsed.tier, root);
+    const plan = planStage(stage, parsed.selection, parsed.tier, { root, applicationOnly: parsed.applicationOnly });
     // --strict-scope: a whole-only stage under a scoped tier is a REFUSAL (misuse), not a deferral.
     if (parsed.strictScope && plan.mode === "deferred") {
       results.push({
@@ -308,7 +316,14 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
     }
     // Sequential BY DESIGN: stages share the CPU, the memory, the reports dir and the console. Concurrent commit
     // stages were measured to thrash a 15 GB box: type-aware ESLint, tsc and the structure walk each hold gigabytes.
-    results.push(await runOneStage({ root, slot, verbose: parsed.verbose, runMarker, runLease }, stage, parsed.selection, parsed.tier));
+    results.push(
+      await runOneStage(
+        { root, slot, verbose: parsed.verbose, applicationOnly: parsed.applicationOnly, runMarker, runLease },
+        stage,
+        parsed.selection,
+        parsed.tier,
+      ),
+    );
   }
 
   const exitCode = aggregateExit(results.map((s) => s.exitCode));

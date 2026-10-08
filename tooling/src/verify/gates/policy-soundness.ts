@@ -353,6 +353,7 @@ function judgeModule(ctx: GatePolicyContext, { sourceFile, path, registration, i
 
 export const gate = defineGate({
   id: "policy-soundness",
+  application: "implementation",
   family: "policy-soundness",
   authority: "hard",
   severity: "error",

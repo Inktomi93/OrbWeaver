@@ -16,6 +16,7 @@ const FIX = "rename the schema module for its producer, add the producer domain,
 
 export const gate = defineGate({
   id: "db-structure-producer-home",
+  application: "resources",
   family: "db-structure",
   authority: "reviewed-grant",
   severity: "error",

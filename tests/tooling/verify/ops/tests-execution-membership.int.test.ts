@@ -16,9 +16,51 @@
 // actual CLI (`runCli`, process-spawning — `.int.test.ts`), not a fixture.
 
 import { TEST_RESOURCE_NAMES, VITEST_RUNTIME_FAMILY_GROUPS, VITEST_TYPECHECK_GROUP_NAMES } from "@orb/tooling/_shared/test-kinds";
+import { isApplicationTest } from "@orb/tooling/_shared/test-population";
 import { findMultiMembershipFiles, findUnrunFiles, unclassifiedVitestProjects } from "@orb/tooling/verify";
+import { withApplicationPrograms } from "../../../../tooling/src/verify/lib/application-programs.ts";
+import { enumerateTestFiles, playwrightFiles, vitestFiles } from "../../../../tooling/src/verify/ops/tests-execution-membership.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+
+test("application compiler planning retains native composition roots and primary worlds on the real population", { timeout: scaledBudget(110_000) }, async ({
+  repoRoot,
+}) => {
+  await withApplicationPrograms(repoRoot, ({ roots, files, programs, closures }) => {
+    expect(roots).toEqual(
+      expect.arrayContaining(["packages/client/vite.config.ts", "vitest.product.config.ts", "playwright-ct.product.config.ts", "playwright.config.ts"]),
+    );
+    expect(files).toEqual(expect.arrayContaining(["vitest.config.ts", "playwright-ct.config.ts"]));
+    expect(roots.some((path) => path.startsWith("tests/tooling/"))).toBe(false);
+    expect(roots.some((path) => path.startsWith("tests/plugin-toolchain/"))).toBe(true);
+    expect(programs.map(({ owner }) => owner.id)).toEqual(
+      expect.arrayContaining(["tsconfig.json", "tsconfig.tests-dom.json", "packages/kit/tsconfig.json", "packages/client/tsconfig.json"]),
+    );
+    expect([...closures.keys()].toSorted()).toEqual(programs.map(({ owner }) => owner.id).toSorted());
+    expect([...(closures.get("packages/db/tsconfig.json") ?? [])].some((path) => path.includes("/@types/node/"))).toBe(true);
+    expect(files.length).toBeGreaterThan(roots.length);
+  });
+});
+
+test("application and weekly native collections partition every authored test without losing tooling CT", { timeout: scaledBudget(110_000) }, ({
+  repoRoot,
+}) => {
+  const expected = enumerateTestFiles(repoRoot);
+  const node = vitestFiles(repoRoot, "vitest.product.config.ts");
+  const ct = playwrightFiles(repoRoot, "playwright-ct.product.config.ts");
+  const e2e = playwrightFiles(repoRoot, "playwright.config.ts", Object.fromEntries([["E2E_LIVE", "1"]]));
+  const weeklyCt = playwrightFiles(repoRoot, "playwright-ct.tooling.config.ts");
+  const globalCt = playwrightFiles(repoRoot, "playwright-ct.config.ts");
+  if ("error" in node || "error" in ct || "error" in e2e || "error" in weeklyCt || "error" in globalCt) {
+    throw new Error(JSON.stringify({ node, ct, e2e, weeklyCt, globalCt }));
+  }
+  const product = new Set([...node.files, ...ct.files, ...e2e.files]);
+  expect([...product].toSorted()).toEqual(expected.filter(isApplicationTest).toSorted());
+  expect([...weeklyCt.files].toSorted()).toEqual(expected.filter((path) => !isApplicationTest(path) && path.endsWith(".ct.tsx")).toSorted());
+  expect([...weeklyCt.files]).toEqual(expect.arrayContaining(["tests/tooling/design-audit-walker.ct.tsx", "tests/tooling/snap/ops/overflow.ct.tsx"]));
+  expect([...ct.files].filter((path) => weeklyCt.files.has(path))).toEqual([]);
+  expect([...new Set([...ct.files, ...weeklyCt.files])].toSorted()).toEqual([...globalCt.files].toSorted());
+});
 
 // #1842 — THE MEASURED FALSE CLEAN this direction was missing. The repository-resource group was added to
 // `vitest.config.ts` and NOT to the stage's runtime-project set; the stage stayed green (three ✓) with the

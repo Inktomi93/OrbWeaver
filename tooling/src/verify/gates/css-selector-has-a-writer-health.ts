@@ -98,6 +98,7 @@ const NO_BASE_UI = { version: "", components: {} } as const;
 
 export const gate = defineGate({
   id: "css-selector-has-a-writer-health",
+  application: "resources",
   family: "css-hook-provenance",
   authority: "hard",
   severity: "error",

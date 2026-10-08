@@ -290,6 +290,7 @@ function reportPatternRows(ctx: GatePolicyContext, input: PatternRowsInput): voi
 
 export const gate = defineGate({
   id: "depcruise-grant-liveness",
+  application: "implementation",
   family: "grant-liveness",
   authority: "reviewed-grant",
   severity: "error",

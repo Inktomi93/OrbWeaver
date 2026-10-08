@@ -15,7 +15,7 @@ const WHOLE_TIERS = RUNNABLE_VERIFY_TIERS;
 test("automatic nonweekly tiers never admit checker recertification, even with unknown branch reach", () => {
   const proofs = new Set(["tests:tooling", "tests:instrument-affected", "tests:tool-guard", "structure:policy-conformance"]);
   for (const tier of RUNNABLE_VERIFY_TIERS.filter((candidate) => candidate !== "weekly")) {
-    const planned = stagesForTier(tier).map((row) => ({ name: row.name, plan: planStage(row, undefined, tier, "/no-git-baseline") }));
+    const planned = stagesForTier(tier).map((row) => ({ name: row.name, plan: planStage(row, undefined, tier, { root: "/no-git-baseline" }) }));
     expect(
       planned.filter(({ name, plan }) => proofs.has(name) && plan.argv !== null),
       tier,
@@ -71,7 +71,7 @@ test("product is exactly the complete full roster minus instrument proofs and mu
     expect(planStage(row, undefined, "full")).toEqual({ mode: "full", argv: row.argv, runsAt: null });
   }
   expect(product.filter(({ tierArgv }) => tierArgv !== undefined).map(({ name, tierArgv }) => [name, tierArgv])).toEqual([
-    ["types:testd", { product: ["pnpm", "test:types", "--config=vitest.product.config.ts"] }],
+    ["types:testd", { weekly: ["pnpm", "test:types"] }],
   ]);
   expect(
     full
@@ -96,7 +96,14 @@ function stage(tier: Parameters<typeof stagesForTier>[0], name: string): StageDe
 }
 
 test("weekly owns the complete instrument battery and policy conformance without a second affected run", () => {
-  expect(stagesForTier("weekly").map(({ name }) => name)).toEqual(["structure:policy-conformance", "tests:tooling"]);
+  const weekly = stagesForTier("weekly");
+  const staticNames = stagesForTier("static").map(({ name }) => name);
+  expect(weekly.map(({ name }) => name).toSorted()).toEqual(
+    [...staticNames, "structure:policy-conformance", "tests:tooling", "browser:tooling-ct", "quality:cpd"].toSorted(),
+  );
+  for (const row of weekly) {
+    expect(planStage(row, undefined, "weekly").argv).toEqual(row.tierArgv?.weekly ?? row.argv);
+  }
   const row = stage("weekly", "tests:tooling");
   expect(row.argv).toEqual(["pnpm", "test:tooling"]);
   expect(row.classify(null)).toBe(2);
@@ -104,6 +111,26 @@ test("weekly owns the complete instrument battery and policy conformance without
   for (const flag of ["--changed", "--file", "--package=tooling", "--scope=tooling/src"]) {
     expect(parseRequest(["--weekly", flag, ...(flag === "--file" ? ["package.json"] : [])])).toHaveProperty("error");
   }
+});
+
+test("application planning refuses unclassified checks and preserves world, architecture and full mutation enforcement", () => {
+  const unclassified: StageDef = { name: "new-check", group: "types", tiers: ["static"], argv: ["pnpm", "new-check"], classify: () => 0 };
+  expect(() => planStage(unclassified, undefined, "static", { applicationOnly: true })).toThrow("no application subject classification");
+  for (const name of ["types:native", "types:ownership", "tests:execution-membership", "imports:depcruise", "structure:full", "deps:knip"]) {
+    const row = stage("static", name);
+    expect(planStage(row, undefined, "static", { applicationOnly: true })).toEqual({ mode: "full", argv: row.applicationArgv, runsAt: null });
+  }
+  const hook = stage("static", "lint:hook-syntax");
+  expect(planStage(hook, undefined, "static", { applicationOnly: true })).toEqual({ mode: "skipped", argv: null, runsAt: "verify --weekly" });
+  expect(planStage(hook, undefined, "weekly").argv).toEqual(hook.argv);
+  expect(planStage(stage("full", "quality:mutation-gate"), undefined, "full", { applicationOnly: true }).argv).toEqual(["pnpm", "test:mutation:gate"]);
+  expect(stagesForTier("product").some(({ name }) => name === "quality:mutation-gate")).toBe(false);
+  expect(planStage(stage("weekly", "browser:tooling-ct"), undefined, "weekly").argv).toEqual([
+    "pnpm",
+    "test:ct",
+    "--retries=0",
+    "--config=playwright-ct.tooling.config.ts",
+  ]);
 });
 
 test("tests:node stays the push bar for everything else, and no longer carries the tooling battery", () => {

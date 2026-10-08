@@ -151,6 +151,7 @@ export { resolveSelection } from "./lib/selection.ts";
 export { refuseUnrunnableRows, resolveStageCommand, unresolvableCommandTranscript, unrunnableRegistryRows, workspaceBinPath } from "./lib/stage-command.ts";
 export { STRUCTURE_USAGE } from "./lib/structure-tail.ts";
 export { refuseVerbTail } from "./lib/verb-tail.ts";
+export { runApplicationStatic } from "./ops/application-static.ts";
 export type { AssetRefsCoverageInput } from "./ops/asset-refs-coverage.ts";
 export { AssetRefsCoverageRefusal, compareAssetRefsCoverage, runAssetRefsCoverage } from "./ops/asset-refs-coverage.ts";
 export { BASELINE_HELP, runBaseline } from "./ops/baseline.ts";
@@ -197,6 +198,13 @@ export { runShowcaseRelease, showcaseVersionViolations } from "./ops/showcase-re
 export { runStructure } from "./ops/structure.ts";
 export { runStructureDelta, STRUCTURE_DELTA_USAGE } from "./ops/structure-delta.ts";
 export { findMultiMembershipFiles, findUnrunFiles, runTestsExecutionMembership, unclassifiedVitestProjects } from "./ops/tests-execution-membership.ts";
-export { classifyMembership, compareRoutingParity, findEscapees, findTripleSlashLibLeaks, runTestsTypeMembership } from "./ops/tests-type-membership.ts";
+export {
+  classifyMembership,
+  compareRoutingParity,
+  findEscapees,
+  findTripleSlashLibLeaks,
+  runApplicationTypeMembership,
+  runTestsTypeMembership,
+} from "./ops/tests-type-membership.ts";
 export { classifyTypecheckChild, executeTypecheckPrograms, runTypecheck, TYPECHECK_HELP, typecheckCompilerArgv } from "./ops/typecheck.ts";
 export { runTypecheckPlan, TYPECHECK_PLAN_HELP } from "./ops/typecheck-plan.ts";

@@ -19,9 +19,11 @@ const COMPILER_PACKAGE = '{"name":"babel-plugin-react-compiler","version":"1.0.0
 
 export const gate = defineGate({
   id: "no-manual-memo-compiler-health",
+  application: "resources",
   family: "no-manual-memo-compiler-health",
   authority: "hard",
   severity: "error",
+  // SELF is a report anchor, not the evaluated subject: the installed compiler controls application grants.
   population: { in: ["@tooling"], under: [SELF] },
   analysis: "resource",
   execution: "entire-population",

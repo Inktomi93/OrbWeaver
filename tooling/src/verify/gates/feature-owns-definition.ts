@@ -65,6 +65,7 @@ function definitionOwner(entry: ResourceTreeEntry): string | undefined {
 
 export const gate = defineGate({
   id: "feature-owns-definition",
+  application: "resources",
   family: "feature-owns-definition",
   authority: "hard",
   severity: "error",

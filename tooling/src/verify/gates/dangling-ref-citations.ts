@@ -95,6 +95,7 @@ function proof(files: Readonly<Record<string, string>>, why: string, grant?: { r
 
 export const gate = defineGate({
   id: "dangling-ref-citations",
+  application: "implementation",
   family: "dangling-refs",
   authority: "reviewed-grant",
   severity: "error",

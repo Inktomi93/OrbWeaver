@@ -95,6 +95,7 @@ function reportDeadSelectors(ctx: GatePolicyContext, selectors: readonly EslintS
 
 export const gate = defineGate({
   id: "eslint-grant-liveness",
+  application: "implementation",
   family: "grant-liveness",
   authority: "reviewed-grant",
   severity: "error",

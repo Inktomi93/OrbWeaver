@@ -639,6 +639,7 @@ const RECEIVING = (prelude: string): string =>
 
 export const gate = defineGate({
   id: "policy-legacy-imports",
+  application: "implementation",
   family: "policy-soundness",
   authority: "hard",
   severity: "error",

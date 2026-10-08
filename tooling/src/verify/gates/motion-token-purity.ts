@@ -195,6 +195,7 @@ function judgedHits(file: AuthoredCssFile, declaration: CssDeclarationFact): rea
 
 export const gate = defineGate({
   id: "motion-token-purity",
+  application: "resources",
   family: "motion-token-purity",
   authority: "ordinary",
   severity: "error",

@@ -187,6 +187,7 @@ function reportDeadTargets(ctx: GatePolicyContext, entries: readonly ResourceTre
 
 export const gate = defineGate({
   id: "ui-exports-map-complete",
+  application: "resources",
   family: "ui-exports-map-complete",
   authority: "hard",
   severity: "error",

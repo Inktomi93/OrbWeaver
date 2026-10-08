@@ -112,6 +112,7 @@ function valuePosition(text: string, declarationOffset: number, value: string): 
 
 export const gate = defineGate({
   id: "no-raw-color-in-css",
+  application: "resources",
   family: "no-raw-color-in-css",
   authority: "ordinary",
   severity: "error",

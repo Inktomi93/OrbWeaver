@@ -72,6 +72,7 @@ function judgeModule(ctx: GatePolicyContext, descriptor: ObjectLiteralExpression
 
 export const gate = defineGate({
   id: "policy-waiver-spelling",
+  application: "implementation",
   family: "policy-soundness",
   authority: "hard",
   severity: "error",

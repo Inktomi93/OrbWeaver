@@ -211,6 +211,7 @@ function deadGlobs(rows: readonly ConfigGrantRow[], repoPaths: readonly string[]
 
 export const gate = defineGate({
   id: "biome-grant-liveness",
+  application: "implementation",
   family: "grant-liveness",
   authority: "reviewed-grant",
   severity: "error",

@@ -211,6 +211,7 @@ const CONFIG_DIR_TOKEN = ["$", "{configDir}/src"].join("");
 
 export const gate = defineGate({
   id: "tsconfig-entry-liveness",
+  application: "implementation",
   family: "grant-liveness",
   authority: "reviewed-grant",
   severity: "error",

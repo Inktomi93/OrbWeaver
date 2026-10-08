@@ -98,6 +98,7 @@ const STALE_EXCEPTION = (script: string): string =>
 
 export const gate = defineGate({
   id: "verify-registry-parity",
+  application: "implementation",
   family: "verify-registry-parity",
   authority: "hard",
   severity: "error",

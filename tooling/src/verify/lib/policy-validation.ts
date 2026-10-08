@@ -8,7 +8,14 @@ import { isDefinedGateFact } from "../contract/fact.ts";
 import type { GateAuthority } from "../contract/gate-authority.ts";
 import { GATE_AUTHORITIES, GATE_SEVERITIES } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyHooks, PolicyField } from "../contract/policy.ts";
-import { GATE_POLICY_EXECUTIONS, POLICY_FIELDS, POLICY_HOOK_KEYS, POLICY_OPTIONAL_FIELDS, POLICY_PROOF_ARMS } from "../contract/policy.ts";
+import {
+  GATE_POLICY_EXECUTIONS,
+  POLICY_APPLICATION_MODES,
+  POLICY_FIELDS,
+  POLICY_HOOK_KEYS,
+  POLICY_OPTIONAL_FIELDS,
+  POLICY_PROOF_ARMS,
+} from "../contract/policy.ts";
 import type { GatePolicyAnalysis } from "../contract/policy-primitives.ts";
 import { GATE_POLICY_ANALYSES } from "../contract/policy-primitives.ts";
 import type { PopulationExpr } from "../contract/population.ts";
@@ -253,6 +260,12 @@ function assertSeverityWorkItem(policy: Readonly<Record<string, unknown>>): void
   }
 }
 
+function assertApplicationAdmission(policy: Record<string, unknown>): void {
+  if (Object.hasOwn(policy, "application") && !(POLICY_APPLICATION_MODES as readonly unknown[]).includes(policy["application"])) {
+    invalid("descriptor.application is invalid");
+  }
+}
+
 export function assertGatePolicyDescriptor(value: unknown): asserts value is GatePolicy {
   const policy = record(value, "descriptor");
   assertDirectDescriptor(policy);
@@ -278,6 +291,7 @@ export function assertGatePolicyDescriptor(value: unknown): asserts value is Gat
   }
   assertFacts(policy["facts"], policy["execution"]);
   assertAnalysisResources(policy);
+  assertApplicationAdmission(policy);
   nonBlank(policy["message"], "descriptor.message");
   if (Object.hasOwn(policy, "fix")) {
     nonBlank(policy["fix"], "descriptor.fix");

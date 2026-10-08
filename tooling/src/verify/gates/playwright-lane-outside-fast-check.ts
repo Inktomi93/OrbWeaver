@@ -68,6 +68,7 @@ function checkFamilyMapping(node: MorphNode): string | null {
 
 export const gate = defineGate({
   id: "playwright-lane-outside-fast-check",
+  application: "implementation",
   family: "playwright-lane-outside-fast-check",
   authority: "hard",
   severity: "error",

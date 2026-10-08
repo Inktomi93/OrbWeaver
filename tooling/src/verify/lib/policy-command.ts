@@ -46,6 +46,7 @@ const OPTIONS = {
   full: { type: "boolean" },
   product: { type: "boolean" },
   weekly: { type: "boolean" },
+  application: { type: "boolean" },
   whole: { type: "boolean" },
   changed: { type: "boolean" },
   file: { type: "string", multiple: true },
@@ -64,6 +65,7 @@ const REPEATABLE_OPTIONS = new Set(["file", CHECK_OPTION, FAMILY_OPTION]);
 const POLICY_ID_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 
 interface Values {
+  readonly application?: boolean;
   readonly tier?: string;
   readonly static?: boolean;
   readonly push?: boolean;
@@ -182,6 +184,7 @@ function inspectionRequest(values: Values, selected: PolicySelector): PolicyComm
 
 function hasRunShape(values: Values): boolean {
   return (
+    values.application === true ||
     values.tier !== undefined ||
     values.static === true ||
     values.push === true ||
@@ -269,6 +272,9 @@ export function parsePolicyCommand(argv: readonly string[]): PolicyCommandParseR
   if (typeof tier !== "string") {
     return tier;
   }
+  if (values.application === true && (requestedScope.kind !== "whole" || tier === "weekly")) {
+    return refuse("--application requires whole application subjects and cannot select weekly proof");
+  }
   return {
     ok: true,
     request: {
@@ -279,6 +285,7 @@ export function parsePolicyCommand(argv: readonly string[]): PolicyCommandParseR
       strictScope: values["strict-scope"] === true,
       failOnWarnings: values[FAIL_ON_WARNINGS_OPTION] === true,
       json: values.json === true,
+      ...(values.application === true ? { application: true } : {}),
     },
   };
 }

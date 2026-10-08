@@ -61,6 +61,7 @@ import type { ProjectContext } from "../contract/project-context.ts";
 import type { RunManifest, StructureScopeManifest } from "../contract/run-manifest.ts";
 import type { FinalPolicyRow, StructureReport } from "../contract/structure-report.ts";
 import { STRUCTURE_REPORT_NAME } from "../contract/structure-report.ts";
+import { readApplicationSubjects } from "../lib/application-programs.ts";
 import { loadGateCorpus } from "../lib/loader.ts";
 import { nonVerdictReason, notQuietReasons, plantedPaths, stripProbePolicyFindings } from "../lib/planted-fixtures.ts";
 import { parsePolicyCommand } from "../lib/policy-command.ts";
@@ -124,12 +125,13 @@ interface StructurePlanIdentity {
   readonly scope: PolicyScopeResolution;
   readonly tier: PolicyRunPlan["tier"];
   readonly strictScope: boolean;
+  readonly applicationPaths?: readonly string[];
 }
 
 function scopeManifest(plan: StructurePlanIdentity): StructureScopeManifest {
   return {
     kind: plan.scope.kind,
-    label: plan.scope.label,
+    label: plan.applicationPaths === undefined ? plan.scope.label : "application",
     tier: plan.tier,
     strict: plan.strictScope,
     requestedPaths: plan.scope.requestedPaths === null ? null : structuredClone(plan.scope.requestedPaths),
@@ -267,6 +269,22 @@ function parseStructurePolicyCommand(argv: readonly string[]): PolicyCommandRequ
  *  `runTool` sets `process.exitCode` from it — never `process.exit`, which drops the buffered stdout write below
  *  and truncates a large report mid-line (the fixture-run report the check-gates anti-drift test parses). */
 export async function runStructure(root: string, argv: readonly string[]): Promise<number> {
+  if (argv.includes("--application")) {
+    const command = parseStructurePolicyCommand(argv);
+    if (command.mode !== "run") {
+      throw new UsageError("application structure requires a run request");
+    }
+    const { subjects } = await readApplicationSubjects(root);
+    return await runStructurePopulation(root, argv, { applicationPaths: subjects });
+  }
+  return await runStructurePopulation(root, argv);
+}
+
+async function runStructurePopulation(
+  root: string,
+  argv: readonly string[],
+  populationOptions: { readonly applicationPaths?: readonly string[] } = {},
+): Promise<number> {
   const tombstone = parseStructureTombstone(argv);
   if (tombstone !== null) {
     return tombstoneSlot(root, tombstone);
@@ -282,6 +300,7 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
     wholeWorkspacePaths: () => context().files.map((file) => repoRel(root, file.getFilePath())),
     executionWorkspacePaths: () => context().files.map((file) => repoRel(root, file.getFilePath())),
     deferResourceFailuresToExecution: true,
+    ...populationOptions,
   });
   if (!planned.ok) {
     return planningFailure(planned);

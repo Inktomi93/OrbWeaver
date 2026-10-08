@@ -125,6 +125,7 @@ const SYMBOL_MEMBER = (member: string): Readonly<Record<string, string>> =>
 
 export const gate = defineGate({
   id: "policy-binding-resolution",
+  application: "implementation",
   family: "policy-soundness",
   authority: "hard",
   severity: "error",

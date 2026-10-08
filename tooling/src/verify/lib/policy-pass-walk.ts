@@ -17,9 +17,10 @@ interface CreateRunsInput {
   readonly checker: () => TypeChecker;
   readonly errors: PolicyToolError[];
   readonly factValues: PolicyFactValueRegistry;
+  readonly applicationPaths?: readonly string[];
 }
 
-export function createRuns({ runs, paths, resources, checker, errors, factValues }: CreateRunsInput): void {
+export function createRuns({ runs, paths, resources, checker, errors, factValues, applicationPaths }: CreateRunsInput): void {
   for (const run of runs) {
     if (run.owner.status !== "success") {
       continue;
@@ -34,6 +35,7 @@ export function createRuns({ runs, paths, resources, checker, errors, factValues
       checker,
       findings: run.findings,
       factValues,
+      ...(applicationPaths === undefined ? {} : { applicationPaths: new Set(applicationPaths) }),
     });
     run.finishReceipts = runtime.finishReceipts;
     run.unconsumedFacts = runtime.unconsumedFacts;

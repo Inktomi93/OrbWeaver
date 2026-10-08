@@ -190,6 +190,7 @@ const SHARED_IMPORT = 'import { readShared } from "../lib/shared-probe.ts";';
 
 export const gate = defineGate({
   id: "policy-family-readers",
+  application: "implementation",
   family: "policy-soundness",
   authority: "hard",
   severity: "error",

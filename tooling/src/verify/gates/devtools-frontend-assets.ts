@@ -186,6 +186,7 @@ function fixtureFiles(broken: ClosureFixtureBreak): Readonly<Record<string, stri
 
 export const gate = defineGate({
   id: "devtools-frontend-assets",
+  application: "implementation",
   family: "devtools-frontend-assets",
   authority: "hard",
   severity: "error",

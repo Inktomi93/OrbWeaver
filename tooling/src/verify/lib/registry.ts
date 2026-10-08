@@ -23,7 +23,7 @@ import { mutationGateHangCeilingMs } from "./stage-budget.ts";
 // verdict; the push bar (`tests:node` running the WHOLE CT suite) remains that verdict. The static tier is
 // EXACTLY run.ts's stages, in order, so `pnpm check` (= `verify --static`) stays byte-compatible.
 
-const STATIC: readonly Tier[] = ["static", "push", "full", "product"];
+const STATIC: readonly Tier[] = ["static", "push", "full", "product", "weekly"];
 
 /** `node --check` on every `.claude/hooks/*.mjs`, and a refusal when the glob matches nothing. */
 const HOOK_SYNTAX_LOOP = [
@@ -38,6 +38,8 @@ const GATING_STAGES: readonly StageDef[] = [
   // ── lint stage-group (§2.4: biome + eslint are one presented group) ──
   {
     name: "lint:biome",
+    applicationClassify: ownScheme,
+    applicationArgv: ["node", "tooling/src/verify/cli.ts", "application-static", "biome"],
     group: "lint",
     tiers: ["changed", ...STATIC],
     argv: ["pnpm", "lint"],
@@ -51,6 +53,8 @@ const GATING_STAGES: readonly StageDef[] = [
   },
   {
     name: "lint:eslint",
+    applicationClassify: ownScheme,
+    applicationArgv: ["node", "tooling/src/verify/cli.ts", "application-static", "eslint"],
     group: "lint",
     tiers: ["changed", ...STATIC],
     argv: ["pnpm", "lint:eslint"],
@@ -59,6 +63,7 @@ const GATING_STAGES: readonly StageDef[] = [
   },
   {
     name: "lint:hook-syntax",
+    applicationArgv: "implementation-only",
     group: "lint",
     tiers: STATIC,
     // `.claude/hooks/*.mjs` IS LINTED BY NOTHING (#1943 F3, measured): `biome.json`'s files.includes
@@ -82,6 +87,7 @@ const GATING_STAGES: readonly StageDef[] = [
   // ── types stage-group ──
   {
     name: "types:native",
+    applicationArgv: ["pnpm", "typecheck", "--application"],
     group: "types",
     tiers: ["changed", ...STATIC],
     argv: ["pnpm", "typecheck"],
@@ -92,16 +98,18 @@ const GATING_STAGES: readonly StageDef[] = [
   },
   {
     name: "types:testd",
+    applicationArgv: ["pnpm", "test:types", "--config=vitest.product.config.ts"],
     group: "types",
     tiers: STATIC,
-    argv: ["pnpm", "test:types"],
-    tierArgv: { product: ["pnpm", "test:types", "--config=vitest.product.config.ts"] },
+    argv: ["pnpm", "test:types", "--config=vitest.product.config.ts"],
+    tierArgv: { weekly: ["pnpm", "test:types"] },
     classify: asViolations,
     // Vitest typecheck has no sound narrowed derivation. The changed-tier trigger decorator runs this
     // stage's whole argv whenever a changed selection owes it.
   },
   {
     name: "types:ownership",
+    applicationArgv: ["pnpm", "check:type-ownership", "--application"],
     group: "types",
     tiers: STATIC,
     argv: ["pnpm", "check:type-ownership"],
@@ -114,6 +122,7 @@ const GATING_STAGES: readonly StageDef[] = [
   },
   {
     name: "tests:execution-membership",
+    applicationArgv: ["pnpm", "check:tests-execution-membership", "--application"],
     group: "tests",
     tiers: STATIC,
     argv: ["pnpm", "check:tests-execution-membership"],
@@ -129,6 +138,7 @@ const GATING_STAGES: readonly StageDef[] = [
   // ── structure stage-group (the ts-morph single-pass gates + the db-baseline parity) ──
   {
     name: "structure:db-baseline",
+    applicationArgv: ["pnpm", "check:db-baseline"],
     group: "structure",
     tiers: STATIC,
     argv: ["pnpm", "check:db-baseline"],
@@ -143,6 +153,7 @@ const GATING_STAGES: readonly StageDef[] = [
   },
   {
     name: "structure:asset-refs",
+    applicationArgv: ["pnpm", "check:asset-refs"],
     group: "structure",
     tiers: STATIC,
     argv: ["pnpm", "check:asset-refs"],
@@ -159,6 +170,7 @@ const GATING_STAGES: readonly StageDef[] = [
   },
   {
     name: "structure:drizzle-kit",
+    applicationArgv: ["pnpm", "check:drizzle-kit"],
     group: "structure",
     tiers: STATIC,
     argv: ["pnpm", "check:drizzle-kit"],
@@ -175,6 +187,7 @@ const GATING_STAGES: readonly StageDef[] = [
   },
   {
     name: "structure:agent-config",
+    applicationArgv: "implementation-only",
     group: "structure",
     tiers: STATIC,
     argv: ["pnpm", "check:agents"],
@@ -183,6 +196,7 @@ const GATING_STAGES: readonly StageDef[] = [
   },
   {
     name: "structure:full",
+    applicationArgv: ["pnpm", "check:structure", "--application"],
     group: "structure",
     tiers: ["changed", ...STATIC],
     argv: ["pnpm", "check:structure"],
@@ -201,6 +215,7 @@ const GATING_STAGES: readonly StageDef[] = [
 
   {
     name: "ledgers:fresh",
+    applicationArgv: ["pnpm", "check:ledgers-fresh", "--application"],
     group: "structure",
     tiers: STATIC,
     argv: ["pnpm", "check:ledgers-fresh"],
@@ -217,6 +232,7 @@ const GATING_STAGES: readonly StageDef[] = [
 
   {
     name: "release:showcase-versions",
+    applicationArgv: ["pnpm", "check:showcase-release"],
     group: "structure",
     tiers: STATIC,
     argv: ["pnpm", "check:showcase-release"],
@@ -227,6 +243,7 @@ const GATING_STAGES: readonly StageDef[] = [
 
   {
     name: "config:biome-rule-liveness",
+    applicationArgv: "implementation-only",
     group: "structure",
     tiers: STATIC,
     argv: ["pnpm", "check:biome-rule-liveness"],
@@ -243,6 +260,7 @@ const GATING_STAGES: readonly StageDef[] = [
   },
   {
     name: "config:knip-negative-liveness",
+    applicationArgv: "implementation-only",
     group: "structure",
     tiers: STATIC,
     argv: ["pnpm", "check:knip-negative-liveness"],
@@ -257,6 +275,8 @@ const GATING_STAGES: readonly StageDef[] = [
   // ── imports stage-group ──
   {
     name: "imports:depcruise",
+    applicationClassify: ownScheme,
+    applicationArgv: ["node", "tooling/src/verify/cli.ts", "application-static", "imports"],
     group: "imports",
     tiers: ["changed", ...STATIC],
     argv: ["pnpm", "depcruise"],
@@ -268,6 +288,8 @@ const GATING_STAGES: readonly StageDef[] = [
   // ── deps stage-group ──
   {
     name: "deps:knip",
+    applicationClassify: ownScheme,
+    applicationArgv: ["node", "tooling/src/verify/cli.ts", "application-static", "knip"],
     group: "deps",
     tiers: STATIC,
     argv: ["pnpm", "knip"],
@@ -277,6 +299,8 @@ const GATING_STAGES: readonly StageDef[] = [
   },
   {
     name: "deps:knip-prod",
+    applicationClassify: ownScheme,
+    applicationArgv: ["node", "tooling/src/verify/cli.ts", "application-static", "knip-prod"],
     group: "deps",
     // The production-strict view (`--production --strict`): its DELTA over deps:knip is the
     // kept-alive-only-by-tests rot lens (knip.ts header). FULL tier during the buildout, not static/push:
@@ -292,6 +316,7 @@ const GATING_STAGES: readonly StageDef[] = [
 
   {
     name: "deps:orphan-ratchet",
+    applicationArgv: ["pnpm", "check:orphan-ratchet"],
     group: "deps",
     // PUSH tier, never the commit bar: it resolves the whole type graph to key liveness on origin
     // declarations (~30s). knip CANNOT stand in for it — probe-verified (dispositions doc, "Correction"):
@@ -308,6 +333,7 @@ const GATING_STAGES: readonly StageDef[] = [
   // ── docs stage-group ──
   {
     name: "docs:format",
+    applicationArgv: "implementation-only",
     group: "docs",
     tiers: ["changed", ...STATIC],
     argv: ["pnpm", "check:docs"],
@@ -331,15 +357,18 @@ const GATING_STAGES: readonly StageDef[] = [
   // ── full-tier additions (the "nothing omitted" bar) ──
   {
     name: "quality:cpd",
+    applicationClassify: ownScheme,
+    applicationArgv: ["node", "tooling/src/verify/cli.ts", "application-static", "cpd"],
     group: "quality",
     // PROMOTED to the push tier 2026-08-03: measured 0.86s. It sat in `full` for historical reasons,
     // not cost — and a duplication ratchet that only runs in a tier nobody invokes is not a ratchet.
-    tiers: ["push", "full", "product"],
+    tiers: ["push", "full", "product", "weekly"],
     argv: ["pnpm", "cpd"],
     classify: ownScheme,
   },
   {
     name: "browser:e2e",
+    applicationArgv: ["pnpm", "e2e"],
     group: "browser",
     tiers: ["full", "product"],
     argv: ["pnpm", "e2e"],
@@ -347,6 +376,7 @@ const GATING_STAGES: readonly StageDef[] = [
   },
   {
     name: "quality:mutation-gate",
+    applicationArgv: ["pnpm", "test:mutation:gate"],
     group: "quality",
     tiers: ["full"],
     argv: ["pnpm", "test:mutation:gate"],

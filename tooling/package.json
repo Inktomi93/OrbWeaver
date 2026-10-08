@@ -30,6 +30,7 @@
     "pino-pretty": "catalog:",
     "ts-morph": "catalog:",
     "typescript": "catalog:",
+    "unbash": "catalog:",
     "vitest": "catalog:",
     "zod": "catalog:"
   },

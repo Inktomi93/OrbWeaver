@@ -31,6 +31,7 @@ import { ctSuiteHangCeilingMs, toolingSuiteHangCeilingMs } from "./stage-budget.
 export const TEST_LANE_STAGES: readonly StageDef[] = [
   {
     name: "tests:node",
+    applicationArgv: ["pnpm", "test:node"],
     group: "tests",
     tiers: ["changed", "push", "full", "product"],
     // THE VITEST HALF ONLY (#1848). It ran `pnpm test` — the composite that ALSO runs the CT suite — and
@@ -86,6 +87,7 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
   },
   {
     name: "browser:ct",
+    applicationArgv: ["pnpm", "test:ct", "--retries=2", "--config=playwright-ct.product.config.ts"],
     group: "browser",
     // THE WHOLE CT SUITE IS ITS OWN STAGE AGAIN (#1848) — it rode inside `tests:node` from 2026-07-17 (a
     // merge made for the old single-thread constraint) and shared that stage's hang ceiling with the
@@ -109,15 +111,25 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
   },
   {
     name: "browser:e2e-smoke",
+    applicationArgv: ["pnpm", "e2e:smoke"],
     group: "browser",
     tiers: ["push", "full", "product"],
     argv: ["pnpm", "e2e:smoke"],
     classify: asViolations,
     // Cross-cutting by nature — never scoped; deferred at a scoped tier.
   },
+  {
+    name: "browser:tooling-ct",
+    group: "browser",
+    tiers: ["weekly"],
+    argv: ["pnpm", "test:ct", "--retries=0", "--config=playwright-ct.tooling.config.ts"],
+    classify: ownScheme,
+    hangCeilingBaseMs: ctSuiteHangCeilingMs(),
+  },
 
   {
     name: "quality:boot-chunk",
+    applicationArgv: ["pnpm", "check:boot-chunk"],
     group: "quality",
     // PUSH tier, never the commit bar: it runs a real vite production build of @orb/client (15.45s warm,
     // measured 2026-08-22). `pnpm check` is the STRUCTURAL-fast bar (§3.2, "no behavioral suite"), and a

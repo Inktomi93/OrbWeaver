@@ -96,6 +96,7 @@ const ANCHOR_FILES: Readonly<Record<string, string>> = { [BUDGET_ANCHOR]: "# Cor
 
 export const gate = defineGate({
   id: "depcruise-grant-liveness-health",
+  application: "implementation",
   family: "grant-liveness",
   authority: "hard",
   severity: "error",

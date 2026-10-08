@@ -69,6 +69,7 @@ function topEntry(entry: ResourceTreeEntry): string | undefined {
 
 export const gate = defineGate({
   id: "server-layout",
+  application: "resources",
   family: "server-layout",
   authority: "hard",
   severity: "error",

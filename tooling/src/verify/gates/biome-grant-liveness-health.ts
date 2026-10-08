@@ -67,6 +67,7 @@ function overridesJson(entries: string): string {
 
 export const gate = defineGate({
   id: "biome-grant-liveness-health",
+  application: "implementation",
   family: "grant-liveness",
   authority: "hard",
   severity: "error",

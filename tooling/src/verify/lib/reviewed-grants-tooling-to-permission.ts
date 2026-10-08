@@ -36,6 +36,15 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     endsWhen: "the negation-liveness check moves into knip or off this module — the row is then consumed zero times and reds.",
   },
   {
+    id: "tooling-root-config-import:application-knip",
+    policyId: "tooling-root-config-import",
+    subject: "tooling/src/verify/ops/application-knip.ts",
+    operation: "root-config-import:knip.ts",
+    why: "evaluates the canonical mode-dependent Knip configuration to derive its native application discovery view without respelling rules or production entry semantics.",
+    endsWhen:
+      "Knip exposes an equivalent public resolved-configuration snapshot or canonical configuration ownership moves; zero consumption makes this exact permission stale.",
+  },
+  {
     id: "tooling-artifact-path-home:artifacts",
     policyId: "tooling-artifact-path-home",
     subject: "tooling/src/_shared/artifacts.ts",

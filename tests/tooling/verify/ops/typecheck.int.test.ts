@@ -1,9 +1,12 @@
 // Unified native typecheck execution discovers programs, expands references, and never bails early.
-import { mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { processEnvValue } from "@orb/tooling/_shared/process-env";
 import { classifyTypecheckChild, executeTypecheckPrograms, typecheckCompilerArgv } from "@orb/tooling/verify";
+import { readApplicationSubjects } from "../../../../tooling/src/verify/lib/application-programs.ts";
+import { readPolicyRepositoryInventory } from "../../../../tooling/src/verify/lib/policy-repo-inventory.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -30,6 +33,192 @@ function plant(root: string, files: Readonly<Record<string, string>>): void {
 }
 
 const TIMEOUT = scaledBudget(30_000);
+
+function plantApplicationRepo(scratch: string, repoRoot: string): void {
+  plant(scratch, {
+    ".gitignore": "node_modules\ntest-results\n",
+    "package.json": JSON.stringify({ type: "module", scripts: { build: "node build.ts" }, devDependencies: { "@playwright/test": "*" } }),
+    "tsconfig.base.json": BASE,
+    "tsconfig.json": JSON.stringify({
+      extends: "./tsconfig.base.json",
+      include: ["*.config.ts", "build.ts", "scripts/**/*.ts", "tests/**/*.ts", "reset.d.ts", "platform.d.ts", "aggregator-assets.d.ts"],
+      exclude: ["tests/e2e"],
+    }),
+    "packages/kit/tsconfig.json": JSON.stringify({ extends: "../../tsconfig.base.json", include: ["src", "../../reset.d.ts", "../../platform.d.ts"] }),
+    "packages/ui/tsconfig.json": JSON.stringify({
+      extends: "../../tsconfig.base.json",
+      compilerOptions: { lib: ["es2025", "dom"] },
+      include: ["src", "../../reset.d.ts", "../../platform.d.ts"],
+    }),
+    "tsconfig.tests-dom.json": JSON.stringify({
+      extends: "./tsconfig.base.json",
+      compilerOptions: { lib: ["es2025", "dom"], jsx: "react-jsx" },
+      include: [
+        "tests/**/*.ct.tsx",
+        "tests/e2e",
+        "reset.d.ts",
+        "platform.d.ts",
+        "packages/ui/src/markdown/css-modules.d.ts",
+        "playwright/globals.d.ts",
+        "tests/support/vitest-tags.d.ts",
+      ],
+    }),
+    "packages/kit/src/value.ts": "export const value = 1;\n",
+    "packages/ui/src/index.ts": "export const ui = 1;\n",
+    "packages/ui/src/markdown/css-modules.d.ts": "export {};\n",
+    "build.ts": "export {};\n",
+    "reset.d.ts": "export {};\n",
+    "platform.d.ts": "export {};\n",
+    "aggregator-assets.d.ts": "export {};\n",
+    "playwright/globals.d.ts": "export {};\n",
+    "tests/support/vitest-tags.d.ts": "export {};\n",
+    "scripts/unrelated.ts": 'export const value: number = "wrong";\n',
+    "vitest.product.config.ts": 'export default { test: { name: "unit", include: ["tests/kit/*.test.ts"] } };\n',
+    "playwright-ct.product.config.ts": 'export default { testDir: "./tests", testMatch: "**/*.ct.tsx" };\n',
+    "playwright.config.ts": 'export default { testDir: "./tests/e2e", testMatch: "**/*.spec.ts" };\n',
+    "tests/kit/value.test.ts": "export const fixture = true;\n",
+    "tests/ui/value.ct.tsx": 'import { test } from "@playwright/test"; test("collection fixture", () => {});\n',
+    "tests/e2e/value.spec.ts": 'import { test } from "@playwright/test"; test("collection fixture", () => {});\n',
+  });
+  symlinkSync(join(repoRoot, "node_modules"), join(scratch, "node_modules"), "dir");
+}
+
+test("application native roots exclude an unrelated tool error but retain imported errors", { timeout: TIMEOUT }, async ({ runCli, scratch, repoRoot }) => {
+  plantApplicationRepo(scratch, repoRoot);
+  const authored = readPolicyRepositoryInventory(scratch).paths;
+  await readApplicationSubjects(scratch);
+  expect(readPolicyRepositoryInventory(scratch).paths).toEqual(authored);
+  const application = await runCli("verify", ["typecheck", "--application"], { cwd: scratch, timeoutMs: TIMEOUT });
+  await expect(application).toExitWith(0);
+  expect(application.stdout).toContain("application");
+  const global = await runCli("verify", ["typecheck"], { cwd: scratch, timeoutMs: TIMEOUT });
+  await expect(global).toExitWith(1);
+  expect(global.stdout).toContain("scripts/unrelated.ts");
+  writeFileSync(join(scratch, "packages/kit/src/value.ts"), 'import "../../../scripts/unrelated.ts";\nexport const value = 1;\n');
+  const imported = await runCli("verify", ["typecheck", "--application"], { cwd: scratch, timeoutMs: TIMEOUT });
+  await expect(imported).toExitWith(1);
+  expect(imported.stdout).toContain("TS2322");
+  expect(imported.stdout).toContain("scripts/unrelated.ts");
+  expect(readPolicyRepositoryInventory(scratch).paths).toEqual(authored);
+});
+
+test("application native ownership refuses DOM pollution in an isomorphic application closure", { timeout: TIMEOUT }, async ({ runCli, scratch, repoRoot }) => {
+  plantApplicationRepo(scratch, repoRoot);
+  writeFileSync(join(scratch, "packages/kit/src/value.ts"), '/// <reference lib="dom" />\nexport const value = document.title;\n');
+  const result = await runCli("verify", ["tests-membership", "--application"], { cwd: scratch, timeoutMs: TIMEOUT });
+  await expect(result).toExitWith(1);
+  expect(result.stdout).toContain("packages/kit/tsconfig.json [iso] acquired forbidden browser-libraries");
+  expect(result.stdout).toContain("packages/kit/src/value.ts");
+});
+
+test("application qualification refuses an empty authored test denominator despite valid application sources", { timeout: TIMEOUT }, async ({
+  runCli,
+  scratch,
+  repoRoot,
+}) => {
+  plantApplicationRepo(scratch, repoRoot);
+  for (const file of ["tests/kit/value.test.ts", "tests/ui/value.ct.tsx", "tests/e2e/value.spec.ts"]) {
+    rmSync(join(scratch, file));
+  }
+  const result = await runCli("verify", ["typecheck", "--application"], { cwd: scratch, timeoutMs: TIMEOUT });
+  await expect(result).toExitWith(2);
+  expect(result.stderr).toContain("no authored product tests");
+});
+
+test("application qualification refuses a native runner that omits an existing product test", { timeout: TIMEOUT }, async ({ runCli, scratch, repoRoot }) => {
+  plantApplicationRepo(scratch, repoRoot);
+  writeFileSync(join(scratch, "vitest.product.config.ts"), 'export default { test: { name: "unit", include: ["tests/absent/*.test.ts"] } };\n');
+  const result = await runCli("verify", ["typecheck", "--application"], { cwd: scratch, timeoutMs: TIMEOUT });
+  await expect(result).toExitWith(2);
+  expect(result.stderr).toContain("missing {tests/kit/value.test.ts}");
+});
+
+test.for(["tests/ui/primitives/example.test.tsx", "tests/support/shape.ct-d.ts"])(
+  "application qualification refuses the unregistered test kind %s before native collection can omit it",
+  { timeout: TIMEOUT },
+  async (path, { runCli, scratch, repoRoot }) => {
+    plantApplicationRepo(scratch, repoRoot);
+    mkdirSync(dirname(join(scratch, path)), { recursive: true });
+    writeFileSync(join(scratch, path), "export const unsupported = true;\n");
+    const result = await runCli("verify", ["typecheck", "--application"], { cwd: scratch, timeoutMs: TIMEOUT });
+    await expect(result).toExitWith(2);
+    expect(result.stderr).toContain(`application test kind is unregistered: ${path}`);
+  },
+);
+
+test("application native lint excludes unrelated tooling findings while global lint and app findings remain blocking", { timeout: TIMEOUT }, async ({
+  runCli,
+  scratch,
+  repoRoot,
+}) => {
+  plantApplicationRepo(scratch, repoRoot);
+  writeFileSync(
+    join(scratch, "biome.json"),
+    JSON.stringify({
+      formatter: { enabled: false },
+      assist: { enabled: false },
+      linter: { rules: { recommended: false, suspicious: { noDebugger: "error" } } },
+    }),
+  );
+  writeFileSync(join(scratch, "scripts/unrelated.ts"), "debugger;\nexport {};\n");
+  await expect(await runCli("verify", ["application-static", "biome"], { cwd: scratch, timeoutMs: TIMEOUT })).toExitWith(0);
+  const global = runNicedSync(join(repoRoot, "node_modules/.bin/biome"), ["check", "scripts/unrelated.ts", "--diagnostic-level=error"], { cwd: scratch });
+  expect(global.status, global.stderr).toBe(1);
+  expect(global.stderr).toContain("noDebugger");
+  writeFileSync(join(scratch, "packages/kit/src/value.ts"), "debugger;\nexport {};\n");
+  const app = await runCli("verify", ["application-static", "biome"], { cwd: scratch, timeoutMs: TIMEOUT });
+  await expect(app).toExitWith(1);
+  expect(app.stdout + app.stderr).toContain("packages/kit/src/value.ts");
+});
+
+test("application native import direction keeps the real rule while unrelated tooling imports belong to global checking", { timeout: TIMEOUT }, async ({
+  runCli,
+  scratch,
+  repoRoot,
+}) => {
+  plantApplicationRepo(scratch, repoRoot);
+  writeFileSync(join(scratch, ".dependency-cruiser.cjs"), `module.exports = require(${JSON.stringify(join(repoRoot, ".dependency-cruiser.cjs"))});\n`);
+  writeFileSync(join(scratch, "scripts/unrelated.ts"), 'import "./missing.ts";\n');
+  await expect(await runCli("verify", ["application-static", "imports"], { cwd: scratch, timeoutMs: TIMEOUT })).toExitWith(0);
+  const global = runNicedSync(
+    join(repoRoot, "node_modules/.bin/depcruise"),
+    ["scripts/unrelated.ts", "--config", ".dependency-cruiser.cjs", "--output-type", "err-long"],
+    { cwd: scratch },
+  );
+  expect(global.status, global.stderr).toBe(1);
+  expect(global.stdout + global.stderr).toContain("not-to-unresolvable");
+  writeFileSync(join(scratch, "packages/kit/src/value.ts"), 'import "node:fs";\nexport const value = 1;\n');
+  const app = await runCli("verify", ["application-static", "imports"], { cwd: scratch, timeoutMs: TIMEOUT });
+  await expect(app).toExitWith(1);
+  expect(app.stdout + app.stderr).toContain("kit-no-node-builtins");
+});
+
+test("application native CPD overrides global roots but rejects actual duplicated application implementation", { timeout: TIMEOUT }, async ({
+  runCli,
+  scratch,
+  repoRoot,
+}) => {
+  plantApplicationRepo(scratch, repoRoot);
+  copyFileSync(join(repoRoot, "scripts/cpd.ts"), join(scratch, "scripts/cpd.ts"));
+  copyFileSync(join(repoRoot, "jscpd.json"), join(scratch, "jscpd.json"));
+  mkdirSync(join(scratch, "tooling/src/proof/lib"), { recursive: true });
+  const duplicate =
+    "export function score(values: readonly number[]): number {\n  let total = 0;\n  for (const value of values) {\n    if (value > 10) {\n      total += value * value + value / 2;\n    } else {\n      total -= value * 3 + value / 4;\n    }\n  }\n  return total;\n}\n";
+  writeFileSync(join(scratch, "packages/kit/src/value.ts"), duplicate);
+  writeFileSync(join(scratch, "tooling/src/proof/lib/first.ts"), duplicate);
+  writeFileSync(join(scratch, "tooling/src/proof/lib/second.ts"), duplicate);
+  await expect(await runCli("verify", ["application-static", "cpd"], { cwd: scratch, timeoutMs: TIMEOUT })).toExitWith(0);
+  const global = runNicedSync(join(repoRoot, "node_modules/.bin/jscpd"), ["-c", "jscpd.json", "--workers", "1", "--fail-on-empty"], { cwd: scratch });
+  expect(global.status, global.stderr).toBe(1);
+  expect(global.stdout + global.stderr).toContain("proof/lib/first.ts");
+  expect(global.stdout + global.stderr).toContain("proof/lib/second.ts");
+  writeFileSync(join(scratch, "packages/kit/src/first.ts"), duplicate);
+  writeFileSync(join(scratch, "packages/kit/src/second.ts"), duplicate);
+  const app = await runCli("verify", ["application-static", "cpd"], { cwd: scratch, timeoutMs: TIMEOUT });
+  await expect(app).toExitWith(1);
+  expect(app.stdout + app.stderr).toContain("first.ts");
+  expect(app.stdout + app.stderr).toContain("second.ts");
+});
 
 test("an extended concrete parent still reports native diagnostics through discovery and explicit selection", { timeout: TIMEOUT }, async ({
   runCli,

@@ -107,6 +107,8 @@ export interface GatePolicyReportSink {
 /** The policy-visible surface. Deliberately contains no Project, root, filesystem, parser, or grants. */
 export interface GatePolicyContext {
   readonly files: readonly SourceFile[];
+  /** Resource inputs remain complete; resource-backed predicates use this before judging a subject row. */
+  readonly includesSubject: (repoRelativePath: string) => boolean;
   readonly resourcePaths: readonly string[];
   readonly resources: ResourceHost;
   readonly relativePath: (sourceFile: SourceFile) => string;
@@ -124,11 +126,15 @@ export interface GatePolicyHooks {
   readonly evaluate?: () => void;
 }
 
+export const POLICY_APPLICATION_MODES = ["resources", "implementation"] as const;
+
 interface GatePolicyBase {
   readonly id: string;
   readonly family: string;
   readonly authority: GateAuthority;
   readonly population: PopulationExpr;
+  /** Source declarations derive admission; resource-only and implementation-self subjects state it here. */
+  readonly application?: (typeof POLICY_APPLICATION_MODES)[number];
   readonly analysis: GatePolicyAnalysis;
   readonly execution: GatePolicyExecution;
   /** Shared providers required by this whole-population policy; `[]` is explicit. */
@@ -192,6 +198,7 @@ const POLICY_FIELD_TABLE = {
   severity: true,
   workItem: true,
   population: true,
+  application: true,
   analysis: true,
   execution: true,
   facts: true,
@@ -219,6 +226,7 @@ const POLICY_OPTIONAL_FIELD_TABLE = {
   workItem: true,
   fix: true,
   mustRefuse: true,
+  application: true,
 } as const satisfies Record<OptionalPolicyField, true>;
 export const POLICY_OPTIONAL_FIELDS = keysOf(POLICY_OPTIONAL_FIELD_TABLE);
 

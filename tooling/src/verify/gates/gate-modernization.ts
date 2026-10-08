@@ -452,6 +452,7 @@ const finalProbe = (body: string): string =>
 
 export const gate = defineGate({
   id: "gate-modernization",
+  application: "implementation",
   family: "gate-modernization",
   authority: "hard",
   severity: "error",

@@ -71,6 +71,7 @@ const FIX =
 
 export const gate = defineGate({
   id: "tooling-runner-config-literals",
+  application: "implementation",
   family: "plumbing-literals",
   authority: "hard",
   severity: "error",

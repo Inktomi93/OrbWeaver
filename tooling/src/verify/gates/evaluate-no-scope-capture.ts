@@ -347,6 +347,7 @@ function judgeCallbackArgument(ctx: GatePolicyContext, state: PassState, arg0: T
 
 export const gate = defineGate({
   id: "evaluate-no-scope-capture",
+  application: "implementation",
   family: "evaluate-no-scope-capture",
   authority: "ordinary",
   severity: "error",

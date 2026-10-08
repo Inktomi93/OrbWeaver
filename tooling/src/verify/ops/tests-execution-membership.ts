@@ -21,7 +21,12 @@ import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { classifyTestFilename, TEST_RESOURCE_NAMES, VITEST_RUNTIME_FAMILY_GROUPS, VITEST_TYPECHECK_GROUP_NAMES } from "@orb/tooling/_shared/test-kinds";
+import { UsageError } from "@orb/tooling/_shared/run-tool";
+import { looksLikeTestFilename, TEST_RESOURCE_NAMES, VITEST_RUNTIME_FAMILY_GROUPS, VITEST_TYPECHECK_GROUP_NAMES } from "@orb/tooling/_shared/test-kinds";
+import { isApplicationTest } from "@orb/tooling/_shared/test-population";
+import { z } from "zod";
+import { APPLICATION_TEST_CONFIGS } from "../contract/application.ts";
+import { classifyCtListing } from "../lib/ct-listing.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:tests-execution-membership");
 
@@ -75,7 +80,7 @@ type VitestFilesResult = VitestFilesOk | { readonly error: string };
 /** Every test SOURCE file under `tests/**` carrying a runner suffix, as repo-relative posix paths (sorted).
  *  `playwright/**` carries no runner-suffixed files (harness/story modules only — CT_ROOT below covers the
  *  CT lane's `.ct.tsx` sources, which already live under `tests/`). */
-function enumerateTestFiles(root: string): readonly string[] {
+export function enumerateTestFiles(root: string): readonly string[] {
   const out: string[] = [];
   const walk = (relDir: string): void => {
     for (const entry of readdirSync(join(root, "tests", relDir), { withFileTypes: true })) {
@@ -88,7 +93,7 @@ function enumerateTestFiles(root: string): readonly string[] {
           continue;
         }
         walk(rel);
-      } else if (classifyTestFilename(entry.name) !== undefined) {
+      } else if (looksLikeTestFilename(entry.name)) {
         out.push(`tests/${rel}`);
       }
     }
@@ -102,100 +107,56 @@ function enumerateTestFiles(root: string): readonly string[] {
  *  (measured live) makes `list` enumerate every individual TEST CASE across the whole tree instead of one
  *  row per file, pushing a sub-2s call past a 3-minute timeout; each row still carries `projectName`, so
  *  direction 3 below loses nothing by keeping the flag. Absolute paths; normalized to repo-relative posix. */
-function vitestFiles(root: string): VitestFilesResult {
-  const res = runNicedSync(process.execPath, [join(root, "node_modules", "vitest", "vitest.mjs"), "list", "--filesOnly", "--json"], {
-    cwd: root,
-    maxBuffer: LIST_FILES_MAX_BUFFER,
-  });
+export function vitestFiles(root: string, config?: string): VitestFilesResult {
+  const res = runNicedSync(
+    process.execPath,
+    [join(root, "node_modules", "vitest", "vitest.mjs"), "list", "--filesOnly", "--json", ...(config === undefined ? [] : ["--config", config])],
+    {
+      cwd: root,
+      maxBuffer: LIST_FILES_MAX_BUFFER,
+    },
+  );
   if (res.status !== 0) {
     return { error: `\`vitest list --filesOnly --json\` failed (status ${String(res.status)})\n${res.stderr}` };
   }
-  let parsed: unknown;
+  let parsed: readonly { readonly file: string; readonly projectName: string }[];
   try {
-    parsed = JSON.parse(res.stdout);
+    parsed = z.array(z.object({ file: z.string().min(1), projectName: z.string().min(1) })).parse(JSON.parse(res.stdout));
   } catch (err) {
-    return { error: `\`vitest list --filesOnly --json\` produced invalid JSON: ${String(err)}` };
-  }
-  if (!Array.isArray(parsed)) {
-    return { error: "`vitest list --filesOnly --json` did not produce an array" };
+    return { error: `\`vitest list --filesOnly --json\` produced an invalid listing: ${String(err)}` };
   }
   const files = new Set<string>();
   const projects = new Set<string>();
   const runtimeByProject = new Map<string, Set<string>>();
   for (const entry of parsed) {
-    if (
-      typeof entry === "object" &&
-      entry !== null &&
-      "file" in entry &&
-      typeof (entry as { file: unknown }).file === "string" &&
-      "projectName" in entry &&
-      typeof (entry as { projectName: unknown }).projectName === "string"
-    ) {
-      const { file, projectName } = entry as { file: string; projectName: string };
-      const rel = relative(root, file).split("\\").join("/");
-      files.add(rel);
-      projects.add(projectName);
-      if (VITEST_RUNTIME_PROJECTS.has(projectName)) {
-        const set = runtimeByProject.get(projectName) ?? new Set<string>();
-        set.add(rel);
-        runtimeByProject.set(projectName, set);
-      }
+    const { file, projectName } = entry;
+    const rel = relative(root, file).split("\\").join("/");
+    files.add(rel);
+    projects.add(projectName);
+    if (VITEST_RUNTIME_PROJECTS.has(projectName)) {
+      const set = runtimeByProject.get(projectName) ?? new Set<string>();
+      set.add(rel);
+      runtimeByProject.set(projectName, set);
     }
   }
   return { files, runtimeByProject, projects };
 }
 
-interface PwSuite {
-  readonly specs?: readonly { readonly file: string }[];
-  readonly suites?: readonly PwSuite[];
-}
-interface PwListJson {
-  readonly suites?: readonly PwSuite[];
-}
-
-function collectPwFiles(suites: readonly PwSuite[] | undefined, out: Set<string>): void {
-  if (suites === undefined) {
-    return;
-  }
-  for (const suite of suites) {
-    for (const spec of suite.specs ?? []) {
-      out.add(spec.file);
-    }
-    collectPwFiles(suite.suites, out);
-  }
-}
-
 /** `playwright test --list --reporter=json -c <config>` — the JSON suite tree's `specs[].file`, relative to
  *  the config's `testDir`. `testDirRel` is joined back on to normalize to repo-relative posix (playwright
  *  reports paths relative to its OWN `testDir`, not the repo root). */
-function playwrightFiles(root: string, config: string, testDirRel: string, extraEnv?: Readonly<Record<string, string>>): RunnerFiles {
+export function playwrightFiles(root: string, config: string, extraEnv?: Readonly<Record<string, string>>): RunnerFiles {
   const res = runNicedSync(join(root, "node_modules", ".bin", "playwright"), ["test", "--list", "--reporter=json", "-c", config], {
     cwd: root,
     maxBuffer: LIST_FILES_MAX_BUFFER,
     // biome-ignore lint/style/noProcessEnv: E2E_LIVE passthrough to the child (the @live-spec reachability probe) — greppable plain env, not config.
     env: { ...process.env, ...extraEnv },
   });
-  // playwright's --list exits 1 (not 0) when a project's testMatch resolves to ZERO specs — "Error: No
-  // tests found" lands in the JSON's own `errors[]`, stdout is still valid — so status alone can't gate
-  // parse-worthiness, or the exact empty-glob shape this stage exists to catch would misreport as a TOOL
-  // error instead of the violation it is. Only a genuinely unparseable stdout (a crash before the reporter
-  // wrote anything) is a tool error.
-  if (res.stdout.length === 0) {
-    return { error: `\`playwright test --list -c ${config}\` failed (status ${String(res.status)})\n${res.stderr}` };
+  if (res.status !== 0) {
+    return { error: `playwright collection failed for ${config} (status ${String(res.status)}): ${res.stderr || res.stdout}` };
   }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(res.stdout);
-  } catch (err) {
-    return { error: `\`playwright test --list -c ${config}\` produced invalid JSON (status ${String(res.status)}): ${String(err)}` };
-  }
-  const out = new Set<string>();
-  collectPwFiles((parsed as PwListJson).suites, out);
-  const files = new Set<string>();
-  for (const rel of out) {
-    files.add(`${testDirRel}/${rel}`);
-  }
-  return { files };
+  const listing = classifyCtListing(root, { status: res.status, stdout: res.stdout, stderr: res.stderr });
+  return "error" in listing ? listing : { files: new Set(listing.files) };
 }
 
 const FIX_HINT =
@@ -224,7 +185,7 @@ export function findMultiMembershipFiles(membership: ReadonlyMap<string, readonl
 
 /** Every runtime view (each vitest runtime project + the two playwright configs) as its own named claimant,
  *  keyed by the file it claims — the input `findMultiMembershipFiles` reconciles. */
-function buildRuntimeMembership(
+export function buildRuntimeMembership(
   vitestRuntimeByProject: ReadonlyMap<string, ReadonlySet<string>>,
   e2eFiles: ReadonlySet<string>,
   ctFiles: ReadonlySet<string>,
@@ -293,14 +254,18 @@ function reportMultiMembership(multiMembership: readonly (readonly [string, read
 }
 
 /** The `tests-execution-membership` verb. */
-export function runTestsExecutionMembership(root: string): number {
-  const vitest = vitestFiles(root);
+export function runTestsExecutionMembership(root: string, args: readonly string[] = []): number {
+  if (args.length > 1 || (args.length === 1 && args[0] !== "--application")) {
+    throw new UsageError("tests-execution-membership accepts only --application");
+  }
+  const application = args[0] === "--application";
+  const vitest = vitestFiles(root, application ? APPLICATION_TEST_CONFIGS.node : undefined);
   // playwright's e2e testMatch structurally reaches every `.spec.ts` under tests/e2e, including the
   // `@live`-tagged specs the routine `grepInvert` skips at RUN time (a selection policy, not a membership
   // question) — E2E_LIVE=1 makes --list's own collection see them too, so a `@live` spec counts as "run by
   // some runner" the same as any other, per the runner's OWN testMatch.
-  const e2e = playwrightFiles(root, "playwright.config.ts", "tests/e2e", Object.fromEntries([["E2E_LIVE", "1"]]));
-  const ct = playwrightFiles(root, "playwright-ct.config.ts", "tests");
+  const e2e = playwrightFiles(root, APPLICATION_TEST_CONFIGS.e2e, Object.fromEntries([["E2E_LIVE", "1"]]));
+  const ct = playwrightFiles(root, application ? APPLICATION_TEST_CONFIGS.ct : "playwright-ct.config.ts");
 
   const errors = [vitest, e2e, ct].filter((r): r is { readonly error: string } => "error" in r);
   if (errors.length > 0) {
@@ -338,14 +303,18 @@ export function runTestsExecutionMembership(root: string): number {
 
   // ── direction 2: FILE→RUNNER — every test-suffixed source file must land in the union of every view. ──
   const runnerUnion = new Set<string>([...vitestFilesOk.files, ...e2eFilesOk.files, ...ctFilesOk.files]);
-  const testFiles = enumerateTestFiles(root);
+  const testFiles = enumerateTestFiles(root).filter((path) => !application || isApplicationTest(path));
   const unrun = findUnrunFiles(testFiles, runnerUnion);
 
   process.stdout.write(
-    `tests-execution-membership — ${testFiles.length} test file(s) across ${runnerViews.length} runner view(s) (union: ${runnerUnion.size} file(s))\n`,
+    `tests-execution-membership${application ? " application" : ""} — ${testFiles.length} test file(s) across ${runnerViews.length} runner view(s) (union: ${runnerUnion.size} file(s))\n`,
   );
 
-  const directionsDirty = [reportEmptyRunners(emptyRunners), reportUnrunFiles(unrun)];
+  const unexpected = application ? [...runnerUnion].filter((path) => !testFiles.includes(path)) : [];
+  if (unexpected.length > 0) {
+    process.stdout.write(`application runner admitted non-application tests: ${unexpected.join(", ")}\n`);
+  }
+  const directionsDirty = [reportEmptyRunners(emptyRunners), reportUnrunFiles(unrun), unexpected.length > 0];
   if (directionsDirty.some(Boolean)) {
     process.stdout.write(`\n  FIX: ${FIX_HINT}\n`);
   }

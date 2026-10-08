@@ -330,7 +330,7 @@ export const gate = defineGate({
           throw new Error(`non-project citer ${refusal.path} was tracked and refused by the text door (${refusal.status}): ${refusal.reason}`);
         }
       }
-      for (const file of corpus.files) {
+      for (const file of corpus.files.filter((candidate) => ctx.includesSubject(candidate.path))) {
         collect(file.path, commentsOnlyText(file.path, file.text));
       }
     };

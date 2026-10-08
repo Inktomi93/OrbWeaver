@@ -313,6 +313,7 @@ function globFiller(count: number): string {
 
 export const gate = defineGate({
   id: "runner-config-path-liveness",
+  application: "implementation",
   family: "grant-liveness",
   authority: "hard",
   severity: "error",

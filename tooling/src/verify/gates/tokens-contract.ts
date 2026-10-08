@@ -135,6 +135,7 @@ function findingFile(path: string): string {
 
 export const gate = defineGate({
   id: "tokens-contract",
+  application: "resources",
   family: "tokens-contract",
   authority: "hard",
   severity: "error",

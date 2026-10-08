@@ -112,7 +112,7 @@ jobs:
             run: pnpm check:boot-chunk
           - name: Copy-paste detection
             if: needs.changes.outputs.code == 'true'
-            run: pnpm cpd
+            run: pnpm exec node tooling/src/verify/cli.ts application-static cpd
       - if: failure()
         name: Show what failed
         # check:show names every failing stage of the run with its own extracted failure lines.
@@ -461,7 +461,7 @@ jobs:
           key: ${{ env.VERIFY_TIER }}-verified-${{ steps.sha.outputs.sha }}
           lookup-only: true
       - if: steps.seen.outputs.cache-hit != 'true'
-        uses: $/.github/actions/setup
+        uses: ./.github/actions/setup
         with:
           browsers: "true"
       - id: media
@@ -556,7 +556,7 @@ jobs:
           ref: ${{ needs.weekly-head.outputs.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: $/.github/actions/setup
+      - uses: ./.github/actions/setup
         with:
           browsers: "true"
       - id: proof

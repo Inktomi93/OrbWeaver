@@ -34,6 +34,8 @@ import type { VerifyVerb } from "./index.ts";
 import {
   parse,
   refuseVerbTail,
+  runApplicationStatic,
+  runApplicationTypeMembership,
   runAssetRefsCoverage,
   runBaseline,
   runBiomeRuleLiveness,
@@ -111,9 +113,14 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
     case "baseline":
       return runBaseline(root, rest);
     case "tests-membership":
-      return runTestsTypeMembership(root, rest);
+      return rest.includes("--application")
+        ? await runApplicationTypeMembership(
+            root,
+            rest.filter((arg) => arg !== "--application"),
+          )
+        : runTestsTypeMembership(root, rest);
     case "tests-execution-membership":
-      return runTestsExecutionMembership(root);
+      return runTestsExecutionMembership(root, rest);
     case "db-baseline":
       return await runDbBaselineParity(root);
     case "asset-refs":
@@ -123,7 +130,7 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
     case "boot-chunk":
       return await runBootChunkRatchet(root);
     case "ledgers-fresh":
-      return runLedgersFresh(root);
+      return runLedgersFresh(root, rest);
     case "biome-rule-liveness":
       return runBiomeRuleLiveness(root);
     case "knip-negative-liveness":
@@ -139,6 +146,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return runTypecheckPlan(root, rest);
     case "typecheck":
       return await runTypecheck(root, rest);
+    case "application-static":
+      return await runApplicationStatic(root, rest);
     case "eslint":
       return await runEslint(root);
     case "eslint-scoped":

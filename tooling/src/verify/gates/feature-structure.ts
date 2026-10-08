@@ -197,6 +197,7 @@ function staleRootSlotRows(entries: readonly ResourceTreeEntry[], byPath: Readon
 
 export const gate = defineGate({
   id: "feature-structure",
+  application: "resources",
   family: "feature-structure",
   authority: "hard",
   severity: "error",

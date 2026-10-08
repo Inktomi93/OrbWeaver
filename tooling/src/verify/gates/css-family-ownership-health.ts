@@ -66,6 +66,7 @@ const MESSAGE =
 
 export const gate = defineGate({
   id: "css-family-ownership-health",
+  application: "resources",
   family: "css-hook-provenance",
   authority: "hard",
   severity: "error",

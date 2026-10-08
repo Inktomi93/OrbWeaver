@@ -29,6 +29,7 @@ export type PolicyCommandRequest =
       readonly strictScope: boolean;
       readonly failOnWarnings: boolean;
       readonly json: boolean;
+      readonly application?: boolean;
     }
   | { readonly mode: "list"; readonly json: boolean }
   | { readonly mode: "explain"; readonly selector: Exclude<PolicySelector, { readonly kind: "all" }>; readonly json: boolean };
@@ -84,6 +85,7 @@ export interface PolicyRunPlan {
   readonly resourcePathsByFact: Readonly<Record<string, readonly string[]>>;
   readonly resourceFailuresByPolicy: Readonly<Record<string, string>>;
   readonly resourceFailuresByFact: Readonly<Record<string, string>>;
+  readonly applicationPaths?: readonly string[];
 }
 
 export type PolicyInspectionPlan =
@@ -118,6 +120,7 @@ export interface PolicyPlannerInput {
   /** The structure composition root preserves dispatcher-owned incomplete rows; pure/programmatic planning
    *  remains fail-closed unless it explicitly selects this execution-bound behavior. */
   readonly deferResourceFailuresToExecution?: boolean;
+  readonly applicationPaths?: readonly string[];
 }
 
 export interface PolicyPlanExecutionInput extends Pick<PolicyPassInput, "reviewedGrants" | "resourceOptions"> {

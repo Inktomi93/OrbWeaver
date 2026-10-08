@@ -11,6 +11,7 @@ import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { CompilerProgram } from "../contract/policy-scope.ts";
 import type { TypecheckExecutionResult, TypecheckProgramResult, TypecheckProgramStatus } from "../contract/typecheck.ts";
+import { withApplicationPrograms } from "../lib/application-programs.ts";
 import { readCompilerPrograms } from "../lib/policy-program-membership.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm typecheck [--config <repo-relative-tsconfig>]...");
@@ -24,7 +25,7 @@ const RESULT_LABELS = {
   "tool-error": "TOOL ERROR",
 } as const satisfies Readonly<Record<TypecheckProgramStatus, string>>;
 
-export const TYPECHECK_HELP = "usage: pnpm typecheck [--config <repo-relative tsconfig path>]...";
+export const TYPECHECK_HELP = "usage: pnpm typecheck [--application | --config <repo-relative tsconfig path> ...]";
 
 export function typecheckCompilerArgv(config: string): readonly string[] {
   return [TS7_WRAPPER, "--noEmit", "--pretty", "false", "-p", config];
@@ -34,20 +35,23 @@ function compare(left: string, right: string): number {
   return left.localeCompare(right);
 }
 
-function parseRequestedConfigs(args: readonly string[]): readonly string[] | null {
-  let values: { readonly config?: string[] };
+function parseRequestedConfigs(args: readonly string[]): { readonly configs: readonly string[] | null; readonly application: boolean } {
+  let values: { readonly config?: string[]; readonly application?: boolean };
   try {
     values = parseArgs({
       args: [...args],
       allowPositionals: false,
       strict: true,
-      options: { config: { type: "string", multiple: true } },
+      options: { config: { type: "string", multiple: true }, application: { type: "boolean" } },
     }).values;
   } catch (error) {
     throw new UsageError(error instanceof Error ? error.message : String(error), { cause: error });
   }
   const configs = values.config?.map((config) => config.replace(/^\.\//u, "")) ?? [];
-  return configs.length === 0 ? null : [...new Set(configs)];
+  if (values.application === true && configs.length > 0) {
+    throw new UsageError("application typecheck requires the complete application population, not --config");
+  }
+  return { configs: configs.length === 0 ? null : [...new Set(configs)], application: values.application === true };
 }
 
 function selectedProgramIds(programs: readonly CompilerProgram[], requested: readonly string[] | null): readonly string[] {
@@ -165,9 +169,32 @@ function printProgram(result: TypecheckProgramResult): void {
 
 export async function runTypecheck(root: string, args: readonly string[]): Promise<number> {
   const requested = parseRequestedConfigs(args);
-  const result = await executeTypecheckPrograms(root, requested);
+  const result = requested.application
+    ? await withApplicationPrograms(root, async ({ programs, canonicalPrograms }) => {
+        const concurrency = readConcurrencyProfile().pnpmWorkspaceConcurrency;
+        const configs = new Map(programs.map((program) => [program.owner.config, program.config]));
+        const runner = async (config: string): Promise<SpawnNicedResult> => {
+          const view = configs.get(config);
+          if (view === undefined) {
+            throw new Error(`application compiler view is absent: ${config}`);
+          }
+          return await spawnNiced(process.execPath, typecheckCompilerArgv(view), { cwd: root });
+        };
+        return {
+          discovered: canonicalPrograms.length,
+          requested: null,
+          skippedContainers: [],
+          programs: await runPrograms(
+            programs.map(({ owner }) => owner),
+            concurrency,
+            runner,
+          ),
+          concurrency,
+        };
+      })
+    : await executeTypecheckPrograms(root, requested.configs);
   process.stdout.write(
-    `typecheck — ${String(result.discovered)} discovered, ${String(result.programs.length)} runnable, concurrency ${String(result.concurrency)}\n`,
+    `typecheck${requested.application ? " application" : ""} — ${String(result.discovered)} discovered, ${String(result.programs.length)} runnable, concurrency ${String(result.concurrency)}\n`,
   );
   for (const config of result.skippedContainers) {
     process.stdout.write(`SKIP ${config} (reference-only container)\n`);

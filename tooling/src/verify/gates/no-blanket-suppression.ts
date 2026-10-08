@@ -343,16 +343,17 @@ function reportResourceArms(ctx: GatePolicyContext, walked: Map<string, readonly
   const tracked = readyResourceValue(ctx.resources.trackedFiles()).repoPaths;
   const config = readyResourceValue(ctx.resources.json("biome"));
   const ignored = readBiomeIgnores(config.value);
-  const candidates = tracked.filter((rel) => isGovernedExt(rel) && !walked.has(rel));
+  const subjects = tracked.filter(ctx.includesSubject);
+  const candidates = subjects.filter((rel) => isGovernedExt(rel) && !walked.has(rel));
   const text = readyResourceValue(ctx.resources.authoredText(candidates.length > 0 ? candidates : [CONFIG_REL]));
-  const corpus = judgeTrackedCorpus(tracked, text, new Set(walked.keys()), ignored);
+  const corpus = judgeTrackedCorpus(subjects, text, new Set(walked.keys()), ignored);
   for (const { rel, blankets } of corpus.verdicts) {
     walked.set(rel, blankets);
     for (const blanket of blankets) {
       reportBlanket(ctx, rel, blanket, false);
     }
   }
-  const index = readyResourceValue(ctx.resources.candidateIndexDelta(tracked.filter(isGovernedExt)));
+  const index = readyResourceValue(ctx.resources.candidateIndexDelta(subjects.filter(isGovernedExt)));
   for (const { path, text: stagedText } of index.files) {
     if (ignored(path)) {
       continue;
