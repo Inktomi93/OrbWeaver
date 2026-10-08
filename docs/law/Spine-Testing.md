@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-19
+updated: 2026-10-08
 ---
 
 # Orbweaver — Spine: Testing
@@ -20,6 +20,7 @@ Tests prove behavior or type contracts. Their filenames declare kind and compile
 | `.dom.test.ts` | DOM + Node | Vitest in Node | Browser-subject behavior that needs DOM declarations but no browser execution |
 | `.int.test.ts` | Node | Vitest | Real persistence, I/O or composed service behavior |
 | `.repo.int.test.ts` | Node | Vitest | Integration behavior that requires the repository resource |
+| `.suite.corpus.int.test.ts` | Node | Vitest | Real-corpus proof with an isolated semantic workspace |
 | `.contract.test.ts` | Node | Vitest | Parsing, serialization and wire contracts |
 | `.test-d.ts` | Node | Vitest typecheck through the shared TS7 wrapper | Type-only contracts |
 | `.dom.test-d.ts` | DOM + Node | Vitest typecheck through the shared TS7 wrapper | Browser type contracts |
@@ -39,6 +40,7 @@ Runtime and compiler ownership are separate. A `.dom.test.ts` has DOM declaratio
 - Native Vitest and Playwright collection is the execution oracle. Reconciliation must detect unclaimed tests, duplicate claims and empty views; duplicating config globs in the checker is not independent proof.
 - Integration fixtures default to isolated resources and parallel execution under the shared capacity profile. Scheduling restrictions require a current resource or measurement reason; historical slowness does not establish serialization or mutation ineligibility.
 - Vitest execution groups (called projects by the Vitest API) derive their selectors from `tooling/src/_shared/test-kinds.ts`; there is no hand-maintained filename roster. Normal groups run at `sequence.groupOrder: 0`. The `repository` group selects registered kinds whose resource is `repository`, runs after them at group order 1, and uses `fileParallelism: false` to serialize files within that group.
+- The `semantic-corpus` group selects its registered resource after the repository group. Independent files run concurrently under measured corpus memory limits from `tooling/concurrency-profile.json`.
 
 Ownership enforcement claims require planted positive and negative controls through the real verification path. The linked type-world program owns migration and acceptance state.
 
@@ -294,5 +296,6 @@ gate requires a fresh calibration run, because `break` is bound to the measured 
 - The fixture is the composed *production* wiring with the model scripted — tests exercise the real injection graph, not a parallel test-only assembly. A divergence between test and prod wiring is a bug.
 - **`isolate: true` for all Node projects** (the Vitest default): each test file receives a fresh module graph. Root mock/global/environment cleanup remains inherited by every project. Database integration fixtures own their in-memory databases; resource isolation is what makes parallel execution correct.
 - Repository-resource tests declare that requirement through their registered kind rather than a hand-maintained filename roster. `vitest.config.ts` derives the `repository` execution group from that data and serializes its files after the ordinary groups. Other integration tests remain parallel under the shared capacity profile. The dependency-cruiser battery uses an isolated scratch corpus. Appearance/theme suites assert structural state and pass concurrently in tooling.
+- Semantic-corpus partitions retain the complete selected policy and control population. Each owns its workspace and restores interventions before reuse. Baseline checks precede its interventions, and every partition uses the same selected authority roster.
 - **Timeout scaling and measurement validity differ.** `scaledBudget` stretches completion deadlines. `labelRateLoad` flags a measured test as `load-suspect` when contention prevents judging its threshold; the measurement still runs and its number remains available. The supervisor surfaces the task metadata. A wider deadline cannot make a dropped-frame percentage valid, and a browser dependency alone does not make an assertion a measured-rate test.
 - Determinism is a *correctness* property: the frozen clock is what makes the rolling-pair breakpoint and memory-recall ordering assertions stable turn-to-turn.

@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Unified Verification Design
@@ -524,7 +524,8 @@ Credit broader evidence only when its actual population includes the owed checks
 The base must be an ancestor of the tested HEAD. The boundary requires a clean checkout and a nonempty commit range.
 The changes job records the actual PR target, push before SHA, or manual input separately from the measurement base.
 `scripts/ci-qualification.ts` selects the nearest current-generation qualified ancestor by Git topology.
-Inherited authority requires exact-SHA main-push workflow success and a successful real static step from that run attempt.
+Inherited authority requires exact-SHA main-push workflow success and successful real static and required corpus steps from that run attempt.
+Every required corpus job must succeed in the same attempt as static qualification. Partial reruns cannot borrow previous-attempt corpus results.
 The workflow owns the generation marker. Release callers read its canonical value, not a caller-supplied environment override.
 Failed, cancelled, incomplete, skipped, old-generation, PR, schedule and manual runs cannot authorize inherited qualification.
 Attempt-specific job pagination must complete. Metadata failures and bounded-search exhaustion refuse qualification because newer version authority remains ambiguous.
@@ -538,7 +539,10 @@ This preserves defects and version debt from failed predecessors. Policy invento
 The orchestrator records train start/end. Use the start incrementally only when matching qualified evidence establishes its state.
 Otherwise use an established qualified ancestor, or prove none exists before admitting publication bootstrap. Refuse ambiguous local version authority.
 Do not substitute accumulated unpublished remote history. Other callers retain ordinary nearest-base and local-publication semantics.
-Set `ORB_VERIFY_TOOL_MODE=full` for conservative tooling proof; this mode requires the paired validated boundary.
+Set `ORB_VERIFY_TOOL_MODE=full` for conservative tooling selection; this mode requires the paired validated boundary.
+`ORB_VERIFY_INSTRUMENT_COMPONENT` defaults to `all`. Partial components require the validated boundary; complete qualification includes every component.
+Corpus jobs run native shards on separate hosted runners. Static qualification depends on their success, and `ci-ok` requires corpus and static success.
+Native shard collection must prove complete, disjoint views through the configured sequencer before execution.
 Deleted inputs and executable configuration require conservative instrument proof; changed native tests select themselves or name their separate executor.
 
 Nightly full and manual product qualification use separate exact-SHA success markers. Red, no-verdict and cancelled runs cannot save success.

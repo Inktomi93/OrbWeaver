@@ -23,7 +23,7 @@ Reduce wall time on the same changed set. Preserve source/spec selection, every 
 
 ## Design
 
-Use the existing import graph to derive gate reach. Validate authored `defineGate` IDs against filenames. Only sources selecting the shared suite affect its policy scope. Shared infrastructure, unclassifiable gates, missing IDs, and unknown paths force full scope. Direct/full runs retain every policy and control.
+Use the existing import graph to derive gate reach. Validate authored `defineGate` IDs against filenames. Only sources selecting corpus specifications affect their policy scope. Shared infrastructure, unclassifiable gates, missing IDs, and unknown paths force full scope. Direct/full runs retain every policy and control.
 
 Share only identical ordered interventions; prove every distinct intervention alone, including explicit control batches. Keep complete overlays, refusal channels, and baseline checks. Independent proof corpora may execute concurrently within native runner resource limits. Each corpus restores its intervention before starting another. Add-only cases with nonempty `reportsAt` require measured baseline silence because their anchors may already exist.
 
@@ -39,7 +39,7 @@ Share only identical ordered interventions; prove every distinct intervention al
 
 Selection lives in `tooling/src/verify/lib/instrument-affected-reach.ts`, `tooling/src/verify/lib/instrument-affected-liveness.ts`, and `tooling/src/verify/ops/instrument-affected.ts`. Mirror tests preserve source attribution and fail-closed selection.
 
-`tests/support/real-corpus-liveness.ts` owns intervention isolation and timing. `tests/tooling/verify/gates/real-corpus-liveness-family.suite.repo.int.test.ts` proves:
+`tests/support/real-corpus-liveness.ts` owns intervention isolation and timing. Native corpus entry points call `tests/tooling/verify/gates/_liveness/runner.ts` to prove:
 
 - Every selected case survives; identical interventions share without a size cutoff.
 - An own-path-only hidden dependency reports with its complete intervention and stays silent alone or beside another policy's intervention.
@@ -61,8 +61,4 @@ Main owns the frozen benchmark. Compare durations, scope, pass timings and test 
 
 The owner authorizes independent corpus partitions. Preserve the complete selected policy and control population across native test entry points.
 
-Narrowing is in `84af5ea2ed`; resolution caching is in `1820f32165`. Pre-commit checks the staged diff.
-
-The optimized liveness roster passed; matching overlay batches took 8.5% less time. The uncached baseline precondition passed after catch-census regeneration. Policy and pass populations match, but that correction prevents a strict identical-byte timing claim.
-
-The static barrier passed at `9406314e4f`. Its affected-instrument stage selected nothing after the push advanced the remote base, so behavioral evidence remains separate. This does not complete the broader same-changed-set performance criterion.
+Resolution caching is in `1820f32165`. The native partition floor preserves existing collection and refusal controls. Whole-roster performance and hosted qualification remain pending.
