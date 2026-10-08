@@ -22,12 +22,16 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync 
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
+import { pathToFileURL } from "node:url";
 import { abandonedRuns } from "@orb/tooling/_shared/artifacts";
 import { attachProbeSession, closeProbeSession } from "@orb/tooling/_shared/browser";
+import type { Machine } from "@orb/tooling/_shared/concurrency-profile";
+import { DEDICATED_BOX_ENV } from "@orb/tooling/_shared/concurrency-profile";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { CT_HOST_POOL_NAME, HOST_POOL_ROOT_ENV, hostPoolDir } from "@orb/tooling/_shared/host-slots";
 import { processInfo } from "@orb/tooling/_shared/platform";
+import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { markedPids, mintRunMarker, RUN_MARKER_ENV, runMarkerEnv } from "@orb/tooling/_shared/run-marker";
 import { vi } from "vitest";
@@ -89,6 +93,11 @@ const POLL_ATTEMPTS = 80;
 const SESSION_HOME_KEY = "ORB_SNAP_SESSION_HOME";
 const SESSION_TTL_KEY = "ORB_SESSION_TTL_MIN";
 const SESSION_CAP_KEY = "ORB_SESSION_CAP";
+const FIXTURE_MACHINE: Machine = { cores: 32, memoryMiB: 65_536 };
+const HOSTED_MACHINE: Machine = { cores: 4, memoryMiB: 16_384 };
+const CONCURRENCY_PROFILE_URL = new URL("../../../../tooling/src/_shared/concurrency-profile.ts", import.meta.url).href;
+const MACHINE_PRELOAD_FILE = "machine-preload.mjs";
+const NODE_OPTIONS_KEY = "NODE_OPTIONS";
 
 function envOf(pairs: readonly (readonly [string, string])[]): Record<string, string> {
   return Object.fromEntries(pairs);
@@ -149,6 +158,7 @@ async function rig(
   plantedTree: (files: Readonly<Record<string, string>>) => Promise<string>,
   runCli: (tool: string, args: readonly string[], opts?: { cwd?: string; env?: Readonly<Record<string, string>>; timeoutMs?: number }) => Promise<CliResult>,
   extraEnv: Readonly<Record<string, string>> = {},
+  machine: Machine = FIXTURE_MACHINE,
 ): Promise<Rig> {
   const root = await plantedTree({
     "fixture.html": FIXTURE_HTML,
@@ -156,13 +166,27 @@ async function rig(
     "bad.html": BAD_CONTRAST_HTML,
     "tap.html": TAP_FIXTURE_HTML,
     "registry/.keep": "",
+    [MACHINE_PRELOAD_FILE]: `import { registerHooks } from "node:module";
+const target = ${JSON.stringify(CONCURRENCY_PROFILE_URL)};
+const signature = "readConcurrencyProfile(env?: NodeJS.ProcessEnv, machine: Machine = readMachine())";
+registerHooks({ load(url, context, nextLoad) {
+  const loaded = nextLoad(url, context);
+  if (url !== target) return loaded;
+  const source = typeof loaded.source === "string" ? loaded.source : Buffer.from(loaded.source).toString("utf8");
+  if (!source.includes(signature) || source.indexOf(signature) !== source.lastIndexOf(signature)) throw new Error("fixture machine injection cannot bind its single reader");
+  return { ...loaded, source: source.replace(signature, signature.replace("readMachine()", ${JSON.stringify(JSON.stringify(machine))})) };
+} });`,
   });
   const home = join(root, "registry");
   // A daemon takes a host CT slot, so the case gets its own pool: never queued behind a real CT run.
+  // Inject only the reader's existing machine argument; OS/load readings and capacity arithmetic stay real.
+  const nodeOptions = [inheritedProcessEnv()[NODE_OPTIONS_KEY], `--import=${pathToFileURL(join(root, MACHINE_PRELOAD_FILE)).href}`].filter(Boolean).join(" ");
   const env = {
     ...envOf([
       [SESSION_HOME_KEY, home],
       [HOST_POOL_ROOT_ENV, join(root, "host-slots")],
+      [DEDICATED_BOX_ENV, "0"],
+      [NODE_OPTIONS_KEY, nodeOptions],
     ]),
     ...extraEnv,
   };
@@ -189,6 +213,24 @@ async function rig(
 
 const uniq = (tag: string): string => `p-s1-${tag}-${process.pid}`;
 
+test.for([
+  { machine: HOSTED_MACHINE, slots: 1 },
+  { machine: FIXTURE_MACHINE, slots: 2 },
+])("private daemon rig derives $slots host CT slots from its explicit machine", async ({ machine, slots }, { plantedTree, runCli }) => {
+  const r = await rig(plantedTree, runCli, {}, machine);
+  const result = await spawnNiced(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `import { readConcurrencyProfile } from ${JSON.stringify(CONCURRENCY_PROFILE_URL)};console.log(JSON.stringify({slots:readConcurrencyProfile().ctRunnersHostWide,hosted:readConcurrencyProfile({},${JSON.stringify(HOSTED_MACHINE)}).ctRunnersHostWide}));`,
+    ],
+    { env: r.env, timeoutMs: CLI_BUDGET_MS },
+  );
+  await expect(result).toExitWith(EXIT.clean);
+  expect(JSON.parse(result.stdout)).toEqual({ slots, hosted: 1 });
+});
+
 // ── T1: a lane's emulation cannot reach a sibling ────────────────────────────────────────────────────
 
 test("T1 — two sessions over one fixture: A's --viewport 412x823 is A's alone (B reads 1280), and A's LIVE page still reads 412", async ({
@@ -205,6 +247,7 @@ test("T1 — two sessions over one fixture: A's --viewport 412x823 is A's alone 
     const bootB = await r.snap(["--session", b, "--file", r.fixture, "--eval", "innerWidth", ...QUIET]);
     await expect(bootB).toExitWith(EXIT.clean);
     expect(evalValue(bootB.stdout)).toBe(1280);
+    expect(slotHolders(r.ctPool).toSorted()).toEqual([rowOf(r.home, a).daemonPid, rowOf(r.home, b).daemonPid].toSorted());
     // The control that the instrument MEASURES (and that a later call drives the live page, no route):
     const live = await r.snap(["--session", a, "--eval", "innerWidth", ...QUIET]);
     await expect(live).toExitWith(EXIT.clean);
@@ -218,6 +261,7 @@ test("T1 — two sessions over one fixture: A's --viewport 412x823 is A's alone 
   } finally {
     await r.close([a, b]);
   }
+  expect(slotHolders(r.ctPool)).toEqual([]);
 });
 
 test("T1 FENCE — the pre-substrate twin: two one-shots share nothing by construction (a fence, not a defect proof)", async ({ plantedTree, runCli }) => {
@@ -465,6 +509,7 @@ test("T6 — at the cap the next boot exits 2 naming the live sessions with idle
   try {
     await expect(await r.snap(["--session", a, "--file", r.fixture, "--eval", "1", ...QUIET])).toExitWith(EXIT.clean);
     await expect(await r.snap(["--session", b, "--file", r.fixture, "--eval", "1", ...QUIET])).toExitWith(EXIT.clean);
+    expect(slotHolders(r.ctPool).toSorted()).toEqual([rowOf(r.home, a).daemonPid, rowOf(r.home, b).daemonPid].toSorted());
     const refused = await r.snap(["--session", c, "--file", r.fixture, "--eval", "1", ...QUIET]);
     await expect(refused).toExitWith(EXIT.toolError);
     expect(refused.stdout).toContain("cap is 2");
@@ -476,12 +521,15 @@ test("T6 — at the cap the next boot exits 2 naming the live sessions with idle
     const closed = await r.snap(["--session-close", a]);
     await expect(closed).toExitWith(EXIT.clean);
     expect(closed.stdout).toContain(`closed ${a}`);
+    expect(slotHolders(r.ctPool)).toEqual([rowOf(r.home, b).daemonPid]);
     const admitted = await r.snap(["--session", c, "--file", r.fixture, "--eval", "1", ...QUIET]);
     await expect(admitted).toExitWith(EXIT.clean);
     expect(admitted.stdout).toContain("booting");
+    expect(slotHolders(r.ctPool).toSorted()).toEqual([rowOf(r.home, b).daemonPid, rowOf(r.home, c).daemonPid].toSorted());
   } finally {
     await r.close([a, b, c]);
   }
+  expect(slotHolders(r.ctPool)).toEqual([]);
 });
 
 test("T6 RACE — two cold boots under cap one reserve exactly one daemon slot", async ({ plantedTree, runCli }) => {
