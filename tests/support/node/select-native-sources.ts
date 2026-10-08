@@ -3,6 +3,12 @@ import { basename, join } from "node:path";
 import { errorMessage } from "@orb/kit/error-message";
 
 export const SELECT_NATIVE_SOURCES_ATTACHMENT = "select-native-source-retention";
+export const SELECT_CPU_DIAGNOSTIC_ENV = "ORB_SELECT_CPU_DIAGNOSTIC";
+export const SELECT_CPU_PROFILING_ENV = "ORB_SELECT_CPU_PROFILING";
+export const SELECT_NATIVE_TRACE_ENV = "ORB_SELECT_NATIVE_TRACE";
+export const SELECT_BUILD_DIAGNOSTIC_ENV = "ORB_SELECT_BUILD_DIAGNOSTIC";
+export const SELECT_BUILD_DIAGNOSTIC_FILE = "select-build-diagnostic.json";
+export const SELECT_BUILD_REGISTRY_FILE = "metainfo.json";
 
 interface SourceAttachment {
   readonly path: string;
@@ -13,6 +19,7 @@ interface RetainNativeSourcesOptions {
   readonly cacheDir: string | undefined;
   readonly pageUrl: string;
   readonly scriptUrls: readonly string[];
+  readonly buildDiagnostic?: boolean;
   readonly attach: (name: string, options: SourceAttachment) => Promise<void>;
 }
 
@@ -26,6 +33,7 @@ export interface NativeSourcesReceipt {
   readonly complete: boolean;
   readonly error: string | null;
   readonly ignoredUrls: readonly string[];
+  readonly buildFiles?: readonly RetainedFile[];
   readonly assets: readonly {
     readonly url: string;
     readonly source: RetainedFile;
@@ -63,10 +71,15 @@ export async function retainNativeSources(options: RetainNativeSourcesOptions): 
     const map = await attachFile(`${relativePath}.map`, `${attachmentName}.map`, "application/json");
     assets.push({ url, source, map });
   }
+  const buildFiles = options.buildDiagnostic
+    ? await Promise.all([SELECT_BUILD_DIAGNOSTIC_FILE, SELECT_BUILD_REGISTRY_FILE].map((file) => attachFile(file, `select-native-${file}`, "application/json")))
+    : [];
   return {
-    complete: assets.length > 0 && assets.every(({ source, map }) => source.error === null && map.error === null),
+    complete:
+      assets.length > 0 && assets.every(({ source, map }) => source.error === null && map.error === null) && buildFiles.every(({ error }) => error === null),
     error: assets.length === 0 ? "The native capture referenced no emitted CT JavaScript assets" : null,
     ignoredUrls,
     assets,
+    ...(options.buildDiagnostic ? { buildFiles } : {}),
   };
 }

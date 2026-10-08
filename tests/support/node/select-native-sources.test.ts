@@ -4,7 +4,7 @@ import { SourceMap } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "../fixtures.ts";
-import { retainNativeSources } from "./select-native-sources.ts";
+import { retainNativeSources, SELECT_BUILD_DIAGNOSTIC_FILE, SELECT_BUILD_REGISTRY_FILE } from "./select-native-sources.ts";
 
 const PAGE_URL = "http://localhost:3100/";
 const SCRIPT_URL = `${PAGE_URL}assets/index-cold.js`;
@@ -109,4 +109,62 @@ sourceTest("reports absent lease and empty source selection instead of a vacuous
   expect(missingLease).toMatchObject({ complete: false, assets: [], error: "The native capture has no CT lease cache directory" });
   const empty = await retainNativeSources({ cacheDir: join(retentionRoot, "lease"), pageUrl: PAGE_URL, scriptUrls: [], attach });
   expect(empty).toMatchObject({ complete: false, assets: [], error: "The native capture referenced no emitted CT JavaScript assets" });
+});
+
+sourceTest("retains build settings, emitted CSS bytes and registry membership after the diagnostic lease is removed", async ({ retentionRoot }) => {
+  const lease = join(retentionRoot, "lease");
+  const css = Buffer.from(".field::before { content: 'café'; }\r\n");
+  const build = JSON.stringify({ resolved: { minify: "esbuild", cssMinify: false }, emitted: [{ cssBase64: css.toString("base64") }] });
+  const registry = JSON.stringify({ components: [{ id: "cold_Select", importSource: "./cold.tsx", remoteName: "Select" }] });
+  await Promise.all([
+    writeFile(join(lease, "assets", "index-cold.js"), SCRIPT),
+    writeFile(join(lease, "assets", "index-cold.js.map"), MAP_BYTES),
+    writeFile(join(lease, SELECT_BUILD_DIAGNOSTIC_FILE), build),
+    writeFile(join(lease, SELECT_BUILD_REGISTRY_FILE), registry),
+  ]);
+  const receipt = await retainNativeSources({
+    cacheDir: lease,
+    pageUrl: PAGE_URL,
+    scriptUrls: [SCRIPT_URL],
+    buildDiagnostic: true,
+    attach: copyingAttachment(retentionRoot),
+  });
+  await rm(lease, { recursive: true });
+  expect(receipt.complete).toBe(true);
+  expect(receipt.buildFiles).toHaveLength(2);
+  const [buildFile, registryFile] = receipt.buildFiles ?? [];
+  assert(buildFile?.attachmentName !== null && buildFile?.attachmentName !== undefined);
+  assert(registryFile?.attachmentName !== null && registryFile?.attachmentName !== undefined);
+  expect(await readFile(join(retentionRoot, "retained", buildFile.attachmentName))).toEqual(Buffer.from(build));
+  expect(await readFile(join(retentionRoot, "retained", registryFile.attachmentName))).toEqual(Buffer.from(registry));
+});
+
+sourceTest("a missing build registry makes retention incomplete without discarding sources or replacing the opening failure", async ({ retentionRoot }) => {
+  const lease = join(retentionRoot, "lease");
+  await Promise.all([
+    writeFile(join(lease, "assets", "index-cold.js"), SCRIPT),
+    writeFile(join(lease, "assets", "index-cold.js.map"), MAP_BYTES),
+    writeFile(join(lease, SELECT_BUILD_DIAGNOSTIC_FILE), "{}"),
+  ]);
+  const primaryFailure = new Error("opening failed before diagnostic retention");
+  const finish = async (): Promise<void> => {
+    try {
+      throw primaryFailure;
+    } finally {
+      const receipt = await retainNativeSources({
+        cacheDir: lease,
+        pageUrl: PAGE_URL,
+        scriptUrls: [SCRIPT_URL],
+        buildDiagnostic: true,
+        attach: copyingAttachment(retentionRoot),
+      });
+      expect(receipt.complete).toBe(false);
+      expect(receipt.buildFiles?.[0]?.error).toBeNull();
+      expect(receipt.buildFiles?.[1]?.error).toContain("ENOENT");
+      const asset = receipt.assets[0];
+      assert(asset !== undefined && asset.source.attachmentName !== null);
+      expect(await readFile(join(retentionRoot, "retained", asset.source.attachmentName))).toEqual(Buffer.from(SCRIPT));
+    }
+  };
+  await expect(finish()).rejects.toBe(primaryFailure);
 });

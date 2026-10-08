@@ -27,6 +27,28 @@ test("install denies unneeded downloads while approving the required checked med
   expect(builds["cloudflared"]).toBe(false);
 });
 
+test("the CT Vite type alias resolves the exact harness version without replacing application Vite", ({ repoRoot }) => {
+  const workspace = z
+    .object({ catalog: z.record(z.string(), z.string()), overrides: z.record(z.string(), z.string()) })
+    .parse(parse(readFileSync(join(repoRoot, "pnpm-workspace.yaml"), "utf8")));
+  const manifest = z.object({ devDependencies: z.record(z.string(), z.string()) }).parse(JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")));
+  const pin = workspace.overrides["@playwright/experimental-ct-core>vite"];
+  expect(pin).toBeDefined();
+  expect(workspace.catalog["vite-ct"]).toBe(`npm:vite@${pin}`);
+  expect(manifest.devDependencies["vite"]).toBe("catalog:");
+  expect(manifest.devDependencies["vite-ct"]).toBe("catalog:");
+  const root = createRequire(join(repoRoot, "package.json"));
+  const react = createRequire(root.resolve("@playwright/experimental-ct-react"));
+  const core = createRequire(react.resolve("@playwright/experimental-ct-core"));
+  const version = (file: string): string => z.object({ version: z.string() }).parse(JSON.parse(readFileSync(file, "utf8"))).version;
+  const aliasVersion = version(root.resolve("vite-ct/package.json"));
+  expect(aliasVersion).toBe(pin);
+  expect(aliasVersion).toBe(version(core.resolve("vite/package.json")));
+  const client = createRequire(join(repoRoot, "packages/client/package.json"));
+  expect(version(root.resolve("vite/package.json"))).toBe(version(client.resolve("vite/package.json")));
+  expect(version(client.resolve("vite/package.json"))).not.toBe(aliasVersion);
+});
+
 const PLATFORM_ASSETS = [
   ["darwin", "x64", "", "macos-x64-jellyfin"],
   ["darwin", "arm64", "", "macos-arm64-jellyfin"],
