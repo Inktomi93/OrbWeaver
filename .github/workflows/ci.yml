@@ -2,6 +2,7 @@ name: CI
 run-name: >-
   ${{ github.event_name == 'schedule' && 'Nightly full verify on main'
   || github.event_name == 'pull_request' && format('PR #{0} · {1}', github.event.pull_request.number, github.event.pull_request.title)
+  || github.event_name == 'workflow_dispatch' && inputs.select_cpu_diagnostic && format('Select CPU diagnostic only on {0}', github.ref_name)
   || github.event_name == 'workflow_dispatch' && format('Manual {0} tier on {1}', inputs.tier, github.ref_name)
   || github.event.head_commit.message }}
 
@@ -28,12 +29,16 @@ on:
         description: Actual event boundary to record for manual push qualification.
         type: string
         default: ""
+      select_cpu_diagnostic:
+        description: Capture Select CPU diagnostics only; this run does not qualify the commit.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || inputs.tier || 'push' }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.select_cpu_diagnostic && 'select-cpu-diagnostic' || github.event_name == 'schedule' && 'nightly' || inputs.tier || 'push' }}
   cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 env:
@@ -44,7 +49,7 @@ env:
 
 jobs:
   changes:
-    if: github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full'
+    if: ${{ !inputs.select_cpu_diagnostic && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -321,7 +326,7 @@ jobs:
 
   # The one required check. A skipped suite (docs-only change) passes; a failed or cancelled one does not.
   ci-ok:
-    if: always() && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full'
+    if: always() && !inputs.select_cpu_diagnostic && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full'
     needs: [changes, static, media, node, ct, e2e-smoke]
     runs-on: ubuntu-slim
     timeout-minutes: 5
@@ -338,10 +343,49 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           echo "$NEEDS" | jq -e 'all(.[]; .result == "success" or .result == "skipped")' > /dev/null
 
+  # Manual diagnostics use the registered CI workflow so non-default refs remain dispatchable.
+  # Profiling is evidence only; no qualification job or generation-marked step runs in this mode.
+  select-cpu-diagnostic:
+    if: github.event_name == 'workflow_dispatch' && inputs.select_cpu_diagnostic
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: setup
+        uses: $/.github/actions/setup
+        with:
+          browsers: "true"
+      - id: showcase
+        run: pnpm --filter @orb/showcase-plugins build
+      - id: native-control
+        name: Native Select acceptance without CPU profiling
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' }}
+        run: pnpm test:ct tests/client/lib/motion-stats.ct.tsx --grep='a real sealed Select classifies its confirmed first and repeat entrance lifetimes only$' --retries=0
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: select-native-control
+          path: reports/
+          retention-days: 7
+      - id: cpu-diagnostic
+        name: Diagnostic-only Select CPU captures (not qualification)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' }}
+        env:
+          ORB_SELECT_CPU_DIAGNOSTIC: "1"
+        run: pnpm test:ct tests/client/lib/motion-stats.ct.tsx --grep='Select CPU diagnostic only' --retries=0
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: select-cpu-diagnostic-only
+          path: reports/
+          retention-days: 7
+
   # Nightly owns exhaustive verification; product remains an explicit application-only command.
   # The bounded runner limit is not evidence that the complete full tier fits this machine.
   qualification:
-    if: github.event_name == 'schedule' || inputs.tier == 'product' || inputs.tier == 'full'
+    if: ${{ !inputs.select_cpu_diagnostic && (github.event_name == 'schedule' || inputs.tier == 'product' || inputs.tier == 'full') }}
     runs-on: ubuntu-latest
     timeout-minutes: 330
     env:
