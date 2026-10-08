@@ -23,7 +23,7 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$/u, "");
-const REAL_CORPUS_LIVENESS_SPEC = "tests/tooling/verify/gates/real-corpus-liveness-family.suite.repo.int.test.ts";
+const REAL_CORPUS_LIVENESS_SPEC = "tests/tooling/verify/gates/real-corpus-liveness-family.suite.corpus.int.test.ts";
 const TOOLING_TSCONFIG = JSON.stringify({
   compilerOptions: {
     allowImportingTsExtensions: true,
@@ -440,7 +440,7 @@ test("enclosing CI measurement ends at the native tooling subprocess while fixtu
       },
     });
     expect(result.code, result.stdout + result.stderr).toBe(0);
-    expect(result.stdout).toContain("real-corpus-liveness-family.suite.repo.int.test.ts");
+    expect(result.stdout).toContain("real-corpus-liveness-family.suite.corpus.int.test.ts");
     expect(result.stdout + result.stderr).toContain(`${base}..${head}`);
   }
   writeFileSync(join(root, "tooling/concurrency-profile.json"), "{}\n");
@@ -457,6 +457,6 @@ test("enclosing CI measurement ends at the native tooling subprocess while fixtu
     },
   });
   expect(configuration.code, configuration.stdout + configuration.stderr).toBe(0);
-  expect(configuration.stdout).toContain("real-corpus-liveness-family.suite.repo.int.test.ts");
+  expect(configuration.stdout).toContain("real-corpus-liveness-family.suite.corpus.int.test.ts");
   expect(configuration.stdout + configuration.stderr).toContain("running the whole instrument battery");
 });

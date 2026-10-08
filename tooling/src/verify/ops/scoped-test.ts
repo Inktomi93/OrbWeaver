@@ -28,7 +28,7 @@ import {
   unresolvedRefusal,
 } from "@orb/tooling/_shared/scoped-run-paths";
 import { VITEST_TYPECHECK_GROUP_PREFIX } from "@orb/tooling/_shared/test-kinds";
-import type { ScopedTestCollection, ScopedTestRunner } from "../contract/scoped-test.ts";
+import type { NativeNodeShardCollection, ScopedTestCollection, ScopedTestRunner } from "../contract/scoped-test.ts";
 
 import { SCOPED_TEST_RUNNERS } from "../contract/scoped-test.ts";
 import { classifyCtListing, readField } from "../lib/ct-listing.ts";
@@ -124,6 +124,53 @@ function collectNode(root: string, rest: readonly string[]): ScopedTestCollectio
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+}
+
+/** Collect the actual configured sequencer's complete shard views without initializing tests or global setup. */
+export async function collectNodeShards(root: string, project: string, count: number): Promise<NativeNodeShardCollection> {
+  const listing = collectNode(root, ["tests/tooling", `--config=${join(root, "vitest.runtime.config.ts")}`, `--project=${project}`]);
+  if ("error" in listing) {
+    throw new Error(listing.error);
+  }
+  if (listing.projects.length !== 1 || listing.projects[0] !== project || listing.files.length !== count || new Set(listing.files).size !== count) {
+    throw new Error("native corpus collection is absent, duplicated or ambiguous");
+  }
+  const { createVitest } = await import("vitest/node");
+  const shards: string[][] = [];
+  for (let index = 1; index <= count; index += 1) {
+    const context = await createVitest({
+      root,
+      config: join(root, "vitest.runtime.config.ts"),
+      project: [project],
+      watch: false,
+      shard: `${String(index)}/${String(count)}`,
+    });
+    try {
+      const specs = await context.globTestSpecifications(["tests/tooling"]);
+      const files = specs.map((spec) => toRepoRelative(root, spec.moduleId));
+      if (specs.some((spec) => spec.project.name !== project) || JSON.stringify(files.toSorted()) !== JSON.stringify(listing.files.toSorted())) {
+        throw new Error("native corpus API and CLI collection disagree");
+      }
+      const sequencer = new context.config.sequence.sequencer(context);
+      const selected = await sequencer.shard(specs);
+      const sorted = await sequencer.sort(selected);
+      const shardFiles = sorted.map((spec) => toRepoRelative(root, spec.moduleId));
+      if (
+        shardFiles.length === 0 ||
+        JSON.stringify(shardFiles.toSorted()) !== JSON.stringify(selected.map((spec) => toRepoRelative(root, spec.moduleId)).toSorted())
+      ) {
+        throw new Error("native corpus sequencer changed its shard population while sorting");
+      }
+      shards.push(shardFiles);
+    } finally {
+      await context.close();
+    }
+  }
+  const union = shards.flat();
+  if (new Set(union).size !== union.length || JSON.stringify(union.toSorted()) !== JSON.stringify(listing.files.toSorted())) {
+    throw new Error("native corpus shard views overlap or omit registered files");
+  }
+  return { files: listing.files, shards };
 }
 
 function collectCt(root: string, rest: readonly string[]): ScopedTestCollection {

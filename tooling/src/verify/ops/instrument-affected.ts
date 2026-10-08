@@ -3,28 +3,84 @@
 // need conservative proof because the current import graph cannot establish their prior reach.
 // The real-corpus liveness suite narrows only after proven policy reach; direct full runs retain its complete corpus.
 import process from "node:process";
+import { parseArgs } from "node:util";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { emitLine, warn } from "@orb/tooling/_shared/log";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
-import { classifyTestFilename, looksLikeTestFilename, runtimeForTestFamily } from "@orb/tooling/_shared/test-kinds";
+import { UsageError } from "@orb/tooling/_shared/run-tool";
+import { classifyTestFilename, looksLikeTestFilename, runtimeForTestFamily, SEMANTIC_CORPUS_RESOURCE } from "@orb/tooling/_shared/test-kinds";
 import { resolveMirrors } from "@orb/tooling/_shared/test-mirror";
-import type { InstrumentAffectedLivenessScope, InstrumentAffectedPolicyReach, InstrumentAffectedSelection } from "../contract/instrument-affected.ts";
-import { INSTRUMENT_AFFECTED_POLICIES_ENV } from "../contract/instrument-affected.ts";
+import type {
+  InstrumentAffectedLivenessScope,
+  InstrumentAffectedPolicyReach,
+  InstrumentAffectedSelection,
+  InstrumentExecution,
+  InstrumentExecutionComponent,
+} from "../contract/instrument-affected.ts";
+import { INSTRUMENT_AFFECTED_POLICIES_ENV, INSTRUMENT_EXECUTION_COMPONENT_ENV, INSTRUMENT_EXECUTION_COMPONENTS } from "../contract/instrument-affected.ts";
 import { VERIFY_TOOL_MODE_ENV, VERIFY_TOOL_MODES } from "../contract/qualification.ts";
+import type { NativeNodeShard } from "../contract/scoped-test.ts";
 import type { MeasurementBoundary } from "../contract/selection.ts";
 import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../contract/selection.ts";
 import { NOTICE_MARKER } from "../contract/stage.ts";
 import { encodeInstrumentAffectedPolicyIds } from "../lib/instrument-affected-liveness.ts";
 import { isRunnableToolingSpec, toolingImportReach, toolingTestsNaming } from "../lib/instrument-affected-reach.ts";
 import { existsRel, publishChangedPaths, resolveMeasurementBoundary, resolvePublishBase } from "../lib/repo-paths.ts";
+import { collectNodeShards } from "./scoped-test.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm verify --push  /  pnpm check:instrument-affected");
 
 const INSTRUMENT_SRC_PREFIX = "tooling/src/";
 const GATES_PREFIX = "tooling/src/verify/gates/";
-const REAL_CORPUS_LIVENESS_SPEC = "tests/tooling/verify/gates/real-corpus-liveness-family.suite.repo.int.test.ts";
+const PROJECT_FILTERS = {
+  all: undefined,
+  "non-corpus": `!${SEMANTIC_CORPUS_RESOURCE}`,
+  corpus: SEMANTIC_CORPUS_RESOURCE,
+} as const satisfies Record<InstrumentExecutionComponent, string | undefined>;
+
+function isCorpusSpec(path: string): boolean {
+  return classifyTestFilename(path)?.definition.resource === SEMANTIC_CORPUS_RESOURCE;
+}
+
+function executionComponent(): InstrumentExecutionComponent {
+  const value = inheritedProcessEnv()[INSTRUMENT_EXECUTION_COMPONENT_ENV] ?? "all";
+  const found = INSTRUMENT_EXECUTION_COMPONENTS.find((component) => component === value);
+  if (found === undefined) {
+    throw new UsageError(`${INSTRUMENT_EXECUTION_COMPONENT_ENV} must be all, non-corpus or corpus`);
+  }
+  return found;
+}
+
+function nativeShard(rest: readonly string[], component: InstrumentExecutionComponent): NativeNodeShard | undefined {
+  let raw: string | undefined;
+  try {
+    raw = parseArgs({ args: [...rest], options: { shard: { type: "string" } }, strict: true, allowPositionals: false }).values.shard;
+  } catch (error) {
+    throw new UsageError(error instanceof Error ? error.message : String(error), { cause: error });
+  }
+  if (raw === undefined) {
+    if (component === "corpus") {
+      throw new UsageError("corpus execution requires --shard=<index>/<count>");
+    }
+    return;
+  }
+  const [index, count] = raw.split("/").map(Number);
+  if (
+    component !== "corpus" ||
+    !/^[1-9]\d*\/[1-9]\d*$/u.test(raw) ||
+    index === undefined ||
+    count === undefined ||
+    !Number.isSafeInteger(index) ||
+    !Number.isSafeInteger(count) ||
+    index > count
+  ) {
+    throw new UsageError("--shard must name a valid native corpus partition");
+  }
+  return { index, count };
+}
+
 const TS_SUFFIX = ".ts";
 const SHORT_SHA = 12;
 const SHARED_LIVENESS_PATHS = new Set([
@@ -168,7 +224,7 @@ export function selectAffectedInstrumentTests(root: string, changed: readonly st
     if (sourceSpecs.size === 0) {
       unreachedSources.push(source);
     }
-    if (sourceSpecs.has(REAL_CORPUS_LIVENESS_SPEC)) {
+    if ([...sourceSpecs].some(isCorpusSpec)) {
       livenessSources.push(source);
     }
     for (const spec of sourceSpecs) {
@@ -204,8 +260,13 @@ function reportNoAffectedTooling(root: string, boundary: MeasurementBoundary | n
 }
 
 /** `pnpm check:instrument-affected` — the stage body. */
-export function runInstrumentAffected(root: string): number {
+export async function runInstrumentAffected(root: string, rest: readonly string[] = []): Promise<number> {
+  const component = executionComponent();
+  const shard = nativeShard(rest, component);
   const boundary = resolveMeasurementBoundary(root);
+  if (component !== "all" && boundary === null) {
+    throw new UsageError("partial instrument execution requires a validated event measurement boundary");
+  }
   const mode = inheritedProcessEnv()[VERIFY_TOOL_MODE_ENV];
   if (mode !== undefined && !VERIFY_TOOL_MODES.some((candidate) => candidate === mode)) {
     throw new Error(`${VERIFY_TOOL_MODE_ENV} must be affected or full`);
@@ -213,10 +274,23 @@ export function runInstrumentAffected(root: string): number {
   if (mode !== undefined && boundary === null) {
     throw new Error(`${VERIFY_TOOL_MODE_ENV} requires an explicit validated measurement boundary`);
   }
+  const corpus = shard === undefined ? undefined : await collectNodeShards(root, SEMANTIC_CORPUS_RESOURCE, shard.count);
+  if (corpus !== undefined && corpus.files.some((file) => !isCorpusSpec(file))) {
+    throw new Error("native corpus project contains a foreign execution resource");
+  }
   if (boundary !== null) {
     emitLine(`${NOTICE_MARKER} measurement boundary: ${boundary.base}..${boundary.head}`);
   }
   const selection = selectAffectedInstrumentTests(root, mode === "full" ? null : publishChangedPaths(root, boundary));
+  return qualifySelection(root, selection, boundary, { component, shard });
+}
+
+function qualifySelection(
+  root: string,
+  selection: InstrumentAffectedSelection,
+  boundary: MeasurementBoundary | null,
+  { component, shard }: InstrumentExecution,
+): number {
   for (const path of selection.delegatedTests) {
     const kind = classifyTestFilename(path);
     if (kind !== undefined) {
@@ -225,7 +299,7 @@ export function runInstrumentAffected(root: string): number {
   }
   if (selection.unknown) {
     warn(`instrument-affected: ${selection.livenessScope.reason} — running the whole instrument battery rather than selecting nothing.`);
-    return runSpecs(root, ["tests/tooling"], selection.livenessScope);
+    return runSpecs(root, ["tests/tooling"], selection.livenessScope, { component, shard });
   }
   if (selection.unreachedSources.length > 0) {
     // A CHANGED INSTRUMENT THAT REACHES NO SPEC IS A FINDING, NOT A PASS. `test-presence` owns the
@@ -245,21 +319,40 @@ export function runInstrumentAffected(root: string): number {
       ? `${String(selection.livenessScope.policyIds.length)} proven liveness policy reach(es)`
       : `full liveness roster (${selection.livenessScope.reason})`;
   emitLine(`instrument-affected: ${String(selection.sources.length)} changed source(s) → ${String(selection.specs.length)} spec(s); ${livenessDetail}.`);
-  return runSpecs(root, selection.specs, selection.livenessScope);
+  const selected = component === "all" ? selection.specs : selection.specs.filter((spec) => isCorpusSpec(spec) === (component === "corpus"));
+  if (selected.length === 0) {
+    emitLine(`${NOTICE_MARKER} instrument component ${component}: validated event selection requires no proof in this component.`);
+    return EXIT.clean;
+  }
+  return runSpecs(root, component === "corpus" ? ["tests/tooling"] : selected, selection.livenessScope, { component, shard });
 }
 
-function runSpecs(root: string, specs: readonly string[], livenessScope: InstrumentAffectedLivenessScope): number {
+function runSpecs(root: string, specs: readonly string[], livenessScope: InstrumentAffectedLivenessScope, { component, shard }: InstrumentExecution): number {
   // `--reporter=json` ALONGSIDE the default one (#2472): a CLI `--reporter` REPLACES the config's reporter
   // list, so the bare `--reporter=default` this stage used to pass meant vitest wrote no json report at
   // all. Two things depended on one existing — the supervised runner's `verdictFromReport`, which reads
   // the corpse's report to salvage a verdict after a wedge kill, and any reader trying to tell a dead
   // harness from a red after the fact — and both were getting a file that was never written.
+  const project = PROJECT_FILTERS[component];
+  emitLine(
+    `${NOTICE_MARKER} instrument execution component: ${component}${shard === undefined ? "" : `; native shard ${String(shard.index)}/${String(shard.count)}`}. Other components are not credited by this invocation.`,
+  );
   const res = runNicedSync(
     process.execPath,
-    [`${root}/scripts/vitest-supervised.ts`, "run", ...specs, "--runtime-only", "--reporter=default", "--reporter=json"],
+    [
+      `${root}/scripts/vitest-supervised.ts`,
+      "run",
+      ...specs,
+      "--runtime-only",
+      "--reporter=default",
+      "--reporter=json",
+      ...(project === undefined ? [] : [`--project=${project}`]),
+      ...(shard === undefined ? [] : [`--shard=${String(shard.index)}/${String(shard.count)}`]),
+    ],
     {
       cwd: root,
       env: inheritedProcessEnv({
+        [INSTRUMENT_EXECUTION_COMPONENT_ENV]: undefined,
         [VERIFY_BASE_ENV]: undefined,
         [VERIFY_HEAD_ENV]: undefined,
         [VERIFY_TOOL_MODE_ENV]: undefined,

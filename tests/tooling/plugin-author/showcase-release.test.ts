@@ -530,7 +530,8 @@ test("qualified CI boundary retains failed predecessor showcase version debt aft
       () =>
         resolveCiQualification(root, rollback, qualifiedNewer, {
           repository: "Inktomi93/orbweaver",
-          generation: "Orbweaver qualification ancestor-v1",
+          generation: "Orbweaver qualification corpus-v1",
+          corpusJobs: ["semantic-corpus (1/2)", "semantic-corpus (2/2)"],
           publication: base,
           hasCurrentGeneration: () => true,
         }),
