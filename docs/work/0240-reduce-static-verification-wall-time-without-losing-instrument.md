@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-08
 priority: P3
 area: verification
-lane: codex/serial-proof-performance
+lane: main
 ---
 
 # Reduce static verification wall time without losing instrument proof
