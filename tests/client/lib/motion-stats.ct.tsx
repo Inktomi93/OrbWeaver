@@ -361,6 +361,65 @@ function appBlockingMotion(page: Page): Promise<MotionRead> {
   return motionWhen(page, (motion) => motion.loafs.some(isAppBlockingFrame));
 }
 
+interface AppBlockingInputReceipt {
+  readonly clicks: readonly { readonly startTime: number; readonly trusted: boolean }[];
+  readonly frames: readonly number[];
+}
+
+function readAppBlockingInput(page: Page): Promise<AppBlockingInputReceipt> {
+  return page.evaluate(
+    (callback) => ({
+      clicks: performance.getEntriesByName(`${callback}:click`, "mark").map((entry) => ({
+        startTime: entry.startTime,
+        trusted: entry instanceof PerformanceMark && entry.detail === true,
+      })),
+      frames: performance.getEntriesByName(callback, "mark").map((entry) => entry.startTime),
+    }),
+    APP_BLOCKING_FRAME_CALLBACK,
+  );
+}
+
+async function postPopupAppBlockingMotion(page: Page): Promise<MotionRead> {
+  await resetMotion(page);
+  const checkpoint = await page.evaluate((callback) => {
+    performance.clearMarks(callback);
+    performance.clearMarks(`${callback}:click`);
+    return performance.mark(`${callback}:checkpoint`).startTime;
+  }, APP_BLOCKING_FRAME_CALLBACK);
+  // Actionability separates this post-popup input from the checkpoint's rendering update and proves its receiver.
+  await page.getByRole("button", { name: "plant app blocking", exact: true }).click();
+  try {
+    await expect
+      .poll(() => readAppBlockingInput(page), evidencePoll())
+      .toMatchObject({
+        clicks: [{ trusted: true }],
+        frames: [expect.any(Number)],
+      });
+    const motion = await appBlockingMotion(page);
+    const receipt = await readAppBlockingInput(page);
+    expect(receipt.clicks).toHaveLength(1);
+    expect(receipt.frames).toHaveLength(1);
+    const frame = motion.loafs.find(isAppBlockingFrame);
+    if (frame === undefined) {
+      throw new Error("the delivered app blocking callback has no retained native LoAF");
+    }
+    expect(frame.startTime).toBeGreaterThanOrEqual(Math.round(checkpoint));
+    for (const click of receipt.clicks) {
+      expect(click.startTime).toBeGreaterThanOrEqual(checkpoint);
+    }
+    for (const timestamp of receipt.frames) {
+      expect(timestamp).toBeGreaterThanOrEqual(frame.startTime);
+      expect(timestamp).toBeLessThanOrEqual(frame.startTime + frame.duration);
+    }
+    return motion;
+  } finally {
+    await test.info().attach("post-popup-app-blocking-input", {
+      body: JSON.stringify({ checkpoint, input: await readAppBlockingInput(page), motion: await readMotion(page) }),
+      contentType: "application/json",
+    });
+  }
+}
+
 async function motionWhen(page: Page, predicate: (motion: MotionRead) => boolean): Promise<MotionRead> {
   let motion = await readMotion(page);
   try {
@@ -649,10 +708,7 @@ for (const sourceTransport of ["normal", "missing", "aborted", "deadline"] as co
       await page.keyboard.press("Escape");
       await expect(trigger).toHaveAttribute("aria-expanded", "false");
 
-      const blockingPoint = await hitPoint(page.getByRole("button", { name: "plant app blocking" }));
-      await resetMotion(page);
-      await page.mouse.click(blockingPoint.x, blockingPoint.y);
-      const blocked = await appBlockingMotion(page);
+      const blocked = await postPopupAppBlockingMotion(page);
       expect(blocked.loafs.every((loaf) => loaf.selectEntrance === undefined)).toBe(true);
       expect(loafOverBudget(blocked)).toBe(true);
 
