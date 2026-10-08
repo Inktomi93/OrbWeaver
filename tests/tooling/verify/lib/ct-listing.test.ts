@@ -1,7 +1,7 @@
 // THE CT LISTING CLASSIFIER, pinned (#2457) — `lib/ct-listing.ts`, the pure read of what
 // `playwright test --list --reporter=json` answered. Its op-side siblings (the bare `-g` refusal, the
 // #2232 config-mode door) live in `tests/tooling/verify/ops/scoped-test.test.ts`.
-import { classifyCtListing } from "../../../../tooling/src/verify/lib/ct-listing.ts";
+import { classifyCtListing, readNativeCtCases } from "../../../../tooling/src/verify/lib/ct-listing.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 // ── #2457: the CT collection pass must never report a FAILED collection as a barren path ─────────────
@@ -89,4 +89,47 @@ test("an unparsable body is still a TOOL ERROR and carries what the runner actua
   }
   expect(collection.error).toContain("produced no JSON");
   expect(collection.error).toContain("playwright: command exploded");
+});
+
+function nativeCase(id = "case-1", annotations: readonly { readonly type: string }[] = []): object {
+  return { id, file: "client/probe.ct.tsx", title: "case > one", tests: [{ projectName: "chromium", annotations }] };
+}
+
+function nativeReport(specs: readonly object[]): string {
+  return ctReport({ suites: [{ title: "client/probe.ct.tsx", file: "client/probe.ct.tsx", specs: [], suites: [{ title: "named suite", specs }] }] });
+}
+
+test("native case collection retains exact project, ID, full title path and collection-visible diagnostic annotation", () => {
+  const read = readNativeCtCases({ status: 0, stdout: nativeReport([nativeCase("case-1", [{ type: "diagnostic-only" }])]), stderr: "" });
+  expect(read).toEqual({
+    rootDir: CT_ROOT,
+    cases: [{ id: "case-1", file: "client/probe.ct.tsx", project: "chromium", titlePath: ["named suite", "case > one"], diagnosticOnly: true }],
+  });
+});
+
+test("case strictness never narrows the established file-view contract", () => {
+  const stdout = ctReport({ suites: [{ file: CT_PROBE, specs: [{ title: "x" }] }] });
+  expect(classifyCtListing(CT_ROOT, { status: 0, stdout, stderr: "" })).toEqual({ files: [CT_PROBE], projects: [] });
+  expect(readNativeCtCases({ status: 0, stdout, stderr: "" })).toMatchObject({ error: expect.stringContaining("metadata requires") });
+  expect(readNativeCtCases({ status: 1, stdout: ctReport({ errors: [LOAD_ERROR] }), stderr: "" })).toMatchObject({
+    error: expect.stringContaining("Cannot find module"),
+  });
+});
+
+test("native case collection refuses duplicated IDs and ambiguous project attribution", () => {
+  expect(readNativeCtCases({ status: 0, stdout: nativeReport([nativeCase(), nativeCase()]), stderr: "" })).toMatchObject({
+    error: expect.stringContaining("duplicate native CT case ID"),
+  });
+  const ambiguous = {
+    id: "case-1",
+    file: "client/probe.ct.tsx",
+    title: "one",
+    tests: [
+      { projectName: "chromium", annotations: [] },
+      { projectName: "second", annotations: [] },
+    ],
+  };
+  expect(readNativeCtCases({ status: 0, stdout: nativeReport([ambiguous]), stderr: "" })).toMatchObject({
+    error: expect.stringContaining("ambiguous project metadata"),
+  });
 });

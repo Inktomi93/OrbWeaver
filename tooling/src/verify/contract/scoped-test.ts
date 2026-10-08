@@ -65,3 +65,16 @@ export interface NativeNodeShard {
   readonly index: number;
   readonly count: number;
 }
+
+export const DIAGNOSTIC_ONLY_ANNOTATION = "diagnostic-only";
+
+/** Native Playwright case identity and the exact title path its test-list parser consumes. */
+export interface NativeCtCase {
+  readonly id: string;
+  readonly project: string;
+  readonly file: string;
+  readonly titlePath: readonly string[];
+  readonly diagnosticOnly: boolean;
+}
+
+export type NativeCtCaseCollection = { readonly rootDir: string; readonly cases: readonly NativeCtCase[] } | { readonly error: string };
