@@ -7,6 +7,7 @@ import { ModuleKind, ModuleResolutionKind, Project } from "ts-morph";
 import { gate as legacyMarkers } from "../../../../tooling/src/verify/gates/gate-ignore-inventory.ts";
 import { gate as compilerHealth } from "../../../../tooling/src/verify/gates/no-manual-memo-compiler-health.ts";
 import { gate as schemaShapes } from "../../../../tooling/src/verify/gates/schema-banned-shapes.ts";
+import { gate as artifactSlot } from "../../../../tooling/src/verify/gates/tooling-artifact-run-slot.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyPassExitCode } from "../../../../tooling/src/verify/lib/policy-plan.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -15,6 +16,27 @@ import { policy } from "./_policy-plan-fixture.ts";
 const APP = "packages/client/src/view.ts";
 const TOOL = "tooling/src/snap/lib/unrelated.ts";
 const HEALTH = "tooling/src/verify/gates/no-manual-memo-compiler-health.ts";
+
+test("application helper reach does not synthesize an instrument lifecycle, while global ownership still rejects an unslotted tool", () => {
+  const root = "/application-artifact-subject";
+  for (const [proof, globalExit] of [
+    [artifactSlot.mustPass[0], 0],
+    [artifactSlot.mustFlag[0], 1],
+  ] as const) {
+    const project = new Project({ useInMemoryFileSystem: true });
+    for (const [path, text] of Object.entries(proof.files)) {
+      project.createSourceFile(`${root}/${path}`, text);
+    }
+    project.createSourceFile(`${root}/${APP}`, "export const app = true;\n");
+    const input = { knownPolicies: [artifactSlot], policies: [artifactSlot], root, project, reviewedGrants: [], failOnWarnings: false };
+    expect(policyPassExitCode(runPolicyPass(input))).toBe(globalExit);
+    const helperReach = [APP, ...Object.keys(proof.files).filter((path) => !path.endsWith("/cli.ts"))];
+    const application = runPolicyPass({ ...input, applicationPaths: helperReach });
+    expect(application.toolErrors).toEqual([]);
+    expect(policyPassExitCode(application)).toBe(0);
+    expect(application.policies[0]?.owner.status).toBe("not-applicable");
+  }
+});
 
 test.for([
   {

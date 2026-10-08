@@ -7,8 +7,10 @@ import { pathToFileURL } from "node:url";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { Project } from "ts-morph";
+import { z } from "zod";
 import type { ApplicationSubjects } from "../../../../tooling/src/verify/contract/application.ts";
 import { gate as configImport } from "../../../../tooling/src/verify/gates/tooling-root-config-import.ts";
+import { readApplicationSubjects } from "../../../../tooling/src/verify/lib/application-programs.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyPassExitCode } from "../../../../tooling/src/verify/lib/policy-plan.ts";
 import { readPolicyRepositoryInventory } from "../../../../tooling/src/verify/lib/policy-repo-inventory.ts";
@@ -70,6 +72,24 @@ const FILES = {
 function population(root: string): ApplicationSubjects {
   return { inventory: readPolicyRepositoryInventory(root), roots: [APP, ENTRY], files: [APP, ENTRY, TOOL], subjects: [APP, ENTRY, TOOL] };
 }
+
+test("native view projects the complete real application script population without changing workspace binary execution", {
+  timeout: scaledBudget(110_000),
+}, async ({ repoRoot }) => {
+  const subjects = await readApplicationSubjects(repoRoot);
+  const view = materializeApplicationKnipView(repoRoot, subjects, {});
+  try {
+    const manifest = z.object({ scripts: z.record(z.string(), z.string()) });
+    const original = manifest.parse(JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")));
+    const projected = manifest.parse(JSON.parse(readFileSync(join(view.root, "package.json"), "utf8")));
+    expect(projected.scripts["check:drizzle-kit"]).toBe(original.scripts["check:drizzle-kit"]);
+    expect(projected.scripts["test:ct"]).toBe(`node '${devNull}' scoped-test ct`);
+    expect(projected.scripts["build"]).toBe(original.scripts["build"]);
+  } finally {
+    view.cleanup();
+  }
+  expect(existsSync(view.root)).toBe(false);
+});
 
 test.for([
   { version: "0.0.0", text: 'export const pluginNames = ["vitest"];', message: "requires installed knip" },
@@ -219,6 +239,18 @@ test.for([
       "package.json": JSON.stringify({
         ...ROOT_MANIFEST,
         scripts: { "test:ct": `node ${LAUNCHER} scoped-test ct && app-view-missing-binary` },
+      }),
+    },
+    production: false,
+    exit: 1,
+    includes: ["app-view-missing-binary"],
+  },
+  {
+    name: "binary after pnpm exec",
+    patch: {
+      "package.json": JSON.stringify({
+        ...ROOT_MANIFEST,
+        scripts: { "check:drizzle-kit": "pnpm exec app-view-missing-binary --config=build.ts" },
       }),
     },
     production: false,

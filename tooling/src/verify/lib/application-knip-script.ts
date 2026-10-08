@@ -50,9 +50,7 @@ function launcherOperand(command: Command): Word | undefined {
   const name = literalCommandName(command);
   const { suffix } = command;
   if (name === "pnpm") {
-    if (suffix.length === 0 || suffix.some(({ value }) => value === "exec" || value === "dlx" || value === "node")) {
-      throw new Error("application Knip script requires pnpm script delegation, not an embedded launcher");
-    }
+    assertPnpmCommand(suffix);
     return;
   }
   if (name !== "node") {
@@ -69,6 +67,28 @@ function launcherOperand(command: Command): Word | undefined {
     throw new Error("application Knip script does not admit an expanded Node launcher operand");
   }
   return operand;
+}
+
+function assertPnpmCommand(words: readonly Word[]): void {
+  let index = 0;
+  if (words[0]?.value === "--filter") {
+    if (words[1] === undefined || words[1].value.startsWith("-")) {
+      throw new Error("application Knip pnpm filter requires a literal workspace selector");
+    }
+    index = 2;
+  } else if (words[0]?.value.startsWith("--filter=") === true) {
+    index = 1;
+  }
+  const verb = words[index]?.value;
+  if (verb === undefined || verb.startsWith("-") || verb === "dlx" || verb === "node") {
+    throw new Error("application Knip script requires pnpm script delegation or literal binary execution");
+  }
+  if (verb === "exec") {
+    const binary = words[index + 1]?.value;
+    if (binary === undefined || binary.startsWith("-") || binary === "node") {
+      throw new Error("application Knip pnpm exec requires a literal binary, not an embedded Node launcher");
+    }
+  }
 }
 
 function* scriptCommands(node: Node): Iterable<Command> {

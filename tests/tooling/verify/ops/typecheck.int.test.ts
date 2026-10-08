@@ -193,6 +193,28 @@ test("application native import direction keeps the real rule while unrelated to
   expect(app.stdout + app.stderr).toContain("kit-no-node-builtins");
 });
 
+test("application import entry roots preserve test composition without widening deployed domain rules", { timeout: TIMEOUT }, async ({
+  runCli,
+  scratch,
+  repoRoot,
+}) => {
+  plantApplicationRepo(scratch, repoRoot);
+  plant(scratch, {
+    "packages/server/tsconfig.json": JSON.stringify({ extends: "../../tsconfig.base.json", include: ["src", "../../reset.d.ts", "../../platform.d.ts"] }),
+    "packages/server/src/domain/demo/service.ts": "export const service = true;\n",
+    "tests/kit/value.test.ts": 'import "../support/demo.ts";\n',
+    "tests/support/demo.ts": 'import "../../packages/server/src/domain/demo/service.ts";\n',
+    ".dependency-cruiser.cjs": `module.exports = require(${JSON.stringify(join(repoRoot, ".dependency-cruiser.cjs"))});\n`,
+  });
+  const clean = await runCli("verify", ["application-static", "imports"], { cwd: scratch, timeoutMs: TIMEOUT });
+  await expect(clean).toExitWith(0);
+  writeFileSync(join(scratch, "packages/server/src/index.ts"), 'import "../../../tests/support/demo.ts";\n');
+  const reached = await runCli("verify", ["application-static", "imports"], { cwd: scratch, timeoutMs: TIMEOUT });
+  await expect(reached).toExitWith(1);
+  expect(reached.stdout + reached.stderr).toContain("domain-feature-front-door");
+  expect(reached.stdout + reached.stderr).toContain("tests/support/demo.ts");
+});
+
 test("application native CPD overrides global roots but rejects actual duplicated application implementation", { timeout: TIMEOUT }, async ({
   runCli,
   scratch,

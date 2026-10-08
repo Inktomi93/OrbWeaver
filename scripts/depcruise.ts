@@ -4,12 +4,13 @@ import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { IMPORT_ENTRY_ROOTS } from "@orb/tooling/_shared/import-population";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { HELPER_WORLD_DIRS } from "@orb/tooling/_shared/project-worlds";
+import { isWorldHelperPath } from "@orb/tooling/_shared/project-worlds";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const helpers = Object.values(HELPER_WORLD_DIRS).filter((dir) => existsSync(join(root, dir)));
-const result = runNicedSync(join(root, "node_modules/.bin/depcruise"), ["packages", "tooling", ...helpers, ...process.argv.slice(2)], {
+const entries = IMPORT_ENTRY_ROOTS.filter((dir) => !isWorldHelperPath(dir) || existsSync(join(root, dir)));
+const result = runNicedSync(join(root, "node_modules/.bin/depcruise"), [...entries, ...process.argv.slice(2)], {
   cwd: root,
   stdio: "inherit",
 });

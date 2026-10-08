@@ -67,6 +67,48 @@ test("classification failures refuse, and application Node launchers remain unch
   ).toThrow("launcher outside the authored population");
 });
 
+test("workspace binary execution remains byte-identical for native Knip", () => {
+  const script = "pnpm --filter @orb/db exec drizzle-kit check --config=drizzle.config.ts";
+  expect(
+    projectApplicationKnipScript(script, () => {
+      throw new Error("binary execution is not a Node source operand");
+    }),
+  ).toBe(script);
+});
+
+test("native Knip filtered-exec limitation is unchanged by application projection", { timeout: RUN_TIMEOUT_MS }, async ({ plantedTree, repoRoot }) => {
+  const authored = `pnpm --filter @proof/kit exec ${APP_BINARY}`;
+  const projected = projectApplicationKnipScript(authored, () => {
+    throw new Error("not a Node operand");
+  });
+  expect(projected).toBe(authored);
+  for (const script of [authored, projected]) {
+    const root = await plantedTree({
+      "package.json": JSON.stringify({ name: "script-probe", private: true, scripts: { check: script }, workspaces: ["packages/*"] }),
+      "packages/kit/package.json": JSON.stringify({ name: "@proof/kit", type: "module" }),
+      "knip.json": JSON.stringify({ entry: [APP_HELPER], project: ["*.ts"] }),
+      [APP_HELPER]: `import '${APP_UNLISTED}'; import '${APP_UNRESOLVED}';\n`,
+    });
+    const result = await spawnNiced(
+      process.execPath,
+      [
+        join(repoRoot, "node_modules/knip/bin/knip.js"),
+        "--config",
+        "knip.json",
+        "--include",
+        "unlisted,unresolved,binaries",
+        "--reporter",
+        "json",
+        "--no-progress",
+      ],
+      { cwd: root, timeoutMs: RUN_TIMEOUT_MS },
+    );
+    expect(result.code, result.stdout + result.stderr).toBe(1);
+    const report = reportSchema.parse(JSON.parse(result.stdout));
+    expect(report.issues).toEqual([{ file: APP_HELPER, binaries: [], unlisted: [{ name: APP_UNLISTED }], unresolved: [{ name: APP_UNRESOLVED }] }]);
+  }
+});
+
 test.for([
   { name: "authored positive control", projected: false, importsLauncher: false, dispatch: true },
   { name: "projected discovery", projected: true, importsLauncher: false, dispatch: false },
