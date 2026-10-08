@@ -52,7 +52,8 @@ import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 import { errorMessage } from "@orb/kit/error-message";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Locator, Page } from "@playwright/test";
+import type { CDPSession, Locator, Page } from "@playwright/test";
+import { processEnvValue } from "../../../tooling/src/_shared/process-env.ts";
 import { loafOverBudget, loafTotals } from "../../../tooling/src/motion-audit/index.ts";
 import { MotionAnchoredPortalStory, MotionShiftFlaggerStory, MotionVirtualizedShiftStory } from "./_ct-stories.tsx";
 import { SELECT_OPENING_TEST_CASES } from "./select-opening-cases.ts";
@@ -68,6 +69,35 @@ const EVIDENCE_TIMEOUT_MS = 10_000;
 const SOURCE_REQUEST_TIMEOUT_MS = 1000;
 const SOURCE_TOTAL_TIMEOUT_MS = 2000;
 const SOURCE_DEADLINE_CONTROL_MS = 200;
+const SELECT_CPU_DIAGNOSTIC_ENV = "ORB_SELECT_CPU_DIAGNOSTIC";
+
+async function profileSelectOpening(cdp: CDPSession, opening: () => Promise<MotionRead>): Promise<MotionRead> {
+  await cdp.send("Profiler.enable");
+  await cdp.send("Profiler.start");
+  const [outcome] = await Promise.allSettled([opening()] as const);
+  const cleanup = async (): Promise<void> => {
+    try {
+      const { profile } = await cdp.send("Profiler.stop");
+      await test.info().attach("select-first-cpu-diagnostic", {
+        body: JSON.stringify({ diagnosticOnly: true, qualification: false, profile }),
+        contentType: "application/json",
+      });
+      expect(profile.samples?.length).toBeGreaterThan(0);
+      expect(profile.nodes.some((node) => node.callFrame.url !== "" && (node.children?.length ?? 0) > 0)).toBe(true);
+    } finally {
+      await cdp.send("Profiler.disable");
+    }
+  };
+  const [cleanupOutcome] = await Promise.allSettled([cleanup()] as const);
+  if (cleanupOutcome.status === "rejected") {
+    const failures = outcome.status === "rejected" ? [outcome.reason, cleanupOutcome.reason] : [cleanupOutcome.reason];
+    throw new AggregateError(failures, "Select CPU diagnostic cleanup failed");
+  }
+  if (outcome.status === "rejected") {
+    throw outcome.reason;
+  }
+  return outcome.value;
+}
 
 /** The ONE poll schedule this file uses — a NEW object every call, because the poll loop mutates the
  *  interval array it is given (header law B). The tail is fine (250ms) so the deadline-crossing break
@@ -364,6 +394,51 @@ test("a native timer retains its exact source offset and execution start in moti
   const locations = await attachSourceLocations(motion);
   expect(locations.some((location) => location.responseStatus === 200 && location.source?.includes('"180px"') && location.error === null)).toBe(true);
 });
+
+// Profiling changes timings. These opt-in captures never qualify the unchanged native budget below.
+if (processEnvValue(SELECT_CPU_DIAGNOSTIC_ENV) === "1") {
+  for (const failOpening of [false, true]) {
+    test(`Select CPU diagnostic only — ${failOpening ? "opening failure cleanup" : "native first opening"}`, async ({ mount, page }) => {
+      test.info().annotations.push({ type: "diagnostic-only", description: "CPU profiling perturbs timing; this is not budget qualification." });
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await mount(<MotionAnchoredPortalStory />);
+      const triggerPoint = await hitPoint(page.getByRole("combobox", { name: "Anchored portal control" }));
+      await delay(500);
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+      await resetMotion(page);
+      const failure = new Error("diagnostic opening fault after settled evidence");
+      const opening = profileSelectOpening(cdp, async () => {
+        await page.mouse.click(triggerPoint.x, triggerPoint.y);
+        const motion = await motionWhen(page, (snapshot) =>
+          snapshot.loafs.some(
+            (loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.endedAt !== undefined && loaf.selectEntrance.firstForTrigger,
+          ),
+        );
+        await test.info().attach("select-first-profiled-motion-diagnostic", {
+          body: JSON.stringify({ diagnosticOnly: true, qualification: false, motion, totals: loafTotals(motion) }, null, 2),
+          contentType: "application/json",
+        });
+        expect(motion.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.firstForTrigger)).toBe(true);
+        if (failOpening) {
+          throw failure;
+        }
+        return motion;
+      });
+      const openingError = await opening.then(
+        () => null,
+        (error: Error) => error,
+      );
+      expect(openingError).toBe(failOpening ? failure : null);
+      // A second start/stop succeeds only after the first capture released its profiler session.
+      await cdp.send("Profiler.enable");
+      await cdp.send("Profiler.start");
+      await cdp.send("Profiler.stop");
+      await cdp.send("Profiler.disable");
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+    });
+  }
+}
 
 for (const sourceTransport of ["normal", "missing", "aborted", "deadline"] as const) {
   test(
