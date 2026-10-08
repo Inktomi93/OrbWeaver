@@ -53,6 +53,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { errorMessage } from "@orb/kit/error-message";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { CDPSession, Locator, Page } from "@playwright/test";
+import { CT_CACHE_DIR_ENV } from "../../../tooling/src/_shared/ct-run-slot.ts";
 import { processEnvValue } from "../../../tooling/src/_shared/process-env.ts";
 import { loafOverBudget, loafTotals } from "../../../tooling/src/motion-audit/index.ts";
 import type { TraceCapture } from "../../../tooling/src/snap/lib/react-profile-trace.ts";
@@ -60,6 +61,7 @@ import { recordOf, startTrace, stopTrace } from "../../../tooling/src/snap/lib/r
 import { DIAGNOSTIC_ONLY_ANNOTATION } from "../../../tooling/src/verify/contract/scoped-test.ts";
 import type { AppBlockingReceipt } from "../../support/iso/app-blocking-receipt.ts";
 import { matchAppBlockingFrame } from "../../support/iso/app-blocking-receipt.ts";
+import { retainNativeSources, SELECT_NATIVE_SOURCES_ATTACHMENT } from "../../support/node/select-native-sources.ts";
 import { MotionAnchoredPortalStory, MotionShiftFlaggerStory, MotionVirtualizedShiftStory } from "./_ct-stories.tsx";
 import { SELECT_OPENING_TEST_CASES } from "./select-opening-cases.ts";
 import type { SelectOpeningProbe } from "./select-opening-fixtures.tsx";
@@ -138,6 +140,28 @@ async function finishSelectTrace(page: Page, capture: TraceCapture, receipt: Sel
   expect(capture.events.some((event) => recordOf(event)?.["name"] === SELECT_TRACE_SYNC_MARK)).toBe(true);
 }
 
+async function attachNativeSelectSources(page: Page, capture: TraceCapture): Promise<void> {
+  // Retention is diagnostic cleanup: an attachment failure must not replace a trace or budget failure.
+  try {
+    const scriptUrls = capture.events.flatMap((event) => {
+      const url = recordOf(recordOf(recordOf(event)?.["args"])?.["data"])?.["url"];
+      return typeof url === "string" ? [url] : [];
+    });
+    const receipt = await retainNativeSources({
+      cacheDir: processEnvValue(CT_CACHE_DIR_ENV),
+      pageUrl: page.url(),
+      scriptUrls,
+      attach: (name, options) => test.info().attach(name, options),
+    });
+    await test.info().attach(SELECT_NATIVE_SOURCES_ATTACHMENT, { body: JSON.stringify(receipt), contentType: "application/json" });
+    if (!receipt.complete) {
+      console.error("Native Select source retention is incomplete", JSON.stringify(receipt));
+    }
+  } catch (error) {
+    console.error(`Native Select source retention could not be reported: ${errorMessage(error)}`);
+  }
+}
+
 interface NativeSelectTrace extends AsyncDisposable {
   readonly finish: () => Promise<void>;
 }
@@ -174,7 +198,11 @@ async function startNativeSelectTrace(page: Page, cdp: CDPSession): Promise<Nati
     if (!capture.started) {
       return;
     }
-    await finishSelectTrace(page, capture, { attachmentName: SELECT_NATIVE_TRACE_ATTACHMENT, cpuProfiling: false, compileControl: false });
+    try {
+      await finishSelectTrace(page, capture, { attachmentName: SELECT_NATIVE_TRACE_ATTACHMENT, cpuProfiling: false, compileControl: false });
+    } finally {
+      await attachNativeSelectSources(page, capture);
+    }
   };
   const dispose = async (): Promise<void> => {
     try {
