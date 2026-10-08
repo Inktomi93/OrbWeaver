@@ -48,8 +48,9 @@ const POSITIVE_CAPS: readonly (DerivedCap | "stageCap")[] = [...DERIVED_CAPS, "s
 
 const MIB_PER_GIB = 1024;
 const BYTES_PER_MIB = 1024 * 1024;
-/** The owner's box, whose caps the ceilings were tuned on. */
-const BIG_BOX: Machine = { cores: 24, memoryMiB: 48 * MIB_PER_GIB };
+/** The full-corpus price needs a larger memory witness than the legacy worker prices. */
+const BIG_BOX: Machine = { cores: 24, memoryMiB: 128 * MIB_PER_GIB };
+const LEGACY_BOX: Machine = { cores: 24, memoryMiB: 48 * MIB_PER_GIB };
 /** The 4-core box whose `process.constrainedMemory()` reads ~13.4 GiB, where 0176's OOM kills were measured. */
 const SMALL_BOX: Machine = { cores: 4, memoryMiB: 13_681 };
 
@@ -115,7 +116,7 @@ test("the whole-run verify queue applies in BOTH profiles — two whole runs on 
 
 // ── the derivation (0176): caps follow the machine, never past the committed ceiling ────────────────────
 
-test("the owner's 24-core/48 GB box derives EXACTLY the committed ceilings, in both profiles", () => {
+test("a 24-core/128 GiB box derives EXACTLY the committed ceilings, in both profiles", () => {
   for (const name of CONCURRENCY_PROFILE_NAMES) {
     const committed = parseConcurrencyProfile(BODY, name);
     expect(deriveConcurrencyProfile(committed, COSTS, BIG_BOX), `${name} on the big box`).toStrictEqual(capsOf(committed));
@@ -195,6 +196,26 @@ test("semantic corpora are priced independently and public CI cannot fit two", (
   const derived = deriveConcurrencyProfile(shared, COSTS, BIG_BOX);
   const memory = COSTS.semanticCorpusWorker.baseMemoryMiB + derived.semanticCorpusMaxWorkers * COSTS.semanticCorpusWorker.memoryMiB;
   expect(memory).toBeLessThanOrEqual(shared.machineShare * BIG_BOX.memoryMiB);
+});
+
+test("semantic corpus pricing covers complete serial and parallel process-tree peaks", () => {
+  const measurements = [
+    { workers: 1, peakRssMiB: 13_050.902_343_75 },
+    { workers: 2, peakRssMiB: 21_030.1875 },
+  ];
+  const cost = COSTS.semanticCorpusWorker;
+  for (const measurement of measurements) {
+    expect(cost.baseMemoryMiB + measurement.workers * cost.memoryMiB).toBeGreaterThanOrEqual(measurement.peakRssMiB);
+  }
+});
+
+test("a 48 GiB shared machine admits one full corpus without changing the two-worker ceiling", () => {
+  const shared = parseConcurrencyProfile(BODY, "shared");
+  const dedicated = parseConcurrencyProfile(BODY, "dedicated");
+  expect(shared.semanticCorpusMaxWorkers).toBe(2);
+  expect(dedicated.semanticCorpusMaxWorkers).toBe(2);
+  expect(deriveConcurrencyProfile(shared, COSTS, LEGACY_BOX)).toStrictEqual({ ...capsOf(shared), semanticCorpusMaxWorkers: 1 });
+  expect(deriveConcurrencyProfile(dedicated, COSTS, LEGACY_BOX)).toStrictEqual(capsOf(dedicated));
 });
 
 test("a run cap prices one run at its inner cap's DERIVED size, and only the CT runs are core-bound", () => {
