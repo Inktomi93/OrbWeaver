@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-08
 priority: P1
 area: testing
-lane: codex/select-build-sensitivity
 ---
 
 # Diagnose hosted Select first-open blocking
@@ -32,5 +31,7 @@ The original-cohort capture records a native budget failure with matching emitte
 Source-complete sampled diagnostics identify Select render and commit work without proving a product defect.
 
 An opt-in stock-esbuild optimization diagnostic compares cold openings against the ordinary CT build. Ordinary CT configuration and qualification budgets remain unchanged.
+
+The selected diagnostic does not reproduce the native failure. Its component registry differs from the failing capture. Application-source attribution remains unresolved; investigation stays open.
 
 Native trace finalization retains its referenced emitted bundles and source maps before CT lease cleanup without changing measurement. Native and deterministic file tests prove retention.
