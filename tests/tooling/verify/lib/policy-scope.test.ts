@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import rootPackage from "../../../../package.json" with { type: "json" };
 import type { PolicyScopeRequest } from "../../../../tooling/src/verify/contract/policy-scope.ts";
 import { POLICY_SCOPE_KINDS } from "../../../../tooling/src/verify/contract/policy-scope.ts";
 import { resolvePolicyScope } from "../../../../tooling/src/verify/lib/policy-scope.ts";
@@ -24,7 +25,9 @@ function plantRepo(root: string): void {
     mkdirSync(join(root, path), { recursive: true });
   }
   writeFileSync(join(root, ".gitignore"), "node_modules/\nreports/\n**/dist/\n");
-  writeJson(join(root, "package.json"), { name: "fixture-root", private: true, packageManager: "pnpm@11.15.1" });
+  writeJson(join(root, "package.json"), { name: "fixture-root", private: true, packageManager: rootPackage.packageManager });
+  // Package discovery can create runtime metadata; seed the authored lockfile before comparing inventories.
+  writeFileSync(join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\nimporters: {}\n");
   writeFileSync(join(root, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n  - tooling\n");
   writeJson(join(root, "tsconfig.base.json"), { files: [], compilerOptions: { module: "nodenext", target: "esnext" } });
   writeJson(join(root, "packages/a/package.json"), { name: "@fixture/a", private: true, version: "0.0.0" });
