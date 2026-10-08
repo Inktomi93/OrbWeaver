@@ -128,17 +128,16 @@ test("Lefthook forwards each long gate before its held child exits and preserves
   expect(hooks.map((hook) => live[hook]?.follow)).toEqual([true, true, true]);
 });
 
-test("compact verification names the active stage before its held child exits and preserves the stage verdict", { timeout: scaledBudget(60_000) }, async ({
-  fakeBin,
-  repoRoot,
-  scratch,
-}) => {
-  const ready = join(scratch, "stage-ready");
-  const release = join(scratch, "stage-release");
-  const heldOnce = join(scratch, "stage-held-once");
-  await fakeBin(
-    "pnpm",
-    `import { existsSync, writeFileSync, writeSync } from "node:fs";
+test.for(["compact", "verbose"] as const)(
+  "%s verification exposes stage progress before its held child exits and preserves the verdict",
+  { timeout: scaledBudget(60_000) },
+  async (mode, { fakeBin, repoRoot, scratch }) => {
+    const ready = join(scratch, "stage-ready");
+    const release = join(scratch, "stage-release");
+    const heldOnce = join(scratch, "stage-held-once");
+    await fakeBin(
+      "pnpm",
+      `import { existsSync, writeFileSync, writeSync } from "node:fs";
 if (!existsSync(${JSON.stringify(heldOnce)})) {
   writeFileSync(${JSON.stringify(heldOnce)}, "held");
   writeSync(1, "HELD VERIFY STAGE\\n");
@@ -150,53 +149,57 @@ if (!existsSync(${JSON.stringify(heldOnce)})) {
   process.exitCode = 1;
 }
 `,
-  );
-  const runner = join(scratch, "run-verify.ts");
-  writeFileSync(
-    runner,
-    `import { parse } from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/lib/run-argv.ts")).href)};
+    );
+    const runner = join(scratch, "run-verify.ts");
+    writeFileSync(
+      runner,
+      `import { parse } from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/lib/run-argv.ts")).href)};
 import { runVerify } from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/ops/run.ts")).href)};
-const parsed = parse(["--static"]);
+const parsed = parse(${JSON.stringify(mode === "verbose" ? ["--static", "--verbose"] : ["--static"])});
 if ("error" in parsed) throw new Error(parsed.error);
 process.exitCode = await runVerify(${JSON.stringify(scratch)}, parsed);
 `,
-  );
-  let output = "";
-  // biome-ignore lint/style/noProcessEnv: the child inherits fakeBin's isolated PATH and redirects its whole-run slot into scratch.
-  const childEnv = Object.fromEntries([...Object.entries(process.env), [HOST_POOL_ROOT_ENV, join(scratch, "verify-slots")]]);
-  const child = spawn(process.execPath, [runner], {
-    cwd: repoRoot,
-    detached: true,
-    env: childEnv,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  child.stdout.on("data", (chunk: Buffer) => {
-    output += chunk.toString("utf8");
-  });
-  child.stderr.on("data", (chunk: Buffer) => {
-    output += chunk.toString("utf8");
-  });
-  const exit = new Promise<number | null>((resolve) => child.once("exit", resolve));
-  try {
-    expect(await eventually(() => existsSync(ready) || child.exitCode !== null), output).toBe(true);
-    expect(child.exitCode, output).toBeNull();
-    expect(output).toContain("[verify] START lint:biome");
-    expect(output).not.toMatch(/^[✓✗‼] lint:biome/mu);
-    writeFileSync(release, "release");
-    expect(await exit, output).toBe(2);
-    expect(output).toContain("‼ lint:biome");
-    expect(output.indexOf("[verify] START lint:biome")).toBeLessThan(output.indexOf("‼ lint:biome"));
-  } finally {
-    writeFileSync(release, "release");
-    if (child.exitCode === null && child.pid !== undefined) {
-      try {
-        process.kill(-child.pid, "SIGKILL");
-      } catch {
-        // The readiness-controlled group may finish between the exitCode read and cleanup signal.
+    );
+    let output = "";
+    // biome-ignore lint/style/noProcessEnv: the child inherits fakeBin's isolated PATH and redirects its whole-run slot into scratch.
+    const childEnv = Object.fromEntries([...Object.entries(process.env), [HOST_POOL_ROOT_ENV, join(scratch, "verify-slots")]]);
+    const child = spawn(process.execPath, [runner], {
+      cwd: repoRoot,
+      detached: true,
+      env: childEnv,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    child.stdout.on("data", (chunk: Buffer) => {
+      output += chunk.toString("utf8");
+    });
+    child.stderr.on("data", (chunk: Buffer) => {
+      output += chunk.toString("utf8");
+    });
+    const exit = new Promise<number | null>((resolve) => child.once("exit", resolve));
+    try {
+      expect(await eventually(() => existsSync(ready) || child.exitCode !== null), output).toBe(true);
+      expect(child.exitCode, output).toBeNull();
+      const started = mode === "verbose" ? "=== lint:biome (" : "[verify] START lint:biome";
+      expect(output).toContain(started);
+      const childOutputArrived = mode === "verbose" ? await eventually(() => output.includes("HELD VERIFY STAGE")) : output.includes("HELD VERIFY STAGE");
+      expect(childOutputArrived, output).toBe(mode === "verbose");
+      expect(output).not.toMatch(/^[✓✗‼] lint:biome/mu);
+      writeFileSync(release, "release");
+      expect(await exit, output).toBe(2);
+      expect(output).toContain("‼ lint:biome");
+      expect(output.indexOf(started)).toBeLessThan(output.indexOf("‼ lint:biome"));
+    } finally {
+      writeFileSync(release, "release");
+      if (child.exitCode === null && child.pid !== undefined) {
+        try {
+          process.kill(-child.pid, "SIGKILL");
+        } catch {
+          // The readiness-controlled group may finish between the exitCode read and cleanup signal.
+        }
       }
     }
-  }
-});
+  },
+);
 
 // ─── #2469: THE STAGE CHILD'S COLOUR ENV, and why "we never SET FORCE_COLOR" was not enough ─────────
 // `runStage` composes `NO_COLOR=1` so every checker prints greppable plain text. Node emits
