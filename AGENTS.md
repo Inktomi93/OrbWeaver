@@ -109,19 +109,19 @@ as the new one. If you cannot go green without a hatch, stop and report.
 | `pnpm verify --changed` | the inner loop, scoped to changed files; whole-project stages are deferred |
 | `pnpm check` (same as `pnpm verify`, `--static`) | the static whole tree: lint, types and type tests, structure, imports, docs; no product runtime tests |
 | `pnpm verify --push` | adds node tests, CT and e2e smoke |
-| `pnpm verify --full` | exhaustive verification, including tooling proofs and slow quality stages; nightly and explicit full qualification |
+| `pnpm verify --full` | exhaustive application verification and slow quality stages; no checker recertification |
 | `pnpm verify --product` | whole application checks, complete application CT and E2E; excludes tool proofs and mutation |
+| `pnpm verify --weekly` | complete checker proof and global implementation checks; independent of product qualification |
 
 - Read stage membership from `pnpm verify --list`. Exit codes: 0 clean, 1 violations, 2 tool error (not a verdict), 3 misuse.
-- Use the `lane` skill's "Completion" policy to select checks. Run `pnpm check` after merge trains, for cross-package contracts or shared build/verification changes, or when requested. Routine local changes finish with relevant scoped checks.
+- Use the `lane` skill's "Completion" policy to select checks. Run `pnpm check --application` after merge trains, for cross-package contracts or shared build/verification changes, or when requested. Routine local changes finish with relevant scoped checks.
 - The local pre-push hook checks GitHub synchronization. CI owns whole-tree verification before release; see `UNIFIED-VERIFICATION-DESIGN.md` §4.
 - The `commit-msg` hook enforces the message format (`scripts/commit-msg-check.sh`).
 
 ## Read the harness artifacts
 
 - `pnpm check` writes `reports/verify.json`, `reports/verify/<stage>.log` and `reports/check-structure.json`. `pnpm test` writes `reports/test-report.json` and `reports/ct-flaky.json`.
-- These paths are pointers to the last finished run. If a concurrent run prints its slot under `reports/runs/`, read that slot.
-- Use `pnpm check:show` to read structure verdicts and stage logs. The layout is in `UNIFIED-VERIFICATION-DESIGN.md` §3.3b.
+- Pointers name the last finished run; read the printed slot for concurrent runs. Use `pnpm check:show` for stage logs; layout: `UNIFIED-VERIFICATION-DESIGN.md` §3.3b.
 - Never pipe a harness run into `head` or `tail`; the exit code becomes the reader's. Never re-run a harness command to find a failure.
 
 ## Code questions
