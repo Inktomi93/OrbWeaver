@@ -1,10 +1,10 @@
 ---
 kind: tooling
-status: blocked
-updated: 2026-10-02
+status: doing
+updated: 2026-10-08
 priority: P3
 area: verification
-blocked: owner
+lane: codex/serial-proof-performance
 ---
 
 # Reduce static verification wall time without losing instrument proof
@@ -25,7 +25,7 @@ Reduce wall time on the same changed set. Preserve source/spec selection, every 
 
 Use the existing import graph to derive gate reach. Validate authored `defineGate` IDs against filenames. Only sources selecting the shared suite affect its policy scope. Shared infrastructure, unclassifiable gates, missing IDs, and unknown paths force full scope. Direct/full runs retain every policy and control.
 
-Share only identical ordered interventions; prove every distinct intervention alone, including explicit control batches. Keep complete overlays, shared corpus, refusal channels, and baseline checks. Add-only cases with nonempty `reportsAt` require measured baseline silence because their anchors may already exist.
+Share only identical ordered interventions; prove every distinct intervention alone, including explicit control batches. Keep complete overlays, refusal channels, and baseline checks. Independent proof corpora may execute concurrently within native runner resource limits. Each corpus restores its intervention before starting another. Add-only cases with nonempty `reportsAt` require measured baseline silence because their anchors may already exist.
 
 ### Rejected options
 
@@ -55,11 +55,11 @@ ts-morph already reuses its previous program. Resource hosts, facts and referenc
 
 The resolution cache matches fresh solo findings, refusals, grants and populations. Controls cover changed exports, disk twins, globals, fact/resource changes and failed resolution recovery.
 
-Main owns the frozen benchmark. Compare durations, scope, pass timings and test reports. Retain serial execution and complete proofs.
+Main owns the frozen benchmark. Compare durations, scope, pass timings and test reports. Retain complete proofs and isolated corpus ownership.
 
 ## Evidence
 
-Owner deferred this work. Resume only on an explicit owner request.
+The owner authorizes independent corpus partitions. Preserve the complete selected policy and control population across native test entry points.
 
 Narrowing is in `84af5ea2ed`; resolution caching is in `1820f32165`. Pre-commit checks the staged diff.
 
