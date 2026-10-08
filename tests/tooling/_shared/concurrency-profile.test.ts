@@ -150,6 +150,7 @@ test("a 4-core/13.4 GB box derives SMALLER caps, and the host-wide typecheck poo
 
 const FLAT_COSTS: UnitCosts = {
   vitestWorker: { cores: 1, memoryMiB: 1000, baseMemoryMiB: 0 },
+  semanticCorpusWorker: { cores: 1, memoryMiB: 1000, baseMemoryMiB: 0 },
   ctWorker: { cores: 1, memoryMiB: 1000, baseMemoryMiB: 0 },
   ts7Checker: { cores: 1, memoryMiB: 1000, baseMemoryMiB: 4000 },
   eslintWorker: { cores: 1, memoryMiB: 1000, baseMemoryMiB: 0 },
@@ -180,6 +181,20 @@ test("the profile's machine share scales both bounds", () => {
   const half = { ...parseConcurrencyProfile(BODY, "dedicated"), machineShare: 0.5 };
   expect(deriveConcurrencyProfile(half, FLAT_COSTS, { cores: 8, memoryMiB: 1_000_000 }).vitestMaxWorkers, "half of 8 cores").toBe(4);
   expect(deriveConcurrencyProfile(half, FLAT_COSTS, { cores: 64, memoryMiB: 8000 }).vitestMaxWorkers, "half of 8000 MiB").toBe(4);
+});
+
+test("semantic corpora are priced independently and public CI cannot fit two", () => {
+  const publicCi = { cores: 4, memoryMiB: 16 * MIB_PER_GIB };
+  for (const name of CONCURRENCY_PROFILE_NAMES) {
+    const committed = parseConcurrencyProfile(BODY, name);
+    expect(deriveConcurrencyProfile(committed, COSTS, publicCi).semanticCorpusMaxWorkers).toBe(1);
+    expect(deriveConcurrencyProfile(committed, COSTS, BIG_BOX).semanticCorpusMaxWorkers).toBe(2);
+  }
+  expect(COSTS.semanticCorpusWorker.memoryMiB).toBeGreaterThan(COSTS.vitestWorker.memoryMiB);
+  const shared = parseConcurrencyProfile(BODY, "shared");
+  const derived = deriveConcurrencyProfile(shared, COSTS, BIG_BOX);
+  const memory = COSTS.semanticCorpusWorker.baseMemoryMiB + derived.semanticCorpusMaxWorkers * COSTS.semanticCorpusWorker.memoryMiB;
+  expect(memory).toBeLessThanOrEqual(shared.machineShare * BIG_BOX.memoryMiB);
 });
 
 test("a run cap prices one run at its inner cap's DERIVED size, and only the CT runs are core-bound", () => {

@@ -13,8 +13,8 @@ export const DROPPED_LANES = new Map([
     (resource) =>
       [
         resource,
-        "repository-fixture writers and coupled corpus readers require exclusive execution until the gate " +
-          "fixture migration. These instrument meta-tests also inspect source that Stryker rewrites in its sandbox.",
+        "repository/corpus meta-tests inspect source that Stryker rewrites in its sandbox, so their " +
+          "real-source assertions cannot qualify mutant-instrumented copies.",
       ] as const,
   ),
   [

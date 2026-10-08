@@ -1,6 +1,5 @@
 // Real-corpus liveness arms (#2149) for policies judging the server-side packages. DATA, collected by the
-// one runner (`../real-corpus-liveness-family.suite.repo.int.test.ts`), which loads the structure run's own
-// corpus once and runs every arm against it — so an arm names no corpus of its own (docs/work/0043).
+// one runner (`./runner.ts`), which loads the isolated structure corpora and runs every arm against it — so an arm names no corpus of its own (docs/work/0043).
 import { gate as contractDerives } from "../../../../../tooling/src/verify/gates/contract-derives-not-respells.ts";
 import { gate as externalIdHealth } from "../../../../../tooling/src/verify/gates/external-id-single-writer-health.ts";
 import { gate as injectedOpHealth } from "../../../../../tooling/src/verify/gates/injected-op-caller-param-health.ts";

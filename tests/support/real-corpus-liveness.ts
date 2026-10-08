@@ -423,6 +423,42 @@ export function planLivenessBatches(arms: readonly RealCorpusLivenessArm[]): rea
   return [...batches.values()];
 }
 
+/** Assign complete intervention batches to two independent corpora; coupled controls stay in the first. */
+export function partitionLivenessArms(
+  arms: readonly RealCorpusLivenessArm[],
+  controlPolicyIds: ReadonlySet<string>,
+): readonly [readonly RealCorpusLivenessArm[], readonly RealCorpusLivenessArm[]] {
+  const partitions: [RealCorpusLivenessArm[], RealCorpusLivenessArm[]] = [[], []];
+  const ordinary: (readonly RealCorpusLivenessArm[])[] = [];
+  for (const batch of planLivenessBatches(arms)) {
+    if (batch.some((arm) => controlPolicyIds.has(arm.policy.id))) {
+      partitions[0].push(...batch);
+    } else {
+      ordinary.push(batch);
+    }
+  }
+  for (const batch of ordinary) {
+    const target = partitions[0].length <= partitions[1].length ? partitions[0] : partitions[1];
+    target.push(...batch);
+  }
+  return partitions;
+}
+
+/** Refuse a full roster whose native partitions lose, duplicate, invent, or leave a policy corpus empty. */
+export function assertLivenessPartitions(
+  arms: readonly RealCorpusLivenessArm[],
+  partitions: readonly [readonly RealCorpusLivenessArm[], readonly RealCorpusLivenessArm[]],
+): void {
+  const expected = arms.map((arm) => arm.policy.id).toSorted();
+  const actual = partitions
+    .flat()
+    .map((arm) => arm.policy.id)
+    .toSorted();
+  if (partitions.some((partition) => partition.length === 0) || JSON.stringify(expected) !== JSON.stringify(actual)) {
+    throw new Error("real-corpus liveness: native partitions must retain every full-roster policy exactly once in nonempty corpora");
+  }
+}
+
 /** The refusals that belong to ONE arm's policy in a shared pass. A fact refusal belongs to every policy that
  *  reads the fact, and an authority refusal with no policy id belongs to everyone — neither may be dropped. */
 function refusalsFor(result: PassResult, arm: RealCorpusLivenessArm): readonly string[] {
@@ -469,14 +505,20 @@ export function assertArmVerdict(arm: RealCorpusLivenessArm, verdict: RealCorpus
 }
 
 /** Open the ONE liveness runner over `arms`. A policy carries at most one arm: two arms for one id would
- *  share a baseline row and make "which control fired" ambiguous. */
-export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorpusLivenessArm[]): RealCorpusLivenessRunner {
+ *  share a baseline row and make "which control fired" ambiguous.
+ * @param knownArms The same selected authority roster across independently executed arm partitions.
+ */
+export function openRealCorpusLiveness(
+  repoRoot: string,
+  arms: readonly RealCorpusLivenessArm[],
+  knownArms: readonly RealCorpusLivenessArm[] = arms,
+): RealCorpusLivenessRunner {
   const ids = arms.map((arm) => arm.policy.id);
   const duplicated = ids.filter((id, index) => ids.indexOf(id) !== index);
   if (duplicated.length > 0) {
     throw new Error(`real-corpus liveness: more than one arm for ${[...new Set(duplicated)].join(", ")} — one arm per policy`);
   }
-  const policies = arms.map((arm) => arm.policy);
+  const policies = knownArms.map((arm) => arm.policy);
   const reviewedGrants = reviewedGrantsFor(policies);
   let corpus: Project | undefined;
   const resolution = createWorkspaceResolutionCache();

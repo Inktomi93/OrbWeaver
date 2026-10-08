@@ -1,7 +1,7 @@
 // Real-corpus liveness arms (#2149) for the `population: { of: "none" }` policies — the resource-only ones,
 // whose subject is a config, a stylesheet, a manifest or a tree listing read through the ResourceHost rather
 // than the ts-morph project (0042's ninth chunk). DATA, collected by the one runner
-// (`../real-corpus-liveness-family.suite.repo.int.test.ts`), which loads the structure run's own corpus once
+// (`./runner.ts`), which loads each isolated structure corpus once
 // and runs every arm against it (docs/work/0043).
 //
 // EVERY PLANT RIDES THE READER'S OWN OVERLAY (`kind: "resource"`): `append` adds a tail to the real file,

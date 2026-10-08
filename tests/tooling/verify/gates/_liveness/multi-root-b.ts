@@ -1,7 +1,7 @@
 // Real-corpus liveness arms (#2149) for policies whose declared population spans several roots — the
 // occurrence bans, the open-JSON and test-presence families, the tooling registries and their neighbours
 // (0042's tenth chunk, second half). DATA, collected by the one runner
-// (`../real-corpus-liveness-family.suite.repo.int.test.ts`), which loads the structure run's own corpus once and
+// (`./runner.ts`), which loads each isolated structure corpus once and
 // runs every arm against it (docs/work/0043).
 //
 // EACH ARM IS ITS POLICY'S OWN `mustFlag` ROW, TRANSPLANTED ONTO THE REAL TREE. A defect that is a member of a

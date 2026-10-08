@@ -1,7 +1,7 @@
 // Real-corpus liveness arms (#2149) for policies whose declared population spans several roots — the bus
 // family, the CSS census families, the db/server write-parity families and their neighbours (0042's tenth
-// chunk, first half). DATA, collected by the one runner (`../real-corpus-liveness-family.suite.repo.int.test.ts`),
-// which loads the structure run's own corpus once and runs every arm against it (docs/work/0043).
+// chunk, first half). DATA, collected by the one runner (`./runner.ts`),
+// which loads each isolated structure corpus once and runs every arm against it (docs/work/0043).
 //
 // EACH ARM IS ITS POLICY'S OWN `mustFlag` ROW, TRANSPLANTED ONTO THE REAL TREE. A defect that is a MEMBER of a
 // real declaration (a field on a real interface, a code on a real tuple) is planted with `edit`, one exact
