@@ -23,10 +23,10 @@ Native evidence distinguishes fixture contention from application work; any repa
 
 ## Evidence
 
-The ordinary first-open budget fails in hosted and local native runs. Product source and performance budgets remain unchanged.
+The ordinary first-open budget fails in hosted and local native runs. Select product source and performance budgets remain unchanged.
 
 Profiler-on and trace-only diagnostics execute the same cold render and compilation path with different observed durations. These observations do not establish the original failure's cause.
 
-The original-cohort trace-only capture brackets the actual first and repeat opening. A failing native trace is needed before a source repair is justified.
+The original-cohort capture records a native budget failure with matching emitted sources. The failing focus-origin task contains cold React work and compilation. Intra-React function attribution remains unresolved.
 
 Native trace finalization retains its referenced emitted bundles and source maps before CT lease cleanup without changing measurement. Native and deterministic file tests prove retention.

@@ -23,4 +23,4 @@ Reproduce real defects with native tests. Preserve static serving and qualificat
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Native suites and independent reviews prove comment-span handling and literal shard arguments. Hosted CodeQL and zizmor closure remains required.
