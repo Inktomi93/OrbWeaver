@@ -27,6 +27,9 @@ const RUN = z.object({
   repository: REPOSITORY,
 });
 const RUN_PAGE = z.object({ ["total_count"]: z.number().int().nonnegative(), ["workflow_runs"]: z.array(RUN) });
+const RUN_PAGE_PROJECTION = `{total_count,workflow_runs:[.workflow_runs[]|{${RUN.keyof()
+  .options.map((key) => (key === "repository" ? `repository:(.repository|{${REPOSITORY.keyof().options.join(",")}})` : JSON.stringify(key)))
+  .join(",")}}]}`;
 const STEP = z.object({ name: z.string(), status: z.string(), conclusion: z.string().nullable() });
 const JOB = z.object({
   id: z.number().int().positive(),
@@ -41,7 +44,7 @@ const JOB_PAGE = z.object({ ["total_count"]: z.number().int().nonnegative(), job
 const WORKFLOW = z.object({ id: z.number().int().positive(), path: z.literal(".github/workflows/ci.yml") });
 const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
-const MAX_ANCESTORS = 40;
+const MAX_RUN_BACKED_ANCESTORS = 40;
 const API_TIMEOUT_BASE_MS = 10_000;
 const METADATA_BUDGET_BASE_MS = 120_000;
 const WORKFLOW_PATH = ".github/workflows/ci.yml";
@@ -91,14 +94,17 @@ function latestMainPush(runs: readonly z.infer<typeof RUN>[], sha: string): z.in
   return runs.filter((row) => row.head_sha === sha && row.event === "push" && row.head_branch === "main").toSorted((a, b) => b.id - a.id)[0];
 }
 
-function api(root: string, endpoint: string, deadline: number): string {
+function api(root: string, endpoint: string, deadline: number, projection?: string): string {
   const remaining = Math.floor(deadline - performance.now());
   if (remaining < 1) {
     throw new Error("CI qualification metadata discovery exceeded its supported bound");
   }
-  const result = runNicedSync("gh", ["api", endpoint], { cwd: root, timeout: Math.min(budget(API_TIMEOUT_BASE_MS), remaining) });
+  const result = runNicedSync("gh", ["api", endpoint, ...(projection === undefined ? [] : ["--jq", projection])], {
+    cwd: root,
+    timeout: Math.min(budget(API_TIMEOUT_BASE_MS), remaining),
+  });
   if (result.status !== 0) {
-    throw new Error(`CI qualification metadata unavailable for ${endpoint} (${String(result.status)})`);
+    throw new Error(`CI qualification metadata unavailable for ${endpoint} (${result.errorCode ?? String(result.status)})`);
   }
   return result.stdout;
 }
@@ -107,7 +113,7 @@ function runPages(root: string, prefix: string, deadline: number): readonly z.in
   const rows: z.infer<typeof RUN>[] = [];
   let total: number | undefined;
   for (let page = 1; page <= MAX_PAGES; page += 1) {
-    const parsed = RUN_PAGE.parse(JSON.parse(api(root, `${prefix}&per_page=${PAGE_SIZE}&page=${page}`, deadline)));
+    const parsed = RUN_PAGE.parse(JSON.parse(api(root, `${prefix}&per_page=${PAGE_SIZE}&page=${page}`, deadline, RUN_PAGE_PROJECTION)));
     total ??= parsed.total_count;
     if (parsed.total_count !== total || (parsed.workflow_runs.length === 0 && rows.length < total)) {
       throw new Error("CI qualification run pagination is incomplete or changed during the read");
@@ -139,17 +145,35 @@ function jobsForAttempt(root: string, repository: string, run: z.infer<typeof RU
   throw new Error("CI qualification job pagination exceeds the supported bound");
 }
 
-/** Check the latest run for this exact SHA, including smoke via whole-workflow success and one attempt's real static step. */
-export function hasQualifiedMainPush(
+function mainPushInventory(root: string, config: CiQualificationConfig, workflow: z.infer<typeof WORKFLOW>, deadline: number): readonly z.infer<typeof RUN>[] {
+  const rows = runPages(root, `repos/${config.repository}/actions/workflows/${workflow.id}/runs?event=push&branch=main`, deadline);
+  // GitHub caps filtered run searches; a saturated inventory cannot prove that omitted ancestors have no run.
+  if (rows.length === PAGE_SIZE * MAX_PAGES) {
+    throw new Error("CI qualification main-push inventory saturated the API search bound");
+  }
+  if (
+    rows.some((row) => row.workflow_id !== workflow.id || row.repository.full_name !== config.repository || row.event !== "push" || row.head_branch !== "main")
+  ) {
+    throw new Error("CI qualification main-push inventory has inconsistent provenance");
+  }
+  return rows;
+}
+
+function inventoryIdentity(rows: readonly z.infer<typeof RUN>[]): string {
+  return JSON.stringify(rows.toSorted((a, b) => a.id - b.id));
+}
+
+function qualifiedMainPush(
   root: string,
   sha: string,
   config: CiQualificationConfig,
-  deadline = performance.now() + budget(METADATA_BUDGET_BASE_MS),
+  { workflow, deadline, discovered }: { readonly workflow: z.infer<typeof WORKFLOW>; readonly deadline: number; readonly discovered?: z.infer<typeof RUN> },
 ): boolean {
-  COMMIT_ID.parse(sha);
-  const workflow = WORKFLOW.parse(JSON.parse(api(root, `repos/${config.repository}/actions/workflows/ci.yml`, deadline)));
   const runQuery = `repos/${config.repository}/actions/workflows/${workflow.id}/runs?head_sha=${sha}&event=push&branch=main`;
   const run = latestMainPush(runPages(root, runQuery, deadline), sha);
+  if (discovered !== undefined && JSON.stringify(run) !== JSON.stringify(discovered)) {
+    throw new Error("CI qualification main-push inventory changed before exact-SHA validation");
+  }
   if (
     run === undefined ||
     run.workflow_id !== workflow.id ||
@@ -195,6 +219,18 @@ export function hasQualifiedMainPush(
   );
 }
 
+/** Check the latest run for this exact SHA, including smoke via whole-workflow success and one attempt's real static step. */
+export function hasQualifiedMainPush(
+  root: string,
+  sha: string,
+  config: CiQualificationConfig,
+  deadline = performance.now() + budget(METADATA_BUDGET_BASE_MS),
+): boolean {
+  COMMIT_ID.parse(sha);
+  const workflow = WORKFLOW.parse(JSON.parse(api(root, `repos/${config.repository}/actions/workflows/ci.yml`, deadline)));
+  return qualifiedMainPush(root, sha, config, { workflow, deadline });
+}
+
 /** Validate immutable measurement inputs before using the cumulative qualified or admitted publication delta. */
 export function qualificationDecision(root: string, { head, eventBase, base, authority }: QualificationMeasurement): QualificationDecision {
   const boundary = resolveMeasurementBoundary(root, { [VERIFY_BASE_ENV]: base, [VERIFY_HEAD_ENV]: head });
@@ -209,24 +245,47 @@ export function qualificationDecision(root: string, { head, eventBase, base, aut
   return { ...boundary, eventBase, authority, paths, code, toolMode: requirement.toolMode };
 }
 
+function nearestQualifiedAncestor(root: string, head: string, config: CiQualificationConfig, deadline: number): string | undefined {
+  let candidates = 0;
+  const candidatesToInspect = currentGenerationAncestors(root, head, config, deadline);
+  if (candidatesToInspect.length === 0) {
+    return;
+  }
+  const workflow = WORKFLOW.parse(JSON.parse(api(root, `repos/${config.repository}/actions/workflows/ci.yml`, deadline)));
+  const inventory = mainPushInventory(root, config, workflow, deadline);
+  const runBacked = candidatesToInspect.flatMap((commit) => {
+    const run = latestMainPush(inventory, commit);
+    return run === undefined ? [] : [run];
+  });
+  let qualified: string | undefined;
+  // Complete run metadata proves absence for unpublished Git ancestors without spending a candidate on each lane commit.
+  for (const discovered of runBacked) {
+    if (performance.now() >= deadline) {
+      throw new Error("qualified-ancestor discovery exceeded its supported time bound");
+    }
+    candidates += 1;
+    if (candidates > MAX_RUN_BACKED_ANCESTORS) {
+      throw new Error("qualified-ancestor discovery exceeded its supported candidate bound");
+    }
+    if (qualifiedMainPush(root, discovered.head_sha, config, { workflow, deadline, discovered })) {
+      qualified = discovered.head_sha;
+      break;
+    }
+  }
+  if (inventoryIdentity(mainPushInventory(root, config, workflow, deadline)) !== inventoryIdentity(inventory)) {
+    throw new Error("CI qualification main-push inventory changed during discovery");
+  }
+  return qualified;
+}
+
 /** Select the nearest qualified ancestor by Git topology, never the newest unrelated successful run. */
 export function resolveCiQualification(root: string, head: string, eventBase: string, config: CiQualificationConfig): QualificationDecision {
   COMMIT_ID.parse(head);
   const deadline = performance.now() + budget(METADATA_BUDGET_BASE_MS);
-  let candidates = 0;
   try {
-    const candidatesToInspect = currentGenerationAncestors(root, head, config, deadline);
-    for (const ancestor of candidatesToInspect) {
-      if (performance.now() >= deadline) {
-        throw new Error("qualified-ancestor discovery exceeded its supported time bound");
-      }
-      candidates += 1;
-      if (candidates > MAX_ANCESTORS) {
-        throw new Error("qualified-ancestor discovery exceeded its supported candidate bound");
-      }
-      if (hasQualifiedMainPush(root, ancestor, config, deadline)) {
-        return qualificationDecision(root, { head, eventBase, base: ancestor, authority: "qualified" });
-      }
+    const qualified = nearestQualifiedAncestor(root, head, config, deadline);
+    if (qualified !== undefined) {
+      return qualificationDecision(root, { head, eventBase, base: qualified, authority: "qualified" });
     }
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
