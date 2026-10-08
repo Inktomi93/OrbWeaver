@@ -236,6 +236,7 @@ const workflowConfig = z.object({
       needs: z.union([z.string(), z.array(z.string())]).optional(),
       if: z.string().optional(),
       env: z.record(z.string(), z.string()).optional(),
+      outputs: z.record(z.string(), z.string()).optional(),
       strategy: z
         .object({
           matrix: z.object({
@@ -322,9 +323,7 @@ test("application static CI routes parallel duplication through the subject owne
     const setup = steps.findIndex((row) => row.uses === "./.github/actions/setup");
     expect(checkout, name).toBeGreaterThanOrEqual(0);
     expect(setup, name).toBeGreaterThan(checkout);
-    expect(steps[checkout]?.with?.["ref"], name).toBe(
-      name === "qualification" ? "${{ github.event_name == 'schedule' && 'main' || github.ref }}" : "${{ needs.weekly-head.outputs.sha }}",
-    );
+    expect(steps[checkout]?.with?.["ref"], name).toBe(name === "qualification" ? "${{ github.event_name == 'schedule' && 'main' || github.ref }}" : "main");
     expect(
       steps.some((row) => row.uses === "$/.github/actions/setup"),
       name,
@@ -336,6 +335,84 @@ test("application static CI routes parallel duplication through the subject owne
       name,
     ).toBe(true);
   }
+});
+
+test("weekly partitions execute one frozen main commit and refuse off-main or rewritten-history sources before setup", async ({ repoRoot, plantedTree }) => {
+  const jobs = workflowJobs(repoRoot, "ci");
+  const resolver = jobs["weekly-head"];
+  const tooling = jobs["weekly-tooling"];
+  const steps = tooling?.steps ?? [];
+  const checkout = steps.findIndex((step) => step.uses?.startsWith("actions/checkout@") === true);
+  const source = steps.findIndex((step) => step.id === "source");
+  const setup = steps.findIndex((step) => step.uses === "./.github/actions/setup");
+  const control = steps[source];
+  const script = z.string().parse(control?.run);
+  expect(tooling?.needs).toBe("weekly-head");
+  expect(resolver?.if).toBe(
+    "${{ !inputs.select_cpu_diagnostic && (github.event.schedule == '37 9 * * 0' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'weekly')) }}",
+  );
+  expect(resolver?.steps[0]?.with).toEqual({ ref: "main", "persist-credentials": false });
+  expect(resolver?.outputs).toEqual({ sha: "${{ steps.sha.outputs.sha }}" });
+  expect(resolver?.steps.find((step) => step.id === "sha")?.run).toBe('echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"');
+  expect(steps[checkout]?.with).toEqual({ ref: "main", "fetch-depth": 0, "persist-credentials": false });
+  expect(source).toBeGreaterThan(checkout);
+  expect(source).toBeLessThan(setup);
+  expect(control?.if).toBeUndefined();
+  expect(control?.env).toEqual({ ["FROZEN_MAIN_SHA"]: "${{ needs.weekly-head.outputs.sha }}" });
+  expect(script).not.toContain("${{");
+  expect(jobs["weekly-ok"]?.needs).toEqual(["weekly-head", "weekly-tooling"]);
+  expect(jobs["ci-ok"]?.needs).not.toContain("weekly-tooling");
+
+  const tree = await plantedTree({ ".github/actions/setup/action.yml": "frozen setup\n" });
+  execFixtureGit(tree, ["init", "--initial-branch=main"]);
+  execFixtureGit(tree, ["config", "user.name", "Workflow proof"]);
+  execFixtureGit(tree, ["config", "user.email", "proof@example.invalid"]);
+  execFixtureGit(tree, ["add", "."]);
+  execFixtureGit(tree, ["commit", "-m", "frozen main"]);
+  const frozen = execFixtureGit(tree, ["rev-parse", "HEAD"]).trim();
+  const nonCommit = execFixtureGit(tree, ["rev-parse", "HEAD^{tree}"]).trim();
+  execFixtureGit(tree, ["tag", "-a", "frozen-tag", "-m", "annotated tag"]);
+  const tagObject = execFixtureGit(tree, ["rev-parse", "frozen-tag"]).trim();
+  execFixtureGit(tree, ["checkout", "-b", "untrusted"]);
+  await writeFile(join(tree, ".github/actions/setup/action.yml"), "off-main setup\n");
+  execFixtureGit(tree, ["commit", "-am", "off-main source"]);
+  const offMain = execFixtureGit(tree, ["rev-parse", "HEAD"]).trim();
+  execFixtureGit(tree, ["checkout", "main"]);
+  await writeFile(join(tree, ".github/actions/setup/action.yml"), "advanced main setup\n");
+  execFixtureGit(tree, ["commit", "-am", "advanced main"]);
+  const advanced = execFixtureGit(tree, ["rev-parse", "HEAD"]).trim();
+  execFixtureGit(tree, ["update-ref", "refs/remotes/origin/main", advanced]);
+  const run = (candidate: string, command = script): Promise<TranscriptResult> =>
+    spawnNicedTranscript("bash", ["-euo", "pipefail", "-c", command], {
+      cwd: tree,
+      env: { ["FROZEN_MAIN_SHA"]: candidate },
+      timeoutMs: scaledBudget(LONG_TEST_TIMEOUT_BASE_MS),
+    });
+  for (const candidate of ["", "main", "refs/heads/main", "f".repeat(40), nonCommit, tagObject, offMain]) {
+    const refused = await run(candidate);
+    expect(refused.code, `${candidate}: ${refused.transcript}`).not.toBe(0);
+    expect(execFixtureGit(tree, ["rev-parse", "HEAD"]).trim()).toBe(advanced);
+    expect(read(tree, ".github/actions/setup/action.yml")).toBe("advanced main setup\n");
+  }
+  // A locally present commit removed by a main-history rewrite is no longer authorized.
+  execFixtureGit(tree, ["update-ref", "refs/remotes/origin/main", offMain]);
+  const rewritten = await run(advanced);
+  expect(rewritten.code, rewritten.transcript).not.toBe(0);
+  expect(execFixtureGit(tree, ["rev-parse", "HEAD"]).trim()).toBe(advanced);
+  execFixtureGit(tree, ["update-ref", "refs/remotes/origin/main", advanced]);
+  for (const partition of tooling?.strategy?.matrix.include ?? []) {
+    execFixtureGit(tree, ["checkout", "--detach", advanced]);
+    const accepted = await run(frozen);
+    expect(accepted.code, `${partition.component}/${partition.shard}: ${accepted.transcript}`).toBe(0);
+    expect(execFixtureGit(tree, ["rev-parse", "HEAD"]).trim()).toBe(frozen);
+    expect(read(tree, ".github/actions/setup/action.yml")).toBe("frozen setup\n");
+  }
+
+  const unsafe = script.replace(/^\s*git merge-base --is-ancestor.*\n/mu, "");
+  expect(unsafe).not.toBe(script);
+  const exposed = await run(offMain, unsafe);
+  expect(exposed.code, exposed.transcript).toBe(0);
+  expect(read(tree, ".github/actions/setup/action.yml")).toBe("off-main setup\n");
 });
 
 test("static tooling qualification provisions the pinned Chromium and retains cache-hit dependencies and failed-install refusal", async ({

@@ -461,7 +461,7 @@ jobs:
           key: ${{ env.VERIFY_TIER }}-verified-${{ steps.sha.outputs.sha }}
           lookup-only: true
       - if: steps.seen.outputs.cache-hit != 'true'
-        uses: ./.github/actions/setup
+        uses: ./.github/actions/setup # zizmor: ignore[self-repository] Scheduled main needs checked-out setup, not the default-branch workflow commit.
         with:
           browsers: "true"
       - id: media
@@ -553,10 +553,20 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.weekly-head.outputs.sha }}
+          ref: main
           fetch-depth: 0
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      - id: source
+        name: Require the frozen source to belong to main before executing repository code
+        env:
+          FROZEN_MAIN_SHA: ${{ needs.weekly-head.outputs.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$FROZEN_MAIN_SHA" =~ ^[a-f0-9]{40}$ ]]
+          test "$(git cat-file -t "$FROZEN_MAIN_SHA")" = commit
+          git merge-base --is-ancestor "$FROZEN_MAIN_SHA" refs/remotes/origin/main
+          git checkout --detach "$FROZEN_MAIN_SHA"
+      - uses: ./.github/actions/setup # zizmor: ignore[self-repository] Weekly proof needs the frozen main setup, not the default-branch workflow commit.
         with:
           browsers: "true"
       - id: proof
