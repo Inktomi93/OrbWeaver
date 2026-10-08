@@ -47,18 +47,20 @@ test("failed tool A followed by application B carries A's tool bytes into qualif
     repository: REPOSITORY,
     generation: GENERATION,
     publication: base,
-    corpusJobs: CORPUS_JOB_NAMES,
+    requiredJobs: REQUIRED_JOB_NAMES,
+    runtimeJobs: RUNTIME_JOB_NAMES,
     hasCurrentGeneration: () => true,
   });
-  expect(decision).toMatchObject({ base, head, eventBase, code: true, toolMode: "affected" });
+  expect(decision).toMatchObject({ base, head, eventBase, code: true });
   expect(decision.paths).toContain("tests/tooling/broken.test.ts");
   expect(selectAffectedInstrumentTests(scratch, decision.paths).specs).toEqual(["tests/tooling/broken.test.ts"]);
   expect(readFileSync(join(scratch, "tests/tooling/broken.test.ts"), "utf8")).toContain("broken");
 });
 
 const REPOSITORY = "Inktomi93/OrbWeaver";
-const GENERATION = "Orbweaver qualification corpus-v1";
-const CORPUS_JOB_NAMES = ["semantic-corpus (1/2)", "semantic-corpus (2/2)"] as const;
+const GENERATION = "Orbweaver qualification product-v2";
+const REQUIRED_JOB_NAMES = ["static", "ci-ok", "changes"] as const;
+const RUNTIME_JOB_NAMES = ["media", "node (1/3)", "node (2/3)", "node (3/3)", "ct (1/4)", "ct (2/4)", "ct (3/4)", "ct (4/4)", "e2e-smoke"] as const;
 const API_ROOT = `repos/${REPOSITORY}/actions`;
 const SHA = "a".repeat(40);
 
@@ -93,8 +95,12 @@ function goodJob(sha = SHA, id = 1): typeof JOB_SAMPLE {
   return { ...JOB_SAMPLE, id, ["head_sha"]: sha };
 }
 
-function goodCorpusJobs(sha = SHA): readonly (typeof JOB_SAMPLE)[] {
-  return CORPUS_JOB_NAMES.map((name, index) => ({ ...goodJob(sha, index + 2), name }));
+function goodProductJobs(sha = SHA): readonly (typeof JOB_SAMPLE)[] {
+  return ["ci-ok", "changes", ...RUNTIME_JOB_NAMES].map((name, index) => ({
+    ...goodJob(sha, index + 2),
+    name,
+    steps: name === "ci-ok" ? [{ name: `${GENERATION} (runtime)`, status: "completed", conclusion: "success" }] : [],
+  }));
 }
 
 function metadata(sha = SHA): object {
@@ -102,10 +108,35 @@ function metadata(sha = SHA): object {
   return {
     [`${API_ROOT}/workflows/ci.yml`]: { id: 7, path: ".github/workflows/ci.yml" },
     [`${API_ROOT}/workflows/7/runs?head_sha=${sha}&event=push&branch=main&per_page=100&page=1`]: { ["total_count"]: 1, ["workflow_runs"]: [run] },
-    [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=1`]: { ["total_count"]: 3, jobs: [goodJob(sha), ...goodCorpusJobs(sha)] },
+    [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=1`]: { ["total_count"]: 12, jobs: [goodJob(sha), ...goodProductJobs(sha)] },
     [`${API_ROOT}/runs/1`]: run,
   };
 }
+
+test("failed independent tooling recertification cannot veto completed current product qualification", async ({ scratch, fakeBin }) => {
+  await fakeBin("gh", API_FIXTURE);
+  const run = { ...goodRun(), conclusion: "failure" };
+  const jobs = [goodJob(), ...goodProductJobs(), { ...goodJob(SHA, 20), name: "weekly-tooling", conclusion: "failure", steps: [] }];
+  writeFileSync(
+    join(scratch, "ci-api.json"),
+    JSON.stringify({
+      ...metadata(),
+      [`${API_ROOT}/workflows/7/runs?head_sha=${SHA}&event=push&branch=main&per_page=100&page=1`]: { ["total_count"]: 1, ["workflow_runs"]: [run] },
+      [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=1`]: { ["total_count"]: jobs.length, jobs },
+      [`${API_ROOT}/runs/1`]: run,
+    }),
+  );
+  expect(
+    hasQualifiedMainPush(scratch, SHA, {
+      repository: REPOSITORY,
+      generation: GENERATION,
+      publication: SHA,
+      requiredJobs: REQUIRED_JOB_NAMES,
+      runtimeJobs: RUNTIME_JOB_NAMES,
+      hasCurrentGeneration: () => true,
+    }),
+  ).toBe(true);
+});
 
 const API_FIXTURE = [
   "import fs from 'node:fs';const [command,endpoint]=process.argv.slice(2);",
@@ -114,6 +145,7 @@ const API_FIXTURE = [
   "if(command==='api'&&endpoint.includes('/workflows/7/runs?event=push&branch=main&')&&!(endpoint in responses)){",
   "const rows=Object.entries(responses).filter(([key])=>key.includes('/workflows/7/runs?head_sha=')&&key.endsWith('&page=1')).flatMap(([,value])=>value.workflow_runs);",
   "const page=Number(new URL('https://fixture.invalid/'+endpoint).searchParams.get('page'));responses[endpoint]={total_count:rows.length,workflow_runs:rows.slice((page-1)*100,page*100)};}",
+  "if(endpoint.includes('/jobs?')&&!(endpoint in responses))responses[endpoint]={total_count:0,jobs:[]};",
   "if(command!=='api'||!(endpoint in responses))process.exit(74);",
   "process.stdout.write(JSON.stringify(responses[endpoint]));",
 ].join("\n");
@@ -123,7 +155,14 @@ test("tight fractional metadata deadlines reach the native process, and sub-mill
 }, async ({ scratch, fakeBin }) => {
   await fakeBin("gh", API_FIXTURE);
   writeFileSync(join(scratch, "ci-api.json"), JSON.stringify(metadata()));
-  const config = { repository: REPOSITORY, generation: GENERATION, publication: SHA, corpusJobs: CORPUS_JOB_NAMES, hasCurrentGeneration: () => true };
+  const config = {
+    repository: REPOSITORY,
+    generation: GENERATION,
+    publication: SHA,
+    requiredJobs: REQUIRED_JOB_NAMES,
+    runtimeJobs: RUNTIME_JOB_NAMES,
+    hasCurrentGeneration: () => true,
+  };
   const windowMs = scaledBudget(5000);
   // @orb-waive test-determinism(performance.now): the subject is native conversion of a fractional remaining monotonic deadline, below the request cap; no clock injection exists, and completion headroom follows shared load scaling.
   expect(hasQualifiedMainPush(scratch, SHA, config, performance.now() + windowMs + 0.75)).toBe(true);
@@ -153,7 +192,7 @@ test("native metadata timeout keeps its quiet ceiling and receives shared load h
     probe,
     [
       `import { hasQualifiedMainPush } from ${JSON.stringify(join(repoRoot, "tooling/src/verify/lib/ci-qualification.ts"))};`,
-      `try { if(!hasQualifiedMainPush(process.cwd(), ${JSON.stringify(SHA)}, ${JSON.stringify({ repository: REPOSITORY, generation: GENERATION, publication: SHA, corpusJobs: CORPUS_JOB_NAMES })})) throw new Error('qualification refused'); process.stdout.write('qualified'); } catch(error) { process.stderr.write(error.message); process.exitCode=2; }`,
+      `try { if(!hasQualifiedMainPush(process.cwd(), ${JSON.stringify(SHA)}, ${JSON.stringify({ repository: REPOSITORY, generation: GENERATION, publication: SHA, requiredJobs: REQUIRED_JOB_NAMES, runtimeJobs: RUNTIME_JOB_NAMES })})) throw new Error('qualification refused'); process.stdout.write('qualified'); } catch(error) { process.stderr.write(error.message); process.exitCode=2; }`,
     ].join("\n"),
   );
   const quiet = spawnSync(process.execPath, [probe], { cwd: scratch, encoding: "utf8", env: inheritedProcessEnv({ [BOX_LOAD_ENV]: "0.2/1" }) });
@@ -167,7 +206,14 @@ test("native metadata timeout keeps its quiet ceiling and receives shared load h
 
 test("the shared qualifier rejects false authority and partial reruns, and paginates the exact run attempt", async ({ scratch, fakeBin }) => {
   await fakeBin("gh", API_FIXTURE);
-  const config = { repository: REPOSITORY, generation: GENERATION, publication: SHA, corpusJobs: CORPUS_JOB_NAMES, hasCurrentGeneration: () => true };
+  const config = {
+    repository: REPOSITORY,
+    generation: GENERATION,
+    publication: SHA,
+    requiredJobs: REQUIRED_JOB_NAMES,
+    runtimeJobs: RUNTIME_JOB_NAMES,
+    hasCurrentGeneration: () => true,
+  };
   const check = (responses: object): boolean => {
     writeFileSync(join(scratch, "ci-api.json"), JSON.stringify(responses));
     return hasQualifiedMainPush(scratch, SHA, config);
@@ -177,8 +223,6 @@ test("the shared qualifier rejects false authority and partial reruns, and pagin
   const jobsUrl = `${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=1`;
   for (const patch of [
     { status: "in_progress", conclusion: null },
-    { conclusion: "failure" },
-    { conclusion: "cancelled" },
     { ["head_sha"]: "b".repeat(40) },
     { event: "pull_request" },
     { event: "schedule" },
@@ -193,11 +237,13 @@ test("the shared qualifier rejects false authority and partial reruns, and pagin
     { steps: [{ name: "Orbweaver qualification old", status: "completed", conclusion: "success" }] },
     { steps: [{ name: GENERATION, status: "completed", conclusion: "skipped" }] },
     { steps: [] },
+    { conclusion: "failure" },
+    { conclusion: "cancelled" },
     { status: "completed", conclusion: "skipped" },
     { ["run_id"]: 2 },
     { ["head_sha"]: "b".repeat(40) },
   ]) {
-    expect(check({ ...metadata(), [jobsUrl]: { ["total_count"]: 3, jobs: [{ ...goodJob(), ...patch }, ...goodCorpusJobs()] } }), JSON.stringify(patch)).toBe(
+    expect(check({ ...metadata(), [jobsUrl]: { ["total_count"]: 12, jobs: [{ ...goodJob(), ...patch }, ...goodProductJobs()] } }), JSON.stringify(patch)).toBe(
       false,
     );
   }
@@ -207,12 +253,12 @@ test("the shared qualifier rejects false authority and partial reruns, and pagin
   expect(() => check({ ...metadata(), [jobsUrl]: { ["total_count"]: 1, jobs: [] } })).toThrow("incomplete");
   expect(() => check({ ...metadata(), [runUrl]: { ["total_count"]: 1, ["workflow_runs"]: [{ ...goodRun(), ["run_attempt"]: undefined }] } })).toThrow();
   expect(() => check({})).toThrow("metadata unavailable");
-  const others = Array.from({ length: 100 }, (_, index) => ({ ...goodJob(SHA, index + 4), name: `other-${index}`, steps: [] }));
+  const others = Array.from({ length: 100 }, (_, index) => ({ ...goodJob(SHA, index + 13), name: `other-${index}`, steps: [] }));
   expect(
     check({
       ...metadata(),
-      [jobsUrl]: { ["total_count"]: 103, jobs: others },
-      [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=2`]: { ["total_count"]: 103, jobs: [goodJob(), ...goodCorpusJobs()] },
+      [jobsUrl]: { ["total_count"]: 112, jobs: others },
+      [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=2`]: { ["total_count"]: 112, jobs: [goodJob(), ...goodProductJobs()] },
     }),
   ).toBe(true);
   expect(readFileSync(join(scratch, "ci-requests.jsonl"), "utf8")).toContain("/runs/1/attempts/2/jobs?per_page=100&page=2");
@@ -234,7 +280,8 @@ test("failed application A then docs B cannot skip runtime; a qualified ancestor
     repository: REPOSITORY,
     generation: GENERATION,
     publication: base,
-    corpusJobs: CORPUS_JOB_NAMES,
+    requiredJobs: REQUIRED_JOB_NAMES,
+    runtimeJobs: RUNTIME_JOB_NAMES,
     hasCurrentGeneration: () => true,
   };
   writeFileSync(join(scratch, "app.ts"), "throw new Error('runtime defect');\n");
@@ -261,7 +308,7 @@ test("failed application A then docs B cannot skip runtime; a qualified ancestor
     join(scratch, "ci-api.json"),
     JSON.stringify({ ...metadata(failed), [`${API_ROOT}/workflows/7/runs?head_sha=${base}&event=push&branch=main&per_page=100&page=1`]: absent }),
   );
-  expect(resolveCiQualification(scratch, head, failed, config)).toMatchObject({ base: failed, code: false, toolMode: "affected" });
+  expect(resolveCiQualification(scratch, head, failed, config)).toMatchObject({ base: failed, code: false });
   writeFileSync(join(scratch, "ci-api.json"), "{}");
   expect(() => resolveCiQualification(scratch, head, "0".repeat(40), config)).toThrow("qualified ancestry is ambiguous");
   const emptyRuns = {
@@ -270,9 +317,15 @@ test("failed application A then docs B cannot skip runtime; a qualified ancestor
     [`${API_ROOT}/workflows/7/runs?head_sha=${base}&event=push&branch=main&per_page=100&page=1`]: absent,
   };
   writeFileSync(join(scratch, "ci-api.json"), JSON.stringify(emptyRuns));
-  expect(resolveCiQualification(scratch, head, "0".repeat(40), config)).toMatchObject({ base, code: true, toolMode: "full", authority: "publication" });
+  expect(resolveCiQualification(scratch, head, "0".repeat(40), config)).toMatchObject({ base, code: true, authority: "publication" });
   expect(() =>
-    resolveCiQualification(scratch, head, failed, { ...config, publication: SHA, corpusJobs: CORPUS_JOB_NAMES, hasCurrentGeneration: () => true }),
+    resolveCiQualification(scratch, head, failed, {
+      ...config,
+      publication: SHA,
+      requiredJobs: REQUIRED_JOB_NAMES,
+      runtimeJobs: RUNTIME_JOB_NAMES,
+      hasCurrentGeneration: () => true,
+    }),
   ).toThrow("admitted publication is not an ancestor");
   expect(() => qualificationDecision(scratch, { head: base, eventBase: failed, base, authority: "qualified" })).toThrow();
   execFixtureGit(scratch, ["checkout", "-b", "other-history", base]);
@@ -321,7 +374,7 @@ test("the production producer derives workflow generation, records release-PR an
   const releaseTarget = "b".repeat(40);
   const releasePr = run(releaseTarget);
   expect(releasePr.status, releasePr.stdout + releasePr.stderr).toBe(0);
-  expect(releasePr.stdout).toContain(`base=${base}\nhead=${head}\nevent_base=${releaseTarget}\ncode=false\ntool_mode=affected\nauthority=qualified`);
+  expect(releasePr.stdout).toContain(`base=${base}\nhead=${head}\nevent_base=${releaseTarget}\ncode=false\nauthority=qualified`);
   expect(readFileSync(join(scratch, "ci-output"), "utf8")).toBe(releasePr.stdout);
   expect(run("").status).toBe(0);
   expect(run("0".repeat(40)).status).toBe(0);
@@ -348,7 +401,7 @@ test("first-generation bootstrap positively excludes old workflow authority and 
   const head = execFixtureGit(root, ["rev-parse", "HEAD"]).trim();
   const result = spawnSync(process.execPath, [join(repoRoot, "scripts/ci-qualification.ts"), "baseline", head, ""], { cwd: root, encoding: "utf8" });
   expect(result.status, result.stdout + result.stderr).toBe(0);
-  expect(result.stdout).toContain(`base=${base}\nhead=${head}\nevent_base=\ncode=true\ntool_mode=full\nauthority=publication`);
+  expect(result.stdout).toContain(`base=${base}\nhead=${head}\nevent_base=\ncode=true\nauthority=publication`);
   expect(result.stderr).toContain("no current-generation qualified ancestor");
   expect(result.stderr).not.toContain("unexpected metadata call");
 });
@@ -393,7 +446,8 @@ test("eligible search exhaustion refuses rather than forgetting a potentially ne
       repository: REPOSITORY,
       generation: GENERATION,
       publication: base,
-      corpusJobs: CORPUS_JOB_NAMES,
+      requiredJobs: REQUIRED_JOB_NAMES,
+      runtimeJobs: RUNTIME_JOB_NAMES,
       hasCurrentGeneration: () => true,
     }),
   ).toThrow("qualified ancestry is ambiguous");
@@ -433,10 +487,11 @@ test("workflow-history exclusion follows a merged generation on the second paren
       repository: REPOSITORY,
       generation: GENERATION,
       publication,
-      corpusJobs: CORPUS_JOB_NAMES,
+      requiredJobs: REQUIRED_JOB_NAMES,
+      runtimeJobs: RUNTIME_JOB_NAMES,
       hasCurrentGeneration: (source: string): boolean => source.includes("generation: current"),
     }),
-  ).toMatchObject({ base: qualified, head, eventBase, authority: "qualified", code: false, toolMode: "affected" });
+  ).toMatchObject({ base: qualified, head, eventBase, authority: "qualified", code: false });
 });
 
 test("unqualified current-generation ancestry enumerates workflow boundaries rather than reading each legacy tree", { timeout: scaledBudget(60_000) }, async ({
@@ -482,10 +537,11 @@ test("unqualified current-generation ancestry enumerates workflow boundaries rat
     repository: REPOSITORY,
     generation: GENERATION,
     publication,
-    corpusJobs: CORPUS_JOB_NAMES,
+    requiredJobs: REQUIRED_JOB_NAMES,
+    runtimeJobs: RUNTIME_JOB_NAMES,
     hasCurrentGeneration: (source: string): boolean => source.includes("generation: current"),
   };
-  expect(resolveCiQualification(scratch, head, current, config)).toMatchObject({ base: publication, authority: "publication", toolMode: "full", code: true });
+  expect(resolveCiQualification(scratch, head, current, config)).toMatchObject({ base: publication, authority: "publication", code: true });
   const reads = readFileSync(join(scratch, "ci-git.jsonl"), "utf8")
     .trim()
     .split(/\r?\n/u)
@@ -538,10 +594,11 @@ test("generation reverts and merges retaining a legacy workflow preserve older q
     repository: REPOSITORY,
     generation: GENERATION,
     publication,
-    corpusJobs: CORPUS_JOB_NAMES,
+    requiredJobs: REQUIRED_JOB_NAMES,
+    runtimeJobs: RUNTIME_JOB_NAMES,
     hasCurrentGeneration: (source: string): boolean => source.includes("generation: current"),
   });
-  expect(result).toMatchObject({ base: qualified, head, authority: "qualified", toolMode: "affected" });
+  expect(result).toMatchObject({ base: qualified, head, authority: "qualified" });
   const requests = readFileSync(join(scratch, "ci-requests.jsonl"), "utf8");
   expect(requests).not.toContain(`head_sha=${legacyMerge}`);
   expect(requests).not.toContain(`head_sha=${revertedMerge}`);
@@ -589,19 +646,24 @@ test("unpublished merge-train commits do not exhaust run-backed discovery or for
       ]),
     ),
   };
-  const config = { repository: REPOSITORY, generation: GENERATION, publication, corpusJobs: CORPUS_JOB_NAMES, hasCurrentGeneration: () => true };
+  const config = {
+    repository: REPOSITORY,
+    generation: GENERATION,
+    publication,
+    requiredJobs: REQUIRED_JOB_NAMES,
+    runtimeJobs: RUNTIME_JOB_NAMES,
+    hasCurrentGeneration: () => true,
+  };
   writeFileSync(join(scratch, "ci-api.json"), JSON.stringify(responses));
   expect(resolveCiQualification(scratch, head, publication, config)).toMatchObject({
     base: publication,
     authority: "publication",
-    toolMode: "full",
     code: true,
   });
   writeFileSync(join(scratch, "ci-api.json"), JSON.stringify({ ...responses, ...metadata(publication) }));
   expect(resolveCiQualification(scratch, head, publication, config)).toMatchObject({
     base: publication,
     authority: "qualified",
-    toolMode: "affected",
     code: true,
     paths: ["app.ts"],
   });
@@ -625,7 +687,14 @@ test("discovery inventory preserves pagination, provenance, stable absence and e
   execFixtureGit(scratch, ["add", "."]);
   execFixtureGit(scratch, ["commit", "-m", "candidate"]);
   const head = execFixtureGit(scratch, ["rev-parse", "HEAD"]).trim();
-  const config = { repository: REPOSITORY, generation: GENERATION, publication: base, corpusJobs: CORPUS_JOB_NAMES, hasCurrentGeneration: () => true };
+  const config = {
+    repository: REPOSITORY,
+    generation: GENERATION,
+    publication: base,
+    requiredJobs: REQUIRED_JOB_NAMES,
+    runtimeJobs: RUNTIME_JOB_NAMES,
+    hasCurrentGeneration: () => true,
+  };
   const check = (responses: object): ReturnType<typeof resolveCiQualification> => {
     writeFileSync(join(scratch, "ci-api.json"), JSON.stringify(responses));
     return resolveCiQualification(scratch, head, base, config);
@@ -685,7 +754,6 @@ test("discovery inventory preserves pagination, provenance, stable absence and e
     base,
     authority: "publication",
     code: true,
-    toolMode: "full",
   });
   for (const conclusion of ["failure", "cancelled", "stale"]) {
     expect(
@@ -696,7 +764,7 @@ test("discovery inventory preserves pagination, provenance, stable absence and e
           ["workflow_runs"]: [{ ...goodRun(base), conclusion }],
         },
       }),
-    ).toMatchObject({ authority: "publication", toolMode: "full", code: true });
+    ).toMatchObject({ authority: "publication", code: true });
   }
   const changing = API_FIXTURE.replace(
     "process.stdout.write(JSON.stringify(responses[endpoint]));",
@@ -708,39 +776,52 @@ test("discovery inventory preserves pagination, provenance, stable absence and e
   expect(() => check({ ...metadata(base), [inventoryUrl]: { ["total_count"]: 0, ["workflow_runs"]: [] } })).toThrow("qualified ancestry is ambiguous");
 });
 
-test("split static authority requires the complete corpus pair in the same native attempt", async ({ scratch, fakeBin }) => {
+test("product authority requires every current-attempt job and distinguishes legitimate inherited skips", { timeout: scaledBudget(30_000) }, async ({
+  scratch,
+  fakeBin,
+}) => {
   await fakeBin("gh", API_FIXTURE);
-  const corpusJobs = CORPUS_JOB_NAMES;
-  const config = { repository: REPOSITORY, generation: GENERATION, publication: SHA, corpusJobs, hasCurrentGeneration: () => true };
+  const config = {
+    repository: REPOSITORY,
+    generation: GENERATION,
+    publication: SHA,
+    requiredJobs: REQUIRED_JOB_NAMES,
+    runtimeJobs: RUNTIME_JOB_NAMES,
+    hasCurrentGeneration: () => true,
+  };
   const jobsUrl = `${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=1`;
-  const staticJob = { ...goodJob(), ["run_attempt"]: 2 };
-  const pair = [
-    { ...goodJob(SHA, 2), name: corpusJobs[0] },
-    { ...goodJob(SHA, 3), name: corpusJobs[1] },
-  ] as const;
+  const complete = [goodJob(), ...goodProductJobs()];
   const check = (jobs: readonly object[]): boolean => {
     writeFileSync(join(scratch, "ci-api.json"), JSON.stringify({ ...metadata(), [jobsUrl]: { ["total_count"]: jobs.length, jobs } }));
     return hasQualifiedMainPush(scratch, SHA, config);
   };
-  expect(check([staticJob, ...pair])).toBe(true);
-  expect(check([staticJob])).toBe(false);
-  expect(check([staticJob, pair[0]])).toBe(false);
-  for (const patch of [
-    { status: "queued", conclusion: null },
-    { conclusion: "skipped" },
-    { conclusion: "failure" },
-    { conclusion: "cancelled" },
-    { ["head_sha"]: "b".repeat(40) },
-    { ["run_id"]: 2 },
-    { ["run_attempt"]: 1 },
-    { steps: [] },
-    { steps: [{ name: "Orbweaver qualification previous", status: "completed", conclusion: "success" }] },
-    { steps: [{ name: GENERATION, status: "completed", conclusion: "skipped" }] },
-  ]) {
-    const rows = [staticJob, pair[0], { ...pair[1], ...patch }];
-    expect(check(rows), JSON.stringify(patch)).toBe(false);
+  expect(check(complete)).toBe(true);
+  for (const subject of [...REQUIRED_JOB_NAMES, ...RUNTIME_JOB_NAMES]) {
+    expect(check(complete.filter((job) => job.name !== subject)), subject).toBe(false);
+    for (const patch of [
+      { status: "queued", conclusion: null },
+      { conclusion: "skipped" },
+      { conclusion: "failure" },
+      { conclusion: "cancelled" },
+      { ["head_sha"]: "b".repeat(40) },
+      { ["run_id"]: 2 },
+      { ["run_attempt"]: 1 },
+    ]) {
+      expect(check(complete.map((job) => (job.name === subject ? { ...job, ...patch } : job))), subject + JSON.stringify(patch)).toBe(false);
+    }
   }
-  expect(() => check([staticJob, pair[0], { ...pair[1], ["run_attempt"]: undefined }])).toThrow();
-  expect(check([staticJob, pair[0], { ...pair[0], id: 4 }])).toBe(false);
-  expect(check([staticJob, ...pair, { ...pair[1], id: 4 }])).toBe(false);
+  for (const subject of ["static", "ci-ok"]) {
+    for (const steps of [[], [{ name: "Orbweaver qualification previous", status: "completed", conclusion: "success" }]]) {
+      expect(check(complete.map((job) => (job.name === subject ? { ...job, steps } : job)))).toBe(false);
+    }
+  }
+  expect(check([...complete, { ...goodJob(), id: 99 }])).toBe(false);
+  const inherited = complete.map((job) => {
+    if (job.name === "ci-ok") {
+      return { ...job, steps: [{ name: `${GENERATION} (inherited)`, status: "completed", conclusion: "success" }] };
+    }
+    return RUNTIME_JOB_NAMES.some((name) => name === job.name) ? { ...job, conclusion: "skipped" } : job;
+  });
+  expect(check(inherited)).toBe(true);
+  expect(check(inherited.map((job) => (job.name === "e2e-smoke" ? { ...job, conclusion: "failure" } : job)))).toBe(false);
 });

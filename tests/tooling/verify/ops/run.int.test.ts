@@ -301,7 +301,6 @@ process.exitCode = await runVerify(${JSON.stringify(scratch)}, parsed);
   );
   expect(report.stages.filter(({ notices }) => notices.length > 0).map(({ name, notices }) => [name, notices])).toEqual([
     ["types:testd", ["tier invocation: pnpm test:types --config=vitest.product.config.ts"]],
-    ["browser:ct", ["tier invocation: pnpm test:ct --retries=2 --config=playwright-ct.product.config.ts"]],
   ]);
   const resolved = resolveLatestVerifyRun(scratch);
   expect(resolved).toMatchObject({ kind: "report", report });
@@ -408,7 +407,7 @@ test("a tier-precondition SKIP carries its reason to the tail and to verify.json
   // keeps its producer-driven proof rather than being deleted with the row that motivated it. Everything
   // outside the precondition is copied from a REAL registry row (`tests:tooling`), and the `satisfied`
   // arm answers FALSE because that is the case this test exists for (a `null` would mean RUN).
-  const stageDef = stagesForTier("full").find((row) => row.name === "tests:tooling");
+  const stageDef = stagesForTier("weekly").find((row) => row.name === "tests:tooling");
   expect(stageDef, "tests:tooling is not in the full tier — the row this test borrows moved").toBeDefined();
   const reason = "the branch diff (vs its merge base, plus the working tree) touches tooling/** or tests/tooling/**";
   const declining: StageDef = {
@@ -419,7 +418,7 @@ test("a tier-precondition SKIP carries its reason to the tail and to verify.json
 
   // The planner's half: a declined precondition is a SKIP that names the tier which runs it anyway.
   expect(plan.mode).toBe("skipped");
-  expect(plan.runsAt).toBe("verify --full");
+  expect(plan.runsAt).toBe("verify --weekly");
 
   // The producer's half: the notice is attached HERE, and `notices` is a StageResult field, so the same
   // string is in verify.json by construction.
@@ -436,7 +435,7 @@ test("a tier-precondition SKIP carries its reason to the tail and to verify.json
 
   // The per-stage line names the tier that DOES run it — never the bare "no files in scope" a scoped skip
   // prints, which is simply false on a whole-tier run.
-  expect(out).toContain("tests:tooling  skipped — tier precondition not met; runs at verify --full");
+  expect(out).toContain("tests:tooling  skipped — tier precondition not met; runs at verify --weekly");
   expect(out).not.toContain("tests:tooling  skipped (no files in scope)");
   // …and the CONDITION reaches the tail, verbatim from the row.
   expect(out).toContain("NOTICES (not failures)");
@@ -532,9 +531,6 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     "structure:drizzle-kit",
     "structure:agent-config",
     "structure:full",
-    // #1941: every final defineGate policy's own proofs through the production dispatcher, on every check —
-    // before it, 21 of 163 converted modules were imported by no committed test.
-    "structure:policy-conformance",
     // #817: the committed single-writer ledgers (the caught-failure census and its siblings)
     // vs a fresh derivation. Their freshness checks were vitest suites, so `pnpm check` stayed green while
     // main sat red on the next whole node run.
@@ -549,12 +545,6 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     "imports:depcruise",
     "deps:knip",
     "docs:format",
-    // #1967: the AFFECTED subset of the instrument battery. `tests:tooling` stays `--full`-only (#1842 was
-    // right about 71 CPU-minutes of recertification), but everything a declared proof row CANNOT express —
-    // the §4.2 identity arm, the central grant table's boundaries, the §4.5 refusal and receipt pins — ran
-    // there and NOWHERE ELSE, and sat red for five days twice. This row runs only the family tests of the
-    // instruments the branch changed; a product-only commit skips it through the trigger table.
-    "tests:instrument-affected",
   ]);
 });
 
@@ -918,7 +908,6 @@ test("#2277 — a path-triggered stage runs its WHOLE argv or nothing: the no-ho
     // The ONE migrations dir's journal/snapshot chain.
     ["structure:drizzle-kit", "packages/db/src/migrations/0000_baseline.sql"],
     // #1941: the roster is the corpus, and the gate modules are what move it.
-    ["structure:policy-conformance", "tooling/src/verify/gates/tooling-size.ts"],
     // The PreToolUse Bash guard's own glob — the #2220 stage, and the tightest trigger in the table.
     ["lint:hook-syntax", ".claude/hooks/tool-guard.mjs"],
     // agent-sync's six coordinates. #2266 sat red on main through several folds for want of this row.
@@ -1091,7 +1080,12 @@ test("browser:ct scopedArgv: skip-empty on no CT surface; the one-slot CT launch
   // A mirror hit → the scoped launcher, which opens the one invocation slot before Playwright loads config.
   // It keeps retries at the config's 0 default, so the inner loop still exposes a transient raw.
   const hit = resolveSelection({ kind: "changed", paths: ["packages/ui/src/primitives/badge/badge.tsx"] });
-  expect(stage("browser:ct").scopedArgv?.(hit)).toEqual(["pnpm", "test:ct", "tests/ui/primitives/badge/badge.ct.tsx"]);
+  expect(stage("browser:ct").scopedArgv?.(hit)).toEqual([
+    "pnpm",
+    "test:ct",
+    "tests/ui/primitives/badge/badge.ct.tsx",
+    "--config=playwright-ct.product.config.ts",
+  ]);
 });
 
 // ── tests:node's derived-empty selection (#1272) — a red that means "there was nothing to run" ──
@@ -1115,11 +1109,17 @@ test("tests:node scopedArgv: git changes stay derived, while explicit source/tes
   // enter the runner's zero-match preflight; source and mixed claims enter native `related`. Folder
   // subjects were already expanded from Git's authored inventory by the shared Selection resolver.
   const derived = resolveSelection({ kind: "changed", paths: [] });
-  expect(stage("tests:node").scopedArgv?.(derived)).toEqual(["pnpm", "test:scoped", "--passWithNoTests", "--changed", "HEAD"]);
+  expect(stage("tests:node").scopedArgv?.(derived)).toEqual(["pnpm", "test:scoped", "--passWithNoTests", "--changed", "HEAD", "--exclude=**/tests/tooling/**"]);
   const explicit = resolveSelection({ kind: "file", paths: ["packages/server/src/index.ts"] });
-  expect(stage("tests:node").scopedArgv?.(explicit)).toEqual(["pnpm", "test:scoped", "--related", "packages/server/src/index.ts"]);
+  expect(stage("tests:node").scopedArgv?.(explicit)).toEqual([
+    "pnpm",
+    "test:scoped",
+    "--related",
+    "packages/server/src/index.ts",
+    "--exclude=**/tests/tooling/**",
+  ]);
   const explicitTest = resolveSelection({ kind: "file", paths: ["tests/tooling/verify/lib/registry.test.ts"] });
-  expect(stage("tests:node").scopedArgv?.(explicitTest)).toEqual(["pnpm", "test:scoped", "tests/tooling/verify/lib/registry.test.ts"]);
+  expect(stage("tests:node").scopedArgv?.(explicitTest)).toEqual("skip-empty");
   const folder = resolveSelection({ kind: "scope", glob: "tooling/src/verify/ops" });
   const folderArgv = stage("tests:node").scopedArgv?.(folder);
   expect(folderArgv).not.toBe("whole-only");
@@ -1128,7 +1128,7 @@ test("tests:node scopedArgv: git changes stay derived, while explicit source/tes
   expect(folderArgv).toContain("tooling/src/verify/ops/run.ts");
 
   const packageSelection = resolveSelection({ kind: "package", name: "server" });
-  expect(stage("tests:node").scopedArgv?.(packageSelection)).toEqual(["pnpm", "test:scoped", "tests/server"]);
+  expect(stage("tests:node").scopedArgv?.(packageSelection)).toEqual(["pnpm", "test:scoped", "tests/server", "--exclude=**/tests/tooling/**"]);
   // The OTHER half of the ruling: the WHOLE-scope argv asserts the whole suite, where zero test files means
   // the runner broke. It must never carry the flag — that is what keeps the asserted-selector ruling alive
   // where it applies.

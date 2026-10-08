@@ -5,25 +5,57 @@ import process from "node:process";
 import { execGit, GIT_READ_PREFIX } from "@orb/tooling/_shared/git";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { runTool, UsageError } from "@orb/tooling/_shared/run-tool";
-import { SEMANTIC_CORPUS_RESOURCE } from "@orb/tooling/_shared/test-kinds";
 import { hasQualifiedMainPush, resolveCiQualification } from "@orb/tooling/verify";
 import YAML from "yaml";
 import { z } from "zod";
 
+const RUNTIME_CONDITION = "needs.changes.outputs.code == 'true'";
+const JOB = z.object({
+  name: z.string().optional(),
+  needs: z.union([z.string(), z.array(z.string())]).optional(),
+  if: z.string().optional(),
+  strategy: z.object({ matrix: z.object({ shard: z.array(z.number().int().positive()).optional() }) }).optional(),
+});
 const WORKFLOW = z.object({
-  jobs: z.object({
-    static: z.object({ needs: z.tuple([z.literal("changes"), z.literal(SEMANTIC_CORPUS_RESOURCE)]), if: z.never().optional() }),
-    [SEMANTIC_CORPUS_RESOURCE]: z.object({
-      name: z.literal(`${SEMANTIC_CORPUS_RESOURCE} (\${{ matrix.shard }}/\${{ strategy.job-total }})`),
-      strategy: z.object({ matrix: z.object({ shard: z.tuple([z.literal(1), z.literal(2)]) }) }),
-    }),
-  }),
+  jobs: z.record(z.string(), JOB),
   env: z.object({
     ORB_CI_REPOSITORY: z.literal("Inktomi93/OrbWeaver"),
     ORB_CI_QUALIFICATION_GENERATION: z.string().regex(/^Orbweaver qualification [a-z0-9-]+$/u),
     ORB_CI_PUBLICATION_BOOTSTRAP_SHA: z.string().regex(/^[0-9a-f]{40}$/u),
   }),
 });
+
+function jobNames(id: string, job: z.infer<typeof JOB>): readonly string[] {
+  const shards = job.strategy?.matrix.shard;
+  const names =
+    shards === undefined
+      ? [job.name ?? id]
+      : shards.map((shard) => (job.name ?? id).replace("${{ matrix.shard }}", String(shard)).replace("${{ strategy.job-total }}", String(shards.length)));
+  if (names.length === 0 || names.some((name) => name.includes("${{")) || new Set(names).size !== names.length) {
+    throw new Error(`ambiguous product qualification population ${id}`);
+  }
+  return names;
+}
+
+function productJobs(jobs: z.infer<typeof WORKFLOW>["jobs"]): { readonly requiredJobs: readonly string[]; readonly runtimeJobs: readonly string[] } {
+  const requiredJobs = ["ci-ok"];
+  const runtimeJobs: string[] = [];
+  const needs = jobs["ci-ok"]?.needs;
+  if (!(Array.isArray(needs) && ["changes", "static", "node", "ct", "e2e-smoke"].every((id) => needs.includes(id)))) {
+    throw new Error("product qualification requires the closed changes/static/runtime/smoke aggregate");
+  }
+  if (jobs["static"]?.if !== undefined || JSON.stringify(jobs["static"]?.needs) !== JSON.stringify(["changes"])) {
+    throw new Error("static product qualification must depend only on changes and cannot be conditional");
+  }
+  for (const id of needs) {
+    const job = jobs[id];
+    if (job === undefined || (id !== "changes" && job.if !== undefined && job.if !== RUNTIME_CONDITION)) {
+      throw new Error(`unsupported product qualification job ${id}`);
+    }
+    (job.if === RUNTIME_CONDITION ? runtimeJobs : requiredJobs).push(...jobNames(id, job));
+  }
+  return { requiredJobs, runtimeJobs };
+}
 const HISTORICAL_GENERATION = z.object({ env: z.object({ ORB_CI_QUALIFICATION_GENERATION: z.string().optional() }).optional() });
 
 await runTool(() => {
@@ -43,14 +75,7 @@ await runTool(() => {
     repository: env.ORB_CI_REPOSITORY,
     generation: env.ORB_CI_QUALIFICATION_GENERATION,
     publication: env.ORB_CI_PUBLICATION_BOOTSTRAP_SHA,
-    corpusJobs: [
-      jobs[SEMANTIC_CORPUS_RESOURCE].name
-        .replace("${{ strategy.job-total }}", String(jobs[SEMANTIC_CORPUS_RESOURCE].strategy.matrix.shard.length))
-        .replace("${{ matrix.shard }}", String(jobs[SEMANTIC_CORPUS_RESOURCE].strategy.matrix.shard[0])),
-      jobs[SEMANTIC_CORPUS_RESOURCE].name
-        .replace("${{ strategy.job-total }}", String(jobs[SEMANTIC_CORPUS_RESOURCE].strategy.matrix.shard.length))
-        .replace("${{ matrix.shard }}", String(jobs[SEMANTIC_CORPUS_RESOURCE].strategy.matrix.shard[1])),
-    ] as const,
+    ...productJobs(jobs),
     hasCurrentGeneration: (source: string): boolean =>
       HISTORICAL_GENERATION.parse(YAML.parse(source)).env?.ORB_CI_QUALIFICATION_GENERATION === env.ORB_CI_QUALIFICATION_GENERATION,
   };
@@ -67,7 +92,6 @@ await runTool(() => {
     `head=${decision.head}`,
     `event_base=${eventBase}`,
     `code=${String(decision.code)}`,
-    `tool_mode=${decision.toolMode}`,
     `authority=${decision.authority}`,
   ].join("\n");
   process.stdout.write(`${output}\n`);

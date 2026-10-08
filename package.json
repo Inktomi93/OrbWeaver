@@ -86,7 +86,7 @@
     "test:ratchets": "node tooling/src/verify/cli.ts ratchet-gate",
     "test": "pnpm test:node && pnpm test:ct --retries=2",
     "test:node": "node scripts/vitest-supervised.ts run --exclude 'tests/tooling/**' --runtime-only --reporter=default --reporter=json --outputFile.json=reports/test-report.json",
-    "test:tooling": "node scripts/vitest-supervised.ts run tests/tooling --runtime-only --reporter=default --reporter=json --outputFile.json=reports/test-report-tooling.json",
+    "test:tooling": "node tooling/src/verify/cli.ts instrument-affected --weekly",
     "test:types": "node tooling/src/_shared/niced-exec.ts vitest run --project 'types-*'",
     "test:coverage": "node tooling/src/_shared/niced-exec.ts vitest run --coverage",
     "test:ct": "node tooling/src/verify/cli.ts scoped-test ct",

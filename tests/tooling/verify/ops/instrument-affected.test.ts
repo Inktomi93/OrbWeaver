@@ -16,8 +16,6 @@ import { join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../../../../tooling/src/verify/contract/selection.ts";
 import { stagesForTier } from "../../../../tooling/src/verify/lib/registry.ts";
-import { resolveSelection } from "../../../../tooling/src/verify/lib/selection.ts";
-import { planStage } from "../../../../tooling/src/verify/lib/stage-plan.ts";
 import { selectAffectedInstrumentTests } from "../../../../tooling/src/verify/ops/instrument-affected.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -272,16 +270,8 @@ test("changed tooling helpers reach native consumers; deleted or renamed tests a
   ]) {
     expect(selectAffectedInstrumentTests(root, changed).unknown, changed.join(",")).toBe(true);
   }
-  const stage = stagesForTier("changed").find((candidate) => candidate.name === "tests:instrument-affected");
-  if (stage === undefined) {
-    throw new Error("changed verification lost affected tooling qualification");
-  }
-  execFixtureGit(root, ["init", "--quiet"]);
-  for (const path of ["tooling/concurrency-profile.json", "tooling/biome.edit.jsonc", "tooling/runner/custom.config.ts", ".github/actions/setup/action.yml"]) {
-    const selected = resolveSelection({ kind: "changed", paths: [path] }, root);
-    expect(planStage(stage, selected, "changed", root), path).toMatchObject({ mode: "scoped", argv: stage.argv });
-    expect(selectAffectedInstrumentTests(root, selected.paths).unknown, path).toBe(true);
-  }
+  expect(stagesForTier("changed").some((candidate) => candidate.name === "tests:instrument-affected")).toBe(false);
+  expect(stagesForTier("manual").find((candidate) => candidate.name === "tests:instrument-affected")?.argv).toContain("--weekly");
 });
 
 test("native type and browser tooling test kinds name their separate executor rather than disappearing as helpers", async ({ plantedTree }) => {
@@ -332,20 +322,26 @@ test("broken test-only and source-only events fail actual affected qualification
     git(["commit", "--quiet", "-m", "application B after broken tool A"]);
     const head = git(["rev-parse", "HEAD"]);
     git(["update-ref", "refs/remotes/origin/main", head]);
-    const refused = await runCli("verify", ["instrument-affected"], { cwd: root, env: { [VERIFY_BASE_ENV]: base, [VERIFY_HEAD_ENV]: head } });
+    const refused = await runCli("verify", ["instrument-affected", "--weekly", "--affected"], {
+      cwd: root,
+      env: { [VERIFY_BASE_ENV]: base, [VERIFY_HEAD_ENV]: head },
+    });
     expect(refused.code, refused.stdout + refused.stderr).toBe(1);
     expect(refused.stdout + refused.stderr).toContain("event.test.ts");
     expect(refused.stdout + refused.stderr).toContain(`${base}..${head}`);
-    const conservative = await runCli("verify", ["instrument-affected"], {
+    const conservative = await runCli("verify", ["instrument-affected", "--weekly"], {
       cwd: root,
-      env: { [VERIFY_BASE_ENV]: base, [VERIFY_HEAD_ENV]: head, ["ORB_VERIFY_TOOL_MODE"]: "full" },
+      env: { [VERIFY_BASE_ENV]: base, [VERIFY_HEAD_ENV]: head },
     });
     expect(conservative.code, conservative.stdout + conservative.stderr).toBe(1);
     expect(conservative.stdout + conservative.stderr).toContain("running the whole instrument battery");
-    const ordinary = await runCli("verify", ["instrument-affected"], { cwd: root });
+    const ordinary = await runCli("verify", ["instrument-affected", "--weekly", "--affected"], { cwd: root });
     expect(ordinary.code, ordinary.stdout + ordinary.stderr).toBe(0);
     expect(ordinary.stdout).toContain("measured NOTHING");
-    const invalid = await runCli("verify", ["instrument-affected"], { cwd: root, env: { [VERIFY_BASE_ENV]: "0".repeat(40), [VERIFY_HEAD_ENV]: head } });
+    const invalid = await runCli("verify", ["instrument-affected", "--weekly", "--affected"], {
+      cwd: root,
+      env: { [VERIFY_BASE_ENV]: "0".repeat(40), [VERIFY_HEAD_ENV]: head },
+    });
     expect(invalid.code, invalid.stdout + invalid.stderr).toBe(2);
     expect(invalid.stderr).toContain("paired nonzero commit IDs");
   }
@@ -368,7 +364,10 @@ test("an explicit product-only event explains the empty tooling population inste
   git(["commit", "--quiet", "-m", "application change"]);
   const head = git(["rev-parse", "HEAD"]);
   git(["update-ref", "refs/remotes/origin/main", head]);
-  const result = await runCli("verify", ["instrument-affected"], { cwd: root, env: { [VERIFY_BASE_ENV]: base, [VERIFY_HEAD_ENV]: head } });
+  const result = await runCli("verify", ["instrument-affected", "--weekly", "--affected"], {
+    cwd: root,
+    env: { [VERIFY_BASE_ENV]: base, [VERIFY_HEAD_ENV]: head },
+  });
   expect(result.code, result.stdout + result.stderr).toBe(0);
   expect(result.stdout).toContain("no affected native tooling inputs in measured");
   expect(result.stdout).not.toContain("measured NOTHING");
@@ -411,7 +410,7 @@ test("enclosing CI measurement ends at the native tooling subprocess while fixtu
       `import { inheritedProcessEnv } from ${JSON.stringify(join(repoRoot, "tooling/src/_shared/process-env.ts"))};`,
       'test("nested fixture owns its measurement", () => {',
       "const env = inheritedProcessEnv();",
-      'for (const key of ["ORB_VERIFY_BASE", "ORB_VERIFY_HEAD", "ORB_VERIFY_TOOL_MODE"]) expect(env[key]).toBeUndefined();',
+      'for (const key of ["ORB_VERIFY_BASE", "ORB_VERIFY_HEAD"]) expect(env[key]).toBeUndefined();',
       `expect(resolveMeasurementBoundary(${JSON.stringify(inner)})).toBeNull();`,
       `expect(resolveMeasurementBoundary(${JSON.stringify(inner)}, { ORB_VERIFY_BASE: ${JSON.stringify(innerBase)}, ORB_VERIFY_HEAD: ${JSON.stringify(innerHead)} })).toEqual({ base: ${JSON.stringify(innerBase)}, head: ${JSON.stringify(innerHead)} });`,
       'expect(env["ORB_INSTRUMENT_AFFECTED_POLICIES"]).toBe(env["FIXTURE_EXPECT_SCOPE"] === "affected" ? JSON.stringify(["scope-policy"]) : undefined);',
@@ -430,29 +429,27 @@ test("enclosing CI measurement ends at the native tooling subprocess while fixtu
   git(root, ["commit", "--quiet", "-m", "outer candidate"]);
   const head = git(root, ["rev-parse", "HEAD"]);
   for (const mode of ["affected", "full"]) {
-    const result = await runCli("verify", ["instrument-affected"], {
+    const result = await runCli("verify", ["instrument-affected", "--weekly", ...(mode === "affected" ? ["--affected"] : [])], {
       cwd: root,
       env: {
         [VERIFY_BASE_ENV]: base,
         [VERIFY_HEAD_ENV]: head,
-        ["ORB_VERIFY_TOOL_MODE"]: mode,
         ["FIXTURE_EXPECT_SCOPE"]: mode,
       },
     });
     expect(result.code, result.stdout + result.stderr).toBe(0);
     expect(result.stdout).toContain("real-corpus-liveness-family.suite.corpus.int.test.ts");
-    expect(result.stdout + result.stderr).toContain(`${base}..${head}`);
+    expect((result.stdout + result.stderr).includes(`${base}..${head}`)).toBe(mode === "affected");
   }
   writeFileSync(join(root, "tooling/concurrency-profile.json"), "{}\n");
   git(root, ["add", "tooling/concurrency-profile.json"]);
   git(root, ["commit", "--quiet", "-m", "runner configuration only"]);
   const configHead = git(root, ["rev-parse", "HEAD"]);
-  const configuration = await runCli("verify", ["instrument-affected"], {
+  const configuration = await runCli("verify", ["instrument-affected", "--weekly", "--affected"], {
     cwd: root,
     env: {
       [VERIFY_BASE_ENV]: head,
       [VERIFY_HEAD_ENV]: configHead,
-      ["ORB_VERIFY_TOOL_MODE"]: "affected",
       ["FIXTURE_EXPECT_SCOPE"]: "full",
     },
   });

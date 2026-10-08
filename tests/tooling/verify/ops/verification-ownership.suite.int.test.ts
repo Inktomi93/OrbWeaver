@@ -10,6 +10,7 @@ import { scaledBudget } from "../../_load-budget.ts";
 
 interface WorkflowStep {
   readonly id?: string;
+  readonly name?: string;
   readonly run?: string;
   readonly if?: string;
   readonly uses?: string;
@@ -17,6 +18,7 @@ interface WorkflowStep {
   readonly "timeout-minutes"?: number;
   readonly with?: {
     readonly browsers?: string;
+    readonly ref?: string;
     readonly path?: string;
     readonly key?: string;
     readonly "artifact-ids"?: string;
@@ -29,6 +31,10 @@ interface QualificationJob {
   readonly steps: readonly WorkflowStep[];
 }
 interface Workflow {
+  readonly on: {
+    readonly schedule: readonly { readonly cron: string }[];
+    readonly ["workflow_dispatch"]: { readonly inputs: { readonly tier: { readonly options: readonly string[] } } };
+  };
   readonly env: Readonly<Record<string, string>>;
   readonly jobs: {
     readonly qualification: QualificationJob;
@@ -48,15 +54,18 @@ interface Workflow {
       readonly permissions: Readonly<Record<string, string>>;
       readonly steps: readonly (WorkflowStep & { readonly env?: Readonly<Record<string, string>> })[];
     };
-    readonly "semantic-corpus": {
-      readonly name: string;
+    readonly "weekly-head": { readonly if: string; readonly outputs: Readonly<Record<string, string>>; readonly steps: readonly WorkflowStep[] };
+    readonly "weekly-tooling": {
       readonly needs: string;
-      readonly if?: string;
-      readonly strategy: { readonly "fail-fast": boolean; readonly matrix: { readonly shard: readonly number[] } };
+      readonly strategy: {
+        readonly "fail-fast": boolean;
+        readonly matrix: { readonly include: readonly { readonly component: string; readonly shard: string }[] };
+      };
       readonly "timeout-minutes": number;
       readonly env: Readonly<Record<string, string>>;
-      readonly steps: readonly (WorkflowStep & { readonly name?: string })[];
+      readonly steps: readonly WorkflowStep[];
     };
+    readonly "weekly-ok": { readonly if: string; readonly needs: readonly string[]; readonly steps: readonly WorkflowStep[] };
     readonly static: {
       readonly needs: readonly string[];
       readonly if?: string;
@@ -71,6 +80,21 @@ interface Workflow {
 function workflow(repoRoot: string): Workflow {
   return YAML.parse(readFileSync(join(repoRoot, ".github/workflows/ci.yml"), "utf8")) as Workflow;
 }
+
+test("product CI refuses a skipped required smoke even when every other job succeeded", ({ repoRoot, scratch }) => {
+  const gate = workflow(repoRoot).jobs["ci-ok"];
+  const needs = Object.fromEntries(gate.needs.map((name) => [name, { result: "success", outputs: { code: "true" } }]));
+  const run = gate.steps[0]?.run ?? "";
+  const execute = (): number | null =>
+    spawnSync("bash", ["-e", "-c", run], {
+      cwd: scratch,
+      env: inheritedProcessEnv({ ["NEEDS"]: JSON.stringify(needs), ["GITHUB_STEP_SUMMARY"]: join(scratch, "summary.md") }),
+      encoding: "utf8",
+    }).status;
+  expect(execute()).toBe(0);
+  needs["e2e-smoke"] = { result: "skipped", outputs: { code: "true" } };
+  expect(execute()).toBe(1);
+});
 
 function step(job: QualificationJob, id: string): WorkflowStep {
   const found = job.steps.find((candidate) => candidate.id === id);
@@ -164,15 +188,15 @@ test("one same-run media producer feeds all node shards and its failure cannot b
   const gate = ci.jobs["ci-ok"];
   expect(gate.needs).toContain("media");
   for (const result of ["success", "skipped", "failure", "cancelled"]) {
-    const needs = Object.fromEntries(gate.needs.map((job) => [job, { result: "success" }]));
-    needs["media"] = { result };
-    needs["node"] = { result: "skipped" };
+    const needs = Object.fromEntries(gate.needs.map((job) => [job, { result: "success", outputs: { code: "true" } }]));
+    needs["media"] = { result, outputs: { code: "true" } };
+    needs["node"] = { result: "skipped", outputs: { code: "true" } };
     const verdict = spawnSync("bash", ["-e", "-c", gate.steps[0]?.run ?? ""], {
       cwd: scratch,
       env: inheritedProcessEnv({ ["NEEDS"]: JSON.stringify(needs), ["GITHUB_STEP_SUMMARY"]: join(scratch, "summary.md") }),
       encoding: "utf8",
     });
-    expect(verdict.status, result).toBe(result === "success" || result === "skipped" ? 0 : 1);
+    expect(verdict.status, result).toBe(1);
   }
 });
 
@@ -326,23 +350,33 @@ test("media consumers reject absent, changed, foreign-run and incompatible paylo
   }
 });
 
-test("required CI includes smoke and refuses its failures or cancellation while allowing docs-only skips", ({ repoRoot, scratch }) => {
+function expectedProductResult(name: string, code: string): string {
+  return name === "changes" || name === "static" || code === "true" ? "success" : "skipped";
+}
+
+test("required CI distinguishes legitimate inherited skips from failed, cancelled or missing product jobs", ({ repoRoot, scratch }) => {
   const gate = workflow(repoRoot).jobs["ci-ok"];
-  expect(gate.needs).toContain("e2e-smoke");
+  expect(gate.needs).toEqual(["changes", "static", "media", "node", "ct", "e2e-smoke"]);
   expect(gate.if).toContain("always()");
-  const run = gate.steps[0]?.run;
-  if (run === undefined) {
-    throw new Error("missing required CI verdict command");
-  }
-  for (const result of ["success", "skipped", "failure", "cancelled"]) {
-    const needs = Object.fromEntries(gate.needs.map((job) => [job, { result: job === "e2e-smoke" ? result : "success" }]));
-    const verdict = spawnSync("bash", ["-e", "-c", run], {
-      cwd: scratch,
-      env: inheritedProcessEnv({ ["NEEDS"]: JSON.stringify(needs), ["GITHUB_STEP_SUMMARY"]: join(scratch, "summary.md") }),
-      encoding: "utf8",
-    });
-    expect(verdict.status, `${result}: ${verdict.stdout}${verdict.stderr}`).toBe(result === "success" || result === "skipped" ? 0 : 1);
-    expect(readFileSync(join(scratch, "summary.md"), "utf8")).toContain(`| e2e-smoke | ${result} |`);
+  const run = gate.steps[0]?.run ?? "";
+  for (const code of ["true", "false"]) {
+    for (const subject of gate.needs) {
+      for (const result of ["success", "skipped", "failure", "cancelled", "missing"]) {
+        const needs = Object.fromEntries(gate.needs.map((name) => [name, { result: expectedProductResult(name, code), outputs: { code } }]));
+        if (result === "missing") {
+          delete needs[subject];
+        } else {
+          needs[subject] = { result, outputs: { code } };
+        }
+        const verdict = spawnSync("bash", ["-e", "-c", run], {
+          cwd: scratch,
+          env: inheritedProcessEnv({ ["NEEDS"]: JSON.stringify(needs), ["GITHUB_STEP_SUMMARY"]: join(scratch, "summary.md") }),
+          encoding: "utf8",
+        });
+        const expected = expectedProductResult(subject, code);
+        expect(verdict.status, `${code}:${subject}:${result}:${verdict.stderr}`).toBe(result === expected ? 0 : 1);
+      }
+    }
   }
 });
 
@@ -390,15 +424,16 @@ test("CI event qualification passes the actual target/before and tested SHA, not
   const environment = ci.jobs.static.env;
   expect(environment["ORB_VERIFY_BASE"]).toBe("${{ needs.changes.outputs.base }}");
   expect(environment["ORB_VERIFY_HEAD"]).toBe("${{ needs.changes.outputs.head }}");
-  expect(environment["ORB_VERIFY_TOOL_MODE"]).toBe("${{ needs.changes.outputs.tool_mode }}");
   const producer = ci.jobs.changes.steps.find((candidate) => candidate.id === "diff");
   expect(producer?.run).toBe('pnpm exec node scripts/ci-qualification.ts baseline "$GITHUB_SHA" "$BEFORE"');
   expect(producer?.env?.["BEFORE"]).toBe(
     "${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || inputs.base }}",
   );
   expect(ci.jobs.changes.permissions).toEqual({ contents: "read", actions: "read" });
-  expect(ci.jobs.static.steps.find((candidate) => candidate.run === "pnpm check --verbose")?.name).toBe("${{ env.ORB_CI_QUALIFICATION_GENERATION }}");
-  expect(ci.env["ORB_CI_QUALIFICATION_GENERATION"]).toBe("Orbweaver qualification corpus-v1");
+  expect(ci.jobs.static.steps.find((candidate) => candidate.run === "pnpm check --application --verbose")?.name).toBe(
+    "${{ env.ORB_CI_QUALIFICATION_GENERATION }}",
+  );
+  expect(ci.env["ORB_CI_QUALIFICATION_GENERATION"]).toBe("Orbweaver qualification product-v2");
   expect(ci.env["ORB_CI_PUBLICATION_BOOTSTRAP_SHA"]).toBe("ac6cfc19ea9db59644426b37f6b8c842c33473ad");
   expect(ci.env["ORB_CI_REPOSITORY"]).toBe("Inktomi93/OrbWeaver");
 });
@@ -512,11 +547,11 @@ test("uncached nightly and manual qualification provision media and showcase art
   ]);
 });
 
-test("static qualification admits full tooling within the shared bounded hosted allowance", ({ repoRoot }) => {
+test("weekly qualification retains the full tooling resource allowance", ({ repoRoot }) => {
   const ci = workflow(repoRoot);
   const stageBudgets = stageBudgetsFor({ ...readConcurrencyProfile(), vitestMaxWorkers: 1 }, readFileSync(CONCURRENCY_PROFILE_PATH, "utf8"));
-  expect(ci.jobs.static["timeout-minutes"]).toBe(ci.jobs.qualification["timeout-minutes"]);
-  expect(ci.jobs.static["timeout-minutes"] * 60_000).toBeGreaterThanOrEqual(stageBudgets.toolingSuiteMs + stageBudgets.defaultMs);
+  expect(ci.jobs["weekly-tooling"]["timeout-minutes"]).toBe(ci.jobs.qualification["timeout-minutes"]);
+  expect(ci.jobs["weekly-tooling"]["timeout-minutes"] * 60_000).toBeGreaterThanOrEqual(stageBudgets.toolingSuiteMs + stageBudgets.defaultMs);
   expect(ci.jobs["ci-ok"].needs).toContain("static");
 });
 
@@ -536,53 +571,64 @@ test("the generation-marked static command forwards live output mode and preserv
       encoding: "utf8",
     });
     expect(result.status, result.stdout + result.stderr).toBe(code);
-    expect(JSON.parse(readFileSync(join(scratch, "called.json"), "utf8"))).toEqual(["check", "--verbose"]);
+    expect(JSON.parse(readFileSync(join(scratch, "called.json"), "utf8"))).toEqual(["check", "--application", "--verbose"]);
     expect(result.stdout).toContain("fixture child progress");
   }
 });
 
-test("split qualification preserves event selection and cannot bypass an incomplete corpus dependency", ({ repoRoot, scratch }) => {
+test("weekly execution is independent, main-pinned, partitioned once and never product authority", async ({ repoRoot, scratch, fakeBin }) => {
   const ci = workflow(repoRoot);
-  const corpus = ci.jobs["semantic-corpus"];
-  expect(corpus.needs).toBe("changes");
-  expect(corpus.if).toBeUndefined();
-  expect(corpus.strategy).toEqual({ "fail-fast": false, matrix: { shard: [1, 2] } });
-  expect(corpus.name).toBe("semantic-corpus (${{ matrix.shard }}/${{ strategy.job-total }})");
-  expect(corpus.env).toEqual({ ...ci.jobs.static.env, ["ORB_VERIFY_INSTRUMENT_COMPONENT"]: "corpus" });
-  expect(ci.jobs.static.env["ORB_VERIFY_INSTRUMENT_COMPONENT"]).toBe("non-corpus");
-  expect(ci.jobs.static.needs).toEqual(["changes", "semantic-corpus"]);
-  expect(ci.jobs.static.if).toBeUndefined();
-  expect(corpus["timeout-minutes"]).toBe(ci.jobs.static["timeout-minutes"]);
-  const proof = corpus.steps.filter((candidate) => candidate.name === "${{ env.ORB_CI_QUALIFICATION_GENERATION }}");
-  expect(proof).toHaveLength(1);
-  expect(proof[0]?.run).toBe("pnpm check:instrument-affected --shard=${{ matrix.shard }}/${{ strategy.job-total }}");
-  expect(proof[0]?.if).toBeUndefined();
-  const setup = corpus.steps.find((candidate) => candidate.uses === "$/.github/actions/setup");
-  expect(setup).toBeDefined();
-  expect(setup?.with?.browsers).toBeUndefined();
-  const gate = ci.jobs["ci-ok"];
-  const run = gate.steps[0]?.run;
-  if (run === undefined) {
-    throw new Error("missing qualification verdict");
-  }
-  for (const job of ["changes", "static", "semantic-corpus"]) {
-    expect(gate.needs).toContain(job);
-    for (const result of ["success", "skipped", "failure", "cancelled", "missing"]) {
-      const needs = Object.fromEntries(
-        gate.needs.map((name) => [name, { result: ["node", "ct", "e2e-smoke", "media"].includes(name) ? "skipped" : "success" }]),
-      );
-      if (result === "missing") {
-        delete needs[job];
-      } else {
-        needs[job] = { result };
-      }
-      const verdict = spawnSync("bash", ["-e", "-c", run], {
+  expect(ci.on.schedule).toContainEqual({ cron: "37 9 * * 0" });
+  expect(ci.on.workflow_dispatch.inputs.tier.options).toContain("weekly");
+  const head = ci.jobs["weekly-head"];
+  expect(head.if).toContain("github.event.schedule == '37 9 * * 0'");
+  expect(head.if).toContain("inputs.tier == 'weekly'");
+  const weekly = ci.jobs["weekly-tooling"];
+  expect(weekly.needs).toBe("weekly-head");
+  expect(weekly.strategy).toEqual({
+    "fail-fast": false,
+    matrix: {
+      include: [
+        { component: "non-corpus", shard: "" },
+        { component: "corpus", shard: "1/2" },
+        { component: "corpus", shard: "2/2" },
+      ],
+    },
+  });
+  expect(weekly.steps.find((entry) => entry.uses?.startsWith("actions/checkout@") === true)?.with).toMatchObject({
+    ref: "${{ needs.weekly-head.outputs.sha }}",
+  });
+  expect(ci.jobs.static.needs).toEqual(["changes"]);
+  expect(ci.jobs["ci-ok"].needs).not.toContain("weekly-tooling");
+  expect(ci.jobs.static.env["ORB_VERIFY_INSTRUMENT_COMPONENT"]).toBeUndefined();
+  await fakeBin(
+    "pnpm",
+    "import fs from 'node:fs';fs.writeFileSync('calls.json',JSON.stringify(process.argv.slice(2)));process.exitCode=Number(process.env.FIXTURE_EXIT);",
+  );
+  const proof = weekly.steps.find((entry) => entry.id === "proof");
+  for (const { component, shard } of weekly.strategy.matrix.include) {
+    for (const code of [0, 1, 2]) {
+      const result = spawnSync("bash", ["-e", "-c", proof?.run ?? ""], {
         cwd: scratch,
-        env: inheritedProcessEnv({ ["NEEDS"]: JSON.stringify(needs), ["GITHUB_STEP_SUMMARY"]: join(scratch, "summary.md") }),
+        env: inheritedProcessEnv({ ["ORB_VERIFY_INSTRUMENT_COMPONENT"]: component, ["CORPUS_SHARD"]: shard, ["FIXTURE_EXIT"]: String(code) }),
         encoding: "utf8",
       });
-      expect(verdict.status, job + result + verdict.stderr).toBe(result === "success" ? 0 : 1);
+      expect(result.status, result.stderr).toBe(code);
+      expect(JSON.parse(readFileSync(join(scratch, "calls.json"), "utf8"))).toEqual(
+        component === "corpus" ? ["test:tooling", `--shard=${shard}`] : ["verify", "--weekly"],
+      );
     }
   }
-  expect(ci.jobs.qualification.env["ORB_VERIFY_INSTRUMENT_COMPONENT"]).toBeUndefined();
+  const aggregate = ci.jobs["weekly-ok"];
+  for (const result of ["success", "failure", "cancelled", "skipped"]) {
+    const needs = { "weekly-head": { result: "success", outputs: { sha: "a".repeat(40) } }, "weekly-tooling": { result } };
+    const verdict = spawnSync("bash", ["-e", "-c", aggregate.steps[0]?.run ?? ""], {
+      cwd: scratch,
+      env: inheritedProcessEnv({ ["NEEDS"]: JSON.stringify(needs) }),
+      encoding: "utf8",
+    });
+    expect(verdict.status).toBe(result === "success" ? 0 : 1);
+    expect(JSON.parse(readFileSync(join(scratch, "weekly-proof.json"), "utf8"))).toEqual(needs);
+  }
+  expect(weekly.steps.some((entry) => entry.uses?.startsWith("actions/cache/save@") === true)).toBe(false);
 });

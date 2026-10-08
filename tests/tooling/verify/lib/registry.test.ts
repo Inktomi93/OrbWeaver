@@ -1,15 +1,3 @@
-// THE TIER LADDER IS DATA, AND THIS IS WHAT IT SAYS (#1523 split it, #1842 finished the cut).
-//
-// `verify --push` spent its wall clock recertifying our own instruments: measured 2026-09-04 over 1,867
-// files, `tests/tooling` was 71.1 CPU-min across 284 files against 9.0 for tests/server's 1,185. Owner
-// 2026-09-04: "about 30 minutes of tooling recertification, which makes it tedious to run tests… move that
-// to verify --full"; owner 2026-09-06: "take tooling out of the verify push and into full". #1523's first
-// cut left a CONDITIONAL push rung (run the battery when the branch touched an instrument); #1842 deleted
-// that rung's DATA — `tests:tooling` is a FULL-tier row now, and the `tierPrecondition` field survives in
-// the stage contract for the next row that needs it, with no row using it today.
-//
-// The membership is registry DATA (UNIFIED-VERIFICATION-DESIGN §3.1), so these arms read the registry
-// rather than a prose table.
 import { ACTIVE_GATES_INDEX_REL, SNAP_FLAGS_INDEX_REL } from "../../../../tooling/src/verify/contract/ledger-paths.ts";
 import type { StageDef } from "../../../../tooling/src/verify/contract/stage.ts";
 import { RUNNABLE_VERIFY_TIERS } from "../../../../tooling/src/verify/contract/stage.ts";
@@ -24,8 +12,20 @@ import { scaledBudget } from "../../_load-budget.ts";
 
 const WHOLE_TIERS = RUNNABLE_VERIFY_TIERS;
 
+test("automatic nonweekly tiers never admit checker recertification, even with unknown branch reach", () => {
+  const proofs = new Set(["tests:tooling", "tests:instrument-affected", "tests:tool-guard", "structure:policy-conformance"]);
+  for (const tier of RUNNABLE_VERIFY_TIERS.filter((candidate) => candidate !== "weekly")) {
+    const planned = stagesForTier(tier).map((row) => ({ name: row.name, plan: planStage(row, undefined, tier, "/no-git-baseline") }));
+    expect(
+      planned.filter(({ name, plan }) => proofs.has(name) && plan.argv !== null),
+      tier,
+    ).toEqual([]);
+  }
+  expect(parseRequest(["--weekly"])).toMatchObject({ tier: "weekly", request: undefined });
+});
+
 test("product is exactly the complete full roster minus instrument proofs and mutation", () => {
-  const excluded = ["structure:policy-conformance", "tests:tooling", "tests:instrument-affected", "tests:tool-guard", "quality:mutation-gate"];
+  const excluded = ["quality:mutation-gate"];
   const full = stagesForTier("full");
   const product = stagesForTier("product");
   const retained = full.filter(({ name }) => !excluded.includes(name));
@@ -72,7 +72,6 @@ test("product is exactly the complete full roster minus instrument proofs and mu
   }
   expect(product.filter(({ tierArgv }) => tierArgv !== undefined).map(({ name, tierArgv }) => [name, tierArgv])).toEqual([
     ["types:testd", { product: ["pnpm", "test:types", "--config=vitest.product.config.ts"] }],
-    ["browser:ct", { product: ["pnpm", "test:ct", "--retries=2", "--config=playwright-ct.product.config.ts"] }],
   ]);
   expect(
     full
@@ -96,39 +95,15 @@ function stage(tier: Parameters<typeof stagesForTier>[0], name: string): StageDe
   return found;
 }
 
-test("tests:tooling is a REAL stage at full — and at NO other tier", () => {
-  const fullRow = stage("full", "tests:tooling");
-
-  expect(fullRow.argv).toEqual(["pnpm", "test:tooling"]);
-  expect(fullRow.group).toBe("tests");
-  // THE #1842 CUT, stated as data: not at push (the owner's ruling), and not at static either (`pnpm
-  // check` runs no tests at all, so this row must not smuggle one in).
-  expect(stagesForTier("push").some((row) => row.name === "tests:tooling")).toBe(false);
-  expect(stagesForTier("static").some((row) => row.name === "tests:tooling")).toBe(false);
-  expect(stagesForTier("changed").some((row) => row.name === "tests:tooling")).toBe(false);
-});
-
-// #1943 F3. The #1842 cut is right about the BATTERY and left one hole behind it: `.claude/hooks/*.mjs` is
-// linted by nothing (biome.json ignores `.claude`; eslint's node surface globs name no `.mjs`), and the
-// PreToolUse Bash guard's only executing check lived in the `--full`-only battery — so a syntax error in
-// the hook that gates EVERY Bash call would fail it open (non-zero, no JSON ⇒ non-blocking hook error)
-// with `pnpm check` and `pnpm verify --push` both still green. Two rows close it, and their TIERS are the
-// whole point: parsing on the commit bar, behaviour on the push bar.
-test("the Bash guard has a floor below --full: syntax at STATIC, its pin at PUSH", () => {
-  const syntax = stage("static", "lint:hook-syntax");
-  expect(syntax.group).toBe("lint");
-  // a raw-bin argv, not `pnpm <script>`: `node --check` takes ONE file, so the family check is node's own loop
-  expect(syntax.argv.slice(0, 2)).toEqual(["node", "-e"]);
-  expect(syntax.argv.join(" ")).toContain('"--check"');
-  expect(syntax.argv.join(" ")).toContain(".claude/hooks/*.mjs");
-  expect(stagesForTier("push").some((row) => row.name === "lint:hook-syntax")).toBe(true);
-
-  const pin = stage("push", "tests:tool-guard");
-  expect(pin.group).toBe("tests");
-  expect(pin.argv).toEqual(["pnpm", "test:scoped", "tests/tooling/tool-guard.int.test.ts"]);
-  expect(stagesForTier("full").some((row) => row.name === "tests:tool-guard")).toBe(true);
-  // …and NOT on the static bar: `pnpm check` runs no tests, and this row must not smuggle one in.
-  expect(stagesForTier("static").some((row) => row.name === "tests:tool-guard")).toBe(false);
+test("weekly owns the complete instrument battery and policy conformance without a second affected run", () => {
+  expect(stagesForTier("weekly").map(({ name }) => name)).toEqual(["structure:policy-conformance", "tests:tooling"]);
+  const row = stage("weekly", "tests:tooling");
+  expect(row.argv).toEqual(["pnpm", "test:tooling"]);
+  expect(row.classify(null)).toBe(2);
+  expect(stage("manual", "tests:instrument-affected").argv).toEqual(["pnpm", "check:instrument-affected", "--weekly", "--affected"]);
+  for (const flag of ["--changed", "--file", "--package=tooling", "--scope=tooling/src"]) {
+    expect(parseRequest(["--weekly", flag, ...(flag === "--file" ? ["package.json"] : [])])).toHaveProperty("error");
+  }
 });
 
 test("tests:node stays the push bar for everything else, and no longer carries the tooling battery", () => {
@@ -139,40 +114,18 @@ test("tests:node stays the push bar for everything else, and no longer carries t
   // survives untouched as the explicit product-test command and manual `tests:product-composite` row.
   expect(stage("push", "tests:node").argv).toEqual(["pnpm", "test:node"]);
   expect(stagesForTier("push").some((row) => row.name === "tests:node")).toBe(true);
-  // The `changed` inner loop still reaches `tests/tooling` (#1566) through Vitest's native configured
-  // project population, without copying a project-name list into the registry. The real resolver proof is
-  // in registry.int.test.ts; the composed argv/selection proof is in ops/run.int.test.ts.
+  // Native collection, not a copied project roster, proves the product-only automatic population.
   expect(stage("changed", "tests:node").scopedArgv).toBeTypeOf("function");
 });
 
-// #1941 — THE WHOLE-CORPUS CONFORMANCE STAGE. Before it, a converted defineGate policy's own mustFlag/mustPass rows
-// ran only where a committed family test imported the module (21 of 163 were imported by none, 2026-09-11), so a
-// policy could land with rows nobody ever executed. The stage is on the COMMIT bar, whole-only, and its exit is our
-// own scheme (a failed proof is exit 2 — the checker's claim about itself broke).
-test("structure:policy-conformance runs every final policy's proofs at STATIC, whole-only, on our own exit scheme", () => {
-  const row = stage("static", "structure:policy-conformance");
-  expect(row.argv).toEqual(["pnpm", "check:policy-conformance"]);
-  expect(row.group).toBe("structure");
-  expect(row.classify(0)).toBe(0);
+test("policy conformance cannot be decorated back into an automatic scope", () => {
+  const row = stage("weekly", "structure:policy-conformance");
+  expect(row.scopedArgv).toBeUndefined();
   expect(row.classify(2)).toBe(2);
-  expect(row.classify(null)).toBe(2);
-  // WHOLE-ONLY, RE-POINTED BY #2277 AND NOT WEAKENED. This line read `scopedArgv toBeUndefined()` and the
-  // stage was absent from `changed`. The RULING is "a policy's proofs are its own fixtures, not a property
-  // of any changed file, and the roster is the whole corpus" — it survives verbatim, because the stage's
-  // path trigger runs its OWN WHOLE argv or nothing. What changed is WHEN it is asked, never what it reads:
-  // a commit touching a gate module now gets the conformance verdict at `verify --changed` instead of
-  // deferring it to a static run the #1584 hook bypass suppresses. So the assertion moves to the property
-  // the ruling actually states.
-  // THE TRIGGER IS DATA and this file reads data (a Selection needs the ts-morph membership snapshot, which
-  // belongs in the ops suite — `run.int.test.ts` pins the BEHAVIOUR through a real one).
-  const trigger = WHOLE_COMMAND_PATH_TRIGGERS["structure:policy-conformance"]?.paths;
-  expect(row.scopedArgv, "path-triggered, so the scoped tier ASKS it").toBeDefined();
-  expect(trigger?.test("tooling/src/verify/gates/tooling-size.ts"), "a gate module moves the roster").toBe(true);
-  expect(trigger?.test("README.md"), "and nothing else does — an untouched roster is not owed").toBe(false);
-  // the ladder nests: static ⊂ push ⊂ full, and the scoped inner loop now asks it when a gate module moved
-  expect(stagesForTier("push").some((candidate) => candidate.name === "structure:policy-conformance")).toBe(true);
-  expect(stagesForTier("full").some((candidate) => candidate.name === "structure:policy-conformance")).toBe(true);
-  expect(stagesForTier("changed").some((candidate) => candidate.name === "structure:policy-conformance")).toBe(true);
+  expect(WHOLE_COMMAND_PATH_TRIGGERS["structure:policy-conformance"]).toBeUndefined();
+  expect(WHOLE_COMMAND_PATH_TRIGGERS["tests:instrument-affected"]).toBeUndefined();
+  const collision = { ...row, name: "types:testd" };
+  expect(applyPathTriggers([collision])).toEqual([collision]);
 });
 
 // A markdown-only change owes none of the near-identity stages: no type, Biome grant or ledger reads a doc. The
@@ -291,4 +244,18 @@ test("docs:format at a scoped tier checks every changed markdown file the whole 
     "docs/law/Constitution.md",
   ]);
   expect(argvFor(["lefthook.yml"]), "no markdown, nothing owed").toBe("skip-empty");
+});
+
+test("application subject requests are explicit for static, implicit only for whole product tiers, and never weekly or scoped", () => {
+  expect(parseRequest(["--static", "--application"])).toMatchObject({ tier: "static", applicationOnly: true, request: undefined });
+  expect(parseRequest(["--static"])).toMatchObject({ applicationOnly: false });
+  for (const tier of ["push", "full", "product"]) {
+    expect(parseRequest([`--${tier}`])).toMatchObject({ applicationOnly: true });
+  }
+  for (const tier of ["push", "full"]) {
+    expect(parseRequest([`--${tier}`, "--file", "package.json"])).toMatchObject({ applicationOnly: false });
+  }
+  for (const args of [["--weekly"], ["--changed"], ["--file", "package.json"], ["--package=server"], ["--scope=packages/server"]]) {
+    expect(parseRequest(["--application", ...args])).toHaveProperty("error");
+  }
 });
