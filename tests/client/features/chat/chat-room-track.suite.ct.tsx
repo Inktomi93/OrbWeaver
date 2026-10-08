@@ -172,9 +172,73 @@ async function boxOf(page: Page, selector: string): Promise<Box> {
   }, selector);
 }
 
+interface TrackGeometry {
+  readonly row: Box;
+  readonly body: Box;
+  readonly column: Box;
+  readonly composer: Box;
+  readonly strip: Box;
+}
+
+// All related boxes belong to one browser task, not five protocol calls across changing layout.
+async function readTrackGeometry(page: Page): Promise<TrackGeometry> {
+  return await page.evaluate(
+    ({ row, body, column, composer, strip }): TrackGeometry => {
+      const read = (selector: string): Box => {
+        const element = document.querySelector(selector);
+        if (element === null) {
+          throw new Error(`no ${selector} mounted`);
+        }
+        const rect = element.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, centre: rect.left + rect.width / 2 };
+      };
+      return { row: read(row), body: read(body), column: read(column), composer: read(composer), strip: read(strip) };
+    },
+    { row: MESSAGE_ROW, body: ROW_BODY, column: CONTENT_COLUMN, composer: COMPOSER, strip: SWIPE_STRIP },
+  );
+}
+
+async function readyTrack(page: Page): Promise<void> {
+  await expect(page.locator(CONTENT_COLUMN).first()).toBeVisible();
+  await expect(page.locator(COMPOSER)).toBeVisible();
+  await expect(page.locator(SWIPE_STRIP)).toBeVisible();
+  await expect(page.getByRole("button", { name: VARIANT_NEXT_NAME, exact: true })).toBeEnabled();
+  await page.evaluate(async () => await document.fonts.ready.then(() => undefined));
+}
+
 // The axis tolerance. Sub-pixel layout rounding is real (a flex track can land on a .5), a 1px disagreement
 // is invisible; the defect this pins was 68–260px.
 const AXIS_TOLERANCE_PX = 1;
+
+function expectTrackGeometry({ row, body, column, composer, strip }: TrackGeometry, paneWidth: number): void {
+  // ONE TRACK: the element that owns the transcript's PLACEMENT and the composer resolve the same box —
+  // same left edge, same right edge, therefore the same middle. This is the assertion the defect broke:
+  // the row track used to be the whole pane (flat/hush carried a bare `w-full`) while the composer
+  // centred inside it.
+  expect(Math.abs(row.left - composer.left)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+  expect(Math.abs(row.right - composer.right)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+  expect(Math.abs(row.centre - composer.centre)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+  // The row's BODY (identity gutter + reading column) is placed as one unit and centres in that track —
+  // this is the half that used to be `items-stretch`, which re-pinned the capped column to the track's
+  // left edge and dumped every unspent pixel on its right ("~2x more dead wallpaper right of it than
+  // left", the owner's report).
+  expect(Math.abs(body.centre - row.centre)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+  // The reading column itself is offset only by the row's own anatomy — the avatar gutter, a SIBLING of
+  // the content column by law (§B.1, not this lane's to reverse) — so its centre sits within half a
+  // chip of the track's, at EVERY pane state. The measured defect was 107 → 260px of DRIFT.
+  const gutter = body.right - body.left - (column.right - column.left);
+  expect(gutter).toBeLessThanOrEqual(MAX_GUTTER_PX);
+  expect(Math.abs(column.centre - composer.centre)).toBeLessThanOrEqual(gutter / 2 + AXIS_TOLERANCE_PX);
+  // The pager rides the reading column's trailing/actions edge, not the track's centre: it is a compact
+  // chip sized to its own content (#228/#312), aligned under the assistant name-row actions.
+  expect(Math.abs(strip.right - column.right)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+  expect(strip.left).toBeGreaterThanOrEqual(column.left - AXIS_TOLERANCE_PX);
+  expect(strip.right - strip.left).toBeLessThan(column.right - column.left);
+  // …and nothing overflows the pane it lives in (the both-open state is still narrower than the
+  // TOKEN-STRICT 65ch floor even after #242's squeeze; it must degrade to the pane, never spill out).
+  expect(row.right - row.left).toBeLessThanOrEqual(paneWidth + AXIS_TOLERANCE_PX);
+  expect(composer.right - composer.left).toBeLessThanOrEqual(paneWidth + AXIS_TOLERANCE_PX);
+}
 
 for (const state of PANE_STATES) {
   test(`the transcript, composer and pager share ONE track — ${state.name}`, async ({ mount, page }) => {
@@ -182,45 +246,50 @@ for (const state of PANE_STATES) {
     await routeRoom(page, "flat");
 
     await mount(<ChatRoomTrackStory paneWidth={state.paneWidth} />);
-    await expect(page.locator(CONTENT_COLUMN).first()).toBeVisible();
-    await expect(page.locator(COMPOSER)).toBeVisible();
-    await expect(page.locator(SWIPE_STRIP)).toBeVisible();
-
-    const row = await boxOf(page, MESSAGE_ROW);
-    const body = await boxOf(page, ROW_BODY);
-    const column = await boxOf(page, CONTENT_COLUMN);
-    const composer = await boxOf(page, COMPOSER);
-    const strip = await boxOf(page, SWIPE_STRIP);
-
-    // ONE TRACK: the element that owns the transcript's PLACEMENT and the composer resolve the same box —
-    // same left edge, same right edge, therefore the same middle. This is the assertion the defect broke:
-    // the row track used to be the whole pane (flat/hush carried a bare `w-full`) while the composer
-    // centred inside it.
-    expect(Math.abs(row.left - composer.left)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
-    expect(Math.abs(row.right - composer.right)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
-    expect(Math.abs(row.centre - composer.centre)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
-    // The row's BODY (identity gutter + reading column) is placed as one unit and centres in that track —
-    // this is the half that used to be `items-stretch`, which re-pinned the capped column to the track's
-    // left edge and dumped every unspent pixel on its right ("~2x more dead wallpaper right of it than
-    // left", the owner's report).
-    expect(Math.abs(body.centre - row.centre)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
-    // The reading column itself is offset only by the row's own anatomy — the avatar gutter, a SIBLING of
-    // the content column by law (§B.1, not this lane's to reverse) — so its centre sits within half a
-    // chip of the track's, at EVERY pane state. The measured defect was 107 → 260px of DRIFT.
-    const gutter = body.right - body.left - (column.right - column.left);
-    expect(gutter).toBeLessThanOrEqual(MAX_GUTTER_PX);
-    expect(Math.abs(column.centre - composer.centre)).toBeLessThanOrEqual(gutter / 2 + AXIS_TOLERANCE_PX);
-    // The pager rides the reading column's trailing/actions edge, not the track's centre: it is a compact
-    // chip sized to its own content (#228/#312), aligned under the assistant name-row actions.
-    expect(Math.abs(strip.right - column.right)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
-    expect(strip.left).toBeGreaterThanOrEqual(column.left - AXIS_TOLERANCE_PX);
-    expect(strip.right - strip.left).toBeLessThan(column.right - column.left);
-    // …and nothing overflows the pane it lives in (the both-open state is still narrower than the
-    // TOKEN-STRICT 65ch floor even after #242's squeeze; it must degrade to the pane, never spill out).
-    expect(row.right - row.left).toBeLessThanOrEqual(state.paneWidth + AXIS_TOLERANCE_PX);
-    expect(composer.right - composer.left).toBeLessThanOrEqual(state.paneWidth + AXIS_TOLERANCE_PX);
+    await readyTrack(page);
+    const geometry = await readTrackGeometry(page);
+    expect(() => expectTrackGeometry(geometry, state.paneWidth)).not.toThrow();
   });
 }
+
+const SAMPLER_SHIFT_PX = 24;
+
+test("track sampling stays coherent across a queued pane resize and rejects persistent body drift", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1360, height: 900 });
+  await routeRoom(page, "flat");
+  await mount(<ChatRoomTrackStory paneWidth={1212} />);
+  await readyTrack(page);
+  await page.evaluate(
+    ({ rowSelector, shift }) => {
+      const nativeRect = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = function (): DOMRect {
+        const rect = nativeRect.call(this);
+        if (this.matches(rowSelector)) {
+          Element.prototype.getBoundingClientRect = nativeRect;
+          queueMicrotask(() => {
+            const pane = document.querySelector<HTMLElement>('[data-testid="room-pane"]');
+            if (pane === null) {
+              throw new Error("no room pane mounted");
+            }
+            pane.style.width = `${pane.getBoundingClientRect().width - shift * 2}px`;
+          });
+        }
+        return rect;
+      };
+    },
+    { rowSelector: MESSAGE_ROW, shift: SAMPLER_SHIFT_PX },
+  );
+  // A native layout change between protocol calls must not splice two frames into one geometry proof.
+  expectTrackGeometry(await readTrackGeometry(page), 1212);
+  await expect(page.getByTestId("room-pane")).toHaveCSS("width", "1164px");
+  expectTrackGeometry(await readTrackGeometry(page), 1164);
+  await page.locator(ROW_BODY).evaluate((body: HTMLElement, shift) => {
+    body.style.transform = `translateX(${shift}px)`;
+  }, SAMPLER_SHIFT_PX);
+  const drifted = await readTrackGeometry(page);
+  expect(Math.abs(drifted.body.centre - drifted.row.centre)).toBe(SAMPLER_SHIFT_PX);
+  expect(() => expectTrackGeometry(drifted, 1164)).toThrow();
+});
 
 // The next-turn line sits under the composer card: it starts at the card's edge rather than the pane's, and
 // its paragraph is capped at the prose reading measure, resolved in the line's own font.
