@@ -23,4 +23,4 @@ Prove the cause with a controlled native failure and repaired result. Preserve w
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+A native disclosure transition reproduces mixed-state geometry in separate reads. Atomic snapshots preserve layout assertions and reject a real overhang. Native cases and independent review pass. Hosted qualification remains required.
