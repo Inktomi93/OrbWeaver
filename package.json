@@ -168,6 +168,8 @@
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
     "undici": "catalog:",
+    "vite": "catalog:",
+    "vite-ct": "catalog:",
     "vitest": "catalog:",
     "yaml": "catalog:",
     "zod": "catalog:",

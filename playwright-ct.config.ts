@@ -1,4 +1,5 @@
-import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { adoptRunSlot } from "@orb/tooling/_shared/artifact-out";
@@ -12,6 +13,15 @@ import { applicationTestExclusions } from "@orb/tooling/_shared/test-population"
 import type { PlaywrightTestConfig } from "@playwright/experimental-ct-react";
 import { defineConfig, devices } from "@playwright/experimental-ct-react";
 import tailwindcss from "@tailwindcss/vite";
+import type { InlineConfig as CtViteConfig, Plugin as CtVitePlugin } from "vite-ct";
+import {
+  SELECT_BUILD_DIAGNOSTIC_ENV,
+  SELECT_BUILD_DIAGNOSTIC_FILE,
+  SELECT_BUILD_REGISTRY_FILE,
+  SELECT_CPU_DIAGNOSTIC_ENV,
+  SELECT_CPU_PROFILING_ENV,
+  SELECT_NATIVE_TRACE_ENV,
+} from "./tests/support/node/select-native-sources.ts";
 
 // Component tests — `.ct.tsx` at the tests/{ui,client} mirrors, in a real chromium via Playwright CT
 // (the vitest browser project was never adopted — it hangs cold-cache; docs/law/Spine-Testing.md §7).
@@ -60,11 +70,98 @@ const CT_TEST_MATCH = TEST_KIND_DEFINITIONS.filter(({ family }) => family === "c
 // `path.resolve` folds this identically to the composed form.
 const CLIENT_GLOBALS_CSS = path.resolve(import.meta.dirname, "packages/client/src/styles/globals.css");
 const CT_CSS_EXTENSION = path.resolve(import.meta.dirname, "playwright/index.css");
-type CtViteConfig = Exclude<NonNullable<NonNullable<PlaywrightTestConfig["use"]>["ctViteConfig"]>, () => Promise<unknown>>;
-type CtVitePlugin = Extract<Awaited<NonNullable<CtViteConfig["plugins"]>[number]>, { readonly name?: string }>;
 type CtRollupOptions = NonNullable<NonNullable<CtViteConfig["build"]>["rollupOptions"]>;
 type CtTransformHook = Extract<NonNullable<CtVitePlugin["transform"]>, (...args: never[]) => unknown>;
 type CtOnWarn = Extract<NonNullable<CtRollupOptions["onwarn"]>, (...args: never[]) => unknown>;
+type CtConfigResolvedHook = Extract<NonNullable<CtVitePlugin["configResolved"]>, (...args: never[]) => void>;
+type CtWriteBundleHook = Extract<NonNullable<CtVitePlugin["writeBundle"]>, (...args: never[]) => void>;
+
+const SELECT_BUILD_DIAGNOSTIC_MODES = ["baseline", "esbuild"] as const;
+
+function selectBuildDiagnosticPlugins(): CtVitePlugin[] {
+  const requested = process.env[SELECT_BUILD_DIAGNOSTIC_ENV];
+  if (requested === undefined) {
+    return [];
+  }
+  const mode = SELECT_BUILD_DIAGNOSTIC_MODES.find((candidate) => candidate === requested);
+  if (
+    mode === undefined ||
+    process.env[SELECT_CPU_DIAGNOSTIC_ENV] !== "1" ||
+    process.env[SELECT_CPU_PROFILING_ENV] !== "0" ||
+    process.env[SELECT_NATIVE_TRACE_ENV] !== "0"
+  ) {
+    throw new Error("Select build diagnostics require baseline/esbuild mode and diagnostic-only capture with CPU profiling and native qualification disabled");
+  }
+  let resolved: Parameters<CtConfigResolvedHook>[0] | null = null;
+  return [
+    {
+      name: "orb:select-build-diagnostic",
+      apply: "build",
+      enforce: "post",
+      // Playwright merges its forced build settings before Vite invokes user config hooks.
+      config: () => ({ build: { minify: mode === "esbuild" ? "esbuild" : false, cssMinify: false } }),
+      configResolved(config: Parameters<CtConfigResolvedHook>[0]): void {
+        if (
+          config.build.minify !== (mode === "esbuild" ? "esbuild" : false) ||
+          config.build.cssMinify !== false ||
+          config.build.rollupOptions.treeshake !== false ||
+          config.build.target !== "esnext" ||
+          config.build.sourcemap !== true ||
+          !config.isProduction
+        ) {
+          throw new Error("Select build diagnostic settings differ from the approved representation comparison");
+        }
+        resolved = config;
+      },
+      async writeBundle(...[_options, bundle]: Parameters<CtWriteBundleHook>): Promise<void> {
+        if (resolved === null) {
+          throw new Error("Select build diagnostic has no resolved configuration");
+        }
+        const config = resolved;
+        const emitted = await Promise.all(
+          Object.values(bundle)
+            .filter((entry) => entry.type === "chunk" || entry.fileName.endsWith(".css"))
+            .map(async (entry) => {
+              const bytes = await readFile(path.join(config.build.outDir, entry.fileName));
+              return {
+                fileName: entry.fileName,
+                bytes: bytes.length,
+                sha256: createHash("sha256").update(bytes).digest("hex"),
+                ...(entry.type === "chunk"
+                  ? { imports: entry.imports, dynamicImports: entry.dynamicImports, exports: entry.exports, modules: Object.keys(entry.modules) }
+                  : { cssBase64: bytes.toString("base64") }),
+              };
+            }),
+        );
+        await writeFile(
+          path.join(config.build.outDir, SELECT_BUILD_DIAGNOSTIC_FILE),
+          JSON.stringify({
+            diagnosticOnly: true,
+            qualification: false,
+            mode,
+            resolved: {
+              minify: config.build.minify,
+              cssMinify: config.build.cssMinify,
+              rollupTreeshake: config.build.rollupOptions.treeshake,
+              target: config.build.target,
+              sourcemap: config.build.sourcemap,
+              mode: config.mode,
+              isProduction: config.isProduction,
+              esbuild: config.esbuild,
+              workerFormat: config.worker.format,
+              dedupe: config.resolve.dedupe,
+              plugins: config.plugins.map(({ name }) => name),
+            },
+            // Vite's stock esbuild renderChunk enables local tree shaking even when Rollup's is off.
+            esbuildChunkTreeShaking: config.build.minify === "esbuild",
+            registryFile: SELECT_BUILD_REGISTRY_FILE,
+            emitted,
+          }),
+        );
+      },
+    },
+  ];
+}
 
 const CT_CSS_TRANSFORM: CtTransformHook = async function (this: ThisParameterType<CtTransformHook>, ...[code, id]: Parameters<CtTransformHook>) {
   if (path.resolve(id.split("?", 1)[0] ?? id) !== CLIENT_GLOBALS_CSS) {
@@ -214,7 +311,7 @@ export function ctConfig(applicationOnly = false): PlaywrightTestConfig {
       ctViteConfig: {
         // CT applies its OWN @vitejs/plugin-react internally — adding a second one double-transforms.
         // Cast: @tailwindcss/vite resolves vite@8 types; CT viteConfig expects vite@6 — structurally compatible.
-        plugins: [CT_CSS_SOURCE_PLUGIN, tailwindcss() as never],
+        plugins: [CT_CSS_SOURCE_PLUGIN, tailwindcss() as never, ...selectBuildDiagnosticPlugins()],
         // The client's static assets, served at the same absolute paths the stylesheets author. Without
         // this the CT harness resolves `/grain.svg` (client globals.css's film-grain tile) to a 404, so the
         // grain overlay computes exactly as production while painting NOTHING — a computed-style assertion

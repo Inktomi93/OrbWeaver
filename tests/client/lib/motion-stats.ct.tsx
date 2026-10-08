@@ -61,7 +61,14 @@ import { recordOf, startTrace, stopTrace } from "../../../tooling/src/snap/lib/r
 import { DIAGNOSTIC_ONLY_ANNOTATION } from "../../../tooling/src/verify/contract/scoped-test.ts";
 import type { AppBlockingReceipt } from "../../support/iso/app-blocking-receipt.ts";
 import { matchAppBlockingFrame } from "../../support/iso/app-blocking-receipt.ts";
-import { retainNativeSources, SELECT_NATIVE_SOURCES_ATTACHMENT } from "../../support/node/select-native-sources.ts";
+import {
+  retainNativeSources,
+  SELECT_BUILD_DIAGNOSTIC_ENV,
+  SELECT_CPU_DIAGNOSTIC_ENV,
+  SELECT_CPU_PROFILING_ENV,
+  SELECT_NATIVE_SOURCES_ATTACHMENT,
+  SELECT_NATIVE_TRACE_ENV,
+} from "../../support/node/select-native-sources.ts";
 import { MotionAnchoredPortalStory, MotionShiftFlaggerStory, MotionVirtualizedShiftStory } from "./_ct-stories.tsx";
 import { SELECT_OPENING_TEST_CASES } from "./select-opening-cases.ts";
 import type { SelectOpeningProbe } from "./select-opening-fixtures.tsx";
@@ -79,10 +86,7 @@ const EVIDENCE_TIMEOUT_MS = 10_000;
 const SOURCE_REQUEST_TIMEOUT_MS = 1000;
 const SOURCE_TOTAL_TIMEOUT_MS = 2000;
 const SOURCE_DEADLINE_CONTROL_MS = 200;
-const SELECT_CPU_DIAGNOSTIC_ENV = "ORB_SELECT_CPU_DIAGNOSTIC";
-const SELECT_CPU_PROFILING_ENV = "ORB_SELECT_CPU_PROFILING";
 const SELECT_CPU_PROFILING = processEnvValue(SELECT_CPU_PROFILING_ENV) !== "0";
-const SELECT_NATIVE_TRACE_ENV = "ORB_SELECT_NATIVE_TRACE";
 const SELECT_NATIVE_TRACE = processEnvValue(SELECT_NATIVE_TRACE_ENV) === "1";
 const SELECT_NATIVE_TRACE_ATTACHMENT = "select-native-first-repeat-trace-diagnostic";
 const SELECT_CPU_DIAGNOSTIC_RATE = 4;
@@ -151,6 +155,7 @@ async function attachNativeSelectSources(page: Page, capture: TraceCapture, prof
       cacheDir: processEnvValue(CT_CACHE_DIR_ENV),
       pageUrl: page.url(),
       scriptUrls: [...scriptUrls, ...profileUrls],
+      buildDiagnostic: processEnvValue(SELECT_BUILD_DIAGNOSTIC_ENV) !== undefined,
       attach: (name, options) => test.info().attach(name, options),
     });
     await test.info().attach(SELECT_NATIVE_SOURCES_ATTACHMENT, { body: JSON.stringify(receipt), contentType: "application/json" });
