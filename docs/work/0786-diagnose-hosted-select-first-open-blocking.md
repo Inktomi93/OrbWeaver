@@ -29,4 +29,4 @@ Profiler-on and trace-only diagnostics execute the same cold render and compilat
 
 The original-cohort trace-only capture brackets the actual first and repeat opening. A failing native trace is needed before a source repair is justified.
 
-The native trace artifact lacks its referenced emitted bundles and source maps. Retain those files before CT lease cleanup without changing measurement.
+Native trace finalization retains its referenced emitted bundles and source maps before CT lease cleanup without changing measurement. Native and deterministic file tests prove retention.
