@@ -213,6 +213,9 @@ test("signed media preparation starts with empty installed state and cannot publ
     }
   }
   expect(readFileSync(join(scratch, "output"), "utf8")).toContain("producer_attempt=1\n");
+  const payload = spawnSync("tar", ["-tf", "payload.tar"], { cwd: join(scratch, "media-apt"), encoding: "utf8" });
+  expect(payload.status, payload.stderr).toBe(0);
+  expect(payload.stdout.split("\n")).toEqual(expect.arrayContaining(["identity", "sources.list", "lists/", "archives/ffmpeg.deb"]));
 });
 
 test("media consumers reject absent, changed, foreign-run and incompatible payloads before offline installation and surface install failures", {
@@ -221,6 +224,8 @@ test("media consumers reject absent, changed, foreign-run and incompatible paylo
   const run = workflow(repoRoot).jobs.node.steps.find((candidate) => candidate.id === "media")?.run ?? "";
   const directory = join(scratch, "media-apt");
   mkdirSync(join(directory, "archives"), { recursive: true });
+  mkdirSync(join(directory, "lists"), { recursive: true });
+  writeFileSync(join(directory, "sources.list"), "fixture signed Ubuntu source\n");
   await fakeBin("dpkg", "process.stdout.write('amd64');");
   await fakeBin("sudo", "import fs from 'node:fs';fs.appendFileSync('install.jsonl',JSON.stringify(process.argv.slice(2))+'\\n');process.exitCode=71;");
   // The OS identity is fixture input; the installation command and checks remain the workflow's native script.
@@ -249,7 +254,7 @@ test("media consumers reject absent, changed, foreign-run and incompatible paylo
     if (scenario !== "empty") {
       writeFileSync(join(directory, "archives/ffmpeg.deb"), "fixture package");
     }
-    const archive = spawnSync("tar", ["-cf", "payload.tar", "identity", "archives"], { cwd: directory, encoding: "utf8" });
+    const archive = spawnSync("tar", ["-cf", "payload.tar", "identity", "sources.list", "lists", "archives"], { cwd: directory, encoding: "utf8" });
     expect(archive.status, archive.stderr).toBe(0);
     const digest = createHash("sha256")
       .update(scenario === "broken" ? "altered" : readFileSync(join(directory, "payload.tar")))
@@ -274,10 +279,27 @@ test("media consumers reject absent, changed, foreign-run and incompatible paylo
       timeout: scaledBudget(10_000),
     });
     expect(result.status, scenario + result.stdout + result.stderr).toBe(status);
-    const calls = readFileSync(join(scratch, "install.jsonl"), "utf8").trim().split("\n").filter(Boolean);
-    expect(calls.map((call) => JSON.parse(call))).toEqual(
-      scenario === "rerun" ? [expect.arrayContaining(["--no-download", "--no-remove", "Dir::Etc::sourcelist=/dev/null", "Dir::Etc::sourceparts=-"])] : [],
+    const calls = readFileSync(join(scratch, "install.jsonl"), "utf8")
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((call) => JSON.parse(call) as readonly string[]);
+    expect(calls).toEqual(
+      scenario === "rerun"
+        ? [
+            expect.arrayContaining([
+              "--no-download",
+              "--no-remove",
+              `Dir::Etc::sourcelist=${directory}/sources.list`,
+              "Dir::Etc::sourceparts=-",
+              `Dir::State::lists=${directory}/lists`,
+              "install",
+              "ffmpeg",
+            ]),
+          ]
+        : [],
     );
+    expect(calls.map((args) => args.slice(args.indexOf("install")))).toEqual(calls.map(() => ["install", "ffmpeg"]));
   }
 });
 
