@@ -36,7 +36,7 @@ on:
       select_cpu_diagnostic_context:
         description: Choose isolated Select captures or the complete original CT shard 4 context; diagnostics never qualify the commit.
         type: choice
-        options: [isolated, ct-shard-4]
+        options: [isolated, ct-shard-4, ct-shard-4-native]
         default: isolated
       select_cpu_profiling:
         description: Keep CPU profiling on, or capture trace-only evidence to measure profiler amplification; neither mode qualifies the commit.
@@ -389,7 +389,7 @@ jobs:
   select-cpu-diagnostic:
     if: github.event_name == 'workflow_dispatch' && inputs.select_cpu_diagnostic
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ inputs.select_cpu_diagnostic_context == 'ct-shard-4' && 120 || 15 }}
+    timeout-minutes: ${{ (inputs.select_cpu_diagnostic_context == 'ct-shard-4' || inputs.select_cpu_diagnostic_context == 'ct-shard-4-native') && 120 || 15 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -402,9 +402,9 @@ jobs:
         run: pnpm --filter @orb/showcase-plugins build
       - id: native-control
         name: Native Select acceptance without CPU profiling
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' && inputs.select_cpu_diagnostic_context != 'ct-shard-4' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' && inputs.select_cpu_diagnostic_context != 'ct-shard-4' && inputs.select_cpu_diagnostic_context != 'ct-shard-4-native' }}
         run: pnpm test:ct tests/client/lib/motion-stats.ct.tsx --grep='a real sealed Select classifies its confirmed first and repeat entrance lifetimes only$' --retries=0
-      - if: always() && inputs.select_cpu_diagnostic_context != 'ct-shard-4'
+      - if: always() && inputs.select_cpu_diagnostic_context != 'ct-shard-4' && inputs.select_cpu_diagnostic_context != 'ct-shard-4-native'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: select-native-control
@@ -412,7 +412,7 @@ jobs:
           retention-days: 7
       - id: cpu-diagnostic
         name: Diagnostic-only Select CPU captures (not qualification)
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' && inputs.select_cpu_diagnostic_context != 'ct-shard-4' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' && inputs.select_cpu_diagnostic_context != 'ct-shard-4' && inputs.select_cpu_diagnostic_context != 'ct-shard-4-native' }}
         env:
           ORB_SELECT_CPU_DIAGNOSTIC: "1"
           ORB_SELECT_CPU_PROFILING: ${{ inputs.select_cpu_profiling == 'off' && '0' || '1' }}
@@ -436,6 +436,25 @@ jobs:
           cp reports/ct-report.json "$context_root/selected.json"
           pnpm exec node scripts/select-cpu-diagnostic-context.ts verify "$context_root/ordinary.json" "$context_root/opt-in.json" "$context_root/selected.json"
           cp "$context_root/ordinary.json" "$context_root/opt-in.json" "$context_root/selected.json" "$context_root/cases.list" reports/select-cpu-diagnostic-context/
+          pnpm test:ct --test-list="$context_root/cases.list" --retries=0
+      - id: native-context-diagnostic
+        name: Original CT shard 4 with native first/repeat trace only (not qualification)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' && inputs.select_cpu_diagnostic_context == 'ct-shard-4-native' }}
+        env:
+          ORB_SELECT_CPU_DIAGNOSTIC: "0"
+          ORB_SELECT_CPU_PROFILING: "0"
+          ORB_SELECT_NATIVE_TRACE: "1"
+        run: |
+          set -euo pipefail
+          context_root="$RUNNER_TEMP/select-native-trace-context"
+          mkdir -p "$context_root" reports/select-native-trace-context
+          ORB_SELECT_NATIVE_TRACE=0 pnpm test:ct --list --shard=4/4 --retries=0
+          cp reports/ct-report.json "$context_root/ordinary.json"
+          pnpm exec node scripts/select-cpu-diagnostic-context.ts create-native "$context_root/ordinary.json" "$context_root/cases.list"
+          pnpm test:ct --list --test-list="$context_root/cases.list" --retries=0
+          cp reports/ct-report.json "$context_root/selected.json"
+          pnpm exec node scripts/select-cpu-diagnostic-context.ts verify-native "$context_root/ordinary.json" "$context_root/selected.json"
+          cp "$context_root/ordinary.json" "$context_root/selected.json" "$context_root/cases.list" reports/select-native-trace-context/
           pnpm test:ct --test-list="$context_root/cases.list" --retries=0
       - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
