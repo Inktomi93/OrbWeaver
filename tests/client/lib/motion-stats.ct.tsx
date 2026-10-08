@@ -140,7 +140,7 @@ async function finishSelectTrace(page: Page, capture: TraceCapture, receipt: Sel
   expect(capture.events.some((event) => recordOf(event)?.["name"] === SELECT_TRACE_SYNC_MARK)).toBe(true);
 }
 
-async function attachNativeSelectSources(page: Page, capture: TraceCapture): Promise<void> {
+async function attachNativeSelectSources(page: Page, capture: TraceCapture, profileUrls: readonly string[] = []): Promise<void> {
   // Retention is diagnostic cleanup: an attachment failure must not replace a trace or budget failure.
   try {
     const scriptUrls = capture.events.flatMap((event) => {
@@ -150,7 +150,7 @@ async function attachNativeSelectSources(page: Page, capture: TraceCapture): Pro
     const receipt = await retainNativeSources({
       cacheDir: processEnvValue(CT_CACHE_DIR_ENV),
       pageUrl: page.url(),
-      scriptUrls,
+      scriptUrls: [...scriptUrls, ...profileUrls],
       attach: (name, options) => test.info().attach(name, options),
     });
     await test.info().attach(SELECT_NATIVE_SOURCES_ATTACHMENT, { body: JSON.stringify(receipt), contentType: "application/json" });
@@ -234,6 +234,7 @@ async function profileSelectOpening(page: Page, cdp: CDPSession, opening: () => 
   }
   let profilerEnabled = false;
   let profilerStarted = false;
+  let profileUrls: string[] = [];
   const [outcome] = await Promise.allSettled([
     (async (): Promise<MotionRead> => {
       // The trace owns another CDP session; establish the requested rate after its attachment.
@@ -254,6 +255,7 @@ async function profileSelectOpening(page: Page, cdp: CDPSession, opening: () => 
     try {
       if (profilerStarted) {
         const { profile } = await cdp.send("Profiler.stop");
+        profileUrls = profile.nodes.flatMap(({ callFrame }) => (callFrame.url === "" ? [] : [callFrame.url]));
         await test.info().attach("select-first-cpu-diagnostic", {
           body: JSON.stringify({ diagnosticOnly: true, qualification: false, cpuProfiling: SELECT_CPU_PROFILING, profile }),
           contentType: "application/json",
@@ -291,6 +293,8 @@ async function profileSelectOpening(page: Page, cdp: CDPSession, opening: () => 
     expect(controlCompiles.length).toBeGreaterThan(0);
   };
   const cleanupOutcomes = await Promise.allSettled([cpuCleanup(), traceCleanup()]);
+  // Sampled component bundles may have no timeline FunctionCall; retain both populations after measurement stops.
+  await attachNativeSelectSources(page, capture, profileUrls);
   const failures = cleanupOutcomes.flatMap((cleanup) => (cleanup.status === "rejected" ? [cleanup.reason] : []));
   if (failures.length > 0) {
     throw new AggregateError(outcome.status === "rejected" ? [outcome.reason, ...failures] : failures, "Select diagnostic cleanup failed");
