@@ -88,6 +88,8 @@ interface LoafScript {
   readonly forcedStyleAndLayoutDuration: number;
   readonly invoker: string;
   readonly sourceFunctionName: string;
+  readonly sourceCharPosition?: number;
+  readonly executionStart?: number;
 }
 interface LoafRecord {
   readonly startTime: number;
@@ -202,6 +204,8 @@ interface LoafScriptEntry {
   readonly forcedStyleAndLayoutDuration?: number;
   readonly invoker?: string;
   readonly sourceFunctionName?: string;
+  readonly sourceCharPosition?: number;
+  readonly executionStart?: number;
   readonly duration: number;
 }
 interface LoafEntry extends PerformanceEntry {
@@ -313,6 +317,8 @@ export function installMotionObservers(): void {
             forcedStyleAndLayoutDuration: Math.round(s.forcedStyleAndLayoutDuration ?? 0),
             invoker: s.invoker ?? "",
             sourceFunctionName: s.sourceFunctionName ?? "",
+            ...(s.sourceCharPosition === undefined ? {} : { sourceCharPosition: s.sourceCharPosition }),
+            ...(s.executionStart === undefined ? {} : { executionStart: s.executionStart }),
           })),
           ...(selectEntrance === undefined ? {} : { selectEntrance }),
         });
