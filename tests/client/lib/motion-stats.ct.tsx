@@ -75,6 +75,8 @@ const SOURCE_REQUEST_TIMEOUT_MS = 1000;
 const SOURCE_TOTAL_TIMEOUT_MS = 2000;
 const SOURCE_DEADLINE_CONTROL_MS = 200;
 const SELECT_CPU_DIAGNOSTIC_ENV = "ORB_SELECT_CPU_DIAGNOSTIC";
+const SELECT_CPU_PROFILING_ENV = "ORB_SELECT_CPU_PROFILING";
+const SELECT_CPU_PROFILING = processEnvValue(SELECT_CPU_PROFILING_ENV) !== "0";
 const SELECT_CPU_DIAGNOSTIC_RATE = 4;
 const SELECT_CPU_DIAGNOSTIC_ANNOTATION = {
   type: DIAGNOSTIC_ONLY_ANNOTATION,
@@ -98,10 +100,12 @@ async function profileSelectOpening(page: Page, cdp: CDPSession, opening: () => 
     (async (): Promise<MotionRead> => {
       // The trace owns another CDP session; establish the requested rate after its attachment.
       await cdp.send("Emulation.setCPUThrottlingRate", { rate: SELECT_CPU_DIAGNOSTIC_RATE });
-      await cdp.send("Profiler.enable");
-      profilerEnabled = true;
-      await cdp.send("Profiler.start");
-      profilerStarted = true;
+      if (SELECT_CPU_PROFILING) {
+        await cdp.send("Profiler.enable");
+        profilerEnabled = true;
+        await cdp.send("Profiler.start");
+        profilerStarted = true;
+      }
       await page.evaluate((name) => {
         performance.mark(name, {
           detail: {
@@ -122,7 +126,7 @@ async function profileSelectOpening(page: Page, cdp: CDPSession, opening: () => 
       if (profilerStarted) {
         const { profile } = await cdp.send("Profiler.stop");
         await test.info().attach("select-first-cpu-diagnostic", {
-          body: JSON.stringify({ diagnosticOnly: true, qualification: false, profile }),
+          body: JSON.stringify({ diagnosticOnly: true, qualification: false, cpuProfiling: SELECT_CPU_PROFILING, profile }),
           contentType: "application/json",
         });
         capturedSamples = profile.samples?.length ?? 0;
@@ -133,8 +137,8 @@ async function profileSelectOpening(page: Page, cdp: CDPSession, opening: () => 
         await cdp.send("Profiler.disable");
       }
     }
-    expect(capturedSamples).toBeGreaterThan(0);
-    expect(capturedFrames).toBe(true);
+    expect(capturedSamples > 0).toBe(SELECT_CPU_PROFILING);
+    expect(capturedFrames).toBe(SELECT_CPU_PROFILING);
   };
   const traceCleanup = async (): Promise<void> => {
     const traceError = await stopTrace(capture);
@@ -144,6 +148,7 @@ async function profileSelectOpening(page: Page, cdp: CDPSession, opening: () => 
       body: JSON.stringify({
         diagnosticOnly: true,
         qualification: false,
+        cpuProfiling: SELECT_CPU_PROFILING,
         traceEvents: capture.events,
         calibration: capture.calibration,
         timeOrigin,
@@ -518,7 +523,11 @@ if (processEnvValue(SELECT_CPU_DIAGNOSTIC_ENV) === "1") {
             ),
           );
           await test.info().attach("select-first-profiled-motion-diagnostic", {
-            body: JSON.stringify({ diagnosticOnly: true, qualification: false, motion, totals: loafTotals(motion) }, null, 2),
+            body: JSON.stringify(
+              { diagnosticOnly: true, qualification: false, cpuProfiling: SELECT_CPU_PROFILING, motion, totals: loafTotals(motion) },
+              null,
+              2,
+            ),
             contentType: "application/json",
           });
           expect(motion.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.firstForTrigger)).toBe(true);
@@ -540,11 +549,14 @@ if (processEnvValue(SELECT_CPU_DIAGNOSTIC_ENV) === "1") {
         );
         expect(openingError).toBe(failOpening ? failure : null);
         expect(test.info().attachments.map(({ name }) => name)).toContain("select-first-trace-diagnostic");
+        expect(test.info().attachments.some(({ name }) => name === "select-first-cpu-diagnostic")).toBe(SELECT_CPU_PROFILING);
         // A second start/stop succeeds only after the first capture released its profiler session.
-        await cdp.send("Profiler.enable");
-        await cdp.send("Profiler.start");
-        await cdp.send("Profiler.stop");
-        await cdp.send("Profiler.disable");
+        if (SELECT_CPU_PROFILING) {
+          await cdp.send("Profiler.enable");
+          await cdp.send("Profiler.start");
+          await cdp.send("Profiler.stop");
+          await cdp.send("Profiler.disable");
+        }
         const restarted = await startTrace(page);
         if (restarted.capture === null) {
           throw new Error(`Select diagnostic trace was not released: ${restarted.error ?? "missing capture"}`);

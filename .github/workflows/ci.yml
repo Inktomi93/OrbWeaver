@@ -38,6 +38,11 @@ on:
         type: choice
         options: [isolated, ct-shard-4]
         default: isolated
+      select_cpu_profiling:
+        description: Keep CPU profiling on, or capture trace-only evidence to measure profiler amplification; neither mode qualifies the commit.
+        type: choice
+        options: ["on", "off"]
+        default: "on"
 
 permissions:
   contents: read
@@ -410,12 +415,14 @@ jobs:
         if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' && inputs.select_cpu_diagnostic_context != 'ct-shard-4' }}
         env:
           ORB_SELECT_CPU_DIAGNOSTIC: "1"
+          ORB_SELECT_CPU_PROFILING: ${{ inputs.select_cpu_profiling == 'off' && '0' || '1' }}
         run: pnpm test:ct tests/client/lib/motion-stats.ct.tsx --grep='Select CPU diagnostic only' --retries=0
       - id: full-cpu-diagnostic
         name: Original CT shard 4 context with diagnostic-only captures (not qualification)
         if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' && inputs.select_cpu_diagnostic_context == 'ct-shard-4' }}
         env:
           ORB_SELECT_CPU_DIAGNOSTIC: "1"
+          ORB_SELECT_CPU_PROFILING: ${{ inputs.select_cpu_profiling == 'off' && '0' || '1' }}
         run: |
           set -euo pipefail
           context_root="$RUNNER_TEMP/select-cpu-diagnostic-context"
