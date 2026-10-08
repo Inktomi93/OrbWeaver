@@ -59,6 +59,9 @@ import { MotionAnchoredPortalStory, MotionShiftFlaggerStory, MotionVirtualizedSh
 import { SELECT_OPENING_TEST_CASES } from "./select-opening-cases.ts";
 import type { SelectOpeningProbe } from "./select-opening-fixtures.tsx";
 
+// Manufactured blocking controls must not run beside this file's cold-opening budget measurements.
+test.describe.configure({ mode: "default" });
+
 /** The score the flagger prints — `shift 0.1234`. */
 const SCORE_RE = /shift 0\.\d{4}/u;
 
