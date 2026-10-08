@@ -11,7 +11,7 @@ import { rowActionsName } from "@orb/client/lib";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_CHAT_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
 import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
@@ -1056,6 +1056,28 @@ function stubLorebooks(page: Page): Promise<TrpcRecorder> {
   });
 }
 
+async function openWorldBooksRack(component: Locator): Promise<void> {
+  await openContextSections(component, "World books");
+  // A clipped, opening panel can scroll a stable child into view, then move it again before mouse-up.
+  await expect
+    .poll(
+      () =>
+        component.getByRole("button", { name: /^World books/u }).evaluate((trigger) => {
+          const panelId = trigger.getAttribute("aria-controls");
+          const panel = panelId === null ? null : trigger.ownerDocument.getElementById(panelId);
+          return panel === null
+            ? null
+            : {
+                animations: panel.getAnimations().length,
+                clipped: panel.scrollHeight > panel.clientHeight,
+                scrolled: panel.scrollTop !== 0,
+              };
+        }),
+      { intervals: [20, 50, 100] },
+    )
+    .toEqual({ animations: 0, clipped: false, scrolled: false });
+}
+
 test("#640: the World books section renders directly after Documents, above the host-only band", async ({ mount, page }) => {
   await stubLorebooks(page);
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
@@ -1076,7 +1098,7 @@ test("#640: the rack SAYS what attaching permits — write reach, not just a ref
   // here), so a host granting it has to read that in words. A quiet row would be the affordance lie.
   await stubLorebooks(page);
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
-  await openContextSections(component, "World books");
+  await openWorldBooksRack(component);
 
   const section = component.locator("section").filter({ hasText: "Ashfall Canon" }).last();
   await expect(section.getByText("can write new entries into", { exact: false })).toBeVisible();
@@ -1088,29 +1110,33 @@ test("#640: the rack SAYS what attaching permits — write reach, not just a ref
 test("#640 host: attaching from the picker fires attachToChat with THAT book and this room", async ({ mount, page }) => {
   const trpc = await stubLorebooks(page);
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
-  await openContextSections(component, "World books");
+  await openWorldBooksRack(component);
 
   await component.getByRole("button", { name: "Attach a world book" }).click();
-  // The offer set is a real SUBTRACTION: the already-attached book is not offered back, the other one is.
-  await expect(page.getByRole("button", { name: "Attach Ashfall Canon to this chat" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Attach Session Notes to this chat" }).click();
+  const picker = page.getByRole("dialog", { name: "Attach a world book to this chat", exact: true });
+  await expect(picker).toBeVisible();
+  const offer = picker.getByRole("button", { name: "Attach Session Notes to this chat", exact: true });
+  await expect(offer).toBeVisible();
+  // An absent attached offer proves subtraction only after the picker and its candidate list have rendered.
+  await expect(picker.getByRole("button", { name: "Attach Ashfall Canon to this chat", exact: true })).toHaveCount(0);
+  await offer.click();
 
   await expect
     .poll(() => trpc.lastInput(ATTACH_BOOK), { intervals: [20, 50, 100] })
-    .toMatchObject({ bookId: "worldbook_ct_0000000000002", chatId: "chat_ct_keystone" });
+    .toEqual({ bookId: "worldbook_ct_0000000000002", chatId: "chat_ct_keystone" });
 });
 
 test("#640 host: the row's overflow menu detaches THIS book from THIS room", async ({ mount, page }) => {
   const trpc = await stubLorebooks(page);
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
-  await openContextSections(component, "World books");
+  await openWorldBooksRack(component);
 
   await component.getByRole("button", { name: rowActionsName("Ashfall Canon") }).click();
   await page.getByRole("menuitem", { name: "Detach from this chat" }).click();
 
   await expect
     .poll(() => trpc.lastInput(DETACH_BOOK), { intervals: [20, 50, 100] })
-    .toMatchObject({ bookId: "worldbook_ct_0000000000001", chatId: "chat_ct_keystone" });
+    .toEqual({ bookId: "worldbook_ct_0000000000001", chatId: "chat_ct_keystone" });
 });
 
 test("#640 member: the rows are visible, and there is NO attach and NO detach (permission-OMIT, not disabled)", async ({ mount, page }) => {
@@ -1126,7 +1152,7 @@ test("#640 member: the rows are visible, and there is NO attach and NO detach (p
     ...REGEX_READS,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
-  await openContextSections(component, "World books");
+  await openWorldBooksRack(component);
 
   await expect(component.getByRole("heading", { name: "World books 1", level: 3 })).toBeVisible();
   await expect(component.getByText("Ashfall Canon")).toBeVisible();
@@ -1149,7 +1175,7 @@ test("#640: a room with NO books attached says so rather than rendering an empty
     "chat.getChat": () => CHAT_DETAIL,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
-  await openContextSections(component, "World books");
+  await openWorldBooksRack(component);
 
   await expect(component.getByText("No world books are attached to this chat yet.")).toBeVisible();
   // A "0" chip would be noise — the heading stays the bare label (the count-chip rule).
