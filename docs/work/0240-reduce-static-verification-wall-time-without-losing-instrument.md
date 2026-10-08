@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-08
 priority: P3
 area: verification
-lane: main
 ---
 
 # Reduce static verification wall time without losing instrument proof
