@@ -226,6 +226,9 @@ function setupSteps(repoRoot: string): z.infer<typeof setupStep>[] {
   return z.object({ runs: z.object({ steps: z.array(setupStep) }) }).parse(parse(read(repoRoot, ".github/actions/setup/action.yml"))).runs.steps;
 }
 
+const SELECT_DIAGNOSTIC_TIMEOUT =
+  "${{ (inputs.select_cpu_diagnostic_context == 'ct-shard-4' || inputs.select_cpu_diagnostic_context == 'ct-shard-4-native') && 120 || 15 }}";
+
 const workflowConfig = z.object({
   jobs: z.record(
     z.string(),
@@ -234,7 +237,7 @@ const workflowConfig = z.object({
       if: z.string().optional(),
       env: z.record(z.string(), z.string()).optional(),
       strategy: z.object({ matrix: z.object({ shard: z.array(z.number()).optional() }) }).optional(),
-      "timeout-minutes": z.number().optional(),
+      "timeout-minutes": z.union([z.number(), z.literal(SELECT_DIAGNOSTIC_TIMEOUT)]).optional(),
       steps: z.array(setupStep),
     }),
   ),
@@ -268,6 +271,7 @@ test("CI gives the static floor its full budget", ({ repoRoot }) => {
   const jobs = workflowJobs(repoRoot, "ci");
   expect(jobs["qualification"]?.["timeout-minutes"]).toBe(330);
   expect(jobs["static"]?.["timeout-minutes"]).toBe(jobs["qualification"]?.["timeout-minutes"]);
+  expect(jobs["select-cpu-diagnostic"]?.["timeout-minutes"]).toBe(SELECT_DIAGNOSTIC_TIMEOUT);
 });
 
 test("static tooling qualification provisions the pinned Chromium and retains cache-hit dependencies and failed-install refusal", async ({

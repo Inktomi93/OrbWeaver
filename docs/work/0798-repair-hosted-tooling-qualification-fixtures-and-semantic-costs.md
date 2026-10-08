@@ -23,4 +23,6 @@ Preserve authority, admission arithmetic, test populations and product budgets. 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Hosted non-corpus tooling fails only the workflow reader's numeric-only timeout schema.
+
+The bounded diagnostic timeout expression is now validated explicitly. The affected native release suite reproduces the parser failure before repair and passes after repair. Hosted qualification remains required.
