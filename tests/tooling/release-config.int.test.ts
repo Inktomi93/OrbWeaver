@@ -7,10 +7,15 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { releaseTagRef } from "@orb/kit/version-identity";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
-import type { SpawnNicedOptions } from "@orb/tooling/_shared/proc";
-import { spawnNiced } from "@orb/tooling/_shared/proc";
+import type { SpawnNicedOptions, TranscriptResult } from "@orb/tooling/_shared/proc";
+import { spawnNiced, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
+import { inheritedProcessEnv, withProcessEnv } from "@orb/tooling/_shared/process-env";
+import { SEMANTIC_CORPUS_RESOURCE } from "@orb/tooling/_shared/test-kinds";
 import { parse } from "yaml";
 import { z } from "zod";
+import { INSTRUMENT_EXECUTION_COMPONENT_ENV } from "../../tooling/src/verify/contract/instrument-affected.ts";
+import { VERIFY_TOOL_MODE_ENV } from "../../tooling/src/verify/contract/qualification.ts";
+import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../../tooling/src/verify/contract/selection.ts";
 import { expect, fixturePath, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
@@ -224,8 +229,10 @@ const workflowConfig = z.object({
   jobs: z.record(
     z.string(),
     z.object({
+      name: z.string().optional(),
       if: z.string().optional(),
       env: z.record(z.string(), z.string()).optional(),
+      strategy: z.object({ matrix: z.object({ shard: z.array(z.number()).optional() }) }).optional(),
       "timeout-minutes": z.number().optional(),
       steps: z.array(setupStep),
     }),
@@ -257,7 +264,9 @@ test("published-image scans cannot turn registry failure into a successful skip"
 });
 
 test("CI gives the static floor its full budget", ({ repoRoot }) => {
-  expect(workflowJobs(repoRoot, "ci")["static"]?.["timeout-minutes"]).toBe(120);
+  const jobs = workflowJobs(repoRoot, "ci");
+  expect(jobs["qualification"]?.["timeout-minutes"]).toBe(330);
+  expect(jobs["static"]?.["timeout-minutes"]).toBe(jobs["qualification"]?.["timeout-minutes"]);
 });
 
 test("static tooling qualification provisions the pinned Chromium and retains cache-hit dependencies and failed-install refusal", async ({
@@ -268,7 +277,10 @@ test("static tooling qualification provisions the pinned Chromium and retains ca
   const steps = workflowJobs(repoRoot, "ci")["static"]?.steps ?? [];
   const setup = steps.find((step) => step.uses === "$/.github/actions/setup");
   expect(setup?.with?.["browsers"]).toBe("true");
-  expect(steps.findIndex((step) => step.uses === "$/.github/actions/setup")).toBeLessThan(steps.findIndex((step) => step.run === "pnpm check"));
+  const proof = steps.findIndex((step) => step.name === "${{ env.ORB_CI_QUALIFICATION_GENERATION }}");
+  expect(proof).toBeGreaterThan(-1);
+  expect(steps[proof]?.run).toBe("pnpm check --verbose");
+  expect(steps.findIndex((step) => step.uses === "$/.github/actions/setup")).toBeLessThan(proof);
   const composite = setupSteps(repoRoot);
   const version = composite.find((step) => step.id === "playwright");
   expect(version?.run).toContain("pnpm exec playwright --version");
@@ -287,8 +299,8 @@ test("static tooling qualification provisions the pinned Chromium and retains ca
     [true, 71],
   ] as const) {
     const selected = cacheHit ? warm : cold;
-    const proof = join(scratch, "proof-ready");
-    await writeFile(proof, "");
+    const ready = join(scratch, "proof-ready");
+    await writeFile(ready, "");
     const result = await spawnNiced("bash", ["-euo", "pipefail", "-c", `${selected?.run ?? ""}\nprintf ready > proof-ready`], {
       cwd: scratch,
       env: { ["PROVISION_EXIT"]: String(exit) },
@@ -297,7 +309,7 @@ test("static tooling qualification provisions the pinned Chromium and retains ca
     expect(JSON.parse(read(scratch, "browser-call.json"))).toEqual(
       cacheHit ? ["exec", "playwright", "install-deps", "chromium"] : ["exec", "playwright", "install", "--with-deps", "chromium"],
     );
-    expect(readFileSync(proof, "utf8")).toBe(exit === 0 ? "ready" : "");
+    expect(readFileSync(ready, "utf8")).toBe(exit === 0 ? "ready" : "");
   }
 });
 
@@ -310,14 +322,22 @@ test("CI preserves successful retry artifacts", ({ repoRoot }) => {
   }
 });
 
+const QUALIFICATION_CONTEXT = [VERIFY_BASE_ENV, VERIFY_HEAD_ENV, VERIFY_TOOL_MODE_ENV, INSTRUMENT_EXECUTION_COMPONENT_ENV] as const;
+const ISOLATED_QUALIFICATION_ENV = {
+  [VERIFY_BASE_ENV]: undefined,
+  [VERIFY_HEAD_ENV]: undefined,
+  [VERIFY_TOOL_MODE_ENV]: undefined,
+  [INSTRUMENT_EXECUTION_COMPONENT_ENV]: undefined,
+};
 const QUALIFIED_DIFF_API = [
   "import fs from 'node:fs';const [command,endpoint]=process.argv.slice(2);const proof=JSON.parse(fs.readFileSync('api-proof.json','utf8'));",
+  `if(${JSON.stringify(QUALIFICATION_CONTEXT)}.some(key=>process.env[key]!==undefined)){process.stderr.write('inherited qualification context');process.exit(73);}`,
   "if(command!=='api'||!endpoint.startsWith('repos/'+proof.repository+'/actions/'))process.exit(74);",
-  "const run={id:1,workflow_id:7,run_attempt:1,head_sha:proof.base,head_branch:'main',event:'push',status:'completed',conclusion:'success',repository:{full_name:proof.repository}};",
+  "const run={id:1,workflow_id:7,run_attempt:proof.attempt??1,head_sha:proof.base,head_branch:'main',event:'push',status:'completed',conclusion:'success',repository:{full_name:proof.repository}};",
   "let response;if(endpoint.endsWith('/workflows/ci.yml'))response={id:7,path:'.github/workflows/ci.yml'};",
-  "else if(endpoint.includes('/workflows/7/runs?'))response={total_count:endpoint.includes('head_sha='+proof.base)?1:0,workflow_runs:endpoint.includes('head_sha='+proof.base)?[run]:[]};",
+  "else if(endpoint.includes('/workflows/7/runs?')){const sha=new URL('https://fixture.invalid/'+endpoint).searchParams.get('head_sha');const present=sha===null||sha===proof.base;response={total_count:present?1:0,workflow_runs:present?[run]:[]};}",
   "else if(endpoint.endsWith('/runs/1'))response=run;",
-  "else if(endpoint.includes('/runs/1/attempts/1/jobs?'))response={total_count:1,jobs:[{id:1,run_id:1,head_sha:proof.base,name:'static',status:'completed',conclusion:'success',steps:[{name:proof.generation,status:'completed',conclusion:'success'}]}]};",
+  "else if(endpoint.includes('/runs/1/attempts/'+run.run_attempt+'/jobs?')){const jobs=proof.jobs.map((name,index)=>({id:index+1,run_id:1,run_attempt:name==='static'?run.run_attempt:proof.corpusAttempt??run.run_attempt,head_sha:proof.base,name,status:'completed',conclusion:'success',steps:[{name:proof.generation,status:'completed',conclusion:'success'}]}));response={total_count:jobs.length,jobs};}",
   "else process.exit(74);process.stdout.write(JSON.stringify(response));",
 ].join("\n");
 
@@ -328,6 +348,13 @@ test("CI's actual diff classifier treats agent hooks and configs as code, not do
   const script = invocation.replace("scripts/ci-qualification.ts", JSON.stringify(join(repoRoot, "scripts/ci-qualification.ts")));
   const workflow = read(repoRoot, ".github/workflows/ci.yml");
   const environment = z.object({ env: z.record(z.string(), z.string()) }).parse(parse(workflow)).env;
+  const corpus = workflowJobs(repoRoot, "ci")[SEMANTIC_CORPUS_RESOURCE];
+  const corpusName = z.string().parse(corpus?.name);
+  const shards = z.array(z.number()).parse(corpus?.strategy?.matrix.shard);
+  const proofJobs = [
+    "static",
+    ...shards.map((shard) => corpusName.replace("${{ matrix.shard }}", String(shard)).replace("${{ strategy.job-total }}", String(shards.length))),
+  ];
   const runtime = z.object({ devEngines: z.json(), packageManager: z.string() }).parse(JSON.parse(read(repoRoot, "package.json")));
   const tree = await plantedTree({
     "README.md": "base\n",
@@ -349,17 +376,25 @@ test("CI's actual diff classifier treats agent hooks and configs as code, not do
   const base = commit();
   let previous = base;
   const output = join(scratch, "diff-output");
+  const classify = (before: string, head: string): Promise<TranscriptResult> =>
+    spawnNicedTranscript("bash", ["-euo", "pipefail", "-c", script], {
+      cwd: tree,
+      env: inheritedProcessEnv({ ...ISOLATED_QUALIFICATION_ENV, ["BEFORE"]: before, ["GITHUB_SHA"]: head, ["GITHUB_OUTPUT"]: output }),
+      timeoutMs: scaledBudget(60_000),
+    });
   const run = async (qualified: string, before: string, head: string): Promise<string> => {
     await writeFile(
       join(tree, "api-proof.json"),
-      JSON.stringify({ base: qualified, repository: environment["ORB_CI_REPOSITORY"], generation: environment["ORB_CI_QUALIFICATION_GENERATION"] }),
+      JSON.stringify({
+        base: qualified,
+        repository: environment["ORB_CI_REPOSITORY"],
+        generation: environment["ORB_CI_QUALIFICATION_GENERATION"],
+        jobs: proofJobs,
+      }),
     );
     await writeFile(output, "");
-    const result = await spawnNiced("bash", ["-euo", "pipefail", "-c", script], {
-      cwd: tree,
-      env: { ["BEFORE"]: before, ["GITHUB_SHA"]: head, ["GITHUB_OUTPUT"]: output },
-    });
-    expect(result.code, `${result.stdout}${result.stderr}\n${execFixtureGit(tree, ["status", "--porcelain=v1", "--untracked-files=all"])}`).toBe(0);
+    const result = await classify(before, head);
+    expect(result.code, `${result.transcript}\n${execFixtureGit(tree, ["status", "--porcelain=v1", "--untracked-files=all"])}`).toBe(0);
     return readFileSync(output, "utf8");
   };
   for (const [path, expected] of [
@@ -384,9 +419,29 @@ test("CI's actual diff classifier treats agent hooks and configs as code, not do
       `base=${base}\nhead=${previous}\nevent_base=${before}\ncode=true\ntool_mode=affected\nauthority=qualified\n`,
     );
   }
-  const malformed = await spawnNiced("bash", ["-euo", "pipefail", "-c", script], { cwd: tree, env: { ["BEFORE"]: "HEAD^", ["GITHUB_SHA"]: previous } });
+  for (const key of QUALIFICATION_CONTEXT) {
+    await withProcessEnv(key, "hosted-context", async () => {
+      expect(await run(base, base, previous)).toContain("authority=qualified\n");
+    });
+  }
+  for (const proof of [
+    { jobs: proofJobs.slice(0, 1), attempt: 1, corpusAttempt: 1 },
+    { jobs: proofJobs.slice(0, 2), attempt: 1, corpusAttempt: 1 },
+    { jobs: proofJobs, attempt: 2, corpusAttempt: 1 },
+  ]) {
+    await writeFile(
+      join(tree, "api-proof.json"),
+      JSON.stringify({ base, repository: environment["ORB_CI_REPOSITORY"], generation: environment["ORB_CI_QUALIFICATION_GENERATION"], ...proof }),
+    );
+    await writeFile(output, "");
+    const refused = await classify(base, previous);
+    expect(refused.code, refused.transcript).toBe(2);
+    expect(refused.transcript).toContain("admitted publication is not an ancestor");
+    expect(readFileSync(output, "utf8")).toBe("");
+  }
+  const malformed = await classify("HEAD^", previous);
   expect(malformed.code).toBe(3);
-  expect(malformed.stderr).toContain("CI event base must be empty or a commit ID");
+  expect(malformed.transcript).toContain("CI event base must be empty or a commit ID");
 });
 
 test("stable publication rejects a wrong source stamp or OCI revision before scanning and publishing", async ({ repoRoot, fakeBin }) => {
