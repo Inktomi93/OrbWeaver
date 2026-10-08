@@ -365,6 +365,63 @@ describe("resolveSpaDistDir", () => {
 });
 
 describe("SPA early hints", () => {
+  test.each([
+    ["abrupt empty comment", "<!-->"],
+    ["abrupt dashed empty comment", "<!--->"],
+    ["ordinary closed comment", '<!-- <script type="module" src="/assets/hidden.js"></script> -->'],
+    ["alternate closed comment", '<!-- <script type="module" src="/assets/hidden.js"></script> --!>'],
+  ])("preserves hints following an %s", async (_name, fragment) => {
+    const root = await mkdtemp(join(distDir, "following-comment-hints-"));
+    await mkdir(join(root, "assets"));
+    await writeFile(join(root, "assets", "real.js"), HASHED_JS);
+    await writeFile(join(root, "assets", "hidden.js"), HASHED_JS);
+    const html = `${fragment}<script type="module" src="/assets/real.js"></script>`;
+    await writeFile(join(root, "index.html"), html);
+    const isolated = new Hono();
+    registerSpa(isolated, { distDir: root });
+    const sent: string[][] = [];
+    const res = await isolated.fetch(new Request("http://localhost/", { headers: NAV_HEADERS }), {
+      outgoing: {
+        headersSent: false,
+        writeEarlyHints: ({ link }: { link: string[] }): void => {
+          sent.push(link);
+        },
+      },
+    });
+    expect(res.status).toBe(OK);
+    expect(await res.text()).toBe(html);
+    expect(sent).toEqual([["</assets/real.js>; rel=modulepreload; crossorigin"]]);
+  });
+
+  test.each([
+    ["enclosed tag", '<!-- <script type="module" src="/assets/hidden.js"></script> -->'],
+    ["split tag name", '<scr<!-- ignored -->ipt type="module" src="/assets/hidden.js"></script>'],
+    ["split asset path", '<script type="module" src="/assets/hid<!-- ignored -->den.js"></script>'],
+    ["alternate comment close", '<!-- <script type="module" src="/assets/hidden.js"></script> --!>'],
+    ["unclosed comment", '<!-- <script type="module" src="/assets/hidden.js"></script>'],
+  ])("does not manufacture hints from a %s", async (_name, fragment) => {
+    const root = await mkdtemp(join(distDir, "comment-hints-"));
+    await mkdir(join(root, "assets"));
+    await writeFile(join(root, "assets", "real.js"), HASHED_JS);
+    await writeFile(join(root, "assets", "hidden.js"), HASHED_JS);
+    const html = `<script type="module" src="/assets/real.js"></script>${fragment}`;
+    await writeFile(join(root, "index.html"), html);
+    const isolated = new Hono();
+    registerSpa(isolated, { distDir: root });
+    const sent: string[][] = [];
+    const res = await isolated.fetch(new Request("http://localhost/", { headers: NAV_HEADERS }), {
+      outgoing: {
+        headersSent: false,
+        writeEarlyHints: ({ link }: { link: string[] }): void => {
+          sent.push(link);
+        },
+      },
+    });
+    expect(res.status).toBe(OK);
+    expect(await res.text()).toBe(html);
+    expect(sent).toEqual([["</assets/real.js>; rel=modulepreload; crossorigin"]]);
+  });
+
   test("refreshes hints when a deployment replaces the HTML while the server stays up", async () => {
     const root = join(distDir, "redeployed-hints");
     await mkdir(join(root, "assets"), { recursive: true });

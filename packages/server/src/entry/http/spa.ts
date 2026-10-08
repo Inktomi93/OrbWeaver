@@ -81,9 +81,10 @@ function selectEncoding(header: string | undefined, file: string, runtimeCompres
 }
 
 function assetHints(distDir: string): string[] {
-  const html = readFileSync(join(distDir, "index.html"), "utf8").replace(/<!--[\s\S]*?-->/g, "");
+  const html = readFileSync(join(distDir, "index.html"), "utf8");
   const hints = new Set<string>();
-  for (const [, tag = "", attributes = ""] of html.matchAll(/<(script|link)\b([^>]*)>/giu)) {
+  // Consume comments without joining their neighbors into tags or asset paths that the document never contained.
+  for (const [, tag = "", attributes = ""] of html.matchAll(/<!--(?:-?>|[\s\S]*?(?:--!?>|$))|<(script|link)\b([^>]*)>/giu)) {
     const script = tag.toLowerCase() === "script" && /\btype\s*=\s*["']module["']/iu.test(attributes);
     const stylesheet = /\brel\s*=\s*["']stylesheet["']/iu.test(attributes);
     const modulepreload = /\brel\s*=\s*["']modulepreload["']/iu.test(attributes);
