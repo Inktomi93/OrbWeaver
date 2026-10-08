@@ -1,5 +1,5 @@
 // The internal protocol between the affected-instrument stage and the real-corpus liveness entries.
-// An absent value means the whole roster: direct suite runs, `tests:tooling`, and every full-tier proof
+// An absent value means the whole roster: direct suite runs, `tests:tooling`, and weekly full proof
 // therefore retain the complete corpus. Only ops/instrument-affected.ts may mint a narrowed policy list,
 // after its source graph has proved which gate modules the changed sources reach.
 import type { NativeNodeShard } from "./scoped-test.ts";

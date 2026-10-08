@@ -68,78 +68,21 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
     scopedArgv: vitestScopedArgv,
   },
   {
-    // THE INSTRUMENT BATTERY, OFF THE PUSH BAR ENTIRELY (#1523 split it; #1842 finished the cut).
-    // Measured 2026-09-04 over 1,867 files: `tests/tooling` was 71.1 CPU-min across 284 files against 9.0
-    // for tests/server's 1,185 and 1.3 for everything else — 82% of the node battery, all of it
-    // recertifying OUR TOOLS. Owner 2026-09-04: "about 30 minutes of tooling recertification, which makes
-    // it tedious to run tests… move that to verify --full"; owner 2026-09-06: "take tooling out of the
-    // verify push and into full". #1523's first cut kept a CONDITIONAL push rung (run it when the branch
-    // touched an instrument) — that rung is GONE: a tooling diff pays this cost at `--full` or through
-    // `pnpm test:tooling` by hand, and `--push` never spawns it. The `tierPrecondition` MECHANISM stays in
-    // the stage contract (contract/stage.ts) for the next row that needs it; this row's push-tier DATA is
-    // what was deleted, along with the predicate it hung on (lib/registry-preconditions.ts).
-    //
-    // The full instrument battery includes its parallel and remaining serial projects.
     name: "tests:tooling",
     group: "tests",
-    tiers: ["full"],
+    tiers: ["weekly"],
     argv: ["pnpm", "test:tooling"],
     hangCeilingBaseMs: toolingSuiteHangCeilingMs(),
     classify: ownScheme,
-    // Whole-only by nature, and that is only honest because `tests:node`'s scoped path delegates to
-    // Vitest's native configured projects, so a tooling source still reaches its related tests at
-    // `changed`. A second row at `changed` would spawn a second Vitest over the same selection.
   },
   {
-    // THE AFFECTED SUBSET OF THE BATTERY, BELOW `--full` (#1967). #1842 took the 71-CPU-minute instrument
-    // battery off the push bar and that placement is NOT reverted — but it left every proof a policy
-    // carries that a declared row cannot express (the §4.2 identity arm, the central grant table's
-    // identity/duplicate/stale boundaries, the §4.5 refusal and receipt pins) running at `--full` and
-    // NOWHERE ELSE. Measured twice at five days each: `registry-family.test.ts` red from `40f2b3014a` (95
-    // refused proof rows across eight policies, #1953) and `static-class-consumers.int.test.ts` red from
-    // `0cd914649a` (#1956). Both commits ran and passed their named scoped floor; neither touched a family
-    // test, which is why the prose per-conversion floor rule did not fire — and per constitution §2 a
-    // prose-only boundary is not a placement, it is a wish.
-    //
-    // THIS ROW IS THE NARROW THING: the family tests of the instruments the BRANCH changed, reached
-    // through the shared test mirror AND through the gate-ID string (a family test routinely lives under
-    // its WAVE's name, so the mirror alone misses it). A branch that touched no `tooling/src` source runs
-    // NOTHING and exits clean in well under a second; a branch that touched one pays for that one.
     name: "tests:instrument-affected",
     group: "tests",
-    tiers: ["static", "push", "full"],
-    argv: ["pnpm", "check:instrument-affected"],
-    // Unknown branch reach runs the full battery, so it needs that battery's derived hang ceiling.
+    tiers: ["manual"],
+    argv: ["pnpm", "check:instrument-affected", "--weekly", "--affected"],
     hangCeilingBaseMs: toolingSuiteHangCeilingMs(),
-    // Our OWN 0/1/2/3-speaking op: a changed instrument reaching no spec is VIOLATIONS (1), never a clean
-    // zero, and an uncomputable branch answer runs the whole battery rather than selecting nothing.
     classify: ownScheme,
-    // NO `scopedArgv` HERE, ON PURPOSE: the stage COMPUTES its own selection from the branch diff, so a
-    // second scoped derivation would either duplicate or narrow it. That makes it a whole-only static row,
-    // which means `WHOLE_COMMAND_PATH_TRIGGERS` (lib/registry-triggers.ts) owns its cheap-skip — it is
-    // authored with `static` and the trigger table DECORATES it into `changed` with a
-    // `tooling/src/**`-or-`tests/tooling/**` gate, so a product-only change pays nothing and a lane's own
-    // `verify --changed` recertifies the instruments it touched. `applyPathTriggers` THROWS on a whole-only
-    // static row missing from that table, which is how this row's accounting was forced at authoring time.
-  },
-  {
-    name: "tests:tool-guard",
-    group: "tests",
-    // THE ONE INSTRUMENT WHOSE PIN CANNOT WAIT FOR `--full` (#1943 F3). The #1842 cut is right about the
-    // battery — 71 CPU-minutes of instrument recertification does not belong on the push bar — but it
-    // left the PreToolUse Bash guard (.claude/hooks/tool-guard.mjs) with NO executing check below
-    // `--full`: nothing lints it (see `lint:hook-syntax`), and its only behavioural proof lived in the
-    // `--full`-only battery. The guard gates every Bash call in every session, it fails OPEN by contract,
-    // and it is edited by lanes — so its contract rows (rewrite template, hard floor, fail-open, kill
-    // switch, wire shape) are a PUSH-tier fact. 2.35 s measured for the whole file, which is why the row
-    // is the file rather than a subset: a pin nobody can name is a pin nobody runs.
-    // It runs a SECOND time inside `tests:tooling` at `--full`; that duplication costs seconds and keeps
-    // the battery's membership honest (the file is a tooling test and stays one).
-    tiers: ["push", "full"],
-    argv: ["pnpm", "test:scoped", "tests/tooling/tool-guard.int.test.ts"],
-    classify: ownScheme,
-    // Whole-only BY NATURE: the stage IS one file. At a scoped tier the guard's own diff reaches this
-    // test through `tests:node`'s native related-tests resolution, exactly like any other tooling source.
+    manualReason: "Explicit weekly-owned affected recertification; ordinary tiers never invoke it. Named focused tests use test:scoped.",
   },
   {
     name: "browser:ct",
@@ -154,8 +97,7 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
     // `--retries=2` rides the argv VISIBLY (parallelism flakes retry instead of blocking a push); ad-hoc
     // `pnpm test:ct` keeps the config's retries:0 for debugging. It moved here from the `pnpm test`
     // composite with the stage.
-    argv: ["pnpm", "test:ct", "--retries=2"],
-    tierArgv: { product: ["pnpm", "test:ct", "--retries=2", "--config=playwright-ct.product.config.ts"] },
+    argv: ["pnpm", "test:ct", "--retries=2", "--config=playwright-ct.product.config.ts"],
     // The launcher's own exit contract: a CT run that could not launch its browser is 2, never failed tests.
     classify: ownScheme,
     // DERIVED, never typed: ctWorkers moves the CT wall clock, so it moves this ceiling too (lib/stage-budget.ts).
@@ -163,7 +105,7 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
     // The scoped CT invocation enters the same launcher as every other CT run: that is where one run slot
     // is opened before Playwright evaluates its config in several processes. Retries remain 0 (the config
     // default), so the small inner-loop selection still reports raw signal. skip ⇒ no CT-relevant change.
-    scopedArgv: (sel) => (sel.ct.mode === "skip" ? "skip-empty" : ["pnpm", "test:ct", ...sel.ct.targets]),
+    scopedArgv: (sel) => (sel.ct.mode === "skip" ? "skip-empty" : ["pnpm", "test:ct", ...sel.ct.targets, "--config=playwright-ct.product.config.ts"]),
   },
   {
     name: "browser:e2e-smoke",

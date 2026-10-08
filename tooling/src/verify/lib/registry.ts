@@ -194,17 +194,9 @@ const GATING_STAGES: readonly StageDef[] = [
   {
     name: "structure:policy-conformance",
     group: "structure",
-    tiers: ["static", "push", "full"],
+    tiers: ["weekly"],
     argv: ["pnpm", "check:policy-conformance"],
-    // THE WHOLE-CORPUS CONFORMANCE STAGE (#1941, docs/law/gate-runtime-standardization.md §6.6): every final
-    // defineGate policy's own mustFlag/mustPass rows through the production dispatcher, on every `pnpm check`.
-    // Before it, a converted policy's rows ran only where a committed family test imported the module — and
-    // 21 of 163 were imported by none. Our OWN 0/1/2/3-speaking op (ops/policy-conformance-stage.ts): a failed
-    // proof is exit 2 (the checker's claim about itself broke), zero final policies is exit 2 (a bare zero).
     classify: ownScheme,
-    // WHOLE-TREE by nature — a policy's proofs are its own fixtures, not a property of any changed file, and
-    // the roster is the whole corpus. NO `scopedArgv` ⇒ deferred at a scoped tier; `structure:full`'s scoped
-    // path already runs the changed files through the same dispatcher.
   },
 
   {

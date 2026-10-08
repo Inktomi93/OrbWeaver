@@ -32,7 +32,7 @@ function fixtureSpec(name: string): string {
 import { appendFileSync } from "node:fs";
 import "../../tooling/src/verify/gates/focus.ts";
 test(${JSON.stringify(name)},()=>{
-for(const key of ["ORB_VERIFY_BASE","ORB_VERIFY_HEAD","ORB_VERIFY_TOOL_MODE","ORB_VERIFY_INSTRUMENT_COMPONENT"])expect(process.env[key]).toBeUndefined();
+for(const key of ["ORB_VERIFY_BASE","ORB_VERIFY_HEAD","ORB_VERIFY_INSTRUMENT_COMPONENT"])expect(process.env[key]).toBeUndefined();
 appendFileSync("executed.jsonl",JSON.stringify(${JSON.stringify(name)})+"\\n");
 expect(process.env.FIXTURE_FAIL_FILE).not.toBe(${JSON.stringify(name)});
 });`;
@@ -85,7 +85,7 @@ export default defineConfig({plugins:[{name:"dispose-control",closeBundle(){appe
   await expect(collectNodeShards(root, "foreign", 2)).rejects.toThrow();
 });
 
-test("event-owned components execute exactly the native shard or non-corpus population and preserve red exits", { timeout: scaledBudget(180_000) }, async ({
+test("weekly-owned components execute exactly the native shard or non-corpus population and preserve red exits", { timeout: scaledBudget(180_000) }, async ({
   plantedTree,
   repoRoot,
   runCli,
@@ -107,12 +107,11 @@ test("event-owned components execute exactly the native shard or non-corpus popu
   git(root, ["init", "--quiet", "--initial-branch=main"]);
   git(root, ["add", "."]);
   git(root, ["commit", "--quiet", "-m", "baseline"]);
-  const base = git(root, ["rev-parse", "HEAD"]);
   writeFileSync(join(root, SOURCE), 'export const gate = {id:"focus"};export const value=2;');
   git(root, ["add", "."]);
   git(root, ["commit", "--quiet", "-m", "event"]);
   const head = git(root, ["rev-parse", "HEAD"]);
-  const boundary = { ["ORB_VERIFY_BASE"]: base, ["ORB_VERIFY_HEAD"]: head, ["ORB_VERIFY_TOOL_MODE"]: "full" };
+  const boundary = { ["ORB_VERIFY_BASE"]: "invalid", ["ORB_VERIFY_HEAD"]: "invalid" };
   const collected = await collectNodeShards(root, SEMANTIC_CORPUS_RESOURCE, 2);
   for (const [component, shard, expected] of [
     ["all", undefined, [PLAIN, ...CORPUS]],
@@ -121,7 +120,7 @@ test("event-owned components execute exactly the native shard or non-corpus popu
     ["corpus", "2/2", collected.shards[1]],
   ] as const) {
     writeFileSync(join(root, "executed.jsonl"), "");
-    const result = await runCli("verify", ["instrument-affected", ...(shard === undefined ? [] : [`--shard=${shard}`])], {
+    const result = await runCli("verify", ["instrument-affected", "--weekly", ...(shard === undefined ? [] : [`--shard=${shard}`])], {
       cwd: root,
       env: { ...boundary, [INSTRUMENT_EXECUTION_COMPONENT_ENV]: component },
     });
@@ -137,7 +136,7 @@ test("event-owned components execute exactly the native shard or non-corpus popu
     if (failing === undefined) {
       throw new Error("native partition lost its population");
     }
-    const red = await runCli("verify", ["instrument-affected", ...(shard === undefined ? [] : [`--shard=${shard}`])], {
+    const red = await runCli("verify", ["instrument-affected", "--weekly", ...(shard === undefined ? [] : [`--shard=${shard}`])], {
       cwd: root,
       env: { ...boundary, [INSTRUMENT_EXECUTION_COMPONENT_ENV]: component, ["FIXTURE_FAIL_FILE"]: failing },
     });
@@ -152,7 +151,7 @@ test("event-owned components execute exactly the native shard or non-corpus popu
     ["all", [PLAIN]],
     ["all", ["--project=unit"]],
   ] as const) {
-    const refused = await runCli("verify", ["instrument-affected", ...args], {
+    const refused = await runCli("verify", ["instrument-affected", "--weekly", ...args], {
       cwd: root,
       env: { ...boundary, [INSTRUMENT_EXECUTION_COMPONENT_ENV]: component },
     });
@@ -167,12 +166,11 @@ test("event-owned components execute exactly the native shard or non-corpus popu
   const productHead = git(root, ["rev-parse", "HEAD"]);
   writeFileSync(join(root, "executed.jsonl"), "");
   for (const component of ["non-corpus", "corpus"]) {
-    const noop = await runCli("verify", ["instrument-affected", ...(component === "corpus" ? ["--shard=2/2"] : [])], {
+    const noop = await runCli("verify", ["instrument-affected", "--weekly", "--affected", ...(component === "corpus" ? ["--shard=2/2"] : [])], {
       cwd: root,
       env: {
         ["ORB_VERIFY_BASE"]: head,
         ["ORB_VERIFY_HEAD"]: productHead,
-        ["ORB_VERIFY_TOOL_MODE"]: "affected",
         [INSTRUMENT_EXECUTION_COMPONENT_ENV]: component,
       },
     });
@@ -180,5 +178,5 @@ test("event-owned components execute exactly the native shard or non-corpus popu
     expect(noop.stdout).toContain("no affected native tooling inputs in measured");
   }
   expect(readFileSync(join(root, "executed.jsonl"), "utf8")).toBe("");
-  expect(existsSync(join(root, "reports"))).toBe(true);
+  expect(existsSync(join(root, "reports/test-report-tooling.json"))).toBe(true);
 });

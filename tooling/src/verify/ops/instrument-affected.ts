@@ -1,7 +1,5 @@
-// Affected tooling qualification uses an explicit CI-event/train range when supplied, otherwise the local publish delta.
-// Native changed tests join source mirror/import/policy-ID reach. Deleted inputs and executable configuration
-// need conservative proof because the current import graph cannot establish their prior reach.
-// The real-corpus liveness suite narrows only after proven policy reach; direct full runs retain its complete corpus.
+// Weekly-owned checker recertification reuses native populations and shard controls.
+// Full proof needs no Git baseline; --affected retains conservative selection only under explicit weekly ownership.
 import process from "node:process";
 import { parseArgs } from "node:util";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
@@ -20,7 +18,6 @@ import type {
   InstrumentExecutionComponent,
 } from "../contract/instrument-affected.ts";
 import { INSTRUMENT_AFFECTED_POLICIES_ENV, INSTRUMENT_EXECUTION_COMPONENT_ENV, INSTRUMENT_EXECUTION_COMPONENTS } from "../contract/instrument-affected.ts";
-import { VERIFY_TOOL_MODE_ENV, VERIFY_TOOL_MODES } from "../contract/qualification.ts";
 import type { NativeNodeShard } from "../contract/scoped-test.ts";
 import type { MeasurementBoundary } from "../contract/selection.ts";
 import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../contract/selection.ts";
@@ -30,7 +27,7 @@ import { isRunnableToolingSpec, toolingImportReach, toolingTestsNaming } from ".
 import { existsRel, publishChangedPaths, resolveMeasurementBoundary, resolvePublishBase } from "../lib/repo-paths.ts";
 import { collectNodeShards } from "./scoped-test.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm verify --push  /  pnpm check:instrument-affected");
+refuseDirectInvocation(import.meta.url, "pnpm verify --weekly  /  pnpm check:instrument-affected --weekly --affected");
 
 const INSTRUMENT_SRC_PREFIX = "tooling/src/";
 const GATES_PREFIX = "tooling/src/verify/gates/";
@@ -53,13 +50,7 @@ function executionComponent(): InstrumentExecutionComponent {
   return found;
 }
 
-function nativeShard(rest: readonly string[], component: InstrumentExecutionComponent): NativeNodeShard | undefined {
-  let raw: string | undefined;
-  try {
-    raw = parseArgs({ args: [...rest], options: { shard: { type: "string" } }, strict: true, allowPositionals: false }).values.shard;
-  } catch (error) {
-    throw new UsageError(error instanceof Error ? error.message : String(error), { cause: error });
-  }
+function nativeShard(raw: string | undefined, component: InstrumentExecutionComponent): NativeNodeShard | undefined {
   if (raw === undefined) {
     if (component === "corpus") {
       throw new UsageError("corpus execution requires --shard=<index>/<count>");
@@ -167,7 +158,7 @@ export function selectAffectedInstrumentTests(root: string, changed: readonly st
       sources: [],
       specs: [],
       unreachedSources: [],
-      livenessScope: { kind: "full", reason: "changed paths are unknown" },
+      livenessScope: { kind: "full", reason: "complete weekly proof or unknown changed paths" },
       unknown: true,
       delegatedTests: [],
     };
@@ -246,34 +237,34 @@ function reportNoAffectedTooling(root: string, boundary: MeasurementBoundary | n
     emitLine(`instrument-affected: no affected native tooling inputs in measured ${boundary.base}..${boundary.head}.`);
     return;
   }
-  // THE EMPTY ANSWER IS ANNOUNCED IN THE ARTIFACT, NOT ONLY IN A LOG NOBODY OPENS (#2472). Since the base
-  // became the real branch point, `pnpm check` ON MAIN resolves it to HEAD and this stage correctly
-  // measures nothing — which is exactly the shape a reader must never mistake for coverage. The
-  // `[verify-notice]` channel puts the ref, the commit and the reason into `reports/verify.json`'s
-  // `notices` for this stage, where the tail block renders it beside the ✓ (contract/stage.ts).
+  // A mainline-tip affected request measured no branch; retain that limitation in the published notice.
   const base = resolvePublishBase(root);
   emitLine(
     base !== null && base.isHead
-      ? `${NOTICE_MARKER} instrument-affected measured NOTHING: the merge base resolved to HEAD itself (${base.ref} @ ${base.commit.slice(0, SHORT_SHA)}), so this checkout is ON the mainline tip and has no branch to recertify. This is a fact about the checkout, not a clean bill of health for tooling/src — the whole instrument battery is \`pnpm verify --full\`.`
+      ? `${NOTICE_MARKER} instrument-affected measured NOTHING: the merge base resolved to HEAD itself (${base.ref} @ ${base.commit.slice(0, SHORT_SHA)}), so this checkout is ON the mainline tip and has no branch to recertify. This is a fact about the checkout, not a clean bill of health for tooling/src — the whole instrument battery is \`pnpm verify --weekly\`.`
       : `instrument-affected: this branch changed no tooling/src source since ${base === null ? "its merge base" : `${base.ref} @ ${base.commit.slice(0, SHORT_SHA)}`} — nothing to recertify.`,
   );
 }
 
 /** `pnpm check:instrument-affected` — the stage body. */
 export async function runInstrumentAffected(root: string, rest: readonly string[] = []): Promise<number> {
+  let values: { readonly weekly?: boolean; readonly affected?: boolean; readonly shard?: string };
+  try {
+    values = parseArgs({
+      args: [...rest],
+      options: { weekly: { type: "boolean" }, affected: { type: "boolean" }, shard: { type: "string" } },
+      strict: true,
+      allowPositionals: false,
+    }).values;
+  } catch (error) {
+    throw new UsageError(error instanceof Error ? error.message : String(error), { cause: error });
+  }
+  if (values.weekly !== true) {
+    throw new UsageError("instrument recertification requires explicit --weekly ownership; named focused tests use pnpm test:scoped");
+  }
   const component = executionComponent();
-  const shard = nativeShard(rest, component);
-  const boundary = resolveMeasurementBoundary(root);
-  if (component !== "all" && boundary === null) {
-    throw new UsageError("partial instrument execution requires a validated event measurement boundary");
-  }
-  const mode = inheritedProcessEnv()[VERIFY_TOOL_MODE_ENV];
-  if (mode !== undefined && !VERIFY_TOOL_MODES.some((candidate) => candidate === mode)) {
-    throw new Error(`${VERIFY_TOOL_MODE_ENV} must be affected or full`);
-  }
-  if (mode !== undefined && boundary === null) {
-    throw new Error(`${VERIFY_TOOL_MODE_ENV} requires an explicit validated measurement boundary`);
-  }
+  const shard = nativeShard(values.shard, component);
+  const boundary = values.affected === true ? resolveMeasurementBoundary(root) : null;
   const corpus = shard === undefined ? undefined : await collectNodeShards(root, SEMANTIC_CORPUS_RESOURCE, shard.count);
   if (corpus !== undefined && corpus.files.some((file) => !isCorpusSpec(file))) {
     throw new Error("native corpus project contains a foreign execution resource");
@@ -281,7 +272,7 @@ export async function runInstrumentAffected(root: string, rest: readonly string[
   if (boundary !== null) {
     emitLine(`${NOTICE_MARKER} measurement boundary: ${boundary.base}..${boundary.head}`);
   }
-  const selection = selectAffectedInstrumentTests(root, mode === "full" ? null : publishChangedPaths(root, boundary));
+  const selection = selectAffectedInstrumentTests(root, values.affected === true ? publishChangedPaths(root, boundary) : null);
   return qualifySelection(root, selection, boundary, { component, shard });
 }
 
@@ -346,6 +337,7 @@ function runSpecs(root: string, specs: readonly string[], livenessScope: Instrum
       "--runtime-only",
       "--reporter=default",
       "--reporter=json",
+      "--outputFile.json=reports/test-report-tooling.json",
       ...(project === undefined ? [] : [`--project=${project}`]),
       ...(shard === undefined ? [] : [`--shard=${String(shard.index)}/${String(shard.count)}`]),
     ],
@@ -355,7 +347,6 @@ function runSpecs(root: string, specs: readonly string[], livenessScope: Instrum
         [INSTRUMENT_EXECUTION_COMPONENT_ENV]: undefined,
         [VERIFY_BASE_ENV]: undefined,
         [VERIFY_HEAD_ENV]: undefined,
-        [VERIFY_TOOL_MODE_ENV]: undefined,
         [INSTRUMENT_AFFECTED_POLICIES_ENV]: livenessScope.kind === "policies" ? encodeInstrumentAffectedPolicyIds(livenessScope.policyIds) : undefined,
       }),
       stdio: "inherit",

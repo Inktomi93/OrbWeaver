@@ -125,6 +125,7 @@ function typecheckProjects(applicationOnly: boolean): readonly TestProjectConfig
 const WORKING_TREE_GUARD = "@orb/tooling/_shared/working-tree-guard";
 
 export function vitestConfig(runtimeOnly = false, applicationOnly = false): ViteUserConfig {
+  const runtimeGlobs = (globs: readonly string[]): string[] => withIgnored([...globs, ...applicationTestExclusions(applicationOnly).map((glob) => `!${glob}`)]);
   return defineConfig({
     test: {
       globalSetup: [WORKING_TREE_GUARD],
@@ -164,7 +165,7 @@ export function vitestConfig(runtimeOnly = false, applicationOnly = false): Vite
           test: {
             name: "unit",
             sequence: { groupOrder: NORMAL_GROUP_ORDER },
-            include: withIgnored([...exclusiveTestGlobs(({ family, resource }) => family === "unit" && resource === null), `!${TOOLING}`]),
+            include: runtimeGlobs([...exclusiveTestGlobs(({ family, resource }) => family === "unit" && resource === null), `!${TOOLING}`]),
           },
         },
         {
@@ -172,7 +173,7 @@ export function vitestConfig(runtimeOnly = false, applicationOnly = false): Vite
           test: {
             name: "integration",
             sequence: { groupOrder: NORMAL_GROUP_ORDER },
-            include: withIgnored([...exclusiveTestGlobs(({ family, resource }) => family === "integration" && resource === null), `!${TOOLING}`]),
+            include: runtimeGlobs([...exclusiveTestGlobs(({ family, resource }) => family === "integration" && resource === null), `!${TOOLING}`]),
           },
         },
         {
@@ -180,7 +181,7 @@ export function vitestConfig(runtimeOnly = false, applicationOnly = false): Vite
           test: {
             name: REPOSITORY_RESOURCE,
             sequence: { groupOrder: REPOSITORY_GROUP_ORDER },
-            include: withIgnored(REPOSITORY_TEST_GLOBS),
+            include: runtimeGlobs(REPOSITORY_TEST_GLOBS),
             fileParallelism: false,
             testTimeout: budget(LONG_TEST_TIMEOUT_BASE_MS),
           },
@@ -190,7 +191,7 @@ export function vitestConfig(runtimeOnly = false, applicationOnly = false): Vite
           test: {
             name: SEMANTIC_CORPUS_RESOURCE,
             sequence: { groupOrder: SEMANTIC_CORPUS_GROUP_ORDER },
-            include: withIgnored(resourceGlobs(SEMANTIC_CORPUS_RESOURCE)),
+            include: runtimeGlobs(resourceGlobs(SEMANTIC_CORPUS_RESOURCE)),
             fileParallelism: true,
             maxWorkers: Math.min(CONCURRENCY.vitestMaxWorkers, CONCURRENCY.semanticCorpusMaxWorkers),
           },
@@ -200,7 +201,7 @@ export function vitestConfig(runtimeOnly = false, applicationOnly = false): Vite
           test: {
             name: "tooling",
             sequence: { groupOrder: NORMAL_GROUP_ORDER },
-            include: withIgnored(
+            include: runtimeGlobs(
               exclusiveTestGlobs(({ family, resource }) => runtimeForTestFamily(family) === "vitest" && resource === null, "tests/tooling/**/*"),
             ),
           },
@@ -210,7 +211,7 @@ export function vitestConfig(runtimeOnly = false, applicationOnly = false): Vite
           test: {
             name: "contract",
             sequence: { groupOrder: NORMAL_GROUP_ORDER },
-            include: withIgnored([...exclusiveTestGlobs(({ family, resource }) => family === "contract" && resource === null), `!${TOOLING}`]),
+            include: runtimeGlobs([...exclusiveTestGlobs(({ family, resource }) => family === "contract" && resource === null), `!${TOOLING}`]),
           },
         },
         ...(runtimeOnly ? [] : typecheckProjects(applicationOnly)),
