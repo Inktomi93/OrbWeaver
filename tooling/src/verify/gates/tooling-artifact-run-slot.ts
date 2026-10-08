@@ -62,6 +62,8 @@ const unslotted = (tool: string, site: string): string =>
 
 export const gate = defineGate({
   id: "tooling-artifact-run-slot",
+  // The subject is an instrument's CLI lifecycle, not a helper borrowed by an application consumer.
+  application: "implementation",
   family: "tooling-artifact",
   authority: "hard",
   severity: "error",

@@ -3,6 +3,7 @@
 import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
+import { isImportEntry } from "@orb/tooling/_shared/import-population";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import { APPLICATION_STATIC_CHECKERS } from "../contract/application.ts";
@@ -31,7 +32,11 @@ export async function runApplicationStatic(root: string, args: readonly string[]
     return run("biome", ["check", ...subjects, "--diagnostic-level=error", "--reporter=concise"]);
   }
   if (checker === "imports") {
-    return run("depcruise", [...files, "--config", ".dependency-cruiser.cjs", "--output-type", "err-long"]);
+    const entries = files.filter(isImportEntry);
+    if (entries.length === 0) {
+      throw new Error("application architecture population has no native import entries");
+    }
+    return run("depcruise", [...entries, "--config", ".dependency-cruiser.cjs", "--output-type", "err-long"]);
   }
   if (checker === "cpd") {
     const implementation = subjects.filter((path) => path.startsWith("packages/") || path.startsWith("tooling/src/"));

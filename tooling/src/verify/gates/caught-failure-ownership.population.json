@@ -3376,6 +3376,11 @@
       "reason": "the failure is SURFACED, not swallowed — the catch returns an operator-visible red line naming the unreadable log and exits 2 (broken evidence), which is the whole point of this reader refusing rather than printing an empty view. Ends if the returned lines stop carrying the toolError exit."
     },
     {
+      "siteId": "tooling/src/verify/lib/tests-type-native.ts::nativeProgramRoots::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "nativeRootSets propagates this failed observation and runTestsTypeMembership returns tool-error exit 2. Ends if malformed native output can produce a membership verdict."
+    },
+    {
       "siteId": "tooling/src/verify/ops/asset-refs-coverage.ts::runAssetRefsCoverage::err::1",
       "verdict": "deliberate-absorb",
       "reason": "printed as TOOL ERROR and routed through EXIT.toolError per the exit-contract — a schema/registry import or reader failure is a BROKEN CHECKER, never a verdict. Ends if that exit code stops being surfaced."
@@ -3504,11 +3509,6 @@
       "siteId": "tooling/src/verify/ops/resource-reader.ts::createResourceReader.tree::error::1",
       "verdict": "deliberate-absorb",
       "reason": "resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set"
-    },
-    {
-      "siteId": "tooling/src/verify/ops/tests-type-membership.ts::nativeProgramRoots::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "nativeRootSets propagates this failed observation and runTestsTypeMembership returns tool-error exit 2. Ends if malformed native output can produce a membership verdict."
     },
     {
       "siteId": "tooling/src/verify/ops/typecheck.ts::runPrograms.worker::error::1",
