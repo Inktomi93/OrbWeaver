@@ -55,6 +55,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { CDPSession, Locator, Page } from "@playwright/test";
 import { processEnvValue } from "../../../tooling/src/_shared/process-env.ts";
 import { loafOverBudget, loafTotals } from "../../../tooling/src/motion-audit/index.ts";
+import type { TraceCapture } from "../../../tooling/src/snap/lib/react-profile-trace.ts";
 import { recordOf, startTrace, stopTrace } from "../../../tooling/src/snap/lib/react-profile-trace.ts";
 import { DIAGNOSTIC_ONLY_ANNOTATION } from "../../../tooling/src/verify/contract/scoped-test.ts";
 import { MotionAnchoredPortalStory, MotionShiftFlaggerStory, MotionVirtualizedShiftStory } from "./_ct-stories.tsx";
@@ -77,6 +78,9 @@ const SOURCE_DEADLINE_CONTROL_MS = 200;
 const SELECT_CPU_DIAGNOSTIC_ENV = "ORB_SELECT_CPU_DIAGNOSTIC";
 const SELECT_CPU_PROFILING_ENV = "ORB_SELECT_CPU_PROFILING";
 const SELECT_CPU_PROFILING = processEnvValue(SELECT_CPU_PROFILING_ENV) !== "0";
+const SELECT_NATIVE_TRACE_ENV = "ORB_SELECT_NATIVE_TRACE";
+const SELECT_NATIVE_TRACE = processEnvValue(SELECT_NATIVE_TRACE_ENV) === "1";
+const SELECT_NATIVE_TRACE_ATTACHMENT = "select-native-first-repeat-trace-diagnostic";
 const SELECT_CPU_DIAGNOSTIC_RATE = 4;
 const SELECT_CPU_DIAGNOSTIC_ANNOTATION = {
   type: DIAGNOSTIC_ONLY_ANNOTATION,
@@ -88,6 +92,112 @@ const SELECT_COMPILE_CONTROL_END = "orb:select-cpu-diagnostic:compile-control:en
 const SELECT_TRACE_CATEGORIES = ["disabled-by-default-v8.compile"] as const;
 const APP_BLOCKING_FRAME_CALLBACK = "plantAppBlockingFrame";
 const APP_BLOCKING_FRAME_INVOKER = "FrameRequestCallback";
+
+async function syncSelectTraceClock(page: Page): Promise<void> {
+  await page.evaluate((name) => {
+    performance.mark(name, {
+      detail: {
+        // @orb-waive test-determinism(performance.timeOrigin): this diagnostic measures browser-native LoAF/trace clock alignment; an injected epoch cannot calibrate that subject. Ends when native clock calibration is removed.
+        timeOrigin: performance.timeOrigin,
+        // @orb-waive test-determinism(performance.now): this UserTiming synchronization mark calibrates the measured browser-native trace clock, not a test deadline. Ends when native clock calibration is removed.
+        now: performance.now(),
+      },
+    });
+  }, SELECT_TRACE_SYNC_MARK);
+}
+
+interface SelectTraceReceipt {
+  readonly attachmentName: string;
+  readonly cpuProfiling: boolean;
+  readonly compileControl: boolean;
+}
+
+async function finishSelectTrace(page: Page, capture: TraceCapture, receipt: SelectTraceReceipt): Promise<void> {
+  const { attachmentName, cpuProfiling, compileControl } = receipt;
+  const traceError = await stopTrace(capture);
+  // @orb-waive test-determinism(performance.timeOrigin): the artifact must align browser-native LoAF timestamps with calibrated trace timestamps; an injected epoch cannot describe the measured document. Ends when native clock calibration is removed.
+  const timeOrigin = await page.evaluate(() => performance.timeOrigin);
+  await test.info().attach(attachmentName, {
+    body: JSON.stringify({
+      diagnosticOnly: true,
+      qualification: false,
+      cpuProfiling,
+      traceEvents: capture.events,
+      calibration: capture.calibration,
+      timeOrigin,
+      syncMark: SELECT_TRACE_SYNC_MARK,
+      ...(compileControl ? { compileControl: { startMark: SELECT_COMPILE_CONTROL_START, endMark: SELECT_COMPILE_CONTROL_END } } : {}),
+      additionalCategories: SELECT_TRACE_CATEGORIES,
+      error: traceError,
+    }),
+    contentType: "application/json",
+  });
+  expect(traceError).toBeNull();
+  expect(capture.calibration).not.toBeNull();
+  expect(capture.events.length).toBeGreaterThan(0);
+  expect(capture.events.some((event) => recordOf(event)?.["name"] === SELECT_TRACE_SYNC_MARK)).toBe(true);
+}
+
+interface NativeSelectTrace extends AsyncDisposable {
+  readonly finish: () => Promise<void>;
+}
+
+async function startNativeSelectTrace(page: Page, cdp: CDPSession): Promise<NativeSelectTrace> {
+  const disposeSession = async (): Promise<void> => {
+    try {
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+    } finally {
+      await cdp.detach();
+    }
+  };
+  const { capture, error } = await startTrace(page, SELECT_TRACE_CATEGORIES);
+  if (capture === null) {
+    const failure = new Error(`Native Select diagnostic trace could not start: ${error ?? "missing capture"}`);
+    const [cleanup] = await Promise.allSettled([disposeSession()] as const);
+    if (cleanup.status === "rejected") {
+      throw new AggregateError([failure, cleanup.reason], "Native Select diagnostic start and cleanup failed");
+    }
+    await test.info().attach("select-native-trace-startup-cleanup", {
+      body: JSON.stringify({
+        diagnosticOnly: true,
+        qualification: false,
+        cpuProfiling: false,
+        rateResetAcknowledged: 1,
+        detached: true,
+        error: failure.message,
+      }),
+      contentType: "application/json",
+    });
+    throw failure;
+  }
+  const finish = async (): Promise<void> => {
+    if (!capture.started) {
+      return;
+    }
+    await finishSelectTrace(page, capture, { attachmentName: SELECT_NATIVE_TRACE_ATTACHMENT, cpuProfiling: false, compileControl: false });
+  };
+  const dispose = async (): Promise<void> => {
+    try {
+      await finish();
+    } finally {
+      await disposeSession();
+    }
+  };
+  const [started] = await Promise.allSettled([
+    (async (): Promise<void> => {
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate: SELECT_CPU_DIAGNOSTIC_RATE });
+      await syncSelectTraceClock(page);
+    })(),
+  ] as const);
+  if (started.status === "rejected") {
+    const [cleanup] = await Promise.allSettled([dispose()] as const);
+    if (cleanup.status === "rejected") {
+      throw new AggregateError([started.reason, cleanup.reason], "Native Select diagnostic start and cleanup failed");
+    }
+    throw started.reason;
+  }
+  return { finish, [Symbol.asyncDispose]: dispose };
+}
 
 async function profileSelectOpening(page: Page, cdp: CDPSession, opening: () => Promise<MotionRead>): Promise<MotionRead> {
   const { capture, error } = await startTrace(page, SELECT_TRACE_CATEGORIES);
@@ -106,16 +216,7 @@ async function profileSelectOpening(page: Page, cdp: CDPSession, opening: () => 
         await cdp.send("Profiler.start");
         profilerStarted = true;
       }
-      await page.evaluate((name) => {
-        performance.mark(name, {
-          detail: {
-            // @orb-waive test-determinism(performance.timeOrigin): this diagnostic measures browser-native LoAF/trace clock alignment; an injected epoch cannot calibrate that subject. Ends when native clock calibration is removed.
-            timeOrigin: performance.timeOrigin,
-            // @orb-waive test-determinism(performance.now): this UserTiming synchronization mark calibrates the measured browser-native trace clock, not a test deadline. Ends when native clock calibration is removed.
-            now: performance.now(),
-          },
-        });
-      }, SELECT_TRACE_SYNC_MARK);
+      await syncSelectTraceClock(page);
       return await opening();
     })(),
   ] as const);
@@ -141,28 +242,7 @@ async function profileSelectOpening(page: Page, cdp: CDPSession, opening: () => 
     expect(capturedFrames).toBe(SELECT_CPU_PROFILING);
   };
   const traceCleanup = async (): Promise<void> => {
-    const traceError = await stopTrace(capture);
-    // @orb-waive test-determinism(performance.timeOrigin): the artifact must align browser-native LoAF timestamps with calibrated trace timestamps; an injected epoch cannot describe the measured document. Ends when native clock calibration is removed.
-    const timeOrigin = await page.evaluate(() => performance.timeOrigin);
-    await test.info().attach("select-first-trace-diagnostic", {
-      body: JSON.stringify({
-        diagnosticOnly: true,
-        qualification: false,
-        cpuProfiling: SELECT_CPU_PROFILING,
-        traceEvents: capture.events,
-        calibration: capture.calibration,
-        timeOrigin,
-        syncMark: SELECT_TRACE_SYNC_MARK,
-        compileControl: { startMark: SELECT_COMPILE_CONTROL_START, endMark: SELECT_COMPILE_CONTROL_END },
-        additionalCategories: SELECT_TRACE_CATEGORIES,
-        error: traceError,
-      }),
-      contentType: "application/json",
-    });
-    expect(traceError).toBeNull();
-    expect(capture.calibration).not.toBeNull();
-    expect(capture.events.length).toBeGreaterThan(0);
-    expect(capture.events.some((event) => recordOf(event)?.["name"] === SELECT_TRACE_SYNC_MARK)).toBe(true);
+    await finishSelectTrace(page, capture, { attachmentName: "select-first-trace-diagnostic", cpuProfiling: SELECT_CPU_PROFILING, compileControl: true });
     const controlStart = capture.events.map(recordOf).find((event) => event?.["name"] === SELECT_COMPILE_CONTROL_START)?.["ts"];
     const controlEnd = capture.events.map(recordOf).find((event) => event?.["name"] === SELECT_COMPILE_CONTROL_END)?.["ts"];
     expect(typeof controlStart).toBe("number");
@@ -647,6 +727,7 @@ for (const sourceTransport of ["normal", "missing", "aborted", "deadline"] as co
       const cdp = await page.context().newCDPSession(page);
       await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
       await resetMotion(page);
+      await using nativeTrace = SELECT_NATIVE_TRACE && sourceTransport === "normal" ? await startNativeSelectTrace(page, cdp) : null;
       await page.mouse.click(triggerPoint.x, triggerPoint.y);
       const first = await motionWhen(page, (motion) =>
         motion.loafs.some(
@@ -708,6 +789,7 @@ for (const sourceTransport of ["normal", "missing", "aborted", "deadline"] as co
       await page.keyboard.press("Escape");
       await expect(trigger).toHaveAttribute("aria-expanded", "false");
 
+      await nativeTrace?.finish();
       const blocked = await postPopupAppBlockingMotion(page);
       expect(blocked.loafs.every((loaf) => loaf.selectEntrance === undefined)).toBe(true);
       expect(loafOverBudget(blocked)).toBe(true);

@@ -119,7 +119,9 @@ test("manual Select diagnostics stay outside qualification and preserve native e
     throw new Error("missing CI Select CPU diagnostic job");
   }
   expect(capture.if).toBe("github.event_name == 'workflow_dispatch' && inputs.select_cpu_diagnostic");
-  expect(capture["timeout-minutes"]).toBe("${{ inputs.select_cpu_diagnostic_context == 'ct-shard-4' && 120 || 15 }}");
+  expect(capture["timeout-minutes"]).toBe(
+    "${{ (inputs.select_cpu_diagnostic_context == 'ct-shard-4' || inputs.select_cpu_diagnostic_context == 'ct-shard-4-native') && 120 || 15 }}",
+  );
   expect(capture.steps.some((step) => step.name === workflow.env["ORB_CI_QUALIFICATION_GENERATION"])).toBe(false);
   expect(existsSync(join(repoRoot, ".github/workflows/select-cpu-diagnostic.yml"))).toBe(false);
   const steps = capture.steps;
@@ -131,7 +133,7 @@ test("manual Select diagnostics stay outside qualification and preserve native e
   expect(setup?.uses).toBe("$/.github/actions/setup");
   expect(setup?.with).toEqual({ browsers: "true" });
   const gate =
-    "${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' && inputs.select_cpu_diagnostic_context != 'ct-shard-4' }}";
+    "${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' && inputs.select_cpu_diagnostic_context != 'ct-shard-4' && inputs.select_cpu_diagnostic_context != 'ct-shard-4-native' }}";
   expect(native?.if).toBe(gate);
   expect(diagnostic?.if).toBe(gate);
   for (const [setupOutcome, showcaseOutcome, nativeOutcome, canceled, permitted] of [
@@ -160,7 +162,10 @@ test("manual Select diagnostics stay outside qualification and preserve native e
   expect(diagnostic?.run).toBe("pnpm test:ct tests/client/lib/motion-stats.ct.tsx --grep='Select CPU diagnostic only' --retries=0");
   const uploads = steps.filter((step) => step.uses?.startsWith("actions/upload-artifact@") === true);
   expect(uploads.map((step) => step.with?.["name"])).toEqual(["select-native-control", "select-cpu-diagnostic-only"]);
-  expect(uploads.map((step) => step.if)).toEqual(["always() && inputs.select_cpu_diagnostic_context != 'ct-shard-4'", "always()"]);
+  expect(uploads.map((step) => step.if)).toEqual([
+    "always() && inputs.select_cpu_diagnostic_context != 'ct-shard-4' && inputs.select_cpu_diagnostic_context != 'ct-shard-4-native'",
+    "always()",
+  ]);
   expect(uploads.map((step) => step.with?.["retention-days"])).toEqual([7, 7]);
   expect(uploads.map((step) => step.with?.["path"])).toEqual(["reports/", "reports/"]);
   expect(steps.indexOf(uploads[0] ?? {})).toBeGreaterThan(steps.indexOf(native ?? {}));
@@ -176,24 +181,29 @@ test("manual diagnostic context freezes the ordinary cohort and verifies native 
   expect(workflow.on.workflow_dispatch.inputs["select_cpu_diagnostic_context"]).toEqual({
     description: "Choose isolated Select captures or the complete original CT shard 4 context; diagnostics never qualify the commit.",
     type: "choice",
-    options: ["isolated", "ct-shard-4"],
+    options: ["isolated", "ct-shard-4", "ct-shard-4-native"],
     default: "isolated",
   });
   const capture = workflow.jobs["select-cpu-diagnostic"];
   if (capture === undefined) {
     throw new Error("missing diagnostic job");
   }
-  for (const context of [undefined, "isolated", "ct-shard-4"] as const) {
+  for (const context of [undefined, "isolated", "ct-shard-4", "ct-shard-4-native"] as const) {
     const inputs = { ["select_cpu_diagnostic"]: true, ["select_cpu_diagnostic_context"]: context };
     const deadline =
       typeof capture["timeout-minutes"] === "number"
         ? capture["timeout-minutes"]
         : runInNewContext(capture["timeout-minutes"].replace(/^\$\{\{\s*|\s*\}\}$/gu, ""), { inputs });
-    expect(deadline).toBe(context === "ct-shard-4" ? workflow.jobs["ct"]?.["timeout-minutes"] : 15);
+    expect(deadline).toBe(context === "ct-shard-4" || context === "ct-shard-4-native" ? workflow.jobs["ct"]?.["timeout-minutes"] : 15);
     const env = { inputs, cancelled: () => false, steps: { setup: { outcome: "success" }, showcase: { outcome: "success" } } };
-    expect(guard(capture.steps.find((step) => step.id === "native-control")?.if ?? "false", env)).toBe(context !== "ct-shard-4");
-    expect(guard(capture.steps.find((step) => step.id === "cpu-diagnostic")?.if ?? "false", env)).toBe(context !== "ct-shard-4");
+    expect(guard(capture.steps.find((step) => step.id === "native-control")?.if ?? "false", env)).toBe(
+      context !== "ct-shard-4" && context !== "ct-shard-4-native",
+    );
+    expect(guard(capture.steps.find((step) => step.id === "cpu-diagnostic")?.if ?? "false", env)).toBe(
+      context !== "ct-shard-4" && context !== "ct-shard-4-native",
+    );
     expect(guard(capture.steps.find((step) => step.id === "full-cpu-diagnostic")?.if ?? "false", env)).toBe(context === "ct-shard-4");
+    expect(guard(capture.steps.find((step) => step.id === "native-context-diagnostic")?.if ?? "false", env)).toBe(context === "ct-shard-4-native");
   }
   const full = capture.steps.find((step) => step.id === "full-cpu-diagnostic");
   expect(full?.env).toEqual({ ["ORB_SELECT_CPU_DIAGNOSTIC"]: "1", ["ORB_SELECT_CPU_PROFILING"]: "${{ inputs.select_cpu_profiling == 'off' && '0' || '1' }}" });
@@ -206,6 +216,21 @@ test("manual diagnostic context freezes the ordinary cohort and verifies native 
   expect(run).toContain("pnpm test:ct --test-list=");
   expect(run).not.toContain("--grep");
   expect(run.indexOf("context.ts verify")).toBeLessThan(run.lastIndexOf("pnpm test:ct --test-list="));
+});
+
+test("native trace context executes only the closed original cohort without the preceding diagnostic pair", ({ repoRoot }) => {
+  const capture = readWorkflow(repoRoot).jobs["select-cpu-diagnostic"];
+  const step = capture?.steps.find((row) => row.id === "native-context-diagnostic");
+  expect(step?.env).toEqual({ ["ORB_SELECT_CPU_DIAGNOSTIC"]: "0", ["ORB_SELECT_CPU_PROFILING"]: "0", ["ORB_SELECT_NATIVE_TRACE"]: "1" });
+  const run = step?.run ?? "";
+  expect(run).toContain("ORB_SELECT_NATIVE_TRACE=0 pnpm test:ct --list --shard=4/4 --retries=0");
+  expect(run).toContain("scripts/select-cpu-diagnostic-context.ts create-native");
+  expect(run).toContain("pnpm test:ct --list --test-list=");
+  expect(run).toContain("scripts/select-cpu-diagnostic-context.ts verify-native");
+  expect(run).toContain("pnpm test:ct --test-list=");
+  expect(run).not.toContain("--grep");
+  expect(run).not.toContain("opt-in");
+  expect(run.indexOf("context.ts verify-native")).toBeLessThan(run.lastIndexOf("pnpm test:ct --test-list="));
 });
 
 test("CPU profiling defaults on but a trace-only diagnostic disables it in both native execution contexts", ({ repoRoot }) => {

@@ -64,3 +64,21 @@ test("native context refuses a duplicate recollection or a diagnostic registrati
   expect(duplicate.status).toBe(2);
   expect(duplicate.stderr).toContain("duplicate native CT case ID");
 });
+
+test("original native context preserves only ordinary cases and refuses a preceding diagnostic pair or missing original case", ({ repoRoot, scratch }) => {
+  const original = join(scratch, "original.json");
+  const selected = join(scratch, "selected.json");
+  const list = join(scratch, "native.list");
+  writeFileSync(original, report(["edge-a", "ordinary", "edge-b"]));
+  const created = run(repoRoot, ["create-native", original, list]);
+  expect(created.status, created.stderr).toBe(0);
+  expect(readFileSync(list, "utf8").split("\n").filter(Boolean)).toEqual(
+    ["edge-a", "ordinary", "edge-b"].map((id) => `[chromium] › client/probe.ct.tsx › ${id}`),
+  );
+  expect(run(repoRoot, ["verify-native", original, original]).status).toBe(0);
+  writeFileSync(selected, report(["ordinary", "edge-b"]));
+  expect(run(repoRoot, ["verify-native", original, selected]).status).toBe(2);
+  writeFileSync(selected, report(["diagnostic-success", "diagnostic-fault", "edge-a", "ordinary", "edge-b"], true));
+  expect(run(repoRoot, ["verify-native", original, selected]).status).toBe(2);
+  expect(run(repoRoot, ["create-native", selected, list]).status).toBe(2);
+});
