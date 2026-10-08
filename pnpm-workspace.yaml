@@ -40,14 +40,14 @@ catalog:
   # our own Windows escaping.
   cross-spawn: 7.0.6
   "@types/cross-spawn": ^6.0.6
-  knip: ^6.37.0
+  knip: ^6.38.0
   unbash: 4.0.11
   yaml: 2.9.1
   "@typescript/native": npm:typescript@7.0.2
   ts7: npm:typescript@7.0.2
   "@eslint/config-array": 0.23.5
   typescript: ^6.0.3
-  "@biomejs/biome": 2.5.1
+  "@biomejs/biome": 2.5.13
   lefthook: ^2.1.14
   dependency-cruiser: ^18.4.0
   ts-morph: ^28.0.0
@@ -55,8 +55,8 @@ catalog:
   "@types/node": ^26.6.2
   # --- test ---
   # Typecheck integration is experimental; validate upgrades explicitly and keep coverage in lockstep.
-  vitest: 5.0.0
-  "@vitest/coverage-v8": 5.0.0
+  vitest: 5.0.1
+  "@vitest/coverage-v8": 5.0.1
   # Pin both packages together: the install CLI and test runners must use the same Chromium revision.
   "@playwright/test": 1.61.1
   "@playwright/experimental-ct-react": 1.61.1
@@ -77,7 +77,7 @@ catalog:
   # in the tree as lighthouse's own dependency; PINNED EXACT TO LIGHTHOUSE'S RESOLUTION so the two share
   # one installed copy — a drift here silently gives Lighthouse a page from a different puppeteer build.
   # Re-derive this pin on every `lighthouse` bump (`pnpm why puppeteer-core`).
-  "puppeteer-core": 25.11.0
+  "puppeteer-core": 25.12.0
   # chrome-devtools-mcp: PARSER ENGINE ONLY for Snap's heap arm (#1300). Snap never imports or starts
   # the MCP server, transport, Puppeteer page, or browser launcher. One adapter deep-imports the bundled
   # browser-free HeapSnapshotManager so retained sizes, dominators, native-context attribution and
@@ -92,7 +92,7 @@ catalog:
   # ts-reset: ambient type hardening (filter(Boolean), JSON.parse→unknown) — wired via root reset.d.ts.
   "@total-typescript/ts-reset": ^0.6.1
   # jscpd: copy-paste detection (CI gate, threshold 5%) — config jscpd.json.
-  jscpd: ^5.3.1
+  jscpd: ^5.3.2
   # stryker: mutation testing (run via `pnpm test:mutation` / `pnpm test:mutation:gate` = a plain
   # `stryker run <config>` from the repo root — no wrapper, no --inPlace: Stryker copies into .stryker-tmp/,
   # the working tree is never touched, reports land in reports/ natively). PINNED EXACT to 10.0.0 (no caret) —
@@ -135,7 +135,7 @@ catalog:
   # our own ignore-plugin (scripts/mutation/arid-ignorer.ts); core/runner/checker pull it transitively.
   # the babel parser Stryker instruments with — declared so the arid ignorer's REAL-AST pin can
   # parse exactly what the mutator sees, instead of asserting against hand-built nodes.
-  "@babel/parser": 8.0.4
+  "@babel/parser": 8.0.6
   "@stryker-mutator/api": 10.0.0
   # SECOND PATCH, same version-keying hazard as the sandbox one:
   # patches/@stryker-mutator__typescript-checker@10.0.0.patch is a ONE-LINE fix to the TypeScript 7 native
@@ -215,7 +215,7 @@ catalog:
   # mode). Its env firewall is the load-bearing credential seam (Tier-3b-Providers.md Esoteric §1).
   # `^0.3.280` floor — owner-approved force past the age gate (see minimumReleaseAgeExclude): its bundled
   # CLI 2.1.280 is the first that serves claude-opus-5-5 and claude-fable-5-1.
-  "@anthropic-ai/claude-agent-sdk": ^0.3.280
+  "@anthropic-ai/claude-agent-sdk": ^0.3.282
   # @anthropic-ai/sdk: the anth-direct backend (D67) — the direct Anthropic-Messages wire over the
   # egress-firewalled global fetch. ALREADY in the tree as a transitive dep of the agent-sdk; promoted
   # to a direct dep to name the existing surface (installs nothing new).
@@ -266,7 +266,7 @@ catalog:
   ajv: 8.20.0
   ajv-formats: 3.0.1
   # lucide-react: ^1.22 (not .23 — published <24h ago, blocked by minimumReleaseAge; bump when mature)
-  lucide-react: ^1.47.0
+  lucide-react: ^1.48.0
   # TanStack Virtual ≥3.14.3: the directDomUpdates React-Compiler fix + core 3.16 chat APIs (D54).
   "@tanstack/react-virtual": ^3.14.13
   # Streamdown ≥2.5 — the D43 §6.3.1 version-floor build gate.
@@ -326,7 +326,7 @@ catalog:
   # DTCG token codegen (docs said v4; current major is 5 — ESM/async, DTCG first-class).
   style-dictionary: ^5.5.5
   # Standards CSS Color 4 parsing/gamut mapping for the isomorphic ThemeScope derivation boundary.
-  colorjs.io: 0.5.2
+  colorjs.io: 0.7.0
   # Tailwind v4 + the vite plugin (the @theme consumer; used by the CT harness + Phase-6 client).
   tailwindcss: ^4.3.3
   "@tailwindcss/oxide": ^4.3.3
@@ -360,13 +360,13 @@ catalog:
   eslint-plugin-jsx-a11y: 6.10.2
   # eslint-react's leak family: unremoved listeners/timers/observers/fetch inside components — nothing
   # else in the stack (biome, react-hooks, tsc) can see a subscription that outlives its component.
-  eslint-plugin-react-web-api: ^5.20.5
+  eslint-plugin-react-web-api: ^5.20.8
   # semantic unnecessary-effect analysis (the "you might not need an effect" family). 6 of 9 rules
   # enabled, 3 rejected with receipts — the reasoning lives in eslint.config.js beside the block.
   eslint-plugin-react-you-might-not-need-an-effect: ^1.0.2
   # vite: not 8.1.3 (published <24h ago, minimumReleaseAge-blocked); ^8.1.2 is the latest mature — the
   # caret auto-adopts 8.1.3 once it clears the 24h window. (Matches the lucide pin-reason style.)
-  vite: ^8.3.0
+  vite: ^8.3.1
   # CT's CommonJS declarations erase Vite's types; this type-only alias reaches its pinned ESM API.
   vite-ct: npm:vite@6.4.3
   vite-plugin-checker: ^0.14.5
@@ -390,7 +390,7 @@ catalog:
   # DELIBERATELY DROPPED (UI-Arch §6.1): hand-written code-based
   # tree; type-safety = inference + one `declare module { Register }`, not codegen. The vite build does
   # NOT wire tanstackRouter().
-  "@tanstack/react-router": ^1.170.38
+  "@tanstack/react-router": ^1.170.39
 # There is deliberately NO `esbuild@^0.25.0` override here any more (dropped 2026-08-07). It existed to
 # force "vite/vitest's bundled esbuild" up to 0.28.1 so the es2025 target would not be rejected — and the
 # vite 8 / vitest 4 bump killed BOTH halves of that premise. Re-derived from source, not from the comment:
