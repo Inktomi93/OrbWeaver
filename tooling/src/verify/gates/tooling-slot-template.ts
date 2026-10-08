@@ -175,6 +175,7 @@ const CLASSIFIED_HOMES = {
 
 export const gate = defineGate({
   id: "tooling-slot-template",
+  application: "implementation",
   family: "tooling-slot-template",
   authority: "hard",
   severity: "error",

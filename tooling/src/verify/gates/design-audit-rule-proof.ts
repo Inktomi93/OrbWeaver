@@ -191,6 +191,7 @@ function referencesFn(node: MorphNode): boolean {
 
 export const gate = defineGate({
   id: "design-audit-rule-proof",
+  application: "implementation",
   family: "design-audit-rule-proof",
   authority: "hard",
   severity: "error",

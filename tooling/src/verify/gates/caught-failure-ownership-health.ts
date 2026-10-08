@@ -154,7 +154,11 @@ export const gate = defineGate({
       evaluate: () => {
         const read = censusSiteIds(readyResourceValue(ctx.resources.json("caught-failure-population")).value);
         if (read.ok) {
-          join(ctx, read.siteIds, liveSites(ctx, sitesByPath));
+          join(
+            ctx,
+            read.siteIds.filter((siteId) => ctx.includesSubject(siteId.split("::")[0] ?? "")),
+            liveSites(ctx, sitesByPath),
+          );
         } else {
           ctx.report.file(POPULATION_PATH, { line: 1, message: NOT_A_POPULATION(read.reason) });
         }

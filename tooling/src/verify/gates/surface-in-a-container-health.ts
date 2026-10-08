@@ -81,6 +81,7 @@ const SHELL = { "packages/client/src/features/app-shell/surfaces/app-shell.tsx":
 
 export const gate = defineGate({
   id: "surface-in-a-container-health",
+  application: "resources",
   family: "surface-in-a-container-health",
   authority: "hard",
   severity: "error",

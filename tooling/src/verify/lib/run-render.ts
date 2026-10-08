@@ -42,7 +42,7 @@ export function stageLine(r: StageResult): string {
     // at this line.
     return r.runsAt === null
       ? `${stageMark(r)} ${r.name}  skipped (no files in scope)`
-      : `${stageMark(r)} ${r.name}  skipped — tier precondition not met; runs at ${r.runsAt}`;
+      : `${stageMark(r)} ${r.name}  skipped — ${r.notices[0] ?? "tier precondition not met"}; runs at ${r.runsAt}`;
   }
   const scope = r.mode === "scoped" ? " scoped" : "";
   const tag = !r.ok && r.exitCode === EXIT.toolError ? " [tool-error]" : "";

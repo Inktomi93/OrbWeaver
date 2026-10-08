@@ -201,6 +201,7 @@ function probeTestFile(localName: string, gateSpecifier: string): string {
 
 export const gate = defineGate({
   id: "real-corpus-liveness-manifest",
+  application: "implementation",
   family: "real-corpus-liveness-manifest",
   authority: "hard",
   severity: "error",

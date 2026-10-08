@@ -174,6 +174,7 @@ const ORDINARY_NO_ARM = finalProbeModule(
 
 export const gate = defineGate({
   id: "policy-waiver-identity",
+  application: "implementation",
   family: "policy-soundness",
   authority: "hard",
   severity: "error",

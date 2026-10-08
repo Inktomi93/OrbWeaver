@@ -251,61 +251,79 @@ process.exitCode = await runVerify(${JSON.stringify(scratch)}, parsed);
   expect([...new Set(lines)]).toEqual(["NO_COLOR=[1] FORCE_COLOR=[unset]"]);
 });
 
-test("product publishes its own tier, whole roster, native argv and history identity", { timeout: scaledBudget(60_000) }, async ({
-  fakeBin,
-  repoRoot,
-  scratch,
-}) => {
-  const commands = join(scratch, "commands.jsonl");
-  await fakeBin(
-    "pnpm",
-    `import { appendFileSync } from "node:fs";
-appendFileSync(${JSON.stringify(commands)}, JSON.stringify(process.argv.slice(2)) + "\\n");
+test.for([0, 2])(
+  "application product publishes its actual population and refuses a required checker with exit %s",
+  { timeout: scaledBudget(60_000) },
+  async (checkerExit, { fakeBin, repoRoot, scratch }) => {
+    const commands = join(scratch, "commands.jsonl");
+    await fakeBin(
+      "pnpm",
+      `import { appendFileSync } from "node:fs";
+appendFileSync(${JSON.stringify(commands)}, JSON.stringify(["pnpm", ...process.argv.slice(2)]) + "\\n");
 console.log("Checked 1 file in 1ms.");
 `,
-  );
-  mkdirSync(join(scratch, ".claude", "hooks"), { recursive: true });
-  writeFileSync(join(scratch, ".claude", "hooks", "fixture.mjs"), "export {};\n");
-  const runner = join(scratch, "run-product.ts");
-  writeFileSync(
-    runner,
-    `import { parse } from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/lib/run-argv.ts")).href)};
+    );
+    mkdirSync(join(scratch, "tooling/src/verify"), { recursive: true });
+    writeFileSync(
+      join(scratch, "tooling/src/verify/cli.ts"),
+      `import { appendFileSync } from "node:fs";
+appendFileSync(${JSON.stringify(commands)}, JSON.stringify(["node", "tooling/src/verify/cli.ts", ...process.argv.slice(2)]) + "\\n");
+console.log("Checked 1 file in 1ms.");
+process.exitCode = process.argv.at(-1) === "biome" ? ${checkerExit} : 0;
+`,
+    );
+    const runner = join(scratch, "run-product.ts");
+    writeFileSync(
+      runner,
+      `import { parse } from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/lib/run-argv.ts")).href)};
 import { runVerify } from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/ops/run.ts")).href)};
 const parsed = parse(["--product", "--json"]);
 if ("error" in parsed) throw new Error(parsed.error);
 process.exitCode = await runVerify(${JSON.stringify(scratch)}, parsed);
 `,
-  );
-  const result = await spawnNiced(process.execPath, [runner], {
-    cwd: repoRoot,
-    env: { [HOST_POOL_ROOT_ENV]: join(scratch, "product-slots") },
-    timeoutMs: scaledBudget(60_000),
-  });
-  expect(result.code, result.stdout + result.stderr).toBe(0);
-  expect(result.stdout).toContain("tier=product · scope=whole");
-  expect(result.stdout).toContain("tier: product, scope: whole");
-  expect(result.stdout).not.toContain("tier=full");
-  const report = JSON.parse(readFileSync(join(scratch, "reports", "verify.json"), "utf8")) as VerifyReport;
-  expect(report).toMatchObject({ tier: "product", scope: "whole", ok: true, exitCode: 0, failed: 0, noVerdict: [] });
-  expect(report.stages.map(({ name }) => name)).toEqual(stagesForTier("product").map(({ name }) => name));
-  expect(report.stages.every(({ mode, childExit }) => mode === "full" && childExit === 0)).toBe(true);
-  expect(
-    readFileSync(commands, "utf8")
-      .trim()
-      .split("\n")
-      .map((line) => JSON.parse(line)),
-  ).toEqual(
-    stagesForTier("product")
-      .filter(({ argv }) => argv[0] === "pnpm")
-      .map((row) => (row.tierArgv?.product ?? row.argv).slice(1)),
-  );
-  expect(report.stages.filter(({ notices }) => notices.length > 0).map(({ name, notices }) => [name, notices])).toEqual([
-    ["types:testd", ["tier invocation: pnpm test:types --config=vitest.product.config.ts"]],
-  ]);
-  const resolved = resolveLatestVerifyRun(scratch);
-  expect(resolved).toMatchObject({ kind: "report", report });
-  expect(readHistory(scratch)).toMatchObject([{ tier: "product", scope: "whole", exitCode: 0 }]);
-});
+    );
+    const result = await spawnNiced(process.execPath, [runner], {
+      cwd: repoRoot,
+      env: { [HOST_POOL_ROOT_ENV]: join(scratch, "product-slots") },
+      timeoutMs: scaledBudget(60_000),
+    });
+    expect(result.code, result.stdout + result.stderr).toBe(checkerExit);
+    expect(result.stdout).toContain("tier=product · scope=application");
+    expect(result.stdout).toContain("tier: product, scope: application");
+    const report = JSON.parse(readFileSync(join(scratch, "reports", "verify.json"), "utf8")) as VerifyReport;
+    expect(report).toMatchObject({
+      tier: "product",
+      scope: "application",
+      ok: checkerExit === 0,
+      exitCode: checkerExit,
+      failed: checkerExit === 0 ? 0 : 1,
+      noVerdict: checkerExit === 0 ? [] : ["lint:biome"],
+    });
+    const rows = stagesForTier("product");
+    expect(report.stages.map(({ name }) => name)).toEqual(rows.map(({ name }) => name));
+    expect(report.stages.filter(({ mode }) => mode === "skipped").map(({ name }) => name)).toEqual(
+      rows.filter(({ applicationArgv }) => applicationArgv === "implementation-only").map(({ name }) => name),
+    );
+    expect(
+      readFileSync(commands, "utf8")
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line)),
+    ).toEqual(
+      rows.flatMap((row) => {
+        const argv = planStage(row, undefined, "product", { applicationOnly: true }).argv;
+        return argv === null ? [] : [argv];
+      }),
+    );
+    expect(
+      report.stages
+        .filter(({ mode }) => mode === "skipped")
+        .every(({ notices }) => notices.includes("application scope excludes implementation-only subjects")),
+    ).toBe(true);
+    expect(resolveLatestVerifyRun(scratch)).toMatchObject({ kind: "report", report });
+    expect(readHistory(scratch)).toMatchObject([{ tier: "product", scope: "application", exitCode: checkerExit }]);
+  },
+);
 
 test("asViolations: clean 0, any non-zero is a violation (tsc's 2 = type errors, not tool-error)", () => {
   expect(asViolations(0)).toBe(0);
@@ -414,7 +432,7 @@ test("a tier-precondition SKIP carries its reason to the tail and to verify.json
     ...(stageDef as StageDef),
     tierPrecondition: { tiers: ["push"], reason, satisfied: () => false },
   };
-  const plan = planStage(declining, undefined, "push", "/nonexistent");
+  const plan = planStage(declining, undefined, "push", { root: "/nonexistent" });
 
   // The planner's half: a declined precondition is a SKIP that names the tier which runs it anyway.
   expect(plan.mode).toBe("skipped");
@@ -435,7 +453,7 @@ test("a tier-precondition SKIP carries its reason to the tail and to verify.json
 
   // The per-stage line names the tier that DOES run it — never the bare "no files in scope" a scoped skip
   // prints, which is simply false on a whole-tier run.
-  expect(out).toContain("tests:tooling  skipped — tier precondition not met; runs at verify --weekly");
+  expect(out).toContain(`tests:tooling  skipped — tier precondition: ${reason}; runs at verify --weekly`);
   expect(out).not.toContain("tests:tooling  skipped (no files in scope)");
   // …and the CONDITION reaches the tail, verbatim from the row.
   expect(out).toContain("NOTICES (not failures)");
@@ -845,11 +863,11 @@ test("a shared ambient selects every runnable native program", { timeout: AFFECT
 
 test("the composed changed-tier plan executes the complete native plan", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const graphSubject = resolveSelection({ kind: "file", paths: ["tests/tooling/verify/ops/run.int.test.ts"] });
-  expect(planStage(stage("types:native"), graphSubject, "changed", process.cwd())).toMatchObject({
+  expect(planStage(stage("types:native"), graphSubject, "changed", { root: process.cwd() })).toMatchObject({
     mode: "scoped",
     argv: ["pnpm", "typecheck", ...graphSubject.tsconfigs.flatMap((config) => ["--config", config])],
   });
-  expect(planStage(stage("structure:full"), graphSubject, "changed", process.cwd())).toMatchObject({
+  expect(planStage(stage("structure:full"), graphSubject, "changed", { root: process.cwd() })).toMatchObject({
     mode: "scoped",
     argv: ["node", "tooling/src/verify/cli.ts", "scoped", "--changed", "tests/tooling/verify/ops/run.int.test.ts"],
   });

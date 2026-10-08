@@ -10,23 +10,41 @@ export function invocationVariant(stage: StageDef, tier: Tier | undefined): read
   return tier === undefined || tier === "manual" ? undefined : stage.tierArgv?.[tier];
 }
 
+function applicationStagePlan(stage: StageDef): ReturnType<typeof planStage> {
+  if (stage.applicationArgv === undefined) {
+    throw new Error(`stage ${stage.name} has no application subject classification`);
+  }
+  if (stage.applicationArgv === "implementation-only") {
+    return { mode: "skipped", argv: null, runsAt: "verify --weekly" };
+  }
+  return { mode: "full", argv: stage.applicationArgv, runsAt: null };
+}
+
 /** Resolve how a stage runs at this tier+scope: its concrete argv, or a mode sentinel. */
 export function planStage(
   stage: StageDef,
   selection: Selection | undefined,
   tier?: Tier,
-  root?: string,
+  options: { readonly root?: string; readonly applicationOnly?: boolean } = {},
 ): {
   readonly mode: StageMode;
   readonly argv: readonly [string, ...string[]] | null;
   readonly runsAt: string | null;
 } {
   if (selection === undefined) {
+    if (options.applicationOnly === true) {
+      return applicationStagePlan(stage);
+    }
     // CONDITIONAL TIER MEMBERSHIP (#1523). A whole-tier run has no Selection, so a stage that belongs to
     // this tier only under a condition asks its own precondition here. `null` (cannot tell) RUNS: an
     // expensive stage skipped on an unanswerable question is a false clean wearing a tier's clothes.
     const precondition = stage.tierPrecondition;
-    if (precondition !== undefined && tier !== undefined && precondition.tiers.includes(tier) && precondition.satisfied(root ?? process.cwd()) === false) {
+    if (
+      precondition !== undefined &&
+      tier !== undefined &&
+      precondition.tiers.includes(tier) &&
+      precondition.satisfied(options.root ?? process.cwd()) === false
+    ) {
       return { mode: "skipped", argv: null, runsAt: unconditionalTier(stage) };
     }
     const argv = invocationVariant(stage, tier) ?? stage.argv;
@@ -78,6 +96,14 @@ function pushOrStatic(stage: StageDef): string {
  *  broken" without opening the registry — and because `notices` is a `StageResult` field, the same string
  *  is in verify.json by construction. */
 export function nonRunningStageResult(stage: StageDef, plan: { readonly mode: StageMode; readonly runsAt: string | null }): StageResult {
+  const notices: string[] = [];
+  if (plan.mode === "skipped" && plan.runsAt !== null) {
+    if (stage.applicationArgv === "implementation-only") {
+      notices.push("application scope excludes implementation-only subjects");
+    } else if (stage.tierPrecondition !== undefined) {
+      notices.push(`tier precondition: ${stage.tierPrecondition.reason}`);
+    }
+  }
   return {
     name: stage.name,
     group: stage.group,
@@ -88,7 +114,6 @@ export function nonRunningStageResult(stage: StageDef, plan: { readonly mode: St
     logFile: null,
     failureExcerpt: null,
     runsAt: plan.runsAt,
-    notices:
-      plan.mode === "skipped" && plan.runsAt !== null && stage.tierPrecondition !== undefined ? [`tier precondition: ${stage.tierPrecondition.reason}`] : [],
+    notices,
   };
 }

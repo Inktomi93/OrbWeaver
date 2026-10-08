@@ -29,7 +29,7 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => ({
     evaluate: () => {
-      for (const site of readGateIgnoreFacts(ctx).sites) {
+      for (const site of readGateIgnoreFacts(ctx).sites.filter((candidate) => ctx.includesSubject(candidate.file))) {
         ctx.report.file(site.file, { line: site.line, column: 1, token: site.marker.gate, message: MESSAGE, fix: FIX });
       }
     },

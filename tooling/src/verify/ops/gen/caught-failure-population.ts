@@ -136,11 +136,11 @@ function waiverReason(sf: SourceFile, markerLine: number): string {
 }
 
 /** Every live site with its coordinates, read from the tree NOW — the read-time half of the census. */
-export function deriveCaughtFailureSites(root: string): readonly CaughtFailureRow[] {
+export function deriveCaughtFailureSites(root: string, includesSubject: (path: string) => boolean = () => true): readonly CaughtFailureRow[] {
   const includes = compilePopulation(gate.population);
   const files = projectCtx(root)
     .files.map((sf) => ({ sf, path: repoRel(root, sf.getFilePath()) }))
-    .filter(({ path }) => includes(path))
+    .filter(({ path }) => includes(path) && includesSubject(path))
     .toSorted((left, right) => left.path.localeCompare(right.path));
   const sources: OrdinaryWaiverSource[] = files.map(({ sf, path }) => ({ kind: "typescript", path, sourceFile: sf }));
   const byPath = new Map(files.map(({ sf, path }) => [path, sf]));
@@ -178,8 +178,8 @@ export function deriveCaughtFailureSites(root: string): readonly CaughtFailureRo
 
 /** The committed census: the live sites projected onto their judgments, plus the totals. No coordinate is
  *  written, so it is stable under every line move that keeps each site's `siteId`. */
-export function deriveCaughtFailurePopulation(root: string): CaughtFailurePopulation {
-  const sites = deriveCaughtFailureSites(root);
+export function deriveCaughtFailurePopulation(root: string, includesSubject?: (path: string) => boolean): CaughtFailurePopulation {
+  const sites = deriveCaughtFailureSites(root, includesSubject);
   const byVerdict: Record<CaughtFailureVerdict, number> = { "deliberate-absorb": 0, unproven: 0 };
   // Seeded from the homed arm tuple: an arm that produces ZERO rows must still appear with a 0, or the
   // census silently loses a detector arm instead of showing it went quiet.

@@ -273,6 +273,34 @@ test("CI gives the static floor its full budget", ({ repoRoot }) => {
   expect(jobs["select-cpu-diagnostic"]?.["timeout-minutes"]).toBe(SELECT_DIAGNOSTIC_TIMEOUT);
 });
 
+test("application static CI routes parallel duplication through the subject owner and scheduled jobs use checked-out setup", ({ repoRoot }) => {
+  const step = setupStep.extend({ parallel: z.array(setupStep).optional() });
+  const workflow = z.object({ jobs: z.record(z.string(), z.object({ steps: z.array(step) })) }).parse(parse(read(repoRoot, ".github/workflows/ci.yml")));
+  const staticSteps = workflow.jobs["static"]?.steps ?? [];
+  const duplication = staticSteps.flatMap((row) => row.parallel ?? []).find((row) => row.name === "Copy-paste detection");
+  expect(duplication?.run).toBe("pnpm exec node tooling/src/verify/cli.ts application-static cpd");
+  for (const name of ["qualification", "weekly-tooling"]) {
+    const steps = workflow.jobs[name]?.steps ?? [];
+    const checkout = steps.findIndex((row) => row.uses?.startsWith("actions/checkout@") === true);
+    const setup = steps.findIndex((row) => row.uses === "./.github/actions/setup");
+    expect(checkout, name).toBeGreaterThanOrEqual(0);
+    expect(setup, name).toBeGreaterThan(checkout);
+    expect(steps[checkout]?.with?.["ref"], name).toBe(
+      name === "qualification" ? "${{ github.event_name == 'schedule' && 'main' || github.ref }}" : "${{ needs.weekly-head.outputs.sha }}",
+    );
+    expect(
+      steps.some((row) => row.uses === "$/.github/actions/setup"),
+      name,
+    ).toBe(false);
+  }
+  for (const name of ["static", "node", "ct", "e2e-smoke", "select-cpu-diagnostic"]) {
+    expect(
+      workflow.jobs[name]?.steps.some((row) => row.uses === "$/.github/actions/setup"),
+      name,
+    ).toBe(true);
+  }
+});
+
 test("static tooling qualification provisions the pinned Chromium and retains cache-hit dependencies and failed-install refusal", async ({
   repoRoot,
   scratch,

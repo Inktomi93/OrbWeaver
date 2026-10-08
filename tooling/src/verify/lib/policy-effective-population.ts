@@ -49,6 +49,28 @@ function intersect(paths: readonly string[], requested: ReadonlySet<string>): re
   return paths.filter((path) => requested.has(path));
 }
 
+function applicationPopulation({
+  declaredSourcePaths,
+  declaredResourcePaths,
+  applicationPaths,
+  applicationAdmission,
+}: Pick<PolicySelectionInput, "declaredSourcePaths" | "declaredResourcePaths" | "applicationAdmission"> & {
+  readonly applicationPaths: ReadonlySet<string>;
+}): PolicySelectionResolution {
+  const source = applicationAdmission === "resources" ? declaredSourcePaths : declaredSourcePaths.filter((path) => applicationPaths.has(path));
+  const run = applicationAdmission !== "implementation" && (source.length > 0 || declaredSourcePaths.length === 0);
+  return {
+    population: {
+      declaredSourcePaths,
+      declaredResourcePaths,
+      requestedPaths: [...applicationPaths].toSorted(),
+      effectiveSourcePaths: run ? source : [],
+      effectiveResourcePaths: run ? declaredResourcePaths : [],
+    },
+    disposition: run ? "run" : "empty-intersection",
+  };
+}
+
 /** Pure and TOTAL: every input shape resolves to a disposition, so this module raises no refusal and is not a
  *  `POLICY_REFUSAL_EMITTERS` member. Declaration validity (a resource policy with no resources, a source
  *  population that admitted nothing) is decided by the callers, one layer up, before they ask. */
@@ -58,7 +80,17 @@ export function resolveEffectivePopulation({
   declaredResourcePaths,
   dependencyPaths,
   requested,
+  applicationPaths,
+  applicationAdmission,
 }: PolicySelectionInput): PolicySelectionResolution {
+  if (applicationPaths !== undefined) {
+    return applicationPopulation({
+      declaredSourcePaths,
+      declaredResourcePaths,
+      applicationPaths,
+      ...(applicationAdmission === undefined ? {} : { applicationAdmission }),
+    });
+  }
   if (requested === null) {
     return {
       population: {

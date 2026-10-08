@@ -1,4 +1,4 @@
-import type { KnipConfig } from "knip";
+import type { KnipConfig, KnipConfiguration } from "knip";
 
 // knip — the dead-code/dead-export/dead-dependency authority (flipped on 2026-07-13; the
 // dep-cruiser no-orphans warn is the cheap in-graph tripwire, THIS is the deep scan).
@@ -191,7 +191,7 @@ function patternList(patterns: string | readonly string[] | undefined): readonly
   return typeof patterns === "string" ? [patterns] : patterns;
 }
 
-function configFor({ production = false, strict = false }: KnipModeArgs): KnipConfig {
+function configFor({ production = false, strict = false }: KnipModeArgs): KnipConfiguration {
   if (!(production || strict)) {
     return config;
   }

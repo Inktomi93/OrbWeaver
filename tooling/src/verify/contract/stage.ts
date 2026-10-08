@@ -52,6 +52,9 @@ export interface StageDef {
   readonly tiers: readonly Tier[];
   /** The whole-scope invocation (the `pnpm <script>` form, spawned shell:false). */
   readonly argv: readonly [string, ...string[]];
+  /** Whole application admission is explicit; an absent classification cannot inherit a tooling-wide argv. */
+  readonly applicationArgv?: readonly [string, ...string[]] | "implementation-only";
+  readonly applicationClassify?: StageDef["classify"];
   /** Native runner population variants; absent tiers retain the default invocation. */
   readonly tierArgv?: Readonly<Partial<Record<RunnableVerifyTier, readonly [string, ...string[]]>>>;
   /** Extra env for the child (merged over the inherited env + the run's NO_COLOR). No current stage

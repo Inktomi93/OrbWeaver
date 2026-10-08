@@ -27,7 +27,7 @@ export const gate = defineGate({
   create: (ctx) => ({
     evaluate: () => {
       const { executablePaths } = readyResourceValue(ctx.resources.trackedFiles());
-      for (const path of executablePaths.filter((candidate) => candidate.startsWith("tests/"))) {
+      for (const path of executablePaths.filter((candidate) => ctx.includesSubject(candidate) && candidate.startsWith("tests/"))) {
         ctx.report.file(path, { line: 1, column: 1, message: MESSAGE, fix: FIX });
       }
     },

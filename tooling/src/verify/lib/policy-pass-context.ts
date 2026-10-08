@@ -38,6 +38,7 @@ interface ContextInput {
   readonly checker: () => TypeChecker;
   readonly findings: RawGateFinding[];
   readonly factValues: PolicyFactValueRegistry;
+  readonly applicationPaths?: ReadonlySet<string>;
 }
 
 export interface PolicyContextRuntime {
@@ -380,6 +381,7 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
   };
   const context: GatePolicyContext = Object.freeze({
     ...capability.context,
+    includesSubject: (path: string) => input.applicationPaths === undefined || input.applicationPaths.has(path) || populationIncludes("@product", path),
     relativePath,
     sourceFile,
     fact,

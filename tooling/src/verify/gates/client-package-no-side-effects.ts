@@ -20,6 +20,7 @@ const MESSAGE =
 
 export const gate = defineGate({
   id: "client-package-no-side-effects",
+  application: "resources",
   family: "client-package-no-side-effects",
   // No waiver: the owner ruled the field gone for good, and a whole-manifest verdict has no token to bind.
   authority: "hard",

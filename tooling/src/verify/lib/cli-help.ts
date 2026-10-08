@@ -32,16 +32,16 @@ export const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
     "usage: node tooling/src/verify/cli.ts policy-conformance\n  Runs every final defineGate policy's own mustFlag/mustPass rows through the production dispatcher (#1941); a failed proof is exit 2.",
   baseline: BASELINE_HELP,
   "tests-membership":
-    "usage: node tooling/src/verify/cli.ts tests-membership [--json]\n  Reports intended and actual compiler ownership for every authored TypeScript file.",
+    "usage: node tooling/src/verify/cli.ts tests-membership [--application] [--json]\n  Reports intended and actual compiler ownership for the selected subject population.",
   "tests-execution-membership":
-    "usage: node tooling/src/verify/cli.ts tests-execution-membership\n  Reconciles which test files a vitest project actually RUNS — reports the unrun.",
+    "usage: node tooling/src/verify/cli.ts tests-execution-membership [--application]\n  Reconciles authored tests against native runtime and type collections.",
   "db-baseline": "usage: node tooling/src/verify/cli.ts db-baseline\n  Compares the drizzle schema against the committed 0000_baseline.sql.",
   "asset-refs": "usage: node tooling/src/verify/cli.ts asset-refs\n  Reconciles every live FK→assets.id column against the asset-ref classification registry.",
   "orphan-ratchet": "usage: node tooling/src/verify/cli.ts orphan-ratchet [--update]\n  The orphan-export ratchet; --update rewrites its committed baseline.",
   "boot-chunk":
     "usage: node tooling/src/verify/cli.ts boot-chunk\n  Builds the client, measures its boot chunk against the committed ceiling, checks that the emitted html links the app stylesheet, and checks that no emitted chunk carries a DEV-only client instrument.",
   "ledgers-fresh":
-    "usage: node tooling/src/verify/cli.ts ledgers-fresh\n  Reds when a committed single-writer ledger (the caught-failure census and its siblings) differs from a fresh derivation. Writes nothing; names the differing rows and the regen command.",
+    "usage: node tooling/src/verify/cli.ts ledgers-fresh [--application]\n  Compares committed single-writer outputs with fresh derivations for the selected subjects. Writes nothing; names the differing rows and the regen command.",
   debt: "usage: node tooling/src/verify/cli.ts debt [--gate <substr>] [--age]\n  A LENS over the ratchet ledgers — reports parked rows, oldest first with --age.",
   "ratchet-gate": "usage: node tooling/src/verify/cli.ts ratchet-gate\n  The vitest-tier train-gate aggregate over the ratchets (#667).",
   "config-snapshot": CONFIG_SNAPSHOT_HELP,
@@ -51,6 +51,8 @@ export const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
     "usage: node tooling/src/verify/cli.ts knip-negative-liveness\n  Reds when a LITERAL negative entry/project/ignore pattern in knip.ts names a path that is not a tracked file. Wildcard negations are out of scope. An unreadable index is exit 2.",
   "typecheck-plan": TYPECHECK_PLAN_HELP,
   typecheck: TYPECHECK_HELP,
+  "application-static":
+    "usage: node tooling/src/verify/cli.ts application-static <biome|eslint|imports|knip|knip-prod|cpd>\n  Runs the native checker over the complete application subject population.",
   "instrument-affected": `usage: node tooling/src/verify/cli.ts instrument-affected --weekly [--affected] [--shard=<index>/<count>]\n  Weekly ownership is required. Default: complete tooling population, without a Git baseline. --affected selects the measured or local publication delta inside weekly ownership. ${INSTRUMENT_EXECUTION_COMPONENT_ENV}=corpus|non-corpus partitions execution; corpus requires its native shard. ${VERIFY_BASE_ENV}/${VERIFY_HEAD_ENV} provide paired commit IDs for --affected. Named focused tests use test:scoped.`,
   eslint:
     "usage: node tooling/src/verify/cli.ts eslint\n  Runs whole-repository ESLint in sequential native compiler-owner processes. It takes NO paths: a SCOPED run is `pnpm lint:eslint-scoped <files>`, one native compiler-owner process per owner.",

@@ -118,6 +118,7 @@ function isDiagnosticProperty(property: PropertyAssignment): boolean {
 
 export const gate = defineGate({
   id: "diagnostic-legibility",
+  application: "implementation",
   family: "policy-soundness",
   authority: "ordinary",
   severity: "error",

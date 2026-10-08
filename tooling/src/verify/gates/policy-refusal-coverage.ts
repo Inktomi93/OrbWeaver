@@ -469,6 +469,7 @@ const DERIVING = (extra: string, resources: string = DERIVED_RESOURCES): string 
 
 export const gate = defineGate({
   id: "policy-refusal-coverage",
+  application: "implementation",
   family: "policy-soundness",
   authority: "hard",
   severity: "error",

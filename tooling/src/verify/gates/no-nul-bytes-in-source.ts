@@ -19,6 +19,7 @@ const FIX =
 
 export const gate = defineGate({
   id: "no-nul-bytes-in-source",
+  application: "resources",
   family: "no-nul-bytes-in-source",
   authority: "hard",
   severity: "error",
@@ -45,7 +46,7 @@ export const gate = defineGate({
         readyResourceValue(ctx.resources.authoredTree("docs")),
       ];
       for (const entries of trees) {
-        for (const entry of entries) {
+        for (const entry of entries.filter((candidate) => ctx.includesSubject(candidate.path))) {
           if (entry.kind !== "file" || !TEXT_EXT_RE.test(entry.path) || entry.path.split("/").some((segment) => SKIP_DIRS.has(segment))) {
             continue;
           }

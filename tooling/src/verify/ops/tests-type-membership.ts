@@ -1,11 +1,10 @@
 // Enforces intended roots, exact ambient distribution and native declaration-library boundaries across
 // every authored TypeScript source; --json retains every source identity and observation.
 import { readFileSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, sep } from "node:path";
+import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { isTypeWorldSource, predictedProgram, requiresExclusiveRoot, worldOf } from "@orb/tooling/_shared/project-worlds";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import { ambientRootsForProgram, ambientScopeOf, programWorldOf } from "@orb/tooling/_shared/type-config-intent";
@@ -13,9 +12,11 @@ import { SyntaxKind } from "ts-morph";
 import type { PolicyProgramMembership } from "../contract/policy-scope.ts";
 import type { ClosureLeak, MembershipOutcome, MembershipReport, MembershipRow, RoutingParityViolation } from "../contract/tests-type-membership.ts";
 import { MEMBERSHIP_ENFORCEMENT, MEMBERSHIP_OUTCOMES } from "../contract/tests-type-membership.ts";
+import { withApplicationPrograms } from "../lib/application-programs.ts";
 import { forEachCommentRange, parseScratch } from "../lib/comment-spans.ts";
 import { readAvailablePolicyPrograms } from "../lib/policy-program-membership.ts";
 import { readPolicyRepositoryInventory } from "../lib/policy-repo-inventory.ts";
+import { nativeProgramRoots, programClosures } from "../lib/tests-type-native.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:type-ownership");
 
@@ -25,86 +26,6 @@ refuseDirectInvocation(import.meta.url, "pnpm check:type-ownership");
 // The type-relevant test SOURCE roots + the file-extension surface. `.d.ts` is INCLUDED (it's type-bearing);
 // non-TS (json/css/snap/sh) is excluded — those are in no TS program by design.
 const TEST_ROOT_RE = /^(?:tests|playwright)\//u;
-
-// tsgo's --listFilesOnly on the widest program is ~5,400 absolute paths (~0.5MB); 64MiB is generous headroom.
-const LIST_FILES_MAX_BUFFER = 67_108_864;
-
-/** The absolute-path import closure of one tsgo program (module resolution only — no typecheck). Returns
- *  undefined on any failure (the caller maps that to a TOOL ERROR — a broken listing is not a verdict). */
-function programClosure(root: string, program: PolicyProgramMembership): readonly string[] | undefined {
-  const { config } = program;
-  const ts7 = join(root, "scripts", "ts7.ts");
-  const res = runNicedSync(process.execPath, [ts7, "--noEmit", "--listFilesOnly", "-p", config], {
-    cwd: root,
-    maxBuffer: LIST_FILES_MAX_BUFFER,
-  });
-  if (res.status !== 0) {
-    process.stderr.write(`tests-type-membership: \`ts7 --listFilesOnly -p ${config}\` failed (status ${String(res.status)})\n${res.stderr}`);
-    return;
-  }
-  const files = res.stdout
-    .split(/\r?\n/u)
-    .map((line) => line.trim().replaceAll("\\", "/"))
-    .filter((line) => line !== "");
-  if ((files.length === 0 && program.files.length > 0) || files.some((file) => !isAbsolute(file))) {
-    process.stderr.write(
-      `tests-type-membership: \`ts7 --listFilesOnly -p ${config}\` returned ${files.length === 0 ? "no files for a concrete program" : "a non-absolute file"}\n`,
-    );
-    return;
-  }
-  return files;
-}
-
-/** Every program's closure, keyed by config, as Sets of ABSOLUTE posix paths. undefined ⇒ a listing broke. */
-function programClosures(root: string, programs: readonly PolicyProgramMembership[]): ReadonlyMap<string, ReadonlySet<string>> | undefined {
-  const out = new Map<string, ReadonlySet<string>>();
-  for (const program of programs) {
-    const closure = programClosure(root, program);
-    if (closure === undefined) {
-      return; // a broken listing → the whole reconciliation is a tool error, not a false "clean"
-    }
-    out.set(program.config, new Set(closure));
-  }
-  return out;
-}
-
-function nativeProgramRoots(root: string, program: PolicyProgramMembership): ReadonlySet<string> | undefined {
-  const result = runNicedSync(process.execPath, [join(root, "scripts", "ts7.ts"), "--showConfig", "-p", program.config], {
-    cwd: root,
-    maxBuffer: LIST_FILES_MAX_BUFFER,
-  });
-  if (result.status !== 0) {
-    process.stderr.write(`tests-type-membership: native TS7 --showConfig failed for ${program.config} (status ${String(result.status)})\n${result.stderr}`);
-    return;
-  }
-  let parsed: unknown;
-  // @orb-waive caught-failure-ownership(catch): nativeRootSets propagates this failed observation and runTestsTypeMembership returns tool-error exit 2. Ends if malformed native output can produce a membership verdict.
-  try {
-    parsed = JSON.parse(result.stdout) as unknown;
-  } catch {
-    process.stderr.write(`tests-type-membership: native TS7 --showConfig returned malformed JSON for ${program.config}\n`);
-    return;
-  }
-  const files = typeof parsed === "object" && parsed !== null ? Reflect.get(parsed, "files") : undefined;
-  if (!(Array.isArray(files) && files.every((file) => typeof file === "string"))) {
-    process.stderr.write(`tests-type-membership: native TS7 --showConfig returned no files array for ${program.config}\n`);
-    return;
-  }
-  const configDir = dirname(join(root, program.config));
-  const roots = new Set<string>();
-  for (const file of files) {
-    const absolute = isAbsolute(file) ? file : join(configDir, file);
-    const rel = relative(root, absolute);
-    if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel) || rel.includes(`${sep}node_modules${sep}`)) {
-      continue;
-    }
-    const posix = rel.split(sep).join("/");
-    if (isTypeWorldSource(posix)) {
-      roots.add(posix);
-    }
-  }
-  return roots;
-}
 
 function nativeRootSets(root: string, programs: readonly PolicyProgramMembership[]): ReadonlyMap<string, ReadonlySet<string>> | undefined {
   const roots = new Map<string, ReadonlySet<string>>();
@@ -418,4 +339,76 @@ export function runTestsTypeMembership(root: string, args: readonly string[] = [
     routingParityViolations,
   });
   return exit;
+}
+
+/** Application subjects retain canonical primary ownership while declaration-world checks use native
+ * projected closures. A tool imported by an application test is still a subject, not an exclusion. */
+export async function runApplicationTypeMembership(root: string, args: readonly string[]): Promise<number> {
+  const json = jsonRequested(args);
+  return await withApplicationPrograms(root, (population) => {
+    const active = new Set(population.programs.map(({ owner }) => owner.id));
+    const canonicalRoots = new Map(population.canonicalPrograms.map((program) => [program.id, new Set(program.files)]));
+    const activeRoots = new Map([...canonicalRoots].filter(([id]) => active.has(id)));
+    const files = population.files.filter(isTypeWorldSource);
+    const rows = [
+      ...classifyMembership(
+        root,
+        files.filter((file) => ambientScopeOf(file) === undefined),
+        canonicalRoots,
+        population.closures,
+      ),
+      ...classifyMembership(
+        root,
+        files.filter((file) => ambientScopeOf(file) !== undefined),
+        activeRoots,
+        population.closures,
+      ),
+    ].toSorted((left, right) => left.file.localeCompare(right.file));
+    const observed = new Map<string, ReadonlySet<string>>();
+    for (const program of population.programs) {
+      const native = nativeProgramRoots(root, { ...program.owner, config: program.config });
+      if (native === undefined) {
+        return EXIT.toolError;
+      }
+      observed.set(program.owner.id, native);
+    }
+    const routingParityViolations = compareRoutingParity(
+      population.programs.map(({ owner, roots }) => ({ ...owner, files: roots })),
+      observed,
+    );
+    const unknownPrograms = population.programs.filter(({ owner }) => programWorldOf(owner.id) === undefined).map(({ owner }) => owner.id);
+    const libraryLeaks = closureLeaks(population.closures);
+    const leaks = findTripleSlashLibLeaks(root, files);
+    const escapees = findEscapees(population.roots, unionClosure(population.closures), root);
+    const report: MembershipReport = {
+      enforcement: MEMBERSHIP_ENFORCEMENT,
+      programs: [...active],
+      rows,
+      testEscapees: escapees,
+      libLeaks: leaks,
+      unknownPrograms,
+      closureLeaks: libraryLeaks,
+      routingParityViolations,
+    };
+    if (json) {
+      process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+    } else {
+      process.stdout.write("application ");
+      writeHumanReport({
+        fileCount: files.length,
+        testFileCount: files.filter((file) => TEST_ROOT_RE.test(file)).length,
+        programCount: active.size,
+        rows,
+        unknownPrograms,
+        libraryLeaks,
+        escapees,
+        leaks,
+        routingParityViolations,
+      });
+    }
+    return rows.every(({ outcome }) => outcome === "predicted" || outcome === "ambient") &&
+      unknownPrograms.length + libraryLeaks.length + escapees.length + leaks.length + routingParityViolations.length === 0
+      ? EXIT.clean
+      : EXIT.violations;
+  });
 }

@@ -328,6 +328,7 @@ const TEXT_FUNCTION_MODULE = (helper: string, siteB: string, rowExpect: string):
 
 export const gate = defineGate({
   id: "policy-proof-expectations",
+  application: "implementation",
   family: "policy-soundness",
   authority: "hard",
   severity: "error",

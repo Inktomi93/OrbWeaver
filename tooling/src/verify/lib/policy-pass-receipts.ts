@@ -187,13 +187,13 @@ export function ordinaryWaiverAcquisition(
   policies: readonly PolicyOwnerResult[],
   authorityById: ReadonlyMap<string, GatePolicy["authority"]>,
   sourceFiles: ReadonlyMap<string, SourceFile>,
-  carriers: (paths: readonly string[]) => OrdinaryWaiverCarriers,
+  { carriers, applicationPaths }: { readonly carriers: (paths: readonly string[]) => OrdinaryWaiverCarriers; readonly applicationPaths?: ReadonlySet<string> },
 ): OrdinaryWaiverAcquisition {
   const sourcePaths = new Set(policies.flatMap(({ population }) => population.effectiveSourcePaths));
   // Owner COMPLETION is deliberately not a condition: acquisition alarms (malformed, unknown-policy,
   // wrong-authority) are not completion-bound, so an incomplete ordinary owner still owes its carriers.
   const demanded = policies.flatMap(({ id, population }) => (authorityById.get(id) === "ordinary" ? population.effectiveResourcePaths : []));
-  const acquired = carriers(demanded);
+  const acquired = carriers(applicationPaths === undefined ? demanded : demanded.filter((path) => applicationPaths.has(path)));
   const sources: OrdinaryWaiverSource[] = [...sourcePaths].toSorted().map((path) => {
     const sourceFile = sourceFiles.get(path);
     if (sourceFile === undefined) {

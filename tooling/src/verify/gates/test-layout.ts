@@ -255,6 +255,7 @@ function violationFor(packages: MirrorIndex, tooling: MirrorIndex, rel: string, 
 
 export const gate = defineGate({
   id: "test-layout",
+  application: "resources",
   family: "mirror-index",
   authority: "hard",
   severity: "error",
@@ -273,7 +274,7 @@ export const gate = defineGate({
       const packages = readyResourceValue(ctx.resources.mirrorIndex("package-test"));
       const tooling = readyResourceValue(ctx.resources.mirrorIndex("tooling-test"));
       const prefix = `${packages.testRoot}/`;
-      for (const testPath of packages.testFiles) {
+      for (const testPath of [...packages.testFiles].filter(ctx.includesSubject)) {
         const rel = testPath.slice(prefix.length);
         const name = rel.slice(rel.lastIndexOf("/") + 1);
         const finding = violationFor(packages, tooling, rel, name);

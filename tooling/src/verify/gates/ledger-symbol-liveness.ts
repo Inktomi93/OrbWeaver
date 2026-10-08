@@ -131,6 +131,7 @@ function resolveOnTree(citedPath: string, trackedSet: ReadonlySet<string>, track
 
 export const gate = defineGate({
   id: "ledger-symbol-liveness",
+  application: "implementation",
   family: "ledger-symbol-liveness",
   authority: "ordinary",
   severity: "error",

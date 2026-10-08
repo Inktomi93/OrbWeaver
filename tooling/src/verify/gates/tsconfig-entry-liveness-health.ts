@@ -116,6 +116,7 @@ function includeJson(entries: readonly string[]): string {
 
 export const gate = defineGate({
   id: "tsconfig-entry-liveness-health",
+  application: "implementation",
   family: "grant-liveness",
   authority: "hard",
   severity: "error",

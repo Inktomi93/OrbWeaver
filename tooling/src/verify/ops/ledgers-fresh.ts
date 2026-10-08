@@ -32,10 +32,13 @@ import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { CaughtFailureJudgment, CaughtFailurePopulation } from "../contract/caught-failure.ts";
 import { THEME } from "../contract/css-family.ts";
 import { ACTIVE_GATES_INDEX_REL, SNAP_FLAGS_INDEX_REL } from "../contract/ledger-paths.ts";
 import type { LedgerFreshness } from "../contract/scoped.ts";
+import { readApplicationSubjects } from "../lib/application-programs.ts";
+import { populationIncludes } from "../lib/population-resolver.ts";
 import { deriveActiveGatesIndex } from "./gen/active-gates-index.ts";
 import { deriveCaughtFailurePopulation, POPULATION_REL } from "./gen/caught-failure-population.ts";
 import { deriveSnapFlagsIndexMarkdown } from "./gen/snap-flags-index.ts";
@@ -83,7 +86,7 @@ function rowFieldDrift(siteId: string, committed: CaughtFailureJudgment, derived
 
 /** The committed census vs a fresh derivation, row by row (keyed by the move-stable `siteId`). A vanished
  *  site is named by its id: the committed row carries no coordinate to cite, and the id spells the path. */
-export function censusDrift(committed: CaughtFailurePopulation | undefined, derived: CaughtFailurePopulation): LedgerFreshness {
+export function censusDrift(committed: CaughtFailurePopulation | undefined, derived: CaughtFailurePopulation, compareTotals = true): LedgerFreshness {
   const base = { ledger: POPULATION_REL, regen: REGEN_CENSUS, derived: derived.rows.length } as const;
   if (committed === undefined) {
     return { ...base, drift: [MISSING(REGEN_CENSUS)] };
@@ -104,7 +107,7 @@ export function censusDrift(committed: CaughtFailurePopulation | undefined, deri
       drift.push(`new    ${siteId} (${row.verdict}) — the census never recorded it`);
     }
   }
-  if (stable(committed.totals) !== stable(derived.totals)) {
+  if (compareTotals && stable(committed.totals) !== stable(derived.totals)) {
     drift.push(`totals ${stable(committed.totals)} → ${stable(derived.totals)}`);
   }
   return { ...base, drift: drift.sort((a, b) => a.localeCompare(b)) };
@@ -239,7 +242,20 @@ function verdict(results: readonly LedgerFreshness[]): number {
 }
 
 /** The `ledgers-fresh` verb — the whole-project stage. Every output, one process, writes nothing. */
-export async function runLedgersFresh(root: string): Promise<number> {
+export async function runLedgersFresh(root: string, args: readonly string[] = []): Promise<number> {
+  if (args.length === 1 && args[0] === "--application") {
+    const { subjects } = await readApplicationSubjects(root);
+    const selected = new Set(subjects);
+    const includesSubject = (path: string): boolean => selected.has(path) || populationIncludes("@product", path);
+    const committed = readCommitted<CaughtFailurePopulation>(root, POPULATION_REL);
+    const rows =
+      committed === undefined ? undefined : { ...committed, rows: committed.rows.filter(({ siteId }) => includesSubject(siteId.split("::")[0] ?? "")) };
+    const census = censusDrift(rows, deriveCaughtFailurePopulation(root, includesSubject), false);
+    return verdict([census, await themeCssDrift(root)]);
+  }
+  if (args.length > 0) {
+    throw new UsageError("ledgers-fresh accepts only --application");
+  }
   return verdict(await ledgerFreshness(root));
 }
 

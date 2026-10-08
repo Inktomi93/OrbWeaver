@@ -80,6 +80,7 @@ const MESSAGE = "a repository-owned product stylesheet exists outside the path-c
 
 export const gate = defineGate({
   id: "sanctioned-css-homes",
+  application: "resources",
   family: "css-home-topology",
   authority: "hard",
   severity: "error",

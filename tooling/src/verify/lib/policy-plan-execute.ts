@@ -136,6 +136,7 @@ export function executePolicyPlan(input: PolicyPlanExecutionInput): PolicyPlanEx
       root: input.root,
       project: input.project,
       ...(requestedPaths === undefined ? {} : { requestedPaths }),
+      ...(input.plan.applicationPaths === undefined ? {} : { applicationPaths: input.plan.applicationPaths }),
       ownerPlansByPolicy: new Map(input.plan.policies.map(({ policyId, mode, reason, population }) => [policyId, { mode, reason, population }])),
       reviewedGrants: input.reviewedGrants,
       failOnWarnings: input.plan.failOnWarnings,

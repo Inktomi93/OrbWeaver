@@ -80,6 +80,7 @@ const OPEN_ITEM = { "docs/work/0007-owns-the-debt.md": ITEM("open") };
 
 export const gate = defineGate({
   id: "warning-workitem-liveness",
+  application: "implementation",
   family: "policy-soundness",
   authority: "hard",
   severity: "error",

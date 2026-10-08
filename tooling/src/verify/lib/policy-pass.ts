@@ -29,6 +29,9 @@ import { createFactRuns, createRuns, walkRuns } from "./policy-pass-walk.ts";
 
 /** Run every selected policy with invocation-local state, then coordinate all authority centrally. */
 export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
+  if (input.applicationPaths !== undefined && input.applicationPaths.length === 0) {
+    throw new Error("application policy execution requires a complete nonempty subject population");
+  }
   assertInvocationPolicies(input.knownPolicies);
   assertInvocationPolicies(input.policies);
   assertSelectedPoliciesAreLoaded(input.knownPolicies, input.policies);
@@ -50,7 +53,15 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
   // The ONE path resolution: every owner context looks its files up here instead of re-deriving them per visit.
   const paths: ReadonlyMap<object, string> = new Map([...sourceFiles].map(([path, sourceFile]) => [sourceFile.compilerNode, path]));
   createFactRuns({ runs: factRuns, paths, resources, checker: sharedChecker, control: factControl });
-  createRuns({ runs, paths, resources, checker: sharedChecker, errors: toolErrors, factValues });
+  createRuns({
+    runs,
+    paths,
+    resources,
+    checker: sharedChecker,
+    errors: toolErrors,
+    factValues,
+    ...(input.applicationPaths === undefined ? {} : { applicationPaths: input.applicationPaths }),
+  });
   // The shared readers' per-file write caches live for exactly this pass (walk + evaluate both query them).
   beginReferencePass();
   try {
@@ -67,7 +78,10 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
     policies,
     new Map(input.policies.map(({ id, authority: policyAuthority }) => [id, policyAuthority])),
     sourceFiles,
-    resourceInvocation.ordinaryWaiverCarriers,
+    {
+      carriers: resourceInvocation.ordinaryWaiverCarriers,
+      ...(input.applicationPaths === undefined ? {} : { applicationPaths: new Set(input.applicationPaths) }),
+    },
   );
   const authority = coordinateGateAuthority({
     knownPolicies: input.knownPolicies.map(({ id, authority: policyAuthority, severity }) => ({ id, authority: policyAuthority, severity })),

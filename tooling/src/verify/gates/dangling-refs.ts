@@ -304,6 +304,7 @@ function evaluateDanglingRefs(ctx: GatePolicyContext, descriptorRefs: readonly D
 
 export const gate = defineGate({
   id: "dangling-refs",
+  application: "implementation",
   family: "dangling-refs",
   authority: "hard",
   severity: "error",

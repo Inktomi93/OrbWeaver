@@ -147,14 +147,19 @@ interface ResolutionInput {
   readonly requested: PolicyRequestedSelection | null;
   readonly resources: readonly string[];
   readonly dependencyPaths: readonly string[];
+  readonly applicationPaths?: ReadonlySet<string>;
 }
 
-function resolveRun({ run, candidates, sourceFiles, requested, resources, dependencyPaths }: ResolutionInput): void {
-  const declared = resolvePopulation(run.policy.population, candidates).paths;
+function resolveRun({ run, candidates, sourceFiles, requested, resources, dependencyPaths, applicationPaths }: ResolutionInput): void {
+  const implementationOnly = applicationPaths !== undefined && run.policy.application === "implementation";
+  const declared = implementationOnly ? [] : resolvePopulation(run.policy.population, candidates).paths;
+  if (applicationPaths !== undefined && declared.length === 0 && run.policy.application === undefined) {
+    throw new Error(`resource-only policy has no application subject admission: ${run.policy.id}`);
+  }
   if (run.policy.analysis !== "resource" && resources.length > 0) {
     throw new Error(`non-resource policy ${run.policy.id} ${POLICY_PASS_REFUSALS.nonResourceReceivedResources}`);
   }
-  if (isExplicitNone(run.policy) && resources.length === 0) {
+  if (!implementationOnly && isExplicitNone(run.policy) && resources.length === 0) {
     throw new Error(`resource-only policy ${run.policy.id} ${POLICY_PASS_REFUSALS.resourceOnlyNoPaths}`);
   }
   // THE ONE SELECTION CALCULATION (#2309), shared verbatim with the planner: an input is never narrowed, a
@@ -165,6 +170,9 @@ function resolveRun({ run, candidates, sourceFiles, requested, resources, depend
     declaredResourcePaths: resources,
     dependencyPaths,
     requested,
+    ...(applicationPaths === undefined
+      ? {}
+      : { applicationPaths, ...(run.policy.application === undefined ? {} : { applicationAdmission: run.policy.application }) }),
   });
   run.population = population;
   run.files = population.effectiveSourcePaths.map((path) => {
@@ -273,15 +281,30 @@ export function resolveRuns(
   // survive the intersection. The planner, whose declared source paths come from the SCOPE MANIFEST's program
   // membership (which still lists a deleted file), must filter — see `PolicyRequestedSelection`.
   const requested = requestedPaths === null ? null : { identity: requestedPaths, current: new Set(requestedPaths) };
-  const dependencies = factDependencyPaths(input.policies, candidates, resources);
+  const dependencies = factDependencyPaths(
+    input.applicationPaths === undefined ? input.policies : input.policies.filter((policy) => policy.application !== "implementation"),
+    candidates,
+    resources,
+  );
   const runs = input.policies.map(newRun);
   for (const run of runs) {
     // @orb-waive caught-failure-ownership(error): policy population resolution: markIncomplete converts error to a structured PolicyToolError; the run reports tool-error status with EMPTY_POPULATION
     try {
       charge(run.timing, "population", () => {
-        const declaredResources = resolveResourceDeclarations(resources, run.policy.resources);
+        const declaredResources =
+          input.applicationPaths !== undefined && run.policy.application === "implementation"
+            ? []
+            : resolveResourceDeclarations(resources, run.policy.resources);
         const dependencyPaths = run.policy.facts.flatMap(({ id }) => dependencies.get(id) ?? []);
-        resolveRun({ run, candidates, sourceFiles, requested, resources: declaredResources, dependencyPaths });
+        resolveRun({
+          run,
+          candidates,
+          sourceFiles,
+          requested,
+          resources: declaredResources,
+          dependencyPaths,
+          ...(input.applicationPaths === undefined ? {} : { applicationPaths: new Set(input.applicationPaths) }),
+        });
         run.resourceRequests = run.policy.resources;
         const ownerPlan = input.ownerPlansByPolicy?.get(run.policy.id);
         if (ownerPlan !== undefined) {

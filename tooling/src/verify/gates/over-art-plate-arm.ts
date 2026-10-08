@@ -175,6 +175,7 @@ const COMPOSER_RULE = 'html[data-blur-composer] [data-slot="composer"] {\n  back
 
 export const gate = defineGate({
   id: "over-art-plate-arm",
+  application: "resources",
   family: "over-art-plate-arm",
   authority: "ordinary",
   severity: "error",

@@ -1,5 +1,5 @@
 // Shared request, disposition and result vocabulary for policy population selection.
-import type { GatePolicyExecution } from "./policy.ts";
+import type { GatePolicy, GatePolicyExecution } from "./policy.ts";
 import type { PolicyPopulationReceipt } from "./policy-pass.ts";
 
 /** `run` maps to a running owner; the other two are the two `not-applicable` reasons, whose WORDING stays with
@@ -33,6 +33,8 @@ export interface PolicySelectionInput {
   readonly dependencyPaths: readonly string[];
   /** Null when the complete population was requested. */
   readonly requested: PolicyRequestedSelection | null;
+  readonly applicationPaths?: ReadonlySet<string>;
+  readonly applicationAdmission?: NonNullable<GatePolicy["application"]>;
 }
 
 export interface PolicySelectionResolution {

@@ -204,6 +204,7 @@ const namesTheDoor = (callee: MorphNode): boolean => referenceNamesExport(callee
 
 export const gate = defineGate({
   id: "tooling-instrument-proof",
+  application: "implementation",
   family: "tooling-instrument-proof",
   authority: "hard",
   severity: "error",
