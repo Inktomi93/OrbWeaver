@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-08
 priority: P1
 area: testing
-lane: codex/select-hosted-evidence
+lane: codex/select-native-source-retention
 ---
 
 # Diagnose hosted Select first-open blocking
@@ -28,3 +28,5 @@ The ordinary first-open budget fails in hosted and local native runs. Product so
 Profiler-on and trace-only diagnostics execute the same cold render and compilation path with different observed durations. These observations do not establish the original failure's cause.
 
 The original-cohort trace-only capture brackets the actual first and repeat opening. A failing native trace is needed before a source repair is justified.
+
+The native trace artifact lacks its referenced emitted bundles and source maps. Retain those files before CT lease cleanup without changing measurement.
