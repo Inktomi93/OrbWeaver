@@ -2807,11 +2807,11 @@ function LineageReadout(): ReactElement {
  *  and a plain readout of the context-panel landing the shell store holds. Both are the USER-VISIBLE result
  *  of a transition, so the CT can assert what a screen-reader hears and where the panel lands without
  *  reaching into store internals. */
-export function ChatGameModeMenuStory(): ReactElement {
+export function ChatGameModeMenuStory({ chatId = CHAT_ID }: { readonly chatId?: ChatId }): ReactElement {
   return (
     <CtDataProviders>
       <div>
-        <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characters={[]} galleryCharacters={[]} />
+        <ChatOptionsMenu key={chatId} chatId={chatId} title="Test chat" characters={[]} galleryCharacters={[]} />
         <GameModeShellReadout />
         <GameMarkerCensus />
       </div>

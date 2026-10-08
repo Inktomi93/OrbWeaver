@@ -7,10 +7,12 @@
 // menu-item assertion uses the PAGE locator (`page.getByRole`), never `component` (the composer-wand.ct.tsx
 // precedent).
 
+import type { ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { BACK_TO_PARENT_CHAT_LABEL } from "../../../../../packages/client/src/features/chat/lib/chat-options-names.ts";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ChatForkMenuStory, ChatGameModeMenuStory, ChatOptionsMenuStory, ChatStartFailureMenuStory } from "../_ct-stories.tsx";
 import { CHAT_ID, CHAT_ROOM_ROUTES } from "../fixtures.ts";
 
@@ -61,6 +63,7 @@ const LIST_ROW = {
 // The lifecycle-placement ABSENCE pins: no download/export item may exist in the ROOM menu.
 const ANY_TRANSCRIPT = /transcript/u;
 const ANY_EXPORT = /export/iu;
+const REPLACEMENT_CHAT_ID = castId<ChatId>("chat_ct_replacement");
 
 test("#8: a COMMITTED chat's row actions are ENABLED (there IS a server row) — the committed baseline", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_ROOM_ROUTES });
@@ -134,18 +137,23 @@ test("#862: the ⋯ item is ONE start action — a single click on 'Turn on game
 });
 
 test("#863: a user-initiated START announces itself and opens the panel on the game's Status tab", async ({ mount, page }) => {
-  await routeTrpc(page, {
+  const response = trpcHold();
+  const trpc = await routeTrpc(page, {
     ...CHAT_ROOM_ROUTES,
     "chat.listChats": () => ({ items: [], nextCursor: null }),
-    "rpg.createGame": () => ({ gameId: "rpg_game_ct", trackersReadOnly: false }),
+    "rpg.createGame": response,
   });
   const component = await mount(<ChatGameModeMenuStory />);
   await component.getByRole("button", { name: "Chat options" }).click();
   await page.getByRole("menuitem", { name: "Turn on game mode", exact: true }).click();
+  await expect.poll(() => trpc.count("rpg.createGame")).toBe(1);
+  await expect(page.locator('[data-slot="menu-popup"]')).toHaveCount(0);
+  response.release({ gameId: "rpg_game_ct", trackersReadOnly: false });
 
   // The SETTLED result of the commit: the app's polite region carries the transition, and the shell's
   // context landing is the game's Status tab from THIS door (the Game-tab door lands the same place).
   await expect(component.getByRole("status")).toHaveText("Game mode on — the Game panel is open");
+  await expect(component.getByRole("status")).toHaveAttribute("aria-live", "polite");
   await expect(component.getByText("Landing: rpg.status")).toBeVisible();
   await expect(component.getByText("Context panel: docked")).toBeVisible();
 });
@@ -173,9 +181,33 @@ test("#863: the OFF item carries the kept-state line as visible text AND as its 
   await expect(item).not.toHaveAttribute("title", /./u);
 });
 
+test("a completed START from an unmounted room owner cannot reveal the replacement room", async ({ mount, page }) => {
+  const response = trpcHold();
+  const trpc = await routeTrpc(page, {
+    ...CHAT_ROOM_ROUTES,
+    "chat.listChats": () => ({ items: [], nextCursor: null }),
+    "rpg.createGame": response,
+  });
+  const component = await mount(<ChatGameModeMenuStory />);
+  await expect(component.getByText("Game rows: 0")).toBeVisible();
+  await component.getByRole("button", { name: "Chat options" }).click();
+  await page.getByRole("menuitem", { name: "Turn on game mode", exact: true }).click();
+  await expect.poll(() => trpc.count("rpg.createGame")).toBe(1);
+  await expect(page.locator('[data-slot="menu-popup"]')).toHaveCount(0);
+  await component.update(<ChatGameModeMenuStory chatId={REPLACEMENT_CHAT_ID} />);
+  const listReads = trpc.count("chat.listChats");
+  response.release({ gameId: "rpg_game_ct", trackersReadOnly: false });
+  // The factory's settle invalidation survives its owner; the room-scoped success callback must not.
+  await expect.poll(() => trpc.count("chat.listChats")).toBeGreaterThan(listReads);
+  await expect(component.getByRole("status")).toHaveText("");
+  await expect(component.getByText("Landing: none")).toBeVisible();
+  await expect(component.getByText("Context panel: unset")).toBeVisible();
+});
+
 test("#863: turning game mode OFF announces the kept state AND repaints the chats-list marker at t+0", async ({ mount, page }) => {
   let engaged = true;
-  await routeTrpc(page, {
+  const response = trpcHold();
+  const trpc = await routeTrpc(page, {
     ...CHAT_ROOM_ROUTES,
     "chat.getChat": () => ({ ...(CHAT_ROOM_ROUTES["chat.getChat"] as object), rpg: { gameId: "rpg_game_ct", engaged } }),
     // The LIST read is a different query carrying its own server-derived marker — it flips the moment the
@@ -183,7 +215,7 @@ test("#863: turning game mode OFF announces the kept state AND repaints the chat
     "chat.listChats": () => ({ items: [{ ...LIST_ROW, isGame: engaged, gamePaused: !engaged }], nextCursor: null }),
     "rpg.updateConfig": () => {
       engaged = false;
-      return null;
+      return response;
     },
   });
   const component = await mount(<ChatGameModeMenuStory />);
@@ -191,6 +223,9 @@ test("#863: turning game mode OFF announces the kept state AND repaints the chat
 
   await component.getByRole("button", { name: "Chat options" }).click();
   await page.getByRole("menuitem", { name: "Turn off game mode", exact: true }).click();
+  await expect.poll(() => trpc.count("rpg.updateConfig")).toBe(1);
+  await expect(page.locator('[data-slot="menu-popup"]')).toHaveCount(0);
+  response.release(null);
 
   await expect(component.getByRole("status")).toHaveText("Game mode off — your sheets, scene and quests are kept");
   // The census flips WITHOUT a reload: `chat.listChats` is in the mutation's invalidation set (#863 P2 —
