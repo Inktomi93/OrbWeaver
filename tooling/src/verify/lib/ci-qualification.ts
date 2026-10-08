@@ -33,6 +33,7 @@ const RUN_PAGE_PROJECTION = `{total_count,workflow_runs:[.workflow_runs[]|{${RUN
 const STEP = z.object({ name: z.string(), status: z.string(), conclusion: z.string().nullable() });
 const JOB = z.object({
   id: z.number().int().positive(),
+  ["run_attempt"]: z.number().int().positive(),
   ["run_id"]: z.number().int().positive(),
   ["head_sha"]: COMMIT_ID,
   name: z.string(),
@@ -163,6 +164,25 @@ function inventoryIdentity(rows: readonly z.infer<typeof RUN>[]): string {
   return JSON.stringify(rows.toSorted((a, b) => a.id - b.id));
 }
 
+function proofJobsSucceeded(jobs: readonly z.infer<typeof JOB>[], run: z.infer<typeof RUN>, sha: string, config: CiQualificationConfig): boolean {
+  const required = ["static", ...config.corpusJobs];
+  if (new Set(required).size !== required.length || jobs.some((job) => job.run_id !== run.id || job.head_sha !== sha || job.run_attempt !== run.run_attempt)) {
+    return false;
+  }
+  for (const name of required) {
+    const matching = jobs.filter((job) => job.name === name);
+    const marked = matching[0];
+    if (matching.length !== 1 || marked === undefined || marked.status !== "completed" || marked.conclusion !== "success") {
+      return false;
+    }
+    const steps = marked.steps.filter((step) => step.name === config.generation);
+    if (steps.length !== 1 || steps[0]?.status !== "completed" || steps[0].conclusion !== "success") {
+      return false;
+    }
+  }
+  return true;
+}
+
 function qualifiedMainPush(
   root: string,
   sha: string,
@@ -184,19 +204,7 @@ function qualifiedMainPush(
     return false;
   }
   const jobs = jobsForAttempt(root, config.repository, run, deadline);
-  const staticJobs = jobs.filter((job) => job.name === "static");
-  const marked = staticJobs[0];
-  if (
-    staticJobs.length !== 1 ||
-    marked === undefined ||
-    jobs.some((job) => job.run_id !== run.id || job.head_sha !== sha) ||
-    marked.status !== "completed" ||
-    marked.conclusion !== "success"
-  ) {
-    return false;
-  }
-  const steps = marked.steps.filter((step) => step.name === config.generation);
-  if (steps.length !== 1 || steps[0]?.status !== "completed" || steps[0].conclusion !== "success") {
+  if (!proofJobsSucceeded(jobs, run, sha, config)) {
     return false;
   }
   // A partial rerun must not mix successful metadata from the previous attempt with the current aggregate.
@@ -219,7 +227,7 @@ function qualifiedMainPush(
   );
 }
 
-/** Check the latest run for this exact SHA, including smoke via whole-workflow success and one attempt's real static step. */
+/** Check the latest run for this exact SHA, including smoke via whole-workflow success and one attempt's real static and corpus steps. */
 export function hasQualifiedMainPush(
   root: string,
   sha: string,

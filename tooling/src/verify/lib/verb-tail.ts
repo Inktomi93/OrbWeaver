@@ -68,7 +68,7 @@ const VERB_TAIL: Readonly<Record<VerifyVerb, TailGrammar>> = {
   "eslint-scoped": "own",
   // The event/train boundary or local publish delta owns selection; a path tail would contradict it. An
   // operator who wants named instrument specs is reaching for the scoped test door.
-  "instrument-affected": { tail: "none", scopedDoor: "pnpm test:scoped <tests/tooling paths…>" },
+  "instrument-affected": "own",
   "showcase-release": NO_TAIL,
 };
 

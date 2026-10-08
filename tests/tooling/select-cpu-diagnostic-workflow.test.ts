@@ -33,7 +33,7 @@ const workflowSchema = z.object({
 });
 type Workflow = z.infer<typeof workflowSchema>;
 const ENTRY_JOBS = ["changes", "ci-ok", "qualification", "select-cpu-diagnostic"] as const;
-const NORMAL_JOBS = ["changes", "static", "media", "node", "ct", "e2e-smoke", "ci-ok", "qualification"] as const;
+const NORMAL_JOBS = ["changes", "semantic-corpus", "static", "media", "node", "ct", "e2e-smoke", "ci-ok", "qualification"] as const;
 const WITHHELD_GUARD = "!inputs.select_cpu_diagnostic && ";
 
 function readWorkflow(repoRoot: string): Workflow {
@@ -82,14 +82,17 @@ test("existing CI dispatch isolates diagnostic authority across every normal tri
     default: false,
   });
   expect(Object.keys(workflow.jobs).toSorted()).toEqual([...NORMAL_JOBS, "select-cpu-diagnostic"].toSorted());
-  expect(workflow.jobs["static"]?.needs).toBe("changes");
+  expect(workflow.jobs["static"]?.needs).toEqual(["changes", "semantic-corpus"]);
+  expect(workflow.jobs["static"]?.if).toBeUndefined();
+  expect(workflow.jobs["semantic-corpus"]?.needs).toBe("changes");
+  expect(workflow.jobs["semantic-corpus"]?.if).toBeUndefined();
   for (const name of ["media", "ct", "e2e-smoke"]) {
     expect(workflow.jobs[name]?.needs).toBe("changes");
     expect(workflow.jobs[name]?.if).toBe("needs.changes.outputs.code == 'true'");
   }
   expect(workflow.jobs["node"]?.needs).toEqual(["changes", "media"]);
   expect(workflow.jobs["node"]?.if).toBe("needs.changes.outputs.code == 'true'");
-  expect(workflow.jobs["ci-ok"]?.needs).toEqual(["changes", "static", "media", "node", "ct", "e2e-smoke"]);
+  expect(workflow.jobs["ci-ok"]?.needs).toEqual(["changes", "semantic-corpus", "static", "media", "node", "ct", "e2e-smoke"]);
   expect(workflow.concurrency.group).toContain("inputs.select_cpu_diagnostic && 'select-cpu-diagnostic'");
   expect(workflow["run-name"]).toContain("Select CPU diagnostic only");
 });

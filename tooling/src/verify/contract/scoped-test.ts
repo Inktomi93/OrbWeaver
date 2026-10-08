@@ -55,3 +55,13 @@ export interface CtRunnerLockRecord {
 export type CtRunnerLock =
   | { readonly kind: "held"; readonly lease: CtRunnerLease }
   | { readonly kind: "busy"; readonly holder: CtRunnerLockRecord; readonly refusal: string };
+
+export interface NativeNodeShardCollection {
+  readonly files: readonly string[];
+  readonly shards: readonly (readonly string[])[];
+}
+
+export interface NativeNodeShard {
+  readonly index: number;
+  readonly count: number;
+}

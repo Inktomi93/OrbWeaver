@@ -144,7 +144,7 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
     case "eslint-scoped":
       return await runScopedEslint(root, rest);
     case "instrument-affected":
-      return runInstrumentAffected(root);
+      return await runInstrumentAffected(root, rest);
     case "showcase-release":
       return runShowcaseRelease(root);
     default:

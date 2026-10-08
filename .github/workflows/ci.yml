@@ -44,7 +44,7 @@ concurrency:
 env:
   CI: "true"
   ORB_CI_REPOSITORY: Inktomi93/OrbWeaver
-  ORB_CI_QUALIFICATION_GENERATION: Orbweaver qualification ancestor-v1
+  ORB_CI_QUALIFICATION_GENERATION: Orbweaver qualification corpus-v1
   ORB_CI_PUBLICATION_BOOTSTRAP_SHA: ac6cfc19ea9db59644426b37f6b8c842c33473ad
 
 jobs:
@@ -73,15 +73,45 @@ jobs:
           BEFORE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || inputs.base }}
         run: pnpm exec node scripts/ci-qualification.ts baseline "$GITHUB_SHA" "$BEFORE"
 
-  static:
+  semantic-corpus:
     needs: changes
     runs-on: ubuntu-latest
-    # Publication bootstrap runs complete tooling proof within the exhaustive qualification allowance.
     timeout-minutes: &qualification-timeout 330
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    name: semantic-corpus (${{ matrix.shard }}/${{ strategy.job-total }})
     env:
       ORB_VERIFY_BASE: ${{ needs.changes.outputs.base }}
       ORB_VERIFY_HEAD: ${{ needs.changes.outputs.head }}
       ORB_VERIFY_TOOL_MODE: ${{ needs.changes.outputs.tool_mode }}
+      ORB_VERIFY_INSTRUMENT_COMPONENT: corpus
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+      - name: ${{ env.ORB_CI_QUALIFICATION_GENERATION }}
+        run: pnpm check:instrument-affected --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reports-semantic-corpus-${{ matrix.shard }}
+          path: reports/
+          retention-days: 7
+
+  static:
+    needs: [changes, semantic-corpus]
+    runs-on: ubuntu-latest
+    # Publication bootstrap runs complete tooling proof within the exhaustive qualification allowance.
+    timeout-minutes: *qualification-timeout
+    env:
+      ORB_VERIFY_BASE: ${{ needs.changes.outputs.base }}
+      ORB_VERIFY_HEAD: ${{ needs.changes.outputs.head }}
+      ORB_VERIFY_TOOL_MODE: ${{ needs.changes.outputs.tool_mode }}
+      ORB_VERIFY_INSTRUMENT_COMPONENT: non-corpus
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -328,7 +358,7 @@ jobs:
   # The one required check. A skipped suite (docs-only change) passes; a failed or cancelled one does not.
   ci-ok:
     if: always() && !inputs.select_cpu_diagnostic && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full'
-    needs: [changes, static, media, node, ct, e2e-smoke]
+    needs: [changes, semantic-corpus, static, media, node, ct, e2e-smoke]
     runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:
@@ -342,7 +372,7 @@ jobs:
             echo "| - | - |"
             echo "$NEEDS" | jq -r 'to_entries[] | "| \(.key) | \(.value.result) |"'
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "$NEEDS" | jq -e 'all(.[]; .result == "success" or .result == "skipped")' > /dev/null
+          echo "$NEEDS" | jq -e '.changes.result == "success" and .static.result == "success" and .["semantic-corpus"].result == "success" and all(.[]; .result == "success" or .result == "skipped")' > /dev/null
 
   # Manual diagnostics use the registered CI workflow so non-default refs remain dispatchable.
   # Profiling is evidence only; no qualification job or generation-marked step runs in this mode.

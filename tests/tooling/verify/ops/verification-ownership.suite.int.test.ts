@@ -15,7 +15,13 @@ interface WorkflowStep {
   readonly uses?: string;
   readonly env?: Readonly<Record<string, string>>;
   readonly "timeout-minutes"?: number;
-  readonly with?: { readonly path?: string; readonly key?: string; readonly "artifact-ids"?: string; readonly "digest-mismatch"?: string };
+  readonly with?: {
+    readonly browsers?: string;
+    readonly path?: string;
+    readonly key?: string;
+    readonly "artifact-ids"?: string;
+    readonly "digest-mismatch"?: string;
+  };
 }
 interface QualificationJob {
   readonly "timeout-minutes": number;
@@ -42,7 +48,18 @@ interface Workflow {
       readonly permissions: Readonly<Record<string, string>>;
       readonly steps: readonly (WorkflowStep & { readonly env?: Readonly<Record<string, string>> })[];
     };
+    readonly "semantic-corpus": {
+      readonly name: string;
+      readonly needs: string;
+      readonly if?: string;
+      readonly strategy: { readonly "fail-fast": boolean; readonly matrix: { readonly shard: readonly number[] } };
+      readonly "timeout-minutes": number;
+      readonly env: Readonly<Record<string, string>>;
+      readonly steps: readonly (WorkflowStep & { readonly name?: string })[];
+    };
     readonly static: {
+      readonly needs: readonly string[];
+      readonly if?: string;
       readonly "timeout-minutes": number;
       readonly env: Readonly<Record<string, string>>;
       readonly steps: readonly (WorkflowStep & { readonly name?: string })[];
@@ -381,7 +398,7 @@ test("CI event qualification passes the actual target/before and tested SHA, not
   );
   expect(ci.jobs.changes.permissions).toEqual({ contents: "read", actions: "read" });
   expect(ci.jobs.static.steps.find((candidate) => candidate.run === "pnpm check --verbose")?.name).toBe("${{ env.ORB_CI_QUALIFICATION_GENERATION }}");
-  expect(ci.env["ORB_CI_QUALIFICATION_GENERATION"]).toBe("Orbweaver qualification ancestor-v1");
+  expect(ci.env["ORB_CI_QUALIFICATION_GENERATION"]).toBe("Orbweaver qualification corpus-v1");
   expect(ci.env["ORB_CI_PUBLICATION_BOOTSTRAP_SHA"]).toBe("ac6cfc19ea9db59644426b37f6b8c842c33473ad");
   expect(ci.env["ORB_CI_REPOSITORY"]).toBe("Inktomi93/OrbWeaver");
 });
@@ -522,4 +539,50 @@ test("the generation-marked static command forwards live output mode and preserv
     expect(JSON.parse(readFileSync(join(scratch, "called.json"), "utf8"))).toEqual(["check", "--verbose"]);
     expect(result.stdout).toContain("fixture child progress");
   }
+});
+
+test("split qualification preserves event selection and cannot bypass an incomplete corpus dependency", ({ repoRoot, scratch }) => {
+  const ci = workflow(repoRoot);
+  const corpus = ci.jobs["semantic-corpus"];
+  expect(corpus.needs).toBe("changes");
+  expect(corpus.if).toBeUndefined();
+  expect(corpus.strategy).toEqual({ "fail-fast": false, matrix: { shard: [1, 2] } });
+  expect(corpus.name).toBe("semantic-corpus (${{ matrix.shard }}/${{ strategy.job-total }})");
+  expect(corpus.env).toEqual({ ...ci.jobs.static.env, ["ORB_VERIFY_INSTRUMENT_COMPONENT"]: "corpus" });
+  expect(ci.jobs.static.env["ORB_VERIFY_INSTRUMENT_COMPONENT"]).toBe("non-corpus");
+  expect(ci.jobs.static.needs).toEqual(["changes", "semantic-corpus"]);
+  expect(ci.jobs.static.if).toBeUndefined();
+  expect(corpus["timeout-minutes"]).toBe(ci.jobs.static["timeout-minutes"]);
+  const proof = corpus.steps.filter((candidate) => candidate.name === "${{ env.ORB_CI_QUALIFICATION_GENERATION }}");
+  expect(proof).toHaveLength(1);
+  expect(proof[0]?.run).toBe("pnpm check:instrument-affected --shard=${{ matrix.shard }}/${{ strategy.job-total }}");
+  expect(proof[0]?.if).toBeUndefined();
+  const setup = corpus.steps.find((candidate) => candidate.uses === "$/.github/actions/setup");
+  expect(setup).toBeDefined();
+  expect(setup?.with?.browsers).toBeUndefined();
+  const gate = ci.jobs["ci-ok"];
+  const run = gate.steps[0]?.run;
+  if (run === undefined) {
+    throw new Error("missing qualification verdict");
+  }
+  for (const job of ["changes", "static", "semantic-corpus"]) {
+    expect(gate.needs).toContain(job);
+    for (const result of ["success", "skipped", "failure", "cancelled", "missing"]) {
+      const needs = Object.fromEntries(
+        gate.needs.map((name) => [name, { result: ["node", "ct", "e2e-smoke", "media"].includes(name) ? "skipped" : "success" }]),
+      );
+      if (result === "missing") {
+        delete needs[job];
+      } else {
+        needs[job] = { result };
+      }
+      const verdict = spawnSync("bash", ["-e", "-c", run], {
+        cwd: scratch,
+        env: inheritedProcessEnv({ ["NEEDS"]: JSON.stringify(needs), ["GITHUB_STEP_SUMMARY"]: join(scratch, "summary.md") }),
+        encoding: "utf8",
+      });
+      expect(verdict.status, job + result + verdict.stderr).toBe(result === "success" ? 0 : 1);
+    }
+  }
+  expect(ci.jobs.qualification.env["ORB_VERIFY_INSTRUMENT_COMPONENT"]).toBeUndefined();
 });

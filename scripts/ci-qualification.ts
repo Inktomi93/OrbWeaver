@@ -5,11 +5,19 @@ import process from "node:process";
 import { execGit, GIT_READ_PREFIX } from "@orb/tooling/_shared/git";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { runTool, UsageError } from "@orb/tooling/_shared/run-tool";
+import { SEMANTIC_CORPUS_RESOURCE } from "@orb/tooling/_shared/test-kinds";
 import { hasQualifiedMainPush, resolveCiQualification } from "@orb/tooling/verify";
 import YAML from "yaml";
 import { z } from "zod";
 
 const WORKFLOW = z.object({
+  jobs: z.object({
+    static: z.object({ needs: z.tuple([z.literal("changes"), z.literal(SEMANTIC_CORPUS_RESOURCE)]), if: z.never().optional() }),
+    [SEMANTIC_CORPUS_RESOURCE]: z.object({
+      name: z.literal(`${SEMANTIC_CORPUS_RESOURCE} (\${{ matrix.shard }}/\${{ strategy.job-total }})`),
+      strategy: z.object({ matrix: z.object({ shard: z.tuple([z.literal(1), z.literal(2)]) }) }),
+    }),
+  }),
   env: z.object({
     ORB_CI_REPOSITORY: z.literal("Inktomi93/OrbWeaver"),
     ORB_CI_QUALIFICATION_GENERATION: z.string().regex(/^Orbweaver qualification [a-z0-9-]+$/u),
@@ -30,11 +38,19 @@ await runTool(() => {
   if (head !== execGit(root, [...GIT_READ_PREFIX, "rev-parse", "HEAD"]).trim()) {
     throw new UsageError("CI qualification head differs from the tested HEAD");
   }
-  const { env } = WORKFLOW.parse(YAML.parse(readFileSync(join(root, ".github/workflows/ci.yml"), "utf8")));
+  const { env, jobs } = WORKFLOW.parse(YAML.parse(readFileSync(join(root, ".github/workflows/ci.yml"), "utf8")));
   const config = {
     repository: env.ORB_CI_REPOSITORY,
     generation: env.ORB_CI_QUALIFICATION_GENERATION,
     publication: env.ORB_CI_PUBLICATION_BOOTSTRAP_SHA,
+    corpusJobs: [
+      jobs[SEMANTIC_CORPUS_RESOURCE].name
+        .replace("${{ strategy.job-total }}", String(jobs[SEMANTIC_CORPUS_RESOURCE].strategy.matrix.shard.length))
+        .replace("${{ matrix.shard }}", String(jobs[SEMANTIC_CORPUS_RESOURCE].strategy.matrix.shard[0])),
+      jobs[SEMANTIC_CORPUS_RESOURCE].name
+        .replace("${{ strategy.job-total }}", String(jobs[SEMANTIC_CORPUS_RESOURCE].strategy.matrix.shard.length))
+        .replace("${{ matrix.shard }}", String(jobs[SEMANTIC_CORPUS_RESOURCE].strategy.matrix.shard[1])),
+    ] as const,
     hasCurrentGeneration: (source: string): boolean =>
       HISTORICAL_GENERATION.parse(YAML.parse(source)).env?.ORB_CI_QUALIFICATION_GENERATION === env.ORB_CI_QUALIFICATION_GENERATION,
   };

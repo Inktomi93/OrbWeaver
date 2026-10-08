@@ -4,6 +4,7 @@
 // member fails tsc until it has a help line, so the front door cannot grow a verb that OOMs on `--help`
 // (and the pin in tests/tooling/verify/cli.int.test.ts reads the same tuple, so it exercises it too).
 // The two verbs that own richer text supply it themselves (`show`, `scoped`) — one home each.
+import { INSTRUMENT_EXECUTION_COMPONENT_ENV } from "../contract/instrument-affected.ts";
 import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../contract/selection.ts";
 import type { VerifyVerb } from "../contract/verbs.ts";
 import { BASELINE_HELP } from "../ops/baseline.ts";
@@ -50,7 +51,7 @@ export const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
     "usage: node tooling/src/verify/cli.ts knip-negative-liveness\n  Reds when a LITERAL negative entry/project/ignore pattern in knip.ts names a path that is not a tracked file. Wildcard negations are out of scope. An unreadable index is exit 2.",
   "typecheck-plan": TYPECHECK_PLAN_HELP,
   typecheck: TYPECHECK_HELP,
-  "instrument-affected": `usage: node tooling/src/verify/cli.ts instrument-affected\n  Qualifies changed tooling sources and native tests. ${VERIFY_BASE_ENV}/${VERIFY_HEAD_ENV} provide paired event/train commit IDs; absent values retain local publication semantics. Missing or invalid explicit boundaries refuse. Deleted inputs and executable configuration select conservative proof.`,
+  "instrument-affected": `usage: node tooling/src/verify/cli.ts instrument-affected [--shard=<index>/<count>]\n  Partial ${INSTRUMENT_EXECUTION_COMPONENT_ENV}=corpus|non-corpus requires a validated event boundary; only corpus accepts a native shard. Default execution retains all tooling. Qualifies changed tooling sources and native tests. ${VERIFY_BASE_ENV}/${VERIFY_HEAD_ENV} provide paired event/train commit IDs; absent values retain local publication semantics. Missing or invalid explicit boundaries refuse. Deleted inputs and executable configuration select conservative proof.`,
   eslint:
     "usage: node tooling/src/verify/cli.ts eslint\n  Runs whole-repository ESLint in sequential native compiler-owner processes. It takes NO paths: a SCOPED run is `pnpm lint:eslint-scoped <files>`, one native compiler-owner process per owner.",
   "eslint-scoped": ESLINT_SCOPED_USAGE,

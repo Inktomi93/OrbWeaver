@@ -8,6 +8,7 @@ export interface CiQualificationConfig {
   readonly repository: string;
   readonly generation: string;
   readonly publication: string;
+  readonly corpusJobs: readonly [string, string];
   readonly hasCurrentGeneration: (workflow: string) => boolean;
 }
 
