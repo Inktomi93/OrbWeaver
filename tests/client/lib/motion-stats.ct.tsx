@@ -58,6 +58,8 @@ import { loafOverBudget, loafTotals } from "../../../tooling/src/motion-audit/in
 import type { TraceCapture } from "../../../tooling/src/snap/lib/react-profile-trace.ts";
 import { recordOf, startTrace, stopTrace } from "../../../tooling/src/snap/lib/react-profile-trace.ts";
 import { DIAGNOSTIC_ONLY_ANNOTATION } from "../../../tooling/src/verify/contract/scoped-test.ts";
+import type { AppBlockingReceipt } from "../../support/iso/app-blocking-receipt.ts";
+import { matchAppBlockingFrame } from "../../support/iso/app-blocking-receipt.ts";
 import { MotionAnchoredPortalStory, MotionShiftFlaggerStory, MotionVirtualizedShiftStory } from "./_ct-stories.tsx";
 import { SELECT_OPENING_TEST_CASES } from "./select-opening-cases.ts";
 import type { SelectOpeningProbe } from "./select-opening-fixtures.tsx";
@@ -90,8 +92,6 @@ const SELECT_TRACE_SYNC_MARK = "orb:select-cpu-diagnostic:clock";
 const SELECT_COMPILE_CONTROL_START = "orb:select-cpu-diagnostic:compile-control:start";
 const SELECT_COMPILE_CONTROL_END = "orb:select-cpu-diagnostic:compile-control:end";
 const SELECT_TRACE_CATEGORIES = ["disabled-by-default-v8.compile"] as const;
-const APP_BLOCKING_FRAME_CALLBACK = "plantAppBlockingFrame";
-const APP_BLOCKING_FRAME_INVOKER = "FrameRequestCallback";
 
 async function syncSelectTraceClock(page: Page): Promise<void> {
   await page.evaluate((name) => {
@@ -430,74 +430,55 @@ function entranceTaskMotion(page: Page): Promise<MotionRead> {
   return motionWhen(page, (snapshot) => snapshot.loafs.some((loaf) => loaf.scripts.some((script) => script.sourceFunctionName === "plantEntranceFrame")));
 }
 
-function isAppBlockingFrame(loaf: MotionRead["loafs"][number]): boolean {
-  return (
-    loaf.blockingDuration > 50 &&
-    loaf.scripts.some((script) => script.sourceFunctionName === APP_BLOCKING_FRAME_CALLBACK && script.invoker === APP_BLOCKING_FRAME_INVOKER)
+function resetAppBlockingReceipt(page: Page): Promise<void> {
+  return page.evaluate(() => (globalThis as typeof globalThis & { __resetAppBlockingReceipt: () => void }).__resetAppBlockingReceipt());
+}
+
+function readAppBlockingInput(page: Page): Promise<AppBlockingReceipt> {
+  return page.evaluate(() =>
+    (globalThis as typeof globalThis & { __readAppBlockingReceiptForTest: () => AppBlockingReceipt }).__readAppBlockingReceiptForTest(),
   );
 }
 
-function appBlockingMotion(page: Page): Promise<MotionRead> {
-  return motionWhen(page, (motion) => motion.loafs.some(isAppBlockingFrame));
-}
-
-interface AppBlockingInputReceipt {
-  readonly clicks: readonly { readonly startTime: number; readonly trusted: boolean }[];
-  readonly frames: readonly number[];
-}
-
-function readAppBlockingInput(page: Page): Promise<AppBlockingInputReceipt> {
-  return page.evaluate(
-    (callback) => ({
-      clicks: performance.getEntriesByName(`${callback}:click`, "mark").map((entry) => ({
-        startTime: entry.startTime,
-        trusted: entry instanceof PerformanceMark && entry.detail === true,
-      })),
-      frames: performance.getEntriesByName(callback, "mark").map((entry) => entry.startTime),
-    }),
-    APP_BLOCKING_FRAME_CALLBACK,
-  );
+async function appBlockingMotion(page: Page, trusted: boolean): Promise<{ motion: MotionRead; frame: MotionRead["loafs"][number] }> {
+  let receipt = await readAppBlockingInput(page);
+  let motion = await readMotion(page);
+  let match = matchAppBlockingFrame(receipt, motion.loafs, trusted);
+  try {
+    await expect
+      .poll(async () => {
+        receipt = await readAppBlockingInput(page);
+        motion = await readMotion(page);
+        match = matchAppBlockingFrame(receipt, motion.loafs, trusted);
+        return typeof match === "string" ? match : "matched";
+      }, evidencePoll())
+      .toBe("matched");
+    if (typeof match === "string") {
+      throw new Error(match);
+    }
+    const frame = motion.loafs[match.retainedIndex];
+    if (frame === undefined) {
+      throw new Error("matched app blocking frame is not retained");
+    }
+    // Judge the matched plant itself; an unrelated slow frame cannot make the control pass.
+    const matched = { ...motion, loafs: [frame] };
+    expect(loafOverBudget(matched)).toBe(true);
+    return { motion, frame };
+  } finally {
+    await test.info().attach("app-blocking-receipt", {
+      body: JSON.stringify({ input: receipt, motion, match, trusted }),
+      contentType: "application/json",
+    });
+  }
 }
 
 async function postPopupAppBlockingMotion(page: Page): Promise<MotionRead> {
   await resetMotion(page);
-  const checkpoint = await page.evaluate((callback) => {
-    performance.clearMarks(callback);
-    performance.clearMarks(`${callback}:click`);
-    return performance.mark(`${callback}:checkpoint`).startTime;
-  }, APP_BLOCKING_FRAME_CALLBACK);
+  await resetAppBlockingReceipt(page);
   // Actionability separates this post-popup input from the checkpoint's rendering update and proves its receiver.
   await page.getByRole("button", { name: "plant app blocking", exact: true }).click();
-  try {
-    await expect
-      .poll(() => readAppBlockingInput(page), evidencePoll())
-      .toMatchObject({
-        clicks: [{ trusted: true }],
-        frames: [expect.any(Number)],
-      });
-    const motion = await appBlockingMotion(page);
-    const receipt = await readAppBlockingInput(page);
-    expect(receipt.clicks).toHaveLength(1);
-    expect(receipt.frames).toHaveLength(1);
-    const frame = motion.loafs.find(isAppBlockingFrame);
-    if (frame === undefined) {
-      throw new Error("the delivered app blocking callback has no retained native LoAF");
-    }
-    expect(frame.startTime).toBeGreaterThanOrEqual(Math.round(checkpoint));
-    for (const click of receipt.clicks) {
-      expect(click.startTime).toBeGreaterThanOrEqual(checkpoint);
-    }
-    for (const timestamp of receipt.frames) {
-      expect(timestamp).toBeGreaterThanOrEqual(frame.startTime);
-      expect(timestamp).toBeLessThanOrEqual(frame.startTime + frame.duration);
-    }
-    return motion;
-  } finally {
-    await test.info().attach("post-popup-app-blocking-input", {
-      body: JSON.stringify({ checkpoint, input: await readAppBlockingInput(page), motion: await readMotion(page) }),
-      contentType: "application/json",
-    });
-  }
+  const { motion } = await appBlockingMotion(page, true);
+  return motion;
 }
 
 async function motionWhen(page: Page, predicate: (motion: MotionRead) => boolean): Promise<MotionRead> {
@@ -839,9 +820,12 @@ test("a slow first Select render confirms its entrance without hiding its app bl
   await expect(trigger).toHaveAttribute("aria-expanded", "false");
   const capEnd = (entrance?.confirmedAt ?? 0) + 300;
   await delay(300);
+  await resetAppBlockingReceipt(page);
   await page.getByRole("button", { name: "plant app blocking" }).click();
-  const outside = await motionWhen(page, (snapshot) => snapshot.loafs.some((loaf) => loaf.startTime > capEnd && isAppBlockingFrame(loaf)));
+  const { motion: outside, frame: outsideFrame } = await appBlockingMotion(page, true);
+  expect(outsideFrame.startTime).toBeGreaterThan(capEnd);
   expect(outside.loafs.filter((loaf) => loaf.startTime > capEnd).every((loaf) => loaf.selectEntrance === undefined)).toBe(true);
+  expect(loafOverBudget(outside)).toBe(true);
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
 });
 
@@ -949,16 +933,10 @@ for (const openingCase of ["default-open", "synthetic"] as const) {
       await trigger.evaluate((element: HTMLButtonElement) => element.click());
     }
     await expect(page.getByRole("listbox")).toBeVisible();
+    // Receipt-only reset preserves this page's ordinary Select mount and first-allowance history.
+    await resetAppBlockingReceipt(page);
     await page.getByRole("button", { name: "plant app blocking", exact: true }).evaluate((element: HTMLButtonElement) => element.click());
-    const ordinary = await appBlockingMotion(page);
-    const appFrame = ordinary.loafs.find(isAppBlockingFrame);
-    const appScript = appFrame?.scripts.find((script) => script.sourceFunctionName === APP_BLOCKING_FRAME_CALLBACK);
-    expect(appFrame).toBeDefined();
-    expect(appScript?.invoker).toBe(APP_BLOCKING_FRAME_INVOKER);
-    // LoAF subtracts 50ms: this callback alone must supply more than 50ms blocking, not borrow another task.
-    expect(appScript?.duration).toBeGreaterThan(100);
-    expect(appFrame?.blockingDuration).toBeGreaterThan(50);
-    await test.info().attach("ordinary-app-blocking", { body: JSON.stringify(appFrame), contentType: "application/json" });
+    const { motion: ordinary } = await appBlockingMotion(page, false);
     expect(ordinary.loafs.every((loaf) => loaf.selectEntrance?.confirmedAt === undefined)).toBe(true);
     expect(loafOverBudget(ordinary)).toBe(true);
     await page.keyboard.press("Escape");

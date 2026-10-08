@@ -41,6 +41,8 @@ import {
 } from "../../../packages/client/src/lib/motion-stats.ts";
 import { perfMeasureFromLoad } from "../../../packages/client/src/lib/perf-marks.ts";
 import { recordRender } from "../../../packages/client/src/lib/render-stats.ts";
+import type { AppBlockingReceipt } from "../../support/iso/app-blocking-receipt.ts";
+import { APP_BLOCKING_MARKS } from "../../support/iso/app-blocking-receipt.ts";
 import { blockMainThread } from "../../support/node/block-main-thread.ts";
 import type { SelectOpeningTestCase } from "./select-opening-cases.ts";
 import type { SelectOpeningProbe } from "./select-opening-fixtures.tsx";
@@ -217,9 +219,10 @@ export function MotionVirtualizedShiftStory(): ReactElement {
 // supplies that precondition on fast hosts; the ordinary blocking budget remains unchanged.
 const SELECT_EVIDENCE_TASK_MS = 60;
 
-function plantAppBlockingFrame(timestamp: number): void {
-  performance.mark(plantAppBlockingFrame.name, { startTime: timestamp });
+function plantAppBlockingFrame(): void {
+  performance.mark(APP_BLOCKING_MARKS.begin);
   blockMainThread(120);
+  performance.mark(APP_BLOCKING_MARKS.end);
 }
 
 /** A real sealed anchored portal for the LoAF first-mount classifier. Both accessors come from the
@@ -245,6 +248,7 @@ export function MotionAnchoredPortalStory({
   const [blockSelectOpen, setBlockSelectOpen] = useState(false);
   const [controlledOpen, setControlledOpen] = useState(false);
   const [mounted, setMounted] = useState(true);
+  const appBlockingFrameRef = useRef<number | null>(null);
   const callerEvents = useRef<Event[]>([]);
   const callbacks = useRef<SelectOpeningProbe["callbacks"][number][]>([]);
   useEffect(() => {
@@ -279,6 +283,8 @@ export function MotionAnchoredPortalStory({
       __motionRead: typeof motionSnapshot | undefined;
       __motionReset: typeof __resetMotionStats | undefined;
       __motionOpeningRead: (() => SelectOpeningProbe) | undefined;
+      __readAppBlockingReceiptForTest: (() => AppBlockingReceipt) | undefined;
+      __resetAppBlockingReceipt: (() => void) | undefined;
     };
     const requestIds = new Map<SelectOpeningRequest, number>();
     const observations: SelectOpeningProbe["observations"][number][] = [];
@@ -296,17 +302,64 @@ export function MotionAnchoredPortalStory({
         sameCallerEvent: observation.event === callerEvents.current.at(-1),
       });
     });
+    let checkpoint: number | null = null;
+    const rawFrames: AppBlockingReceipt["rawFrames"][number][] = [];
+    let unsubscribeAppBlocking: (() => void) | undefined;
+    const clearAppBlocking = (): void => {
+      unsubscribeAppBlocking?.();
+      unsubscribeAppBlocking = undefined;
+      if (appBlockingFrameRef.current !== null) {
+        cancelAnimationFrame(appBlockingFrameRef.current);
+        appBlockingFrameRef.current = null;
+      }
+      checkpoint = null;
+      rawFrames.length = 0;
+      for (const name of Object.values(APP_BLOCKING_MARKS)) {
+        performance.clearMarks(name);
+      }
+    };
+    const markTimes = (name: string): number[] => performance.getEntriesByName(name, "mark").map((entry) => entry.startTime);
+    probes.__readAppBlockingReceiptForTest = (): AppBlockingReceipt => ({
+      checkpoint,
+      clicks: performance.getEntriesByName(APP_BLOCKING_MARKS.click, "mark").map((entry) => ({
+        startTime: entry.startTime,
+        trusted: entry instanceof PerformanceMark && entry.detail === true,
+      })),
+      begins: markTimes(APP_BLOCKING_MARKS.begin),
+      ends: markTimes(APP_BLOCKING_MARKS.end),
+      rawFrames,
+    });
+    probes.__resetAppBlockingReceipt = (): void => {
+      clearAppBlocking();
+      checkpoint = performance.mark(APP_BLOCKING_MARKS.checkpoint).startTime;
+      // Capture only the planted operation; cold Select openings have no additional subscriber.
+      unsubscribeAppBlocking = subscribeLongAnimationFrames((frame) => {
+        const begin = markTimes(APP_BLOCKING_MARKS.begin)[0];
+        if (begin === undefined || frame.startTime > begin || frame.startTime + frame.duration < begin) {
+          return;
+        }
+        rawFrames.push(frame);
+        unsubscribeAppBlocking?.();
+        unsubscribeAppBlocking = undefined;
+      });
+    };
     probes.__motionRead = motionSnapshot;
-    probes.__motionReset = __resetMotionStats;
+    probes.__motionReset = (): void => {
+      clearAppBlocking();
+      __resetMotionStats();
+    };
     probes.__motionOpeningRead = (): SelectOpeningProbe => ({ callbacks: callbacks.current, observations, transitions });
     return (): void => {
       unsubscribe();
+      clearAppBlocking();
       document.removeEventListener("transitionstart", plantEntranceFrame, { capture: true });
       document.removeEventListener("transitionend", recordTransition, { capture: true });
       document.removeEventListener("transitioncancel", recordTransition, { capture: true });
       probes.__motionRead = undefined;
       probes.__motionReset = undefined;
       probes.__motionOpeningRead = undefined;
+      probes.__readAppBlockingReceiptForTest = undefined;
+      probes.__resetAppBlockingReceipt = undefined;
     };
   }, [eachEntranceTask, openingCase]);
   const controlled = [rejectTriggerOpen, automaticControlledOpen, openingCase.startsWith("controlled-")].includes(true);
@@ -378,9 +431,9 @@ export function MotionAnchoredPortalStory({
       <button
         type="button"
         onClick={(event): void => {
-          performance.mark(`${plantAppBlockingFrame.name}:click`, { startTime: event.timeStamp, detail: event.isTrusted });
+          performance.mark(APP_BLOCKING_MARKS.click, { startTime: event.timeStamp, detail: event.isTrusted });
           // Keep the complete planted task in one rendering update, outside synthetic click dispatch.
-          requestAnimationFrame(plantAppBlockingFrame);
+          appBlockingFrameRef.current = requestAnimationFrame(plantAppBlockingFrame);
         }}
       >
         plant app blocking
