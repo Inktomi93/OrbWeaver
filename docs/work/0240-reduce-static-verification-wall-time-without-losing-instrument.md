@@ -58,6 +58,8 @@ Main owns the frozen benchmark. Compare durations, scope, pass timings and test 
 
 ## Evidence
 
-The owner authorizes independent corpus partitions. Preserve the complete selected policy and control population across native test entry points.
+Complete-roster serial and parallel benchmarks retain identical case names and passing verdicts. Parallel native entry points reduce corpus wall time.
 
-Resolution caching is in `1820f32165`. The native partition floor preserves existing collection and refusal controls. Whole-roster performance and hosted qualification remain pending.
+Native memory prices cover the measured peak for each execution mode. Hosted corpus partitions preserve the complete population.
+
+Whole-tree hosted qualification remains pending. Broader same-changed-set verification timing remains deferred.

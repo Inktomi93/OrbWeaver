@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: doing
-updated: 2026-10-07
+updated: 2026-10-08
 priority: P1
 area: testing
 lane: codex/select-hosted-evidence
@@ -23,4 +23,8 @@ Native evidence distinguishes fixture contention from application work; any repa
 
 ## Evidence
 
-Native quiet and configured-worker checks pass. The hosted first-open blocking expansion is not reproduced. Existing budgets remain unchanged. A failing hosted CPU trace is required before a source repair is justified.
+The ordinary first-open budget fails in hosted and local native runs. Product source and performance budgets remain unchanged.
+
+Profiler-on and trace-only diagnostics execute the same cold render and compilation path with different observed durations. These observations do not establish the original failure's cause.
+
+The original-cohort trace-only capture brackets the actual first and repeat opening. A failing native trace is needed before a source repair is justified.
