@@ -18,8 +18,8 @@
 //     interaction cell — without it, budgeting a click on raw `observedCls` would charge virtual-row
 //     reconciliation as an app defect, which is exactly what #109 removed from the budget.
 //
-// The observers are module-global by design; CT gives each test a fresh browser context, so the totals
-// start at zero per test (the `_ct-stories` header's own note).
+// The observers are module-global by design; CT reuses its context/page but navigates the harness before
+// each test, so each document starts a new module instance and observer totals.
 //
 // THREE TIMING LAWS THIS FILE OBEYS (issues #121 and #1911):
 //
@@ -55,6 +55,8 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { CDPSession, Locator, Page } from "@playwright/test";
 import { processEnvValue } from "../../../tooling/src/_shared/process-env.ts";
 import { loafOverBudget, loafTotals } from "../../../tooling/src/motion-audit/index.ts";
+import { recordOf, startTrace, stopTrace } from "../../../tooling/src/snap/lib/react-profile-trace.ts";
+import { DIAGNOSTIC_ONLY_ANNOTATION } from "../../../tooling/src/verify/contract/scoped-test.ts";
 import { MotionAnchoredPortalStory, MotionShiftFlaggerStory, MotionVirtualizedShiftStory } from "./_ct-stories.tsx";
 import { SELECT_OPENING_TEST_CASES } from "./select-opening-cases.ts";
 import type { SelectOpeningProbe } from "./select-opening-fixtures.tsx";
@@ -73,30 +75,117 @@ const SOURCE_REQUEST_TIMEOUT_MS = 1000;
 const SOURCE_TOTAL_TIMEOUT_MS = 2000;
 const SOURCE_DEADLINE_CONTROL_MS = 200;
 const SELECT_CPU_DIAGNOSTIC_ENV = "ORB_SELECT_CPU_DIAGNOSTIC";
+const SELECT_CPU_PROFILING_ENV = "ORB_SELECT_CPU_PROFILING";
+const SELECT_CPU_PROFILING = processEnvValue(SELECT_CPU_PROFILING_ENV) !== "0";
+const SELECT_CPU_DIAGNOSTIC_RATE = 4;
+const SELECT_CPU_DIAGNOSTIC_ANNOTATION = {
+  type: DIAGNOSTIC_ONLY_ANNOTATION,
+  description: "CPU profiling perturbs timing; this is not budget qualification.",
+} as const;
+const SELECT_TRACE_SYNC_MARK = "orb:select-cpu-diagnostic:clock";
+const SELECT_COMPILE_CONTROL_START = "orb:select-cpu-diagnostic:compile-control:start";
+const SELECT_COMPILE_CONTROL_END = "orb:select-cpu-diagnostic:compile-control:end";
+const SELECT_TRACE_CATEGORIES = ["disabled-by-default-v8.compile"] as const;
 const APP_BLOCKING_FRAME_CALLBACK = "plantAppBlockingFrame";
 const APP_BLOCKING_FRAME_INVOKER = "FrameRequestCallback";
 
-async function profileSelectOpening(cdp: CDPSession, opening: () => Promise<MotionRead>): Promise<MotionRead> {
-  await cdp.send("Profiler.enable");
-  await cdp.send("Profiler.start");
-  const [outcome] = await Promise.allSettled([opening()] as const);
-  const cleanup = async (): Promise<void> => {
+async function profileSelectOpening(page: Page, cdp: CDPSession, opening: () => Promise<MotionRead>): Promise<MotionRead> {
+  const { capture, error } = await startTrace(page, SELECT_TRACE_CATEGORIES);
+  if (capture === null) {
+    throw new Error(`Select diagnostic trace could not start: ${error ?? "missing capture"}`);
+  }
+  let profilerEnabled = false;
+  let profilerStarted = false;
+  const [outcome] = await Promise.allSettled([
+    (async (): Promise<MotionRead> => {
+      // The trace owns another CDP session; establish the requested rate after its attachment.
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate: SELECT_CPU_DIAGNOSTIC_RATE });
+      if (SELECT_CPU_PROFILING) {
+        await cdp.send("Profiler.enable");
+        profilerEnabled = true;
+        await cdp.send("Profiler.start");
+        profilerStarted = true;
+      }
+      await page.evaluate((name) => {
+        performance.mark(name, {
+          detail: {
+            // @orb-waive test-determinism(performance.timeOrigin): this diagnostic measures browser-native LoAF/trace clock alignment; an injected epoch cannot calibrate that subject. Ends when native clock calibration is removed.
+            timeOrigin: performance.timeOrigin,
+            // @orb-waive test-determinism(performance.now): this UserTiming synchronization mark calibrates the measured browser-native trace clock, not a test deadline. Ends when native clock calibration is removed.
+            now: performance.now(),
+          },
+        });
+      }, SELECT_TRACE_SYNC_MARK);
+      return await opening();
+    })(),
+  ] as const);
+  const cpuCleanup = async (): Promise<void> => {
+    let capturedSamples = 0;
+    let capturedFrames = false;
     try {
-      const { profile } = await cdp.send("Profiler.stop");
-      await test.info().attach("select-first-cpu-diagnostic", {
-        body: JSON.stringify({ diagnosticOnly: true, qualification: false, profile }),
-        contentType: "application/json",
-      });
-      expect(profile.samples?.length).toBeGreaterThan(0);
-      expect(profile.nodes.some((node) => node.callFrame.url !== "" && (node.children?.length ?? 0) > 0)).toBe(true);
+      if (profilerStarted) {
+        const { profile } = await cdp.send("Profiler.stop");
+        await test.info().attach("select-first-cpu-diagnostic", {
+          body: JSON.stringify({ diagnosticOnly: true, qualification: false, cpuProfiling: SELECT_CPU_PROFILING, profile }),
+          contentType: "application/json",
+        });
+        capturedSamples = profile.samples?.length ?? 0;
+        capturedFrames = profile.nodes.some((node) => node.callFrame.url !== "" && (node.children?.length ?? 0) > 0);
+      }
     } finally {
-      await cdp.send("Profiler.disable");
+      if (profilerEnabled) {
+        await cdp.send("Profiler.disable");
+      }
     }
+    expect(capturedSamples > 0).toBe(SELECT_CPU_PROFILING);
+    expect(capturedFrames).toBe(SELECT_CPU_PROFILING);
   };
-  const [cleanupOutcome] = await Promise.allSettled([cleanup()] as const);
-  if (cleanupOutcome.status === "rejected") {
-    const failures = outcome.status === "rejected" ? [outcome.reason, cleanupOutcome.reason] : [cleanupOutcome.reason];
-    throw new AggregateError(failures, "Select CPU diagnostic cleanup failed");
+  const traceCleanup = async (): Promise<void> => {
+    const traceError = await stopTrace(capture);
+    // @orb-waive test-determinism(performance.timeOrigin): the artifact must align browser-native LoAF timestamps with calibrated trace timestamps; an injected epoch cannot describe the measured document. Ends when native clock calibration is removed.
+    const timeOrigin = await page.evaluate(() => performance.timeOrigin);
+    await test.info().attach("select-first-trace-diagnostic", {
+      body: JSON.stringify({
+        diagnosticOnly: true,
+        qualification: false,
+        cpuProfiling: SELECT_CPU_PROFILING,
+        traceEvents: capture.events,
+        calibration: capture.calibration,
+        timeOrigin,
+        syncMark: SELECT_TRACE_SYNC_MARK,
+        compileControl: { startMark: SELECT_COMPILE_CONTROL_START, endMark: SELECT_COMPILE_CONTROL_END },
+        additionalCategories: SELECT_TRACE_CATEGORIES,
+        error: traceError,
+      }),
+      contentType: "application/json",
+    });
+    expect(traceError).toBeNull();
+    expect(capture.calibration).not.toBeNull();
+    expect(capture.events.length).toBeGreaterThan(0);
+    expect(capture.events.some((event) => recordOf(event)?.["name"] === SELECT_TRACE_SYNC_MARK)).toBe(true);
+    const controlStart = capture.events.map(recordOf).find((event) => event?.["name"] === SELECT_COMPILE_CONTROL_START)?.["ts"];
+    const controlEnd = capture.events.map(recordOf).find((event) => event?.["name"] === SELECT_COMPILE_CONTROL_END)?.["ts"];
+    expect(typeof controlStart).toBe("number");
+    expect(typeof controlEnd).toBe("number");
+    const controlCompiles = capture.events.map(recordOf).filter((event) => {
+      const name = event?.["name"];
+      const timestamp = event?.["ts"];
+      return (
+        typeof name === "string" &&
+        name.startsWith("V8.Compile") &&
+        typeof timestamp === "number" &&
+        typeof controlStart === "number" &&
+        typeof controlEnd === "number" &&
+        timestamp >= controlStart &&
+        timestamp <= controlEnd
+      );
+    });
+    expect(controlCompiles.length).toBeGreaterThan(0);
+  };
+  const cleanupOutcomes = await Promise.allSettled([cpuCleanup(), traceCleanup()]);
+  const failures = cleanupOutcomes.flatMap((cleanup) => (cleanup.status === "rejected" ? [cleanup.reason] : []));
+  if (failures.length > 0) {
+    throw new AggregateError(outcome.status === "rejected" ? [outcome.reason, ...failures] : failures, "Select diagnostic cleanup failed");
   }
   if (outcome.status === "rejected") {
     throw outcome.reason;
@@ -414,44 +503,73 @@ test("a native timer retains its exact source offset and execution start in moti
 // Profiling changes timings. These opt-in captures never qualify the unchanged native budget below.
 if (processEnvValue(SELECT_CPU_DIAGNOSTIC_ENV) === "1") {
   for (const failOpening of [false, true]) {
-    test(`Select CPU diagnostic only — ${failOpening ? "opening failure cleanup" : "native first opening"}`, async ({ mount, page }) => {
-      test.info().annotations.push({ type: "diagnostic-only", description: "CPU profiling perturbs timing; this is not budget qualification." });
+    test(`Select CPU diagnostic only — ${failOpening ? "opening failure cleanup" : "native first opening"}`, {
+      annotation: SELECT_CPU_DIAGNOSTIC_ANNOTATION,
+    }, async ({ mount, page }) => {
       await page.setViewportSize({ width: 1440, height: 900 });
       await mount(<MotionAnchoredPortalStory />);
       const triggerPoint = await hitPoint(page.getByRole("combobox", { name: "Anchored portal control" }));
       await delay(500);
       const cdp = await page.context().newCDPSession(page);
-      await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
-      await resetMotion(page);
-      const failure = new Error("diagnostic opening fault after settled evidence");
-      const opening = profileSelectOpening(cdp, async () => {
-        await page.mouse.click(triggerPoint.x, triggerPoint.y);
-        const motion = await motionWhen(page, (snapshot) =>
-          snapshot.loafs.some(
-            (loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.endedAt !== undefined && loaf.selectEntrance.firstForTrigger,
-          ),
-        );
-        await test.info().attach("select-first-profiled-motion-diagnostic", {
-          body: JSON.stringify({ diagnosticOnly: true, qualification: false, motion, totals: loafTotals(motion) }, null, 2),
-          contentType: "application/json",
+      try {
+        await cdp.send("Emulation.setCPUThrottlingRate", { rate: SELECT_CPU_DIAGNOSTIC_RATE });
+        await resetMotion(page);
+        const failure = new Error("diagnostic opening fault after settled evidence");
+        const opening = profileSelectOpening(page, cdp, async () => {
+          await page.mouse.click(triggerPoint.x, triggerPoint.y);
+          const motion = await motionWhen(page, (snapshot) =>
+            snapshot.loafs.some(
+              (loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.endedAt !== undefined && loaf.selectEntrance.firstForTrigger,
+            ),
+          );
+          await test.info().attach("select-first-profiled-motion-diagnostic", {
+            body: JSON.stringify(
+              { diagnosticOnly: true, qualification: false, cpuProfiling: SELECT_CPU_PROFILING, motion, totals: loafTotals(motion) },
+              null,
+              2,
+            ),
+            contentType: "application/json",
+          });
+          expect(motion.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.firstForTrigger)).toBe(true);
+          // Compile observability is proved after the settled snapshot, never charged to the opening interval.
+          const control = await cdp.send("Runtime.evaluate", {
+            expression: `(() => { performance.mark(${JSON.stringify(SELECT_COMPILE_CONTROL_START)}); const compile = new Function(${JSON.stringify(`return ${JSON.stringify(test.info().testId)}`)}); const value = compile(); performance.mark(${JSON.stringify(SELECT_COMPILE_CONTROL_END)}); return value; })()`,
+            returnByValue: true,
+          });
+          expect(control.exceptionDetails).toBeUndefined();
+          expect(control.result.value).toBe(test.info().testId);
+          if (failOpening) {
+            throw failure;
+          }
+          return motion;
         });
-        expect(motion.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.firstForTrigger)).toBe(true);
-        if (failOpening) {
-          throw failure;
+        const openingError = await opening.then(
+          () => null,
+          (error: Error) => error,
+        );
+        expect(openingError).toBe(failOpening ? failure : null);
+        expect(test.info().attachments.map(({ name }) => name)).toContain("select-first-trace-diagnostic");
+        expect(test.info().attachments.some(({ name }) => name === "select-first-cpu-diagnostic")).toBe(SELECT_CPU_PROFILING);
+        // A second start/stop succeeds only after the first capture released its profiler session.
+        if (SELECT_CPU_PROFILING) {
+          await cdp.send("Profiler.enable");
+          await cdp.send("Profiler.start");
+          await cdp.send("Profiler.stop");
+          await cdp.send("Profiler.disable");
         }
-        return motion;
-      });
-      const openingError = await opening.then(
-        () => null,
-        (error: Error) => error,
-      );
-      expect(openingError).toBe(failOpening ? failure : null);
-      // A second start/stop succeeds only after the first capture released its profiler session.
-      await cdp.send("Profiler.enable");
-      await cdp.send("Profiler.start");
-      await cdp.send("Profiler.stop");
-      await cdp.send("Profiler.disable");
-      await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+        const restarted = await startTrace(page);
+        if (restarted.capture === null) {
+          throw new Error(`Select diagnostic trace was not released: ${restarted.error ?? "missing capture"}`);
+        }
+        const restartedError = await stopTrace(restarted.capture);
+        expect(restartedError).toBeNull();
+      } finally {
+        try {
+          await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+        } finally {
+          await cdp.detach();
+        }
+      }
     });
   }
 }

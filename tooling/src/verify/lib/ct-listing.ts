@@ -19,7 +19,8 @@
 // per-operand — the direction the pin plants alongside the load failure.
 import { resolve } from "node:path";
 import { toRepoRelative } from "@orb/tooling/_shared/scoped-run-paths";
-import type { ScopedTestCollection } from "../contract/scoped-test.ts";
+import type { NativeCtCase, NativeCtCaseCollection, ScopedTestCollection } from "../contract/scoped-test.ts";
+import { DIAGNOSTIC_ONLY_ANNOTATION } from "../contract/scoped-test.ts";
 
 /** A property of an unknown record, or undefined — the runners' JSON is vendor data, not our shape. */
 function readProperty(entry: unknown, key: string): unknown {
@@ -108,7 +109,7 @@ function isNoTestsFound(error: unknown): boolean {
  *  `failOnLoadErrors: true`, so a selection that matched nothing reports `No tests found` through the same
  *  array and exits non-zero. That case is a real (empty) collection which the barren arm then reports
  *  per-operand — the direction the pin plants alongside the load failure. */
-export function classifyCtListing(root: string, listing: CtListing): ScopedTestCollection {
+function readCtReport(listing: CtListing): { readonly report: Readonly<Record<string, unknown>> } | { readonly error: string } {
   const start = listing.stdout.indexOf("{");
   const end = listing.stdout.lastIndexOf("}");
   if (start < 0 || end <= start) {
@@ -131,10 +132,88 @@ export function classifyCtListing(root: string, listing: CtListing): ScopedTestC
         failures.map((error) => `  ${formatCtError(error)}`).join("\n"),
     };
   }
+  return { report };
+}
+
+/** File membership keeps its existing permissive metadata contract; case selection uses the stricter door below. */
+export function classifyCtListing(root: string, listing: CtListing): ScopedTestCollection {
+  const decoded = readCtReport(listing);
+  if ("error" in decoded) {
+    return decoded;
+  }
+  const { report } = decoded;
   const rootDir = readField(report["config"], "rootDir") ?? root;
   const files = new Set<string>();
   walkSuiteFiles(report["suites"], rootDir, root, files);
   // Playwright's suite tree carries no project attribution this door needs; the CT arm has one config and
   // no typecheck projects, so the #2232 runtime-only question does not arise for it.
   return { files: [...files], projects: [] };
+}
+
+function requiredField(entry: unknown, key: string): string {
+  const value = readField(entry, key);
+  if (value === undefined || value.length === 0) {
+    throw new Error(`native CT case metadata requires nonempty ${key}`);
+  }
+  return value;
+}
+
+function arrayField(entry: unknown, key: string): readonly unknown[] {
+  const value = readProperty(entry, key);
+  if (!Array.isArray(value)) {
+    throw new Error(`native CT case metadata requires ${key} array`);
+  }
+  return value;
+}
+
+function walkNativeCases(suites: readonly unknown[], parents: readonly string[], fileLevel: boolean, out: NativeCtCase[]): void {
+  for (const suite of suites) {
+    const title = requiredField(suite, "title");
+    const titlePath = fileLevel ? [] : [...parents, title];
+    for (const spec of arrayField(suite, "specs")) {
+      const id = requiredField(spec, "id");
+      const file = requiredField(spec, "file");
+      const caseTitle = requiredField(spec, "title");
+      const tests = arrayField(spec, "tests");
+      if (tests.length !== 1) {
+        throw new Error(`native CT case ${id} has ambiguous project metadata`);
+      }
+      const native = tests[0];
+      const annotations = arrayField(native, "annotations");
+      const annotationTypes = annotations.map((annotation) => requiredField(annotation, "type"));
+      out.push({
+        id,
+        file,
+        project: requiredField(native, "projectName"),
+        titlePath: [...titlePath, caseTitle],
+        diagnosticOnly: annotationTypes.includes(DIAGNOSTIC_ONLY_ANNOTATION),
+      });
+    }
+    if (readProperty(suite, "suites") !== undefined) {
+      walkNativeCases(arrayField(suite, "suites"), titlePath, false, out);
+    }
+  }
+}
+
+/** Read exact native case identities without accepting malformed, duplicate or ambiguous case metadata. */
+export function readNativeCtCases(listing: CtListing): NativeCtCaseCollection {
+  const decoded = readCtReport(listing);
+  if ("error" in decoded) {
+    return decoded;
+  }
+  try {
+    const rootDir = requiredField(decoded.report["config"], "rootDir");
+    const cases: NativeCtCase[] = [];
+    walkNativeCases(arrayField(decoded.report, "suites"), [], true, cases);
+    const ids = new Set<string>();
+    for (const row of cases) {
+      if (ids.has(row.id)) {
+        throw new Error(`duplicate native CT case ID: ${row.id}`);
+      }
+      ids.add(row.id);
+    }
+    return { rootDir, cases };
+  } catch (error) {
+    return { error: `native CT case collection refused: ${String(error)}` };
+  }
 }

@@ -26,7 +26,7 @@ const workflowSchema = z.object({
       if: z.string().optional(),
       needs: z.union([z.string(), z.array(z.string())]).optional(),
       "runs-on": z.string(),
-      "timeout-minutes": z.number(),
+      "timeout-minutes": z.union([z.number(), z.string()]),
       steps: z.array(stepSchema),
     }),
   ),
@@ -119,7 +119,7 @@ test("manual Select diagnostics stay outside qualification and preserve native e
     throw new Error("missing CI Select CPU diagnostic job");
   }
   expect(capture.if).toBe("github.event_name == 'workflow_dispatch' && inputs.select_cpu_diagnostic");
-  expect(capture["timeout-minutes"]).toBe(15);
+  expect(capture["timeout-minutes"]).toBe("${{ inputs.select_cpu_diagnostic_context == 'ct-shard-4' && 120 || 15 }}");
   expect(capture.steps.some((step) => step.name === workflow.env["ORB_CI_QUALIFICATION_GENERATION"])).toBe(false);
   expect(existsSync(join(repoRoot, ".github/workflows/select-cpu-diagnostic.yml"))).toBe(false);
   const steps = capture.steps;
@@ -130,7 +130,8 @@ test("manual Select diagnostics stay outside qualification and preserve native e
   expect(checkout?.with).toEqual({ "persist-credentials": false });
   expect(setup?.uses).toBe("$/.github/actions/setup");
   expect(setup?.with).toEqual({ browsers: "true" });
-  const gate = "${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' }}";
+  const gate =
+    "${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' && inputs.select_cpu_diagnostic_context != 'ct-shard-4' }}";
   expect(native?.if).toBe(gate);
   expect(diagnostic?.if).toBe(gate);
   for (const [setupOutcome, showcaseOutcome, nativeOutcome, canceled, permitted] of [
@@ -141,6 +142,7 @@ test("manual Select diagnostics stay outside qualification and preserve native e
     ["success", "success", "success", true, false],
   ] as const) {
     const context = {
+      inputs: { ["select_cpu_diagnostic_context"]: "isolated" },
       cancelled: () => canceled,
       steps: { setup: { outcome: setupOutcome }, showcase: { outcome: showcaseOutcome }, ["native-control"]: { outcome: nativeOutcome } },
     };
@@ -148,14 +150,17 @@ test("manual Select diagnostics stay outside qualification and preserve native e
     expect(guard(diagnostic?.if ?? "false", context)).toBe(permitted);
   }
   expect(native?.env).toBeUndefined();
-  expect(diagnostic?.env).toEqual({ ["ORB_SELECT_CPU_DIAGNOSTIC"]: "1" });
+  expect(diagnostic?.env).toEqual({
+    ["ORB_SELECT_CPU_DIAGNOSTIC"]: "1",
+    ["ORB_SELECT_CPU_PROFILING"]: "${{ inputs.select_cpu_profiling == 'off' && '0' || '1' }}",
+  });
   expect(native?.run).toBe(
     "pnpm test:ct tests/client/lib/motion-stats.ct.tsx --grep='a real sealed Select classifies its confirmed first and repeat entrance lifetimes only$' --retries=0",
   );
   expect(diagnostic?.run).toBe("pnpm test:ct tests/client/lib/motion-stats.ct.tsx --grep='Select CPU diagnostic only' --retries=0");
   const uploads = steps.filter((step) => step.uses?.startsWith("actions/upload-artifact@") === true);
   expect(uploads.map((step) => step.with?.["name"])).toEqual(["select-native-control", "select-cpu-diagnostic-only"]);
-  expect(uploads.map((step) => step.if)).toEqual(["always()", "always()"]);
+  expect(uploads.map((step) => step.if)).toEqual(["always() && inputs.select_cpu_diagnostic_context != 'ct-shard-4'", "always()"]);
   expect(uploads.map((step) => step.with?.["retention-days"])).toEqual([7, 7]);
   expect(uploads.map((step) => step.with?.["path"])).toEqual(["reports/", "reports/"]);
   expect(steps.indexOf(uploads[0] ?? {})).toBeGreaterThan(steps.indexOf(native ?? {}));
@@ -164,4 +169,68 @@ test("manual Select diagnostics stay outside qualification and preserve native e
   expect(
     steps.filter((step) => step.uses !== undefined).every((step) => step.uses === "$/.github/actions/setup" || /@[a-f0-9]{40}$/u.test(step.uses ?? "")),
   ).toBe(true);
+});
+
+test("manual diagnostic context freezes the ordinary cohort and verifies native recollection before full execution", ({ repoRoot }) => {
+  const workflow = readWorkflow(repoRoot);
+  expect(workflow.on.workflow_dispatch.inputs["select_cpu_diagnostic_context"]).toEqual({
+    description: "Choose isolated Select captures or the complete original CT shard 4 context; diagnostics never qualify the commit.",
+    type: "choice",
+    options: ["isolated", "ct-shard-4"],
+    default: "isolated",
+  });
+  const capture = workflow.jobs["select-cpu-diagnostic"];
+  if (capture === undefined) {
+    throw new Error("missing diagnostic job");
+  }
+  for (const context of [undefined, "isolated", "ct-shard-4"] as const) {
+    const inputs = { ["select_cpu_diagnostic"]: true, ["select_cpu_diagnostic_context"]: context };
+    const deadline =
+      typeof capture["timeout-minutes"] === "number"
+        ? capture["timeout-minutes"]
+        : runInNewContext(capture["timeout-minutes"].replace(/^\$\{\{\s*|\s*\}\}$/gu, ""), { inputs });
+    expect(deadline).toBe(context === "ct-shard-4" ? workflow.jobs["ct"]?.["timeout-minutes"] : 15);
+    const env = { inputs, cancelled: () => false, steps: { setup: { outcome: "success" }, showcase: { outcome: "success" } } };
+    expect(guard(capture.steps.find((step) => step.id === "native-control")?.if ?? "false", env)).toBe(context !== "ct-shard-4");
+    expect(guard(capture.steps.find((step) => step.id === "cpu-diagnostic")?.if ?? "false", env)).toBe(context !== "ct-shard-4");
+    expect(guard(capture.steps.find((step) => step.id === "full-cpu-diagnostic")?.if ?? "false", env)).toBe(context === "ct-shard-4");
+  }
+  const full = capture.steps.find((step) => step.id === "full-cpu-diagnostic");
+  expect(full?.env).toEqual({ ["ORB_SELECT_CPU_DIAGNOSTIC"]: "1", ["ORB_SELECT_CPU_PROFILING"]: "${{ inputs.select_cpu_profiling == 'off' && '0' || '1' }}" });
+  const run = full?.run ?? "";
+  expect(run).toContain("ORB_SELECT_CPU_DIAGNOSTIC=0 pnpm test:ct --list --shard=4/4 --retries=0");
+  expect(run).toContain("pnpm test:ct --list --shard=4/4 --retries=0");
+  expect(run).toContain("scripts/select-cpu-diagnostic-context.ts create");
+  expect(run).toContain("pnpm test:ct --list --test-list=");
+  expect(run).toContain("scripts/select-cpu-diagnostic-context.ts verify");
+  expect(run).toContain("pnpm test:ct --test-list=");
+  expect(run).not.toContain("--grep");
+  expect(run.indexOf("context.ts verify")).toBeLessThan(run.lastIndexOf("pnpm test:ct --test-list="));
+});
+
+test("CPU profiling defaults on but a trace-only diagnostic disables it in both native execution contexts", ({ repoRoot }) => {
+  const workflow = readWorkflow(repoRoot);
+  expect(workflow.on.workflow_dispatch.inputs["select_cpu_profiling"]).toEqual({
+    description: "Keep CPU profiling on, or capture trace-only evidence to measure profiler amplification; neither mode qualifies the commit.",
+    type: "choice",
+    options: ["on", "off"],
+    default: "on",
+  });
+  const capture = workflow.jobs["select-cpu-diagnostic"];
+  if (capture === undefined) {
+    throw new Error("missing diagnostic job");
+  }
+  for (const id of ["cpu-diagnostic", "full-cpu-diagnostic"]) {
+    const step = capture.steps.find((row) => row.id === id);
+    expect(step?.env?.["ORB_SELECT_CPU_DIAGNOSTIC"]).toBe("1");
+    const expression = step?.env?.["ORB_SELECT_CPU_PROFILING"];
+    expect(expression).toBe("${{ inputs.select_cpu_profiling == 'off' && '0' || '1' }}");
+    for (const selected of [undefined, "on", "off"]) {
+      const value = runInNewContext((expression ?? "").replace(/^\$\{\{\s*|\s*\}\}$/gu, ""), {
+        inputs: { ["select_cpu_profiling"]: selected },
+      });
+      expect(value).toBe(selected === "off" ? "0" : "1");
+    }
+  }
+  expect(capture.steps.find((step) => step.id === "native-control")?.env).toBeUndefined();
 });

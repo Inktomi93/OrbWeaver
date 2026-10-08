@@ -125,7 +125,10 @@ export async function stopTrace(capture: TraceCapture): Promise<string | null> {
   }
 }
 
-export async function startTrace(page: Page): Promise<{ readonly capture: TraceCapture | null; readonly error: string | null }> {
+export async function startTrace(
+  page: Page,
+  additionalCategories: readonly string[] = [],
+): Promise<{ readonly capture: TraceCapture | null; readonly error: string | null }> {
   let cdp: CDPSession | null = null;
   try {
     cdp = await page.context().newCDPSession(page);
@@ -144,7 +147,7 @@ export async function startTrace(page: Page): Promise<{ readonly capture: TraceC
         : { timestampUs: timestampSeconds * MICROSECONDS_PER_MILLISECOND * MICROSECONDS_PER_MILLISECOND, epochMs: (before + after) / 2 };
     const capture: TraceCapture = { cdp, events, complete: complete.promise, calibration, started: false };
     await cdp.send("Tracing.start", {
-      categories: "-*,devtools.timeline,disabled-by-default-devtools.timeline,blink.user_timing,blink.console",
+      categories: ["-*,devtools.timeline,disabled-by-default-devtools.timeline,blink.user_timing,blink.console", ...additionalCategories].join(","),
       transferMode: "ReportEvents",
     });
     capture.started = true;
