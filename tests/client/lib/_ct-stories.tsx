@@ -217,7 +217,8 @@ export function MotionVirtualizedShiftStory(): ReactElement {
 // supplies that precondition on fast hosts; the ordinary blocking budget remains unchanged.
 const SELECT_EVIDENCE_TASK_MS = 60;
 
-function plantAppBlockingFrame(): void {
+function plantAppBlockingFrame(timestamp: number): void {
+  performance.mark(plantAppBlockingFrame.name, { startTime: timestamp });
   blockMainThread(120);
 }
 
@@ -376,7 +377,8 @@ export function MotionAnchoredPortalStory({
       </button>
       <button
         type="button"
-        onClick={(): void => {
+        onClick={(event): void => {
+          performance.mark(`${plantAppBlockingFrame.name}:click`, { startTime: event.timeStamp, detail: event.isTrusted });
           // Keep the complete planted task in one rendering update, outside synthetic click dispatch.
           requestAnimationFrame(plantAppBlockingFrame);
         }}
