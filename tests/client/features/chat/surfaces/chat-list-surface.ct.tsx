@@ -1503,8 +1503,21 @@ test("#525 both filter clears sit INSIDE their field's box, and the field never 
   await openMonthFilter(component);
   const search = component.getByRole("textbox", { name: "Search chats" });
   const month = component.getByLabel("Show chats up to");
-  const restingSearch = await search.boundingBox();
-  const restingMonth = await month.boundingBox();
+  type FilterBox = Awaited<ReturnType<Locator["boundingBox"]>>;
+  const readFilterGeometry = (): Promise<{ search: FilterBox; month: FilterBox; searchClear: FilterBox; monthClear: FilterBox }> =>
+    component.evaluate((root) => {
+      const box = (selector: string): FilterBox => {
+        const rect = root.querySelector(selector)?.getBoundingClientRect();
+        return rect === undefined ? null : { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+      };
+      return {
+        search: box('input[aria-label="Search chats"]'),
+        month: box('input[type="month"]'),
+        searchClear: box('button[aria-label="Clear the search"]'),
+        monthClear: box('button[aria-label="Clear the month"]'),
+      };
+    });
+  const { search: restingSearch, month: restingMonth } = await readFilterGeometry();
 
   await search.fill(NARROW_TERM);
   await month.fill("2020-06");
@@ -1513,12 +1526,8 @@ test("#525 both filter clears sit INSIDE their field's box, and the field never 
   await expect(searchClear).toBeVisible();
   await expect(monthClear).toBeVisible();
 
-  const [filledSearch, filledMonth, searchClearBox, monthClearBox] = await Promise.all([
-    search.boundingBox(),
-    month.boundingBox(),
-    searchClear.boundingBox(),
-    monthClear.boundingBox(),
-  ]);
+  // Separate browser commands can straddle the disclosure's scroll reset and mix two valid layouts.
+  const { search: filledSearch, month: filledMonth, searchClear: searchClearBox, monthClear: monthClearBox } = await readFilterGeometry();
 
   // THE FIELD DOES NOT MOVE. A gutter-mounted reset stole its width from the field the moment it appeared.
   expect(filledSearch?.width, "the search field keeps its resting width when its reset appears").toBeCloseTo(restingSearch?.width ?? -1, 1);
