@@ -1,7 +1,7 @@
 import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import type { TestCompilerWorld, TestFamily, TestResource } from "@orb/tooling/_shared/test-kinds";
-import { runtimeForTestFamily, TEST_KIND_DEFINITIONS, vitestTypecheckGroupName } from "@orb/tooling/_shared/test-kinds";
+import { runtimeForTestFamily, SEMANTIC_CORPUS_RESOURCE, TEST_KIND_DEFINITIONS, vitestTypecheckGroupName } from "@orb/tooling/_shared/test-kinds";
 import { applicationTestExclusions } from "@orb/tooling/_shared/test-population";
 import { TEST_TAGS } from "@orb/tooling/_shared/test-tags";
 import type { TestProjectConfiguration, ViteUserConfig } from "vitest/config";
@@ -50,7 +50,8 @@ const TAG_FILTER_CONFIG = { tagsFilter: testTagFilters(process.env) } satisfies 
 const NORMAL_GROUP_ORDER = 0;
 const REPOSITORY_GROUP_ORDER = 1;
 // Each typecheck project runs one whole-program tsc (~4 GB before checkers); side by side they OOM a 16 GB box.
-const BROWSER_TYPECHECK_GROUP_ORDER = 2;
+const SEMANTIC_CORPUS_GROUP_ORDER = 2;
+const BROWSER_TYPECHECK_GROUP_ORDER = 3;
 
 // Vitest forces incremental flags; this wrapper enforces the repository's cold semantic-check policy.
 const TYPECHECKER = "scripts/ts7.ts";
@@ -182,6 +183,16 @@ export function vitestConfig(runtimeOnly = false, applicationOnly = false): Vite
             include: withIgnored(REPOSITORY_TEST_GLOBS),
             fileParallelism: false,
             testTimeout: budget(30_000),
+          },
+        },
+        {
+          extends: true,
+          test: {
+            name: SEMANTIC_CORPUS_RESOURCE,
+            sequence: { groupOrder: SEMANTIC_CORPUS_GROUP_ORDER },
+            include: withIgnored(resourceGlobs(SEMANTIC_CORPUS_RESOURCE)),
+            fileParallelism: true,
+            maxWorkers: Math.min(CONCURRENCY.vitestMaxWorkers, CONCURRENCY.semanticCorpusMaxWorkers),
           },
         },
         {

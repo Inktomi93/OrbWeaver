@@ -1,6 +1,6 @@
 // Real-corpus liveness arms (#2149) for policies judging the frontend packages (`@client`, `@ui`). DATA,
-// collected by the one runner (`../real-corpus-liveness-family.suite.repo.int.test.ts`), which loads the
-// structure run's own corpus once and runs every arm against it (docs/work/0043).
+// collected by the one runner (`./runner.ts`), which loads the
+// isolated structure corpora and runs every arm against it (docs/work/0043).
 import { gate as doors } from "../../../../../tooling/src/verify/gates/duplicate-action-doors.ts";
 import { gate as doorsHealth } from "../../../../../tooling/src/verify/gates/duplicate-action-doors-health.ts";
 import { gate as historyWrites } from "../../../../../tooling/src/verify/gates/no-raw-history-writes.ts";

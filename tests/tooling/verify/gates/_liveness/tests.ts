@@ -1,6 +1,5 @@
 // Real-corpus liveness arms (#2149) for policies whose subject is the test tree itself. DATA, collected by
-// the one runner (`../real-corpus-liveness-family.suite.repo.int.test.ts`), which loads the structure run's
-// own corpus once and runs every arm against it (docs/work/0043).
+// the one runner (`./runner.ts`), which loads each isolated structure corpus once and runs every arm against it (docs/work/0043).
 import { gate as ctConfigMirrorParity } from "../../../../../tooling/src/verify/gates/ct-config-mirror-parity.ts";
 import { gate as ctPollHealth } from "../../../../../tooling/src/verify/gates/ct-poll-schedule-and-paint-health.ts";
 import type { RealCorpusLivenessArm } from "../../../../support/real-corpus-liveness.ts";

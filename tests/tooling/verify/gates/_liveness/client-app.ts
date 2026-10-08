@@ -1,6 +1,6 @@
 // Real-corpus liveness arms (#2149) for the policies whose declared population is exactly `@client` — the
 // largest set that shares one population (0042's first chunk). DATA, collected by the one runner
-// (`../real-corpus-liveness-family.suite.repo.int.test.ts`), which loads the structure run's own corpus once
+// (`./runner.ts`), which loads each isolated structure corpus once
 // and runs every arm against it (docs/work/0043).
 //
 // EACH ARM IS ITS POLICY'S OWN `mustFlag` ROW, TRANSPLANTED ONTO THE REAL TREE. The row's fixture stubs its

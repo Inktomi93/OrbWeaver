@@ -1,6 +1,6 @@
 // Real-corpus liveness arms (#2149) for policies whose subject is the tooling tree, the gate corpus
-// included. DATA, collected by the one runner (`../real-corpus-liveness-family.suite.repo.int.test.ts`),
-// which loads the structure run's own corpus once and runs every arm against it (docs/work/0043).
+// included. DATA, collected by the one runner (`./runner.ts`),
+// which loads each isolated structure corpus once and runs every arm against it (docs/work/0043).
 import { gate as testExecutableMode } from "../../../../../tooling/src/verify/gates/test-executable-mode.ts";
 import { gate as toolingOsNeutral } from "../../../../../tooling/src/verify/gates/tooling-os-neutral.ts";
 import { gate as warningWorkitemLiveness } from "../../../../../tooling/src/verify/gates/warning-workitem-liveness.ts";

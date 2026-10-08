@@ -97,6 +97,8 @@ test("liveness cached passes preserve fresh solo facts, resources, populations, 
   const grantArm: RealCorpusLivenessArm = { ...arm, policy: granted, granted: true };
   const shared = openRealCorpusLiveness(scratch, [arm, grantArm]);
   expect(shared.assertBaseline().toSorted()).toEqual([policy.id, granted.id].toSorted());
+  const incompleteKnownRoster = openRealCorpusLiveness(scratch, [arm], [grantArm]);
+  expect(() => incompleteKnownRoster.proveBatch([arm])).toThrow("selected policy is absent from the known roster");
   const interventions: readonly (readonly [RealCorpusOverlay, ...RealCorpusOverlay[]])[] = [
     [overlay],
     [{ kind: "neutralise", path: GLOBALS, source: "declare const ambient: 77;\n" }],
@@ -132,6 +134,12 @@ test("liveness cached passes preserve fresh solo facts, resources, populations, 
     const fresh = openRealCorpusLiveness(scratch, controls).proveBatch(controls);
     expect(actual).toEqual(fresh);
     expect(population).toEqual(populations.at(-1));
+    const partitioned = new Map(controls.flatMap((control) => [...openRealCorpusLiveness(scratch, [control], controls).proveBatch([control])]));
+    for (const control of controls) {
+      const complete = actual.get(control.policy.id);
+      expect(complete).toBeDefined();
+      expect(partitioned.get(control.policy.id)).toEqual({ ...complete, batch: [control.policy.id] });
+    }
     observed.push(actual);
     expect(shared.assertBaseline().toSorted()).toEqual([policy.id, granted.id].toSorted());
   }

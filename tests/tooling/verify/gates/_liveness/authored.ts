@@ -1,7 +1,7 @@
 // Real-corpus liveness arms (#2149) for the policies whose declared population is `@authored` with its own
 // narrowing — the ones the `tooling-and-authored.ts` chunk (exact population) left behind (0042's sixth
-// chunk). DATA, collected by the one runner (`../real-corpus-liveness-family.suite.repo.int.test.ts`), which
-// loads the structure run's own corpus once and runs every arm against it (docs/work/0043).
+// chunk). DATA, collected by the one runner (`./runner.ts`), which
+// loads each isolated structure corpus once and runs every arm against it (docs/work/0043).
 //
 // EACH ARM IS ITS POLICY'S OWN `mustFlag` ROW, TRANSPLANTED ONTO THE REAL TREE. Several of these policies
 // read authored TEXT (a marker comment, a suppression directive, a debt citation), and this file is authored

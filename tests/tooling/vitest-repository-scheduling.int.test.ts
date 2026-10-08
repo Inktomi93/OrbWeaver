@@ -4,7 +4,8 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
-import { vitestTypecheckGroupName } from "@orb/tooling/_shared/test-kinds";
+import { SEMANTIC_CORPUS_RESOURCE, vitestTypecheckGroupName } from "@orb/tooling/_shared/test-kinds";
+import base from "../../vitest.config.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
@@ -15,6 +16,7 @@ interface NativeProject {
   readonly include: readonly string[];
   readonly groupOrder?: number;
   readonly fileParallelism?: boolean;
+  readonly maxWorkers?: number;
   readonly typecheck?: {
     readonly enabled: boolean;
     readonly only: boolean;
@@ -54,6 +56,7 @@ function config(root: string, projects: readonly NativeProject[]): string {
           include: project.include,
           ...(project.groupOrder === undefined ? {} : { sequence: { groupOrder: project.groupOrder } }),
           ...(project.fileParallelism === undefined ? {} : { fileParallelism: project.fileParallelism }),
+          ...(project.maxWorkers === undefined ? {} : { maxWorkers: project.maxWorkers }),
           ...(project.typecheck === undefined ? {} : { typecheck: project.typecheck }),
         },
       })),
@@ -139,6 +142,37 @@ test("named execution groups overlap when the scheduling controls are removed", 
   ]);
 
   expect(() => assertRepositoryBarrier(result)).toThrow("overlapped the normal group");
+});
+
+test("the real semantic-corpus resource admits independent files only after serialized repository work", { timeout: RUN_BUDGET_MS }, async ({ scratch }) => {
+  const native = (base.test?.projects ?? []).find(
+    (project) => typeof project === "object" && "test" in project && project.test.name === SEMANTIC_CORPUS_RESOURCE,
+  );
+  if (typeof native !== "object" || !("test" in native)) {
+    throw new Error("the semantic corpus has no native execution project");
+  }
+  const workers = Number(native.test.maxWorkers);
+  expect(workers).toBeGreaterThanOrEqual(1);
+  expect(workers).toBeLessThanOrEqual(2);
+  const events = join(scratch, "events.log");
+  write(scratch, "tests/repository/a.repo.int.test.ts", source(events, "repository-a"));
+  write(scratch, "tests/repository/b.repo.int.test.ts", source(events, "repository-b"));
+  write(scratch, "tests/corpus/a.suite.corpus.int.test.ts", source(events, "corpus-a", workers > 1 ? join(scratch, "corpus-b.started") : undefined));
+  write(scratch, "tests/corpus/b.suite.corpus.int.test.ts", source(events, "corpus-b", workers > 1 ? join(scratch, "corpus-a.started") : undefined));
+  const result = await runNative(scratch, [
+    { name: "repository", include: ["tests/repository/*.repo.int.test.ts"], groupOrder: 1, fileParallelism: false },
+    {
+      name: SEMANTIC_CORPUS_RESOURCE,
+      include: native.test.include ?? [],
+      groupOrder: native.test.sequence?.groupOrder ?? 0,
+      fileParallelism: native.test.fileParallelism ?? false,
+      maxWorkers: workers,
+    },
+  ]);
+  expect(repositoryConcurrency(result)).toEqual({ starts: 2, maxActive: 1, finalActive: 0 });
+  expect(result.findIndex((event) => event.startsWith("corpus-"))).toBeGreaterThan(result.findLastIndex((event) => event.startsWith("repository-")));
+  const corpus = result.filter((event) => event.startsWith("corpus-")).map((event) => event.replace("corpus-", "repository-"));
+  expect(repositoryConcurrency(corpus)).toEqual({ starts: 2, maxActive: workers, finalActive: 0 });
 });
 
 test("native runtime realms execute product and tooling repository kinds in their own tier exactly once", { timeout: RUN_BUDGET_MS }, async ({ scratch }) => {
