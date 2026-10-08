@@ -76,7 +76,8 @@ jobs:
   static:
     needs: changes
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    # Publication bootstrap runs complete tooling proof within the exhaustive qualification allowance.
+    timeout-minutes: &qualification-timeout 330
     env:
       ORB_VERIFY_BASE: ${{ needs.changes.outputs.base }}
       ORB_VERIFY_HEAD: ${{ needs.changes.outputs.head }}
@@ -91,7 +92,7 @@ jobs:
         with:
           browsers: "true"
       - name: ${{ env.ORB_CI_QUALIFICATION_GENERATION }}
-        run: pnpm check
+        run: pnpm check --verbose
       # The push tier's remaining whole-repo checks are light enough to share the runner.
       - parallel:
           - name: Orphan-export ratchet
@@ -387,7 +388,7 @@ jobs:
   qualification:
     if: ${{ !inputs.select_cpu_diagnostic && (github.event_name == 'schedule' || inputs.tier == 'product' || inputs.tier == 'full') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 330
+    timeout-minutes: *qualification-timeout
     env:
       VERIFY_TIER: ${{ github.event_name == 'schedule' && 'full' || inputs.tier }}
     permissions:

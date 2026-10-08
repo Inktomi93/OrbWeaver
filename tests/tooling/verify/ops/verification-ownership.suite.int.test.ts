@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { CONCURRENCY_PROFILE_PATH, readConcurrencyProfile, stageBudgetsFor } from "@orb/tooling/_shared/concurrency-profile";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import YAML from "yaml";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -17,6 +18,7 @@ interface WorkflowStep {
   readonly with?: { readonly path?: string; readonly key?: string; readonly "artifact-ids"?: string; readonly "digest-mismatch"?: string };
 }
 interface QualificationJob {
+  readonly "timeout-minutes": number;
   readonly env: Readonly<Record<string, string>>;
   readonly steps: readonly WorkflowStep[];
 }
@@ -40,7 +42,11 @@ interface Workflow {
       readonly permissions: Readonly<Record<string, string>>;
       readonly steps: readonly (WorkflowStep & { readonly env?: Readonly<Record<string, string>> })[];
     };
-    readonly static: { readonly env: Readonly<Record<string, string>>; readonly steps: readonly (WorkflowStep & { readonly name?: string })[] };
+    readonly static: {
+      readonly "timeout-minutes": number;
+      readonly env: Readonly<Record<string, string>>;
+      readonly steps: readonly (WorkflowStep & { readonly name?: string })[];
+    };
     readonly "ci-ok": { readonly if: string; readonly needs: readonly string[]; readonly steps: readonly WorkflowStep[] };
   };
 }
@@ -374,7 +380,7 @@ test("CI event qualification passes the actual target/before and tested SHA, not
     "${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || inputs.base }}",
   );
   expect(ci.jobs.changes.permissions).toEqual({ contents: "read", actions: "read" });
-  expect(ci.jobs.static.steps.find((candidate) => candidate.run === "pnpm check")?.name).toBe("${{ env.ORB_CI_QUALIFICATION_GENERATION }}");
+  expect(ci.jobs.static.steps.find((candidate) => candidate.run === "pnpm check --verbose")?.name).toBe("${{ env.ORB_CI_QUALIFICATION_GENERATION }}");
   expect(ci.env["ORB_CI_QUALIFICATION_GENERATION"]).toBe("Orbweaver qualification ancestor-v1");
   expect(ci.env["ORB_CI_PUBLICATION_BOOTSTRAP_SHA"]).toBe("ac6cfc19ea9db59644426b37f6b8c842c33473ad");
   expect(ci.env["ORB_CI_REPOSITORY"]).toBe("Inktomi93/OrbWeaver");
@@ -487,4 +493,33 @@ test("uncached nightly and manual qualification provision media and showcase art
     ["--filter", "@orb/showcase-plugins", "build"],
     ["verify", "--product"],
   ]);
+});
+
+test("static qualification admits full tooling within the shared bounded hosted allowance", ({ repoRoot }) => {
+  const ci = workflow(repoRoot);
+  const stageBudgets = stageBudgetsFor({ ...readConcurrencyProfile(), vitestMaxWorkers: 1 }, readFileSync(CONCURRENCY_PROFILE_PATH, "utf8"));
+  expect(ci.jobs.static["timeout-minutes"]).toBe(ci.jobs.qualification["timeout-minutes"]);
+  expect(ci.jobs.static["timeout-minutes"] * 60_000).toBeGreaterThanOrEqual(stageBudgets.toolingSuiteMs + stageBudgets.defaultMs);
+  expect(ci.jobs["ci-ok"].needs).toContain("static");
+});
+
+test("the generation-marked static command forwards live output mode and preserves failure exits", async ({ repoRoot, scratch, fakeBin }) => {
+  const generationSteps = workflow(repoRoot).jobs.static.steps.filter((candidate) => candidate.name === "${{ env.ORB_CI_QUALIFICATION_GENERATION }}");
+  expect(generationSteps).toHaveLength(1);
+  const generation = generationSteps[0];
+  expect(generation?.if).toBeUndefined();
+  await fakeBin(
+    "pnpm",
+    "import fs from 'node:fs';fs.writeFileSync('called.json',JSON.stringify(process.argv.slice(2)));process.stdout.write('fixture child progress\\n');process.exitCode=Number(process.env.FIXTURE_VERIFY_EXIT);",
+  );
+  for (const code of [0, 1, 2]) {
+    const result = spawnSync("bash", ["-e", "-c", generation?.run ?? ""], {
+      cwd: scratch,
+      env: inheritedProcessEnv({ ["FIXTURE_VERIFY_EXIT"]: String(code) }),
+      encoding: "utf8",
+    });
+    expect(result.status, result.stdout + result.stderr).toBe(code);
+    expect(JSON.parse(readFileSync(join(scratch, "called.json"), "utf8"))).toEqual(["check", "--verbose"]);
+    expect(result.stdout).toContain("fixture child progress");
+  }
 });
