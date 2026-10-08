@@ -1,35 +1,8 @@
-import { execFileSync } from "node:child_process";
-import type { GatePolicy, PolicyCommandRequest, PolicyPassResult, PolicyScopeResolution } from "@orb/tooling/verify";
-import { defineFact, defineGate, executePolicyPlan, planPolicyArgv, planPolicyCommand, policyPassExitCode, policySourceCandidates } from "@orb/tooling/verify";
-import { Project, SyntaxKind } from "ts-morph";
+import type { PolicyCommandRequest, PolicyPassResult, PolicyScopeResolution } from "@orb/tooling/verify";
+import { defineFact, defineGate, executePolicyPlan, planPolicyCommand, policyPassExitCode, policySourceCandidates } from "@orb/tooling/verify";
+import { Project } from "ts-morph";
 import { expect, test } from "../../../support/tool-fixtures.ts";
-import { scaledBudget } from "../../_load-budget.ts";
-
-function policy(
-  id: string,
-  options: Partial<Pick<GatePolicy, "family" | "execution" | "analysis" | "population" | "facts" | "resources" | "severity" | "create">> = {},
-): GatePolicy {
-  const analysis = options.analysis ?? "syntax";
-  const proofMode = analysis === "syntax" ? "source" : analysis;
-  const files = analysis === "resource" ? { "tooling/package.json": "{}\n" } : { "tooling/src/a.ts": "export const a = 1;\n" };
-  const resources: GatePolicy["resources"] = options.resources ?? (analysis === "resource" ? [{ kind: "package-metadata", id: "tooling" }] : []);
-  const base = {
-    id,
-    family: options.family ?? id,
-    authority: "hard",
-    population: options.population ?? "@tooling",
-    analysis,
-    execution: options.execution ?? "selected-files",
-    facts: options.facts ?? [],
-    resources,
-    message: `${id} message`,
-    create:
-      options.create ?? ((): ReturnType<GatePolicy["create"]> => ({ visitors: [{ kinds: [SyntaxKind.VariableDeclaration], visit: (): void => undefined }] })),
-    mustFlag: [{ mode: proofMode, files, why: "founding defect" }],
-    mustPass: [{ mode: proofMode, files, why: "nearest legal shape" }],
-  } as const;
-  return options.severity === "warning" ? defineGate({ ...base, severity: "warning", workItem: 1584 }) : defineGate({ ...base, severity: "error" });
-}
+import { policy } from "./_policy-plan-fixture.ts";
 
 const PROGRAM = {
   id: "tooling/tsconfig.json",
@@ -78,26 +51,6 @@ function runRequest(overrides: Partial<RunRequest> = {}): RunRequest {
     json: true,
     ...overrides,
   };
-}
-
-const LS_FILES_MAX_BUFFER = 268_435_456;
-
-/** Below this the census stopped reading (a wrong cwd, a broken `git ls-files`) rather than measuring a
- *  small repo — and a derivation that stopped reading returns the same empty list as a tree that genuinely
- *  tracks no module scripts, which is exactly how the reality arm below could pass while proving nothing. */
-const MIN_TRACKED_SOURCES = 1000;
-
-/** A tracked path the census MUST contain, so a silent mis-read is caught by identity and not only by
- *  count. It is this suite's own subject, which cannot disappear without this file moving with it. */
-const ANCHOR_SOURCE = "tooling/src/verify/lib/policy-plan.ts";
-
-/** Tracked repo-relative paths matching `patterns`, sorted. Tracked-ness is the question the planner's
- *  population asks, so an untracked stray must not be able to masquerade as a compiler member here. */
-function trackedPaths(root: string, patterns: readonly string[]): readonly string[] {
-  return execFileSync("git", ["ls-files", "--", ...patterns], { cwd: root, encoding: "utf8", maxBuffer: LS_FILES_MAX_BUFFER })
-    .split("\n")
-    .filter((line) => line.trim() !== "")
-    .toSorted();
 }
 
 test.describe("final policy planner", () => {
@@ -816,68 +769,6 @@ test.describe("final policy planner", () => {
     });
     expect(first).toEqual(second);
     expect(first).toMatchObject({ ok: false, exitCode: 3, message: "unknown check selection(s): a-missing, z-missing" });
-  });
-
-  test("the argv coordinator resolves a real six-kind scope through the programmatic front door", { timeout: scaledBudget(5000) }, ({ repoRoot }) => {
-    const gate = policy("known");
-    const result = planPolicyArgv(repoRoot, ["--file", "tooling/src/verify/lib/policy-plan.ts", "--check", gate.id], {
-      gates: [gate],
-      families: [gate.family],
-    });
-    expect(result).toMatchObject({
-      ok: true,
-      plan: {
-        mode: "run",
-        policyIds: [gate.id],
-        requestedPaths: [{ path: "tooling/src/verify/lib/policy-plan.ts", status: "present", previousPath: null }],
-        policies: [{ population: { effectiveSourcePaths: ["tooling/src/verify/lib/policy-plan.ts"] } }],
-      },
-    });
-  });
-
-  // THE REALITY ARM for the owner ruling the five synthetic scope rows above prove against a fixture
-  // corpus: the final AST/compiler population is `.ts`/`.tsx` ONLY, and a compiler-owned module script
-  // must not reach a policy's source population. The receipt is the 2026-09-05 resource-layout-size
-  // inventory, where a real `.mts` once landed in both `declaredSourcePaths` and `effectiveSourcePaths`.
-  //
-  // ITS SUBJECT IS DERIVED, because the hardcoded one ROTTED. This arm used to name
-  // `tests/server/infra/providers/backends/local-light/fixtures/orphan-survival-child.mts` by literal;
-  // that fixture went with the `@orb/inference` cut-over (9a6061b487, 2026-09-19) and the arm then asserted
-  // a path that no longer existed — it failed for a missing file rather than for the fence it is named
-  // for, and nothing swept it.
-  //
-  // READ THIS BEFORE TRUSTING ITS GREEN: the repository tracks ZERO `.mts`/`.cts` today, so the PLANNER
-  // loop below currently has no subject and is vacuous. That is a DERIVED empty, not an asserted one,
-  // and it is deliberately left self-engaging rather than deleted — the day a module
-  // script lands, this arm judges it with no edit. What still runs on EVERY tree is the census control
-  // and the contract assertion; the fence's behavioural proof is the synthetic scope rows above.
-  test("no tracked compiler-member module script enters policy source population", { timeout: scaledBudget(5000) }, ({ repoRoot }) => {
-    const sources = trackedPaths(repoRoot, ["*.ts", "*.tsx"]);
-    // POSITIVE CONTROL, same invocation, same machinery as the module-script census below: without it a
-    // broken `git ls-files` yields an empty module-script list that reads exactly like a clean pass.
-    expect(sources).toContain(ANCHOR_SOURCE);
-    expect(sources.length).toBeGreaterThan(MIN_TRACKED_SOURCES);
-
-    const moduleScripts = trackedPaths(repoRoot, ["*.mts", "*.cts"]);
-    // Runs empty census or not: every tracked module script is dropped while a real tracked source
-    // survives, so the extension fence is asserted against the REAL tree on every run.
-    expect(policySourceCandidates([...moduleScripts, ANCHOR_SOURCE])).toEqual([ANCHOR_SOURCE]);
-
-    for (const modulePath of moduleScripts) {
-      const gate = policy("real-module-script-source-fence", { population: "@tests" });
-      const result = planPolicyArgv(repoRoot, ["--file", modulePath, "--check", gate.id], { gates: [gate], families: [gate.family] });
-      expect(result).toMatchObject({
-        ok: true,
-        plan: {
-          requestedPaths: [{ path: modulePath, status: "present", previousPath: null }],
-          policies: [{ mode: "skipped", population: { effectiveSourcePaths: [] } }],
-        },
-      });
-      if (!result.ok || result.plan.mode !== "run") {
-        throw new Error(`module-script plan did not resolve: ${modulePath}`);
-      }
-      expect(result.plan.policies[0]?.population.declaredSourcePaths).not.toContain(modulePath);
-    }
   });
 
   test("executes a plan through the production pass and refuses project/population drift", () => {

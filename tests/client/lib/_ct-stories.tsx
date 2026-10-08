@@ -217,6 +217,10 @@ export function MotionVirtualizedShiftStory(): ReactElement {
 // supplies that precondition on fast hosts; the ordinary blocking budget remains unchanged.
 const SELECT_EVIDENCE_TASK_MS = 60;
 
+function plantAppBlockingFrame(): void {
+  blockMainThread(120);
+}
+
 /** A real sealed anchored portal for the LoAF first-mount classifier. Both accessors come from the
  * story's module instance; a page-side import would read a second empty ring. */
 export function MotionAnchoredPortalStory({
@@ -370,7 +374,13 @@ export function MotionAnchoredPortalStory({
       <button type="button" onClick={(): void => setBlockSelectOpen(true)}>
         arm Select blocking
       </button>
-      <button type="button" onClick={(): void => blockMainThread(120)}>
+      <button
+        type="button"
+        onClick={(): void => {
+          // Keep the complete planted task in one rendering update, outside synthetic click dispatch.
+          requestAnimationFrame(plantAppBlockingFrame);
+        }}
+      >
         plant app blocking
       </button>
       <button

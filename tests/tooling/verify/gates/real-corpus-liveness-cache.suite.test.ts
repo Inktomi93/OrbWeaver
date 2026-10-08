@@ -16,7 +16,7 @@ const BASE = {
   "package.json": '{"name":"baseline-resource"}',
 };
 
-test("liveness cached passes preserve fresh solo facts, resources, populations, refusals and grants", ({ scratch }) => {
+test("liveness cached passes preserve fresh solo facts, resources, populations, refusals and grants", { tags: ["slow"] }, ({ scratch }) => {
   for (const [path, text] of Object.entries(BASE)) {
     mkdirSync(dirname(join(scratch, path)), { recursive: true });
     writeFileSync(join(scratch, path), text);

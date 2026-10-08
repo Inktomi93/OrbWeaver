@@ -1,14 +1,28 @@
+import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/_shared/test-tags";
+import { semanticWorkspaceOf } from "@orb/tooling/_shared/ts-workspace";
 import { collectSchemaTables, loadProject } from "@orb/tooling/ast";
 import { Node, SyntaxKind } from "ts-morph";
 import { beforeAll } from "vitest";
 import { resolveDynamicImportTarget } from "../../../../tooling/src/ast/lib/resolve.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
-let project: ReturnType<typeof loadProject>;
+// The loader acquires descriptors lazily; registration needs their count before Vitest captures the hook deadline.
+const project = loadProject(true);
+const workspace = semanticWorkspaceOf(project);
+if (workspace === undefined) {
+  throw new Error("the typed AST loader must retain its native semantic workspace");
+}
+const setupTimeout = scaledBudget(LONG_TEST_TIMEOUT_BASE_MS * workspace.programs.length);
 
 beforeAll(() => {
-  project = loadProject(true);
-});
+  // Enumerating authored sources hydrates every native program; no assertion should pay another world's cold setup.
+  for (const program of workspace.programs) {
+    program.project();
+  }
+  project.getSourceFiles();
+  console.info(`native corpus setup: ${workspace.programs.length} programs × ${LONG_TEST_TIMEOUT_BASE_MS}ms; scaled deadline ${setupTimeout}ms`);
+}, setupTimeout);
 
 test("typed AST corpus returns browser declarations in their native DOM world", () => {
   const source = project.getSourceFile("packages/client/src/features/config/lib/theme-contrast.ts");
