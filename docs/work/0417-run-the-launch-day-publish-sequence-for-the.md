@@ -1,10 +1,9 @@
 ---
 kind: work
-status: doing
-updated: 2026-10-06
+status: open
+updated: 2026-10-07
 priority: P1
 area: launch
-lane: codex/launch-packages
 ---
 
 # Run the launch-day publish sequence for the repo, SDK release, template repos and wiki

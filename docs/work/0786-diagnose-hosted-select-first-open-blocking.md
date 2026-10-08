@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-07
 priority: P1
 area: testing
+lane: codex/select-hosted-evidence
 ---
 
 # Diagnose hosted Select first-open blocking

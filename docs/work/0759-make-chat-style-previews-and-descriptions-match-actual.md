@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
-updated: 2026-10-06
+status: open
+updated: 2026-10-07
 priority: P2
 area: ui
-lane: main
 ---
 
 # Make chat style previews and descriptions match actual rendering

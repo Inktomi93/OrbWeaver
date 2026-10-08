@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-07
 priority: P1
 area: ci
+lane: wt/compiler-cold-proof
 ---
 
 # Diagnose hosted compiler proof timeouts
