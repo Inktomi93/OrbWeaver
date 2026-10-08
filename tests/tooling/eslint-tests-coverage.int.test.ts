@@ -26,6 +26,7 @@
 // widening the hole again.
 import { execSync } from "node:child_process";
 import { BROWSER_PACKAGES, isNodeToolSource, PACKAGE_WORLDS } from "@orb/tooling/_shared/project-worlds";
+import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/_shared/test-tags";
 import { ESLint } from "eslint";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
@@ -110,7 +111,7 @@ test("every tracked non-browser package source resolves to a real eslint config 
   expect(await uncoveredFiles(repoRoot, census)).toEqual([]);
 });
 
-test("the Node-tool surface executes the type-aware promise diagnostic", { timeout: scaledBudget(15_000) }, async ({ repoRoot }) => {
+test("the Node-tool surface executes the type-aware promise diagnostic", { timeout: scaledBudget(LONG_TEST_TIMEOUT_BASE_MS) }, async ({ repoRoot }) => {
   // CI's single-run parser reads on-disk source rather than the first lintText replacement.
   const eslint = new ESLint({
     cwd: repoRoot,

@@ -10,6 +10,7 @@
 // read from the tool's own contract (VERIFY_VERBS), never a copy — a new verb joins this pin the day it is
 // minted, which is the only shape that would have caught #809 (a code path nobody exercised).
 import process from "node:process";
+import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/_shared/test-tags";
 import type { MembershipReport } from "@orb/tooling/verify";
 import { VERIFY_VERBS } from "@orb/tooling/verify";
 import { readPolicyRepositoryInventory } from "../../../tooling/src/verify/lib/policy-repo-inventory.ts";
@@ -28,6 +29,9 @@ const SMALL_HEAP_ENV: Readonly<Record<string, string>> = Object.fromEntries([
 ]);
 /** Generous next to the ~0.5s a real help answer takes, and multiples of the ~5s the OOM took to abort. */
 const HELP_TIMEOUT_MS = scaledBudget(30_000);
+// Membership runs both native import-closure and root-parity sweeps; the parent also allows launch/report cleanup.
+const MEMBERSHIP_CHILD_TIMEOUT_MS = scaledBudget(2 * LONG_TEST_TIMEOUT_BASE_MS);
+const MEMBERSHIP_TIMEOUT_MS = MEMBERSHIP_CHILD_TIMEOUT_MS + scaledBudget(LONG_TEST_TIMEOUT_BASE_MS);
 
 /** SMALL_HEAP_ENV with a PATH that can resolve the registry's argv[0]s (#2225 — `--list` now reads the
  *  environment it is handed). Keys stay ENV VOCABULARY, built from pairs, so the naming rule holds. */
@@ -177,11 +181,11 @@ test("the 512MB ceiling BITES — the same verb without --help dies under it", {
   expect(res.code, `expected a heap-starved failure, got ${String(res.code)}`).not.toBe(0);
 });
 
-test("membership JSON exposes every authored TS file, including unresolved config and declaration owners", { timeout: HELP_TIMEOUT_MS }, async ({
+test("membership JSON exposes every authored TS file, including unresolved config and declaration owners", { timeout: MEMBERSHIP_TIMEOUT_MS }, async ({
   runCli,
   repoRoot,
 }) => {
-  const res = await runCli("verify", ["tests-membership", "--json"], { timeoutMs: HELP_TIMEOUT_MS });
+  const res = await runCli("verify", ["tests-membership", "--json"], { timeoutMs: MEMBERSHIP_CHILD_TIMEOUT_MS });
   await expect(res).toExitWith(0);
   const report = JSON.parse(res.stdout) as MembershipReport;
   expect(report.enforcement).toBe("world-ownership-ambient-distribution-and-closure-libraries");

@@ -11,6 +11,7 @@ import type { SpawnNicedOptions, TranscriptResult } from "@orb/tooling/_shared/p
 import { spawnNiced, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import { inheritedProcessEnv, withProcessEnv } from "@orb/tooling/_shared/process-env";
 import { SEMANTIC_CORPUS_RESOURCE } from "@orb/tooling/_shared/test-kinds";
+import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/_shared/test-tags";
 import { parse } from "yaml";
 import { z } from "zod";
 import { INSTRUMENT_EXECUTION_COMPONENT_ENV } from "../../tooling/src/verify/contract/instrument-affected.ts";
@@ -341,8 +342,36 @@ const QUALIFIED_DIFF_API = [
   "else process.exit(74);process.stdout.write(JSON.stringify(response));",
 ].join("\n");
 
+const CLASSIFIER_PATH_CASES = [
+  [".claude/hooks/check.mjs", true],
+  [".codex/config.toml", true],
+  [".agents/hooks/check.py", true],
+  ["docs/example.txt", false],
+  [".claude/README.md", false],
+  [".vscode/settings.json", false],
+  [".github/ISSUE_TEMPLATE/bug.yml", false],
+] as const;
+const CLASSIFIER_EVENT_BASE_CASES = [null, "0".repeat(40), "b".repeat(40), ""] as const;
+const CLASSIFIER_PROOF_REFUSALS = [
+  { jobCount: 1, attempt: 1, corpusAttempt: 1 },
+  { jobCount: 2, attempt: 1, corpusAttempt: 1 },
+  { jobCount: null, attempt: 2, corpusAttempt: 1 },
+] as const;
+const CLASSIFIER_INVALID_EVENT_BASE_CASES = ["HEAD^"] as const;
+const CLASSIFIER_SETUP_TIMEOUT_MS = scaledBudget(LONG_TEST_TIMEOUT_BASE_MS);
+const CLASSIFIER_CHILD_TIMEOUT_MS = scaledBudget(LONG_TEST_TIMEOUT_BASE_MS);
+// Every roster row executes a fresh native CLI; one shared test deadline must cover their sequential child ceilings plus preparation.
+const CLASSIFIER_TIMEOUT_MS =
+  CLASSIFIER_SETUP_TIMEOUT_MS +
+  CLASSIFIER_CHILD_TIMEOUT_MS *
+    (CLASSIFIER_PATH_CASES.length +
+      CLASSIFIER_EVENT_BASE_CASES.length +
+      QUALIFICATION_CONTEXT.length +
+      CLASSIFIER_PROOF_REFUSALS.length +
+      CLASSIFIER_INVALID_EVENT_BASE_CASES.length);
+
 test("CI's actual diff classifier treats agent hooks and configs as code, not documentation", {
-  timeout: scaledBudget(60_000),
+  timeout: CLASSIFIER_TIMEOUT_MS,
 }, async ({ repoRoot, scratch, plantedTree, fakeBin }) => {
   const invocation = z.string().parse(workflowJobs(repoRoot, "ci")["changes"]?.steps.find((step) => step.id === "diff")?.run);
   const script = invocation.replace("scripts/ci-qualification.ts", JSON.stringify(join(repoRoot, "scripts/ci-qualification.ts")));
@@ -366,7 +395,10 @@ test("CI's actual diff classifier treats agent hooks and configs as code, not do
   execFixtureGit(tree, ["init", "--initial-branch=main"]);
   execFixtureGit(tree, ["config", "user.name", "Workflow proof"]);
   execFixtureGit(tree, ["config", "user.email", "proof@example.invalid"]);
-  const prepared = await spawnNiced("pnpm", ["install", "--lockfile-only", "--ignore-scripts"], { cwd: tree });
+  const prepared = await spawnNiced("pnpm", ["install", "--lockfile-only", "--ignore-scripts"], {
+    cwd: tree,
+    timeoutMs: CLASSIFIER_SETUP_TIMEOUT_MS,
+  });
   expect(prepared.code, prepared.stderr).toBe(0);
   const commit = (): string => {
     execFixtureGit(tree, ["add", "."]);
@@ -380,7 +412,7 @@ test("CI's actual diff classifier treats agent hooks and configs as code, not do
     spawnNicedTranscript("bash", ["-euo", "pipefail", "-c", script], {
       cwd: tree,
       env: inheritedProcessEnv({ ...ISOLATED_QUALIFICATION_ENV, ["BEFORE"]: before, ["GITHUB_SHA"]: head, ["GITHUB_OUTPUT"]: output }),
-      timeoutMs: scaledBudget(60_000),
+      timeoutMs: CLASSIFIER_CHILD_TIMEOUT_MS,
     });
   const run = async (qualified: string, before: string, head: string): Promise<string> => {
     await writeFile(
@@ -397,15 +429,7 @@ test("CI's actual diff classifier treats agent hooks and configs as code, not do
     expect(result.code, `${result.transcript}\n${execFixtureGit(tree, ["status", "--porcelain=v1", "--untracked-files=all"])}`).toBe(0);
     return readFileSync(output, "utf8");
   };
-  for (const [path, expected] of [
-    [".claude/hooks/check.mjs", true],
-    [".codex/config.toml", true],
-    [".agents/hooks/check.py", true],
-    ["docs/example.txt", false],
-    [".claude/README.md", false],
-    [".vscode/settings.json", false],
-    [".github/ISSUE_TEMPLATE/bug.yml", false],
-  ] as const) {
+  for (const [path, expected] of CLASSIFIER_PATH_CASES) {
     await mkdir(join(tree, path, ".."), { recursive: true });
     await writeFile(fixturePath(tree, path), "proof\n");
     const head = commit();
@@ -414,7 +438,8 @@ test("CI's actual diff classifier treats agent hooks and configs as code, not do
     );
     previous = head;
   }
-  for (const before of [base, "0".repeat(40), "b".repeat(40), ""]) {
+  for (const eventBase of CLASSIFIER_EVENT_BASE_CASES) {
+    const before = eventBase ?? base;
     expect(await run(base, before, previous)).toBe(
       `base=${base}\nhead=${previous}\nevent_base=${before}\ncode=true\ntool_mode=affected\nauthority=qualified\n`,
     );
@@ -424,14 +449,17 @@ test("CI's actual diff classifier treats agent hooks and configs as code, not do
       expect(await run(base, base, previous)).toContain("authority=qualified\n");
     });
   }
-  for (const proof of [
-    { jobs: proofJobs.slice(0, 1), attempt: 1, corpusAttempt: 1 },
-    { jobs: proofJobs.slice(0, 2), attempt: 1, corpusAttempt: 1 },
-    { jobs: proofJobs, attempt: 2, corpusAttempt: 1 },
-  ]) {
+  for (const { jobCount, attempt, corpusAttempt } of CLASSIFIER_PROOF_REFUSALS) {
     await writeFile(
       join(tree, "api-proof.json"),
-      JSON.stringify({ base, repository: environment["ORB_CI_REPOSITORY"], generation: environment["ORB_CI_QUALIFICATION_GENERATION"], ...proof }),
+      JSON.stringify({
+        base,
+        repository: environment["ORB_CI_REPOSITORY"],
+        generation: environment["ORB_CI_QUALIFICATION_GENERATION"],
+        jobs: jobCount === null ? proofJobs : proofJobs.slice(0, jobCount),
+        attempt,
+        corpusAttempt,
+      }),
     );
     await writeFile(output, "");
     const refused = await classify(base, previous);
@@ -439,9 +467,11 @@ test("CI's actual diff classifier treats agent hooks and configs as code, not do
     expect(refused.transcript).toContain("admitted publication is not an ancestor");
     expect(readFileSync(output, "utf8")).toBe("");
   }
-  const malformed = await classify("HEAD^", previous);
-  expect(malformed.code).toBe(3);
-  expect(malformed.transcript).toContain("CI event base must be empty or a commit ID");
+  for (const before of CLASSIFIER_INVALID_EVENT_BASE_CASES) {
+    const malformed = await classify(before, previous);
+    expect(malformed.code).toBe(3);
+    expect(malformed.transcript).toContain("CI event base must be empty or a commit ID");
+  }
 });
 
 test("stable publication rejects a wrong source stamp or OCI revision before scanning and publishing", async ({ repoRoot, fakeBin }) => {
