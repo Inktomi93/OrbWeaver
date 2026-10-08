@@ -35,3 +35,11 @@ An opt-in stock-esbuild optimization diagnostic compares cold openings against t
 The selected diagnostic does not reproduce the native failure. Its component registry differs from the failing capture. Application-source attribution remains unresolved; investigation stays open.
 
 Native trace finalization retains its referenced emitted bundles and source maps before CT lease cleanup without changing measurement. Native and deterministic file tests prove retention.
+
+The deadline-diagnostics case in [hosted qualification](https://github.com/Inktomi93/OrbWeaver/actions/runs/37855732691) exceeds the cold-opening budget before diagnostic transport starts. Artifact `reports-ct-4` records 239ms raw blocking, 140ms initialization credit and 99ms budgeted blocking against 50ms.
+
+Replaying the verdict reader with original and substituted source URLs preserves the failed and successful outcomes. Diagnostic transport does not explain the opening excess.
+
+An exact-bundle excerpt identifies the generic Base UI timer wrapper, not its invoked callback. The ordinary retry trace lacks bundle bodies, source maps and timer-install records; callback attribution remains unresolved.
+
+Diagnostic-contract separation needs an explicit scope ruling. Existing cold-opening assertions and budgets remain unchanged while that decision is pending.
