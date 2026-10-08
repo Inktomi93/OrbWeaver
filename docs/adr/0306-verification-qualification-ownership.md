@@ -1,8 +1,9 @@
 ---
 kind: adr
-status: active
-updated: 2026-10-07
+status: superseded
+updated: 2026-10-08
 supersedes: docs/adr/0274-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md
+superseded-by: docs/adr/0307-weekly-tooling-proof-and-product-qualification.md
 ---
 
 # Qualify cumulative changes before release

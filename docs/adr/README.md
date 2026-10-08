@@ -252,4 +252,5 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D303 | [Side generation runs through the chat turn and splits with the role's tag pair](0303-side-generation-runs-through-the-chat-turn-with-the-role-tag-pair.md) | active |
 | D304 | [Each model role picks its preset, including its reasoning tag pair](0304-each-model-role-picks-its-preset-and-tag-pair.md) | active |
 | D305 | [The admin tier wires four AppSettings system-tuning knobs](0305-admin-tier-wires-four-system-tuning-knobs.md) | active |
-| D306 | [Qualify cumulative changes before release](0306-verification-qualification-ownership.md) | active |
+| D306 | [Qualify cumulative changes before release](0306-verification-qualification-ownership.md) | superseded by [0307-weekly-tooling-proof-and-product-qualification.md](0307-weekly-tooling-proof-and-product-qualification.md) |
+| D307 | [Separate product qualification from weekly tooling proof](0307-weekly-tooling-proof-and-product-qualification.md) | active |
