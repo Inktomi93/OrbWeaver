@@ -65,8 +65,10 @@
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": false,
       "skip-changelog": true,
-      "pull-request-footer": "Merging this tags the release, publishes the GitHub release and builds the image. Next time, run `pnpm release` from main: it merges this version bump back into main before pushing.",
-      "pull-request-header": "Merging this publishes the release below.",
+      "draft": true,
+      "force-tag-creation": true,
+      "pull-request-footer": "Merging this tags a draft release and builds the image. The GitHub release publishes after image verification succeeds. Next time, run `pnpm release` from main: it merges this version bump back into main before pushing.",
+      "pull-request-header": "Merging this prepares the release below; publication waits for the verified image.",
       "exclude-paths": [".agents", ".claude", ".codex", ".github", ".vscode", "docs", "playwright", "reports", "scripts", "tests", "tooling"]
     },
     "packages": {

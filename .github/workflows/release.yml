@@ -3,9 +3,9 @@ run-name: Release · ${{ github.event.head_commit.message }}
 
 # Stable releases. `main` is integration; `release` is stable and the default branch. `pnpm release` pushes
 # main here, and release-please keeps one release PR open (conventional commits: feat bumps the minor and fix
-# the patch below 1.0, release-please-config.json). Merging it tags `v<version>`, publishes the GitHub
-# Release, and this run builds the runtime image from the tag, attests its provenance, pushes it to GHCR as
-# `<version>` and `latest`, and finishes the release notes. The plugin-authoring component releases the
+# the patch below 1.0, release-please-config.json). Merging it tags `v<version>` and creates a draft.
+# This run builds and scans the tag's runtime image, attests it and proves anonymous pulling before
+# advertising `latest` and publishing the GitHub Release. The plugin-authoring component releases the
 # same way with its own tag. linux/amd64 only until the native dependencies are proven on arm64.
 on:
   push:
@@ -129,10 +129,9 @@ jobs:
           outputs: type=cacheonly
           cache-to: type=registry,ref=${{ env.BUILD_CACHE }},mode=max,ignore-error=true
 
-      - name: Push both tags
+      - name: Push the versioned image
         run: |
           docker push "$IMAGE:$VERSION"
-          docker push "$IMAGE:latest"
 
       - name: Read the pushed digest
         id: digest
@@ -168,16 +167,24 @@ jobs:
       # GHCR publishes a new package as private, and docker-compose.yaml pulls with no login. Pull through an
       # empty Docker config so a private package fails the release here instead of every user's first pull.
       - name: Prove the image pulls without credentials
+        env:
+          DIGEST: ${{ steps.digest.outputs.digest }}
         run: |
           export DOCKER_CONFIG="$RUNNER_TEMP/anonymous-docker"
           mkdir -p "$DOCKER_CONFIG"
-          if ! docker pull "$IMAGE:$VERSION"; then
-            echo "::error::$IMAGE:$VERSION does not pull without credentials, so the GHCR package is private. Set it Public (package settings, Danger Zone, Change visibility), then re-run this job."
+          [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          if ! docker pull "$IMAGE@$DIGEST"; then
+            echo "::error::$IMAGE@$DIGEST does not pull without credentials. Make the GHCR package public, then re-run this job. The GitHub release remains a draft."
             exit 1
           fi
+          stamp=$(docker run --rm --entrypoint cat "$IMAGE@$DIGEST" /app/version.json)
+          echo "$stamp" | jq -e --arg version "$VERSION" --arg sha "$SOURCE_SHA" '.version == $version and .channel == "stable" and .commit == $sha'
 
-  # release-please writes what changed; this adds what to do about it. Immutable releases lock the tag and
-  # the assets, not the notes, so the notes can be finished after publication.
+      - name: Advertise the verified image as latest
+        run: docker push "$IMAGE:latest"
+
+  # Failed image jobs leave a recoverable draft. Re-running failed jobs retains the release outputs;
+  # the managed notes replace their own block so a failed final publication can be retried safely.
   notes:
     needs: [release-please, image]
     runs-on: ubuntu-slim
@@ -192,9 +199,10 @@ jobs:
     steps:
       - name: Add the upgrade steps to the release notes
         run: |
-          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body > notes.md
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body | sed '/^<!-- orbweaver-publication -->$/,$d' > notes.md
           cat >> notes.md <<NOTES
 
+          <!-- orbweaver-publication -->
           ## Upgrade
 
           Back up \`data/\` first: migrations only go forward, and the app copies the database to \`data/backups/\` before it applies them.
@@ -219,7 +227,7 @@ jobs:
           gh attestation verify oci://ghcr.io/inktomi93/orbweaver:$VERSION --repo $GITHUB_REPOSITORY
           \`\`\`
           NOTES
-          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file notes.md
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file notes.md --draft=false --latest
 
   # release-please creates the plugin-authoring release as a draft because immutable releases refuse assets
   # once a release is published. This job attaches the SDK and toolchain tarballs, adds the install lines to

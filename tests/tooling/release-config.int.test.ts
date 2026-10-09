@@ -61,6 +61,60 @@ test("the first release is v0.1.0 and the version stays below 1.0: feat bumps th
   expect(root["bump-patch-for-minor-pre-major"]).not.toBe(true);
 });
 
+test("stable GitHub publication waits for a scanned, attested and anonymously pulled image", ({ repoRoot }) => {
+  const config = z
+    .object({ packages: z.object({ ".": z.object({ draft: z.boolean(), "force-tag-creation": z.boolean() }) }) })
+    .parse(JSON.parse(read(repoRoot, "release-please-config.json"))).packages["."];
+  expect(config).toEqual({ draft: true, "force-tag-creation": true });
+  const jobs = workflowJobs(repoRoot, "release");
+  expect(jobs["notes"]?.needs).toEqual(["release-please", "image"]);
+  const publish = jobs["notes"]?.steps.find((step) => step.run?.includes("gh release edit") === true);
+  expect(publish?.run).toContain("--draft=false --latest");
+  expect(publish?.run).toContain("<!-- orbweaver-publication -->");
+  const image = jobs["image"]?.steps ?? [];
+  const anonymous = image.find((step) => step.name === "Prove the image pulls without credentials");
+  expect(anonymous?.run).toContain('docker pull "$IMAGE@$DIGEST"');
+  expect(anonymous?.env?.["DIGEST"]).toBe("${{ steps.digest.outputs.digest }}");
+  const latest = image.findIndex((step) => step.name === "Advertise the verified image as latest");
+  expect(latest).toBeGreaterThan(image.indexOf(anonymous ?? {}));
+  expect(image[latest]?.run).toContain('docker push "$IMAGE:latest"');
+});
+
+test("stable publication retries replace managed notes and retain publication failures", async ({ repoRoot, scratch, fakeBin }) => {
+  const script = z.string().parse(workflowJobs(repoRoot, "release")["notes"]?.steps.find((step) => step.run?.includes("gh release edit") === true)?.run);
+  await writeFile(join(scratch, "release-notes.md"), "Changes\n");
+  await fakeBin(
+    "gh",
+    `
+    import fs from 'node:fs';
+    const args = process.argv.slice(2);
+    if (args[1] === 'view') process.stdout.write(fs.readFileSync('release-notes.md', 'utf8'));
+    else if (args[1] === 'edit') {
+      if (!args.includes('--draft=false') || !args.includes('--latest')) process.exit(72);
+      fs.copyFileSync(args[args.indexOf('--notes-file') + 1], 'release-notes.md');
+      process.exitCode = Number(process.env.PUBLICATION_EXIT);
+    } else process.exit(73);
+  `,
+  );
+  for (const status of [71, 0, 0]) {
+    const result = await spawnNiced("bash", ["-euo", "pipefail", "-c", script], {
+      cwd: scratch,
+      env: {
+        ["TAG"]: "v0.1.3",
+        ["VERSION"]: "0.1.3",
+        ["DIGEST"]: `sha256:${"a".repeat(64)}`,
+        ["GITHUB_REPOSITORY"]: "proof/repo",
+        ["PUBLICATION_EXIT"]: String(status),
+      },
+    });
+    expect(result.code, result.stderr).toBe(status);
+    const notes = read(scratch, "release-notes.md");
+    expect(notes.startsWith("Changes\n")).toBe(true);
+    expect(notes.match(/## Upgrade/gu)).toHaveLength(1);
+    expect(notes.match(/<!-- orbweaver-publication -->/gu)).toHaveLength(1);
+  }
+});
+
 test("the release workflow runs on the stable branch and publishes, from the tag, the image compose pulls", ({ repoRoot }) => {
   const workflow = releaseWorkflow.parse(parse(read(repoRoot, ".github/workflows/release.yml")));
   expect(workflow.on.push.branches).toEqual(["release"]);
@@ -137,7 +191,7 @@ const pluginAuthoring = z.object({
 const AUTHORING_PACKAGES = ["plugin-sdk", "plugin-toolchain"];
 
 for (const [workflowName, cacheTag, publishName, proofName] of [
-  ["release", "buildcache-release", "Push both tags", "Prove the image is this stable release"],
+  ["release", "buildcache-release", "Push the versioned image", "Prove the image is this stable release"],
   ["development-image", "buildcache-development", "Push development tags", "Prove fresh runtime boot"],
 ] as const) {
   test(`${workflowName} exports intermediate build cache without publishing an unverified runtime image`, ({ repoRoot }) => {
@@ -203,7 +257,7 @@ test("registry cache authentication does not move runtime publication ahead of t
   const { steps } = releaseWorkflow.parse(parse(read(repoRoot, ".github/workflows/release.yml"))).jobs.image;
   const buildIndex = steps.findIndex((step) => step.uses?.startsWith("docker/build-push-action@") === true);
   const scanIndex = steps.findIndex((step) => step.name === "Refuse critical fixable vulnerabilities");
-  const publishIndex = steps.findIndex((step) => step.name === "Push both tags");
+  const publishIndex = steps.findIndex((step) => step.name === "Push the versioned image");
   const exportIndex = steps.findIndex((step) => step.with?.["outputs"] === "type=cacheonly");
   expect(scanIndex).toBeGreaterThan(buildIndex);
   expect(exportIndex).toBeGreaterThan(scanIndex);
@@ -654,7 +708,7 @@ test("stable publication rejects a wrong source stamp or OCI revision before sca
   expect(image?.env?.["SOURCE_SHA"]).toBe("${{ needs.release-please.outputs.sha }}");
   const steps = image?.steps ?? [];
   const proof = steps.findIndex((step) => step.name === "Prove the image is this stable release");
-  for (const boundary of ["Refuse critical fixable vulnerabilities", "Export the verified build cache", "Push both tags"]) {
+  for (const boundary of ["Refuse critical fixable vulnerabilities", "Export the verified build cache", "Push the versioned image"]) {
     expect(
       steps.findIndex((step) => step.name === boundary),
       boundary,
