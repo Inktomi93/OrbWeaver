@@ -42,10 +42,13 @@
 // cgroup CPU limit `readBoxLoad` folds in (quota ceiling + throttle sample, whatever a container, CI or a
 // systemd slice already imposes) is read by `load-budget-cgroup.ts`. Every judging function takes the
 // reading as a value, so a planted control forces the loaded condition instead of spinning the box.
+
 import { loadavg } from "node:os";
 import process from "node:process";
 import type { CpuThrottleSample } from "./load-budget-cgroup.ts";
 import { effectiveCpuCount, liveThrottle } from "./load-budget-cgroup.ts";
+import type { TimingCapability } from "./timing-capability.ts";
+import { TIMING_CAPABILITY_ANNOTATION, timingCapability } from "./timing-capability.ts";
 
 /** The one distinctive token every load-kill error carries. A lane greps for it to classify exit-2. */
 export const LOAD_KILL_MARKER = "ORB-LOAD-KILL";
@@ -291,6 +294,7 @@ export type MeasurementDisposition = (typeof MEASUREMENT_DISPOSITIONS)[number];
 
 export interface MeasurementVerdict {
   readonly disposition: MeasurementDisposition;
+  readonly timing?: TimingCapability;
   /** Populated in EVERY direction — the quiet arm's reason is the receipt that the box WAS read. */
   readonly reason: string;
 }
@@ -299,7 +303,7 @@ export interface MeasurementVerdict {
  *  deliberately collapsed here: a `load-suspect` number exists and a `withheld` one does not, but neither
  *  may be promoted, and a caller that has to remember which is which will eventually forget. */
 export function isJudgeableMeasurement(verdict: MeasurementVerdict): boolean {
-  return verdict.disposition === "complete";
+  return verdict.disposition === "complete" && verdict.timing?.policy !== "record";
 }
 
 /** Did a number come back at all? `complete` and `load-suspect` both measured; `withheld` did not. */
@@ -339,7 +343,7 @@ export function judgeMeasurementLoad(box: BoxLoad, what: string): MeasurementVer
  *  since #1616 the load consequence is a LABEL: the arm measures, prints its number, and marks that arm
  *  `<arm>=load-suspect`. The exit stays whatever the other members decide. */
 export function judgeRateLoad(what: string, read: BoxLoadReader = readBoxLoad): MeasurementVerdict {
-  return judgeMeasurementLoad(read(), what);
+  return { ...judgeMeasurementLoad(read(), what), timing: timingCapability() };
 }
 
 /** The push-able annotation list a Playwright test carries — structural on purpose so this module never
@@ -356,7 +360,8 @@ export interface AnnotatableTest {
  *  threshold. Counted by tooling/src/verify/ops/ct-flaky-reporter.ts beside the flake tally, so a
  *  load-suspect CT is never a silent green. */
 export function annotateRateLoad(info: AnnotatableTest, what: string, read: BoxLoadReader = readBoxLoad): MeasurementVerdict {
-  const verdict = judgeMeasurementLoad(read(), what);
+  const verdict = judgeRateLoad(what, read);
+  info.annotations.push({ type: TIMING_CAPABILITY_ANNOTATION, description: JSON.stringify(verdict.timing) });
   if (verdict.disposition === "load-suspect") {
     info.annotations.push({ type: LOAD_SUSPECT_ANNOTATION, description: verdict.reason });
   }

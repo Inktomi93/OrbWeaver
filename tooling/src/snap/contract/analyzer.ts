@@ -6,10 +6,10 @@ import type { Arm } from "./arm-vocabulary.ts";
  *  (`contract/heap.ts`), its hand-rolled twin (`lib/run-report-problems.ts`) and the display rank
  *  (`lib/run-report-analyzers.ts`) all key off this rather than re-spelling the members.
  *
- *  `exemption` is the one NON-FAILING member (#1780): a measurement that WOULD have been a threshold row
+ *  `recorded` preserves an unqualified timing breach without voting. `exemption` explains a bounded carve-out: a measurement that WOULD have been a threshold row
  *  was excused by a named, bounded carve-out, and a reader who sees only the excused `0` cannot tell that
  *  from an unqualified clean run. It is rendered as an `annotation`, never an error. */
-export const SNAP_ANALYZER_PROBLEM_KINDS = ["evidence-gap", "failure", "threshold", "exemption"] as const;
+export const SNAP_ANALYZER_PROBLEM_KINDS = ["evidence-gap", "failure", "threshold", "recorded", "exemption"] as const;
 export type SnapAnalyzerProblemKind = (typeof SNAP_ANALYZER_PROBLEM_KINDS)[number];
 
 /** One analyzer-owned, browser-free problem row embedded in its structured artifact. Threshold policy

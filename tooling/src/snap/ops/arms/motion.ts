@@ -53,10 +53,13 @@ import type {
   ArmRunInstance,
   ArmSharedContext,
 } from "../../contract/arms.ts";
+import type { MotionMeasurement } from "../../contract/motion.ts";
 import type { Args } from "../../contract/types.ts";
 import { motionLoadSuspect, motionPrecedingInputHint, motionQueueHint, orderMotionGaps, rateEvidenceGaps } from "../../lib/motion-gaps.ts";
 import { motionProblems } from "../../lib/motion-problems.ts";
+import { motionFactState, motionStatus, motionTimingPolicy } from "../../lib/motion-verdict.ts";
 import type { SnapRatePosture } from "../../lib/rate-posture.ts";
+import { snapTimingPolicy } from "../../lib/rate-posture.ts";
 import { consumeOptionalSelector, pushStep } from "../flags-support.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -69,16 +72,6 @@ const RESET_AFTER_GEOMETRY = `new Promise((resolve, reject) => requestAnimationF
     globalThis.__orb.resetEvidence(); resolve();
   } catch (error) { reject(error); }
 })))`;
-
-interface MotionMeasurement {
-  readonly data: AuditData | null;
-  readonly gaps: readonly EvidenceGap[];
-  readonly pass: boolean;
-  readonly artifact: string | null;
-  /** Non-null when the numbers were measured on a LOADED box (#1616): they are reported in full, the
-   *  budget verdict reads `unjudged`, and the arm's own member is `LOAD-SUSPECT` — never PASS or FAIL. */
-  readonly loadSuspect: string | null;
-}
 
 const MOTION_RECEIPTS = new WeakMap<object, AuditData | null>();
 
@@ -144,7 +137,7 @@ async function measureMotionAction(
   );
   const gap = apparatusGap({ url: page.url(), ready: true, bridge: await hasOrbBridge(page), readyTimeoutMs: 0 });
   if (gap !== null) {
-    return { data: null, gaps: [gap, ...hints], pass: false, artifact: null, loadSuspect: null };
+    return { timing: ratePosture.timing, data: null, gaps: [gap, ...hints], pass: false, artifact: null, loadSuspect: null };
   }
   const cdp = await page.context().newCDPSession(page);
   // @orb-waive caught-failure-ownership(error): the caught measurement failure becomes a named evidence gap, printed as REFUSED and forced to exit 2 by the arm. Ends if the returned gaps stop feeding report/pairs/exit.
@@ -163,15 +156,16 @@ async function measureMotionAction(
       pageErrors: session.pageErrors.map(pageErrorText),
       reachFailures: ctx.navFailuresBefore + ctx.stepFailuresBefore,
     };
-    const evaluated = evaluateMotionAudit(data, opts.motionWindowMs);
+    const evaluated = evaluateMotionAudit(data, opts.motionWindowMs, snapTimingPolicy(ratePosture));
     // Only a run that ALREADY could not measure gets the hints — on a clean window, measure-then-navigate
     // and reach-then-measure are ordinary chains and a lecture about argv order would be noise. Order is
     // `lib/motion-gaps.ts`'s to decide: the CAUSE (nothing moved in this window) prints before the
     // arithmetic it produced (a zero frame population), #2464.
     const gaps = orderMotionGaps([...evaluated.gaps, ...rateEvidenceGaps(ratePosture)], hints);
-    return { data, gaps, pass: evaluated.budgetsPass, artifact: null, loadSuspect: motionLoadSuspect(ratePosture) };
+    return { timing: ratePosture.timing, data, gaps, pass: evaluated.budgetsPass, artifact: null, loadSuspect: motionLoadSuspect(ratePosture) };
   } catch (error) {
     return {
+      timing: ratePosture.timing,
       data: null,
       gaps: [{ evidence: "the motion measurement window", detail: error instanceof Error ? error.message : String(error) }, ...hints],
       pass: false,
@@ -200,33 +194,6 @@ function motionDenominators(measurement: MotionMeasurement | null, measuredCount
   };
 }
 
-/** The FACT's member — the terminal's twin, so a run-index reader reaches the same verdict (#1616). A
- *  load-suspect window read as `passed` would be exactly the promotion the ruling forbids. */
-function motionFactState(requested: boolean, measurement: MotionMeasurement | null): "off" | "refused" | "load-suspect" | "passed" | "failed" {
-  if (!requested) {
-    return "off";
-  }
-  if (measurement === null || measurement.gaps.length > 0) {
-    return "refused";
-  }
-  if (measurement.loadSuspect !== null) {
-    return "load-suspect";
-  }
-  return measurement.pass ? "passed" : "failed";
-}
-
-/** The arm's own member. `LOAD-SUSPECT` sits between REFUSED and PASS/FAIL (#1616): the window MEASURED,
- *  so it is not a refusal, and nothing may promote the numbers, so it is neither PASS nor FAIL. */
-function motionStatus(snapshot: MotionMeasurement, budgetsPass: boolean): string {
-  if (snapshot.gaps.length > 0) {
-    return "REFUSED";
-  }
-  if (snapshot.loadSuspect !== null) {
-    return "LOAD-SUSPECT";
-  }
-  return budgetsPass ? "PASS" : "FAIL";
-}
-
 function motionPairs(opts: Args, snapshot: MotionMeasurement | null): readonly ResultPair[] {
   if (!opts.motion) {
     return [["motion", "off"]];
@@ -235,14 +202,15 @@ function motionPairs(opts: Args, snapshot: MotionMeasurement | null): readonly R
     return [["motion", "REFUSED"]];
   }
   const data = snapshot.data;
-  const evaluation = evaluateMotionAudit(data, opts.motionWindowMs);
+  const evaluation = evaluateMotionAudit(data, opts.motionWindowMs, motionTimingPolicy(snapshot));
   const cls = clsTotals(data.motion);
   const observed = observedClsTotals(data.motion);
   const loaf = loafTotals(data.motion);
   const animations = animationTotals(data.animations, data.flags);
-  const status = motionStatus(snapshot, evaluation.budgetsPass);
+  const status = motionStatus(snapshot);
   return [
     ["motion", status],
+    ["motion-measurements-over-budget", evaluation.measurementsOverBudget ? 1 : 0],
     ["motion-artifact", snapshot.artifact ?? "absent"],
     ["motion-window-ms", opts.motionWindowMs],
     ["measured-input", data.measuredInput ? 1 : 0],
@@ -386,7 +354,7 @@ export const MOTION_ARM = {
           });
           await writeFile(
             path,
-            `${JSON.stringify({ contract: "snap-motion-v1", selector: ctx.opts.actions.find((entry) => entry.type === "step" && entry.action.kind === "motion-click"), windowMs: opts.motionWindowMs, throttle: opts.motionThrottle ? MOTION_THROTTLE_RATE : 1, gaps: measurement.gaps, problems: motionProblems(measurement.data, measurement.gaps), data: measurement.data }, null, 2)}\n`,
+            `${JSON.stringify({ contract: "snap-motion-v1", selector: ctx.opts.actions.find((entry) => entry.type === "step" && entry.action.kind === "motion-click"), windowMs: opts.motionWindowMs, timing: measurement.timing, timingPolicy: motionTimingPolicy(measurement), throttle: opts.motionThrottle ? MOTION_THROTTLE_RATE : 1, gaps: measurement.gaps, problems: motionProblems(measurement.data, measurement.gaps, motionTimingPolicy(measurement)), data: measurement.data }, null, 2)}\n`,
           );
           measurement = { ...measurement, artifact: path };
         },
@@ -416,12 +384,18 @@ export const MOTION_ARM = {
         pairs: (): readonly ResultPair[] => motionPairs(opts, measurement),
         facts: (): readonly ArmFactEmission<"motion">[] => {
           const state = motionFactState(opts.motion, measurement);
+          let detail = measurement?.gaps[0]?.detail ?? null;
+          if (state === "recorded") {
+            detail = measurement?.timing.reason ?? null;
+          } else if (state === "load-suspect") {
+            detail = measurement?.loadSuspect ?? null;
+          }
           return [
             {
               scope: exactScope(0, 0, `motion:${String(opts.motionWindowMs)}ms`),
               data: {
                 state,
-                detail: measurement?.gaps[0]?.detail ?? null,
+                detail,
                 measurements: measuredCount,
                 problems: measurement === null ? 0 : measurement.gaps.length + (measurement.pass ? 0 : 1),
                 artifact: null,
@@ -436,9 +410,8 @@ export const MOTION_ARM = {
           if (measurement === null || measurement.gaps.length > 0) {
             return EXIT.toolError;
           }
-          // NO PROMOTION IN EITHER DIRECTION (#1616): a load-suspect window neither passes nor fails the
-          // run — the exit stays whatever the other arms decided.
-          if (measurement.loadSuspect !== null || measurement.pass || code === EXIT.toolError) {
+          // Non-voting timing thresholds do not suppress semantic failures.
+          if (measurement.pass || code === EXIT.toolError) {
             return code;
           }
           return EXIT.violations;

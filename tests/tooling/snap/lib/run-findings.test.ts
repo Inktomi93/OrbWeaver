@@ -255,3 +255,33 @@ test("THE FALLBACK STILL EXISTS: a non-passing run with no voting arm at all kee
 test("a PASSING run produces no rows at all — neither the arm rows nor the fallback", async () => {
   expect(await collectSnapFindings(input([armVerdict({ state: "passed" })], "passed"))).toHaveLength(0);
 });
+
+test("recorded timing breaches survive the browser-free reader as non-counting annotations", async () => {
+  const artifact = join(SLOT_DIR, "motion", "recorded-motion.json");
+  await mkdir(dirname(artifact), { recursive: true });
+  await writeFile(
+    artifact,
+    JSON.stringify({
+      problems: [
+        {
+          arm: "motion",
+          kind: "recorded",
+          metric: "loaf-blocking-ms",
+          subject: "measurement-window",
+          observed: "181ms",
+          threshold: "50ms",
+          detail: "hardware class unnamed",
+        },
+      ],
+    }),
+  );
+  const findings = await collectSnapFindings({
+    ...input([armVerdict({ arm: "motion", state: "recorded", detail: "hardware class unnamed" })], "passed"),
+    artifacts: [motionArtifact(artifact)],
+  });
+  const row = findings.find((finding) => finding.what.includes("loaf-blocking-ms"));
+  expect(row?.severity).toBe("annotation");
+  expect(row?.what).toContain("181ms");
+  expect(row?.disposition).toEqual({ counted: false, reason: "timing-record-only" });
+  expect(findings.some((finding) => finding.severity === "error")).toBe(false);
+});

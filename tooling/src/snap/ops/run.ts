@@ -366,6 +366,7 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
       // (#1227). Either exits 2 regardless of what else the run found.
       code: finalCode,
       receipt: {
+        ratePosture,
         failures: failureSummary,
         captures: outcomes,
         browser: browserEnvironment,

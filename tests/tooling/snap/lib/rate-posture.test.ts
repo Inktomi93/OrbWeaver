@@ -3,6 +3,7 @@
 import type { Browser } from "@playwright/test";
 import { vi } from "vitest";
 import type { BrowserAccelerationEvidence } from "../../../../tooling/src/_shared/browser-acceleration.ts";
+import { snapRatePostureSchema } from "../../../../tooling/src/snap/contract/rate-posture.ts";
 import { ratePostureDisposition, sampleSnapRatePosture } from "../../../../tooling/src/snap/lib/rate-posture.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -48,4 +49,28 @@ test("one failed acceleration read is owned once and withholds every rate consum
   expect(load).toHaveBeenCalledOnce();
   expect(dispositions.every((row) => row.disposition === "withheld")).toBe(true);
   expect(dispositions.every((row) => row.reason.includes("planted SystemInfo refusal"))).toBe(true);
+});
+
+test("historical rate receipts without hardware identity never acquire timing qualification", () => {
+  const receipt = snapRatePostureSchema.parse({
+    id: `sha256:${"0".repeat(64)}`,
+    acceleration: HARDWARE,
+    accelerationError: null,
+    load: { loadavg1: 0.5, cpuCount: 24 },
+  });
+  expect(receipt.timing).toMatchObject({ hardwareClass: null, stableTiming: false, policy: "record" });
+});
+
+test("artifact timing qualification rejects an unknown class or contradictory capability", () => {
+  const base = { id: `sha256:${"0".repeat(64)}`, acceleration: HARDWARE, accelerationError: null, load: { loadavg1: 0.5, cpuCount: 24 } };
+  expect(
+    snapRatePostureSchema.safeParse({ ...base, timing: { hardwareClass: "arbitrary-box", stableTiming: true, policy: "assert", reason: "forged" } }).success,
+  ).toBe(false);
+  expect(
+    snapRatePostureSchema.safeParse({ ...base, timing: { hardwareClass: "inktomi-owner", stableTiming: false, policy: "assert", reason: "forged" } }).success,
+  ).toBe(false);
+  expect(
+    snapRatePostureSchema.safeParse({ ...base, timing: { hardwareClass: "arbitrary-box", stableTiming: false, policy: "record", reason: "unqualified" } })
+      .success,
+  ).toBe(true);
 });

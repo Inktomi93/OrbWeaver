@@ -1,12 +1,10 @@
 // The budget verdicts over the in-page motion snapshot — pure, unit-tested without a browser
 // (tests/tooling/motion-audit/index.test.ts). CLS gates on the NON-virtualized total (issue #109);
-// LoAF gets the sealed-Select first-entrance allowance with app/unrelated script-attribution vetoes.
+// Select style/layout classification retains attribution vetoes; blocking time is never subtracted.
 import type { ClsBudgetBasis, LoafRecord, MotionSnapshot } from "../contract/types.ts";
 
 // The budget thresholds (documented in cli.ts's header). ms unless noted.
 export const BLOCKING_BUDGET_MS = 50;
-// Owner-authorized cold-opening tolerance, not measured library-owned work; repeats receive no subtraction.
-const FIRST_SELECT_BLOCKING_ALLOWANCE_MS = 500;
 export const CLS_BUDGET = 0.1;
 export const DROPPED_FRAME_BUDGET_PCT = 5;
 /** Percentage-point base — one place, so the floor below and the report's per-frame weight agree. */
@@ -145,8 +143,8 @@ function containsConfirmation(loaf: LoafRecord, entrance: NonNullable<LoafRecord
   return confirmedAt !== undefined && loaf.startTime <= confirmedAt && loaf.startTime + loaf.duration >= confirmedAt;
 }
 
-/** One first entrance can overlap multiple LoAFs. Choose one primary confirmation frame before applying
- * attribution vetoes so an app-owned primary cannot move the fixed allowance onto a later frame. */
+/** One first entrance can overlap multiple LoAFs. Choose one primary confirmation frame for the lifecycle classification
+ * count; script attribution remains a veto on style/layout classification, never a timing subtraction. */
 function primaryFirstLoafIndexes(loafs: readonly LoafRecord[]): ReadonlySet<number> {
   const primaryByEntrance = new Map<number, number>();
   for (const [index, loaf] of loafs.entries()) {
@@ -220,9 +218,8 @@ function isBoundedInputDispatchLayoutFrame(loaf: LoafRecord, allLoafs: readonly 
 }
 
 /** Raw/classified/budgeted LoAF inputs. The budget itself is unchanged: confirmed sealed-Select
- * entrance frames may carry their measured positioning style work; only the trigger's first page-
- * lifetime entrance receives the fixed blocking subtraction. Repeats and all unclassified work face
- * the ordinary 50ms blocking budget. */
+ * entrance frames may carry their measured positioning style work. Every frame retains its complete
+ * blocking duration and faces the ordinary hardware-scoped 50ms budget (D308). */
 export function loafTotals(motion: MotionSnapshot | null): {
   rawWorstBlocking: number;
   classifiedInitializations: number;
@@ -251,10 +248,7 @@ export function loafTotals(motion: MotionSnapshot | null): {
   return {
     rawWorstBlocking: loafs.reduce((worst, loaf) => Math.max(worst, loaf.blockingDuration), 0),
     classifiedInitializations: eligiblePrimaryIndexes.size,
-    budgetedWorstBlocking: loafs.reduce((worst, loaf, index) => {
-      const allowance = eligiblePrimaryIndexes.has(index) ? FIRST_SELECT_BLOCKING_ALLOWANCE_MS : 0;
-      return Math.max(worst, Math.max(0, loaf.blockingDuration - allowance));
-    }, 0),
+    budgetedWorstBlocking: loafs.reduce((worst, loaf) => Math.max(worst, loaf.blockingDuration), 0),
     budgetedStyleLayout: styleLayoutLoafs.length,
     boundedInputDispatchExempt: loafs.some((loaf) => loaf.styleAndLayoutStart > 0 && isBoundedInputDispatchLayoutFrame(loaf, loafs)),
   };

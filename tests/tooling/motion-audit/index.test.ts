@@ -132,7 +132,7 @@ test("only an exactly attributed Base UI height lifecycle leaves the dirty-anima
   });
 
   expect(animationTotals([starting, ending])).toMatchObject({ rawDirty: 2, sanctionedLibrary: 2, budgetedDirty: 0, gaps: [] });
-  expect(evaluateMotionAudit(auditData({ animations: [starting, ending] }), 2500)).toMatchObject({
+  expect(evaluateMotionAudit(auditData({ animations: [starting, ending] }), 2500, "assert")).toMatchObject({
     dirtyAnimations: 2,
     sanctionedLibraryAnimations: 2,
     budgetedDirtyAnimations: 0,
@@ -159,7 +159,7 @@ test("application, unattributed legacy, and unsupported Base UI dirty animations
     budgetedDirty: 3,
     gaps: [],
   });
-  expect(evaluateMotionAudit(auditData({ animations: [application, legacy, unsupportedLibrary] }), 2500)).toMatchObject({
+  expect(evaluateMotionAudit(auditData({ animations: [application, legacy, unsupportedLibrary] }), 2500, "assert")).toMatchObject({
     dirtyAnimations: 3,
     sanctionedLibraryAnimations: 0,
     budgetedDirtyAnimations: 3,
@@ -177,7 +177,9 @@ test("a counterfeit Base UI owner/phase tuple is an attribution evidence gap", (
 
   expect(animationTotals([counterfeit])).toMatchObject({ rawDirty: 1, sanctionedLibrary: 0, budgetedDirty: 1 });
   expect(animationTotals([counterfeit]).gaps.map((gap) => gap.evidence)).toEqual(["Base UI animation attribution"]);
-  expect(evaluateMotionAudit(auditData({ animations: [counterfeit] }), 2500).gaps.map((gap) => gap.evidence)).toEqual(["Base UI animation attribution"]);
+  expect(evaluateMotionAudit(auditData({ animations: [counterfeit] }), 2500, "assert").gaps.map((gap) => gap.evidence)).toEqual([
+    "Base UI animation attribution",
+  ]);
 });
 
 /** The in-page snapshot fields the verdict reads. Typed off the probe's own parameter so the fixture can
@@ -231,12 +233,12 @@ function appScript(): Loaf["scripts"][number] {
   };
 }
 
-test("a confirmed first sealed Select entrance receives only the authorized 500ms cold-opening tolerance", () => {
+test("a confirmed first sealed Select entrance never subtracts wall-clock blocking", () => {
   for (const [blockingDuration, budgetedWorstBlocking] of [
-    [181, 0],
-    [457, 0],
-    [500, 0],
-    [550, 50],
+    [181, 181],
+    [457, 457],
+    [500, 500],
+    [550, 550],
   ] as const) {
     const motion = motionWith(loaf({ duration: blockingDuration + 50, blockingDuration, ...selectEntrance(true) }));
     expect(loafTotals(motion)).toMatchObject({
@@ -245,7 +247,7 @@ test("a confirmed first sealed Select entrance receives only the authorized 500m
       budgetedWorstBlocking,
       budgetedStyleLayout: 0,
     });
-    expect(loafOverBudget(motion)).toBe(false);
+    expect(loafOverBudget(motion)).toBe(true);
   }
 });
 
@@ -258,21 +260,21 @@ test("a confirmed repeat Select entrance may carry its expected style frame but 
   expect(loafOverBudget(blocking)).toBe(true);
 });
 
-test("the first-only allowance cannot hide app-owned blocking beyond the unchanged 50ms budget", () => {
+test("first entrance classification cannot hide blocking beyond the ordinary 50ms budget", () => {
   const motion = motionWith(loaf({ duration: 601, blockingDuration: 551, ...selectEntrance(true) }));
 
-  expect(loafTotals(motion).budgetedWorstBlocking).toBe(51);
+  expect(loafTotals(motion).budgetedWorstBlocking).toBe(551);
   expect(loafOverBudget(motion)).toBe(true);
 });
 
-test("a first Select allowance is consumed once and cannot hide a second app-owned block in the same lifetime", () => {
+test("all blocking is retained across multiple frames in one Select lifetime", () => {
   for (const scripts of [[], [appScript()]]) {
     const motion = motionWith(
       loaf({ startTime: 100, duration: 80, blockingDuration: 181, styleAndLayoutStart: 0, ...selectEntrance(true) }),
       loaf({ startTime: 190, duration: 30, blockingDuration: 130, styleAndLayoutStart: 0, scripts, ...selectEntrance(true) }),
     );
 
-    expect(loafTotals(motion)).toMatchObject({ classifiedInitializations: 1, budgetedWorstBlocking: 130 });
+    expect(loafTotals(motion)).toMatchObject({ classifiedInitializations: 1, budgetedWorstBlocking: 181 });
     expect(loafOverBudget(motion)).toBe(true);
   }
 });
@@ -287,14 +289,14 @@ test("recognizable concurrent app style remains red inside a confirmed Select li
   expect(loafOverBudget(motion)).toBe(true);
 });
 
-test("recognizable app attribution vetoes the primary Select allowance itself", () => {
+test("recognizable app attribution does not change retained blocking", () => {
   const motion = motionWith(loaf({ blockingDuration: 130, styleAndLayoutStart: 0, scripts: [appScript()], ...selectEntrance(true) }));
 
   expect(loafTotals(motion)).toMatchObject({ classifiedInitializations: 0, budgetedWorstBlocking: 130 });
   expect(loafOverBudget(motion)).toBe(true);
 });
 
-test.each([".vite", ".vite-5181"])("React scripts in %s retain the confirmed first Select allowance", (cache) => {
+test.each([".vite", ".vite-5181"])("React scripts in %s retain Select style classification without changing blocking", (cache) => {
   for (const script of ["react.js", "react-dom_client.js"]) {
     const motion = motionWith(
       loaf({
@@ -303,8 +305,8 @@ test.each([".vite", ".vite-5181"])("React scripts in %s retain the confirmed fir
         ...selectEntrance(true),
       }),
     );
-    expect(loafTotals(motion)).toMatchObject({ classifiedInitializations: 1, budgetedWorstBlocking: 0, budgetedStyleLayout: 0 });
-    expect(loafOverBudget(motion)).toBe(false);
+    expect(loafTotals(motion)).toMatchObject({ classifiedInitializations: 1, budgetedWorstBlocking: 181, budgetedStyleLayout: 0 });
+    expect(loafOverBudget(motion)).toBe(true);
   }
 });
 
@@ -316,7 +318,7 @@ test.each([
   ".vite-5181/deps-other/react.js",
   ".vite-5181/deps/reactive.js",
   ".vite-5181/deps/app.js",
-])("unrelated optimizer lookalike %s vetoes the Select allowance", (path) => {
+])("unrelated optimizer lookalike %s vetoes the Select style classification", (path) => {
   const motion = motionWith(
     loaf({ blockingDuration: 181, scripts: [{ ...appScript(), sourceURL: `http://localhost:5181/node_modules/${path}` }], ...selectEntrance(true) }),
   );
@@ -626,7 +628,7 @@ test("an INTERACTION window is judged on the observed total — the paid docked-
   expect(clsBudgetBasis(true)).toBe("observed-non-virtualized");
   expect(clsBudgeted(motion, true)).toBe(0.207);
   expect(clsOverBudget(motion, true)).toBe(true);
-  expect(evaluateMotionAudit(auditData({ motion, measuredInput: true }), 2500)).toMatchObject({ budgetsPass: false, gaps: [] });
+  expect(evaluateMotionAudit(auditData({ motion, measuredInput: true }), 2500, "assert")).toMatchObject({ budgetsPass: false, gaps: [] });
 });
 
 test("the SAME receipt on an ENTRY window keeps the #109 arithmetic exactly — polarity is preserved", () => {
@@ -636,7 +638,7 @@ test("the SAME receipt on an ENTRY window keeps the #109 arithmetic exactly — 
   expect(clsBudgetBasis(false)).toBe("non-virtualized");
   expect(clsBudgeted(motion, false)).toBe(0.0177);
   expect(clsOverBudget(motion, false)).toBe(false);
-  expect(evaluateMotionAudit(auditData({ motion }), 2500)).toMatchObject({ budgetsPass: true, gaps: [] });
+  expect(evaluateMotionAudit(auditData({ motion }), 2500, "assert")).toMatchObject({ budgetsPass: true, gaps: [] });
 });
 
 test("virtual-row reconciliation inside the click's own 500ms is still NOT an app defect (#109 holds)", () => {
@@ -673,14 +675,16 @@ test("an interaction against a bundle with no observed total REFUSES — it neve
   const legacy = snapshot({ cls: 0.0177, virtualizedCls: 0, nonVirtualizedCls: 0.0177 });
   expect(clsBudgeted(legacy, true)).toBeNull();
   expect(clsOverBudget(legacy, true)).toBe(false);
-  const evaluation = evaluateMotionAudit(auditData({ motion: legacy, measuredInput: true }), 2500);
+  const evaluation = evaluateMotionAudit(auditData({ motion: legacy, measuredInput: true }), 2500, "assert");
   expect(evaluation.gaps.map((gap) => gap.evidence)).toEqual([observedClsGap().evidence]);
   // …and the SAME bundle on an entry window is not a gap at all: nothing was excluded there.
-  expect(evaluateMotionAudit(auditData({ motion: legacy }), 2500).gaps).toEqual([]);
+  expect(evaluateMotionAudit(auditData({ motion: legacy }), 2500, "assert").gaps).toEqual([]);
 });
 
 test("a missing snapshot stays the ONE __orb gap — the observed gap never double-reports it", () => {
-  expect(evaluateMotionAudit(auditData({ motion: null, measuredInput: true }), 2500).gaps.map((g) => g.evidence)).toEqual(["the __orb motion snapshot"]);
+  expect(evaluateMotionAudit(auditData({ motion: null, measuredInput: true }), 2500, "assert").gaps.map((g) => g.evidence)).toEqual([
+    "the __orb motion snapshot",
+  ]);
 });
 
 test("observedClsTotals derives the remainder when only the two halves are served", () => {
@@ -716,7 +720,7 @@ test("a dirty transition that ENDED before the window sample is still budgeted (
   // The blindness itself: the end-of-window sample is EMPTY and the run passed regardless of what fired.
   const flags = [animFlag({ animation: { target: '[data-slot="tabs-indicator"]', properties: ["left", "width"], compositorClean: false } })];
   expect(animationTotals([], flags)).toMatchObject({ rawDirty: 0, transientDirty: 1, sanctionedLibrary: 0, budgetedDirty: 1 });
-  expect(evaluateMotionAudit(auditData({ flags }), 2500)).toMatchObject({
+  expect(evaluateMotionAudit(auditData({ flags }), 2500, "assert")).toMatchObject({
     dirtyAnimations: 0,
     transientDirtyAnimations: 1,
     budgetedDirtyAnimations: 1,
@@ -741,7 +745,7 @@ test("the #953 allowance is applied to the transient population UNCHANGED — th
   });
   expect(ratified.overBudget).toBe(true);
   expect(animationTotals([], [ratified])).toMatchObject({ transientDirty: 1, sanctionedLibrary: 1, budgetedDirty: 0 });
-  expect(evaluateMotionAudit(auditData({ flags: [ratified] }), 2500)).toMatchObject({ budgetsPass: true, gaps: [] });
+  expect(evaluateMotionAudit(auditData({ flags: [ratified] }), 2500, "assert")).toMatchObject({ budgetsPass: true, gaps: [] });
 });
 
 test("a COMPOSITOR-CLEAN transient raise never enters the dirty population", () => {
@@ -756,7 +760,7 @@ test("only the `anim` channel is consumed — [css]/[drop]/[space] raise no anim
     animFlag({ tag: "space", offender: "img", overBudget: false }),
   ];
   expect(animationTotals([], others)).toMatchObject({ rawDirty: 0, transientDirty: 0, budgetedDirty: 0 });
-  expect(evaluateMotionAudit(auditData({ flags: others }), 2500)).toMatchObject({ budgetsPass: true });
+  expect(evaluateMotionAudit(auditData({ flags: others }), 2500, "assert")).toMatchObject({ budgetsPass: true });
 });
 
 test("an `anim` raise with NO launch record is an unattributed FAILURE, never a sanctioned zero", () => {
@@ -765,7 +769,7 @@ test("an `anim` raise with NO launch record is an unattributed FAILURE, never a 
   // pre-#953 AnimationRecord: unattributed evidence is a failure, not a pass.
   const unrecorded = [animFlag()];
   expect(animationTotals([], unrecorded)).toMatchObject({ transientDirty: 1, sanctionedLibrary: 0, budgetedDirty: 1 });
-  expect(evaluateMotionAudit(auditData({ flags: unrecorded }), 2500).budgetsPass).toBe(false);
+  expect(evaluateMotionAudit(auditData({ flags: unrecorded }), 2500, "assert").budgetsPass).toBe(false);
 });
 
 test("a loop seen in BOTH populations is ONE offender — the counts never double", () => {
@@ -840,27 +844,38 @@ function framesOf(total: number, dropped: number): AuditData["frames"] {
   return { raw: { total, dropped, pct }, classified: { total: 0, dropped: 0 }, budgeted: { total, dropped, pct } };
 }
 
+test("record-only motion retains every measured budget breach but never votes on those thresholds", () => {
+  const data = auditData({ motion: { ...motionWith(loaf({ blockingDuration: 181 })), cls: 0.4 }, frames: framesOf(55, 6) });
+  expect(evaluateMotionAudit(data, 2500, "assert")).toMatchObject({ measurementsOverBudget: true, framesBudgetJudged: true, budgetsPass: false });
+  expect(evaluateMotionAudit(data, 2500, "record")).toMatchObject({ measurementsOverBudget: true, framesBudgetJudged: false, budgetsPass: true, gaps: [] });
+  for (const over of [{ pageErrors: ["planted error"] }, { stepFailed: true }, { reachFailures: 1 }, { animations: [dirtyAnimation()] }]) {
+    expect(evaluateMotionAudit({ ...data, ...over }, 2500, "record").budgetsPass).toBe(false);
+  }
+  expect(evaluateMotionAudit({ ...data, flags: null }, 2500, "record").gaps.map((gap) => gap.evidence)).toContain("the __orb motion-flag ring");
+  expect(evaluateMotionAudit({ ...data, frames: framesOf(0, 0) }, 2500, "record").gaps.map((gap) => gap.evidence)).toContain("the frame population");
+});
+
 test("#1148 a COLLAPSED frame population cannot mint a frames FAIL — the measured 36.36%-of-11 cell", () => {
   // 4 dropped of 11 = 36.36%, seven times the 5% budget, and NOT a verdict: one frame is worth 9.09pp.
-  const collapsed = evaluateMotionAudit(auditData({ frames: framesOf(11, 4) }), 2500);
+  const collapsed = evaluateMotionAudit(auditData({ frames: framesOf(11, 4) }), 2500, "assert");
   // THE DEFECT, stated first: on the unmodified tool this read `false` — a FAIL minted off a percentage
   // the same run printed as "not a frames verdict".
   expect(collapsed.budgetsPass, "the run is clean on every budget that COULD speak").toBe(true);
   expect(collapsed.framesBudgetJudged, "11 frames is below the derived resolution floor").toBe(false);
   expect(collapsed.gaps, "a collapsed population is not an absent one — the run keeps its verdict").toEqual([]);
   // The other measured cell, same ruling.
-  expect(evaluateMotionAudit(auditData({ frames: framesOf(13, 4) }), 2500).budgetsPass).toBe(true);
+  expect(evaluateMotionAudit(auditData({ frames: framesOf(13, 4) }), 2500, "assert").budgetsPass).toBe(true);
 });
 
 test("#1148 PLANTED CONTROL — a full population over the same budget still FAILS", () => {
   // 2 of 55 is 3.64%, under budget (the R-2 twin's neighbourhood); 6 of 55 is 10.91% and must still
   // fire, or the fix would have deleted the frames budget rather than narrowed it. NOTE the twin's own
   // measured 5.45% is itself OVER the 5% budget — a full population is judged on its merits either way.
-  expect(evaluateMotionAudit(auditData({ frames: framesOf(55, 2) }), 2500)).toMatchObject({ framesBudgetJudged: true, budgetsPass: true });
-  expect(evaluateMotionAudit(auditData({ frames: framesOf(55, 3) }), 2500).budgetsPass, "5.45% of 55 is a real over-budget verdict").toBe(false);
-  expect(evaluateMotionAudit(auditData({ frames: framesOf(55, 6) }), 2500)).toMatchObject({ framesBudgetJudged: true, budgetsPass: false });
+  expect(evaluateMotionAudit(auditData({ frames: framesOf(55, 2) }), 2500, "assert")).toMatchObject({ framesBudgetJudged: true, budgetsPass: true });
+  expect(evaluateMotionAudit(auditData({ frames: framesOf(55, 3) }), 2500, "assert").budgetsPass, "5.45% of 55 is a real over-budget verdict").toBe(false);
+  expect(evaluateMotionAudit(auditData({ frames: framesOf(55, 6) }), 2500, "assert")).toMatchObject({ framesBudgetJudged: true, budgetsPass: false });
   // ...and at the exact floor, where a collapse must NOT be claimed.
-  expect(evaluateMotionAudit(auditData({ frames: framesOf(FRAME_POPULATION_RESOLUTION_FLOOR, 2) }), 2500)).toMatchObject({
+  expect(evaluateMotionAudit(auditData({ frames: framesOf(FRAME_POPULATION_RESOLUTION_FLOOR, 2) }), 2500, "assert")).toMatchObject({
     framesBudgetJudged: true,
     budgetsPass: false,
   });
@@ -870,15 +885,15 @@ test("#1148 an unjudged frames budget silences ONLY the frames arm — every oth
   // The collapse must not become an amnesty: the same eleven-frame cell with a real page error, a failed
   // step, or a dirty animation still fails. Without this arm the fix would read as "collapsed = clean".
   const frames = framesOf(11, 4);
-  expect(evaluateMotionAudit(auditData({ frames, pageErrors: ["TypeError: boom"] }), 2500).budgetsPass).toBe(false);
-  expect(evaluateMotionAudit(auditData({ frames, stepFailed: true }), 2500).budgetsPass).toBe(false);
-  expect(evaluateMotionAudit(auditData({ frames, animations: [dirtyAnimation()] }), 2500).budgetsPass).toBe(false);
+  expect(evaluateMotionAudit(auditData({ frames, pageErrors: ["TypeError: boom"] }), 2500, "assert").budgetsPass).toBe(false);
+  expect(evaluateMotionAudit(auditData({ frames, stepFailed: true }), 2500, "assert").budgetsPass).toBe(false);
+  expect(evaluateMotionAudit(auditData({ frames, animations: [dirtyAnimation()] }), 2500, "assert").budgetsPass).toBe(false);
 });
 
 test("#1148 an EMPTY population keeps its hard evidence gap — the zero-frame law is untouched", () => {
   // The ruled zero-frame arm (#409) and the matrix STATIC-EXPECTED contract both rest on this gap being
   // raised exactly once; narrowing the FAIL must not have swallowed it.
-  const empty = evaluateMotionAudit(auditData({ frames: framesOf(0, 0) }), 2500);
+  const empty = evaluateMotionAudit(auditData({ frames: framesOf(0, 0) }), 2500, "assert");
   expect(empty.gaps.map((gap) => gap.evidence)).toEqual(["the frame population"]);
   expect(empty.framesBudgetJudged).toBe(false);
 });
@@ -887,7 +902,7 @@ test("#1127 a single frame is UNCOMPUTABLE, not 0% -- `raw-frames=1` never print
   // The single-run tell from the same drive: `motion-audit /` printed `0%` beside `raw-frames=1`.
   // A rate needs two observations; one frame is a sample, not a rate.
   expect(framePopulationBasis(1)).toBe("uncomputable");
-  const oneFrame = evaluateMotionAudit(auditData({ frames: framesOf(1, 0) }), 2500);
+  const oneFrame = evaluateMotionAudit(auditData({ frames: framesOf(1, 0) }), 2500, "assert");
   expect(oneFrame.gaps.map((gap) => gap.evidence)).toEqual(["the frame population"]);
   expect(oneFrame.gaps[0]?.detail).toContain("only 1 PipelineReporter frame");
   // ...and the boundaries either side, so an off-by-one in the classifier cannot pass.

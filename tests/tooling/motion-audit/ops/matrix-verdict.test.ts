@@ -80,7 +80,7 @@ function data(reduced: boolean, frames: number, app: boolean, measuredInput: boo
 }
 
 function cell(variant: MotionMatrixVariant, receipt: AuditData, code: number): MotionMatrixCellEvidence {
-  return { id: variant.id, code, variant, data: receipt, route: "/", windowMs: 1000, throttle: true };
+  return { id: variant.id, code, variant, data: receipt, route: "/", windowMs: 1000, throttle: true, timingPolicy: "assert" };
 }
 
 test("the ruled reduced mobile entry is STATIC-EXPECTED only beside a real full-motion interaction control", () => {
@@ -121,4 +121,12 @@ test("a reduced candidate that produced frames keeps the ordinary verdict", () =
     cell(controlVariant, data(false, 8, false, true), EXIT.clean),
   ]);
   expect(verdict).toMatchObject({ status: "ordinary", candidateCode: EXIT.clean });
+});
+
+test("static reconciliation consumes the candidate's original policy without promoting recorded timing", () => {
+  const candidateData = { ...data(true, 0, true, false), motion: { loafs: [], cls: 0.4, worstBlocking: 0, worstShift: 0 } };
+  const candidate = cell(candidateVariant, candidateData, EXIT.toolError);
+  const control = cell(controlVariant, data(false, 8, false, true), EXIT.clean);
+  expect(evaluateMotionStaticExpected(link, [candidate, control]).status).toBe("instrument-error");
+  expect(evaluateMotionStaticExpected(link, [{ ...candidate, timingPolicy: "record" }, control]).status).toBe("static-expected");
 });

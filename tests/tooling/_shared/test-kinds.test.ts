@@ -8,12 +8,20 @@ import {
   TEST_KIND_SUFFIXES,
   TEST_RESOURCE_NAMES,
   TYPE_TEST_SUFFIXES,
+  timingCapabilityForTestFamily,
   VITEST_RUNTIME_FAMILY_GROUPS,
   VITEST_RUNTIME_ONLY_GROUP_FILTER,
   VITEST_TYPECHECK_GROUP_NAMES,
   vitestTypecheckGroupName,
 } from "@orb/tooling/_shared/test-kinds";
 import { expect, test } from "../../support/tool-fixtures.ts";
+
+test("native timing capability follows registered runtime kinds, not compiler world", () => {
+  for (const kind of TEST_KIND_DEFINITIONS) {
+    expect(kind.timingCapability).toBe(kind.family === "type" ? null : "stable-timing");
+    expect(timingCapabilityForTestFamily(kind.family)).toBe(kind.timingCapability);
+  }
+});
 
 test("classifies overlapping suffixes by longest match and keeps the source basename", () => {
   expect(classifyTestFilename("drift.suite.int.test.ts")).toMatchObject({

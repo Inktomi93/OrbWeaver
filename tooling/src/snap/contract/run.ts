@@ -6,10 +6,12 @@ import type { OrbConsoleCompleteness } from "../../_shared/browser-diagnostics.t
 import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
 import type { AuditData } from "../../motion-audit/index.ts";
 import type { AppearanceInvariantResult } from "./appearance-invariants.ts";
+import type { SnapRatePosture } from "./rate-posture.ts";
 import type { CaptureOutcome } from "./types.ts";
 import type { SnapFailureSummary } from "./verdict.ts";
 
 export interface SnapRunReceipt {
+  readonly ratePosture: SnapRatePosture;
   readonly failures: SnapFailureSummary;
   readonly captures: readonly CaptureOutcome[];
   readonly browser: readonly BrowserEnvironmentEvidence[];

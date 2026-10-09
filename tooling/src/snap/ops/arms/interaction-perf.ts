@@ -11,12 +11,13 @@ import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import type { EvidenceGap } from "../../../_shared/evidence.ts";
 import { printEvidenceGaps } from "../../../_shared/evidence.ts";
 import { EXIT } from "../../../_shared/exit-contract.ts";
+import type { TimingEvidencePolicy } from "../../../_shared/timing-capability.ts";
 import type { MeterData, StepReport } from "../../../cpu-profile/index.ts";
 import { buildReports, METER_INIT_JS, meterApparatusGap, meterEvidenceGaps, parseMeterData, printTable } from "../../../cpu-profile/index.ts";
 import type { SnapAnalyzerProblem } from "../../contract/analyzer.ts";
 import type { ArmActionDisposition, ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmRunContext, ArmRunInstance } from "../../contract/arms.ts";
 import type { Args, SnapAction } from "../../contract/types.ts";
-import { ratePostureDisposition } from "../../lib/rate-posture.ts";
+import { ratePostureDisposition, snapTimingPolicy } from "../../lib/rate-posture.ts";
 import { pushStep } from "../flags-support.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -29,8 +30,9 @@ export function interactionPerfBreachCount(reports: readonly StepReport[]): numb
 
 export function interactionPerfProblems(
   reports: readonly StepReport[],
-  gaps: readonly EvidenceGap[] = [],
-  withheld: string | null = null,
+  gaps: readonly EvidenceGap[],
+  withheld: string | null,
+  timingPolicy: TimingEvidencePolicy,
 ): readonly SnapAnalyzerProblem[] {
   const problems: SnapAnalyzerProblem[] = gaps.map((gap) => ({
     arm: "interaction-perf",
@@ -76,7 +78,9 @@ export function interactionPerfProblems(
       });
     }
   }
-  return problems;
+  return problems.map(
+    (problem): SnapAnalyzerProblem => (timingPolicy === "record" && problem.kind === "threshold" ? { ...problem, kind: "recorded" } : problem),
+  );
 }
 
 export function interactionPerfExit(code: number, gaps: readonly EvidenceGap[], withheld: string | null, _reports: readonly StepReport[]): number {
@@ -188,7 +192,7 @@ async function collectPerfEvidence(
   });
   await writeFile(
     artifact,
-    `${JSON.stringify({ contract: "snap-interaction-perf-v1", cycles: ctx.opts.perfCycles, raw: data, reports, problems: interactionPerfProblems(reports, gaps, withheld), gaps, withheld }, null, 2)}\n`,
+    `${JSON.stringify({ contract: "snap-interaction-perf-v1", cycles: ctx.opts.perfCycles, raw: data, reports, problems: interactionPerfProblems(reports, gaps, withheld, snapTimingPolicy(ctx.ratePosture)), timing: ctx.ratePosture.timing, timingPolicy: snapTimingPolicy(ctx.ratePosture), gaps, withheld }, null, 2)}\n`,
   );
   return { reports, withheld, loadSuspect, artifact };
 }

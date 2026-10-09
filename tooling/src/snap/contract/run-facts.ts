@@ -17,7 +17,7 @@ export const SNAP_RUN_RESULTS_VERSION = 1;
  *  its number, so it is neither `passed` (nothing may promote that number) nor `withheld` (a number DOES
  *  exist). Every consumer of this tuple dispatches through a mapped `Record`, so the member is a compile
  *  error until each one decides what it means. */
-export const SNAP_ARM_STATES = ["passed", "failed", "refused", "withheld", "load-suspect", "absent", "off"] as const;
+export const SNAP_ARM_STATES = ["passed", "failed", "refused", "withheld", "load-suspect", "recorded", "absent", "off"] as const;
 const snapArmStateSchema = z.enum(SNAP_ARM_STATES);
 export type SnapArmState = z.infer<typeof snapArmStateSchema>;
 

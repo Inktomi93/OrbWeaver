@@ -11,6 +11,7 @@ import { runNicedSync } from "@orb/tooling/_shared/proc";
 import type { MeterData, StepReport } from "@orb/tooling/cpu-profile";
 import type { AuditData } from "@orb/tooling/motion-audit";
 import { beforeEach, vi } from "vitest";
+import type { TimingCapability } from "../../../../tooling/src/_shared/timing-capability.ts";
 import { buildReports } from "../../../../tooling/src/cpu-profile/ops/report.ts";
 import { animationTotals } from "../../../../tooling/src/motion-audit/lib/animations.ts";
 import { clsTotals, loafTotals, observedClsTotals } from "../../../../tooling/src/motion-audit/lib/verdicts.ts";
@@ -261,9 +262,15 @@ test("perf meter thresholds are strict evidence but never become an exit gate", 
   expect(interactionPerfExit(EXIT.violations, [], null, breach)).toBe(EXIT.violations);
   expect(interactionPerfExit(EXIT.clean, [{ evidence: "planted", detail: "missing" }], null, boundary)).toBe(EXIT.toolError);
   expect(interactionPerfExit(EXIT.clean, [], "planted acceleration withhold", boundary)).toBe(EXIT.toolError);
-  expect(interactionPerfProblems(boundary, [], null).some((problem) => problem.metric === "rate-verdict")).toBe(false);
-  expect(interactionPerfProblems(boundary, [], "planted acceleration withhold")).toContainEqual(
+  expect(interactionPerfProblems(boundary, [], null, "assert").some((problem) => problem.metric === "rate-verdict")).toBe(false);
+  expect(interactionPerfProblems(boundary, [], "planted acceleration withhold", "assert")).toContainEqual(
     expect.objectContaining({ kind: "evidence-gap", metric: "rate-verdict", observed: "withheld", threshold: "measured" }),
+  );
+  expect(interactionPerfProblems(breach, [], null, "assert")).toContainEqual(
+    expect.objectContaining({ kind: "threshold", metric: "click-duration-ms", observed: "101ms" }),
+  );
+  expect(interactionPerfProblems(breach, [], null, "record")).toContainEqual(
+    expect.objectContaining({ kind: "recorded", metric: "click-duration-ms", observed: "101ms" }),
   );
 
   const raw: MeterData = {
@@ -312,6 +319,8 @@ test("Snap motion/perf artifacts are strict supersets of the retained engine eva
     readonly selector: { readonly action: { readonly kind: string; readonly selector: string | null } };
     readonly windowMs: number;
     readonly throttle: number;
+    readonly timing: TimingCapability;
+    readonly timingPolicy: TimingCapability["policy"];
     readonly gaps: readonly unknown[];
     readonly data: AuditData | null;
   };
@@ -321,7 +330,7 @@ test("Snap motion/perf artifacts are strict supersets of the retained engine eva
   expect(motionArtifact.throttle).toBe(1);
   expect(motionArtifact.data).not.toBeNull();
   const motionData = motionArtifact.data as AuditData;
-  const motionEvaluation = evaluateMotionAudit(motionData, motionArtifact.windowMs);
+  const motionEvaluation = evaluateMotionAudit(motionData, motionArtifact.windowMs, motionArtifact.timingPolicy);
   const cls = clsTotals(motionData.motion);
   const observed = observedClsTotals(motionData.motion);
   const observedRaw = observed?.raw;

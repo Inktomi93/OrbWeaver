@@ -7,6 +7,8 @@
 // tally reads — deliberately not the vendor types, so the real reporter passes the real suite and the pin
 // (tests/tooling/verify/ops/ct-run-tally.test.ts) passes a synthetic one with no Playwright runtime.
 
+import type { TestResult } from "@playwright/test/reporter";
+
 /** Playwright's four terminal outcomes, in its own spelling (`TestCase.outcome()`) — the axis declared ONCE
  *  as a tuple so the tally's bucket map is a mapped Record over it and a fifth outcome fails `tsc` rather
  *  than falling into an untallied hole. */
@@ -69,4 +71,20 @@ export interface CtLoadSuspectTest {
   readonly title: string;
   /** The load-suspect reason, carrying the loadavg receipt. */
   readonly reason: string;
+}
+
+/** Authored native timing cases form the denominator before any callback runs. */
+export interface CtNativeTimingCase {
+  readonly file: string;
+  readonly title: string;
+  readonly titlePath: readonly string[];
+}
+
+export interface CtNativeTimingAttempt extends CtNativeTimingCase {
+  readonly status: TestResult["status"];
+  readonly retry: number;
+}
+
+export interface CtTimingMeasurement extends CtNativeTimingAttempt {
+  readonly detail: string;
 }

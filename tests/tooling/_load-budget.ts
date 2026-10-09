@@ -27,6 +27,8 @@ import {
   readBoxLoad,
 } from "@orb/tooling/_shared/load-budget";
 import type { TaskMeta } from "vitest";
+import type { TimingCapability } from "../../tooling/src/_shared/timing-capability.ts";
+import { timingCapability } from "../../tooling/src/_shared/timing-capability.ts";
 
 // THE VITEST DOOR for a mis-spelled planted-box knob (#1666). The policy module deliberately does NOT throw
 // on a bad `ORB_BOX_LOAD` — it is read inside instrument IMPORT GRAPHS, where a throw exits 1 ("violations")
@@ -61,6 +63,8 @@ declare module "vitest" {
     /** The #1040 load reason, set by `labelRateLoad` when the box was loaded while the arm measured
      *  (#1616 — it labels the number now; it does not skip the test). */
     orbLoadSuspect?: string;
+    orbTiming?: TimingCapability;
+    orbTimingReading?: string;
   }
 }
 
@@ -94,7 +98,9 @@ export interface LabellableTest {
  *  every suite here runs on a `test.extend` fixture and vitest's fixture parser REFUSES a non-destructured
  *  first parameter outright (`FixtureParseError`), which FAILS the test rather than labelling it. */
 export function labelRateLoad(ctx: LabellableTest, what: string, read: () => BoxLoad = readBoxLoad): MeasurementVerdict {
-  const verdict = judgeMeasurementLoad(read(), what);
+  const timing = timingCapability();
+  ctx.task.meta.orbTiming = timing;
+  const verdict = { ...judgeMeasurementLoad(read(), what), timing };
   if (verdict.disposition === "load-suspect") {
     ctx.task.meta[LOAD_SUSPECT_META_KEY] = verdict.reason;
     process.stderr.write(`${verdict.reason}\n`);
