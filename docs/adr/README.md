@@ -254,3 +254,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D305 | [The admin tier wires four AppSettings system-tuning knobs](0305-admin-tier-wires-four-system-tuning-knobs.md) | active |
 | D306 | [Qualify cumulative changes before release](0306-verification-qualification-ownership.md) | superseded by [0307-weekly-tooling-proof-and-product-qualification.md](0307-weekly-tooling-proof-and-product-qualification.md) |
 | D307 | [Separate product qualification from weekly tooling proof](0307-weekly-tooling-proof-and-product-qualification.md) | active |
+| D308 | [Timing budgets qualify only on a named hardware class](0308-hardware-scoped-timing-budgets.md) | active |

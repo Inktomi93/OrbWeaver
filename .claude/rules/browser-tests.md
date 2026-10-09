@@ -16,6 +16,7 @@ worktree with its own `CT_PORT`.
 
 ## Assertions
 
+- Apply [D308](../../docs/adr/0308-hardware-scoped-timing-budgets.md) through the shared test-kind capability policy for measurement budgets.
 - Assert only on settled rendered state. A node-side tRPC call count does not prove what the browser shows.
 - Use `route.abort("aborted")`, never a bare `route.abort()`.
 - Assert accessible names with `textContent`, `ariaSnapshot`, or `getByRole(..., { exact: true })`, never
