@@ -23,4 +23,6 @@ All nonweekly tiers exclude exhaustive checker proof. Product checks retain appl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Native collection preserves the complete weekly proof population and independent partitions. Focused controls verify retained shared failures and unchanged dispatch authority.
+
+The runtime configuration overlay matches its current source. Normal scoped checks and independent review pass. Complete hosted weekly proof remains pending.

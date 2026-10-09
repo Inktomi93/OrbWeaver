@@ -219,8 +219,8 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
     overlays: [
       replace(
         "vitest.config.ts",
-        "include: withIgnored(REPOSITORY_TEST_GLOBS),",
-        'include: withIgnored([...REPOSITORY_TEST_GLOBS, "tests/tooling/liveness-gone.int.test.ts"]),',
+        "include: runtimeGlobs(REPOSITORY_TEST_GLOBS),",
+        'include: runtimeGlobs([...REPOSITORY_TEST_GLOBS, "tests/tooling/liveness-gone.int.test.ts"]),',
       ),
     ],
     // The dead path is the finding's TOKEN, not its message; the verdict is the dead-row message at the config.

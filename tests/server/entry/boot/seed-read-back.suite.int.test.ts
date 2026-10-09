@@ -4,6 +4,7 @@
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../../support/composed-real.ts";
+import { join } from "node:path";
 import process from "node:process";
 import { assetIdSchema, assetKindSchema, characterIdSchema, galleryItemIdSchema } from "@orb/contracts/assets";
 import { cardFaceFields } from "@orb/contracts/card-face";
@@ -64,11 +65,19 @@ import type { Db } from "@orb/db";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { seedDefaultBackgrounds, seedDefaultPreset, seedExamplePlugins, seedThemes, seedUserContent } from "@orb/server/entry/boot";
+import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
+import { writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { sql } from "drizzle-orm";
-import { afterAll, vi } from "vitest";
+import { afterAll, beforeAll, vi } from "vitest";
 import { z } from "zod";
 import type { AppCaller } from "../../../support/fixtures.ts";
 import { expect, OWNER_USER_ID, test } from "../../../support/fixtures.ts";
+
+// A fresh checkout has no release zips; this suite must not borrow another file's artifact build.
+beforeAll(async () => {
+  const built = await writeShowcaseArtifacts(join(import.meta.dirname, "..", "..", "..", ".."));
+  expect(built.diagnostics).toEqual([]);
+});
 
 // `DEV_SEED=on` is the automation stamp that arms the default-persona seeder; without it no persona row exists.
 // biome-ignore-start lint/style/noProcessEnv: this file DRIVES the env parse by crafting process.env before the module graph loads — the same seam `tests/server/domain/chat/engine/turn-fault-outcome.suite.int.test.ts` uses.
@@ -769,9 +778,26 @@ test("every seeded row reads back through its read procedure, faithful to its cu
   const themes = await ownerCaller.settings.listThemes();
   check(themes, z.array(themeSchema), "settings.listThemes");
   const plugins = await ownerCaller.plugin.list();
+  expect(sorted(plugins.map((plugin) => plugin.slug)), "every shipped showcase is seeded before its wire shape is checked").toEqual(
+    sorted(SHOWCASE_PLUGIN_SLUGS),
+  );
+  for (const plugin of plugins) {
+    expect(
+      { status: plugin.status, granted: plugin.grantedCapabilities, pending: plugin.reconsentPending },
+      `plugin ${plugin.slug} awaits owner consent`,
+    ).toEqual({
+      status: "disabled",
+      granted: [],
+      pending: true,
+    });
+  }
   check(plugins, each(pluginPlan), "plugin.list");
   const inbox = await ownerCaller.notifications.list({ limit: PAGE });
   expect(inbox.nextCursor, "the inbox fits one page").toBeNull();
+  expect(
+    inbox.items.map((item) => item.payload),
+    "the owner's live consent notice counts every seeded showcase",
+  ).toEqual([{ type: "plugins-awaiting-consent", recipientUserId: OWNER_USER_ID, pendingCount: SHOWCASE_PLUGIN_SLUGS.length }]);
   check(inbox.items, each(inboxPlan), "notifications.list");
   const gallery = await ownerCaller.assets.listGallery({ limit: PAGE });
   const assets = await ownerCaller.assets.listOwned({ limit: PAGE });

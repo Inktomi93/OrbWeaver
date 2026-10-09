@@ -23,4 +23,6 @@ The isolated seed read-back suite passes from an absent bundle directory. Exact 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The isolated test reproduces the missing bundle failure and passes after its own native build. Showcase consent, wire schemas and table coverage remain checked.
+
+Normal scoped checks and independent review pass. Hosted application qualification remains pending.
