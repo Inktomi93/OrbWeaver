@@ -4,6 +4,7 @@ run-name: >-
   || github.event_name == 'schedule' && 'Nightly full verify on main'
   || github.event_name == 'pull_request' && format('PR #{0} · {1}', github.event.pull_request.number, github.event.pull_request.title)
   || github.event_name == 'workflow_dispatch' && inputs.select_cpu_diagnostic && format('Select CPU diagnostic only on {0}', github.ref_name)
+  || github.event_name == 'workflow_dispatch' && inputs.tier == 'e2e-diagnostic' && format('E2E startup diagnostic only (not qualification) on {0}', github.ref_name)
   || github.event_name == 'workflow_dispatch' && format('Manual {0} tier on {1}', inputs.tier, github.ref_name)
   || github.event.head_commit.message }}
 
@@ -23,9 +24,9 @@ on:
   workflow_dispatch:
     inputs:
       tier:
-        description: Choose product qualification or independent weekly tooling proof.
+        description: Choose product qualification, independent weekly proof, or non-qualifying E2E startup diagnostics.
         type: choice
-        options: [push, product, full, weekly]
+        options: [push, product, full, weekly, e2e-diagnostic]
         default: push
       base:
         description: Actual event boundary to record for manual push qualification.
@@ -61,7 +62,7 @@ env:
 
 jobs:
   changes:
-    if: ${{ !inputs.select_cpu_diagnostic && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full' && inputs.tier != 'weekly' }}
+    if: ${{ !inputs.select_cpu_diagnostic && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full' && inputs.tier != 'weekly' && inputs.tier != 'e2e-diagnostic' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -333,7 +334,7 @@ jobs:
 
   # The one required check. A skipped suite (docs-only change) passes; a failed or cancelled one does not.
   ci-ok:
-    if: always() && !inputs.select_cpu_diagnostic && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full' && inputs.tier != 'weekly'
+    if: always() && !inputs.select_cpu_diagnostic && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full' && inputs.tier != 'weekly' && inputs.tier != 'e2e-diagnostic'
     needs: [changes, static, media, node, ct, e2e-smoke]
     runs-on: ubuntu-slim
     timeout-minutes: 5
@@ -468,7 +469,7 @@ jobs:
         if: steps.seen.outputs.cache-hit != 'true'
         name: Set up FFmpeg and FFprobe
         timeout-minutes: 15
-        run: |
+        run: &media-prerequisite-command |
           if timeout 10s ffmpeg -version >/dev/null 2>&1 && timeout 10s ffprobe -version >/dev/null 2>&1; then
             exit 0
           fi
@@ -513,6 +514,40 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-${{ env.VERIFY_TIER }}
+          path: |
+            reports/
+            test-results/
+          retention-days: 7
+
+  # Startup evidence is diagnostic only; it cannot write qualification or weekly success state.
+  e2e-startup-diagnostic:
+    if: github.event_name == 'workflow_dispatch' && !inputs.select_cpu_diagnostic && inputs.tier == 'e2e-diagnostic'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      E2E_LIVE: "0"
+      E2E_ALLOW_DEV_TARGET: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+        with:
+          browsers: "true"
+      - id: media
+        name: Set up FFmpeg and FFprobe
+        timeout-minutes: 15
+        run: *media-prerequisite-command
+      - id: showcase
+        run: pnpm --filter @orb/showcase-plugins build
+      - id: startup
+        name: E2E startup diagnostics (not qualification)
+        run: pnpm e2e app-readiness.spec.ts --retries=0
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reports-e2e-startup-diagnostic
           path: |
             reports/
             test-results/
