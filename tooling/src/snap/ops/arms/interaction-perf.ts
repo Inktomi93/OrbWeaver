@@ -17,6 +17,7 @@ import { buildReports, METER_INIT_JS, meterApparatusGap, meterEvidenceGaps, pars
 import type { SnapAnalyzerProblem } from "../../contract/analyzer.ts";
 import type { ArmActionDisposition, ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmRunContext, ArmRunInstance } from "../../contract/arms.ts";
 import type { Args, SnapAction } from "../../contract/types.ts";
+import { interactionPerfFact } from "../../lib/interaction-perf-verdict.ts";
 import { ratePostureDisposition, snapTimingPolicy } from "../../lib/rate-posture.ts";
 import { pushStep } from "../flags-support.ts";
 
@@ -151,7 +152,13 @@ async function collectPerfEvidence(
   ctx: ArmRunContext,
   data: MeterData[],
   gaps: EvidenceGap[],
-): Promise<{ readonly reports: StepReport[]; readonly withheld: string | null; readonly loadSuspect: string | null; readonly artifact: string }> {
+): Promise<{
+  readonly reports: StepReport[];
+  readonly withheld: string | null;
+  readonly loadSuspect: string | null;
+  readonly artifact: string;
+  readonly timingPolicy: TimingEvidencePolicy;
+}> {
   for (const context of ctx.session.contexts) {
     if (context.owned === false) {
       continue;
@@ -178,6 +185,7 @@ async function collectPerfEvidence(
   // is LABELLED instead (#1616) — the timing columns below are printed either way.
   const withheld = disposition.disposition === "withheld" ? disposition.reason : null;
   const loadSuspect = disposition.disposition === "load-suspect" ? disposition.reason : null;
+  const timingPolicy = snapTimingPolicy(ctx.ratePosture);
   const artifact = await artifactFile("perf", `${ctx.name}-perf`, ".json", {
     producer: "perf",
     producerArm: "interaction-perf",
@@ -192,49 +200,24 @@ async function collectPerfEvidence(
   });
   await writeFile(
     artifact,
-    `${JSON.stringify({ contract: "snap-interaction-perf-v1", cycles: ctx.opts.perfCycles, raw: data, reports, problems: interactionPerfProblems(reports, gaps, withheld, snapTimingPolicy(ctx.ratePosture)), timing: ctx.ratePosture.timing, timingPolicy: snapTimingPolicy(ctx.ratePosture), gaps, withheld }, null, 2)}\n`,
+    `${JSON.stringify({ contract: "snap-interaction-perf-v1", cycles: ctx.opts.perfCycles, raw: data, reports, problems: interactionPerfProblems(reports, gaps, withheld, timingPolicy), timing: ctx.ratePosture.timing, timingPolicy, gaps, withheld }, null, 2)}\n`,
   );
-  return { reports, withheld, loadSuspect, artifact };
+  return { reports, withheld, loadSuspect, artifact, timingPolicy };
 }
 
 /** The arm's RESULT member. `load-suspect` is a MEASURED run whose numbers nothing may promote — the
  *  timing table is printed in full beside it (#1616). */
-function perfStatus(gaps: readonly EvidenceGap[], withheld: string | null, loadSuspect: string | null): string {
+function perfStatus(gaps: readonly EvidenceGap[], withheld: string | null, loadSuspect: string | null, timingPolicy: TimingEvidencePolicy): string {
   if (gaps.length > 0) {
     return "REFUSED";
   }
   if (withheld !== null) {
     return "withheld";
   }
-  return loadSuspect === null ? "measured" : "load-suspect";
-}
-
-/** The FACT's member + detail, as one decision (#1616). `load-suspect` is a real measurement whose steps
- *  and breach counts ride the fact unchanged — only the member stops a reader promoting them. */
-function interactionPerfFact(input: {
-  readonly requested: boolean;
-  readonly gaps: readonly EvidenceGap[];
-  readonly withheld: string | null;
-  readonly loadSuspect: string | null;
-  readonly breaches: number;
-}): { readonly state: "off" | "refused" | "withheld" | "load-suspect" | "passed"; readonly detail: string | null } {
-  if (!input.requested) {
-    return { state: "off", detail: null };
+  if (loadSuspect !== null) {
+    return "load-suspect";
   }
-  if (input.gaps.length > 0) {
-    return { state: "refused", detail: input.gaps[0]?.detail ?? "interaction performance evidence was unavailable" };
-  }
-  if (input.withheld !== null) {
-    return { state: "withheld", detail: input.withheld };
-  }
-  if (input.loadSuspect !== null) {
-    return { state: "load-suspect", detail: input.loadSuspect };
-  }
-  const measured =
-    input.breaches === 0
-      ? "measured; no breach steps observed; interaction thresholds are non-voting"
-      : `measured; ${String(input.breaches)} breach step(s) observed; interaction thresholds are non-voting`;
-  return { state: "passed", detail: measured };
+  return timingPolicy === "record" ? "recorded" : "measured";
 }
 
 export const INTERACTION_PERF_ARM = {
@@ -324,6 +307,7 @@ export const INTERACTION_PERF_ARM = {
       let artifact: string | null = null;
       let withheld: string | null = null;
       let loadSuspect: string | null = null;
+      let timingPolicy: TimingEvidencePolicy = "record";
       let nextStep = 0;
       return {
         prepare: async (): Promise<void> => {
@@ -376,6 +360,7 @@ export const INTERACTION_PERF_ARM = {
           reports = collected.reports;
           withheld = collected.withheld;
           loadSuspect = collected.loadSuspect;
+          timingPolicy = collected.timingPolicy;
           artifact = collected.artifact;
         },
         report: (): Promise<void> => {
@@ -409,7 +394,7 @@ export const INTERACTION_PERF_ARM = {
           }
           const breach = interactionPerfBreachCount(reports);
           return [
-            ["perf", perfStatus(gaps, withheld, loadSuspect)],
+            ["perf", perfStatus(gaps, withheld, loadSuspect, timingPolicy)],
             ["perf-artifact", artifact ?? "absent"],
             ["steps", reports.length],
             ["breach-steps", breach],
@@ -424,6 +409,7 @@ export const INTERACTION_PERF_ARM = {
             withheld,
             loadSuspect,
             breaches: interactionPerfBreachCount(reports),
+            timingPolicy,
           });
           return [
             {

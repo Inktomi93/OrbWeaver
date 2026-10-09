@@ -16,6 +16,7 @@ import { buildReports } from "../../../../tooling/src/cpu-profile/ops/report.ts"
 import { animationTotals } from "../../../../tooling/src/motion-audit/lib/animations.ts";
 import { clsTotals, loafTotals, observedClsTotals } from "../../../../tooling/src/motion-audit/lib/verdicts.ts";
 import { evaluateMotionAudit } from "../../../../tooling/src/motion-audit/ops/report.ts";
+import { interactionPerfFact } from "../../../../tooling/src/snap/lib/interaction-perf-verdict.ts";
 import {
   INTERACTION_PERF_CLICK_BREACH_MS,
   interactionPerfBreachCount,
@@ -31,12 +32,7 @@ vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
 
 const QUIET = ["--no-shot", "--no-deadcss", "--no-failure-evidence"];
 
-/** A PLANTED QUIET BOX for every CLI child this file spawns (#1651). The perf arm below asserts
- *  `interaction-perf state=passed` — a JUDGED verdict — and the rate arms label themselves `load-suspect`
- *  above per-core loadavg 1.0 (≥ 24 on this 16c/24t box), which is the fleet's ordinary state while lanes
- *  run. Left to the host, this file passes on a quiet box and reds on a busy one for a reason that has
- *  nothing to do with snap. `vi.stubEnv` in a `beforeEach` rather than at module scope: the root config
- *  sets `unstubEnvs`, so a module-level stub is torn down after the first test in the file. */
+// Keep load classification independent of hardware timing qualification. beforeEach survives unstubEnvs.
 beforeEach(() => {
   vi.stubEnv(BOX_LOAD_ENV, "0.2/24");
 });
@@ -108,6 +104,7 @@ interface PerfArtifact {
   readonly gaps: readonly unknown[];
   readonly withheld: string | null;
   readonly problems: readonly AnalyzerProblem[];
+  readonly timingPolicy: TimingCapability["policy"];
 }
 
 interface PerfIndex {
@@ -165,8 +162,10 @@ async function assertMeasuredPerf(perf: CliResult, artifact: PerfArtifact, index
     ]),
   );
   expect(index.verdict.state).toBe("passed");
-  expect(index.verdict.arms.find((row) => row.arm === "interaction-perf")?.state).toBe("passed");
-  expect(report.stdout).toContain("ARM          interaction-perf state=passed");
+  const state = artifact.timingPolicy === "record" ? "recorded" : "passed";
+  expect(index.verdict.arms.find((row) => row.arm === "interaction-perf")?.state).toBe(state);
+  expect(report.stdout).toContain(`ARM          interaction-perf state=${state}`);
+  expect(perf.stdout).toContain(`perf=${artifact.timingPolicy === "record" ? "recorded" : "measured"}`);
   expect(report.stdout).toContain("interaction thresholds are non-voting");
   expect(report.stdout).toMatch(/FINDING\s+annotation \| long-task-count: .*threshold 0.* \| click #target/u);
   expect(report.stdout).toMatch(/FINDING\s+annotation \| click-duration-ms: .*threshold 100ms.* \| click #target/u);
@@ -301,6 +300,16 @@ test("perf meter thresholds are strict evidence but never become an exit gate", 
       shiftScore: 0.02,
     }),
   ]);
+});
+
+test.each([0, 1])("interaction perf facts preserve record-only measurements with %i breaches", (breaches) => {
+  const input = { requested: true, gaps: [], withheld: null, loadSuspect: null, breaches, timingPolicy: "record" as const };
+  expect(interactionPerfFact(input)).toMatchObject({ state: "recorded" });
+  expect(interactionPerfFact(input).detail).toContain("interaction thresholds are non-voting");
+  expect(interactionPerfFact({ ...input, timingPolicy: "assert" })).toMatchObject({ state: "passed" });
+  expect(interactionPerfFact({ ...input, gaps: [{ evidence: "meter", detail: "missing meter" }] })).toEqual({ state: "refused", detail: "missing meter" });
+  expect(interactionPerfFact({ ...input, withheld: "unproven browser" })).toEqual({ state: "withheld", detail: "unproven browser" });
+  expect(interactionPerfFact({ ...input, loadSuspect: "loaded box" })).toEqual({ state: "load-suspect", detail: "loaded box" });
 });
 
 test("Snap motion/perf artifacts are strict supersets of the retained engine evaluations", async ({ runCli, scratch }) => {
