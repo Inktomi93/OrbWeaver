@@ -100,38 +100,52 @@ function hooks(repoRoot: string): Readonly<Record<string, HookConfig>> {
   return YAML.parse(readFileSync(join(repoRoot, "lefthook.yml"), "utf8")) as Readonly<Record<string, HookConfig>>;
 }
 
-test("both live commit hooks keep staged tooling out of branch-wide recertification and ordinary verification out of recertification", ({
+test.for([
+  "pre-commit",
+  "pre-merge-commit",
+] as const)("%s keeps staged tooling out of branch-wide recertification and ordinary verification out of recertification", async (hook, {
   repoRoot,
-  scratch,
+  plantedTree,
 }) => {
-  plantRepo(repoRoot, scratch);
   const tool = "tooling/src/verify/lib/changed-tool.ts";
-  mkdirSync(join(scratch, "tooling/src/verify/lib"), { recursive: true });
-  writeFileSync(join(scratch, "tooling/tsconfig.json"), '{"extends":"../tsconfig.base.json","include":["src"]}\n');
-  writeFileSync(join(scratch, tool), "export const changed = true;\n");
-  execFixtureGit(scratch, ["add", tool]);
-  const live = hooks(repoRoot);
-  for (const hook of ["pre-commit", "pre-merge-commit"]) {
-    const command = live[hook]?.commands["check"]?.run;
-    expect(command).toBeDefined();
-    const request = parseRequest((command ?? "").split(" ").slice(2));
-    if ("error" in request || request.request === undefined) {
-      throw new Error(`commit hook has no scoped request: ${command}`);
-    }
-    expect(request).toMatchObject({ tier: "static", request: { kind: "staged" } });
-    const selection = resolveSelection(request.request, scratch);
-    expect(selection.paths).toContain(tool);
-    expect(selection.paths).not.toContain(FILES.unstaged);
-    expect(selection.paths).not.toContain(FILES.untracked);
-    expect(stagesForTier(request.tier).some((row) => row.name === "tests:instrument-affected")).toBe(false);
-    expect(stagesForTier("changed").some((row) => row.name === "tests:instrument-affected")).toBe(false);
-    expect(stagesForTier("weekly").some((row) => row.name === "tests:tooling")).toBe(true);
-    const lint = stagesForTier(request.tier).find((row) => row.name === "lint:biome");
-    if (lint === undefined) {
-      throw new Error("commit hook lost lint");
-    }
-    expect(planStage(lint, selection, request.tier, { root: scratch }).argv).toContain(tool);
+  // This proof selects tooling; unrelated native programs belong to the full selection controls above.
+  const root = await plantedTree({
+    ".gitignore": "node_modules\n",
+    "package.json": '{"name":"hook-selection-fixture","private":true}\n',
+    "scripts/ts7.ts": readFileSync(join(repoRoot, "scripts/ts7.ts"), "utf8"),
+    "tsconfig.base.json": '{"compilerOptions":{"noEmit":true,"strict":true,"types":[]},"files":[]}\n',
+    "tooling/tsconfig.json": '{"extends":"../tsconfig.base.json","include":["src"]}\n',
+    [tool]: "export const changed = false;\n",
+    [FILES.unstaged]: "export const unstaged = false;\n",
+  });
+  symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
+  execFixtureGit(root, ["init"]);
+  execFixtureGit(root, ["add", "."]);
+  execFixtureGit(root, ["-c", "user.name=Orb Test", "-c", "user.email=orb@example.invalid", "commit", "-m", "baseline"]);
+  writeFileSync(join(root, tool), "export const changed = true;\n");
+  execFixtureGit(root, ["add", tool]);
+  writeFileSync(join(root, FILES.unstaged), "export const unstaged = true;\n");
+  writeFileSync(join(root, FILES.untracked), "export const untracked = true;\n");
+  const command = hooks(repoRoot)[hook]?.commands["check"]?.run;
+  expect(command).toBeDefined();
+  const request = parseRequest((command ?? "").split(" ").slice(2));
+  if ("error" in request || request.request === undefined) {
+    throw new Error(`commit hook has no scoped request: ${command}`);
   }
+  expect(request).toMatchObject({ tier: "static", request: { kind: "staged" } });
+  const selection = resolveSelection(request.request, root);
+  expect(selection.paths).toContain(tool);
+  expect(selection.paths).not.toContain(FILES.unstaged);
+  expect(selection.paths).not.toContain(FILES.untracked);
+  expect(selection.tsconfigs, "the real native compiler owns the staged tooling subject").toEqual(["tooling/tsconfig.json"]);
+  expect(stagesForTier(request.tier).some((row) => row.name === "tests:instrument-affected")).toBe(false);
+  expect(stagesForTier("changed").some((row) => row.name === "tests:instrument-affected")).toBe(false);
+  expect(stagesForTier("weekly").some((row) => row.name === "tests:tooling")).toBe(true);
+  const lint = stagesForTier(request.tier).find((row) => row.name === "lint:biome");
+  if (lint === undefined) {
+    throw new Error("commit hook lost lint");
+  }
+  expect(planStage(lint, selection, request.tier, { root }).argv).toContain(tool);
 });
 
 function plantSyncRepo(repoRoot: string, scratch: string): string {

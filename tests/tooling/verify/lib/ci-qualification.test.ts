@@ -1,6 +1,6 @@
 import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
@@ -346,41 +346,58 @@ test("failed application A then docs B cannot skip runtime; a qualified ancestor
   expect(() => qualificationDecision(scratch, { head, eventBase: failed, base, authority: "qualified" })).toThrow("clean tested checkout");
 });
 
-test("the production producer derives workflow generation, records release-PR and missing event bases, and refuses a switched HEAD", {
-  timeout: scaledBudget(20_000),
-}, async ({ scratch, repoRoot, fakeBin }) => {
-  await fakeBin("gh", API_FIXTURE);
-  execFixtureGit(scratch, ["init", "--initial-branch=main"]);
-  execFixtureGit(scratch, ["config", "user.name", "Orb Test"]);
-  execFixtureGit(scratch, ["config", "user.email", "orb@example.invalid"]);
-  writeFileSync(join(scratch, ".gitignore"), "fake-bin\nci-*\n");
-  mkdirSync(join(scratch, ".github/workflows"), { recursive: true });
-  writeFileSync(join(scratch, ".github/workflows/ci.yml"), readFileSync(join(repoRoot, ".github/workflows/ci.yml")));
-  execFixtureGit(scratch, ["add", "."]);
-  execFixtureGit(scratch, ["commit", "-m", "qualified main"]);
-  const base = execFixtureGit(scratch, ["rev-parse", "HEAD"]).trim();
-  writeFileSync(join(scratch, "README.md"), "docs-only candidate\n");
-  execFixtureGit(scratch, ["add", "."]);
-  execFixtureGit(scratch, ["commit", "-m", "candidate"]);
-  const head = execFixtureGit(scratch, ["rev-parse", "HEAD"]).trim();
-  writeFileSync(join(scratch, "ci-api.json"), JSON.stringify(metadata(base)));
-  const script = join(repoRoot, "scripts/ci-qualification.ts");
-  const run = (eventBase: string, testedHead = head): SpawnSyncReturns<string> =>
-    spawnSync(process.execPath, [script, "baseline", testedHead, eventBase], {
-      cwd: scratch,
-      encoding: "utf8",
-      env: inheritedProcessEnv({ ["ORB_CI_QUALIFICATION_GENERATION"]: "caller override", ["GITHUB_OUTPUT"]: join(scratch, "ci-output") }),
-    });
-  const releaseTarget = "b".repeat(40);
-  const releasePr = run(releaseTarget);
-  expect(releasePr.status, releasePr.stdout + releasePr.stderr).toBe(0);
-  expect(releasePr.stdout).toContain(`base=${base}\nhead=${head}\nevent_base=${releaseTarget}\ncode=false\nauthority=qualified`);
-  expect(readFileSync(join(scratch, "ci-output"), "utf8")).toBe(releasePr.stdout);
-  expect(run("").status).toBe(0);
-  expect(run("0".repeat(40)).status).toBe(0);
-  expect(run(base, base).status).toBe(3);
-  expect(run("malformed").status).toBe(3);
-});
+test.for(["release-pr", "missing-event-base", "zero-event-base", "switched-head", "malformed-event-base"] as const)(
+  "the production producer derives workflow generation and enforces the %s event boundary",
+  { timeout: scaledBudget(20_000) },
+  async (scenario, { scratch, repoRoot, fakeBin }) => {
+    await fakeBin("gh", API_FIXTURE);
+    execFixtureGit(scratch, ["init", "--initial-branch=main"]);
+    execFixtureGit(scratch, ["config", "user.name", "Orb Test"]);
+    execFixtureGit(scratch, ["config", "user.email", "orb@example.invalid"]);
+    writeFileSync(join(scratch, ".gitignore"), "fake-bin\nci-*\n");
+    mkdirSync(join(scratch, ".github/workflows"), { recursive: true });
+    writeFileSync(join(scratch, ".github/workflows/ci.yml"), readFileSync(join(repoRoot, ".github/workflows/ci.yml")));
+    execFixtureGit(scratch, ["add", "."]);
+    execFixtureGit(scratch, ["commit", "-m", "qualified main"]);
+    const base = execFixtureGit(scratch, ["rev-parse", "HEAD"]).trim();
+    writeFileSync(join(scratch, "README.md"), "docs-only candidate\n");
+    execFixtureGit(scratch, ["add", "."]);
+    execFixtureGit(scratch, ["commit", "-m", "candidate"]);
+    const head = execFixtureGit(scratch, ["rev-parse", "HEAD"]).trim();
+    writeFileSync(join(scratch, "ci-api.json"), JSON.stringify(metadata(base)));
+    const script = join(repoRoot, "scripts/ci-qualification.ts");
+    const run = (boundary: string, testedHead = head): SpawnSyncReturns<string> =>
+      spawnSync(process.execPath, [script, "baseline", testedHead, boundary], {
+        cwd: scratch,
+        encoding: "utf8",
+        env: inheritedProcessEnv({ ["ORB_CI_QUALIFICATION_GENERATION"]: "caller override", ["GITHUB_OUTPUT"]: join(scratch, "ci-output") }),
+      });
+    const eventBases = {
+      "release-pr": "b".repeat(40),
+      "missing-event-base": "",
+      "zero-event-base": "0".repeat(40),
+      "switched-head": base,
+      "malformed-event-base": "malformed",
+    };
+    const eventBase = eventBases[scenario];
+    const result = run(eventBase, scenario === "switched-head" ? base : head);
+    const refused = scenario === "switched-head" || scenario === "malformed-event-base";
+    const output = refused ? "" : `base=${base}\nhead=${head}\nevent_base=${eventBase}\ncode=false\nauthority=qualified\n`;
+    const errors = {
+      "release-pr": /^$/u,
+      "missing-event-base": /^$/u,
+      "zero-event-base": /^$/u,
+      "switched-head": /head differs from the tested HEAD/u,
+      "malformed-event-base": /event base must be empty or a commit ID/u,
+    };
+    const outputPath = join(scratch, "ci-output");
+    const receipt = existsSync(outputPath) ? readFileSync(outputPath, "utf8") : null;
+    expect(result.status, result.stdout + result.stderr).toBe(refused ? 3 : 0);
+    expect(result.stderr).toMatch(errors[scenario]);
+    expect(result.stdout).toBe(output);
+    expect(receipt).toBe(refused ? null : output);
+  },
+);
 
 test("first-generation bootstrap positively excludes old workflow authority and requires full proof", async ({ scratch, repoRoot, fakeBin }) => {
   await fakeBin("gh", "process.stderr.write('unexpected metadata call');process.exitCode=91;");

@@ -595,9 +595,33 @@ test("weekly execution is independent, main-pinned, partitioned once and never p
       ],
     },
   });
-  expect(weekly.steps.find((entry) => entry.uses?.startsWith("actions/checkout@") === true)?.with).toMatchObject({
-    ref: "${{ needs.weekly-head.outputs.sha }}",
-  });
+  const [resolveMain, freezeHead] = head.steps;
+  expect(resolveMain?.uses).toMatch(/^actions\/checkout@[a-f0-9]{40}$/u);
+  expect(resolveMain?.with).toEqual({ ref: "main", "persist-credentials": false });
+  expect(freezeHead).toEqual({ id: "sha", run: 'echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"' });
+  expect(head.outputs).toEqual({ sha: "${{ steps.sha.outputs.sha }}" });
+
+  // Repository setup must come from the validated frozen commit, not the workflow's default-branch revision.
+  const [checkout, source, setup, proof] = weekly.steps;
+  expect(checkout?.uses).toBe(resolveMain?.uses);
+  expect(checkout?.with).toEqual({ ref: "main", "fetch-depth": 0, "persist-credentials": false });
+  expect(source?.id).toBe("source");
+  expect(source?.if).toBeUndefined();
+  expect(source?.env).toEqual({ ["FROZEN_MAIN_SHA"]: "${{ needs.weekly-head.outputs.sha }}" });
+  expect(source?.run).toBe(
+    [
+      "set -euo pipefail",
+      '[[ "$FROZEN_MAIN_SHA" =~ ^[a-f0-9]{40}$ ]]',
+      'test "$(git cat-file -t "$FROZEN_MAIN_SHA")" = commit',
+      'git merge-base --is-ancestor "$FROZEN_MAIN_SHA" refs/remotes/origin/main',
+      'git checkout --detach "$FROZEN_MAIN_SHA"',
+      "",
+    ].join("\n"),
+  );
+  expect(setup?.uses).toBe("./.github/actions/setup");
+  expect(setup?.if).toBeUndefined();
+  expect(proof?.id).toBe("proof");
+  expect(proof?.if).toBeUndefined();
   expect(ci.jobs.static.needs).toEqual(["changes"]);
   expect(ci.jobs["ci-ok"].needs).not.toContain("weekly-tooling");
   expect(ci.jobs.static.env["ORB_VERIFY_INSTRUMENT_COMPONENT"]).toBeUndefined();
@@ -605,7 +629,6 @@ test("weekly execution is independent, main-pinned, partitioned once and never p
     "pnpm",
     "import fs from 'node:fs';fs.writeFileSync('calls.json',JSON.stringify(process.argv.slice(2)));process.exitCode=Number(process.env.FIXTURE_EXIT);",
   );
-  const proof = weekly.steps.find((entry) => entry.id === "proof");
   for (const { component, shard } of weekly.strategy.matrix.include) {
     for (const code of [0, 1, 2]) {
       const result = spawnSync("bash", ["-e", "-c", proof?.run ?? ""], {

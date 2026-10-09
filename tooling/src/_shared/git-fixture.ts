@@ -6,10 +6,18 @@ import { repoGitEnvironment, runGit } from "./git.ts";
 import type { RunNicedSyncResult } from "./proc.ts";
 import { inheritedProcessEnv } from "./process-env.ts";
 
-/** `core.hooksPath=/dev/null` disables repository hooks; `core.fsmonitor=false` beats any repository-level
- * command because command-line config outranks repository config. The verifier fixture grammar separately
- * refuses `.git` destinations. Both controls remain pinned by `verify/lib/repo-paths.test.ts`. */
-export const FIXTURE_GIT_CONFIG_ARGS: readonly string[] = ["-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false"];
+/** Disable operator commands and automatic maintenance on temporary repositories; detached pack writers
+ * can outlive the fixture command and race scratch cleanup. Explicit garbage collection remains available. */
+export const FIXTURE_GIT_CONFIG_ARGS: readonly string[] = [
+  "-c",
+  "core.hooksPath=/dev/null",
+  "-c",
+  "core.fsmonitor=false",
+  "-c",
+  "gc.auto=0",
+  "-c",
+  "maintenance.auto=false",
+];
 
 export const FIXTURE_GIT_IDENTITY = { name: "Doc Test", email: "doc@example.invalid" } as const;
 

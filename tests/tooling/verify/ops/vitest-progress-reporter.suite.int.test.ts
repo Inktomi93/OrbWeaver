@@ -1,5 +1,5 @@
 // The native corpus worker must deliver completed work before a synchronous test returns.
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
@@ -14,6 +14,18 @@ const WAIT_FOR_RELEASE = `import {existsSync,watch} from "node:fs";
 const timeout=setTimeout(()=>process.exit(1),2000);
 const watcher=watch(".",()=>{if(existsSync("release")){clearTimeout(timeout);watcher.close();}});
 if(existsSync("release")){clearTimeout(timeout);watcher.close();}`;
+
+test("the native reporter refuses direct invocation instead of returning a false clean verdict", ({ repoRoot }) => {
+  const result = spawnSync(process.execPath, [join(repoRoot, "tooling/src/verify/ops/vitest-progress-reporter.ts")], {
+    cwd: repoRoot,
+    env: testProcessEnv(),
+    encoding: "utf8",
+  });
+  expect(result.status, result.stdout + result.stderr).toBe(2);
+  expect(result.stdout).toBe("");
+  expect(result.stderr).toContain("direct invocation");
+  expect(result.stderr).toContain("pnpm test:tooling");
+});
 
 test("native corpus console progress escapes the synchronous batch before its continuation can finish", { timeout: scaledBudget(30_000) }, async ({
   scratch,
