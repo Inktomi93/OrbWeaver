@@ -42,4 +42,8 @@ Replaying the verdict reader with original and substituted source URLs preserves
 
 An exact-bundle excerpt identifies the generic Base UI timer wrapper, not its invoked callback. The ordinary retry trace lacks bundle bodies, source maps and timer-install records; callback attribution remains unresolved.
 
-Diagnostic-contract separation needs an explicit scope ruling. Existing cold-opening assertions and budgets remain unchanged while that decision is pending.
+The normal lifecycle case in [qualification](https://github.com/Inktomi93/OrbWeaver/actions/runs/37861729329) has distinct failures. A 93ms frame contains manufactured lifecycle work. Another attempt retains 317ms budgeted timer blocking and an 83ms input frame before that work.
+
+The installed-source analysis narrows eligible callbacks to the Select focus timer that publishes `forceMount` and the modal scroll-lock timer. It excludes item-aligned positioning, scroll arrows and unrelated hover timers. Runtime callback identity and cost remain unproven.
+
+Separating manufactured lifecycle work from unplanted performance measurement and acquiring bounded trace evidence needs an explicit scope ruling. Existing assertions and budgets remain unchanged.
