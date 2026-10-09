@@ -20,8 +20,8 @@
  *   --gate <substr>   filter to gates whose name contains <substr> (shows it even if it passes).
  *   --file <substr>   filter violations whose file path contains <substr> (case-insensitive).
  *   --limit <N>       sample violations per gate before an "…and N more" hint (default 10; 40 log lines
- *                     for --stage, which has its own default because it samples a different thing).
- *   --stage <name>    one verify stage's transcript tail · --stages lists them · --run <id> reads a slot.
+ *                     per transcript for --stage/--stages, which sample a different thing).
+ *   --stage <name>    one verify stage's transcript tail · --stages lists them with failed transcript tails · --run <id> reads a slot.
  *   --pointers        the pointer-liveness inventory.
  *   --help, -h        usage.
  *
@@ -116,7 +116,7 @@ export const SHOW_HELP =
   '  --limit <N>       Sample violations per gate before an "…and N more" hint (default 10).\n' +
   "\n  The verify run's per-stage transcripts (reports/verify/<stage>.log) — #2502:\n" +
   "  --stage <name>    That stage's transcript tail from the last COMPLETE verify run (--limit N lines, default 40).\n" +
-  "  --stages          Every stage of that run with its verdict, and the names --stage accepts.\n" +
+  "  --stages          Every stage verdict and failed transcript tails (--limit per stage).\n" +
   "  --run <runId>     Read that run's slot directly — the door out of an in-flight refusal.\n" +
   "\n  Pointer liveness:\n" +
   "  --pointers        Every published reports/ pointer, and whether it still serves its instrument's newest run.\n" +

@@ -17,11 +17,12 @@
 // stale pointer against a fresh one, an in-flight run against a finished one, and — the one that would have
 // made this instrument lie — a run that FINISHED AND PUBLISHED NOTHING (`closeRunSlot`, the fixture-mode
 // and gate-scoped `check:structure` path) which must NOT make a live pointer read stale.
-import { mkdirSync, symlinkSync } from "node:fs";
+import { mkdirSync, rmSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { vi } from "vitest";
+import type { VerifyReport } from "../../../../tooling/src/verify/contract/stage.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -711,4 +712,75 @@ test("an interrupted Vitest stage names real failing suites and cases instead of
   expect(result.stdout).not.toContain("fixture-alpha");
   expect(result.stdout).not.toContain("a passing control");
   expect(result.stdout).toContain("a planted structure violation");
+});
+
+test("--stages renders every runtime failure transcript without requiring a structure report", async ({ runCli, plantedTree }) => {
+  const files = Object.fromEntries(Object.entries(failingSlot(FAIL_RUN)).filter(([path]) => path !== "reports/check-structure.json"));
+  const root = await plantedTree(files);
+  publishVerify(root, FAIL_RUN);
+  const result = await runCli("verify", ["show", "--stages", "--limit", "20"], { cwd: root });
+  await expect(result).toExitWith(EXIT.violations);
+  expect(result.stderr).not.toContain("couldn't read");
+  for (const detail of [
+    "a planted structure violation",
+    "widget renders the roster",
+    "bar breaks",
+    "reached by nobody",
+    "OVER by 10 B",
+    "Timed out waiting 180000ms",
+  ]) {
+    expect(result.stdout).toContain(detail);
+  }
+  expect(result.stdout).toContain(`reports/runs/verify/${FAIL_RUN}/stages/browser-e2e-smoke.log`);
+  expect(result.stdout).not.toContain("lint-biome: no findings");
+});
+
+test("--stages preserves a runtime no-verdict and renders other failed stages too", async ({ runCli, plantedTree }) => {
+  const runtime = JSON.parse(failingVerifyReport(FAIL_RUN)) as VerifyReport;
+  const stages = runtime.stages
+    .filter((stage) => stage.group === "browser")
+    .map((stage) => (stage.name === "browser:ct" ? { ...stage, exitCode: EXIT.toolError, childExit: null } : stage));
+  const files = Object.fromEntries(Object.entries(failingSlot(FAIL_RUN)).filter(([path]) => path !== "reports/check-structure.json"));
+  files[`reports/runs/verify/${FAIL_RUN}/verify.json`] = JSON.stringify({
+    ...runtime,
+    tier: "full",
+    scope: "application",
+    stages,
+    failed: stages.length,
+    exitCode: EXIT.toolError,
+    noVerdict: ["browser:ct"],
+  });
+  const root = await plantedTree(files);
+  publishVerify(root, FAIL_RUN);
+  const result = await runCli("verify", ["show", "--stages", "--limit", "20"], { cwd: root });
+  await expect(result).toExitWith(EXIT.toolError);
+  expect(result.stdout).toContain("NO VERDICT from: browser:ct");
+  expect(result.stdout).toContain("bar breaks");
+  expect(result.stdout).toContain("Timed out waiting 180000ms");
+});
+
+test("--stages exposes a missing failed-stage log as broken evidence while retaining the other transcript", async ({ runCli, plantedTree }) => {
+  const files = Object.fromEntries(Object.entries(failingSlot(FAIL_RUN)).filter(([path]) => path !== "reports/check-structure.json"));
+  const root = await plantedTree(files);
+  publishVerify(root, FAIL_RUN);
+  rmSync(join(root, `reports/runs/verify/${FAIL_RUN}/stages/tests-node.log`));
+  const result = await runCli("verify", ["show", "--stages", "--limit", "20"], { cwd: root });
+  await expect(result).toExitWith(EXIT.toolError);
+  expect(result.stdout).toContain("not readable");
+  expect(result.stdout).toContain("Timed out waiting 180000ms");
+});
+
+test("--stages applies the tail limit independently to every failed transcript", async ({ runCli, plantedTree }) => {
+  const files = { ...failingSlot(FAIL_RUN) };
+  files[`reports/runs/verify/${FAIL_RUN}/stages/tests-node.log`] = "node earlier\nnode last\n";
+  files[`reports/runs/verify/${FAIL_RUN}/stages/browser-ct.log`] = "ct earlier\nct last\n";
+  const root = await plantedTree(files);
+  publishVerify(root, FAIL_RUN);
+  const result = await runCli("verify", ["show", "--stages", "--limit", "2"], { cwd: root });
+  await expect(result).toExitWith(EXIT.violations);
+  expect(result.stdout).toContain("node last");
+  expect(result.stdout).toContain("ct last");
+  expect(result.stdout).not.toContain("node earlier");
+  expect(result.stdout).not.toContain("ct earlier");
+  expect(result.stdout).toContain("earlier line(s) omitted (--limit N to widen; whole log:");
 });
