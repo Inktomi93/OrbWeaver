@@ -58,14 +58,13 @@ test("failed tool A followed by application B carries A's tool bytes into qualif
 });
 
 const REPOSITORY = "Inktomi93/OrbWeaver";
-const GENERATION = "Orbweaver qualification product-v2";
+const GENERATION = "Orbweaver qualification product-v3";
 const SHA = "a".repeat(40);
 const REQUIRED_JOB_NAMES = ["static", "ci-ok", "changes"] as const;
-const RUNTIME_JOB_NAMES = ["media", "node (1/3)", "node (2/3)", "node (3/3)", "ct (1/4)", "ct (2/4)", "ct (3/4)", "ct (4/4)", "e2e-smoke"] as const;
+const RUNTIME_JOB_NAMES = ["node (1/3)", "node (2/3)", "node (3/3)", "ct (1/5)", "ct (2/5)", "ct (3/5)", "ct (4/5)", "ct (5/5)", "e2e-smoke"] as const;
 const RUNTIME_JOB_GROUPS = [
-  { name: "media", jobs: ["media"] },
   { name: "node (${{ matrix.shard }}/3)", jobs: ["node (1/3)", "node (2/3)", "node (3/3)"] },
-  { name: "ct (${{ matrix.shard }}/4)", jobs: ["ct (1/4)", "ct (2/4)", "ct (3/4)", "ct (4/4)"] },
+  { name: "ct (${{ matrix.shard }}/5)", jobs: ["ct (1/5)", "ct (2/5)", "ct (3/5)", "ct (4/5)", "ct (5/5)"] },
   { name: "e2e-smoke", jobs: ["e2e-smoke"] },
 ] as const;
 const GROUPED_CONFIG = {
@@ -812,11 +811,7 @@ test("discovery inventory preserves pagination, provenance, stable absence and e
 
 test("native inherited matrices qualify only with their complete canonical runtime partition", async ({ scratch, fakeBin }) => {
   await fakeBin("gh", API_FIXTURE);
-  const jobs = [
-    goodJob(),
-    ...goodProductJobs(SHA, true),
-    { ...goodJob(SHA, 99), name: "weekly-tooling (${{ matrix.component }} ${{ matrix.shard }})", conclusion: "failure", steps: [] },
-  ];
+  const jobs = [goodJob(), ...goodProductJobs(SHA, true), { ...goodJob(SHA, 99), name: "Weekly tooling proof", conclusion: "failure", steps: [] }];
   writeFileSync(
     join(scratch, "ci-api.json"),
     JSON.stringify({ ...metadata(), [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=1`]: { ["total_count"]: jobs.length, jobs } }),
@@ -939,11 +934,11 @@ test.for([
   await fakeBin("gh", API_FIXTURE);
   writeFileSync(join(scratch, "ci-api.json"), JSON.stringify(metadata()));
   const groups = RUNTIME_JOB_GROUPS.map((group) => ({ name: group.name, jobs: [...group.jobs] }));
-  const runtimeJobGroups = groups.map((group, index) => {
+  const runtimeJobGroups = groups.map((group) => {
     if (scenario === "renamed-singleton") {
-      return index === 0 ? { ...group, name: "unconfigured-singleton" } : group;
+      return group.jobs.length === 1 ? { ...group, name: "unconfigured-singleton" } : group;
     }
-    if (index !== 1) {
+    if (!group.name.startsWith("node")) {
       return group;
     }
     const patches = {
@@ -951,7 +946,7 @@ test.for([
       "duplicate-member": { jobs: ["node (1/3)", "node (1/3)", "node (3/3)"] },
       "foreign-member": { jobs: ["node (1/3)", "node (2/3)", "unconfigured"] },
       "empty-group": { jobs: [] },
-      "duplicate-name": { name: "media" },
+      "duplicate-name": { name: "e2e-smoke" },
     };
     return { ...group, ...patches[scenario] };
   });

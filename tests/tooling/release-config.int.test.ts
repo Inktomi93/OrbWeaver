@@ -239,13 +239,16 @@ const workflowConfig = z.object({
       outputs: z.record(z.string(), z.string()).optional(),
       strategy: z
         .object({
-          matrix: z.object({
-            shard: z.array(z.number()).optional(),
-            include: z.array(z.object({ component: z.enum(INSTRUMENT_EXECUTION_COMPONENTS), shard: z.string() })).optional(),
-          }),
+          matrix: z.union([
+            z.string(),
+            z.object({
+              shard: z.array(z.number()).optional(),
+              include: z.array(z.object({ component: z.enum(INSTRUMENT_EXECUTION_COMPONENTS).optional(), shard: z.string().optional() })).optional(),
+            }),
+          ]),
         })
         .optional(),
-      "timeout-minutes": z.union([z.number(), z.literal(SELECT_DIAGNOSTIC_TIMEOUT)]).optional(),
+      "timeout-minutes": z.union([z.number(), z.string()]).optional(),
       steps: z.array(setupStep),
     }),
   ),
@@ -277,14 +280,17 @@ test("published-image scans cannot turn registry failure into a successful skip"
 
 test("CI gives the static floor its full budget", ({ repoRoot }) => {
   const jobs = workflowJobs(repoRoot, "ci");
-  expect(jobs["qualification"]?.["timeout-minutes"]).toBe(330);
-  expect(jobs["static"]?.["timeout-minutes"]).toBe(jobs["qualification"]?.["timeout-minutes"]);
-  expect(jobs["select-cpu-diagnostic"]?.["timeout-minutes"]).toBe(SELECT_DIAGNOSTIC_TIMEOUT);
+  expect(jobs["qualification"]?.["timeout-minutes"]).toBe(15);
+  expect(jobs["static"]?.["timeout-minutes"]).toBe(60);
+  expect(jobs["select-cpu-diagnostic"]).toBeUndefined();
+  expect(workflowJobs(repoRoot, "diagnostics")["select-cpu-diagnostic"]?.["timeout-minutes"]).toBe(SELECT_DIAGNOSTIC_TIMEOUT);
 });
 
 test("weekly corpus passes its complete shard roster as shell data, not template source", async ({ repoRoot, scratch, fakeBin }) => {
   const corpus = workflowJobs(repoRoot, "ci")["weekly-tooling"];
-  const shards = corpus?.strategy?.matrix.include?.filter((row) => row.component === "corpus").map(({ shard }) => shard);
+  const shards = (typeof corpus?.strategy?.matrix === "object" ? corpus.strategy.matrix.include : undefined)
+    ?.filter((row) => row.component === "corpus")
+    .map(({ shard }) => shard);
   const proof = corpus?.steps.find((step) => step.id === "proof");
   const shardEnv = "CORPUS_SHARD";
   expect(shards).toEqual(["1/2", "2/2"]);
@@ -317,19 +323,19 @@ test("application static CI routes parallel duplication through the subject owne
   const staticSteps = workflow.jobs["static"]?.steps ?? [];
   const duplication = staticSteps.flatMap((row) => row.parallel ?? []).find((row) => row.name === "Copy-paste detection");
   expect(duplication?.run).toBe("pnpm exec node tooling/src/verify/cli.ts application-static cpd");
-  for (const name of ["qualification", "weekly-tooling"]) {
+  for (const name of ["qualification", "qualification-partition", "weekly-tooling"]) {
     const steps = workflow.jobs[name]?.steps ?? [];
     const checkout = steps.findIndex((row) => row.uses?.startsWith("actions/checkout@") === true);
     const setup = steps.findIndex((row) => row.uses === "./.github/actions/setup");
     expect(checkout, name).toBeGreaterThanOrEqual(0);
     expect(setup, name).toBeGreaterThan(checkout);
-    expect(steps[checkout]?.with?.["ref"], name).toBe(name === "qualification" ? "${{ github.event_name == 'schedule' && 'main' || github.ref }}" : "main");
+    expect(steps[checkout]?.with?.["ref"], name).toBe("main");
     expect(
       steps.some((row) => row.uses === "$/.github/actions/setup"),
       name,
     ).toBe(false);
   }
-  for (const name of ["static", "node", "ct", "e2e-smoke", "select-cpu-diagnostic"]) {
+  for (const name of ["static", "node", "ct", "e2e-smoke"]) {
     expect(
       workflow.jobs[name]?.steps.some((row) => row.uses === "$/.github/actions/setup"),
       name,
@@ -348,9 +354,7 @@ test("weekly partitions execute one frozen main commit and refuse off-main or re
   const control = steps[source];
   const script = z.string().parse(control?.run);
   expect(tooling?.needs).toBe("weekly-head");
-  expect(resolver?.if).toBe(
-    "${{ !inputs.select_cpu_diagnostic && (github.event.schedule == '37 9 * * 0' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'weekly')) }}",
-  );
+  expect(resolver?.if).toBe("${{ (github.event.schedule == '37 10 * * 0' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'weekly')) }}");
   expect(resolver?.steps[0]?.with).toEqual({ ref: "main", "persist-credentials": false });
   expect(resolver?.outputs).toEqual({ sha: "${{ steps.sha.outputs.sha }}" });
   expect(resolver?.steps.find((step) => step.id === "sha")?.run).toBe('echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"');
@@ -400,7 +404,7 @@ test("weekly partitions execute one frozen main commit and refuse off-main or re
   expect(rewritten.code, rewritten.transcript).not.toBe(0);
   expect(execFixtureGit(tree, ["rev-parse", "HEAD"]).trim()).toBe(advanced);
   execFixtureGit(tree, ["update-ref", "refs/remotes/origin/main", advanced]);
-  for (const partition of tooling?.strategy?.matrix.include ?? []) {
+  for (const partition of (typeof tooling?.strategy?.matrix === "object" ? tooling.strategy.matrix.include : undefined) ?? []) {
     execFixtureGit(tree, ["checkout", "--detach", advanced]);
     const accepted = await run(frozen);
     expect(accepted.code, `${partition.component}/${partition.shard}: ${accepted.transcript}`).toBe(0);
@@ -461,10 +465,10 @@ test("static tooling qualification provisions the pinned Chromium and retains ca
 
 test("CI preserves successful retry artifacts", ({ repoRoot }) => {
   const jobs = workflowJobs(repoRoot, "ci");
-  for (const name of ["e2e-smoke", "qualification"]) {
+  for (const name of ["e2e-smoke", "qualification", "qualification-partition"]) {
     const upload = jobs[name]?.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@") === true);
-    expect(upload?.if, name).toBe("always()");
-    expect(upload?.with?.["path"], name).toBe("reports/\ntest-results/\n");
+    expect(upload?.if, name).toBe(name === "qualification" ? "always() && needs.qualification-head.outputs.seen != 'true'" : "always()");
+    expect(upload?.with?.["path"], name).toBe(name === "e2e-smoke" ? "reports/\ntest-results/\n" : "reports/");
   }
 });
 
@@ -527,7 +531,8 @@ test("CI's actual diff classifier treats agent hooks and configs as code, not do
     "ci-ok",
     ...needs.flatMap((id) => {
       const job = jobs[id];
-      const shards = job?.strategy?.matrix.shard;
+      const matrix = job?.strategy?.matrix;
+      const shards = typeof matrix === "object" ? matrix.shard : undefined;
       return shards === undefined
         ? [id]
         : z
@@ -675,11 +680,14 @@ test("setup has one cache owner and only saves successful misses from trusted tr
   expect(installIndex).toBeGreaterThan(steps.findIndex((step) => step.id === "pnpm-cache"));
   for (const [index, restore] of restores.entries()) {
     const save = saves[index];
-    expect(save?.with?.["path"]).toBe(restore.with?.["path"]);
-    expect(save?.with?.["key"]).toBe(`\${{ steps.${restore.id}.outputs.cache-primary-key }}`);
+    if (save === undefined) {
+      throw new Error("native cache restore has no coupled save");
+    }
+    expect(save.with?.["path"]).toBe(restore.with?.["path"]);
+    expect(save.with?.["key"]).toBe(`\${{ steps.${restore.id}.outputs.cache-primary-key }}`);
     const browserOnly = restore.id === "browser-cache" ? "inputs.browsers == 'true' && " : "";
-    expect(save?.if).toBe(`${browserOnly}steps.pnpm.outputs.save == 'true' && steps.${restore.id}.outputs.cache-hit != 'true'`);
-    expect(steps.findIndex((step) => step === save)).toBeGreaterThan(installIndex);
+    expect(save.if).toBe(`${browserOnly}steps.pnpm.outputs.save == 'true' && steps.${restore.id}.outputs.cache-hit != 'true'`);
+    expect(steps.indexOf(save)).toBeGreaterThan(installIndex);
   }
   expect(restores[0]?.with?.["path"]).toBe("${{ steps.pnpm.outputs.paths }}");
   expect(restores[0]?.with?.["key"]).toBe("pnpm-${{ runner.os }}-${{ runner.arch }}-${{ steps.pnpm.outputs.version }}-${{ hashFiles('pnpm-lock.yaml') }}");

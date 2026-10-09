@@ -1,9 +1,9 @@
-// `verify`'s ARGV parse (UNIFIED-VERIFICATION-DESIGN.md §3) — a strict node:util `parseArgs` schema where
-// an unknown flag, a value option with no value, >1 scope selector, or >1 tier are all MISUSE (exit 3),
-// never a silent-ignore. Split out of ops/run.ts at the @orb/tooling P6 move (size cap §4.3); the grammar
-// is unchanged.
+// Strict native verify grammar: application execution partitions never narrow the authored file scope.
+// Incompatible tier, scope and partition requests refuse before execution.
 import { parseArgs } from "node:util";
 import { resolveOperand, unresolvedOperands, unresolvedRefusal } from "@orb/tooling/_shared/scoped-run-paths";
+import type { ApplicationPartition } from "../contract/application-partitions.ts";
+import { APPLICATION_PARTITIONS, APPLICATION_SHARD_COUNTS } from "../contract/application-partitions.ts";
 import type { Selection, SelectionRequest } from "../contract/selection.ts";
 import type { Tier } from "../contract/stage.ts";
 import { RUNNABLE_VERIFY_TIERS } from "../contract/stage.ts";
@@ -12,6 +12,9 @@ import { resolveSelection } from "./selection.ts";
 
 export interface Parsed {
   readonly tier: Tier;
+  readonly partition?: ApplicationPartition;
+  readonly shard?: string;
+  readonly aggregate?: string;
   readonly applicationOnly: boolean;
   readonly selection: Selection | undefined; // undefined = whole scope
   readonly strictScope: boolean;
@@ -27,6 +30,9 @@ export interface Parsed {
 // scope selector is legal at a time, so a trailing `a b` unambiguously belongs to whichever is present).
 const OPTIONS = {
   // scope selectors that take a value:
+  partition: { type: "string" },
+  shard: { type: "string" },
+  aggregate: { type: "string" },
   package: { type: "string" },
   scope: { type: "string" },
   tier: { type: "string", multiple: true },
@@ -49,12 +55,15 @@ const OPTIONS = {
 
 // The value-taking string options — a flag that must NOT swallow the NEXT flag as its value. parseArgs
 // happily reads `--package --json` as package="--json"; we reject a value that is itself a flag (exit 3).
-const VALUE_OPTIONS = new Set(["package", "scope", "tier"]);
+const VALUE_OPTIONS = new Set(["package", "scope", "tier", "partition", "shard", "aggregate"]);
 
 /** A --tier <name> value must name a real, non-manual tier. */
 const RUNNABLE_TIERS: ReadonlySet<Tier> = new Set<Tier>(RUNNABLE_VERIFY_TIERS);
 
 interface ParsedValues {
+  readonly partition?: string;
+  readonly shard?: string;
+  readonly aggregate?: string;
   readonly package?: string;
   readonly scope?: string;
   readonly tier?: readonly string[];
@@ -209,6 +218,57 @@ export interface ParsedRequest extends Omit<Parsed, "selection"> {
   readonly request: SelectionRequest | undefined; // undefined = whole scope
 }
 
+function partitionShardError(partition: string | undefined, shard: string | undefined): string | undefined {
+  let error: string | undefined;
+  if (partition !== undefined && partition in APPLICATION_SHARD_COUNTS && APPLICATION_SHARD_COUNTS[partition as ApplicationPartition] > 1) {
+    const count = APPLICATION_SHARD_COUNTS[partition as keyof typeof APPLICATION_SHARD_COUNTS];
+    const match = /^(\d+)\/(\d+)$/u.exec(shard ?? "");
+    if (match === null || Number(match[1]) < 1 || Number(match[1]) > count || Number(match[2]) !== count) {
+      error = `partition ${partition} requires --shard=<1..${count}>/${count}`;
+    }
+  }
+  return error;
+}
+
+function partitionConflict(values: ParsedValues): string | undefined {
+  let error: string | undefined;
+  if (values.aggregate !== undefined && (values.partition !== undefined || values.shard !== undefined)) {
+    error = "--aggregate cannot execute a partition or shard";
+  }
+  if (values.shard !== undefined && !["node", "ct", "e2e"].includes(values.partition ?? "")) {
+    error = "--shard requires node, ct or e2e partition";
+  }
+  return error;
+}
+
+function partitionRequest(
+  values: ParsedValues,
+  scoped: boolean,
+  applicationOnly: boolean,
+  tier: Tier,
+): Pick<Parsed, "partition" | "shard" | "aggregate"> | { readonly error: string } {
+  if ((values.partition ?? values.aggregate) !== undefined && (scoped || !applicationOnly || !["push", "full", "product"].includes(tier))) {
+    return { error: "application partitions require whole --push, --full or --product" };
+  }
+  if (values.partition !== undefined && !(APPLICATION_PARTITIONS as readonly string[]).includes(values.partition)) {
+    return { error: `partition must be one of ${APPLICATION_PARTITIONS.join(" / ")}` };
+  }
+  const conflict = partitionConflict(values);
+  if (conflict !== undefined) {
+    return { error: conflict };
+  }
+  const shardError = partitionShardError(values.partition, values.shard);
+  if (shardError !== undefined) {
+    return { error: shardError };
+  }
+  const partition = values.partition as ApplicationPartition | undefined;
+  return {
+    ...(partition === undefined ? {} : { partition }),
+    ...(values.shard === undefined ? {} : { shard: values.shard }),
+    ...(values.aggregate === undefined ? {} : { aggregate: values.aggregate }),
+  };
+}
+
 /** The grammar alone. Resolving a selection reads the repository inventory and the compiler programs, which
  *  takes seconds, so a question about what an argv MEANS asks this and resolves nothing. */
 export function parseRequest(argv: readonly string[]): ParsedRequest | { readonly error: string } {
@@ -230,6 +290,10 @@ export function parseRequest(argv: readonly string[]): ParsedRequest | { readonl
     return { error: "--application requires a whole nonweekly request" };
   }
   const applicationOnly = values.application === true || (!scoped && (tier === "push" || tier === "full" || tier === "product"));
+  const partitionFlags = partitionRequest(values, scoped, applicationOnly, tier);
+  if ("error" in partitionFlags) {
+    return partitionFlags;
+  }
   const strictScope = values["strict-scope"] === true;
   const list = values.list === true;
   const json = values.json === true;
@@ -238,7 +302,16 @@ export function parseRequest(argv: readonly string[]): ParsedRequest | { readonl
   // every `git push` (a hook's stdout IS a TTY), streaming ~full vitest/playwright/vite output through
   // lefthook (2026-07-17). A human who wants the live stream passes --verbose.
   const verbose = values.verbose === true;
-  return { tier, applicationOnly, request: "none" in req ? undefined : req, strictScope, list, json, verbose };
+  return {
+    tier,
+    applicationOnly,
+    ...partitionFlags,
+    request: "none" in req ? undefined : req,
+    strictScope,
+    list,
+    json,
+    verbose,
+  };
 }
 
 /** Parse argv into a run plan or a misuse error. Exported for the exit-code matrix unit test — a returned

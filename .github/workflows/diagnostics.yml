@@ -1,0 +1,158 @@
+name: Diagnostics
+run-name: >-
+  ${{ inputs.select_cpu_diagnostic && format('Select CPU diagnostic only on {0}', github.ref_name)
+  || format('E2E startup diagnostic only (not qualification) on {0}', github.ref_name) }}
+on:
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: Capture model-free E2E startup evidence; never qualification.
+        type: choice
+        options: [e2e-diagnostic]
+        default: e2e-diagnostic
+      select_cpu_diagnostic:
+        description: Capture Select CPU diagnostics only; this run does not qualify the commit.
+        type: boolean
+        default: false
+      select_cpu_diagnostic_context:
+        description: Choose isolated Select captures or the complete original CT shard 4 context; diagnostics never qualify the commit.
+        type: choice
+        options: [isolated, ct-shard-4, ct-shard-4-native]
+        default: isolated
+      select_cpu_profiling:
+        description: Keep CPU profiling on, or capture trace-only evidence to measure profiler amplification; neither mode qualifies the commit.
+        type: choice
+        options: ["on", "off"]
+        default: "on"
+
+permissions:
+  contents: read
+concurrency:
+  group: diagnostics-${{ github.ref }}-${{ inputs.select_cpu_diagnostic }}
+  cancel-in-progress: true
+env:
+  CI: "true"
+jobs:
+  select-cpu-diagnostic:
+    if: github.event_name == 'workflow_dispatch' && inputs.select_cpu_diagnostic
+    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ (inputs.select_cpu_diagnostic_context == 'ct-shard-4' || inputs.select_cpu_diagnostic_context == 'ct-shard-4-native') && 120 || 15 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - id: setup
+        uses: $/.github/actions/setup
+        with:
+          browsers: "true"
+      - id: showcase
+        run: pnpm --filter @orb/showcase-plugins build
+      - id: native-control
+        name: Native Select acceptance without CPU profiling
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' && inputs.select_cpu_diagnostic_context != 'ct-shard-4' && inputs.select_cpu_diagnostic_context != 'ct-shard-4-native' }}
+        run: pnpm test:ct tests/client/lib/motion-stats.ct.tsx --grep='a real sealed Select classifies its confirmed first and repeat entrance lifetimes only$' --retries=0
+      - if: always() && inputs.select_cpu_diagnostic_context != 'ct-shard-4' && inputs.select_cpu_diagnostic_context != 'ct-shard-4-native'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: select-native-control
+          path: reports/
+          retention-days: 7
+      - id: cpu-diagnostic
+        name: Diagnostic-only Select CPU captures (not qualification)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' && inputs.select_cpu_diagnostic_context != 'ct-shard-4' && inputs.select_cpu_diagnostic_context != 'ct-shard-4-native' }}
+        env:
+          ORB_SELECT_CPU_DIAGNOSTIC: "1"
+          ORB_SELECT_CPU_PROFILING: ${{ inputs.select_cpu_profiling == 'off' && '0' || '1' }}
+        run: pnpm test:ct tests/client/lib/motion-stats.ct.tsx --grep='Select CPU diagnostic only' --retries=0
+      - id: full-cpu-diagnostic
+        name: Original CT shard 4 context with diagnostic-only captures (not qualification)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' && inputs.select_cpu_diagnostic_context == 'ct-shard-4' }}
+        env:
+          ORB_SELECT_CPU_DIAGNOSTIC: "1"
+          ORB_SELECT_CPU_PROFILING: ${{ inputs.select_cpu_profiling == 'off' && '0' || '1' }}
+        run: |
+          set -euo pipefail
+          context_root="$RUNNER_TEMP/select-cpu-diagnostic-context"
+          mkdir -p "$context_root" reports/select-cpu-diagnostic-context
+          ORB_SELECT_CPU_DIAGNOSTIC=0 pnpm test:ct --list --shard=4/4 --retries=0
+          cp reports/ct-report.json "$context_root/ordinary.json"
+          pnpm test:ct --list --shard=4/4 --retries=0
+          cp reports/ct-report.json "$context_root/opt-in.json"
+          pnpm exec node scripts/select-cpu-diagnostic-context.ts create "$context_root/ordinary.json" "$context_root/opt-in.json" "$context_root/cases.list"
+          pnpm test:ct --list --test-list="$context_root/cases.list" --retries=0
+          cp reports/ct-report.json "$context_root/selected.json"
+          pnpm exec node scripts/select-cpu-diagnostic-context.ts verify "$context_root/ordinary.json" "$context_root/opt-in.json" "$context_root/selected.json"
+          cp "$context_root/ordinary.json" "$context_root/opt-in.json" "$context_root/selected.json" "$context_root/cases.list" reports/select-cpu-diagnostic-context/
+          pnpm test:ct --test-list="$context_root/cases.list" --retries=0
+      - id: native-context-diagnostic
+        name: Original CT shard 4 with native first/repeat trace only (not qualification)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' && inputs.select_cpu_diagnostic_context == 'ct-shard-4-native' }}
+        env:
+          ORB_SELECT_CPU_DIAGNOSTIC: "0"
+          ORB_SELECT_CPU_PROFILING: "0"
+          ORB_SELECT_NATIVE_TRACE: "1"
+        run: |
+          set -euo pipefail
+          context_root="$RUNNER_TEMP/select-native-trace-context"
+          mkdir -p "$context_root" reports/select-native-trace-context
+          ORB_SELECT_NATIVE_TRACE=0 pnpm test:ct --list --shard=4/4 --retries=0
+          cp reports/ct-report.json "$context_root/ordinary.json"
+          pnpm exec node scripts/select-cpu-diagnostic-context.ts create-native "$context_root/ordinary.json" "$context_root/cases.list"
+          pnpm test:ct --list --test-list="$context_root/cases.list" --retries=0
+          cp reports/ct-report.json "$context_root/selected.json"
+          pnpm exec node scripts/select-cpu-diagnostic-context.ts verify-native "$context_root/ordinary.json" "$context_root/selected.json"
+          cp "$context_root/ordinary.json" "$context_root/selected.json" "$context_root/cases.list" reports/select-native-trace-context/
+          pnpm test:ct --test-list="$context_root/cases.list" --retries=0
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: select-cpu-diagnostic-only
+          path: reports/
+          retention-days: 7
+
+  e2e-startup-diagnostic:
+    if: github.event_name == 'workflow_dispatch' && !inputs.select_cpu_diagnostic && inputs.tier == 'e2e-diagnostic'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: single-user
+            spec: app-readiness.spec.ts
+          - project: local
+            spec: auth-smoke.local.spec.ts
+          - project: forward-header
+            spec: auth-smoke.forward.spec.ts
+    env:
+      E2E_LIVE: "0"
+      E2E_ALLOW_DEV_TARGET: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+        with:
+          browsers: "true"
+      - id: media
+        name: Set up FFmpeg and FFprobe
+        timeout-minutes: 15
+        run: bash scripts/ci/install-media.sh
+      - id: showcase
+        run: pnpm --filter @orb/showcase-plugins build
+      - id: startup
+        name: E2E startup diagnostics (not qualification)
+        env:
+          E2E_PROJECT: ${{ matrix.project }}
+          E2E_SPEC: ${{ matrix.spec }}
+        run: pnpm e2e "$E2E_SPEC" --project="$E2E_PROJECT" --retries=0
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reports-e2e-startup-diagnostic-${{ matrix.project }}
+          path: |
+            reports/
+            test-results/
+          retention-days: 7
