@@ -190,6 +190,8 @@ export function vitestConfig(runtimeOnly = false, applicationOnly = false): Vite
           extends: true,
           test: {
             name: SEMANTIC_CORPUS_RESOURCE,
+            // Synchronous corpus passes cannot flush Vitest's microtask-buffered console between batches.
+            disableConsoleIntercept: true,
             sequence: { groupOrder: SEMANTIC_CORPUS_GROUP_ORDER },
             include: runtimeGlobs(resourceGlobs(SEMANTIC_CORPUS_RESOURCE)),
             fileParallelism: true,

@@ -265,7 +265,11 @@ export function registerLivenessPartition(partitionIndex: number): void {
   let measuredBaseline: readonly string[] | undefined;
   function baseline(repoRoot: string): readonly string[] {
     const opened = liveness(repoRoot);
-    measuredBaseline ??= opened.assertBaseline();
+    if (measuredBaseline === undefined) {
+      console.log(`liveness partition ${String(partitionIndex)}: baseline started (${String(opened.baselineArms().length)} policies)`);
+      measuredBaseline = opened.assertBaseline();
+      console.log(`liveness partition ${String(partitionIndex)}: baseline completed`);
+    }
     expect(measuredBaseline.toSorted()).toEqual(
       opened
         .baselineArms()
@@ -276,16 +280,21 @@ export function registerLivenessPartition(partitionIndex: number): void {
   }
   function proof(repoRoot: string): ReadonlyMap<string, RealCorpusArmVerdict> {
     baseline(repoRoot);
-    const verdicts = liveness(repoRoot).proveAll((progress) => {
-      const { index, of, arms, ms, passes } = progress;
-      console.log(
-        `liveness batch ${String(index + 1)}/${String(of)}: ${String(arms.length)} arm(s), ${String(passes)} corpus pass(es), ${String(ms)}ms (${arms[0] ?? ""}${arms.length > 1 ? ", ..." : ""})`,
-      );
-      console.log(`liveness timing ${JSON.stringify(progress)}`);
-      const expectedFacts = [...new Set(selectedArms.filter((arm) => arms.includes(arm.policy.id)).flatMap((arm) => arm.policy.facts.map(({ id }) => id)))];
-      expect(progress.measurements.flatMap((measurement) => measurement.policies.map(({ id }) => id)).toSorted()).toEqual(arms.toSorted());
-      expect(progress.measurements.flatMap((measurement) => measurement.facts.map(({ id }) => id)).toSorted()).toEqual(expectedFacts.toSorted());
-    });
+    const verdicts = liveness(repoRoot).proveAll(
+      (progress) => {
+        const { index, of, arms, ms, passes } = progress;
+        console.log(
+          `liveness batch ${String(index + 1)}/${String(of)}: ${String(arms.length)} arm(s), ${String(passes)} corpus pass(es), ${String(ms)}ms (${arms[0] ?? ""}${arms.length > 1 ? ", ..." : ""})`,
+        );
+        console.log(`liveness timing ${JSON.stringify(progress)}`);
+        const expectedFacts = [...new Set(selectedArms.filter((arm) => arms.includes(arm.policy.id)).flatMap((arm) => arm.policy.facts.map(({ id }) => id)))];
+        expect(progress.measurements.flatMap((measurement) => measurement.policies.map(({ id }) => id)).toSorted()).toEqual(arms.toSorted());
+        expect(progress.measurements.flatMap((measurement) => measurement.facts.map(({ id }) => id)).toSorted()).toEqual(expectedFacts.toSorted());
+      },
+      (index, ids) => {
+        console.log(`liveness partition ${String(partitionIndex)}: batch ${String(index + 1)} started (${ids.join(", ")})`);
+      },
+    );
     return verdicts;
   }
 

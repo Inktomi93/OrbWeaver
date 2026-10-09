@@ -1,116 +1,7 @@
 #!/usr/bin/env node
-// vitest-supervised — the `pnpm test` node-lane runner: SEQUENTIAL PER-PROJECT SHARDS, each wrapped in a
-// hang watchdog, with ONE automatic re-run of a shard the watchdog had to kill.
-//
-// WHY THIS EXISTS (issue #345, re-rooted #1012): vitest 4.1.11's run path has exactly ONE unbounded await.
-// `Pool.run()` does `await testFinish.promise` (node_modules/vitest/dist/chunks/cli-api.*.js — `Pool.run`),
-// and that resolver is settled ONLY by a worker's `testfileFinished` message or by a runner error/exit
-// event. There is a `WORKER_START_TIMEOUT` for starting a worker but NO timeout once a file is running
-// (deliberate — this repo's `tests/tooling/ast/cli.repo.int.test.ts` rows carry explicit 120s/300s budgets). The CLI is
-// `const ctx = await startVitest(...); if (!ctx.shouldKeepServer()) await ctx.exit()`, so vitest's OWN
-// safety net — the unref'd `teardownTimeout` force-exit armed inside `ctx.exit()` — is only reached AFTER
-// the run promise resolves. A worker that dies (or whose IPC breaks) without settling its task resolver
-// therefore hangs the parent FOREVER, before any backstop is armed: every per-file result line prints, the
-// summary never does. That is the exact signature the owner hits.
-//
-// WHY NOT UPSTREAM (re-derived 2026-09-01, not remembered):
-//   - There is no release above 4.1.11 to upgrade to. `npm view vitest dist-tags` → latest 4.1.11; the
-//     version list goes 4.1.11 → 5.0.0-beta.1, so the only thing "newer" is a v5 prerelease.
-//   - vitest#10057 ("Remove worker error listener early during forks pool shutdown") was CLOSED BY ITS OWN
-//     AUTHOR as premature ("until we know what's actually happening, this is likely premature… The flow in
-//     point 1 above isn't fixed by this, anyway"), a maintainer refuted its real-world evidence, and its
-//     symptom is a SPURIOUS FAILURE ("tests passing but the run marked as failed") — not a hang. Patching it
-//     in would be hope, not a fix.
-//   - vitest#10162 ("hangs after all tests pass — Pipe(fd=3) ref=true") was WITHDRAWN for lack of a minimal
-//     repro, and its own report says the hang reproduced on `threads`, `forks` AND `singleFork` — so it is
-//     not even a forks-pool-specific fact.
-// So there is no in-runner remedy to import; the remedy has to be EXTERNAL, and it has to CONTAIN the
-// wedge rather than merely detect it.
-//
-// MECHANISM:
-//   1. SHARDING. Repeated literal `--project a --project b …` selections are deduplicated, then split into
-//      one `vitest run --project <x>` process per project, run SEQUENTIALLY, each writing its own
-//      `test-shards/<project>.json`. Wildcard/negative selector sets stay in ONE process because Vitest
-//      evaluates repeated selectors as a union; splitting them can duplicate or widen execution. The shard
-//      reports are merged into the ONE `--outputFile.json` path the rest of the repo reads. A wedge is a
-//      per-process race, so a wedge now costs ONE literal project shard instead of the whole run's verdict.
-//   2. WATCHDOG — PROGRESS, NOT SILENCE. Each shard is spawned through `nicedCommand` (TOOLING_PRIORITY,
-//      10 on every OS) as a process-group leader and its output tee'd live, but SILENCE ALONE IS NOT THE
-//      WEDGE SIGNAL. **Truth repair, measured
-//      2026-09-01:** the previous version of this file claimed 300s was "~2.5× the longest legitimate quiet
-//      gap, the 120s `ast-observability` serial rows". That sentence was wrong TWICE, and it made this
-//      watchdog the primary defect it was written to fix. (i) It cited a file that has not existed since
-//      07a2b1f776; the suite is `tests/tooling/ast/cli.repo.int.test.ts`, and 120s is its PER-ROW spawn budget
-//      (300s for the two typed whole-workspace rows), not the file's cost. (ii) vitest's default reporter
-//      prints NOTHING while a single file runs, so the quiet gap is the WHOLE FILE. A live capture of an
-//      unsupervised battery caught the parent silent in `ep_poll` for 7+ minutes with one idle worker fork
-//      whose CHILD (`tooling/src/ast/cli.ts regkeys MOTION_BUDGETS` — that suite's row) was burning ~4.5
-//      cores; the run finished naturally 36 minutes later, having spent 1,057,996 ms (17.6 min) inside that
-//      one file. The old 300s rule would have SIGKILLed it, producing exactly the reported symptom (every
-//      per-file line printed, then silence, then a kill, and no summary — the json report is never written).
-//      So the watchdog now samples the CPU jiffies of the parent AND every descendant (recursively, via
-//      /proc) on each tick: CPU burned anywhere in the tree counts as activity exactly like output does. A
-//      shard is killed only when it has been silent for ORB_TEST_HANG_TIMEOUT_MS (default 300000 = 5 min)
-//      AND the whole tree burned no CPU across that window — which is precisely the true wedge, where every
-//      process sits idle in `ep_poll` at zero CPU. `ORB_TEST_HANG_MAX_MS` (default 90 min) is the absolute
-//      ceiling: past it the group dies even if something is still spinning.
-//   3. WEDGE DUMP. Before the kill, `<slot>/test-wedge-<project>-<attempt>-<timestamp>.txt` records the
-//      parent pid, its `/proc` state/wchan/threads, the whole surviving descendant tree with the same per
-//      pid detail, the open-fd listing, the count + tail of files that COMPLETED, and — the only root-cause
-//      lead an intermittent wedge leaves — the SUSPECT list: files the PREVIOUS run of this shard reported
-//      that this run never announced as finished. The previous run's report is read through the published
-//      `reports/test-shards/<project>.json` pointer; since #1029 this run writes into its OWN slot, so the
-//      old rotate-to-`.prev.json` dance is unnecessary (and would have corrupted a concurrent run's
-//      evidence). Attempt-suffixed, so a re-run never overwrites the first wedge's evidence.
-//   4. ONE RE-RUN. A shard the watchdog killed is re-run EXACTLY ONCE — and only when its own fresh report
-//      is NOT a complete pass. (A wedge whose report is already a complete pass has self-healed; re-running
-//      it would just buy another wedge lottery ticket.) A wedge is a TOOL ERROR, not a verdict, so this is
-//      not "retry until green": a shard that FAILS tests is never re-run, and the second attempt's verdict
-//      is final.
-//
-//   ARTIFACT LAYOUT (#1029, owner ruling "all reports need to be able to be ran concurrently"): every file
-//   this run writes lands in `reports/runs/test/<checkout>-<pid>-<timestamp>/`; `reports/test-report.json`
-//   and `reports/test-shards/` are symlinks published at the END, so a reader at either path always
-//   resolves to a run that FINISHED. A `--outputFile.json` pointing outside `reports/` is honored where
-//   NAMED and takes no part in the pointer layout.
-//
-// VERDICT — never a false green (#345 non-negotiable, unchanged): each shard's report is deleted before its
-// run, so its presence means THAT attempt wrote it. exit 0 is returned ONLY for a clean, COMPLETE pass: a
-// crashed worker leaves `success:true` with the crashed test VANISHED (counted in numTotalTests but in no
-// passed/failed/pending/todo bucket — empirically confirmed, #345), so the predicate also requires every
-// test to be accounted for. A missing report, a vanished test, or any failure is exit 1. The overall exit
-// code is 0 only if EVERY shard's verdict is 0, and the merged report carries the same shape (plus an
-// `orbShards` provenance array) so it satisfies the same predicate.
-//
-// A CONTAINED WEDGE IS A TOOL ERROR — exit 2, never 0 (#1490, 2026-09-04). The self-heal arm above ("a
-// wedge whose report is already a complete pass has self-healed") governs the RE-RUN policy and still
-// does: such a shard is not re-run. But it used to govern the EXIT CODE too, and there it was a lie — the
-// watchdog SIGKILLed a vitest that never finalized, and `process.exit(shard.code)` handed back the 0 read
-// off the report the corpse left. `pnpm verify --push` keys on the exit code, so a killed run read as
-// green. The number now follows the repo's exit contract (0 clean · 1 violations · 2 TOOL ERROR · 3
-// misuse): if the LAST attempt of any shard was killed, the run exits 2 and `merged.success` is false. A
-// shard that wedged and then RE-RAN to a natural exit keeps 0/1 — that attempt finalized, which is the
-// whole point of the re-run. Containment, the dump, and the report-derived shard verdict are unchanged.
-//
-// HONESTY: a shard that had to be re-run is announced loudly on stderr AND recorded in the merged report's
-// `orbShards[].wedges` — a green that hides a wedge would read as "fixed" when it is only "contained".
-// The same posture covers the OTHER kind of not-quite-clean green, the #1040 rate reading — now a LABEL
-// rather than a withhold (#1616, owner ruling 2026-09-05: a loaded box MEASURES and marks the number
-// `load-suspect` instead of declining to vote). Such an arm now PASSES, which makes it even more invisible
-// in a batch summary than the old skip was: nothing about a green line says its number was taken on a
-// loaded box. So the arm stamps its reason into `meta.orbLoadSuspect` (`tests/tooling/_load-budget.ts`),
-// this script counts those stamps per shard into `orbShards[].loadSuspect`, and a run carrying any of them
-// says so on stderr. A green with load-suspect arms is NOT a clean measurement pass, and it must never
-// read as one.
-//
-// RUNTIME-ONLY: the wrapper consumes `--runtime-only` and selects the thin repository runtime config, which
-// omits typecheck projects before Vitest applies caller `--project` filters. Config choice is argv-local,
-// so a test's own subprocesses inherit no mode that could hide type projects from nested native commands.
-// Adding `--project=!types-*` is invalid: Vitest unions it with positive filters and widens selection. A
-// custom `--config` is refused because it cannot promise this config-mode contract.
-//
-// OVERRIDES: `ORB_TEST_HANG_TIMEOUT_MS` raises/lowers the no-output-and-no-CPU limit · `ORB_TEST_HANG_MAX_MS`
-// the absolute silence ceiling · `ORB_VITEST_BIN` the vitest entry (the guard test points it at a fake).
+// Sequential native project runs retain complete reports and contain stalled process groups.
+// Output and process-tree CPU activity have separate deadlines; an active but silent tree still has a ceiling.
+// A killed or crashed final attempt is a tool error, never an assertion verdict or proof of a shutdown hang.
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -136,6 +27,8 @@ const CONFIG_RE = /^--config=(.+)$/u;
 /** A default-reporter per-file result line: `  ✓ |integration| tests/x/y.int.test.ts (3 tests) 12ms`. */
 const RESULT_LINE_RE = /^\s*[✓×❯↓]\s+\|[^|]*\|\s+(\S+)/u;
 const COMPLETED_TAIL = 8;
+const OUTPUT_TAIL = 12;
+const OUTPUT_LINE_LIMIT = 2048;
 const MAX_ATTEMPTS = 2;
 /** THE SECOND NON-VERDICT SHAPE (#2472). A WEDGE is not the only way vitest fails to produce a verdict: a
  *  worker fork can DIE — SIGKILL, a heap abort, an OOM reap — and vitest then FINALIZES NORMALLY and exits
@@ -240,6 +133,7 @@ interface WedgeDumpContext {
   sinceOutput: number;
   sinceProgress: number;
   startedAt: number;
+  recentOutput: readonly string[];
 }
 
 interface AttemptRequest {
@@ -491,6 +385,7 @@ function writeWedgeDump(ctx: WedgeDumpContext): void {
     `report     : ${reportFile} (${existsSync(reportFile) ? "written" : "ABSENT — the run never finalized"})`,
     `completed  : ${completed.size} files`,
     `last files : ${[...completed].slice(-COMPLETED_TAIL).join("\n             ") || "<none>"}`,
+    `last output: ${ctx.recentOutput.join("\n             ") || "<none>"}`,
     previousFiles.length === 0
       ? "suspects   : <no previous shard report on disk — rerun once to populate the diff>"
       : `suspects   : ${suspects.length} of ${previousFiles.length} files from the previous run never finished:\n             ${suspects.join("\n             ") || "<none — the wedge is in shutdown, after every file finished>"}`,
@@ -536,6 +431,16 @@ function unreportedSpecs(args: readonly string[], completed: ReadonlySet<string>
 
 let activeChild: ChildProcess | null = null;
 
+function retainOutput(lines: string[], line: string): void {
+  if (line.trim().length === 0) {
+    return;
+  }
+  lines.push(line.length > OUTPUT_LINE_LIMIT ? `${line.slice(0, OUTPUT_LINE_LIMIT)} [truncated]` : line);
+  if (lines.length > OUTPUT_TAIL) {
+    lines.shift();
+  }
+}
+
 /** SIGKILL a child's whole process group (negative pid). Best-effort — the group may already be gone. */
 function killGroup(child: ChildProcess | null): void {
   try {
@@ -567,6 +472,7 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }: AttemptReq
   });
   activeChild = child;
   const completed = new Set<string>();
+  const recentOutput: string[] = [];
   // TWO clocks, and they must stay separate: `lastOutput` only moves on real output, `lastProgress` also
   // moves on CPU burn. The no-output-and-no-CPU rule reads `lastProgress`; the ABSOLUTE ceiling reads
   // `lastOutput` — sharing one clock made the ceiling unreachable, because a busy tree reset it every tick.
@@ -584,6 +490,7 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }: AttemptReq
     const lines = text.split(/\r?\n/u);
     carry = lines.pop() ?? "";
     for (const line of lines) {
+      retainOutput(recentOutput, line);
       const m = line.match(RESULT_LINE_RE);
       if (m?.[1] !== undefined) {
         completed.add(m[1]);
@@ -637,10 +544,10 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }: AttemptReq
       log(
         ceilinged
           ? "(the ceiling backstop: something is still running but has reported nothing for far too long). Dumping + killing."
-          : "(#345/#1012: a task resolver never settled, so ctx.exit()'s teardown backstop was never armed). Dumping + killing.",
+          : "(no observed output or process-tree CPU progress; the stalled phase is not established). Dumping + killing.",
       );
       if (child.pid !== undefined) {
-        writeWedgeDump({ label, attempt, pid: child.pid, completed, previousFiles, reportFile, sinceOutput, sinceProgress, startedAt });
+        writeWedgeDump({ label, attempt, pid: child.pid, completed, previousFiles, reportFile, sinceOutput, sinceProgress, startedAt, recentOutput });
       }
       killGroup(child);
       finish({ wedged: true, code: verdictFromReport(reportFile), nonVerdict });
@@ -787,6 +694,10 @@ function publish(alias: string | null, sharded: boolean): void {
   if (alias === null) {
     return;
   }
+  if (!existsSync(runFile(slot, REPORT_NAME))) {
+    log(`no finalized report; available evidence is in ${slot.relDir}`);
+    return;
+  }
   const aliases: RunAlias[] = [{ alias, target: REPORT_NAME }];
   if (sharded) {
     aliases.push({ alias: SHARDS_DIR, target: SHARDS_DIR });
@@ -804,7 +715,7 @@ function announceWedges(shards: readonly ShardResult[]): void {
     return;
   }
   log(`WEDGE CONTAINED — ${hit.map((s) => `${s.label} (killed ${s.wedges}×)`).join(", ")}. Evidence: ${slot.relDir}/test-wedge-*.txt.`);
-  log("This verdict is CONTAINED, not clean: the shard(s) above hit the vitest #345/#1012 shutdown wedge.");
+  log("This run is CONTAINED, not clean: the watchdog stopped the shard(s); the dumps do not establish a shutdown hang.");
   const unfinished = shards.filter((s) => s.wedged);
   if (unfinished.length > 0) {
     log(

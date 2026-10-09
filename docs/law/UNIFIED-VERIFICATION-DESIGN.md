@@ -356,32 +356,23 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   `--passWithNoTests` flag. The default config and whole-suite commands retain `passWithNoTests: false`.
   Direct `test:scoped --related` requires source files before runner flags; directories are refused with
   guidance to use `verify --scope` for authored-folder expansion. **The vitest run is wrapped by
-  `scripts/vitest-supervised.ts`:** vitest's run path has exactly ONE unbounded await — `Pool.run`'s
-  `await testFinish.promise`, settled only by a worker's `testfileFinished` message or a runner error/exit
-  event — and the CLI reaches `ctx.exit()` (which sets vitest's own unref'd `teardownTimeout` force-exit)
-  only AFTER that run promise resolves. So a worker that dies without settling its task resolver hangs the
-  parent FOREVER, before any backstop is armed: every per-file line prints and the summary never does.
-  There is no upstream remedy to import, so the remedy is external and must CONTAIN the wedge, not merely
-  detect it. The supervisor therefore runs **one vitest process per
-  `--project`, sequentially** (`reports/test-shards/<project>.json`, merged into the one
-  `reports/test-report.json` contract) and tees each shard's output. **The kill signal is absence of
-  PROGRESS, not silence** — vitest's default reporter prints nothing while a single file runs, so the
-  watchdog samples the CPU jiffies of the shard's parent AND every descendant via `/proc` on each tick; CPU
-  burned anywhere in the tree counts as activity exactly like output. A shard's process group is SIGKILLed
-  only when it has been silent for `ORB_TEST_HANG_TIMEOUT_MS` (default 5 min) **AND** the whole tree burned
-  no CPU across that window — which is precisely the true wedge, every process idle in `ep_poll` at zero
-  CPU. `ORB_TEST_HANG_MAX_MS` (default 30 min) is the absolute silence ceiling, and it runs on its OWN
-  clock: CPU progress pushes the no-CPU timer forward but never the ceiling's, or a busy tree would
-  postpone the backstop forever. Before the kill it writes `<run slot>/test-wedge-<project>-attempt<n>-<ts>.txt`
-  (§3.3b — the shards, the merged report and the wedge dumps all live in the run's own slot;
-  `reports/test-report.json` and `reports/test-shards/` are the published pointers) — the wedged pid's
-  `/proc` state/wchan/fds, the surviving worker tree, and the SUSPECT list (files the shard's previous
-  report named that this run never announced as finished). A shard the watchdog killed is re-run **exactly
-  once**, and only when its own fresh report is not a complete pass: a wedge is a tool error, a red is a
-  verdict, so a shard that FAILS TESTS is never re-run. The verdict predicate is unchanged — exit 0 ONLY
-  for a COMPLETE pass, a missing report or a vanished test (the crashed-worker signature) is exit 1, never
-  a false green — and a contained wedge is announced on stderr and recorded in the merged report's
-  `orbShards[].wedges` so a green never hides one. Guard: `tests/tooling/vitest-supervised.test.ts`.
+  `scripts/vitest-supervised.ts`:** literal project selections run sequentially with private reports; native filter selections remain together.
+  The supervisor observes output and recursive process-tree CPU activity. It kills an idle tree after `ORB_TEST_HANG_TIMEOUT_MS`.
+  `ORB_TEST_HANG_MAX_MS` bounds silence even when the tree consumes CPU; its default comes from `tooling/concurrency-profile.json`.
+  CPU activity does not reset that separate output deadline. A kill establishes an incomplete run, not a particular stalled phase.
+
+  Semantic-corpus workers disable Vitest's console interception because synchronous policy batches cannot flush its microtask-buffered messages.
+  Corpus progress names baseline and batch boundaries. Completed batches retain their existing timing evidence.
+  The weekly executor adds `tooling/src/verify/ops/vitest-progress-reporter.ts` for native module and test lifecycle events.
+  These messages describe actual work; periodic output without a completed unit or phase transition must not substitute for progress.
+  The supervisor retains bounded recent output beside process diagnostics in each attempt's wedge dump.
+  A started baseline or batch without completion identifies unfinished work, not a successful proof.
+
+  A killed attempt with an incomplete report is retried once. Assertion failures are not retried.
+  A killed final attempt exits as a tool error, even if it wrote a passing report before stalling.
+  Reports record contained retries; a missing final report is not announced as published.
+  A verdict from a completed retry does not establish that the interrupted attempt passed.
+  Controls live in `tests/tooling/vitest-supervised.test.ts` and `tests/tooling/verify/ops/vitest-progress-reporter.suite.int.test.ts`.
 - **`browser:ct`** — its whole form is the complete CT suite (`pnpm test:ct --retries=2`, the visible
   retries flag so parallelism flakes RETRY instead of blocking the whole-run verdict). It carries
   `hangCeilingBaseMs` DERIVED from the
