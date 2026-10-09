@@ -10,7 +10,7 @@ const DISPLAY_CAP = 20;
 /** Mapped over the kind union, so a new member fails `tsc` here rather than sorting as `undefined`.
  *  `exemption` ranks LAST: it explains a measurement that did NOT fail, so it never displaces a row that
  *  did under the display cap. */
-const PROBLEM_RANK: Record<SnapAnalyzerProblemKind, number> = { "evidence-gap": 0, failure: 1, threshold: 2, exemption: 3 };
+const PROBLEM_RANK: Record<SnapAnalyzerProblemKind, number> = { "evidence-gap": 0, failure: 1, threshold: 2, recorded: 3, exemption: 4 };
 
 export async function reportAnalyzerProblems(index: SnapRunIndex, query: SnapReportQuery, showRows = true): Promise<void> {
   const artifacts = index.artifacts.filter(

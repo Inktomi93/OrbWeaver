@@ -1,216 +1,91 @@
 name: Contributor proof
-
-# Manual native contributor proof; install.yml separately proves the production launch paths.
 on:
-  workflow_dispatch:
-    inputs:
-      windows_only:
-        description: Run only the Windows contributor proof
-        type: boolean
-        default: false
-
+  workflow_dispatch: null
+  schedule:
+    - cron: 53 10 * * 0
 permissions:
   contents: read
-
 jobs:
+  head:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'main' || github.sha }}
+          persist-credentials: false
+      - id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
   contributor:
     name: contributor (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    # Native Windows static stages need more than the former one-hour collection window.
     timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(inputs.windows_only && '["windows-latest"]' || '["macos-latest", "windows-latest"]') }}
+        os:
+          - macos-latest
+          - windows-latest
     env:
       CI: "true"
       HEALTHZ: http://127.0.0.1:8788/healthz
       DEV_ORIGIN: http://localhost:5173
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      # packageManager pins pnpm; install downloads the devEngines.runtime-pinned Node.
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+          ref: ${{ needs.head.outputs.sha }}
+      - id: seen
+        if: github.event_name == 'schedule'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .native-proof
+          key: contributor-v1-${{ matrix.os }}-${{ needs.head.outputs.sha }}
+          lookup-only: true
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+        if: steps.seen.outputs.cache-hit != 'true'
       - run: pnpm install --frozen-lockfile
-      # Git hooks invoke node directly, outside pnpm's script environment.
+        if: steps.seen.outputs.cache-hit != 'true'
       - name: Expose the installed pinned Node on PATH
         run: pnpm exec node -e "require('node:fs').appendFileSync(process.env.GITHUB_PATH, require('node:path').dirname(process.execPath) + '\n')"
+        if: steps.seen.outputs.cache-hit != 'true'
       - run: pnpm exec node -e "console.log(process.version, process.execPath)"
+        if: steps.seen.outputs.cache-hit != 'true'
       - run: pnpm exec playwright install chromium
-
+        if: steps.seen.outputs.cache-hit != 'true'
       - name: Start pnpm dev and prove server and Vite readiness
         shell: bash
         run: |
-          pnpm exec node --input-type=module - <<'NODE'
-          import { writeFileSync } from "node:fs";
-          import { join, resolve } from "node:path";
-          import { pathToFileURL } from "node:url";
-          import { setTimeout as sleep } from "node:timers/promises";
-          import { chromium } from "@playwright/test";
-          import { spawnFullPriorityChild } from "./tooling/src/_shared/proc.ts";
-          import { RUN_MARKER_ENV } from "./tooling/src/_shared/run-marker.ts";
-          import { devMarkerPreload } from "./tooling/src/dev/lib/plan.ts";
-          import { awaitDevClientReady } from "./tooling/src/dev/ops/client-ready.ts";
-          const preload = join(process.env.RUNNER_TEMP, "contributor-marker.mjs");
-          writeFileSync(preload, devMarkerPreload(
-            join(process.env.RUNNER_TEMP, "contributor-dev.marker"),
-            pathToFileURL(resolve("tooling/src/_shared/run-marker.ts")).href,
-          ));
-          const childEnv = { ...process.env };
-          childEnv.DEBUG = [childEnv.DEBUG, "vite:load,vite:transform"].filter(Boolean).join(",");
-          // The native dev proof owns its marker, not a surrounding tool's inherited run.
-          delete childEnv[RUN_MARKER_ENV];
-          childEnv.NODE_OPTIONS = [childEnv.NODE_OPTIONS, `--import=${pathToFileURL(preload).href}`].filter(Boolean).join(" ");
-          // The existing spawn door resolves pnpm's .cmd shim on Windows through cross-spawn.
-          const child = spawnFullPriorityChild("pnpm", ["dev"], {
-            detached: process.platform !== "win32",
-            env: childEnv,
-            logPath: join(process.env.RUNNER_TEMP, "contributor-dev.log"),
-          });
-          let exited = false;
-          child.wait().then((exit) => { exited = true; console.error("pnpm dev exited", exit); });
-          if (child.pid === undefined) throw new Error("pnpm dev could not spawn");
-          writeFileSync(join(process.env.RUNNER_TEMP, "contributor-dev.pid"), String(child.pid));
-          child.unref();
-          const ready = async (url) => {
-            try { return (await fetch(url, { signal: AbortSignal.timeout(5000) })).ok; }
-            catch { return false; }
-          };
-          let sampler;
-          let samplerExit;
-          if (process.platform === "win32") {
-            const script = join(process.env.RUNNER_TEMP, "contributor-resources.ps1");
-            writeFileSync(script, String.raw`
-          $ErrorActionPreference = "Stop"
-          for ($sample = 0; $sample -lt 44; $sample++) {
-            $memory = Get-CimInstance Win32_OperatingSystem
-            $processes = @(Get-CimInstance Win32_Process -Filter "Name='node.exe' OR Name='chrome.exe' OR Name='tsgo.exe'" |
-              Select-Object ProcessId,ParentProcessId,Name,WorkingSetSize,PrivatePageCount,KernelModeTime,UserModeTime,ThreadCount)
-            [ordered]@{ atUtc = [DateTime]::UtcNow.ToString("o"); freePhysicalKiB = $memory.FreePhysicalMemory;
-              totalPhysicalKiB = $memory.TotalVisibleMemorySize; processes = $processes } | ConvertTo-Json -Depth 5 -Compress
-            Start-Sleep -Seconds 15
-          }
-          `);
-            sampler = spawnFullPriorityChild("pwsh", ["-NoProfile", "-NonInteractive", "-File", script], {
-              logPath: join(process.env.RUNNER_TEMP, "contributor-resources.log"),
-            });
-            samplerExit = sampler.wait();
-          }
-          try {
-            const deadline = Date.now() + 600_000;
-            while (!(await ready(process.env.HEALTHZ) && await ready(process.env.DEV_ORIGIN))) {
-              if (exited) throw new Error("pnpm dev exited before both endpoints answered");
-              if (Date.now() >= deadline) throw new Error("server and Vite readiness timed out");
-              await sleep(1000);
-            }
-            console.log("READY server", process.env.HEALTHZ, "Vite", process.env.DEV_ORIGIN);
-            // A fresh Vite checkout must finish its cold module transforms before Snap's bounded navigation.
-            const browser = await chromium.launch({ headless: true });
-            try {
-              const context = await browser.newContext({
-                recordHar: { path: join(process.env.RUNNER_TEMP, "contributor-startup.har"), mode: "full", content: "omit" },
-              });
-              try {
-                const page = await context.newPage();
-                page.on("pageerror", (error) => console.error("CLIENT_ERROR", error.message));
-                const pending = new Map();
-                page.on("request", (request) => pending.set(request, Date.now()));
-                page.on("requestfinished", (request) => pending.delete(request));
-                page.on("requestfailed", (request) => {
-                  pending.delete(request);
-                  console.error("CLIENT_REQUEST_FAILED", new URL(request.url()).pathname, request.failure()?.errorText);
-                });
-                try {
-                  await awaitDevClientReady(page, process.env.DEV_ORIGIN, deadline);
-                } catch (error) {
-                  const observations = [...pending].map(([request, since]) => ({
-                    path: new URL(request.url()).pathname, type: request.resourceType(), ageMs: Date.now() - since,
-                  }));
-                  writeFileSync(join(process.env.RUNNER_TEMP, "contributor-pending.json"), JSON.stringify(observations, null, 2));
-                  console.error("CLIENT_PENDING_COUNT", observations.length);
-                  throw error;
-                }
-                console.log("READY client mounted without degraded readiness");
-              } finally {
-                await context.close();
-              }
-            } finally {
-              await browser.close();
-            }
-          } finally {
-            if (sampler !== undefined) {
-              sampler.kill("SIGTERM");
-              console.log("RESOURCE_SAMPLER_EXIT", await samplerExit);
-            }
-          }
-          NODE
-
+          pnpm ci:contributor-ready
+        if: steps.seen.outputs.cache-hit != 'true'
       - name: Capture the ready contributor Home surface
         shell: bash
         run: pnpm snap --cold-start --base "$DEV_ORIGIN" --map --aria --json --out contributor-home > "$RUNNER_TEMP/contributor-snap.log" 2>&1
-
+        if: steps.seen.outputs.cache-hit != 'true'
       - name: Stop the dev process tree and prove ports are free
         id: stop-dev
-        if: always()
+        if: steps.seen.outputs.cache-hit != 'true' && (always())
         shell: bash
         run: |
-          pnpm exec node --input-type=module - <<'NODE'
-          import { existsSync, readFileSync } from "node:fs";
-          import { join } from "node:path";
-          import { setTimeout as sleep } from "node:timers/promises";
-          import { listeningPids } from "./tooling/src/_shared/platform.ts";
-          import { killPidGroup } from "./tooling/src/_shared/proc.ts";
-          import { sweepRunMarker, describeRunMarkerSweep } from "./tooling/src/_shared/run-marker.ts";
-          import { doDevDown, stackContext } from "./tooling/src/stack/index.ts";
-          const record = join(process.env.RUNNER_TEMP, "contributor-dev.pid");
-          if (!existsSync(record)) { console.log("No dev process was started"); process.exit(0); }
-          const pid = Number(readFileSync(record, "utf8"));
-          killPidGroup(pid, "SIGTERM");
-          await sleep(5000);
-          killPidGroup(pid, "SIGKILL");
-          const markerFile = join(process.env.RUNNER_TEMP, "contributor-dev.marker");
-          if (existsSync(markerFile)) {
-            const sweep = await sweepRunMarker(readFileSync(markerFile, "utf8").trim());
-            console.log(describeRunMarkerSweep(sweep) ?? "No escaped dev descendants remain");
-          }
-          // A Windows wrapper can exit before its actual listener; environment markers are unreadable there.
-          // The existing stack fallback verifies checkout ownership before stopping a remaining port holder.
-          const context = stackContext(process.cwd(), {
-            PORT: new URL(process.env.HEALTHZ).port,
-            VITE_PORT: new URL(process.env.DEV_ORIGIN).port,
-            STACK_RUN_DIR: join(process.env.RUNNER_TEMP, "contributor-stack"),
-          }, null);
-          const stopped = await doDevDown(context);
-          if (stopped !== 0) throw new Error(`owned dev listener cleanup failed with exit ${stopped}`);
-          await sleep(1000);
-          const ports = listeningPids();
-          if (ports.kind === "refused") throw new Error(ports.reason);
-          for (const port of [process.env.HEALTHZ, process.env.DEV_ORIGIN].map((url) => Number(new URL(url).port))) {
-            if (ports.value.has(port)) throw new Error(`dev port ${port} remains bound after teardown`);
-          }
-          console.log("STOPPED dev tree; server and Vite ports are free");
-          NODE
-
+          pnpm ci:contributor-stop
       - name: Static contributor checks
-        if: ${{ !cancelled() && steps.stop-dev.outcome == 'success' }}
+        if: steps.seen.outputs.cache-hit != 'true' && (!cancelled() && steps.stop-dev.outcome == 'success')
         run: pnpm check
-
       - name: Fixed component test
-        if: ${{ !cancelled() && steps.stop-dev.outcome == 'success' }}
+        if: steps.seen.outputs.cache-hit != 'true' && (!cancelled() && steps.stop-dev.outcome == 'success')
         run: pnpm test:ct tests/client/features/chat/components/home-quick-picks-tile-body.ct.tsx
-
       - name: Show contributor logs
-        if: always()
+        if: steps.seen.outputs.cache-hit != 'true' && (always())
         shell: bash
         run: |
           for log in "$RUNNER_TEMP"/contributor-*.log; do
             if [ -f "$log" ]; then cat "$log"; fi
           done
-
       - name: Upload harness, Snap and dev evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: steps.seen.outputs.cache-hit != 'true' && (always())
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: contributor-${{ matrix.os }}
           path: |
@@ -220,3 +95,18 @@ jobs:
             ${{ runner.temp }}/contributor-pending.json
           if-no-files-found: warn
           retention-days: 14
+      - id: mark
+        if: success() && github.event_name == 'schedule' && steps.seen.outputs.cache-hit != 'true'
+        env:
+          PROOF_SHA: ${{ needs.head.outputs.sha }}
+        run: echo "$PROOF_SHA" > .native-proof
+      - if: success() && steps.mark.outcome == 'success'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .native-proof
+          key: contributor-v1-${{ matrix.os }}-${{ needs.head.outputs.sha }}
+    needs:
+      - head
+concurrency:
+  group: contributor-${{ github.ref }}
+  cancel-in-progress: false

@@ -5,6 +5,7 @@
 import { actualDeviceLabel, MOBILE_DEVICE } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
+import type { TimingEvidencePolicy } from "../../_shared/timing-capability.ts";
 import type { AuditData } from "../contract/types.ts";
 import type { MotionMatrixVariant, MotionStaticExpectedLink } from "./matrix-contract.ts";
 import { evaluateMotionAudit } from "./report.ts";
@@ -19,6 +20,7 @@ export interface MotionMatrixCellEvidence {
   readonly route: string;
   readonly windowMs: number;
   readonly throttle: boolean;
+  readonly timingPolicy: TimingEvidencePolicy;
 }
 
 export interface MotionStaticExpectedVerdict {
@@ -129,7 +131,7 @@ export function evaluateMotionStaticExpected(link: MotionStaticExpectedLink, cel
   ) {
     return instrumentError(link, "candidate/control requested-applied-runtime identity does not reconcile");
   }
-  const candidateEvaluation = evaluateMotionAudit(candidate.data, candidate.windowMs);
+  const candidateEvaluation = evaluateMotionAudit(candidate.data, candidate.windowMs, candidate.timingPolicy);
   const nonFrameGaps = candidateEvaluation.gaps.filter((gap) => gap.evidence !== "the frame population");
   if (
     !(zeroFramePopulation(candidate.data) && baseEvidenceIsPresent(candidate.data)) ||

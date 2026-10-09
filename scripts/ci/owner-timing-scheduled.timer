@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily trusted local Orbweaver timing observation
+
+[Timer]
+OnCalendar=*-*-* 05:23:00 America/Boise
+Persistent=true
+Unit=owner-timing@scheduled.service
+
+[Install]
+WantedBy=timers.target

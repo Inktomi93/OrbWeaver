@@ -73,7 +73,7 @@ test("stable GitHub publication waits for a scanned, attested and anonymously pu
   expect(publish?.run).toContain("<!-- orbweaver-publication -->");
   const image = jobs["image"]?.steps ?? [];
   const anonymous = image.find((step) => step.name === "Prove the image pulls without credentials");
-  expect(anonymous?.run).toContain('docker pull "$IMAGE@$DIGEST"');
+  expect(anonymous?.run).toContain("bash scripts/ci/anonymous-image-pull.sh");
   expect(anonymous?.env?.["DIGEST"]).toBe("${{ steps.digest.outputs.digest }}");
   const latest = image.findIndex((step) => step.name === "Advertise the verified image as latest");
   expect(latest).toBeGreaterThan(image.indexOf(anonymous ?? {}));
@@ -83,6 +83,7 @@ test("stable GitHub publication waits for a scanned, attested and anonymously pu
 test("stable publication retries replace managed notes and retain publication failures", async ({ repoRoot, scratch, fakeBin }) => {
   const script = z.string().parse(workflowJobs(repoRoot, "release")["notes"]?.steps.find((step) => step.run?.includes("gh release edit") === true)?.run);
   await writeFile(join(scratch, "release-notes.md"), "Changes\n");
+  await fakeBin("pnpm", "process.exit(0);");
   await fakeBin(
     "gh",
     `
@@ -115,6 +116,22 @@ test("stable publication retries replace managed notes and retain publication fa
   }
 });
 
+test("failed release-note reads cannot publish replacement-only notes under the implicit runner shell", async ({ repoRoot, scratch, fakeBin }) => {
+  const script = z.string().parse(workflowJobs(repoRoot, "release")["notes"]?.steps.find((step) => step.run?.includes("gh release edit") === true)?.run);
+  await fakeBin("pnpm", "process.exit(0);");
+  await fakeBin(
+    "gh",
+    "import fs from 'node:fs';const args=process.argv.slice(2);if(args[1]==='view')process.exit(71);if(args[1]==='edit')fs.writeFileSync('published','yes');",
+  );
+  const result = await spawnNiced("bash", ["-e", "-c", script], {
+    cwd: scratch,
+    env: { ["TAG"]: "v0.1.3", ["VERSION"]: "0.1.3", ["DIGEST"]: `sha256:${"a".repeat(64)}`, ["GITHUB_REPOSITORY"]: "proof/repo" },
+  });
+  expect(result.code, result.stderr).toBe(71);
+  expect(readFileSync(join(scratch, "raw-notes.md"), "utf8")).toBe("");
+  expect(() => readFileSync(join(scratch, "published"), "utf8")).toThrow();
+});
+
 test("the release workflow runs on the stable branch and publishes, from the tag, the image compose pulls", ({ repoRoot }) => {
   const workflow = releaseWorkflow.parse(parse(read(repoRoot, ".github/workflows/release.yml")));
   expect(workflow.on.push.branches).toEqual(["release"]);
@@ -133,7 +150,7 @@ test("the release workflow runs on the stable branch and publishes, from the tag
 test("development publication selects an exact source commit and cannot overwrite stable image tags", ({ repoRoot }) => {
   const workflow = z
     .object({
-      on: z.object({ push: z.object({ branches: z.array(z.string()) }) }).loose(),
+      on: z.object({ ["workflow_dispatch"]: z.null() }).strict(),
       permissions: z.object({}).strict(),
       jobs: z.object({
         image: z.object({
@@ -154,7 +171,7 @@ test("development publication selects an exact source commit and cannot overwrit
   const image = workflow.jobs.image;
   expect(image.env["IMAGE"]).toBe("ghcr.io/inktomi93/orbweaver");
   const checkout = image.steps.find((step) => step.uses?.startsWith("actions/checkout@") === true);
-  expect(workflow.on.push.branches).toEqual(["codex/launch-packages"]);
+  expect(workflow.on.workflow_dispatch).toBeNull();
   expect(workflow.on).toHaveProperty("workflow_dispatch", null);
   expect(checkout?.with?.["ref"]).toBe("${{ github.sha }}");
   expect(checkout?.with?.["persist-credentials"]).toBe(false);
@@ -172,9 +189,8 @@ test("development publication selects an exact source commit and cannot overwrit
   expect(publish).toBeGreaterThan(image.steps.findIndex((step) => step.name === "Prove fresh runtime boot"));
   expect(image.steps[publish]?.run).toContain('"$IMAGE:development"');
   expect(image.steps[publish]?.run).not.toMatch(/:latest|:stable/u);
-  const anonymous = image.steps.find((step) => step.name === "Prove anonymous digest pull");
-  expect(anonymous?.run).toContain("--src-no-creds --preserve-digests");
-  expect(anonymous?.run).toContain("oci:/proof/image:published");
+  expect(read(repoRoot, "scripts/ci/anonymous-image-pull.sh")).toContain("--src-no-creds --preserve-digests");
+  expect(read(repoRoot, "scripts/ci/anonymous-image-pull.sh")).toContain("oci:/proof/image:published");
 });
 
 const pluginAuthoring = z.object({
@@ -197,7 +213,7 @@ for (const [workflowName, cacheTag, publishName, proofName] of [
   test(`${workflowName} exports intermediate build cache without publishing an unverified runtime image`, ({ repoRoot }) => {
     const workflow = z
       .object({
-        on: z.object({ push: z.object({ branches: z.array(z.string()) }), ["workflow_dispatch"]: z.null().optional() }).strict(),
+        on: z.object({ push: z.object({ branches: z.array(z.string()) }).optional(), ["workflow_dispatch"]: z.null().optional() }).strict(),
         jobs: z.object({
           image: z.object({
             permissions: z.object({ packages: z.literal("write") }),
@@ -729,11 +745,14 @@ test("setup has one cache owner and only saves successful misses from trusted tr
   expect(installIndex).toBeGreaterThan(steps.findIndex((step) => step.id === "pnpm-cache"));
   for (const [index, restore] of restores.entries()) {
     const save = saves[index];
-    expect(save?.with?.["path"]).toBe(restore.with?.["path"]);
-    expect(save?.with?.["key"]).toBe(`\${{ steps.${restore.id}.outputs.cache-primary-key }}`);
+    if (save === undefined) {
+      throw new Error("Missing setup cache save");
+    }
+    expect(save.with?.["path"]).toBe(restore.with?.["path"]);
+    expect(save.with?.["key"]).toBe(`\${{ steps.${restore.id}.outputs.cache-primary-key }}`);
     const browserOnly = restore.id === "browser-cache" ? "inputs.browsers == 'true' && " : "";
-    expect(save?.if).toBe(`${browserOnly}steps.pnpm.outputs.save == 'true' && steps.${restore.id}.outputs.cache-hit != 'true'`);
-    expect(steps.findIndex((step) => step === save)).toBeGreaterThan(installIndex);
+    expect(save.if).toBe(`${browserOnly}steps.pnpm.outputs.save == 'true' && steps.${restore.id}.outputs.cache-hit != 'true'`);
+    expect(steps.indexOf(save)).toBeGreaterThan(installIndex);
   }
   expect(restores[0]?.with?.["path"]).toBe("${{ steps.pnpm.outputs.paths }}");
   expect(restores[0]?.with?.["key"]).toBe("pnpm-${{ runner.os }}-${{ runner.arch }}-${{ steps.pnpm.outputs.version }}-${{ hashFiles('pnpm-lock.yaml') }}");
@@ -882,7 +901,9 @@ function developmentStep(repoRoot: string, name: string): string {
   if (script === undefined) {
     throw new Error(`Missing workflow step: ${name}`);
   }
-  return script;
+  return name === "Prove anonymous digest pull"
+    ? script.replace("bash scripts/ci/anonymous-image-pull.sh", `bash ${JSON.stringify(join(repoRoot, "scripts/ci/anonymous-image-pull.sh"))}`)
+    : script;
 }
 
 function publicationEnv(scratch: string): NonNullable<SpawnNicedOptions["env"]> {

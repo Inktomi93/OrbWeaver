@@ -58,7 +58,16 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { LOAD_SUSPECT_ANNOTATION } from "@orb/tooling/_shared/load-budget";
 import { readBudgetRows } from "@orb/tooling/_shared/ratchet-rows";
 import type { FullResult, Reporter, Suite, TestCase, TestResult } from "@playwright/test/reporter";
-import type { CtFlakyTest, CtLoadSuspectTest, CtRunFacts } from "../contract/ct-run.ts";
+import { NATIVE_TIMING_CASE_ANNOTATION, TIMING_CAPABILITY_ANNOTATION, TIMING_MEASUREMENT_ANNOTATION } from "../../_shared/timing-capability.ts";
+import type {
+  CtFlakyTest,
+  CtLoadSuspectTest,
+  CtNativeTimingAttempt,
+  CtNativeTimingCase,
+  CtRunFacts,
+  CtRunTally,
+  CtTimingMeasurement,
+} from "../contract/ct-run.ts";
 import { RULE, readRun, summaryLines } from "./ct-run-tally.ts";
 import type { UnfedRatchetVerdict } from "./ct-unfed-ratchet.ts";
 import { ACTIVE_MARKER, BASELINE_REL, judgeUnfedReads, owesActiveMarker } from "./ct-unfed-ratchet.ts";
@@ -78,14 +87,21 @@ interface FlakyArtifact {
   readonly flakyCount: number;
   readonly strict: boolean;
   readonly flaky: readonly CtFlakyTest[];
+  readonly status: FullResult["status"];
+  readonly tally: CtRunTally | null;
+  readonly nativeTiming: { readonly expected: readonly CtNativeTimingCase[]; readonly attempts: readonly CtNativeTimingAttempt[] };
+  readonly timingMeasurements: readonly CtTimingMeasurement[];
 }
 
-function writeArtifact(flaky: readonly CtFlakyTest[], strict: boolean, slot: RunSlot, artifactPath: string): void {
+function writeArtifact(
+  result: Pick<FlakyArtifact, "flaky" | "strict" | "timingMeasurements" | "status" | "tally" | "nativeTiming">,
+  slot: RunSlot,
+  artifactPath: string,
+): void {
   const artifact: FlakyArtifact = {
     generatedAt: new Date().toISOString(),
-    flakyCount: flaky.length,
-    strict,
-    flaky,
+    flakyCount: result.flaky.length,
+    ...result,
   };
   mkdirSync(dirname(artifactPath), { recursive: true });
   writeFileSync(artifactPath, `${JSON.stringify(artifact, undefined, 2)}\n`);
@@ -173,6 +189,9 @@ class CtFlakyReporter implements Reporter {
   /** Rate-measuring tests that WITHHELD on this box (#1232). Collected from the reporter-visible
    *  annotation channel rather than from stderr: a skip carries no output at all. */
   readonly #loadSuspect: CtLoadSuspectTest[] = [];
+  readonly #timingMeasurements: CtTimingMeasurement[] = [];
+  #expectedTimingCases: CtNativeTimingCase[] = [];
+  readonly #timingAttempts: CtNativeTimingAttempt[] = [];
 
   constructor(options: CtFlakyReporterOptions = {}) {
     if (options.slotDir === undefined) {
@@ -186,15 +205,41 @@ class CtFlakyReporter implements Reporter {
 
   onBegin(_config: unknown, suite: Suite): void {
     this.#rootSuite = suite;
+    this.#expectedTimingCases = suite
+      .allTests()
+      .filter((caseInfo) => caseInfo.annotations.some((annotation) => annotation.type === NATIVE_TIMING_CASE_ANNOTATION.type))
+      .map((caseInfo) => ({ file: relative(process.cwd(), caseInfo.location.file), title: caseInfo.title, titlePath: caseInfo.titlePath() }));
   }
 
   // The withhold annotation can be stamped at RUNTIME (`test.info().annotations.push`), so it lands on the
   // RESULT; a statically declared one lands on the CASE. Read both — a withhold seen in only one place
   // would make the census depend on where the arm happened to declare itself.
-  onTestEnd(test: TestCase, result: TestResult): void {
-    const note = [...result.annotations, ...test.annotations].find((a) => a.type === LOAD_SUSPECT_ANNOTATION);
+  onTestEnd(caseInfo: TestCase, result: TestResult): void {
+    const attempt: CtNativeTimingAttempt = {
+      file: relative(process.cwd(), caseInfo.location.file),
+      title: caseInfo.title,
+      titlePath: caseInfo.titlePath(),
+      status: result.status,
+      retry: result.retry,
+    };
+    if (caseInfo.annotations.some((annotation) => annotation.type === NATIVE_TIMING_CASE_ANNOTATION.type)) {
+      this.#timingAttempts.push(attempt);
+    }
+    for (const annotation of result.annotations.filter(
+      (entry) => entry.type === TIMING_MEASUREMENT_ANNOTATION || entry.type === TIMING_CAPABILITY_ANNOTATION,
+    )) {
+      this.#timingMeasurements.push({
+        ...attempt,
+        detail: annotation.description ?? "missing timing measurement detail",
+      });
+    }
+    const note = [...result.annotations, ...caseInfo.annotations].find((a) => a.type === LOAD_SUSPECT_ANNOTATION);
     if (note !== undefined) {
-      this.#loadSuspect.push({ file: relative(process.cwd(), test.location.file), title: test.title, reason: note.description ?? LOAD_SUSPECT_ANNOTATION });
+      this.#loadSuspect.push({
+        file: relative(process.cwd(), caseInfo.location.file),
+        title: caseInfo.title,
+        reason: note.description ?? LOAD_SUSPECT_ANNOTATION,
+      });
     }
   }
 
@@ -246,7 +291,7 @@ class CtFlakyReporter implements Reporter {
     // second independent walk is how a summary and its own FAILED list could ever disagree (#1006).
     const facts = suite === undefined ? undefined : readRun(suite, process.cwd());
     const flaky = facts?.flaky ?? [];
-    writeArtifact(flaky, this.#strict, this.#slot, this.#artifactPath);
+    const tally = facts === undefined ? null : facts.tally;
     if (flaky.length > 0) {
       announce(flaky, this.#strict, this.#artifactPath);
     }
@@ -260,6 +305,20 @@ class CtFlakyReporter implements Reporter {
     // to say — a silent ratchet on a clean run is the point.
     const verdict = facts === undefined ? { refusals: [], violations: [] } : this.#judge(facts);
     const ratchetFailed = verdict.violations.length > 0 || verdict.refusals.length > 0;
+    const forceFailure = ratchetFailed || (this.#strict && flaky.length > 0);
+    const status = forceFailure ? "failed" : result.status;
+    writeArtifact(
+      {
+        flaky,
+        strict: this.#strict,
+        timingMeasurements: this.#timingMeasurements,
+        status,
+        tally,
+        nativeTiming: { expected: this.#expectedTimingCases, attempts: this.#timingAttempts },
+      },
+      this.#slot,
+      this.#artifactPath,
+    );
     if (ratchetFailed) {
       announceRatchet(verdict);
     }
@@ -268,11 +327,11 @@ class CtFlakyReporter implements Reporter {
     // EFFECTIVE status, not playwright's: a run whose every test passed but whose ratchet fired exits 1, and
     // a tail-surviving summary that said PASS beside that exit would be the last line lying about the run.
     if (facts !== undefined) {
-      process.stdout.write(`${summaryLines(facts.tally, facts.failed, ratchetFailed ? "failed" : result.status).join("\n")}\n`);
+      process.stdout.write(`${summaryLines(facts.tally, facts.failed, status).join("\n")}\n`);
     }
     // A refusal fails the run exactly like a violation: "the census could not observe" must never be
     // indistinguishable from "the census found nothing".
-    return ratchetFailed || (this.#strict && flaky.length > 0) ? { status: "failed" } : undefined;
+    return forceFailure ? { status: "failed" } : undefined;
   }
 }
 

@@ -317,8 +317,7 @@ function frameMs(stdout: string): number {
   return Number(raw);
 }
 
-// This measured-rate arm labels contention before judging its frame-stretch ratio. Structural peers
-// remain parallel; a scaled completion deadline cannot make a noisy denominator valid.
+// Native frame-stretch measurements need named hardware capability; protocol and evidence checks remain blocking.
 test("--cpu-throttle REACHES the page: the same in-page loop stretches its frame at 8x", { timeout: 3 * BROWSER_TIMEOUT_MS }, async ({
   plantedTree,
   runCli,
@@ -336,14 +335,14 @@ test("--cpu-throttle REACHES the page: the same in-page loop stretches its frame
   const restMs = frameMs(rest.stdout);
   const loadedMs = frameMs(loaded.stdout);
   expect(restMs, "the unthrottled arm must have measured a frame at all").toBeGreaterThan(0);
-  // THE THRESHOLD VERDICT, as a MEMBER rather than a conditional assertion (#1616): `unjudged` under the
-  // label, `stretched`/`not-stretched` on a quiet box. One unconditional expect, so the arm still reds for
-  // real on a quiet tree, and the measured numbers ride the message either way.
+  // D308 qualifies threshold verdicts independently of the collector's native numeric evidence.
   const stretched = loadedMs - restMs > 60 && loadedMs / restMs > 1.8;
   const reading = `rest ${String(restMs)}ms vs loaded ${String(loadedMs)}ms (ratio ${(loadedMs / restMs).toFixed(2)})`;
   const judged = stretched ? "stretched" : "not-stretched";
-  const verdict = isJudgeableMeasurement(rate) ? judged : "unjudged (load-suspect)";
-  if (!isJudgeableMeasurement(rate)) {
+  const unjudged = rate.timing?.policy === "record" ? "recorded (hardware-unqualified)" : "unjudged (load-suspect)";
+  const verdict = isJudgeableMeasurement(rate) ? judged : unjudged;
+  task.meta.orbTimingReading = `${reading} · threshold=${judged} · verdict=${verdict}`;
+  if (rate.disposition === "load-suspect") {
     // The NUMBER lands where a reader can see it (#1616's "report its number") beside the reason — a
     // labelled arm that printed nothing would be a skip wearing a green tick.
     task.meta.orbLoadSuspect = `${rate.reason} · measured ${reading}`;

@@ -1,6 +1,8 @@
 // Canonical authored test vocabulary: one suffix definition owns family, compiler world, mirror behavior,
 // source compatibility, and the runtime runner derived from family. Native glob syntax stays with runners.
 
+import { STABLE_TIMING_CAPABILITY } from "./timing-capability.ts";
+
 export const SEMANTIC_CORPUS_RESOURCE = "semantic-corpus";
 
 const RAW_TEST_KIND_DEFINITIONS = [
@@ -41,10 +43,25 @@ const RAW_TEST_KIND_DEFINITIONS = [
   { suffix: ".spec.ts", family: "e2e", compilerWorld: "browser", mirror: "e2e-only", sourceExtensions: [".ts"], resource: null },
 ] as const;
 
-export type TestKindDefinition = (typeof RAW_TEST_KIND_DEFINITIONS)[number];
-export type TestFamily = TestKindDefinition["family"];
+type AuthoredTestKindDefinition = (typeof RAW_TEST_KIND_DEFINITIONS)[number];
+export type TestFamily = AuthoredTestKindDefinition["family"];
+export type TestKindDefinition = AuthoredTestKindDefinition & { readonly timingCapability: (typeof TIMING_CAPABILITY_BY_FAMILY)[TestFamily] };
 export type TestCompilerWorld = TestKindDefinition["compilerWorld"];
 export type TestResource = NonNullable<TestKindDefinition["resource"]>;
+
+const TIMING_CAPABILITY_BY_FAMILY = {
+  unit: STABLE_TIMING_CAPABILITY,
+  integration: STABLE_TIMING_CAPABILITY,
+  contract: STABLE_TIMING_CAPABILITY,
+  type: null,
+  component: STABLE_TIMING_CAPABILITY,
+  e2e: STABLE_TIMING_CAPABILITY,
+} as const satisfies Readonly<Record<TestFamily, string | null>>;
+
+/** Native measurements require capability; deterministic inputs keep ordinary assertions. */
+export function timingCapabilityForTestFamily(family: TestFamily): (typeof TIMING_CAPABILITY_BY_FAMILY)[TestFamily] {
+  return TIMING_CAPABILITY_BY_FAMILY[family];
+}
 
 const suffixes = RAW_TEST_KIND_DEFINITIONS.map(({ suffix }) => suffix);
 if (new Set(suffixes).size !== suffixes.length) {
@@ -53,7 +70,9 @@ if (new Set(suffixes).size !== suffixes.length) {
 
 /** Longest match wins, so overlapping suffixes never depend on hand-maintained registry order. */
 export const TEST_KIND_DEFINITIONS: readonly TestKindDefinition[] = Object.freeze(
-  [...RAW_TEST_KIND_DEFINITIONS].toSorted((left, right) => right.suffix.length - left.suffix.length || left.suffix.localeCompare(right.suffix)),
+  RAW_TEST_KIND_DEFINITIONS.map((definition) => ({ ...definition, timingCapability: timingCapabilityForTestFamily(definition.family) })).toSorted(
+    (left, right) => right.suffix.length - left.suffix.length || left.suffix.localeCompare(right.suffix),
+  ),
 );
 
 export const TEST_KIND_SUFFIXES: readonly TestKindDefinition["suffix"][] = Object.freeze(TEST_KIND_DEFINITIONS.map(({ suffix }) => suffix));

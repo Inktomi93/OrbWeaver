@@ -1,9 +1,6 @@
 name: Development image
 
-# The publication branch permits the first build before manual dispatch is available on main.
 on:
-  push:
-    branches: [codex/launch-packages]
   workflow_dispatch:
 
 permissions: {}
@@ -14,7 +11,7 @@ concurrency:
 
 jobs:
   image:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
       contents: read
@@ -100,40 +97,7 @@ jobs:
 
       - name: Prove anonymous digest pull
         run: |
-          digest=$(docker inspect "$IMAGE:sha-$SOURCE_SHA" --format '{{ index .RepoDigests 0 }}' | cut -d@ -f2)
-          test -n "$digest"
-          proof=$(mktemp -d "$RUNNER_TEMP/anonymous-image.XXXXXX")
-          if ! docker run --rm -v "$proof:/proof" quay.io/skopeo/stable:latest@sha256:966b7d73acc4478906280e4967cafd93f4a85273e9a97b41b2ea8f9bd55292a5 copy --src-no-creds --preserve-digests "docker://$IMAGE@$digest" oci:/proof/image:published; then
-            echo "::error::The development image bytes do not download anonymously. Make the GHCR package public, then re-run this job."
-            exit 1
-          fi
-          python3 - "$proof/image" "$digest" "$SOURCE_SHA" <<'PYTHON'
-          import hashlib, json, pathlib, sys, tarfile
-          root, digest, sha = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
-          def verified_blob(descriptor):
-              algorithm, value = descriptor["digest"].split(":")
-              assert algorithm == "sha256" and len(value) == 64 and all(c in "0123456789abcdef" for c in value)
-              path = root / "blobs" / algorithm / value
-              with path.open("rb") as stream:
-                  assert hashlib.file_digest(stream, "sha256").hexdigest() == value
-              assert path.stat().st_size == descriptor["size"]
-              return path
-          index = json.loads((root / "index.json").read_text())
-          descriptor, = index["manifests"]
-          assert descriptor["digest"] == digest
-          manifest = json.loads(verified_blob(descriptor).read_text())
-          config = json.loads(verified_blob(manifest["config"]).read_text())
-          assert config["config"]["Labels"]["org.opencontainers.image.revision"] == sha
-          stamp = None
-          for layer in manifest["layers"]:
-              path = verified_blob(layer)
-              with tarfile.open(path) as archive:
-                  for member in archive:
-                      if member.name.removeprefix("./") == "app/version.json":
-                          stream = archive.extractfile(member)
-                          assert stream is not None
-                          stamp = json.load(stream)
-          assert stamp is not None and stamp["commit"] == sha and stamp["channel"] == "main"
-          print(json.dumps({"digest": digest, "downloadedLayers": len(manifest["layers"]), "stamp": stamp}))
-          PYTHON
-          printf 'Development image: %s@%s\nSource commit: %s\nTags: development, sha-%s\n' "$IMAGE" "$digest" "$SOURCE_SHA" "$SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"
+          DIGEST=$(docker inspect "$IMAGE:sha-$SOURCE_SHA" --format '{{ index .RepoDigests 0 }}' | cut -d@ -f2)
+          export DIGEST
+          export IMAGE_CHANNEL=main
+          bash scripts/ci/anonymous-image-pull.sh

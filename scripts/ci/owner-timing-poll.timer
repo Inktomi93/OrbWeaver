@@ -1,0 +1,10 @@
+[Unit]
+Description=Observe new trusted Orbweaver main commits locally
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+Unit=owner-timing@poll.service
+
+[Install]
+WantedBy=timers.target

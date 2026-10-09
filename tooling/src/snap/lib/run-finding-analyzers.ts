@@ -20,7 +20,7 @@ function isAnalyzerArtifact(candidate: SnapRunArtifact): candidate is AnalyzerAr
  *  was excused, so promoting it would manufacture the very finding the carve-out ruled out. It reads as an
  *  annotation, which `run-findings.ts` carries without severity and without a count. */
 function analyzerProblemSeverity(problem: SnapAnalyzerProblem): FindingDraft["severity"] {
-  if (problem.kind === "exemption") {
+  if (problem.kind === "exemption" || problem.kind === "recorded") {
     return "annotation";
   }
   return (problem.arm === "interaction-perf" || problem.arm === "heap") && problem.kind === "threshold" ? "annotation" : "error";
@@ -46,7 +46,7 @@ function analyzerProblemDraft(problem: SnapAnalyzerProblem, artifact: AnalyzerAr
     completeness: findingCompleteness(artifact),
     conflicts: [],
     occurrences: 1,
-    disposition: countedBy(`${problem.arm}-arm`),
+    disposition: problem.kind === "recorded" ? { counted: false, reason: "timing-record-only" } : countedBy(`${problem.arm}-arm`),
     correlation: `analyzer:${problem.arm}:${problem.metric}:${findingSymptom(problem.subject)}`,
   };
 }

@@ -12,6 +12,7 @@
 //       always labels;
 //   T16 a genuinely HUNG subject under the SAME forced load still dies at its scaled ceiling, with a
 //       message naming base×factor and the loadavg. The ceiling is not a way to hang.
+
 import { cpus } from "node:os";
 import {
   annotateRateLoad,
@@ -41,6 +42,7 @@ import {
 } from "@orb/tooling/_shared/load-budget";
 import { cgroupQuotaCores, effectiveCpuCount, readCpuThrottle } from "@orb/tooling/_shared/load-budget-cgroup";
 import { vi } from "vitest";
+import { timingCapability } from "../../../tooling/src/_shared/timing-capability.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 /** Per-core 4.0 on a 24-core box — the FORCED-LOAD reading T14/T16 use. */
@@ -119,13 +121,13 @@ test("T14 — the CT channel stamps the LABEL where the REPORTER can see it, and
   const loaded = annotateRateLoad(info, "a CT-measured rate", readLoaded);
   expect(loaded.disposition).toBe("load-suspect");
   expect(hasMeasurement(loaded)).toBe(true);
-  expect(info.annotations).toHaveLength(1);
-  expect(info.annotations[0]?.type).toBe("orb-load-suspect");
-  expect(info.annotations[0]?.description).toContain(LOAD_SUSPECT_MARKER);
+  expect(info.annotations.filter((annotation) => annotation.type === "orb-load-suspect")).toHaveLength(1);
+  expect(info.annotations.find((annotation) => annotation.type === "orb-load-suspect")?.type).toBe("orb-load-suspect");
+  expect(info.annotations.find((annotation) => annotation.type === "orb-load-suspect")?.description).toContain(LOAD_SUSPECT_MARKER);
   // The quiet arm stamps NOTHING — an annotation on a clean measurement would inflate the census.
   const quiet = annotateRateLoad(info, "a CT-measured rate", readQuiet);
   expect(quiet.disposition).toBe("complete");
-  expect(info.annotations).toHaveLength(1);
+  expect(info.annotations.filter((annotation) => annotation.type === "orb-load-suspect")).toHaveLength(1);
 });
 
 // ── T15: the positive control — a quiet box is byte-identical to no policy at all ───────────────────
@@ -377,4 +379,16 @@ test("#2206 — the throttle reading is the TIGHTEST over the cgroup ancestry, o
   expect(readCpuThrottle(tree({ "/sys/fs/cgroup/user.slice/app.scope/cpu.stat": "usage_usec 5\n" }))).toBeUndefined();
   // A v1-only cgroup line is unreadable here for the same reason the quota walk refuses it.
   expect(readCpuThrottle(() => "3:cpu:/user.slice\n")).toBeUndefined();
+});
+
+test("a quiet live rate cannot qualify on unnamed hardware but pure load arithmetic still asserts", () => {
+  const pure = judgeMeasurementLoad(QUIET, "planted arithmetic");
+  expect(isJudgeableMeasurement(pure)).toBe(true);
+  expect(isJudgeableMeasurement({ ...pure, timing: timingCapability({}) })).toBe(false);
+  expect(
+    isJudgeableMeasurement({
+      ...pure,
+      timing: timingCapability({ ["ORB_TIMING_HARDWARE_CLASS"]: "inktomi-owner", ["ORB_TEST_CAPABILITIES"]: "stable-timing" }),
+    }),
+  ).toBe(true);
 });

@@ -97,6 +97,7 @@ function representativeBatch(): SnapRunFactBatch {
             webgpu: "enabled",
           },
           accelerationError: null,
+          timing: { hardwareClass: "inktomi-owner", stableTiming: true, policy: "assert", reason: "deterministic fixture" },
           load: { loadavg1: 0.5, cpuCount: 32 },
         },
       },

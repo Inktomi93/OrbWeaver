@@ -181,7 +181,8 @@ test("a LOAD-SUSPECT arm stamps its reason on the REPORTER-VISIBLE meta channel 
   const quiet = fakeCtx();
   expect(labelRateLoad(quiet.ctx, "the dropped-frame budget", () => QUIET_BOX).disposition).toBe("complete");
   expect(quiet.skips).toEqual([]);
-  expect(quiet.ctx.task.meta).toEqual({});
+  expect(quiet.ctx.task.meta.orbLoadSuspect).toBeUndefined();
+  expect(quiet.ctx.task.meta.orbTiming).toBeDefined();
 });
 
 test("labelRateLoad reads the REAL box when no reader is injected", () => {

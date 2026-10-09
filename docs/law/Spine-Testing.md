@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-08
+updated: 2026-10-09
 ---
 
 # Orbweaver — Spine: Testing
@@ -11,6 +11,8 @@ Testing policy: central source mirrors, registered test kinds, isolated fixtures
 ## 0. The principle
 
 Tests prove behavior or type contracts. Their filenames declare kind and compiler intent; they do not substitute for assertions. Gates enforce layout, required presence, fixture boundaries, determinism, and runner/compiler membership. A rule that prevents a known silent regression needs a planted failing control and a valid passing control.
+
+Measurement-budget qualification follows [D308](../adr/0308-hardware-scoped-timing-budgets.md). Use the test-kind capability policy rather than treating shared-hardware timing as a behavioral assertion.
 
 ## 1. Test kinds and execution
 

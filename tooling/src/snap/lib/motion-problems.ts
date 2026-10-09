@@ -17,6 +17,7 @@
 // a reader of the verdict is never told a stronger claim than the instrument can compute.
 import { isSanctionedLibraryAnimation } from "@orb/kit/motion-allowance";
 import type { EvidenceGap } from "../../_shared/evidence.ts";
+import type { TimingEvidencePolicy } from "../../_shared/timing-capability.ts";
 import type { AuditData } from "../../motion-audit/index.ts";
 import {
   BLOCKING_BUDGET_MS,
@@ -183,6 +184,15 @@ function executionProblems(data: AuditData): SnapAnalyzerProblem[] {
   return problems;
 }
 
-export function motionProblems(data: AuditData | null, gaps: readonly EvidenceGap[]): readonly SnapAnalyzerProblem[] {
-  return data === null ? gapProblems(gaps) : [...gapProblems(gaps), ...budgetProblems(data), ...animationProblems(data), ...executionProblems(data)];
+export function motionProblems(data: AuditData | null, gaps: readonly EvidenceGap[], timingPolicy: TimingEvidencePolicy): readonly SnapAnalyzerProblem[] {
+  const measured =
+    data === null
+      ? []
+      : budgetProblems(data).map(
+          (problem): SnapAnalyzerProblem =>
+            timingPolicy === "record" && problem.kind === "threshold"
+              ? { ...problem, kind: "recorded", detail: `${problem.detail}; recorded without hardware timing qualification` }
+              : problem,
+        );
+  return data === null ? gapProblems(gaps) : [...gapProblems(gaps), ...measured, ...animationProblems(data), ...executionProblems(data)];
 }

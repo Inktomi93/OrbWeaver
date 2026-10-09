@@ -7,6 +7,8 @@ import type { BrowserAccelerationEvidence } from "../../_shared/browser-accelera
 import { readBrowserAcceleration } from "../../_shared/browser-acceleration.ts";
 import type { BoxLoad, MeasurementVerdict } from "../../_shared/load-budget.ts";
 import { judgeMeasurementLoad, loadResultPairs, readBoxLoad } from "../../_shared/load-budget.ts";
+import type { TimingCapability, TimingEvidencePolicy } from "../../_shared/timing-capability.ts";
+import { timingCapability } from "../../_shared/timing-capability.ts";
 import type { SnapRatePosture } from "../contract/rate-posture.ts";
 import { snapRatePostureIdSchema } from "../contract/rate-posture.ts";
 
@@ -24,10 +26,16 @@ const UNKNOWN_ACCELERATION: BrowserAccelerationEvidence = {
 export interface SnapRatePostureReaders {
   readonly readAcceleration?: (browser: Browser) => Promise<BrowserAccelerationEvidence>;
   readonly readLoad?: () => BoxLoad;
+  readonly readTiming?: () => TimingCapability;
 }
 
-function postureId(acceleration: BrowserAccelerationEvidence, accelerationError: string | null, load: BoxLoad): SnapRatePosture["id"] {
-  const canonical = JSON.stringify({ acceleration, accelerationError, load });
+function postureId(
+  acceleration: BrowserAccelerationEvidence,
+  accelerationError: string | null,
+  load: BoxLoad,
+  timing: TimingCapability,
+): SnapRatePosture["id"] {
+  const canonical = JSON.stringify({ acceleration, accelerationError, load, timing });
   return snapRatePostureIdSchema.parse(`sha256:${createHash("sha256").update(canonical).digest("hex")}`);
 }
 
@@ -35,6 +43,7 @@ function postureId(acceleration: BrowserAccelerationEvidence, accelerationError:
 export async function sampleSnapRatePosture(browser: Browser, readers: SnapRatePostureReaders = {}): Promise<SnapRatePosture> {
   const readAcceleration = readers.readAcceleration ?? readBrowserAcceleration;
   const readLoad = readers.readLoad ?? readBoxLoad;
+  const timing = Object.freeze({ ...(readers.readTiming ?? timingCapability)() });
   const load = Object.freeze({ ...readLoad() });
   let acceleration = UNKNOWN_ACCELERATION;
   let accelerationError: string | null = null;
@@ -46,7 +55,8 @@ export async function sampleSnapRatePosture(browser: Browser, readers: SnapRateP
   }
   const frozenAcceleration = Object.freeze({ ...acceleration });
   return Object.freeze({
-    id: postureId(frozenAcceleration, accelerationError, load),
+    id: postureId(frozenAcceleration, accelerationError, load, timing),
+    timing,
     acceleration: frozenAcceleration,
     accelerationError,
     load,
@@ -87,5 +97,15 @@ export function ratePostureDisposition(receipt: SnapRatePosture, what: string): 
  *  by review. The posture already HOLDS its reading, so the reader here is that value, not a fresh
  *  `os.loadavg()` call: one run, one box reading, every line agreeing. */
 export function ratePostureResultPairs(receipt: SnapRatePosture): readonly ResultPair[] {
-  return [...loadResultPairs(() => receipt.load), ["rate-posture", receipt.id]];
+  return [
+    ...loadResultPairs(() => receipt.load),
+    ["rate-posture", receipt.id],
+    ["timing-hardware-class", receipt.timing.hardwareClass ?? "unnamed"],
+    ["timing-policy", snapTimingPolicy(receipt)],
+  ];
+}
+
+/** Qualify this run's measured timing only from its immutable hardware, acceleration and load receipt. */
+export function snapTimingPolicy(receipt: SnapRatePosture): TimingEvidencePolicy {
+  return receipt.timing.policy === "assert" && ratePostureDisposition(receipt, "Snap measured timing").disposition === "complete" ? "assert" : "record";
 }

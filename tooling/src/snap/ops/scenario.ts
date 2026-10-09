@@ -415,6 +415,7 @@ export async function runScenarioDetailed(opts: Args, host: ScenarioHost | null 
       // #1227: a checkpoint whose requested THEME never stamped sampled the default palette — exit 2.
       code: finalCode,
       receipt: {
+        ratePosture,
         failures: failureSummary,
         captures: outcomes,
         browser: browserEnvironment,

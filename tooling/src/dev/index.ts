@@ -7,6 +7,7 @@ export {
   DEV_USAGE,
   devBannerLines,
   devChildEnv,
+  devMarkerPreload,
   findPackage,
   parseDevArgv,
   resolveVitePort,

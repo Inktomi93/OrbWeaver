@@ -97,8 +97,20 @@ function auditData(loafs: readonly Loaf[]): AuditData {
 }
 
 function layoutRows(data: AuditData): readonly { readonly kind: string; readonly observed: string; readonly threshold: string; readonly detail: string }[] {
-  return motionProblems(data, []).filter((problem) => problem.metric === "loaf-style-layout-count");
+  return motionProblems(data, [], "assert").filter((problem) => problem.metric === "loaf-style-layout-count");
 }
+
+test("record-only analyzer rows retain measured breaches while execution and integrity stay failures", () => {
+  const data = { ...auditData([boundedDispatchLoaf({ blockingDuration: 181, styleAndLayoutStart: 0 })]), pageErrors: ["planted page error"] };
+  const problems = motionProblems(data, [{ evidence: "planted missing evidence", detail: "absent" }], "record");
+  expect(problems).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ metric: "loaf-blocking-ms", kind: "recorded", observed: "181ms", threshold: "50ms" }),
+      expect.objectContaining({ metric: "page-error", kind: "failure" }),
+      expect.objectContaining({ metric: "planted missing evidence", kind: "evidence-gap" }),
+    ]),
+  );
+});
 
 test("a bounded input-dispatch layout frame is NAMED as an exemption, with all four conditions", () => {
   const rows = layoutRows(auditData([boundedDispatchLoaf()]));

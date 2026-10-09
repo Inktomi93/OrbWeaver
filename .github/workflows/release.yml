@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   release-please:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
@@ -45,7 +45,7 @@ jobs:
   image:
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
       contents: read
@@ -60,6 +60,7 @@ jobs:
       BUILD_CACHE: ghcr.io/inktomi93/orbweaver:buildcache-release
       VERSION: ${{ needs.release-please.outputs.version }}
       SOURCE_SHA: ${{ needs.release-please.outputs.sha }}
+      TAG: ${{ needs.release-please.outputs.tag_name }}
     steps:
       # The tag itself, so the build context carries `.git/refs/tags/v<version>` and the image's version
       # stamp derives the `stable` channel from it (docker/assemble-runtime.sh).
@@ -67,6 +68,8 @@ jobs:
         with:
           ref: refs/tags/${{ needs.release-please.outputs.tag_name }}
           persist-credentials: false
+
+      - uses: ./.github/actions/setup
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
         id: builder
@@ -170,18 +173,15 @@ jobs:
         env:
           DIGEST: ${{ steps.digest.outputs.digest }}
         run: |
-          export DOCKER_CONFIG="$RUNNER_TEMP/anonymous-docker"
-          mkdir -p "$DOCKER_CONFIG"
-          [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
-          if ! docker pull "$IMAGE@$DIGEST"; then
-            echo "::error::$IMAGE@$DIGEST does not pull without credentials. Make the GHCR package public, then re-run this job. The GitHub release remains a draft."
-            exit 1
-          fi
-          stamp=$(docker run --rm --entrypoint cat "$IMAGE@$DIGEST" /app/version.json)
-          echo "$stamp" | jq -e --arg version "$VERSION" --arg sha "$SOURCE_SHA" '.version == $version and .channel == "stable" and .commit == $sha'
+          export IMAGE_CHANNEL=stable
+          bash scripts/ci/anonymous-image-pull.sh
 
       - name: Advertise the verified image as latest
-        run: docker push "$IMAGE:latest"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pnpm exec node scripts/ci/release-promotion.ts
+          docker push "$IMAGE:latest"
 
   # Failed image jobs leave a recoverable draft. Re-running failed jobs retains the release outputs;
   # the managed notes replace their own block so a failed final publication can be retried safely.
@@ -196,10 +196,18 @@ jobs:
       TAG: ${{ needs.release-please.outputs.tag_name }}
       VERSION: ${{ needs.release-please.outputs.version }}
       DIGEST: ${{ needs.image.outputs.digest }}
+      SOURCE_SHA: ${{ needs.release-please.outputs.sha }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: refs/tags/${{ needs.release-please.outputs.tag_name }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup
       - name: Add the upgrade steps to the release notes
         run: |
-          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body | sed '/^<!-- orbweaver-publication -->$/,$d' > notes.md
+          pnpm exec node scripts/ci/release-promotion.ts
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body > raw-notes.md
+          sed '/^<!-- orbweaver-publication -->$/,$d' raw-notes.md > notes.md
           cat >> notes.md <<NOTES
 
           <!-- orbweaver-publication -->
@@ -236,7 +244,7 @@ jobs:
   plugin-authoring:
     needs: release-please
     if: needs.release-please.outputs.plugin_authoring_created == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: write

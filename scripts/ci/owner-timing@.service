@@ -1,0 +1,25 @@
+[Unit]
+Description=Trusted local Orbweaver timing observation (%i)
+ConditionPathExists=/etc/orbweaver-owner-timing.conf
+
+[Service]
+Type=exec
+User=inktomi
+Group=inktomi
+ExecStart=/usr/local/lib/orbweaver-owner-timing/owner-timing.sh --%i
+Environment=PATH=/var/lib/orbweaver-owner-timing/runtime:/usr/bin:/bin
+WorkingDirectory=/var/lib/orbweaver-owner-timing
+RuntimeMaxSec=90min
+TimeoutStopSec=60s
+KillMode=control-group
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+InaccessiblePaths=-/var/run/docker.sock -/run/docker.sock -/run/libvirt -/var/lib/docker
+ReadWritePaths=/var/lib/orbweaver-owner-timing /run/user/1000
+UMask=0077

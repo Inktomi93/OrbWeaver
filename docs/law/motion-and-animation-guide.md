@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-07
+updated: 2026-10-09
 ---
 
 # Motion & Animation Guide
@@ -375,36 +375,26 @@ a motion question with a state answer, never a second `view-transition-name`.
 
 #### 4.1.1 Sealed Select entrance audit input
 
-The 50ms blocking ceiling and unconditional style/layout rule govern ordinary LoAFs. Only this repo's sealed Select entrance qualifies for the owner-authorized cold-opening tolerance. This tolerance does not establish library-owned execution time or a resolved performance cause.
+Timing qualification follows [D308](../adr/0308-hardware-scoped-timing-budgets.md). The ordinary blocking ceiling applies only on qualifying hardware. Select entrances receive no blocking-time subtraction.
 
-The Select seal owns native request identity in `packages/ui/src/primitives/select/opening.ts`. Capture preserves the native timestamp and binds the deferred Root callback to that event. The seal calls the caller's `onOpenChange` once with the original details, then reads `isCanceled`. Only accepted native uncontrolled requests may qualify. Controlled, default-open, synthetic, programmatic, and unidentified opens remain ordinary budget inputs. Controlled callbacks do not establish acceptance, including immediate and deferred owner updates. Close, cancellation, supersession, and unmount invalidate pending request identity.
+The Select seal owns native request identity in `packages/ui/src/primitives/select/opening.ts`. Capture preserves the native timestamp and binds the deferred Root callback to that event. The seal calls the caller's `onOpenChange` once with the original details, then reads `isCanceled`. Accepted native uncontrolled requests identify entrance measurements. Controlled callbacks do not establish acceptance, including immediate and deferred owner updates. Close, cancellation, supersession, and unmount invalidate pending request identity. These lifecycle facts do not grant timing qualification.
 
 `packages/client/src/lib/select-entrance-evidence.ts` retains the same provisional evidence object from native capture through acceptance. It confirms only when the ARIA-related
 `[data-slot="select-positioner"]` for the accepted request's trigger mounts or reactivates, and ends after the two measured
 "PRESENTED_PARTIAL" cleanup frames following the popup's real opacity/scale transition, with a 300ms
 post-confirmation hard cap. The cap is
 post-confirmation because the first render can itself consume much of the pre-confirmation interval;
-it is not a free grace window. `motion-stats.ts` attaches that same confirmed range to
-each overlapping LoAF. A first page-lifetime entrance may subtract 500ms from exactly one primary
-confirmation LoAF before the unchanged 50ms blocking ceiling; the allowance is consumed once and every
-later/concurrent frame plus every repeat receives zero subtraction. Recognizable app or unrelated-module
-script attribution vetoes both the allowance and style/layout classification for that LoAF. Empty
-attribution and production hashed bundles are unknown, not positive library attribution. Style/layout is
-otherwise classified only on overlapping confirmed entrance frames. Reports retain raw, classified, and
-budgeted totals. Actual ordinary mounts consume the trigger's first-page identity too. Checkpoint resets clear request bindings but preserve that identity; a late callback cannot revive discarded evidence or relabel a natural reopen first.
+it bounds diagnostic capture rather than granting a timing grace window. `motion-stats.ts` attaches the confirmed range to overlapping LoAFs. Reports retain raw measurements and optional entrance classification without subtracting a cold-opening tolerance. Callback attribution remains diagnostic evidence, not a condition for closing a timing investigation. Actual ordinary mounts consume the trigger's first-page identity too. Checkpoint resets clear request bindings but preserve that identity; a late callback cannot revive discarded evidence or relabel a natural reopen first.
 
 The same helper emits paired User Timing start/confirmed/end marks. `pnpm snap --motion [selector]` pairs those with real
-CDP `PipelineReporter` begin/end intervals and excludes only overlapping frames from its budgeted dropped
-numerator and denominator; raw counts stay visible. Missing marks, unpaired frames, non-Select portals,
-work outside the entrance, residual blocking, CLS, and dirty animations remain ordinary inputs. The
+CDP `PipelineReporter` begin/end intervals. Reports preserve raw, classified and budgeted frame populations. This frame accounting does not grant hardware qualification. Missing marks and unpaired frames remain measurement-integrity failures. The
 probe resolves Playwright actionability geometry before its checkpoint and sends a native mouse click
 after crossing a frame boundary, so its own layout reads are not mistaken for product work. Do not
 replace this with `keepMounted`, pre-mounting, a call-site marker, or a broader portal exemption.
 
 The end mark remains the measured two-PRESENTED_PARTIAL-frame handoff; do not widen its frame count or
 window. Chrome cannot causally separate unrelated work inside the identical browser frame, so those two
-frames are a bounded owner-accepted risk, not a claim of perfect attribution. Separate frames and
-recognizably app-attributed LoAF work remain ordinary red inputs.
+frames bound diagnostic capture rather than exempting work from a hardware-qualified timing budget.
 
 During that measured CDP window only, Snap's `motion arm` asks the dev bridge to suspend the duplicate
 in-page `[drop]` lifetime collector. The pause returns before CSS-event, WAAPI-target, map, and report

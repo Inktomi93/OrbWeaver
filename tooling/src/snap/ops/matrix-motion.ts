@@ -15,6 +15,7 @@ import type { SnapAppearanceContract } from "../contract/matrix.ts";
 import type { SnapDetailedResult } from "../contract/run.ts";
 import type { Args, SnapAction } from "../contract/types.ts";
 import { shouldProduceShot, variantOut } from "../lib/out-names.ts";
+import { snapTimingPolicy } from "../lib/rate-posture.ts";
 import { snapDestination } from "./guards.ts";
 import { runOnSession, runSnapDetailed } from "./run.ts";
 import { registerSnapResultPairs } from "./run-bundle.ts";
@@ -102,6 +103,7 @@ export async function runMotionMatrix(opts: Args, baseName: string, discovery: M
       route: snapDestination(runArgs).url,
       windowMs: runArgs.motionWindowMs,
       throttle: runArgs.motionThrottle,
+      timingPolicy: result.receipt === null ? "record" : snapTimingPolicy(result.receipt.ratePosture),
     });
   }
   const staticExpected = evaluateMotionStaticExpected(matrix.staticExpected, cells);

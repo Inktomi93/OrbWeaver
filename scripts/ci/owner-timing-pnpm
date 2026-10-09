@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /var/lib/orbweaver-owner-timing/runtime/node /var/lib/orbweaver-owner-timing/runtime/corepack/dist/pnpm.js "$@"

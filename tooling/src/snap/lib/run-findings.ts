@@ -155,28 +155,32 @@ function mergeDrafts(drafts: readonly FindingDraft[], indexPath: string): readon
 const VOTING_ARM_STATES = new Set(["failed", "refused", "withheld"]);
 
 /** …and the arms that owe an ANNOTATION instead. Separate set, separate severity, never counted. */
-const ANNOTATED_ARM_STATES = new Set(["load-suspect"]);
+const ANNOTATED_ARM_STATES = new Set(["load-suspect", "recorded"]);
 
 /** THE LOAD-SUSPECT ANNOTATION (#1616 done-criterion 2). The arm measured on a loaded box, so the run's
  *  reader is TOLD — an annotation carries into the findings surface without severity, without a count, and
  *  with `counted: false`, so nothing downstream can turn it into a verdict. It is emitted on EVERY run,
  *  passing or not: a load-suspect number on a green run is exactly the reading that would otherwise
  *  disappear. `completeness: "incomplete"` because the arm's threshold went unjudged. */
-function loadSuspectAnnotations(input: SnapFindingInput): FindingDraft[] {
+function measurementAnnotations(input: SnapFindingInput): FindingDraft[] {
   return input.verdict.arms
     .filter((arm) => ANNOTATED_ARM_STATES.has(arm.state))
     .map((arm) => ({
       severity: "annotation" as const,
       arms: [arm.arm],
       channels: [arm.arm],
-      what: arm.detail ?? `the ${arm.arm} arm MEASURED on a loaded box — its numbers are load-suspect and were not judged (#1616)`,
+      what:
+        arm.detail ??
+        (arm.state === "recorded"
+          ? `the ${arm.arm} arm recorded measurements without hardware timing qualification`
+          : `the ${arm.arm} arm MEASURED on a loaded box — its numbers are load-suspect and were not judged (#1616)`),
       where: `arm ${arm.arm}`,
       evidence: arm.artifacts.length === 0 ? [findingRef("run-index", input.indexPath)] : arm.artifacts.map((path) => findingRef(arm.arm, path)),
       completeness: "incomplete" as const,
       conflicts: [],
       occurrences: 1,
-      disposition: { counted: false, reason: "load-suspect" },
-      correlation: `arm:${arm.arm}:load-suspect`,
+      disposition: { counted: false, reason: arm.state },
+      correlation: `arm:${arm.arm}:${arm.state}`,
     }));
 }
 
@@ -241,7 +245,7 @@ export async function collectSnapFindings(input: SnapFindingInput): Promise<read
     ...(await harFindingDrafts(input.artifacts)),
     // OUTSIDE the `state !== "passed"` branch below, deliberately (#1616): a load-suspect arm is most
     // likely to appear on a PASSING run, and that is precisely the reading that must not vanish.
-    ...loadSuspectAnnotations(input),
+    ...measurementAnnotations(input),
   ];
   if (input.verdict.state !== "passed") {
     // PER-ARM ROWS ARE NOT A FALLBACK (#1566). #1385 landed them inside the "no error row at all" branch,

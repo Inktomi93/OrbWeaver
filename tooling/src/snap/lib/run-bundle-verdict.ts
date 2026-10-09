@@ -48,9 +48,10 @@ const STATE_RANK: Readonly<Record<SnapArmState, number>> = {
   failed: 1,
   withheld: 2,
   "load-suspect": 3,
-  absent: 4,
-  passed: 5,
-  off: 6,
+  recorded: 4,
+  absent: 5,
+  passed: 6,
+  off: 7,
 };
 
 function armFacts(results: SnapRunResults, arm: Arm): readonly SnapArmFact[] {

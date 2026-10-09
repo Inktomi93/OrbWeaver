@@ -1,32 +1,34 @@
 name: Install proof
-
-# Proves the README's "Run it" paths on fresh runners. Each source job runs the README's install lines, a
-# non-interactive `pnpm start` (start.cmd on Windows), waits for /healthz and stops the server, then runs the
-# targeted plugin-broker process-tree proof. The docker job runs the README's Docker lines: it pulls the
-# published release image the default compose file names, with no build step, and runs the same proof inside
-# it. Dispatch on `release` so the compose file and the proofs match that image. No job installs Node: package.json `devEngines.runtime` (onFail: download) makes
-# pnpm fetch the pinned Node itself, which is the README's path.
-# Manual only, like ci.yml.
 on:
-  workflow_dispatch:
-    inputs:
-      windows_proof_only:
-        description: Run only Windows broker proofs, without startup or Docker jobs
-        type: boolean
-        default: false
-      windows_proof_repetitions:
-        description: Sequential Windows proof repetitions (1 to 3)
-        type: choice
-        options: ['1', '2', '3']
-        default: '1'
-
+  workflow_dispatch: null
+  schedule:
+    - cron: 23 10 * * *
 permissions:
   contents: read
-
 env:
   HEALTHZ: http://127.0.0.1:8788/healthz
-
 jobs:
+  head:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+      release_tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'main' || github.sha }}
+          persist-credentials: false
+      - id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          metadata=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest")
+          tag=$(echo "$metadata" | jq -er 'select(.draft == false and .prerelease == false) | .tag_name')
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
   source:
     name: source (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -34,15 +36,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(inputs.windows_proof_only && '["windows-latest"]' || '["ubuntu-latest", "macos-latest", "windows-latest"]') }}
+        os:
+          - ubuntu-24.04
+          - macos-latest
+          - windows-latest
     steps:
-      # The README's `git clone`, at the ref this run was dispatched on.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-
+          ref: ${{ needs.head.outputs.sha }}
+      - id: seen
+        if: github.event_name == 'schedule'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .native-proof
+          key: install-source-v1-${{ matrix.os }}-${{ needs.head.outputs.sha }}
+          lookup-only: true
       - name: Install pnpm (README, Linux and macOS)
-        if: runner.os != 'Windows'
+        if: steps.seen.outputs.cache-hit != 'true' && (runner.os != 'Windows')
         run: |
           # The script refuses to guess the shell when SHELL is unset, which a terminal always sets.
           export SHELL="${SHELL:-/bin/bash}"
@@ -51,9 +62,8 @@ jobs:
           if [ "$RUNNER_OS" = macOS ]; then pnpm_home="$HOME/Library/pnpm"; else pnpm_home="${XDG_DATA_HOME:-$HOME/.local/share}/pnpm"; fi
           echo "PNPM_HOME=$pnpm_home" >> "$GITHUB_ENV"
           echo "$pnpm_home/bin" >> "$GITHUB_PATH"
-
       - name: Install pnpm (README, Windows PowerShell)
-        if: runner.os == 'Windows'
+        if: steps.seen.outputs.cache-hit != 'true' && (runner.os == 'Windows')
         shell: pwsh
         run: |
           Invoke-WebRequest https://get.pnpm.io/install.ps1 -UseBasicParsing | Invoke-Expression
@@ -61,18 +71,16 @@ jobs:
           $pnpmHome = Join-Path $env:LOCALAPPDATA "pnpm"
           "PNPM_HOME=$pnpmHome" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Join-Path $pnpmHome "bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-
       - run: pnpm install
-
-      # Which Node a pnpm script runs: proof that pnpm fetched the pinned one.
+        if: steps.seen.outputs.cache-hit != 'true'
       - name: Report the Node versions
         shell: bash
         run: |
           node --version || echo "no node on PATH"
           pnpm exec node -e "console.log('pnpm scripts run node', process.version, 'from', process.execPath)"
-
+        if: steps.seen.outputs.cache-hit != 'true'
       - name: Start, wait for /healthz, stop (Linux and macOS)
-        if: runner.os != 'Windows' && !inputs.windows_proof_only
+        if: steps.seen.outputs.cache-hit != 'true' && (runner.os != 'Windows')
         run: |
           pnpm start < /dev/null > "$RUNNER_TEMP/start.log" 2>&1 &
           start_pid=$!
@@ -96,9 +104,8 @@ jobs:
           done
           if kill -0 "$supervisor" 2> /dev/null; then echo "pnpm start is still running after Ctrl-C"; exit 1; fi
           if curl -fsS "$HEALTHZ" > /dev/null 2>&1; then echo "the server still answers after the stop"; exit 1; fi
-
       - name: Start with start.cmd, wait for /healthz, stop (Windows)
-        if: runner.os == 'Windows' && !inputs.windows_proof_only
+        if: steps.seen.outputs.cache-hit != 'true' && (runner.os == 'Windows')
         shell: pwsh
         run: |
           $noInput = Join-Path $env:RUNNER_TEMP "no-input.txt"
@@ -137,28 +144,21 @@ jobs:
           $stillUp = $true
           try { Invoke-WebRequest $env:HEALTHZ -UseBasicParsing -TimeoutSec 5 | Out-Null } catch { $stillUp = $false }
           if ($stillUp) { throw "the server still answers after the stop" }
-
       - name: Show the start log
-        if: always()
+        if: steps.seen.outputs.cache-hit != 'true' && (always())
         shell: bash
         run: cat "$RUNNER_TEMP"/start*.log || true
-
       - name: Prove plugin broker containment and residency
         shell: bash
         env:
-          PROOF_REPETITIONS: ${{ runner.os == 'Windows' && inputs.windows_proof_repetitions || '1' }}
-        run: |
-          for ((i = 1; i <= PROOF_REPETITIONS; i++)); do
-            export PLUGIN_BROKER_PROOF_RECEIPT="$RUNNER_TEMP/plugin-broker-proof-$i.json"
-            pnpm test:scoped tests/server/infra/plugin-host/platform-proof.suite.test.ts
-          done
-
+          PLUGIN_BROKER_PROOF_RECEIPT: ${{ runner.temp }}/plugin-broker-proof-1.json
+        run: pnpm test:scoped tests/server/infra/plugin-host/platform-proof.suite.test.ts
+        if: steps.seen.outputs.cache-hit != 'true'
       - name: Prove plugin broker supervision
-        if: ${{ !cancelled() }}
+        if: steps.seen.outputs.cache-hit != 'true' && (!cancelled())
         run: pnpm test:scoped tests/server/infra/plugin-host/broker-supervision.suite.test.ts
-
       - name: Add plugin broker receipt to the run summary
-        if: always()
+        if: steps.seen.outputs.cache-hit != 'true' && (always())
         shell: bash
         run: |
           pnpm exec node --input-type=module - <<'NODE'
@@ -169,10 +169,9 @@ jobs:
             await appendFile(process.env.GITHUB_STEP_SUMMARY, `### Plugin broker proof (${process.env.RUNNER_OS}, ${name})\n\`\`\`json\n${text}\`\`\`\n`);
           }
           NODE
-
       - name: Upload plugin broker receipt
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: steps.seen.outputs.cache-hit != 'true' && (always())
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: plugin-broker-proof-${{ matrix.os }}
           path: |
@@ -181,22 +180,55 @@ jobs:
             reports/
           if-no-files-found: warn
           retention-days: 14
-
+      - id: mark
+        if: success() && github.event_name == 'schedule' && steps.seen.outputs.cache-hit != 'true'
+        env:
+          PROOF_SHA: ${{ needs.head.outputs.sha }}
+        run: echo "$PROOF_SHA" > .native-proof
+      - if: success() && steps.mark.outcome == 'success'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .native-proof
+          key: install-source-v1-${{ matrix.os }}-${{ needs.head.outputs.sha }}
+    needs:
+      - head
   docker:
-    if: ${{ !inputs.windows_proof_only }}
-    name: docker (ubuntu-latest)
-    runs-on: ubuntu-latest
+    name: docker (ubuntu-24.04)
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
-      # The README's `git clone`, at the ref this run was dispatched on.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-
+          ref: ${{ needs.head.outputs.release_tag }}
+      - id: seen
+        if: github.event_name == 'schedule'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .native-proof
+          key: install-docker-v1-${{ needs.head.outputs.sha }}-${{ needs.head.outputs.release_tag }}
+          lookup-only: true
+      - id: image
+        env:
+          RELEASE_TAG: ${{ needs.head.outputs.release_tag }}
+        run: |
+          image="ghcr.io/inktomi93/orbweaver:${RELEASE_TAG#v}"
+          export DOCKER_CONFIG="$RUNNER_TEMP/anonymous-docker"
+          mkdir -p "$DOCKER_CONFIG"
+          docker pull "$image"
+          sha=$(git rev-parse HEAD)
+          stamp=$(docker run --rm --entrypoint cat "$image" /app/version.json)
+          echo "$stamp" | jq -e --arg sha "$sha" --arg version "${RELEASE_TAG#v}" '.commit == $sha and .channel == "stable" and .version == $version'
+          revision=$(docker inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')
+          test "$revision" = "$sha"
+          digest=$(docker inspect "$image" --format '{{ index .RepoDigests 0 }}' | cut -d@ -f2)
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
+          echo "ORB_IMAGE=$image@$digest" >> "$GITHUB_ENV"
+        if: steps.seen.outputs.cache-hit != 'true'
       - run: docker compose pull
-
+        if: steps.seen.outputs.cache-hit != 'true'
       - run: docker compose up -d
-
+        if: steps.seen.outputs.cache-hit != 'true'
       - name: Wait for /healthz
         run: |
           for _ in $(seq 1 60); do
@@ -204,18 +236,15 @@ jobs:
             sleep 5
           done
           curl -fsS "$HEALTHZ"
-
+        if: steps.seen.outputs.cache-hit != 'true'
       - name: Prove the plugin broker cannot read the data dir in the production image
         run: |
           for file in _broker-containment-proof.ts _broker-permission-probe.ts _worker-drop-preload.ts; do
             docker compose exec --user node -T orbweaver sh -c "cat > /app/.cache/$file" < "tests/server/infra/plugin-host/$file"
           done
           docker compose exec --user node -T orbweaver node /app/.cache/_broker-containment-proof.ts --root=/app
-
+        if: steps.seen.outputs.cache-hit != 'true'
       - name: Prove plugin broker containment and residency in the production image
-        # A fresh app embeds its seeded content on the CPU for minutes, which starves this timing-bound proof on a
-        # small runner. The source jobs run the proof with the app stopped; this runs it in its own container of
-        # the same image and compose hardening, with the app stopped.
         run: |
           docker compose stop orbweaver
           mkdir -p -m 0777 "$RUNNER_TEMP/docker-proof"
@@ -223,13 +252,12 @@ jobs:
             -v "$PWD/tests/server/infra/plugin-host/_platform-proof.ts:/app/.cache/plugin-platform-proof.ts:ro" \
             -v "$RUNNER_TEMP/docker-proof:/proof" \
             orbweaver /app/.cache/plugin-platform-proof.ts --run-proof --root=/app --json=/proof/plugin-broker-proof.json
-
+        if: steps.seen.outputs.cache-hit != 'true'
       - name: Copy Docker plugin broker receipt
-        if: always()
+        if: steps.seen.outputs.cache-hit != 'true' && (always())
         run: cp "$RUNNER_TEMP/docker-proof/plugin-broker-proof.json" "$RUNNER_TEMP/plugin-broker-proof-docker.json" || true
-
       - name: Add Docker plugin broker receipt to the run summary
-        if: always()
+        if: steps.seen.outputs.cache-hit != 'true' && (always())
         run: |
           receipt="$RUNNER_TEMP/plugin-broker-proof-docker.json"
           if [ -f "$receipt" ]; then
@@ -240,22 +268,34 @@ jobs:
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
           fi
-
       - name: Upload Docker plugin broker receipt
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: steps.seen.outputs.cache-hit != 'true' && (always())
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: plugin-broker-proof-docker
           path: ${{ runner.temp }}/plugin-broker-proof-docker.json
           if-no-files-found: warn
           retention-days: 14
-
       - name: Show the container log
-        if: always()
+        if: steps.seen.outputs.cache-hit != 'true' && (always())
         run: docker compose logs orbweaver
-
       - name: Stop
-        if: always()
+        if: steps.seen.outputs.cache-hit != 'true' && (always())
         run: |
           docker compose down
           if curl -fsS "$HEALTHZ" > /dev/null 2>&1; then echo "the app still answers after docker compose down"; exit 1; fi
+      - id: mark
+        if: success() && github.event_name == 'schedule' && steps.seen.outputs.cache-hit != 'true'
+        env:
+          PROOF_SHA: ${{ needs.head.outputs.sha }}
+        run: echo "$PROOF_SHA" > .native-proof
+      - if: success() && steps.mark.outcome == 'success'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .native-proof
+          key: install-docker-v1-${{ needs.head.outputs.sha }}-${{ needs.head.outputs.release_tag }}
+    needs:
+      - head
+concurrency:
+  group: install-${{ github.ref }}
+  cancel-in-progress: false

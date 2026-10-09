@@ -27,7 +27,13 @@ function testPage(evaluate: Page["evaluate"]): Pick<Page, "evaluate"> {
 }
 
 function posture(acceleration: BrowserAccelerationEvidence = HARDWARE, load: SnapRatePosture["load"] = { loadavg1: 0.6, cpuCount: 2 }): SnapRatePosture {
-  return { id: snapRatePostureIdSchema.parse(`sha256:${"0".repeat(64)}`), acceleration, accelerationError: null, load };
+  return {
+    id: snapRatePostureIdSchema.parse(`sha256:${"0".repeat(64)}`),
+    acceleration,
+    accelerationError: null,
+    timing: { hardwareClass: "inktomi-owner", stableTiming: true, policy: "assert", reason: "deterministic fixture" },
+    load,
+  };
 }
 
 async function captureStdout<T>(run: () => Promise<T>): Promise<{ readonly stdout: string; readonly value: T }> {
