@@ -80,8 +80,7 @@ test("chatCreated does NOT refetch the chat list — the same-commit chatsChange
 
   await mount(<StartChatBurstStory chatId={CHAT_ID} />);
   await expect(page.getByTestId("burst-state")).toContainText(`room for ${CHAT_ID}`);
-  // Both mount fetches must SETTLE before any invalidate: an invalidate landing on a query's FIRST,
-  // still-in-flight fetch is absorbed (query-core reuses the in-flight promise), which would fake a green.
+  // A settled mount baseline separates this event's fetches from initial-load reconciliation.
   await expect.poll(() => trpc.count("chat.listChats")).toBe(1);
 
   await page.getByRole("button", { name: "chatCreated", exact: true }).click();

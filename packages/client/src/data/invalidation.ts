@@ -10,7 +10,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { ChatId } from "@orb/kit/ids";
-import type { QueryClient } from "@tanstack/react-query";
+import type { Query, QueryClient } from "@tanstack/react-query";
 import { busDupCheck, busInvalidate, IS_DEV, runAfterViewTransition } from "#lib";
 import { collapseFilters, filterKeyName } from "./collapse-filters.ts";
 import { allAutomationRoomFilters, automationEventFilters } from "./invalidation-automation.ts";
@@ -202,13 +202,67 @@ const BUS_FILTERS: BusFilterMap = {
   roomEntityChanged: (e, trpc) => ROOM_ENTITY_FILTERS[e.entity](e.chatId, trpc),
 };
 
+type RefetchTarget = NonNullable<InvalidateFilter["refetchType"]>;
+
+function combinedRefetchTarget(targets: ReadonlySet<RefetchTarget>): RefetchTarget {
+  if (targets.has("all") || (targets.has("active") && targets.has("inactive"))) {
+    return "all";
+  }
+  if (targets.has("active")) {
+    return "active";
+  }
+  return targets.has("inactive") ? "inactive" : "none";
+}
+
+// Hook facades are recreated per render; an initial read owes one reconciliation across all of them.
+const initialReads = new WeakMap<Query, Set<RefetchTarget>>();
+
 export function createInvalidation(deps: { readonly queryClient: QueryClient; readonly trpc: Trpc }): Invalidation {
+  // Native invalidation reuses an initial in-flight read; its stale response then clears isInvalidated.
+  function retainInitialInvalidation(query: Query, target: RefetchTarget): void {
+    const pending = initialReads.get(query);
+    if (pending !== undefined) {
+      pending.add(target);
+      return;
+    }
+    const targets = new Set([target]);
+    initialReads.set(query, targets);
+    const unsubscribe = deps.queryClient.getQueryCache().subscribe((event) => {
+      if (event.query !== query || (event.type !== "removed" && (event.type !== "updated" || query.state.fetchStatus !== "idle"))) {
+        return;
+      }
+      // A canon carrier can synchronously patch this result before the original success notification finishes.
+      if (event.type === "updated" && event.action.type === "success" && event.action.manual === true) {
+        return;
+      }
+      unsubscribe();
+      initialReads.delete(query);
+      if (event.type === "updated" && event.action.type === "success") {
+        invalidateFilters([
+          {
+            queryKey: query.queryKey,
+            exact: true,
+            predicate: (candidate) => candidate === query,
+            refetchType: combinedRefetchTarget(targets),
+          },
+        ]);
+      }
+    });
+  }
+  function retainInitialReads(filter: InvalidateFilter): void {
+    for (const query of deps.queryClient.getQueryCache().findAll(filter)) {
+      if (query.state.data === undefined && query.state.fetchStatus !== "idle") {
+        retainInitialInvalidation(query, filter.refetchType ?? filter.type ?? "active");
+      }
+    }
+  }
   const invalidateFilters = (filters: readonly InvalidateFilter[]): void => {
     const collapsed = collapseFilters(filters);
     // A wire confirmation repainting a cold pane mid-crossfade is motion jank; outside native motion this
     // seam stays synchronous, and the already-applied event carrier remains visible immediately either way.
     runAfterViewTransition(() => {
       for (const filter of collapsed) {
+        retainInitialReads(filter);
         if (IS_DEV) {
           busDupCheck(filterKeyName(filter));
         }

@@ -2,8 +2,8 @@
 // `./invalidation.ts`, gate `no-inline-invalidate-outside-seam`). Was copy-pasted per feature
 // (chat + settings) before every call site through the composition-provided singletons in
 // context (the tRPC options proxy + the QueryClient) — hoisted here so both build on the ONE
-// accessor. Identity churns per render (the seam is stateless + fire-and-forget), which is
-// harmless — the subscription/mutation wiring keys off ids, not the deps object identity.
+// accessor. Facade identity churns per render; pending initial-read reconciliation follows the
+// native Query identity, while subscription/mutation wiring keys off ids, not this facade.
 
 import { useQueryClient } from "@tanstack/react-query";
 import type { Invalidation } from "./invalidation.ts";

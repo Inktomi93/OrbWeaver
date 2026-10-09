@@ -21,8 +21,8 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import type { TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { AutomationActivityFreshnessStory, AutomationSuggestionCardStory } from "../../chat/_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../../chat/fixtures.ts";
@@ -61,8 +61,8 @@ async function routeRoom(
   page: Page,
   frames: readonly StreamFrame[],
   options?: {
-    readonly activity?: () => TrpcWireOutput<"automation.listChatActivity">;
-    readonly releaseFramesWhen?: () => boolean;
+    readonly activity?: TrpcResponder<"automation.listChatActivity">;
+    readonly releaseFrames?: Promise<void>;
   },
 ): Promise<{ readonly count: (p: string) => number }> {
   const trpc = await routeTrpc(page, {
@@ -104,9 +104,7 @@ async function routeRoom(
       for (let i = 0; i < MAX_ATTACH_POLLS && !socket.attachedChannels().some((key) => key.startsWith("automation:")); i += 1) {
         await new Promise((resolve) => setTimeout(resolve, 25));
       }
-      for (let i = 0; i < MAX_ATTACH_POLLS && options?.releaseFramesWhen?.() === false; i += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 25));
-      }
+      await options?.releaseFrames;
     }
     await route.fallback();
   });
@@ -121,6 +119,16 @@ function ruleFiredFrame(): StreamFrame {
   };
   return { channel: "automation", chatId: CHAT_ID, event };
 }
+
+const FIRED_ACTIVITY = {
+  id: "automationfire_ct_activity",
+  ruleId: "automationrule_ct_activity",
+  chatId: CHAT_ID,
+  triggerType: "messageCommitted",
+  outcome: "fired",
+  detail: null,
+  firedAt: 1_700_000_002_000,
+} satisfies TrpcWireOutput<"automation.listChatActivity">[number];
 
 test("a rewrite card renders its question with the diff COLLAPSED, and the disclosure opens it", async ({ mount, page }) => {
   await routeRoom(page, [rewriteCardFrame()]);
@@ -148,30 +156,48 @@ test("a rewrite card renders its question with the diff COLLAPSED, and the discl
 
 test("a rule terminal refreshes the visible room Activity list through the always-mounted automation source", async ({ mount, page }) => {
   let activityReads = 0;
-  const freshRow = {
-    id: "automationfire_ct_activity",
-    ruleId: "automationrule_ct_activity",
-    chatId: CHAT_ID,
-    triggerType: "messageCommitted",
-    outcome: "fired",
-    detail: null,
-    firedAt: 1_700_000_002_000,
-  } satisfies TrpcWireOutput<"automation.listChatActivity">[number];
+  let activityRows: TrpcWireOutput<"automation.listChatActivity"> = [];
+  const terminal = Promise.withResolvers<void>();
   await routeRoom(page, [ruleFiredFrame()], {
     activity: () => {
       activityReads += 1;
-      return activityReads === 1 ? [] : [freshRow];
+      return activityRows;
     },
-    // Hold the hand-fired terminal until the Activity body has completed its first read. That makes the
-    // subsequently painted row proof of a refetch; a frame that lands before the query exists proves nothing.
-    releaseFramesWhen: () => activityReads > 0,
+    releaseFrames: terminal.promise,
   });
 
   const component = await mount(<AutomationActivityFreshnessStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Activity", exact: true }).click();
 
-  await expect(component.getByText("Fired", { exact: true })).toBeVisible();
+  const activity = component.getByRole("region", { name: "Activity", exact: true });
+  // A responder invocation precedes delivery; only the rendered empty list proves the first query settled.
+  await expect(activity.getByText(/^Nothing yet —/u)).toBeVisible();
+  expect(activityReads).toBe(1);
+  activityRows = [FIRED_ACTIVITY];
+  terminal.resolve();
+  await expect(activity.getByText("Fired", { exact: true })).toBeVisible();
   expect(activityReads).toBeGreaterThanOrEqual(2);
+});
+
+test("a rule terminal delivered before the initial Activity response still refreshes the visible list", async ({ mount, page }) => {
+  const initialActivity = trpcHold();
+  let activityReads = 0;
+  await routeRoom(page, [ruleFiredFrame(), rewriteCardFrame()], {
+    activity: () => {
+      activityReads += 1;
+      return activityReads === 1 ? initialActivity : [FIRED_ACTIVITY];
+    },
+    releaseFrames: initialActivity.requested,
+  });
+  const component = await mount(<AutomationActivityFreshnessStory />);
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Activity", exact: true }).click();
+  await initialActivity.requested;
+  // The later frame's rendered card proves the real subscriber already processed the preceding terminal.
+  await expect(component.getByText("Fix the last reply — repeats itself?")).toBeVisible();
+  expect(activityReads).toBe(1);
+  initialActivity.release([]);
+  await expect(component.getByRole("region", { name: "Activity", exact: true }).getByText("Fired", { exact: true })).toBeVisible();
+  expect(activityReads).toBe(2);
 });
 
 test("confirming the card calls confirmSuggestion once — the card's action is a front-door verb, not a turn", async ({ mount, page }) => {
