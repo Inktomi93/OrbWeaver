@@ -186,3 +186,11 @@ test("partition shell forwards only data and preserves child failure exits", asy
     }
   }
 });
+
+test("CI failure rendering reads all failed verify stages rather than requiring structure output", ({ repoRoot }) => {
+  const ci = workflow(repoRoot);
+  expect(ci.jobs["qualification-partition"]?.steps.find((step) => step.name === "Show what failed")?.run).toBe("pnpm check:show --stages --limit 20");
+  const staticDisplay = ci.jobs["static"]?.steps.find((step) => step.name === "Show what failed")?.run ?? "";
+  expect(staticDisplay).toContain("pnpm check:show --stages --limit 20");
+  expect(staticDisplay).not.toContain("|| true");
+});

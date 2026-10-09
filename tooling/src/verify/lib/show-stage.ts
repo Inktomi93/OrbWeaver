@@ -23,6 +23,7 @@ import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { StageResult, VerifyReport } from "../contract/stage.ts";
 import { VERIFY_INSTRUMENT, VERIFY_REPORT_NAME } from "../contract/stage.ts";
+import { aggregateExit } from "./exit-classifiers.ts";
 import type { ShowInk } from "./show-policy.ts";
 
 /** Transcript lines shown by default. A stage log is the WHOLE child transcript (a `tests:node` log runs to
@@ -33,7 +34,7 @@ const DEFAULT_TAIL = 40;
 export interface StageViewRequest {
   /** The stage to render, matched exactly or by a UNIQUE substring. */
   readonly stage: string | null;
-  /** List every stage of the resolved run with its verdict, instead of rendering one. */
+  /** List every stage with its verdict and render each failed stage's transcript tail. */
   readonly stages: boolean;
   /** Read THIS run's slot directly instead of the published pointer — the operator's door out of an
    *  in-flight refusal, and the executable form of "take the slot the run printed when you need YOUR run". */
@@ -200,7 +201,19 @@ export function stageView(root: string, req: StageViewRequest, ink: ShowInk): St
   const preamble = [ink.dim(provenance), ...advisories.map((a) => ink.red(a))];
   if (req.stages) {
     const listed = stageList(report, ink);
-    return { lines: [...preamble, ...listed.lines], exit: listed.exit };
+    const failures = report.stages
+      .filter((stage) => !stage.ok)
+      .map((stage) => {
+        const body = transcript(root, stage, req.limit ?? DEFAULT_TAIL, ink);
+        return {
+          lines: ["", stageHeadline(stage, ink), ...(stage.logFile === null ? [] : [ink.dim(`  transcript: ${stage.logFile}`)]), ...body.lines],
+          exit: body.exit,
+        };
+      });
+    return {
+      lines: [...preamble, ...listed.lines, ...failures.flatMap((view) => view.lines)],
+      exit: aggregateExit([listed.exit, ...failures.map((view) => view.exit)]),
+    };
   }
   const selected = selectStage(report, req.stage ?? "");
   const body = transcript(root, selected, req.limit ?? DEFAULT_TAIL, ink);

@@ -102,9 +102,9 @@ jobs:
             run: pnpm exec node tooling/src/verify/cli.ts application-static cpd
       - if: failure()
         name: Show what failed
-        # check:show names every failing stage of the run with its own extracted failure lines.
+        # Runtime partitions have no structure report; read the native verify stages and their transcript tails.
         run: |
-          pnpm check:show --limit 20 2>&1 | tee check-show.txt
+          pnpm check:show --stages --limit 20 2>&1 | tee check-show.txt
           { echo '### What failed'; echo; echo '```text'; head -c 60000 check-show.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - if: failure()
         name: Say how to reproduce
@@ -336,7 +336,7 @@ jobs:
           pnpm verify "${args[@]}"
       - if: failure()
         name: Show what failed
-        run: pnpm check:show --limit 20
+        run: pnpm check:show --stages --limit 20
       - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
