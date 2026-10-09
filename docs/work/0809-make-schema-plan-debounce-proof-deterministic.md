@@ -23,4 +23,8 @@ Native controls distinguish immediate first draft, intermediate suppression and 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Native timer registration and separate deadline steps control the draft timing. The test retains exact POST count and complete schema input assertions.
+
+A served missing-cancellation control fails. The complete affected component file passes without retries. Normal scoped checks and independent review pass.
+
+Hosted component qualification remains pending.

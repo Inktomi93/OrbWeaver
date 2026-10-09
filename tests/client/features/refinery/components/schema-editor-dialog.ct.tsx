@@ -124,6 +124,8 @@ const BIG_SCHEMA = {
   },
 };
 const PLAN_PROC = "refinery.schemaPlan";
+const PLAN_SETTLE_MS = 400;
+const PLAN_TIMER_REGISTERED = "schema-plan-timer-registered";
 
 test("the plan is asked once the draft settles, by POST, so a draft too long for a URL still gets its line", async ({ mount, page }) => {
   const trpc = await stubEditor(page, {});
@@ -133,15 +135,48 @@ test("the plan is asked once the draft settles, by POST, so a draft too long for
       methods.push(request.method());
     }
   });
+  await page.clock.install({ time: "2026-01-01T00:00:00Z" });
   await mount(<SchemaEditorStory />);
+  await page.clock.pauseAt("2026-01-01T00:01:00Z");
+  // DOM commits precede passive effects; observe native timer registration before moving its clock.
+  await page.evaluate(
+    ({ delay, registered }) => {
+      const browser: Window = globalThis.window;
+      const schedule = browser.setTimeout;
+      browser.setTimeout = (handler, timeout, ...args): ReturnType<typeof schedule> => {
+        const timer = schedule(handler, timeout, ...args);
+        if (timeout === delay) {
+          console.debug(registered);
+        }
+        return timer;
+      };
+    },
+    { delay: PLAN_SETTLE_MS, registered: PLAN_TIMER_REGISTERED },
+  );
+  async function fillDraft(draft: string): Promise<void> {
+    const registered = page.waitForEvent("console", (message) => message.text() === PLAN_TIMER_REGISTERED);
+    await page.getByRole("textbox", SCHEMA_PANE).fill(draft);
+    await registered;
+  }
 
   // The first draft is asked at once, so the line is never blank on open.
-  await page.getByRole("textbox", SCHEMA_PANE).fill(JSON.stringify(PLAIN_SCHEMA));
+  await fillDraft(JSON.stringify(PLAIN_SCHEMA));
+  await expect(page.getByTestId("refinery-schema-stats")).toContainText("2 fields · 0 optional");
+  // Drain immediate transport timers without admitting a debounce interval.
+  await page.clock.runFor(1);
+  await expect.poll(() => trpc.lastInput(PLAN_PROC)).toEqual({ stage: "score", schema: PLAIN_SCHEMA });
   await expect(page.getByTestId("refinery-schema-plan")).toHaveAttribute("data-plan", "unbound");
-  // Two later drafts in quick succession: only the settled one is asked about.
-  await page.getByRole("textbox", SCHEMA_PANE).fill(JSON.stringify(BOUNDED_SCHEMA));
-  await page.getByRole("textbox", SCHEMA_PANE).fill(JSON.stringify(BIG_SCHEMA));
-  await expect.poll(() => trpc.lastInput(PLAN_PROC)).toMatchObject({ stage: "score", schema: BIG_SCHEMA });
+  // Host roundtrips cannot define a debounce burst; native clock steps keep distinct drafts within its window.
+  await fillDraft(JSON.stringify(BOUNDED_SCHEMA));
+  await expect(page.getByTestId("refinery-schema-stats")).toContainText("2 fields · 1 optional");
+  await page.clock.runFor(PLAN_SETTLE_MS / 2);
+  await fillDraft(JSON.stringify(BIG_SCHEMA));
+  await expect(page.getByTestId("refinery-schema-stats")).toContainText("31 fields · 31 optional");
+  await page.clock.runFor(PLAN_SETTLE_MS / 2);
+  await expect(page.getByTestId("refinery-schema-plan")).toHaveAttribute("data-plan", "unbound");
+  await page.clock.runFor(PLAN_SETTLE_MS / 2);
+  await page.clock.resume();
+  await expect.poll(() => trpc.lastInput(PLAN_PROC)).toEqual({ stage: "score", schema: BIG_SCHEMA });
   await expect(page.getByTestId("refinery-schema-plan")).toHaveAttribute("data-plan", "unbound");
   await expect.poll(() => methods).toEqual(["POST", "POST"]);
 });
