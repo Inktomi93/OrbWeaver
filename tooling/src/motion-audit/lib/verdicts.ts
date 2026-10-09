@@ -38,7 +38,7 @@ export function framePopulationBasis(total: number): "uncomputable" | "collapsed
   return total < FRAME_POPULATION_RESOLUTION_FLOOR ? "collapsed" : "verdict";
 }
 
-const RELATED_REACT_SCRIPT_PATH = /\/node_modules\/(?:\.vite\/deps\/)?react(?:-dom)?(?:[./_-]|$)/u;
+const RELATED_REACT_SCRIPT_PATH = /\/node_modules\/(?:\.vite(?:-\d+)?\/deps\/)?react(?:-dom)?(?:[./_-]|$)/u;
 
 /** The three CLS numbers a report must show. Split from `report` so the verdict rule is unit-testable
  *  (tests/tooling/motion-audit.test.ts) without a browser: a synthetic virtualized shift must move `raw`

@@ -294,6 +294,36 @@ test("recognizable app attribution vetoes the primary Select allowance itself", 
   expect(loafOverBudget(motion)).toBe(true);
 });
 
+test.each([".vite", ".vite-5181"])("React scripts in %s retain the confirmed first Select allowance", (cache) => {
+  for (const script of ["react.js", "react-dom_client.js"]) {
+    const motion = motionWith(
+      loaf({
+        blockingDuration: 181,
+        scripts: [{ ...appScript(), sourceURL: `http://localhost:5181/node_modules/${cache}/deps/${script}?v=abc` }],
+        ...selectEntrance(true),
+      }),
+    );
+    expect(loafTotals(motion)).toMatchObject({ classifiedInitializations: 1, budgetedWorstBlocking: 0, budgetedStyleLayout: 0 });
+    expect(loafOverBudget(motion)).toBe(false);
+  }
+});
+
+test.each([
+  ".vite-other/deps/react.js",
+  ".vite-5181other/deps/react.js",
+  ".vite-/deps/react.js",
+  ".vite5181/deps/react.js",
+  ".vite-5181/deps-other/react.js",
+  ".vite-5181/deps/reactive.js",
+  ".vite-5181/deps/app.js",
+])("unrelated optimizer lookalike %s vetoes the Select allowance", (path) => {
+  const motion = motionWith(
+    loaf({ blockingDuration: 181, scripts: [{ ...appScript(), sourceURL: `http://localhost:5181/node_modules/${path}` }], ...selectEntrance(true) }),
+  );
+  expect(loafTotals(motion)).toMatchObject({ classifiedInitializations: 0, budgetedWorstBlocking: 181, budgetedStyleLayout: 1 });
+  expect(loafOverBudget(motion)).toBe(true);
+});
+
 test("unconfirmed Select intent and non-Select portals remain ordinary style/layout failures", () => {
   const unconfirmed = motionWith(loaf({ blockingDuration: 0, ...selectEntrance(false, false) }));
   const nonSelect = motionWith(loaf({ blockingDuration: 0 }));

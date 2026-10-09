@@ -17,11 +17,11 @@
 //   • stream-open is observed via the DEV `window.__orb.bus().live` count (agent-bridge.ts) — vite serves
 //     the e2e app in dev mode so the handle exists; orb has no `chat-stream-state` testid.
 
-import { rowActionsName } from "@orb/client/lib";
 import type { MessageId } from "@orb/kit/ids";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
+import { rowActionsName } from "../../../packages/client/src/lib/row-qualifiers.ts";
 import { HOST_BAND, openContextSections } from "../../support/node/open-context-sections.ts";
 
 // The character row's chat affordance (character-card.tsx `NormalRowActions`): the dual-purpose resume-or-new

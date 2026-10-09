@@ -49,7 +49,7 @@ export function isSandboxTraceNoise(entry: CapturedConsole): boolean {
  *
  *  NARROW BY CONSTRUCTION: an abort or the optimizer's own 504, and only on the optimizer's own path. A
  *  404/500 on a dep, or an abort anywhere else, stays a failure — those are real. */
-const VITE_DEPS_PATH_RE = /\/(?:node_modules\/)?\.vite\/deps\//u;
+const VITE_DEPS_PATH_RE = /\/(?:node_modules\/)?\.vite(?:-\d+)?\/deps\//u;
 const REQUEST_ABORTED = "net::ERR_ABORTED";
 /** Vite's optimizer answers a request for a dep it has just re-bundled with 504 "Outdated Optimize Dep"
  *  and reloads the page; on its own deps path that status is the same churn, never a gateway failure. */

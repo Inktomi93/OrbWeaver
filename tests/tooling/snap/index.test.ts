@@ -586,10 +586,11 @@ function request(over: Partial<CapturedRequest>): CapturedRequest {
   return { method: "GET", url: "http://localhost:5273/x.js", status: null, failed: null, type: "script", ...over };
 }
 
-test("a vite dep-optimizer abort is reported but never counted against the run", () => {
-  const churn = request({ url: "http://localhost:5273/node_modules/.vite/deps/react-dom_client.js?v=abc", failed: "net::ERR_ABORTED" });
+test.each([".vite", ".vite-5181"])("a %s dep-optimizer abort is reported but never counted against the run", (cache) => {
+  const churn = request({ url: `http://localhost:5273/node_modules/${cache}/deps/react-dom_client.js?v=abc`, failed: "net::ERR_ABORTED" });
   const realAbort = request({ url: "http://localhost:5273/api/chat/stream", failed: "net::ERR_ABORTED", type: "fetch" });
-  const depNotFound = request({ url: "http://localhost:5273/node_modules/.vite/deps/missing.js", status: 404 });
+  const depNotFound = request({ url: `http://localhost:5273/node_modules/${cache}/deps/missing.js`, status: 404 });
+  const depServerError = request({ url: `http://localhost:5273/node_modules/${cache}/deps/broken.js`, status: 500, failed: "net::ERR_ABORTED" });
   const clean = request({ status: 200 });
 
   expect(isViteDepChurn(churn)).toBe(true);
@@ -597,18 +598,31 @@ test("a vite dep-optimizer abort is reported but never counted against the run",
   // construction (an ABORT, and only on the optimizer's own path).
   expect(isViteDepChurn(realAbort)).toBe(false);
   expect(isViteDepChurn(depNotFound)).toBe(false);
+  expect(isViteDepChurn(depServerError)).toBe(false);
 
-  const partitioned = partitionFailedRequests([churn, realAbort, depNotFound, clean]);
+  const partitioned = partitionFailedRequests([churn, realAbort, depNotFound, depServerError, clean]);
   expect(partitioned.viteChurn).toEqual([churn]);
-  expect(partitioned.failed).toEqual([realAbort, depNotFound]);
+  expect(partitioned.failed).toEqual([realAbort, depNotFound, depServerError]);
 });
 
-test("vite's 504 Outdated Optimize Dep on its own deps path is churn; a 504 anywhere else still fails", () => {
+test.each([".vite", ".vite-5181"])("%s 504 Outdated Optimize Dep is churn; a 504 anywhere else still fails", (cache) => {
   // The optimizer answers a request for a dep it just re-bundled with 504 and reloads the page; measured on a
   // cold --stage-auth local stage as two failed requests that were re-requested and served.
-  const outdated = request({ url: "http://localhost:5293/node_modules/.vite/deps/luxon.js?v=5e594344", status: 504, failed: "net::ERR_ABORTED" });
+  const outdated = request({ url: `http://localhost:5293/node_modules/${cache}/deps/luxon.js?v=5e594344`, status: 504, failed: "net::ERR_ABORTED" });
   const gateway = request({ url: "http://localhost:5293/api/trpc/chat.list", status: 504, type: "fetch" });
   expect(partitionFailedRequests([outdated, gateway])).toMatchObject({ viteChurn: [outdated], failed: [gateway] });
+});
+
+test.each([
+  ".vite-other/deps",
+  ".vite-5181other/deps",
+  ".vite-/deps",
+  ".vite5181/deps",
+  ".vite-5181/deps-other",
+])("optimizer namespace lookalike %s retains abort and HTTP failures", (path) => {
+  const aborted = request({ url: `http://localhost:5181/node_modules/${path}/react.js`, failed: "net::ERR_ABORTED" });
+  const gateway = request({ url: aborted.url, status: 504 });
+  expect(partitionFailedRequests([aborted, gateway])).toMatchObject({ viteChurn: [], failed: [aborted, gateway] });
 });
 
 test("snap help exits cleanly without starting Chromium", () => {

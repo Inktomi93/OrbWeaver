@@ -536,6 +536,8 @@ function precompressedAssets(): Plugin {
 }
 
 export default defineConfig({
+  // Vite replaces its writable deps directory; concurrent dev origins must not replace a peer's output.
+  cacheDir: join(import.meta.dirname, "node_modules", `.vite-${String(DEV_SERVER_PORT)}`),
   resolve: {
     // pnpm can hoist devtools' peer deps under their own node_modules → TWO React instances →
     // invalid-hook-call errors. Force the bundler to a single instance.
