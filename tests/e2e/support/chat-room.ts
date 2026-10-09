@@ -31,7 +31,9 @@ import { HOST_BAND, openContextSections } from "../../support/node/open-context-
 // (start-chat-with-character.spec.ts, commit b79cf0a871). The stale kebab→"Chat" menuitem flow is dead — this
 // client's row kebab ("Actions for <name>") carries only Archive/Duplicate/Delete, NO "Chat" item.
 const CHARACTER_ROW_CHAT_CTA = /^Chat with /u;
-const APP_READY = "html[data-app-ready]";
+/** The marker observed by both the readiness waiter and the cold-boot diagnostics. */
+export const APP_READY_ATTRIBUTE = "data-app-ready";
+const APP_READY = `html[${APP_READY_ATTRIBUTE}]`;
 const BOOTSTRAP_MESSAGE = "Hi";
 // The first lazy Chats route can trigger Vite dependency optimization after the boot shell has already
 // marked itself ready. Vite then reloads the page and compiles the route graph; the cold push-gate receipt
@@ -78,8 +80,29 @@ export function busEventTypes(page: Page): Promise<readonly string[]> {
 }
 
 /** Wait for the app shell + its initial reads to settle (the app-ready idle signal). */
-export async function waitForAppReady(page: Page): Promise<void> {
-  await expect(page.locator(APP_READY)).toBeAttached({ timeout: 30_000 });
+export async function waitForAppReady(page: Page, timeout = 30_000): Promise<void> {
+  try {
+    await expect(page.locator(APP_READY)).toHaveAttribute(APP_READY_ATTRIBUTE, "", { timeout });
+  } catch (cause) {
+    let diagnostic: string;
+    try {
+      const state = await page.evaluate(
+        (attribute) => ({
+          path: globalThis.location.pathname,
+          ready: document.documentElement.getAttribute(attribute),
+          body: document.body.textContent?.slice(0, 1000),
+          viteErrors: [...document.querySelectorAll("vite-error-overlay")].map((overlay) =>
+            [".plugin", ".message-body", ".file"].map((selector) => overlay.shadowRoot?.querySelector(selector)?.textContent ?? "").join(" "),
+          ),
+        }),
+        APP_READY_ATTRIBUTE,
+      );
+      diagnostic = JSON.stringify(state);
+    } catch (captureFailure) {
+      diagnostic = `diagnostic capture failed: ${captureFailure instanceof Error ? captureFailure.message : String(captureFailure)}`;
+    }
+    throw new Error(`e2e app readiness failed: ${diagnostic}`, { cause });
+  }
 }
 
 /** Poll until the room's chat-bus SSE stream is observably open (≥1 live subscription via the dev
