@@ -433,7 +433,7 @@ jobs:
             shard: "1/2"
           - component: corpus
             shard: "2/2"
-    name: ${{ matrix.component && format('weekly-tooling ({0} {1})', matrix.component, matrix.shard) || 'Weekly tooling proof' }}
+    name: Weekly tooling proof
     env:
       ORB_VERIFY_INSTRUMENT_COMPONENT: ${{ matrix.component }}
       CORPUS_SHARD: ${{ matrix.shard }}
@@ -457,7 +457,7 @@ jobs:
         with:
           browsers: "true"
       - id: proof
-        name: Weekly tooling proof
+        name: Weekly tooling proof (${{ matrix.component }} ${{ matrix.shard }})
         run: |
           if [[ "$ORB_VERIFY_INSTRUMENT_COMPONENT" == corpus ]]; then
             pnpm test:tooling --shard="$CORPUS_SHARD"

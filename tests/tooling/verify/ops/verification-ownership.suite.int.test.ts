@@ -136,6 +136,8 @@ test("nightly and independent weekly entry guards do not overlap or admit diagno
     expect(guard(ci.jobs["qualification-head"]?.if ?? "false", context)).toBe(nightly);
     expect(guard(ci.jobs["weekly-head"]?.if ?? "false", context)).toBe(weekly);
   }
+  expect(ci.jobs["weekly-tooling"]?.name).toBe("Weekly tooling proof");
+  expect(ci.jobs["weekly-tooling"]?.steps.find((step) => step.id === "proof")?.name).toBe("Weekly tooling proof (${{ matrix.component }} ${{ matrix.shard }})");
   expect(ci.jobs["weekly-ok"]?.needs).toEqual(["weekly-head", "weekly-tooling"]);
   expect(ci.jobs["ci-ok"]?.needs).not.toContain("weekly-tooling");
   expect(ci.jobs["weekly-tooling"]?.steps.find((step) => step.id === "source")?.run).toContain('git checkout --detach "$FROZEN_MAIN_SHA"');
