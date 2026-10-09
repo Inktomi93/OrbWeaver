@@ -375,11 +375,7 @@ a motion question with a state answer, never a second `view-transition-name`.
 
 #### 4.1.1 Sealed Select entrance audit input
 
-The 50ms blocking ceiling and unconditional style/layout rule still govern ordinary LoAFs. Clean-host
-4x controls showed that Base UI Select's normal anchored entrance/positioning work spans first and
-natural repeat opens; Base UI Menu and Radix Select showed the same headless-library shape, while a
-minimal one-state React portal was clean. The calibrated input is deliberately narrower than that
-cross-library cause: only this repo's sealed Select entrance qualifies.
+The 50ms blocking ceiling and unconditional style/layout rule govern ordinary LoAFs. Only this repo's sealed Select entrance qualifies for the owner-authorized cold-opening tolerance. This tolerance does not establish library-owned execution time or a resolved performance cause.
 
 The Select seal owns native request identity in `packages/ui/src/primitives/select/opening.ts`. Capture preserves the native timestamp and binds the deferred Root callback to that event. The seal calls the caller's `onOpenChange` once with the original details, then reads `isCanceled`. Only accepted native uncontrolled requests may qualify. Controlled, default-open, synthetic, programmatic, and unidentified opens remain ordinary budget inputs. Controlled callbacks do not establish acceptance, including immediate and deferred owner updates. Close, cancellation, supersession, and unmount invalidate pending request identity.
 
@@ -389,7 +385,7 @@ The Select seal owns native request identity in `packages/ui/src/primitives/sele
 post-confirmation hard cap. The cap is
 post-confirmation because the first render can itself consume much of the pre-confirmation interval;
 it is not a free grace window. `motion-stats.ts` attaches that same confirmed range to
-each overlapping LoAF. A first page-lifetime entrance may subtract 140ms from exactly one primary
+each overlapping LoAF. A first page-lifetime entrance may subtract 500ms from exactly one primary
 confirmation LoAF before the unchanged 50ms blocking ceiling; the allowance is consumed once and every
 later/concurrent frame plus every repeat receives zero subtraction. Recognizable app or unrelated-module
 script attribution vetoes both the allowance and style/layout classification for that LoAF. Empty
