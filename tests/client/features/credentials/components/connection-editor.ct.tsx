@@ -32,6 +32,7 @@ import { curatedRows } from "../../../../../packages/inference/src/capability/so
 import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
 import { resolveCachePolicy } from "../../../../../packages/inference/src/funnel/resolve-cache.ts";
 import { expectCacheProse } from "../../../../support/browser/cache-prose.ts";
+import { expectDisclosureReady } from "../../../../support/browser/disclosure-ready.ts";
 import { makeCachePolicy, makeResolved, makeResolvedCacheView } from "../../../../support/factories/resolved-connection.ts";
 import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
@@ -187,6 +188,12 @@ async function stubEditor(
 /** A tier's disclosure header, by the name the Collapsible gives it. */
 function tier(page: Page, name: string): Locator {
   return page.getByRole("button", { name, exact: false }).filter({ hasText: name });
+}
+
+async function openDiagnostics(page: Page): Promise<void> {
+  const trigger = tier(page, "Diagnostics");
+  await trigger.click();
+  await expectDisclosureReady(trigger);
 }
 
 // ── provider absent from this caller's registry ───────────────────────────────────────────────────────
@@ -427,7 +434,7 @@ test("the four block names are §5.3a's words, never the schema's", async ({ mou
   await tier(page, "Advanced").click();
   await expect(component.getByText("What this server accepts", { exact: true })).toBeVisible();
   await expect(component.getByText("Endpoint quirks", { exact: true })).toBeVisible();
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
   await expect(component.getByText("Extra request fields", { exact: true })).toBeVisible();
   await expect(component.getByText("Request & response shaping", { exact: true })).toBeVisible();
   // The schema words never reach the surface.
@@ -531,7 +538,7 @@ test("the verdict is a SENTENCE with an inline change control, and changing it w
 test("a belt key is glossed at AUTHORING time, before the turn", async ({ mount, page }) => {
   await stubEditor(page);
   const component = await mount(<ConnectionEditorStory />);
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
 
   const owned = component.locator('[data-extra-key="stream"]');
   await expect(owned.locator('[data-slot="connection-extra-belt-gloss"]')).toHaveText(
@@ -544,7 +551,7 @@ test("a belt key is glossed at AUTHORING time, before the turn", async ({ mount,
 test("an unfinished row is HELD through a save, and remove takes the row it names", async ({ mount, page }) => {
   const recorder = await stubEditor(page);
   const component = await mount(<ConnectionEditorStory />);
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
 
   const rows = component.locator('[data-slot="connection-extra-row"]');
   await expect(rows).toHaveCount(3); // two saved + the always-present empty one
@@ -591,7 +598,7 @@ for (const [format, pasted] of PASTED_FORMATS) {
   test(`extra request fields: a pasted block of ${format} becomes one row per field and saves the object`, async ({ mount, page }) => {
     const recorder = await stubEditor(page);
     const component = await mount(<ConnectionEditorStory />);
-    await tier(page, "Diagnostics").click();
+    await openDiagnostics(page);
 
     await paste(component.locator('[data-slot="connection-extra-row"]').last().getByLabel("Field", { exact: true }), pasted);
     await expect
@@ -608,7 +615,7 @@ for (const [format, pasted] of PASTED_FORMATS) {
   test(`fields to add or replace: ${format} saves the object and reads back as JSON`, async ({ mount, page }) => {
     const recorder = await stubEditor(page);
     const component = await mount(<ConnectionEditorStory />);
-    await tier(page, "Diagnostics").click();
+    await openDiagnostics(page);
 
     const field = component.getByLabel("Fields to add or replace");
     await field.fill(pasted);
@@ -623,7 +630,7 @@ for (const [format, pasted] of PASTED_FORMATS) {
 test("extra request fields: a typed JSON value saves structured; a template value saves exactly as typed", async ({ mount, page }) => {
   const recorder = await stubEditor(page);
   const component = await mount(<ConnectionEditorStory />);
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
 
   const row = component.locator('[data-slot="connection-extra-row"]').last();
   await row.getByLabel("Field", { exact: true }).fill("chat_template_kwargs");
@@ -653,7 +660,7 @@ test("extra request fields: a typed JSON value saves structured; a template valu
 test("an unparseable paste says why in either field and saves nothing", async ({ mount, page }) => {
   const recorder = await stubEditor(page);
   const component = await mount(<ConnectionEditorStory />);
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
 
   const emptyRow = component.locator('[data-slot="connection-extra-row"]').last();
   await paste(emptyRow.getByLabel("Field", { exact: true }), UNPARSEABLE_BLOCK);
@@ -678,10 +685,11 @@ test("an unparseable paste says why in either field and saves nothing", async ({
 test("an unreachable endpoint says §5.3a's sentence, and the owner is offered the admission", async ({ mount, page }) => {
   const recorder = await stubEditor(page);
   const component = await mount(<ConnectionEditorStory />);
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
 
   await component.getByRole("button", { name: "Check again" }).click();
   await expect(component.locator('[data-slot="connection-unreachable"]')).toHaveText("Can't reach 127.0.0.1. The server may be down.");
+  await expect.poll(() => recorder.inputs("connection.probe")).toEqual([{ connectionId: CONNECTION_ID }]);
 
   // The host is not written down, so the repair is offered where the failure is.
   await component.getByRole("button", { name: "Admit 127.0.0.1:8000" }).click();
@@ -693,7 +701,7 @@ test("an unreachable endpoint says §5.3a's sentence, and the owner is offered t
 test("a host already named in the allowlist is NOT offered an admission", async ({ mount, page }) => {
   await stubEditor(page, { allowlist: ["127.0.0.1:8000"] });
   const component = await mount(<ConnectionEditorStory />);
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
 
   await expect(component.getByRole("button", { name: "Check again" })).toBeVisible();
   await expect(component.locator('[data-slot="connection-admit-host"]')).toHaveCount(0);
@@ -702,7 +710,7 @@ test("a host already named in the allowlist is NOT offered an admission", async 
 test("another allowed port keeps this endpoint's admission available", async ({ mount, page }) => {
   const recorder = await stubEditor(page, { allowlist: ["127.0.0.1:8001"] });
   const component = await mount(<ConnectionEditorStory />);
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
   await component.getByRole("button", { name: "Admit 127.0.0.1:8000", exact: true }).click();
   await expect
     .poll(() => recorder.lastInput("settings.updateAppSettings"))
@@ -716,7 +724,7 @@ for (const [baseUrl, authority] of [
   test(`the editor admits the actual endpoint ${authority}`, async ({ mount, page }) => {
     const recorder = await stubEditor(page, { connection: connectionRow({ baseUrl }) });
     const component = await mount(<ConnectionEditorStory />);
-    await tier(page, "Diagnostics").click();
+    await openDiagnostics(page);
     await component.getByRole("button", { name: `Admit ${authority}`, exact: true }).click();
     await expect.poll(() => recorder.lastInput("settings.updateAppSettings")).toEqual({ partial: { privateEndpointAllowlist: [authority] } });
   });
@@ -726,7 +734,7 @@ for (const [baseUrl, authority] of [
 test("a non-owner is offered no admission at all", async ({ mount, page }) => {
   await stubEditor(page, { role: "user" });
   const component = await mount(<ConnectionEditorStory />);
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
 
   await expect(component.getByRole("button", { name: "Check again" })).toBeVisible();
   await expect(component.locator('[data-slot="connection-admit-host"]')).toHaveCount(0);
@@ -757,7 +765,7 @@ const INSPECTED: TrpcWireOutput<"connection.inspectEndpoint"> = {
 test("an OpenRouter row reads its credit balance in Diagnostics", async ({ mount, page }) => {
   const trpc = await stubEditor(page, { provider: builtinRow("openrouter"), connection: hostedRow("openrouter") });
   const component = await mount(<ConnectionEditorStory />);
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
 
   await expect(component.locator('[data-slot="connection-credits-balance"]')).toContainText("$4.20");
   await expect.poll(() => trpc.inputs("connection.accountCredits")).toEqual([{ connectionId: CONNECTION_ID }]);
@@ -775,7 +783,7 @@ test("a failed balance read is stated in the block and reads again on request", 
     },
   });
   const component = await mount(<ConnectionEditorStory />);
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
 
   const retry = component.getByRole("button", { name: "Read it again" });
   await expect(retry).toBeVisible();
@@ -788,7 +796,7 @@ test("a failed balance read is stated in the block and reads again on request", 
 test("a row on another backend never requests the balance and is offered no sign-in check", async ({ mount, page }) => {
   const trpc = await stubEditor(page);
   const component = await mount(<ConnectionEditorStory />);
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
 
   await expect(component.getByRole("button", { name: "Check again" })).toBeVisible();
   await expect(component.locator('[data-slot="connection-credits"]')).toHaveCount(0);
@@ -799,7 +807,7 @@ test("a row on another backend never requests the balance and is offered no sign
 test("a Claude-subscription row checks its sign-in on request and shows the account behind it", async ({ mount, page }) => {
   const trpc = await stubEditor(page, { provider: builtinRow("claude-sub"), connection: hostedRow("claude-sub") });
   const component = await mount(<ConnectionEditorStory />);
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
 
   await expect(component.locator('[data-slot="connection-sign-in-verdict"]')).toHaveCount(0);
   await component.getByRole("button", { name: "Check sign-in" }).click();
@@ -813,7 +821,7 @@ test("a Claude-subscription row checks its sign-in on request and shows the acco
 test("a sign-in check that does not pass is marked as failing, with the reply it got", async ({ mount, page }) => {
   await stubEditor(page, { provider: builtinRow("claude-sub"), connection: hostedRow("claude-sub"), verifyAuth: { ...SIGNED_IN, ok: false, reply: "hello" } });
   const component = await mount(<ConnectionEditorStory />);
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
 
   await component.getByRole("button", { name: "Check sign-in" }).click();
   const verdict = component.locator('[data-slot="connection-sign-in-verdict"]');
@@ -824,7 +832,7 @@ test("a sign-in check that does not pass is marked as failing, with the reply it
 test("the test request shows the shaped request and what the server answered", async ({ mount, page }) => {
   const trpc = await stubEditor(page);
   const component = await mount(<ConnectionEditorStory />);
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
 
   await component.getByRole("button", { name: "Send a test request" }).click();
   await expect.poll(() => trpc.inputs("connection.inspectEndpoint")).toEqual([{ connectionId: CONNECTION_ID }]);
@@ -837,7 +845,7 @@ test("the test request shows the shaped request and what the server answered", a
 test("a test request that never got an answer says why and shows no response", async ({ mount, page }) => {
   await stubEditor(page, { inspectEndpoint: { ...INSPECTED, ok: false, response: null, error: "connect ECONNREFUSED" } });
   const component = await mount(<ConnectionEditorStory />);
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
 
   await component.getByRole("button", { name: "Send a test request" }).click();
   const inspection = component.locator('[data-slot="connection-inspection"]');
@@ -852,7 +860,7 @@ test("no api control, no prefetch status, no per-room override — each absent b
   await stubEditor(page);
   const component = await mount(<ConnectionEditorStory />);
   await tier(page, "Advanced").click();
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
 
   for (const banned of ["Protocol", "Chat Completions", "downloading", "Prefetch", "This room", "Room override", "Per-chat"]) {
     await expect(component.getByText(banned, { exact: false })).toHaveCount(0);
@@ -917,14 +925,14 @@ async function transportPairOffset(scope: Locator): Promise<{ readonly dx: numbe
 test("the transport pair is two-up at 870 and one-up at 486", async ({ mount, page }) => {
   await stubEditor(page);
   const wide = await mount(<ConnectionEditorStory />);
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
   await expect(wide.getByLabel("Extra headers")).toBeVisible();
   await expect.poll(async () => (await transportPairOffset(wide)).dx, { intervals: [20, 50, 100] }).toBeGreaterThan(100);
 
   await wide.unmount();
   await stubEditor(page);
   const narrow = await mount(<ConnectionEditorNarrowStory />);
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
   await expect(narrow.getByLabel("Extra headers")).toBeVisible();
   await expect.poll(async () => Math.abs((await transportPairOffset(narrow)).dx), { intervals: [20, 50, 100] }).toBeLessThan(4);
   await expect.poll(async () => (await transportPairOffset(narrow)).dy, { intervals: [20, 50, 100] }).toBeGreaterThan(8);
@@ -1389,7 +1397,7 @@ const SHAPED_TRANSPORT = { headers: { ["X-Tenant"]: "lab" }, excludeBody: ["seed
 test("request-body overrides save over the other transport fields, refuse invalid JSON unsaved, and clear", async ({ mount, page }) => {
   const recorder = await stubEditor(page, { connection: connectionRow({ transport: SHAPED_TRANSPORT }) });
   const component = await mount(<ConnectionEditorStory />);
-  await tier(page, "Diagnostics").click();
+  await openDiagnostics(page);
 
   const overrides = component.getByLabel("Fields to add or replace");
   await overrides.fill('{ "top_k": 10 }');

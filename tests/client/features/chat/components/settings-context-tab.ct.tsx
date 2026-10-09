@@ -12,6 +12,7 @@ import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_CHAT_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { expectDisclosureReady } from "../../../../support/browser/disclosure-ready.ts";
 import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
 import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
@@ -1058,24 +1059,7 @@ function stubLorebooks(page: Page): Promise<TrpcRecorder> {
 
 async function openWorldBooksRack(component: Locator): Promise<void> {
   await openContextSections(component, "World books");
-  // A clipped, opening panel can scroll a stable child into view, then move it again before mouse-up.
-  await expect
-    .poll(
-      () =>
-        component.getByRole("button", { name: /^World books/u }).evaluate((trigger) => {
-          const panelId = trigger.getAttribute("aria-controls");
-          const panel = panelId === null ? null : trigger.ownerDocument.getElementById(panelId);
-          return panel === null
-            ? null
-            : {
-                animations: panel.getAnimations().length,
-                clipped: panel.scrollHeight > panel.clientHeight,
-                scrolled: panel.scrollTop !== 0,
-              };
-        }),
-      { intervals: [20, 50, 100] },
-    )
-    .toEqual({ animations: 0, clipped: false, scrolled: false });
+  await expectDisclosureReady(component.getByRole("button", { name: /^World books/u }));
 }
 
 test("#640: the World books section renders directly after Documents, above the host-only band", async ({ mount, page }) => {
