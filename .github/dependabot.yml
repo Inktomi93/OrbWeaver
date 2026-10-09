@@ -3,7 +3,7 @@
 # schedule and cooldown and arrive as one grouped PR.
 # npm updates rely on Dependabot's pnpm 12 support; alerts for the npm tree come from the SBOM that
 # dependency-graph.yml submits, because GitHub's graph cannot read the pnpm 12 lockfile.
-# The default branch is `release` (what users install), so every entry targets `main` explicitly.
+# Version updates target main; security updates use the default release branch independently.
 version: 2
 
 multi-ecosystem-groups:
@@ -36,13 +36,10 @@ updates:
         applies-to: version-updates
         patterns: ["*"]
         update-types: [major]
-      npm-security:
-        applies-to: security-updates
-        patterns: ["*"]
     # TypeScript moves by hand. The checker runs two compilers side by side (6.x as `typescript`, 7.x through
     # the `ts7` and `@typescript/native` catalog aliases), and typescript-eslint caps its peer below 6.1, so
     # anything past a 6.0 patch breaks lint while every resolver still calls it compatible.
-    ignore:
+    ignore: &npm-ignored
       - dependency-name: typescript
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       # This release rejects required null checks on regex results and sparse dictionaries.
@@ -63,6 +60,21 @@ updates:
       - dependency-name: node-av
     commit-message:
       prefix: chore
+      include: scope
+
+  # A non-default target-branch's options do not configure default-branch security updates.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    groups:
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
+    ignore: *npm-ignored
+    commit-message:
+      prefix: fix
       include: scope
 
   # Actions, base images (pinned by digest; tag and digest move together), Compose images and the dev

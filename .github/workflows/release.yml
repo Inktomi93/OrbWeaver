@@ -3,9 +3,9 @@ run-name: Release · ${{ github.event.head_commit.message }}
 
 # Stable releases. `main` is integration; `release` is stable and the default branch. `pnpm release` pushes
 # main here, and release-please keeps one release PR open (conventional commits: feat bumps the minor and fix
-# the patch below 1.0, release-please-config.json). Merging it tags `v<version>`, publishes the GitHub
-# Release, and this run builds the runtime image from the tag, attests its provenance, pushes it to GHCR as
-# `<version>` and `latest`, and finishes the release notes. The plugin-authoring component releases the
+# the patch below 1.0, release-please-config.json). Merging it tags `v<version>` and creates a draft.
+# This run builds and scans the tag's runtime image, attests it and proves anonymous pulling before
+# advertising `latest` and publishing the GitHub Release. The plugin-authoring component releases the
 # same way with its own tag. linux/amd64 only until the native dependencies are proven on arm64.
 on:
   push:
@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   release-please:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
@@ -45,7 +45,7 @@ jobs:
   image:
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
       contents: read
@@ -60,6 +60,7 @@ jobs:
       BUILD_CACHE: ghcr.io/inktomi93/orbweaver:buildcache-release
       VERSION: ${{ needs.release-please.outputs.version }}
       SOURCE_SHA: ${{ needs.release-please.outputs.sha }}
+      TAG: ${{ needs.release-please.outputs.tag_name }}
     steps:
       # The tag itself, so the build context carries `.git/refs/tags/v<version>` and the image's version
       # stamp derives the `stable` channel from it (docker/assemble-runtime.sh).
@@ -67,6 +68,8 @@ jobs:
         with:
           ref: refs/tags/${{ needs.release-please.outputs.tag_name }}
           persist-credentials: false
+
+      - uses: ./.github/actions/setup
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
         id: builder
@@ -129,10 +132,9 @@ jobs:
           outputs: type=cacheonly
           cache-to: type=registry,ref=${{ env.BUILD_CACHE }},mode=max,ignore-error=true
 
-      - name: Push both tags
+      - name: Push the versioned image
         run: |
           docker push "$IMAGE:$VERSION"
-          docker push "$IMAGE:latest"
 
       - name: Read the pushed digest
         id: digest
@@ -168,16 +170,21 @@ jobs:
       # GHCR publishes a new package as private, and docker-compose.yaml pulls with no login. Pull through an
       # empty Docker config so a private package fails the release here instead of every user's first pull.
       - name: Prove the image pulls without credentials
+        env:
+          DIGEST: ${{ steps.digest.outputs.digest }}
         run: |
-          export DOCKER_CONFIG="$RUNNER_TEMP/anonymous-docker"
-          mkdir -p "$DOCKER_CONFIG"
-          if ! docker pull "$IMAGE:$VERSION"; then
-            echo "::error::$IMAGE:$VERSION does not pull without credentials, so the GHCR package is private. Set it Public (package settings, Danger Zone, Change visibility), then re-run this job."
-            exit 1
-          fi
+          export IMAGE_CHANNEL=stable
+          bash scripts/ci/anonymous-image-pull.sh
 
-  # release-please writes what changed; this adds what to do about it. Immutable releases lock the tag and
-  # the assets, not the notes, so the notes can be finished after publication.
+      - name: Advertise the verified image as latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pnpm exec node scripts/ci/release-promotion.ts
+          docker push "$IMAGE:latest"
+
+  # Failed image jobs leave a recoverable draft. Re-running failed jobs retains the release outputs;
+  # the managed notes replace their own block so a failed final publication can be retried safely.
   notes:
     needs: [release-please, image]
     runs-on: ubuntu-slim
@@ -189,12 +196,21 @@ jobs:
       TAG: ${{ needs.release-please.outputs.tag_name }}
       VERSION: ${{ needs.release-please.outputs.version }}
       DIGEST: ${{ needs.image.outputs.digest }}
+      SOURCE_SHA: ${{ needs.release-please.outputs.sha }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: refs/tags/${{ needs.release-please.outputs.tag_name }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup
       - name: Add the upgrade steps to the release notes
         run: |
-          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body > notes.md
+          pnpm exec node scripts/ci/release-promotion.ts
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body > raw-notes.md
+          sed '/^<!-- orbweaver-publication -->$/,$d' raw-notes.md > notes.md
           cat >> notes.md <<NOTES
 
+          <!-- orbweaver-publication -->
           ## Upgrade
 
           Back up \`data/\` first: migrations only go forward, and the app copies the database to \`data/backups/\` before it applies them.
@@ -219,7 +235,7 @@ jobs:
           gh attestation verify oci://ghcr.io/inktomi93/orbweaver:$VERSION --repo $GITHUB_REPOSITORY
           \`\`\`
           NOTES
-          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file notes.md
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file notes.md --draft=false --latest
 
   # release-please creates the plugin-authoring release as a draft because immutable releases refuse assets
   # once a release is published. This job attaches the SDK and toolchain tarballs, adds the install lines to
@@ -228,7 +244,7 @@ jobs:
   plugin-authoring:
     needs: release-please
     if: needs.release-please.outputs.plugin_authoring_created == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: write

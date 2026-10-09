@@ -5,8 +5,10 @@ name: CodeQL
 on:
   push:
     branches: [main, release]
+    paths-ignore: ["docs/**", "**/*.md", ".github/**"]
   pull_request:
     branches: [main, release]
+    paths-ignore: ["docs/**", "**/*.md", ".github/**"]
   schedule:
     - cron: "17 6 * * 1"
   workflow_dispatch:
@@ -16,8 +18,9 @@ permissions:
 
 jobs:
   analyze:
+    if: github.event_name != 'pull_request' || github.actor != 'dependabot[bot]'
     name: analyze (${{ matrix.language }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
       contents: read

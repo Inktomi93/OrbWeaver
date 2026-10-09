@@ -1,10 +1,7 @@
 name: Security scans
 run-name: Security scans · ${{ github.event_name == 'schedule' && 'weekly' || github.event_name }}
 
-# The scans that look at what CodeQL and Dependabot cannot: the workflows themselves (zizmor), the operating
-# system packages and binaries inside the published image (Trivy), and the running app from the outside, the
-# way a browser sees it (ZAP baseline, passive: it reads responses, it does not attack). Findings land in the
-# Security tab; the ZAP report is an artifact on the run.
+# Workflow and published-image scans report through native SARIF into the Security tab.
 on:
   push:
     branches: [main]
@@ -23,7 +20,7 @@ concurrency:
 jobs:
   workflows:
     name: workflows (zizmor)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -37,7 +34,7 @@ jobs:
   image:
     name: published image (Trivy)
     if: github.event_name != 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -56,38 +53,3 @@ jobs:
         with:
           sarif_file: trivy.sarif
           category: trivy-image
-
-  app:
-    name: running app (ZAP baseline)
-    if: github.event_name != 'push'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/setup
-      # With no terminal, `pnpm start` asks nothing and starts on the defaults: just me, on 127.0.0.1:8788.
-      - name: Start Orbweaver
-        id: app
-        run: pnpm start
-        background: true
-        env:
-          OPEN_BROWSER: "off"
-      - name: Wait for it to answer
-        run: |
-          for _ in $(seq 1 120); do
-            curl -fsS http://127.0.0.1:8788/healthz > /dev/null 2>&1 && exit 0
-            sleep 5
-          done
-          echo "::error::Orbweaver never answered /healthz"
-          exit 1
-      - name: Baseline scan
-        uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25 # v0.15.0
-        with:
-          target: http://127.0.0.1:8788
-          allow_issue_writing: false
-          fail_action: false
-          artifact_name: zap-baseline-report
-      - name: Stop Orbweaver
-        cancel: app

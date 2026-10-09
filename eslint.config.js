@@ -277,7 +277,12 @@ const NODE_TOOL_SURFACE = [...NODE_TOOL_SURFACE_GLOBS];
  *  reach. Enumerated rather than `scripts/**` so a NEW top-level scripts directory is a decision someone
  *  makes, not a surface that silently absorbs it: the block's rule set is type-aware and its parser is the
  *  root program, and a tree outside that program (the st-goldens browser world) must not be swept in. */
-const SCRIPTS_NESTED_SURFACE = ["scripts/codemods/**/*.{ts,mts,cts}", "scripts/probes/**/*.{ts,mts,cts}", "scripts/research/**/*.{ts,mts,cts}"];
+const SCRIPTS_NESTED_SURFACE = [
+  "scripts/ci/**/*.{ts,mts,cts}",
+  "scripts/codemods/**/*.{ts,mts,cts}",
+  "scripts/probes/**/*.{ts,mts,cts}",
+  "scripts/research/**/*.{ts,mts,cts}",
+];
 const NON_BROWSER_PACKAGES = Object.keys(PACKAGE_WORLDS).filter((name) => !BROWSER_PACKAGES.has(name));
 const NON_BROWSER_PACKAGE_SRC = NON_BROWSER_PACKAGES.map((name) => `packages/${name}/src/**/*.ts`);
 // Node test dirs — root-owned since the type-worlds split (#1351: no per-file escapee lives in

@@ -9,6 +9,8 @@
     "node": ">=26.3.0"
   },
   "scripts": {
+    "ci:contributor-ready": "node scripts/ci/contributor-ready.ts",
+    "ci:contributor-stop": "node scripts/ci/contributor-stop.ts",
     "prepare": "node scripts/prepare.ts",
     "deps:update": "node scripts/deps-update.ts",
     "sync": "bash scripts/github-sync.sh",
