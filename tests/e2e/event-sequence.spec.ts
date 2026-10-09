@@ -1,102 +1,195 @@
-// E2E: the order-of-operations contract (neo 08-sequence port). Some user actions drive a multi-stage
-// pipeline (query → SSE subscribe → open; then mutation → bus event → cache invalidation → refetch). If
-// the stages go out of order the UI shows stale data or appears to do nothing. This spec records a network
-// timeline + reads orb's dev bus-event ring and asserts the canonical order holds — no model credits
-// (chat.updateChatTitle, not a send).
-//
-// Orb adaptation vs neo (verified against the live client): tRPC is at `/api/trpc/*` (queries batch;
-// chat.getChat + chat.listChats ride one batched GET). Since SSE-1 the room stream is NOT a per-chat
-// procedure: the tab holds ONE `stream.connect` POST stream and opening a chat ATTACHES
-// its room with a `stream.attach` POST — so the "subscribe" half of this sequence is those two requests, not
-// a `chat.streamMessages` GET. Orb has no `[chat-stream] open` console line to pin — instead the SSE "open"
-// signal is `window.__orb.bus().live` climbing to ≥1, and the `chatUpdated` delivery is a real entry in
-// `window.__orb.bus().events` (bus-devlog ring). We assert the NETWORK order (query → room attach) and, for
-// the mutation path, POST updateChatTitle → the chatUpdated bus event lands → a refetch GET fires.
+// Full-stack room reads, multiplexed attachment and bus-driven rename reconciliation.
+// Ordinary tRPC queries and mutations share JSON POST batches; the tab's SSE socket is separate.
 
+import type { StreamAttachInput, StreamFrameFor } from "@orb/contracts/stream";
+import type { ChatId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { busEventTypes, busLive, openOrCreateChat, renameOpenChat, waitForStreamOpen } from "./support/chat-room.ts";
 
+const POST_METHOD = "POST";
+const POST_REQUEST = `→ ${POST_METHOD}`;
+const TRPC_PREFIX = "/api/trpc/";
+const OK_RESPONSE = "← 200";
+const BUS_EVENT = "◆";
+const GET_CHAT = "chat.getChat";
+const LIST_CHATS = "chat.listChats";
+const LIST_MESSAGES = "chat.listMessages";
+const ATTACH = "stream.attach";
+const CONNECT = "stream.connect";
+const UPDATE_TITLE = "chat.updateTitle";
+const CHAT_UPDATED = "chatUpdated";
+
 interface TimelineEntry {
-  readonly at: number;
-  readonly label: string;
+  readonly phase: string;
+  readonly procedure: string;
+  readonly chatId?: string;
+  readonly batchSize?: number;
 }
 
-/** Subscribe to the page's tRPC network traffic, returning a growing timeline of `→ METHOD path` (request)
- *  and `← status path` (response) entries. */
-function captureTrpcTimeline(page: Page): TimelineEntry[] {
+async function openedRoomId(page: Page): Promise<ChatId> {
+  // Read the already-served navigation store, not a room identity inferred from network traffic.
+  const chatId = await page.evaluate(async (modulePath) => {
+    const state = (await import(modulePath)) as Pick<typeof import("../../packages/client/src/state/active-chat-store.ts"), "activeChatId">;
+    return state.activeChatId();
+  }, "/src/state/active-chat-store.ts");
+  if (chatId === null) {
+    throw new Error("The rendered room has no active chat identity");
+  }
+  return chatId;
+}
+
+type BatchInputs = Record<string, StreamAttachInput | Pick<StreamFrameFor<"chat">, "chatId">>;
+
+function batchEntries(phase: string, method: string, procedures: readonly string[], postData: string | null): readonly TimelineEntry[] {
+  const inputs: BatchInputs = method === POST_METHOD && postData !== null ? (JSON.parse(postData) as BatchInputs) : {};
+  return procedures.map((procedure, index) => {
+    const input = inputs[String(index)];
+    let chatId: string | undefined;
+    if (procedure === ATTACH && input !== undefined && "ref" in input && input.ref.channel === "chat") {
+      chatId = input.ref.chatId;
+    } else if ((procedure === GET_CHAT || procedure === LIST_MESSAGES || procedure === UPDATE_TITLE) && input !== undefined && "chatId" in input) {
+      chatId = input.chatId;
+    }
+    return { phase, procedure, batchSize: procedures.length, ...(chatId === undefined ? {} : { chatId }) };
+  });
+}
+
+function captureTimeline(page: Page): TimelineEntry[] {
   const timeline: TimelineEntry[] = [];
-  const t0 = Date.now();
-  const pathOf = (url: string): string => url.split("/api/trpc/")[1]?.split("?")[0] ?? "?";
-  page.on("request", (r) => {
-    if (r.url().includes("/api/trpc/")) {
-      timeline.push({ at: Date.now() - t0, label: `→ ${r.method()} ${pathOf(r.url())}` });
+  const proceduresOf = (url: string): readonly string[] => new URL(url).pathname.split(TRPC_PREFIX)[1]?.split(",") ?? [];
+  page.on("request", (request) => {
+    if (request.url().includes(TRPC_PREFIX)) {
+      timeline.push(...batchEntries(`→ ${request.method()}`, request.method(), proceduresOf(request.url()), request.postData()));
     }
   });
-  page.on("response", (r) => {
-    if (r.url().includes("/api/trpc/")) {
-      timeline.push({ at: Date.now() - t0, label: `← ${r.status()} ${pathOf(r.url())}` });
+  page.on("response", (response) => {
+    if (response.url().includes(TRPC_PREFIX)) {
+      const request = response.request();
+      timeline.push(...batchEntries(`← ${response.status()}`, request.method(), proceduresOf(response.url()), request.postData()));
+    }
+  });
+  page.on("console", (message) => {
+    // Record delivery before the invalidation seam dispatches its batched reads, not at a later poll.
+    if (message.text().includes("[bus]") && message.text().includes(`◆ ${CHAT_UPDATED} `)) {
+      timeline.push({ phase: BUS_EVENT, procedure: CHAT_UPDATED });
     }
   });
   return timeline;
 }
 
-/** Assert the substrings appear in `timeline` in order (each after the prior; extra entries between are
- *  allowed — resilient to StrictMode remounts + unrelated refetches). */
-function expectInOrder(timeline: readonly TimelineEntry[], substrings: readonly string[]): void {
+function expectInOrder(timeline: readonly TimelineEntry[], steps: readonly TimelineEntry[]): void {
   let i = 0;
   for (const entry of timeline) {
-    if (entry.label.includes(substrings[i] ?? "\u0000")) {
+    const step = steps[i];
+    if (step !== undefined && entry.phase === step.phase && entry.procedure === step.procedure && (step.chatId === undefined || entry.chatId === step.chatId)) {
       i += 1;
     }
-    if (i === substrings.length) {
+    if (i === steps.length) {
       return;
     }
   }
-  const got = timeline.map((e) => e.label).join("\n  ");
-  throw new Error(`Sequence not satisfied. Wanted in order:\n  ${substrings.join("\n  ")}\nGot:\n  ${got}`);
+  const labels = (entries: readonly TimelineEntry[]): string => entries.map((entry) => `${entry.phase} ${entry.procedure} ${entry.chatId ?? ""}`).join("\n  ");
+  throw new Error(`Sequence not satisfied. Wanted in order:\n  ${labels(steps)}\nGot:\n  ${labels(timeline)}`);
 }
 
 test.describe("order-of-operations", () => {
-  test("opening a chat fires: tRPC query → the room attaches on the ONE socket → stream open", async ({ page }) => {
-    const timeline = captureTrpcTimeline(page);
-    await openOrCreateChat(page);
-    await waitForStreamOpen(page);
+  test("sequence matching accepts reordered batches but rejects wrong procedures, transport and order", () => {
+    const request = { phase: POST_REQUEST, procedure: GET_CHAT };
+    const response = { phase: OK_RESPONSE, procedure: GET_CHAT };
+    expectInOrder([...batchEntries(POST_REQUEST, POST_METHOD, [LIST_CHATS, GET_CHAT], null), response], [request, response]);
+    expect(() => expectInOrder([{ phase: POST_REQUEST, procedure: LIST_CHATS }, response], [request, response])).toThrow("Sequence not satisfied");
+    expect(() => expectInOrder([{ phase: POST_REQUEST, procedure: `${GET_CHAT}Lineage` }, response], [request, response])).toThrow("Sequence not satisfied");
+    expect(() => expectInOrder([{ phase: "→ GET", procedure: GET_CHAT }, response], [request, response])).toThrow("Sequence not satisfied");
+    expect(() => expectInOrder([response, request], [request, response])).toThrow("Sequence not satisfied");
 
-    // The stream reached open (≥1 live subscription) — an explicit gate on the dev bus handle.
-    await expect.poll(async (): Promise<number> => busLive(page)).toBeGreaterThanOrEqual(1);
-    // The room's read query (chat.getChat, batched with chat.listChats) AND the SSE subscription request
-    // BOTH went out (before the stream opened, asserted above). Their relative EMISSION order is NOT
-    // asserted: both are room-mount reads that dispatch concurrently (the batched-query link and the
-    // httpSubscriptionLink fire in the same tick), so `chat.getChat`-before-`streamMessages` is a
-    // nondeterministic race — pinning it flaked ~1-in-4 under load (surfaced 2026-07-24 when a preceding
-    // navigation-heavy spec shifted suite timing). The real contract is: both fire and the stream opens.
-    // Match a `chat.` procedure ANYWHERE in the label, not "→ GET chat." at the start: a batch GET combines
-    // procedures into one comma-joined path (`chat.getChat,persona.list,…`) whose LEADING procedure varies by
-    // batch order — requiring `chat.` to be first was the real flake (the query fires either way).
-    const getLabels = timeline.filter((e) => e.label.startsWith("→ GET")).map((e) => e.label);
-    expect(getLabels.some((l) => l.includes("chat."))).toBe(true);
-    // Canceled starts do not establish sockets; every attempt still uses the POST transport.
-    const socketRequests = timeline.filter((entry) => entry.label.startsWith("→ ") && entry.label.includes("stream.connect"));
-    expect(new Set(socketRequests.map((entry) => entry.label))).toEqual(new Set(["→ POST stream.connect"]));
-    expect(timeline.filter((entry) => entry.label === "← 200 stream.connect")).toHaveLength(1);
-    // …and opening the chat ATTACHED its room over the ordinary batched mutation link (a POST, no connection).
-    const postLabels = timeline.filter((e) => e.label.startsWith("→ POST")).map((e) => e.label);
-    expect(postLabels.some((l) => l.includes("stream.attach"))).toBe(true);
+    const roomId = mintTypeId(ID_PREFIX.chat);
+    const otherRoomId = mintTypeId(ID_PREFIX.chat);
+    const roomAttach = { phase: POST_REQUEST, procedure: ATTACH, chatId: roomId };
+    const batch = [GET_CHAT, LIST_MESSAGES, ATTACH];
+    const extract = (ref: StreamAttachInput["ref"]): readonly TimelineEntry[] =>
+      batchEntries(
+        POST_REQUEST,
+        POST_METHOD,
+        batch,
+        JSON.stringify({
+          0: { chatId: roomId },
+          1: { chatId: roomId },
+          2: { ref },
+        }),
+      );
+    expect(() => expectInOrder(extract({ channel: "notifications" }), [roomAttach])).toThrow("Sequence not satisfied");
+    // These controls traverse the real indexed extractor, not a hand-built timeline projection.
+    expectInOrder(extract({ channel: "chat", chatId: roomId }), [roomAttach]);
+    expect(() => expectInOrder(extract({ channel: "chat", chatId: otherRoomId }), [roomAttach])).toThrow("Sequence not satisfied");
+    const wrongReads = batchEntries(
+      POST_REQUEST,
+      POST_METHOD,
+      batch,
+      JSON.stringify({
+        0: { chatId: otherRoomId },
+        1: { chatId: otherRoomId },
+        2: { ref: { channel: "chat", chatId: roomId } },
+      }),
+    );
+    for (const procedure of [GET_CHAT, LIST_MESSAGES]) {
+      expect(() => expectInOrder(wrongReads, [{ phase: POST_REQUEST, procedure, chatId: roomId }])).toThrow("Sequence not satisfied");
+    }
   });
 
-  test("rename → POST updateChatTitle → chatUpdated bus event → refetch GET", async ({ page }) => {
+  test("opening a chat reads its room and attaches on the ONE POST socket", async ({ page }) => {
+    const timeline = captureTimeline(page);
+    await openOrCreateChat(page);
+    await waitForStreamOpen(page);
+    await expect.poll(async (): Promise<number> => busLive(page)).toBeGreaterThanOrEqual(1);
+
+    const roomId = await openedRoomId(page);
+
+    // Mount reads and room attachment dispatch concurrently; each must complete, not win a race.
+    await expect(() => {
+      for (const procedure of [GET_CHAT, LIST_MESSAGES, ATTACH]) {
+        expectInOrder(timeline, [
+          { phase: POST_REQUEST, procedure, chatId: roomId },
+          { phase: OK_RESPONSE, procedure, chatId: roomId },
+        ]);
+      }
+      const socketRequests = timeline.filter((entry) => entry.phase.startsWith("→ ") && entry.procedure === CONNECT);
+      expect(socketRequests.length).toBeGreaterThanOrEqual(1);
+      expect(socketRequests.every((entry) => entry.phase === POST_REQUEST && entry.batchSize === 1)).toBe(true);
+      // StrictMode can cancel a start, but only one socket may successfully open.
+      expect(timeline.filter((entry) => entry.phase === OK_RESPONSE && entry.procedure === CONNECT)).toHaveLength(1);
+    }).toPass({ timeout: 10_000 });
+  });
+
+  test("rename → POST updateTitle → fresh chatUpdated bus event → POST room/list refetch", async ({ page }) => {
     await openOrCreateChat(page);
     await waitForStreamOpen(page);
 
-    const timeline = captureTrpcTimeline(page);
+    const roomId = await openedRoomId(page);
+    const beforeEvents = (await busEventTypes(page)).filter((type) => type === CHAT_UPDATED).length;
+    const timeline = captureTimeline(page);
     const newTitle = `e2e-seq-${Date.now()}`;
     await renameOpenChat(page, newTitle);
     await expect(page.getByText(newTitle).first()).toBeVisible({ timeout: 5000 });
 
-    // The POST and its response landed, and a refetch GET followed.
-    expectInOrder(timeline, ["→ POST chat.updateTitle", "← 200 chat.updateTitle", "→ GET chat."]);
-    // The chatUpdated ChatBusEvent was actually reduced by the client (the SSE → cache-invalidation seam).
-    await expect.poll(async (): Promise<readonly string[]> => busEventTypes(page), { timeout: 10_000 }).toContain("chatUpdated");
+    await expect
+      .poll(async (): Promise<number> => (await busEventTypes(page)).filter((type) => type === CHAT_UPDATED).length, { timeout: 10_000 })
+      .toBeGreaterThan(beforeEvents);
+    await expect(() => {
+      expectInOrder(timeline, [
+        { phase: POST_REQUEST, procedure: UPDATE_TITLE, chatId: roomId },
+        { phase: OK_RESPONSE, procedure: UPDATE_TITLE, chatId: roomId },
+      ]);
+      // SSE delivery and the mutation response travel independently; neither must arrive first.
+      for (const procedure of [GET_CHAT, LIST_CHATS]) {
+        expectInOrder(timeline, [
+          { phase: POST_REQUEST, procedure: UPDATE_TITLE, chatId: roomId },
+          { phase: BUS_EVENT, procedure: CHAT_UPDATED },
+          { phase: POST_REQUEST, procedure, ...(procedure === GET_CHAT ? { chatId: roomId } : {}) },
+          { phase: OK_RESPONSE, procedure, ...(procedure === GET_CHAT ? { chatId: roomId } : {}) },
+        ]);
+      }
+    }).toPass({ timeout: 10_000 });
   });
 });
