@@ -1712,7 +1712,11 @@
       }
     },
     {
-      "includes": ["tooling/src/verify/ops/ct-flaky-reporter.ts", "tooling/src/verify/ops/required-live-evidence-reporter.ts"],
+      "includes": [
+        "tooling/src/verify/ops/ct-flaky-reporter.ts",
+        "tooling/src/verify/ops/required-live-evidence-reporter.ts",
+        "tooling/src/verify/ops/vitest-progress-reporter.ts"
+      ],
       "linter": {
         "rules": {
           "style": {

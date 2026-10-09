@@ -125,6 +125,10 @@ test("weekly-owned components execute exactly the native shard or non-corpus pop
       env: { ...boundary, [INSTRUMENT_EXECUTION_COMPONENT_ENV]: component },
     });
     expect(result.code, result.stdout + result.stderr).toBe(0);
+    const progress = result.stdout + result.stderr;
+    for (const phase of ["queued; importing test module", ": collected", ": execution started", ": test passed:", ": module passed"]) {
+      expect(progress.includes(phase), `${component}: ${phase}`).toBe(component !== "non-corpus");
+    }
     expect(
       readFileSync(join(root, "executed.jsonl"), "utf8")
         .trim()
@@ -141,6 +145,7 @@ test("weekly-owned components execute exactly the native shard or non-corpus pop
       env: { ...boundary, [INSTRUMENT_EXECUTION_COMPONENT_ENV]: component, ["FIXTURE_FAIL_FILE"]: failing },
     });
     expect(red.code, red.stdout + red.stderr).toBe(1);
+    expect((red.stdout + red.stderr).includes(": test failed:")).toBe(component === "corpus");
   }
   for (const [component, args] of [
     ["corpus", []],

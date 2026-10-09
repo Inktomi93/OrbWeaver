@@ -126,7 +126,10 @@ export interface RealCorpusLivenessRunner {
   /** Every arm's overlaid verdict, from the planned batches (`planLivenessBatches`), proved ONCE and kept.
    *  `onBatch` hears each batch as it settles: the whole proof outlasts the test supervisor's no-output
    *  ceiling, and one line per batch keeps a hung batch the only thing that ceiling can catch. */
-  proveAll: (onBatch?: (progress: LivenessBatchProgress) => void) => ReadonlyMap<string, RealCorpusArmVerdict>;
+  proveAll: (
+    onBatch?: (progress: LivenessBatchProgress) => void,
+    onBatchStart?: (index: number, policyIds: readonly string[]) => void,
+  ) => ReadonlyMap<string, RealCorpusArmVerdict>;
   /** One arm's verdict out of `proveAll`. */
   verdict: (arm: RealCorpusLivenessArm) => RealCorpusArmVerdict;
   /** Explicit controls, partitioned by identical intervention, proved now and not kept. */
@@ -626,11 +629,15 @@ export function openRealCorpusLiveness(
   };
 
   let proved: ReadonlyMap<string, RealCorpusArmVerdict> | undefined;
-  const proveAll = (onBatch?: (progress: LivenessBatchProgress) => void): ReadonlyMap<string, RealCorpusArmVerdict> => {
+  const proveAll: RealCorpusLivenessRunner["proveAll"] = (onBatch, onBatchStart) => {
     if (proved === undefined) {
       const all = new Map<string, RealCorpusArmVerdict>();
       const batches = planLivenessBatches(arms);
       for (const [index, batch] of batches.entries()) {
+        onBatchStart?.(
+          index,
+          batch.map((arm) => arm.policy.id),
+        );
         const started = performance.now();
         const measurements: LivenessPassMeasurement[] = [];
         for (const [id, verdict] of proveBatch(batch, measurements)) {

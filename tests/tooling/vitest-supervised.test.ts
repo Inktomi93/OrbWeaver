@@ -499,7 +499,10 @@ test("the ORB_TEST_HANG_MAX_MS ceiling KILLS a busy-but-silent runaway that outl
 
   const dumps = wedgeDumps(cwd);
   expect(dumps.length).toBeGreaterThan(0);
-  expect(readFileSync(dumps[0] ?? "", "utf-8")).toContain("hard ceiling");
+  const dump = readFileSync(dumps[0] ?? "", "utf-8");
+  expect(dump).toContain("hard ceiling");
+  expect(dump).toContain("last output");
+  expect(dump).toContain("fake vitest: busy");
 });
 
 test("the SAME busy-but-silent child SURVIVES under a generous ORB_TEST_HANG_MAX_MS", {

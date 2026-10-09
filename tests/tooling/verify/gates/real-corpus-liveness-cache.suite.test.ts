@@ -149,4 +149,24 @@ test("liveness cached passes preserve fresh solo facts, resources, populations, 
   expect(observed[5]?.get(policy.id)?.messages.join()).toContain("changed-resource");
   expect(observed[6]?.get(policy.id)?.refusals.join()).toContain("package");
   expect(observed[8]?.get(granted.id)?.messages).toEqual(["99"]);
+  const progress: string[] = [];
+  const prove = (): ReturnType<typeof shared.proveAll> =>
+    shared.proveAll(
+      ({ arms }) => progress.push(`completed:${arms.join(",")}`),
+      (_index, ids) => progress.push(`started:${ids.join(",")}`),
+    );
+  const completed = prove();
+  expect(progress).toEqual([`started:${policy.id},${granted.id}`, `completed:${policy.id},${granted.id}`]);
+  expect(prove()).toBe(completed);
+  expect(progress).toHaveLength(2);
+  const missing: RealCorpusLivenessArm = { ...arm, overlays: [{ kind: "remove", path: "packages/kit/src/absent.ts" }] };
+  const broken = openRealCorpusLiveness(scratch, [missing]);
+  const failed: string[] = [];
+  expect(() =>
+    broken.proveAll(
+      () => failed.push("completed"),
+      (_index, ids) => failed.push(...ids),
+    ),
+  ).toThrow("matches no file");
+  expect(failed).toEqual([policy.id]);
 });

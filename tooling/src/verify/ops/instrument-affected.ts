@@ -1,6 +1,7 @@
 // Weekly-owned checker recertification reuses native populations and shard controls.
 // Full proof needs no Git baseline; --affected retains conservative selection only under explicit weekly ownership.
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
@@ -337,6 +338,7 @@ function runSpecs(root: string, specs: readonly string[], livenessScope: Instrum
       "--runtime-only",
       "--reporter=default",
       "--reporter=json",
+      `--reporter=${fileURLToPath(new URL("./vitest-progress-reporter.ts", import.meta.url))}`,
       "--outputFile.json=reports/test-report-tooling.json",
       ...(project === undefined ? [] : [`--project=${project}`]),
       ...(shard === undefined ? [] : [`--shard=${String(shard.index)}/${String(shard.count)}`]),
