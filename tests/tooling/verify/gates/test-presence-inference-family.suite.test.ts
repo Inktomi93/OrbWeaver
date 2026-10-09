@@ -4,9 +4,11 @@
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Project } from "ts-morph";
+import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate } from "../../../../tooling/src/verify/gates/test-presence-inference.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -46,9 +48,23 @@ function refusalFor(fragment: string): Record<string, unknown> {
   return { findings: [], effective: [], withheld: [POLICY_ID], errors: [expect.stringContaining(fragment)] };
 }
 
-test("the declared inference topology proofs hold through policy conformance", () => {
-  expect(verifyPolicyProofs([gate])).toEqual([]);
-});
+const { mustRefuse: _mustRefuse, ...requiredGate } = gate;
+for (const { arm, index, proof } of policyProofRows(gate)) {
+  // The production validator requires both founding arms, even for a selected refusal row.
+  const policy = defineGate({
+    ...requiredGate,
+    mustFlag: gate.mustFlag.slice(0, 1),
+    mustPass: gate.mustPass.slice(0, 1),
+    [arm]: [proof],
+  });
+  const supporting = policyProofRows(policy)
+    .filter((row) => row.arm !== arm)
+    .map((row) => `${row.arm}[${String(row.index)}]`)
+    .join(" + ");
+  test(`inference topology ${arm}[${String(index)}]: ${proof.why} (with ${supporting})`, () => {
+    expect(verifyPolicyProofs([policy])).toEqual([]);
+  });
+}
 
 test("a missing required inference mirror is a blocking finding", ({ scratch }) => {
   const result = pass(scratch, { [SOURCE]: SOURCE_TEXT, "tests/inference/other.test.ts": "export {};\n" });
