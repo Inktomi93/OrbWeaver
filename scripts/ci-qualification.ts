@@ -8,6 +8,7 @@ import { runTool, UsageError } from "@orb/tooling/_shared/run-tool";
 import { hasQualifiedMainPush, resolveCiQualification } from "@orb/tooling/verify";
 import YAML from "yaml";
 import { z } from "zod";
+import type { CiQualificationConfig, CiQualificationJobGroup } from "../tooling/src/verify/contract/qualification.ts";
 
 const RUNTIME_CONDITION = "needs.changes.outputs.code == 'true'";
 const JOB = z.object({
@@ -37,9 +38,10 @@ function jobNames(id: string, job: z.infer<typeof JOB>): readonly string[] {
   return names;
 }
 
-function productJobs(jobs: z.infer<typeof WORKFLOW>["jobs"]): { readonly requiredJobs: readonly string[]; readonly runtimeJobs: readonly string[] } {
+function productJobs(jobs: z.infer<typeof WORKFLOW>["jobs"]): Pick<CiQualificationConfig, "requiredJobs" | "runtimeJobs" | "runtimeJobGroups"> {
   const requiredJobs = ["ci-ok"];
   const runtimeJobs: string[] = [];
+  const runtimeJobGroups: CiQualificationJobGroup[] = [];
   const needs = jobs["ci-ok"]?.needs;
   if (!(Array.isArray(needs) && ["changes", "static", "node", "ct", "e2e-smoke"].every((id) => needs.includes(id)))) {
     throw new Error("product qualification requires the closed changes/static/runtime/smoke aggregate");
@@ -52,9 +54,15 @@ function productJobs(jobs: z.infer<typeof WORKFLOW>["jobs"]): { readonly require
     if (job === undefined || (id !== "changes" && job.if !== undefined && job.if !== RUNTIME_CONDITION)) {
       throw new Error(`unsupported product qualification job ${id}`);
     }
-    (job.if === RUNTIME_CONDITION ? runtimeJobs : requiredJobs).push(...jobNames(id, job));
+    const names = jobNames(id, job);
+    if (job.if === RUNTIME_CONDITION) {
+      runtimeJobs.push(...names);
+      runtimeJobGroups.push({ name: job.name ?? id, jobs: names });
+    } else {
+      requiredJobs.push(...names);
+    }
   }
-  return { requiredJobs, runtimeJobs };
+  return { requiredJobs, runtimeJobs, runtimeJobGroups };
 }
 const HISTORICAL_GENERATION = z.object({ env: z.object({ ORB_CI_QUALIFICATION_GENERATION: z.string().optional() }).optional() });
 

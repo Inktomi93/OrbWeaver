@@ -59,10 +59,25 @@ test("failed tool A followed by application B carries A's tool bytes into qualif
 
 const REPOSITORY = "Inktomi93/OrbWeaver";
 const GENERATION = "Orbweaver qualification product-v2";
+const SHA = "a".repeat(40);
 const REQUIRED_JOB_NAMES = ["static", "ci-ok", "changes"] as const;
 const RUNTIME_JOB_NAMES = ["media", "node (1/3)", "node (2/3)", "node (3/3)", "ct (1/4)", "ct (2/4)", "ct (3/4)", "ct (4/4)", "e2e-smoke"] as const;
+const RUNTIME_JOB_GROUPS = [
+  { name: "media", jobs: ["media"] },
+  { name: "node (${{ matrix.shard }}/3)", jobs: ["node (1/3)", "node (2/3)", "node (3/3)"] },
+  { name: "ct (${{ matrix.shard }}/4)", jobs: ["ct (1/4)", "ct (2/4)", "ct (3/4)", "ct (4/4)"] },
+  { name: "e2e-smoke", jobs: ["e2e-smoke"] },
+] as const;
+const GROUPED_CONFIG = {
+  repository: REPOSITORY,
+  generation: GENERATION,
+  publication: SHA,
+  requiredJobs: REQUIRED_JOB_NAMES,
+  runtimeJobs: RUNTIME_JOB_NAMES,
+  runtimeJobGroups: RUNTIME_JOB_GROUPS,
+  hasCurrentGeneration: (): boolean => true,
+};
 const API_ROOT = `repos/${REPOSITORY}/actions`;
-const SHA = "a".repeat(40);
 
 const RUN_SAMPLE = {
   id: 1,
@@ -95,11 +110,13 @@ function goodJob(sha = SHA, id = 1): typeof JOB_SAMPLE {
   return { ...JOB_SAMPLE, id, ["head_sha"]: sha };
 }
 
-function goodProductJobs(sha = SHA): readonly (typeof JOB_SAMPLE)[] {
-  return ["ci-ok", "changes", ...RUNTIME_JOB_NAMES].map((name, index) => ({
+function goodProductJobs(sha = SHA, inherited = false): readonly (typeof JOB_SAMPLE)[] {
+  const runtime = inherited ? RUNTIME_JOB_GROUPS.map(({ name }) => name) : RUNTIME_JOB_NAMES;
+  return ["ci-ok", "changes", ...runtime].map((name, index) => ({
     ...goodJob(sha, index + 2),
     name,
-    steps: name === "ci-ok" ? [{ name: `${GENERATION} (runtime)`, status: "completed", conclusion: "success" }] : [],
+    conclusion: inherited && runtime.some((runtimeName) => runtimeName === name) ? "skipped" : "success",
+    steps: name === "ci-ok" ? [{ name: `${GENERATION} (${inherited ? "inherited" : "runtime"})`, status: "completed", conclusion: "success" }] : [],
   }));
 }
 
@@ -791,6 +808,180 @@ test("discovery inventory preserves pagination, provenance, stable absence and e
   expect(() => check(metadata(base))).toThrow("inventory changed during discovery");
   rmSync(join(scratch, "ci-inventory-read"));
   expect(() => check({ ...metadata(base), [inventoryUrl]: { ["total_count"]: 0, ["workflow_runs"]: [] } })).toThrow("qualified ancestry is ambiguous");
+});
+
+test("native inherited matrices qualify only with their complete canonical runtime partition", async ({ scratch, fakeBin }) => {
+  await fakeBin("gh", API_FIXTURE);
+  const jobs = [
+    goodJob(),
+    ...goodProductJobs(SHA, true),
+    { ...goodJob(SHA, 99), name: "weekly-tooling (${{ matrix.component }} ${{ matrix.shard }})", conclusion: "failure", steps: [] },
+  ];
+  writeFileSync(
+    join(scratch, "ci-api.json"),
+    JSON.stringify({ ...metadata(), [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=1`]: { ["total_count"]: jobs.length, jobs } }),
+  );
+  expect(hasQualifiedMainPush(scratch, SHA, GROUPED_CONFIG)).toBe(true);
+  const { runtimeJobGroups: _groups, ...unconfigured } = GROUPED_CONFIG;
+  expect(hasQualifiedMainPush(scratch, SHA, unconfigured)).toBe(false);
+});
+
+test.for([
+  "missing-mode",
+  "stale-mode",
+  "mixed-mode",
+  "stale-static",
+  "skipped-static",
+  "partial-rerun",
+  "changed-sha",
+  "changed-run",
+] as const)("native inherited authority still refuses %s provenance", async (scenario, { scratch, fakeBin }) => {
+  await fakeBin("gh", API_FIXTURE);
+  const jobs = [goodJob(), ...goodProductJobs(SHA, true)].map((job) => {
+    if (job.name === "ci-ok") {
+      const modes = {
+        "missing-mode": [],
+        "stale-mode": [{ name: "Orbweaver qualification previous (inherited)", status: "completed", conclusion: "success" }],
+        "mixed-mode": [...job.steps, { name: `${GENERATION} (runtime)`, status: "completed", conclusion: "success" }],
+      };
+      if (scenario === "missing-mode" || scenario === "stale-mode" || scenario === "mixed-mode") {
+        return { ...job, steps: modes[scenario] };
+      }
+    }
+    if (job.name === "static" && scenario === "stale-static") {
+      return { ...job, steps: [{ name: "Orbweaver qualification previous", status: "completed", conclusion: "success" }] };
+    }
+    return job.name === "static" && scenario === "skipped-static" ? { ...job, conclusion: "skipped" } : job;
+  });
+  const current = {
+    ...goodRun(),
+    ...(scenario === "partial-rerun" ? { ["run_attempt"]: 3 } : {}),
+    ...(scenario === "changed-sha" ? { ["head_sha"]: "b".repeat(40) } : {}),
+    ...(scenario === "changed-run" ? { id: 2 } : {}),
+  };
+  writeFileSync(
+    join(scratch, "ci-api.json"),
+    JSON.stringify({
+      ...metadata(),
+      [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=1`]: { ["total_count"]: jobs.length, jobs },
+      [`${API_ROOT}/runs/1`]: current,
+    }),
+  );
+  expect(hasQualifiedMainPush(scratch, SHA, GROUPED_CONFIG)).toBe(false);
+});
+
+for (const group of RUNTIME_JOB_GROUPS.filter(({ jobs }) => jobs.length > 1)) {
+  test.for([
+    "missing",
+    "duplicate",
+    "mixed",
+    "wrong-label",
+    "wrong-count",
+    "queued",
+    "running",
+    "success",
+    "failure",
+    "cancelled",
+    "wrong-sha",
+    "wrong-run",
+    "wrong-attempt",
+  ] as const)(`native inherited ${group.name} refuses %s records`, async (scenario, { scratch, fakeBin }) => {
+    await fakeBin("gh", API_FIXTURE);
+    const complete = [goodJob(), ...goodProductJobs(SHA, true)];
+    const patches = {
+      "wrong-label": { name: `${group.name} unexpected` },
+      "wrong-count": { name: group.name.replace(/\/\d/u, "/99") },
+      queued: { status: "queued" },
+      running: { status: "in_progress" },
+      success: { conclusion: "success" },
+      failure: { conclusion: "failure" },
+      cancelled: { conclusion: "cancelled" },
+      "wrong-sha": { ["head_sha"]: "b".repeat(40) },
+      "wrong-run": { ["run_id"]: 2 },
+      "wrong-attempt": { ["run_attempt"]: 1 },
+    } satisfies Record<Exclude<typeof scenario, "missing" | "duplicate" | "mixed">, Partial<typeof JOB_SAMPLE>>;
+    let jobs = complete;
+    if (scenario === "missing") {
+      jobs = complete.filter(({ name }) => name !== group.name);
+    } else if (scenario === "duplicate") {
+      jobs = [...complete, { ...goodJob(SHA, 99), name: group.name, conclusion: "skipped", steps: [] }];
+    } else if (scenario === "mixed") {
+      jobs = [...complete, ...group.jobs.map((name, index) => ({ ...goodJob(SHA, index + 99), name, conclusion: "skipped", steps: [] }))];
+    } else {
+      jobs = complete.map((job) => (job.name === group.name ? { ...job, ...patches[scenario] } : job));
+    }
+    writeFileSync(
+      join(scratch, "ci-api.json"),
+      JSON.stringify({ ...metadata(), [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=1`]: { ["total_count"]: jobs.length, jobs } }),
+    );
+    expect(hasQualifiedMainPush(scratch, SHA, GROUPED_CONFIG)).toBe(false);
+  });
+
+  test(`runtime qualification rejects the extra collapsed ${group.name} even with every successful shard`, async ({ scratch, fakeBin }) => {
+    await fakeBin("gh", API_FIXTURE);
+    const jobs = [goodJob(), ...goodProductJobs(), { ...goodJob(SHA, 99), name: group.name, conclusion: "skipped", steps: [] }];
+    writeFileSync(
+      join(scratch, "ci-api.json"),
+      JSON.stringify({ ...metadata(), [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=1`]: { ["total_count"]: jobs.length, jobs } }),
+    );
+    expect(hasQualifiedMainPush(scratch, SHA, GROUPED_CONFIG)).toBe(false);
+  });
+}
+
+test.for([
+  "missing-member",
+  "duplicate-member",
+  "foreign-member",
+  "empty-group",
+  "duplicate-name",
+  "renamed-singleton",
+] as const)("runtime qualification refuses an invalid configured partition: %s", async (scenario, { scratch, fakeBin }) => {
+  await fakeBin("gh", API_FIXTURE);
+  writeFileSync(join(scratch, "ci-api.json"), JSON.stringify(metadata()));
+  const groups = RUNTIME_JOB_GROUPS.map((group) => ({ name: group.name, jobs: [...group.jobs] }));
+  const runtimeJobGroups = groups.map((group, index) => {
+    if (scenario === "renamed-singleton") {
+      return index === 0 ? { ...group, name: "unconfigured-singleton" } : group;
+    }
+    if (index !== 1) {
+      return group;
+    }
+    const patches = {
+      "missing-member": { jobs: group.jobs.slice(0, 2) },
+      "duplicate-member": { jobs: ["node (1/3)", "node (1/3)", "node (3/3)"] },
+      "foreign-member": { jobs: ["node (1/3)", "node (2/3)", "unconfigured"] },
+      "empty-group": { jobs: [] },
+      "duplicate-name": { name: "media" },
+    };
+    return { ...group, ...patches[scenario] };
+  });
+  expect(hasQualifiedMainPush(scratch, SHA, { ...GROUPED_CONFIG, runtimeJobGroups })).toBe(false);
+});
+
+test("the production release producer derives native collapsed names from its canonical workflow", async ({ scratch, repoRoot, fakeBin }) => {
+  await fakeBin("gh", API_FIXTURE);
+  execFixtureGit(scratch, ["init", "--initial-branch=main"]);
+  execFixtureGit(scratch, ["config", "user.name", "Orb Test"]);
+  execFixtureGit(scratch, ["config", "user.email", "orb@example.invalid"]);
+  writeFileSync(join(scratch, ".gitignore"), "fake-bin\nci-*\n");
+  mkdirSync(join(scratch, ".github/workflows"), { recursive: true });
+  writeFileSync(join(scratch, ".github/workflows/ci.yml"), readFileSync(join(repoRoot, ".github/workflows/ci.yml")));
+  execFixtureGit(scratch, ["add", "."]);
+  execFixtureGit(scratch, ["commit", "-m", "native inherited qualification"]);
+  const head = execFixtureGit(scratch, ["rev-parse", "HEAD"]).trim();
+  const jobs = [goodJob(head), ...goodProductJobs(head, true)];
+  writeFileSync(
+    join(scratch, "ci-api.json"),
+    JSON.stringify({ ...metadata(head), [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=1`]: { ["total_count"]: jobs.length, jobs } }),
+  );
+  const result = spawnSync(process.execPath, [join(repoRoot, "scripts/ci-qualification.ts"), "release", head], {
+    cwd: scratch,
+    encoding: "utf8",
+    env: inheritedProcessEnv(),
+  });
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  expect(result.stdout).toBe("");
+  expect(result.stderr).toBe("");
 });
 
 test("product authority requires every current-attempt job and distinguishes legitimate inherited skips", { timeout: scaledBudget(30_000) }, async ({
