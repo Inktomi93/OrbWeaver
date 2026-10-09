@@ -836,8 +836,8 @@ for (const sourceTransport of ["normal", "missing", "aborted", "deadline"] as co
 
 test("a slow first Select render confirms its entrance without hiding its app blocking", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  // The intent precedes the render; the 300ms lifecycle cap must begin only after the popup mounts.
-  await mount(<MotionAnchoredPortalStory firstRenderBlockMs={350} />);
+  // Exceed the cold-opening tolerance and ordinary budget; the lifecycle cap still starts after confirmation.
+  await mount(<MotionAnchoredPortalStory firstRenderBlockMs={750} />);
   const trigger = page.getByRole("combobox", { name: "Anchored portal control" });
   const point = await hitPoint(trigger);
   const cdp = await page.context().newCDPSession(page);

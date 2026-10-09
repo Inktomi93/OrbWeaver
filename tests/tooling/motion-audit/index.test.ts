@@ -231,11 +231,22 @@ function appScript(): Loaf["scripts"][number] {
   };
 }
 
-test("a confirmed first sealed Select entrance receives the measured first-only blocking allowance", () => {
-  const motion = motionWith(loaf({ blockingDuration: 181, ...selectEntrance(true) }));
-
-  expect(loafTotals(motion)).toMatchObject({ rawWorstBlocking: 181, classifiedInitializations: 1, budgetedWorstBlocking: 41, budgetedStyleLayout: 0 });
-  expect(loafOverBudget(motion)).toBe(false);
+test("a confirmed first sealed Select entrance receives only the authorized 500ms cold-opening tolerance", () => {
+  for (const [blockingDuration, budgetedWorstBlocking] of [
+    [181, 0],
+    [457, 0],
+    [500, 0],
+    [550, 50],
+  ] as const) {
+    const motion = motionWith(loaf({ duration: blockingDuration + 50, blockingDuration, ...selectEntrance(true) }));
+    expect(loafTotals(motion)).toMatchObject({
+      rawWorstBlocking: blockingDuration,
+      classifiedInitializations: 1,
+      budgetedWorstBlocking,
+      budgetedStyleLayout: 0,
+    });
+    expect(loafOverBudget(motion)).toBe(false);
+  }
 });
 
 test("a confirmed repeat Select entrance may carry its expected style frame but gets no blocking allowance", () => {
@@ -248,20 +259,22 @@ test("a confirmed repeat Select entrance may carry its expected style frame but 
 });
 
 test("the first-only allowance cannot hide app-owned blocking beyond the unchanged 50ms budget", () => {
-  const motion = motionWith(loaf({ blockingDuration: 191, ...selectEntrance(true) }));
+  const motion = motionWith(loaf({ duration: 601, blockingDuration: 551, ...selectEntrance(true) }));
 
   expect(loafTotals(motion).budgetedWorstBlocking).toBe(51);
   expect(loafOverBudget(motion)).toBe(true);
 });
 
 test("a first Select allowance is consumed once and cannot hide a second app-owned block in the same lifetime", () => {
-  const motion = motionWith(
-    loaf({ startTime: 100, duration: 80, blockingDuration: 181, styleAndLayoutStart: 0, ...selectEntrance(true) }),
-    loaf({ startTime: 190, duration: 30, blockingDuration: 130, styleAndLayoutStart: 0, scripts: [appScript()], ...selectEntrance(true) }),
-  );
+  for (const scripts of [[], [appScript()]]) {
+    const motion = motionWith(
+      loaf({ startTime: 100, duration: 80, blockingDuration: 181, styleAndLayoutStart: 0, ...selectEntrance(true) }),
+      loaf({ startTime: 190, duration: 30, blockingDuration: 130, styleAndLayoutStart: 0, scripts, ...selectEntrance(true) }),
+    );
 
-  expect(loafTotals(motion)).toMatchObject({ classifiedInitializations: 1, budgetedWorstBlocking: 130 });
-  expect(loafOverBudget(motion)).toBe(true);
+    expect(loafTotals(motion)).toMatchObject({ classifiedInitializations: 1, budgetedWorstBlocking: 130 });
+    expect(loafOverBudget(motion)).toBe(true);
+  }
 });
 
 test("recognizable concurrent app style remains red inside a confirmed Select lifetime", () => {

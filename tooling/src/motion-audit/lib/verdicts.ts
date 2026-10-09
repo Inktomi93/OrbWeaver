@@ -5,9 +5,8 @@ import type { ClsBudgetBasis, LoafRecord, MotionSnapshot } from "../contract/typ
 
 // The budget thresholds (documented in cli.ts's header). ms unless noted.
 export const BLOCKING_BUDGET_MS = 50;
-// Clean-host 4x-CPU first Select opens peaked at 181ms blocking: 131ms above the unchanged budget.
-// Round to a stable 140ms first-only library allowance; repeats receive ZERO allowance.
-const FIRST_SELECT_BLOCKING_ALLOWANCE_MS = 140;
+// Owner-authorized cold-opening tolerance, not measured library-owned work; repeats receive no subtraction.
+const FIRST_SELECT_BLOCKING_ALLOWANCE_MS = 500;
 export const CLS_BUDGET = 0.1;
 export const DROPPED_FRAME_BUDGET_PCT = 5;
 /** Percentage-point base — one place, so the floor below and the report's per-frame weight agree. */
