@@ -1,10 +1,10 @@
 ---
 kind: tooling
 status: doing
-updated: 2026-10-08
+updated: 2026-10-09
 priority: P1
 area: ci
-lane: codex/weekly-tooling-qualification
+lane: codex/weekly-corpus-progress
 ---
 
 # Separate weekly tooling proof from product qualification
