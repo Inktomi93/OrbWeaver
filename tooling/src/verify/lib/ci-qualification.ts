@@ -169,9 +169,43 @@ function generationStepSucceeded(steps: readonly z.infer<typeof STEP>[], generat
   return matching.length === 1 && matching[0]?.status === "completed" && matching[0].conclusion === "success";
 }
 
+function inheritedRuntimeJobs(config: CiQualificationConfig): readonly string[] | null {
+  const grouped = config.runtimeJobGroups?.flatMap((group) => group.jobs) ?? config.runtimeJobs;
+  const inherited = config.runtimeJobGroups?.map((group) => group.name) ?? config.runtimeJobs;
+  if (
+    grouped.length !== config.runtimeJobs.length ||
+    new Set(grouped).size !== grouped.length ||
+    grouped.some((name) => !config.runtimeJobs.includes(name)) ||
+    new Set([...config.requiredJobs, ...inherited]).size !== config.requiredJobs.length + inherited.length ||
+    config.runtimeJobGroups?.some(
+      (group) =>
+        group.jobs.length === 0 ||
+        (group.jobs.length === 1 ? group.name !== group.jobs[0] : group.jobs.includes(group.name)) ||
+        (config.runtimeJobs.includes(group.name) && !group.jobs.includes(group.name)),
+    ) === true
+  ) {
+    return null;
+  }
+  return inherited;
+}
+
+function requiredJobMatches(jobs: readonly z.infer<typeof JOB>[], name: string, conclusion: string, generation: string): boolean {
+  const matching = jobs.filter((job) => job.name === name);
+  const marked = matching[0];
+  return (
+    matching.length === 1 &&
+    marked !== undefined &&
+    marked.status === "completed" &&
+    marked.conclusion === conclusion &&
+    (name !== "static" || generationStepSucceeded(marked.steps, generation))
+  );
+}
+
 function proofJobsSucceeded(jobs: readonly z.infer<typeof JOB>[], run: z.infer<typeof RUN>, sha: string, config: CiQualificationConfig): boolean {
   const required = [...config.requiredJobs, ...config.runtimeJobs];
+  const inherited = inheritedRuntimeJobs(config);
   if (
+    inherited === null ||
     required.length === 0 ||
     new Set(required).size !== required.length ||
     jobs.some((job) => job.run_id !== run.id || job.head_sha !== sha || job.run_attempt !== run.run_attempt)
@@ -186,18 +220,15 @@ function proofJobsSucceeded(jobs: readonly z.infer<typeof JOB>[], run: z.infer<t
     return false;
   }
   const runtimeRequired = marker.name === `${config.generation} (runtime)`;
-  for (const name of required) {
-    const matching = jobs.filter((job) => job.name === name);
-    const marked = matching[0];
-    const expected = config.runtimeJobs.includes(name) && !runtimeRequired ? "skipped" : "success";
-    if (matching.length !== 1 || marked === undefined || marked.status !== "completed" || marked.conclusion !== expected) {
-      return false;
-    }
-    if (name === "static" && !generationStepSucceeded(marked.steps, config.generation)) {
-      return false;
-    }
+  const runtime = runtimeRequired ? config.runtimeJobs : inherited;
+  const opposite = runtimeRequired ? inherited : config.runtimeJobs;
+  if (jobs.some((job) => opposite.includes(job.name) && !runtime.includes(job.name))) {
+    return false;
   }
-  return true;
+  return (
+    config.requiredJobs.every((name) => requiredJobMatches(jobs, name, "success", config.generation)) &&
+    runtime.every((name) => requiredJobMatches(jobs, name, runtimeRequired ? "success" : "skipped", config.generation))
+  );
 }
 
 function qualifiedMainPush(
