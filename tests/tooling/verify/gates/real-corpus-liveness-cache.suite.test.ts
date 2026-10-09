@@ -16,6 +16,107 @@ const BASE = {
   "package.json": '{"name":"baseline-resource"}',
 };
 
+function countingArm(onPass: () => void, reportBaseline = false): RealCorpusLivenessArm {
+  const message = "planted source change";
+  const policy = defineGate({
+    id: "retained-failure-control",
+    family: "retained-failure-control",
+    authority: "hard",
+    severity: "error",
+    population: "@kit",
+    analysis: "syntax",
+    execution: "selected-files",
+    facts: [],
+    resources: [],
+    message,
+    create: (ctx) => {
+      onPass();
+      return {
+        visitFile: (file) => {
+          if (reportBaseline || file.getFullText().includes("42")) {
+            ctx.report.file(ctx.relativePath(file), { line: 1, message });
+          }
+        },
+      };
+    },
+    mustFlag: [{ mode: "source", files: { [EXPORTER]: "export const exported = 42;" }, why: "changed source" }],
+    mustPass: [{ mode: "source", files: { [EXPORTER]: BASE[EXPORTER] }, why: "unchanged source" }],
+  });
+  return { policy, overlays: [{ kind: "neutralise", path: EXPORTER, source: "export const exported = 42;" }], messageIncludes: message };
+}
+
+function failureOf(operation: () => void): Error {
+  try {
+    operation();
+  } catch (error) {
+    if (error instanceof Error) {
+      return error;
+    }
+    throw error;
+  }
+  throw new Error("the controlled operation did not fail");
+}
+
+test("a failed shared proof retains its original error without replaying a successful prefix or returning partial verdicts", ({ plantedTree }) =>
+  plantedTree(BASE).then((root) => {
+    let passes = 0;
+    const live = countingArm(() => {
+      passes += 1;
+    });
+    const broken = {
+      ...live,
+      policy: defineGate({ ...live.policy, id: "broken-intervention" }),
+      overlays: [{ kind: "resource", path: "package.json", replace: ["absent anchor", "replacement"] }],
+    } satisfies RealCorpusLivenessArm;
+    const runner = openRealCorpusLiveness(root, [live, broken]);
+    const progress: string[] = [];
+    const first = failureOf(() => runner.proveAll(({ arms }) => progress.push(...arms)));
+    expect(first.message).toContain("matched 0 times");
+    expect(passes).toBe(1);
+    expect(progress).toEqual([live.policy.id]);
+    expect(failureOf(() => runner.proveAll())).toBe(first);
+    expect(failureOf(() => runner.verdict(live))).toBe(first);
+    expect(passes).toBe(1);
+    expect(runner.proveBatch([live]).get(live.policy.id)?.messages).toEqual([live.messageIncludes]);
+    expect(passes).toBe(2);
+  }));
+
+test("a failed progress assertion is retained even when the intervention itself completed", async ({ plantedTree }) => {
+  const root = await plantedTree(BASE);
+  let passes = 0;
+  const arm = countingArm(() => {
+    passes += 1;
+  });
+  const runner = openRealCorpusLiveness(root, [arm]);
+  const primary = new Error("progress assertion failed");
+  expect(
+    failureOf(() =>
+      runner.proveAll(() => {
+        throw primary;
+      }),
+    ),
+  ).toBe(primary);
+  expect(failureOf(() => runner.proveAll())).toBe(primary);
+  expect(passes).toBe(1);
+  expect(runner.proveBatch([arm]).get(arm.policy.id)?.messages).toEqual([arm.messageIncludes]);
+  expect(passes).toBe(2);
+});
+
+test("a failed baseline retains its original finding without repeating native analysis or blocking independent restored controls", async ({ plantedTree }) => {
+  const root = await plantedTree({ [EXPORTER]: BASE[EXPORTER] });
+  let passes = 0;
+  const arm = countingArm(() => {
+    passes += 1;
+  }, true);
+  const runner = openRealCorpusLiveness(root, [arm]);
+  const first = failureOf(() => runner.assertBaseline());
+  expect(first.message).toContain("already report in their arm's scope before any overlay");
+  expect(failureOf(() => runner.assertBaseline())).toBe(first);
+  expect(passes).toBe(1);
+  expect(runner.proveBatch([arm]).get(arm.policy.id)?.messages).toEqual([arm.messageIncludes]);
+  expect(passes).toBe(2);
+});
+
 test("liveness cached passes preserve fresh solo facts, resources, populations, refusals and grants", { tags: ["slow"] }, ({ scratch }) => {
   for (const [path, text] of Object.entries(BASE)) {
     mkdirSync(dirname(join(scratch, path)), { recursive: true });

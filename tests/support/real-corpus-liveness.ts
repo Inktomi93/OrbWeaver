@@ -1,6 +1,6 @@
 // Real-corpus liveness uses verify's shared project and virtual interventions only.
 // Each policy sees exactly its own ordered overlays; identical interventions may share a pass.
-// Restoration failure poisons the runner so later results cannot describe a damaged corpus.
+// Shared failures retain their original error; restoration failure also forbids independent controls.
 import { existsSync, readFileSync } from "node:fs";
 import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import { createWorkspaceResolutionCache } from "@orb/tooling/_shared/ts-workspace-resolution";
@@ -629,59 +629,81 @@ export function openRealCorpusLiveness(
   };
 
   let proved: ReadonlyMap<string, RealCorpusArmVerdict> | undefined;
+  let proofFailure: (() => never) | undefined;
+  let baselineFailure: (() => never) | undefined;
   const proveAll: RealCorpusLivenessRunner["proveAll"] = (onBatch, onBatchStart) => {
-    if (proved === undefined) {
-      const all = new Map<string, RealCorpusArmVerdict>();
-      const batches = planLivenessBatches(arms);
-      for (const [index, batch] of batches.entries()) {
-        onBatchStart?.(
-          index,
-          batch.map((arm) => arm.policy.id),
-        );
-        const started = performance.now();
-        const measurements: LivenessPassMeasurement[] = [];
-        for (const [id, verdict] of proveBatch(batch, measurements)) {
-          all.set(id, verdict);
-        }
-        onBatch?.({
-          index,
-          of: batches.length,
-          arms: batch.map((arm) => arm.policy.id),
-          ms: Math.round(performance.now() - started),
-          passes: measurements.length,
-          measurements,
-        });
-      }
-      proved = all;
+    if (proofFailure !== undefined) {
+      return proofFailure();
     }
-    return proved;
+    try {
+      if (proved === undefined) {
+        const all = new Map<string, RealCorpusArmVerdict>();
+        const batches = planLivenessBatches(arms);
+        for (const [index, batch] of batches.entries()) {
+          onBatchStart?.(
+            index,
+            batch.map((arm) => arm.policy.id),
+          );
+          const started = performance.now();
+          const measurements: LivenessPassMeasurement[] = [];
+          for (const [id, verdict] of proveBatch(batch, measurements)) {
+            all.set(id, verdict);
+          }
+          onBatch?.({
+            index,
+            of: batches.length,
+            arms: batch.map((arm) => arm.policy.id),
+            ms: Math.round(performance.now() - started),
+            passes: measurements.length,
+            measurements,
+          });
+        }
+        proved = all;
+      }
+      return proved;
+    } catch (error) {
+      proofFailure = (): never => {
+        throw error;
+      };
+      throw error;
+    }
   };
 
   return {
     assertBaseline: (): readonly string[] => {
-      const measured = arms.filter(needsMeasuredBaseline);
-      if (measured.length === 0) {
-        // Every assertion scope is created by its add overlays; the dispatcher refuses an empty policy list.
-        return [];
+      if (baselineFailure !== undefined) {
+        return baselineFailure();
       }
-      const baseline = pass(measured.map((arm) => arm.policy));
-      expect(refusals(baseline), "the shared BASELINE pass refused, so its silence is not evidence").toEqual([]);
-      const speaking = Object.fromEntries(
-        measured.map((arm) => [arm.policy.id, inScope(baseline, arm)] as const).filter(([, messages]) => messages.length > 0),
-      );
-      expect(speaking, "these policies already report in their arm's scope before any overlay, so the overlay proves nothing").toEqual({});
-      const consumed = new Map(baseline.authority.reviewedGrantConsumption.map(({ id, count }) => [id, count]));
-      const unconsumed = Object.fromEntries(
-        measured
-          .filter((arm) => arm.grantConsumption === true)
-          .map((arm) => {
-            const grants = reviewedGrantsFor([arm.policy]).map(({ id }) => id);
-            return [arm.policy.id, grants.length === 0 ? ["(no central grant to consume)"] : grants.filter((id) => (consumed.get(id) ?? 0) === 0)] as const;
-          })
-          .filter(([, missing]) => missing.length > 0),
-      );
-      expect(unconsumed, "these grant-consumption arms' policies left central grants unconsumed on the real tree — the policy is dead").toEqual({});
-      return baseline.policies.map((result) => result.id);
+      try {
+        const measured = arms.filter(needsMeasuredBaseline);
+        if (measured.length === 0) {
+          // Every assertion scope is created by its add overlays; the dispatcher refuses an empty policy list.
+          return [];
+        }
+        const baseline = pass(measured.map((arm) => arm.policy));
+        expect(refusals(baseline), "the shared BASELINE pass refused, so its silence is not evidence").toEqual([]);
+        const speaking = Object.fromEntries(
+          measured.map((arm) => [arm.policy.id, inScope(baseline, arm)] as const).filter(([, messages]) => messages.length > 0),
+        );
+        expect(speaking, "these policies already report in their arm's scope before any overlay, so the overlay proves nothing").toEqual({});
+        const consumed = new Map(baseline.authority.reviewedGrantConsumption.map(({ id, count }) => [id, count]));
+        const unconsumed = Object.fromEntries(
+          measured
+            .filter((arm) => arm.grantConsumption === true)
+            .map((arm) => {
+              const grants = reviewedGrantsFor([arm.policy]).map(({ id }) => id);
+              return [arm.policy.id, grants.length === 0 ? ["(no central grant to consume)"] : grants.filter((id) => (consumed.get(id) ?? 0) === 0)] as const;
+            })
+            .filter(([, missing]) => missing.length > 0),
+        );
+        expect(unconsumed, "these grant-consumption arms' policies left central grants unconsumed on the real tree — the policy is dead").toEqual({});
+        return baseline.policies.map((result) => result.id);
+      } catch (error) {
+        baselineFailure = (): never => {
+          throw error;
+        };
+        throw error;
+      }
     },
     baselineArms: (): readonly RealCorpusLivenessArm[] => arms.filter(needsMeasuredBaseline),
     proveAll,
