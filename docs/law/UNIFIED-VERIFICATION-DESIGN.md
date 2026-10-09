@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-08
+updated: 2026-10-09
 ---
 
 # Unified Verification Design
@@ -538,5 +538,10 @@ Native shard collection must prove complete, disjoint views through the configur
 Weekly retains conservative full proof and native partition controls. Named changed tooling tests use their explicit local executor, not automatic product tiers.
 
 Nightly full and manual product qualification use separate exact-SHA success markers. Red, no-verdict and cancelled runs cannot save success.
+`tooling/src/verify/lib/application-partitions.ts` derives distributed application execution from the native stage registry.
+Each child executes its partition for the same frozen main commit and retains its native report and stage logs.
+`tooling/src/verify/lib/partition-aggregate.ts` reconciles the complete partition set before publishing the combined native verification report.
+Missing, duplicate, foreign, incomplete and unexpectedly skipped evidence refuses qualification. A passing partition is not a full-tier verdict.
+`scripts/ci-shard.ts` balances native runtime selections using `tooling/ci-duration-weights.json`; current native collection owns population membership.
 The bounded hosted-runner job limit does not prove the full tier completes on that runner. Read the completed run before claiming qualification.
 Release promotion requires successful push-event CI for the exact HEAD after synchronization. A sync-created merge needs its own qualification.

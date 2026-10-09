@@ -2,6 +2,7 @@
 // shapes: what a stage is, how it scopes, how its child's native exit maps into the 0/1/2/3 contract, and
 // what one run leaves in reports/verify.json. The registry DATA is ../lib/registry.ts; the runner is
 // ../ops/run.ts.
+import type { ApplicationPartitionReceipt } from "./application-partitions.ts";
 import type { Selection } from "./selection.ts";
 
 /** @public knip type-face false positive — the one-home vocabulary tuple behind the exported `Tier` union — the ONE
@@ -96,10 +97,16 @@ export interface StageDef {
   };
 }
 
-const STAGE_MODES = ["full", "scoped", "deferred", "skipped"] as const;
+export const STAGE_MODES = ["full", "scoped", "deferred", "skipped"] as const;
 export type StageMode = (typeof STAGE_MODES)[number];
 
+export interface StagePartitionResult {
+  readonly key: string;
+  readonly result: StageResult;
+}
+
 export interface StageResult {
+  readonly partitionResults?: readonly StagePartitionResult[];
   readonly name: string;
   readonly group: string;
   readonly mode: StageMode;
@@ -107,7 +114,7 @@ export interface StageResult {
   readonly exitCode: number;
   /**
    * THE CHILD'S RAW EXIT, RETAINED (#2225) — `null` when the child was signal-killed, timed out, or was
-   * never spawned at all (an unresolvable `argv[0]`); ABSENT when this stage ran no child (deferred,
+   * never spawned at all (an unresolvable `argv[0]`); ABSENT for a distributed aggregate (read partitionResults) or when this stage ran no child (deferred,
    * skipped, or a `--strict-scope` refusal).
    *
    * WHY THE RAW DIGIT SURVIVES THE CLASSIFIER. `exitCode` is `classify(childExit)`, and `classify` is
@@ -169,6 +176,7 @@ interface VerifyRunIdentity {
 }
 
 export interface VerifyReport {
+  readonly partition?: ApplicationPartitionReceipt;
   readonly tier: Tier;
   readonly scope: string;
   /** Optional only for the hand-built report fixtures in the unit tests; every real run carries it. */
@@ -204,3 +212,8 @@ export type VerifyRunResolution =
   | { readonly kind: "report"; readonly report: VerifyReport; readonly advisories: readonly string[] }
   | { readonly kind: "advisory"; readonly lines: readonly string[]; readonly toolError: boolean }
   | { readonly kind: "silent" };
+
+export interface ApplicationPartitionInput {
+  readonly report: VerifyReport;
+  readonly root: string;
+}

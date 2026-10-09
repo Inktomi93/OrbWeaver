@@ -15,7 +15,7 @@ const JOB = z.object({
   name: z.string().optional(),
   needs: z.union([z.string(), z.array(z.string())]).optional(),
   if: z.string().optional(),
-  strategy: z.object({ matrix: z.object({ shard: z.array(z.number().int().positive()).optional() }) }).optional(),
+  strategy: z.object({ matrix: z.union([z.string(), z.object({ shard: z.array(z.number().int().positive()).optional() })]) }).optional(),
 });
 const WORKFLOW = z.object({
   jobs: z.record(z.string(), JOB),
@@ -27,7 +27,11 @@ const WORKFLOW = z.object({
 });
 
 function jobNames(id: string, job: z.infer<typeof JOB>): readonly string[] {
-  const shards = job.strategy?.matrix.shard;
+  const matrix = job.strategy?.matrix;
+  if (typeof matrix === "string") {
+    throw new Error(`unexpanded dynamic product qualification population ${id}`);
+  }
+  const shards = matrix?.shard;
   const names =
     shards === undefined
       ? [job.name ?? id]

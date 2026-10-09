@@ -26,6 +26,7 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 | [Integer line boxes — the crispness doctrine (Law 1: the crisp type scale; Laws 2-4: §9-§12)](integer-line-boxes.md) | active |
 | [Knowledge cluster — the producer → store → consumer boundary](Knowledge-Cluster.md) | active |
 | [Motion & Animation Guide](motion-and-animation-guide.md) | active |
+| [Run timing qualification on the owner machine](owner-timing.md) | active |
 | [Plugin system](plugin-system.md) | active |
 | [The resource-policy contract — what a closed-ResourceHost policy OWES](resource-policy-contract.md) | active |
 | [Orbweaver — Spine: Config, Settings, and Serialization](Spine-Config-and-Serialization.md) | active |

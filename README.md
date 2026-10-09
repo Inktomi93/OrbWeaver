@@ -171,7 +171,13 @@ pnpm check                                 # biome lint + tsc typecheck across a
 
 On Linux, `pnpm exec playwright install --with-deps chromium` also installs the browser's system libraries.
 
-The contributor commands use native Node on macOS and Windows; WSL2 is optional. The manual [contributor workflow](.github/workflows/contributor.yml) proves a fresh install, `pnpm dev`, Snap, `pnpm check` and a fixed component test on native runners. Read its completed artifacts before claiming native contributor parity; those results are still required.
+The contributor commands use native Node on macOS and Windows; WSL2 is optional. The [contributor workflow](.github/workflows/contributor.yml) proves a fresh install, `pnpm dev`, Snap, `pnpm check` and a fixed component test on native runners. It supports manual runs and weekly checks of changed `main`. The [install workflow](.github/workflows/install.yml) checks changed `main` nightly; its Docker proof uses the published release's source. Read completed artifacts before claiming native contributor parity.
+
+The [application workflow](.github/workflows/ci.yml) distributes nightly full verification across native partitions. It qualifies only complete successful results for the same commit. Checker qualification remains weekly. Bug-specific captures live in the dispatch-only [diagnostics workflow](.github/workflows/diagnostics.yml).
+
+Timing budgets qualify on named hardware under [D308](docs/adr/0308-hardware-scoped-timing-budgets.md). Hosted runners retain measurements without asserting timing budgets; behavior remains blocking. [Owner-machine timing setup](docs/law/owner-timing.md) uses a local main-only controller, not a GitHub self-hosted runner.
+
+If Actions disables a scheduled workflow after repository inactivity, open its workflow page and select **Enable workflow**.
 
 **Worktrees just work**, without a symlink hack. Each `git worktree` gets its
 OWN `node_modules` (correct when branches carry different deps; fast via the shared global store). In a
@@ -214,7 +220,7 @@ cannot be derived without git, and a field that is always `false` would lie exac
 **Development images** (`.github/workflows/development-image.yml`):
 
 The manually dispatched workflow builds its selected commit as `ghcr.io/inktomi93/orbweaver:development`
-and `:sha-<full-commit>`. A push to the publication branch `codex/launch-packages` also runs it.
+and `:sha-<full-commit>`.
 It checks the development identity, boots a fresh container, and proves anonymous pull by digest.
 These alpha images never replace `:latest` or a stable version tag.
 Select one from an existing checkout on Linux or macOS:
@@ -240,9 +246,7 @@ The first GHCR package needs public visibility before anonymous pull can pass.
 2. `pnpm release`. It folds anything merged on GitHub into local `main`, refuses a commit whose CI isn't green,
    and pushes `main` to `release`. release-please opens or updates the release PR: the next version, the
    `package.json` bump, and notes built from the conventional commits since the last release.
-3. Merge the release PR. The workflow tags `v<version>`, publishes the GitHub Release, builds the image from
-   the tag, checks that it reports itself as that release, pushes `:<version>` and `:latest` with build
-   provenance, pulls it without credentials, and adds the upgrade steps and image digest to the notes.
+3. Merge the release PR. The workflow tags `v<version>` and creates a draft GitHub Release. It builds and scans the tagged image, checks its identity, pushes `:<version>` with provenance, and proves anonymous pulling by digest. Only then does it advertise `:latest` and publish the release with upgrade steps and the image digest. Failed image proof leaves the release in draft.
    Changes to the plugin SDK or toolchain cut their own `plugin-authoring-v<version>` release the same way.
 4. First release only: GHCR publishes a new package as private, and linking it to the repository does not
    change that, so the anonymous pull fails the run. Open the package's settings on GitHub, use **Danger Zone →

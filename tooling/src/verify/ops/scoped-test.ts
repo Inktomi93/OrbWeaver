@@ -28,10 +28,10 @@ import {
   unresolvedRefusal,
 } from "@orb/tooling/_shared/scoped-run-paths";
 import { VITEST_TYPECHECK_GROUP_PREFIX } from "@orb/tooling/_shared/test-kinds";
-import type { NativeNodeShardCollection, ScopedTestCollection, ScopedTestRunner } from "../contract/scoped-test.ts";
+import type { NativeCtCaseCollection, NativeNodeShardCollection, ScopedTestCollection, ScopedTestRunner } from "../contract/scoped-test.ts";
 
 import { SCOPED_TEST_RUNNERS } from "../contract/scoped-test.ts";
-import { classifyCtListing, readField } from "../lib/ct-listing.ts";
+import { classifyCtListing, readField, readNativeCtCases } from "../lib/ct-listing.ts";
 import { acquireCtRunnerSlots } from "../lib/ct-runner-lock.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm test:scoped <paths…>  /  pnpm test:ct <paths…>");
@@ -89,7 +89,7 @@ async function missingCtBrowser(): Promise<string | null> {
 /** `vitest list --filesOnly --json=<file>` → the test files the caller's filters actually select.
  *  `--filesOnly` is load-bearing for speed (without it `list` enumerates every CASE in the tree), and the
  *  `=`-joined json path is load-bearing for SAFETY — see the header hazard. */
-function collectNode(root: string, rest: readonly string[]): ScopedTestCollection {
+export function collectNode(root: string, rest: readonly string[]): ScopedTestCollection {
   const dir = mkdtempSync(join(tmpdir(), "orb-scoped-test-"));
   const out = join(dir, "list.json");
   try {
@@ -173,7 +173,7 @@ export async function collectNodeShards(root: string, project: string, count: nu
   return { files: listing.files, shards };
 }
 
-function collectCt(root: string, rest: readonly string[]): ScopedTestCollection {
+function collectCtListing(root: string, rest: readonly string[]): ReturnType<typeof runNicedSync> {
   // Config is adoption-only: collection gets a disposable identity so asking Playwright what it would
   // select cannot mint a real run or leave an abandoned reports/runs/ct slot.
   const dir = mkdtempSync(join(tmpdir(), "orb-ct-list-"));
@@ -187,7 +187,17 @@ function collectCt(root: string, rest: readonly string[]): ScopedTestCollection 
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
-  return classifyCtListing(root, res);
+  return res;
+}
+
+/** File preflight and CI partitioning share one native listing and disposable identity. */
+export function collectCt(root: string, rest: readonly string[]): ScopedTestCollection {
+  return classifyCtListing(root, collectCtListing(root, rest));
+}
+
+/** The complete native CT case population, using the same disposable collection identity as file preflight. */
+export function collectCtCases(root: string, rest: readonly string[]): NativeCtCaseCollection {
+  return readNativeCtCases(collectCtListing(root, rest));
 }
 
 function collect(runner: ScopedTestRunner, root: string, rest: readonly string[]): ScopedTestCollection {

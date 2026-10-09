@@ -1,13 +1,13 @@
 name: CI
 run-name: >-
-  ${{ github.event.schedule == '37 9 * * 0' && 'Weekly tooling proof on main'
+  ${{ github.event.schedule == '37 10 * * 0' && 'Weekly tooling proof on main'
   || github.event_name == 'schedule' && 'Nightly full verify on main'
   || github.event_name == 'pull_request' && format('PR #{0} · {1}', github.event.pull_request.number, github.event.pull_request.title)
-  || github.event_name == 'workflow_dispatch' && inputs.select_cpu_diagnostic && format('Select CPU diagnostic only on {0}', github.ref_name)
-  || github.event_name == 'workflow_dispatch' && inputs.tier == 'e2e-diagnostic' && format('E2E startup diagnostic only (not qualification) on {0}', github.ref_name)
-  || github.event_name == 'workflow_dispatch' && format('Manual {0} tier on {1}', inputs.tier, github.ref_name)
+  || github.event_name == 'workflow_dispatch' && inputs.tier != 'push' && format('Manual {0} tier on main', inputs.tier)
+  || github.event_name == 'workflow_dispatch' && format('Manual push tier on {0}', github.ref_name)
   || github.event.head_commit.message }}
 
+# Failure notifications follow GitHub Actions account settings; this workflow sends no external messages.
 # CI qualifies published candidates; local staged hooks check commits and pre-push checks synchronization.
 # Every push to main and every PR runs qualification; a newer push cancels the older run.
 # A qualified ancestor permits docs-only test skips. `ci-ok` is the one required check, and
@@ -20,50 +20,36 @@ on:
     branches: [main, release]
   schedule:
     - cron: "37 9 * * *"
-    - cron: "37 9 * * 0"
+    - cron: "37 10 * * 0"
   workflow_dispatch:
     inputs:
       tier:
-        description: Choose product qualification, independent weekly proof, or non-qualifying E2E startup diagnostics.
+        description: Choose product qualification or independent weekly proof.
         type: choice
-        options: [push, product, full, weekly, e2e-diagnostic]
+        options: [push, product, full, weekly]
         default: push
       base:
         description: Actual event boundary to record for manual push qualification.
         type: string
         default: ""
-      select_cpu_diagnostic:
-        description: Capture Select CPU diagnostics only; this run does not qualify the commit.
-        type: boolean
-        default: false
-      select_cpu_diagnostic_context:
-        description: Choose isolated Select captures or the complete original CT shard 4 context; diagnostics never qualify the commit.
-        type: choice
-        options: [isolated, ct-shard-4, ct-shard-4-native]
-        default: isolated
-      select_cpu_profiling:
-        description: Keep CPU profiling on, or capture trace-only evidence to measure profiler amplification; neither mode qualifies the commit.
-        type: choice
-        options: ["on", "off"]
-        default: "on"
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.select_cpu_diagnostic && 'select-cpu-diagnostic' || github.event_name == 'schedule' && github.event.schedule || inputs.tier || 'push' }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'schedule' && github.event.schedule || inputs.tier || 'push' }}
   cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 env:
   CI: "true"
   ORB_CI_REPOSITORY: Inktomi93/OrbWeaver
-  ORB_CI_QUALIFICATION_GENERATION: Orbweaver qualification product-v2
+  ORB_CI_QUALIFICATION_GENERATION: Orbweaver qualification product-v3
   ORB_CI_PUBLICATION_BOOTSTRAP_SHA: ac6cfc19ea9db59644426b37f6b8c842c33473ad
 
 jobs:
   changes:
-    if: ${{ !inputs.select_cpu_diagnostic && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full' && inputs.tier != 'weekly' && inputs.tier != 'e2e-diagnostic' }}
-    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full' && inputs.tier != 'weekly' }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       code: ${{ steps.diff.outputs.code }}
@@ -87,8 +73,8 @@ jobs:
 
   static:
     needs: [changes]
-    runs-on: ubuntu-latest
-    timeout-minutes: &qualification-timeout 330
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
     env:
       ORB_VERIFY_BASE: ${{ needs.changes.outputs.base }}
       ORB_VERIFY_HEAD: ${{ needs.changes.outputs.head }}
@@ -137,60 +123,10 @@ jobs:
           path: reports/
           retention-days: 7
 
-  media:
+  node:
     needs: changes
     if: needs.changes.outputs.code == 'true'
-    runs-on: &media-runner ubuntu-24.04
-    timeout-minutes: 25
-    outputs:
-      artifact_id: ${{ steps.upload.outputs.artifact-id }}
-      sha256: ${{ steps.prepare.outputs.sha256 }}
-      producer_attempt: ${{ steps.prepare.outputs.producer_attempt }}
-    steps:
-      - id: prepare
-        name: Download the complete signed Ubuntu media dependency closure
-        timeout-minutes: 15
-        run: |
-          set -euo pipefail
-          . /etc/os-release
-          test "$ID:$VERSION_ID:$(dpkg --print-architecture)" = ubuntu:24.04:amd64
-          media_root="$RUNNER_TEMP/media-apt"
-          mkdir -p "$media_root/archives/partial" "$media_root/lists/partial"
-          : > "$media_root/status"
-          cat > "$media_root/sources.list" <<'SOURCES'
-          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://archive.ubuntu.com/ubuntu noble main restricted universe multiverse
-          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://archive.ubuntu.com/ubuntu noble-updates main restricted universe multiverse
-          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://security.ubuntu.com/ubuntu noble-security main restricted universe multiverse
-          SOURCES
-          apt_options=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30
-            -o Acquire::AllowInsecureRepositories=false -o Acquire::AllowDowngradeToInsecureRepositories=false
-            -o APT::Get::AllowUnauthenticated=false -o "Dir::Etc::sourcelist=$media_root/sources.list"
-            -o Dir::Etc::sourceparts=- -o "Dir::State::lists=$media_root/lists"
-            -o "Dir::State::status=$media_root/status" -o "Dir::Cache::archives=$media_root/archives")
-          timeout 300s sudo -n apt-get "${apt_options[@]}" update --error-on=any
-          # Empty installed state fetches dependencies even when the producer already has them.
-          timeout 600s sudo -n DEBIAN_FRONTEND=noninteractive apt-get "${apt_options[@]}" install -y --download-only --no-install-recommends ffmpeg
-          shopt -s nullglob
-          packages=("$media_root"/archives/*.deb)
-          test "${#packages[@]}" -gt 0
-          printf '%s\n' "$ID:$VERSION_ID:$(dpkg --print-architecture)" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$GITHUB_SHA" > "$media_root/identity"
-          (cd "$media_root" && tar --exclude=lists/lock --exclude=lists/partial -cf payload.tar identity sources.list lists archives/*.deb)
-          echo "sha256=$(sha256sum "$media_root/payload.tar" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-          echo "producer_attempt=$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
-      - id: upload
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        timeout-minutes: 5
-        with:
-          name: media-apt-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/media-apt/payload.tar
-          if-no-files-found: error
-          retention-days: 1
-          compression-level: 0
-
-  node:
-    needs: [changes, media]
-    if: needs.changes.outputs.code == 'true'
-    runs-on: *media-runner
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -202,60 +138,22 @@ jobs:
         with:
           persist-credentials: false
       - uses: $/.github/actions/setup
-      - id: media-reference
-        name: Require the media producers immutable artifact reference
-        env:
-          MEDIA_ARTIFACT_ID: ${{ needs.media.outputs.artifact_id }}
-          MEDIA_SHA256: ${{ needs.media.outputs.sha256 }}
-          MEDIA_PRODUCER_ATTEMPT: ${{ needs.media.outputs.producer_attempt }}
-        run: |
-          [[ "$MEDIA_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
-          [[ "$MEDIA_SHA256" =~ ^[a-f0-9]{64}$ ]]
-          [[ "$MEDIA_PRODUCER_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
-      - id: media-download
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        timeout-minutes: 5
-        with:
-          artifact-ids: ${{ needs.media.outputs.artifact_id }}
-          path: ${{ runner.temp }}/media-apt
-          merge-multiple: true
-          digest-mismatch: error
       - id: media
-        name: Install media prerequisites without mirror access
-        timeout-minutes: 8
-        env:
-          MEDIA_SHA256: ${{ needs.media.outputs.sha256 }}
-          MEDIA_PRODUCER_ATTEMPT: ${{ needs.media.outputs.producer_attempt }}
-        run: |
-          set -euo pipefail
-          media_root="$RUNNER_TEMP/media-apt"
-          [[ "$MEDIA_SHA256" =~ ^[a-f0-9]{64}$ ]]
-          printf '%s  %s\n' "$MEDIA_SHA256" "$media_root/payload.tar" | sha256sum --check --strict
-          tar -xf "$media_root/payload.tar" -C "$media_root" --no-same-owner
-          . /etc/os-release
-          printf '%s\n' "$ID:$VERSION_ID:$(dpkg --print-architecture)" "$GITHUB_RUN_ID" "$MEDIA_PRODUCER_ATTEMPT" "$GITHUB_SHA" > "$media_root/expected"
-          cmp "$media_root/identity" "$media_root/expected"
-          shopt -s nullglob
-          packages=("$media_root"/archives/*.deb)
-          test "${#packages[@]}" -gt 0
-          # Resolve only FFmpeg against the authenticated snapshot; retain compatible installed dependencies.
-          timeout 300s sudo -n DEBIAN_FRONTEND=noninteractive apt-get --no-download --no-remove -y --no-install-recommends \
-            -o "Dir::Etc::sourcelist=$media_root/sources.list" -o Dir::Etc::sourceparts=- \
-            -o "Dir::State::lists=$media_root/lists" -o "Dir::Cache::archives=$media_root/archives" install ffmpeg
-          timeout 10s ffmpeg -version
-          timeout 10s ffprobe -version
-      - run: pnpm test:node --shard=${{ matrix.shard }}/3
+        name: Set up FFmpeg and FFprobe
+        timeout-minutes: 15
+        run: bash scripts/ci/install-media.sh
+      - run: pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/3
       - if: failure()
         name: Say how to reproduce
         run: |
           {
             echo "### $GITHUB_JOB failed"
             echo
-            echo "Reproduce locally: \`pnpm test:node --shard=${{ matrix.shard }}/3\`"
+            echo "Reproduce locally: \`pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/3\`"
             echo
             echo "Logs and reports are in the \`reports-node-${{ matrix.shard }}\` artifact on this run."
           } >> "$GITHUB_STEP_SUMMARY"
-      - if: failure()
+      - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-node-${{ matrix.shard }}
@@ -265,13 +163,13 @@ jobs:
   ct:
     needs: changes
     if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
-    name: ct (${{ matrix.shard }}/4)
+        shard: [1, 2, 3, 4, 5]
+    name: ct (${{ matrix.shard }}/5)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -281,14 +179,14 @@ jobs:
           browsers: "true"
       # Showcase CT mounts the release-built plugin bundles, which a fresh checkout does not have.
       - run: pnpm --filter @orb/showcase-plugins build
-      - run: pnpm test:ct --config=playwright-ct.product.config.ts --retries=2 --shard=${{ matrix.shard }}/4
+      - run: pnpm exec node scripts/ci-shard.ts ct ${{ matrix.shard }}/5
       - if: failure()
         name: Say how to reproduce
         run: |
           {
             echo "### $GITHUB_JOB failed"
             echo
-            echo "Reproduce locally: \`pnpm test:ct --config=playwright-ct.product.config.ts --retries=2 --shard=${{ matrix.shard }}/4\`"
+            echo "Reproduce locally: \`pnpm exec node scripts/ci-shard.ts ct ${{ matrix.shard }}/5\`"
             echo
             echo "Logs and reports are in the \`reports-ct-${{ matrix.shard }}\` artifact on this run."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -303,7 +201,7 @@ jobs:
   e2e-smoke:
     needs: changes
     if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -334,9 +232,9 @@ jobs:
 
   # The one required check. A skipped suite (docs-only change) passes; a failed or cancelled one does not.
   ci-ok:
-    if: always() && !inputs.select_cpu_diagnostic && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full' && inputs.tier != 'weekly' && inputs.tier != 'e2e-diagnostic'
-    needs: [changes, static, media, node, ct, e2e-smoke]
-    runs-on: ubuntu-slim
+    if: always() && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full' && inputs.tier != 'weekly'
+    needs: [changes, static, node, ct, e2e-smoke]
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: ${{ format('{0} ({1})', env.ORB_CI_QUALIFICATION_GENERATION, needs.changes.outputs.code == 'true' && 'runtime' || 'inherited') }}
@@ -353,209 +251,163 @@ jobs:
           echo "$NEEDS" | jq -e '
             .changes.result == "success" and .static.result == "success" and
             (.changes.outputs.code == "true" or .changes.outputs.code == "false") and
-            (.changes.outputs.code as $code | [.media, .node, .ct, .["e2e-smoke"]]
+            (.changes.outputs.code as $code | [.node, .ct, .["e2e-smoke"]]
               | all(.[]; .result == (if $code == "true" then "success" else "skipped" end)))
           ' > /dev/null
 
-  # Manual diagnostics use the registered CI workflow so non-default refs remain dispatchable.
-  # Profiling is evidence only; no qualification job or generation-marked step runs in this mode.
-  select-cpu-diagnostic:
-    if: github.event_name == 'workflow_dispatch' && inputs.select_cpu_diagnostic
-    runs-on: ubuntu-latest
-    timeout-minutes: ${{ (inputs.select_cpu_diagnostic_context == 'ct-shard-4' || inputs.select_cpu_diagnostic_context == 'ct-shard-4-native') && 120 || 15 }}
+  # Every full/product child uses the same immutable main revision and one exact-SHA seen decision.
+  qualification-head:
+    if: ${{ github.event.schedule == '37 9 * * *' || inputs.tier == 'product' || inputs.tier == 'full' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+      tier: ${{ steps.sha.outputs.tier }}
+      seen: ${{ steps.seen.outputs.cache-hit }}
+      matrix: ${{ steps.plan.outputs.matrix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false
-      - id: setup
-        uses: $/.github/actions/setup
-        with:
-          browsers: "true"
-      - id: showcase
-        run: pnpm --filter @orb/showcase-plugins build
-      - id: native-control
-        name: Native Select acceptance without CPU profiling
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' && inputs.select_cpu_diagnostic_context != 'ct-shard-4' && inputs.select_cpu_diagnostic_context != 'ct-shard-4-native' }}
-        run: pnpm test:ct tests/client/lib/motion-stats.ct.tsx --grep='a real sealed Select classifies its confirmed first and repeat entrance lifetimes only$' --retries=0
-      - if: always() && inputs.select_cpu_diagnostic_context != 'ct-shard-4' && inputs.select_cpu_diagnostic_context != 'ct-shard-4-native'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: select-native-control
-          path: reports/
-          retention-days: 7
-      - id: cpu-diagnostic
-        name: Diagnostic-only Select CPU captures (not qualification)
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' && inputs.select_cpu_diagnostic_context != 'ct-shard-4' && inputs.select_cpu_diagnostic_context != 'ct-shard-4-native' }}
-        env:
-          ORB_SELECT_CPU_DIAGNOSTIC: "1"
-          ORB_SELECT_CPU_PROFILING: ${{ inputs.select_cpu_profiling == 'off' && '0' || '1' }}
-        run: pnpm test:ct tests/client/lib/motion-stats.ct.tsx --grep='Select CPU diagnostic only' --retries=0
-      - id: full-cpu-diagnostic
-        name: Original CT shard 4 context with diagnostic-only captures (not qualification)
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' && inputs.select_cpu_diagnostic_context == 'ct-shard-4' }}
-        env:
-          ORB_SELECT_CPU_DIAGNOSTIC: "1"
-          ORB_SELECT_CPU_PROFILING: ${{ inputs.select_cpu_profiling == 'off' && '0' || '1' }}
-        run: |
-          set -euo pipefail
-          context_root="$RUNNER_TEMP/select-cpu-diagnostic-context"
-          mkdir -p "$context_root" reports/select-cpu-diagnostic-context
-          ORB_SELECT_CPU_DIAGNOSTIC=0 pnpm test:ct --list --shard=4/4 --retries=0
-          cp reports/ct-report.json "$context_root/ordinary.json"
-          pnpm test:ct --list --shard=4/4 --retries=0
-          cp reports/ct-report.json "$context_root/opt-in.json"
-          pnpm exec node scripts/select-cpu-diagnostic-context.ts create "$context_root/ordinary.json" "$context_root/opt-in.json" "$context_root/cases.list"
-          pnpm test:ct --list --test-list="$context_root/cases.list" --retries=0
-          cp reports/ct-report.json "$context_root/selected.json"
-          pnpm exec node scripts/select-cpu-diagnostic-context.ts verify "$context_root/ordinary.json" "$context_root/opt-in.json" "$context_root/selected.json"
-          cp "$context_root/ordinary.json" "$context_root/opt-in.json" "$context_root/selected.json" "$context_root/cases.list" reports/select-cpu-diagnostic-context/
-          pnpm test:ct --test-list="$context_root/cases.list" --retries=0
-      - id: native-context-diagnostic
-        name: Original CT shard 4 with native first/repeat trace only (not qualification)
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' && inputs.select_cpu_diagnostic_context == 'ct-shard-4-native' }}
-        env:
-          ORB_SELECT_CPU_DIAGNOSTIC: "0"
-          ORB_SELECT_CPU_PROFILING: "0"
-          ORB_SELECT_NATIVE_TRACE: "1"
-        run: |
-          set -euo pipefail
-          context_root="$RUNNER_TEMP/select-native-trace-context"
-          mkdir -p "$context_root" reports/select-native-trace-context
-          ORB_SELECT_NATIVE_TRACE=0 pnpm test:ct --list --shard=4/4 --retries=0
-          cp reports/ct-report.json "$context_root/ordinary.json"
-          pnpm exec node scripts/select-cpu-diagnostic-context.ts create-native "$context_root/ordinary.json" "$context_root/cases.list"
-          pnpm test:ct --list --test-list="$context_root/cases.list" --retries=0
-          cp reports/ct-report.json "$context_root/selected.json"
-          pnpm exec node scripts/select-cpu-diagnostic-context.ts verify-native "$context_root/ordinary.json" "$context_root/selected.json"
-          cp "$context_root/ordinary.json" "$context_root/selected.json" "$context_root/cases.list" reports/select-native-trace-context/
-          pnpm test:ct --test-list="$context_root/cases.list" --retries=0
-      - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: select-cpu-diagnostic-only
-          path: reports/
-          retention-days: 7
-
-  # Nightly owns full application verification; tooling recertification is independently weekly.
-  # The bounded runner limit is not evidence that the complete full tier fits this machine.
-  qualification:
-    if: ${{ !inputs.select_cpu_diagnostic && (github.event.schedule == '37 9 * * *' || inputs.tier == 'product' || inputs.tier == 'full') }}
-    runs-on: ubuntu-latest
-    timeout-minutes: *qualification-timeout
-    env:
-      VERIFY_TIER: ${{ github.event_name == 'schedule' && 'full' || inputs.tier }}
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event_name == 'schedule' && 'main' || github.ref }}
-          fetch-depth: 0
+          ref: main
           persist-credentials: false
       - id: sha
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        env:
+          VERIFY_TIER: ${{ github.event_name == 'schedule' && 'full' || inputs.tier }}
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "tier=$VERIFY_TIER" >> "$GITHUB_OUTPUT"
       - id: seen
-        if: github.event_name == 'schedule'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: .${{ env.VERIFY_TIER }}-verified
-          key: ${{ env.VERIFY_TIER }}-verified-${{ steps.sha.outputs.sha }}
+          path: .${{ steps.sha.outputs.tier }}-verified
+          key: ${{ steps.sha.outputs.tier }}-verified-${{ steps.sha.outputs.sha }}
           lookup-only: true
       - if: steps.seen.outputs.cache-hit != 'true'
-        uses: ./.github/actions/setup # zizmor: ignore[self-repository] Scheduled main needs checked-out setup, not the default-branch workflow commit.
-        with:
-          browsers: "true"
-      - id: media
+        uses: ./.github/actions/setup # zizmor: ignore[self-repository] Qualification setup belongs to the frozen main source.
+      - id: plan
         if: steps.seen.outputs.cache-hit != 'true'
-        name: Set up FFmpeg and FFprobe
-        timeout-minutes: 15
-        run: &media-prerequisite-command |
-          if timeout 10s ffmpeg -version >/dev/null 2>&1 && timeout 10s ffprobe -version >/dev/null 2>&1; then
-            exit 0
-          fi
-          apt_options=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
-          timeout 300s sudo -n apt-get "${apt_options[@]}" update --error-on=any
-          timeout 600s sudo -n DEBIAN_FRONTEND=noninteractive apt-get "${apt_options[@]}" install -y --no-install-recommends ffmpeg
-          timeout 10s ffmpeg -version
-          timeout 10s ffprobe -version
-      - id: showcase
-        if: steps.seen.outputs.cache-hit != 'true'
-        run: pnpm --filter @orb/showcase-plugins build
-      - id: verify
-        if: steps.seen.outputs.cache-hit != 'true'
-        run: pnpm verify --"$VERIFY_TIER"
-      - id: mark
-        if: success() && steps.verify.outcome == 'success'
         env:
-          VERIFIED_SHA: ${{ steps.sha.outputs.sha }}
-        run: echo "$VERIFIED_SHA" > ".${VERIFY_TIER}-verified"
-      - if: success() && steps.mark.outcome == 'success'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .${{ env.VERIFY_TIER }}-verified
-          key: ${{ env.VERIFY_TIER }}-verified-${{ steps.sha.outputs.sha }}
-      - if: failure()
-        name: Show what failed
-        # check:show names every failing stage of the run with its own extracted failure lines.
-        run: |
-          pnpm check:show --limit 20 2>&1 | tee check-show.txt
-          { echo '### What failed'; echo; echo '```text'; head -c 60000 check-show.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-      - if: failure()
-        name: Say how to reproduce
-        run: |
-          {
-            echo "### $GITHUB_JOB failed"
-            echo
-            echo "Reproduce locally: \`pnpm verify --$VERIFY_TIER\`"
-            echo
-            echo "Logs and reports are in the reports-$VERIFY_TIER artifact on this run."
-          } >> "$GITHUB_STEP_SUMMARY"
-      - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: reports-${{ env.VERIFY_TIER }}
-          path: |
-            reports/
-            test-results/
-          retention-days: 7
+          VERIFY_TIER: ${{ steps.sha.outputs.tier }}
+        run: pnpm exec node scripts/ci-plan.ts "$VERIFY_TIER"
 
-  # Startup evidence is diagnostic only; it cannot write qualification or weekly success state.
-  e2e-startup-diagnostic:
-    if: github.event_name == 'workflow_dispatch' && !inputs.select_cpu_diagnostic && inputs.tier == 'e2e-diagnostic'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+  qualification-partition:
+    needs: qualification-head
+    if: needs.qualification-head.outputs.seen != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ matrix.partition == 'static' && 60 || matrix.partition == 'quality' && 330 || 120 }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.qualification-head.outputs.matrix) }}
+    name: qualification (${{ matrix.key }})
     env:
+      VERIFY_TIER: ${{ needs.qualification-head.outputs.tier }}
+      VERIFY_PARTITION: ${{ matrix.partition }}
+      VERIFY_SHARD: ${{ matrix.shard }}
       E2E_LIVE: "0"
       E2E_ALLOW_DEV_TARGET: "0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.sha }}
+          ref: main
+          fetch-depth: 0
           persist-credentials: false
-      - uses: $/.github/actions/setup
+      - id: source
+        env:
+          FROZEN_MAIN_SHA: ${{ needs.qualification-head.outputs.sha }}
+        run: &frozen-main-source |
+          set -euo pipefail
+          [[ "$FROZEN_MAIN_SHA" =~ ^[a-f0-9]{40}$ ]]
+          test "$(git cat-file -t "$FROZEN_MAIN_SHA")" = commit
+          git merge-base --is-ancestor "$FROZEN_MAIN_SHA" refs/remotes/origin/main
+          git checkout --detach "$FROZEN_MAIN_SHA"
+      - uses: ./.github/actions/setup # zizmor: ignore[self-repository] Every partition uses the validated immutable main setup.
         with:
           browsers: "true"
       - id: media
         name: Set up FFmpeg and FFprobe
         timeout-minutes: 15
-        run: *media-prerequisite-command
+        run: bash scripts/ci/install-media.sh
       - id: showcase
         run: pnpm --filter @orb/showcase-plugins build
-      - id: startup
-        name: E2E startup diagnostics (not qualification)
-        run: pnpm e2e app-readiness.spec.ts --retries=0
+      - id: verify
+        run: |
+          args=("--$VERIFY_TIER" "--partition=$VERIFY_PARTITION")
+          if [[ -n "$VERIFY_SHARD" ]]; then args+=("--shard=$VERIFY_SHARD"); fi
+          pnpm verify "${args[@]}"
+      - if: failure()
+        name: Show what failed
+        run: pnpm check:show --limit 20
       - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: reports-e2e-startup-diagnostic
-          path: |
-            reports/
-            test-results/
+          name: reports-qualification-${{ matrix.key }}
+          path: reports/
+          if-no-files-found: error
+          retention-days: 7
+
+  qualification:
+    if: always() && needs.qualification-head.result == 'success'
+    needs: [qualification-head, qualification-partition]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      VERIFY_TIER: ${{ needs.qualification-head.outputs.tier }}
+    steps:
+      - name: Require cached runs to execute no partitions
+        if: needs.qualification-head.outputs.seen == 'true'
+        env:
+          SEEN: ${{ needs.qualification-head.outputs.seen }}
+          PARTITIONS: ${{ needs.qualification-partition.result }}
+        run: |
+          test "$SEEN" = true
+          test "$PARTITIONS" = skipped
+      - if: needs.qualification-head.outputs.seen != 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - id: source
+        if: needs.qualification-head.outputs.seen != 'true'
+        env:
+          FROZEN_MAIN_SHA: ${{ needs.qualification-head.outputs.sha }}
+        run: *frozen-main-source
+      - if: needs.qualification-head.outputs.seen != 'true'
+        uses: ./.github/actions/setup # zizmor: ignore[self-repository] Aggregate reads the same immutable registry as its children.
+      - if: needs.qualification-head.outputs.seen != 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: reports-qualification-*
+          path: reports/qualification-inputs
+          digest-mismatch: error
+      - id: verify
+        if: needs.qualification-head.outputs.seen != 'true'
+        run: pnpm verify --"$VERIFY_TIER" --aggregate=reports/qualification-inputs
+      - name: Require all uncached child job outcomes
+        if: always() && needs.qualification-head.outputs.seen != 'true'
+        env:
+          PARTITIONS: ${{ needs.qualification-partition.result }}
+        run: test "$PARTITIONS" = success
+      - id: mark
+        if: success() && needs.qualification-partition.result == 'success' && steps.verify.outcome == 'success'
+        env:
+          VERIFIED_SHA: ${{ needs.qualification-head.outputs.sha }}
+        run: echo "$VERIFIED_SHA" > ".${VERIFY_TIER}-verified"
+      - if: success() && steps.mark.outcome == 'success'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .${{ env.VERIFY_TIER }}-verified
+          key: ${{ env.VERIFY_TIER }}-verified-${{ needs.qualification-head.outputs.sha }}
+      - if: always() && needs.qualification-head.outputs.seen != 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reports-${{ env.VERIFY_TIER }}
+          path: reports/
           retention-days: 7
 
   weekly-head:
-    if: ${{ !inputs.select_cpu_diagnostic && (github.event.schedule == '37 9 * * 0' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'weekly')) }}
-    runs-on: ubuntu-slim
+    if: ${{ (github.event.schedule == '37 10 * * 0' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'weekly')) }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       sha: ${{ steps.sha.outputs.sha }}
@@ -569,8 +421,8 @@ jobs:
 
   weekly-tooling:
     needs: weekly-head
-    runs-on: ubuntu-latest
-    timeout-minutes: *qualification-timeout
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
     strategy:
       fail-fast: false
       matrix:
@@ -581,7 +433,7 @@ jobs:
             shard: "1/2"
           - component: corpus
             shard: "2/2"
-    name: weekly-tooling (${{ matrix.component }} ${{ matrix.shard }})
+    name: Weekly tooling proof
     env:
       ORB_VERIFY_INSTRUMENT_COMPONENT: ${{ matrix.component }}
       CORPUS_SHARD: ${{ matrix.shard }}
@@ -605,7 +457,7 @@ jobs:
         with:
           browsers: "true"
       - id: proof
-        name: Weekly tooling proof
+        name: Weekly tooling proof (${{ matrix.component }} ${{ matrix.shard }})
         run: |
           if [[ "$ORB_VERIFY_INSTRUMENT_COMPONENT" == corpus ]]; then
             pnpm test:tooling --shard="$CORPUS_SHARD"
@@ -621,9 +473,9 @@ jobs:
           retention-days: 7
 
   weekly-ok:
-    if: always() && !inputs.select_cpu_diagnostic && (github.event.schedule == '37 9 * * 0' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'weekly'))
+    if: always() && (github.event.schedule == '37 10 * * 0' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'weekly'))
     needs: [weekly-head, weekly-tooling]
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - env:

@@ -4,6 +4,7 @@
 // tiers/scoping/exit classification), and the standalone reconciliation stages (type/execution membership,
 // the db baseline, the orphan-export ratchet).
 
+export type { NativeDurationShardCollection } from "./contract/application-partitions.ts";
 export type {
   BaseUiBinding,
   Disposition,
@@ -81,7 +82,7 @@ export type {
   SchemaBaselineComparison,
   Scope,
 } from "./contract/scoped.ts";
-export type { ScopedTestCollection, ScopedTestRunner } from "./contract/scoped-test.ts";
+export type { NativeNodeShard, ScopedTestCollection, ScopedTestRunner } from "./contract/scoped-test.ts";
 export { SCOPED_TEST_RUNNERS } from "./contract/scoped-test.ts";
 export type { CtView, Selection, SelectionRequest } from "./contract/selection.ts";
 export type { ScopedArgv, StageCommand, StageDef, StageGroup, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "./contract/stage.ts";
@@ -92,6 +93,7 @@ export type { TypecheckPlan, TypecheckPlanMode, TypecheckPlanSubject, TypecheckS
 export { TYPECHECK_PLAN_MODES, TYPECHECK_SUBJECT_DISPOSITIONS } from "./contract/typecheck-plan.ts";
 export type { VerifyVerb } from "./contract/verbs.ts";
 export { VERIFY_VERBS } from "./contract/verbs.ts";
+export { applicationPartitionKeys, applicationPartitionStages } from "./lib/application-partitions.ts";
 export { readStringValue, unwrapExpression } from "./lib/ast-read.ts";
 export { signatureArity } from "./lib/baseui-expand.ts";
 export {
@@ -111,6 +113,8 @@ export { BASE_UI_MODULE_PREFIX } from "./lib/baseui-surface-derive.ts";
 export { auditBiomeTranscript, biomeStageAudit, controlProbeCount, parseCheckedFileCount } from "./lib/biome-verdict.ts";
 export { hasQualifiedMainPush, qualificationDecision, resolveCiQualification } from "./lib/ci-qualification.ts";
 export { VERB_HELP } from "./lib/cli-help.ts";
+export { readNativeCtCases } from "./lib/ct-listing.ts";
+export { balanceNativeFiles, requireNativeSelection } from "./lib/duration-shards.ts";
 export { aggregateExit, asViolations, eslintScheme, noVerdictStages, ownScheme, producedNoVerdict } from "./lib/exit-classifiers.ts";
 export { inspectGateContract } from "./lib/gate-contract.ts";
 export { findGateIgnoreMarkersWithSpans, GATE_IGNORE_MENTION_SPAN_KINDS } from "./lib/gate-ignore.ts";
@@ -130,6 +134,7 @@ export { bannedMessage, CONTRACT_BANNED_SHAPES, contractBanHome, SCHEMA_BANNED_S
 export { loadGateCorpus } from "./lib/loader.ts";
 export { markdownTables } from "./lib/markdown-tables.ts";
 export { mutationGateStageAudit, parseMutantProgress, reachedMutationVerdict } from "./lib/mutation-gate-verdict.ts";
+export { aggregateApplicationPartitions, readApplicationPartitionInputs } from "./lib/partition-aggregate.ts";
 export { stripProbePolicyFindings } from "./lib/planted-fixtures.ts";
 export { parsePolicyCommand } from "./lib/policy-command.ts";
 export { loadPolicies, loadPolicyCorpus } from "./lib/policy-loader.ts";
@@ -192,7 +197,7 @@ export type { RatchetClassification, RatchetExclusion } from "./ops/ratchet-gate
 export { classifyRatchetFiles, discoverTestFiles, isRatchetShaped, runRatchetGateCli } from "./ops/ratchet-gate.ts";
 export { auditedExit, auditLine, auditOf, noticesIn, runVerify } from "./ops/run.ts";
 export { runScopedCli, SCOPED_USAGE } from "./ops/scoped.ts";
-export { runScopedTest, SCOPED_TEST_USAGE } from "./ops/scoped-test.ts";
+export { collectCt, collectCtCases, collectNode, runScopedTest, SCOPED_TEST_USAGE } from "./ops/scoped-test.ts";
 export { runShow, SHOW_HELP } from "./ops/show.ts";
 export { runShowcaseRelease, showcaseVersionViolations } from "./ops/showcase-release.ts";
 export { runStructure } from "./ops/structure.ts";

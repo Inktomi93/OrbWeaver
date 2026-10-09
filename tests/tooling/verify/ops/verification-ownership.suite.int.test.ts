@@ -1,657 +1,188 @@
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { CONCURRENCY_PROFILE_PATH, readConcurrencyProfile, stageBudgetsFor } from "@orb/tooling/_shared/concurrency-profile";
+import { runInNewContext } from "node:vm";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import YAML from "yaml";
+import { z } from "zod";
+import { applicationPartitionKeys } from "../../../../tooling/src/verify/lib/application-partitions.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
-import { scaledBudget } from "../../_load-budget.ts";
 
-interface WorkflowStep {
-  readonly id?: string;
-  readonly name?: string;
-  readonly run?: string;
-  readonly if?: string;
-  readonly uses?: string;
-  readonly env?: Readonly<Record<string, string>>;
-  readonly "timeout-minutes"?: number;
-  readonly with?: {
-    readonly browsers?: string;
-    readonly ref?: string;
-    readonly path?: string;
-    readonly key?: string;
-    readonly "artifact-ids"?: string;
-    readonly "digest-mismatch"?: string;
-  };
-}
-interface QualificationJob {
-  readonly "timeout-minutes": number;
-  readonly env: Readonly<Record<string, string>>;
-  readonly steps: readonly WorkflowStep[];
-}
-interface Workflow {
-  readonly on: {
-    readonly schedule: readonly { readonly cron: string }[];
-    readonly ["workflow_dispatch"]: { readonly inputs: { readonly tier: { readonly options: readonly string[] } } };
-  };
-  readonly env: Readonly<Record<string, string>>;
-  readonly jobs: {
-    readonly qualification: QualificationJob;
-    readonly node: {
-      readonly needs: readonly string[];
-      readonly "runs-on": string;
-      readonly strategy: { readonly matrix: { readonly shard: readonly number[] } };
-      readonly steps: readonly WorkflowStep[];
-    };
-    readonly media: {
-      readonly if: string;
-      readonly "runs-on": string;
-      readonly outputs: Readonly<Record<string, string>>;
-      readonly steps: readonly WorkflowStep[];
-    };
-    readonly changes: {
-      readonly permissions: Readonly<Record<string, string>>;
-      readonly steps: readonly (WorkflowStep & { readonly env?: Readonly<Record<string, string>> })[];
-    };
-    readonly "weekly-head": { readonly if: string; readonly outputs: Readonly<Record<string, string>>; readonly steps: readonly WorkflowStep[] };
-    readonly "weekly-tooling": {
-      readonly needs: string;
-      readonly strategy: {
-        readonly "fail-fast": boolean;
-        readonly matrix: { readonly include: readonly { readonly component: string; readonly shard: string }[] };
-      };
-      readonly "timeout-minutes": number;
-      readonly env: Readonly<Record<string, string>>;
-      readonly steps: readonly WorkflowStep[];
-    };
-    readonly "weekly-ok": { readonly if: string; readonly needs: readonly string[]; readonly steps: readonly WorkflowStep[] };
-    readonly static: {
-      readonly needs: readonly string[];
-      readonly if?: string;
-      readonly "timeout-minutes": number;
-      readonly env: Readonly<Record<string, string>>;
-      readonly steps: readonly (WorkflowStep & { readonly name?: string })[];
-    };
-    readonly "ci-ok": { readonly if: string; readonly needs: readonly string[]; readonly steps: readonly WorkflowStep[] };
-  };
-}
-
-function workflow(repoRoot: string): Workflow {
-  return YAML.parse(readFileSync(join(repoRoot, ".github/workflows/ci.yml"), "utf8")) as Workflow;
-}
-
-test("product CI refuses a skipped required smoke even when every other job succeeded", ({ repoRoot, scratch }) => {
-  const gate = workflow(repoRoot).jobs["ci-ok"];
-  const needs = Object.fromEntries(gate.needs.map((name) => [name, { result: "success", outputs: { code: "true" } }]));
-  const run = gate.steps[0]?.run ?? "";
-  const execute = (): number | null =>
-    spawnSync("bash", ["-e", "-c", run], {
-      cwd: scratch,
-      env: inheritedProcessEnv({ ["NEEDS"]: JSON.stringify(needs), ["GITHUB_STEP_SUMMARY"]: join(scratch, "summary.md") }),
-      encoding: "utf8",
-    }).status;
-  expect(execute()).toBe(0);
-  needs["e2e-smoke"] = { result: "skipped", outputs: { code: "true" } };
-  expect(execute()).toBe(1);
+const STEP = z.object({
+  id: z.string().optional(),
+  name: z.string().optional(),
+  if: z.string().optional(),
+  uses: z.string().optional(),
+  run: z.string().optional(),
+  env: z.record(z.string(), z.string()).optional(),
+  with: z.record(z.string(), z.json()).optional(),
+  "timeout-minutes": z.number().optional(),
 });
-
-function step(job: QualificationJob, id: string): WorkflowStep {
-  const found = job.steps.find((candidate) => candidate.id === id);
-  if (found === undefined) {
-    throw new Error(`missing qualification step ${id}`);
-  }
-  return found;
+const WORKFLOW = z.object({
+  on: z.object({ schedule: z.array(z.object({ cron: z.string() })), ["workflow_dispatch"]: z.object({ inputs: z.record(z.string(), z.json()) }) }),
+  jobs: z.record(
+    z.string(),
+    z.object({
+      name: z.string().optional(),
+      needs: z.union([z.string(), z.array(z.string())]).optional(),
+      if: z.string().optional(),
+      "runs-on": z.string(),
+      "timeout-minutes": z.union([z.number(), z.string()]),
+      outputs: z.record(z.string(), z.string()).optional(),
+      env: z.record(z.string(), z.string()).optional(),
+      strategy: z
+        .object({
+          matrix: z.union([
+            z.string(),
+            z.object({ shard: z.array(z.number()).optional(), include: z.array(z.object({ component: z.string(), shard: z.string() })).optional() }),
+          ]),
+        })
+        .optional(),
+      steps: z.array(STEP),
+    }),
+  ),
+});
+function workflow(root: string): z.infer<typeof WORKFLOW> {
+  return WORKFLOW.parse(YAML.parse(readFileSync(join(root, ".github/workflows/ci.yml"), "utf8")));
+}
+function guard(expression: string, context: object): boolean {
+  return Boolean(runInNewContext(expression.replace(/^\$\{\{\s*|\s*\}\}$/gu, "").replace(/\.([a-z]+-[a-z-]+)/gu, '["$1"]'), context));
 }
 
-const MEDIA_TOOLS = ["ffmpeg", "ffprobe"] as const;
-const MEDIA_TOOL_FIXTURE = "import fs from 'node:fs';process.exitCode=fs.existsSync('media-ready')?0:1;";
-const APT_FIXTURE = [
-  "import fs from 'node:fs';const args=process.argv.slice(2);fs.appendFileSync('apt.jsonl',JSON.stringify(args)+'\\n');",
-  "if(args.includes(process.env.FIXTURE_APT_FAILURE))process.exit(71);",
-  "if(args.includes('install')&&args.includes('ffmpeg')&&process.env.FIXTURE_MEDIA_BROKEN!=='1')fs.writeFileSync('media-ready','yes');",
-].join("\n");
-
-test("standalone exhaustive qualification has bounded noninteractive media setup that skips healthy tools and exposes setup failures", {
-  timeout: scaledBudget(20_000),
-}, async ({ repoRoot, scratch, fakeBin }) => {
+test("product authority requires real runtime success or exactly the inherited skips, independent of weekly", ({ repoRoot, scratch }) => {
   const ci = workflow(repoRoot);
-  const media = step(ci.jobs.qualification, "media");
-  expect(media["timeout-minutes"]).toBe(15);
-  await fakeBin("sudo", APT_FIXTURE);
-  for (const tool of MEDIA_TOOLS) {
-    await fakeBin(tool, MEDIA_TOOL_FIXTURE);
-  }
-  for (const [scenario, expectedExit, expectedCalls] of [
-    ["healthy", 0, 0],
-    ["missing", 0, 2],
-    ["update", 71, 1],
-    ["install", 71, 2],
-    ["broken", 1, 2],
-  ] as const) {
-    rmSync(join(scratch, "media-ready"), { force: true });
-    writeFileSync(join(scratch, "apt.jsonl"), "");
-    if (scenario === "healthy") {
-      writeFileSync(join(scratch, "media-ready"), "yes");
-    }
-    const result = spawnSync("bash", ["-e", "-c", media.run ?? ""], {
-      cwd: scratch,
-      env: inheritedProcessEnv({ ["FIXTURE_APT_FAILURE"]: scenario, ["FIXTURE_MEDIA_BROKEN"]: scenario === "broken" ? "1" : "0" }),
-      encoding: "utf8",
-      timeout: scaledBudget(10_000),
-    });
-    expect(result.status, `${scenario}: ${result.stdout}${result.stderr}`).toBe(expectedExit);
-    const calls = readFileSync(join(scratch, "apt.jsonl"), "utf8")
-      .trim()
-      .split("\n")
-      .filter(Boolean)
-      .map((row) => JSON.parse(row) as readonly string[]);
-    expect(calls).toHaveLength(expectedCalls);
-    for (const args of calls) {
-      expect(args).toEqual(expect.arrayContaining(["-n", "Acquire::Retries=3", "Acquire::http::Timeout=30", "Acquire::https::Timeout=30"]));
-    }
-  }
-});
-
-test("one same-run media producer feeds all node shards and its failure cannot become a green skipped-node aggregate", ({ repoRoot, scratch }) => {
-  const ci = workflow(repoRoot);
-  expect(ci.jobs.node.strategy.matrix.shard).toEqual([1, 2, 3]);
-  expect(ci.jobs.node.needs).toEqual(["changes", "media"]);
-  expect(ci.jobs.media.if).toBe("needs.changes.outputs.code == 'true'");
-  expect(ci.jobs.media["runs-on"]).toBe("ubuntu-24.04");
-  expect(ci.jobs.node["runs-on"]).toBe(ci.jobs.media["runs-on"]);
-  const download = ci.jobs.node.steps.find((candidate) => candidate.id === "media-download");
-  const reference = ci.jobs.node.steps.find((candidate) => candidate.id === "media-reference");
-  expect(ci.jobs.node.steps.findIndex((candidate) => candidate.id === "media-reference")).toBeLessThan(
-    ci.jobs.node.steps.findIndex((candidate) => candidate.id === "media-download"),
-  );
-  expect(reference?.env?.["MEDIA_PRODUCER_ATTEMPT"]).toBe("${{ needs.media.outputs.producer_attempt }}");
-  expect(ci.jobs.media.outputs["producer_attempt"]).toBe("${{ steps.prepare.outputs.producer_attempt }}");
-  for (const [id, digest, attempt, exit] of [
-    ["", "a".repeat(64), "1", 1],
-    ["foreign", "a".repeat(64), "1", 1],
-    ["0", "a".repeat(64), "1", 1],
-    ["123", "", "1", 1],
-    ["123", "a".repeat(64), "", 1],
-    ["123", "a".repeat(64), "0", 1],
-    ["123", "a".repeat(64), "1", 0],
-  ] as const) {
-    const result = spawnSync("bash", ["-e", "-c", reference?.run ?? ""], {
-      env: inheritedProcessEnv({ ["MEDIA_ARTIFACT_ID"]: id, ["MEDIA_SHA256"]: digest, ["MEDIA_PRODUCER_ATTEMPT"]: attempt }),
-      encoding: "utf8",
-    });
-    expect(result.status, id + digest).toBe(exit);
-  }
-  expect(download?.uses).toBe("actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333");
-  expect(download?.with?.["artifact-ids"]).toBe("${{ needs.media.outputs.artifact_id }}");
-  expect(download?.with?.["digest-mismatch"]).toBe("error");
   const gate = ci.jobs["ci-ok"];
-  expect(gate.needs).toContain("media");
-  for (const result of ["success", "skipped", "failure", "cancelled"]) {
-    const needs = Object.fromEntries(gate.needs.map((job) => [job, { result: "success", outputs: { code: "true" } }]));
-    needs["media"] = { result, outputs: { code: "true" } };
-    needs["node"] = { result: "skipped", outputs: { code: "true" } };
-    const verdict = spawnSync("bash", ["-e", "-c", gate.steps[0]?.run ?? ""], {
-      cwd: scratch,
-      env: inheritedProcessEnv({ ["NEEDS"]: JSON.stringify(needs), ["GITHUB_STEP_SUMMARY"]: join(scratch, "summary.md") }),
-      encoding: "utf8",
-    });
-    expect(verdict.status, result).toBe(1);
+  if (!Array.isArray(gate?.needs)) {
+    throw new Error("missing product aggregate");
   }
-});
-
-test("signed media preparation starts with empty installed state and cannot publish success after update, download or empty-closure failure", {
-  timeout: scaledBudget(20_000),
-}, async ({ repoRoot, scratch, fakeBin }) => {
-  const prepare = workflow(repoRoot).jobs.media.steps.find((candidate) => candidate.id === "prepare");
-  expect(prepare?.["timeout-minutes"]).toBe(15);
-  await fakeBin("dpkg", "process.stdout.write('amd64');");
-  await fakeBin(
-    "sudo",
-    [
-      "import fs from 'node:fs';const args=process.argv.slice(2);fs.appendFileSync('apt.jsonl',JSON.stringify(args)+'\\n');",
-      "if(args.includes(process.env.FIXTURE_APT_FAILURE))process.exit(71);",
-      "if(args.includes('install')&&process.env.FIXTURE_APT_FAILURE==='ready')fs.writeFileSync(process.env.RUNNER_TEMP+'/media-apt/archives/ffmpeg.deb','fixture package');",
-    ].join("\n"),
-  );
-  for (const [scenario, status, count] of [
-    ["update", 71, 1],
-    ["install", 71, 2],
-    ["empty", 1, 2],
-    ["ready", 0, 2],
-  ] as const) {
-    rmSync(join(scratch, "media-apt"), { recursive: true, force: true });
-    rmSync(join(scratch, "output"), { force: true });
-    writeFileSync(join(scratch, "apt.jsonl"), "");
-    const result = spawnSync("bash", ["-e", "-c", (prepare?.run ?? "").replace(". /etc/os-release", "ID=ubuntu;VERSION_ID=24.04")], {
-      cwd: scratch,
-      env: inheritedProcessEnv({
-        ["RUNNER_TEMP"]: scratch,
-        ["GITHUB_OUTPUT"]: join(scratch, "output"),
-        ["GITHUB_RUN_ID"]: "123",
-        ["GITHUB_RUN_ATTEMPT"]: "1",
-        ["GITHUB_SHA"]: "tested",
-        ["FIXTURE_APT_FAILURE"]: scenario,
-      }),
-      encoding: "utf8",
-      timeout: scaledBudget(10_000),
-    });
-    expect(result.status, scenario + result.stdout + result.stderr).toBe(status);
-    expect(existsSync(join(scratch, "output"))).toBe(scenario === "ready");
-    expect(readFileSync(join(scratch, "media-apt/status"), "utf8")).toBe("");
-    const calls = readFileSync(join(scratch, "apt.jsonl"), "utf8")
-      .trim()
-      .split("\n")
-      .filter(Boolean)
-      .map((row) => JSON.parse(row) as readonly string[]);
-    expect(calls).toHaveLength(count);
-    for (const args of calls) {
-      expect(args).toEqual(
-        expect.arrayContaining([
-          "-n",
-          "Acquire::Retries=3",
-          "Acquire::http::Timeout=30",
-          "Acquire::https::Timeout=30",
-          "Acquire::AllowInsecureRepositories=false",
-          "APT::Get::AllowUnauthenticated=false",
-          `Dir::State::status=${scratch}/media-apt/status`,
-        ]),
-      );
-    }
-  }
-  expect(readFileSync(join(scratch, "output"), "utf8")).toContain("producer_attempt=1\n");
-  const payload = spawnSync("tar", ["-tf", "payload.tar"], { cwd: join(scratch, "media-apt"), encoding: "utf8" });
-  expect(payload.status, payload.stderr).toBe(0);
-  expect(payload.stdout.split("\n")).toEqual(expect.arrayContaining(["identity", "sources.list", "lists/", "archives/ffmpeg.deb"]));
-});
-
-test("media consumers reject absent, changed, foreign-run and incompatible payloads before offline installation and surface install failures", {
-  timeout: scaledBudget(30_000),
-}, async ({ repoRoot, scratch, fakeBin }) => {
-  const run = workflow(repoRoot).jobs.node.steps.find((candidate) => candidate.id === "media")?.run ?? "";
-  const directory = join(scratch, "media-apt");
-  mkdirSync(join(directory, "archives"), { recursive: true });
-  mkdirSync(join(directory, "lists"), { recursive: true });
-  writeFileSync(join(directory, "sources.list"), "fixture signed Ubuntu source\n");
-  await fakeBin("dpkg", "process.stdout.write('amd64');");
-  await fakeBin("sudo", "import fs from 'node:fs';fs.appendFileSync('install.jsonl',JSON.stringify(process.argv.slice(2))+'\\n');process.exitCode=71;");
-  // The OS identity is fixture input; the installation command and checks remain the workflow's native script.
-  const fixtureRun = run.replace(". /etc/os-release", "ID=ubuntu;VERSION_ID=24.04");
-  for (const [scenario, status, producerAttempt] of [
-    ["missing", 1, "1"],
-    ["changed", 1, "1"],
-    ["broken", 2, "1"],
-    ["run", 1, "1"],
-    ["attempt", 1, "1"],
-    ["producer-attempt", 1, "2"],
-    ["sha", 1, "1"],
-    ["os", 1, "1"],
-    ["empty", 1, "1"],
-    ["rerun", 71, "1"],
-  ] as const) {
-    rmSync(join(directory, "payload.tar"), { force: true });
-    rmSync(join(directory, "archives/ffmpeg.deb"), { force: true });
-    writeFileSync(join(scratch, "install.jsonl"), "");
-    const identity = ["ubuntu:24.04:amd64", "123", "1", "tested"];
-    const mismatch = ["os", "run", "attempt", "sha"].indexOf(scenario);
-    if (mismatch >= 0) {
-      identity[mismatch] = "foreign";
-    }
-    writeFileSync(join(directory, "identity"), `${identity.join("\n")}\n`);
-    if (scenario !== "empty") {
-      writeFileSync(join(directory, "archives/ffmpeg.deb"), "fixture package");
-    }
-    const archive = spawnSync("tar", ["-cf", "payload.tar", "identity", "sources.list", "lists", "archives"], { cwd: directory, encoding: "utf8" });
-    expect(archive.status, archive.stderr).toBe(0);
-    const digest = createHash("sha256")
-      .update(scenario === "broken" ? "altered" : readFileSync(join(directory, "payload.tar")))
-      .digest("hex");
-    if (scenario === "missing") {
-      rmSync(join(directory, "payload.tar"));
-    }
-    if (scenario === "changed" || scenario === "broken") {
-      writeFileSync(join(directory, "payload.tar"), "altered");
-    }
-    const result = spawnSync("bash", ["-e", "-c", fixtureRun], {
-      cwd: scratch,
-      env: inheritedProcessEnv({
-        ["RUNNER_TEMP"]: scratch,
-        ["MEDIA_SHA256"]: digest,
-        ["GITHUB_RUN_ID"]: "123",
-        ["GITHUB_RUN_ATTEMPT"]: "2",
-        ["MEDIA_PRODUCER_ATTEMPT"]: producerAttempt,
-        ["GITHUB_SHA"]: "tested",
-      }),
-      encoding: "utf8",
-      timeout: scaledBudget(10_000),
-    });
-    expect(result.status, scenario + result.stdout + result.stderr).toBe(status);
-    const calls = readFileSync(join(scratch, "install.jsonl"), "utf8")
-      .trim()
-      .split("\n")
-      .filter(Boolean)
-      .map((call) => JSON.parse(call) as readonly string[]);
-    expect(calls).toEqual(
-      scenario === "rerun"
-        ? [
-            expect.arrayContaining([
-              "--no-download",
-              "--no-remove",
-              `Dir::Etc::sourcelist=${directory}/sources.list`,
-              "Dir::Etc::sourceparts=-",
-              `Dir::State::lists=${directory}/lists`,
-              "install",
-              "ffmpeg",
-            ]),
-          ]
-        : [],
-    );
-    expect(calls.map((args) => args.slice(args.indexOf("install")))).toEqual(calls.map(() => ["install", "ffmpeg"]));
-  }
-});
-
-function expectedProductResult(name: string, code: string): string {
-  return name === "changes" || name === "static" || code === "true" ? "success" : "skipped";
-}
-
-test("required CI distinguishes legitimate inherited skips from failed, cancelled or missing product jobs", ({ repoRoot, scratch }) => {
-  const gate = workflow(repoRoot).jobs["ci-ok"];
-  expect(gate.needs).toEqual(["changes", "static", "media", "node", "ct", "e2e-smoke"]);
-  expect(gate.if).toContain("always()");
-  const run = gate.steps[0]?.run ?? "";
+  expect(gate.needs).toEqual(["changes", "static", "node", "ct", "e2e-smoke"]);
   for (const code of ["true", "false"]) {
-    for (const subject of gate.needs) {
-      for (const result of ["success", "skipped", "failure", "cancelled", "missing"]) {
-        const needs = Object.fromEntries(gate.needs.map((name) => [name, { result: expectedProductResult(name, code), outputs: { code } }]));
-        if (result === "missing") {
-          delete needs[subject];
-        } else {
-          needs[subject] = { result, outputs: { code } };
-        }
-        const verdict = spawnSync("bash", ["-e", "-c", run], {
-          cwd: scratch,
-          env: inheritedProcessEnv({ ["NEEDS"]: JSON.stringify(needs), ["GITHUB_STEP_SUMMARY"]: join(scratch, "summary.md") }),
-          encoding: "utf8",
-        });
-        const expected = expectedProductResult(subject, code);
-        expect(verdict.status, `${code}:${subject}:${result}:${verdict.stderr}`).toBe(result === expected ? 0 : 1);
+    for (const result of ["success", "skipped", "cancelled", "failure"]) {
+      const needs = Object.fromEntries(gate.needs.map((name) => [name, { result: "success", outputs: { code } }]));
+      for (const name of ["node", "ct", "e2e-smoke"]) {
+        needs[name] = { result, outputs: { code } };
       }
+      const run = spawnSync("bash", ["-e", "-c", gate.steps[0]?.run ?? ""], {
+        cwd: scratch,
+        env: inheritedProcessEnv({ ["NEEDS"]: JSON.stringify(needs), ["GITHUB_STEP_SUMMARY"]: join(scratch, "summary.md") }),
+      });
+      expect(run.status).toBe(result === (code === "true" ? "success" : "skipped") ? 0 : 1);
     }
   }
 });
 
-test("nightly full uses a distinct exact-SHA cache, and red/no-verdict native verification cannot create its success marker", async ({
-  repoRoot,
-  scratch,
-  fakeBin,
-}) => {
-  const job = workflow(repoRoot).jobs.qualification;
-  expect(job.env["VERIFY_TIER"]).toBe("${{ github.event_name == 'schedule' && 'full' || inputs.tier }}");
-  const seen = step(job, "seen");
-  const verify = step(job, "verify");
-  const mark = step(job, "mark");
-  const save = job.steps.find((candidate) => candidate.uses?.startsWith("actions/cache/save@") === true);
-  expect(mark.if).toBe("success() && steps.verify.outcome == 'success'");
-  expect(save?.if).toBe("success() && steps.mark.outcome == 'success'");
-  const sha = "a".repeat(40);
-  const keyFor = (tier: string): string => (seen.with?.key ?? "").replaceAll("${{ env.VERIFY_TIER }}", tier).replaceAll("${{ steps.sha.outputs.sha }}", sha);
-  const cached = new Set([keyFor("product")]);
-  expect(cached.has(keyFor("full")), "an old product success must not skip exhaustive proof").toBe(false);
-  cached.add(keyFor("full"));
-  expect(cached.has(keyFor("full"))).toBe(true);
-  expect(keyFor("full")).not.toBe(keyFor("full").replace(sha, "b".repeat(40)));
-  expect(save?.with).toEqual(seen.with === undefined ? undefined : { path: seen.with.path, key: seen.with.key });
-  await fakeBin(
-    "pnpm",
-    "import fs from 'node:fs';fs.writeFileSync('called.json',JSON.stringify(process.argv.slice(2)));process.exitCode=Number(process.env.FIXTURE_VERIFY_EXIT);",
-  );
-  writeFileSync(join(scratch, ".product-verified"), sha);
-  for (const code of [1, 2, 3, 0]) {
-    const result = spawnSync("bash", ["-e", "-c", `${verify.run ?? ""}\n${mark.run ?? ""}`], {
-      cwd: scratch,
-      env: inheritedProcessEnv({ ["VERIFY_TIER"]: "full", ["VERIFIED_SHA"]: sha, ["FIXTURE_VERIFY_EXIT"]: String(code) }),
-      encoding: "utf8",
-    });
-    expect(result.status, result.stdout + result.stderr).toBe(code);
-    expect(JSON.parse(readFileSync(join(scratch, "called.json"), "utf8"))).toEqual(["verify", "--full"]);
-    expect(existsSync(join(scratch, ".full-verified"))).toBe(code === 0);
-  }
-  expect(readFileSync(join(scratch, ".full-verified"), "utf8").trim()).toBe(sha);
-});
-
-test("CI event qualification passes the actual target/before and tested SHA, not a remote-main or single-parent shortcut", ({ repoRoot }) => {
+test("docs-only native runtime jobs really skip while static remains required", ({ repoRoot }) => {
   const ci = workflow(repoRoot);
-  const environment = ci.jobs.static.env;
-  expect(environment["ORB_VERIFY_BASE"]).toBe("${{ needs.changes.outputs.base }}");
-  expect(environment["ORB_VERIFY_HEAD"]).toBe("${{ needs.changes.outputs.head }}");
-  const producer = ci.jobs.changes.steps.find((candidate) => candidate.id === "diff");
-  expect(producer?.run).toBe('pnpm exec node scripts/ci-qualification.ts baseline "$GITHUB_SHA" "$BEFORE"');
-  expect(producer?.env?.["BEFORE"]).toBe(
-    "${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || inputs.base }}",
-  );
-  expect(ci.jobs.changes.permissions).toEqual({ contents: "read", actions: "read" });
-  expect(ci.jobs.static.steps.find((candidate) => candidate.run === "pnpm check --application --verbose")?.name).toBe(
-    "${{ env.ORB_CI_QUALIFICATION_GENERATION }}",
-  );
-  expect(ci.env["ORB_CI_QUALIFICATION_GENERATION"]).toBe("Orbweaver qualification product-v2");
-  expect(ci.env["ORB_CI_PUBLICATION_BOOTSTRAP_SHA"]).toBe("ac6cfc19ea9db59644426b37f6b8c842c33473ad");
-  expect(ci.env["ORB_CI_REPOSITORY"]).toBe("Inktomi93/OrbWeaver");
+  expect(ci.jobs["static"]?.needs).toEqual(["changes"]);
+  expect(ci.jobs["static"]?.if).toBeUndefined();
+  expect(ci.jobs["static"]?.["timeout-minutes"]).toBe(60);
+  for (const name of ["node", "ct", "e2e-smoke"]) {
+    expect(ci.jobs[name]?.if).toBe("needs.changes.outputs.code == 'true'");
+    expect(ci.jobs[name]?.needs).toBe("changes");
+  }
 });
 
-test("qualification enters through the pinned runtime in CI and release promotion and loads its native module graph", {
-  timeout: scaledBudget(20_000),
-}, ({ repoRoot }) => {
-  const producer = workflow(repoRoot).jobs.changes.steps.find((candidate) => candidate.id === "diff");
-  const command = producer?.run;
-  expect(command).toBe('pnpm exec node scripts/ci-qualification.ts baseline "$GITHUB_SHA" "$BEFORE"');
-  expect(readFileSync(join(repoRoot, "scripts/github-sync.sh"), "utf8")).toContain('pnpm exec node scripts/ci-qualification.ts release "$sha"');
-  if (command === undefined) {
-    throw new Error("missing CI qualification invocation");
-  }
-  const result = spawnSync("bash", ["-e", "-c", command], {
-    cwd: repoRoot,
-    env: inheritedProcessEnv({ ["GITHUB_SHA"]: "invalid-head", ["BEFORE"]: "" }),
-    encoding: "utf8",
-    timeout: scaledBudget(15_000),
+test("full/product head freezes main once and all children share its exact-SHA seen decision", ({ repoRoot }) => {
+  const ci = workflow(repoRoot);
+  const head = ci.jobs["qualification-head"];
+  const child = ci.jobs["qualification-partition"];
+  expect(head?.steps[0]?.with).toEqual({ ref: "main", "persist-credentials": false });
+  expect(head?.steps.find((step) => step.id === "seen")?.with).toMatchObject({
+    key: "${{ steps.sha.outputs.tier }}-verified-${{ steps.sha.outputs.sha }}",
+    "lookup-only": true,
   });
-  expect(result.status, result.stdout + result.stderr).toBe(3);
-  expect(result.stderr).toContain("CI qualification head differs from the tested HEAD");
-  expect(result.stderr).not.toContain("SyntaxError");
+  expect(child?.needs).toBe("qualification-head");
+  expect(child?.if).toBe("needs.qualification-head.outputs.seen != 'true'");
+  expect(child?.strategy?.matrix).toBe("${{ fromJSON(needs.qualification-head.outputs.matrix) }}");
+  expect(head?.steps.find((step) => step.id === "plan")?.run).toBe('pnpm exec node scripts/ci-plan.ts "$VERIFY_TIER"');
+  expect(applicationPartitionKeys("full")).toHaveLength(14);
+  expect(applicationPartitionKeys("product")).toHaveLength(14);
+  expect(child?.steps.find((step) => step.id === "source")?.env).toEqual({ ["FROZEN_MAIN_SHA"]: "${{ needs.qualification-head.outputs.sha }}" });
+  expect(child?.steps.find((step) => step.id === "source")?.run).toContain('git merge-base --is-ancestor "$FROZEN_MAIN_SHA" refs/remotes/origin/main');
+  expect(child?.steps.find((step) => step.id === "source")?.run).toContain('git checkout --detach "$FROZEN_MAIN_SHA"');
 });
 
-test("uncached nightly and manual qualification provision media and showcase artifacts before full or product verification", async ({
-  repoRoot,
-  scratch,
-  fakeBin,
-}) => {
-  const job = workflow(repoRoot).jobs.qualification;
-  const media = step(job, "media");
-  const showcase = step(job, "showcase");
-  const verify = step(job, "verify");
-  expect(media.if).toBe(verify.if);
-  expect(showcase.if).toBe(verify.if);
-  expect(job.steps.indexOf(media)).toBeLessThan(job.steps.indexOf(verify));
-  expect(job.steps.indexOf(showcase)).toBeLessThan(job.steps.indexOf(verify));
-  await fakeBin("sudo", APT_FIXTURE);
-  for (const tool of MEDIA_TOOLS) {
-    await fakeBin(tool, MEDIA_TOOL_FIXTURE);
-  }
-  await fakeBin(
-    "pnpm",
-    [
-      "import fs from 'node:fs';const args=process.argv.slice(2);fs.appendFileSync('pnpm.jsonl',JSON.stringify(args)+'\\n');",
-      "const artifact='packages/showcase-plugins/dist/bundles/pocket-arcade.zip';",
-      "if(args[0]==='--filter'&&args[1]==='@orb/showcase-plugins'&&args[2]==='build'){fs.mkdirSync('packages/showcase-plugins/dist/bundles',{recursive:true});fs.writeFileSync(artifact,'fixture bundle');}",
-      "else {if(!fs.existsSync('media-ready'))throw new Error('media prerequisite absent');if(fs.readFileSync(artifact).length===0)throw new Error('showcase prerequisite absent');fs.writeFileSync('called.json',JSON.stringify(args));}",
-    ].join("\n"),
-  );
-  for (const tier of ["full", "product"]) {
-    rmSync(join(scratch, "media-ready"), { force: true });
-    const result = spawnSync("bash", ["-e", "-c", `${media.run ?? ""}\n${showcase.run ?? ""}\n${verify.run ?? ""}`], {
-      cwd: scratch,
-      env: inheritedProcessEnv({ ["VERIFY_TIER"]: tier }),
-      encoding: "utf8",
-    });
-    expect(result.status, result.stdout + result.stderr).toBe(0);
-    expect(JSON.parse(readFileSync(join(scratch, "called.json"), "utf8"))).toEqual(["verify", `--${tier}`]);
-  }
-  expect(
-    readFileSync(join(scratch, "apt.jsonl"), "utf8")
-      .trim()
-      .split(/\r?\n/u)
-      .map((row) => JSON.parse(row)),
-  ).toEqual([
-    ["-n", "apt-get", "-o", "Acquire::Retries=3", "-o", "Acquire::http::Timeout=30", "-o", "Acquire::https::Timeout=30", "update", "--error-on=any"],
-    [
-      "-n",
-      "DEBIAN_FRONTEND=noninteractive",
-      "apt-get",
-      "-o",
-      "Acquire::Retries=3",
-      "-o",
-      "Acquire::http::Timeout=30",
-      "-o",
-      "Acquire::https::Timeout=30",
-      "install",
-      "-y",
-      "--no-install-recommends",
-      "ffmpeg",
-    ],
-    ["-n", "apt-get", "-o", "Acquire::Retries=3", "-o", "Acquire::http::Timeout=30", "-o", "Acquire::https::Timeout=30", "update", "--error-on=any"],
-    [
-      "-n",
-      "DEBIAN_FRONTEND=noninteractive",
-      "apt-get",
-      "-o",
-      "Acquire::Retries=3",
-      "-o",
-      "Acquire::http::Timeout=30",
-      "-o",
-      "Acquire::https::Timeout=30",
-      "install",
-      "-y",
-      "--no-install-recommends",
-      "ffmpeg",
-    ],
-  ]);
-  expect(
-    readFileSync(join(scratch, "pnpm.jsonl"), "utf8")
-      .trim()
-      .split(/\r?\n/u)
-      .map((row) => JSON.parse(row)),
-  ).toEqual([
-    ["--filter", "@orb/showcase-plugins", "build"],
-    ["verify", "--full"],
-    ["--filter", "@orb/showcase-plugins", "build"],
-    ["verify", "--product"],
-  ]);
-});
-
-test("weekly qualification retains the full tooling resource allowance", ({ repoRoot }) => {
+test("qualification cache cannot save skipped, failed, cancelled or no-verdict aggregates", ({ repoRoot }) => {
   const ci = workflow(repoRoot);
-  const stageBudgets = stageBudgetsFor({ ...readConcurrencyProfile(), vitestMaxWorkers: 1 }, readFileSync(CONCURRENCY_PROFILE_PATH, "utf8"));
-  expect(ci.jobs["weekly-tooling"]["timeout-minutes"]).toBe(ci.jobs.qualification["timeout-minutes"]);
-  expect(ci.jobs["weekly-tooling"]["timeout-minutes"] * 60_000).toBeGreaterThanOrEqual(stageBudgets.toolingSuiteMs + stageBudgets.defaultMs);
-  expect(ci.jobs["ci-ok"].needs).toContain("static");
-});
-
-test("the generation-marked static command forwards live output mode and preserves failure exits", async ({ repoRoot, scratch, fakeBin }) => {
-  const generationSteps = workflow(repoRoot).jobs.static.steps.filter((candidate) => candidate.name === "${{ env.ORB_CI_QUALIFICATION_GENERATION }}");
-  expect(generationSteps).toHaveLength(1);
-  const generation = generationSteps[0];
-  expect(generation?.if).toBeUndefined();
-  await fakeBin(
-    "pnpm",
-    "import fs from 'node:fs';fs.writeFileSync('called.json',JSON.stringify(process.argv.slice(2)));process.stdout.write('fixture child progress\\n');process.exitCode=Number(process.env.FIXTURE_VERIFY_EXIT);",
-  );
-  for (const code of [0, 1, 2]) {
-    const result = spawnSync("bash", ["-e", "-c", generation?.run ?? ""], {
-      cwd: scratch,
-      env: inheritedProcessEnv({ ["FIXTURE_VERIFY_EXIT"]: String(code) }),
-      encoding: "utf8",
-    });
-    expect(result.status, result.stdout + result.stderr).toBe(code);
-    expect(JSON.parse(readFileSync(join(scratch, "called.json"), "utf8"))).toEqual(["check", "--application", "--verbose"]);
-    expect(result.stdout).toContain("fixture child progress");
+  const aggregate = ci.jobs["qualification"];
+  const mark = aggregate?.steps.find((step) => step.id === "mark");
+  if (mark?.if === undefined) {
+    throw new Error("missing success marker guard");
   }
-});
-
-test("weekly execution is independent, main-pinned, partitioned once and never product authority", async ({ repoRoot, scratch, fakeBin }) => {
-  const ci = workflow(repoRoot);
-  expect(ci.on.schedule).toContainEqual({ cron: "37 9 * * 0" });
-  expect(ci.on.workflow_dispatch.inputs.tier.options).toContain("weekly");
-  const head = ci.jobs["weekly-head"];
-  expect(head.if).toContain("github.event.schedule == '37 9 * * 0'");
-  expect(head.if).toContain("inputs.tier == 'weekly'");
-  const weekly = ci.jobs["weekly-tooling"];
-  expect(weekly.needs).toBe("weekly-head");
-  expect(weekly.strategy).toEqual({
-    "fail-fast": false,
-    matrix: {
-      include: [
-        { component: "non-corpus", shard: "" },
-        { component: "corpus", shard: "1/2" },
-        { component: "corpus", shard: "2/2" },
-      ],
-    },
-  });
-  const [resolveMain, freezeHead] = head.steps;
-  expect(resolveMain?.uses).toMatch(/^actions\/checkout@[a-f0-9]{40}$/u);
-  expect(resolveMain?.with).toEqual({ ref: "main", "persist-credentials": false });
-  expect(freezeHead).toEqual({ id: "sha", run: 'echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"' });
-  expect(head.outputs).toEqual({ sha: "${{ steps.sha.outputs.sha }}" });
-
-  // Repository setup must come from the validated frozen commit, not the workflow's default-branch revision.
-  const [checkout, source, setup, proof] = weekly.steps;
-  expect(checkout?.uses).toBe(resolveMain?.uses);
-  expect(checkout?.with).toEqual({ ref: "main", "fetch-depth": 0, "persist-credentials": false });
-  expect(source?.id).toBe("source");
-  expect(source?.if).toBeUndefined();
-  expect(source?.env).toEqual({ ["FROZEN_MAIN_SHA"]: "${{ needs.weekly-head.outputs.sha }}" });
-  expect(source?.run).toBe(
-    [
-      "set -euo pipefail",
-      '[[ "$FROZEN_MAIN_SHA" =~ ^[a-f0-9]{40}$ ]]',
-      'test "$(git cat-file -t "$FROZEN_MAIN_SHA")" = commit',
-      'git merge-base --is-ancestor "$FROZEN_MAIN_SHA" refs/remotes/origin/main',
-      'git checkout --detach "$FROZEN_MAIN_SHA"',
-      "",
-    ].join("\n"),
-  );
-  expect(setup?.uses).toBe("./.github/actions/setup");
-  expect(setup?.if).toBeUndefined();
-  expect(proof?.id).toBe("proof");
-  expect(proof?.if).toBeUndefined();
-  expect(ci.jobs.static.needs).toEqual(["changes"]);
-  expect(ci.jobs["ci-ok"].needs).not.toContain("weekly-tooling");
-  expect(ci.jobs.static.env["ORB_VERIFY_INSTRUMENT_COMPONENT"]).toBeUndefined();
-  await fakeBin(
-    "pnpm",
-    "import fs from 'node:fs';fs.writeFileSync('calls.json',JSON.stringify(process.argv.slice(2)));process.exitCode=Number(process.env.FIXTURE_EXIT);",
-  );
-  for (const { component, shard } of weekly.strategy.matrix.include) {
-    for (const code of [0, 1, 2]) {
-      const result = spawnSync("bash", ["-e", "-c", proof?.run ?? ""], {
-        cwd: scratch,
-        env: inheritedProcessEnv({ ["ORB_VERIFY_INSTRUMENT_COMPONENT"]: component, ["CORPUS_SHARD"]: shard, ["FIXTURE_EXIT"]: String(code) }),
-        encoding: "utf8",
-      });
-      expect(result.status, result.stderr).toBe(code);
-      expect(JSON.parse(readFileSync(join(scratch, "calls.json"), "utf8"))).toEqual(
-        component === "corpus" ? ["test:tooling", `--shard=${shard}`] : ["verify", "--weekly"],
+  expect(aggregate?.if).toBe("always() && needs.qualification-head.result == 'success'");
+  expect(aggregate?.steps.find((step) => step.id === "verify")?.run).toBe('pnpm verify --"$VERIFY_TIER" --aggregate=reports/qualification-inputs');
+  for (const outcome of ["success", "failure", "cancelled", "skipped"]) {
+    for (const child of ["success", "failure", "cancelled", "skipped"]) {
+      expect(guard(mark.if, { success: () => true, needs: { "qualification-partition": { result: child } }, steps: { verify: { outcome } } })).toBe(
+        outcome === "success" && child === "success",
       );
     }
   }
-  const aggregate = ci.jobs["weekly-ok"];
-  for (const result of ["success", "failure", "cancelled", "skipped"]) {
-    const needs = { "weekly-head": { result: "success", outputs: { sha: "a".repeat(40) } }, "weekly-tooling": { result } };
-    const verdict = spawnSync("bash", ["-e", "-c", aggregate.steps[0]?.run ?? ""], {
-      cwd: scratch,
-      env: inheritedProcessEnv({ ["NEEDS"]: JSON.stringify(needs) }),
-      encoding: "utf8",
-    });
-    expect(verdict.status).toBe(result === "success" ? 0 : 1);
-    expect(JSON.parse(readFileSync(join(scratch, "weekly-proof.json"), "utf8"))).toEqual(needs);
+  expect(aggregate?.steps.find((step) => step.uses?.startsWith("actions/cache/save@") === true)?.if).toBe("success() && steps.mark.outcome == 'success'");
+  expect(ci.jobs["qualification-partition"]?.steps.some((step) => step.uses?.startsWith("actions/cache/save@") === true)).toBe(false);
+});
+
+test("nightly and independent weekly entry guards do not overlap or admit diagnostics", ({ repoRoot }) => {
+  const ci = workflow(repoRoot);
+  expect(ci.on.schedule).toEqual([{ cron: "37 9 * * *" }, { cron: "37 10 * * 0" }]);
+  expect(ci.on.workflow_dispatch.inputs["select_cpu_diagnostic"]).toBeUndefined();
+  expect(ci.jobs["select-cpu-diagnostic"]).toBeUndefined();
+  expect(ci.jobs["e2e-startup-diagnostic"]).toBeUndefined();
+  for (const [schedule, nightly, weekly] of [
+    ["37 9 * * *", true, false],
+    ["37 10 * * 0", false, true],
+  ] as const) {
+    const context = { github: { event: { schedule }, ["event_name"]: "schedule" }, inputs: {} };
+    expect(guard(ci.jobs["qualification-head"]?.if ?? "false", context)).toBe(nightly);
+    expect(guard(ci.jobs["weekly-head"]?.if ?? "false", context)).toBe(weekly);
   }
-  expect(weekly.steps.some((entry) => entry.uses?.startsWith("actions/cache/save@") === true)).toBe(false);
+  expect(ci.jobs["weekly-tooling"]?.name).toBe("Weekly tooling proof");
+  expect(ci.jobs["weekly-tooling"]?.steps.find((step) => step.id === "proof")?.name).toBe("Weekly tooling proof (${{ matrix.component }} ${{ matrix.shard }})");
+  expect(ci.jobs["weekly-ok"]?.needs).toEqual(["weekly-head", "weekly-tooling"]);
+  expect(ci.jobs["ci-ok"]?.needs).not.toContain("weekly-tooling");
+  expect(ci.jobs["weekly-tooling"]?.steps.find((step) => step.id === "source")?.run).toContain('git checkout --detach "$FROZEN_MAIN_SHA"');
+  expect(ci.jobs["weekly-tooling"]?.steps.some((step) => step.uses?.startsWith("actions/cache/save@") === true)).toBe(false);
+});
+
+test("native runtime jobs retain successful and failed reports and bounded canonical media prerequisites", ({ repoRoot }) => {
+  const ci = workflow(repoRoot);
+  for (const name of ["node", "ct", "e2e-smoke", "qualification-partition"]) {
+    const job = ci.jobs[name];
+    expect(job?.["runs-on"], name).toBe("ubuntu-24.04");
+    expect(job?.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@") === true)?.if, name).toBe("always()");
+  }
+  for (const name of ["node", "qualification-partition"]) {
+    expect(ci.jobs[name]?.steps.find((step) => step.id === "media")).toMatchObject({ run: "bash scripts/ci/install-media.sh", "timeout-minutes": 15 });
+  }
+  expect(ci.jobs["node"]?.steps.some((step) => step.run === "pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/3")).toBe(true);
+  expect(ci.jobs["ct"]?.steps.some((step) => step.run === "pnpm exec node scripts/ci-shard.ts ct ${{ matrix.shard }}/5")).toBe(true);
+});
+
+test("partition shell forwards only data and preserves child failure exits", async ({ repoRoot, scratch, fakeBin }) => {
+  const ci = workflow(repoRoot);
+  const run = ci.jobs["qualification-partition"]?.steps.find((step) => step.id === "verify")?.run ?? "";
+  await fakeBin(
+    "pnpm",
+    "import fs from 'node:fs';fs.writeFileSync('called.json',JSON.stringify(process.argv.slice(2)));process.exitCode=Number(process.env.FIXTURE_EXIT);",
+  );
+  for (const [partition, shard] of [
+    ["static", ""],
+    ["node", "1/3"],
+    ["ct", "5/5"],
+    ["e2e", "3/3"],
+  ]) {
+    for (const code of [0, 1, 2]) {
+      const result = spawnSync("bash", ["-e", "-c", run], {
+        cwd: scratch,
+        env: inheritedProcessEnv({ ["VERIFY_TIER"]: "full", ["VERIFY_PARTITION"]: partition, ["VERIFY_SHARD"]: shard, ["FIXTURE_EXIT"]: String(code) }),
+      });
+      expect(result.status).toBe(code);
+      expect(JSON.parse(readFileSync(join(scratch, "called.json"), "utf8"))).toEqual([
+        "verify",
+        "--full",
+        `--partition=${partition}`,
+        ...(shard === "" ? [] : [`--shard=${shard}`]),
+      ]);
+    }
+  }
 });

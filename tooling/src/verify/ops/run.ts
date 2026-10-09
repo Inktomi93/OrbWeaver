@@ -40,15 +40,19 @@ import type { RunSlot } from "@orb/tooling/_shared/artifacts";
 import { checkoutName, openRunSlot, publishRunSlot, runFile } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { execGit, GIT_READ_PREFIX } from "@orb/tooling/_shared/git";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import { inheritedRunMarker, mintRunMarker, runLeaseEnv, runMarkerEnv, runMarkerTranscriptTeardown } from "@orb/tooling/_shared/run-marker";
+import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { Selection } from "../contract/selection.ts";
 import type { StageDef, StageResult, Tier, TranscriptAudit, VerifyReport } from "../contract/stage.ts";
 import { NOTICE_MARKER, VERIFY_INSTRUMENT, VERIFY_REPORT_NAME } from "../contract/stage.ts";
+import { applicationPartitionStages } from "../lib/application-partitions.ts";
 import { colourNeutralParentEnv } from "../lib/child-env.ts";
-import { aggregateExit, noVerdictStages } from "../lib/exit-classifiers.ts";
+import { aggregateExit, noVerdictStages, ownScheme } from "../lib/exit-classifiers.ts";
 import { historyAdvisories } from "../lib/history.ts";
+import { aggregateApplicationPartitions, readApplicationPartitionInputs } from "../lib/partition-aggregate.ts";
 import { stagesForTier } from "../lib/registry.ts";
 import type { Parsed } from "../lib/run-argv.ts";
 import { printHeadBanner, printList, printSummary, stageLine } from "../lib/run-render.ts";
@@ -285,6 +289,18 @@ function scopeLabel(parsed: Parsed): string {
   return parsed.selection === undefined ? "whole" : parsed.selection.label;
 }
 
+function executionStages(parsed: Parsed): readonly StageDef[] {
+  const stages = parsed.partition === undefined ? stagesForTier(parsed.tier) : applicationPartitionStages(parsed.tier, parsed.partition);
+  if (parsed.shard === undefined) {
+    return stages;
+  }
+  return stages.map((stage) => ({
+    ...stage,
+    applicationClassify: ownScheme,
+    applicationArgv: ["node", "scripts/ci-shard.ts", parsed.partition ?? "", parsed.shard ?? ""] as const,
+  }));
+}
+
 async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<VerifyReport> {
   const startedAt = new Date().toISOString();
   // ONE marker for the whole run, INHERITED when this verify is itself running inside a marked run: a
@@ -294,9 +310,18 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
   const runLease = mintRunMarker();
   printHeadBanner(parsed.tier, scopeLabel(parsed));
 
-  const stages = stagesForTier(parsed.tier);
+  const head = parsed.partition !== undefined || parsed.aggregate !== undefined ? execGit(root, [...GIT_READ_PREFIX, "rev-parse", "HEAD"]).trim() : null;
+  const stages = executionStages(parsed);
   const results: StageResult[] = [];
-  for (const stage of stages) {
+  if (parsed.aggregate !== undefined && head !== null) {
+    results.push(
+      ...aggregateApplicationPartitions(parsed.tier, head, readApplicationPartitionInputs(parsed.aggregate), slot.dir).map((stage) => ({
+        ...stage,
+        logFile: stage.logFile === null ? null : stage.logFile.replace(`${root}/`, ""),
+      })),
+    );
+  }
+  for (const stage of parsed.aggregate === undefined ? stages : []) {
     const plan = planStage(stage, parsed.selection, parsed.tier, { root, applicationOnly: parsed.applicationOnly });
     // --strict-scope: a whole-only stage under a scoped tier is a REFUSAL (misuse), not a deferral.
     if (parsed.strictScope && plan.mode === "deferred") {
@@ -329,6 +354,7 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
   const exitCode = aggregateExit(results.map((s) => s.exitCode));
   return {
     tier: parsed.tier,
+    ...(parsed.partition === undefined || head === null ? {} : { partition: { name: parsed.partition, shard: parsed.shard ?? null, head } }),
     scope: scopeLabel(parsed),
     run: {
       runId: slot.runId,
@@ -354,8 +380,11 @@ export async function runVerify(root: string, parsed: Parsed): Promise<number> {
     printList();
     return refuseUnrunnableRows(root);
   }
+  if (parsed.partition !== undefined && applicationPartitionStages(parsed.tier, parsed.partition).length === 0) {
+    throw new UsageError(`partition ${parsed.partition} has no registered stages at ${parsed.tier}`);
+  }
   // The host-wide whole-run slot, held for the WHOLE run and released in the `finally` (../lib/whole-run-queue.ts).
-  const queue = await enterWholeRunQueue(root, { tier: parsed.tier, scoped: parsed.selection !== undefined });
+  const queue = parsed.aggregate === undefined ? await enterWholeRunQueue(root, { tier: parsed.tier, scoped: parsed.selection !== undefined }) : null;
   try {
     const slot = openRunSlot(root, VERIFY_INSTRUMENT);
     announceRacing(slot);
