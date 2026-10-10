@@ -118,6 +118,7 @@ export interface PaneStubOptions {
   /** The rows the pane starts with. A successful `connection.create` appends to them. */
   readonly connections?: readonly ConnectionRow[];
   readonly credentials?: readonly CredentialRow[];
+  readonly listCredentials?: TrpcResponder<"credentials.list">;
   /** Replaces `credentials.add`; the default mints a row with the requested provider and label. */
   readonly addCredential?: TrpcResponder<"credentials.add">;
   /** Replaces `connection.create`; the default builds the row from the request and appends it. */
@@ -182,7 +183,7 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
     "connection.list": () => connections,
     "connection.listBindings": () => bindings,
     "connection.providersAvailable": () => opts.providers ?? ALL_AVAILABLE,
-    "credentials.list": () => credentials,
+    "credentials.list": opts.listCredentials ?? (() => credentials),
     "credentials.storageStatus": opts.storageStatus ?? { enabled: opts.storageEnabled ?? true },
     "credentials.add": opts.addCredential ?? mintCredential,
     "connection.create": opts.createConnection ?? createConnection,

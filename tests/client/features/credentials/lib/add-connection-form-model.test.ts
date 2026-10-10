@@ -4,10 +4,12 @@
 
 import type { ProviderDef } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS } from "@orb/contracts/inference";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AddConnectionFormValues } from "../../../../../packages/client/src/features/credentials/lib/add-connection-form-model.ts";
 import {
   ADD_CONNECTION_DEFAULTS,
   draftModelReason,
+  listingKeyFor,
   listsOnDemand,
   modelIdExample,
   submitFailureSentence,
@@ -83,4 +85,13 @@ test("an endpoint and a hosted API-key draft list on demand; a subscription toke
     false,
     false,
   ]);
+});
+
+test("saved-key drafts validate without plaintext and separate catalog provenance by credential", () => {
+  const first = mintTypeId(ID_PREFIX.userCredential);
+  const second = mintTypeId(ID_PREFIX.userCredential);
+  expect(validateAddConnection({ ...HOSTED_DRAFT, credentialId: first })).toBeUndefined();
+  expect(listingKeyFor(builtin("openrouter"), { ...HOSTED_DRAFT, credentialId: first })).not.toBe(
+    listingKeyFor(builtin("openrouter"), { ...HOSTED_DRAFT, credentialId: second }),
+  );
 });

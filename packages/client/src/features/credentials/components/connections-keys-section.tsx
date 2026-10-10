@@ -47,7 +47,8 @@ function SavedKeysSection(): ReactElement {
   return (
     <Section divider={true} heading={CONNECTIONS_KEYS_SUBCATEGORY.label} id={configAnchorId("connections", CONNECTIONS_KEYS_SUBCATEGORY.id)}>
       <Text voice="gloss">
-        The keys your connections reuse. A key is added from a connection; here you can replace or revoke it. Keys are encrypted and never shown again.
+        Choose a saved key when adding a connection, or paste a new one there. Here you can replace or revoke saved keys. Keys are encrypted and never shown
+        again.
       </Text>
 
       {credentials.length === 0 ? (
