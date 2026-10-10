@@ -5,6 +5,40 @@ import { parse } from "yaml";
 import { z } from "zod";
 import { expect, test } from "../support/tool-fixtures.ts";
 
+test("Scorecard runs only on the repository default branch, including manual dispatch", ({ repoRoot }) => {
+  const { jobs } = z
+    .object({ jobs: z.object({ analysis: z.object({ if: z.string(), ["runs-on"]: z.string() }) }) })
+    .parse(parse(readFileSync(join(repoRoot, ".github/workflows/scorecard.yml"), "utf8")));
+  expect(jobs.analysis["runs-on"]).toBe("ubuntu-24.04");
+  for (const defaultBranch of ["release", "main"]) {
+    for (const ref of ["refs/heads/release", "refs/heads/main", "refs/tags/v0.2.0", "refs/pull/31/merge"]) {
+      expect(
+        runInNewContext(jobs.analysis.if, {
+          github: { ref, event: { repository: { ["default_branch"]: defaultBranch } } },
+          format: (template: string, value: string) => template.replace("{0}", value),
+        }),
+      ).toBe(ref === `refs/heads/${defaultBranch}`);
+    }
+  }
+});
+
+test("install-free CI gates use slim without moving the native qualification planner", ({ repoRoot }) => {
+  const { jobs } = z
+    .object({
+      jobs: z.record(z.string(), z.object({ ["runs-on"]: z.string(), steps: z.array(z.object({ uses: z.string().optional(), run: z.string().optional() })) })),
+    })
+    .parse(parse(readFileSync(join(repoRoot, ".github/workflows/ci.yml"), "utf8")));
+  for (const name of ["ci-ok", "weekly-head", "weekly-ok"]) {
+    const job = jobs[name];
+    expect(job?.["runs-on"]).toBe("ubuntu-slim");
+    for (const step of job?.steps ?? []) {
+      expect(step.uses ?? "").not.toContain("/setup");
+      expect(step.run ?? "").not.toMatch(/\b(?:pnpm|docker|apt-get)\b/u);
+    }
+  }
+  expect(jobs["qualification-head"]?.["runs-on"]).toBe("ubuntu-24.04");
+});
+
 test("CodeQL skips only Dependabot PRs and keeps weekly and dispatch security coverage", ({ repoRoot }) => {
   const workflow = z
     .object({

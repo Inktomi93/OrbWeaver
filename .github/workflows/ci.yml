@@ -233,7 +233,7 @@ jobs:
   ci-ok:
     if: always() && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full' && inputs.tier != 'weekly'
     needs: [changes, static, node, ct, e2e-smoke]
-    runs-on: *media-runner
+    runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:
       - name: ${{ format('{0} ({1})', env.ORB_CI_QUALIFICATION_GENERATION, needs.changes.outputs.code == 'true' && 'runtime' || 'inherited') }}
@@ -432,7 +432,7 @@ jobs:
 
   weekly-head:
     if: ${{ (github.event.schedule == '37 10 * * 0' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'weekly')) }}
-    runs-on: *media-runner
+    runs-on: ubuntu-slim
     timeout-minutes: 5
     outputs:
       sha: ${{ steps.sha.outputs.sha }}
@@ -502,7 +502,7 @@ jobs:
   weekly-ok:
     if: always() && (github.event.schedule == '37 10 * * 0' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'weekly'))
     needs: [weekly-head, weekly-tooling]
-    runs-on: *media-runner
+    runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:
       - name: Require every weekly proof outcome

@@ -977,6 +977,7 @@ print(manifest["digest"])
     const args = process.argv.slice(2);
     if (args[0] === "inspect") console.log("proof-image@" + ${JSON.stringify(digest)});
     else if (args[0] === "pull") console.log("cached image already present");
+    else if (args[0] === "run" && args.includes("--version")) console.log("skopeo version fixture");
     else if (args[0] === "run" && args.includes("--entrypoint"))
       console.log(JSON.stringify({ commit: process.env.SOURCE_SHA, channel: "main" }));
     else if (args[0] === "run" && args.includes("copy")) {
