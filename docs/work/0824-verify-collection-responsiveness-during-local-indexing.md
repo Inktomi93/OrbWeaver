@@ -1,5 +1,5 @@
 ---
-kind: bug
+kind: work
 status: blocked
 updated: 2026-10-10
 blocked: owner
