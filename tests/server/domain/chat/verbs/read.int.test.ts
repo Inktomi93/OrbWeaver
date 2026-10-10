@@ -70,6 +70,7 @@ import { expect, test } from "../../../../support/fixtures.ts";
 
 import {
   addVariant,
+  batchParticipantViews,
   FROZEN_AT,
   makeChatContext,
   makeLoadParticipantViews,
@@ -111,6 +112,7 @@ function principal(userId: UserId): Principal {
 function makeDeps(overrides?: Partial<Parameters<typeof createRead>[1]>): Parameters<typeof createRead>[1] {
   return {
     loadParticipantViews,
+    loadParticipantViewsBatch: batchParticipantViews(loadParticipantViews),
     resolveConnection: () => Promise.resolve(makeResolved({ model: castId<ModelId>("test-model") })),
     checkSendAvailability: () => Promise.resolve({ available: true }),
     getNextTurnConnection: () => Promise.resolve({ state: "unset" }),
@@ -3105,6 +3107,8 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
   function makeFitDeps(capability: GenerationCapability): Parameters<typeof createRead>[1] {
     return {
       loadParticipantViews,
+
+      loadParticipantViewsBatch: batchParticipantViews(loadParticipantViews),
       resolveConnection: () => Promise.resolve(makeResolved({ generation: capability })),
       checkSendAvailability: () => Promise.resolve({ available: true }),
       getNextTurnConnection: () => Promise.resolve({ state: "unset" }),
@@ -3751,6 +3755,8 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
   function makeCardDeps(): Parameters<typeof createRead>[1] {
     return {
       loadParticipantViews,
+
+      loadParticipantViewsBatch: batchParticipantViews(loadParticipantViews),
       // getMemberCard never resolves a connection (a card DISPLAY is not a turn) — a real factory keeps the
       // dep type-honest without the double-cast the `no-test-fabrication` gate forbids.
       resolveConnection: () => Promise.resolve(makeResolved()),
@@ -3879,6 +3885,8 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     });
     const deps: Parameters<typeof createRead>[1] = {
       loadParticipantViews,
+
+      loadParticipantViewsBatch: batchParticipantViews(loadParticipantViews),
       resolveConnection: () => Promise.resolve(makeResolved()),
       checkSendAvailability: () => Promise.resolve({ available: true }),
       getNextTurnConnection: () => Promise.resolve({ state: "unset" }),

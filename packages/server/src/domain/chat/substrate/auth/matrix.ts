@@ -42,6 +42,7 @@ type VerbAuthority = ChatAuthority | NonChatScoped;
  */
 export const CHAT_VERB_AUTHORITY = {
   startChat: "non-chat-scoped", // creation: MINTS the caller's host membership (authedProcedure + AUTH_MODE gate)
+  countChats: "non-chat-scoped", // census uses the membership-filtered library scope
   listChats: "non-chat-scoped", // cross-chat: pure-membership list (each row already membership-filtered in the query)
   listForks: "member", // the parent chatId — a member may list its forks (children filtered to the caller's own memberships)
   getChatLineage: "lineage-per-ancestor", // the ancestry chain — each ancestor gated independently (inv §16)

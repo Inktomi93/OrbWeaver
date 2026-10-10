@@ -34,7 +34,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQueries } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -79,14 +79,14 @@ export function ConnectionsListSection(): ReactElement {
 function ConnectionsBody(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const { data: connections } = useSuspenseQuery(trpc.connection.list.queryOptions());
-  // The bindings read is what lets the REMOVE confirm say how many roles it breaks, and the credential read
-  // is what lets a row say WHICH key it uses — with several connections on one key (§5.3) neither fact is
-  // derivable from anything else already on the row.
-  const { data: bindings } = useSuspenseQuery(trpc.connection.listBindings.queryOptions());
-  const { data: credentials } = useSuspenseQuery(trpc.credentials.list.queryOptions());
-  // The registry rows decide which rows can offer "Add another model" and in which words (`addModelScope`).
-  const { data: available } = useSuspenseQuery(trpc.connection.providersAvailable.queryOptions());
+  const [{ data: connections }, { data: bindings }, { data: credentials }, { data: available }] = useSuspenseQueries({
+    queries: [
+      trpc.connection.list.queryOptions(),
+      trpc.connection.listBindings.queryOptions(),
+      trpc.credentials.list.queryOptions(),
+      trpc.connection.providersAvailable.queryOptions(),
+    ],
+  });
   const [addOpen, setAddOpen] = useState(false);
   // THE EDITOR IS A PANE SWAP INSIDE THE SECTION, not a dialog — the mock's band (Back · title · Done) is a
   // view replacing the list, which is what keeps the four tiers inside the settings body at 486 instead of

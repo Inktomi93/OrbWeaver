@@ -38,7 +38,7 @@ const CONTROL_SM_FINE_PX = 32;
 
 function routeCensus(page: Page): Promise<unknown> {
   return routeTrpc(page, {
-    "character.list": () => ({ items: [], nextCursor: null, totalCount: LIBRARY_TOTAL }),
+    "character.count": LIBRARY_TOTAL,
     "settings.getUserSettings": () => ({ userId: "user_ct", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null }),
   });
 }

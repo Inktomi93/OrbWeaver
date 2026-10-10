@@ -1,15 +1,23 @@
 import type { RefObject } from "react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 // `document` is reached via a `globalThis` cast with an inline structural type — NOT the bare `document`
 // global. This hook is re-exported through the `#lib` barrel and is import-reachable from the DOM-LESS
 // root aggregator program (`tsconfig.json`, a node lib with no lib.dom), where the `document` NAME isn't
 // declared (TS2584). Keeping the file DOM-TYPE-free lets it survive that program; the browser supplies the
 // real `document` at runtime (the hook only ever runs inside a mounted React tree, i.e. the browser).
-interface MinimalDocument {
-  readonly activeElement: unknown;
-  readonly body: unknown;
+interface MinimalElement {
+  readonly closest: (selector: string) => object | null;
 }
+interface FocusTarget {
+  readonly focus: () => void;
+  readonly closest?: MinimalElement["closest"];
+}
+interface MinimalDocument {
+  readonly activeElement: MinimalElement | null;
+  readonly body: MinimalElement;
+}
+const DIALOG_FOCUS_SCOPE = '[role="dialog"], [role="alertdialog"]';
 const browserDocument = (globalThis as { document?: MinimalDocument }).document;
 
 /** Focus a freshly-mounted surface — keyboard/SR focus management for when the user NAVIGATES to it.
@@ -21,21 +29,28 @@ const browserDocument = (globalThis as { document?: MinimalDocument }).document;
  *  focused the content anchor on the section change first), so `activeElement` is a real element ⇒ we DO
  *  move focus into the new surface. The `<body>`/null check is the exact initial-load ⇄ navigation
  *  discriminator, with no timing flag. */
-/** @param enabled - `false` stands the surface DOWN — another surface owns focus for this mount by an
+/** @param repeatOnReveal - `false` keeps a retained entity from replaying cold focus when Activity restores its effects.
+ * @param enabled - `false` stands the surface DOWN — another surface owns focus for this mount by an
  *  explicit INTENT decision (the character screen's LIST projection: a selection made from the list picker
  *  focuses the pane the user just transformed, so the CONTENT editor mounting beside it must not take it
  *  back). Defaults to `true`, so every other caller is unchanged. */
-export function useFocusOnMount(ref: RefObject<{ readonly focus: () => void } | null>, enabled = true): void {
+export function useFocusOnMount(ref: RefObject<FocusTarget | null>, enabled = true, repeatOnReveal = true): void {
+  const handled = useRef(false);
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || (!repeatOnReveal && handled.current)) {
       return;
     }
+    handled.current = true;
     const active = browserDocument?.activeElement;
     if (active === null || active === undefined || active === browserDocument?.body) {
       return;
     }
+    // A background surface cannot take arrival focus from a surviving global dialog.
+    if (active.closest(DIALOG_FOCUS_SCOPE) !== null && (ref.current?.closest?.(DIALOG_FOCUS_SCOPE) ?? null) === null) {
+      return;
+    }
     ref.current?.focus();
-  }, [ref, enabled]);
+  }, [ref, enabled, repeatOnReveal]);
 }
 
 /** Focus a freshly-mounted surface UNCONDITIONALLY — for an IN-PLACE swap, where the control the user just
@@ -48,7 +63,7 @@ export function useFocusOnMount(ref: RefObject<{ readonly focus: () => void } | 
  *  stayed on `<body>` in BOTH directions (side-eye F-04). The caller opts in per site because the guard is
  *  what protects the rail's tab order on a cold load; a surface using THIS hook must only mount as the
  *  direct result of a user activation. */
-export function useFocusOnSwap(ref: RefObject<{ readonly focus: () => void } | null>, enabled = true): void {
+export function useFocusOnSwap(ref: RefObject<FocusTarget | null>, enabled = true): void {
   useEffect(() => {
     if (enabled) {
       ref.current?.focus();

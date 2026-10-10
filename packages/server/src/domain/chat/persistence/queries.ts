@@ -556,12 +556,7 @@ export async function loadViewerLastTurns(db: Db, chatIds: readonly ChatId[], us
   return out;
 }
 
-/** The NEWEST VISIBLE canon row per chat — its `seq` (the caller's floor verdict is decided on it) + the
- *  selected variant's raw body, for the `ChatSummary.lastMessagePreview` scent line. Batched over a set of
- *  ids in ONE read (a `row_number()` window partitioned by chat, `rn = 1`) — never a per-chat query, so the
- *  library list stays one page = a fixed number of reads. Same VISIBILITY predicate as
- *  {@link loadChatMessageStats} (the selected-variant join), so the row that sets `lastMessageAt`
- *  is the row that supplies the preview. A chat with no visible message is absent from the map. */
+/** Read newest selected slot identities per room before hydrating only those variants' bodies. */
 export async function loadChatLastMessages(
   db: Db,
   chatIds: readonly ChatId[],
@@ -571,23 +566,24 @@ export async function loadChatLastMessages(
   if (chatIds.length === 0) {
     return out;
   }
-  const ranked = db
+  const newest = db
+    .select({ chatId: messages.chatId, seq: max(messages.seq).as("newest_seq") })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(inArray(messages.chatId, [...chatIds]))
+    .groupBy(messages.chatId)
+    .as("newest");
+  const rows = await db
     .select({
       chatId: messages.chatId,
       seq: messages.seq,
       content: messageVariants.content,
       characterId: messages.characterId,
       personaId: messages.personaId,
-      rn: sql<number>`row_number() over (partition by ${messages.chatId} order by ${messages.seq} desc)`.as("rn"),
     })
-    .from(messages)
-    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-    .where(inArray(messages.chatId, [...chatIds]))
-    .as("ranked");
-  const rows = await db
-    .select({ chatId: ranked.chatId, seq: ranked.seq, content: ranked.content, characterId: ranked.characterId, personaId: ranked.personaId })
-    .from(ranked)
-    .where(eq(ranked.rn, 1));
+    .from(newest)
+    .innerJoin(messages, and(eq(messages.chatId, newest.chatId), eq(messages.seq, newest.seq)))
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId));
   for (const r of rows) {
     out.set(r.chatId, { seq: r.seq, content: r.content, characterId: r.characterId, personaId: r.personaId });
   }

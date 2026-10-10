@@ -18,6 +18,7 @@
 // maintaining an independent stylesheet roster. At the CT's desktop viewport (1280px > 48rem) the desktop
 // icon column shows, matching production.
 
+import { useTRPC } from "@orb/client/data";
 import { AppShell, YouSheet } from "@orb/client/features/app-shell";
 import type { ContextRegionDef, ContextTabDef, ContributorRegistry, ResolvedContextTab } from "@orb/client/lib";
 import { createContributorRegistry, defineContextRegion, defineContextTabs, notify, VOID_STATE } from "@orb/client/lib";
@@ -43,6 +44,7 @@ import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Heading } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { Toaster } from "@orb/ui/toast";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { AppearanceBackgroundSection } from "../../../../packages/client/src/features/app-shell/components/appearance-background-section.tsx";
@@ -964,6 +966,48 @@ function MountProbe({ name }: { readonly name: string }): ReactElement {
   return <p data-testid={`probe-${name}`}>{`${name} mount ${String(mount)}`}</p>;
 }
 
+function ListQueryProbe(): ReactElement {
+  const trpc = useTRPC();
+  const read = useQuery(trpc.character.count.queryOptions());
+  return <p>{read.isSuccess ? "list answered" : "list pending"}</p>;
+}
+
+function ContentQueryProbe(): ReactElement {
+  const trpc = useTRPC();
+  const read = useQuery(trpc.discovery.catalog.queryOptions());
+  return (
+    <label>
+      Retained editor
+      <input defaultValue="draft" />
+      <span>{read.isSuccess ? "content answered" : "content pending"}</span>
+    </label>
+  );
+}
+
+export function SectionContentDeferredStory({ initialVisible = false }: { readonly initialVisible?: boolean }): ReactElement {
+  const [visible, setVisible] = useState(initialVisible);
+  const focusAnchorRef = useRef<HTMLDivElement>(null);
+  return (
+    <CtDataProviders>
+      <CtFakeSectionRegistry>
+        <ListQueryProbe />
+        <button type="button" onClick={(): void => setVisible(!visible)}>
+          {visible ? "Hide content" : "Reveal content"}
+        </button>
+        <div ref={focusAnchorRef} tabIndex={-1}>
+          <SectionContent
+            activeSection="corpus"
+            visible={visible}
+            contentBySection={{ corpus: <ContentQueryProbe /> }}
+            fallback={null}
+            focusAnchorRef={focusAnchorRef}
+          />
+        </div>
+      </CtFakeSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
 export function SectionContentKeepMountedStory(): ReactElement {
   const [active, setActive] = useState<SectionId>("home");
   const focusAnchorRef = useRef<HTMLDivElement>(null);
@@ -982,6 +1026,7 @@ export function SectionContentKeepMountedStory(): ReactElement {
           </button>
           <div ref={focusAnchorRef} tabIndex={-1}>
             <SectionContent
+              visible={true}
               activeSection={active}
               contentBySection={{ presets: <MountProbe name="presets" />, home: <MountProbe name="home" />, chats: <MountProbe name="chats" /> }}
               fallback={null}
@@ -1382,5 +1427,31 @@ export function EmptyContextScrollStory(): ReactElement {
         }
       />
     </div>
+  );
+}
+
+/** Real shell selection and viewport state drive whether cold CONTENT may issue its query. */
+export function AppShellContentFetchStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtFakeSectionRegistry
+        sections={{
+          characters: {
+            list: (
+              <>
+                <ListQueryProbe />
+                <button type="button" onClick={(): void => selectCharacter(mintTypeId(ID_PREFIX.character))}>
+                  Open measured character
+                </button>
+              </>
+            ),
+            content: <ContentQueryProbe />,
+          },
+        }}
+      >
+        <LandOn section="characters" />
+        <AppShell />
+      </CtFakeSectionRegistry>
+    </CtDataProviders>
   );
 }

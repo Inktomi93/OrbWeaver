@@ -308,7 +308,11 @@ function throwVerdict(path: string, e: unknown, refusal: Refusal | undefined): s
   return `${path}: a stranger's rejection must be leak-free ${wanted}, got ${seen}`;
 }
 
-async function leakVerdict(path: string, thunk: () => Promise<unknown>, requireNotFound = false, refusal?: Refusal): Promise<string | null> {
+async function leakVerdict(
+  path: string,
+  thunk: () => Promise<unknown>,
+  { requireNotFound = false, refusal, expectedCount }: Pick<Probe, "requireNotFound" | "refusal" | "expectedCount"> = {},
+): Promise<string | null> {
   let value: unknown;
   try {
     value = await thunk();
@@ -317,6 +321,9 @@ async function leakVerdict(path: string, thunk: () => Promise<unknown>, requireN
   }
   if (requireNotFound || refusal !== undefined) {
     return `${path}: a stranger must be rejected with a leak-free refusal, but the call resolved`;
+  }
+  if (expectedCount !== undefined && value !== expectedCount) {
+    return `${path}: a stranger's scoped census must be ${expectedCount}, got ${String(value)}`;
   }
   const leaked = MARKERS.find((m) => (JSON.stringify(value) ?? "").includes(m));
   return leaked === undefined ? null : `${path}: a stranger's result leaked owner A's data ("${leaked}")`;
@@ -367,6 +374,8 @@ interface Probe {
   /** The domain's documented non-`NOT_FOUND` leak-free collapse — see {@link Refusal}. Declaring one also
    *  makes a RESOLVE a finding (the belt must refuse). */
   readonly refusal?: Refusal;
+  /** Numeric reads carry no marker names, so their partition needs an exact census witness. */
+  readonly expectedCount?: number;
 }
 
 // Synthesized secondary ids — the OWNER/MEMBER gate is the chokepoint (it rejects before any secondary-id
@@ -443,6 +452,12 @@ function hostileBundleBase64(slug: string): string {
 }
 
 const PROBES: readonly Probe[] = [
+  // Run before any probe creates B's own library rows. A's rows exist; B's censuses must all be zero.
+  { path: "character.count", call: (c) => c.character.count(), expectedCount: 0 },
+  { path: "chat.countChats", call: (c) => c.chat.countChats(), expectedCount: 0 },
+  { path: "regex.countScripts", call: (c) => c.regex.countScripts(), expectedCount: 0 },
+  { path: "rosterPreset.count", call: (c) => c.rosterPreset.count(), expectedCount: 0 },
+  { path: "worldInfo.countBooks", call: (c) => c.worldInfo.countBooks(), expectedCount: 0 },
   // ── refinery (R1: ownership DERIVES through the character join — D23, no ownerId column; every probe
   //    must collapse to leak-free NOT_FOUND BEFORE any model call, so no stage probe ever reaches the
   //    summarize role). `startSession` takes A's CHARACTER id; the rest take A's session id; a leaked
@@ -2280,6 +2295,128 @@ describe("cross-tenant IDOR sweep — the completeness guard (grows with the rou
   });
 });
 
+describe("cross-tenant IDOR sweep — numeric library censuses", () => {
+  test("every census reports unequal caller-owned totals through the composed routers", async ({ db, ownerCaller, otherCaller }) => {
+    for (const [index, caller] of [ownerCaller, otherCaller, otherCaller].entries()) {
+      const character = await caller.character.create({ input: { handle: `census-${index}`, name: `Census ${index}`, description: "" } });
+      await caller.regex.createScript({ input: { name: `Census ${index}`, findRegex: "a", replaceString: "b", placement: ["AI_OUTPUT"] } });
+      await caller.rosterPreset.create({
+        input: { name: `Census ${index}`, description: "", members: [{ kind: "character", characterId: character.id, position: 0 }] },
+      });
+      await caller.worldInfo.createBook({ input: { name: `Census ${index}` } });
+      const chatId = await seedChat(db, `census-${index}`, { id: mintTypeId(ID_PREFIX.chat) });
+      await seedParticipant(db, {
+        chatId,
+        key: `census-${index}`,
+        id: mintTypeId(ID_PREFIX.chatParticipant),
+        userId: index === 0 ? OWNER_USER_ID : OTHER_USER_ID,
+        role: "host",
+      });
+    }
+
+    for (const [caller, expectedCount] of [
+      [ownerCaller, 1],
+      [otherCaller, 2],
+    ] as const) {
+      expect(await caller.character.count()).toBe(expectedCount);
+      expect(await caller.chat.countChats()).toBe(expectedCount);
+      expect(await caller.regex.countScripts()).toBe(expectedCount);
+      expect(await caller.rosterPreset.count()).toBe(expectedCount);
+      expect(await caller.worldInfo.countBooks()).toBe(expectedCount);
+      expect((await caller.character.list()).totalCount).toBe(expectedCount);
+      expect((await caller.chat.listChats()).totalCount).toBe(expectedCount);
+      expect(await caller.regex.listScripts()).toHaveLength(expectedCount);
+      expect(await caller.rosterPreset.list()).toHaveLength(expectedCount);
+      expect(await caller.worldInfo.listBooks()).toHaveLength(expectedCount);
+    }
+  });
+
+  test("character lenses narrow only the caller's library, including foreign tag IDs and literal search", async ({ ownerCaller, otherCaller }) => {
+    const own = await ownerCaller.character.create({ input: { handle: "census-own", name: "Literal %", description: "" } });
+    const archived = await ownerCaller.character.create({ input: { handle: "census-archived", name: "Archived", description: "" } });
+    const foreign = await otherCaller.character.create({ input: { handle: "census-foreign", name: "Literal %", description: "" } });
+    await ownerCaller.character.update({ characterId: own.id, input: { starred: true } });
+    await ownerCaller.character.update({ characterId: archived.id, input: { archived: true } });
+    await otherCaller.character.update({ characterId: foreign.id, input: { starred: true } });
+    const ownTag = await ownerCaller.tag.createTag({ input: { name: "census-own" } });
+    const foreignTag = await otherCaller.tag.createTag({ input: { name: "census-foreign" } });
+    await ownerCaller.tag.attachTag({ tagId: ownTag.id, targetType: "character", targetId: own.id });
+    await otherCaller.tag.attachTag({ tagId: foreignTag.id, targetType: "character", targetId: foreign.id });
+
+    const lenses = [
+      { input: {}, expectedCount: 2 },
+      { input: { search: " % " }, expectedCount: 1 },
+      { input: { search: "census-foreign" }, expectedCount: 0 },
+      { input: { starred: true, archived: false }, expectedCount: 1 },
+      { input: { archived: true }, expectedCount: 1 },
+      { input: { includeTagIds: [ownTag.id] }, expectedCount: 1 },
+      { input: { includeTagIds: [foreignTag.id] }, expectedCount: 0 },
+      { input: { includeTagIds: [ownTag.id, foreignTag.id] }, expectedCount: 0 },
+      { input: { excludeTagIds: [ownTag.id] }, expectedCount: 1 },
+      { input: { excludeTagIds: [foreignTag.id] }, expectedCount: 2 },
+    ];
+    for (const { input, expectedCount } of lenses) {
+      expect(await ownerCaller.character.count(input)).toBe(expectedCount);
+      const page = await ownerCaller.character.list(input);
+      expect(page.totalCount).toBe(expectedCount);
+      expect(page.items).toHaveLength(expectedCount);
+      expect(page.items.map((item) => item.id)).not.toContain(foreign.id);
+    }
+    expect(await otherCaller.character.count({ includeTagIds: [foreignTag.id], search: "%" })).toBe(1);
+    expect(await otherCaller.character.count({ includeTagIds: [ownTag.id] })).toBe(0);
+  });
+
+  test("chat character projections count shared rooms but never foreign private or departed-member rooms", async ({ db, ownerCaller, otherCaller }) => {
+    const character = await ownerCaller.character.create({ input: { handle: "census-room", name: "Census room character", description: "" } });
+    const rooms = [
+      { key: "private", host: OWNER_USER_ID, title: "Private %", updatedAt: 10 },
+      { key: "shared", host: OWNER_USER_ID, title: "Shared %", updatedAt: 20 },
+      { key: "other", host: OTHER_USER_ID, title: "Other", updatedAt: 30 },
+      { key: "archived", host: OTHER_USER_ID, title: "Archived", updatedAt: 40, archived: true },
+      { key: "temporary", host: OTHER_USER_ID, title: "Temporary", updatedAt: 50, temporary: true },
+      { key: "husk", host: OTHER_USER_ID, title: "Husk", updatedAt: 60, startedAt: null },
+    ] as const;
+    for (const room of rooms) {
+      const chatId = await seedChat(db, `census-${room.key}`, { id: mintTypeId(ID_PREFIX.chat), ...room });
+      await seedParticipant(db, { chatId, key: `census-${room.key}-host`, id: mintTypeId(ID_PREFIX.chatParticipant), userId: room.host, role: "host" });
+      if (room.host === OWNER_USER_ID) {
+        await seedParticipant(db, {
+          chatId,
+          key: `census-${room.key}-guest`,
+          id: mintTypeId(ID_PREFIX.chatParticipant),
+          userId: OTHER_USER_ID,
+          leftSeq: room.key === "private" ? 1 : null,
+        });
+        await seedParticipant(db, {
+          chatId,
+          key: `census-${room.key}-character`,
+          id: mintTypeId(ID_PREFIX.chatParticipant),
+          characterId: castId<CharacterId>(character.id),
+          leftSeq: 1,
+        });
+      }
+    }
+
+    // Card ownership is not room authority (D18): B may count A's card in their shared room, including a departed character seat.
+    const lenses = [
+      { input: {}, expectedCount: 2 },
+      { input: { includeArchived: true }, expectedCount: 3 },
+      { input: { characterId: castId<CharacterId>(character.id) }, expectedCount: 1 },
+      { input: { characterId: castId<CharacterId>(character.id), search: "private" }, expectedCount: 0 },
+      { input: { search: " shared " }, expectedCount: 1 },
+      { input: { beforeRecencyAt: 25 }, expectedCount: 1 },
+      { input: { characterId: castId<CharacterId>(character.id), beforeRecencyAt: 15 }, expectedCount: 0 },
+    ];
+    for (const { input, expectedCount } of lenses) {
+      expect(await otherCaller.chat.countChats(input)).toBe(expectedCount);
+      const page = await otherCaller.chat.listChats(input);
+      expect(page.totalCount).toBe(expectedCount);
+      expect(page.items).toHaveLength(expectedCount);
+    }
+    expect(await ownerCaller.chat.countChats({ characterId: castId<CharacterId>(character.id) })).toBe(2);
+  });
+});
+
 describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for a stranger", () => {
   /** Seed owner A's one-of-everything (front door where possible; direct db for the turn-engine-bound rows). */
   async function seedOwnerWorld(
@@ -2740,7 +2877,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     // collected then asserted ONCE (no branching expect) so EVERY leak surfaces in a single readable diff.
     const leaks: string[] = [];
     for (const probe of PROBES) {
-      const verdict = await leakVerdict(probe.path, () => probe.call(otherCaller, ids), probe.requireNotFound, probe.refusal);
+      const verdict = await leakVerdict(probe.path, () => probe.call(otherCaller, ids), probe);
       if (verdict !== null) {
         leaks.push(verdict);
       }
@@ -3116,7 +3253,7 @@ describe("cross-tenant IDOR sweep — the credential door's provider axis (keyed
 
     // CONTROL: the installer passes the same door, so the stranger's refusal is the scope and not the storage guard.
     await expect(ownerCaller.credentials.add({ provider: pluginProviderId, key: "sk-owner-key" })).resolves.toMatchObject({ provider: pluginProviderId });
-    const verdict = await leakVerdict("credentials.add", () => otherCaller.credentials.add({ provider: pluginProviderId, key: ATTACKER_TEXT }), false, refusal);
+    const verdict = await leakVerdict("credentials.add", () => otherCaller.credentials.add({ provider: pluginProviderId, key: ATTACKER_TEXT }), { refusal });
     expect(verdict).toBeNull();
     const sealedForAlpha = (await db.select().from(userCredentials)).filter((row) => row.provider === pluginProviderId);
     expect(sealedForAlpha.map((row) => row.ownerId)).toEqual([OWNER_USER_ID]);
@@ -3235,7 +3372,7 @@ captionProbe(
     const verdict = await leakVerdict(
       "imagery.extractPrompt",
       () => otherCaller.imagery.extractPrompt({ chatId: room, mode: "character_multimodal", subjectCharacterId: strangersCharacter, timeZone: UTC_TIME_ZONE }),
-      true,
+      { requireNotFound: true },
     );
     expect(captionProbeFetches).toEqual([]);
     expect(verdict).toBeNull();

@@ -58,6 +58,8 @@ export interface ImportWorkloadDeps extends ImportTokenUsageBackfillDeps {
   /** Rebuild the freshly-imported owner's stats rollups from canon (the post-settle). The same injected op
    *  the portability descriptors take — one slice, one home. */
   readonly reconcileImportStats: (args: { readonly ownerId: UserId }) => Promise<void>;
+  /** System planner maintenance, once after a completed bulk import, never per entity. */
+  readonly refreshPlannerStats: (args: { readonly ownerId: UserId }) => Promise<void>;
   /** Fan the "your library changed" user-bus events (`charactersChanged` + `chatsChanged`) to the target
    *  owner ONCE at the end of a run that wrote canon (#23). A background import runs off-request, so the
    *  import UI's own completion invalidation may never fire (the section was navigated away from) — and the

@@ -1,10 +1,36 @@
 import { join } from "node:path";
-import { closeDb, createDb } from "@orb/db";
+import { closeDb, createDb, optimizeDb } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import { sql } from "drizzle-orm";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const CONCURRENT_OPERATIONS = 24;
+
+test("planner maintenance refreshes imported growth on a fresh production-driver connection", async ({ scratch }) => {
+  const url = `file:${join(scratch, "collection-responsiveness-stats.db")}`;
+  const seeded = await createDb(url);
+  try {
+    await seeded.run(sql`CREATE TABLE planner_rows (id INTEGER PRIMARY KEY, scope INTEGER NOT NULL)`);
+    await seeded.run(sql`CREATE INDEX planner_scope ON planner_rows(scope)`);
+    await seeded.run(sql`INSERT INTO planner_rows VALUES (1, 1)`);
+    await seeded.run(sql`ANALYZE`);
+    await seeded.run(sql`WITH RECURSIVE numbers(n) AS (SELECT 2 UNION ALL SELECT n + 1 FROM numbers WHERE n < 10000)
+      INSERT INTO planner_rows SELECT n, n % 20 FROM numbers`);
+  } finally {
+    closeDb(seeded);
+  }
+  const db = await createDb(url);
+  try {
+    expect(await db.get(sql`SELECT stat FROM sqlite_stat1 WHERE idx = 'planner_scope'`)).toEqual({ stat: "1 1" });
+    await optimizeDb(db);
+    const refreshed = await db.get<Record<string, string>>(sql`SELECT stat FROM sqlite_stat1 WHERE idx = 'planner_scope'`);
+    expect(Number(refreshed?.["stat"]?.split(" ")[0])).toBeGreaterThan(1000);
+    expect(await db.get(sql`PRAGMA analysis_limit`)).toEqual({ ["analysis_limit"]: 1000 });
+    expect(await db.get(sql`PRAGMA foreign_keys`)).toEqual({ ["foreign_keys"]: 1 });
+  } finally {
+    closeDb(db);
+  }
+});
 const PRAGMA_READBACKS = [
   ["foreign_keys", "foreign_keys", 1],
   ["journal_mode", "journal_mode", "wal"],

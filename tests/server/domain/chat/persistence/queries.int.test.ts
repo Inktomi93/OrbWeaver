@@ -9,6 +9,7 @@ import {
   loadCanonHistory,
   loadChatEventBounds,
   loadChatEventReplay,
+  loadChatLastMessages,
   loadChatMessageStats,
   loadChatRow,
   loadForkChildren,
@@ -436,4 +437,14 @@ describe("loadSwipeStatRows — the delete-messages swipe delta", () => {
     const rows = await loadSwipeStatRows(db, chatId, [messageId]);
     expect(rows.map((r) => r.content).sort()).toStrictEqual(["orphaned", "swipe-a"]);
   });
+});
+
+test("preview hydrates newest selected seq, not greatest timestamp, and skips unreadable selected slots", async () => {
+  const chatId = await seedChat(db, "preview-sequence-clock");
+  await seedMessage(db, chatId, 1, { createdAt: 9000, content: "Greatest timestamp" });
+  await seedMessage(db, chatId, 2, { createdAt: 8000, content: "Newest selected slot" });
+  const missing = await seedMessage(db, chatId, 3, { createdAt: 10_000, content: "Removed variant" });
+  await db.delete(messageVariants).where(eq(messageVariants.id, missing.variantId));
+  expect([...(await loadChatLastMessages(db, [chatId]))]).toEqual([[chatId, { seq: 2, content: "Newest selected slot", characterId: null, personaId: null }]]);
+  expect([...(await loadChatMessageStats(db, [chatId]))]).toEqual([[chatId, { messageCount: 2, lastMessageAt: 9000 }]]);
 });

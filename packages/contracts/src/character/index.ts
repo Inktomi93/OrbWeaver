@@ -928,3 +928,14 @@ export const snapshotSummarySchema = z.strictObject({
   createdAt: z.number(),
 }) satisfies z.ZodType<SnapshotSummary>;
 export const snapshotViewSchema = snapshotSummarySchema.extend({ content: characterCardViewSchema }) satisfies z.ZodType<SnapshotView>;
+
+/** Shared census/page lens; paging and sort coordinates are separate from collection scope. */
+export const characterCensusInputSchema = z.object({
+  search: z.string().optional(),
+  starred: z.boolean().optional(),
+  archived: z.boolean().optional(),
+  includeTagIds: z.array(typeIdSchema(ID_PREFIX.tag)).readonly().optional(),
+  excludeTagIds: z.array(typeIdSchema(ID_PREFIX.tag)).readonly().optional(),
+});
+
+export type CharacterLibraryLens = z.infer<typeof characterCensusInputSchema>;

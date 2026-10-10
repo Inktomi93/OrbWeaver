@@ -9,6 +9,7 @@ import {
   characterBulkTagResultSchema,
   characterCardSchema,
   characterCardV3Schema,
+  characterCensusInputSchema,
   characterListCursorSchema,
   characterListSortSchema,
   characterProvenanceOf,
@@ -455,4 +456,14 @@ test("characterProvenanceOf: an import URL beats the shipped marker, which beats
   // AUTHORED — everything else, including a card with no creator at all (the `New character` door).
   expect(characterProvenanceOf({ importedFrom: null, creator: "someone" })).toBe("authored");
   expect(characterProvenanceOf({ importedFrom: null, creator: null })).toBe("authored");
+});
+
+test("census lens retains the archived tri-state and rejects malformed tag ids", () => {
+  expect(characterCensusInputSchema.parse({ archived: false, starred: true, search: "literal%", limit: 1 })).toEqual({
+    archived: false,
+    starred: true,
+    search: "literal%",
+  });
+  expect(characterCensusInputSchema.parse({})).toEqual({});
+  expect(characterCensusInputSchema.safeParse({ includeTagIds: ["foreign-shape"] }).success).toBe(false);
 });

@@ -5,8 +5,9 @@ import { expect, test } from "@playwright/experimental-ct-react";
 // Pure `.ts`, safe in a node-side CT spec; the feature's front door is a barrel that would pull `.tsx` in.
 import type { ReindexPreview } from "../../../../../packages/client/src/lib/embedder-rebuild.ts";
 import { REINDEX_CONFIRM_COPY, reindexConfirmDescription } from "../../../../../packages/client/src/lib/embedder-rebuild.ts";
+import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { connectionRow, openRowMenu, stubConnectionsPane } from "../_connection-fixtures.ts";
-import { ConnectionsAuthoringStory } from "../_ct-stories.tsx";
+import { ConnectionsAuthoringStory, ConnectionsListReadStory } from "../_ct-stories.tsx";
 
 const ROW_NAME = "Legacy relay · claude-opus-5";
 
@@ -159,4 +160,24 @@ test("using a chat-only row for everything writes straight through without a pre
   await expect.poll(() => recorder.count("connection.useForEverything"), { intervals: [20, 50, 100] }).toBe(1);
   await expect.poll(() => recorder.count("connection.embedSpaceChangePreview"), { intervals: [20, 50, 100] }).toBe(0);
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
+});
+
+test("independent connections dependencies start while the connection list is held", async ({ mount, page }) => {
+  const held = trpcHold();
+  const calls = await routeTrpc(page, {
+    "connection.list": held,
+    "connection.listBindings": [],
+    "credentials.list": [],
+    "connection.providersAvailable": [],
+  });
+  const component = await mount(<ConnectionsListReadStory />);
+  await held.requested;
+  try {
+    await expect
+      .poll(() => [calls.count("connection.listBindings"), calls.count("credentials.list"), calls.count("connection.providersAvailable")])
+      .toEqual([1, 1, 1]);
+  } finally {
+    held.release([]);
+  }
+  await expect(component.getByRole("button", { name: "Add connection", exact: true })).toBeVisible();
 });

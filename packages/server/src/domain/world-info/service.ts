@@ -26,6 +26,7 @@ import {
   createListGlobal,
 } from "./verbs/attachments/index.ts";
 import {
+  createCount,
   createCreateBook,
   createDuplicateBook,
   createGetBook,
@@ -59,6 +60,7 @@ export function createWorldInfoService(ctx: WorldInfoContext): WorldInfoService 
     exportBook: ({ principal, bookId }) => exportBook({ ownerId: principal.userId, bookId }),
     importFile: ({ principal, fileText, filename }) =>
       importBook({ ownerId: principal.userId, bytes: new TextEncoder().encode(fileText), ...(filename === undefined ? {} : { filename }) }),
+    countBooks: createCount(ctx),
     listBooks: createListBooks(ctx),
     listBooksWithUsage: createListBooksWithUsage(ctx),
     getBook: createGetBook(ctx),

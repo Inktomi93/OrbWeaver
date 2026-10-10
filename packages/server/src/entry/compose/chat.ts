@@ -28,7 +28,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { isAdmin } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
-import { createCopyHandoffCards } from "#domain/character";
+import { createCopyHandoffCards, createLoadSeatCards } from "#domain/character";
 import type {
   BeginGenerationObservation,
   ChatContext,
@@ -1167,6 +1167,22 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       } catch {
         return { renderPolicy: resolvedFloor, themeOverride: null, backgroundOverride: null, card: null };
       }
+    },
+    resolveSeatDecos: async ({ ownerId, characterIds }) => {
+      const cfg = input.settings.getEffectiveConfig();
+      const floor = { trustHtml: cfg.trustHtml, forbidExternalMedia: cfg.forbidExternalMedia, allowInteractiveCards: cfg.allowInteractiveCards };
+      const cards = await createLoadSeatCards(db)(ownerId, characterIds);
+      return new Map(
+        cards.map((card) => [
+          card.id,
+          {
+            renderPolicy: resolveRenderPolicy(floor, card),
+            themeOverride: card.themeOverride,
+            backgroundOverride: card.backgroundOverride,
+            card: { name: card.name, avatarAssetId: card.avatarAssetId },
+          },
+        ]),
+      );
     },
     mintSyntheticGroupCharacter: (params) => input.character.mintSyntheticGroupCharacter(params),
     findSyntheticGroupCharacter: (params) => input.character.findSyntheticGroupCharacter(params),

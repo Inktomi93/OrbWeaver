@@ -2,11 +2,11 @@
 // the resolved principal; ownership scopes off principal.userId, never a users read. The synthetic-identity
 // ops (Mint/Find/FindByImportHash/FindByHandle) are internal and act on an already-resolved ownerId.
 
-import type { CharacterListCursor, CharacterListSort, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
+import type { CharacterLibraryLens, CharacterListCursor, CharacterListSort, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 
 import type { Principal } from "@orb/contracts/identity";
 import type { GreetingTransformId } from "@orb/contracts/preset";
-import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, TagId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, UserId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 
 export type { CharacterListCursor, CharacterListSort } from "@orb/contracts/character";
@@ -38,22 +38,11 @@ export interface GetCharacterParams extends CharacterActorParams {
  *  The two boolean axes are TRI-STATE — `undefined` is UNFILTERED, not `false`. That is what keeps the
  *  lookup-map callers (portrait maps, pickers, the agent nav) whole while the library's own chips narrow:
  *  omitting `archived` still serves archived rows, and only the toggle's OFF state sends `archived: false`. */
-export interface ListCharactersParams extends CharacterActorParams {
+export interface ListCharactersParams extends CharacterActorParams, CharacterLibraryLens {
   readonly sort?: CharacterListSort;
   /** Cursor's sort discriminant MUST match `sort`; a mismatch is rejected rather than applying the wrong keyset. */
   readonly cursor?: CharacterListCursor;
   readonly limit?: number;
-  /** SERVER-SIDE search over the WHOLE library: the name, the handle, the distilled elevator pitch, or an
-   *  ACCEPTED tag's name — every string the row itself renders. Blank/whitespace is the unsearched list. */
-  readonly search?: string;
-  /** `true` = favorites only · `false` = unstarred only · omitted = both. */
-  readonly starred?: boolean;
-  /** `false` = the library's Archived-toggle-OFF state · `true` = archived only · omitted = both. */
-  readonly archived?: boolean;
-  /** AND-semantics: a row must carry EVERY one of these accepted tags (the include chips). */
-  readonly includeTagIds?: readonly TagId[];
-  /** AND-semantics: a row must carry NONE of these accepted tags (the exclude chips). */
-  readonly excludeTagIds?: readonly TagId[];
 }
 
 /**
@@ -61,18 +50,7 @@ export interface ListCharactersParams extends CharacterActorParams {
  * NOTHING ELSE. No `sort`, no `cursor`, no `limit`: a census is not a page, and every one of those three
  * would be a way to make the answer window-dependent again, which is the whole defect.
  */
-export interface ListCharacterTagGroupsParams extends CharacterActorParams {
-  /** SERVER-SIDE search over the WHOLE library — the same predicate the page uses. */
-  readonly search?: string;
-  /** `true` = favorites only · `false` = unstarred only · omitted = both. */
-  readonly starred?: boolean;
-  /** `false` = the library's Archived-toggle-OFF state · `true` = archived only · omitted = both. */
-  readonly archived?: boolean;
-  /** AND-semantics: a row must carry EVERY one of these accepted tags. */
-  readonly includeTagIds?: readonly TagId[];
-  /** AND-semantics: a row must carry NONE of these accepted tags. */
-  readonly excludeTagIds?: readonly TagId[];
-}
+export interface ListCharacterTagGroupsParams extends CharacterActorParams, CharacterLibraryLens {}
 
 /** What a caller writing from an OLD basis declares it merged against (#1446/#1560) — the card state the
  *  write is conditional on. `contentHash` covers the card's IDENTITY; every member beside it is a field a
@@ -233,14 +211,7 @@ export interface FindByImportedFromParams {
  *
  *  `starred`/`archived` are TRI-STATE — `undefined` is unfiltered, which is what lets the four lookup-map
  *  callers keep reading the whole library while the library pane's own chips narrow it. */
-export interface CharacterListFilter {
-  /** Already trimmed + lowercased by the verb; `undefined` = the unsearched list. */
-  readonly search?: string | undefined;
-  readonly starred?: boolean | undefined;
-  readonly archived?: boolean | undefined;
-  readonly includeTagIds?: readonly TagId[] | undefined;
-  readonly excludeTagIds?: readonly TagId[] | undefined;
-}
+export interface CharacterListFilter extends CharacterLibraryLens {}
 
 /** WHOSE per-card state, on WHICH owned character — the three coordinates every D148 plugin card-state
  *  read/merge carries (`persistence/plugin-card-data.ts`). `characterId` is guest-supplied (owner-scope-gated,

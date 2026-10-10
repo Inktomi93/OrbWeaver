@@ -51,3 +51,22 @@ describe("list", () => {
     expect(await svc.list({ principal: principal(b) })).toHaveLength(0);
   });
 });
+
+test("Home's bounded shelf leaves the complete library and truthful census accessible", async ({ db }) => {
+  const owner = (await seedUser(db)).id;
+  const character = (await seedCharacter(db, { ownerId: owner })).id;
+  const service = createRosterPresetService(makeHarness(db).ctx);
+  for (let index = 0; index < 8; index += 1) {
+    await service.create({ principal: principal(owner), input: { name: `Roster ${index}`, description: "", members: [memberSpec(character, 0)] } });
+  }
+  expect(await service.count({ principal: principal(owner) })).toBe(8);
+  expect((await service.list({ principal: principal(owner), limit: 6 })).map((row) => row.name)).toEqual([
+    "Roster 0",
+    "Roster 1",
+    "Roster 2",
+    "Roster 3",
+    "Roster 4",
+    "Roster 5",
+  ]);
+  expect(await service.list({ principal: principal(owner) })).toHaveLength(8);
+});

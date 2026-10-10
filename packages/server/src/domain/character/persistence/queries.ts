@@ -14,7 +14,8 @@ import { chatRecencyExpr, escapeLikeTerm, memberVisibleChatScope, parseStringArr
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, TagId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, asc, count, desc, eq, exists, gt, inArray, isNull, lt, max, not, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, exists, gt, inArray, isNotNull, isNull, lt, not, or, sql } from "drizzle-orm";
+import type { WithSubqueryWithSelection } from "drizzle-orm/sqlite-core";
 import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import { addSpanEvent } from "#foundation/observability";
@@ -101,11 +102,48 @@ interface ListOwnedPageInput extends CharacterListFilter {
   readonly cursor: CharacterListCursor | undefined;
 }
 
-interface CharacterListRow extends CharacterWithAvatar {
+type CharacterListProjection = Pick<
+  CharacterRow,
+  | "id"
+  | "handle"
+  | "name"
+  | "starred"
+  | "archived"
+  | "forbidExternalMedia"
+  | "trustHtml"
+  | "themeOverride"
+  | "backgroundOverride"
+  | "avatarAssetId"
+  | "createdAt"
+  | "tokenSize"
+  | "importedFrom"
+  | "creator"
+>;
+
+const characterListColumns = {
+  id: characters.id,
+  handle: characters.handle,
+  name: characters.name,
+  starred: characters.starred,
+  archived: characters.archived,
+  forbidExternalMedia: characters.forbidExternalMedia,
+  trustHtml: characters.trustHtml,
+  themeOverride: characters.themeOverride,
+  backgroundOverride: characters.backgroundOverride,
+  avatarAssetId: characters.avatarAssetId,
+  createdAt: characters.createdAt,
+  tokenSize: characters.tokenSize,
+  importedFrom: characters.importedFrom,
+  creator: characters.creator,
+};
+
+interface CharacterListRow {
+  readonly character: CharacterListProjection;
+  readonly avatar: Pick<AssetRow, "hash"> | null;
   readonly elevatorPitch: string | null;
   /** `MAX({@link chatRecencyExpr})` over her visible rooms; null = never chatted (the NULLS-LAST tail). */
   readonly lastChattedAt: number | null;
-  /** WHICH room achieved that max ({@link lastChatRoomExpr}); null = never chatted. */
+  /** The total-order resume room attaining the visible maximum, or null for an unchatted character. */
   readonly lastChatId: ChatId | null;
   /** A `COUNT` of those rooms — never null, so a never-chatted character reads 0 (#865's contract, now
    *  stated at the source rather than coalesced in {@link summaryOf}). */
@@ -127,87 +165,104 @@ const assertNever = (value: never): never => {
  *  collapsing them is correct rather than lossy. The sorts pay a table scan, exactly like `tokenSize`. */
 const refineryScoreExpr = sql`json_extract(${characters.refinery}, '$.score')`;
 
-/** A SECOND handle on `chat_participants` for the per-character seat EXISTS — the activity subqueries below
- *  already join the table as the OWNER's own membership row, and re-using that handle would correlate the
- *  seat probe against the human's row instead of scanning the room's seats (`domain/chat`'s own alias, same
- *  reason, same name). */
+// Keep the human membership join separate from the character-seat projection.
 const characterSeats = alias(chatParticipants, "character_seats");
 
-/** THE ROOMS THIS CHARACTER IS IN, from the OWNER's side (#1131). The visibility arms are `@orb/db/kit`'s —
- *  the same four the chat library pages by — plus the seat probe. DEPARTED SEATS COUNT: a room she has since
- *  left is part of her history. It is an EXISTS over the junction rather than a join, so a room carrying two
- *  seats for one character cannot double her count. */
-function seatedChatScope(db: Db, ownerId: UserId): SQL | undefined {
-  return and(
-    memberVisibleChatScope(ownerId, {}),
-    exists(
-      db
-        .select({ seated: sql`1` })
-        .from(characterSeats)
-        .where(and(eq(characterSeats.chatId, chats.id), eq(characterSeats.characterId, characters.id))),
-    ),
+type RoomRecency = WithSubqueryWithSelection<
+  {
+    id: typeof chats.id;
+    updatedAt: typeof chats.updatedAt;
+    at: SQL.Aliased<number>;
+  },
+  "character_room_recency"
+>;
+type RoomSeats = WithSubqueryWithSelection<
+  {
+    characterId: typeof characterSeats.characterId;
+    chatId: RoomRecency["id"];
+    updatedAt: RoomRecency["updatedAt"];
+    at: RoomRecency["at"];
+  },
+  "character_room_seats"
+>;
+type RankedRooms = WithSubqueryWithSelection<
+  {
+    characterId: RoomSeats["characterId"];
+    chatId: RoomSeats["chatId"];
+    at: RoomSeats["at"];
+    rank: SQL.Aliased<number>;
+  },
+  "character_ranked_rooms"
+>;
+type CharacterActivity = WithSubqueryWithSelection<
+  {
+    characterId: RankedRooms["characterId"];
+    lastChattedAt: SQL.Aliased<number | null>;
+    lastChatId: SQL.Aliased<ChatId | null>;
+    chatCount: SQL.Aliased<number>;
+  },
+  "character_activity"
+>;
+
+/** Aggregate distinct character-room pairs: departed seats count, duplicate seats do not. */
+function characterActivityCtes(
+  db: Db,
+  ownerId: UserId,
+): { readonly recency: RoomRecency; readonly seats: RoomSeats; readonly ranked: RankedRooms; readonly activity: CharacterActivity } {
+  const recency = db.$with("character_room_recency").as(
+    db
+      .select({
+        id: chats.id,
+        updatedAt: chats.updatedAt,
+        at: chatRecencyExpr(db).as("recency_at"),
+      })
+      .from(chats)
+      .innerJoin(chatParticipants, memberVisibleChatScope(ownerId, {})),
   );
-}
-
-/**
- * WHEN THIS OWNER LAST SPOKE TO THIS CHARACTER — the newest {@link chatRecencyExpr} over her visible rooms,
- * or SQL NULL when she has none. Correlated on `characters.id`, so it is both the row's projection and the
- * `recent` keyset's ordering term: the shelf headed "sorted by last chat" is ordered by the value it prints.
- *
- * IT READS CANON, NOT `character_stats` (#1131, and the reason this file no longer joins that table). The
- * rollup is TURN ECONOMICS (constitution §6 — "tokens/cost/cache/timing"), maintained by the stats delta on
- * the chat write path, and it answers a different question in two provable ways: measured on the dev library
- * 2026-09-02, nine of ten characters with real seated chats had NO stats row at all, and its `chats` counter
- * is bumped only for a room's FIRST founding character (`chatCreatedDelta`), so a second seat reads zero
- * while the editor header and the context pane — which both count canon — read one. The landing PRINTS these
- * two numbers; they have to be the numbers the rest of the app prints.
- */
-function lastChattedExpr(db: Db, ownerId: UserId): SQL<number | null> {
-  return sql<number | null>`(${db
-    .select({ at: max(chatRecencyExpr(db)) })
-    .from(chats)
-    .innerJoin(chatParticipants, seatedChatScope(db, ownerId))})`;
-}
-
-/**
- * WHICH ROOM {@link lastChattedExpr} MAXED OVER — the resume target, over the SAME visibility scope and the
- * SAME recency clock, so the room a reader lands in is by construction the one whose stamp the shelf printed
- * ("chatted 3h ago" and the door that opens can never name two different rooms).
- *
- * THE ORDER IS TOTAL, AND IT IS #1503's (the client-side `resumeTargets` map this expression RETIRED —
- * recency, then `updated_at`, then the id): recency alone is not an order, because a bulk seed, a
- * same-millisecond pair and every never-messaged room share a value — the winner would then be whichever row
- * the engine yielded first, and one character's resume door would change target with nothing on screen
- * explaining it. Descending on all three, so the newest/most-recently-touched/highest-id room wins.
- *
- * WHY IT IS A PROJECTION AND NOT A CLIENT FOLD (#1662): the fold it replaces reverse-indexed a BOUNDED
- * `listChats` page (100 rooms), so a character outside that window silently fell through to "start a new
- * chat" — a door that says resume and does not. The answer is the owner's whole library either way, and it
- * costs no read at all here: the shelf and the row already select this character.
- */
-function lastChatRoomExpr(db: Db, ownerId: UserId): SQL<ChatId | null> {
-  return sql<ChatId | null>`(${db
-    .select({ id: chats.id })
-    .from(chats)
-    .innerJoin(chatParticipants, seatedChatScope(db, ownerId))
-    .orderBy(desc(chatRecencyExpr(db)), desc(chats.updatedAt), desc(chats.id))
-    .limit(LIMIT_ONE)})`;
-}
-
-/** HOW MANY of those rooms — a real `COUNT`, so a character with none reads 0 rather than NULL. That is the
- *  #865 projection contract stated at its source instead of coalesced downstream ("a join miss and a zero are
- *  the same fact to a reader"), and it is why the two chat-count keysets no longer carry a null arm. */
-function chatCountExpr(db: Db, ownerId: UserId): SQL<number> {
-  return sql<number>`(${db.select({ total: count() }).from(chats).innerJoin(chatParticipants, seatedChatScope(db, ownerId))})`;
+  const seats = db.$with("character_room_seats").as(
+    db
+      .selectDistinct({
+        characterId: characterSeats.characterId,
+        chatId: recency.id,
+        updatedAt: recency.updatedAt,
+        at: recency.at,
+      })
+      .from(recency)
+      .innerJoin(characterSeats, and(eq(characterSeats.chatId, recency.id), isNotNull(characterSeats.characterId))),
+  );
+  const ranked = db.$with("character_ranked_rooms").as(
+    db
+      .select({
+        characterId: seats.characterId,
+        chatId: seats.chatId,
+        at: seats.at,
+        rank: sql<number>`row_number() over (partition by ${seats.characterId} order by ${seats.at} desc, ${seats.updatedAt} desc, ${seats.chatId} desc)`.as(
+          "room_rank",
+        ),
+      })
+      .from(seats),
+  );
+  const activity = db.$with("character_activity").as(
+    db
+      .select({
+        characterId: ranked.characterId,
+        lastChattedAt: sql<number | null>`max(${ranked.at})`.as("last_chatted_at"),
+        lastChatId: sql<ChatId | null>`max(case when ${ranked.rank} = 1 then ${ranked.chatId} end)`.as("last_chat_id"),
+        chatCount: count().as("chat_count"),
+      })
+      .from(ranked)
+      .groupBy(ranked.characterId),
+  );
+  return { recency, seats, ranked, activity };
 }
 
 // `recent` sinks never-chatted (a NULL max over no rooms) to the tail via the `is null` leading term, then
 // DESC. The two chat-count sorts sink the never-chatted group the same way — the ruling survives, its INPUT
 // changed (#1131): "never chatted" used to be "no `character_stats` row" and is now "zero visible rooms", so
 // the leading term reads `= 0` where it read `is null`. An unchatted card is still never "fewest".
-function orderFor(db: Db, ownerId: UserId, sort: CharacterListSort): SQL[] {
-  const lastChatted = lastChattedExpr(db, ownerId);
-  const chatCount = chatCountExpr(db, ownerId);
+function orderFor(activity: CharacterActivity, sort: CharacterListSort): SQL[] {
+  const lastChatted = activity.lastChattedAt;
+  const chatCount = sql<number>`coalesce(${activity.chatCount}, 0)`;
   switch (sort) {
     case "recent":
       return [sql`${lastChatted} is null`, desc(lastChatted), desc(characters.createdAt), desc(characters.id)];
@@ -249,8 +304,8 @@ function createdAtKeysetAsc(createdAt: number, id: CharacterId): SQL | undefined
 
 // A null-boundary cursor stays within the null tail; a non-null boundary is followed by the whole null
 // tail plus the lower/equal-lastChatted non-null rows.
-function recentKeyset(db: Db, ownerId: UserId, cursor: Extract<CharacterListCursor, { sort: "recent" }>): SQL | undefined {
-  const lastChatted = lastChattedExpr(db, ownerId);
+function recentKeyset(activity: CharacterActivity, cursor: Extract<CharacterListCursor, { sort: "recent" }>): SQL | undefined {
+  const lastChatted = activity.lastChattedAt;
   const olderTiebreak = createdAtKeysetDesc(cursor.createdAt, cursor.id);
   if (cursor.lastChattedAt === null) {
     return and(isNull(lastChatted), olderTiebreak);
@@ -260,15 +315,15 @@ function recentKeyset(db: Db, ownerId: UserId, cursor: Extract<CharacterListCurs
 
 // NO NULL ARM (#1131): the count is a `COUNT`, so every row carries a number and the boundary is a plain
 // keyset. DESC needs no zero term — zero is already last.
-function mostChatsKeyset(db: Db, ownerId: UserId, cursor: Extract<CharacterListCursor, { sort: "mostChats" }>): SQL | undefined {
-  const chatCount = chatCountExpr(db, ownerId);
+function mostChatsKeyset(activity: CharacterActivity, cursor: Extract<CharacterListCursor, { sort: "mostChats" }>): SQL | undefined {
+  const chatCount = sql<number>`coalesce(${activity.chatCount}, 0)`;
   return or(lt(chatCount, cursor.chatCount), and(eq(chatCount, cursor.chatCount), lt(characters.id, cursor.id)));
 }
 
 // Direction-flipped, and the ZERO group still trails every chatted row — so a cursor inside the zero tail
 // stays there, and one outside it is followed by the higher counts plus the whole zero tail.
-function fewestChatsKeyset(db: Db, ownerId: UserId, cursor: Extract<CharacterListCursor, { sort: "fewestChats" }>): SQL | undefined {
-  const chatCount = chatCountExpr(db, ownerId);
+function fewestChatsKeyset(activity: CharacterActivity, cursor: Extract<CharacterListCursor, { sort: "fewestChats" }>): SQL | undefined {
+  const chatCount = sql<number>`coalesce(${activity.chatCount}, 0)`;
   const zeroTail = eq(chatCount, 0);
   if (cursor.chatCount === 0) {
     return and(zeroTail, gt(characters.id, cursor.id));
@@ -316,9 +371,9 @@ function alphaKeyset(name: string, id: CharacterId): SQL | undefined {
 // a Zod-inferred discriminated union property switch the way the typed eslint rule can, and misflags
 // every case as unreachable. The final arm's comparison is a true tautology once narrowed (all other
 // members excluded); suppressed there only, so assertNever still catches a future unhandled sort.
-function keysetFor(db: Db, ownerId: UserId, cursor: CharacterListCursor): SQL | undefined {
+function keysetFor(activity: CharacterActivity, cursor: CharacterListCursor): SQL | undefined {
   if (cursor.sort === "recent") {
-    return recentKeyset(db, ownerId, cursor);
+    return recentKeyset(activity, cursor);
   }
   if (cursor.sort === "alpha") {
     return alphaKeyset(cursor.name, cursor.id);
@@ -333,10 +388,10 @@ function keysetFor(db: Db, ownerId: UserId, cursor: CharacterListCursor): SQL | 
     return createdAtKeysetAsc(cursor.createdAt, cursor.id);
   }
   if (cursor.sort === "mostChats") {
-    return mostChatsKeyset(db, ownerId, cursor);
+    return mostChatsKeyset(activity, cursor);
   }
   if (cursor.sort === "fewestChats") {
-    return fewestChatsKeyset(db, ownerId, cursor);
+    return fewestChatsKeyset(activity, cursor);
   }
   if (cursor.sort === "largestCards") {
     return tokenSizeKeysetDesc(cursor.tokenSize, cursor.id);
@@ -412,29 +467,26 @@ function ownedCharacterScope(db: Db, ownerId: UserId, filter: CharacterListFilte
 /** Owner's non-synthetic characters, LENS-filtered, sorted + keyset-paged. No offset (skips/dupes under
  *  concurrent writes). */
 export async function listOwnedCharactersWithAvatar(db: Db, input: ListOwnedPageInput): Promise<CharacterListRow[]> {
+  const { recency, seats, ranked, activity } = characterActivityCtes(db, input.ownerId);
   const scope = ownedCharacterScope(db, input.ownerId, input);
-  const keyset = input.cursor === undefined ? undefined : keysetFor(db, input.ownerId, input.cursor);
+  const keyset = input.cursor === undefined ? undefined : keysetFor(activity, input.cursor);
   const rows = await db
+    .with(recency, seats, ranked, activity)
     .select({
-      character: characters,
-      avatar: assets,
+      character: characterListColumns,
+      avatar: { hash: assets.hash },
       elevatorPitch: characterSummaries.elevatorPitch,
-      // TWO CORRELATED SUBQUERIES, NOT A JOIN (#1131). `character_stats` is gone from this read: the two
-      // activity datums are derived from canon through the same visibility scope the chat library pages by,
-      // so the row PRINTS the number the editor header and the context pane print. Still ONE statement and
-      // no new column, which is the #865 constraint that put them on a join in the first place.
-      lastChattedAt: lastChattedExpr(db, input.ownerId),
-      // THREE correlated subqueries now (#1662): the resume TARGET rides beside the stamp it belongs to, so
-      // the strip's door and the strip's caption are one answer rather than two reads that can disagree.
-      lastChatId: lastChatRoomExpr(db, input.ownerId),
-      chatCount: chatCountExpr(db, input.ownerId),
+      lastChattedAt: activity.lastChattedAt,
+      lastChatId: activity.lastChatId,
+      chatCount: sql<number>`coalesce(${activity.chatCount}, 0)`,
       refineryScore: sql<number | null>`${refineryScoreExpr}`,
     })
     .from(characters)
+    .leftJoin(activity, eq(activity.characterId, characters.id))
     .leftJoin(assets, eq(characters.avatarAssetId, assets.id))
     .leftJoin(characterSummaries, eq(characterSummaries.characterId, characters.id))
     .where(keyset === undefined ? scope : and(scope, keyset))
-    .orderBy(...orderFor(db, input.ownerId, input.sort))
+    .orderBy(...orderFor(activity, input.sort))
     .limit(input.limit);
   return rows;
 }
@@ -810,12 +862,7 @@ export function detailOf({ character: row, avatar }: CharacterWithAvatar, canoni
   };
 }
 
-/** Row + joined avatar + denorms + accepted tags + the library-wide name-ambiguity verdict
- *  ({@link ambiguousNamesFor}) → the light library-list summary.
- *
- *  `chatCount` NEEDS NO COALESCE ANY MORE (#1131): it arrives as a `COUNT` over her visible rooms
- *  ({@link chatCountExpr}), so a never-chatted character is already 0. #865's contract — "a join miss and a
- *  zero are the same fact to a reader" — is unchanged; the join it was defending against is gone. */
+/** Project the page row, accepted tags and whole-library ambiguity verdict into list chrome. */
 export function summaryOf(
   { character: row, avatar, elevatorPitch, lastChattedAt, lastChatId, chatCount }: CharacterListRow,
   canonicalTags: readonly TagView[],

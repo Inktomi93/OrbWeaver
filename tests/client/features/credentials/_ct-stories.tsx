@@ -1,3 +1,4 @@
+import { ConnectionsListSection } from "../../../../packages/client/src/features/credentials/components/connections-list-section.tsx";
 // credentials feature CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
 // The story reaches a feature internal the front door doesn't re-export (the settings _ct-stories.tsx
 // precedent) — CredentialKeyRow is mounted by the keys section itself, not exported standalone. The whole
@@ -439,6 +440,15 @@ export function ConnectionEditorNarrowStory(): ReactElement {
       <div style={{ overflow: "auto", width: 486 }}>
         <ConnectionEditorInner connectionId="user_connection_cteditor0001" />
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** Isolated list body prevents sibling Settings sections from warming its independent reads. */
+export function ConnectionsListReadStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ConnectionsListSection />
     </CtDataProviders>
   );
 }

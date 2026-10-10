@@ -1,0 +1,18 @@
+import { rosterPresets } from "@orb/db";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { createRosterPresetService } from "@orb/server/domain/roster-preset";
+import { principal } from "../../../../support/factories/principal.ts";
+import { seedUser } from "../../../../support/factories/user.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeHarness } from "../_support.ts";
+
+test("census counts only owned library rows without entering full-list enrichment", async ({ db }) => {
+  const owner = (await seedUser(db)).id;
+  const other = (await seedUser(db)).id;
+  const service = createRosterPresetService(makeHarness(db).ctx);
+  for (const [index, ownerId] of [owner, other, other].entries()) {
+    await db.insert(rosterPresets).values({ id: mintTypeId(ID_PREFIX.rosterPreset), ownerId, name: `Roster ${index}` });
+  }
+  expect(await service.count({ principal: principal(owner) })).toBe(1);
+  expect(await service.count({ principal: principal(other) })).toBe(2);
+});

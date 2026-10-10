@@ -1277,3 +1277,18 @@ test.describe("story-theme drift in New York", () => {
     await expect(component.getByText(/^\d{4}-\d{2}$/u)).toHaveCount(0);
   });
 });
+
+test("independent overview reads start while home is held", async ({ mount, page }) => {
+  const held = trpcHold();
+  const trpc = await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...UNANALYSED, "discovery.home": held });
+  const component = await mount(<CorpusHomeDefaultPaneStory />);
+  await held.requested;
+  try {
+    await expect
+      .poll(() => [trpc.count("discovery.catalog"), trpc.count("discovery.visualArchetypes"), trpc.count("discovery.forgottenGems")])
+      .toEqual([1, 1, 1]);
+  } finally {
+    held.release(UNANALYSED["discovery.home"]);
+  }
+  await expect(component.locator("[data-corpus-focal]")).toBeVisible();
+});

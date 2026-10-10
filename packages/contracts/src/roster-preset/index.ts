@@ -234,3 +234,6 @@ export const applyRosterPresetResultSchema = z.strictObject({
   rulesAlreadyPresent: z.array(rulePresetIdSchema).readonly(),
   rulesSkipped: z.array(rosterPresetRuleSkipSchema).readonly(),
 }) satisfies z.ZodType<ApplyRosterPresetResult>;
+
+/** Maximum Home roster shelf rows; the complete library remains available through All rosters. */
+export const HOME_ROSTER_PREVIEW_LIMIT = 6;

@@ -16,7 +16,7 @@ import { assets, characters, rosterPresetMembers, rosterPresetRules, rosterPrese
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { RosterPresetId, UserId } from "@orb/kit/ids";
-import { and, asc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, count, eq, inArray, ne } from "drizzle-orm";
 import { RosterPresetNotFoundError } from "../contract/errors.ts";
 import type { CastRuleWrite, MemberCardRow, MemberWrite } from "../contract/service.ts";
 
@@ -37,9 +37,12 @@ export async function loadOwnedPresetRow(db: Db, ownerId: UserId, presetId: Rost
 }
 
 /** The owner's presets, NAME-sorted (the picker's order — a party is picked by name). */
-export async function listOwnedPresetRows(db: Db, ownerId: UserId): Promise<PresetRow[]> {
-  const rows = await db.select().from(rosterPresets).where(eq(rosterPresets.ownerId, ownerId)).orderBy(asc(rosterPresets.name));
-  return rows;
+export async function listOwnedPresetRows(db: Db, ownerId: UserId, limit?: number): Promise<PresetRow[]> {
+  const query = db.select().from(rosterPresets).where(eq(rosterPresets.ownerId, ownerId)).orderBy(asc(rosterPresets.name), asc(rosterPresets.id)).$dynamic();
+  if (limit !== undefined) {
+    query.limit(limit);
+  }
+  return await query;
 }
 
 /** Does the owner already hold a DIFFERENT preset with this name? The typed-conflict pre-check the
@@ -218,4 +221,10 @@ export function summaryOf(row: PresetRow, members: readonly RosterPresetMemberVi
     rules,
     updatedAt: row.updatedAt,
   };
+}
+
+/** The owner's census without loading stored configs or member decorations. */
+export async function countOwnedPresets(db: Db, ownerId: UserId): Promise<number> {
+  const rows = await db.select({ total: count() }).from(rosterPresets).where(eq(rosterPresets.ownerId, ownerId));
+  return rows[0]?.total ?? 0;
 }

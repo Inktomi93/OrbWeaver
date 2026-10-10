@@ -186,3 +186,15 @@ export function buildInitialParticipantRows(params: {
   });
   return [hostRow, ...characterRows];
 }
+
+/** Present roster rows for a page of rooms, with the single-room reader's total seat order. */
+export async function loadParticipantsBatch(db: Db, chatIds: readonly ChatId[]): Promise<(typeof chatParticipants.$inferSelect)[]> {
+  if (chatIds.length === 0) {
+    return [];
+  }
+  return await db
+    .select()
+    .from(chatParticipants)
+    .where(and(inArray(chatParticipants.chatId, [...chatIds]), isNull(chatParticipants.leftSeq)))
+    .orderBy(asc(chatParticipants.chatId), asc(chatParticipants.joinSeq), asc(chatParticipants.id));
+}

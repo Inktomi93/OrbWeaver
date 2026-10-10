@@ -28,6 +28,7 @@ import { tape } from "../../../../support/chat/tape.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import {
+  batchParticipantViews,
   makeChatContext,
   makeLoadParticipantViews,
   seedCharacter,
@@ -64,6 +65,7 @@ describe("chat.getChatLineage — the fork ancestry through the real router, gat
     const unused = (): Promise<never> => Promise.reject(new Error("unused: lineage summaries read only the roster"));
     return createRead(makeChatContext(db), {
       loadParticipantViews: makeLoadParticipantViews(db),
+      loadParticipantViewsBatch: batchParticipantViews(makeLoadParticipantViews(db)),
       resolveConnection: unused,
       checkSendAvailability: unused,
       getNextTurnConnection: unused,

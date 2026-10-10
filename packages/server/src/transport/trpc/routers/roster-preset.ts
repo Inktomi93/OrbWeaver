@@ -3,7 +3,13 @@
 // host-gated INSIDE chat via the domain's injected guard. Thin: validate →
 // `ctx.services.rosterPreset.<verb>`. Input shapes derive from `@orb/contracts/roster-preset`.
 
-import { applyRosterPresetResultSchema, createRosterPresetSchema, rosterPresetSummarySchema, rosterPresetViewSchema } from "@orb/contracts/roster-preset";
+import {
+  applyRosterPresetResultSchema,
+  createRosterPresetSchema,
+  HOME_ROSTER_PREVIEW_LIMIT,
+  rosterPresetSummarySchema,
+  rosterPresetViewSchema,
+} from "@orb/contracts/roster-preset";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { reportedTimeZoneSchema } from "@orb/kit/time";
 import { z } from "zod";
@@ -26,7 +32,12 @@ export const rosterPresetRouter = t.router({
     .input(z.object({ presetId: typeIdSchema(ID_PREFIX.rosterPreset) }))
     .mutation(({ ctx, input }) => ctx.services.rosterPreset.remove({ principal: ctx.auth, presetId: input.presetId })),
 
-  list: authedProcedure.output(z.array(rosterPresetSummarySchema)).query(({ ctx }) => ctx.services.rosterPreset.list({ principal: ctx.auth })),
+  count: authedProcedure.output(z.number().int().nonnegative()).query(({ ctx }) => ctx.services.rosterPreset.count({ principal: ctx.auth })),
+
+  list: authedProcedure
+    .output(z.array(rosterPresetSummarySchema))
+    .input(z.object({ limit: z.number().int().min(1).max(HOME_ROSTER_PREVIEW_LIMIT).optional() }).optional())
+    .query(({ ctx, input }) => ctx.services.rosterPreset.list({ principal: ctx.auth, ...(input?.limit === undefined ? {} : { limit: input.limit }) })),
 
   get: authedProcedure
     .output(rosterPresetViewSchema)

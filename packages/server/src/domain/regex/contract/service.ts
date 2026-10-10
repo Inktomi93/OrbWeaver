@@ -90,6 +90,7 @@ export interface RegexContext {
 
 export interface RegexService {
   /** The caller's library, newest first. */
+  readonly countScripts: (params: ListScriptsParams) => Promise<number>;
   readonly listScripts: (params: ListScriptsParams) => Promise<RegexScriptRow[]>;
   readonly getScript: (params: GetScriptParams) => Promise<RegexScriptRow>;
   readonly createScript: (params: CreateScriptParams) => Promise<RegexScriptRow>;

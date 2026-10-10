@@ -12,6 +12,7 @@ import type { ImportWindow } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
+import { optimizeDb } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { AssetsContext, AssetsService } from "#domain/assets";
@@ -307,6 +308,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
         };
       }),
     reconcileImportStats,
+    refreshPlannerStats: () => optimizeDb(db),
     // #23: the terminal "your library changed" fan for a background import. `chatsChanged` (chatId absent)
     // already drives BOTH the chat list AND `character.list` in the client's user-bus map; `charactersChanged`
     // is emitted too so a characters-only import (no chats) still refreshes. The always-on client user-bus

@@ -54,7 +54,7 @@ function applyResult(over: Partial<TrpcFixtureOutput<"rosterPreset.applyToChat">
 }
 
 test("lists each roster with its description or its scent, and names what each Start applies", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "rosterPreset.list": [SAVED, SPIRE], "automation.listRulePresets": [] });
+  const trpc = await routeTrpc(page, { "rosterPreset.list": [SAVED, SPIRE], "rosterPreset.count": 2, "automation.listRulePresets": [] });
 
   await mount(<HomeRostersTileStory />);
 
@@ -70,6 +70,7 @@ test("lists each roster with its description or its scent, and names what each S
 test("one press starts the room with the roster's cast in order, then applies the roster and reports the start", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "rosterPreset.list": [SPIRE],
+    "rosterPreset.count": 1,
     "automation.listRulePresets": [],
     "chat.startChat": { chat: { id: "chat_started_ct", viewerIsHost: true, participants: [] } },
     "rosterPreset.applyToChat": applyResult({ alreadyPresent: ["character_ct_morgatha", "character_ct_sabine", "character_ct_calamity"] }),
@@ -93,6 +94,7 @@ test("one press starts the room with the roster's cast in order, then applies th
 test("a campaign roster says it starts a game, and its press hands the game to the room's creation", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "rosterPreset.list": [CAMPAIGN],
+    "rosterPreset.count": 1,
     "automation.listRulePresets": [],
     "chat.startChat": { chat: { id: "chat_campaign_ct", viewerIsHost: true, participants: [] } },
     "rosterPreset.applyToChat": applyResult({ alreadyPresent: ["character_ct_morgatha", "character_ct_sabine", "character_ct_calamity"] }),
@@ -120,36 +122,36 @@ const REMEMBERED_ROSTERS_PX = 333;
 
 test("a device with no memory reserves the tile while the library loads", async ({ mount, page }) => {
   const list = trpcHold();
-  await routeTrpc(page, { "rosterPreset.list": list, "automation.listRulePresets": [] });
+  await routeTrpc(page, { "rosterPreset.count": list, "rosterPreset.list": [SPIRE], "automation.listRulePresets": [] });
 
   await mount(<HomeRostersTileStory />);
   await list.requested;
   await expect(page.locator(`${ROSTERS_TILE} [aria-busy]`)).toBeVisible();
-  list.release([SPIRE]);
+  list.release(1);
 
   await expect(page.getByRole("heading", { name: "Rosters" })).toBeVisible();
 });
 
 test("a device that saw the library settle empty reserves nothing while it loads", async ({ mount, page }) => {
   const list = trpcHold();
-  await routeTrpc(page, { "rosterPreset.list": list, "automation.listRulePresets": [] });
+  await routeTrpc(page, { "rosterPreset.count": list, "rosterPreset.list": [SPIRE], "automation.listRulePresets": [] });
 
   await mount(<HomeSettledHiddenRostersTileStory />);
   await list.requested;
   await expect(page.locator(ROSTERS_TILE)).toHaveCount(0);
-  list.release([SPIRE]);
+  list.release(1);
 
   await expect(page.getByRole("heading", { name: "Rosters" })).toBeVisible();
 });
 
 test("an empty library renders no tile, and forgets the box a device remembered", async ({ mount, page }) => {
   const list = trpcHold();
-  await routeTrpc(page, { "rosterPreset.list": list, "automation.listRulePresets": [] });
+  await routeTrpc(page, { "rosterPreset.count": list, "rosterPreset.list": [SPIRE], "automation.listRulePresets": [] });
 
   await mount(<HomeRememberedRostersTileStory box={REMEMBERED_ROSTERS_PX} />);
   await list.requested;
   await expect(page.locator(`${ROSTERS_TILE} [data-tile-reserve-source="measured"]`)).toHaveAttribute("data-tile-reserved", String(REMEMBERED_ROSTERS_PX));
-  list.release([]);
+  list.release(0);
 
   await expect(page.getByRole("heading", { name: "Rosters" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^Start a chat with/ })).toHaveCount(0);

@@ -1,11 +1,5 @@
-// SectionContent — the CONTENT-region multiplexer: renders every kept section's content simultaneously
-// and marks inactive ones `<Activity mode="hidden">`, so switching the rail back is instant with scroll/
-// form state intact instead of unmounting the heavy pane (chat thread, editors). LIST/CONTEXT stay
-// swap-per-section since they're lightweight and their selection already survives via the stores.
-//
-// Only a recency window of sections (KEEP_MOUNTED_LIMIT) stays mounted — bounding retained DOM/subscriptions.
-// Focus restore on reveal is a WCAG obligation (a hidden Activity subtree can't hold focus); it runs in
-// useLayoutEffect because Activity unmounts effects synchronously with the hide, before a passive effect fires.
+// CONTENT retains a bounded window of keyed Activities, preserving warm scroll and form state.
+// Cold list-primary bodies remain unmounted; reveal rescues lost focus without stealing surviving controls.
 
 import type { ReactElement, ReactNode, RefObject } from "react";
 // biome's resolver can't see Activity as a named export through react's namespace merge; this file carries a scoped noUnresolvedImports override — tsc remains the real gate.
@@ -19,6 +13,7 @@ const KEEP_MOUNTED_LIMIT = 3;
 
 export interface SectionContentProps {
   readonly activeSection: SectionId;
+  readonly visible: boolean;
   /** Only wired sections are eligible to stay mounted; the unwired fallback is not kept here. */
   readonly contentBySection: Partial<Record<SectionId, ReactNode>>;
   /** The active-section fallback, rendered only when the active section has no wired body — never kept mounted. */
@@ -32,54 +27,68 @@ function pushRecent(window: readonly SectionId[], active: SectionId): SectionId[
   return [active, ...window.filter((id) => id !== active)].slice(0, KEEP_MOUNTED_LIMIT);
 }
 
-export function SectionContent({ activeSection, contentBySection, fallback, focusAnchorRef }: SectionContentProps): ReactElement {
+export function SectionContent({ activeSection, visible, contentBySection, fallback, focusAnchorRef }: SectionContentProps): ReactElement {
   const registry = useSectionRegistry();
   const activeBody = contentBySection[activeSection];
   // Advanced via React's "adjust state during render" pattern, not a mid-render ref mutation (which react-hooks/refs bans as a concurrent-safety hazard).
   const hasActiveBody = activeBody !== undefined;
   const [kept, setKept] = useState<readonly SectionId[]>([]);
   const [windowedFor, setWindowedFor] = useState<SectionId | null>(null);
-  if (hasActiveBody && activeSection !== windowedFor) {
+  if (visible && hasActiveBody && activeSection !== windowedFor) {
     setWindowedFor(activeSection);
     setKept((recencyWindow) => pushRecent(recencyWindow, activeSection));
   }
 
-  const prevActiveRef = useRef<SectionId>(activeSection);
+  const prevActiveRef = useRef({ section: activeSection, visible, body: activeBody });
+  const revealPending = useRef(false);
   useLayoutEffect(() => {
-    if (prevActiveRef.current === activeSection) {
+    const previous = prevActiveRef.current;
+    prevActiveRef.current = { section: activeSection, visible, body: activeBody };
+    if (!visible) {
+      revealPending.current = false;
       return;
     }
-    prevActiveRef.current = activeSection;
-    // Restore focus to the content anchor ONLY when the swap actually DROPPED focus — i.e. the element
-    // that held it was inside the content Activity now being hidden, so the browser has already moved focus
-    // to <body>/null (a display:none subtree cannot hold it). Stealing focus UNCONDITIONALLY also fired on
-    // rail NAVIGATION, where focus sits on the rail button the user just activated: it yanked focus into
-    // <main>, PAST the LIST pane's primary create action (the band is DOM-before <main>), so a forward-Tab
-    // could never reach "New character" et al. on any library section (a11y #283). Left where it is, the
-    // natural DOM order (rail → list-band primary → content) keeps that primary in the arrival tab order,
-    // while the genuine focus-loss case (WCAG: a hidden subtree can't hold focus) is still restored below.
-    const active = document.activeElement;
-    if (active === null || active === document.body) {
-      focusAnchorRef.current?.focus();
+    if (previous.section === activeSection && previous.visible && !revealPending.current) {
+      return;
     }
-  }, [activeSection, focusAnchorRef]);
+    // A replacing body cancels the old callback, not the still-unsettled reveal intent.
+    revealPending.current = true;
+    const origin = document.activeElement;
+    // Browser focus loss can follow React's layout effects; rescue only the hidden origin, never surviving rail/portal focus.
+    const timer = setTimeout(() => {
+      revealPending.current = false;
+      if (prevActiveRef.current.body !== activeBody) {
+        return;
+      }
+      const active = document.activeElement;
+      const lostOrigin = active !== null && active === origin && (active.closest("[inert]") !== null || active.getClientRects().length === 0);
+      const anchor = focusAnchorRef.current;
+      if (
+        (active === null || active === document.body || lostOrigin) &&
+        anchor !== null &&
+        anchor.closest("[inert]") === null &&
+        anchor.getClientRects().length > 0
+      ) {
+        anchor.focus({ preventScroll: true });
+      }
+    });
+    return (): void => clearTimeout(timer);
+  }, [activeSection, activeBody, focusAnchorRef, visible]);
 
   return (
     <>
-      <Activity mode="visible" name={`section:${activeSection}`}>
+      {!hasActiveBody && visible ? (
         <RegionAnchor region="content" inset={registry.get(activeSection).contentInset === "section"}>
-          {activeBody ?? fallback}
+          {fallback}
         </RegionAnchor>
-      </Activity>
-      {kept
-        .filter((id) => id !== activeSection)
-        .map((id) => (
-          <Activity key={id} mode="hidden" name={`section:${id}`}>
-            <RegionAnchor region="content" inset={registry.get(id).contentInset === "section"}>
-              {contentBySection[id]}
-            </RegionAnchor>
-          </Activity>
-        ))}
+      ) : null}
+      {kept.map((id) => (
+        <Activity key={id} mode={id === activeSection && visible ? "visible" : "hidden"} name={`section:${id}`}>
+          <RegionAnchor region="content" inset={registry.get(id).contentInset === "section"}>
+            {contentBySection[id]}
+          </RegionAnchor>
+        </Activity>
+      ))}
     </>
   );
 }

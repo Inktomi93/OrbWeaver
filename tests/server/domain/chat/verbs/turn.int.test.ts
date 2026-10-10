@@ -70,6 +70,7 @@ import type { SeededIds } from "../../../../support/ids.ts";
 import { testModelId } from "../../../../support/inference-identities.ts";
 import { CUSTOM_SYSTEM_TEMPLATE, utilityPresetResolver } from "../../../../support/utility-preset.ts";
 import {
+  batchParticipantViews,
   FROZEN_AT,
   makeChatContext,
   makeLoadParticipantViews,
@@ -858,6 +859,7 @@ describe("send / impersonate — persona attribution fallback", () => {
     const unused = (): Promise<never> => Promise.reject(new Error("unused: getChat reads only the roster here"));
     const read = createRead(makeChatContext(db), {
       loadParticipantViews: makeLoadParticipantViews(db),
+      loadParticipantViewsBatch: batchParticipantViews(makeLoadParticipantViews(db)),
       resolveConnection: unused,
       checkSendAvailability: unused,
       getNextTurnConnection: unused,

@@ -23,30 +23,16 @@
 // this verb answers "what buckets exist and how big are they", which is the half the client cannot know.
 
 import type { CharacterContext } from "../context.ts";
-import type { CharacterListFilter, ListCharacterTagGroupsParams } from "../contract/params.ts";
+import type { ListCharacterTagGroupsParams } from "../contract/params.ts";
 import type { ListCharacterTagGroupsResult } from "../contract/results.ts";
 import type { CharacterService } from "../contract/service.ts";
 import { countOwnedCharactersByVisibleTag, countOwnedCharactersWithoutVisibleTag } from "../persistence/queries.ts";
 
-/** The request's LENS axes, normalized exactly as `list` normalizes them — same trim/lowercase for the
- *  search needle, same "an empty include/exclude list is ABSENCE", same tri-state booleans. Spelled here
- *  rather than imported from `list.ts` because a verb does not import a sibling verb; what must not drift is
- *  the PREDICATE, and that is `ownedCharacterScope`, which both reads share. */
-function lensFilterOf(params: ListCharacterTagGroupsParams): CharacterListFilter {
-  const { search, starred, archived, includeTagIds, excludeTagIds } = params;
-  const needle = search?.trim().toLowerCase() ?? "";
-  return {
-    ...(needle === "" ? {} : { search: needle }),
-    ...(starred === undefined ? {} : { starred }),
-    ...(archived === undefined ? {} : { archived }),
-    ...(includeTagIds === undefined || includeTagIds.length === 0 ? {} : { includeTagIds }),
-    ...(excludeTagIds === undefined || excludeTagIds.length === 0 ? {} : { excludeTagIds }),
-  };
-}
+import { characterListLens } from "../substrate/list-lens.ts";
 
 export function createListTagGroups(ctx: CharacterContext): CharacterService["listTagGroups"] {
   return async (params: ListCharacterTagGroupsParams): Promise<ListCharacterTagGroupsResult> => {
-    const filter = lensFilterOf(params);
+    const filter = characterListLens(params);
     // TWO COUNTS, not one and a subtraction: a character with two visible tags is counted in both of its
     // groups, so the group counts do not sum to the matched total and `totalCount − sum` would go negative
     // on a well-tagged library. Sequential rather than concurrent — these are two cheap indexed aggregates
