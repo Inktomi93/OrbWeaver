@@ -38,4 +38,4 @@ Qualified migrated clone:
 /tmp/retain-image-analysis-clone-ZUijZK/orbweaver.db
 ```
 
-Main integration and landing remain pending the memory repair's authenticated runtime check.
+Landing remains pending the authenticated runtime check in [the memory repair](0821-bound-memory-during-local-embedding-and-reranking.md).

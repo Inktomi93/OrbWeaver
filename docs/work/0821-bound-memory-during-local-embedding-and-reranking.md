@@ -21,7 +21,7 @@ Bound native inference with the deployed cached models. Reserve server CPU headr
 
 ## Evidence
 
-Production runs the memory repair `f0d3a735abf06ee2acc69972fb8d8b8844a72124`. The CPU headroom extension remains in implementation.
+Production runs `6ce73829e43b906e88b4dbcfaed229f2205c1db9`, including the reviewed memory repair and native worker CPU budget.
 
 Bounded native text and image inference passed repeated cached-model probes with embedding and reranking loaded together. The packaged application passed isolated indexing with an eight GiB memory limit and swap disabled. Users, encrypted credentials and source data remained unchanged.
 
