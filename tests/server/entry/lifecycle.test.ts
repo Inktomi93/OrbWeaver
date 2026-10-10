@@ -1,21 +1,15 @@
-// entry/lifecycle — DRAIN-UNBOUNDED: the owed test for the bounded-drain shutdown.
-// `drainHttpServer` is exported specifically so this can drive it against a REAL open socket rather than only
-// being provable live — a request whose response is IN FLIGHT (written but never `.end()`ed) is exactly the
-// SSE case: the server has an open connection with nothing further to finish, so `server.close()` alone would
-// hang forever. Asserts the forced path completes within drainMs + slack AND that the warn fired.
+// A real in-flight HTTP stream must remain open until the owned drain deadline forces it closed.
 
 import { createServer, Server } from "node:http";
 import type { AddressInfo, Socket } from "node:net";
 import { connect } from "node:net";
-import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { afterEach, describe, vi } from "vitest";
 import { drainHttpServer, HTTP_SERVER_TIMEOUTS, serveHttpServer } from "../../../packages/server/src/entry/lifecycle.ts";
+import { createManualTimer } from "../../support/clock.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const DRAIN_MS = 200;
-const SLACK_MS = 500;
-const NS_PER_MS = 1_000_000;
 const SHORT_REQUEST_TIMEOUT_MS = 40;
 const STREAM_HOLD_MS = 100;
 const STREAM_READ_DEADLINE_MS = 500;
@@ -158,14 +152,6 @@ describe("HTTP server timeout policy", () => {
   });
 });
 
-/** Monotonic elapsed-ms via `process.hrtime` — not the ambient wall clock the determinism gate bans. This
- *  test measures REAL timer behavior (the forced-drain deadline racing a real `setTimeout`), so there is no
- *  frozen clock to inject; hrtime is the monotonic equivalent for a duration measurement. */
-function elapsedMsNow(): number {
-  // @orb-waive test-determinism(process.hrtime): the SUBJECT is elapsed real time — the forced-drain deadline races a real setTimeout, no frozen clock to inject (#831)
-  return Number(process.hrtime.bigint()) / NS_PER_MS;
-}
-
 describe("drainHttpServer — the bounded drain (DRAIN-UNBOUNDED)", () => {
   let server: ReturnType<typeof createServer> | undefined;
 
@@ -174,7 +160,7 @@ describe("drainHttpServer — the bounded drain (DRAIN-UNBOUNDED)", () => {
     server = undefined;
   });
 
-  test("a held-open stream (an in-flight response that never ends) is force-closed at the deadline, and the warn fires", async () => {
+  test.each(["controlled", "native"] as const)("a held-open stream is force-closed at the %s deadline, and the warn fires", async (timerKind) => {
     // The SSE shape exactly: a request IN FLIGHT whose response never completes. `closeIdleConnections()`
     // (called unconditionally at drain start) only drops keep-alive sockets with NOTHING in flight — a raw
     // socket that never sends a request qualifies as idle and would be dropped immediately, which would not
@@ -201,22 +187,41 @@ describe("drainHttpServer — the bounded drain (DRAIN-UNBOUNDED)", () => {
       socket.once("error", reject);
     });
 
-    const warn = vi.fn();
-    const startedAt = elapsedMsNow();
-    await drainHttpServer(server, { warn }, DRAIN_MS);
-    const elapsedMs = elapsedMsNow() - startedAt;
+    try {
+      const timer = createManualTimer();
+      const warn = vi.fn();
+      const forceClose = vi.spyOn(server, "closeAllConnections");
+      const socketClosed = new Promise<void>((resolve) => socket.once("close", () => resolve()));
+      let settled = false;
+      const drained = drainHttpServer(server, { warn }, DRAIN_MS, timerKind === "controlled" ? timer.schedule : undefined).then(() => {
+        settled = true;
+      });
+      expect(timer.armed()).toEqual(timerKind === "controlled" ? [DRAIN_MS] : []);
+      await Promise.resolve();
+      expect(settled).toBe(false);
+      expect(warn).not.toHaveBeenCalled();
+      expect(forceClose).not.toHaveBeenCalled();
 
-    expect(elapsedMs).toBeGreaterThanOrEqual(DRAIN_MS);
-    expect(elapsedMs).toBeLessThan(DRAIN_MS + SLACK_MS);
-    expect(warn).toHaveBeenCalledTimes(1);
-    const [fields, msg] = warn.mock.calls[0] ?? [];
-    expect(fields).toMatchObject({ drainMs: DRAIN_MS });
-    expect(msg).toContain("drain deadline hit");
-
-    socket.destroy();
+      if (timerKind === "controlled") {
+        timer.fire();
+      }
+      await drained;
+      await socketClosed;
+      expect(settled).toBe(true);
+      expect(forceClose).toHaveBeenCalledTimes(1);
+      expect(server.listening).toBe(false);
+      expect(socket.destroyed).toBe(true);
+      expect(warn).toHaveBeenCalledTimes(1);
+      const [fields, msg] = warn.mock.calls[0] ?? [];
+      expect(fields).toMatchObject({ drainMs: DRAIN_MS });
+      expect(msg).toContain("drain deadline hit");
+      expect(timer.armed()).toEqual([]);
+    } finally {
+      socket.destroy();
+    }
   });
 
-  test("no open connections drains on the fast path — no warn, well under the deadline", async () => {
+  test("no open connections drains before the deadline and cancels its timer without a late warning", async () => {
     server = createServer((_req, res) => {
       res.end("ok");
     });
@@ -225,12 +230,44 @@ describe("drainHttpServer — the bounded drain (DRAIN-UNBOUNDED)", () => {
     });
 
     const warn = vi.fn();
-    const startedAt = elapsedMsNow();
-    await drainHttpServer(server, { warn }, DRAIN_MS);
-    const elapsedMs = elapsedMsNow() - startedAt;
+    const timer = createManualTimer();
+    const forceClose = vi.spyOn(server, "closeAllConnections");
+    await drainHttpServer(server, { warn }, DRAIN_MS, timer.schedule);
 
-    expect(elapsedMs).toBeLessThan(DRAIN_MS);
+    expect(timer.cancelled()).toEqual([DRAIN_MS]);
+    expect(timer.armed()).toEqual([]);
+    timer.fire();
+    await Promise.resolve();
+    expect(forceClose).not.toHaveBeenCalled();
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  test("forcing connections does not complete the drain before the server close callback", async () => {
+    const handle = createServer();
+    server = handle;
+    let completeClose: (() => void) | undefined;
+    vi.spyOn(server, "close").mockImplementation((callback) => {
+      completeClose = (): void => callback?.();
+      return handle;
+    });
+    const forceClose = vi.spyOn(server, "closeAllConnections");
+    const warn = vi.fn();
+    const timer = createManualTimer();
+    let settled = false;
+    const drained = drainHttpServer(server, { warn }, DRAIN_MS, timer.schedule).then(() => {
+      settled = true;
+    });
+    expect(timer.armed()).toEqual([DRAIN_MS]);
+    timer.fire();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(forceClose).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(settled).toBe(false);
+    expect(completeClose).toBeTypeOf("function");
+    completeClose?.();
+    await drained;
+    expect(settled).toBe(true);
   });
 });
 

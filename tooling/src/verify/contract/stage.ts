@@ -100,7 +100,7 @@ export interface StageDef {
 export const STAGE_MODES = ["full", "scoped", "deferred", "skipped"] as const;
 export type StageMode = (typeof STAGE_MODES)[number];
 
-export interface StagePartitionResult {
+interface StagePartitionResult {
   readonly key: string;
   readonly result: StageResult;
 }

@@ -198,7 +198,15 @@ export async function drainWorkloadsWorker(worker: OwnedWorkloadsWorker): Promis
  *  Exported (not a `createLifecycle` closure) so the forced path is directly testable against a real open
  *  socket, rather than only provable live (`DRAIN-UNBOUNDED`).
  */
-export async function drainHttpServer(handle: ServerType, log: DrainLog, drainMs: number = SHUTDOWN_DRAIN_MS): Promise<void> {
+export async function drainHttpServer(
+  handle: ServerType,
+  log: DrainLog,
+  drainMs: number = SHUTDOWN_DRAIN_MS,
+  scheduleTimeout: (run: () => void, ms: number) => () => void = (run, ms) => {
+    const timer = setTimeout(run, ms);
+    return () => clearTimeout(timer);
+  },
+): Promise<void> {
   const closed = new Promise<void>((resolve) => {
     handle.close(() => {
       resolve();
@@ -210,9 +218,9 @@ export async function drainHttpServer(handle: ServerType, log: DrainLog, drainMs
   const closer = connectionCloser(handle);
   // Keep-alive sockets sitting idle between requests: nothing in flight, drop them now rather than wait.
   closer?.closeIdleConnections();
-  let timer: NodeJS.Timeout | undefined;
+  let cancelDeadline: (() => void) | undefined;
   const deadline = new Promise<"forced">((resolve) => {
-    timer = setTimeout(() => {
+    cancelDeadline = scheduleTimeout(() => {
       resolve("forced");
     }, drainMs);
   });
@@ -222,9 +230,7 @@ export async function drainHttpServer(handle: ServerType, log: DrainLog, drainMs
     closer?.closeAllConnections();
     await closed;
   }
-  if (timer !== undefined) {
-    clearTimeout(timer);
-  }
+  cancelDeadline?.();
 }
 
 /** One `setInterval` as a stop-function — the `scheduleInterval`/`scheduleTimeout` shape every scheduler and
