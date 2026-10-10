@@ -35,11 +35,11 @@ export interface AmbientStripProps {
   /** Commit an ambient field — present ⇒ editable; absent ⇒ read-only. `null` is the CLEAR (the store's own
    *  [merge-clear] vocabulary), which is how a closed-vocab field is unset without minting a vocabulary
    *  member for "nothing"; a string is a set. */
-  readonly onEditField?: (field: "location" | "date" | "timeOfDay" | "weather", next: string | null) => void;
+  readonly onEditField?: (field: AmbientField, next: string | null) => void;
   /** Optional per-field lock indicator (the-lock-consequence-is-visible) — the feature supplies a
    *  render (the pin + Release) for a field whose hand-edit auto-stamped a lock; `undefined` ⇒ no pin. The
    *  field→lock-path mapping is domain knowledge, so it lives in the caller (this shared block is agnostic). */
-  readonly lockSlot?: (field: "location" | "date" | "timeOfDay" | "weather") => ReactNode;
+  readonly lockSlot?: (field: AmbientField) => ReactNode;
 }
 
 const AMBIENT_FIELDS = [

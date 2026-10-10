@@ -77,8 +77,6 @@ const SEED_COVERED = new Set<string>(["color.backdrop"]);
 //     color.highlight (mark and ink are the same decision on a dark page), the light arm oklch(0.48 0.12 100)
 //     in themes/light.json clearing AA-normal on every light ground it touches. Not palette-tracking: a
 //     custom theme keeps the gold, the active arm follows color-scheme exactly as destructive/success do.
-//   • sidebar-primary: an unused reserved alias of `primary` (0 consumers — the rail active state reads
-//     `--color-primary` directly). No chrome renders it, so nothing to theme.
 //   • track-1..6: the D71 track ramp — a categorical ramp for
 //     pool/meter/clock FILLS, keyed by definition order for stable per-category color, meaning never
 //     rides color alone. STATIC (semantic, not palette-tracking) like chart-*, but since #697 it is
@@ -144,7 +142,6 @@ const STATIC_RATIONALE = new Set<string>([
   "color.info-foreground",
   "color.highlight",
   "color.highlight-foreground",
-  "color.sidebar-primary",
   "color.track-1",
   "color.track-2",
   "color.track-3",

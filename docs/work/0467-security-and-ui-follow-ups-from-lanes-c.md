@@ -22,7 +22,18 @@ Each sub-point fixed or declined with a reason in the evidence.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Closing paperwork, cb-ui-cleanup. Status per sub-point:
+
+1. Mermaid dead option: done in f5e10a3450 (option removed).
+2. update-check repo spelling: done in f5e10a3450 (`ORBWEAVER_REPO_SLUG`).
+3. Phone topbar with Report a bug: visual and unverified; needs a side-eye pass at a phone width.
+4. Label each speaker in per-speaker rooms: done in f5e10a3450 (disabled there).
+5. Home doorway fold and foot pairing: declined, owner-ruled FOLD not cut.
+6. Throughput 0.0 t/s: done; `throughputProvenance` returns "unrecorded" at zero generation time and the readouts print an em dash (`analytics-view-model.ts:189-199`, asserted in `analytics-view-model.dom.test.ts`).
+7. replyMedia knob: done in f5e10a3450.
+8. buddyDormantTile is gone (no live hit); the oracle-deck comment now says Plugins, matching the rail group (`seed-example-plugins.int.test.ts:433`).
+9. Jargon "Auto (arbitrate)": done in f5e10a3450 ("Let the room pick").
+10. Interactive-cards fork: closed by owner ruling (existing toggle plus per-character steps; default on).
 
 Partly built in f5e10a3450 (merged 1e7b7b9ac5): mermaid option removed, ORBWEAVER_REPO_SLUG, Label each speaker disabled in per-speaker rooms, throughputProvenance, replyMedia knob, Plugin pages copy, Let the room pick. Still open: the phone topbar with Report a bug (side-eye); the home doorway fold (declined, owner-ruled FOLD not cut); the OWNER fork on interactive cards (off / opt-in / default ceiling instead of a boolean).
 

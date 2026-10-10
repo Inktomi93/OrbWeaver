@@ -1,13 +1,13 @@
 // The seed-palette + derived-output WCAG-AA enforcement gate (#16, part 3). Two failure classes this
 // locks out of `pnpm test` (so neither needs a side-eye round to catch):
 //   1. a STATIC seed token (tokens.json → theme.css) whose body-text pairing drops below AA 4.5:1;
-//   2. a DERIVATION retune (clamp.ts THEME_DERIVATION) that pushes a derived foreground below AA on a
+//   2. a DERIVATION retune (kit theme-derivation THEME_DERIVATION) that pushes a derived foreground below AA on a
 //      realistic light OR dark base.
 // It recomputes every pairing in HOUSE oklch→sRGB math (no dependency) and reuses the WCAG contrast
 // helpers the design-audit probe already owns. Translucent tokens (the --color-input field fill, 0.12α)
 // are ALPHA-COMPOSITED over their backdrop before measuring — a naive contrast on an alpha value lies
 // (the same reason snap.ts's --contrast grew compositeOver). The static values are read from the
-// generated TOKENS map and the derivation constants from clamp.ts, so both are drift-free single sources.
+// generated TOKENS map and the derivation constants from @orb/kit/theme-derivation, so both are drift-free single sources.
 import { BACKGROUND_DIM_MIN } from "@orb/contracts/settings/appearance";
 import type { RampDeltas } from "@orb/kit/theme-derivation";
 import {
@@ -20,11 +20,12 @@ import {
   readingPlateForeground,
   shadowIngredients,
   surfacePolarity,
+  THEME_DERIVATION,
 } from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/_shared/wcag";
 import { contrastRatio, LARGE_MIN_RATIO, NORMAL_MIN_RATIO, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/_shared/wcag";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
-import { clampThemeTokens, THEME_DERIVATION } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
+import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { compositedBase } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 

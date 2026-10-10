@@ -23,3 +23,5 @@ Consumers use the kit export and relevant contrast and derivation behavior remai
 ## Evidence
 
 Source audit: `/tmp/claude-launch-alias-audit/results.json` and its summary. Main checked the relevant declarations and canonical ownership. Implementation and affected checks remain pending.
+
+Done in cb-ui-cleanup. Production has no consumer of the alias (`derive-vars.ts` and `clamp.ts` import from `@orb/kit/theme-derivation`). Removed the `THEME_DERIVATION` forwarding export from `packages/ui/src/content/theme-scope/clamp.ts`, repointed `palette-contrast.suite.test.ts` to the kit export, and deleted the alias-identity test in `tests/kit/theme-derivation/index.test.ts`. Ran that file, `palette-contrast.suite.test.ts` and `clamp.test.ts`: all pass; ui, client and test typechecks pass.

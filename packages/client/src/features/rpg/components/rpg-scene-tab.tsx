@@ -17,6 +17,7 @@ import { Button } from "@orb/ui/button";
 import { Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
+import type { AmbientStripProps } from "#components";
 import { AmbientStrip, BeatLine, GoalLine, MeterRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { revealContextPanel } from "#state";
@@ -34,6 +35,9 @@ import { SceneKnownCharacters, SceneNpcs } from "./rpg-scene-npcs.tsx";
 
 const RECENT_BEATS = 3;
 
+// The strip's own field vocabulary, read off its props so this tab never re-spells the key union.
+type AmbientField = Parameters<NonNullable<AmbientStripProps["onEditField"]>>[0];
+
 /** The CLEAR overlay for one ambient field — the [merge-clear] `null` where the leaf is nullable, and the
  *  leaf's own empty value where it is not. `location` is a TOTAL string in the snapshot state (its empty
  *  value is `""`), and the hand door REFUSES a `null` there rather than coercing it (edit-snapshot.ts gate 2),
@@ -44,7 +48,7 @@ const RECENT_BEATS = 3;
  *  host is CARRYING (see {@link clearTimePatch}). Clearing the whole `clock` plane would take `day N` with
  *  it — a fact with no other host-side door to restore — so the field-scoped clears that CAN be constants
  *  live here and the one that cannot is built per call rather than smuggled in as `{clock: null}`. */
-const AMBIENT_CLEAR: Readonly<Record<"location" | "date" | "weather", Partial<RpgSnapshotState>>> = {
+const AMBIENT_CLEAR: Readonly<Record<Exclude<AmbientField, "timeOfDay">, Partial<RpgSnapshotState>>> = {
   location: { location: "" },
   date: { calendarDate: null },
   weather: { weather: null },
@@ -67,7 +71,7 @@ function clearTimePatch(currentDay: number): Partial<RpgSnapshotState> {
  *  the label→hour mapping). `next === null` is the strip's CLEAR (a closed-vocab field has no "nothing"
  *  member, so the clear rides the field's nullability — see the strip's header). Returns `null` for an
  *  unknown timeOfDay label (no-op). */
-function ambientPatch(field: "location" | "date" | "timeOfDay" | "weather", next: string | null, currentDay: number): Partial<RpgSnapshotState> | null {
+function ambientPatch(field: AmbientField, next: string | null, currentDay: number): Partial<RpgSnapshotState> | null {
   if (next === null) {
     return field === "timeOfDay" ? clearTimePatch(currentDay) : AMBIENT_CLEAR[field];
   }
@@ -97,7 +101,7 @@ export interface RpgSceneTabProps {
 /** The ambient field → snapshot lock-path map — the domain knowledge that lives in the feature,
  *  not the shared AmbientStrip. A hand edit of `date` locks the `calendarDate` path, `timeOfDay` locks
  *  `clock`; `location`/`weather` are their own paths. */
-const AMBIENT_LOCK_PATH: Readonly<Record<"location" | "date" | "timeOfDay" | "weather", keyof typeof LOCK_PATH_NAME>> = {
+const AMBIENT_LOCK_PATH: Readonly<Record<AmbientField, keyof typeof LOCK_PATH_NAME>> = {
   location: "location",
   date: "calendarDate",
   timeOfDay: "clock",
@@ -109,7 +113,7 @@ const AMBIENT_LOCK_PATH: Readonly<Record<"location" | "date" | "timeOfDay" | "we
  *  NOTE (#39 dual-homing): goals are NOT edited here — the Quests tab is the quest plane's ONE edit home;
  *  a Scene goal row NAVIGATES there (`revealContextPanel("rpg.quests")`), never a second editor. */
 interface SceneEditCallbacks {
-  readonly onEditAmbient?: (field: "location" | "date" | "timeOfDay" | "weather", next: string | null) => void;
+  readonly onEditAmbient?: (field: AmbientField, next: string | null) => void;
   readonly npcEdit?: SceneNpcEdit;
   readonly onEditGameTracker?: (entry: RpgTrackerEntry, next: number) => void;
   /** Release a hand-lock path back to the model. Present only for a host (same gate as the edits). */
@@ -201,7 +205,7 @@ function sectionLockPin(locked: ReadonlySet<string>, path: keyof typeof LOCK_PAT
 function ambientStripProps(
   ambient: RpgTrackerView["ambient"],
   locked: ReadonlySet<string>,
-  onEditAmbient: ((field: "location" | "date" | "timeOfDay" | "weather", next: string | null) => void) | undefined,
+  onEditAmbient: ((field: AmbientField, next: string | null) => void) | undefined,
   onReleaseLock: ((path: string) => void) | undefined,
 ): Parameters<typeof AmbientStrip>[0] {
   // A clock with a day but NO time reads `null` and the Time field renders unset ("—"), which is exactly
@@ -217,7 +221,7 @@ function ambientStripProps(
     ...(onReleaseLock === undefined
       ? {}
       : {
-          lockSlot: (field: "location" | "date" | "timeOfDay" | "weather"): ReactNode => sectionLockPin(locked, AMBIENT_LOCK_PATH[field], onReleaseLock),
+          lockSlot: (field: AmbientField): ReactNode => sectionLockPin(locked, AMBIENT_LOCK_PATH[field], onReleaseLock),
         }),
   };
 }

@@ -38,7 +38,6 @@ export const TOKENS = {
   "color.ring": { cssVar: "--color-ring", value: "oklch(0.72 0.175 52)" },
   "color.sidebar": { cssVar: "--color-sidebar", value: "oklch(0.132 0.006 60)" },
   "color.sidebar-foreground": { cssVar: "--color-sidebar-foreground", value: "oklch(0.92 0.004 75)" },
-  "color.sidebar-primary": { cssVar: "--color-sidebar-primary", value: "oklch(0.72 0.175 52)" },
   "color.sidebar-accent": { cssVar: "--color-sidebar-accent", value: "oklch(0.235 0.008 60)" },
   "color.sidebar-accent-foreground": { cssVar: "--color-sidebar-accent-foreground", value: "oklch(0.92 0.004 75)" },
   "color.sidebar-border": { cssVar: "--color-sidebar-border", value: "oklch(0.99 0.005 60 / 0.07)" },

@@ -33,16 +33,7 @@ import {
   wcagContrastRatio,
 } from "@orb/kit/theme-derivation";
 import { describe } from "vitest";
-import { THEME_DERIVATION as UI_THEME_DERIVATION } from "../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { expect, test } from "../../support/fixtures.ts";
-
-describe("THEME_DERIVATION", () => {
-  test("is the SAME object the ui clamp exposes — one home, no drift", () => {
-    // If clamp.ts ever re-declares its own numbers, this identity check fails before the divergence can
-    // reach a rendered pixel or a wrong import decision.
-    expect(UI_THEME_DERIVATION).toBe(THEME_DERIVATION);
-  });
-});
 
 describe("shadowIngredients (#243 — the polarity-derived elevation recipe)", () => {
   const darkBase = { l: 0.158, c: 0.006, h: 60 };

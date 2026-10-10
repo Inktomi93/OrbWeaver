@@ -23,3 +23,5 @@ Membership uses the canonical guard and subset keys remain type-checked. Preserv
 ## Evidence
 
 Source audit: `/tmp/claude-launch-alias-audit/results.json` and its summary. Main checked the relevant declarations and canonical ownership. Implementation and affected checks remain pending.
+
+Done in cb-ui-cleanup. `beltKeyGloss` now gates on `isBeltOwnedBodyKey`; `BELT_STREAM_KEYS` and `BELT_IDENTITY_KEYS` are typed `readonly BeltOwnedBodyKey[]`. The local `BELT_KEYS` alias was deleted rather than kept: replacing its only use left it unused. `connection-editor-model.test.ts` passes (56 tests) and the client typecheck passes. Behaviour is unchanged, so there is no red run; a mistyped subset key now fails typecheck.
