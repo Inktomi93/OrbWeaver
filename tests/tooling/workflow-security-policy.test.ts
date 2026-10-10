@@ -25,7 +25,7 @@ test("CodeQL skips only Dependabot PRs and keeps weekly and dispatch security co
     }
   }
   for (const event of [workflow.on.push, workflow.on.pull_request]) {
-    expect(event["paths-ignore"]).toEqual(["docs/**", "**/*.md", ".github/**"]);
+    expect(event["paths-ignore"]).toEqual(["docs/**", "**/*.md"]);
   }
   expect(workflow.on.schedule).toHaveLength(1);
 });
@@ -86,4 +86,27 @@ test("privileged run approval never checks out candidate code or restores candid
   expect(job.steps[0]?.with).toEqual({ ref: "main", "persist-credentials": false });
   expect(job.steps.some((step) => step.uses?.includes("cache") === true)).toBe(false);
   expect(job.steps.map((step) => step.run ?? "").join("\n")).not.toMatch(/pull_request.head|checkout.*head|release edit|merge/u);
+});
+
+test("CodeQL scheduled runs cannot be cancelled by incoming push or dispatch runs on the same ref", ({ repoRoot }) => {
+  const { concurrency } = z
+    .object({ concurrency: z.object({ group: z.string(), ["cancel-in-progress"]: z.string() }) })
+    .parse(parse(readFileSync(join(repoRoot, ".github/workflows/codeql.yml"), "utf8")));
+  const group = (event: string, refName: string, number = 0, sha = "a".repeat(40)): string =>
+    concurrency.group.replace(/\$\{\{\s*(.*?)\s*\}\}/gu, (_match, expression: string) =>
+      String(runInNewContext(expression, { github: { ["event_name"]: event, ref: refName, sha, event: { ["pull_request"]: { number } } } })),
+    );
+  const ref = "refs/heads/release";
+  const scheduled = group("schedule", ref);
+  expect(scheduled).not.toBe(group("push", ref));
+  expect(scheduled).not.toBe(group("workflow_dispatch", ref));
+  expect(group("push", ref)).toBe(group("push", ref, 0, "b".repeat(40)));
+  expect(group("push", ref)).toBe(group("workflow_dispatch", ref));
+  expect(group("pull_request", "refs/pull/31/merge", 31)).toBe(group("pull_request", "refs/pull/31/merge", 31, "b".repeat(40)));
+  expect(group("pull_request", "refs/pull/31/merge", 31)).not.toBe(group("pull_request", "refs/pull/32/merge", 32));
+  for (const event of ["schedule", "push", "workflow_dispatch", "pull_request"]) {
+    expect(runInNewContext(concurrency["cancel-in-progress"].replace(/^\$\{\{\s*|\s*\}\}$/gu, ""), { github: { ["event_name"]: event } })).toBe(
+      event !== "schedule",
+    );
+  }
 });

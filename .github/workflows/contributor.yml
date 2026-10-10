@@ -1,10 +1,20 @@
 name: Contributor proof
+run-name: Contributor proof · ${{ github.event_name == 'schedule' && 'weekly' || github.ref_name }}
+
+# Native contributor proof exercises dev readiness, rendered Home, clean shutdown, static checks and CT.
+# Install proof separately covers production launch; weekly proof skips only an unchanged, green main SHA.
+# pnpm downloads the pinned Node, and Chromium stays pinned to Playwright rather than an OS browser.
 on:
-  workflow_dispatch: null
+  workflow_dispatch: {}
   schedule:
-    - cron: 53 10 * * 0
+    - cron: "53 10 * * 0"
 permissions:
   contents: read
+
+concurrency:
+  group: contributor-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   head:
     runs-on: ubuntu-24.04
@@ -12,16 +22,18 @@ jobs:
     outputs:
       sha: ${{ steps.sha.outputs.sha }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event_name == 'schedule' && 'main' || github.sha }}
           persist-credentials: false
       - id: sha
+        name: Freeze the selected source revision
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
   contributor:
+    needs: [head]
     name: contributor (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 120
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
@@ -29,38 +41,54 @@ jobs:
           - macos-latest
           - windows-latest
     env:
-      CI: "true"
       HEALTHZ: http://127.0.0.1:8788/healthz
       DEV_ORIGIN: http://localhost:5173
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           ref: ${{ needs.head.outputs.sha }}
+          fetch-depth: 0
       - id: seen
+        name: Look up the completed native proof
         if: github.event_name == 'schedule'
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .native-proof
           key: contributor-v1-${{ matrix.os }}-${{ needs.head.outputs.sha }}
           lookup-only: true
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+      - name: Trial a workspace-scoped Defender exclusion
+        id: defender
+        if: steps.seen.outputs.cache-hit != 'true' && runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        run: Add-MpPreference -ExclusionPath $env:GITHUB_WORKSPACE
+      - name: pnpm install
+        id: install
+        uses: ./.github/actions/setup # zizmor: ignore[self-repository] Scheduled proof executes the selected immutable main checkout.
         if: steps.seen.outputs.cache-hit != 'true'
-      - run: pnpm install --frozen-lockfile
-        if: steps.seen.outputs.cache-hit != 'true'
+        with:
+          browsers: "false"
       - name: Expose the installed pinned Node on PATH
+        id: node-path
         run: pnpm exec node -e "require('node:fs').appendFileSync(process.env.GITHUB_PATH, require('node:path').dirname(process.execPath) + '\n')"
         if: steps.seen.outputs.cache-hit != 'true'
-      - run: pnpm exec node -e "console.log(process.version, process.execPath)"
+      - name: Report the installed pinned Node
+        id: node-version
+        run: pnpm exec node -e "console.log(process.version, process.execPath)"
         if: steps.seen.outputs.cache-hit != 'true'
-      - run: pnpm exec playwright install chromium
+      - name: Install pinned Playwright Chromium
+        id: chromium
+        run: pnpm exec playwright install chromium
         if: steps.seen.outputs.cache-hit != 'true'
       - name: Start pnpm dev and prove server and Vite readiness
+        id: ready
         shell: bash
         run: |
           pnpm ci:contributor-ready
         if: steps.seen.outputs.cache-hit != 'true'
       - name: Capture the ready contributor Home surface
+        id: snap
         shell: bash
         run: pnpm snap --cold-start --base "$DEV_ORIGIN" --map --aria --json --out contributor-home > "$RUNNER_TEMP/contributor-snap.log" 2>&1
         if: steps.seen.outputs.cache-hit != 'true'
@@ -71,11 +99,30 @@ jobs:
         run: |
           pnpm ci:contributor-stop
       - name: Static contributor checks
+        id: static
         if: steps.seen.outputs.cache-hit != 'true' && (!cancelled() && steps.stop-dev.outcome == 'success')
         run: pnpm check
       - name: Fixed component test
+        id: ct
         if: steps.seen.outputs.cache-hit != 'true' && (!cancelled() && steps.stop-dev.outcome == 'success')
         run: pnpm test:ct tests/client/features/chat/components/home-quick-picks-tile-body.ct.tsx
+      - name: Restore the Windows Defender scope
+        if: always() && runner.os == 'Windows' && steps.defender.outcome == 'success'
+        shell: pwsh
+        run: Remove-MpPreference -ExclusionPath $env:GITHUB_WORKSPACE
+      - name: Summarize contributor failure evidence
+        if: failure()
+        shell: bash
+        env:
+          STEPS: ${{ toJSON(steps) }}
+        run: |
+          failed=$(echo "$STEPS" | jq -r 'to_entries[] | select(.value.outcome == "failure") | .key' | paste -sd, -)
+          echo "::error title=Contributor proof (${{ matrix.os }})::Failed steps: $failed"
+          for log in "$RUNNER_TEMP"/contributor-*.log "$RUNNER_TEMP/pnpm-install.log"; do
+            if [[ -f "$log" ]]; then
+              { echo "### ${log##*/}"; echo '```text'; tail -n 80 "$log"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
       - name: Show contributor logs
         if: steps.seen.outputs.cache-hit != 'true' && (always())
         shell: bash
@@ -84,8 +131,8 @@ jobs:
             if [ -f "$log" ]; then cat "$log"; fi
           done
       - name: Upload harness, Snap and dev evidence
-        if: steps.seen.outputs.cache-hit != 'true' && (always())
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: steps.seen.outputs.cache-hit != 'true' && (!cancelled())
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: contributor-${{ matrix.os }}
           path: |
@@ -96,17 +143,14 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
       - id: mark
+        name: Mark the completed native proof
         if: success() && github.event_name == 'schedule' && steps.seen.outputs.cache-hit != 'true'
         env:
           PROOF_SHA: ${{ needs.head.outputs.sha }}
         run: echo "$PROOF_SHA" > .native-proof
       - if: success() && steps.mark.outcome == 'success'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        name: Save the completed native proof marker
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .native-proof
           key: contributor-v1-${{ matrix.os }}-${{ needs.head.outputs.sha }}
-    needs:
-      - head
-concurrency:
-  group: contributor-${{ github.ref }}
-  cancel-in-progress: false

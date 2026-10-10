@@ -34,6 +34,7 @@ const e2eLive = process.env["E2E_LIVE"] === "1";
 const requireLiveEvidence = process.env["E2E_REQUIRE_EVIDENCE"] === "1";
 const requiredLiveReporter = resolve(import.meta.dirname, "tooling/src/verify/ops/required-live-evidence-reporter.ts");
 const reporters: ReporterDescription[] = [
+  ...(process.env["GITHUB_ACTIONS"] ? [["github"] as const] : []),
   ["list"],
   ["json", { outputFile: "reports/e2e-report.json" }],
   ["html", { outputFolder: "reports/e2e-report", open: "never" }],

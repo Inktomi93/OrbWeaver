@@ -41,6 +41,11 @@ jobs:
         id: release
         with:
           target-branch: release
+      - name: Refuse a rerun that lost the original release outputs
+        if: github.run_attempt > 1 && steps.release.outputs.release_created != 'true'
+        run: |
+          echo "::error title=Release::Attempt ${{ github.run_attempt }} created no release. Use 'Re-run failed jobs' so release-please's attempt-1 outputs are kept."
+          exit 1
 
   image:
     needs: release-please
@@ -69,7 +74,12 @@ jobs:
           ref: refs/tags/${{ needs.release-please.outputs.tag_name }}
           persist-credentials: false
 
-      - uses: ./.github/actions/setup
+      # $/ resolves the workflow commit, so the tag checkout must identify the same source before setup.
+      - name: Require the tag and workflow source to agree
+        run: |
+          checkout_sha=$(git rev-parse HEAD)
+          test "$checkout_sha" = "$GITHUB_SHA" || { echo "::error title=Release source::Tag checkout=$checkout_sha differs from workflow source=$GITHUB_SHA"; exit 1; }
+      - uses: $/.github/actions/setup
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
         id: builder
@@ -105,19 +115,29 @@ jobs:
         run: |
           stamp=$(docker run --rm --entrypoint cat "$IMAGE:$VERSION" /app/version.json)
           echo "version.json: $stamp"
-          echo "$stamp" | jq -e --arg version "$VERSION" --arg sha "$SOURCE_SHA" '.version == $version and .channel == "stable" and .commit == $sha'
           revision=$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$IMAGE:$VERSION")
-          test "$revision" = "$SOURCE_SHA"
+          if ! echo "$stamp" | jq -e --arg version "$VERSION" --arg sha "$SOURCE_SHA" '.version == $version and .channel == "stable" and .commit == $sha' || [[ "$revision" != "$SOURCE_SHA" ]]; then
+            stamp=${stamp//%/%25}; stamp=${stamp//$'\r'/%0D}; stamp=${stamp//$'\n'/%0A}
+            echo "::error title=Image identity::stamp=$stamp expected version=$VERSION sha=$SOURCE_SHA channel=stable revision=$revision"
+            exit 1
+          fi
 
       # A critical CVE with a fix available in the image's own packages stops the release before anything is
       # pushed; the weekly Security scans job watches the published image for the rest.
       - name: Refuse critical fixable vulnerabilities
+        id: critical
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.IMAGE }}:${{ env.VERSION }}
           severity: CRITICAL
           ignore-unfixed: true
           exit-code: "1"
+          format: table
+          output: trivy-critical.txt
+      - name: Summarize blocking vulnerabilities
+        if: failure() && steps.critical.outcome == 'failure'
+        run: |
+          { echo '### Blocking vulnerabilities'; echo '```text'; cat trivy-critical.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       # Reuse this builder's verified result, without exporting a runtime image. max retains the
       # intermediate fetch/install stages; cache mounts remain local. A failed export only costs warmth.
@@ -175,6 +195,11 @@ jobs:
         run: |
           export IMAGE_CHANNEL=stable
           bash scripts/ci/anonymous-image-pull.sh
+          {
+            echo "Release: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
+            echo
+            echo "Verify provenance: \`gh attestation verify oci://$IMAGE:$VERSION -R $GITHUB_REPOSITORY\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Advertise the verified image as latest
         env:
@@ -186,6 +211,7 @@ jobs:
   # Failed image jobs leave a recoverable draft. Re-running failed jobs retains the release outputs;
   # the managed notes replace their own block so a failed final publication can be retried safely.
   notes:
+    if: needs.image.result == 'success'
     needs: [release-please, image]
     runs-on: ubuntu-slim
     timeout-minutes: 5
@@ -198,11 +224,16 @@ jobs:
       DIGEST: ${{ needs.image.outputs.digest }}
       SOURCE_SHA: ${{ needs.release-please.outputs.sha }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/tags/${{ needs.release-please.outputs.tag_name }}
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      # $/ resolves the workflow commit, so the tag checkout must identify the same source before setup.
+      - name: Require the tag and workflow source to agree
+        run: |
+          checkout_sha=$(git rev-parse HEAD)
+          test "$checkout_sha" = "$GITHUB_SHA" || { echo "::error title=Release source::Tag checkout=$checkout_sha differs from workflow source=$GITHUB_SHA"; exit 1; }
+      - uses: $/.github/actions/setup
       - name: Add the upgrade steps to the release notes
         run: |
           pnpm exec node scripts/ci/release-promotion.ts
@@ -248,6 +279,8 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     env:
       TAG: ${{ needs.release-please.outputs.plugin_authoring_tag }}
       VERSION: ${{ needs.release-please.outputs.plugin_authoring_version }}
@@ -257,9 +290,18 @@ jobs:
         with:
           ref: refs/tags/${{ needs.release-please.outputs.plugin_authoring_tag }}
           persist-credentials: false
+      # $/ resolves the workflow commit, so the tag checkout must identify the same source before setup.
+      - name: Require the tag and workflow source to agree
+        run: |
+          checkout_sha=$(git rev-parse HEAD)
+          test "$checkout_sha" = "$GITHUB_SHA" || { echo "::error title=Release source::Tag checkout=$checkout_sha differs from workflow source=$GITHUB_SHA"; exit 1; }
       - uses: $/.github/actions/setup
       - name: Build the SDK and toolchain tarballs
         run: pnpm plugin:author-release dist/plugin-authoring
+      - name: Attest the plugin-authoring tarballs
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/plugin-authoring/*.tgz
       - name: Attach the tarballs and publish the release
         run: |
           base="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG"
@@ -272,6 +314,13 @@ jobs:
           pnpm add -D \\
             $base/orb-plugin-sdk-$VERSION.tgz \\
             $base/orb-plugin-toolchain-$VERSION.tgz
+          \`\`\`
+
+          Verify either downloaded tarball against its build provenance:
+
+          \`\`\`bash
+          gh attestation verify orb-plugin-sdk-$VERSION.tgz -R $GITHUB_REPOSITORY
+          gh attestation verify orb-plugin-toolchain-$VERSION.tgz -R $GITHUB_REPOSITORY
           \`\`\`
 
           The [server](https://github.com/Inktomi93/OrbWeaver-plugin-template) and [visual](https://github.com/Inktomi93/OrbWeaver-plugin-template-scripted-ui) plugin starters move to this release on their own within a day.

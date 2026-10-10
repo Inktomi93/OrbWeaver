@@ -266,6 +266,7 @@ export function ctConfig(applicationOnly = false): PlaywrightTestConfig {
     // `CT_NO_FLAKES=1` (this config owns env-decode) flips it STRICT → nonzero exit on any retried test, for
     // the orchestrator's flake-hunt passes.
     reporter: [
+      ...(process.env["GITHUB_ACTIONS"] ? [["github"] as const] : []),
       // json = machine-readable results — extracting the 2 failing names from a 1211-test run without it
       // cost two full re-runs (2026-07-24); the custom flake announcer stays the human-facing summary.
       ["json", { outputFile: "reports/ct-report.json" }],

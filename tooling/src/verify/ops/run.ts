@@ -13,7 +13,7 @@
 //   pnpm verify --file <p…>  → scoped to explicit paths (the check:file muscle memory)
 //   pnpm verify --package <n> / --scope <glob> / --tier <name>  → package / folder / explicit-tier scope
 //   pnpm verify --strict-scope  → a whole-only stage at a scoped tier REFUSES (exit 3) instead of deferring
-//   pnpm verify --verbose    → stream each stage's full output live (default: COMPACT — one START line plus
+//   pnpm verify --verbose    → stream each stage's full output live (local default: COMPACT — one START line plus
 //                              a per-stage ✓/✗ line; full output goes to logs + json, so the console survives
 //                              any head/tail truncation. Verbose is EXPLICIT-only: TTY auto-detection is gone —
 //                              a git hook's stdout is a TTY too, and auto-verbose blasted every push)
@@ -33,7 +33,7 @@
 // makes it a refusal.
 //
 // A WHOLE RUN QUEUES HOST-WIDE (#1835) — `../lib/whole-run-queue.ts` owns that decision and its why.
-import { renameSync, writeFileSync } from "node:fs";
+import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import type { RunSlot } from "@orb/tooling/_shared/artifacts";
@@ -43,6 +43,7 @@ import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { execGit, GIT_READ_PREFIX } from "@orb/tooling/_shared/git";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
+import { processEnvValue } from "@orb/tooling/_shared/process-env";
 import { inheritedRunMarker, mintRunMarker, runLeaseEnv, runMarkerEnv, runMarkerTranscriptTeardown } from "@orb/tooling/_shared/run-marker";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { Selection } from "../contract/selection.ts";
@@ -51,6 +52,7 @@ import { NOTICE_MARKER, VERIFY_INSTRUMENT, VERIFY_REPORT_NAME } from "../contrac
 import { applicationPartitionStages } from "../lib/application-partitions.ts";
 import { colourNeutralParentEnv } from "../lib/child-env.ts";
 import { aggregateExit, noVerdictStages, ownScheme } from "../lib/exit-classifiers.ts";
+import { finishGithubStage, printGithubReport, startGithubStage } from "../lib/github-feedback.ts";
 import { historyAdvisories } from "../lib/history.ts";
 import { aggregateApplicationPartitions, readApplicationPartitionInputs } from "../lib/partition-aggregate.ts";
 import { stagesForTier } from "../lib/registry.ts";
@@ -96,6 +98,14 @@ const EXCERPT_LINES = 8; // failure excerpt: the last N non-blank output lines (
 function failureExcerpt(output: string): string {
   const lines = output.split(/\r?\n/u).filter((l) => l.trim().length > 0);
   return lines.slice(-EXCERPT_LINES).join("\n");
+}
+
+function mutationDryRunNotices(stage: StageDef, transcript: string): readonly string[] {
+  if (stage.name !== "quality:mutation-gate") {
+    return [];
+  }
+  const line = transcript.split(/\r?\n/u).find((row) => /(?:initial test run|dry[ -]?run)[^\n]*(?:timed? out|timeout)/iu.test(row));
+  return line === undefined ? [] : [`dry run timed out: ${line.trim()}`];
 }
 
 /** Lift every `[verify-notice] …` line out of a stage's transcript. A green stage's output otherwise
@@ -170,13 +180,16 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
   const { root, slot, verbose } = ctx;
   const plan = planStage(stage, selection, tier, { root, applicationOnly: ctx.applicationOnly });
   if (plan.mode === "deferred" || plan.mode === "skipped") {
-    return nonRunningStageResult(stage, plan);
+    const nonRunning = nonRunningStageResult(stage, plan);
+    finishGithubStage(nonRunning, "", false);
+    return nonRunning;
   }
   const argv = plan.argv as readonly [string, ...string[]];
   const header = `\n=== ${stage.name} (${argv.join(" ")})${plan.mode === "scoped" ? " [scoped]" : ""} ===\n`;
-  // Compact mode (default): name the active stage, then keep its full output in the per-stage log + json.
+  // Compact mode (local default): name the active stage, then keep its full output in the per-stage log + json.
   // The log only materializes after completion, so the START line names the work without promising live
-  // log bytes. Verbose (--verbose): stream the header + output live instead.
+  // log bytes. Verbose (--verbose or GitHub Actions): stream the header + output live instead.
+  startGithubStage(stage.name);
   if (verbose) {
     process.stdout.write(header);
   } else {
@@ -238,7 +251,7 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
   if (!verbose) {
     process.stdout.write(`${line}\n`);
   }
-  return {
+  const completed: StageResult = {
     name: stage.name,
     group: stage.group,
     mode: plan.mode,
@@ -251,10 +264,13 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
     runsAt: null,
     notices: [
       ...noticesIn(body),
+      ...mutationDryRunNotices(stage, body),
       ...(audit?.kind === "notice" ? [audit.message] : []),
       ...(invocationVariant(stage, tier) === undefined ? [] : [`tier invocation: ${argv.join(" ")}`]),
     ],
   };
+  finishGithubStage(completed, transcript, verbose);
+  return completed;
 }
 
 /** --verbose's live mirror: each chunk goes back out on the stream it arrived on. */
@@ -301,6 +317,16 @@ function executionStages(parsed: Parsed): readonly StageDef[] {
   }));
 }
 
+function printAggregatedStages(root: string, stages: readonly StageResult[]): void {
+  if (processEnvValue("GITHUB_ACTIONS") !== "true") {
+    return;
+  }
+  for (const stage of stages) {
+    const transcript = stage.logFile === null ? (stage.failureExcerpt ?? "") : readFileSync(join(root, stage.logFile), "utf8");
+    finishGithubStage(stage, transcript, false);
+  }
+}
+
 async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<VerifyReport> {
   const startedAt = new Date().toISOString();
   // ONE marker for the whole run, INHERITED when this verify is itself running inside a marked run: a
@@ -320,6 +346,7 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
         logFile: stage.logFile === null ? null : stage.logFile.replace(`${root}/`, ""),
       })),
     );
+    printAggregatedStages(root, results);
   }
   for (const stage of parsed.aggregate === undefined ? stages : []) {
     const plan = planStage(stage, parsed.selection, parsed.tier, { root, applicationOnly: parsed.applicationOnly });
@@ -343,7 +370,7 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
     // stages were measured to thrash a 15 GB box: type-aware ESLint, tsc and the structure walk each hold gigabytes.
     results.push(
       await runOneStage(
-        { root, slot, verbose: parsed.verbose, applicationOnly: parsed.applicationOnly, runMarker, runLease },
+        { root, slot, verbose: parsed.verbose || processEnvValue("GITHUB_ACTIONS") === "true", applicationOnly: parsed.applicationOnly, runMarker, runLease },
         stage,
         parsed.selection,
         parsed.tier,
@@ -404,6 +431,7 @@ export async function runVerify(root: string, parsed: Parsed): Promise<number> {
       process.stdout.write(`${line}\n`);
     }
 
+    printGithubReport(report);
     printSummary(report);
     if (parsed.json) {
       process.stdout.write(`${JSON.stringify(report)}\n`);

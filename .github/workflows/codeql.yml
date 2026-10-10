@@ -5,16 +5,20 @@ name: CodeQL
 on:
   push:
     branches: [main, release]
-    paths-ignore: ["docs/**", "**/*.md", ".github/**"]
+    paths-ignore: ["docs/**", "**/*.md"]
   pull_request:
     branches: [main, release]
-    paths-ignore: ["docs/**", "**/*.md", ".github/**"]
+    paths-ignore: ["docs/**", "**/*.md"]
   schedule:
     - cron: "17 6 * * 1"
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: codeql-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'schedule' && 'scheduled' || 'event' }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 jobs:
   analyze:
