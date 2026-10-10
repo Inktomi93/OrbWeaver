@@ -64,4 +64,4 @@ Native memory prices cover the measured peak for each execution mode. Hosted cor
 
 Whole-tree hosted qualification remains pending. Broader same-changed-set verification timing remains deferred.
 
-Hosted full tier run 38050585701 on af7d718b passed all 14 partitions (`tier=full · scope=application`, VERDICT PASS). Mutation was skipped on hosted CI, and five implementation-only stages are deferred to weekly. No same-changed-set timing comparison exists yet.
+Hosted full run 38050585701 passed all 14 partitions; no same-changed-set timing comparison exists yet.

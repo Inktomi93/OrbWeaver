@@ -10,7 +10,7 @@ area: client
 
 ## What
 
-On a 430x740 phone, Add a document and Add a connection put their footer actions inside the dialog's own scroll body (packages/client/src/components/form-dialog.tsx:115-123), below the viewport. Source: the side-eye phone-pass review in docs/reviews/side-eye P2 item 1.
+On a 430x740 phone, Add a document and Add a connection put their footer actions inside the dialog's own scroll body (packages/client/src/components/form-dialog.tsx:115-123), below the viewport. Source: ~/Archives/orbweaver-reviews/phone-pass-oct10.md P2 item 1.
 
 ## Why
 

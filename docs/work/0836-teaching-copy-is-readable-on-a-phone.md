@@ -10,7 +10,7 @@ area: client
 
 ## What
 
-Teaching paragraphs in the Settings header block and the Model roles glosses render at 10.5px on a phone (config-copy.ts consumers). Source: the side-eye phone-pass review in docs/reviews/side-eye P2 item 2.
+Teaching paragraphs in the Settings header block and the Model roles glosses render at 10.5px on a phone (config-copy.ts consumers). Source: ~/Archives/orbweaver-reviews/phone-pass-oct10.md P2 item 2.
 
 ## Why
 

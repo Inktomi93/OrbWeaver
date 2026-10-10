@@ -10,7 +10,7 @@ area: client
 
 ## What
 
-member-row\.tsx:81 and character-filter-rail-parts.tsx:224 open menus from onContextMenu, which iOS WebKit does not fire on long-press. Unverified on device. Source: the side-eye phone-pass review in docs/reviews/side-eye Suspicions.
+member-row\.tsx:81 and character-filter-rail-parts.tsx:224 open menus from onContextMenu, which iOS WebKit does not fire on long-press. Unverified on device. Source: ~/Archives/orbweaver-reviews/phone-pass-oct10.md Suspicions.
 
 ## Why
 

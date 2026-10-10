@@ -10,7 +10,7 @@ area: chat
 
 ## What
 
-chat.listEffectiveRegex errors 'no connection is bound for chat' when no chat connection is set (packages/server/src/transport/trpc/routers/chat.ts:747-750). Source: the side-eye phone-pass review in docs/reviews/side-eye P2 item 3.
+chat.listEffectiveRegex errors 'no connection is bound for chat' when no chat connection is set (packages/server/src/transport/trpc/routers/chat.ts:747-750). Source: ~/Archives/orbweaver-reviews/phone-pass-oct10.md P2 item 3.
 
 ## Why
 
