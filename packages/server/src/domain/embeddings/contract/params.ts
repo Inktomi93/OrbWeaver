@@ -1,6 +1,6 @@
 // The dispatch axes (SourceKind, SourceLens) + the verb input shapes for the embeddings write surface.
 
-import type { EmbeddingTask, ImageCaptionMeta, ImageLens } from "@orb/contracts/embeddings";
+import type { EmbeddingTask, ImageLens } from "@orb/contracts/embeddings";
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
 import type { AssetId, CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 
@@ -62,19 +62,17 @@ export interface ImageRawStoreParams extends EmbedAbortParams {
 }
 
 /** Embed an avatar image jointly with its generated caption (image bytes + caption → one VL vector). The
- *  caption is also persisted on the row. Unique key: `(assetId, model, lens)`. */
+ *  accepted Utility revision pins its input. Unique key: `(assetId, model, lens)`. */
 export interface ImageCaptionedStoreParams extends EmbedAbortParams {
   readonly kind: "avatar";
   readonly lens: "image-captioned";
   readonly ownerId: UserId;
   readonly assetId: AssetId;
   readonly content: Uint8Array;
-  /** Combined into the embed input AND written to `image_embeddings.caption`. */
+  /** The caption from the pinned Utility annotation, used as encoder input. */
   readonly caption: string;
-  /** The VL breakdown + its `model` provenance → `image_embeddings.caption_meta`. TYPED, not an open
-   *  bag: the facet vocabulary has one home in `@orb/contracts/embeddings` and both sides import it
-   *  (issue #164 — the reader named fourteen facets this carrier could not promise). */
-  readonly captionMeta: ImageCaptionMeta;
+  /** The accepted Utility annotation revision this encoder input was read from. */
+  readonly analysisRevision: number;
   /** THE JOINT-SPACE ARM (§10-3). `imageEmbed` = the joint image+caption vector through the owner's image
    *  embedder. `embed` = the CAPTIONED-TEXT fallback: the owner has no image-capable embedder, so the
    *  caption alone is embedded as TEXT into their `embed` space. The store verb dispatches the role op off
@@ -246,6 +244,8 @@ export interface OwnerChunkCountsParams {
  *  ({@link EmbedAbortParams}). */
 export interface EmbedPassParams {
   readonly force: boolean;
+  /** Automatic vector rebuilds retain Utility analysis; an explicit force regenerates it. */
+  readonly embedderChanged?: boolean | undefined;
   readonly signal: AbortSignal;
   /** Scope to one owner; `null` = every owner. Rows themselves stay owner-less — this only narrows which
    *  producers the pass reads. */

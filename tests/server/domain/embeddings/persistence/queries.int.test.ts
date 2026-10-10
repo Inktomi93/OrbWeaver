@@ -5,12 +5,12 @@
 
 import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
-import { characterEmbeddings, embedGenerations, embedGenerationTargets, imageEmbeddings } from "@orb/db";
+import { characterEmbeddings, embedGenerations, embedGenerationTargets, imageAnalyses, imageEmbeddings } from "@orb/db";
 import type { CharacterEmbeddingId, EmbedGenerationId, Handle, ImageEmbeddingId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { ZodError } from "zod";
+import { saveImageAnalysis } from "../../../../../packages/server/src/domain/embeddings/persistence/image-analysis.ts";
 import {
   existingCharacterHash,
   existingImageHash,
@@ -121,112 +121,43 @@ describe("existingCharacterHash / upsertCharacterEmbedding", () => {
 });
 
 describe("existingImageHash / upsertImageEmbedding", () => {
-  test("both lenses coexist per (asset, model); caption persists only on the captioned lens", async () => {
+  test("both lenses coexist while only the Utility writer authors the canonical caption", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const assetId = await seedAsset(db, owner);
+    const assetId = await seedAsset(db, owner, { hash: "img-hash" });
     const generationId = await seedGeneration(db, owner, IMAGE_EMBED_MODEL, "imageEmbed");
-
     expect(await existingImageHash(db, assetId, "image-raw", generationId)).toBeUndefined();
-
-    await upsertImageEmbedding(db, {
-      id: castId<ImageEmbeddingId>("image_embedding_raw"),
+    const common = {
+      ownerId: owner,
       assetId,
-      lens: "image-raw",
-      caption: null,
-      captionMeta: null,
       embedding: fakeVector(EMBED_DIM, 2),
       contentHash: "img-hash",
       model: IMAGE_EMBED_MODEL,
       generationId,
       dim: EMBED_DIM,
       now: NOW,
-    });
-    await upsertImageEmbedding(db, {
-      id: castId<ImageEmbeddingId>("image_embedding_cap"),
+    };
+    await upsertImageEmbedding(db, { ...common, id: castId<ImageEmbeddingId>("image_embedding_raw"), lens: "image-raw", analysisRevision: null });
+    const revision = await saveImageAnalysis(db, {
+      ownerId: owner,
       assetId,
-      lens: "image-captioned",
+      generationId,
+      contentHash: "img-hash",
       caption: "a caption",
       captionMeta: { model: "captioner", futureFacet: "preserved" },
-      embedding: fakeVector(EMBED_DIM, 3),
-      contentHash: "img-hash",
-      model: IMAGE_EMBED_MODEL,
-      generationId,
-      dim: EMBED_DIM,
       now: NOW,
     });
-
+    expect(revision).toBe(1);
+    if (revision === undefined) {
+      return;
+    }
+    expect(
+      await upsertImageEmbedding(db, { ...common, id: castId<ImageEmbeddingId>("image_embedding_cap"), lens: "image-captioned", analysisRevision: revision }),
+    ).toBe(true);
     expect(await existingImageHash(db, assetId, "image-raw", generationId)).toBe("img-hash");
-    const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
-    expect(rows).toHaveLength(2);
-    expect(rows.find((r) => r.lens === "image-raw")?.caption).toBeNull();
-    expect(rows.find((r) => r.lens === "image-raw")?.captionMeta).toBeNull();
-    expect(rows.find((r) => r.lens === "image-captioned")?.caption).toBe("a caption");
-    expect(rows.find((r) => r.lens === "image-captioned")?.captionMeta).toEqual({ model: "captioner", futureFacet: "preserved" });
-  });
-
-  test("rejects an invalid known caption facet before inserting a row", async () => {
-    const db = await freshDb();
-    const owner = await seedUser(db, { handle: castId<Handle>("owner-invalid-caption-insert") });
-    const assetId = await seedAsset(db, owner);
-    const generationId = await seedGeneration(db, owner, IMAGE_EMBED_MODEL, "imageEmbed");
-
-    await expect(
-      upsertImageEmbedding(db, {
-        id: castId<ImageEmbeddingId>("image_embedding_invalid_insert"),
-        assetId,
-        lens: "image-captioned",
-        caption: "a caption",
-        captionMeta: { artStyle: "invalid-art-style" },
-        embedding: fakeVector(EMBED_DIM, 3),
-        contentHash: "img-hash",
-        model: IMAGE_EMBED_MODEL,
-        generationId,
-        dim: EMBED_DIM,
-        now: NOW,
-      }),
-    ).rejects.toBeInstanceOf(ZodError);
-
-    expect(await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId))).toHaveLength(0);
-  });
-
-  test("rejects an invalid known caption facet before updating an existing row", async () => {
-    const db = await freshDb();
-    const owner = await seedUser(db, { handle: castId<Handle>("owner-invalid-caption-update") });
-    const assetId = await seedAsset(db, owner);
-    const generationId = await seedGeneration(db, owner, IMAGE_EMBED_MODEL, "imageEmbed");
-    await upsertImageEmbedding(db, {
-      id: castId<ImageEmbeddingId>("image_embedding_valid_before_update"),
-      assetId,
-      lens: "image-captioned",
-      caption: "original caption",
-      captionMeta: { model: "captioner" },
-      embedding: fakeVector(EMBED_DIM, 3),
-      contentHash: "original-hash",
-      model: IMAGE_EMBED_MODEL,
-      generationId,
-      dim: EMBED_DIM,
-      now: NOW,
-    });
-
-    await expect(
-      upsertImageEmbedding(db, {
-        id: castId<ImageEmbeddingId>("image_embedding_invalid_update"),
-        assetId,
-        lens: "image-captioned",
-        caption: "changed caption",
-        captionMeta: { artStyle: "invalid-art-style" },
-        embedding: fakeVector(EMBED_DIM, 9),
-        contentHash: "changed-hash",
-        model: IMAGE_EMBED_MODEL,
-        generationId,
-        dim: EMBED_DIM,
-        now: NOW,
-      }),
-    ).rejects.toBeInstanceOf(ZodError);
-
-    const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ caption: "original caption", captionMeta: { model: "captioner" }, contentHash: "original-hash" });
+    expect(await db.select().from(imageEmbeddings)).toHaveLength(2);
+    expect(await db.select().from(imageAnalyses)).toMatchObject([
+      { assetId, caption: "a caption", captionMeta: { model: "captioner", futureFacet: "preserved" } },
+    ]);
   });
 });

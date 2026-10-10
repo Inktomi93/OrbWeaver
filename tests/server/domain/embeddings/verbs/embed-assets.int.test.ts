@@ -10,7 +10,7 @@
 //   • cooperative abort: an aborted signal does no work.
 
 import { CONNECTION_OP_CODES, EMBEDDING_FLOOR, providerIdSchema } from "@orb/contracts/inference";
-import { embedGenerations, embedGenerationTargets, embedSpaceState, imageEmbeddings, imageIndexSkips } from "@orb/db";
+import { embedGenerations, embedGenerationTargets, embedSpaceState, imageAnalyses, imageEmbeddings, imageIndexSkips } from "@orb/db";
 import { DEFAULT_EMBED_MODEL, localLightEmbedSpaceTag } from "@orb/inference";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -26,6 +26,7 @@ import { localLightRows } from "../../../../../packages/inference/src/capability
 import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
 import { createImageAnalysisCounter } from "../../../../../packages/server/src/domain/embeddings/indexer/image.ts";
 import { resolveTargetGeneration } from "../../../../../packages/server/src/domain/embeddings/substrate/generation.ts";
+import { contentHash } from "../../../../../packages/server/src/domain/embeddings/substrate/hash.ts";
 import { fakeModelCache, fakeResolved } from "../../../../inference/_support.ts";
 import type { RecordedRequest } from "../../../../inference/backends/_hosted-support.ts";
 import { scriptedJsonFetch } from "../../../../inference/backends/_hosted-support.ts";
@@ -120,7 +121,7 @@ test("a successful caption uses the local-light text tower while retaining the r
   const rows = await db.select().from(imageEmbeddings);
   expect(rows.map((row) => row.lens).toSorted()).toEqual(["image-captioned", "image-raw"]);
   expect(rows.every((row) => row.model === space)).toBe(true);
-  expect(rows.find((row) => row.lens === "image-captioned")?.caption).toBe(TEST_CAPTION);
+  expect((await db.select().from(imageAnalyses))[0]?.caption).toBe(TEST_CAPTION);
   expect(cache.calls.map((call) => call.method)).toEqual(["embedImages", "embedClipTexts"]);
   expect(h.roleClients.summarize).toHaveBeenCalledTimes(1);
 });
@@ -135,8 +136,8 @@ async function seedAdmissionMix(db: Awaited<ReturnType<typeof freshDb>>): Promis
   bytes: ReadonlyMap<AssetId, Uint8Array>;
 }> {
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const degenerate = await seedAsset(db, owner, { id: "asset_tiny", hash: "hash-tiny" });
-  const real = await seedAsset(db, owner, { id: "asset_real", hash: "hash-real" });
+  const degenerate = await seedAsset(db, owner, { id: "asset_tiny", hash: contentHash(pngBytes(1, 1)) });
+  const real = await seedAsset(db, owner, { id: "asset_real", hash: contentHash(pngBytes(64, 64)) });
   return {
     owner,
     degenerate,
@@ -174,10 +175,10 @@ describe("embedAssets — the bulk image sweep", () => {
     expect(h.roleClients.summarize).toHaveBeenCalledTimes(1);
     const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, seeded.assetId));
     expect(rows.map((r) => r.lens).sort()).toEqual(["image-captioned", "image-raw"]);
-    expect(rows.find((r) => r.lens === "image-captioned")?.caption).toBe(TEST_CAPTION);
+    expect((await db.select().from(imageAnalyses))[0]?.caption).toBe(TEST_CAPTION);
     // The SAME call also produced the structured breakdown (issue #164) — a caption without facets is the
     // state the whole visual-families pipeline starved on.
-    expect(rows.find((r) => r.lens === "image-captioned")?.captionMeta).toMatchObject({ artStyle: "anime", palette: "warm", mood: "cheerful" });
+    expect((await db.select().from(imageAnalyses))[0]?.captionMeta).toMatchObject({ artStyle: "anime", palette: "warm", mood: "cheerful" });
   });
 
   // §10-3 + §10-5 in the sweep, in one drive: the joint-space fallback on the WRITE side, and the completion
@@ -255,10 +256,7 @@ describe("embedAssets — the bulk image sweep", () => {
     const svc = createEmbeddingsService(h.ctx);
     await svc.embedAssets({ ownerId: null, force: false, signal: signal() });
     // Roll the captioned row back to the pre-breakdown shape, exactly as it exists on the live box.
-    await db
-      .update(imageEmbeddings)
-      .set({ captionMeta: { model: "qwen3-summarize-test" } })
-      .where(eq(imageEmbeddings.lens, "image-captioned"));
+    await db.update(imageAnalyses).set({ captionMeta: { model: "qwen3-summarize-test" } });
     h.roleClients.summarize.mockClear();
 
     const rerun = await svc.embedAssets({ ownerId: null, force: false, signal: signal() });
@@ -267,7 +265,7 @@ describe("embedAssets — the bulk image sweep", () => {
     expect(h.roleClients.summarize).toHaveBeenCalledTimes(1);
     const captioned = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.lens, "image-captioned"));
     expect(captioned).toHaveLength(1);
-    expect(captioned[0]?.captionMeta).toMatchObject({ artStyle: "anime" });
+    expect((await db.select().from(imageAnalyses))[0]?.captionMeta).toMatchObject({ artStyle: "anime" });
   });
 
   test("…and once analysed it skips again — the backlog drains rather than looping", async () => {
@@ -454,8 +452,8 @@ describe("embedAssets — the image admission floor", () => {
 test("the analysis-call estimate is what the sweep spends, and nothing once every avatar is analysed", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db);
-  const first = await seedAsset(db, ownerId, { id: "asset_estimate_a", hash: "estimate-a" });
-  const second = await seedAsset(db, ownerId, { id: "asset_estimate_b", hash: "estimate-b" });
+  const first = await seedAsset(db, ownerId, { id: "asset_estimate_a", hash: contentHash(IMG) });
+  const second = await seedAsset(db, ownerId, { id: "asset_estimate_b", hash: contentHash(new Uint8Array([...IMG, 5])) });
   const h = makeStoreHarness(db, {
     imageAssetIds: [first, second],
     assetBytes: new Map([
@@ -477,7 +475,7 @@ test("the analysis-call estimate is what the sweep spends, and nothing once ever
 test("the analysis-call estimate counts an avatar re-uploaded under its id, as the sweep re-analyses it", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db);
-  const asset = await seedAsset(db, ownerId, { id: "asset_estimate_reupload", hash: "estimate-reupload" });
+  const asset = await seedAsset(db, ownerId, { id: "asset_estimate_reupload", hash: contentHash(IMG) });
   const bytes = new Map([[asset, IMG]]);
   const h = makeStoreHarness(db, { imageAssetIds: [asset], assetBytes: bytes });
   const svc = createEmbeddingsService(h.ctx);

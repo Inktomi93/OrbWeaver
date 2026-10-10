@@ -17,15 +17,16 @@ export interface WriteHubScoresResult {
   readonly rowsUpdated: number;
 }
 
-/** One avatar's VL analysis (issue #164), already in the two column shapes the store verb takes: the sentence
- *  for `caption`, and the provenance+facets blob for `caption_meta`. An EMPTY caption is the skip signal —
- *  the store verb writes nothing and the next sweep retries the asset — and always arrives with a facetless
- *  meta. It carries the STORED shapes rather than raw facets because the bulk sweep consumes this through an
- *  INJECTED dep (a verb may not import a named subsystem), so a meta-building helper exported from the
- *  indexer would be unreachable from the one place that needs it. */
+/** One owner's Utility analysis before persistence: caption and provenance/facets share one call.
+ * An empty caption is the facetless skip signal. The indexer saves a successful annotation before
+ * encoding, so a failed encoder does not repeat paid Utility work on the next pass. */
 export interface AvatarAnalysis {
   readonly caption: string;
   readonly captionMeta: ImageCaptionMeta;
+}
+
+export interface StoredImageAnalysis extends AvatarAnalysis {
+  readonly revision: number;
 }
 
 /** What the catch-up sweep needs to decide whether an asset's CAPTIONED lens is current: the bytes' hash and

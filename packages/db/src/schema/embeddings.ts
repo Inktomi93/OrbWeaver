@@ -259,16 +259,7 @@ export const imageEmbeddings = sqliteTable(
     // image-raw | image-captioned — derives IMAGE_LENSES (@orb/contracts/embeddings, D34). The `enum`
     // option is type-only; the CHECK below is the SQL-level guard. Both lenses coexist per (asset, model).
     lens: text("lens", { enum: IMAGE_LENSES }).notNull(),
-    // The generated caption (only for the `image-captioned` lens) + its VL breakdown / provenance sidecar.
-    // Nullable — the `image-raw` lens carries neither.
-    caption: text("caption"),
-    // TYPED, deliberately (issue #164 + the open-json-column-key-parity gate): this column was
-    // `Record<string, unknown>` while discovery read fourteen named facet paths off it and both writers
-    // stored `{model}` — the reader-with-no-producer defect. `ImageCaptionMeta` is the ONE home of that
-    // vocabulary (@orb/contracts/embeddings) and it is `.loose()`, so a row written before the breakdown
-    // landed (and any future facet) still round-trips. The type is now the enforcer on both sides.
-    captionMeta: text("caption_meta", { mode: "json" }).$type<ImageCaptionMeta>(),
-    // The staleness/collapse key. Both lenses for one asset share a content_hash (the resized bytes), so a
+    // The staleness/collapse key. Both lenses for one asset share a content_hash (the immutable CAS bytes), so a
     // re-index de-dups. NOT NULL.
     contentHash: text("content_hash").notNull(),
     // Advisory-stale CSLS mean-cosine hub score (a FLOAT) — RESERVED for image↔image use only (cross-modal
@@ -293,6 +284,22 @@ export const imageEmbeddings = sqliteTable(
     check("image_embeddings_lens_check", sql.raw(`lens in (${IMAGE_LENS_CHECK_LIST})`)),
   ],
 );
+
+// Utility-produced annotations survive vector generation retirement. Ownership derives solely through
+// the immutable per-user asset (D20/D21); deleting the asset also deletes its paid analysis. The metadata
+// retains the producer's original provenance, never the currently selected Utility model.
+export const imageAnalyses = sqliteTable("image_analyses", {
+  assetId: text("asset_id")
+    .$type<AssetId>()
+    .primaryKey()
+    .references(() => assets.id, { onDelete: "cascade" }),
+  contentHash: text("content_hash").notNull(),
+  caption: text("caption").notNull(),
+  // A vector pins this accepted Utility result; a newer result refuses an older encoder completion.
+  revision: integer("revision").notNull().default(1),
+  captionMeta: text("caption_meta", { mode: "json" }).$type<ImageCaptionMeta>().notNull(),
+  createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+});
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // chat_digests — the DISTILLED chat-block lens (the stored digest `text` = topic anchor + significance-

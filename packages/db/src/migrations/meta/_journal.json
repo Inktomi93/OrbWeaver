@@ -8,6 +8,20 @@
       "when": 1791273010540,
       "tag": "0000_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791615065666,
+      "tag": "0001_retain_image_analysis",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791616173248,
+      "tag": "0002_pin_image_analysis_revision",
+      "breakpoints": true
     }
   ]
 }

@@ -81,7 +81,7 @@ export const ASSET_REFS: readonly AssetRef[] = [
  *  The `@public` marker retired 2026-09-05: the front door now re-exports this list and the
  *  `structure:asset-refs` stage's comparator consumes it, so it is an ordinary consumed export and a
  *  `@public`-family marker on a consumed export is stale by the orphan-ratchet's own two-sided rule. */
-export const DERIVED_ASSET_COLUMNS: readonly string[] = ["image_embeddings.asset_id", "image_index_skips.asset_id"];
+export const DERIVED_ASSET_COLUMNS: readonly string[] = ["image_embeddings.asset_id", "image_index_skips.asset_id", "image_analyses.asset_id"];
 
 /** The non-FK live-source: `AssetId`s pinned inside a JSON settings blob. Two sources, both under
  *  `appearance`: the single `backgroundAssetId` (own-upload background) AND every entry's `assetId`
