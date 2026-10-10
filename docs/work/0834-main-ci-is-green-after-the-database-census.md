@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-10
 priority: P1
 area: client
+lane: wt/agent-aef6c77e794b77492
 ---
 
 # Main CI is green after the database census commits
