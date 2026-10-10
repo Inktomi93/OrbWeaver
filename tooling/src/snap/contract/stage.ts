@@ -360,6 +360,8 @@ export interface EnsureStageOpts {
   readonly fresh: boolean;
   readonly dirty?: boolean;
   readonly auth?: StageAuthMode;
+  /** A db file to clone into the rebuilt stage instead of the dev db (`--stage-db`). */
+  readonly stageDb?: string;
 }
 
 /** The isolated-stage half of snap's parsed argv (serve from a frozen HEAD worktree, not the live dev
@@ -379,6 +381,9 @@ export interface StageArgs {
   /** `--stage-auth`: how the stage signs users in. `local` boots an empty data root with the fixture's
    *  seeded humans, and `--contexts`/`--as` then log in against the stage. Implies --isolated. */
   stageAuth: StageAuthMode;
+  /** `--stage-db <path>`: clone this db (and its -wal/-shm) into the stage instead of the dev db. Implies
+   *  --isolated and --fresh, and does not combine with `--stage-auth local`. */
+  stageDb: string | null;
   /** Tear down the active stage (stop its stack + remove the worktree) and exit — ignores the route. */
   stageDown: boolean;
   /** Print the stage's visibility (marker + stage-band port owners + worktree dirs) and exit — the

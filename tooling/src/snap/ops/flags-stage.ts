@@ -42,6 +42,12 @@ export const STAGE_FLAG_HANDLERS: Record<string, StageFlagHandler> = {
     }
     a.stageAuth = known;
   },
+  // A warm stage keeps the db it was built with, so naming a db source forces the rebuild that clones it.
+  "--stage-db": (a, rest) => {
+    a.stageDb = rest.shift() ?? "";
+    a.isolated = true;
+    a.fresh = true;
+  },
   "--stage-down": (a) => {
     a.stageDown = true;
   },

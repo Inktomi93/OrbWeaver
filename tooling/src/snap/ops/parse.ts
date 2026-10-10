@@ -36,6 +36,7 @@ function sessionValidationPairs(args: Args, contextsMode: boolean, inheritedSess
       contextsMode && args.isolated && args.stageAuth !== "local",
       "--contexts/--as need signed-in humans: add --stage-auth local to stage them, or drop --isolated/--dirty/--ref to use the fixture stack",
     ],
+    [args.stageDb !== null && args.stageAuth === "local", "--stage-db and --stage-auth local are mutually exclusive: a local stage boots an empty data root"],
     [contextsMode && (args.watchMs > 0 || args.baseline || args.diff), "--contexts/--as do not support --watch, --baseline, or --diff"],
     [contextsMode && args.cascade.length > 0, "--cascade does not combine with --contexts/--as (one ephemeral debugging profile owns one context)"],
     // The three stage-admin modes each print and exit; two of them in one argv is an ambiguous ask, not a
@@ -348,6 +349,7 @@ export function parseSnapArgs(
     fresh: false,
     dirty: false,
     stageAuth: "single-user",
+    stageDb: null,
     stageDown: false,
     stageStatus: false,
     stageSweep: false,

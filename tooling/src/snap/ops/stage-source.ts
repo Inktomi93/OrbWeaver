@@ -6,7 +6,8 @@
 // VERSION TRIPWIRE: a ref whose vite.config lacks VITE_API_TARGET would proxy /api to the DEV server —
 // rejected up front via `git show`, before any worktree/install/boot work, so a bad ref costs nothing.
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { localPath } from "@orb/db";
 import type { DataLayout } from "@orb/server/foundation/data-layout";
 import { DB_FILE_NAME, DEFAULT_DATA_DIR, resolveDataLayout, SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
@@ -92,6 +93,8 @@ function devDataLayout(root: string): DataLayout {
  *  or serves 503 forever), and assets (symlink to the content-addressed dev blob dir; a visual pass only
  *  reads). Idempotent: skips whatever already exists so a plain reboot keeps the stage's state.
  *
+ *  With `stageDb` (`--stage-db`) the stage gets a clone of that db instead (`cloneStageDb`).
+ *
  *  A dev data dir still in the LEGACY flat shape (the db at its root) is copied from NOT AT ALL and said so:
  *  the dev stack's next boot moves it, and a stage built before that would boot empty and say nothing.
  *
@@ -99,7 +102,10 @@ function devDataLayout(root: string): DataLayout {
  *  band table then answers "is this stage's data older than the dev db it came from?" from the row instead
  *  of a second probe, which is the question behind every "why does the stage show stale rows" round trip
  *  (memory `isolated-stage-db-is-a-fresh-dev-copy`). */
-export function seedStageData(root: string, paths: StagePaths): StageDbProvenance | null {
+export function seedStageData(root: string, paths: StagePaths, stageDb?: string): StageDbProvenance | null {
+  if (stageDb !== undefined) {
+    return cloneStageDb(stageDb, paths);
+  }
   mkdirSync(paths.dir, { recursive: true });
   const dev = devDataLayout(root);
   const devDb = localPath(dev.databaseUrl) ?? "";
@@ -114,6 +120,49 @@ export function seedStageData(root: string, paths: StagePaths): StageDbProvenanc
   copyStageSecrets(dev.secrets, paths.secretsDir);
   linkStageAssets(dev.assets, paths.assetsDir);
   return provenance;
+}
+
+/** Rows sealed or peppered under the SOURCE box's boot secrets. The stage mints its own keyfiles, and the boot
+ *  refuses to generate one over a row that depends on it (`entry/boot/boot-secrets.ts`), so a clone keeps none
+ *  of them: saved provider keys, sign-in sessions, the owner's password hash and redeemable invite links. */
+const SECRET_BOUND_ROWS = [
+  "DELETE FROM user_credentials",
+  "DELETE FROM sessions",
+  "UPDATE users SET password_hash = NULL WHERE password_hash IS NOT NULL",
+  "DELETE FROM chat_invites WHERE status = 'pending'",
+] as const;
+
+/** `--stage-db`: give the stage a CLONE of another box's db (the container's, say) instead of the dev db.
+ *  The source and its `-wal`/`-shm` are only read. The owner row keeps its id, so every owned row still
+ *  resolves; the stage's own boot renames that row onto the stage's `OWNER_HANDLES` key
+ *  (`entry/boot/seed-owner.ts`), which is how the stage signs in as the owner of the copied rows.
+ *  The caller has removed any older stage dir, so an existing stage db is a bug, not a cache. */
+export function cloneStageDb(sourceDb: string, paths: StagePaths): StageDbProvenance {
+  const source = resolve(sourceDb);
+  const stageDb = localPath(paths.databaseUrl) ?? "";
+  if (!(existsSync(source) && statSync(source).isFile())) {
+    throw new Error(`--stage-db ${sourceDb}: no database file there`);
+  }
+  if (existsSync(stageDb)) {
+    throw new Error(`stage db ${stageDb} already exists; --stage-db clones into a rebuilt stage only`);
+  }
+  mkdirSync(dirname(stageDb), { recursive: true });
+  for (const suffix of ["", "-wal", "-shm"]) {
+    if (existsSync(source + suffix)) {
+      cpSync(source + suffix, stageDb + suffix);
+    }
+  }
+  const clone = new DatabaseSync(stageDb);
+  try {
+    for (const statement of SECRET_BOUND_ROWS) {
+      clone.exec(statement);
+    }
+    // Fold the copied WAL into the main file so the stage opens one self-contained db.
+    clone.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+  } finally {
+    clone.close();
+  }
+  return { copiedFrom: source, copiedAt: new Date().toISOString(), devDbMtimeAtCopy: statSync(source).mtime.toISOString() };
 }
 
 function copyStageDb(devDb: string, stageDb: string): StageDbProvenance | null {
