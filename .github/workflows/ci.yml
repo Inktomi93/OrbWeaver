@@ -41,7 +41,6 @@ concurrency:
   cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 env:
-  CI: "true"
   ORB_CI_REPOSITORY: Inktomi93/OrbWeaver
   ORB_CI_QUALIFICATION_GENERATION: Orbweaver qualification product-v3
   ORB_CI_PUBLICATION_BOOTSTRAP_SHA: ac6cfc19ea9db59644426b37f6b8c842c33473ad
@@ -49,7 +48,7 @@ env:
 jobs:
   changes:
     if: ${{ github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full' && inputs.tier != 'weekly' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
     timeout-minutes: 5
     outputs:
       code: ${{ steps.diff.outputs.code }}
@@ -66,6 +65,7 @@ jobs:
           persist-credentials: false
       - uses: $/.github/actions/setup
       - id: diff
+        name: Classify the change against its qualified baseline
         env:
           GH_TOKEN: ${{ github.token }}
           BEFORE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || inputs.base }}
@@ -73,7 +73,7 @@ jobs:
 
   static:
     needs: [changes]
-    runs-on: ubuntu-24.04
+    runs-on: &media-runner ubuntu-24.04
     timeout-minutes: 60
     env:
       ORB_VERIFY_BASE: ${{ needs.changes.outputs.base }}
@@ -104,8 +104,7 @@ jobs:
         name: Show what failed
         # Runtime partitions have no structure report; read the native verify stages and their transcript tails.
         run: |
-          pnpm check:show --stages --limit 20 2>&1 | tee check-show.txt
-          { echo '### What failed'; echo; echo '```text'; head -c 60000 check-show.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          pnpm check:show --stages --limit 20 || echo "::warning title=check:show::could not read the stage report; see the reports artifact"
       - if: failure()
         name: Say how to reproduce
         run: |
@@ -126,7 +125,7 @@ jobs:
   node:
     needs: changes
     if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: *media-runner
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -153,7 +152,7 @@ jobs:
             echo
             echo "Logs and reports are in the \`reports-node-${{ matrix.shard }}\` artifact on this run."
           } >> "$GITHUB_STEP_SUMMARY"
-      - if: always()
+      - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-node-${{ matrix.shard }}
@@ -163,7 +162,7 @@ jobs:
   ct:
     needs: changes
     if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: *media-runner
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -191,7 +190,7 @@ jobs:
             echo "Logs and reports are in the \`reports-ct-${{ matrix.shard }}\` artifact on this run."
           } >> "$GITHUB_STEP_SUMMARY"
       # A flaky shard can pass overall; retain its failed-attempt details instead of only its summary.
-      - if: always()
+      - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-ct-${{ matrix.shard }}
@@ -201,7 +200,7 @@ jobs:
   e2e-smoke:
     needs: changes
     if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: *media-runner
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -221,7 +220,7 @@ jobs:
             echo
             echo "Logs and reports are in the \`reports-e2e-smoke\` artifact on this run."
           } >> "$GITHUB_STEP_SUMMARY"
-      - if: always()
+      - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-e2e-smoke
@@ -234,7 +233,7 @@ jobs:
   ci-ok:
     if: always() && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full' && inputs.tier != 'weekly'
     needs: [changes, static, node, ct, e2e-smoke]
-    runs-on: ubuntu-24.04
+    runs-on: *media-runner
     timeout-minutes: 5
     steps:
       - name: ${{ format('{0} ({1})', env.ORB_CI_QUALIFICATION_GENERATION, needs.changes.outputs.code == 'true' && 'runtime' || 'inherited') }}
@@ -253,12 +252,19 @@ jobs:
             (.changes.outputs.code == "true" or .changes.outputs.code == "false") and
             (.changes.outputs.code as $code | [.node, .ct, .["e2e-smoke"]]
               | all(.[]; .result == (if $code == "true" then "success" else "skipped" end)))
-          ' > /dev/null
+          ' > /dev/null || {
+            echo "::error title=CI gate::changes.outputs.code=$(echo "$NEEDS" | jq -r '.changes.outputs.code')"
+            echo "$NEEDS" | jq -r '
+              .changes.outputs.code as $code | to_entries[] |
+              (if .key == "changes" or .key == "static" then "success" else (if $code == "true" then "success" else "skipped" end) end) as $expected |
+              select(.value.result != $expected) | "::error title=CI gate::job=\(.key) expected=\($expected) actual=\(.value.result)"'
+            exit 1
+          }
 
   # Every full/product child uses the same immutable main revision and one exact-SHA seen decision.
   qualification-head:
     if: ${{ github.event.schedule == '37 9 * * *' || inputs.tier == 'product' || inputs.tier == 'full' }}
-    runs-on: ubuntu-24.04
+    runs-on: *media-runner
     timeout-minutes: 10
     outputs:
       sha: ${{ steps.sha.outputs.sha }}
@@ -271,12 +277,14 @@ jobs:
           ref: main
           persist-credentials: false
       - id: sha
+        name: Resolve the immutable main revision
         env:
           VERIFY_TIER: ${{ github.event_name == 'schedule' && 'full' || inputs.tier }}
         run: |
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "tier=$VERIFY_TIER" >> "$GITHUB_OUTPUT"
       - id: seen
+        name: Look up the completed qualification marker
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .${{ steps.sha.outputs.tier }}-verified
@@ -285,6 +293,7 @@ jobs:
       - if: steps.seen.outputs.cache-hit != 'true'
         uses: ./.github/actions/setup # zizmor: ignore[self-repository] Qualification setup belongs to the frozen main source.
       - id: plan
+        name: Plan native qualification partitions
         if: steps.seen.outputs.cache-hit != 'true'
         env:
           VERIFY_TIER: ${{ steps.sha.outputs.tier }}
@@ -293,7 +302,7 @@ jobs:
   qualification-partition:
     needs: qualification-head
     if: needs.qualification-head.outputs.seen != 'true'
-    runs-on: ubuntu-24.04
+    runs-on: *media-runner
     timeout-minutes: ${{ matrix.partition == 'static' && 60 || matrix.partition == 'quality' && 330 || 120 }}
     strategy:
       fail-fast: false
@@ -312,13 +321,15 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - id: source
+        name: Validate and check out the immutable main source
         env:
           FROZEN_MAIN_SHA: ${{ needs.qualification-head.outputs.sha }}
         run: &frozen-main-source |
           set -euo pipefail
-          [[ "$FROZEN_MAIN_SHA" =~ ^[a-f0-9]{40}$ ]]
-          test "$(git cat-file -t "$FROZEN_MAIN_SHA")" = commit
-          git merge-base --is-ancestor "$FROZEN_MAIN_SHA" refs/remotes/origin/main
+          [[ "$FROZEN_MAIN_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "::error title=Frozen main source::Invalid SHA: $FROZEN_MAIN_SHA"; exit 1; }
+          object_type=$(git cat-file -t "$FROZEN_MAIN_SHA") || { echo "::error title=Frozen main source::Missing object $FROZEN_MAIN_SHA"; exit 1; }
+          test "$object_type" = commit || { echo "::error title=Frozen main source::Expected commit for $FROZEN_MAIN_SHA; got $object_type"; exit 1; }
+          git merge-base --is-ancestor "$FROZEN_MAIN_SHA" refs/remotes/origin/main || { echo "::error title=Frozen main source::$FROZEN_MAIN_SHA is not an ancestor of origin/main"; exit 1; }
           git checkout --detach "$FROZEN_MAIN_SHA"
       - uses: ./.github/actions/setup # zizmor: ignore[self-repository] Every partition uses the validated immutable main setup.
         with:
@@ -328,23 +339,26 @@ jobs:
         timeout-minutes: 15
         run: bash scripts/ci/install-media.sh
       - id: showcase
+        name: Build showcase plugin fixtures
         run: pnpm --filter @orb/showcase-plugins build
       - id: verify
+        name: pnpm verify --${{ env.VERIFY_TIER }} --partition=${{ matrix.partition }}${{ matrix.shard && format(' --shard={0}', matrix.shard) || '' }}
         run: |
           args=("--$VERIFY_TIER" "--partition=$VERIFY_PARTITION")
           if [[ -n "$VERIFY_SHARD" ]]; then args+=("--shard=$VERIFY_SHARD"); fi
           pnpm verify "${args[@]}"
       - if: failure()
         name: Show what failed
-        run: pnpm check:show --stages --limit 20
-      - if: always()
+        run: |
+          pnpm check:show --stages --limit 20 || echo "::warning title=check:show::could not read the stage report; see the reports artifact"
+      - if: ${{ !cancelled() }}
         name: Retain Stryker TRACE
         run: |
           if [[ -f stryker.log ]]; then
             mkdir -p reports/mutation
             cp stryker.log reports/mutation/stryker.log
           fi
-      - if: always()
+      - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-qualification-${{ matrix.key }}
@@ -355,7 +369,7 @@ jobs:
   qualification:
     if: always() && needs.qualification-head.result == 'success'
     needs: [qualification-head, qualification-partition]
-    runs-on: ubuntu-24.04
+    runs-on: *media-runner
     timeout-minutes: 15
     env:
       VERIFY_TIER: ${{ needs.qualification-head.outputs.tier }}
@@ -366,8 +380,8 @@ jobs:
           SEEN: ${{ needs.qualification-head.outputs.seen }}
           PARTITIONS: ${{ needs.qualification-partition.result }}
         run: |
-          test "$SEEN" = true
-          test "$PARTITIONS" = skipped
+          test "$SEEN" = true || { echo "::error title=Cached qualification::Expected seen=true; got $SEEN"; exit 1; }
+          test "$PARTITIONS" = skipped || { echo "::error title=Cached qualification::Expected no partition execution (skipped); got $PARTITIONS"; exit 1; }
       - if: needs.qualification-head.outputs.seen != 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -375,6 +389,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - id: source
+        name: Validate and check out the immutable main source
         if: needs.qualification-head.outputs.seen != 'true'
         env:
           FROZEN_MAIN_SHA: ${{ needs.qualification-head.outputs.sha }}
@@ -388,14 +403,17 @@ jobs:
           path: reports/qualification-inputs
           digest-mismatch: error
       - id: verify
+        name: Aggregate partition verdicts
         if: needs.qualification-head.outputs.seen != 'true'
         run: pnpm verify --"$VERIFY_TIER" --aggregate=reports/qualification-inputs
       - name: Require all uncached child job outcomes
         if: always() && needs.qualification-head.outputs.seen != 'true'
         env:
           PARTITIONS: ${{ needs.qualification-partition.result }}
-        run: test "$PARTITIONS" = success
+        run: |
+          test "$PARTITIONS" = success || { echo "::error title=Qualification children::Expected every child to succeed; aggregate result=$PARTITIONS"; exit 1; }
       - id: mark
+        name: Mark the completed qualification
         if: success() && needs.qualification-partition.result == 'success' && steps.verify.outcome == 'success'
         env:
           VERIFIED_SHA: ${{ needs.qualification-head.outputs.sha }}
@@ -405,7 +423,7 @@ jobs:
         with:
           path: .${{ env.VERIFY_TIER }}-verified
           key: ${{ env.VERIFY_TIER }}-verified-${{ needs.qualification-head.outputs.sha }}
-      - if: always() && needs.qualification-head.outputs.seen != 'true'
+      - if: ${{ !cancelled() && needs.qualification-head.outputs.seen != 'true' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-${{ env.VERIFY_TIER }}
@@ -414,7 +432,7 @@ jobs:
 
   weekly-head:
     if: ${{ (github.event.schedule == '37 10 * * 0' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'weekly')) }}
-    runs-on: ubuntu-24.04
+    runs-on: *media-runner
     timeout-minutes: 5
     outputs:
       sha: ${{ steps.sha.outputs.sha }}
@@ -424,11 +442,12 @@ jobs:
           ref: main
           persist-credentials: false
       - id: sha
+        name: Resolve the immutable main revision
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   weekly-tooling:
     needs: weekly-head
-    runs-on: ubuntu-24.04
+    runs-on: *media-runner
     timeout-minutes: 330
     strategy:
       fail-fast: false
@@ -456,9 +475,10 @@ jobs:
           FROZEN_MAIN_SHA: ${{ needs.weekly-head.outputs.sha }}
         run: |
           set -euo pipefail
-          [[ "$FROZEN_MAIN_SHA" =~ ^[a-f0-9]{40}$ ]]
-          test "$(git cat-file -t "$FROZEN_MAIN_SHA")" = commit
-          git merge-base --is-ancestor "$FROZEN_MAIN_SHA" refs/remotes/origin/main
+          [[ "$FROZEN_MAIN_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "::error title=Frozen main source::Invalid SHA: $FROZEN_MAIN_SHA"; exit 1; }
+          object_type=$(git cat-file -t "$FROZEN_MAIN_SHA") || { echo "::error title=Frozen main source::Missing object $FROZEN_MAIN_SHA"; exit 1; }
+          test "$object_type" = commit || { echo "::error title=Frozen main source::Expected commit for $FROZEN_MAIN_SHA; got $object_type"; exit 1; }
+          git merge-base --is-ancestor "$FROZEN_MAIN_SHA" refs/remotes/origin/main || { echo "::error title=Frozen main source::$FROZEN_MAIN_SHA is not an ancestor of origin/main"; exit 1; }
           git checkout --detach "$FROZEN_MAIN_SHA"
       - uses: ./.github/actions/setup # zizmor: ignore[self-repository] Weekly proof needs the frozen main setup, not the default-branch workflow commit.
         with:
@@ -471,7 +491,7 @@ jobs:
           else
             pnpm verify --weekly
           fi
-      - if: always()
+      - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-weekly-tooling-${{ strategy.job-index }}
@@ -482,15 +502,26 @@ jobs:
   weekly-ok:
     if: always() && (github.event.schedule == '37 10 * * 0' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'weekly'))
     needs: [weekly-head, weekly-tooling]
-    runs-on: ubuntu-24.04
+    runs-on: *media-runner
     timeout-minutes: 5
     steps:
-      - env:
+      - name: Require every weekly proof outcome
+        env:
           NEEDS: ${{ toJSON(needs) }}
         run: |
           echo "$NEEDS" > weekly-proof.json
-          echo "$NEEDS" | jq -e 'all(.[]; .result == "success")' > /dev/null
-      - if: always()
+          {
+            echo "### Weekly tooling proof"
+            echo
+            echo "| Job | Result |"
+            echo "| - | - |"
+            echo "$NEEDS" | jq -r 'to_entries[] | "| \(.key) | \(.value.result) |"'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "$NEEDS" | jq -e 'all(.[]; .result == "success")' > /dev/null || {
+            echo "$NEEDS" | jq -r 'to_entries[] | select(.value.result != "success") | "::error title=Weekly gate::job=\(.key) expected=success actual=\(.value.result)"'
+            exit 1
+          }
+      - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: weekly-proof

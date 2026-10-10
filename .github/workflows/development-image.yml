@@ -1,4 +1,8 @@
 name: Development image
+run-name: Development image · ${{ github.ref_name }} @ ${{ github.sha }}
+
+# If Docker's pnpm build fails while CI static passed, inspect the Dockerfile stage environment first;
+# the build environment diverged from CI, not necessarily the product source.
 
 on:
   workflow_dispatch:
@@ -16,6 +20,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     env:
       IMAGE: ghcr.io/inktomi93/orbweaver
       BUILD_CACHE: ghcr.io/inktomi93/orbweaver:buildcache-development
@@ -55,26 +61,54 @@ jobs:
         run: |
           stamp=$(docker run --rm --entrypoint cat "$IMAGE:sha-$SOURCE_SHA" /app/version.json)
           echo "version.json: $stamp"
-          echo "$stamp" | jq -e --arg sha "$SOURCE_SHA" '.commit == $sha and .channel == "main"'
           revision=$(docker inspect "$IMAGE:sha-$SOURCE_SHA" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')
-          test "$revision" = "$SOURCE_SHA"
+          if ! echo "$stamp" | jq -e --arg sha "$SOURCE_SHA" '.commit == $sha and .channel == "main"' || [[ "$revision" != "$SOURCE_SHA" ]]; then
+            stamp=${stamp//%/%25}; stamp=${stamp//$'\r'/%0D}; stamp=${stamp//$'\n'/%0A}
+            echo "::error title=Development image identity::stamp=$stamp expected sha=$SOURCE_SHA channel=main revision=$revision"
+            exit 1
+          fi
 
       - name: Prove fresh runtime boot
         run: |
           container=$(docker run -d --init --env-file docker/orbweaver.env -e BIND_HOST=0.0.0.0 -e LOCAL_LIGHT_PREFETCH=off -p 127.0.0.1:18788:8788 "$IMAGE:sha-$SOURCE_SHA")
-          trap 'docker logs "$container"; docker rm -fv "$container"' EXIT
+          finish() {
+            outcome=$?
+            if [[ "$outcome" != 0 ]]; then
+              { echo '### Container log'; echo '```text'; docker logs "$container" 2>&1 | tail -n 80; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            fi
+            docker logs "$container"
+            docker rm -fv "$container"
+            exit "$outcome"
+          }
+          trap finish EXIT
           ready=false
           for _ in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:18788/healthz > "$RUNNER_TEMP/development-health.json"; then
               ready=true
               break
             fi
-            test "$(docker inspect "$container" --format '{{.State.Running}}')" = true
+            running=$(docker inspect "$container" --format '{{.State.Running}}')
+            test "$running" = true || { echo "::error title=Development boot::Container $container stopped before readiness; running=$running"; exit 1; }
             sleep 2
           done
-          test "$ready" = true
-          docker exec "$container" node -e 'const response = await fetch("http://127.0.0.1:8788/healthz"); if (!response.ok) process.exit(1); console.log(await response.text());' > "$RUNNER_TEMP/development-operator-health.json"
-          jq -e --arg sha "$SOURCE_SHA" '.version.commit == $sha and .version.channel == "main"' "$RUNNER_TEMP/development-operator-health.json"
+          test "$ready" = true || { echo "::error title=Development boot::Container $container did not answer /healthz; ready=$ready"; exit 1; }
+          docker exec "$container" node -e 'const response = await fetch("http://127.0.0.1:8788/healthz"); if (!response.ok) process.exit(1); console.log(await response.text());' > "$RUNNER_TEMP/development-operator-health.json" || { echo "::error title=Development boot::Operator health request failed for container=$container"; exit 1; }
+          jq -e --arg sha "$SOURCE_SHA" '.version.commit == $sha and .version.channel == "main"' "$RUNNER_TEMP/development-operator-health.json" || { echo "::error title=Development boot::Operator health did not identify sha=$SOURCE_SHA channel=main; actual=$(jq -c . "$RUNNER_TEMP/development-operator-health.json")"; exit 1; }
+
+      - name: Refuse critical fixable vulnerabilities
+        id: critical
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}:sha-${{ env.SOURCE_SHA }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+          output: trivy-critical.txt
+      - name: Summarize blocking vulnerabilities
+        if: failure() && steps.critical.outcome == 'failure'
+        run: |
+          { echo '### Blocking vulnerabilities'; echo '```text'; cat trivy-critical.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       # Only a source-stamped, boot-proven build can warm the development cache. The same builder and
       # inputs reuse its local result; max keeps dependency stages without spending Actions-cache quota.
@@ -89,15 +123,40 @@ jobs:
           outputs: type=cacheonly
           cache-to: type=registry,ref=${{ env.BUILD_CACHE }},mode=max,ignore-error=true
 
-      - name: Push development tags
+      - name: Push the immutable development image
+        run: docker push "$IMAGE:sha-$SOURCE_SHA"
+      - name: Read the pushed digest
+        id: digest
         run: |
-          docker push "$IMAGE:sha-$SOURCE_SHA"
-          docker tag "$IMAGE:sha-$SOURCE_SHA" "$IMAGE:development"
-          docker push "$IMAGE:development"
-
+          digest=$(docker inspect "$IMAGE:sha-$SOURCE_SHA" --format '{{ index .RepoDigests 0 }}' | cut -d@ -f2)
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "::error title=Development digest::Invalid pushed digest=$digest"; exit 1; }
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - name: Attest build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          push-to-registry: true
+      - name: Write the image SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}:sha-${{ env.SOURCE_SHA }}
+          format: spdx-json
+          output: sbom.spdx.json
+      - name: Attest the SBOM
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          sbom-path: sbom.spdx.json
+          push-to-registry: true
       - name: Prove anonymous digest pull
+        env:
+          DIGEST: ${{ steps.digest.outputs.digest }}
         run: |
-          DIGEST=$(docker inspect "$IMAGE:sha-$SOURCE_SHA" --format '{{ index .RepoDigests 0 }}' | cut -d@ -f2)
-          export DIGEST
           export IMAGE_CHANNEL=main
           bash scripts/ci/anonymous-image-pull.sh
+      - name: Advertise the proven development image
+        run: |
+          docker tag "$IMAGE:sha-$SOURCE_SHA" "$IMAGE:development"
+          docker push "$IMAGE:development"

@@ -21,7 +21,7 @@ const stepSchema = z.object({
 const workflowSchema = z.object({
   on: z.object({ ["workflow_dispatch"]: z.object({ inputs: z.record(z.string(), z.json()) }) }),
   permissions: z.object({ contents: z.literal("read") }).strict(),
-  env: z.record(z.string(), z.string()),
+  env: z.record(z.string(), z.string()).optional(),
   concurrency: z.object({ group: z.string() }),
   ["run-name"]: z.string(),
   jobs: z.record(
@@ -147,8 +147,8 @@ test("manual Select diagnostics stay outside qualification and preserve native e
   const uploads = steps.filter((step) => step.uses?.startsWith("actions/upload-artifact@") === true);
   expect(uploads.map((step) => step.with?.["name"])).toEqual(["select-native-control", "select-cpu-diagnostic-only"]);
   expect(uploads.map((step) => step.if)).toEqual([
-    "always() && inputs.select_cpu_diagnostic_context != 'ct-shard-4' && inputs.select_cpu_diagnostic_context != 'ct-shard-4-native'",
-    "always()",
+    "${{ !cancelled() && inputs.select_cpu_diagnostic_context != 'ct-shard-4' && inputs.select_cpu_diagnostic_context != 'ct-shard-4-native' }}",
+    "${{ !cancelled() }}",
   ]);
   expect(uploads.map((step) => step.with?.["retention-days"])).toEqual([7, 7]);
   expect(uploads.map((step) => step.with?.["path"])).toEqual(["reports/", "reports/"]);
@@ -280,10 +280,11 @@ test("E2E startup dispatch is bounded, immutable and retains failed global setup
   expect(showcase?.if).toBeUndefined();
   expect(startup?.run).toBe('pnpm e2e "$E2E_SPEC" --project="$E2E_PROJECT" --retries=0');
   expect(startup?.if).toBeUndefined();
-  expect(upload?.if).toBe("always()");
+  expect(upload?.if).toBe("${{ !cancelled() }}");
   for (const failure of [false, true]) {
-    expect(guard(upload?.if ?? "false", { always: () => true, failure: () => failure })).toBe(true);
-    expect(guard((upload?.if ?? "").replace("always()", "failure()"), { failure: () => failure })).toBe(failure);
+    for (const canceled of [false, true]) {
+      expect(guard(upload?.if ?? "false", { cancelled: () => canceled, failure: () => failure })).toBe(!canceled);
+    }
   }
   expect(upload?.uses).toBe("actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a");
   expect(upload?.with).toEqual({ name: "reports-e2e-startup-diagnostic-${{ matrix.project }}", path: "reports/\ntest-results/\n", "retention-days": 7 });

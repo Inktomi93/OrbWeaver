@@ -11,12 +11,14 @@ runs:
   steps:
     # pnpm reads the pinned packageManager from package.json; `pnpm install` then downloads the
     # devEngines-pinned Node itself, so there is no separate Node setup.
-    - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+    - name: Install the pinned pnpm
+      uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       with:
         cache: false
     # PR caches cannot warm main or release. One explicit owner restores for every trigger but only
     # trusted push, manual and scheduled runs write the store and lockfile-verification metadata.
     - id: pnpm
+      name: Resolve pnpm cache paths and trusted write policy
       shell: bash
       run: |
         echo "version=$(pnpm --version)" >> "$GITHUB_OUTPUT"
@@ -31,37 +33,47 @@ runs:
           *) echo 'save=false' >> "$GITHUB_OUTPUT" ;;
         esac
     - id: pnpm-cache
+      name: Restore the pnpm store and lockfile verification cache
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.pnpm.outputs.paths }}
         key: pnpm-${{ runner.os }}-${{ runner.arch }}-${{ steps.pnpm.outputs.version }}-${{ hashFiles('pnpm-lock.yaml') }}
         restore-keys: |
           pnpm-${{ runner.os }}-${{ runner.arch }}-${{ steps.pnpm.outputs.version }}-
-    - shell: bash
-      run: pnpm install --frozen-lockfile
+    - name: pnpm install
+      shell: bash
+      run: |
+        set -o pipefail
+        pnpm install --frozen-lockfile 2>&1 | tee "$RUNNER_TEMP/pnpm-install.log"
     - if: steps.pnpm.outputs.save == 'true' && steps.pnpm-cache.outputs.cache-hit != 'true'
+      name: Save the pnpm store and lockfile verification cache
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.pnpm.outputs.paths }}
         key: ${{ steps.pnpm-cache.outputs.cache-primary-key }}
     - id: playwright
+      name: Resolve the pinned Playwright version
       if: inputs.browsers == 'true'
       shell: bash
       run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
     - if: inputs.browsers == 'true'
       id: browser-cache
+      name: Restore the Playwright browser cache
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/.cache/ms-playwright
         key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
     # The browser binary is cached; the apt system libraries are not, so a cache hit still installs them.
     - if: inputs.browsers == 'true' && steps.browser-cache.outputs.cache-hit != 'true'
+      name: Install Chromium and its system libraries
       shell: bash
       run: pnpm exec playwright install --with-deps chromium
     - if: inputs.browsers == 'true' && steps.browser-cache.outputs.cache-hit == 'true'
+      name: Install cached Chromium system libraries
       shell: bash
       run: pnpm exec playwright install-deps chromium
     - if: inputs.browsers == 'true' && steps.pnpm.outputs.save == 'true' && steps.browser-cache.outputs.cache-hit != 'true'
+      name: Save the Playwright browser cache
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/.cache/ms-playwright

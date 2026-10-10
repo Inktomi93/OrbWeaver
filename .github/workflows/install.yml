@@ -1,10 +1,20 @@
 name: Install proof
+run-name: Install proof · ${{ github.event_name == 'schedule' && 'nightly' || github.ref_name }}
+
+# Source jobs prove the README install, launch, stop and native broker paths on fresh runners.
+# Docker uses the published release tag so compose and broker proofs match the immutable image.
+# pnpm downloads package.json's pinned Node; a green exact-main marker skips unchanged nightly proof.
 on:
-  workflow_dispatch: null
+  workflow_dispatch: {}
   schedule:
-    - cron: 23 10 * * *
+    - cron: "23 10 * * *"
 permissions:
   contents: read
+
+concurrency:
+  group: install-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   HEALTHZ: http://127.0.0.1:8788/healthz
 jobs:
@@ -15,21 +25,24 @@ jobs:
       sha: ${{ steps.sha.outputs.sha }}
       release_tag: ${{ steps.release.outputs.tag }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event_name == 'schedule' && 'main' || github.sha }}
           persist-credentials: false
       - id: sha
+        name: Freeze the selected source revision
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - id: release
+        name: Resolve the published stable release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           metadata=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest")
           tag=$(echo "$metadata" | jq -er 'select(.draft == false and .prerelease == false) | .tag_name')
-          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error title=Published release::Invalid stable tag=$tag"; exit 1; }
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
   source:
+    needs: [head]
     name: source (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
@@ -41,13 +54,15 @@ jobs:
           - macos-latest
           - windows-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           ref: ${{ needs.head.outputs.sha }}
+          fetch-depth: 0
       - id: seen
+        name: Look up the completed native proof
         if: github.event_name == 'schedule'
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .native-proof
           key: install-source-v1-${{ matrix.os }}-${{ needs.head.outputs.sha }}
@@ -71,8 +86,19 @@ jobs:
           $pnpmHome = Join-Path $env:LOCALAPPDATA "pnpm"
           "PNPM_HOME=$pnpmHome" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Join-Path $pnpmHome "bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-      - run: pnpm install
+      - name: pnpm install
+        id: install
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm install 2>&1 | tee "$RUNNER_TEMP/install.log"
         if: steps.seen.outputs.cache-hit != 'true'
+      - name: Report README install failure
+        if: failure() && steps.install.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "::error title=README install (${{ matrix.os }})::pnpm install failed"
+          { echo '### pnpm install'; echo '```text'; tail -n 80 "$RUNNER_TEMP/install.log"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: Report the Node versions
         shell: bash
         run: |
@@ -158,7 +184,7 @@ jobs:
         if: steps.seen.outputs.cache-hit != 'true' && (!cancelled())
         run: pnpm test:scoped tests/server/infra/plugin-host/broker-supervision.suite.test.ts
       - name: Add plugin broker receipt to the run summary
-        if: steps.seen.outputs.cache-hit != 'true' && (always())
+        if: steps.seen.outputs.cache-hit != 'true' && (!cancelled())
         shell: bash
         run: |
           pnpm exec node --input-type=module - <<'NODE'
@@ -170,8 +196,8 @@ jobs:
           }
           NODE
       - name: Upload plugin broker receipt
-        if: steps.seen.outputs.cache-hit != 'true' && (always())
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: steps.seen.outputs.cache-hit != 'true' && (!cancelled())
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: plugin-broker-proof-${{ matrix.os }}
           path: |
@@ -181,34 +207,37 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
       - id: mark
+        name: Mark the completed native proof
         if: success() && github.event_name == 'schedule' && steps.seen.outputs.cache-hit != 'true'
         env:
           PROOF_SHA: ${{ needs.head.outputs.sha }}
         run: echo "$PROOF_SHA" > .native-proof
       - if: success() && steps.mark.outcome == 'success'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        name: Save the completed native proof marker
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .native-proof
           key: install-source-v1-${{ matrix.os }}-${{ needs.head.outputs.sha }}
-    needs:
-      - head
   docker:
+    needs: [head]
     name: docker (ubuntu-24.04)
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           ref: ${{ needs.head.outputs.release_tag }}
       - id: seen
+        name: Look up the completed native proof
         if: github.event_name == 'schedule'
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .native-proof
           key: install-docker-v1-${{ needs.head.outputs.sha }}-${{ needs.head.outputs.release_tag }}
           lookup-only: true
       - id: image
+        name: Prove the immutable published image identity
         env:
           RELEASE_TAG: ${{ needs.head.outputs.release_tag }}
         run: |
@@ -218,24 +247,41 @@ jobs:
           docker pull "$image"
           sha=$(git rev-parse HEAD)
           stamp=$(docker run --rm --entrypoint cat "$image" /app/version.json)
-          echo "$stamp" | jq -e --arg sha "$sha" --arg version "${RELEASE_TAG#v}" '.commit == $sha and .channel == "stable" and .version == $version'
+          echo "$stamp" | jq -e --arg sha "$sha" --arg version "${RELEASE_TAG#v}" '.commit == $sha and .channel == "stable" and .version == $version' || { echo "::error title=Install image identity::Stamp mismatch expected sha=$sha version=${RELEASE_TAG#v} channel=stable; actual=$(echo "$stamp" | jq -c .)"; exit 1; }
           revision=$(docker inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')
-          test "$revision" = "$sha"
+          test "$revision" = "$sha" || { echo "::error title=Install image identity::Expected revision=$sha; got $revision"; exit 1; }
           digest=$(docker inspect "$image" --format '{{ index .RepoDigests 0 }}' | cut -d@ -f2)
-          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "::error title=Install image identity::Invalid digest=$digest"; exit 1; }
           echo "ORB_IMAGE=$image@$digest" >> "$GITHUB_ENV"
         if: steps.seen.outputs.cache-hit != 'true'
-      - run: docker compose pull
+      - name: docker compose pull
+        id: pull
+        run: |
+          set -o pipefail
+          docker compose pull 2>&1 | tee "$RUNNER_TEMP/compose-pull.log"
         if: steps.seen.outputs.cache-hit != 'true'
-      - run: docker compose up -d
+      - name: docker compose up -d
+        id: up
+        run: |
+          set -o pipefail
+          docker compose up -d 2>&1 | tee "$RUNNER_TEMP/compose-up.log"
         if: steps.seen.outputs.cache-hit != 'true'
+      - name: Report README Docker install failure
+        if: failure() && (steps.pull.outcome == 'failure' || steps.up.outcome == 'failure')
+        run: |
+          echo "::error title=README install (Docker)::docker compose pull or up failed"
+          for log in "$RUNNER_TEMP"/compose-*.log; do
+            if [[ -f "$log" ]]; then
+              { echo "### ${log##*/}"; echo '```text'; tail -n 80 "$log"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
       - name: Wait for /healthz
         run: |
           for _ in $(seq 1 60); do
             if curl -fsS "$HEALTHZ" > /dev/null 2>&1; then break; fi
             sleep 5
           done
-          curl -fsS "$HEALTHZ"
+          curl -fsS "$HEALTHZ" || { echo "::error title=README Docker readiness::No successful health response at $HEALTHZ after startup polling"; exit 1; }
         if: steps.seen.outputs.cache-hit != 'true'
       - name: Prove the plugin broker cannot read the data dir in the production image
         run: |
@@ -247,7 +293,8 @@ jobs:
       - name: Prove plugin broker containment and residency in the production image
         run: |
           docker compose stop orbweaver
-          mkdir -p -m 0777 "$RUNNER_TEMP/docker-proof"
+          mkdir -p "$RUNNER_TEMP/docker-proof"
+          chmod 0777 "$RUNNER_TEMP/docker-proof"
           docker compose run --rm --no-deps -T --user node --entrypoint node \
             -v "$PWD/tests/server/infra/plugin-host/_platform-proof.ts:/app/.cache/plugin-platform-proof.ts:ro" \
             -v "$RUNNER_TEMP/docker-proof:/proof" \
@@ -257,7 +304,7 @@ jobs:
         if: steps.seen.outputs.cache-hit != 'true' && (always())
         run: cp "$RUNNER_TEMP/docker-proof/plugin-broker-proof.json" "$RUNNER_TEMP/plugin-broker-proof-docker.json" || true
       - name: Add Docker plugin broker receipt to the run summary
-        if: steps.seen.outputs.cache-hit != 'true' && (always())
+        if: steps.seen.outputs.cache-hit != 'true' && (!cancelled())
         run: |
           receipt="$RUNNER_TEMP/plugin-broker-proof-docker.json"
           if [ -f "$receipt" ]; then
@@ -269,8 +316,8 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Upload Docker plugin broker receipt
-        if: steps.seen.outputs.cache-hit != 'true' && (always())
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: steps.seen.outputs.cache-hit != 'true' && (!cancelled())
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: plugin-broker-proof-docker
           path: ${{ runner.temp }}/plugin-broker-proof-docker.json
@@ -285,17 +332,14 @@ jobs:
           docker compose down
           if curl -fsS "$HEALTHZ" > /dev/null 2>&1; then echo "the app still answers after docker compose down"; exit 1; fi
       - id: mark
+        name: Mark the completed native proof
         if: success() && github.event_name == 'schedule' && steps.seen.outputs.cache-hit != 'true'
         env:
           PROOF_SHA: ${{ needs.head.outputs.sha }}
         run: echo "$PROOF_SHA" > .native-proof
       - if: success() && steps.mark.outcome == 'success'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        name: Save the completed native proof marker
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .native-proof
           key: install-docker-v1-${{ needs.head.outputs.sha }}-${{ needs.head.outputs.release_tag }}
-    needs:
-      - head
-concurrency:
-  group: install-${{ github.ref }}
-  cancel-in-progress: false

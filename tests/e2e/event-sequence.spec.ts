@@ -3,7 +3,7 @@
 
 import type { StreamAttachInput, StreamFrameFor } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { busEventTypes, busLive, openOrCreateChat, renameOpenChat, waitForStreamOpen } from "./support/chat-room.ts";
@@ -24,7 +24,7 @@ const CHAT_UPDATED = "chatUpdated";
 interface TimelineEntry {
   readonly phase: string;
   readonly procedure: string;
-  readonly chatId?: string;
+  readonly chatId?: ChatId;
   readonly batchSize?: number;
 }
 
@@ -46,11 +46,11 @@ function batchEntries(phase: string, method: string, procedures: readonly string
   const inputs: BatchInputs = method === POST_METHOD && postData !== null ? (JSON.parse(postData) as BatchInputs) : {};
   return procedures.map((procedure, index) => {
     const input = inputs[String(index)];
-    let chatId: string | undefined;
+    let chatId: ChatId | undefined;
     if (procedure === ATTACH && input !== undefined && "ref" in input && input.ref.channel === "chat") {
-      chatId = input.ref.chatId;
+      chatId = typeIdSchema(ID_PREFIX.chat).parse(input.ref.chatId);
     } else if ((procedure === GET_CHAT || procedure === LIST_MESSAGES || procedure === UPDATE_TITLE) && input !== undefined && "chatId" in input) {
-      chatId = input.chatId;
+      chatId = typeIdSchema(ID_PREFIX.chat).parse(input.chatId);
     }
     return { phase, procedure, batchSize: procedures.length, ...(chatId === undefined ? {} : { chatId }) };
   });

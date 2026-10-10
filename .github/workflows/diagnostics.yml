@@ -30,12 +30,10 @@ permissions:
 concurrency:
   group: diagnostics-${{ github.ref }}-${{ inputs.select_cpu_diagnostic }}
   cancel-in-progress: true
-env:
-  CI: "true"
 jobs:
   select-cpu-diagnostic:
     if: github.event_name == 'workflow_dispatch' && inputs.select_cpu_diagnostic
-    runs-on: ubuntu-24.04
+    runs-on: &media-runner ubuntu-24.04
     timeout-minutes: ${{ (inputs.select_cpu_diagnostic_context == 'ct-shard-4' || inputs.select_cpu_diagnostic_context == 'ct-shard-4-native') && 120 || 15 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -52,7 +50,7 @@ jobs:
         name: Native Select acceptance without CPU profiling
         if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.showcase.outcome == 'success' && inputs.select_cpu_diagnostic_context != 'ct-shard-4' && inputs.select_cpu_diagnostic_context != 'ct-shard-4-native' }}
         run: pnpm test:ct tests/client/lib/motion-stats.ct.tsx --grep='a real sealed Select classifies its confirmed first and repeat entrance lifetimes only$' --retries=0
-      - if: always() && inputs.select_cpu_diagnostic_context != 'ct-shard-4' && inputs.select_cpu_diagnostic_context != 'ct-shard-4-native'
+      - if: ${{ !cancelled() && inputs.select_cpu_diagnostic_context != 'ct-shard-4' && inputs.select_cpu_diagnostic_context != 'ct-shard-4-native' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: select-native-control
@@ -104,7 +102,7 @@ jobs:
           pnpm exec node scripts/select-cpu-diagnostic-context.ts verify-native "$context_root/ordinary.json" "$context_root/selected.json"
           cp "$context_root/ordinary.json" "$context_root/selected.json" "$context_root/cases.list" reports/select-native-trace-context/
           pnpm test:ct --test-list="$context_root/cases.list" --retries=0
-      - if: always()
+      - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: select-cpu-diagnostic-only
@@ -113,7 +111,7 @@ jobs:
 
   e2e-startup-diagnostic:
     if: github.event_name == 'workflow_dispatch' && !inputs.select_cpu_diagnostic && inputs.tier == 'e2e-diagnostic'
-    runs-on: ubuntu-24.04
+    runs-on: *media-runner
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -148,7 +146,7 @@ jobs:
           E2E_PROJECT: ${{ matrix.project }}
           E2E_SPEC: ${{ matrix.spec }}
         run: pnpm e2e "$E2E_SPEC" --project="$E2E_PROJECT" --retries=0
-      - if: always()
+      - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports-e2e-startup-diagnostic-${{ matrix.project }}

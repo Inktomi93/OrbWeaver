@@ -154,7 +154,9 @@ test("development publication selects an exact source commit and cannot overwrit
       permissions: z.object({}).strict(),
       jobs: z.object({
         image: z.object({
-          permissions: z.object({ contents: z.literal("read"), packages: z.literal("write") }).strict(),
+          permissions: z
+            .object({ contents: z.literal("read"), packages: z.literal("write"), ["id-token"]: z.literal("write"), attestations: z.literal("write") })
+            .strict(),
           env: z.record(z.string(), z.string()),
           steps: z.array(
             z.object({
@@ -184,7 +186,7 @@ test("development publication selects an exact source commit and cannot overwrit
   const boot = image.steps.find((step) => step.name === "Prove fresh runtime boot");
   expect(boot?.run).toContain("http://127.0.0.1:18788/healthz");
   expect(boot?.run).toContain('.version.commit == $sha and .version.channel == "main"');
-  const publish = image.steps.findIndex((step) => step.name === "Push development tags");
+  const publish = image.steps.findIndex((step) => step.name === "Advertise the proven development image");
   expect(publish).toBeGreaterThan(image.steps.findIndex((step) => step.name === "Prove development identity"));
   expect(publish).toBeGreaterThan(image.steps.findIndex((step) => step.name === "Prove fresh runtime boot"));
   expect(image.steps[publish]?.run).toContain('"$IMAGE:development"');
@@ -208,7 +210,7 @@ const AUTHORING_PACKAGES = ["plugin-sdk", "plugin-toolchain"];
 
 for (const [workflowName, cacheTag, publishName, proofName] of [
   ["release", "buildcache-release", "Push the versioned image", "Prove the image is this stable release"],
-  ["development-image", "buildcache-development", "Push development tags", "Prove fresh runtime boot"],
+  ["development-image", "buildcache-development", "Push the immutable development image", "Prove fresh runtime boot"],
 ] as const) {
   test(`${workflowName} exports intermediate build cache without publishing an unverified runtime image`, ({ repoRoot }) => {
     const workflow = z
@@ -330,7 +332,7 @@ function workflowJobs(repoRoot: string, name: string): z.infer<typeof workflowCo
 
 test("published-image scans cannot turn registry failure into a successful skip", async ({ repoRoot, fakeBin }) => {
   const image = workflowJobs(repoRoot, "security-scans")["image"];
-  expect(image?.if).toBe("github.event_name != 'push'");
+  expect(image?.if).toBe("github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'");
   const steps = image?.steps ?? [];
   // The obsolete prelaunch probe swallowed every manifest error, including authentication/network errors.
   await fakeBin("docker", "process.exit(1);");
@@ -537,7 +539,7 @@ test("CI preserves successful retry artifacts", ({ repoRoot }) => {
   const jobs = workflowJobs(repoRoot, "ci");
   for (const name of ["e2e-smoke", "qualification", "qualification-partition"]) {
     const upload = jobs[name]?.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@") === true);
-    expect(upload?.if, name).toBe(name === "qualification" ? "always() && needs.qualification-head.outputs.seen != 'true'" : "always()");
+    expect(upload?.if, name).toBe(name === "qualification" ? "${{ !cancelled() && needs.qualification-head.outputs.seen != 'true' }}" : "${{ !cancelled() }}");
     expect(upload?.with?.["path"], name).toBe(name === "e2e-smoke" ? "reports/\ntest-results/\n" : "reports/");
   }
 });
@@ -746,7 +748,7 @@ test("setup has one cache owner and only saves successful misses from trusted tr
   const saves = steps.filter((step) => step.uses?.startsWith("actions/cache/save@") === true);
   expect(restores.map((step) => step.id)).toEqual(["pnpm-cache", "browser-cache"]);
   expect(saves).toHaveLength(restores.length);
-  const installIndex = steps.findIndex((step) => step.run === "pnpm install --frozen-lockfile");
+  const installIndex = steps.findIndex((step) => step.name === "pnpm install");
   expect(installIndex).toBeGreaterThan(steps.findIndex((step) => step.id === "pnpm-cache"));
   for (const [index, restore] of restores.entries()) {
     const save = saves[index];
@@ -993,13 +995,13 @@ print(manifest["digest"])
   );
   await writeFile(summary, "");
   const result = await spawnNiced("bash", ["-euo", "pipefail", "-c", developmentStep(repoRoot, "Prove anonymous digest pull")], {
-    env: publicationEnv(scratch),
+    env: { ...publicationEnv(scratch), ["DIGEST"]: digest },
   });
   expect(result.code, result.stderr).toBe(0);
   expect(result.stdout).toContain('"downloadedLayers": 1');
   await writeFile(summary, "");
   const corrupt = await spawnNiced("bash", ["-euo", "pipefail", "-c", developmentStep(repoRoot, "Prove anonymous digest pull")], {
-    env: { ...publicationEnv(scratch), ...Object.fromEntries([["PUBLISH_PROOF_CORRUPT", "yes"]]) },
+    env: { ...publicationEnv(scratch), ["DIGEST"]: digest, ...Object.fromEntries([["PUBLISH_PROOF_CORRUPT", "yes"]]) },
   });
   expect(corrupt.code).not.toBe(0);
   expect(readFileSync(summary, "utf8")).toBe("");
