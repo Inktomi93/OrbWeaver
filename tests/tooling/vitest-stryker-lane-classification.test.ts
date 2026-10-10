@@ -58,6 +58,8 @@ test("Stryker import preserves the base population and creates independent overr
   expect(mutation.test.projects.map((project) => project.test.name)).toEqual(baseLaneNames().filter((name) => RUNTIME_LANES.has(name)));
   expect(mutation.test.fileParallelism).toBe(false);
   expect(mutation.test.maxWorkers).toBe(1);
+  expect(mutation.test.reporters.slice(0, -1)).toEqual(base.test?.reporters);
+  expect(mutation.test.reporters.at(-1)).toEqual(["./tooling/src/verify/ops/vitest-progress-reporter.ts", { mutation: true }]);
   expect(mutation.test.tagsFilter).toEqual(["!requires-process-chdir && !source-freshness && !requires-git-history && !live && !local-model-cache"]);
   for (const project of mutation.test.projects) {
     const original = base.test?.projects?.find(

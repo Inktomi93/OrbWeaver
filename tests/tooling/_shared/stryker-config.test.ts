@@ -1,7 +1,11 @@
-import { existsSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
+import { readConcurrencyProfile, readStageBudgets } from "@orb/tooling/_shared/concurrency-profile";
+import { testProcessEnv } from "@orb/tooling/_shared/process-env";
+import { parse } from "yaml";
+import { z } from "zod";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -48,7 +52,8 @@ const COMMON_OPTIONS = {
   tsconfigFile: "tsconfig.json",
   reporters: ["html", "json", "clear-text", "progress"],
   ignorePatterns: IGNORE_PATTERNS,
-  dryRunTimeoutMinutes: 45,
+  dryRunTimeoutMinutes: readStageBudgets().vitestHardCeilingMs / 60_000,
+  fileLogLevel: "trace",
   ignoreStatic: true,
   concurrency: readConcurrencyProfile().strykerConcurrency,
   timeoutMS: 10_000,
@@ -145,4 +150,47 @@ test("each config import owns independent mutable option branches", async () => 
 
   expect(gate).toEqual(EXPECTED_GATE);
   expect(freshExploratory).toEqual(EXPECTED_EXPLORATORY);
+});
+
+test("qualification retains root Stryker TRACE on success and failure without changing artifact roots", ({ repoRoot, scratch }) => {
+  const workflow = z
+    .object({
+      jobs: z.object({
+        "qualification-partition": z.object({
+          steps: z.array(
+            z.object({
+              id: z.string().optional(),
+              name: z.string().optional(),
+              if: z.string().optional(),
+              run: z.string().optional(),
+              uses: z.string().optional(),
+              with: z.object({ path: z.string().optional() }).optional(),
+            }),
+          ),
+        }),
+      }),
+    })
+    .parse(parse(readFileSync(join(repoRoot, ".github/workflows/ci.yml"), "utf8")));
+  const steps = workflow.jobs["qualification-partition"].steps;
+  const retain = steps.find((step) => step.name === "Retain Stryker TRACE");
+  expect(retain?.if).toBe("always()");
+  const script = z.string().parse(retain?.run);
+  expect(steps.indexOf(retain ?? {})).toBeGreaterThan(steps.findIndex((step) => step.id === "verify"));
+  const upload = steps.find((step) => step.uses?.startsWith("actions/upload-artifact@") === true);
+  expect(upload?.if).toBe("always()");
+  expect(upload?.with?.path).toBe("reports/");
+  expect(steps.indexOf(upload ?? {})).toBeGreaterThan(steps.indexOf(retain ?? {}));
+  for (const outcome of ["success", "failure"]) {
+    const tree = join(scratch, outcome);
+    mkdirSync(tree);
+    writeFileSync(join(tree, "stryker.log"), outcome + " native progress");
+    const result = spawnSync("bash", ["-euo", "pipefail", "-c", script], { cwd: tree, env: testProcessEnv(), encoding: "utf8" });
+    expect(result.status, result.stderr).toBe(0);
+    expect(readFileSync(join(tree, "reports/mutation/stryker.log"), "utf8")).toBe(outcome + " native progress");
+  }
+  const absent = join(scratch, "not-started");
+  mkdirSync(absent);
+  const missing = spawnSync("bash", ["-euo", "pipefail", "-c", script], { cwd: absent, env: testProcessEnv(), encoding: "utf8" });
+  expect(missing.status, missing.stderr).toBe(0);
+  expect(existsSync(join(absent, "reports/mutation/stryker.log"))).toBe(false);
 });

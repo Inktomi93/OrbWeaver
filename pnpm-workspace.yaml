@@ -525,5 +525,7 @@ patchedDependencies:
   # actual inflation, aggregate work, delta depth, and pre-concat delta output. A dependency bump must port it.
   isomorphic-git@1.42.2: patches/isomorphic-git@1.42.2.patch
   ts-morph@28.0.0: patches/ts-morph@28.0.0.patch
+  # TRACE enables the runner diagnostic: inspect bounds Vitest resolved-config cycles without changing execution.
+  '@stryker-mutator/vitest-runner@10.0.0': patches/@stryker-mutator__vitest-runner@10.0.0.patch
 
 nodeOptions: "--max-old-space-size=16384"

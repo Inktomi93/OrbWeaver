@@ -1,5 +1,7 @@
-import type { PartialStrykerOptions } from "@stryker-mutator/api/core";
-import { readConcurrencyProfile } from "./concurrency-profile.ts";
+import type { LogLevel, PartialStrykerOptions } from "@stryker-mutator/api/core";
+import { readConcurrencyProfile, readStageBudgets } from "./concurrency-profile.ts";
+
+const MS_PER_MINUTE = 60_000;
 
 type NativeTypescriptCheckerOptions = PartialStrykerOptions & {
   readonly typescriptChecker: {
@@ -55,10 +57,13 @@ export function createStrykerConfig(profile: StrykerConfigProfile): NativeTypesc
     typescriptChecker: { experimentalNativePreview: true },
     tsconfigFile: "tsconfig.json",
     reporters: ["html", "json", "clear-text", "progress"],
+    // Stryker erases its const enum from JavaScript; native config loading needs the schema string.
+    fileLogLevel: "trace" as LogLevel.Trace,
     htmlReporter: { fileName: profile.htmlReport },
     mutate: [...profile.mutate],
     ignorePatterns: [...IGNORE_PATTERNS],
-    dryRunTimeoutMinutes: 45,
+    // Initial-test supervision follows the native test-process ceiling, not the whole mutant campaign.
+    dryRunTimeoutMinutes: readStageBudgets().vitestHardCeilingMs / MS_PER_MINUTE,
     ignoreStatic: true,
     concurrency: readConcurrencyProfile().strykerConcurrency,
     timeoutMS: 10_000,

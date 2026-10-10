@@ -52,12 +52,17 @@ export function assertEveryLaneClassified(projectNames: readonly string[]): void
 assertEveryLaneClassified(source.test.projects.map((project) => project.test.name ?? ""));
 
 // Each Stryker process owns one Vitest worker; deriving this overlay must not alter other base consumers.
+const baseReporters = base.test?.reporters ?? "default";
 const cfg = {
   ...base,
   test: {
     ...base.test,
     fileParallelism: false,
     maxWorkers: 1,
+    reporters: [
+      ...(Array.isArray(baseReporters) ? baseReporters : [baseReporters]),
+      ["./tooling/src/verify/ops/vitest-progress-reporter.ts", { mutation: true }],
+    ],
     tagsFilter: ["!requires-process-chdir && !source-freshness && !requires-git-history && !live && !local-model-cache"],
     projects: source.test.projects
       .filter((project) => RUNTIME_LANES.has(project.test.name ?? ""))
