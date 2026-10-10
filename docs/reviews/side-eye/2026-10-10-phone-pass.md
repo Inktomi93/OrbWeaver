@@ -32,6 +32,7 @@ Not reached: the model list in the connection picker. It needs a key or a reacha
 ### P1: with the keyboard open, the transcript disappears
 
 What I measured:
+
 - Simulated keyboard of 336px, with a three-sentence line typed. The shell is 404px tall.
 - Transcript (`[aria-label="Conversation messages"]`): 15px tall. Composer: 260px. Tab bar: 56px.
 - The textarea grew to 132px, and its cap is `max-h-48` = 192px.
@@ -40,17 +41,20 @@ What I measured:
 Why it hurts: the user cannot see the line they are replying to while typing. That is the core phone task.
 
 Owners:
+
 - The tab bar stays on its own row above the keyboard by design: `packages/client/src/features/app-shell/surfaces/shell.css:44-57`.
 - The guided action row is a second full-height row: `packages/client/src/features/chat/components/composer-guided-cluster.tsx:159-205`.
 - The textarea cap: `packages/client/src/features/chat/components/composer.tsx:398`.
 
 Fix:
+
 - At a coarse pointer with the keyboard inset above 0, hide the bottom tab bar. It is navigation, and nobody navigates mid-sentence.
 - Collapse or hide the guided row while the textarea has focus.
 - Cap the textarea at about 4 lines while the keyboard is up.
 
 Evidence:
-- Slot `…2790367-2026-10-10T22-39-20-379Z`, `snaps/phone-kbsim-typed.png`, EVAL[1].
+
+- Slot `…2790367-2026-10-10T22-39-20-379Z`, `snaps/phone-kbsim-typed.png`, EVAL\[1].
 - Method: I injected `:root{--orb-keyboard-inset:336px !important}` (the variable `use-keyboard-inset-var.ts` writes), then `--tap` and `--fill` on the textarea.
 - Snap cannot open a real keyboard. This simulates the shell's own response to the inset; it is not a WebKit measurement.
 
@@ -59,11 +63,13 @@ Ruling note: the "tab bar stays on its own row" behaviour is a recorded design d
 ### P2: cramped at rest, with the input getting half the width
 
 Measurements at 430x740:
+
 - The composer is two rows of 48px controls, 114px tall.
 - Row 1: "Draft your line" at the left, then retry/generate/continue at the right, with a 186px dead gap between them.
 - Row 2: chat options and wand (108px together), the textarea at 230px (54% of the composer), then send.
 
 Measurements at 375x667:
+
 - The textarea is 175px wide (47%).
 - The placeholder "Continue, or type a message…" wraps to two lines, so the empty composer is 60px.
 - The transcript gets 350 of 667px (52%). Chrome takes the rest: topbar 49, composer 188, tab bar 56.
@@ -84,7 +90,7 @@ Owners: `packages/client/src/features/chat/components/greeting-swipe-strip.tsx:1
 
 Fix: fold the pager into the bubble's footer row at chip height. Keep 44px hit areas through padding or pseudo-element extension, not box height.
 
-Evidence: slot `…2796537-2026-10-10T22-40-01-682Z`, `phone-swipe-next.png`, EVAL[1].
+Evidence: slot `…2796537-2026-10-10T22-40-01-682Z`, `phone-swipe-next.png`, EVAL\[1].
 
 ### Detector false positive, retracted
 
@@ -121,7 +127,7 @@ Evidence: audit slot `…2886237-2026-10-10T22-47-33-456Z`; settled eval slot `�
 
 ### P3
 
-1. **Choosing an alternate greeting stamps "edited".** `setSeededGreeting` writes `editedAt: now` (`packages/server/src/domain/chat/verbs/edit.ts:606`). Picking a card's own alternate is not an edit. Slot `…2800050-2026-10-10T22-40-31-930Z`, EVAL[1] (`title="Edited at 04:40 PM"`).
+1. **Choosing an alternate greeting stamps "edited".** `setSeededGreeting` writes `editedAt: now` (`packages/server/src/domain/chat/verbs/edit.ts:606`). Picking a card's own alternate is not an edit. Slot `…2800050-2026-10-10T22-40-31-930Z`, EVAL\[1] (`title="Edited at 04:40 PM"`).
 2. **The message actions menu has 9 items** on a seed greeting: two disabled continuation items ("Undo last continuation", "Re-apply continuation") on a message never continued, plus "View wire trace…". That is over the working-memory limit. Hide inapplicable items, or group the debug item. Slot `…2803622-2026-10-10T22-40-54-116Z`.
 3. **Context drawer chips are inconsistent.** "MEMORY — IDLE" is a caps bordered pill at 44px; "1 member" is a plain chip that grows an icon and border when switching from Members to This chat. Slots `…2834086-2026-10-10T22-42-53-839Z`, `…2837583-2026-10-10T22-43-12-482Z`.
 4. **Inconsistent gutters.** The chat list, context drawer and Settings list sit 8px from the screen edge. Home, the character editor and Connections sit at 24px. Slots `…2811150-2026-10-10T22-41-33-748Z`, `…2856134-2026-10-10T22-45-04-530Z`.
