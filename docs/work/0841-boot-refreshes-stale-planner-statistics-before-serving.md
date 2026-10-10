@@ -18,7 +18,7 @@ Removing the boot ANALYZE brings back a whole-process freeze on large libraries.
 
 ## Done when
 
-A test seeds a large message table with stats claiming tiny tables and asserts boot refreshes them or that the recency subquery plans with messages_chat_seq_unique; it fails when optimizeDb is removed from boot.
+Tests seed a large message table with stats claiming tiny tables and assert that both boot and a completed bulk import refresh them, so the recency subquery plans with messages_chat_seq_unique. Each fails when its optimizeDb call is removed.
 
 ## Evidence
 
