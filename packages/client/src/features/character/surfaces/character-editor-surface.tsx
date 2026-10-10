@@ -18,7 +18,7 @@ import { SaveBar } from "@orb/ui/save-bar";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AppFormInstance, AutosaveSession } from "#forms/editor";
@@ -108,6 +108,26 @@ const EDITOR_SKELETON_ROWS = 8;
  * so the placeholder is honest about content as well as height.
  */
 export function CharacterEditorSurface({ characterId, detailContributors, onRevealField }: CharacterEditorSurfaceProps): ReactElement {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollPosition = useRef(0);
+  const scrollCharacter = useRef(characterId);
+  useLayoutEffect(() => {
+    const node = scrollRef.current;
+    if (node === null) {
+      return;
+    }
+    if (scrollCharacter.current !== characterId) {
+      scrollCharacter.current = characterId;
+      scrollPosition.current = 0;
+    }
+    // Hidden layout can clamp the DOM offset; restore after the revealed viewport has committed, like VirtualList's scope landing.
+    const frame = requestAnimationFrame(() => {
+      node.scrollTop = scrollPosition.current;
+    });
+    return (): void => {
+      cancelAnimationFrame(frame);
+    };
+  }, [characterId]);
   return (
     // THE SCROLL CONTAINER IS THE SURFACE'S, NOT THE BODY'S, AND THAT IS LOAD-BEARING (#1133). `reserveKey`
     // makes the boundary wrap its settled child in a measuring element, so a scroll box UNDER the boundary
@@ -117,7 +137,17 @@ export function CharacterEditorSurface({ characterId, detailContributors, onReve
     // scroller, where an auto-height child is exactly what a scroller wants. `relative` rides along: a scroll
     // box with no containing block dumps every `position:absolute` descendant into an ancestor's scrollable
     // area (character-library-welcome.tsx carries the same note).
-    <Stack className="relative h-full overflow-y-auto overscroll-contain">
+    <Stack
+      ref={scrollRef}
+      className="relative h-full overflow-y-auto overscroll-contain"
+      onScroll={(event): void => {
+        const node = event.currentTarget;
+        // A hidden Activity reports zero layout, not a new reader position.
+        if (node.clientHeight > 0) {
+          scrollPosition.current = node.scrollTop;
+        }
+      }}
+    >
       <QueryBoundary
         fallback={<SkeletonRows count={EDITOR_SKELETON_ROWS} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="this character" onRetry={retry} />}
@@ -175,11 +205,8 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
   const form = session.form as AppFormInstance<CharacterCardFormValues>;
 
   const surfaceRef = useRef<HTMLDivElement>(null);
-  // Unconditional again (#501). It used to stand down when the selection came from the LIST PICKER, because
-  // that pick SWAPPED the pane beside this editor into her chats and the pane the user had just transformed
-  // owned the focus. Nothing swaps now — the library stays docked with the pressed row still in it — so
-  // there is no second focus claimant and no intent seam to arbitrate one.
-  useFocusOnMount(surfaceRef);
+  // The keyed session resets cold focus for a new entity; retained Activity reveals leave its scroller untouched.
+  useFocusOnMount(surfaceRef, true, false);
   const selectedFacetId = useSelectedCharacterFacetId();
   // Activating a facet drops activeElement to <body>, so on Back we tell the re-mounting facet list
   // which row should reclaim focus.

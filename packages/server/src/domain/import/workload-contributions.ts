@@ -24,9 +24,20 @@ import { importBundleWorkloadParams, importStWorkloadParams, maintenanceWorkload
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import type { WorkloadContribution } from "#domain/workloads";
+import { getLog } from "#foundation/observability";
 import type { ImportWorkloadDeps } from "./contract/workloads.ts";
 import { stagedOwnerRoot } from "./substrate/staging.ts";
 import { createBackfillTokenUsage } from "./verbs/backfill-token-usage.ts";
+
+// Planner statistics are derived maintenance: a failed refresh must not reject committed import data.
+async function refreshPlannerAfterImport(refresh: ImportWorkloadDeps["refreshPlannerStats"], ownerId: UserId, report: ReportProgress): Promise<void> {
+  try {
+    await refresh({ ownerId });
+  } catch (err) {
+    getLog().error({ err, ownerId }, "post-import planner refresh failed; daily planner maintenance owns retry");
+    report({ message: "Import committed; planner refresh deferred to daily maintenance retry." });
+  }
+}
 
 /** Post-settle side effects of an import-st run: surface the skip count + report path to the workload
  *  progress, then reconcile owner stats on a real run that wrote canon. Extracted to keep the run body under
@@ -51,7 +62,7 @@ async function settleImportRun(args: {
   if (!dryRun && result.changed > 0) {
     report({ message: "reconciling stats post-import" });
     await reconcileImportStats({ ownerId });
-    await refreshPlannerStats({ ownerId });
+    await refreshPlannerAfterImport(refreshPlannerStats, ownerId, report);
     // #23: refresh the owner's character + chat lists (background import has no other client driver).
     emitLibraryChanged({ ownerId });
   }
@@ -274,7 +285,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           // #23: a background bundle/tree import that wrote canon refreshes the owner's character + chat lists
           // (the client's own completion invalidation only fires while the import UI stayed mounted).
           if (report_.imported > 0) {
-            await deps.refreshPlannerStats({ ownerId: targetOwnerId });
+            await refreshPlannerAfterImport(deps.refreshPlannerStats, targetOwnerId, report);
             deps.emitLibraryChanged({ ownerId: targetOwnerId });
           }
           // #1710 — a background run surfaces the SAME per-file notes (#1688) a sync door would: what a file

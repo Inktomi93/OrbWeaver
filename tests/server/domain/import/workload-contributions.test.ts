@@ -189,6 +189,7 @@ describe("import-st — the run's own logic", () => {
     const { deps, contributions } = build(stagingRoot);
     const result = await contributions[0].run(ctx, { dryRun: true }, vi.fn(), sig());
     expect(deps.reconcileImportStats).not.toHaveBeenCalled();
+    expect(deps.refreshPlannerStats).not.toHaveBeenCalled();
     expect(deps.emitLibraryChanged).not.toHaveBeenCalled();
     expect(result).toEqual({ scanned: 12, changed: 4, dryRun: true, failed: 0 });
   });
@@ -207,6 +208,7 @@ describe("import-st — the run's own logic", () => {
     const { deps, contributions } = build(stagingRoot, { runProfileDirImport: vi.fn(async () => ({ scanned: 3, changed: 0, failed: 0, memoryScope: null })) });
     await contributions[0].run(ctx, {}, vi.fn(), sig());
     expect(deps.reconcileImportStats).not.toHaveBeenCalled();
+    expect(deps.refreshPlannerStats).not.toHaveBeenCalled();
     expect(deps.emitLibraryChanged).not.toHaveBeenCalled();
   });
 });
@@ -278,7 +280,49 @@ describe("import-bundle — staging containment", () => {
       runStagedDirImport: vi.fn(async () => ({ imported: 0, skipped: 4, failed: 0, notes: [], memoryScope: null })),
     });
     await emptyContributions[2].run(ctx, { token: `${VALID_TOKEN}-empty`, source: "dir" }, vi.fn(), sig());
+    expect(emptyDeps.refreshPlannerStats).not.toHaveBeenCalled();
     expect(emptyDeps.emitLibraryChanged).not.toHaveBeenCalled();
+  });
+});
+
+describe("post-commit planner maintenance", () => {
+  test.each(["profile", "directory", "bundle"] as const)("%s completion and fan survive a failed planner refresh", async (source) => {
+    const { stagingRoot, ownerRoot } = await makeStaging();
+    const token = `${VALID_TOKEN}-planner`;
+    if (source === "bundle") {
+      await writeFile(join(ownerRoot, token), "synthetic archive");
+    } else if (source === "directory") {
+      await mkdir(join(ownerRoot, token));
+    }
+    const failure = Object.assign(new Error("database is locked"), { code: "SQLITE_BUSY" });
+    const refreshPlannerStats = vi.fn(() => Promise.reject(failure));
+    const progress = vi.fn();
+    const { deps, contributions } = build(stagingRoot, { refreshPlannerStats });
+    const result =
+      source === "profile"
+        ? await contributions[0].run(ctx, {}, progress, sig())
+        : await contributions[2].run(ctx, { token, ...(source === "directory" ? { source: "dir" } : {}) }, progress, sig());
+    expect(result).toMatchObject(source === "profile" ? { changed: 4, failed: 0 } : { imported: source === "directory" ? 3 : 7, failed: 0 });
+    expect(refreshPlannerStats).toHaveBeenCalledExactlyOnceWith({ ownerId: OWNER_ID });
+    expect(deps.emitLibraryChanged).toHaveBeenCalledExactlyOnceWith({ ownerId: OWNER_ID });
+    expect(progress).toHaveBeenCalledWith({ message: "Import committed; planner refresh deferred to daily maintenance retry." });
+  });
+
+  test("successful maintenance runs exactly once before the committed import fan", async () => {
+    const { stagingRoot } = await makeStaging();
+    const order: string[] = [];
+    const { deps, contributions } = build(stagingRoot, {
+      refreshPlannerStats: vi.fn(() => {
+        order.push("planner");
+        return Promise.resolve();
+      }),
+      emitLibraryChanged: vi.fn(() => {
+        order.push("fan");
+      }),
+    });
+    await contributions[0].run(ctx, {}, vi.fn(), sig());
+    expect(deps.refreshPlannerStats).toHaveBeenCalledTimes(1);
+    expect(order).toEqual(["planner", "fan"]);
   });
 });
 

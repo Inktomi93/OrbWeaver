@@ -32,7 +32,7 @@ import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "../../suppor
 import { routeTrpc, trpcHold } from "../../support/node/route-trpc.ts";
 import { UTILITY_RUNNING_ROUTES } from "../../support/node/utility-role.ts";
 import { STREAM_MUTATION_ROUTES } from "../data/bus/fixtures.ts";
-import { makeCharacterSummary } from "../features/character/fixtures.ts";
+import { CHARACTER_EDITOR_AMBIENT_ROUTES, makeCharacterDetail, makeCharacterSummary } from "../features/character/fixtures.ts";
 import { CHAT_AMBIENT_ROUTES, chatListResponder, makeChatSummary } from "../features/chat/fixtures.ts";
 import { HomePageReadinessStory, HomePageStory, SectionRosterCensusStory } from "./_ct-stories.tsx";
 
@@ -1331,4 +1331,128 @@ test("roster census rejects an omitted search and permits only a reasoned no-sea
   expect(await listSearchDefect(list)).toBe("empty-search-reason");
   await list.evaluate((node) => node.removeAttribute("data-search-policy"));
   expect(await listSearchDefect(list)).toBe("unclassified-search");
+});
+
+test("pending CONTENT arrival preserves the global palette's portal focus", async ({ mount, page }) => {
+  await routeTrpc(page, CENSUS_ROUTES);
+  const component = await mount(<HomePageStory />);
+  await component.getByRole("button", { name: /jump.*command menu/iu }).click();
+  const dialog = page.getByRole("dialog", { name: "Jump to…", exact: true });
+  const search = dialog.getByRole("combobox");
+  await expect(search).toBeFocused();
+  // Programmatic navigation can run while the global palette owns the background's inert boundary.
+  const characters = component.locator('.shell-rail button[aria-label="Characters"]');
+  await characters.evaluate((node) => node.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+  await expect(characters).toHaveAttribute("aria-current", "page");
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+  await expect(search).toBeFocused();
+  await expect(dialog).toBeVisible();
+});
+
+test.describe("phone character CONTENT focus and warm retention", () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+
+  test("keyboard selection from the real finder lands on the revealed content anchor", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...CENSUS_ROUTES,
+      ...CHARACTER_EDITOR_AMBIENT_ROUTES,
+      ...SEEDED_SETTINGS_ROUTE,
+      "persona.list": PERSONAS,
+      "character.get": makeCharacterDetail({ id: ARIA.id, name: ARIA.name }),
+    });
+    const component = await mount(<HomePageStory />);
+    await component.locator(".shell-rail").getByRole("button", { name: "Characters", exact: true }).click();
+    const row = component.locator('.shell-panel[data-panel-side="list"]').getByRole("button", { name: ARIA.name, exact: true });
+    await row.focus();
+    await row.press("Enter");
+    const main = component.getByRole("main", { name: "Characters content", exact: true });
+    await expect(main.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(ARIA.name);
+    await test.info().attach("cold-focus-owner", {
+      body: JSON.stringify(
+        await main.evaluate((node) => ({
+          focused: document.activeElement?.outerHTML.slice(0, 800),
+          inert: node.closest("[inert]") !== null,
+          rects: node.getClientRects().length,
+        })),
+      ),
+      contentType: "application/json",
+    });
+    await expect
+      .poll(() =>
+        main.evaluate((node) => ({
+          focused: document.activeElement?.outerHTML.slice(0, 600),
+          target: document.activeElement === node || document.activeElement === node.querySelector("form")?.parentElement,
+        })),
+      )
+      .toMatchObject({ target: true });
+    await page.keyboard.press("Tab");
+    await expect.poll(() => main.evaluate((node) => node.querySelector("form")?.contains(document.activeElement) ?? false)).toBe(true);
+  });
+
+  test("warm rail return preserves the actual editor node, dirty draft, and nonzero scroll; new entity keeps cold focus", async ({ mount, page }) => {
+    const second = makeCharacterSummary({ id: "char_home_second", name: "Second character" });
+    const firstCard = makeCharacterDetail({ id: ARIA.id, name: ARIA.name });
+    const secondCard = makeCharacterDetail({ id: second.id, name: second.name });
+    const update = trpcHold();
+    await routeTrpc(page, {
+      ...CENSUS_ROUTES,
+      ...CHARACTER_EDITOR_AMBIENT_ROUTES,
+      ...SEEDED_SETTINGS_ROUTE,
+      "persona.list": PERSONAS,
+      "character.list": { items: [ARIA, second], nextCursor: null, totalCount: 2 },
+      "character.count": 2,
+      "character.get": ({ characterId }) => (characterId === ARIA.id ? firstCard : secondCard),
+      "character.update": update,
+    });
+    const component = await mount(<HomePageStory />);
+    const rail = component.locator(".shell-rail");
+    await rail.getByRole("button", { name: "Characters", exact: true }).click();
+    const list = component.locator('.shell-panel[data-panel-side="list"]');
+    await list.getByRole("button", { name: ARIA.name, exact: true }).click();
+    const main = component.getByRole("main", { name: "Characters content", exact: true });
+    const name = main.getByRole("textbox", { name: "Name", exact: true });
+    await expect(name).toHaveValue(ARIA.name);
+    await name.fill("Retained unsaved draft");
+    await update.requested;
+    const scroll = main.locator(".overflow-y-auto").first();
+    const retainedNode = await scroll.evaluateHandle((node) => node);
+    const retainedForm = await name.locator("xpath=ancestor::form").evaluateHandle((node) => node);
+    await scroll.evaluate((node) => {
+      node.scrollTop = 300;
+    });
+    await expect.poll(() => scroll.evaluate((node) => node.scrollTop)).toBe(300);
+    await rail.getByRole("button", { name: "Home", exact: true }).click();
+    await expect(name).toBeHidden();
+    await rail.getByRole("button", { name: "Characters", exact: true }).click();
+    await expect(name).toHaveValue("Retained unsaved draft");
+    await expect.poll(() => scroll.evaluate((node, before) => node === before, retainedNode)).toBe(true);
+    await expect.poll(() => name.locator("xpath=ancestor::form").evaluate((node, before) => node === before, retainedForm)).toBe(true);
+    await test.info().attach("warm-focus-owner", {
+      body: JSON.stringify(
+        await scroll.evaluate((node) => ({
+          focused: document.activeElement?.outerHTML.slice(0, 800),
+          scroll: node.scrollTop,
+          height: node.clientHeight,
+          fullHeight: node.scrollHeight,
+        })),
+      ),
+      contentType: "application/json",
+    });
+    await expect
+      .poll(() => scroll.evaluate((node) => ({ scroll: node.scrollTop, focused: document.activeElement?.outerHTML.slice(0, 600) })))
+      .toMatchObject({ scroll: 300 });
+    await expect(rail.getByRole("button", { name: "Characters", exact: true })).toBeFocused();
+    update.release({ ...firstCard, name: "Retained unsaved draft" });
+    await component.getByRole("button", { name: "Back to Characters", exact: true }).click();
+    await list.getByRole("button", { name: second.name, exact: true }).click();
+    await expect(name).toHaveValue(second.name);
+    const newForm = name.locator("xpath=ancestor::form/parent::*");
+    await expect.poll(() => newForm.evaluate((node, before) => node.querySelector("form") === before, retainedForm)).toBe(false);
+    await expect
+      .poll(() => main.evaluate((node) => document.activeElement === node || document.activeElement === node.querySelector("form")?.parentElement))
+      .toBe(true);
+    await expect.poll(() => scroll.evaluate((node) => node.scrollTop)).toBe(0);
+    await retainedNode.dispose();
+    await retainedForm.dispose();
+  });
 });

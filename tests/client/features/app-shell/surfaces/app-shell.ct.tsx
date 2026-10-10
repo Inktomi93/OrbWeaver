@@ -71,6 +71,11 @@ import {
  */
 const EMPTY_BANK_HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 }, chunks: 0, passages: 0, staleExtraction: 0, total: 0 };
 const SHELL_AMBIENT_ROUTES = defineTrpcRoutes({
+  "character.count": 0,
+  "chat.countChats": 0,
+  "worldInfo.countBooks": 0,
+  "regex.countScripts": 0,
+  "rosterPreset.count": 0,
   // The Settings section's LIST paints the four collection bands when a story lands on it — fed empty.
   "tag.listTagsWithUsage": [],
   "regex.listScripts": [],
