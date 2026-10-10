@@ -658,6 +658,71 @@ describe("read — listChats orders by the clock its rows DISPLAY (#150)", () =>
   });
 });
 
+describe("read — countChats", () => {
+  test("counts the caller's filtered membership scope without participant enrichment and agrees with the page", async () => {
+    const me = await seedUser(db, castId<Handle>("count_member"));
+    const stranger = await seedUser(db, castId<Handle>("count_stranger"));
+    const characterId = await seedCharacter(db, me, "count_character");
+    const otherCharacter = await seedCharacter(db, me, "count_other_character");
+    for (const spec of [
+      { key: "count_active", host: me, character: characterId, title: "Rain", updatedAt: 1000 },
+      { key: "count_archived", host: me, character: characterId, title: "Rain", updatedAt: 2000, archived: true },
+      { key: "count_temporary", host: me, character: characterId, title: "Rain", updatedAt: 3000, temporary: true },
+      { key: "count_husk", host: me, character: characterId, title: "Rain", updatedAt: 3000, startedAt: null },
+      { key: "count_other", host: me, character: otherCharacter, title: "Snow", updatedAt: 4000 },
+      { key: "count_foreign", host: stranger, character: characterId, title: "Rain", updatedAt: 5000 },
+      { key: "count_shared", host: stranger, character: characterId, title: "Rain", updatedAt: 1500 },
+    ]) {
+      const chatId = await seedChat(db, spec.key, spec);
+      await seedParticipant(db, { chatId, key: `${spec.key}_h`, userId: spec.host, role: "host" });
+      await seedParticipant(db, { chatId, key: `${spec.key}_c`, characterId: spec.character });
+      if (spec.key === "count_shared") {
+        await seedParticipant(db, { chatId, key: "count_shared_m", userId: me, role: "member" });
+      }
+    }
+    const single = vi.fn(loadParticipantViews);
+    const batch = vi.fn(batchParticipantViews(loadParticipantViews));
+    const read = createRead(makeChatContext(db), makeDeps({ loadParticipantViews: single, loadParticipantViewsBatch: batch }));
+    for (const [lens, expected] of [
+      [{}, 3],
+      [{ includeArchived: true }, 4],
+      [{ characterId }, 2],
+      [{ search: "  RAIN  " }, 2],
+      [{ beforeRecencyAt: 2000 }, 2],
+      [{ includeArchived: true, characterId, search: "rain" }, 3],
+      [{ characterId: otherCharacter, search: "rain" }, 0],
+    ] as const) {
+      single.mockClear();
+      batch.mockClear();
+      const params = { principal: principal(me), ...lens };
+      expect(await read.countChats(params)).toBe(expected);
+      expect(single).not.toHaveBeenCalled();
+      expect(batch).not.toHaveBeenCalled();
+      const page = await read.listChats({ ...params, limit: 100 });
+      expect(page.totalCount).toBe(expected);
+      expect(page.items).toHaveLength(expected);
+    }
+    expect(await read.countChats({ principal: principal(stranger), characterId, search: "rain" })).toBe(2);
+  });
+
+  test("count search does not become a hidden-content or pre-join-history oracle", async () => {
+    const host = await seedUser(db, castId<Handle>("count_host"));
+    const member = await seedUser(db, castId<Handle>("count_hidden_member"));
+    const floored = await seedUser(db, castId<Handle>("count_floored_member"));
+    const chatId = await seedChat(db, "count_secret", { title: "The Vault" });
+    await seedParticipant(db, { chatId, key: "count_secret_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "count_secret_m", userId: member, role: "member" });
+    await seedParticipant(db, { chatId, key: "count_secret_f", userId: floored, role: "member", joinSeq: 2, joinHistoryVisibility: "from-join" });
+    await seedMessage(db, chatId, 1, { role: "assistant", content: 'The visible door. <lie truth="buried treasure"/>' });
+    const read = createRead(makeChatContext(db), makeDeps());
+    expect(await read.countChats({ principal: principal(host), search: "buried treasure" })).toBe(1);
+    expect(await read.countChats({ principal: principal(member), search: "buried treasure" })).toBe(0);
+    expect(await read.countChats({ principal: principal(floored), search: "visible door" })).toBe(0);
+    expect(await read.countChats({ principal: principal(member), search: "vault" })).toBe(1);
+    expect(await read.countChats({ principal: principal(floored), search: "vault" })).toBe(1);
+  });
+});
+
 describe("read — listChats PAGING, projection + search (the 880-chat class)", () => {
   /** N rooms hosted by `me`, all stamped the SAME `updatedAt` — the shape a bulk import writes, and the one
    *  an `updated_at`-only keyset silently skips or repeats rows across. */

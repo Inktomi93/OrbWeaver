@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-10
 priority: P2
 area: import
+lane: wt/db-import-ownership-bounds
 ---
 
 # Bound bulk chat import ownership query parameters

@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-10
 priority: P2
 area: database
+lane: wt/db-interactive-reads
 ---
 
 # Bound interactive greeting and dossier reads
