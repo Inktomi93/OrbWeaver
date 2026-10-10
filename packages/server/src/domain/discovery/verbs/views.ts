@@ -87,7 +87,7 @@ async function characterDossier(db: Db, deps: ViewsDeps, args: { ownerId: UserId
   if (card === undefined) {
     return null;
   }
-  const [pairs, similar] = await Promise.all([readOwnedPortraitPairs(db, ownerId), deps.similar(ownerId, characterId, DOSSIER_SIMILAR_TOP_N)]);
+  const [pairs, similar] = await Promise.all([readOwnedPortraitPairs(db, ownerId, characterId), deps.similar(ownerId, characterId, DOSSIER_SIMILAR_TOP_N)]);
   const pair = pairs.find((p) => p.characterId === characterId);
   const portrait = pair === undefined ? null : { avatarHash: pair.avatarHash, alignment: cosineSim(pair.cardVec, pair.imageVec) };
   return {

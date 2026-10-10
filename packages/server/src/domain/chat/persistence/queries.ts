@@ -1217,6 +1217,18 @@ export async function loadHasUserMessage(db: Db, chatId: ChatId): Promise<boolea
   return rows.length > 0;
 }
 
+/** Does selected canon contain a user row? Mirrors the `messages ⋈ selected variant` domain of
+ *  {@link loadCanonHistory} without projecting transcript bytes. */
+export async function loadHasSelectedCanonUserMessage(db: Db, chatId: ChatId): Promise<boolean> {
+  const rows = await db
+    .select({ id: messages.id })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(and(eq(messages.chatId, chatId), eq(messages.role, "user")))
+    .limit(LIMIT_ONE);
+  return rows.length > 0;
+}
+
 /** The canon history strictly after `afterSeq` (the compaction window). Slot ⋈ selected-variant, oldest-first. */
 export async function loadCanonHistoryAfter(db: Db, chatId: ChatId, afterSeq: number): Promise<MessageView[]> {
   const rows = await db

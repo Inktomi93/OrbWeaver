@@ -8,7 +8,7 @@ import { castId } from "@orb/kit/ids";
 import type { DiscoveryContext } from "@orb/server/domain/discovery";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
+import { freshCountedDb, freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import {
   FROZEN_AT,
@@ -219,6 +219,49 @@ describe("characterDossier", () => {
     expect(dossier).not.toBeNull();
     expect(dossier?.portrait).toBeNull();
     expect(dossier?.similar).toEqual([]); // default harness `similar` = no neighbours
+  });
+
+  test("a dossier hydrates only its requested portrait pair while preserving shared-avatar exclusion", async () => {
+    const { db, queries } = await freshCountedDb();
+    const owner = await seedUser(db, "user_a");
+    const hero = await seedDossierCard(db, owner);
+
+    for (const key of ["unrelated_1", "unrelated_2", "unrelated_3"]) {
+      const assetId = await seedAsset(db, `asset_${key}`, owner);
+      const characterId = await seedCharacter(db, { id: `character_${key}`, ownerId: owner, avatarAssetId: assetId });
+      await seedCharacterEmbedding(db, { characterId, embedding: vec(1) });
+      await seedImageEmbedding(db, { id: `image_${key}`, assetId, embedding: vec(1), lens: "image-raw" });
+    }
+
+    const sharedAsset = await seedAsset(db, "asset_shared", owner);
+    const sharedCharacter = castId<CharacterId>("character_shared_1");
+    for (const key of ["shared_1", "shared_2", "shared_3"]) {
+      const characterId = await seedCharacter(db, { id: `character_${key}`, ownerId: owner, avatarAssetId: sharedAsset });
+      await seedCharacterEmbedding(db, { characterId, embedding: vec(1) });
+      if (key === "shared_1") {
+        await db.insert(characterSummaries).values({
+          characterId,
+          genre: "fantasy",
+          tone: null,
+          tags: [],
+          elevatorPitch: null,
+          model: "test-embed-model-1024",
+          computedAt: FROZEN_AT,
+        });
+      }
+    }
+    await seedImageEmbedding(db, { id: "image_shared", assetId: sharedAsset, embedding: vec(1), lens: "image-raw" });
+    queries.reset();
+
+    const dossier = await dossierSvc(db).characterDossier(owner, hero);
+    const portraitRead = queries
+      .statements()
+      .find((statement) => statement.includes('"character_embeddings"."embedding"') && statement.includes('"image_embeddings"."embedding"'));
+    const sharedDossier = await dossierSvc(db).characterDossier(owner, sharedCharacter);
+
+    expect(dossier?.portrait).toEqual({ avatarHash: "cas_asset_hero", alignment: 1 });
+    expect(portraitRead?.slice(portraitRead.toLowerCase().indexOf(" where "))).toContain('"characters"."id" = ?');
+    expect(sharedDossier?.portrait).toBeNull();
   });
 
   test("null on a foreign/undistilled character (owner belt)", async () => {

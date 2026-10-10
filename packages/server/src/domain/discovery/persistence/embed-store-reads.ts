@@ -674,7 +674,7 @@ interface PortraitPair {
 /** Every non-synthetic owner character with both a card-text vector and an avatar vector in the same model
  *  space at the same width, each from its current generation, excluding shared avatars — the cross-modal
  *  portrait-alignment input (paired cosine, in-RAM). */
-export async function readOwnedPortraitPairs(db: Db, ownerId: UserId): Promise<PortraitPair[]> {
+export async function readOwnedPortraitPairs(db: Db, ownerId: UserId, characterId?: CharacterId): Promise<PortraitPair[]> {
   const shared = await sharedAvatarAssetIds(db, ownerId);
   return await db
     .select({
@@ -695,7 +695,16 @@ export async function readOwnedPortraitPairs(db: Db, ownerId: UserId): Promise<P
         eq(characterEmbeddings.dim, imageEmbeddings.dim),
       ),
     )
-    .where(and(ownedRealCharacters(ownerId), eq(imageEmbeddings.lens, IMAGE_VECTOR_LENS), excludeShared(shared), currentImage, currentCard));
+    .where(
+      and(
+        ownedRealCharacters(ownerId),
+        eq(imageEmbeddings.lens, IMAGE_VECTOR_LENS),
+        excludeShared(shared),
+        currentImage,
+        currentCard,
+        ...(characterId === undefined ? [] : [eq(characters.id, characterId)]),
+      ),
+    );
 }
 
 interface CaptionRow {
