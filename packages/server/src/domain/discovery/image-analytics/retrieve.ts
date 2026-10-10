@@ -8,8 +8,8 @@
 // THE PIPELINE, END TO END, so nobody re-derives it (issue #164's audit deliverable):
 //   1. `domain/embeddings/indexer/caption.ts` — ONE vision call per avatar returns a caption AND a
 //      grammar-enforced facet breakdown (`imageBreakdownSchema`, `@orb/contracts/embeddings`).
-//   2. `verbs/store.ts` writes both to `image_embeddings` (`caption`, `caption_meta`) for the
-//      `image-captioned` lens; `image-raw` is the pure-pixel vector beside it.
+//   2. The image indexer stores both in `image_analyses` through `persistence/image-analysis.ts`,
+//      independently of vector lifetime. `verbs/store.ts` encodes the accepted annotation revision.
 //   3. The `index {source:"image"}` workload is the catch-up door; its pre-check treats a captioned row with
 //      no breakdown as WORK, which is what makes the facet backfill resumable without `force`.
 //   4. HERE: k-means over the raw avatar vectors makes the families; the breakdown names them by LIFT.

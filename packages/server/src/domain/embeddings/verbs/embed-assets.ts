@@ -7,7 +7,7 @@ import type { BulkEmbedResult, StoreResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
 import { completeGenerationScope, resolveImageTargetGeneration } from "../substrate/generation.ts";
 export function createEmbedAssets(ctx: EmbeddingsContext, deps: Pick<EmbeddingsService, "indexAsset">): EmbeddingsService["embedAssets"] {
-  return async ({ force, signal, ownerId, onProgress }: EmbedPassParams): Promise<BulkEmbedResult> => {
+  return async ({ force, signal, ownerId, onProgress, embedderChanged }: EmbedPassParams): Promise<BulkEmbedResult> => {
     let embedded = 0;
     let skipped = 0;
     // `ownerId` scopes the sweep to one owner; `null` = every owner. The enumeration is materialised BEFORE
@@ -21,7 +21,7 @@ export function createEmbedAssets(ctx: EmbeddingsContext, deps: Pick<EmbeddingsS
       if (signal.aborted) {
         break; // cooperative abort between assets — every completed embed is durable + idempotent
       }
-      const result = await deps.indexAsset(assetId, { force, signal });
+      const result = await deps.indexAsset(assetId, { force, signal, embedderChanged });
       await recordReceipt(ctx, assetId, result, receipts);
       if (result?.outcome === "written") {
         embedded += 1;

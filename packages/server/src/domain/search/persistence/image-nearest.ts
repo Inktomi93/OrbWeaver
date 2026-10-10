@@ -5,7 +5,7 @@
 
 import type { ImageLens } from "@orb/contracts/embeddings";
 import type { ReadOnlyDb } from "@orb/db";
-import { assets, characters, imageEmbeddings } from "@orb/db";
+import { assets, characters, imageAnalyses, imageEmbeddings } from "@orb/db";
 import type { AssetId, CharacterId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { toVectorBlob } from "./nearest.ts";
@@ -38,10 +38,11 @@ export async function nearestImages(db: ReadOnlyDb, params: NearestImagesParams)
       hash: assets.hash,
       distance,
       hubScore: imageEmbeddings.hubScore,
-      caption: imageEmbeddings.caption,
+      caption: sql<string | null>`case when ${imageEmbeddings.lens} = 'image-captioned' then ${imageAnalyses.caption} else null end`,
     })
     .from(imageEmbeddings)
     .innerJoin(assets, eq(imageEmbeddings.assetId, assets.id))
+    .leftJoin(imageAnalyses, and(eq(imageAnalyses.assetId, assets.id), eq(imageAnalyses.contentHash, assets.hash)))
     .where(
       and(
         eq(assets.ownerId, params.ownerId),

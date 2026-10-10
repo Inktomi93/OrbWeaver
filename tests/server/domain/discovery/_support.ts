@@ -23,6 +23,7 @@ import {
   embedGenerations,
   embedGenerationTargets,
   embedSpaceState,
+  imageAnalyses,
   imageEmbeddings,
   messages,
   messageVariants,
@@ -52,7 +53,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { resolveTier0Range } from "../../../../packages/server/src/domain/chat/index.ts";
 import type { DiscoveryContext } from "../../../../packages/server/src/domain/discovery/index.ts";
 import { createStatsService } from "../../../../packages/server/src/domain/stats/service.ts";
@@ -641,12 +642,22 @@ export async function seedImageEmbedding(
     assetId: overrides.assetId,
     embedding: overrides.embedding,
     lens: overrides.lens ?? "image-raw",
-    ...(overrides.caption !== undefined ? { caption: overrides.caption } : {}),
-    ...(overrides.captionMeta !== undefined ? { captionMeta: overrides.captionMeta } : {}),
     contentHash: overrides.contentHash ?? `hash_${overrides.id}`,
     model,
     generationId,
     dim: VECTOR_DIM,
     createdAt: FROZEN_AT,
   });
+  if (overrides.caption !== undefined || overrides.captionMeta !== undefined) {
+    await db
+      .insert(imageAnalyses)
+      .values({
+        assetId: overrides.assetId,
+        contentHash: sql<string>`(select ${assets.hash} from ${assets} where ${assets.id} = ${overrides.assetId})`,
+        caption: overrides.caption ?? "a fixture portrait",
+        captionMeta: overrides.captionMeta ?? {},
+        createdAt: FROZEN_AT,
+      })
+      .onConflictDoNothing();
+  }
 }

@@ -92,7 +92,7 @@ export type ResolveEmbeddingConnection = (
 /** Re-read a character card's embeddable text by id. `undefined` when deleted between emit and handler. */
 export type LoadCardText = (characterId: CharacterId) => Promise<string | undefined>;
 
-/** Re-read an avatar asset's (resized) bytes by id. `undefined` when deleted between emit and handler. */
+/** Re-read an avatar asset's immutable CAS bytes by id. `undefined` when deleted between emit and handler. */
 export type LoadAssetBytes = (assetId: AssetId) => Promise<Uint8Array | undefined>;
 
 /** Re-read an asset's STORED mime by id (the magic-verified upload mime). `null` when the row is gone.
@@ -152,7 +152,10 @@ export interface EmbeddingsContext {
 
 export interface EmbeddingsService {
   readonly purgeDisallowedImages: () => Promise<void>;
-  readonly indexAsset: (assetId: AssetId, options?: { readonly force?: boolean; readonly signal?: AbortSignal | undefined }) => Promise<StoreResult | null>;
+  readonly indexAsset: (
+    assetId: AssetId,
+    options?: { readonly force?: boolean; readonly embedderChanged?: boolean | undefined; readonly signal?: AbortSignal | undefined },
+  ) => Promise<StoreResult | null>;
   readonly resolveGeneration: (ownerId: UserId, task: GenerationTask, via?: GenerationTask) => Promise<PinnedGeneration | null>;
   /** Bring the owner's stored targets in line with what their vector bindings resolve to now, moving any that
    *  differ (which queues the rebuild through {@link EmbeddingsContext.onTargetGenerationMoved}). A binding that
@@ -198,10 +201,10 @@ export interface EmbeddingsService {
    *  Resumable (hash gate skips already-embedded), cooperative abort, failures propagate. */
   readonly embedCorpus: (params: EmbedPassParams) => Promise<BulkEmbedResult>;
   /** Bulk image catch-up sweep: enumerate every image asset → re-read bytes → `store` both lenses. Caption
-   *  generation only runs when a lens row is stale/missing (or `force`). Same resume/abort contract. */
+   *  generation only runs when retained analysis is missing or explicitly forced; embedder rebuilds reuse it. Same resume/abort contract. */
   readonly embedAssets: (params: EmbedPassParams) => Promise<BulkEmbedResult>;
   /** The avatar analyses (one vision call each) {@link embedAssets} would make over this scope. Reads only. */
-  readonly countAssetAnalysisCalls: (params: Pick<EmbedPassParams, "ownerId" | "force">) => Promise<number>;
+  readonly countAssetAnalysisCalls: (params: Pick<EmbedPassParams, "ownerId" | "force" | "embedderChanged">) => Promise<number>;
   /** Reclaim the OLD chat-memory embed space — deletes `chat_segments`/`chat_digests` rows whose
    *  `model` differs from the active `roleClients.embedModel`. BULK-ONLY + skip-on-abort is the caller's
    *  guard (the memory-backfill runner), mirroring the embedCorpus/embedAssets purge. */

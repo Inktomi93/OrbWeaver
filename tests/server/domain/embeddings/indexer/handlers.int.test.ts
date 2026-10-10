@@ -5,12 +5,13 @@
 //     via the injected `summarize` op, persisting it on the captioned row;
 //   • a source deleted between emit and handler (loader → undefined) is a silent skip — no store, no row.
 
-import { characterEmbeddings, imageEmbeddings, imageIndexSkips } from "@orb/db";
+import { characterEmbeddings, imageAnalyses, imageEmbeddings, imageIndexSkips } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsIndexer, createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { contentHash } from "../../../../../packages/server/src/domain/embeddings/substrate/hash.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import {
@@ -168,7 +169,7 @@ describe("onAssetCreated", () => {
     const storeH = makeStoreHarness(db);
     const svc = createEmbeddingsService(storeH.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const assetId = await seedAsset(db, owner);
+    const assetId = await seedAsset(db, owner, { hash: contentHash(IMG) });
     const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { assetBytes: IMG });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
@@ -180,8 +181,7 @@ describe("onAssetCreated", () => {
     const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
     expect(rows).toHaveLength(2);
     expect(rows.every((r) => r.model === IMAGE_EMBED_MODEL)).toBe(true);
-    expect(rows.find((r) => r.lens === "image-raw")?.caption).toBeNull();
-    expect(rows.find((r) => r.lens === "image-captioned")?.caption).toBe(TEST_CAPTION);
+    expect((await db.select().from(imageAnalyses))[0]?.caption).toBe(TEST_CAPTION);
   });
 
   // §10-3 — THE DEFECT THIS REPLACES, stated as what a user lost: an owner with no `imageEmbed` binding had
@@ -194,7 +194,7 @@ describe("onAssetCreated", () => {
     const storeH = makeStoreHarness(db, {}, "no-binding");
     const svc = createEmbeddingsService(storeH.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner-no-image-embed") });
-    const assetId = await seedAsset(db, owner);
+    const assetId = await seedAsset(db, owner, { hash: contentHash(IMG) });
     const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { assetBytes: IMG });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
@@ -205,7 +205,7 @@ describe("onAssetCreated", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.lens).toBe("image-captioned");
     expect(rows[0]?.model).toBe(EMBED_MODEL);
-    expect(rows[0]?.caption).toBe(TEST_CAPTION);
+    expect((await db.select().from(imageAnalyses))[0]?.caption).toBe(TEST_CAPTION);
     // The caption still costs its one vision call, and the image embedder is never asked (there is none).
     expect(storeH.roleClients.summarize).toHaveBeenCalledTimes(1);
     expect(storeH.roleClients.imageEmbed).not.toHaveBeenCalled();
@@ -219,7 +219,7 @@ describe("onAssetCreated", () => {
     const storeH = makeStoreHarness(db, {}, "no-image-input");
     const svc = createEmbeddingsService(storeH.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner-text-only-embedder") });
-    const assetId = await seedAsset(db, owner);
+    const assetId = await seedAsset(db, owner, { hash: contentHash(IMG) });
     const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { assetBytes: IMG });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
@@ -237,7 +237,7 @@ describe("onAssetCreated", () => {
     const storeH = makeStoreHarness(db);
     const svc = createEmbeddingsService(storeH.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const assetId = await seedAsset(db, owner);
+    const assetId = await seedAsset(db, owner, { hash: contentHash(IMG) });
     const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { assetBytes: undefined });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
@@ -256,7 +256,7 @@ describe("onAssetCreated", () => {
     const storeH = makeStoreHarness(db);
     const svc = createEmbeddingsService(storeH.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const assetId = await seedAsset(db, owner);
+    const assetId = await seedAsset(db, owner, { hash: contentHash(IMG) });
     const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { assetMime: "video/mp4", assetBytes: IMG });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
@@ -276,7 +276,7 @@ describe("onAssetCreated", () => {
     const storeH = makeStoreHarness(db);
     const svc = createEmbeddingsService(storeH.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const assetId = await seedAsset(db, owner);
+    const assetId = await seedAsset(db, owner, { hash: contentHash(IMG) });
     const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { assetMime: "image/png", assetBytes: IMG });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
@@ -295,7 +295,7 @@ describe("onAssetCreated", () => {
     const storeH = makeStoreHarness(db);
     const svc = createEmbeddingsService(storeH.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const assetId = await seedAsset(db, owner);
+    const assetId = await seedAsset(db, owner, { hash: contentHash(IMG) });
     const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { assetBytes: pngBytes(1, 1) });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
@@ -315,7 +315,7 @@ describe("onAssetCreated", () => {
     const storeH = makeStoreHarness(db);
     const svc = createEmbeddingsService(storeH.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const assetId = await seedAsset(db, owner);
+    const assetId = await seedAsset(db, owner, { hash: contentHash(pngBytes(64, 64)) });
     const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { assetBytes: pngBytes(64, 64) });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
@@ -333,7 +333,7 @@ describe("onAssetCreated", () => {
     const storeH = makeStoreHarness(db);
     const svc = createEmbeddingsService(storeH.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const assetId = await seedAsset(db, owner);
+    const assetId = await seedAsset(db, owner, { hash: contentHash(IMG) });
     const ih = makeIndexerHarness(db, svc.store, storeH.roleClients, { assetBytes: pngBytes(1, 1) });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 

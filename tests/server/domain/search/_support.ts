@@ -30,6 +30,7 @@ import {
   embedGenerationTargets,
   embedSpaceState,
   globalDocuments,
+  imageAnalyses,
   imageEmbeddings,
   userConnections,
   users,
@@ -53,7 +54,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { consolidationHash, createResolveViewerVisibility } from "@orb/server/domain/chat";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { resolveActiveDocumentIds } from "../../../../packages/server/src/domain/databank/persistence/scope.ts";
 import type { SearchContext, SearchService } from "../../../../packages/server/src/domain/search/index.ts";
 import { createSearchService } from "../../../../packages/server/src/domain/search/index.ts";
@@ -506,7 +507,6 @@ export async function seedImageEmbedding(db: Db, o: SeedImageEmbeddingOverrides)
     assetId: o.assetId,
     embedding: o.embedding,
     lens,
-    caption: o.caption ?? null,
     contentHash: o.contentHash ?? `image_hash_${o.assetId}`,
     hubScore: o.hubScore ?? null,
     model,
@@ -514,6 +514,18 @@ export async function seedImageEmbedding(db: Db, o: SeedImageEmbeddingOverrides)
     dim: VECTOR_DIM,
     createdAt: FROZEN_AT,
   });
+  if (o.caption !== undefined && o.caption !== null) {
+    await db
+      .insert(imageAnalyses)
+      .values({
+        assetId: o.assetId,
+        contentHash: sql<string>`(select ${assets.hash} from ${assets} where ${assets.id} = ${o.assetId})`,
+        caption: o.caption,
+        captionMeta: {},
+        createdAt: FROZEN_AT,
+      })
+      .onConflictDoNothing();
+  }
   return id;
 }
 

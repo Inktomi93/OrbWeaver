@@ -20,6 +20,7 @@ import {
   embedGenerations,
   embedGenerationTargets,
   embedSpaceState,
+  imageAnalyses,
   imageEmbeddings,
   themeClusters,
 } from "@orb/db";
@@ -713,24 +714,18 @@ async function captionRows(db: Db, ownerId: UserId, extra?: SQL): Promise<Captio
       characterId: characters.id,
       name: characters.name,
       avatarHash: assets.hash,
-      caption: imageEmbeddings.caption,
-      captionMeta: imageEmbeddings.captionMeta,
+      caption: imageAnalyses.caption,
+      captionMeta: imageAnalyses.captionMeta,
     })
     .from(imageEmbeddings)
     .innerJoin(characters, eq(characters.avatarAssetId, imageEmbeddings.assetId))
     .innerJoin(assets, eq(assets.id, imageEmbeddings.assetId))
+    .innerJoin(imageAnalyses, and(eq(imageAnalyses.assetId, assets.id), eq(imageAnalyses.contentHash, assets.hash)))
     .where(
-      and(
-        ownedRealCharacters(ownerId),
-        eq(imageEmbeddings.lens, IMAGE_CAPTION_LENS),
-        isNotNull(imageEmbeddings.captionMeta),
-        excludeShared(shared),
-        currentImage,
-        extra,
-      ),
+      and(ownedRealCharacters(ownerId), eq(assets.ownerId, ownerId), eq(imageEmbeddings.lens, IMAGE_CAPTION_LENS), excludeShared(shared), currentImage, extra),
     )
     .orderBy(asc(characters.name));
-  return rows.map((r) => ({ ...r, captionMeta: r.captionMeta ?? null }));
+  return rows;
 }
 
 /** Every non-synthetic owner character's captioned-avatar row (the `imageFacets` tally + visual labels). */
@@ -745,8 +740,8 @@ export async function readCaptionRowsByFacet(
   sel: { readonly path: string; readonly isList: boolean; readonly value: string },
 ): Promise<CaptionRow[]> {
   const predicate = sel.isList
-    ? sql`EXISTS (SELECT 1 FROM json_each(${imageEmbeddings.captionMeta}, ${sel.path}) je WHERE je.value = ${sel.value})`
-    : sql`json_extract(${imageEmbeddings.captionMeta}, ${sel.path}) = ${sel.value}`;
+    ? sql`EXISTS (SELECT 1 FROM json_each(${imageAnalyses.captionMeta}, ${sel.path}) je WHERE je.value = ${sel.value})`
+    : sql`json_extract(${imageAnalyses.captionMeta}, ${sel.path}) = ${sel.value}`;
   return await captionRows(db, ownerId, predicate);
 }
 
