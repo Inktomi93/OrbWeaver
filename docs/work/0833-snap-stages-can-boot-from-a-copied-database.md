@@ -18,7 +18,7 @@ Real data finds layout and length bugs seed fixtures hide.
 
 ## Done when
 
-A snap flag such as --stage-db <path> boots an isolated stage from a copied db (+wal/+shm), signs in as its owner, never touches the source file, with a test on the new path and help text.
+A snap flag such as --stage-db <path> clones the copied db (+wal/+shm) into the isolated stage's data dir and rewrites its owner identity to the stage principal, so the stage signs in and sees the rows. No container env inheritance; the source file is never opened for write. A test covers the clone-and-rewrite path, and the help text names the flag.
 
 ## Evidence
 
