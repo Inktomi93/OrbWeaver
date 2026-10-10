@@ -63,3 +63,5 @@ Complete-roster serial and parallel benchmarks retain identical case names and p
 Native memory prices cover the measured peak for each execution mode. Hosted corpus partitions preserve the complete population.
 
 Whole-tree hosted qualification remains pending. Broader same-changed-set verification timing remains deferred.
+
+Hosted full tier run 38050585701 on af7d718b passed all 14 partitions (`tier=full · scope=application`, VERDICT PASS). Mutation was skipped on hosted CI, and five implementation-only stages are deferred to weekly. No same-changed-set timing comparison exists yet.

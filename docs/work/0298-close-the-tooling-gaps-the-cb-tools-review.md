@@ -23,3 +23,5 @@ A test plants a real CT failure and asserts exit 1. A real cloud session shows t
 ## Evidence
 
 The ignored-output path correction is implemented in `tooling/src/_shared/prose-references.ts` and covered by `tests/tooling/_shared/prose-references.test.ts`. Missing descendants beneath an existing ignored directory are rejected.
+
+Hosted CT failures exit 1 organically: run 37866910920 `ct (4/4)` printed `CT SUMMARY — FAILED` then exit code 1. No planted-failure control asserts exit 1 in the scoped-test suite.

@@ -22,4 +22,4 @@ arm64 published or ruled out; the listing label matches formatVersionIdentity; a
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+CI check: release.yml:103 and development-image.yml:51 publish linux/amd64 only. No workflow builds or tests linux/arm64.
