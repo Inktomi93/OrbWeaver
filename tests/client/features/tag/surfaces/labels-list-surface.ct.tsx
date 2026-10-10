@@ -306,6 +306,29 @@ test("a prune lands focus on the library", async ({ mount, page }) => {
   await expect(content(workspace).locator('[data-slot="labels-library"]')).toBeFocused();
 });
 
+test("suggestions group by tag, merge near-duplicates, hide seed tags and apply to all", async ({ mount, page }) => {
+  const noir = tagRow("tag_noir", "noir", 0);
+  const noirAlt = tagRow("tag_noir_alt", "Noir", 0);
+  const seed = tagRow("tag_seed", "assistant", 0);
+  const view = (row: TagWithUsage, characterName: string): TrpcWireOutput<"tag.listPendingSuggestions">[number] => {
+    const { usage: _usage, pendingSuggestions: _pending, ...rest } = row;
+    return { ...rest, characterId: mintTypeId(ID_PREFIX.character), characterName };
+  };
+  const suggestions = [view(noir, "Aria"), view(noirAlt, "Bolt"), view(seed, "Aria")];
+  const recorder = await routeTrpc(page, {
+    "tag.listTagsWithUsage": () => [noir, noirAlt, seed],
+    "tag.listAttachedEntities": { entities: [], hasMore: false },
+    "tag.listPendingSuggestions": () => suggestions,
+    "tag.attachTag": () => null,
+  });
+  const workspace = await mount(<LabelsWorkspaceStory />);
+  const inbox = content(workspace);
+  await expect(inbox.getByRole("group", { name: "Suggested noir", exact: true })).toHaveCount(1);
+  await expect(inbox.getByRole("group", { name: /Suggested assistant/u })).toHaveCount(0);
+  await inbox.getByRole("button", { name: "Apply to all", exact: true }).click();
+  await expect.poll(() => recorder.count("tag.attachTag")).toBe(2);
+});
+
 test("pending-only labels stay outside In use and prune until Apply; Reject removes the staged junction", async ({ mount, page }) => {
   const staged = { ...tagRow("tag_staged", "staged", 0), pendingSuggestions: 1 };
   const rejected = { ...tagRow("tag_rejected", "rejected", 0), pendingSuggestions: 1 };
