@@ -218,15 +218,73 @@ test("a saved key revoked while the dialog is open retires its catalog and refus
   await expect(dialog.getByRole("textbox", { name: "Model", exact: true })).toHaveAccessibleDescription(
     "This saved key is no longer available. Choose another key or paste a new one.",
   );
+  const keyChoice = dialog.getByRole("combobox", { name: "Saved key", exact: true });
+  await expect(keyChoice).toHaveText("Work key — unavailable");
+  await expect(keyChoice).not.toContainText(saved.id);
+  await expect(keyChoice).toHaveAccessibleDescription("This saved key is no longer available. Choose another key or paste a new one.");
+  await expect(dialog.getByRole("status")).toHaveText("This saved key is no longer available. Choose another key or paste a new one.");
   await expect(dialog.getByRole("option", { name: OPUS, exact: true })).toHaveCount(0);
   await expect(dialog.getByRole("button", { name: "List models", exact: true })).toBeDisabled();
   await submit(dialog);
   await expect(dialog.getByRole("alert")).toContainText("This saved key is no longer available");
   await expect.poll(() => trpc.count("connection.create")).toBe(0);
   await expect.poll(() => trpc.count("credentials.add")).toBe(0);
-  await dialog.getByRole("combobox", { name: "Saved key", exact: true }).click();
-  await page.getByRole("option", { name: "Paste a new key", exact: true }).click();
+  await keyChoice.focus();
+  await keyChoice.press("ArrowDown");
+  await expect(page.getByRole("option", { name: "Work key — unavailable", exact: true })).toBeDisabled();
+  await expect(page.getByRole("option", { name: "Work key — unavailable", exact: true })).toBeFocused();
+  await page.keyboard.press("Home");
+  await expect(page.getByRole("option", { name: "Paste a new key", exact: true })).toBeFocused();
+  await page.keyboard.press("Enter");
   await expect(dialog.getByLabel("API key", { exact: true })).toBeVisible();
+  await expect(keyChoice).toHaveText("Paste a new key");
+  await expect(keyChoice).toHaveAccessibleDescription("");
+  await expect(dialog.getByRole("status")).toHaveCount(0);
+});
+
+test("a vanished saved key keeps its readable identity and recovers to another key by keyboard", async ({ mount, page }) => {
+  const saved = credentialRow({ label: "Work key" });
+  const replacement = credentialRow({ id: mintTypeId(ID_PREFIX.userCredential), label: "Personal key" });
+  let rows = [saved, replacement];
+  const trpc = await stubConnectionsPane(page, { listCredentials: () => rows, draftCatalogModels: catalogOf([catalogEntry(OPUS)]) });
+  const component = await mount(<ConnectionsAuthoringStory width={486} />);
+  const dialog = await openAddDialog(page);
+  await pickProvider(page, dialog, "OpenRouter");
+  const keyChoice = dialog.getByRole("combobox", { name: "Saved key", exact: true });
+  await keyChoice.click();
+  await page.getByRole("option", { name: "Work key", exact: true }).click();
+  await dialog.getByRole("button", { name: "List models", exact: true }).click();
+  await dialog.getByRole("option", { name: OPUS, exact: true }).click();
+  rows = [replacement];
+  await component
+    .getByRole("button", { name: "refetch credentials", exact: true, includeHidden: true })
+    .evaluate((button) => button.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+  await expect(keyChoice).toHaveText("Work key — unavailable");
+  await expect(keyChoice).not.toContainText(saved.id);
+  await expect(keyChoice).toHaveAccessibleDescription("This saved key is no longer available. Choose another key or paste a new one.");
+  await expect(dialog.getByRole("status")).toHaveText("This saved key is no longer available. Choose another key or paste a new one.");
+  await expect(dialog.getByLabel("API key", { exact: true })).toHaveCount(0);
+  await submit(dialog);
+  await expect(dialog.getByRole("alert")).toContainText("This saved key is no longer available");
+  await expect.poll(() => trpc.count("connection.create")).toBe(0);
+  await expect.poll(() => trpc.count("credentials.add")).toBe(0);
+  await keyChoice.focus();
+  await keyChoice.press("ArrowDown");
+  await expect(page.getByRole("option", { name: "Work key — unavailable", exact: true })).toBeDisabled();
+  await expect(page.getByRole("option", { name: "Work key — unavailable", exact: true })).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(page.getByRole("option", { name: "Personal key", exact: true })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(keyChoice).toHaveText("Personal key");
+  await expect(keyChoice).toHaveAccessibleDescription("");
+  await expect(dialog.getByRole("status")).toHaveCount(0);
+  await expect(dialog.getByRole("textbox", { name: "Model", exact: true })).toHaveValue("");
+  await dialog.getByRole("button", { name: "List models", exact: true }).click();
+  await dialog.getByRole("option", { name: OPUS, exact: true }).click();
+  await submit(dialog);
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => trpc.lastInput("connection.create")).toMatchObject({ credentialId: replacement.id, modelCheck: "listed" });
+  await expect.poll(() => trpc.count("credentials.add")).toBe(0);
 });
 
 /** A `connection.create` that refuses its first call and stores the second — the partial-failure script. */

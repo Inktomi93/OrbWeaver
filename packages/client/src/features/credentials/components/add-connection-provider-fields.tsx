@@ -13,6 +13,7 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { useId, useState } from "react";
 import type { Invalidation, Trpc } from "#data";
 import { touchedFieldError } from "#forms/editor";
 import { connectionHost } from "#lib";
@@ -43,6 +44,7 @@ import { SetupTokenCommand } from "./setup-token-command.tsx";
 
 type ModelCatalogSource = ModelPickerProps["source"];
 type AddConnectionForm = ReturnType<typeof useAddConnectionForm>["form"];
+const UNNAMED_KEY_LABEL = "Unnamed key";
 
 /** The key this dialog minted, and its name as the user gave it: `null` when the label was left blank, even
  *  though the server then files the row under a default label. */
@@ -221,6 +223,8 @@ function KeyField({
   readonly held: HeldKey | null;
   readonly keyStorage: boolean;
 }): ReactElement | null {
+  const unavailableId = useId();
+  const [lastChoice, setLastChoice] = useState<CredentialView | null>(null);
   if (held !== null) {
     return (
       <Text data-slot="add-connection-key-held" prose={true} voice="gloss">
@@ -242,33 +246,51 @@ function KeyField({
   return (
     <>
       <form.AppField name="credentialId">
-        {(field): ReactElement => (
-          <>
-            <Select
-              label="Saved key"
-              aria-label="Saved key"
-              placeholder="Paste a new key"
-              value={field.state.value ?? ""}
-              onValueChange={(id, details): void => {
-                // Base UI clears a vanished item without user input; retain the unavailable key until an explicit choice.
-                if (id === "" && details.reason === "none" && field.state.value !== null && !available.some((row) => row.id === field.state.value)) {
-                  details.cancel();
-                  return;
-                }
-                const selected = available.find((row) => row.id === id);
-                if (id !== "" && selected === undefined) {
-                  return;
-                }
-                form.resetField("key");
-                form.resetField("model");
-                field.handleChange(selected?.id ?? null);
-              }}
-              items={[{ label: "Paste a new key", value: "" }, ...available.map((row) => ({ label: row.label ?? "Unnamed key", value: row.id }))]}
-            />
-            {field.state.value !== null && !available.some((row) => row.id === field.state.value) ? <Text voice="gloss">{SAVED_KEY_UNAVAILABLE}</Text> : null}
-            {available.length === 0 ? <Text voice="gloss">No active saved keys for this provider. Paste a new key below.</Text> : null}
-          </>
-        )}
+        {(field): ReactElement => {
+          const credentialId = field.state.value;
+          const unavailable = credentialId !== null && !available.some((row) => row.id === credentialId);
+          const selectedMetadata =
+            credentials.find((row) => row.id === credentialId && row.provider === provider.id) ??
+            (lastChoice?.id === credentialId && lastChoice.provider === provider.id ? lastChoice : null);
+          const unavailableLabel = unavailableKeyLabel(selectedMetadata);
+          return (
+            <>
+              <Select
+                label="Saved key"
+                aria-label="Saved key"
+                placeholder="Paste a new key"
+                value={field.state.value}
+                {...(unavailable ? { "aria-describedby": unavailableId } : {})}
+                onValueChange={(id, details): void => {
+                  // The vendor's implicit no-choice reset is not the explicit "Paste a new key" option.
+                  if (id === null) {
+                    details.cancel();
+                    return;
+                  }
+                  const selected = available.find((row) => row.id === id);
+                  if (id !== "" && selected === undefined) {
+                    return;
+                  }
+                  form.resetField("key");
+                  form.resetField("model");
+                  setLastChoice(selected ?? null);
+                  field.handleChange(selected?.id ?? null);
+                }}
+                items={[
+                  { label: "Paste a new key", value: "" },
+                  ...available.map((row) => ({ label: row.label ?? UNNAMED_KEY_LABEL, value: row.id })),
+                  ...(unavailable ? [{ label: unavailableLabel, value: credentialId, disabled: true, description: SAVED_KEY_UNAVAILABLE }] : []),
+                ]}
+              />
+              {unavailable ? (
+                <Text id={unavailableId} role="status" voice="gloss">
+                  {SAVED_KEY_UNAVAILABLE}
+                </Text>
+              ) : null}
+              {available.length === 0 && !unavailable ? <Text voice="gloss">No active saved keys for this provider. Paste a new key below.</Text> : null}
+            </>
+          );
+        }}
       </form.AppField>
       <form.Subscribe selector={(state): CredentialView["id"] | null => state.values.credentialId}>
         {(credentialId): ReactElement | null =>
@@ -289,6 +311,10 @@ function KeyField({
       </form.Subscribe>
     </>
   );
+}
+
+function unavailableKeyLabel(selected: CredentialView | null): string {
+  return selected === null ? "Unavailable saved key" : `${selected.label ?? UNNAMED_KEY_LABEL} — unavailable`;
 }
 
 function keyLabel(provider: ProviderDef): string {
