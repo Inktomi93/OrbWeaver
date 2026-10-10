@@ -43,9 +43,11 @@ import {
   selectChat,
   selectPluginPageFromList,
   useOpenModal,
+  usePluginCommandArgsSubject,
   useSectionRegistry,
 } from "@orb/client/state";
 import type { ToolCallRecord } from "@orb/contracts/chat";
+import type { PluginCommandArgSpec } from "@orb/contracts/plugin";
 import type { ChatId, MessageId, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -53,7 +55,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ModalHost } from "../../../../packages/client/src/features/app-shell/components/modal-host.tsx";
 import { YouSheet } from "../../../../packages/client/src/features/app-shell/components/you-sheet.tsx";
 import { MessageToolCalls } from "../../../../packages/client/src/features/chat/components/message-tool-calls.tsx";
@@ -590,27 +592,36 @@ const ARGS_PLUGIN_ID = castId<PluginId>("plugin_ct_argmodal0000001");
  *  declares a required enum arg, then mounts the real body so a CT drives the production collect → coerce →
  *  dispatch path (typed input renders, submit sends the TYPED value, a missing required blocks with a message).
  *  The `plugin.listCommands` route must carry the same command so the shared runner can resolve + dispatch it. */
-function ArgsModalSeed(): ReactElement {
+function ArgsModalSeed({ args }: { readonly args: readonly PluginCommandArgSpec[] }): ReactElement | null {
+  // The body seeds its draft from the subject at mount, as in the app (the opener sets it before the modal
+  // mounts), so the body mounts only once the subject is in the store, and stays mounted after a run clears it.
+  const subject = usePluginCommandArgsSubject();
+  const [seen, setSeen] = useState(false);
+  if (!seen && subject !== undefined) {
+    setSeen(true);
+  }
   useEffect(() => {
     openPluginCommandArgs({
       pluginId: ARGS_PLUGIN_ID,
       slug: "oracle-deck",
       name: "cast",
       describe: "Cast a spell",
-      args: [{ name: "suit", type: "enum", required: true, enumValues: ["cups", "wands"] }],
+      args,
       chatId: null,
     });
     return (): void => __resetPluginCommandArgs();
-  }, []);
-  return <PluginCommandArgsBody />;
+  }, [args]);
+  return seen || subject !== undefined ? <PluginCommandArgsBody /> : null;
 }
 
-export function PluginCommandArgsStory(): ReactElement {
+const DEFAULT_ARGS: readonly PluginCommandArgSpec[] = [{ name: "suit", type: "enum", required: true, enumValues: ["cups", "wands"] }];
+
+export function PluginCommandArgsStory({ args = DEFAULT_ARGS }: { readonly args?: readonly PluginCommandArgSpec[] }): ReactElement {
   return (
     <CtDataProviders>
       <CtToastSurface>
         <div style={{ width: 420 }}>
-          <ArgsModalSeed />
+          <ArgsModalSeed args={args} />
         </div>
       </CtToastSurface>
     </CtDataProviders>

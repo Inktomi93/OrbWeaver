@@ -195,8 +195,9 @@ function named(name: string, message: string): Error {
 test("Keepsake Camera reports 'still developing' only when the host call ran out its deadline", { timeout: BUILD_TIMEOUT }, async () => {
   const source = await releasedMain("keepsake-camera");
 
-  const [timedOut, unconfigured, refused, unknown] = await Promise.all([
-    snapshotToasts(source, new Error(`imagery.generatePicture exceeded ${HOST_FN_DEADLINE_MS}ms host bound`), HOST_FN_DEADLINE_MS),
+  const [timedOut, unconfigured, refused, unknown, slowUnnamed] = await Promise.all([
+    // Fast on the fake clock: the deadline is read from the error's NAME, never from elapsed time.
+    snapshotToasts(source, named("PluginHostDeadlineError", `imagery.generatePicture exceeded ${HOST_FN_DEADLINE_MS}ms host bound`), 40),
     snapshotToasts(source, named("ImageryNotConfiguredError", "imagery: no generateImage role is configured for this caller"), 40),
     snapshotToasts(
       source,
@@ -208,9 +209,17 @@ test("Keepsake Camera reports 'still developing' only when the host call ran out
     ),
     // An unrecognized failure that came back fast is still a failure, never a postcard on its way.
     snapshotToasts(source, new Error("something else"), 40),
+    // A slow failure that is not the deadline is still a failure.
+    snapshotToasts(source, new Error("something else"), HOST_FN_DEADLINE_MS),
   ]);
 
-  expect([timedOut, unconfigured, refused, unknown].map((toasts) => toasts.map(({ level }) => level))).toEqual([["info"], ["warn"], ["error"], ["error"]]);
+  expect([timedOut, unconfigured, refused, unknown, slowUnnamed].map((toasts) => toasts.map(({ level }) => level))).toEqual([
+    ["info"],
+    ["warn"],
+    ["error"],
+    ["error"],
+    ["error"],
+  ]);
   const sentences = [timedOut, unconfigured, refused, unknown].map((toasts) => toasts[0]?.message);
   expect(new Set(sentences).size).toBe(sentences.length);
 });

@@ -19,8 +19,10 @@
 //     `host.grants.includes("…")` before every registration (the guard idiom).
 //   - There is no `Date`, no `Math.random`, no timers, no `fetch`, no module loader. Time and entropy are
 //     the injected seams below.
-//   - Every host call rejects after a 5 s real-time bound; three consecutive crashed invocations
-//     auto-disable the plugin.
+//   - Every host call rejects after a 5 s real-time bound, with an error whose `name` is
+//     `"PluginHostDeadlineError"` (and `hostFunction` the call that ran long). The host stops waiting but
+//     does not cancel the work, so treat it as "no answer yet", not a refusal. Three consecutive crashed
+//     invocations auto-disable the plugin.
 //   - Handlers must never throw: wrap, log, return.
 
 // ── capabilities (the manifest's closed axis — declaring is ASKING; `host.grants` is what was ANSWERED) ─────
@@ -454,6 +456,9 @@ interface PluginButtonNode {
   readonly actionId: string;
   readonly label: string;
   readonly variant?: PluginButtonVariant | undefined;
+  /** TRUE (or a `{ $state }` path holding `true`) disables the button and its action. A missing or non-boolean
+   *  path reads as enabled. */
+  readonly disabled?: PluginBoundBoolean | undefined;
 }
 /** Destructive confirms ride the HOUSE dialog, plugin-attributed — you cannot draw your own. */
 interface PluginConfirmButtonNode {
@@ -581,6 +586,10 @@ interface PluginCommandArgSpecBase {
   readonly name: string;
   readonly required?: boolean | undefined;
   readonly describe?: string | undefined;
+  /** The value the args dialog opens with; it must match the arg's type (an enum default is one of its
+   *  `enumValues`) or the command is refused at registration. Only the dialog prefills it: a `name=value`
+   *  typed in the composer is never filled in for you. */
+  readonly default?: PluginCommandArgValue | undefined;
 }
 /** The shape `registerCommand` infers `args` from, before the enum rule in {@link PluginCommandArgSpec} applies. */
 interface PluginCommandArgDeclaration extends PluginCommandArgSpecBase {

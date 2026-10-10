@@ -11,7 +11,7 @@
 export const PLUGIN_LOG_LIST_MAX_LIMIT = 500;
 
 export type { InvocationChat, PluginBridge, PluginInvocationLiveness } from "./bridge.ts";
-export { HostVersionError, PluginCapabilityError, PluginSuggestedError } from "./errors.ts";
+export { HostVersionError, PluginCapabilityError, PluginHostDeadlineError, PluginSuggestedError } from "./errors.ts";
 export type { PluginFrameCall, PluginFrameMintRequest, PluginFrameMintResponse, PluginFrameResult } from "./frame.ts";
 export {
   PLUGIN_FRAME_CALL_REFUSED,
@@ -219,7 +219,6 @@ export {
   PLUGIN_TOAST_LEVELS,
   PLUGIN_TOAST_MAX_CHARS,
   PLUGIN_TOOL_NAME_RE,
-  PLUGIN_UI_ENTRY_MAX_BYTES,
   PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES,
   PLUGIN_UI_HOST_CALL_RESULT_MAX_BYTES,
   PLUGIN_UI_OUTBOX_MAX,

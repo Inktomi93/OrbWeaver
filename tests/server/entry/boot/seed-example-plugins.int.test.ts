@@ -48,8 +48,8 @@ import { seedChat, seedParticipant } from "../../domain/chat/_support.ts";
 import { makeInertOps, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../../domain/plugin/_support.ts";
 
 const DRAW_LINE_RE = /^\d+\. (.+)$/;
-/** The public commitment's shape — ten digits, zero-padded (`commitmentFor`). */
-const COMMITMENT_RE = /^\d{10}$/;
+/** The public commitment's shape — a check value of two four-digit hex groups (`commitmentFor`). */
+const COMMITMENT_RE = /^[0-9A-F]{4}-[0-9A-F]{4}$/;
 const FAMILIAR_BOOK_ID = castId<WorldBookId>("wib_01h455vb4pex5vsknk084sn02q");
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..", "..");
 
@@ -1131,6 +1131,8 @@ test("card atlas: the ARM C flagship page registers, publishes its empty browse 
   expect(spec).toContain('"name":"exclude_tags"');
   expect(spec).toContain('"actionId":"prev_page"');
   expect(spec).toContain('"actionId":"next_page"');
+  // Both pager buttons wait on a search: bound to the same published flag, so neither is enabled before one.
+  expect(spec.match(/"disabled":\{"\$state":"noSearch"\}/g)).toHaveLength(2);
   expect(spec).toContain('"label":"Add to library"');
   expect(spec).not.toContain("Summon");
   // #818: the decision CTA is the page's ONE primary, and it is the only claimant in the whole spec — so
@@ -1156,6 +1158,7 @@ test("card atlas: the ARM C flagship page registers, publishes its empty browse 
   const initial = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "atlas_page" });
   expect(initial?.["stage"]).toBe("browse");
   expect(initial?.["tiles"]).toEqual([]);
+  expect(initial?.["noSearch"]).toBe(true);
   expect(initial?.["sortOptions"]).toEqual(
     expect.arrayContaining([expect.objectContaining({ value: "relevance" }), expect.objectContaining({ value: "downloads", label: "Most downloaded" })]),
   );

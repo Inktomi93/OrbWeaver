@@ -54,6 +54,7 @@ import {
   PLUGIN_TOAST_LEVELS,
   PLUGIN_TOOL_NAME_RE,
   PluginCapabilityError,
+  PluginHostDeadlineError,
   PluginSuggestedError,
   pluginCommandRegistrationMetaSchema,
   pluginFrameBodySchema,
@@ -1792,7 +1793,7 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_resolve, reject) => {
       timer = setTimeout(() => {
-        reject(new Error(`${name} exceeded ${HOST_FN_DEADLINE_MS}ms host bound`));
+        reject(new PluginHostDeadlineError(name, HOST_FN_DEADLINE_MS));
         controller.abort();
       }, HOST_FN_DEADLINE_MS);
       timer.unref();

@@ -7,20 +7,20 @@
       "ui.js": "a6670fa7b241009ba426d1db615945dfb75be4e9ab2a3618d68bb6e818cc8834"
     },
     "card-atlas": {
-      "main.js": "ccf8e27d96a74d2a9a5232c7fe0306331c4e400673c5b84208cb952ee26ddeaf",
-      "manifest.json": "acd1e271a574bec37e028d84f6e2312599c4512b8fc78dd05716a3aafc556e69"
+      "main.js": "e2145153faeb9650640ad152295829c69a110abb32ef3fd91f028509a8c9b713",
+      "manifest.json": "480f3cbd4b4b92fbbaf8e6c5e357b9500b337b79a6f19e416020c212c3ba4c69"
     },
     "draft-polish": {
       "main.js": "2d7648284c5e21a9a770f86034c8806bec52fa09b45da4a852a08e6d84769eb1",
       "manifest.json": "07c6c7a278404b59c44b6122aa708f3bb5fe522e1d942b98cba239dc1447c3d5"
     },
     "keepsake-camera": {
-      "main.js": "94244343df12bcbc9df1d41fba731aca03b0eadbb5f5f504cf2fabeb0edb9ca7",
-      "manifest.json": "722e0350a37c5e11c54ec9459200ea66c2f206aae0dda73c03d1b08b92519a29"
+      "main.js": "da40f1f5fd9e0bd590541d8f1b85f1a8d66833b72c351747b065c33fd8bf8832",
+      "manifest.json": "a074a7e8289126c0f4f575f75362f9371b8a66f90236378448aa26a1a24bef64"
     },
     "oracle-deck": {
-      "main.js": "79cd38f52e88f66dab58c0e40cae2f4e92e34a1a5b90caa865fff1f9e80762c2",
-      "manifest.json": "366f7d1d34428be0e2e6d38adf7f2186e951e45039cbb7ef1600b79f3553d879"
+      "main.js": "3ad629a87d1c54dc9162c0587a6e13fd2c98658749b4d12927ba77ca8f88e9cb",
+      "manifest.json": "74a183b81b8240a0338afa781cd039e7f754e41f8254b2f26c559cedae6915e3"
     },
     "pocket-arcade": {
       "main.js": "d942527aef5d969d07163f7545ce26d476f7f3bd6da1ae2afb3f9b9a08e78694",
@@ -36,8 +36,8 @@
       "manifest.json": "77f1ffa13e9607ddc0888f6aa332be91810e366d776e40990c3ef527148aa02b"
     },
     "story-clocks": {
-      "main.js": "7b47c2106a8154fafdd6e14c2aaa2585ba4acaed369a732253e9b3dee7c1aca1",
-      "manifest.json": "5fd078f0365d35fb27e60a084b9357eadc528452901a83d6b4d8c7e9dda35880"
+      "main.js": "c5c10f9ee974b14e0eb360cba65c2970c7d3280a24750612b9ae5fcc2189da55",
+      "manifest.json": "2f9ceb8015bb16f4a93c127afc671146e71d8d262ddb3b13d8c42457e7b3e0ef"
     }
   }
 }

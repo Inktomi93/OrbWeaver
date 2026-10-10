@@ -52,7 +52,8 @@ The history budget keeps or trims each exchange with its message row. RPG turn-t
 ### The commit-and-reveal mechanism
 
 1. The first `draw` of a session mints a secret seed (`host.ids.mint()`) and prints a **commitment** derived
-   from it. The commitment lands in the transcript, where it cannot be edited invisibly.
+   from it. The commitment lands in the transcript, where it cannot be edited invisibly. It reads as a check
+   value, the hash in upper-case hex split in two groups (`7F3A-C91B`).
 2. Every later `draw` deals the next card of the shuffle that seed determines.
 3. `reveal` prints the seed and the full order, and retires the session. Anyone can recompute the commitment
    from the seed and check that the cards dealt are the cards that seed produces.

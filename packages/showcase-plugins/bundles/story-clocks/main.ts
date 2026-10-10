@@ -211,9 +211,6 @@ async function narrateFill(chat: ChatHandle, slug: string): Promise<void> {
   }
 }
 
-/** How the host's deadline rejection ends (`<fn> exceeded <n>ms host bound`). */
-const HOST_BOUND_TAIL = "ms host bound";
-
 /** Classify a `requestTurn` refusal by its class NAME (it crosses the sandbox boundary intact), behind a
  *  null-tolerant read — a guest realm can `throw null`, so the guard is load-bearing, not defensive noise. */
 function logTurnRefusal(err: unknown): void {
@@ -225,8 +222,8 @@ function logTurnRefusal(err: unknown): void {
     return;
   }
   // The host stops WAITING for the call at its bound but does not cancel the turn it started, so this
-  // rejection is a late answer, not a refusal. (The host raises it as a plain Error, so the message is the only tell.)
-  if (String(err).includes(HOST_BOUND_TAIL)) {
+  // rejection is a late answer, not a refusal.
+  if (name === "PluginHostDeadlineError") {
     host.log.info("filled-clock turn started; the host stopped waiting before it answered");
     return;
   }
