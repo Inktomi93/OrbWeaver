@@ -5,7 +5,6 @@
 
 import { EMBEDDABLE_ASSET_KINDS } from "@orb/contracts/assets";
 import type { ImageLens, ImageSkipReason } from "@orb/contracts/embeddings";
-import { imageCaptionMetaSchema } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 // `documents` is databank's table, read here (and only here) to derive the OWNER scope of a chunk row — the
 // vector tables carry no ownerId (D20: scope derives through the FK to the producer). A cross-domain READ
@@ -20,6 +19,8 @@ import {
   chatSegments,
   documentChunks,
   documents,
+  embedGenerations,
+  imageAnalyses,
   imageEmbeddings,
   imageIndexSkips,
 } from "@orb/db";
@@ -77,7 +78,7 @@ function landed(table: VectorTable, generationId: EmbedGenerationId, refused: re
   return false;
 }
 
-/** The lens whose row carries the caption + its facet breakdown (the other lens is pure pixels). */
+/** The lens encoded from the asset annotation (the other lens is pure pixels). */
 const IMAGE_CAPTION_LENS: ImageLens = "image-captioned";
 
 /** Resolve the funder for a post-ingest prune. This is an un-principaled worker read: databank has already
@@ -122,8 +123,9 @@ export async function existingImageHash(db: Db, assetId: AssetId, lens: ImageLen
 /** The captioned-lens row for `(assetId, model)` — hash + facet presence — or `undefined` when none exists. */
 export async function existingCaptionedRow(db: Db, assetId: AssetId, generationId: EmbedGenerationId): Promise<ExistingCaptionedRow | undefined> {
   const rows = await db
-    .select({ hash: imageEmbeddings.contentHash, captionMeta: imageEmbeddings.captionMeta })
+    .select({ hash: imageEmbeddings.contentHash, captionMeta: imageAnalyses.captionMeta })
     .from(imageEmbeddings)
+    .leftJoin(imageAnalyses, and(eq(imageAnalyses.assetId, imageEmbeddings.assetId), eq(imageAnalyses.contentHash, imageEmbeddings.contentHash)))
     .where(and(eq(imageEmbeddings.assetId, assetId), eq(imageEmbeddings.generationId, generationId), eq(imageEmbeddings.lens, IMAGE_CAPTION_LENS)))
     .limit(LIMIT_ONE);
   const row = rows[0];
@@ -213,14 +215,11 @@ export async function upsertCharacterEmbedding(db: Db, input: UpsertCharacterInp
 
 /** The persistence-internal arg bundle for {@link upsertImageEmbedding} (file-local). */
 interface UpsertImageInput {
+  readonly ownerId: UserId;
   readonly id: ImageEmbeddingId;
   readonly assetId: AssetId;
   readonly lens: ImageLens;
-  /** The generated caption (image-captioned) or `null` (image-raw). */
-  readonly caption: string | null;
-  /** Untrusted VL breakdown + provenance input. This write boundary parses it into the ONE contract shape
-   *  before persistence (issue #164), so callers cannot smuggle an open bag into storage. */
-  readonly captionMeta: unknown | null;
+  readonly analysisRevision: number | null;
   readonly embedding: Float32Array;
   readonly contentHash: string;
   readonly model: string;
@@ -229,36 +228,45 @@ interface UpsertImageInput {
   readonly now: number;
 }
 
-/** Upsert an image vector by `(assetId, model, lens)`. Non-null caption metadata is parsed once before either
- *  insert or update. On conflict updates the vector + caption + hash + dim only — `hub_score`, the key
- *  columns, and `created_at` are left as-is. Returns `false` when the generation was retired. */
+/** A vector lands only for the expected asset owner and pinned Utility revision; it never authors the annotation. */
 export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Promise<boolean> {
-  const captionMeta = input.captionMeta === null ? null : imageCaptionMetaSchema.parse(input.captionMeta);
+  const analysisCurrent =
+    input.lens === IMAGE_CAPTION_LENS
+      ? sql`exists (select 1 from image_analyses a where a.asset_id = ${input.assetId}
+       and a.content_hash = ${input.contentHash} and a.revision = ${input.analysisRevision})`
+      : sql`true`;
   const upsert = db
     .insert(imageEmbeddings)
-    .values({
-      id: input.id,
-      assetId: input.assetId,
-      lens: input.lens,
-      caption: input.caption,
-      captionMeta,
-      embedding: input.embedding,
-      contentHash: input.contentHash,
-      model: input.model,
-      generationId: input.generationId,
-      dim: input.dim,
-      createdAt: input.now,
-    })
+    .select(
+      db
+        .select({
+          id: sql<ImageEmbeddingId>`${input.id}`.as("id"),
+          assetId: sql<AssetId>`${input.assetId}`.as("asset_id"),
+          embedding: sql<Float32Array>`${sql.param(input.embedding, imageEmbeddings.embedding)}`.as("embedding"),
+          lens: sql<ImageLens>`${input.lens}`.as("lens"),
+          contentHash: sql<string>`${input.contentHash}`.as("content_hash"),
+          hubScore: sql<number | null>`null`.as("hub_score"),
+          model: sql<string>`${input.model}`.as("model"),
+          generationId: sql<EmbedGenerationId>`${input.generationId}`.as("generation_id"),
+          dim: sql<number>`${input.dim}`.as("dim"),
+          createdAt: sql<number>`${input.now}`.as("created_at"),
+        })
+        .from(assets)
+        .innerJoin(embedGenerations, and(eq(embedGenerations.id, input.generationId), eq(embedGenerations.ownerId, assets.ownerId)))
+        .where(
+          and(
+            eq(assets.id, input.assetId),
+            eq(assets.ownerId, input.ownerId),
+            input.lens === IMAGE_CAPTION_LENS ? eq(assets.hash, input.contentHash) : undefined,
+            analysisCurrent,
+          ),
+        ),
+    )
     .onConflictDoUpdate({
       target: [imageEmbeddings.assetId, imageEmbeddings.generationId, imageEmbeddings.lens],
-      set: {
-        embedding: input.embedding,
-        caption: input.caption,
-        captionMeta,
-        contentHash: input.contentHash,
-        dim: input.dim,
-      },
-    });
+      set: { embedding: input.embedding, contentHash: input.contentHash, dim: input.dim },
+    })
+    .returning({ id: imageEmbeddings.id });
   const refuse = db
     .delete(imageEmbeddings)
     .where(
@@ -266,12 +274,13 @@ export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Pro
         eq(imageEmbeddings.assetId, input.assetId),
         eq(imageEmbeddings.generationId, input.generationId),
         eq(imageEmbeddings.lens, input.lens),
+        sql`exists (select 1 from assets a where a.id = ${input.assetId} and a.owner_id = ${input.ownerId})`,
         retiredGeneration(input.generationId),
       ),
     )
     .returning({ id: imageEmbeddings.id });
-  const [, refused] = await db.batch([upsert, refuse]);
-  return landed("image_embeddings", input.generationId, refused);
+  const [written, refused] = await db.batch([upsert, refuse]);
+  return written.length > 0 && landed("image_embeddings", input.generationId, refused);
 }
 
 /** The stored `content_hash` for a chat segment CHUNK `(chatId, blockIdx, chunkIdx, model)`, or `undefined`

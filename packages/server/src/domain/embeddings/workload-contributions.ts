@@ -78,6 +78,7 @@ async function runPasses({ deps, ctx, params, report, signal }: IndexRun, force:
     // this is the only place that can turn it into a progress row. Without it a 350-image VL sweep
     // showed one sentence and an indeterminate bar for its whole runtime.
     const result = await deps.embeddings.embedAssets({
+      ...(params.embedderChanged === true ? { embedderChanged: true } : {}),
       ownerId: ctx.ownerId,
       force,
       signal,
@@ -112,7 +113,13 @@ export function createEmbeddingsWorkloadContributions(deps: EmbeddingsWorkloadDe
       admissionKey: (params) => (params.embedderChanged === true ? `${params.source}${REBUILD_ADMISSION_KEY_SUFFIX}` : params.source),
       // Only the image lens spends a generative call (one avatar analysis each); text embedding calls none.
       modelCalls: ({ ownerId, params }) =>
-        params.source === "text" ? Promise.resolve(0) : deps.embeddings.countAssetAnalysisCalls({ ownerId, force: params.force ?? false }),
+        params.source === "text"
+          ? Promise.resolve(0)
+          : deps.embeddings.countAssetAnalysisCalls({
+              ownerId,
+              force: params.force ?? false,
+              ...(params.embedderChanged === true ? { embedderChanged: true } : {}),
+            }),
       // A GPU embed sweep over the whole corpus: minutes, and never latency-sensitive.
       lane: "sweep",
       // Hash/skip-gated end to end — a retry safely re-runs the whole pass.

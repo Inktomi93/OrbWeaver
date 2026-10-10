@@ -1,7 +1,7 @@
 // The message protocol between the local-light host (`backends/local-light/worker-cache.ts`) and its worker
 // thread (`backends/local-light/model-worker.ts`). Every value here crosses `postMessage`, so it stays structured-cloneable.
 
-import type { RerankOnnx } from "@orb/contracts/inference";
+import type { LocalTextEncoding, RerankOnnx } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import type { ProviderErrorInit } from "./errors.ts";
 import type { InferenceLog, LocalLightModelSlot } from "./runtime.ts";
@@ -25,7 +25,12 @@ export interface LocalLightRerankServing {
 /** One model-cache call, named by the cache member it runs. Images cross as bytes only: a string image is a URL
  *  or path the worker would fetch or read outside the server thread's egress firewall. */
 export type LocalLightWorkerCall =
-  | { readonly op: "embedTexts" | "embedClipTexts"; readonly modelId: ModelId; readonly texts: readonly string[] }
+  | {
+      readonly op: "embedTexts" | "embedClipTexts";
+      readonly modelId: ModelId;
+      readonly texts: readonly string[];
+      readonly encoding: LocalTextEncoding | undefined;
+    }
   | {
       readonly op: "scorePairs";
       readonly modelId: ModelId;
@@ -51,6 +56,7 @@ export type LocalLightWorkerMessage =
 
 /** What the worker is started with: the model-cache config minus the host-side callbacks. */
 export interface LocalLightWorkerOptions {
+  readonly cpuPercent?: number | undefined;
   readonly device?: string | undefined;
   readonly embedDtype?: string | undefined;
   readonly cacheDir?: string | undefined;

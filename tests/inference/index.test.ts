@@ -8,7 +8,7 @@
 // in class, kind or message is the oracle.
 
 import type { Principal } from "@orb/contracts/identity";
-import { builtinProvider } from "@orb/contracts/inference";
+import { builtinProvider, LOCAL_TEXT_ENCODING, modelIdSchema } from "@orb/contracts/inference";
 import { createInferenceRuntime, DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL, NoConnectionError, ProviderError } from "@orb/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { principal } from "../support/factories/principal.ts";
@@ -106,9 +106,103 @@ test("the user binding resolves the funder's own row with the curated capability
   expect(resolved.api).toBeNull();
   expect(resolved.capability.kind).toBe("embedding");
   expect(resolved.capability.kind === "embedding" && resolved.capability.embedding.dims).toBe(1024);
+  expect(resolved.capability.kind === "embedding" && resolved.capability.embedding.localTextEncoding).toEqual(LOCAL_TEXT_ENCODING);
   expect(resolved.requirement).toEqual({ ok: true });
   expect(warnings).toEqual([]);
   expect(await runtime.availability({ task: "embed", principal: s.alice })).toEqual({ available: true });
+});
+
+test("a plugin's local-light wire serves the Jina text recipe without inheriting the built-in catalog", async () => {
+  const s = scene();
+  const runtime = await createInferenceRuntime(s.deps);
+  const pluginId = newPluginId();
+  s.stores.providerStore.state.pluginOwners.set(pluginId, s.aliceId);
+  const provider = await runtime.providers.register(
+    {
+      id: "plugin:acme/local",
+      label: "Plugin local encoder",
+      wire: "local-light",
+      auth: "none",
+      apis: [],
+      serves: ["embed", "imageEmbed"],
+      catalog: "builtin",
+      metered: false,
+    },
+    { plugin: pluginId, pluginName: "acme" },
+  );
+  const row = fakeConnection({
+    ownerId: s.aliceId,
+    providerId: provider.id,
+    model: DEFAULT_EMBED_MODEL,
+    allowBackground: true,
+    declared: {
+      kind: "embedding",
+      embedding: { dims: 1024, mrl: true, maxInputTokens: 8192, input: ["text", "image"], output: ["vector"], instructionAware: false },
+    },
+  });
+  s.stores.connections.rows.set(row.id, row);
+  for (const task of ["embed", "imageEmbed"] as const) {
+    s.stores.bindings.bind({ actorKind: "user", actorId: s.aliceId, task, connectionId: row.id });
+  }
+  const clients = runtime.roleClientsFor(s.alice);
+  const text = await clients.embed("plugin text");
+  const imageText = await clients.imageEmbed({ kind: "text", input: "plugin text" });
+  expect(text.vectors[0]?.length).toBe(1024);
+  expect(imageText.vectors).toEqual(text.vectors);
+  const { resolved } = await runtime.resolve({ task: "embed", principal: s.alice });
+  expect(resolved.capability.kind === "embedding" && resolved.capability.embedding.localTextEncoding).toEqual(LOCAL_TEXT_ENCODING);
+  expect(runtime.catalogs.builtin(provider.id, s.aliceId)).toEqual([]);
+  expect(runtime.catalogs.builtin("local-light", s.aliceId)?.find((model) => model.id === DEFAULT_EMBED_MODEL)).toMatchObject({
+    name: "Jina CLIP v2",
+    kind: "embedding",
+  });
+});
+
+test("a declared compatible fork on a plugin local-light wire inherits execution truth without canonical model facts", async () => {
+  const s = scene();
+  const runtime = await createInferenceRuntime(s.deps);
+  const pluginId = newPluginId();
+  s.stores.providerStore.state.pluginOwners.set(pluginId, s.aliceId);
+  const provider = await runtime.providers.register(
+    {
+      id: "plugin:acme/fork",
+      label: "Compatible local fork",
+      wire: "local-light",
+      auth: "none",
+      apis: [],
+      serves: ["embed", "imageEmbed"],
+      catalog: "builtin",
+      metered: false,
+    },
+    { plugin: pluginId, pluginName: "acme" },
+  );
+  const model = modelIdSchema.parse("acme/jina-compatible-fork");
+  const row = fakeConnection({
+    ownerId: s.aliceId,
+    providerId: provider.id,
+    model,
+    allowBackground: true,
+    declared: {
+      kind: "embedding",
+      embedding: { dims: 256, mrl: true, maxInputTokens: 4096, input: ["text", "image"], output: ["vector"], instructionAware: false },
+    },
+  });
+  s.stores.connections.rows.set(row.id, row);
+  for (const task of ["embed", "imageEmbed"] as const) {
+    s.stores.bindings.bind({ actorKind: "user", actorId: s.aliceId, task, connectionId: row.id });
+  }
+  const clients = runtime.roleClientsFor(s.alice);
+  const embedded = await clients.embed("fork text");
+  const imageText = await clients.imageEmbed({ kind: "text", input: "fork text" });
+  expect(embedded.vectors[0]?.length).toBe(256);
+  expect(imageText.vectors).toEqual(embedded.vectors);
+  const { resolved } = await runtime.resolve({ task: "embed", principal: s.alice });
+  expect(resolved.model).toBe(model);
+  expect(resolved.capability).toMatchObject({
+    kind: "embedding",
+    embedding: { dims: 256, maxInputTokens: 4096, dtype: "q8", localTextEncoding: LOCAL_TEXT_ENCODING },
+  });
+  expect(runtime.catalogs.builtin(provider.id, s.aliceId)).toEqual([]);
 });
 
 test("a binding that names a stranger's row is refused and recorded as a security event", async () => {

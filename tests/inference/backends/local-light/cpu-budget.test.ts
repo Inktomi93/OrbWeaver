@@ -7,9 +7,35 @@ test("native threads honor an ancestor quota even when the leaf is unlimited", (
     ["/sys/fs/cgroup/parent/child/cpu.max", "max 100000"],
     ["/sys/fs/cgroup/parent/cpu.max", "200000 100000"],
   ]);
-  expect(localLightCpuThreads(24, () => undefined)).toBe(24);
-  expect(localLightCpuThreads(24, (path) => files.get(path))).toBe(2);
+  expect(localLightCpuThreads(24, () => undefined)).toBe(12);
+  expect(localLightCpuThreads(24, (path) => files.get(path))).toBe(1);
   expect(localLightCpuThreads(1, (path) => files.get(path))).toBe(1);
+});
+
+test("the native worker reserves half the available CPUs with a one-thread floor", () => {
+  for (const [allocation, threads] of [
+    [1, 1],
+    [2, 1],
+    [3, 1],
+    [4, 2],
+    [8, 4],
+  ]) {
+    expect(localLightCpuThreads(allocation, () => undefined)).toBe(threads);
+  }
+});
+
+test("configured percentages apply after fractional and ancestor quotas, never below one thread", () => {
+  const files = new Map([
+    ["/sys/fs/cgroup/cpu/cpu.cfs_quota_us", "350000"],
+    ["/sys/fs/cgroup/cpu/cpu.cfs_period_us", "100000"],
+  ]);
+  expect(localLightCpuThreads(24, (path) => files.get(path), 75)).toBe(2);
+  expect(localLightCpuThreads(24, (path) => files.get(path), 100)).toBe(3);
+  expect(localLightCpuThreads(4, () => undefined, 75)).toBe(3);
+  expect(localLightCpuThreads(4, () => undefined, 1)).toBe(1);
+  for (const percent of [0, 101, 50.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+    expect(() => localLightCpuThreads(4, () => undefined, percent)).toThrow();
+  }
 });
 
 test("a cgroup mounted below its host root resolves the quota through mountinfo", () => {

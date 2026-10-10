@@ -5,12 +5,25 @@
 // and `output` is the literal `["vector"]` tuple — an embedder that claims to output text is a mis-synthesis
 // the resolver must refuse rather than route a chat turn to.
 
-import { EMBEDDING_FLOOR, embeddingCapabilitySchema } from "@orb/contracts/inference";
+import { declaredCapabilitySchema, EMBEDDING_FLOOR, embeddingCapabilitySchema, LOCAL_TEXT_ENCODING } from "@orb/contracts/inference";
 import { expect, test } from "../../../support/fixtures.ts";
 
 test("the floor parses and is the conservative one — text-only, no MRL, window estimated", () => {
   expect(embeddingCapabilitySchema.parse(EMBEDDING_FLOOR)).toEqual(EMBEDDING_FLOOR);
   expect(EMBEDDING_FLOOR).toMatchObject({ input: ["text"], mrl: false, instructionAware: false, windowEstimated: true });
+});
+
+test("the native text recipe is explicit, versioned, and cannot be overridden on a connection", () => {
+  expect(embeddingCapabilitySchema.parse({ ...EMBEDDING_FLOOR, localTextEncoding: LOCAL_TEXT_ENCODING }).localTextEncoding).toEqual(LOCAL_TEXT_ENCODING);
+  expect(embeddingCapabilitySchema.parse(EMBEDDING_FLOOR)).not.toHaveProperty("localTextEncoding");
+  for (const changed of [
+    { ...LOCAL_TEXT_ENCODING, version: 2 },
+    { ...LOCAL_TEXT_ENCODING, maxTokens: 8192 },
+    { ...LOCAL_TEXT_ENCODING, pooling: "head" },
+  ]) {
+    expect(embeddingCapabilitySchema.safeParse({ ...EMBEDDING_FLOOR, localTextEncoding: changed }).success).toBe(false);
+  }
+  expect(declaredCapabilitySchema.safeParse({ embedding: { localTextEncoding: LOCAL_TEXT_ENCODING } }).success).toBe(false);
 });
 
 test("`dims` must be a positive integer — the space tag's other half", () => {

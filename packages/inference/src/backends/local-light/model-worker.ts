@@ -28,9 +28,9 @@ interface CacheModule {
 function run(cache: LocalLightModelCache, call: LocalLightWorkerCall): Promise<LocalLightWorkerValue> {
   switch (call.op) {
     case "embedTexts":
-      return cache.embedTexts(call.modelId, call.texts);
+      return cache.embedTexts(call.modelId, call.texts, undefined, call.encoding);
     case "embedClipTexts":
-      return cache.embedClipTexts(call.modelId, call.texts);
+      return cache.embedClipTexts(call.modelId, call.texts, call.encoding);
     case "embedImages":
       return cache.embedImages(call.modelId, call.images);
     case "scorePairs":
@@ -77,6 +77,7 @@ async function main(port: MessagePort, options: LocalLightWorkerOptions): Promis
   const log: InferenceLog = { debug: logAt("debug"), info: logAt("info"), warn: logAt("warn"), error: logAt("error") };
   const { createModelCache } = (await import(options.cacheModule)) as CacheModule;
   const cache = createModelCache({
+    cpuPercent: options.cpuPercent,
     device: options.device,
     embedDtype: options.embedDtype,
     cacheDir: options.cacheDir,

@@ -4,9 +4,10 @@
 // vectors the old fold cut to 1024 must get a fresh id and re-index at its own width.
 
 import type { Capability } from "@orb/contracts/inference";
+import { LOCAL_TEXT_ENCODING } from "@orb/contracts/inference";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { sha256Hex } from "../../../packages/server/src/kit/content-hash/index.ts";
-import { connectionFingerprint, generationIdOf } from "../../../packages/server/src/kit/embedding-generation/index.ts";
+import { connectionFingerprint, generationIdOf, vectorSpaceFingerprint } from "../../../packages/server/src/kit/embedding-generation/index.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 function connectionAt(dims: number, mrl: boolean): Parameters<typeof generationIdOf>[0]["connection"] {
@@ -54,4 +55,17 @@ test("a wider MRL encoder, whose stored vectors were cut to 1024, moves to a fre
   expect(generationIdOf({ ownerId: "user_owner", task: "embed", via: "embed", connection, space: "text-embedding-3-large" })).not.toBe(
     mintedBeforeWidths(connection),
   );
+});
+
+test("a local text recipe moves both generation and compatibility identities without changing unrelated encoder serialization", () => {
+  const prior = connectionAt(1024, true);
+  if (prior.capability.kind !== "embedding") {
+    throw new Error("the fixture must be an embedding encoder");
+  }
+  const next = { ...prior, capability: { ...prior.capability, embedding: { ...prior.capability.embedding, localTextEncoding: LOCAL_TEXT_ENCODING } } };
+  expect(connectionFingerprint(next)).not.toBe(connectionFingerprint(prior));
+  expect(vectorSpaceFingerprint(next)).not.toBe(vectorSpaceFingerprint(prior));
+  const params = { ownerId: "user_owner", task: "embed", via: "embed", space: "text-embedding-3-large" } as const;
+  expect(generationIdOf({ ...params, connection: next })).not.toBe(generationIdOf({ ...params, connection: prior }));
+  expect(generationIdOf({ ...params, connection: prior })).toBe(mintedBeforeWidths(prior));
 });

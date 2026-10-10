@@ -64,6 +64,12 @@ execution, trigger discipline) are carried in full by the `chat/memory` code hea
 chunk via the injected `embeddingsStore` op, and the physical insert lives in
 `embeddings/persistence/queries.ts` — the single write path holds, no carve-out needed.
 
+## Local native CPU budget
+
+`LOCAL_LIGHT_CPU_PERCENT` controls the local-light worker's native thread budget, leaving the server's CPU allocation unchanged. The default lives in `localLightCpuPercentSchema` in `packages/contracts/src/inference/local-light-config.ts`.
+
+The budget applies to allocated CPUs, bounded by affinity and visible quotas. Threads round down, with a minimum of one. Model calls run sequentially; idle native pools do not spin. This is not a CPU-time quota: tokenization and auxiliary work can use additional CPU. Changing this budget leaves encoder fingerprints unchanged.
+
 ## Seed vectors and live indexing
 
 Default-content vectors enter through the injected lookup in `embeddings.store`. A hit requires matching content hash, embedding kind and resolved local-light space. Normal generation resolution, width validation and upsert still apply. Other wires use their live encoders.

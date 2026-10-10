@@ -11,11 +11,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import type { RerankOnnx } from "@orb/contracts/inference";
-import { modelIdSchema } from "@orb/contracts/inference";
+import { LOCAL_TEXT_ENCODING, modelIdSchema } from "@orb/contracts/inference";
 import { afterAll, vi } from "vitest";
+import { localLightCpuThreads } from "../../../../packages/inference/src/backends/local-light/cpu-budget.ts";
 import type { ModelCacheConfig } from "../../../../packages/inference/src/backends/local-light/model-cache.ts";
 import { createModelCache, rerankBatches } from "../../../../packages/inference/src/backends/local-light/model-cache.ts";
+import { createLocalLightEmbed, createLocalLightImageEmbed } from "../../../../packages/inference/src/backends/local-light/tasks.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { fakeResolved } from "../../_support.ts";
 
 type Lib = Awaited<ReturnType<NonNullable<ModelCacheConfig["__loadTransformersForTest"]>>>;
 
@@ -156,6 +159,9 @@ interface StubLib {
   readonly lib: Lib;
   readonly calls: TokenizerCall[];
   readonly loads: { readonly kind: string; readonly opts: Record<string, unknown> }[];
+  readonly textPasses: { readonly texts: readonly string[]; readonly dims: readonly number[] }[];
+  readonly processorTruncation: boolean[];
+  readonly imagePasses: { readonly ids: readonly number[]; readonly dims: readonly number[] }[];
 }
 
 /** `logits` scores each row by its first document token unless `noLogits`; the file name shifts the score so two
@@ -163,8 +169,25 @@ interface StubLib {
 function stubLib(behaviour: { noLogits?: boolean; hub?: Hub } = {}): StubLib {
   const calls: TokenizerCall[] = [];
   const loads: StubLib["loads"] = [];
+  const textPasses: StubLib["textPasses"] = [];
+  const processorTruncation: boolean[] = [];
+  const imagePasses: StubLib["imagePasses"] = [];
+  let processedTexts: string[] = [];
   const encoder = Object.assign(
-    (inputs: { input_ids: number[][] }): Promise<Record<string, unknown>> => {
+    (inputs: { input_ids?: number[][] | StubTensor; pixel_values?: StubTensor }): Promise<Record<string, unknown>> => {
+      if (inputs.pixel_values !== undefined) {
+        const ids = Array.from(inputs.pixel_values.data);
+        imagePasses.push({ ids, dims: inputs.pixel_values.dims });
+        return Promise.resolve({ image_embeddings: new StubTensor(Float32Array.from(ids.flatMap((id) => [id, 1, 2])), [ids.length, HIDDEN]) });
+      }
+      if (inputs.input_ids instanceof StubTensor) {
+        textPasses.push({ texts: [...processedTexts], dims: inputs.input_ids.dims });
+        const rows = processedTexts.flatMap((text) => [text.includes("TAIL") ? 3 : 1, 2, 0]);
+        return Promise.resolve({ text_embeddings: new StubTensor(Float32Array.from(rows), [processedTexts.length, HIDDEN]) });
+      }
+      if (inputs.input_ids === undefined) {
+        throw new Error("the stub model received no input");
+      }
       const rows = inputs.input_ids.length;
       const seq = Math.max(0, ...inputs.input_ids.map((row) => row.length));
       const data = Float32Array.from({ length: rows * seq * HIDDEN }, (_, i) => ((i % HIDDEN) + 1) / HIDDEN);
@@ -199,7 +222,28 @@ function stubLib(behaviour: { noLogits?: boolean; hub?: Hub } = {}): StubLib {
         return Promise.resolve(bytes === undefined ? new Response(null, { status: 404 }) : new Response(bytes));
       },
     },
-    AutoModel: { from_pretrained: (): Promise<unknown> => Promise.resolve(encoder) },
+    AutoModel: {
+      from_pretrained: (_id: string, opts: Record<string, unknown>): Promise<unknown> => {
+        loads.push({ kind: "encoder", opts });
+        return Promise.resolve(encoder);
+      },
+    },
+    AutoProcessor: {
+      from_pretrained: (): Promise<unknown> =>
+        Promise.resolve((texts: string[] | null, images: number[] | null, opts: { truncation: boolean }) => {
+          if (images !== null) {
+            return { pixel_values: new StubTensor(Float32Array.from(images), [images.length, 3, 512, 512]) };
+          }
+          if (texts === null) {
+            throw new Error("the stub processor received no input");
+          }
+          processorTruncation.push(opts.truncation);
+          processedTexts = texts.map((text) => (opts.truncation ? text.slice(0, 8192) : text));
+          const length = Math.max(...processedTexts.map((text) => text.length + 2));
+          return { input_ids: new StubTensor(new Float32Array(processedTexts.length * length), [processedTexts.length, length]) };
+        }),
+    },
+    RawImage: { read: async (source: Blob): Promise<number> => new Uint8Array(await source.arrayBuffer())[0] ?? 0 },
     Tensor: StubTensor,
     AutoTokenizer: { from_pretrained: (): Promise<unknown> => Promise.resolve(stubTokenizer(calls)) },
     AutoModelForSequenceClassification: {
@@ -209,18 +253,118 @@ function stubLib(behaviour: { noLogits?: boolean; hub?: Hub } = {}): StubLib {
       },
     },
   };
-  // @orb-waive no-test-fabrication(unknown): the stub implements only the members the rerank serving path reads (env, Tensor, AutoTokenizer, AutoModel, AutoModelForSequenceClassification). Ends when the cache's library seam is narrowed to those members.
-  return { lib: lib as unknown as Lib, calls, loads };
+  // @orb-waive no-test-fabrication(unknown): the injected library implements the env, tensor, processor and model members these cache paths read. Ends when the library seam is narrowed to those members.
+  return { lib: lib as unknown as Lib, calls, loads, textPasses, processorTruncation, imagePasses };
 }
 
-function cacheOver(stub: StubLib): ReturnType<typeof createModelCache> {
+function cacheOver(stub: StubLib, cpuPercent?: number): ReturnType<typeof createModelCache> {
   return createModelCache({
+    cpuPercent,
     device: "cpu",
     log: silentLog,
     detach: (_n, fn) => void fn().catch(noop),
     __loadTransformersForTest: () => Promise.resolve(stub.lib),
   });
 }
+
+test("embedding and both rerank heads share a sequential non-spinning native CPU budget", async () => {
+  const stub = stubLib({ hub: { online: true, cacheDir: null, files: HEAD_FILES, fetched: [] } });
+  const cache = cacheOver(stub);
+  await cache.embedTexts(MODEL, ["short"]);
+  await cache.scorePairs(MODEL, "q", ["doc"], { maxInputTokens: 64, onnx: undefined });
+  await cache.scorePairs(MODEL, "q", ["doc"], { maxInputTokens: 64, onnx: ST_HEAD });
+  expect(stub.loads.map((load) => load.kind)).toEqual(["encoder", "sequence-classification", "encoder"]);
+  for (const load of stub.loads) {
+    expect(load.opts["session_options"]).toEqual({
+      intraOpNumThreads: localLightCpuThreads(),
+      interOpNumThreads: 1,
+      executionMode: "sequential",
+      extra: { session: { intra_op: { allow_spinning: "0" }, inter_op: { allow_spinning: "0" } } },
+    });
+  }
+});
+
+test("a configured CPU percentage changes session threads without changing embedding or rerank outputs", async () => {
+  const defaults = stubLib();
+  const configured = stubLib();
+  const standardCache = cacheOver(defaults);
+  const configuredCache = cacheOver(configured, 75);
+  const texts = ["short", "longTAIL".repeat(100)];
+  expect(await configuredCache.embedTexts(MODEL, texts)).toEqual(await standardCache.embedTexts(MODEL, texts));
+  const serving = { maxInputTokens: 64, onnx: undefined };
+  expect(await configuredCache.scorePairs(MODEL, "q", ["a", "abc"], serving)).toEqual(await standardCache.scorePairs(MODEL, "q", ["a", "abc"], serving));
+  for (const load of configured.loads) {
+    expect(load.opts["session_options"]).toMatchObject({ intraOpNumThreads: localLightCpuThreads(undefined, undefined, 75) });
+  }
+});
+
+test("both Jina text entry points preserve underestimated Unicode text and bound every native attention pass", async () => {
+  const text = `${"a,1,".repeat(3000)}👩‍👩‍👧‍👦火星TAIL`;
+  for (const method of ["embedTexts", "embedClipTexts"] as const) {
+    const stub = stubLib();
+    const vectors = await cacheOver(stub)[method](MODEL, [text, "short"]);
+    expect(stub.textPasses.flatMap((pass) => pass.texts).join("")).toBe(`${text}short`);
+    for (const pass of stub.textPasses) {
+      expect(pass.dims[0]).toBe(1);
+      expect(pass.dims[1]).toBeLessThanOrEqual(512);
+      expect((pass.dims[0] ?? 0) * (pass.dims[1] ?? 0) ** 2).toBeLessThanOrEqual(512 ** 2);
+      expect(pass.texts.every((piece) => !/^[\uDC00-\uDFFF]|[\uD800-\uDBFF]$/u.test(piece))).toBe(true);
+    }
+    expect(stub.processorTruncation.every((enabled) => !enabled)).toBe(true);
+    expect(vectors).toHaveLength(2);
+    expect(Array.from(vectors[0] ?? []).every(Number.isFinite)).toBe(true);
+    expect(vectors[1]).toEqual(new Float32Array([1, 2, 0]));
+    expect(vectors[0]?.[0]).toBeGreaterThan(1 / Math.sqrt(5));
+  }
+});
+
+test("the bounded cache composes with null slots, unit centroids and MRL on ordinary and image-space text", async () => {
+  const capability = {
+    kind: "embedding",
+    embedding: {
+      dims: HIDDEN,
+      mrl: true,
+      maxInputTokens: 8192,
+      input: ["text", "image"],
+      output: ["vector"],
+      instructionAware: false,
+      localTextEncoding: LOCAL_TEXT_ENCODING,
+    },
+  } as const;
+  const stub = stubLib();
+  const cache = cacheOver(stub);
+  const inputs = ["", `${"a".repeat(1900)}TAIL`, "short", "  "];
+  const connection = fakeResolved({
+    task: "embed",
+    model: MODEL,
+    providerId: "local-light",
+    capability: { ...capability, embedding: { ...capability.embedding, input: ["text", "image"], output: ["vector"] } },
+  });
+  const embed = createLocalLightEmbed(cache, (model) => model);
+  const text = await embed({ connection, input: inputs, dimensions: 2 });
+  expect(text.vectors.map((vector) => vector?.length ?? null)).toEqual([null, 2, 2, null]);
+  for (const vector of text.vectors.filter((candidate) => candidate !== null)) {
+    expect(Math.hypot(...vector)).toBeCloseTo(1);
+    expect(Array.from(vector).every(Number.isFinite)).toBe(true);
+  }
+  const imageConnection = { ...connection, task: "imageEmbed" } as const;
+  const image = await createLocalLightImageEmbed(cache, (model) => model)({ connection: imageConnection, input: { kind: "text", input: inputs } });
+  expect(image.vectors.map((vector) => vector?.length ?? null)).toEqual([null, HIDDEN, HIDDEN, null]);
+  expect(image.vectors[1]?.[0]).toBeCloseTo(text.vectors[1]?.[0] ?? Number.NaN);
+  const singleton = await cache.embedTexts(MODEL, ["a".repeat(500)]);
+  expect(singleton).toEqual([new Float32Array([1, 2, 0])]);
+  expect(stub.textPasses.at(-1)?.texts).toEqual(["a".repeat(500)]);
+  await expect(cache.embedTexts(MODEL, [])).resolves.toEqual([]);
+});
+
+test("every native image pass is singleton and all input images retain their order and raw vectors", async () => {
+  const stub = stubLib();
+  const images = [new Uint8Array([7]), new Uint8Array([3]), new Uint8Array([9])];
+  const rows = await cacheOver(stub).embedImages(MODEL, images);
+  expect(stub.imagePasses.map((pass) => pass.dims[0])).toEqual([1, 1, 1]);
+  expect(stub.imagePasses.flatMap((pass) => pass.ids)).toEqual([7, 3, 9]);
+  expect(rows).toEqual([Float32Array.of(7, 1, 2), Float32Array.of(3, 1, 2), Float32Array.of(9, 1, 2)]);
+});
 
 // The verifier's inputs: each one undercounts badly under a character estimate.
 const HOSTILE = {

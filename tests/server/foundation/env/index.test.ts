@@ -519,6 +519,14 @@ describe("foundation/env — the floor parse (defaults + transforms)", () => {
     expect(overridden.env.LOCAL_LIGHT_CACHE_DIR).toBe("/srv/orb-models");
   });
 
+  test("LOCAL_LIGHT_CPU_PERCENT defaults to half and refuses invalid percentages", async () => {
+    expect((await reimportEnvWith({})).env).toHaveProperty("LOCAL_LIGHT_CPU_PERCENT", 50);
+    expect((await reimportEnvWith({ LOCAL_LIGHT_CPU_PERCENT: "75" })).env).toHaveProperty("LOCAL_LIGHT_CPU_PERCENT", 75);
+    for (const value of ["0", "101", "50.5", "NaN", "Infinity", ""]) {
+      await expect(reimportEnvWith({ LOCAL_LIGHT_CPU_PERCENT: value })).rejects.toThrow("LOCAL_LIGHT_CPU_PERCENT");
+    }
+  });
+
   // Every data slot reads as its EFFECTIVE path, and `DATA_LAYOUT` carries the slots with no key of their own.
   test("the data slots resolve from DATA_DIR: the defaults, a re-rooted tree, and an explicit slot that wins", async () => {
     const { env } = await reimportEnvWith({});

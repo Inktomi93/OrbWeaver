@@ -1,3 +1,4 @@
+import { LOCAL_TEXT_ENCODING } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { documentChunks, embedGenerationTargets, embedSpaceState, userConnections } from "@orb/db";
 import { embedRequestTimeoutMs, ProviderError } from "@orb/inference";
@@ -46,6 +47,41 @@ async function seedConnection(db: Db, ownerId: UserId, key: string): Promise<Emb
     imageEmbed: clients.imageEmbed,
   };
 }
+
+test("a new text window recipe on the same connection queues a rebuild and retires the old generation", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db);
+  let connection = await seedConnection(db, ownerId, "text-recipe");
+  const moved: UserId[] = [];
+  const ctx = {
+    db,
+    now: () => 1,
+    resolveEmbeddingConnection: () => Promise.resolve(connection),
+    withStableEmbeddingBinding: <T>(_owner: UserId, read: () => Promise<T>): Promise<T> => read(),
+    onTargetGenerationMoved: (owner: UserId): void => {
+      moved.push(owner);
+    },
+  };
+  const prior = await resolveTargetGeneration(ctx, ownerId, "embed");
+  if (prior === null || connection.capability.kind !== "embedding") {
+    throw new Error("the fixture must resolve an embedding generation");
+  }
+  expect(moved).toEqual([]);
+  connection = {
+    ...connection,
+    capability: { ...connection.capability, embedding: { ...connection.capability.embedding, localTextEncoding: LOCAL_TEXT_ENCODING } },
+  };
+  const next = await resolveTargetGeneration(ctx, ownerId, "embed");
+  expect(next?.id).not.toBe(prior.id);
+  expect(next?.epoch).toBe(prior.epoch + 1);
+  expect(moved).toEqual([ownerId]);
+  expect(await markGenerationComplete(db, { ownerId, scope: "cards", generation: prior, now: 2 })).toBe(false);
+  const target = await db
+    .select({ generationId: embedGenerationTargets.generationId })
+    .from(embedGenerationTargets)
+    .where(eq(embedGenerationTargets.ownerId, ownerId));
+  expect(target).toEqual([{ generationId: next?.id }]);
+});
 
 test("a slow stale resolution cannot reset a newer target or promote its generation", async () => {
   const db = await freshDb();

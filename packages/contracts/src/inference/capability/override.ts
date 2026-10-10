@@ -77,6 +77,7 @@ export type CapabilityOverrideInput = z.input<typeof capabilityOverrideSchema>;
 /** A connection's `declared` block: an override with no `match` (it is that row's), no `evidence` (it IS the
  *  `declared` tier) and no `catalog` (a row is not a catalog entry). */
 export const declaredCapabilitySchema = capabilityOverrideSchema.omit({ match: true, evidence: true, catalog: true }).extend({
+  embedding: embeddingCapabilitySchema.omit({ localTextEncoding: true }).partial().strict().optional(),
   // A reranker's ONNX serving picks the files the shared in-process cache loads for every user of that model, so
   // it is shipped curated data only; a connection that states it is refused, never silently dropped.
   rerank: rerankCapabilitySchema.omit({ onnx: true }).partial().strict().optional(),

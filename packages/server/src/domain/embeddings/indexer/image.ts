@@ -4,6 +4,7 @@ import type { AssetId, UserId } from "@orb/kit/ids";
 import type { EmbeddingsContext } from "../context.ts";
 import type { AvatarAnalysis, StoreResult } from "../contract/results.ts";
 import type { EmbeddingsService, PinnedGeneration, PinnedImageSpace } from "../contract/service.ts";
+import { readImageAnalysis, saveImageAnalysis } from "../persistence/image-analysis.ts";
 import { existingCaptionedRow, existingImageHash, existingImageSkip, insertImageSkip } from "../persistence/queries.ts";
 import { resolveImageTargetGeneration } from "../substrate/generation.ts";
 import { contentHash } from "../substrate/hash.ts";
@@ -47,13 +48,24 @@ async function indexableImageSpace(ctx: EmbeddingsContext, assetId: AssetId): Pr
   return await resolveImageSweepSpace(ctx, assetId);
 }
 
+function imageNoOp(generation: PinnedGeneration, hash: string): StoreResult {
+  return {
+    outcome: "noop",
+    contentHash: hash,
+    model: generation.space,
+    generationId: generation.id,
+    generationEpoch: generation.epoch,
+    generationVia: generation.via,
+  };
+}
+
 async function indexAsset(
   ctx: EmbeddingsContext,
   deps: ImageIndexerDeps,
   assetId: AssetId,
-  options: { readonly force: boolean; readonly signal: AbortSignal | undefined; readonly resolved: ImageSweepSpace },
+  options: { readonly force: boolean; readonly embedderChanged: boolean; readonly signal: AbortSignal | undefined; readonly resolved: ImageSweepSpace },
 ): Promise<StoreResult | null> {
-  const { force, signal, resolved } = options;
+  const { force, embedderChanged, signal, resolved } = options;
   const bytes = await loadAdmittedAsset(ctx, assetId, force);
   if (bytes === null) {
     return null;
@@ -68,18 +80,11 @@ async function indexAsset(
   const captioned = await existingCaptionedRow(ctx.db, assetId, generation.id);
   const captionedCurrent = captioned !== undefined && captioned.hash === hash && captioned.hasFacets;
   if (!force && rawCurrent && captionedCurrent) {
-    return {
-      outcome: "noop",
-      contentHash: hash,
-      model: generation.space,
-      generationId: generation.id,
-      generationEpoch: generation.epoch,
-      generationVia: generation.via,
-    };
+    return imageNoOp(generation, hash);
   }
   const raw =
     space.via === "embed"
-      ? ({ outcome: "noop" } as const)
+      ? imageNoOp(generation, hash)
       : await deps.store({
           kind: "avatar",
           lens: "image-raw",
@@ -90,7 +95,16 @@ async function indexAsset(
           force,
           signal,
         });
-  const analysis = await deps.analyze(ownerId, bytes);
+  const retained = force && !embedderChanged ? undefined : await readImageAnalysis(ctx.db, ownerId, assetId, hash);
+  const analysis = retained ?? (await deps.analyze(ownerId, bytes));
+  if (analysis.caption.trim().length === 0) {
+    return raw;
+  }
+  const analysisRevision =
+    retained?.revision ?? (await saveImageAnalysis(ctx.db, { ownerId, assetId, generationId: generation.id, contentHash: hash, ...analysis, now: ctx.now() }));
+  if (analysisRevision === undefined) {
+    return null;
+  }
   const captionedWrite = await deps.store({
     kind: "avatar",
     lens: "image-captioned",
@@ -98,7 +112,7 @@ async function indexAsset(
     assetId,
     content: bytes,
     caption: analysis.caption,
-    captionMeta: analysis.captionMeta,
+    analysisRevision,
     via: space.via,
     model,
     force,
@@ -131,12 +145,17 @@ export function createImageIndexer(ctx: EmbeddingsContext, deps: ImageIndexerDep
     if (resolved === null) {
       return null;
     }
-    const key = `${assetId}:${resolved.generation.id}:${String(options.force === true)}`;
+    const key = `${assetId}:${resolved.generation.id}:${String(options.force === true)}:${String(options.embedderChanged === true)}`;
     const existing = inFlight.get(key);
     if (existing !== undefined) {
       return await existing;
     }
-    const pending = indexAsset(ctx, deps, assetId, { force: options.force ?? false, signal: options.signal, resolved });
+    const pending = indexAsset(ctx, deps, assetId, {
+      force: options.force ?? false,
+      embedderChanged: options.embedderChanged ?? false,
+      signal: options.signal,
+      resolved,
+    });
     inFlight.set(key, pending);
     try {
       return await pending;
@@ -148,13 +167,13 @@ export function createImageIndexer(ctx: EmbeddingsContext, deps: ImageIndexerDep
 
 /**
  * How many avatar analyses (one vision call each) an image sweep over `ownerId` (`null` = every owner) would make:
- * every indexable asset with no skip record whose faceted analysis for its target generation is missing or was
- * made from other bytes, or every indexable asset under `force`; none for an owner whose analysis would make no
+ * every indexable asset with no skip record whose retained faceted analysis is missing or was
+ * made from other bytes, or every indexable asset under explicit analysis `force` (not an embedder rebuild); none for an owner whose analysis would make no
  * call. Reads only. The stored asset hash is the CAS key, the sha-256 of the bytes, which is the hash the
  * analysis row records, so a re-upload under the same id is found without reading its bytes.
  */
 export function createImageAnalysisCounter(ctx: EmbeddingsContext, deps: ImageAnalysisCounterDeps): EmbeddingsService["countAssetAnalysisCalls"] {
-  return async ({ ownerId, force }) => {
+  return async ({ ownerId, force, embedderChanged }) => {
     const callsModel = new Map<UserId, boolean>();
     const ownerCallsModel = async (owner: UserId): Promise<boolean> => {
       const reaches = callsModel.get(owner) ?? (await deps.analysisCallsModel(owner));
@@ -167,16 +186,11 @@ export function createImageAnalysisCounter(ctx: EmbeddingsContext, deps: ImageAn
       if (resolved === null || (!force && (await existingImageSkip(ctx.db, assetId))) || !(await ownerCallsModel(resolved.ownerId))) {
         continue;
       }
-      if (force || !(await analysisCurrent(ctx, assetId, resolved.generation.id))) {
+      const hash = await ctx.loadAssetHash(assetId);
+      if ((force && embedderChanged !== true) || hash === null || (await readImageAnalysis(ctx.db, resolved.ownerId, assetId, hash)) === undefined) {
         calls += 1;
       }
     }
     return calls;
   };
-}
-
-/** Whether the asset's faceted analysis for this generation was made from the bytes it holds now. */
-async function analysisCurrent(ctx: EmbeddingsContext, assetId: AssetId, generationId: PinnedGeneration["id"]): Promise<boolean> {
-  const captioned = await existingCaptionedRow(ctx.db, assetId, generationId);
-  return captioned !== undefined && captioned.hasFacets && captioned.hash === (await ctx.loadAssetHash(assetId));
 }

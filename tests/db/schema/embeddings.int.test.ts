@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 // .int tests for schema/embeddings — the vector substrate (D20 no ownerId / D28 no cv / D34 image lens).
 // Real libSQL :memory: via freshDb (FK PRAGMA ON). Covers: the vector32 1024-dim Float32 round-trip,
 // content_hash presence (NOT NULL), the image-lens test-mirror + CHECK + the (asset,model,lens) unique
@@ -10,6 +11,7 @@ import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import { IMAGE_LENSES, IMAGE_SKIP_REASONS } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import {
+  assertReferentialIntegrity,
   assets,
   characterEmbeddings,
   characters,
@@ -17,7 +19,9 @@ import {
   chatDigests,
   chatSegments,
   chats,
+  createDb,
   embedGenerations,
+  imageAnalyses,
   imageEmbeddings,
   imageIndexSkips,
   userConnections,
@@ -36,8 +40,8 @@ import type {
   UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
-import { and, eq } from "drizzle-orm";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { and, eq, sql } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../support/inference-identities.ts";
@@ -302,7 +306,6 @@ test("image_embeddings holds BOTH lenses per (asset, model) and rejects a duplic
     assetId,
     embedding: rampVector(),
     lens: "image-captioned",
-    caption: "a brooding knight",
     contentHash: "h",
     model: MODEL,
     generationId: await seedGeneration(db, ownerId, "imageEmbed"),
@@ -702,4 +705,48 @@ test("chat_digest_speakers round-trips, dedupes on the composite PK, and CASCADE
   await db.delete(characters).where(eq(characters.id, characterId));
   expect(await db.select().from(chatDigestSpeakers).where(eq(chatDigestSpeakers.digestId, digestId))).toHaveLength(0);
   expect(await db.select().from(chatDigests).where(eq(chatDigests.id, digestId))).toHaveLength(1);
+});
+
+test("the forward migration preserves valid legacy analysis bytes and refuses changed ownership, bytes and malformed metadata", async () => {
+  const db = await createDb(":memory:");
+  const baseline = readFileSync("packages/db/src/migrations/0000_baseline.sql", "utf8");
+  for (const statement of baseline.split("--> statement-breakpoint")) {
+    await db.run(sql.raw(statement));
+  }
+  const owner = await seedUser(db, { id: "analysis-migrate-owner" });
+  const other = await seedUser(db, { id: "analysis-migrate-other" });
+  const generation = await seedGeneration(db, owner, "imageEmbed");
+  const foreignGeneration = await seedGeneration(db, other, "imageEmbed");
+  const metadata = JSON.stringify({ model: "original-utility", artStyle: "anime", futureFacet: { preserved: true } });
+  const cases = [
+    { suffix: "valid", hashMatches: true, sameOwner: true, meta: metadata },
+    { suffix: "wrong-hash", hashMatches: false, sameOwner: true, meta: metadata },
+    { suffix: "foreign-owner", hashMatches: true, sameOwner: false, meta: metadata },
+    { suffix: "invalid-known", hashMatches: true, sameOwner: true, meta: JSON.stringify({ artStyle: "not-a-style" }) },
+    { suffix: "invalid-json", hashMatches: true, sameOwner: true, meta: "not-json" },
+    { suffix: "invalid-list", hashMatches: true, sameOwner: true, meta: JSON.stringify({ tags: ["too-few"] }) },
+  ] as const;
+  for (const row of cases) {
+    const assetId = await seedAsset(db, owner, mintTypeId(ID_PREFIX.asset));
+    await db.run(sql`insert into image_embeddings
+      (id,asset_id,lens,embedding,content_hash,caption,caption_meta,model,generation_id,dim,created_at)
+      values (${mintTypeId(ID_PREFIX.imageEmbedding)},${assetId},'image-captioned',${new Uint8Array(rampVector().buffer)},
+       ${row.hashMatches ? `hash-${assetId}` : "changed-bytes"},'original caption',${row.meta},${MODEL},
+       ${row.sameOwner ? generation : foreignGeneration},${DIM},123)`);
+  }
+  const before = await db.all(
+    sql`select id,asset_id,lens,hex(embedding) vector,content_hash,model,generation_id,dim,created_at from image_embeddings order by id`,
+  );
+  const migration = readFileSync("packages/db/src/migrations/0001_retain_image_analysis.sql", "utf8");
+  for (const statement of migration.split("--> statement-breakpoint")) {
+    await db.run(sql.raw(statement));
+  }
+  await db.run(sql.raw(readFileSync("packages/db/src/migrations/0002_pin_image_analysis_revision.sql", "utf8")));
+  await assertReferentialIntegrity(db);
+  expect(await db.all(sql`select caption_meta as metadata from image_analyses`)).toEqual([{ metadata }]);
+  expect(await db.select().from(imageAnalyses)).toMatchObject([{ caption: "original caption", createdAt: 123 }]);
+  expect(
+    await db.all(sql`select id,asset_id,lens,hex(embedding) vector,content_hash,model,generation_id,dim,created_at from image_embeddings order by id`),
+  ).toEqual(before);
+  expect((await db.all<{ name: string }>(sql`pragma table_info(image_embeddings)`)).map((row) => row.name)).not.toContain("caption_meta");
 });

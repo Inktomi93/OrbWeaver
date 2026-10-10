@@ -17,7 +17,7 @@
 //
 // The `switch (params.lens)` is exhaustive (the `assertNever` default arm): a new lens fails tsc until its
 // arm is added. `digest` carries a precomputed `contentHash` (memory folds it; not recomputed here). There is
-// no principal/ownership check — the substrate FKs to its producer only.
+// Image writes bind the expected owner through the asset FK; no Principal is constructed here.
 //
 // The `segment` lens is NOT an arm here: verbatim segments are written in BATCHES (`store-segments.ts`, #172)
 // so the corpus sweep can submit one embed flood instead of one awaited embed per block. Same hash gate, same
@@ -78,6 +78,14 @@ function seedFor(
   ctx: EmbeddingsContext,
   { hash, kind, generation }: { readonly hash: string; readonly kind: "card-text" | "image-raw"; readonly generation: PinnedGeneration },
 ): { readonly model: string; readonly vector: Float32Array<ArrayBuffer> } | null {
+  // Packaged card vectors predate lossless native windows and carry no recipe provenance.
+  if (
+    kind === "card-text" &&
+    generation.connection.capability.kind === "embedding" &&
+    generation.connection.capability.embedding.localTextEncoding !== undefined
+  ) {
+    return null;
+  }
   const seeded = ctx.precomputedEmbedding?.(hash, generation.space, kind, generation.connection) ?? null;
   return seeded !== null && seeded.vector.length === generation.dims ? seeded : null;
 }
@@ -199,11 +207,11 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, generation.dims, vector);
   const landed = await upsertImageEmbedding(ctx.db, {
+    ownerId: p.ownerId,
     id: ctx.newImageEmbeddingId(),
     assetId: p.assetId,
     lens: p.lens,
-    caption: p.lens === "image-captioned" ? p.caption : null,
-    captionMeta: p.lens === "image-captioned" ? p.captionMeta : null,
+    analysisRevision: p.lens === "image-captioned" ? p.analysisRevision : null,
     embedding: vector,
     contentHash: hash,
     model: embedded.model,
@@ -335,7 +343,14 @@ export function createStore(ctx: EmbeddingsContext): EmbeddingsService["store"] 
       throw new EmbedFailedError(params.lens, params.model);
     }
     const entity = params.lens === "card-text" ? params.characterId : params.assetId;
-    const key = JSON.stringify([entity, generation.id, params.lens, contentHash(params.content), params.force === true]);
+    const key = JSON.stringify([
+      entity,
+      generation.id,
+      params.lens,
+      contentHash(params.content),
+      params.force === true,
+      params.lens === "image-captioned" ? params.analysisRevision : null,
+    ]);
     const existing = inFlight.get(key);
     if (existing !== undefined) {
       return await existing;

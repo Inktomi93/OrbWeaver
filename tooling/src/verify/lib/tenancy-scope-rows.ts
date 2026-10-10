@@ -288,6 +288,7 @@ export const TABLE_SCOPING_ROWS: readonly ScopingRow[] = [
     why: "D23 true producer — a script is the user's authored artifact with no owning parent to derive through (the world_books twin).",
   },
   { table: "global_books", scope: "parent", why: "the always-on book set — a single PK/FK to `world_books`, so scope is the book's owner." },
+  { table: "image_analyses", scope: "parent", why: "Utility annotations inherit the immutable asset owner and survive vector retirement." },
   { table: "image_embeddings", scope: "parent", why: "derived image vectors — scope derives through `assets.ownerId`." },
   {
     table: "image_index_skips",

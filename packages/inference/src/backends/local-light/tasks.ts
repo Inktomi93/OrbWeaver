@@ -4,7 +4,7 @@
 // PAIR kind requires explicit text fallback — jina-clip has two encoders and defines no fused vector).
 
 import type { EmbeddingAccounting } from "@orb/contracts/embeddings";
-import type { Capability } from "@orb/contracts/inference";
+import type { Capability, LocalTextEncoding } from "@orb/contracts/inference";
 import { LOCAL_LIGHT_SEED_ROWS, modelIdSchema } from "@orb/contracts/inference";
 import type { EmbedResult, ImageEmbedResult, RerankResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, ImageInput, RerankQuery } from "@orb/contracts/role-clients";
@@ -22,6 +22,13 @@ export const DEFAULT_RERANK_MODEL = modelIdSchema.parse(LOCAL_LIGHT_SEED_ROWS[1]
 interface KeptInput {
   readonly index: number;
   readonly text: string;
+}
+
+function textEncoding(capability: Capability): LocalTextEncoding {
+  if (capability.kind !== "embedding" || capability.embedding.localTextEncoding === undefined) {
+    throw new ProviderError({ kind: "invalid", retryable: false, message: "local-light: the embedding capability has no native text encoding recipe" });
+  }
+  return capability.embedding.localTextEncoding;
 }
 
 async function observeLocal(accounting: EmbeddingAccounting | undefined, inputCount: number, image: boolean): Promise<void> {
@@ -101,6 +108,7 @@ export function createLocalLightEmbed(cache: LocalLightModelCache, spaceTag: (mo
               modelId,
               kept.map((k) => k.text),
               req.inputType,
+              textEncoding(req.connection.capability),
             ),
             req.signal,
           )
@@ -165,6 +173,7 @@ type Finalize = (vec: Float32Array) => Float32Array<ArrayBuffer>;
 interface LocalEmbeddingCompletion {
   readonly finalize: Finalize;
   readonly accounting: EmbeddingAccounting | undefined;
+  readonly capability: Capability;
 }
 
 async function embedImageSide(
@@ -200,6 +209,7 @@ async function embedTextSide(
   const raw = await cache.embedClipTexts(
     modelId,
     kept.map((k) => k.text),
+    textEncoding(completion.capability),
   );
   await observeLocal(completion.accounting, kept.length, false);
   return scatter(texts.length, kept, raw, completion.finalize);
@@ -245,7 +255,10 @@ export function createLocalLightImageEmbed(
     // The image side writes into the same space as the text side, so a declared shorter MRL width applies here too.
     const dims = declaredMrlWidth(req.connection.capability);
     const finalize: Finalize = (vec) => finalizeVector(vec, dims, modelId);
-    const vectors = await abortableWait(embedByKind(cache, modelId, req.input, { finalize, accounting: req.embeddingAccounting }), req.signal);
+    const vectors = await abortableWait(
+      embedByKind(cache, modelId, req.input, { finalize, accounting: req.embeddingAccounting, capability: req.connection.capability }),
+      req.signal,
+    );
     throwIfAborted(req.signal);
     return { vectors, model: spaceTag(modelId), usage: { promptTokens: null, totalTokens: null } };
   };

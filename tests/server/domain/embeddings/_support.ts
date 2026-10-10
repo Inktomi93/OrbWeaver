@@ -476,7 +476,7 @@ export async function seedAsset(db: Db, ownerId: UserId, overrides: { readonly i
     kind: "avatar",
     mime: "image/png",
     size: 8,
-    hash: overrides.hash ?? "seed-asset-hash",
+    hash: overrides.hash ?? contentHash(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4])),
     uploadedAt: FROZEN_AT,
   });
   return id;

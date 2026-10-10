@@ -2,7 +2,7 @@
 // through the injected supervisor; server composition supplies the traced/logged owner while package tests
 // can supply a deterministic observer without reaching process-global tracing state.
 
-import { EMBEDDING_FLOOR, modelIdSchema } from "@orb/contracts/inference";
+import { EMBEDDING_FLOOR, LOCAL_TEXT_ENCODING, modelIdSchema } from "@orb/contracts/inference";
 import { createLocalLightBackend } from "../../../../packages/inference/src/backends/local-light/index.ts";
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -55,7 +55,7 @@ test("concurrent text requests batch together and keep their original result ord
     task: "embed",
     providerId: "local-light",
     model: "jinaai/jina-clip-v2",
-    capability: { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, dims: 1024 } },
+    capability: { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, dims: 1024, localTextEncoding: LOCAL_TEXT_ENCODING } },
   });
   const embed = local.backend.embed;
   if (embed === undefined) {

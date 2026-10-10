@@ -9,13 +9,16 @@
 //     persisted only on the captioned lens.
 
 import { createHash } from "node:crypto";
-import { characterEmbeddings, chatDigestSpeakers, chatDigests, documentChunks, imageEmbeddings } from "@orb/db";
+import { LOCAL_TEXT_ENCODING } from "@orb/contracts/inference";
+import { characterEmbeddings, chatDigestSpeakers, chatDigests, documentChunks, imageAnalyses, imageEmbeddings } from "@orb/db";
 import { DEFAULT_EMBED_MODEL, localLightEmbedSpaceTag } from "@orb/inference";
 import type { CharacterId, ChatDigestId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService, EmbedFailedError, SpaceMismatchError } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { saveImageAnalysis } from "../../../../../packages/server/src/domain/embeddings/persistence/image-analysis.ts";
+import { contentHash } from "../../../../../packages/server/src/domain/embeddings/substrate/hash.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { assertRefusedBindingRace } from "../_binding-race-support.ts";
@@ -43,6 +46,26 @@ test("a store inside a refused binding probe leaves the target and old index int
 });
 
 describe("store — card-text (character_embeddings)", () => {
+  test("a window-centroid generation never accepts legacy card seed vectors", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const ownerId = await seedUser(db);
+    const characterId = await seedCharacter(db, ownerId);
+    const svc = createEmbeddingsService({
+      ...h.ctx,
+      resolveEmbeddingConnection: async (...args) => {
+        const resolved = await h.ctx.resolveEmbeddingConnection(...args);
+        if (resolved === null || resolved.capability.kind !== "embedding") {
+          throw new Error("the embedding fixture must resolve");
+        }
+        return { ...resolved, capability: { ...resolved.capability, embedding: { ...resolved.capability.embedding, localTextEncoding: LOCAL_TEXT_ENCODING } } };
+      },
+      precomputedEmbedding: (_hash, model) => ({ model, vector: new Float32Array(EMBED_DIM).fill(99) }),
+    });
+    await svc.store({ kind: "card", lens: "card-text", ownerId, characterId, content: CARD_TEXT, model: EMBED_MODEL });
+    expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
+    expect((await db.select().from(characterEmbeddings))[0]?.embedding).toEqual(fakeVector());
+  });
   test("a seed vector uses the normal generation and dimension checks without calling the encoder", async () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
@@ -304,7 +327,7 @@ describe("store — image lenses (image_embeddings)", () => {
     const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
     expect(rows).toHaveLength(1);
     expect(rows[0]?.lens).toBe("image-raw");
-    expect(rows[0]?.caption).toBeNull();
+    expect(await db.select().from(imageAnalyses)).toHaveLength(0);
     expect(rows[0]?.model).toBe(IMAGE_EMBED_MODEL);
   });
 
@@ -323,6 +346,22 @@ describe("store — image lenses (image_embeddings)", () => {
       model: IMAGE_EMBED_MODEL,
       ownerId: owner,
     });
+    const annotationGeneration = await svc.resolveGeneration(owner, "imageEmbed", "imageEmbed");
+    expect(annotationGeneration).not.toBeNull();
+    if (annotationGeneration === null) {
+      return;
+    }
+    expect(
+      await saveImageAnalysis(db, {
+        ownerId: owner,
+        assetId,
+        generationId: annotationGeneration.id,
+        contentHash: contentHash(IMG),
+        caption: TEST_CAPTION,
+        captionMeta: { model: "captioner" },
+        now: h.ctx.now(),
+      }),
+    ).toBe(1);
     await svc.store({
       kind: "avatar",
       lens: "image-captioned",
@@ -330,7 +369,7 @@ describe("store — image lenses (image_embeddings)", () => {
       content: IMG,
       via: "imageEmbed",
       caption: TEST_CAPTION,
-      captionMeta: { model: "captioner" },
+      analysisRevision: 1,
       model: IMAGE_EMBED_MODEL,
       ownerId: owner,
     });
@@ -346,8 +385,7 @@ describe("store — image lenses (image_embeddings)", () => {
     const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
     // Both lenses coexist for one asset in one space (the unique key is (assetId, model, lens)).
     expect(rows).toHaveLength(2);
-    const captioned = rows.find((r) => r.lens === "image-captioned");
-    expect(captioned?.caption).toBe(TEST_CAPTION);
+    expect((await db.select().from(imageAnalyses))[0]?.caption).toBe(TEST_CAPTION);
   });
 
   // §10-3 — THE CAPTIONED-TEXT ARM. `via: "embed"` is the store's half of the joint-space rule: the owner has
@@ -362,6 +400,22 @@ describe("store — image lenses (image_embeddings)", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner-caption-fallback") });
     const assetId = await seedAsset(db, owner);
 
+    const annotationGeneration = await svc.resolveGeneration(owner, "imageEmbed", "embed");
+    expect(annotationGeneration).not.toBeNull();
+    if (annotationGeneration === null) {
+      return;
+    }
+    expect(
+      await saveImageAnalysis(db, {
+        ownerId: owner,
+        assetId,
+        generationId: annotationGeneration.id,
+        contentHash: contentHash(IMG),
+        caption: TEST_CAPTION,
+        captionMeta: { model: "captioner" },
+        now: h.ctx.now(),
+      }),
+    ).toBe(1);
     const written = await svc.store({
       kind: "avatar",
       lens: "image-captioned",
@@ -369,7 +423,7 @@ describe("store — image lenses (image_embeddings)", () => {
       content: IMG,
       via: "embed",
       caption: TEST_CAPTION,
-      captionMeta: { model: "captioner" },
+      analysisRevision: 1,
       model: EMBED_MODEL,
       ownerId: owner,
     });
@@ -403,7 +457,7 @@ describe("store — image lenses (image_embeddings)", () => {
       content: IMG,
       via: "imageEmbed",
       caption: "   \n  ", // whitespace-only ≡ empty (the summarizer produced nothing usable)
-      captionMeta: { model: "captioner" },
+      analysisRevision: 1,
       model: IMAGE_EMBED_MODEL,
       ownerId: owner,
     });
@@ -415,6 +469,22 @@ describe("store — image lenses (image_embeddings)", () => {
     expect(empty.filter((r) => r.lens === "image-captioned")).toHaveLength(0);
 
     // A later run with a REAL caption is not short-circuited — it embeds + writes the captioned lens.
+    const annotationGeneration = await svc.resolveGeneration(owner, "imageEmbed", "imageEmbed");
+    expect(annotationGeneration).not.toBeNull();
+    if (annotationGeneration === null) {
+      return;
+    }
+    expect(
+      await saveImageAnalysis(db, {
+        ownerId: owner,
+        assetId,
+        generationId: annotationGeneration.id,
+        contentHash: contentHash(IMG),
+        caption: TEST_CAPTION,
+        captionMeta: { model: "captioner" },
+        now: h.ctx.now(),
+      }),
+    ).toBe(1);
     const written = await svc.store({
       kind: "avatar",
       lens: "image-captioned",
@@ -422,14 +492,13 @@ describe("store — image lenses (image_embeddings)", () => {
       content: IMG,
       via: "imageEmbed",
       caption: TEST_CAPTION,
-      captionMeta: { model: "captioner" },
+      analysisRevision: 1,
       model: IMAGE_EMBED_MODEL,
       ownerId: owner,
     });
     expect(written.outcome).toBe("written");
     expect(h.roleClients.imageEmbed).toHaveBeenCalledTimes(1);
-    const after = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
-    expect(after.find((r) => r.lens === "image-captioned")?.caption).toBe(TEST_CAPTION);
+    expect((await db.select().from(imageAnalyses).where(eq(imageAnalyses.assetId, assetId)))[0]?.caption).toBe(TEST_CAPTION);
   });
 });
 

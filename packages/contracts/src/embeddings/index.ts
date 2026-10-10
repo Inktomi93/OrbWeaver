@@ -88,7 +88,7 @@ export function foldActiveSpace(task: keyof typeof VECTOR_SCOPES_BY_TASK, rows: 
   return spaces.every((space) => space === first) ? { kind: "complete", space: first } : { kind: "moving" };
 }
 
-// ── The VL image breakdown (`image_embeddings.caption_meta`) ──────────────────────────────────────────
+// ── The VL image breakdown (`image_analyses.caption_meta`) ──────────────────────────────────────────
 //
 // WHY THIS LIVES IN CONTRACTS AND NOT IN EITHER DOMAIN. `caption_meta` is a domain↔domain wire column:
 // EMBEDDINGS writes it (the one avatar-analysis call, `indexer/caption.ts`) and DISCOVERY reads it
@@ -210,13 +210,13 @@ const MAX_IMAGE_TAGS = 8;
 
 /**
  * ONE image's structured VL breakdown — the payload the avatar-analysis call is guided-decoded into AND the
- * shape stored under `image_embeddings.caption_meta` (spread beside its `model` provenance).
+ * shape stored under `image_analyses.caption_meta` (spread beside its `model` provenance).
  *
  * `caption` rides the SAME call rather than a second one: the sentence and the facets are one look at one
  * image, and splitting them would double the GPU cost of every avatar for a corpus backfill.
  */
 export const imageBreakdownSchema = z.object({
-  /** The one-sentence human caption — also written to `image_embeddings.caption` and embedded. */
+  /** The one-sentence human caption — also written to `image_analyses.caption` and embedded. */
   caption: z.string(),
   artStyle: z.enum(IMAGE_ART_STYLES),
   palette: z.enum(IMAGE_PALETTES),

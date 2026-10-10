@@ -67,6 +67,15 @@ describe("index contribution: the model-call estimate", () => {
 });
 
 describe("index contribution", () => {
+  test("the existing embedder-change marker reaches both analysis admission and the forced image pass", async () => {
+    const { embeddings, index } = build();
+    const params = { source: "image", force: true, embedderChanged: true } as const;
+    await index.modelCalls?.({ ownerId: OWNER_ID, funderUserId: OWNER_ID, params });
+    await index.run(ctx, params, vi.fn(), sig());
+    expect(embeddings.countAssetAnalysisCalls).toHaveBeenCalledWith({ ownerId: OWNER_ID, force: true, embedderChanged: true });
+    expect(embeddings.embedAssets).toHaveBeenCalledWith(expect.objectContaining({ ownerId: OWNER_ID, force: true, embedderChanged: true }));
+  });
+
   test("source=text drives ONLY the corpus pass and projects its counts", async () => {
     const { embeddings, index } = build();
     const result = await index.run(ctx, { source: "text", force: true }, vi.fn(), sig());

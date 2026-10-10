@@ -15,7 +15,7 @@ import { anthropicRows } from "./anthropic.ts";
 import { deepseekRows } from "./deepseek.ts";
 import { embeddersRows } from "./embedders.ts";
 import { googleRows } from "./google.ts";
-import { localLightRows } from "./local-light.ts";
+import { localLightExecutionRows, localLightRows } from "./local-light.ts";
 import { customEndpointRows, localServerRows } from "./local-servers.ts";
 import { metaRows } from "./meta.ts";
 import { mistralRows } from "./mistral.ts";
@@ -35,6 +35,7 @@ const CURATED: readonly CompiledRow[] = [
   ...compileRows("curated/deepseek.ts", deepseekRows),
   ...compileRows("curated/mistral.ts", mistralRows),
   ...compileRows("curated/xai.ts", xaiRows),
+  ...compileRows("curated/local-light.ts", localLightExecutionRows),
   ...compileRows("curated/local-light.ts", localLightRows),
   ...compileRows("curated/embedders.ts", embeddersRows),
   // The local servers' sampler sets are a fact of the server, not the model: they compose last so they win.

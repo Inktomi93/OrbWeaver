@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { dirname, join, relative } from "node:path";
+import { LOCAL_LIGHT_CPU_PERCENT_FULL, localLightCpuPercentSchema } from "@orb/contracts/inference";
 
 const CGROUP_PREFIX = "0::";
 const CGROUP_ROOT = "/sys/fs/cgroup";
@@ -16,8 +17,13 @@ function readOptional(path: string): string | undefined {
   return result;
 }
 
-/** Bound native threads by affinity and every visible cgroup CPU quota. */
-export function localLightCpuThreads(affinity = availableParallelism(), read: (path: string) => string | undefined = readOptional): number {
+/** Reserve server headroom within affinity and visible CPU quotas; a native call needs at least one thread. */
+export function localLightCpuThreads(
+  affinity = availableParallelism(),
+  read: (path: string) => string | undefined = readOptional,
+  cpuPercent?: number,
+): number {
+  const percent = localLightCpuPercentSchema.parse(cpuPercent);
   let budget = affinity;
   const narrow = (quota: string | undefined, period: string | undefined): void => {
     const q = Number(quota);
@@ -50,5 +56,5 @@ export function localLightCpuThreads(affinity = availableParallelism(), read: (p
     path = dirname(path);
   }
   narrow(read(`${CGROUP_ROOT}/cpu/cpu.cfs_quota_us`), read(`${CGROUP_ROOT}/cpu/cpu.cfs_period_us`));
-  return Math.max(1, Math.floor(budget));
+  return Math.max(1, Math.floor((budget * percent) / LOCAL_LIGHT_CPU_PERCENT_FULL));
 }

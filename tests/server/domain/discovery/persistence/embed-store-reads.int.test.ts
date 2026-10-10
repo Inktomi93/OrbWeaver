@@ -5,16 +5,18 @@
 import type { Db } from "@orb/db";
 import { digestThemeAssignments, themeClusters } from "@orb/db";
 import type { ChatDigestId, ThemeClusterId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import {
   distinctCharacterHubOwners,
   distinctDigestHubOwners,
   distinctImageHubOwners,
   distinctSegmentHubOwners,
+  readCaptionRowsByFacet,
   readCharacterHubVectors,
   readDigestHubVectors,
   readImageHubVectors,
+  readOwnedCaptionRows,
   readOwnedCharacterVectors,
   readOwnedDigestKeywords,
   readOwnedDigestVectors,
@@ -42,6 +44,24 @@ import {
 
 /** `themeDetail`'s member cap, spelled here so the owner-scope pin below is not a bare number. */
 const MEMBER_LIMIT = 15;
+
+test("an owned character pointing at a foreign avatar never exposes that owner's Utility annotation", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, "annotation-reader");
+  const other = await seedUser(db, "annotation-asset-owner");
+  const assetId = await seedAsset(db, mintTypeId(ID_PREFIX.asset), other);
+  await seedCharacter(db, { id: mintTypeId(ID_PREFIX.character), ownerId: owner, avatarAssetId: assetId });
+  await seedImageEmbedding(db, {
+    id: mintTypeId(ID_PREFIX.imageEmbedding),
+    assetId,
+    lens: "image-captioned",
+    embedding: vec(1, 0),
+    caption: "foreign owner's private Utility caption",
+    captionMeta: { artStyle: "anime", model: "foreign-utility" },
+  });
+  expect(await readOwnedCaptionRows(db, owner)).toEqual([]);
+  expect(await readCaptionRowsByFacet(db, owner, { path: "$.artStyle", isList: false, value: "anime" })).toEqual([]);
+});
 
 // A theme cluster + one assignment row — `readTier0DigestSpans` reads only digests that were ASSIGNED.
 async function seedThemeAssignment(db: Db, ownerId: UserId, digestId: string): Promise<void> {

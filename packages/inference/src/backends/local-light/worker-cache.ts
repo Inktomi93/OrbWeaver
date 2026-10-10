@@ -116,6 +116,7 @@ const DEFAULT_CACHE_MODULE = new URL("./model-cache.ts", import.meta.url).href;
 export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerModelCache {
   const { log, onProgress } = config;
   const options: LocalLightWorkerOptions = {
+    cpuPercent: config.cpuPercent,
     device: config.device,
     embedDtype: config.embedDtype,
     cacheDir: config.cacheDir,
@@ -224,8 +225,10 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
   const vectors = async (request: LocalLightWorkerCall): Promise<Float32Array[]> => (await call(request)) as Float32Array[];
 
   return {
-    embedTexts: (modelId, texts): Promise<Float32Array[]> => (texts.length === 0 ? Promise.resolve([]) : vectors({ op: "embedTexts", modelId, texts })),
-    embedClipTexts: (modelId, texts): Promise<Float32Array[]> => (texts.length === 0 ? Promise.resolve([]) : vectors({ op: "embedClipTexts", modelId, texts })),
+    embedTexts: (modelId, texts, _inputType, encoding): Promise<Float32Array[]> =>
+      texts.length === 0 ? Promise.resolve([]) : vectors({ op: "embedTexts", modelId, texts, encoding }),
+    embedClipTexts: (modelId, texts, encoding): Promise<Float32Array[]> =>
+      texts.length === 0 ? Promise.resolve([]) : vectors({ op: "embedClipTexts", modelId, texts, encoding }),
     embedImages: async (modelId, images): Promise<Float32Array[]> =>
       images.length === 0 ? [] : await vectors({ op: "embedImages", modelId, images: images.map(requireImageBytes) }),
     scorePairs: async (modelId, query, documents, serving): Promise<number[]> =>

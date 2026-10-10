@@ -12,6 +12,7 @@ import process from "node:process";
 import { parseEnv } from "node:util";
 import type { AUTH_MODES, AuthModeSource, InstallKind } from "@orb/contracts/identity";
 import { authModeSchema, shareRelayKindSchema } from "@orb/contracts/identity";
+import { localLightCpuPercentSchema } from "@orb/contracts/inference";
 import { LOG_LEVELS } from "@orb/contracts/settings";
 import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
 import { ENV_FROM_FILE_KEY, envFromFileKeys } from "@orb/kit/env-file";
@@ -362,6 +363,8 @@ const envSchema = z
     // for, and (b) on bare metal puts multi-GB weights inside node_modules, where every `pnpm install`
     // throws them away.
     LOCAL_LIGHT_CACHE_DIR: z.string().min(1).optional(),
+    // This budgets native threads only; tokenization and other auxiliary work have no CPU-time quota.
+    LOCAL_LIGHT_CPU_PERCENT: z.coerce.number().optional().pipe(localLightCpuPercentSchema),
     // Warm the local-light weights in the BACKGROUND just after the listener binds, instead of paying the
     // whole download on the first search/import/avatar. ON by default: the stranger who clones this repo and
     // runs it is exactly the person who would otherwise meet a several-minute stall with no explanation. Set
