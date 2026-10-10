@@ -313,14 +313,18 @@ describe("createBulkImportChats", () => {
     const character = await seedCharacter(db, { ownerId: owner.id });
     const op = createBulkImportChats(importCtx(db, owner.id));
     const input = chatInput("LegacyEmpty.jsonl", { messages: [] });
-    const first = await op({ ownerId: owner.id, characterId: character.id, chats: [input] });
+    const tail = chatInput("TailLegacy.jsonl");
+    const first = await op({ ownerId: owner.id, characterId: character.id, chats: [input, tail] });
     const candidates = Array.from({ length: OVER_BIND_CAPACITY }, (_, index) => ({ ...input, fileHash: `legacy-${index}` }));
     candidates.push({ ...input, importHash: "modern-content", fileHash: input.importHash });
+    candidates.push({ ...tail, importHash: "tail-modern-content", fileHash: tail.importHash });
     const again = await op({ ownerId: owner.id, characterId: character.id, chats: candidates });
     expect(again.chatsImported).toBe(0);
     expect(again.chatsSkipped).toBe(candidates.length);
-    expect(again.identities).toEqual(candidates.map(() => first.identities[0]));
-    expect(await db.select().from(chats)).toHaveLength(1);
+    expect(again.identities.slice(0, -1)).toEqual(candidates.slice(0, -1).map(() => first.identities[0]));
+    expect(again.identities.at(-1)).toEqual(first.identities[1]);
+    expect(again.identities.at(-1)?.messageIds).toHaveLength(tail.messages.length);
+    expect(await db.select().from(chats)).toHaveLength(2);
   });
 
   test("native pending observations reconstruct local parents and groups once, retain zero/unknown facts and rebuild kept-data economics", async () => {
@@ -459,6 +463,7 @@ describe("createBulkImportChats", () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const attachment = await seedAsset(db, { ownerId: owner.id });
     let arrivals = 0;
     let release: (() => void) | undefined;
     const together = new Promise<void>((resolve) => {
@@ -466,7 +471,8 @@ describe("createBulkImportChats", () => {
     });
     const heldContext: ChatImportContext = {
       ...importCtx(db, owner.id),
-      filterExistingAssetIds: async () => {
+      filterExistingAssetIds: async (_ownerId, assetIds) => {
+        expect(assetIds).toEqual([attachment.id]);
         arrivals += 1;
         if (arrivals === 2) {
           release?.();
@@ -475,19 +481,31 @@ describe("createBulkImportChats", () => {
         return [];
       },
     };
-    const file = chatInput("Aria.jsonl");
+    const base = chatInput("Aria.jsonl");
+    const file = {
+      ...base,
+      messages: base.messages.map((message) => ({
+        ...message,
+        variants: message.variants.map((variant) => ({ ...variant, content: `${variant.content} ![attachment](asset:${attachment.id})` })),
+      })),
+    };
 
     const outcomes = await Promise.all([
       createBulkImportChats(heldContext)({ ownerId: owner.id, characterId: character.id, chats: [file] }),
       createBulkImportChats(heldContext)({ ownerId: owner.id, characterId: character.id, chats: [file] }),
     ]);
 
+    expect(arrivals).toBe(2);
     expect(outcomes.map((result) => [result.chatsImported, result.chatsSkipped]).sort()).toEqual([
       [0, 1],
       [1, 0],
     ]);
     expect(await db.select().from(chats)).toHaveLength(1);
     expect(await db.select().from(chatImportClaims)).toHaveLength(1);
+    expect(outcomes[0]?.identities).toEqual(outcomes[1]?.identities);
+    expect(await db.select().from(chatParticipants)).toHaveLength(2);
+    expect(await db.select().from(messages)).toHaveLength(file.messages.length);
+    expect(await db.select().from(messageVariants)).toHaveLength(file.messages.length);
   });
 
   test("writes chats→messages→variants + founding roster; the carried prose plane lands as injections", async () => {
