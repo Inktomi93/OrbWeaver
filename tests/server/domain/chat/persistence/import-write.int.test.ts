@@ -8,17 +8,20 @@ import type { BulkImportChatInput } from "@orb/contracts/chat";
 import { generationUsageLegSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import {
+  characters,
   chatGenerationObservations,
   chatImportClaims,
   chatInjections,
   chatParticipants,
   chats,
+  messageAssets,
   messages,
   messageVariants,
   ownerStats,
   statsCanonVersions,
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
+import { chunkRows, rowsPerInsert } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type {
   AssetId,
@@ -34,8 +37,9 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { selectOwnedAssetRefs } from "../../../../../packages/server/src/domain/assets/persistence/queries.ts";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import type { ChatImportContext } from "../../../../../packages/server/src/domain/chat/contract/import.ts";
 import { createBulkImportChats } from "../../../../../packages/server/src/domain/chat/persistence/import-write.ts";
@@ -43,7 +47,7 @@ import { reconcileStats } from "../../../../../packages/server/src/domain/stats/
 import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
-import { seedCharacter, seedPersona, seedUser } from "../../../../support/factories/index.ts";
+import { makeCharacter, seedAsset, seedCharacter, seedPersona, seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { createSeededIds } from "../../../../support/ids.ts";
 
@@ -53,6 +57,8 @@ const CHAT_UPDATED = 1_699_999_995_000;
 const MSG0_AT = 1_699_999_991_000;
 const MSG1_AT = 1_699_999_992_000;
 const JSONL_EXT = /\.jsonl$/i;
+const OVER_BIND_CAPACITY = rowsPerInsert(1) + 1;
+const CAPACITY_TIMEOUT_MS = 120_000;
 
 /** Records every `mintSyntheticGroupCharacter` call so a test can pin BOTH the once-per-chat idempotency and
  *  the "a plain ST import never touches the synthetic namespace" byte-identity claim. */
@@ -158,6 +164,165 @@ function chatInput(importedFrom: string, over: Partial<BulkImportChatInput> = {}
 }
 
 describe("createBulkImportChats", () => {
+  test("inline asset references beyond the bind ceiling retain the owned tail without foreign retaining rows", { timeout: CAPACITY_TIMEOUT_MS }, async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const stranger = await seedUser(db);
+    const primary = await seedCharacter(db, { ownerId: owner.id });
+    const owned = await seedAsset(db, { ownerId: owner.id });
+    const foreign = await seedAsset(db, { ownerId: stranger.id });
+    const ids = createSeededIds();
+    const refs = Array.from({ length: OVER_BIND_CAPACITY + 2 }, () => ids.next(ID_PREFIX.asset))
+      .filter((id) => id !== owned.id && id !== foreign.id)
+      .slice(0, OVER_BIND_CAPACITY);
+    const base = chatInput("AssetCapacity.jsonl");
+    const source = base.messages[0];
+    const variant = source?.variants[0];
+    if (source === undefined || variant === undefined) {
+      throw new Error("chat fixture requires an assistant variant");
+    }
+    const content = [...refs, owned.id, owned.id, foreign.id].map((id) => `![image](asset:${id})`).join(" ");
+    const ctx = {
+      ...importCtx(db, owner.id),
+      filterExistingAssetIds: async (ownerId: UserId, assetIds: readonly AssetId[]): Promise<readonly AssetId[]> =>
+        (await selectOwnedAssetRefs(db, ownerId, assetIds)).map((row) => row.assetId),
+    };
+    const result = await createBulkImportChats(ctx)({
+      ownerId: owner.id,
+      characterId: primary.id,
+      chats: [{ ...base, messages: [{ ...source, variants: [{ ...variant, content }] }] }],
+    });
+    expect(result.messagesImported).toBe(1);
+    expect((await db.select().from(messageVariants))[0]?.content).toBe(content);
+    const attachments = await db.select({ messageId: messageAssets.messageId, assetId: messageAssets.assetId }).from(messageAssets);
+    expect(attachments).toEqual([{ messageId: result.identities[0]?.messageIds[0], assetId: owned.id }]);
+  });
+
+  test("long named-speaker history imports every slot and reimports its exact canonical identity", { timeout: CAPACITY_TIMEOUT_MS }, async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const primary = await seedCharacter(db, { ownerId: owner.id });
+    const second = await seedCharacter(db, { ownerId: owner.id });
+    const base = chatInput("LongGroup.jsonl");
+    const source = base.messages[0];
+    const variant = source?.variants[0];
+    if (source === undefined || variant === undefined) {
+      throw new Error("chat fixture requires an assistant variant");
+    }
+    const input = {
+      ...base,
+      characterIds: [second.id],
+      messages: Array.from({ length: OVER_BIND_CAPACITY }, (_, seq) => ({
+        ...source,
+        characterId: seq % 2 === 0 ? primary.id : second.id,
+        ...(seq === OVER_BIND_CAPACITY - 1 ? { selectedIdx: 1, variants: [variant, { ...variant, idx: 1, content: "Tail alternative." }] } : {}),
+      })),
+    };
+    const op = createBulkImportChats(importCtx(db, owner.id));
+    const args = { ownerId: owner.id, characterId: primary.id, chats: [input] };
+    const first = await op(args);
+    const identity = first.identities[0];
+    if (identity === undefined) {
+      throw new Error("long import requires its canonical identity");
+    }
+    expect(first.messagesImported).toBe(OVER_BIND_CAPACITY);
+    const slots = await db
+      .select({ id: messages.id, characterId: messages.characterId, selectedVariantId: messages.selectedVariantId })
+      .from(messages)
+      .where(eq(messages.chatId, identity.chatId))
+      .orderBy(asc(messages.seq));
+    expect(slots.map((slot) => slot.id)).toEqual(identity.messageIds);
+    expect(slots.map((slot) => slot.characterId)).toEqual(input.messages.map((slot) => slot.characterId));
+    expect(slots.map((slot) => slot.selectedVariantId)).toEqual(identity.variantIds.map((pool, index) => pool[input.messages[index]?.selectedIdx ?? 0]));
+    const variants = await db
+      .select({ id: messageVariants.id, content: messageVariants.content })
+      .from(messageVariants)
+      .innerJoin(messages, eq(messages.id, messageVariants.messageId))
+      .where(eq(messages.chatId, identity.chatId))
+      .orderBy(asc(messages.seq), asc(messageVariants.idx));
+    expect(variants.map((row) => row.id)).toEqual(identity.variantIds.flat());
+    expect(variants.map((row) => row.content)).toEqual(input.messages.flatMap((slot) => slot.variants.map((pool) => pool.content)));
+    const again = await op(args);
+    expect(again.identities).toEqual(first.identities);
+    expect(again.written).toEqual([]);
+    expect(again.chatsSkipped).toBe(1);
+    expect(await db.select().from(chats)).toHaveLength(1);
+  });
+
+  test("a foreign speaker at the end of a long history refuses the entire run before canon", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const stranger = await seedUser(db);
+    const primary = await seedCharacter(db, { ownerId: owner.id });
+    const foreign = await seedCharacter(db, { ownerId: stranger.id });
+    const base = chatInput("LateForeign.jsonl");
+    const source = base.messages[0];
+    if (source === undefined) {
+      throw new Error("chat fixture requires an assistant slot");
+    }
+    const input = {
+      ...base,
+      messages: [...Array.from({ length: OVER_BIND_CAPACITY }, () => ({ ...source, characterId: primary.id })), { ...source, characterId: foreign.id }],
+    };
+    await expect(
+      createBulkImportChats(importCtx(db, owner.id))({ ownerId: owner.id, characterId: primary.id, chats: [chatInput("EarlierValid.jsonl"), input] }),
+    ).rejects.toMatchObject({ message: `character ${foreign.id} not found` });
+    expect(await db.select().from(chats)).toEqual([]);
+    expect(await db.select().from(chatImportClaims)).toEqual([]);
+    expect(await db.select().from(chatParticipants)).toEqual([]);
+    expect(await db.select().from(messages)).toEqual([]);
+    expect(await db.select().from(messageVariants)).toEqual([]);
+    expect(await db.select().from(statsCanonVersions)).toEqual([]);
+  });
+
+  test("distinct ownership populations beyond the bind ceiling retain every seat and refuse the first foreign id", {
+    timeout: CAPACITY_TIMEOUT_MS,
+  }, async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const stranger = await seedUser(db);
+    const primary = await seedCharacter(db, { ownerId: owner.id });
+    const foreign = await seedCharacter(db, { ownerId: stranger.id });
+    const rows = Array.from({ length: OVER_BIND_CAPACITY }, () => makeCharacter({ ownerId: owner.id }));
+    const sample = rows[0];
+    if (sample === undefined) {
+      throw new Error("capacity fixture requires character rows");
+    }
+    for (const chunk of chunkRows(rows, Object.keys(sample).length)) {
+      await db.insert(characters).values(chunk);
+    }
+    const characterIds = rows.map((row) => row.id);
+    const op = createBulkImportChats(importCtx(db, owner.id));
+    await expect(
+      op({
+        ownerId: owner.id,
+        characterId: primary.id,
+        chats: [chatInput("DistinctForeign.jsonl", { characterIds: [...characterIds, foreign.id, castId<CharacterId>("character_missing")], messages: [] })],
+      }),
+    ).rejects.toMatchObject({ message: `character ${foreign.id} not found` });
+    expect(await db.select().from(chats)).toEqual([]);
+    const result = await op({ ownerId: owner.id, characterId: primary.id, chats: [chatInput("DistinctOwned.jsonl", { characterIds, messages: [] })] });
+    expect(result.chatsImported).toBe(1);
+    const seats = await db.select({ characterId: chatParticipants.characterId }).from(chatParticipants).where(eq(chatParticipants.kind, "character"));
+    expect(seats.map((seat) => seat.characterId).sort()).toEqual([primary.id, ...characterIds].sort());
+  });
+
+  test("a hash population beyond the bind ceiling preserves content and legacy duplicate identities", { timeout: CAPACITY_TIMEOUT_MS }, async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const character = await seedCharacter(db, { ownerId: owner.id });
+    const op = createBulkImportChats(importCtx(db, owner.id));
+    const input = chatInput("LegacyEmpty.jsonl", { messages: [] });
+    const first = await op({ ownerId: owner.id, characterId: character.id, chats: [input] });
+    const candidates = Array.from({ length: OVER_BIND_CAPACITY }, (_, index) => ({ ...input, fileHash: `legacy-${index}` }));
+    candidates.push({ ...input, importHash: "modern-content", fileHash: input.importHash });
+    const again = await op({ ownerId: owner.id, characterId: character.id, chats: candidates });
+    expect(again.chatsImported).toBe(0);
+    expect(again.chatsSkipped).toBe(candidates.length);
+    expect(again.identities).toEqual(candidates.map(() => first.identities[0]));
+    expect(await db.select().from(chats)).toHaveLength(1);
+  });
+
   test("native pending observations reconstruct local parents and groups once, retain zero/unknown facts and rebuild kept-data economics", async () => {
     const db = await freshDb();
     const owner = await seedUser(db);
