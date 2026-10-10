@@ -22,4 +22,4 @@ Owner rules one precedence and the conflicting law is amended before any collisi
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Owner ruling (custom body wins): the user's custom body is merged last and wins every collision, preset knobs included, on connections that expose the body field. Amend ADR 0143/0156 to match Tier-3b before changing any collision behaviour.

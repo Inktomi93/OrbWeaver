@@ -22,4 +22,4 @@ Owner decision recorded: label the test's scope, or amend D296 to test the resol
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Owner ruling: test the resolved route. Amend D296 so the connection test exercises the same route chat uses.
