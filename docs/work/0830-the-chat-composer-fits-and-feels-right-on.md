@@ -23,4 +23,4 @@ Composer layout, alignment, spacing and touch targets are correct under --mobile
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Owner ruling after a SillyTavern side-by-side on iPhone: keep the two-row composer, tab bar (#1869 stands), button sizes and text margin. On phones, move the plugin badge and Plugin panels bar off the transcript foot, hide the Next reply line, and fix the sticky message header band that covers message text.

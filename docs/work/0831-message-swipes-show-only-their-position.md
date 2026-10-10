@@ -23,4 +23,4 @@ The swipe control shows its position count only, on desktop and mobile; coupled 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Owner ruling: inline swipe like SillyTavern. Chevrons sit on the message edges with a small position count at the foot, with no VARIANT label and no separate pager row, on phones.
