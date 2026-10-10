@@ -14,6 +14,7 @@ export * from "./evidence.ts";
 export * from "./features.ts";
 export * from "./finish-reasons.ts";
 export * from "./kinds.ts";
+export * from "./local-light-config.ts";
 export * from "./media-quality.ts";
 export * from "./modalities.ts";
 export * from "./model-schema.ts";

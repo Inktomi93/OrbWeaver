@@ -5,7 +5,7 @@
 import process from "node:process";
 import type { LocalTextEncoding } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
-import type { LocalLightModelCache } from "../../../../packages/inference/src/backends/local-light/model-cache.ts";
+import type { LocalLightModelCache, ModelCacheConfig } from "../../../../packages/inference/src/backends/local-light/model-cache.ts";
 import type { ProviderErrorInit } from "../../../../packages/inference/src/contract/errors.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { agentSdkSessionIdSchema } from "../../../../packages/inference/src/contract/identity.ts";
@@ -15,6 +15,7 @@ export const CRASH = "crash";
 export const REFUSE = "refuse";
 export const REFUSE_EVERY_FIELD = "refuse-every-field";
 export const ENCODING = "encoding";
+export const CPU_BUDGET = "cpu-budget";
 export const ABSENT_MODEL = "orb-test/absent-model";
 export const CRASH_EXIT_CODE = 7;
 
@@ -61,10 +62,11 @@ function embed(texts: readonly string[], encoding?: LocalTextEncoding): Promise<
   return Promise.resolve(texts.map((text) => Float32Array.from([text.length, 1, 2])));
 }
 
-export function createModelCache(): LocalLightModelCache {
+export function createModelCache(config: ModelCacheConfig): LocalLightModelCache {
   const failed = new Set<ModelId>();
   return {
-    embedTexts: (_modelId, texts, _inputType, encoding): Promise<Float32Array[]> => embed(texts, encoding),
+    embedTexts: (_modelId, texts, _inputType, encoding): Promise<Float32Array[]> =>
+      texts[0] === CPU_BUDGET ? Promise.resolve([Float32Array.of(config.cpuPercent ?? 0)]) : embed(texts, encoding),
     embedClipTexts: (_modelId, texts, encoding): Promise<Float32Array[]> => embed(texts, encoding),
     embedImages: (_modelId, images): Promise<Float32Array[]> =>
       Promise.resolve(images.map((image) => Float32Array.from(typeof image === "string" ? [] : [image[0] ?? 0, image.at(-1) ?? 0]))),

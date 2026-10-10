@@ -13,6 +13,7 @@ import process from "node:process";
 import type { RerankOnnx } from "@orb/contracts/inference";
 import { LOCAL_TEXT_ENCODING, modelIdSchema } from "@orb/contracts/inference";
 import { afterAll, vi } from "vitest";
+import { localLightCpuThreads } from "../../../../packages/inference/src/backends/local-light/cpu-budget.ts";
 import type { ModelCacheConfig } from "../../../../packages/inference/src/backends/local-light/model-cache.ts";
 import { createModelCache, rerankBatches } from "../../../../packages/inference/src/backends/local-light/model-cache.ts";
 import { createLocalLightEmbed, createLocalLightImageEmbed } from "../../../../packages/inference/src/backends/local-light/tasks.ts";
@@ -221,7 +222,12 @@ function stubLib(behaviour: { noLogits?: boolean; hub?: Hub } = {}): StubLib {
         return Promise.resolve(bytes === undefined ? new Response(null, { status: 404 }) : new Response(bytes));
       },
     },
-    AutoModel: { from_pretrained: (): Promise<unknown> => Promise.resolve(encoder) },
+    AutoModel: {
+      from_pretrained: (_id: string, opts: Record<string, unknown>): Promise<unknown> => {
+        loads.push({ kind: "encoder", opts });
+        return Promise.resolve(encoder);
+      },
+    },
     AutoProcessor: {
       from_pretrained: (): Promise<unknown> =>
         Promise.resolve((texts: string[] | null, images: number[] | null, opts: { truncation: boolean }) => {
@@ -251,14 +257,46 @@ function stubLib(behaviour: { noLogits?: boolean; hub?: Hub } = {}): StubLib {
   return { lib: lib as unknown as Lib, calls, loads, textPasses, processorTruncation, imagePasses };
 }
 
-function cacheOver(stub: StubLib): ReturnType<typeof createModelCache> {
+function cacheOver(stub: StubLib, cpuPercent?: number): ReturnType<typeof createModelCache> {
   return createModelCache({
+    cpuPercent,
     device: "cpu",
     log: silentLog,
     detach: (_n, fn) => void fn().catch(noop),
     __loadTransformersForTest: () => Promise.resolve(stub.lib),
   });
 }
+
+test("embedding and both rerank heads share a sequential non-spinning native CPU budget", async () => {
+  const stub = stubLib({ hub: { online: true, cacheDir: null, files: HEAD_FILES, fetched: [] } });
+  const cache = cacheOver(stub);
+  await cache.embedTexts(MODEL, ["short"]);
+  await cache.scorePairs(MODEL, "q", ["doc"], { maxInputTokens: 64, onnx: undefined });
+  await cache.scorePairs(MODEL, "q", ["doc"], { maxInputTokens: 64, onnx: ST_HEAD });
+  expect(stub.loads.map((load) => load.kind)).toEqual(["encoder", "sequence-classification", "encoder"]);
+  for (const load of stub.loads) {
+    expect(load.opts["session_options"]).toEqual({
+      intraOpNumThreads: localLightCpuThreads(),
+      interOpNumThreads: 1,
+      executionMode: "sequential",
+      extra: { session: { intra_op: { allow_spinning: "0" }, inter_op: { allow_spinning: "0" } } },
+    });
+  }
+});
+
+test("a configured CPU percentage changes session threads without changing embedding or rerank outputs", async () => {
+  const defaults = stubLib();
+  const configured = stubLib();
+  const standardCache = cacheOver(defaults);
+  const configuredCache = cacheOver(configured, 75);
+  const texts = ["short", "longTAIL".repeat(100)];
+  expect(await configuredCache.embedTexts(MODEL, texts)).toEqual(await standardCache.embedTexts(MODEL, texts));
+  const serving = { maxInputTokens: 64, onnx: undefined };
+  expect(await configuredCache.scorePairs(MODEL, "q", ["a", "abc"], serving)).toEqual(await standardCache.scorePairs(MODEL, "q", ["a", "abc"], serving));
+  for (const load of configured.loads) {
+    expect(load.opts["session_options"]).toMatchObject({ intraOpNumThreads: localLightCpuThreads(undefined, undefined, 75) });
+  }
+});
 
 test("both Jina text entry points preserve underestimated Unicode text and bound every native attention pass", async () => {
   const text = `${"a,1,".repeat(3000)}👩‍👩‍👧‍👦火星TAIL`;

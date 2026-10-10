@@ -15,6 +15,7 @@ import { expect, test } from "../../../support/fixtures.ts";
 import {
   ABSENT_MODEL,
   BLOCK_PREFIX,
+  CPU_BUDGET,
   CRASH,
   CRASH_EXIT_CODE,
   ENCODING,
@@ -115,6 +116,15 @@ test("the resolved native text recipe crosses the worker boundary on both text e
     expect(await cache.embedClipTexts(MODEL, [ENCODING], LOCAL_TEXT_ENCODING)).toEqual([
       Float32Array.of(LOCAL_TEXT_ENCODING.maxTokens, LOCAL_TEXT_ENCODING.version),
     ]);
+  } finally {
+    await cache.close();
+  }
+});
+
+test("the configured native CPU budget reaches the model cache in its worker", async () => {
+  const cache = createWorkerModelCache({ cpuPercent: 75, cacheModule: STUB_MODULE, log: { debug: noop, info: noop, warn: noop, error: noop } });
+  try {
+    expect(await cache.embedTexts(MODEL, [CPU_BUDGET])).toEqual([Float32Array.of(75)]);
   } finally {
     await cache.close();
   }

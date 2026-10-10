@@ -116,6 +116,7 @@ const DEFAULT_CACHE_MODULE = new URL("./model-cache.ts", import.meta.url).href;
 export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerModelCache {
   const { log, onProgress } = config;
   const options: LocalLightWorkerOptions = {
+    cpuPercent: config.cpuPercent,
     device: config.device,
     embedDtype: config.embedDtype,
     cacheDir: config.cacheDir,

@@ -103,6 +103,7 @@ export interface LocalLightModelCache {
 }
 
 export interface ModelCacheConfig {
+  readonly cpuPercent?: number | undefined;
   readonly device?: string | undefined;
   readonly embedDtype?: string | undefined;
   readonly cacheDir?: string | undefined;
@@ -567,7 +568,13 @@ function servingKey(modelId: ModelId, onnx: RerankOnnx): string {
 }
 
 export function createModelCache(config: ModelCacheConfig): LocalLightModelCache {
-  const sessionOptions = { intraOpNumThreads: localLightCpuThreads(), interOpNumThreads: 1 };
+  // Idle per-session pools must release CPUs instead of competing with the server and other cached models.
+  const sessionOptions = {
+    intraOpNumThreads: localLightCpuThreads(undefined, undefined, config.cpuPercent),
+    interOpNumThreads: 1,
+    executionMode: "sequential" as const,
+    extra: { session: { intra_op: { allow_spinning: "0" }, inter_op: { allow_spinning: "0" } } },
+  };
   const device = resolveDevice(config.device);
   const embedDtype = resolveEmbedDtype(config.embedDtype);
   const cacheDir = config.cacheDir === undefined ? undefined : resolve(config.cacheDir);

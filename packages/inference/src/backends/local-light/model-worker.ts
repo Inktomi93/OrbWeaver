@@ -77,6 +77,7 @@ async function main(port: MessagePort, options: LocalLightWorkerOptions): Promis
   const log: InferenceLog = { debug: logAt("debug"), info: logAt("info"), warn: logAt("warn"), error: logAt("error") };
   const { createModelCache } = (await import(options.cacheModule)) as CacheModule;
   const cache = createModelCache({
+    cpuPercent: options.cpuPercent,
     device: options.device,
     embedDtype: options.embedDtype,
     cacheDir: options.cacheDir,

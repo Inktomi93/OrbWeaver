@@ -229,6 +229,7 @@ export interface InferenceDeps {
   readonly userRuntimeDir: (ownerId: UserId, tool: "claude") => string;
   readonly localLight?:
     | {
+        readonly cpuPercent?: number | undefined;
         readonly cacheDir?: string | undefined;
         readonly embedDtype?: string | undefined;
         readonly device?: string | undefined;

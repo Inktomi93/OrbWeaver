@@ -554,6 +554,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       // it per file and lets node's fs resolve the rest — so a cwd-relative value would follow whatever cwd
       // the process happens to have rather than the data root this knob names.
       cacheDir: resolve(env.LOCAL_LIGHT_CACHE_DIR),
+      cpuPercent: env.LOCAL_LIGHT_CPU_PERCENT,
       embedDtype: env.LOCAL_LIGHT_EMBED_DTYPE,
       ...(deps.providerSeams?.localLight ?? {}),
     },
