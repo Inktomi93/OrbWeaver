@@ -331,6 +331,27 @@ test("a listed catalog shows the searchable list with the saved model picked, an
     .toEqual({ connectionId: CONNECTION_ID, patch: { model: "Qwen/Qwen3-8B", modelCheck: "listed" } });
 });
 
+test("a long catalog opens with the saved model scrolled into the list's view", async ({ mount, page }) => {
+  const filler = Array.from({ length: 30 }, (_unused, index) => catalogEntry(`filler/model-${String(index).padStart(2, "0")}`));
+  await stubEditor(page, {
+    connection: connectionRow({ model: "zzz/saved-model", modelCheck: "listed" }),
+    catalogModels: catalogOf([...filler, catalogEntry("zzz/saved-model")]),
+  });
+  const component = await mount(<ConnectionEditorStory />);
+  const list = component.getByRole("listbox", { name: /^Models on/u });
+  // The list grows past the palette's compact viewport (12rem) to the picker's own 18rem.
+  const rootFontSize = await list.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize));
+  await expect.poll(async () => (await list.boundingBox())?.height).toBe(18 * rootFontSize);
+  const picked = list.getByRole("option").filter({ hasText: "Selected" });
+  await expect(picked).toHaveCount(1);
+  await expect
+    .poll(async () => {
+      const [row, box] = await Promise.all([picked.boundingBox(), list.boundingBox()]);
+      return row !== null && box !== null && row.y >= box.y - 1 && row.y + row.height <= box.y + box.height + 1;
+    })
+    .toBe(true);
+});
+
 // The row's list is the provider's whole catalog (the add-model dialog needs every kind); this picker changes the
 // row's own model, and a model of another kind would break the role the row is bound to.
 test("the editor's picker offers only models of the row's kind", async ({ mount, page }) => {

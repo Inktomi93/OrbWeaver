@@ -26,7 +26,7 @@ Settings → Plugins → drop the zip → tick the capabilities → turn it on. 
 ```
 
 No network, no model spend, no room writes — the deck's core is still the cheapest archetype there is.
-`ui.surface` draws the whole UI plane (the card, the page, the dialog, the command, the footer mark); drop it
+`ui.surface` draws the whole UI plane (the card, the page, the dialog, the command, the table mark); drop it
 and the tools still work, in the generic block. `chat.transform` carries the omen MACRO (a macro substitutes
 into the prompt, which is that capability's reach), and `plugin_events` lets the deck ANNOUNCE its draws to
 your other plugins. Every registration feature-detects its grant, so any subset of ticks still activates.
@@ -83,9 +83,8 @@ lines, each labeled in `main.js`:
   plugins can subscribe (`pubsub.on("oracle-deck", "draw", …)`) — the seeded scene-chips does, and offers an
   omen-flavored door after a draw. Emitting to nobody is free; put everything a listener needs IN the payload
   (a subscriber runs with no chat scope).
-* **The FOOTER MARK** (`anchor: "message-footer"`) — the smallest legal per-row occupant: one static badge.
-  Footers are static-only decoration (no bindings, no buttons, ≤ 8 nodes) repeated under every committed
-  message — say one thing, quietly, or say nothing.
+* **The TABLE MARK** (`anchor: "chat-flank"`) — one static badge, shown once per room beside the transcript
+  rather than under every message.
 
 ## Adapting it
 
