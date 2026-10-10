@@ -62,7 +62,7 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import { QueryBoundary } from "#components";
+import { FormDialog, QueryBoundary } from "#components";
 import { QueryErrorState } from "#data";
 import type { CollectionContribution, CollectionInsight } from "#lib";
 import type { CollectionGroupDefinition } from "#state";
@@ -74,7 +74,6 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
   const census = collection.useCount?.();
   const count = census?.count;
   const insights = collection.insights?.useInsights();
-  const create = collection.create.useRun();
   const selection = useCollectionSelection();
   // The filter is HOST chrome — one grammar and one box for every library — and applying it is the owner's,
   // because the owner is the only party that knows what its rows are made of (`CollectionListView.filter`).
@@ -101,11 +100,7 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
       <Stack data-collection={group.id} data-slot="config-collection-landing" gap="section">
         <ConfigPaneGlance blurb={true} group={group} level={2} />
         <EmptyState
-          action={
-            <Button intent="primary" onClick={create} type="button">
-              {collection.create.label}
-            </Button>
-          }
+          action={<CollectionCreate collection={collection} />}
           // THE READER WITH NOTHING GETS THE MOST TEACHING, NOT THE LEAST (#1213). The glance above names
           // the library and states its purpose; the empty state teaches that it IS empty and offers the verb.
           description={collection.emptyText}
@@ -162,9 +157,6 @@ function CollectionControlRow({
   readonly filter: string;
   readonly onFilterChange: (next: string) => void;
 }): ReactElement {
-  // `useRun` is a HOOK returning the runner, called unconditionally once per rendered affordance (the
-  // contract's own discipline) — hoisted out of the JSX so the call site reads as the hook it is.
-  const create = collection.create.useRun();
   return (
     <Row align="center" data-slot="collection-control-row" gap="field">
       {/* A FILTER, never the settings index's jump search (§3.2): it narrows THIS library's rows in place,
@@ -181,12 +173,46 @@ function CollectionControlRow({
       <CollectionBulkToggle collection={collection} />
       {/* CREATE IS THE ROW'S ONE PRIMARY (C-2's no-aggregate-primary ruling is about the WELCOME, not here):
           it is the library's own verb, on the library's own pane. */}
-      <Button intent="primary" onClick={create} size="sm" type="button">
-        <Icon icon={Plus} size="sm" />
-        {collection.create.label}
-      </Button>
+      <CollectionCreate collection={collection} inBand={true} />
       <CollectionOverflow collection={collection} />
     </Row>
+  );
+}
+
+/** The create verb's button, and the name prompt a collection asks for (`create.askName`). `useRun` is a HOOK
+ *  returning the runner, called unconditionally once per rendered affordance (the contract's own discipline),
+ *  which is why the button is its own component. */
+function CollectionCreate({ collection, inBand = false }: { readonly collection: CollectionContribution; readonly inBand?: boolean }): ReactElement {
+  const { label, useRun, askName } = collection.create;
+  const run = useRun();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const trimmed = name.trim();
+  return (
+    <>
+      <Button intent="primary" onClick={(): void => (askName === undefined ? run() : setOpen(true))} type="button" {...(inBand ? { size: "sm" as const } : {})}>
+        {inBand ? <Icon icon={Plus} size="sm" /> : null}
+        {label}
+      </Button>
+      {askName === undefined ? null : (
+        <FormDialog
+          onOpenChange={setOpen}
+          open={open}
+          submit={{
+            label: "Create",
+            disabled: trimmed === "",
+            onSubmit: (): void => {
+              run(trimmed);
+              setOpen(false);
+              setName("");
+            },
+          }}
+          title={askName.title}
+        >
+          <Input aria-label={askName.fieldLabel} onValueChange={setName} value={name} />
+        </FormDialog>
+      )}
+    </>
   );
 }
 

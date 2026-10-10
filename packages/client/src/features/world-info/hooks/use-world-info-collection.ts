@@ -10,8 +10,6 @@ import { selectCollectionMember } from "#state";
 import { WORLD_INFO_COLLECTION_ID } from "../lib/world-info-model.ts";
 import { useCreateWorldBook, useImportWorldBookFile } from "./use-world-info-mutations.ts";
 
-const NEW_BOOK_NAME = "New book";
-
 /** The group band's live census — a NON-suspending read sharing the rows' cache. A FAILED read says so
  *  rather than reading as absence (#1546 — see {@link CollectionCount}). */
 export function useWorldInfoCount(): CollectionCount {
@@ -70,14 +68,17 @@ export function useWorldInfoMemberTitle(memberId: string): string | undefined {
   return rows?.find((row) => row.id === memberId)?.name;
 }
 
-/** The create runner: mint an empty book, then OPEN it in CONTENT — the same create-then-edit motion the
- *  rail section's band primary had. */
-export function useCreateWorldInfoMember(): () => void {
+/** The create runner: mint an empty book under the name the host asked for, then OPEN it in CONTENT — the
+ *  same create-then-edit motion the rail section's band primary had. */
+export function useCreateWorldInfoMember(): (name?: string) => void {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const create = useCreateWorldBook({ trpc, invalidation });
-  return (): void => {
-    create.mutate({ input: { name: NEW_BOOK_NAME } }, { onSuccess: (created): void => selectCollectionMember(WORLD_INFO_COLLECTION_ID, created.id) });
+  return (name): void => {
+    if (name === undefined) {
+      return;
+    }
+    create.mutate({ input: { name } }, { onSuccess: (created): void => selectCollectionMember(WORLD_INFO_COLLECTION_ID, created.id) });
   };
 }
 

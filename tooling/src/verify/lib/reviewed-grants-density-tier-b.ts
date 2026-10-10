@@ -8,27 +8,27 @@ export const REVIEWED_GRANTS_DENSITY_TIER_B: readonly ReviewedGateGrant[] = [
     policyId: "density-tier",
     subject: "packages/client/src/features/persona/components/persona-account-foot.tsx",
     operation: "text-axis:size",
-    why: 'the retired account-surface\'s two ratified rows, moved WITH the anatomy (#866 S4 — the modal\'s facts became the switcher\'s foot): the `weight="semibold"` mono account handle does not byte-match `datumMono` (regular weight) — adopting it would change the rendered weight, not just the vocabulary; the `size="label" tone="muted"` mode note is a label+muted pair with no exact voice, explicitly in the density-pass judgment-call set (spec §2.3, tranche reports #567/#581/#582).',
+    why: 'the switcher foot\'s two rows: the account handle line is proportional body-step text at `weight="semibold"` (not mono), and no closed voice sets body-step semibold — `promoted` is the title step reserved for one item among siblings; the `size="label" tone="muted"` mode note is a label+muted pair with no exact voice, explicitly in the density-pass judgment-call set (spec §2.3).',
     endsWhen:
-      "`datumMono` (or a successor) byte-matches the account handle's rendered WEIGHT, and §2.3 gains a label-step + muted-tone voice for the mode note — both halves of this row have to end for the row to end.",
+      "§2.3 gains a body-step semibold voice for the account handle line, and a label-step + muted-tone voice for the mode note — both halves of this row have to end for the row to end.",
   },
   {
     id: "density-tier:persona-account-foot-tone",
     policyId: "density-tier",
     subject: "packages/client/src/features/persona/components/persona-account-foot.tsx",
     operation: "text-axis:tone",
-    why: 'the retired account-surface\'s two ratified rows, moved WITH the anatomy (#866 S4 — the modal\'s facts became the switcher\'s foot): the `weight="semibold"` mono account handle does not byte-match `datumMono` (regular weight) — adopting it would change the rendered weight, not just the vocabulary; the `size="label" tone="muted"` mode note is a label+muted pair with no exact voice, explicitly in the density-pass judgment-call set (spec §2.3, tranche reports #567/#581/#582).',
+    why: 'the switcher foot\'s two rows: the account handle line is proportional body-step text at `weight="semibold"` (not mono), and no closed voice sets body-step semibold — `promoted` is the title step reserved for one item among siblings; the `size="label" tone="muted"` mode note is a label+muted pair with no exact voice, explicitly in the density-pass judgment-call set (spec §2.3).',
     endsWhen:
-      "`datumMono` (or a successor) byte-matches the account handle's rendered WEIGHT, and §2.3 gains a label-step + muted-tone voice for the mode note — both halves of this row have to end for the row to end.",
+      "§2.3 gains a body-step semibold voice for the account handle line, and a label-step + muted-tone voice for the mode note — both halves of this row have to end for the row to end.",
   },
   {
     id: "density-tier:persona-account-foot-weight",
     policyId: "density-tier",
     subject: "packages/client/src/features/persona/components/persona-account-foot.tsx",
     operation: "text-axis:weight",
-    why: 'the retired account-surface\'s two ratified rows, moved WITH the anatomy (#866 S4 — the modal\'s facts became the switcher\'s foot): the `weight="semibold"` mono account handle does not byte-match `datumMono` (regular weight) — adopting it would change the rendered weight, not just the vocabulary; the `size="label" tone="muted"` mode note is a label+muted pair with no exact voice, explicitly in the density-pass judgment-call set (spec §2.3, tranche reports #567/#581/#582).',
+    why: 'the switcher foot\'s two rows: the account handle line is proportional body-step text at `weight="semibold"` (not mono), and no closed voice sets body-step semibold — `promoted` is the title step reserved for one item among siblings; the `size="label" tone="muted"` mode note is a label+muted pair with no exact voice, explicitly in the density-pass judgment-call set (spec §2.3).',
     endsWhen:
-      "`datumMono` (or a successor) byte-matches the account handle's rendered WEIGHT, and §2.3 gains a label-step + muted-tone voice for the mode note — both halves of this row have to end for the row to end.",
+      "§2.3 gains a body-step semibold voice for the account handle line, and a label-step + muted-tone voice for the mode note — both halves of this row have to end for the row to end.",
   },
   {
     id: "density-tier:persona-editor-size",
@@ -83,7 +83,7 @@ export const REVIEWED_GRANTS_DENSITY_TIER_B: readonly ReviewedGateGrant[] = [
     policyId: "density-tier",
     subject: "packages/client/src/features/persona/surfaces/persona-panel-surface.tsx",
     operation: "text-axis:weight",
-    why: "the who-head's identity line (`weight=\"semibold\"`) is the switcher's ONE promoted datum — the persona you are playing as — semibold at body step, the account-handle judgment class (#866 S4; spec §2.3's promoted definition reserves the `promoted` voice for a shelf item among siblings, which a head strip is not).",
+    why: "the who-head's identity line (`weight=\"semibold\"`) is the switcher's ONE promoted datum — the persona you are playing as — semibold at body step, the same class as the account handle line in persona-account-foot.tsx (spec §2.3's promoted definition reserves the `promoted` voice for a shelf item among siblings, which a head strip is not).",
     endsWhen: "§2.3's `promoted` definition widens past a shelf item among siblings, or the who-head stops promoting exactly one identity datum.",
   },
   {

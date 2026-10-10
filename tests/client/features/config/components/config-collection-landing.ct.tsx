@@ -107,6 +107,7 @@ function stub(page: Page, scripts: TrpcFixtureOutput<"regex.listScripts"> = [SCR
     // The BOOK EDITOR's own two reads — the drill-row pin below opens a book, and an unstubbed suspense
     // read resolves `null` and throws INSIDE the boundary, which reads as "the header is missing".
     "worldInfo.getBook": () => BOOK_DETAIL,
+    "worldInfo.createBook": () => BOOK_DETAIL,
     "worldInfo.listEntries": () => [],
     "persona.list": () => [],
     "character.list": () => ({ items: [], nextCursor: null }),
@@ -261,4 +262,22 @@ test("the drill row carries the member's own verbs beside its name (board 06)", 
   await expect(header.getByRole("button", { name: /Delete/ })).toHaveCount(0);
   // And the name is stated ONCE on the whole pane, exactly as the pin above requires.
   await expect(content.getByRole("heading", { name: BOOK.name })).toHaveCount(1);
+});
+
+// A NEW BOOK ASKS FOR ITS NAME (0641) — the create verb no longer mints a placeholder-named book instantly.
+test("New book asks for a name and creates the book under it", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  const workspace = await mount(<ConfigHostStory height={900} target="worldInfo" width={INTERACTIVE_WIDTH} />);
+
+  await workspace.locator(CONTROL_ROW).getByRole("button", { name: "New book" }).click();
+  const dialog = page.getByRole("dialog");
+  const create = dialog.getByRole("button", { name: "Create" });
+  // Nothing is created by the click alone, and a blank name cannot be submitted.
+  await expect.poll(() => trpc.count("worldInfo.createBook")).toBe(0);
+  await expect(create).toBeDisabled();
+
+  await dialog.getByRole("textbox", { name: "Book name" }).fill("  The Hollow Crown  ");
+  await create.click();
+
+  await expect.poll(() => trpc.inputs("worldInfo.createBook")).toEqual([{ input: { name: "The Hollow Crown" } }]);
 });

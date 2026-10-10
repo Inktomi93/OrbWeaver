@@ -255,8 +255,16 @@ export interface CollectionContribution {
    *  `useRun` is a HOOK returning the runner, not a bare `run`: a definition is a module-level value, so a
    *  plain function could never reach the owner's mutation — every real create verb is a mutation plus a
    *  selection write. The host calls it unconditionally, once, per rendered affordance. REQUIRED (not
-   *  optional) so the call is never a conditional hook: a library you cannot add to is not a library. */
-  readonly create: { readonly label: string; readonly useRun: () => () => void };
+   *  optional) so the call is never a conditional hook: a library you cannot add to is not a library.
+   *
+   *  `askName` makes the host prompt for the new member's name before it runs: the runner then receives the
+   *  trimmed, non-empty name. Absent, the runner fires at once with no argument. `title` is the prompt's
+   *  heading and `fieldLabel` the name field's accessible name. */
+  readonly create: {
+    readonly label: string;
+    readonly useRun: () => (name?: string) => void;
+    readonly askName?: { readonly title: string; readonly fieldLabel: string };
+  };
   /** The optional IMPORT door, declared as DATA exactly like {@link create} — the host draws a ghost
    *  `Upload` trigger in the group band beside the `+`, and the FileTrigger/accept plumbing stays one
    *  grammar for every collection that has one. This is D121-D's `band=Import · kebab=Export` anatomy

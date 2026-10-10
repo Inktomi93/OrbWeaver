@@ -77,7 +77,7 @@ function toLines(text: string): readonly LogLine[] {
 }
 
 /** One labelled slab of the sent prompt. `LogViewer` carries the mono panel + its own copy affordance, so a
- *  host can lift the exact bytes out without a second control per section. */
+ *  host can lift the text out without a second control per section. */
 function WireSection({ heading, gloss, text }: { readonly heading: string; readonly gloss: string; readonly text: string }): ReactElement {
   return (
     <Section heading={<Text voice="kicker">{heading}</Text>}>
@@ -180,16 +180,23 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
   return (
     <Stack gap="section">
       <Text voice="gloss">
-        The prompt text this reply was generated from, as recorded when it was sent — not a re-render. It holds the system prose, the turn's own instruction and
-        the in-history injections; the chat history rows are not stored here. Host-only: it carries every member's content, the room's hidden spans, and each
-        character's full card.
+        The prompt text this reply was generated from, as recorded when it was sent — not a re-render. It holds the system prose and the in-history injections;
+        the chat history rows are not stored here. Host-only: it carries every member's content, the room's hidden spans, and each character's full card.
       </Text>
-      <WireSection heading="Static prefix" gloss="The cache-stable half — system prose, cards, world info." text={prompt.static} />
-      <WireSection heading="Dynamic suffix" gloss="The per-turn half — steering, game state, the turn's own instruction." text={prompt.dynamic} />
+      <WireSection
+        heading="Static prefix"
+        gloss="The cache-stable half — the preset's fixed sections: prose, cards and always-on world info."
+        text={prompt.static}
+      />
+      <WireSection
+        heading="Dynamic suffix"
+        gloss="The per-turn half — memory and databank recall, guided steering, trigger-gated sections and keyword-matched world info."
+        text={prompt.dynamic}
+      />
       <InjectionsSection prompt={prompt} />
       {prompt.sendHistory ? null : <Text voice="gloss">History was DISABLED for this turn — the model saw no transcript.</Text>}
       {params === null ? null : (
-        <Section heading={<Text voice="kicker">Settings set for this send</Text>}>
+        <Section heading={<Text voice="kicker">Settings this send ran under</Text>}>
           <LogViewer lines={JSON.stringify(params, null, 2).split("\n")} className="max-h-40" />
         </Section>
       )}
