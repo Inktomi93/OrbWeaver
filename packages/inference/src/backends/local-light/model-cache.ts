@@ -12,7 +12,7 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import type { DataType, DeviceType, Tensor } from "@huggingface/transformers";
-import type { LocalTextEncoding, RerankOnnx } from "@orb/contracts/inference";
+import type { LocalLightCpuPercent, LocalTextEncoding, RerankOnnx } from "@orb/contracts/inference";
 import { embedSpaceOf, LOCAL_TEXT_ENCODING, modelIdSchema } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
@@ -103,7 +103,7 @@ export interface LocalLightModelCache {
 }
 
 export interface ModelCacheConfig {
-  readonly cpuPercent?: number | undefined;
+  readonly cpuPercent?: LocalLightCpuPercent | undefined;
   readonly device?: string | undefined;
   readonly embedDtype?: string | undefined;
   readonly cacheDir?: string | undefined;

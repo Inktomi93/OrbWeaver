@@ -4,7 +4,15 @@
 import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { BeginEmbeddingAccounting } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
-import type { BindingActorKind, ConnectionBinding, ProviderDef, ProviderId, RoutableTask, UserConnection } from "@orb/contracts/inference";
+import type {
+  BindingActorKind,
+  ConnectionBinding,
+  LocalLightCpuPercent,
+  ProviderDef,
+  ProviderId,
+  RoutableTask,
+  UserConnection,
+} from "@orb/contracts/inference";
 import { modalitySchema, modelCatalogEntrySchema, PREFILL_MODES } from "@orb/contracts/inference";
 import type { AutomationRuleId, PluginId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -229,7 +237,7 @@ export interface InferenceDeps {
   readonly userRuntimeDir: (ownerId: UserId, tool: "claude") => string;
   readonly localLight?:
     | {
-        readonly cpuPercent?: number | undefined;
+        readonly cpuPercent?: LocalLightCpuPercent | undefined;
         readonly cacheDir?: string | undefined;
         readonly embedDtype?: string | undefined;
         readonly device?: string | undefined;

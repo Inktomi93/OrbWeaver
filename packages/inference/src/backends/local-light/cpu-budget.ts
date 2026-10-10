@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { dirname, join, relative } from "node:path";
+import type { LocalLightCpuPercent } from "@orb/contracts/inference";
 import { LOCAL_LIGHT_CPU_PERCENT_FULL, localLightCpuPercentSchema } from "@orb/contracts/inference";
 
 const CGROUP_PREFIX = "0::";
@@ -21,7 +22,7 @@ function readOptional(path: string): string | undefined {
 export function localLightCpuThreads(
   affinity = availableParallelism(),
   read: (path: string) => string | undefined = readOptional,
-  cpuPercent?: number,
+  cpuPercent?: LocalLightCpuPercent,
 ): number {
   const percent = localLightCpuPercentSchema.parse(cpuPercent);
   let budget = affinity;
