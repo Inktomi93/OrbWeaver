@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-07
+status: doing
+updated: 2026-10-10
 priority: P2
 area: client
+lane: wt/agent-a99866c6c2d087aa1
 ---
 
 # Repair component test failures and flakes evidenced by CI

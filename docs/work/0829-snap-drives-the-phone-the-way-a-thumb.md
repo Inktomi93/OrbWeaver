@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-10
 priority: P2
 area: tooling
+lane: wt/agent-af33eeddd3db84319
 ---
 
 # Snap drives the phone the way a thumb does

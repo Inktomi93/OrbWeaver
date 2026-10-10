@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-05
+status: doing
+updated: 2026-10-10
 priority: P2
 area: ui
+lane: wt/agent-a077f0d1825cbd015
 ---
 
 # Add-document raster offsets align to the device grid

@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-10
 priority: P2
 area: client
+lane: wt/agent-af33eeddd3db84319
 ---
 
 # Message swipes show only their position

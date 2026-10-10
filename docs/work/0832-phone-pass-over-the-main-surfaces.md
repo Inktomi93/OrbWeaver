@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-10
 priority: P2
 area: client
+lane: wt/agent-a921d74c8a14e4d2e
 ---
 
 # Phone pass over the main surfaces

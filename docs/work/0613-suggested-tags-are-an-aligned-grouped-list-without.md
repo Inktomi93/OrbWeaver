@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-04
+status: doing
+updated: 2026-10-10
 priority: P2
 area: client
+lane: wt/agent-a077f0d1825cbd015
 ---
 
 # Suggested tags are an aligned, grouped list without internal tags
