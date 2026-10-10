@@ -32,8 +32,9 @@ export function planStage(
   readonly runsAt: string | null;
 } {
   if (selection === undefined) {
-    if (options.applicationOnly === true) {
-      return applicationStagePlan(stage);
+    const applicationPlan = options.applicationOnly === true ? applicationStagePlan(stage) : undefined;
+    if (applicationPlan?.mode === "skipped") {
+      return applicationPlan;
     }
     // CONDITIONAL TIER MEMBERSHIP (#1523). A whole-tier run has no Selection, so a stage that belongs to
     // this tier only under a condition asks its own precondition here. `null` (cannot tell) RUNS: an
@@ -46,6 +47,9 @@ export function planStage(
       precondition.satisfied(options.root ?? process.cwd()) === false
     ) {
       return { mode: "skipped", argv: null, runsAt: unconditionalTier(stage) };
+    }
+    if (applicationPlan !== undefined) {
+      return applicationPlan;
     }
     const argv = invocationVariant(stage, tier) ?? stage.argv;
     return { mode: "full", argv, runsAt: null };

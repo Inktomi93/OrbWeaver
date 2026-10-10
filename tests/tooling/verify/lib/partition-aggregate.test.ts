@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
-import { testProcessEnv } from "@orb/tooling/_shared/process-env";
+import { testProcessEnv, withProcessEnv } from "@orb/tooling/_shared/process-env";
 import type { ApplicationPartition } from "../../../../tooling/src/verify/contract/application-partitions.ts";
 import { APPLICATION_PARTITIONS } from "../../../../tooling/src/verify/contract/application-partitions.ts";
 import type { StageResult, VerifyReport } from "../../../../tooling/src/verify/contract/stage.ts";
@@ -16,6 +16,47 @@ import { nonRunningStageResult, planStage } from "../../../../tooling/src/verify
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const HEAD = "a".repeat(40);
+test("hosted mutation omission remains an exact unmeasured row in the native denominator", async ({ scratch }) => {
+  await withProcessEnv("GITHUB_ACTIONS", "true", () =>
+    withProcessEnv("RUNNER_ENVIRONMENT", "github-hosted", async () => {
+      const input = receipts(scratch);
+      const stages = aggregateApplicationPartitions("full", HEAD, input, join(scratch, "hosted"));
+      expect(stages.map(({ name }) => name)).toEqual(stagesForTier("full").map(({ name }) => name));
+      const mutation = stages.find(({ name }) => name === "quality:mutation-gate");
+      expect(mutation).toMatchObject({ mode: "skipped", durationMs: 0, logFile: null });
+      expect(mutation?.notices.join(" ")).toContain("not measured on GitHub-hosted CI");
+      expect(mutation).not.toHaveProperty("childExit");
+      expect(noVerdictStages(stages)).toEqual([]);
+      const quality = input.find(({ report }) => report.partition?.name === "quality");
+      if (quality === undefined) {
+        throw new Error("missing quality partition");
+      }
+      const original = quality.report;
+      quality.report = { ...original, stages: original.stages.map((row) => Object.fromEntries(Object.entries(row).reverse()) as StageResult) };
+      expect(aggregateApplicationPartitions("full", HEAD, input, join(scratch, "reordered")).find(({ name }) => name === "quality:mutation-gate")).toEqual(
+        mutation,
+      );
+      for (const patch of [{ notices: [] }, { durationMs: 1 }, { runsAt: "verify --weekly" }, { childExit: 0 }, { mode: "full" as const }]) {
+        quality.report = { ...original, stages: original.stages.map((row) => (row.name === "quality:mutation-gate" ? { ...row, ...patch } : row)) };
+        expect(() => aggregateApplicationPartitions("full", HEAD, input, join(scratch, "corrupt"))).toThrow(/exclusion/u);
+      }
+      quality.report = {
+        ...original,
+        stages: original.stages.map((row) => (row.name === "quality:mutation-gate" ? { ...row, extra: "invented authority" } : row)),
+      };
+      expect(() => aggregateApplicationPartitions("full", HEAD, input, join(scratch, "extra"))).toThrow();
+      quality.report = { ...original, stages: original.stages.filter(({ name }) => name !== "quality:mutation-gate") };
+      expect(() => aggregateApplicationPartitions("full", HEAD, input, join(scratch, "missing"))).toThrow(/denominator/u);
+      quality.report = original;
+      await withProcessEnv("RUNNER_ENVIRONMENT", "self-hosted", () => {
+        const local = aggregateApplicationPartitions("full", HEAD, input, join(scratch, "local"));
+        expect(noVerdictStages(local)).toContain("quality:mutation-gate");
+        expect(aggregateExit(local.map(({ exitCode }) => exitCode))).toBe(2);
+        return Promise.resolve();
+      });
+    }),
+  );
+});
 function receipts(root: string): { report: VerifyReport; root: string }[] {
   return applicationPartitionKeys("full").map((key) => {
     const [name, shard] = key.split(":");

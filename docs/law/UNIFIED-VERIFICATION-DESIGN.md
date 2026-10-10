@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-09
+updated: 2026-10-10
 ---
 
 # Unified Verification Design
@@ -108,17 +108,13 @@ Whole push, full and product qualification use application subjects. Local index
 Named `pnpm test:scoped` calls remain available for meaningful local tooling checks.
 Application checks remain blocking when their implementation lives in tooling. Classify the evaluated subject, not its directory.
 
-**Conditional tier membership, the mechanism.** One step of the ladder CAN be narrowed by a fact about the
-RUN, declared as registry DATA beside the tiers list (`StageDef.tierPrecondition`) and rendered by
-`verify --list` on the tier it narrows. No row declares one today — the field, the runner's plan/notice
-path (`lib/stage-plan.ts`) and their producer-driven proof (`tests/tooling/verify/ops/run.int.test.ts` against a
-synthetic row) are kept for the next expensive stage that needs a conditional step, and
-`tests/tooling/verify/lib/registry.test.ts` reds if a row grows one without this text moving.
-
-**If a precondition ever comes back, its UNKNOWN answer is RUN, not skip.** `satisfied` returns
-`boolean | null`, and `null` (no usable base ref, a failed VCS read, a checkout that is not a repo) makes
-the runner run the stage. An expensive gate that goes quiet on a question it could not answer is a false
-clean wearing a tier's clothes. That polarity is the contract's (`contract/stage.ts`), not one row's.
+**Conditional tier membership.** `StageDef.tierPrecondition` narrows a named whole tier by a fact about the run.
+`verify --list` renders the condition. `lib/stage-plan.ts` applies it to ordinary and application execution.
+[D309](../adr/0309-hosted-mutation-execution.md) excludes mutation measurement only when GitHub identifies its hosted runner class.
+Unknown execution classes run the stage. Local full verification retains mutation targets, thresholds and execution ceilings.
+The native report and summaries name the omission as not measured, not a passing mutation score.
+`lib/partition-aggregate.ts` validates the exact planned omission while preserving the complete registry population.
+Missing stages, altered omissions and unexpected runtime skips refuse qualification.
 
 The static tier's exact membership and order live in `registry.ts`, are rendered by `pnpm verify --list`,
 and are pinned by the registry/run integration tests. This keeps `pnpm check`'s compatibility contract

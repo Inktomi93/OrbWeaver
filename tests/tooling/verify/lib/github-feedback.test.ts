@@ -47,6 +47,26 @@ function capture(action: () => void): string {
   }
 }
 
+test("hosted omission summaries name unmeasured mutation rather than a passing score", ({ scratch }) => {
+  const path = join(scratch, "omission.md");
+  const { childExit: _childExit, ...omitted } = stage({
+    name: "quality:mutation-gate",
+    mode: "skipped",
+    ok: true,
+    exitCode: 0,
+    durationMs: 0,
+    logFile: null,
+    failureExcerpt: null,
+    runsAt: "verify --full",
+    notices: ["tier precondition: mutation quality is not measured on GitHub-hosted CI"],
+  });
+  printGithubReport(report([omitted]), { ["GITHUB_STEP_SUMMARY"]: path });
+  const text = readFileSync(path, "utf8");
+  expect(text).toContain("not measured on GitHub-hosted CI");
+  expect(text).not.toContain("| passed |");
+  expect(text).not.toContain("mutation score");
+});
+
 test("failed stages annotate the first native excerpt line and escape workflow properties/data", () => {
   const output = capture(() =>
     printGithubReport(report([stage({ name: "lint:bad,%\nnext", failureExcerpt: "failure%\r\n::error::injection" })]), { ["GITHUB_ACTIONS"]: "true" }),

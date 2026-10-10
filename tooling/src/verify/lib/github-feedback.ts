@@ -24,7 +24,7 @@ function status(stage: StageResult): string {
     return "TOOL-ERROR / no verdict";
   }
   if (stage.mode === "deferred" || stage.mode === "skipped") {
-    return stage.mode;
+    return stage.notices.length === 0 ? stage.mode : `${stage.mode} — ${stage.notices.join("; ")}`;
   }
   return stage.ok ? "passed" : "failed";
 }

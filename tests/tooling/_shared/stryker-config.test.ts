@@ -11,6 +11,7 @@ import { expect, test } from "../../support/tool-fixtures.ts";
 const ROOT = join(import.meta.dirname, "..", "..", "..");
 const EXPLORATORY_CONFIG = "stryker.config.ts";
 const GATE_CONFIG = "stryker.gate.config.ts";
+const UNCANCELLED_JOB = "${{ !cancelled() }}";
 
 const IGNORE_PATTERNS = [
   ".stryker-tmp/**",
@@ -173,11 +174,11 @@ test("qualification retains root Stryker TRACE on success and failure without ch
     .parse(parse(readFileSync(join(repoRoot, ".github/workflows/ci.yml"), "utf8")));
   const steps = workflow.jobs["qualification-partition"].steps;
   const retain = steps.find((step) => step.name === "Retain Stryker TRACE");
-  expect(retain?.if).toBe("always()");
+  expect(retain?.if).toBe(UNCANCELLED_JOB);
   const script = z.string().parse(retain?.run);
   expect(steps.indexOf(retain ?? {})).toBeGreaterThan(steps.findIndex((step) => step.id === "verify"));
   const upload = steps.find((step) => step.uses?.startsWith("actions/upload-artifact@") === true);
-  expect(upload?.if).toBe("always()");
+  expect(upload?.if).toBe(UNCANCELLED_JOB);
   expect(upload?.with?.path).toBe("reports/");
   expect(steps.indexOf(upload ?? {})).toBeGreaterThan(steps.indexOf(retain ?? {}));
   for (const outcome of ["success", "failure"]) {

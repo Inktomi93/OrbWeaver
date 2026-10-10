@@ -2,6 +2,8 @@
 // the repo, self-described: each stage declares its tier membership, how to scope it, and how to map its
 // child's native exit into the repo's 0/1/2/3 contract. A "forgotten script" becomes structurally
 // impossible: verify-registry-parity.ts reds when a package.json verification-shaped script has no row here.
+
+import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import type { StageDef, Tier } from "../contract/stage.ts";
 import { biomeStageAudit } from "./biome-verdict.ts";
 import { asViolations, eslintScheme, ownScheme } from "./exit-classifiers.ts";
@@ -24,6 +26,7 @@ import { mutationGateHangCeilingMs } from "./stage-budget.ts";
 // EXACTLY run.ts's stages, in order, so `pnpm check` (= `verify --static`) stays byte-compatible.
 
 const STATIC: readonly Tier[] = ["static", "push", "full", "product", "weekly"];
+const HOSTED_MUTATION_OMISSION_REASON = "mutation quality is not measured on GitHub-hosted CI; run pnpm test:mutation:gate locally";
 
 /** `node --check` on every `.claude/hooks/*.mjs`, and a refusal when the glob matches nothing. */
 const HOOK_SYNTAX_LOOP = [
@@ -379,6 +382,14 @@ const GATING_STAGES: readonly StageDef[] = [
     applicationArgv: ["pnpm", "test:mutation:gate"],
     group: "quality",
     tiers: ["full"],
+    tierPrecondition: {
+      tiers: ["full"],
+      reason: HOSTED_MUTATION_OMISSION_REASON,
+      satisfied: () => {
+        const env = inheritedProcessEnv();
+        return !(env["GITHUB_ACTIONS"] === "true" && env["RUNNER_ENVIRONMENT"] === "github-hosted");
+      },
+    },
     argv: ["pnpm", "test:mutation:gate"],
     classify: asViolations,
     // #2505 — STRYKER'S EXIT 1 HAS TWO CAUSES AND `asViolations` CANNOT TELL THEM APART: a score under the

@@ -19,6 +19,7 @@ const STEP = z.object({
   "timeout-minutes": z.number().optional(),
 });
 const WORKFLOW = z.object({
+  env: z.record(z.string(), z.string()),
   on: z.object({ schedule: z.array(z.object({ cron: z.string() })), ["workflow_dispatch"]: z.object({ inputs: z.record(z.string(), z.json()) }) }),
   jobs: z.record(
     z.string(),
@@ -48,6 +49,28 @@ function workflow(root: string): z.infer<typeof WORKFLOW> {
 function guard(expression: string, context: object): boolean {
   return Boolean(runInNewContext(expression.replace(/^\$\{\{\s*|\s*\}\}$/gu, "").replace(/\.([a-z]+-[a-z-]+)/gu, '["$1"]'), context));
 }
+
+test("hosted full markers cannot reuse unversioned full evidence or change product cache identity", ({ repoRoot, scratch }) => {
+  const ci = workflow(repoRoot);
+  const prefix = ci.env["ORB_CI_FULL_CACHE_PREFIX"];
+  expect(prefix).toBe("full-hosted-v1-verified");
+  const head = ci.jobs["qualification-head"];
+  expect(head?.outputs?.["cache-prefix"]).toBe("${{ steps.sha.outputs.cache-prefix }}");
+  expect(head?.steps.find((step) => step.id === "seen")?.with?.["key"]).toBe("${{ steps.sha.outputs.cache-prefix }}-${{ steps.sha.outputs.sha }}");
+  expect(ci.jobs["qualification"]?.steps.find((step) => step.uses?.startsWith("actions/cache/save@") === true)?.with?.["key"]).toBe(
+    "${{ needs.qualification-head.outputs.cache-prefix }}-${{ needs.qualification-head.outputs.sha }}",
+  );
+  for (const tier of ["full", "product"]) {
+    const output = join(scratch, `${tier}.txt`);
+    const result = spawnSync("bash", ["-euo", "pipefail", "-c", head?.steps.find((step) => step.id === "sha")?.run ?? ""], {
+      cwd: repoRoot,
+      env: inheritedProcessEnv({ ["VERIFY_TIER"]: tier, ["ORB_CI_FULL_CACHE_PREFIX"]: prefix, ["GITHUB_OUTPUT"]: output }),
+      encoding: "utf8",
+    });
+    expect(result.status, result.stderr).toBe(0);
+    expect(readFileSync(output, "utf8")).toContain(`cache-prefix=${tier === "full" ? prefix : "product-verified"}\n`);
+  }
+});
 
 test("product authority requires real runtime success or exactly the inherited skips, independent of weekly", ({ repoRoot, scratch }) => {
   const ci = workflow(repoRoot);
@@ -88,7 +111,7 @@ test("full/product head freezes main once and all children share its exact-SHA s
   const child = ci.jobs["qualification-partition"];
   expect(head?.steps[0]?.with).toEqual({ ref: "main", "persist-credentials": false });
   expect(head?.steps.find((step) => step.id === "seen")?.with).toMatchObject({
-    key: "${{ steps.sha.outputs.tier }}-verified-${{ steps.sha.outputs.sha }}",
+    key: "${{ steps.sha.outputs.cache-prefix }}-${{ steps.sha.outputs.sha }}",
     "lookup-only": true,
   });
   expect(child?.needs).toBe("qualification-head");
@@ -149,7 +172,7 @@ test("native runtime jobs retain successful and failed reports and bounded canon
   for (const name of ["node", "ct", "e2e-smoke", "qualification-partition"]) {
     const job = ci.jobs[name];
     expect(job?.["runs-on"], name).toBe("ubuntu-24.04");
-    expect(job?.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@") === true)?.if, name).toBe("always()");
+    expect(job?.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@") === true)?.if, name).toBe("${{ !cancelled() }}");
   }
   for (const name of ["node", "qualification-partition"]) {
     expect(ci.jobs[name]?.steps.find((step) => step.id === "media")).toMatchObject({ run: "bash scripts/ci/install-media.sh", "timeout-minutes": 15 });
@@ -189,7 +212,10 @@ test("partition shell forwards only data and preserves child failure exits", asy
 
 test("CI failure rendering reads all failed verify stages rather than requiring structure output", ({ repoRoot }) => {
   const ci = workflow(repoRoot);
-  expect(ci.jobs["qualification-partition"]?.steps.find((step) => step.name === "Show what failed")?.run).toBe("pnpm check:show --stages --limit 20");
+  const partitionDisplay = ci.jobs["qualification-partition"]?.steps.find((step) => step.name === "Show what failed")?.run ?? "";
+  expect(partitionDisplay).toContain("pnpm check:show --stages --limit 20 || echo");
+  expect(partitionDisplay).toContain("::warning title=check:show::could not read the stage report; see the reports artifact");
+  expect(partitionDisplay).not.toContain("|| true");
   const staticDisplay = ci.jobs["static"]?.steps.find((step) => step.name === "Show what failed")?.run ?? "";
   expect(staticDisplay).toContain("pnpm check:show --stages --limit 20");
   expect(staticDisplay).not.toContain("|| true");

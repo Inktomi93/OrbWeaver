@@ -1,5 +1,6 @@
 import { globSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { z } from "zod";
 import { APPLICATION_PARTITIONS } from "../contract/application-partitions.ts";
@@ -8,10 +9,10 @@ import { STAGE_MODES } from "../contract/stage.ts";
 import { applicationPartitionKeys, applicationPartitionStages } from "./application-partitions.ts";
 import { aggregateExit, noVerdictStages } from "./exit-classifiers.ts";
 import { stagesForTier } from "./registry.ts";
-import { planStage } from "./stage-plan.ts";
+import { nonRunningStageResult, planStage } from "./stage-plan.ts";
 
 const RESULT = z
-  .object({
+  .strictObject({
     name: z.string(),
     group: z.string(),
     mode: z.enum(STAGE_MODES),
@@ -83,17 +84,11 @@ export function aggregateApplicationPartitions(tier: Tier, head: string, inputs:
     }
     const plan = planStage(definition, undefined, tier, { applicationOnly: true });
     if (plan.mode === "skipped") {
-      if (
-        parts.length !== 1 ||
-        parts[0]?.stage.mode !== "skipped" ||
-        parts[0].stage.childExit !== undefined ||
-        parts[0].stage.logFile !== null ||
-        !parts[0].stage.ok ||
-        parts[0].stage.exitCode !== 0
-      ) {
-        throw new Error(`qualification refuses a false implementation-only exclusion for ${definition.name}`);
+      const [part] = parts;
+      if (part === undefined || parts.length !== 1 || !isDeepStrictEqual(part.stage, nonRunningStageResult(definition, plan))) {
+        throw new Error(`qualification refuses a false planned exclusion for ${definition.name}`);
       }
-      return parts[0].stage;
+      return part.stage;
     }
     const invalid = parts.some(
       ({ stage }) =>

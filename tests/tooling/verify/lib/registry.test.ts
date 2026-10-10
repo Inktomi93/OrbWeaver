@@ -1,3 +1,4 @@
+import { withProcessEnv } from "@orb/tooling/_shared/process-env";
 import { ACTIVE_GATES_INDEX_REL, SNAP_FLAGS_INDEX_REL } from "../../../../tooling/src/verify/contract/ledger-paths.ts";
 import type { StageDef } from "../../../../tooling/src/verify/contract/stage.ts";
 import { RUNNABLE_VERIFY_TIERS } from "../../../../tooling/src/verify/contract/stage.ts";
@@ -11,6 +12,36 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const WHOLE_TIERS = RUNNABLE_VERIFY_TIERS;
+
+test("only positively identified GitHub-hosted full execution omits mutation measurement", async () => {
+  const full = stagesForTier("full");
+  const mutation = full.find(({ name }) => name === "quality:mutation-gate");
+  if (mutation === undefined) {
+    throw new Error("missing mutation stage");
+  }
+  for (const [actions, runner, omitted] of [
+    ["true", "github-hosted", true],
+    ["true", "self-hosted", false],
+    ["", "github-hosted", false],
+    ["true", "", false],
+    ["", "", false],
+  ] as const) {
+    await withProcessEnv("GITHUB_ACTIONS", actions, () =>
+      withProcessEnv("RUNNER_ENVIRONMENT", runner, () => {
+        for (const applicationOnly of [false, true]) {
+          const plan = planStage(mutation, undefined, "full", { applicationOnly });
+          expect(plan.mode).toBe(omitted ? "skipped" : "full");
+          expect(plan.argv).toEqual(omitted ? null : ["pnpm", "test:mutation:gate"]);
+        }
+        expect(full.filter(({ tierPrecondition }) => tierPrecondition !== undefined).map(({ name }) => name)).toEqual(["quality:mutation-gate"]);
+        expect(full.filter(({ name }) => name !== mutation.name).map((row) => planStage(row, undefined, "full").mode)).toEqual(
+          full.filter(({ name }) => name !== mutation.name).map(() => "full"),
+        );
+        return Promise.resolve();
+      }),
+    );
+  }
+});
 
 test("automatic nonweekly tiers never admit checker recertification, even with unknown branch reach", () => {
   const proofs = new Set(["tests:tooling", "tests:instrument-affected", "tests:tool-guard", "structure:policy-conformance"]);
@@ -113,7 +144,7 @@ test("weekly owns the complete instrument battery and policy conformance without
   }
 });
 
-test("application planning refuses unclassified checks and preserves world, architecture and full mutation enforcement", () => {
+test("application planning refuses unclassified checks and preserves world, architecture and local full mutation enforcement", async () => {
   const unclassified: StageDef = { name: "new-check", group: "types", tiers: ["static"], argv: ["pnpm", "new-check"], classify: () => 0 };
   expect(() => planStage(unclassified, undefined, "static", { applicationOnly: true })).toThrow("no application subject classification");
   for (const name of ["types:native", "types:ownership", "tests:execution-membership", "imports:depcruise", "structure:full", "deps:knip"]) {
@@ -123,7 +154,10 @@ test("application planning refuses unclassified checks and preserves world, arch
   const hook = stage("static", "lint:hook-syntax");
   expect(planStage(hook, undefined, "static", { applicationOnly: true })).toEqual({ mode: "skipped", argv: null, runsAt: "verify --weekly" });
   expect(planStage(hook, undefined, "weekly").argv).toEqual(hook.argv);
-  expect(planStage(stage("full", "quality:mutation-gate"), undefined, "full", { applicationOnly: true }).argv).toEqual(["pnpm", "test:mutation:gate"]);
+  await withProcessEnv("RUNNER_ENVIRONMENT", "self-hosted", () => {
+    expect(planStage(stage("full", "quality:mutation-gate"), undefined, "full", { applicationOnly: true }).argv).toEqual(["pnpm", "test:mutation:gate"]);
+    return Promise.resolve();
+  });
   expect(stagesForTier("product").some(({ name }) => name === "quality:mutation-gate")).toBe(false);
   expect(planStage(stage("weekly", "browser:tooling-ct"), undefined, "weekly").argv).toEqual([
     "pnpm",
@@ -221,17 +255,12 @@ test("quality:cpd preserves the wrapped tool's clean, violation, and non-verdict
   expect(row.classify(null)).toBe(2);
 });
 
-test("NO row hangs on a tier precondition today — the mechanism is unused DATA, not a live rung", () => {
-  // #1523 minted `tierPrecondition` for the conditional push rung; #1842 removed the rung. The field is
-  // still in the contract (contract/stage.ts) and the runner still honours it (ops/run.ts, pinned by
-  // tests/tooling/verify/ops/run.int.test.ts against a synthetic row) — but a CONDITIONAL membership that
-  // nobody declares must not silently reappear: if a row grows one, that is a ladder change, and this arm
-  // makes it a deliberate edit rather than a quiet one.
-  for (const tier of WHOLE_TIERS) {
-    for (const row of stagesForTier(tier)) {
-      expect(row.tierPrecondition, `${row.name} declares a tier precondition at ${tier}`).toBeUndefined();
-    }
-  }
+test("unknown mutation admission runs, and application subject exclusions retain their own reason", () => {
+  const mutation = stage("full", "quality:mutation-gate");
+  const unknown = { ...mutation, tierPrecondition: { tiers: ["full"] as const, reason: "unknown execution class", satisfied: () => null } };
+  expect(planStage(unknown, undefined, "full", { applicationOnly: true }).mode).toBe("full");
+  const excluded = { ...unknown, applicationArgv: "implementation-only" as const, tierPrecondition: { ...unknown.tierPrecondition, satisfied: () => false } };
+  expect(planStage(excluded, undefined, "full", { applicationOnly: true })).toEqual({ mode: "skipped", argv: null, runsAt: "verify --weekly" });
 });
 
 // #1566: `skipped` carries TWO different facts and the console printed only one of them. A scoped skip

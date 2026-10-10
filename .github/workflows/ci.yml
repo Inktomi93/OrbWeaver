@@ -44,6 +44,7 @@ env:
   ORB_CI_REPOSITORY: Inktomi93/OrbWeaver
   ORB_CI_QUALIFICATION_GENERATION: Orbweaver qualification product-v3
   ORB_CI_PUBLICATION_BOOTSTRAP_SHA: ac6cfc19ea9db59644426b37f6b8c842c33473ad
+  ORB_CI_FULL_CACHE_PREFIX: full-hosted-v1-verified
 
 jobs:
   changes:
@@ -271,6 +272,7 @@ jobs:
       tier: ${{ steps.sha.outputs.tier }}
       seen: ${{ steps.seen.outputs.cache-hit }}
       matrix: ${{ steps.plan.outputs.matrix }}
+      cache-prefix: ${{ steps.sha.outputs.cache-prefix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -283,12 +285,15 @@ jobs:
         run: |
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "tier=$VERIFY_TIER" >> "$GITHUB_OUTPUT"
+          cache_prefix="${VERIFY_TIER}-verified"
+          if [[ "$VERIFY_TIER" == full ]]; then cache_prefix="$ORB_CI_FULL_CACHE_PREFIX"; fi
+          echo "cache-prefix=$cache_prefix" >> "$GITHUB_OUTPUT"
       - id: seen
         name: Look up the completed qualification marker
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .${{ steps.sha.outputs.tier }}-verified
-          key: ${{ steps.sha.outputs.tier }}-verified-${{ steps.sha.outputs.sha }}
+          key: ${{ steps.sha.outputs.cache-prefix }}-${{ steps.sha.outputs.sha }}
           lookup-only: true
       - if: steps.seen.outputs.cache-hit != 'true'
         uses: ./.github/actions/setup # zizmor: ignore[self-repository] Qualification setup belongs to the frozen main source.
@@ -422,7 +427,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .${{ env.VERIFY_TIER }}-verified
-          key: ${{ env.VERIFY_TIER }}-verified-${{ needs.qualification-head.outputs.sha }}
+          key: ${{ needs.qualification-head.outputs.cache-prefix }}-${{ needs.qualification-head.outputs.sha }}
       - if: ${{ !cancelled() && needs.qualification-head.outputs.seen != 'true' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

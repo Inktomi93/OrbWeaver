@@ -255,3 +255,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D306 | [Qualify cumulative changes before release](0306-verification-qualification-ownership.md) | superseded by [0307-weekly-tooling-proof-and-product-qualification.md](0307-weekly-tooling-proof-and-product-qualification.md) |
 | D307 | [Separate product qualification from weekly tooling proof](0307-weekly-tooling-proof-and-product-qualification.md) | active |
 | D308 | [Timing budgets qualify only on a named hardware class](0308-hardware-scoped-timing-budgets.md) | active |
+| D309 | [Keep mutation measurement outside GitHub-hosted CI](0309-hosted-mutation-execution.md) | active |
