@@ -1,14 +1,14 @@
-// The "Add a connection" dialog's form model (inference program §5.3a Essential tier: provider · key or URL
-// · model). Client-only view shape + defaults + a plain-function validator for createSavedEntityForm. Values
-// are transient (a create has no server row); the pasted key is minted into a credential row BEHIND the
-// connection (its label copied from the connection's) and never read back. Floors mirror the domain's
-// write-seam refusals as teaching; the verb stays the enforcement floor.
+// Connection authoring values and validation; saved keys are metadata-only choices, while pasted secrets are minted before the connection.
 
 import type { ProviderAuth, ProviderDef, Wire } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, providerDisplayLabel } from "@orb/contracts/inference";
 import { isLoopbackHost } from "@orb/kit/allowed-hosts";
+import type { UserCredentialId } from "@orb/kit/ids";
 import { ADD_CONNECTION_PATH } from "#lib";
 import { clauseOf, MODEL_REQUIRED_MESSAGE } from "./model-picker-model.ts";
+
+/** A selected credential disappeared or was revoked while authoring. */
+export const SAVED_KEY_UNAVAILABLE = "This saved key is no longer available. Choose another key or paste a new one.";
 
 /** The command the Claude-subscription step asks the user to run (§5.3a: "a copyable `claude setup-token`"). */
 export const CLAUDE_SETUP_TOKEN_COMMAND = "claude setup-token";
@@ -51,6 +51,8 @@ export interface AddConnectionFormValues {
   /** Set once THIS dialog minted the credential and the connection write then failed — the retry reuses the
    *  saved key, so the empty `key` is no longer a missing value. */
   readonly keyHeld: boolean;
+  /** Explicit saved-key choice; never carries the secret. */
+  readonly credentialId: UserCredentialId | null;
   /** `endpoint` rows only. */
   readonly baseUrl: string;
   readonly model: string;
@@ -66,6 +68,7 @@ export const ADD_CONNECTION_DEFAULTS: AddConnectionFormValues = {
   label: "",
   key: "",
   keyHeld: false,
+  credentialId: null,
   baseUrl: "",
   model: "",
   api: "auto",
@@ -153,7 +156,7 @@ export function validateAddConnection(value: AddConnectionFormValues): { fields:
   if (value.providerId === "" || value.auth === "") {
     fields["providerId"] = "Pick a provider.";
   }
-  if ((value.auth === "apiKey" || value.auth === "oauthToken") && !value.keyHeld && value.key.trim() === "") {
+  if ((value.auth === "apiKey" || value.auth === "oauthToken") && !value.keyHeld && value.credentialId === null && value.key.trim() === "") {
     fields["key"] = value.auth === "oauthToken" ? `Paste the token from \`${CLAUDE_SETUP_TOKEN_COMMAND}\`.` : "Paste your API key.";
   }
   if (value.auth === "endpoint" && value.baseUrl.trim() === "") {
@@ -189,8 +192,10 @@ export const ADD_DIALOG_COPY: Record<(typeof ADD_DIALOG_STEPS)[number], { readon
 /** The draft a model-list answer is ABOUT (#1502: a verdict must carry the inputs it was taken for, so an
  *  edited provider, URL or key retires it in the same commit). The provider is part of it because the list is
  *  read under that provider, and a saved key opens only under the provider it was saved for. */
-export function draftKeyOf(draft: Pick<AddConnectionFormValues, "providerId" | "baseUrl" | "key">): string {
-  return JSON.stringify([draft.providerId, draft.baseUrl.trim(), draft.key.trim()]);
+export function draftKeyOf(
+  draft: Pick<AddConnectionFormValues, "providerId" | "baseUrl" | "key"> & { readonly credentialId?: UserCredentialId | null },
+): string {
+  return JSON.stringify([draft.providerId, draft.baseUrl.trim(), draft.key.trim(), draft.credentialId ?? null]);
 }
 
 /** Whether two drafts are the same, field for field — a failure statement stands only for the draft it failed. */
@@ -225,10 +230,14 @@ export function listsInDialog(provider: ProviderDef): boolean {
 
 /** The draft a list answer is about: the provider, plus the URL where the draft names one and the key where the
  *  list is read under it. A built-in list depends on the provider alone. */
-export function listingKeyFor(provider: ProviderDef, values: Pick<AddConnectionFormValues, "baseUrl" | "key">): string {
+export function listingKeyFor(
+  provider: ProviderDef,
+  values: Pick<AddConnectionFormValues, "baseUrl" | "key"> & { readonly credentialId?: UserCredentialId | null },
+): string {
   return draftKeyOf({
     providerId: provider.id,
     baseUrl: needsBaseUrl(provider) ? values.baseUrl : "",
     key: provider.catalog === "builtin" ? "" : values.key,
+    credentialId: provider.catalog === "builtin" ? null : (values.credentialId ?? null),
   });
 }

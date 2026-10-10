@@ -37,14 +37,15 @@ export interface DraftModelsCheckProps {
   /** The endpoint's typed server URL; `null` for a hosted provider, which fixes its own. */
   readonly baseUrl: string | null;
   readonly keyValue: string;
-  /** The key this dialog already saved, once a connection write failed after the mint. */
+  readonly credentialUnavailable?: boolean;
+  /** The selected saved key, or the key this dialog minted before a failed connection write. */
   readonly heldCredentialId: UserCredentialId | null;
   readonly onListing: (listing: DraftListing) => void;
   /** A refusal of the URL itself (the caught error) — the dialog puts it on the Server URL field. */
   readonly onUrlRefusal: (err: unknown) => void;
 }
 
-/** What authenticates the dial: the pasted draft key, else the key this dialog already saved, else nothing. */
+/** What authenticates the dial: a pasted draft key, a saved credential id, or nothing. */
 function dialAuth(keyValue: string, heldCredentialId: UserCredentialId | null): { readonly key?: string; readonly credentialId?: UserCredentialId } {
   const key = keyValue.trim();
   if (key !== "") {
@@ -59,6 +60,7 @@ export function DraftModelsCheck({
   providerId,
   baseUrl,
   keyValue,
+  credentialUnavailable = false,
   heldCredentialId,
   onListing,
   onUrlRefusal,
@@ -66,13 +68,13 @@ export function DraftModelsCheck({
   const list = useDraftCatalogModels({ trpc, invalidation });
   const auth = dialAuth(keyValue, heldCredentialId);
   // An endpoint needs its URL (its key is optional); a hosted list needs the key it is read under.
-  const ready = baseUrl === null ? Object.keys(auth).length > 0 : baseUrl.trim() !== "";
+  const ready = !credentialUnavailable && (baseUrl === null ? Object.keys(auth).length > 0 : baseUrl.trim() !== "");
 
   const runCheck = (): void => {
     if (!ready) {
       return;
     }
-    const forDraft = draftKeyOf({ providerId, baseUrl: baseUrl ?? "", key: keyValue });
+    const forDraft = draftKeyOf({ providerId, baseUrl: baseUrl ?? "", key: keyValue, credentialId: heldCredentialId });
     onListing({ forDraft, source: { status: "loading" } });
     void list
       .mutateAsync({ providerId, ...(baseUrl === null ? {} : { baseUrl: baseUrl.trim() }), ...auth })

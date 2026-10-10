@@ -21,6 +21,7 @@
 
 import type { ProviderAuth } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, providerDefSchema } from "@orb/contracts/inference";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { copyActionName } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -39,6 +40,7 @@ import {
   catalogEntry,
   catalogOf,
   connectionRow,
+  credentialRow,
   dialogNamed,
   expectInsideViewport,
   firstModelSetup,
@@ -125,6 +127,106 @@ test("a full add mints the key, then creates the connection BY ID, and nothing h
   await pickProvider(page, again, "OpenRouter");
   await expect(again.getByLabel("API key", { exact: true })).toHaveValue("");
   await expect.poll(() => trpc.unstubbed()).toEqual([]);
+});
+
+test("a first connection explicitly reuses a saved key for listing and saving without minting", async ({ mount, page }) => {
+  const saved = credentialRow({ label: "Work key" });
+  const trpc = await stubConnectionsPane(page, {
+    credentials: [
+      saved,
+      credentialRow({ id: mintTypeId(ID_PREFIX.userCredential), label: "Personal key" }),
+      credentialRow({ id: mintTypeId(ID_PREFIX.userCredential), label: "Revoked key", revokedAt: 1 }),
+      credentialRow({ id: mintTypeId(ID_PREFIX.userCredential), label: "Other provider", provider: "openai" }),
+    ],
+    draftCatalogModels: catalogOf([catalogEntry(OPUS)]),
+  });
+  const component = await mount(<ConnectionsAuthoringStory width={486} />);
+  const dialog = await openAddDialog(page);
+  await pickProvider(page, dialog, "OpenRouter");
+  await dialog.getByRole("combobox", { name: "Saved key", exact: true }).click();
+  await expect(page.getByRole("option", { name: "Revoked key", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("option", { name: "Other provider", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("option", { name: "Personal key", exact: true })).toBeVisible();
+  await page.getByRole("option", { name: "Work key", exact: true }).click();
+  await expect(dialog.getByLabel("API key", { exact: true })).toHaveCount(0);
+  await dialog.getByRole("button", { name: "List models", exact: true }).click();
+  await dialog.getByRole("option", { name: OPUS, exact: true }).click();
+  await submit(dialog);
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => trpc.inputs("connection.draftCatalogModels")).toEqual([{ providerId: "openrouter", credentialId: saved.id }]);
+  await expect.poll(() => trpc.count("credentials.add")).toBe(0);
+  await expect
+    .poll(() => trpc.lastInput("connection.create"))
+    .toEqual({ providerId: "openrouter", credentialId: saved.id, baseUrl: null, model: OPUS, allowBackground: false, modelCheck: "listed" });
+  await expect(component.getByTestId("held-secrets")).toHaveText("0");
+});
+
+test("changing saved keys retires the model and ignores the previous key's late catalog", async ({ mount, page }) => {
+  const first = credentialRow({ label: "First key" });
+  const second = credentialRow({ id: mintTypeId(ID_PREFIX.userCredential), label: "Second key" });
+  const delayed = trpcHold();
+  const trpc = await stubConnectionsPane(page, {
+    credentials: [first, second],
+    draftCatalogModels: (input) => (input.credentialId === first.id ? delayed : catalogOf([catalogEntry("second/model")])),
+  });
+  await mount(<ConnectionsAuthoringStory width={486} />);
+  const dialog = await openAddDialog(page);
+  await pickProvider(page, dialog, "OpenRouter");
+  await dialog.getByRole("combobox", { name: "Saved key", exact: true }).click();
+  await page.getByRole("option", { name: "First key", exact: true }).click();
+  await dialog.getByRole("textbox", { name: "Model", exact: true }).fill("first/typed");
+  await dialog.getByRole("button", { name: "List models", exact: true }).click();
+  await expect.poll(() => trpc.count("connection.draftCatalogModels")).toBe(1);
+  await dialog.getByRole("combobox", { name: "Saved key", exact: true }).click();
+  await page.getByRole("option", { name: "Second key", exact: true }).click();
+  await expect(dialog.getByRole("textbox", { name: "Model", exact: true })).toHaveValue("");
+  delayed.release(catalogOf([catalogEntry("first/late")]));
+  await expect(dialog.getByRole("button", { name: "List models", exact: true })).toBeEnabled();
+  await expect(dialog.getByRole("option", { name: "first/late", exact: true })).toHaveCount(0);
+  await dialog.getByRole("button", { name: "List models", exact: true }).click();
+  await expect(dialog.getByRole("option", { name: "second/model", exact: true })).toBeVisible();
+  await dialog.getByRole("option", { name: "second/model", exact: true }).click();
+  await pickProvider(page, dialog, "OpenAI");
+  await expect(dialog.getByLabel("API key", { exact: true })).toHaveValue("");
+  await expect(dialog.getByRole("textbox", { name: "Model", exact: true })).toHaveValue("");
+  await expect(dialog.getByRole("option", { name: "second/model", exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "List models", exact: true })).toBeDisabled();
+  await pickProvider(page, dialog, "OpenRouter");
+  await expect(dialog.getByRole("combobox", { name: "Saved key", exact: true })).not.toContainText("Second key");
+  await expect(dialog.getByRole("option", { name: "second/model", exact: true })).toHaveCount(0);
+});
+
+test("a saved key revoked while the dialog is open retires its catalog and refuses save", async ({ mount, page }) => {
+  const saved = credentialRow({ label: "Work key" });
+  let rows = [saved];
+  const trpc = await stubConnectionsPane(page, {
+    listCredentials: () => rows,
+    draftCatalogModels: catalogOf([catalogEntry(OPUS)]),
+  });
+  const component = await mount(<ConnectionsAuthoringStory width={486} />);
+  const dialog = await openAddDialog(page);
+  await pickProvider(page, dialog, "OpenRouter");
+  await dialog.getByRole("combobox", { name: "Saved key", exact: true }).click();
+  await page.getByRole("option", { name: "Work key", exact: true }).click();
+  await dialog.getByRole("button", { name: "List models", exact: true }).click();
+  await dialog.getByRole("option", { name: OPUS, exact: true }).click();
+  rows = [{ ...saved, revokedAt: 1, revokedReason: "user" }];
+  // Simulates the credential-change bus invalidation while the modal inerts its background.
+  await component
+    .getByRole("button", { name: "refetch credentials", exact: true, includeHidden: true })
+    .evaluate((button) => button.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+  await expect(dialog.getByRole("textbox", { name: "Model", exact: true })).toHaveAccessibleDescription(
+    "This saved key is no longer available. Choose another key or paste a new one.",
+  );
+  await expect(dialog.getByRole("option", { name: OPUS, exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "List models", exact: true })).toBeDisabled();
+  await submit(dialog);
+  await expect(dialog.getByRole("alert")).toContainText("This saved key is no longer available");
+  await expect.poll(() => trpc.count("connection.create")).toBe(0);
+  await expect.poll(() => trpc.count("credentials.add")).toBe(0);
+  await dialog.getByRole("combobox", { name: "Saved key", exact: true }).click();
+  await page.getByRole("option", { name: "Paste a new key", exact: true }).click();
+  await expect(dialog.getByLabel("API key", { exact: true })).toBeVisible();
 });
 
 /** A `connection.create` that refuses its first call and stores the second — the partial-failure script. */

@@ -2,12 +2,14 @@
 // only when the row lists more than one, label and the background switch — split out of
 // add-connection-dialog.tsx (which composes this) to keep that file under the component-size cap.
 
+import type { CredentialView } from "@orb/contracts/credentials";
 import type { ProviderDef } from "@orb/contracts/inference";
 import { providerDisplayLabel } from "@orb/contracts/inference";
 import { Button } from "@orb/ui/button";
 import { DialogClose } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, LockOpen } from "@orb/ui/icons";
+import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
@@ -26,6 +28,7 @@ import {
   namesLoopback,
   needsBaseUrl,
   needsKey,
+  SAVED_KEY_UNAVAILABLE,
   savedKeyName,
 } from "../lib/add-connection-form-model.ts";
 import { CHAT_API_LABELS, showsApiControl } from "../lib/connections-model.ts";
@@ -49,6 +52,7 @@ export interface HeldKey {
 }
 
 export interface ProviderFieldsProps {
+  readonly credentials: readonly CredentialView[];
   readonly form: AddConnectionForm;
   readonly provider: ProviderDef;
   /** The deployment can store a secret (`credentials.storageStatus`). */
@@ -72,6 +76,7 @@ export interface ProviderFieldsProps {
  *  when the row lists more than one, label and the background switch. */
 export function ProviderFields({
   form,
+  credentials,
   provider,
   keyStorage,
   trpc,
@@ -127,14 +132,30 @@ export function ProviderFields({
       ) : null}
       {isClaudeSubscription(provider) ? <ClaudeSubscriptionNotice /> : null}
       {provider.auth === "oauthToken" && held === null ? <SetupTokenCommand /> : null}
-      <KeyField form={form} provider={provider} held={held} keyStorage={keyStorage} />
+      <KeyField form={form} credentials={credentials} provider={provider} held={held} keyStorage={keyStorage} />
       {listsOnDemand(provider) ? (
-        <form.Subscribe selector={(state): { readonly baseUrl: string; readonly key: string } => ({ baseUrl: state.values.baseUrl, key: state.values.key })}>
+        <form.Subscribe
+          selector={(state): { readonly baseUrl: string; readonly key: string; readonly credentialId: CredentialView["id"] | null } => ({
+            baseUrl: state.values.baseUrl,
+            key: state.values.key,
+            credentialId: state.values.credentialId,
+          })}
+        >
           {(draft): ReactElement => (
             <DraftModelsCheck
               providerId={provider.id}
               baseUrl={needsBaseUrl(provider) ? draft.baseUrl : null}
-              heldCredentialId={held?.credential.id ?? null}
+              credentialUnavailable={
+                draft.credentialId !== null &&
+                held === null &&
+                !credentials.some((row) => row.id === draft.credentialId && row.provider === provider.id && row.revokedAt === null)
+              }
+              heldCredentialId={
+                draft.credentialId !== null &&
+                credentials.some((row) => row.id === draft.credentialId && row.provider === provider.id && row.revokedAt === null)
+                  ? draft.credentialId
+                  : (held?.credential.id ?? null)
+              }
               invalidation={invalidation}
               keyValue={draft.key}
               onListing={onListing}
@@ -189,11 +210,13 @@ export function ProviderFields({
 /** The key step: the paste field, or — once this dialog saved the key — a line naming the saved row. */
 function KeyField({
   form,
+  credentials,
   provider,
   held,
   keyStorage,
 }: {
   readonly form: AddConnectionForm;
+  readonly credentials: readonly CredentialView[];
   readonly provider: ProviderDef;
   readonly held: HeldKey | null;
   readonly keyStorage: boolean;
@@ -215,18 +238,56 @@ function KeyField({
       </Text>
     );
   }
+  const available = credentials.filter((row) => row.provider === provider.id && row.revokedAt === null);
   return (
-    <form.AppField name="key">
-      {(field): ReactElement => (
-        <field.TextField
-          label={keyLabel(provider)}
-          placeholder={provider.auth === "oauthToken" ? "Paste the token" : "Paste your API key"}
-          type="password"
-          revealable={true}
-          autoComplete="off"
-        />
-      )}
-    </form.AppField>
+    <>
+      <form.AppField name="credentialId">
+        {(field): ReactElement => (
+          <>
+            <Select
+              label="Saved key"
+              aria-label="Saved key"
+              placeholder="Paste a new key"
+              value={field.state.value ?? ""}
+              onValueChange={(id, details): void => {
+                // Base UI clears a vanished item without user input; retain the unavailable key until an explicit choice.
+                if (id === "" && details.reason === "none" && field.state.value !== null && !available.some((row) => row.id === field.state.value)) {
+                  details.cancel();
+                  return;
+                }
+                const selected = available.find((row) => row.id === id);
+                if (id !== "" && selected === undefined) {
+                  return;
+                }
+                form.resetField("key");
+                form.resetField("model");
+                field.handleChange(selected?.id ?? null);
+              }}
+              items={[{ label: "Paste a new key", value: "" }, ...available.map((row) => ({ label: row.label ?? "Unnamed key", value: row.id }))]}
+            />
+            {field.state.value !== null && !available.some((row) => row.id === field.state.value) ? <Text voice="gloss">{SAVED_KEY_UNAVAILABLE}</Text> : null}
+            {available.length === 0 ? <Text voice="gloss">No active saved keys for this provider. Paste a new key below.</Text> : null}
+          </>
+        )}
+      </form.AppField>
+      <form.Subscribe selector={(state): CredentialView["id"] | null => state.values.credentialId}>
+        {(credentialId): ReactElement | null =>
+          credentialId !== null ? null : (
+            <form.AppField name="key">
+              {(field): ReactElement => (
+                <field.TextField
+                  label={keyLabel(provider)}
+                  placeholder={provider.auth === "oauthToken" ? "Paste the token" : "Paste your API key"}
+                  type="password"
+                  revealable={true}
+                  autoComplete="off"
+                />
+              )}
+            </form.AppField>
+          )
+        }
+      </form.Subscribe>
+    </>
   );
 }
 
