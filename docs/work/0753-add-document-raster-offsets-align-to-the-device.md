@@ -24,3 +24,5 @@ Popup and contained text origins land on device pixels across the governed DPR c
 ## Evidence
 
 The reviewed ref is `7d4018247819c2c7956fddd34f844ea7714e7d90`. Independent rendered runs `2557675` and `2579223` show the popup and child offsets. The unmodified-source probe `3523826` fails at DPR 1, 1.25 and 3; DPR 2 passes. The owner deferred this cosmetic finding outside the functional launch cut. No product repair or severity change is claimed.
+
+Owner ruling: closed as the integer-line-boxes §2 runtime residual. A centered CT probe measured popup top 300.5 (199px odd intrinsic height) and fails at DPR 1, 1.25 and 3 while passing at 2. Integer CSS offsets cannot land on the 1.25 grid without quantizing every dialog's centering, which this item forbids.
