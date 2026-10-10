@@ -11,7 +11,17 @@ import { freshDb } from "../../../../support/db.ts";
 import { principal } from "../../../../support/factories/principal.ts";
 import { makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeChatContext, makeLoadParticipantViews, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
+import {
+  batchParticipantViews,
+  makeChatContext,
+  makeLoadParticipantViews,
+  seedCharacter,
+  seedChat,
+  seedMessage,
+  seedParticipant,
+  seedPersona,
+  seedUser,
+} from "../_support.ts";
 
 function reader(db: Db): ReturnType<typeof createRead> {
   const resolvePersonas = createTurnPersonaResolver(async ({ personaIds, allowedOwnerIds }) => {
@@ -20,6 +30,7 @@ function reader(db: Db): ReturnType<typeof createRead> {
   });
   return createRead(makeChatContext(db), {
     loadParticipantViews: makeLoadParticipantViews(db),
+    loadParticipantViewsBatch: batchParticipantViews(makeLoadParticipantViews(db)),
     resolveConnection: () => Promise.resolve(makeResolved()),
     checkSendAvailability: () => Promise.resolve({ available: true }),
     getNextTurnConnection: () => Promise.resolve({ state: "unset" }),

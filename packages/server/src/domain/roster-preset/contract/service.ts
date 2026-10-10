@@ -16,6 +16,7 @@ import type { ChatService } from "#domain/chat";
 import type { AuditEntry } from "#foundation/observability";
 import type {
   ApplyRosterPresetParams,
+  CountRosterPresetsParams,
   CreateRosterPresetParams,
   GetRosterPresetParams,
   ListRosterPresetsParams,
@@ -120,6 +121,7 @@ export interface RosterPresetService {
    *  not a live link). */
   readonly remove: (params: RemoveRosterPresetParams) => Promise<void>;
   /** The caller's rosters, name-sorted, each with its position-ordered member preview. */
+  readonly count: (params: CountRosterPresetsParams) => Promise<number>;
   readonly list: (params: ListRosterPresetsParams) => Promise<RosterPresetSummary[]>;
   /** One owned roster, members in position order. */
   readonly get: (params: GetRosterPresetParams) => Promise<RosterPresetView>;

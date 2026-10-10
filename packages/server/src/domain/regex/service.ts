@@ -34,6 +34,7 @@ import {
   createBulkRemove,
   createBulkSetEnabled,
   createBulkSetPlacement,
+  createCount,
   createCreate,
   createDuplicate,
   createGet,
@@ -51,6 +52,7 @@ export function createRegexService(ctx: RegexContext): RegexService {
   const exportScript = createExportRegexScript(ctx);
   const importScript = createImportRegexScript(ctx);
   return {
+    countScripts: createCount(ctx),
     listScripts: createList(ctx),
     getScript: createGet(ctx),
     createScript: createCreate(ctx),

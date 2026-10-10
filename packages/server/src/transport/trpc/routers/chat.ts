@@ -15,6 +15,7 @@ import {
   assemblyPreviewSchema,
   CHAT_LIST_MAX_LIMIT,
   CHAT_MESSAGE_LIST_MAX_LIMIT,
+  chatCensusInputSchema,
   chatDetailSchema,
   chatInjectionInputSchema,
   chatInjectionViewSchema,
@@ -539,6 +540,18 @@ export const chatRouter = t.router({
     .output(startChatResultSchema)
     .input(startChatSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.startChat({ principal: ctx.auth, ...input })),
+  countChats: authedProcedure
+    .output(z.number().int().nonnegative())
+    .input(chatCensusInputSchema.optional())
+    .query(({ ctx, input }) =>
+      ctx.services.chat.countChats({
+        principal: ctx.auth,
+        ...(input?.includeArchived !== undefined ? { includeArchived: input.includeArchived } : {}),
+        ...(input?.characterId !== undefined ? { characterId: input.characterId } : {}),
+        ...(input?.search !== undefined ? { search: input.search } : {}),
+        ...(input?.beforeRecencyAt !== undefined ? { beforeRecencyAt: input.beforeRecencyAt } : {}),
+      }),
+    ),
   // Keyset-paged (the `character.list` precedent). `cursor` rides as ONE input field because tRPC's
   // `infiniteQueryOptions` threads exactly one `cursor` through as the page param, overwriting it wholesale
   // per next-page fetch. `.nullish()` on it because `getNextPageParam` hands back the page's own
@@ -548,14 +561,8 @@ export const chatRouter = t.router({
   listChats: authedProcedure
     .output(chatListPageSchema)
     .input(
-      z
-        .object({
-          includeArchived: z.boolean().optional(),
-          characterId: typeIdSchema(ID_PREFIX.character).optional(),
-          search: z.string().optional(),
-          beforeRecencyAt: z.number().int().optional(),
-          // The CEILING, enforced at the trust boundary (the `character.list` precedent): an over-bound ask
-          // is a BAD_REQUEST naming the bound, never an unbounded library fetch (`CHAT_LIST_MAX_LIMIT`).
+      chatCensusInputSchema
+        .extend({
           limit: z.number().int().min(1).max(CHAT_LIST_MAX_LIMIT).optional(),
           cursor: chatListCursorSchema.nullish(),
         })

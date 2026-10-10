@@ -1,3 +1,4 @@
+import { seedCharacter as seedCharacterRow } from "../../../../support/factories/character.ts";
 // persistence/queries — owner-scoped reads + the avatar LEFT JOIN + the card parse-seam. Load-bearing: the
 // ownership predicate lives in the WHERE (a non-owner read returns undefined, never another user's row);
 // listOwnedCharactersWithAvatar EXCLUDES synthetic rows (invariant 3); detailOf surfaces the joined avatar
@@ -6,9 +7,9 @@
 
 import type { CharacterListCursor } from "@orb/contracts/character";
 import { AUTHORED_CARD_CREATOR } from "@orb/contracts/character";
-import { characters, characterTags, tags } from "@orb/db";
+import { characters, characterTags, chatParticipants, messages, messageVariants, tags } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, Handle, TagId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 import { describe } from "vitest";
 import {
@@ -1021,4 +1022,45 @@ test("an out-of-range score heals ALONE (the 1-10 tightening never costs the ana
     throw new Error("expected the owned row");
   }
   expect(cardOf(rowB).refinery).toBeNull();
+});
+
+test("set-based activity preserves selected-variant MAX clock, resume ties and distinct departed room seats", async ({ db }) => {
+  const owner = await seedUser(db);
+  const busy = await seedCharacterRow(db, { ownerId: owner, name: "Busy", description: "Stored card prose.".repeat(3000), createdAt: 100 });
+  const never = await seedCharacterRow(db, { ownerId: owner, name: "Never", createdAt: 200 });
+  const roomA = mintTypeId(ID_PREFIX.chat);
+  const roomB = mintTypeId(ID_PREFIX.chat);
+  await seedSeatedChat(db, { chatId: roomA, ownerId: owner, characterId: busy.id, recencyAt: 7000 });
+  await seedSeatedChat(db, { chatId: roomB, ownerId: owner, characterId: busy.id, recencyAt: 8000 });
+  await db
+    .insert(chatParticipants)
+    .values({ id: mintTypeId(ID_PREFIX.chatParticipant), chatId: roomA, kind: "character", characterId: busy.id, role: "member", joinSeq: 0, leftSeq: 1 });
+  for (const [chatId, seq, createdAt] of [
+    [roomA, 1, 9000],
+    [roomA, 2, 8500],
+    [roomA, 3, 99_999],
+    [roomB, 1, 9000],
+  ] as const) {
+    const id = mintTypeId(ID_PREFIX.message);
+    await db.insert(messages).values({ id, chatId, seq, role: "assistant", createdAt });
+    if (seq !== 3) {
+      const variantId = mintTypeId(ID_PREFIX.messageVariant);
+      await db.insert(messageVariants).values({ id: variantId, messageId: id, idx: 0, content: "Synthetic visible text", createdAt });
+      await db.update(messages).set({ selectedVariantId: variantId }).where(eq(messages.id, id));
+    }
+  }
+  const first = await listOwnedCharactersWithAvatar(db, { ownerId: owner, limit: 1, sort: "recent", cursor: undefined });
+  expect(first.map((row) => ({ id: row.character.id, at: row.lastChattedAt, resume: row.lastChatId, count: row.chatCount }))).toEqual([
+    { id: busy.id, at: 9000, resume: roomB, count: 2 },
+  ]);
+  expect(JSON.stringify(first).length).toBeLessThan(5000);
+  const tail = await listOwnedCharactersWithAvatar(db, {
+    ownerId: owner,
+    limit: 1,
+    sort: "recent",
+    cursor: { sort: "recent", id: busy.id, createdAt: 100, lastChattedAt: 9000 },
+  });
+  expect(tail.map((row) => ({ id: row.character.id, at: row.lastChattedAt, resume: row.lastChatId, count: row.chatCount }))).toEqual([
+    { id: never.id, at: null, resume: null, count: 0 },
+  ]);
 });

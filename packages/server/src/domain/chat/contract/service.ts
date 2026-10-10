@@ -28,6 +28,7 @@ import type {
   CommitMessageParams,
   CompactParams,
   ContinueTurnParams,
+  CountChatsParams,
   CreateInviteParams,
   DeclineInviteParams,
   DeleteChatInjectionParams,
@@ -164,6 +165,7 @@ export interface ChatService {
    *  optionally projected to one character's seats. Paged because a membership list grows without
    *  bound and every row costs a per-chat participant read — an unpaged read would cost every consumer
    *  a full-library scan even when it only wants a handful of rows. */
+  readonly countChats: (params: CountChatsParams) => Promise<number>;
   readonly listChats: (params: ListChatsParams) => Promise<ChatListPage>;
   /** The membership-scoped fork children of a chat. */
   readonly listForks: (params: ListForksParams) => Promise<ChatSummary[]>;

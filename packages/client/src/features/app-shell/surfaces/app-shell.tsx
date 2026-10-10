@@ -378,7 +378,13 @@ export function AppShell(): ReactElement {
                 // full-viewport pane over this column (`contentInert` folds both — one flag, one truth).
                 inert={layout.contentInert}
               >
-                <SectionContent activeSection={layout.activeSection} contentBySection={contentBySection} fallback={contentFallback} focusAnchorRef={mainRef} />
+                <SectionContent
+                  visible={!layout.listIsPrimaryContent}
+                  activeSection={layout.activeSection}
+                  contentBySection={contentBySection}
+                  fallback={contentFallback}
+                  focusAnchorRef={mainRef}
+                />
               </main>
             </div>
 

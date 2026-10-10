@@ -154,7 +154,13 @@ export function reactionsRead(trpc: Trpc): readonly InvalidateFilter[] {
 // event on this set moves (or can move) a stored body — an edit, a swipe, a hide, a delete/reorder — so the
 // host-reveal derivation rides with it.
 export function chatReads(trpc: Trpc): readonly InvalidateFilter[] {
-  return [...chatCanonReads(trpc), ...hiddenRevealRead(trpc), ...runtimeVariablesRead(trpc), trpc.chat.listChats.pathFilter()];
+  return [
+    ...chatCanonReads(trpc),
+    ...hiddenRevealRead(trpc),
+    ...runtimeVariablesRead(trpc),
+    trpc.chat.listChats.pathFilter(),
+    trpc.chat.countChats.pathFilter(),
+  ];
 }
 
 /** Per-entity-kind filters for `roomEntityChanged`. Total over `RoomEntityKind` (the mapped type is the

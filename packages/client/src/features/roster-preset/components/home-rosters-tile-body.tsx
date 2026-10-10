@@ -3,12 +3,14 @@
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
+import { HOME_ROSTER_PREVIEW_LIMIT } from "@orb/contracts/roster-preset";
 import { AvatarStack, avatarStackInlineSize } from "@orb/ui/avatar-stack";
 import { Button } from "@orb/ui/button";
 import { Icon, MessagesSquare, Swords } from "@orb/ui/icons";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { Text } from "@orb/ui/text";
+import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { useStartRoster } from "../hooks/use-start-roster.ts";
@@ -66,19 +68,28 @@ function RosterStartRow(props: {
 
 export function HomeRostersTileBody(): ReactElement {
   const trpc = useTRPC();
-  const { data: rosters } = useSuspenseQuery(trpc.rosterPreset.list.queryOptions());
+  const [{ data: rosters }, { data: count }] = useSuspenseQueries({
+    queries: [trpc.rosterPreset.list.queryOptions({ limit: HOME_ROSTER_PREVIEW_LIMIT }), trpc.rosterPreset.count.queryOptions()],
+  });
   const start = useStartRoster();
   // Every leading slot takes the widest stack's size, so the names share one left edge down the tile.
   const leadingSlots = Math.min(Math.max(1, ...rosters.map((roster) => roster.members.length)), STACK_SLOTS);
   return (
     // The tile frame's heading names the region, so the list stays unnamed.
     // Rows go two-up at Home's two-column step, so the shelf pays half the rows of height beside the hearth.
-    <Grid cols="pairWide" gap="tight" role="list">
-      {rosters.map((roster) => (
-        <Stack key={roster.id} role="listitem">
-          <RosterStartRow busy={start.isPending} leadingSlots={leadingSlots} onStart={start.startRoster} roster={roster} />
-        </Stack>
-      ))}
-    </Grid>
+    <Stack>
+      {count > rosters.length ? (
+        <Text voice="gloss">
+          {rosters.length} of {count} rosters
+        </Text>
+      ) : null}
+      <Grid cols="pairWide" gap="tight" role="list">
+        {rosters.map((roster) => (
+          <Stack key={roster.id} role="listitem">
+            <RosterStartRow busy={start.isPending} leadingSlots={leadingSlots} onStart={start.startRoster} roster={roster} />
+          </Stack>
+        ))}
+      </Grid>
+    </Stack>
   );
 }

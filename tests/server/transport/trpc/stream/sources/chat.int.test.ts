@@ -12,7 +12,7 @@
 // `chat_events`). It closes the gap the mock-based test structurally cannot: that the resume path returns
 // real persisted DELTAS (the token-carrying member), not just that the wiring is shaped right.
 
-import type { ChatBusEvent, DurableChatBusEvent, JoinHistoryVisibility } from "@orb/contracts/chat";
+import type { ChatBusEvent, DurableChatBusEvent, JoinHistoryVisibility, ParticipantView } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
 import type { Db } from "@orb/db";
@@ -42,6 +42,7 @@ beforeEach(async () => {
 function readDeps(): Parameters<typeof createRead>[1] {
   return {
     loadParticipantViews: () => Promise.resolve([]),
+    loadParticipantViewsBatch: () => Promise.resolve(new Map<ChatId, readonly ParticipantView[]>()),
     resolveConnection: () => Promise.reject(new Error("unused: the room's pump never previews a connection")),
     checkSendAvailability: () => Promise.reject(new Error("unused: the room's pump never checks availability")),
     getNextTurnConnection: () => Promise.reject(new Error("unused: the room's pump never reads the next-turn connection")),

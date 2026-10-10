@@ -1444,6 +1444,10 @@ export interface ChatContext {
   readonly restampHandoffDigests: RestampHandoffDigestsOp;
   readonly resolveCharacterTags: ResolveCharacterTagsOp;
   readonly resolveSeatDeco: ResolveSeatDecoOp;
+  readonly resolveSeatDecos: (params: {
+    readonly ownerId: UserId;
+    readonly characterIds: readonly CharacterId[];
+  }) => Promise<ReadonlyMap<CharacterId, SeatDeco>>;
   readonly mintSyntheticGroupCharacter: MintSyntheticGroupCharacterOp;
   readonly findSyntheticGroupCharacter: FindSyntheticGroupCharacterOp;
   readonly resolveUserPublics: ResolveUserPublicsOp;

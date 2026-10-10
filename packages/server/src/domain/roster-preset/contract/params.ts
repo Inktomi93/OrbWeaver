@@ -28,7 +28,11 @@ export interface RemoveRosterPresetParams extends RosterPresetActorParams {
   readonly presetId: RosterPresetId;
 }
 
-export type ListRosterPresetsParams = RosterPresetActorParams;
+export type CountRosterPresetsParams = RosterPresetActorParams;
+
+export interface ListRosterPresetsParams extends RosterPresetActorParams {
+  readonly limit?: number;
+}
 
 export interface GetRosterPresetParams extends RosterPresetActorParams {
   readonly presetId: RosterPresetId;

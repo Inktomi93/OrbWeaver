@@ -82,7 +82,7 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Sparkles, Users } from "@orb/ui/icons";
 import { Container, Grid, Row, Stack, Surface } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
@@ -133,12 +133,14 @@ export function CorpusHomeSurface(): ReactElement {
 
 function CorpusHomeBody(): ReactElement {
   const trpc = useTRPC();
-  const { data: home } = useSuspenseQuery(trpc.discovery.home.queryOptions());
-  const { data: catalog } = useSuspenseQuery(trpc.discovery.catalog.queryOptions());
-  // `{}` — the IDENTICAL input the Archetypes CONTEXT tab passes, so opening that tab after this surface is
-  // a cache hit rather than a second fetch of the same analytics.
-  const { data: families } = useSuspenseQuery(trpc.discovery.visualArchetypes.queryOptions({}));
-  const { data: gems } = useSuspenseQuery(trpc.discovery.forgottenGems.queryOptions());
+  const [{ data: home }, { data: catalog }, { data: families }, { data: gems }] = useSuspenseQueries({
+    queries: [
+      trpc.discovery.home.queryOptions(),
+      trpc.discovery.catalog.queryOptions(),
+      trpc.discovery.visualArchetypes.queryOptions({}),
+      trpc.discovery.forgottenGems.queryOptions(),
+    ],
+  });
   // The queue distinguishes not run from a measured zero (#164). workloads.list shares the invitation hook
   // input and does not suspend the surface. Pending conservatively means not run; a failed queue read is
   // not evidence that a pass never ran. queueRead carries the failure/retry beside the plain boolean flags

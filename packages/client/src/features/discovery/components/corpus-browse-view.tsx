@@ -34,7 +34,7 @@ import { ListRow } from "@orb/ui/list-row";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -92,14 +92,31 @@ const useCorpusBrowseCollection = createCollectionSurface({
 /** The distilled-catalog browser: facet + sort + tag selects over the keyset-paged `browseCharacters`. */
 export function CorpusBrowseView(): ReactElement {
   const trpc = useTRPC();
-  const { data: facets } = useSuspenseQuery(trpc.discovery.characterFacets.queryOptions());
-  const { data: catalog } = useSuspenseQuery(trpc.discovery.catalog.queryOptions());
   const [genre, setGenre] = useState(ANY_VALUE);
   const [tone, setTone] = useState(ANY_VALUE);
   const [tag, setTag] = useState(ANY_VALUE);
   const [sort, setSort] = useState(ANY_VALUE);
   const collection = useCorpusBrowseCollection({ trpc }, { genre, tone, tag, sort });
+  const [facetsRead, catalogRead] = useQueries({
+    queries: [trpc.discovery.characterFacets.queryOptions(), trpc.discovery.catalog.queryOptions()],
+  });
 
+  if (facetsRead.error !== null || catalogRead.error !== null) {
+    return (
+      <QueryErrorState
+        label="your catalog filters"
+        onRetry={(): void => {
+          void facetsRead.refetch().catch(globalThis.reportError);
+          void catalogRead.refetch().catch(globalThis.reportError);
+        }}
+      />
+    );
+  }
+  const facets = facetsRead.data;
+  const catalog = catalogRead.data;
+  if (facets === undefined || catalog === undefined) {
+    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
+  }
   const genreItems = toSelectItems("All genres", facets.genres);
   const toneItems = toSelectItems("All tones", facets.tones);
   const tagItems = toSelectItems(

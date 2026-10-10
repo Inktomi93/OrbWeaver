@@ -2,6 +2,7 @@
 // (verb-naming gate); aliased to a book-scoped name here so the composition root reads unambiguously next
 // to the same-named entry factories.
 
+export { createCount } from "./count.ts";
 export { createCreate as createCreateBook } from "./create.ts";
 export { createDuplicate as createDuplicateBook } from "./duplicate.ts";
 export { createGet as createGetBook } from "./get.ts";

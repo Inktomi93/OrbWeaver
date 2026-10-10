@@ -23,6 +23,7 @@ import type {
   AssembleContext,
   AssemblePersona,
   ChatInjection,
+  ChatLibraryLens,
   ChatReasoningPart,
   ContextFitAnswer,
   ContextFitPreview,
@@ -71,6 +72,7 @@ import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
 import type { ChatMetadata } from "../contract/metadata.ts";
 import type {
   ChatEventBoundsParams,
+  CountChatsParams,
   GetActivePresetConfigParams,
   GetChatLineageParams,
   GetChatParams,
@@ -188,6 +190,7 @@ async function resolveReasoningHostOnly(ctx: ChatContext, chatId: ChatId): Promi
 
 /** The collaborators not on `ChatContext` (see the file header). */
 interface ReadDeps {
+  readonly loadParticipantViewsBatch: (chatIds: readonly ChatId[]) => Promise<ReadonlyMap<ChatId, readonly ParticipantView[]>>;
   readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
   readonly resolveConnection: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<Resolved<"chat">>;
   /** The deterministic pre-send serveability verdict for the chat's own resolved connection (#54). Reads the
@@ -203,6 +206,7 @@ interface ReadDeps {
 type ReadVerbs = Pick<
   ChatService,
   | "listChats"
+  | "countChats"
   | "listForks"
   | "getChatLineage"
   | "getChat"
@@ -400,7 +404,8 @@ async function buildSummaries(ctx: ChatContext, deps: ReadDeps, rows: readonly C
   const lastMessages = await loadChatLastMessages(db, chatIds);
   const visibility = await loadPresentVisibilityRows(db, chatIds, viewerUserId);
   const viewerTurns = await loadViewerLastTurns(db, chatIds, viewerUserId);
-  const enriched = await Promise.all(rows.map(async (row) => ({ row, names: await deps.loadParticipantViews(row.id) })));
+  const batched = await deps.loadParticipantViewsBatch(chatIds);
+  const enriched = rows.map((row) => ({ row, names: batched.get(row.id) ?? [] }));
   const identityNames = buildIdentityNameContext(await loadChatIdentityProducer(db, { messages: [...lastMessages.values()] }));
   return await Promise.all(
     enriched.map(async ({ row, names }) => {
@@ -716,34 +721,24 @@ async function buildPreviewContext(
   };
 }
 
-/** `listChats` — ONE KEYSET PAGE of the caller's chats (pure membership, host or member), newest
- *  CONVERSATION first, optionally projected to one character's seats.
- *
- *  THE ORDER IS THE DISPLAYED CLOCK (#150): `listMemberChats` sorts on `coalesce(newest message, updatedAt)`
- *  — the same value each row carries as `lastMessageAt ?? updatedAt` — so `items[0]` is the room you last
- *  spoke in, which is what every consumer means by "most recent": the home hero + its masthead sentence, the
- *  chats pane, and the agent bridge's `latest` sentinel. It used to sort on the raw row stamp, which a turn
- *  does not write and a metadata touch does.
- *
- *  The page size is CLAMPED, never trusted (`character.list`'s precedent): every row here costs
- *  `buildSummaries` five bulk reads plus a per-chat participant resolve, so an unclamped `limit` is a
- *  self-service load amplifier. `nextCursor` is minted only from a FULL page — a short page means the
- *  keyset has run out, and minting one anyway would hand the client a cursor that always returns nothing.
- *
- *  `totalCount` is a second, separate `COUNT` over the same scope rather than a derivation from `items`: the
- *  chats band and the character card both PRINT this number, and "how many rows this page happened to
- *  carry" is not that number. */
+function chatCountFilter({ includeArchived, characterId, search, beforeRecencyAt }: CountChatsParams): ChatLibraryLens {
+  const needle = search?.trim().toLowerCase() ?? "";
+  return {
+    ...(includeArchived === undefined ? {} : { includeArchived }),
+    ...(characterId === undefined ? {} : { characterId }),
+    ...(needle === "" ? {} : { search: needle }),
+    ...(beforeRecencyAt === undefined ? {} : { beforeRecencyAt }),
+  };
+}
+
+function createCountChats(ctx: ChatContext): ChatService["countChats"] {
+  return async (params) => await countMemberChats(ctx.db, params.principal.userId, chatCountFilter(params));
+}
+
+/** Page the canonical membership scope, retaining truthful census and compound recency cursor. */
 function createListChats(ctx: ChatContext, deps: ReadDeps): ChatService["listChats"] {
   return async ({ principal, includeArchived, characterId, search, beforeRecencyAt, limit, cursor }: ListChatsParams): Promise<ChatListPage> => {
-    // Normalized ONCE, here: the predicate is a `lower(...) like` so the needle has to arrive lowercased,
-    // and a whitespace-only query is the UNSEARCHED list, never a search for a space.
-    const needle = search?.trim().toLowerCase() ?? "";
-    const filter = {
-      ...(includeArchived !== undefined ? { includeArchived } : {}),
-      ...(characterId !== undefined ? { characterId } : {}),
-      ...(needle === "" ? {} : { search: needle }),
-      ...(beforeRecencyAt !== undefined ? { beforeRecencyAt } : {}),
-    };
+    const filter = chatCountFilter({ principal, includeArchived, characterId, search, beforeRecencyAt });
     const pageSize = Math.min(Math.max(limit ?? CHAT_LIST_DEFAULT_LIMIT, 1), CHAT_LIST_MAX_LIMIT);
     const rows = await listMemberChats(ctx.db, principal.userId, {
       ...filter,
@@ -1771,6 +1766,7 @@ function createChatEventBounds(ctx: ChatContext): ChatService["chatEventBounds"]
 export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
   return {
     listChats: createListChats(ctx, deps),
+    countChats: createCountChats(ctx),
     listForks: createListForks(ctx, deps),
     getChatLineage: createGetChatLineage(ctx, deps),
     getChat: createGetChat(ctx, deps),

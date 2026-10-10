@@ -1,3 +1,4 @@
+import type { CharacterLibraryLens } from "@orb/contracts/character";
 // verb: list — owner-scoped, newest-first, cursor-paged. Load-bearing INVARIANT 3: synthetic group
 // buckets NEVER appear in a user-facing list (they'd leak the hidden memory identities). Also
 // owner-scoped (no foreign rows). Paging mirrors `domain/notifications`'s `{items, nextCursor}` contract
@@ -829,4 +830,24 @@ describe("list — the landing projections (chatCount · provenance)", () => {
     expect(bigPage.items.reduce((total, row) => total + row.chatCount, 0)).toBe(18);
     spy.mockRestore();
   });
+});
+
+test("dedicated census matches the same normalized archived, search and accepted-tag lenses as every page", async ({ db }) => {
+  const { owner, rpg, noir } = await seedLensLibrary(db);
+  const svc = createCharacterService(makeHarness(db).ctx);
+  const lenses: readonly CharacterLibraryLens[] = [
+    {},
+    { archived: false },
+    { archived: true },
+    { starred: true },
+    { search: " RPG " },
+    { includeTagIds: [rpg, noir] },
+    { includeTagIds: [rpg], excludeTagIds: [noir] },
+    { search: "   " },
+    { search: "%" },
+  ];
+  for (const lens of lenses) {
+    const params = { principal: principal(owner), ...lens };
+    expect(await svc.count(params)).toBe((await svc.list({ ...params, limit: 1 })).totalCount);
+  }
 });

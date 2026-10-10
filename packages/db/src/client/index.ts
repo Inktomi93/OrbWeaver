@@ -687,9 +687,13 @@ export async function resetDevDatabase(db: Db): Promise<void> {
   }
 }
 
-/** `PRAGMA optimize` — let SQLite refresh stats for the query planner. Cheap; run periodically + pre-close. */
+const PLANNER_ANALYSIS_LIMIT = 1000;
+
+/** Refresh planner statistics at lifecycle boundaries, bounded on pre-3.46 libSQL as well. */
 export async function optimizeDb(db: Db): Promise<void> {
-  await db.run(sql`PRAGMA optimize`);
+  // Older SQLite ignores optimize's all-table bit; a fresh connection otherwise keeps stale import stats.
+  await db.run(sql.raw(`PRAGMA analysis_limit = ${PLANNER_ANALYSIS_LIMIT}`));
+  await db.run(sql`ANALYZE`);
 }
 
 const ROLLBACK_JOURNAL = "delete";

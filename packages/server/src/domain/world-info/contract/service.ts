@@ -81,6 +81,7 @@ export interface WorldInfoContext {
 }
 
 export interface WorldInfoService {
+  readonly countBooks: (params: ListBooksParams) => Promise<number>;
   readonly listBooks: (params: ListBooksParams) => Promise<BookView[]>;
   /** The ROSTER read: the same owned books plus their entry count + four-scope attachment rollup. Separate
    *  from `listBooks` because the counts cost five GROUP BYs only the library roster asks for. */

@@ -103,8 +103,23 @@ const SEEDED_SETTINGS_ROUTE: TrpcRoutes<"settings.getUserSettings"> = {
  * every one of those pipelines INERT across this whole file. Spread FIRST in each `routeTrpc` call so a
  * test's own per-fixture value (the zero-persona gate test's unseeded `settings.getUserSettings`, say) wins.
  */
-const HOME_AMBIENT_ROUTES: TrpcRoutes<"sessions.me" | "chat.reapTemporaryChats" | "notifications.list" | "connection.listBindings"> = {
+const HOME_AMBIENT_ROUTES: TrpcRoutes<
+  | "sessions.me"
+  | "chat.reapTemporaryChats"
+  | "notifications.list"
+  | "connection.listBindings"
+  | "character.count"
+  | "chat.countChats"
+  | "worldInfo.countBooks"
+  | "regex.countScripts"
+  | "rosterPreset.count"
+> = {
   ...CHAT_AMBIENT_ROUTES,
+  "character.count": 0,
+  "chat.countChats": 0,
+  "worldInfo.countBooks": 0,
+  "regex.countScripts": 0,
+  "rosterPreset.count": 0,
   ...STREAM_MUTATION_ROUTES,
   // The viewer's own settings, OVERRIDING the all-null-seeds default {@link CHAT_AMBIENT_ROUTES} carries:
   // every test below (bar the zero-persona gate ones) needs a viewer whose identity is fully resolved.
@@ -594,8 +609,12 @@ test("control: a joiner who already speaks as a persona gets the join dialog at 
 /** A library page whose CENSUS is the subject — `character.list` serves a real `totalCount` beside its page. */
 const TWELVE_CHARACTERS = { items: [ARIA], nextCursor: null, totalCount: 12 };
 
-const CENSUS_ROUTES: TrpcRoutes<"chat.listChats" | "databank.list" | "databank.bankHealth" | "character.list" | "persona.list"> = {
+const CENSUS_ROUTES: TrpcRoutes<
+  "character.count" | "chat.countChats" | "chat.listChats" | "databank.list" | "databank.bankHealth" | "character.list" | "persona.list"
+> = {
   ...HOME_AMBIENT_ROUTES,
+  "character.count": 12,
+  "chat.countChats": 3,
   "chat.listChats": chatListResponder([]),
   "databank.list": { items: [], nextCursor: null, totalCount: 0 },
   "databank.bankHealth": EMPTY_BANK_HEALTH,
@@ -765,6 +784,8 @@ const CENSUS_TAGS = [
  * runs under the shell whenever that section is active.
  */
 const SECTION_CENSUS_ROUTES: TrpcRoutes<
+  | "character.count"
+  | "chat.countChats"
   | "chat.listChats"
   | "character.list"
   | "persona.list"
@@ -800,6 +821,8 @@ const SECTION_CENSUS_ROUTES: TrpcRoutes<
   | keyof typeof UTILITY_RUNNING_ROUTES
 > = {
   ...HOME_AMBIENT_ROUTES,
+  "character.count": 12,
+  "chat.countChats": 3,
   // The Corpus understanding-pass door reads the Utility role on mount.
   ...UTILITY_RUNNING_ROUTES,
   "worldInfo.listBooksWithUsage": [],

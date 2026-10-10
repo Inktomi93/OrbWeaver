@@ -15,7 +15,7 @@ import { serve } from "@hono/node-server";
 import type { AuthMode, Principal } from "@orb/contracts/identity";
 import { isCookieAuthMode } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { createDb, preCloseHousekeeping } from "@orb/db";
+import { createDb, optimizeDb, preCloseHousekeeping } from "@orb/db";
 import type { ChatId, ChatTurnId, Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { RESTART_EXIT_CODE } from "@orb/kit/supervisor";
@@ -103,6 +103,7 @@ import {
   seedUserContent,
   settleBootSecrets,
 } from "./boot/index.ts";
+import { startPlannerMaintenance } from "./boot/planner-maintenance.ts";
 import { createAutomationWatcherEnv } from "./compose/automation-watcher.ts";
 import type { ServicesResult } from "./compose/index.ts";
 import { createServices } from "./compose/index.ts";
@@ -469,6 +470,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   let loopbackServer: ServerType | null = null;
   let listenerAddress: Readonly<AddressInfo> | null = null;
   let stopScheduler: (() => void) | null = null;
+  let stopPlannerMaintenance: (() => Promise<void>) | null = null;
   let stopScheduleScheduler: (() => void) | null = null;
   let stopOidcGc: (() => void) | null = null;
   let stopWorker: OwnedWorkloadsWorker | null = null;
@@ -828,6 +830,9 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       await seedCasSchedules({ workloads: built.services.workloads, ownerId: owner.userId });
     }
 
+    await optimizeDb(db);
+    const plannerDb = db;
+    stopPlannerMaintenance = startPlannerMaintenance(() => optimizeDb(plannerDb), scheduleInterval);
     await reclaimLocksOnBoot({ db, contributions: built.workloadContributions, now, holder });
 
     // Boot-reclaim the host-offline deferred-turn queue (chat Part III §5): each row runs (consent/budget
@@ -1144,8 +1149,13 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       await close();
     }
     if (db !== null) {
+      if (stopPlannerMaintenance !== null) {
+        const stop: () => Promise<void> = stopPlannerMaintenance;
+        stopPlannerMaintenance = null;
+        await stop();
+      }
       // STAGE BREADCRUMB (#1936) — the SECOND unbounded stage, and the last thing between here and exit:
-      // `PRAGMA optimize` + `wal_checkpoint(TRUNCATE)` (`@orb/db`'s `preCloseHousekeeping`), whose cost is a
+      // bounded planner refresh + `wal_checkpoint(TRUNCATE)` (`@orb/db`'s `preCloseHousekeeping`), whose cost is a
       // function of the db, not of a timeout we control. Announced before the await for the same reason as
       // the worker join: a shutdown that stalls here must say so rather than look identical to a wedge.
       log.info("shutdown: db housekeeping");

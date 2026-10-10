@@ -71,6 +71,7 @@ export { createCopyHandoffCards } from "./persistence/handoff-copy-write.ts";
 export { migrateSeededCardBackgrounds } from "./persistence/migrate-seeded-backgrounds.ts";
 export { readPluginCardData, writePluginCardData } from "./persistence/plugin-card-data.ts";
 export { createDeleteSnapshot, createListRefineryScoreTargets, createLoadOwnedCard, createStampRefinerySignals } from "./persistence/refinery-ops.ts";
+export { createLoadSeatCards } from "./persistence/seat-cards.ts";
 export type { DefaultCharacterSeeder, DefaultCharacterSeederDeps, SeededCardContent } from "./seeder/index.ts";
 export { createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS, matchesAuthoredContent, WELCOME_ASSISTANT_HANDLE } from "./seeder/index.ts";
 export { createCharacterService } from "./service.ts";

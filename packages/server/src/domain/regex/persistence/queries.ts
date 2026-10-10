@@ -18,7 +18,7 @@ import type { Db } from "@orb/db";
 import { characterRegexScripts, characters, chatRegexScripts, globalRegexScripts, presetRegexScripts, presets, regexScripts } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import type { ScriptRecord } from "../contract/rows.ts";
 
 const LIMIT_ONE = 1;
@@ -235,4 +235,10 @@ export async function listChatScripts(db: Db, chatId: ChatId): Promise<ScriptRec
     .where(eq(chatRegexScripts.chatId, chatId))
     .orderBy(asc(chatRegexScripts.position), asc(regexScripts.createdAt));
   return rows.map((r) => r.script);
+}
+
+/** The owner's census without loading stored configs or member decorations. */
+export async function countOwnedScripts(db: Db, ownerId: UserId): Promise<number> {
+  const rows = await db.select({ total: count() }).from(regexScripts).where(eq(regexScripts.ownerId, ownerId));
+  return rows[0]?.total ?? 0;
 }

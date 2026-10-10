@@ -11,10 +11,12 @@
 import { CHARACTER_LIST_DEFAULT_LIMIT } from "@orb/contracts/character";
 import type { CharacterContext } from "../context.ts";
 import { CharacterOperationError } from "../contract/errors.ts";
-import type { CharacterListCursor, CharacterListFilter, CharacterListSort, ListCharactersParams } from "../contract/params.ts";
+import type { CharacterListCursor, CharacterListSort, ListCharactersParams } from "../contract/params.ts";
 import type { ListCharactersResult } from "../contract/results.ts";
 import type { CharacterService } from "../contract/service.ts";
 import { ambiguousNamesFor, canonicalTagsFor, countOwnedCharacters, listOwnedCharactersWithAvatar, summaryOf } from "../persistence/queries.ts";
+
+import { characterListLens } from "../substrate/list-lens.ts";
 
 const DEFAULT_SORT: CharacterListSort = "recent";
 
@@ -54,23 +56,6 @@ function nextCursorFor(sort: CharacterListSort, last: CharacterListRow): Charact
   }
 }
 
-/** The request's LENS axes, normalized ONCE (the `listChats` precedent): the search predicate is a
- *  `lower(...) like`, so the needle has to arrive trimmed + lowercased, and a whitespace-only query is the
- *  UNSEARCHED library rather than a search for a space. An empty include/exclude list is likewise ABSENCE,
- *  never a predicate that matches nothing — and an omitted boolean stays omitted, because `starred`/
- *  `archived` are tri-state (absent = unfiltered, which is what the lookup-map callers read). */
-function lensFilterOf(params: ListCharactersParams): CharacterListFilter {
-  const { search, starred, archived, includeTagIds, excludeTagIds } = params;
-  const needle = search?.trim().toLowerCase() ?? "";
-  return {
-    ...(needle === "" ? {} : { search: needle }),
-    ...(starred === undefined ? {} : { starred }),
-    ...(archived === undefined ? {} : { archived }),
-    ...(includeTagIds === undefined || includeTagIds.length === 0 ? {} : { includeTagIds }),
-    ...(excludeTagIds === undefined || excludeTagIds.length === 0 ? {} : { excludeTagIds }),
-  };
-}
-
 export function createList(ctx: CharacterContext): CharacterService["list"] {
   return async (params: ListCharactersParams): Promise<ListCharactersResult> => {
     const { principal, cursor, limit, sort } = params;
@@ -78,7 +63,7 @@ export function createList(ctx: CharacterContext): CharacterService["list"] {
     if (cursor !== undefined && cursor.sort !== effectiveSort) {
       throw new CharacterOperationError("cursor_sort_mismatch", `list cursor sort '${cursor.sort}' does not match the requested sort '${effectiveSort}'`);
     }
-    const filter = lensFilterOf(params);
+    const filter = characterListLens(params);
     // No clamp here: the CEILING is a transport refusal now (`CHARACTER_LIST_MAX_LIMIT`), so an over-bound
     // ask never reaches this verb. Silently trimming it was how four lookup-map callers spent months asking
     // for 200-500 rows, receiving 100, and under-covering the library without a single signal.

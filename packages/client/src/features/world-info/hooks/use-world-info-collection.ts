@@ -16,9 +16,9 @@ const NEW_BOOK_NAME = "New book";
  *  rather than reading as absence (#1546 — see {@link CollectionCount}). */
 export function useWorldInfoCount(): CollectionCount {
   const trpc = useTRPC();
-  const census = useQuery(trpc.worldInfo.listBooksWithUsage.queryOptions());
+  const census = useQuery(trpc.worldInfo.countBooks.queryOptions());
   // `refetch` takes an OPTIONS BAG, so it is wrapped rather than passed by reference.
-  return { count: census.data?.length, failed: census.error !== null, retry: (): void => void census.refetch().catch(globalThis.reportError) };
+  return { count: census.data, failed: census.error !== null, retry: (): void => void census.refetch().catch(globalThis.reportError) };
 }
 
 /**

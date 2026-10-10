@@ -15,6 +15,7 @@ import { createBulkAddCardTag } from "./verbs/bulk-add-card-tag.ts";
 import { createBulkArchive } from "./verbs/bulk-archive.ts";
 import { createBulkRemove } from "./verbs/bulk-remove.ts";
 import { createBulkRemoveCardTag } from "./verbs/bulk-remove-card-tag.ts";
+import { createCount } from "./verbs/count.ts";
 import { createCreate } from "./verbs/create.ts";
 import { createDuplicate } from "./verbs/duplicate.ts";
 import { createFindByHandle } from "./verbs/find-by-handle.ts";
@@ -44,6 +45,7 @@ export function createCharacterService(ctx: CharacterContext): CharacterService 
     create: createCreate(ctx),
     get: createGet(ctx),
     list: createList(ctx),
+    count: createCount(ctx),
     listTagGroups: createListTagGroups(ctx),
     update: createUpdate(ctx),
     remove: createRemove(ctx),

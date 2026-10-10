@@ -109,12 +109,21 @@ export const USER_BUS_FILTERS: UserBusFilterMap = {
   // `getChatLineage` rides both arms: a membership change in ANY chat can open or close a fork's parent.
   chatsChanged: (e, trpc) =>
     e.chatId === undefined
-      ? [trpc.chat.listChats.pathFilter(), trpc.chat.getChatLineage.pathFilter(), trpc.character.list.pathFilter(), trpc.stats.pathFilter()]
+      ? [
+          trpc.chat.listChats.pathFilter(),
+          trpc.chat.countChats.pathFilter(),
+          trpc.chat.getChatLineage.pathFilter(),
+          trpc.character.list.pathFilter(),
+          trpc.character.count.pathFilter(),
+          trpc.stats.pathFilter(),
+        ]
       : [
           trpc.chat.listChats.pathFilter(),
+          trpc.chat.countChats.pathFilter(),
           trpc.chat.getChatLineage.pathFilter(),
           trpc.chat.getChat.queryFilter({ chatId: e.chatId }),
           trpc.character.list.pathFilter(),
+          trpc.character.count.pathFilter(),
           trpc.stats.pathFilter(),
           trpc.tag.pathFilter(),
         ],

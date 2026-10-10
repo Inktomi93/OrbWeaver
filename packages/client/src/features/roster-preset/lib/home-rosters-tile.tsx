@@ -31,9 +31,9 @@ export const rosterPresetHomeTile: HomeTileContribution = {
   // then reserves nothing instead of collapsing on every boot.
   useVisible: (): boolean => {
     const trpc = useTRPC();
-    const { data: rosters } = useQuery(trpc.rosterPreset.list.queryOptions());
+    const { data: rosters } = useQuery(trpc.rosterPreset.count.queryOptions());
     const settledHiddenBefore = useHomeTileSettledHidden(ROSTERS_TILE_ID);
-    const settled = rosters === undefined ? undefined : rosters.length > 0;
+    const settled = rosters === undefined ? undefined : rosters > 0;
     useEffect(() => {
       if (settled !== undefined) {
         rememberHomeTileSettledHidden(ROSTERS_TILE_ID, !settled);

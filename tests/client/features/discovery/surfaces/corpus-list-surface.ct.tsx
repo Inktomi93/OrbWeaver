@@ -10,7 +10,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { CORPUS_PREVIEW_COVERAGE, corpusDigestSource, corpusSceneSource } from "../../../../support/node/corpus-source.ts";
 import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { CorpusListSurfaceRailBounceStory, CorpusListSurfaceStory, CorpusListSurfaceWidthStory, CorpusSectionArrivalStory } from "../_ct-stories.tsx";
 import { expectSearchTarget, pickSearchTarget } from "../search-target.ts";
 
@@ -603,4 +603,22 @@ test("#537 the pane's skip link is first in DOM order and lands on the first res
   await skip.focus();
   await page.keyboard.press("Enter");
   await expect(component.locator('[data-slot="list-row-body"]').first()).toBeFocused();
+});
+
+test("independent catalog and page reads start while browse facets are held", async ({ mount, page }) => {
+  const held = trpcHold();
+  const trpc = await routeTrpc(page, {
+    "discovery.characterFacets": held,
+    "discovery.catalog": EMPTY_CATALOG,
+    "discovery.browseCharacters": EMPTY_BROWSE,
+    "search.suggest": [],
+  });
+  const component = await mount(<CorpusListSurfaceStory />);
+  await held.requested;
+  try {
+    await expect.poll(() => [trpc.count("discovery.catalog"), trpc.count("discovery.browseCharacters")]).toEqual([1, 1]);
+  } finally {
+    held.release({ genres: [], tones: [] });
+  }
+  await expect(component.getByText("No characters sorted yet", { exact: true })).toBeVisible();
 });

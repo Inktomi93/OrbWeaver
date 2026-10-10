@@ -521,6 +521,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     resolveCharacterTags: () => Promise.resolve([]),
     // D44 §12.0/§12.1/§12.5 + BG-C — ONE seat-decoration read: default to the safe floor (untrusted; external
     // media gated), no theme/background override, no card. Overridable per test.
+    resolveSeatDecos: () => Promise.resolve(new Map<CharacterId, Awaited<ReturnType<ChatContext["resolveSeatDeco"]>>>()),
     resolveSeatDeco: () =>
       Promise.resolve({ renderPolicy: { htmlTrust: "untrusted", forbidExternalMedia: true }, themeOverride: null, backgroundOverride: null, card: null }),
     resolveImageUrl: notStubbed,
@@ -701,3 +702,10 @@ export const stubRunCompaction = (_args: {
   readonly signal?: AbortSignal | undefined;
 }): Promise<{ readonly summary: string; readonly compactedAtSeq: number; readonly updated: boolean }> =>
   Promise.resolve({ summary: "", compactedAtSeq: 0, updated: false });
+
+/** Adapt an isolated single-room resolver to the read bundle's required batch contract. */
+export function batchParticipantViews(
+  load: (chatId: ChatId) => Promise<readonly ParticipantView[]>,
+): (chatIds: readonly ChatId[]) => Promise<ReadonlyMap<ChatId, readonly ParticipantView[]>> {
+  return async (chatIds) => new Map(await Promise.all(chatIds.map(async (id) => [id, await load(id)] as const)));
+}

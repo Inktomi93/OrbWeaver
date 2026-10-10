@@ -2,8 +2,6 @@
 // chat-internal `loadParticipantViews` once, then calls the verb/engine factories and assembles the typed
 // `ChatService` (so a missing/renamed verb fails tsc). Every verb body lives in its `verbs/*` factory.
 
-import type { ParticipantView } from "@orb/contracts/chat";
-import type { AssetId, ChatId, Handle } from "@orb/kit/ids";
 import type { ChatContext, ChatServiceDeps } from "./context.ts";
 import type { ClaimChatOp } from "./contract/context.ts";
 import type { RequestTurnOp } from "./contract/results.ts";
@@ -14,10 +12,6 @@ import { generateDigests } from "./memory/generate/digests.ts";
 import { generateSegments } from "./memory/generate/segments.ts";
 import { loadWitnessHorizons } from "./memory/persistence/queries.ts";
 import { recallMemory } from "./memory/recall/recall.ts";
-import { classifyParticipant } from "./persistence/participant.ts";
-import { loadParticipants } from "./persistence/participants-read.ts";
-import { REMOVED_CHARACTER_LABEL, REMOVED_MEMBER_LABEL } from "./substrate/participant-name.ts";
-import { hostUserIdOf } from "./substrate/participants-host.ts";
 import { createChatLifecycle } from "./verbs/chat-lifecycle.ts";
 import { createClaimChat } from "./verbs/claim-chat.ts";
 import { createCompaction } from "./verbs/compaction.ts";
@@ -26,6 +20,7 @@ import { createFork } from "./verbs/fork.ts";
 import { createGenerateImage } from "./verbs/generate-image.ts";
 import { createInvitePreview } from "./verbs/invite-preview.ts";
 import { createInvites } from "./verbs/invites.ts";
+import { createLoadParticipantViews } from "./verbs/load-participant-views.ts";
 import { createMessageWindow } from "./verbs/message-window.ts";
 import { createParticipants } from "./verbs/participants.ts";
 import { createQuietGenerate } from "./verbs/quiet-generate.ts";
@@ -34,24 +29,6 @@ import { createRead } from "./verbs/read.ts";
 import { createSignupInvite } from "./verbs/signup-invite.ts";
 import { createStartChat } from "./verbs/start-chat.ts";
 import { createRequestTurn, createTurn } from "./verbs/turn.ts";
-
-/** The room-facing display name for a seat — the ONE rule (R10 + owner ruling: no raw id ever renders). Today
- *  only `human`/`character` are live kinds: character → the live card name, else the removed-character label;
- *  human → publics displayName, else its handle, else the removed-member label. The `agent` arm (→ the
- *  AgentCardView soul name, else the sourceKind label for an unhatched buddy) and `observer` (unseatable, never
- *  read) graft back on when the agent-principal program returns (docs/work/0048). */
-function resolveSeatDisplayName(
-  r: Awaited<ReturnType<typeof loadParticipants>>[number],
-  resolved: {
-    readonly publics: { displayName: string | null; handle: Handle | null } | null;
-    readonly card: { name: string } | null;
-  },
-): string {
-  if (classifyParticipant(r)?.kind === "human") {
-    return resolved.publics?.displayName ?? resolved.publics?.handle ?? REMOVED_MEMBER_LABEL;
-  }
-  return resolved.card !== null ? resolved.card.name : REMOVED_CHARACTER_LABEL;
-}
 
 /** Assemble the chat composition-root product: the routed {@link ChatService} PLUS the PRINCIPAL-FREE
  *  `requestTurn` seam. `requestTurn` is deliberately OFF `ChatService` — it is an
@@ -84,48 +61,7 @@ export function createChatService(
     runCompaction,
   });
 
-  // Reads the present roster and resolves each seat's CHARACTER decoration (name/avatar + render policy +
-  // theme/background overrides) from ONE ctx.resolveSeatDeco read (owner-scoped to the room host); a human's
-  // displayName/handle/avatarAssetId resolve via ctx.resolveUserPublics.
-  const loadParticipantViews = async (chatId: ChatId): Promise<readonly ParticipantView[]> => {
-    const rows = await loadParticipants(ctx.db, chatId);
-    const hostUserId = hostUserIdOf(rows);
-    return Promise.all(
-      rows.map(async (r): Promise<ParticipantView> => {
-        // ONE character read per seat: the card name/avatar + render policy + theme/background overrides.
-        const deco = await ctx.resolveSeatDeco({ ownerId: hostUserId, characterId: r.characterId });
-        const actor = classifyParticipant(r);
-        const publics = actor?.kind === "human" ? await ctx.resolveUserPublics(actor.userId, r.activePersonaId) : null;
-        const displayName = resolveSeatDisplayName(r, { publics, card: deco.card });
-
-        const avatarAssetId: AssetId | null = publics?.avatarAssetId ?? deco.card?.avatarAssetId ?? null;
-        const avatarHash = await ctx.resolveAssetHash(avatarAssetId);
-
-        return {
-          id: r.id,
-          chatId: r.chatId,
-          kind: r.kind,
-          userId: r.userId,
-          characterId: r.characterId,
-          role: r.role,
-          activePersonaId: r.activePersonaId,
-          talkativeness: r.talkativeness,
-          disabled: r.disabled,
-          joinedAt: r.joinedAt,
-          joinSeq: r.joinSeq,
-          leftSeq: r.leftSeq,
-          joinHistoryVisibility: r.joinHistoryVisibility,
-          displayName,
-          handle: publics?.handle ?? null,
-          avatarAssetId,
-          avatarHash,
-          renderPolicy: deco.renderPolicy,
-          themeOverride: deco.themeOverride,
-          backgroundOverride: deco.backgroundOverride,
-        };
-      }),
-    );
-  };
+  const { loadParticipantViews, loadParticipantViewsBatch } = createLoadParticipantViews(ctx);
 
   // The turn collaborators, shared by the human verbs (createTurn) AND the non-human `requestTurn` seam
   // (createRequestTurn) — ONE engine + one active-turns Set, so an autonomous turn locks/aborts/budgets on the
@@ -158,6 +94,7 @@ export function createChatService(
   const signupInvites = createSignupInvite(ctx, { ...deps.signup, assemblePreview, emit: deps.emit });
   const read = createRead(ctx, {
     loadParticipantViews,
+    loadParticipantViewsBatch,
     resolveConnection: deps.resolveConnection,
     checkSendAvailability: deps.checkSendAvailability,
     getNextTurnConnection: deps.getNextTurnConnection,

@@ -117,6 +117,7 @@ export interface CharacterContext {
 export interface CharacterService {
   readonly create: (params: CreateCharacterParams) => Promise<CharacterDetail>;
   readonly get: (params: GetCharacterParams) => Promise<CharacterDetail>;
+  readonly count: (params: ListCharacterTagGroupsParams) => Promise<number>;
   readonly list: (params: ListCharactersParams) => Promise<ListCharactersResult>;
   /** The GROUP-BY-TAG census over the SAME lens `list` pages (#1696) — see `verbs/list-tag-groups.ts`. */
   readonly listTagGroups: (params: ListCharacterTagGroupsParams) => Promise<ListCharacterTagGroupsResult>;
@@ -169,3 +170,14 @@ export interface CharacterService {
    *  composed steer. Owner-gated (leak-free NOT_FOUND for a non-owner); RETURNS text, NEVER writes. */
   readonly generateGreeting: (params: GenerateGreetingParams) => Promise<GeneratedGreeting>;
 }
+
+/** Narrow owner-scoped roster decoration read; card prose and tag enrichment are not part of this view. */
+export type LoadSeatCards = (
+  ownerId: UserId,
+  characterIds: readonly CharacterId[],
+) => Promise<
+  readonly Pick<
+    CharacterDetail,
+    "id" | "name" | "avatarAssetId" | "trustHtml" | "forbidExternalMedia" | "interactiveHtml" | "themeOverride" | "backgroundOverride"
+  >[]
+>;

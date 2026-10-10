@@ -5,6 +5,7 @@
 import type {
   ChatInjection,
   ChatInjectionInput,
+  ChatLibraryLens,
   ChatListCursor,
   CreateInviteInput,
   GroupConfigInput,
@@ -101,15 +102,9 @@ export interface StartChatParams extends ChatActorParams {
  *  precedent). `characterId` is the D18 PROJECTION filter: it narrows the SERVER read to the chats that seat
  *  one character (present or departed), so a character screen never has to pull the whole library to find
  *  her three threads. `limit` is clamped in the verb; an absent `cursor` is the first page. */
-export interface ListChatsParams extends ChatActorParams {
-  readonly includeArchived?: boolean | undefined;
-  readonly characterId?: CharacterId | undefined;
-  /** SERVER-SIDE search. Matches the chat title, a character seat's name, or the
-   *  newest message's body, over the WHOLE library instead of the page the
-   *  client happens to hold. Blank/whitespace is the unsearched list. */
-  readonly search?: string | undefined;
-  /** Exclusive epoch-millisecond ceiling over the displayed-recency clock. */
-  readonly beforeRecencyAt?: number | undefined;
+export interface CountChatsParams extends ChatActorParams, ChatLibraryLens {}
+
+export interface ListChatsParams extends CountChatsParams {
   readonly limit?: number | undefined;
   readonly cursor?: ChatListCursor | undefined;
 }

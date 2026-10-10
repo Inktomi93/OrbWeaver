@@ -37,9 +37,10 @@ async function settleImportRun(args: {
   readonly ownerId: UserId;
   readonly report: ReportProgress;
   readonly reconcileImportStats: (a: { readonly ownerId: UserId }) => Promise<void>;
+  readonly refreshPlannerStats: (a: { readonly ownerId: UserId }) => Promise<void>;
   readonly emitLibraryChanged: (a: { readonly ownerId: UserId }) => void;
 }): Promise<void> {
-  const { result, dryRun, ownerId, report, reconcileImportStats, emitLibraryChanged } = args;
+  const { result, dryRun, ownerId, report, reconcileImportStats, refreshPlannerStats, emitLibraryChanged } = args;
   if (result.failed > 0) {
     // Per-card isolation surfaced: some cards were skipped but the batch completed (never a hard abort).
     report({ message: `imported with ${result.failed} card(s) skipped (validation)` });
@@ -50,6 +51,7 @@ async function settleImportRun(args: {
   if (!dryRun && result.changed > 0) {
     report({ message: "reconciling stats post-import" });
     await reconcileImportStats({ ownerId });
+    await refreshPlannerStats({ ownerId });
     // #23: refresh the owner's character + chat lists (background import has no other client driver).
     emitLibraryChanged({ ownerId });
   }
@@ -224,6 +226,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           ownerId: targetOwnerId,
           report,
           reconcileImportStats: deps.reconcileImportStats,
+          refreshPlannerStats: deps.refreshPlannerStats,
           emitLibraryChanged: deps.emitLibraryChanged,
         });
         return {
@@ -271,6 +274,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           // #23: a background bundle/tree import that wrote canon refreshes the owner's character + chat lists
           // (the client's own completion invalidation only fires while the import UI stayed mounted).
           if (report_.imported > 0) {
+            await deps.refreshPlannerStats({ ownerId: targetOwnerId });
             deps.emitLibraryChanged({ ownerId: targetOwnerId });
           }
           // #1710 — a background run surfaces the SAME per-file notes (#1688) a sync door would: what a file

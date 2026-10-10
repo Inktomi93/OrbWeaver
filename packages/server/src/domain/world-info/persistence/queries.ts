@@ -16,7 +16,7 @@ import type { Db } from "@orb/db";
 import { characterBooks, characters, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { resolveEntryScope } from "@orb/kit/world-info";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { BookAttachmentTargets, BookAttachmentView, BookUsage, BookView, BookWithUsage, EntryView, WorldBookRole } from "../contract/views.ts";
 
@@ -230,4 +230,10 @@ export async function listPersonaBooks(db: Db, ownerId: UserId, personaId: Perso
     .where(and(eq(personaBooks.personaId, personaId), eq(worldBooks.ownerId, ownerId)))
     .orderBy(desc(worldBooks.createdAt), desc(worldBooks.id));
   return rows.map((r) => toAttachmentView(r.book, null));
+}
+
+/** The owner's census without loading stored configs or member decorations. */
+export async function countOwnedBooks(db: Db, ownerId: UserId): Promise<number> {
+  const rows = await db.select({ total: count() }).from(worldBooks).where(eq(worldBooks.ownerId, ownerId));
+  return rows[0]?.total ?? 0;
 }

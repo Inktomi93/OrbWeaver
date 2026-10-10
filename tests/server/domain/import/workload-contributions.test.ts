@@ -43,6 +43,7 @@ function build(
     runStagedDirImport: vi.fn(async () => ({ imported: 3, skipped: 0, failed: 0, notes: [], memoryScope: null })),
     listTokenUsageCandidates: vi.fn(async () => []),
     compareAndSetTokenUsage: vi.fn(async () => true),
+    refreshPlannerStats: vi.fn(async () => undefined),
     reconcileImportStats: vi.fn(async () => undefined),
     emitLibraryChanged: vi.fn(),
     ...overrides,

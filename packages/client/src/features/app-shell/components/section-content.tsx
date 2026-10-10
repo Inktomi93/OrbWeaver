@@ -19,6 +19,7 @@ const KEEP_MOUNTED_LIMIT = 3;
 
 export interface SectionContentProps {
   readonly activeSection: SectionId;
+  readonly visible: boolean;
   /** Only wired sections are eligible to stay mounted; the unwired fallback is not kept here. */
   readonly contentBySection: Partial<Record<SectionId, ReactNode>>;
   /** The active-section fallback, rendered only when the active section has no wired body — never kept mounted. */
@@ -32,24 +33,25 @@ function pushRecent(window: readonly SectionId[], active: SectionId): SectionId[
   return [active, ...window.filter((id) => id !== active)].slice(0, KEEP_MOUNTED_LIMIT);
 }
 
-export function SectionContent({ activeSection, contentBySection, fallback, focusAnchorRef }: SectionContentProps): ReactElement {
+export function SectionContent({ activeSection, visible, contentBySection, fallback, focusAnchorRef }: SectionContentProps): ReactElement {
   const registry = useSectionRegistry();
   const activeBody = contentBySection[activeSection];
   // Advanced via React's "adjust state during render" pattern, not a mid-render ref mutation (which react-hooks/refs bans as a concurrent-safety hazard).
   const hasActiveBody = activeBody !== undefined;
   const [kept, setKept] = useState<readonly SectionId[]>([]);
   const [windowedFor, setWindowedFor] = useState<SectionId | null>(null);
-  if (hasActiveBody && activeSection !== windowedFor) {
+  if (visible && hasActiveBody && activeSection !== windowedFor) {
     setWindowedFor(activeSection);
     setKept((recencyWindow) => pushRecent(recencyWindow, activeSection));
   }
 
-  const prevActiveRef = useRef<SectionId>(activeSection);
+  const prevActiveRef = useRef({ section: activeSection, visible });
   useLayoutEffect(() => {
-    if (prevActiveRef.current === activeSection) {
+    const previous = prevActiveRef.current;
+    prevActiveRef.current = { section: activeSection, visible };
+    if (!visible || (previous.section === activeSection && previous.visible)) {
       return;
     }
-    prevActiveRef.current = activeSection;
     // Restore focus to the content anchor ONLY when the swap actually DROPPED focus — i.e. the element
     // that held it was inside the content Activity now being hidden, so the browser has already moved focus
     // to <body>/null (a display:none subtree cannot hold it). Stealing focus UNCONDITIONALLY also fired on
@@ -62,24 +64,22 @@ export function SectionContent({ activeSection, contentBySection, fallback, focu
     if (active === null || active === document.body) {
       focusAnchorRef.current?.focus();
     }
-  }, [activeSection, focusAnchorRef]);
+  }, [activeSection, focusAnchorRef, visible]);
 
   return (
     <>
-      <Activity mode="visible" name={`section:${activeSection}`}>
+      {!hasActiveBody && visible ? (
         <RegionAnchor region="content" inset={registry.get(activeSection).contentInset === "section"}>
-          {activeBody ?? fallback}
+          {fallback}
         </RegionAnchor>
-      </Activity>
-      {kept
-        .filter((id) => id !== activeSection)
-        .map((id) => (
-          <Activity key={id} mode="hidden" name={`section:${id}`}>
-            <RegionAnchor region="content" inset={registry.get(id).contentInset === "section"}>
-              {contentBySection[id]}
-            </RegionAnchor>
-          </Activity>
-        ))}
+      ) : null}
+      {kept.map((id) => (
+        <Activity key={id} mode={id === activeSection && visible ? "visible" : "hidden"} name={`section:${id}`}>
+          <RegionAnchor region="content" inset={registry.get(id).contentInset === "section"}>
+            {contentBySection[id]}
+          </RegionAnchor>
+        </Activity>
+      ))}
     </>
   );
 }

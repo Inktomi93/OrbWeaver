@@ -4,6 +4,7 @@
 export { createBulkRemove } from "./bulk-remove.ts";
 export { createBulkSetEnabled } from "./bulk-set-enabled.ts";
 export { createBulkSetPlacement } from "./bulk-set-placement.ts";
+export { createCount } from "./count.ts";
 export { createCreate } from "./create.ts";
 export { createDuplicate } from "./duplicate.ts";
 export { createGet } from "./get.ts";

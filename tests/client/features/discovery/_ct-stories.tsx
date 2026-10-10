@@ -374,7 +374,13 @@ export function CorpusContentInsetStory(): ReactElement {
     <CtDataProviders>
       <CtRealSectionRegistry>
         <div style={{ height: 640, width: 720 }}>
-          <SectionContent activeSection="corpus" contentBySection={{ corpus: <CorpusContent /> }} fallback={null} focusAnchorRef={focusAnchorRef} />
+          <SectionContent
+            visible={true}
+            activeSection="corpus"
+            contentBySection={{ corpus: <CorpusContent /> }}
+            fallback={null}
+            focusAnchorRef={focusAnchorRef}
+          />
         </div>
       </CtRealSectionRegistry>
     </CtDataProviders>

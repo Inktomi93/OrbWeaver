@@ -157,6 +157,8 @@ export type { ContentClassPolicy } from "./content-classes.ts";
 export { CONTENT_CLASS_POLICY } from "./content-classes.ts";
 export type { ChatDetail, RedeemInviteResult } from "./detail.ts";
 export { chatDetailSchema, redeemInviteResultSchema, viewerGalleryCharacter } from "./detail.ts";
+export type { ChatLibraryLens } from "./library.ts";
+export { chatCensusInputSchema } from "./library.ts";
 export type { ChatListCursor } from "./listing.ts";
 export { CHAT_LIST_MAX_LIMIT, chatListCursorSchema } from "./listing.ts";
 export type { MessagesPage, MessageWindow } from "./message-pages.ts";
@@ -423,5 +425,4 @@ export * from "./views.ts";
 // The leak-safe reverse-room read (D18) — one shape + one op type for every library that keeps a chat-scope
 // attachment junction (regex scripts · databank documents · the rpg GM preset).
 export type { ResolveVisibleRoomsOp, VisibleRoomRef } from "./visible-rooms.ts";
-
 export { visibleRoomRefSchema } from "./visible-rooms.ts";

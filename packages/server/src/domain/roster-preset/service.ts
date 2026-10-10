@@ -7,6 +7,7 @@
 import type { RosterPresetContext } from "./context.ts";
 import type { RosterPresetService } from "./contract/service.ts";
 import { createApplyToChat } from "./verbs/apply-to-chat.ts";
+import { createCount } from "./verbs/count.ts";
 import { createCreate } from "./verbs/create.ts";
 import { createGet } from "./verbs/get.ts";
 import { createList } from "./verbs/list.ts";
@@ -18,6 +19,7 @@ export function createRosterPresetService(ctx: RosterPresetContext): RosterPrese
     create: createCreate(ctx),
     update: createUpdate(ctx),
     remove: createRemove(ctx),
+    count: createCount(ctx),
     list: createList(ctx),
     get: createGet(ctx),
     applyToChat: createApplyToChat(ctx),

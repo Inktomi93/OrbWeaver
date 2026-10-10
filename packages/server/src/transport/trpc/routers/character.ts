@@ -6,6 +6,7 @@
 import {
   CHARACTER_LIST_MAX_LIMIT,
   characterBulkTagResultSchema,
+  characterCensusInputSchema,
   characterDetailSchema,
   characterListCursorSchema,
   characterListSortSchema,
@@ -46,21 +47,11 @@ export const characterRouter = t.router({
   list: authedProcedure
     .output(listCharactersResultSchema)
     .input(
-      z
-        .object({
+      characterCensusInputSchema
+        .extend({
           sort: characterListSortSchema.optional(),
           cursor: characterListCursorSchema.optional(),
-          // The CEILING, enforced at the trust boundary: an over-bound ask is a BAD_REQUEST naming the
-          // bound, never a silently trimmed page (see `CHARACTER_LIST_MAX_LIMIT`'s note in contracts).
           limit: z.number().int().min(1).max(CHARACTER_LIST_MAX_LIMIT).optional(),
-          // The LENSES (owner ruling 2026-08-13 — the `chat.listChats` shape). All optional and all part of
-          // the query key, so changing one resets the pages rather than filtering a stale set. The two
-          // booleans are TRI-STATE: absent = unfiltered, never `false`.
-          search: z.string().optional(),
-          starred: z.boolean().optional(),
-          archived: z.boolean().optional(),
-          includeTagIds: z.array(typeIdSchema(ID_PREFIX.tag)).optional(),
-          excludeTagIds: z.array(typeIdSchema(ID_PREFIX.tag)).optional(),
         })
         .optional(),
     )
@@ -78,22 +69,26 @@ export const characterRouter = t.router({
       }),
     ),
 
+  count: authedProcedure
+    .output(z.number().int().nonnegative())
+    .input(characterCensusInputSchema.optional())
+    .query(({ ctx, input }) =>
+      ctx.services.character.count({
+        principal: ctx.auth,
+        ...(input?.search !== undefined ? { search: input.search } : {}),
+        ...(input?.starred !== undefined ? { starred: input.starred } : {}),
+        ...(input?.archived !== undefined ? { archived: input.archived } : {}),
+        ...(input?.includeTagIds !== undefined ? { includeTagIds: input.includeTagIds } : {}),
+        ...(input?.excludeTagIds !== undefined ? { excludeTagIds: input.excludeTagIds } : {}),
+      }),
+    ),
+
   // The GROUP-BY-TAG CENSUS (#1696) — the same LENS axes `list` takes and none of its paging ones. A census
   // that could be sorted, cursored or limited would be window-dependent again, which is exactly the defect
   // it exists to close, so those three are not in the shape at all.
   listTagGroups: authedProcedure
     .output(listCharacterTagGroupsResultSchema)
-    .input(
-      z
-        .object({
-          search: z.string().optional(),
-          starred: z.boolean().optional(),
-          archived: z.boolean().optional(),
-          includeTagIds: z.array(typeIdSchema(ID_PREFIX.tag)).optional(),
-          excludeTagIds: z.array(typeIdSchema(ID_PREFIX.tag)).optional(),
-        })
-        .optional(),
-    )
+    .input(characterCensusInputSchema.optional())
     .query(({ ctx, input }) =>
       ctx.services.character.listTagGroups({
         principal: ctx.auth,

@@ -122,6 +122,7 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
       listTokenUsageCandidates: stub([]),
       compareAndSetTokenUsage: stub(true),
       reconcileImportStats: stub(undefined),
+      refreshPlannerStats: stub(undefined),
       emitLibraryChanged: () => undefined,
     }),
     ...createReservedWorkloadContributions(),
