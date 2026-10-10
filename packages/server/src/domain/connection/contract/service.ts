@@ -77,6 +77,13 @@ export interface ConnectionContext {
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** Does the caller hold this credential row? Bound to the credentials domain (only it reads its table). */
   readonly credentialOwned: (ownerId: UserId, credentialId: UserCredentialId) => Promise<boolean>;
+  /** Rename the caller's key from `from` to `to` when it still carries `from`. Bound to the credentials domain. */
+  readonly relabelCredential: (args: {
+    readonly principal: Principal;
+    readonly credentialId: UserCredentialId;
+    readonly from: string;
+    readonly to: string;
+  }) => Promise<void>;
   /** Is this rule the caller's (its author)? Bound to the automation domain. */
   readonly ruleOwnedBy: (ruleId: AutomationRuleId, userId: UserId) => Promise<boolean>;
   /** The tasks this plugin routes through its own grant (`pluginGrantTasks` of its declared capabilities),

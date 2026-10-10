@@ -8,8 +8,8 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderDefInput, ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, providerDefSchema } from "@orb/contracts/inference";
-import { characterEmbeddings } from "@orb/db";
-import type { PluginId, UserCredentialId } from "@orb/kit/ids";
+import { characterEmbeddings, userCredentials } from "@orb/db";
+import type { PluginId, UserConnectionId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
@@ -364,6 +364,43 @@ describe("update", () => {
       extras: { temperature: 0.5 },
       allowBackground: true,
       baseUrl: BYO_BASE_URL,
+    });
+  });
+
+  describe("a rename and the saved key", () => {
+    async function keyedRows(): Promise<{
+      readonly h: Awaited<ReturnType<typeof makeHarness>>;
+      readonly owner: Awaited<ReturnType<typeof seedOwner>>;
+      readonly ids: readonly [string, string];
+    }> {
+      const db = await freshDb();
+      const h = await makeHarness(db);
+      const owner = await seedOwner(db);
+      await db.insert(userCredentials).values({
+        id: CREDENTIAL_ID,
+        ownerId: owner.userId,
+        provider: castId<ProviderId>("openrouter"),
+        label: "Helper",
+        ciphertext: "ct",
+        iv: "iv",
+        tag: "tag",
+      });
+      const make = async (label: string): Promise<string> =>
+        (await h.svc.create({ principal: owner.principal, providerId: "openrouter", credentialId: CREDENTIAL_ID, baseUrl: null, model: "gpt-4o", label })).id;
+      return { h, owner, ids: [await make("Helper"), await make("Second")] };
+    }
+
+    test("renaming the only connection on a key asks the key to follow its old name", async () => {
+      const { h, owner, ids } = await keyedRows();
+      await h.svc.remove({ principal: owner.principal, connectionId: castId<UserConnectionId>(ids[1]) });
+      await h.svc.update({ principal: owner.principal, connectionId: castId<UserConnectionId>(ids[0]), patch: { label: "Helper (Flash Lite)" } });
+      expect(h.credentialRelabels).toEqual([{ principal: owner.principal, credentialId: CREDENTIAL_ID, from: "Helper", to: "Helper (Flash Lite)" }]);
+    });
+
+    test("a key shared with another connection is left alone by a rename", async () => {
+      const { h, owner, ids } = await keyedRows();
+      await h.svc.update({ principal: owner.principal, connectionId: castId<UserConnectionId>(ids[0]), patch: { label: "Renamed" } });
+      expect(h.credentialRelabels).toEqual([]);
     });
   });
 

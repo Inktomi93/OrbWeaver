@@ -72,6 +72,13 @@ export interface ReplaceCredentialParams extends CredentialActorParams {
   readonly key: string;
 }
 
+/** Follow a connection's rename: the key labelled `from` takes `to`. A key carrying any other label keeps it. */
+export interface RelabelCredentialParams extends CredentialActorParams {
+  readonly credentialId: UserCredentialId;
+  readonly from: string;
+  readonly to: string;
+}
+
 export interface RemoveCredentialParams extends CredentialActorParams {
   readonly credentialId: UserCredentialId;
 }

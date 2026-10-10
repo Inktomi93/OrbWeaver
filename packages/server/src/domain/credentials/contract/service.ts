@@ -24,6 +24,7 @@ import type {
   MarkRevokedParams,
   MaybeRevokeParams,
   RecordProbeOutcomeParams,
+  RelabelCredentialParams,
   RemoveCredentialParams,
   ReplaceCredentialParams,
   ResolveCredentialParams,
@@ -66,6 +67,8 @@ export interface CredentialsService {
   readonly add: (params: AddCredentialParams) => Promise<CredentialView>;
   /** Replace one stored key's secret in place, named by id — the only way a stored secret changes. */
   readonly replace: (params: ReplaceCredentialParams) => Promise<CredentialView>;
+  /** Rename a key to follow its connection's rename, only while it still carries the connection's old name. */
+  readonly relabel: (params: RelabelCredentialParams) => Promise<void>;
   readonly remove: (params: RemoveCredentialParams) => Promise<void>;
   readonly list: (params: ListCredentialsParams) => Promise<CredentialView[]>;
   /** Is per-user credential STORAGE configured on this deployment (CREDENTIAL-STORAGE-SILENT-FAIL)? The READ
