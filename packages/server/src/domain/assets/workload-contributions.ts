@@ -14,6 +14,7 @@ import type { MaintenanceResult } from "@orb/contracts/workloads";
 import { emptyWorkloadParams, maintenanceWorkloadParams } from "@orb/contracts/workloads";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { WorkloadContribution } from "#domain/workloads";
+import { isAborted } from "#kit/abort";
 import type { AssetsWorkloadDeps } from "./contract/service.ts";
 import { loadAvatarBackfillCandidates } from "./persistence/maintenance.ts";
 
@@ -24,14 +25,23 @@ type AssetsContributions = readonly [WorkloadContribution<"assets-backfill">, Wo
 async function gatherStagedCards(
   deps: AssetsWorkloadDeps,
   ownerId: UserId | null,
+  signal: AbortSignal,
 ): Promise<Map<UserId, { characterId: CharacterId; bytes: Uint8Array; importHash: string }[]>> {
-  const rows = await loadAvatarBackfillCandidates(deps.db, ownerId);
-
   const byOwner = new Map<UserId, { characterId: CharacterId; bytes: Uint8Array; importHash: string }[]>();
+  if (isAborted(signal)) {
+    return byOwner;
+  }
+  const rows = await loadAvatarBackfillCandidates(deps.db, ownerId);
   for (const row of rows) {
+    if (isAborted(signal)) {
+      break;
+    }
     const importHash = row.importHash;
     if (importHash === null || !(await deps.cas.exists(row.ownerId, importHash))) {
       continue;
+    }
+    if (isAborted(signal)) {
+      break;
     }
     const bytes = await deps.cas.read(row.ownerId, importHash);
     const cards = byOwner.get(row.ownerId) ?? [];
@@ -50,14 +60,17 @@ export function createAssetsWorkloadContributions(deps: AssetsWorkloadDeps): Ass
       lane: "sweep",
       // Re-pairing an already-paired avatar is a no-op, so a retry re-runs the whole pass safely.
       resume: "idempotent-restart",
-      run: async (ctx, params, report, _signal): Promise<MaintenanceResult> => {
+      run: async (ctx, params, report, signal): Promise<MaintenanceResult> => {
         const dryRun = params.dryRun ?? false;
         report({ message: dryRun ? "assets backfill (dry run)" : "backfilling avatars" });
-        const byOwner = await gatherStagedCards(deps, ctx.ownerId);
+        const byOwner = await gatherStagedCards(deps, ctx.ownerId, signal);
         let scanned = 0;
         let changed = 0;
         for (const [owner, cards] of byOwner) {
-          const result = await deps.assets.backfillAvatars({ ownerId: owner, cards, dryRun });
+          if (isAborted(signal)) {
+            break;
+          }
+          const result = await deps.assets.backfillAvatars({ ownerId: owner, cards, dryRun, signal });
           scanned += result.scanned;
           changed += result.linked;
         }

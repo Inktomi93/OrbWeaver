@@ -9,6 +9,7 @@ import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
 import type { CharacterHandle, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createAssetsService } from "@orb/server/domain/assets";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, onTestFinished, vi } from "vitest";
 import type { AssetsWorkloadDeps } from "../../../../packages/server/src/domain/assets/contract/service.ts";
@@ -24,6 +25,7 @@ let db: Db;
 let ownerId: UserId;
 let otherOwnerId: UserId;
 let cas: AssetsWorkloadDeps["cas"];
+let harness: Awaited<ReturnType<typeof makeHarness>>;
 
 function ctxFor(owner: UserId | null): WorkloadRunContext {
   return { userId: ownerId, ownerId: owner, now: () => T0 };
@@ -53,7 +55,7 @@ async function seedStagedCard(owner: UserId, id: string): Promise<void> {
 
 beforeEach(async () => {
   db = await freshDb();
-  const harness = await makeHarness(db);
+  harness = await makeHarness(db);
   onTestFinished(harness.cleanup);
   cas = harness.ctx.cas;
   ownerId = await seedUser(db, { id: "user_owner", handle: castId<Handle>("owner") });
@@ -61,6 +63,73 @@ beforeEach(async () => {
 });
 
 describe("assets-backfill", () => {
+  test("abort after a real CAS read gathers no next card and writes no links", async () => {
+    await seedStagedCard(ownerId, "character_mine");
+    await seedStagedCard(otherOwnerId, "character_theirs");
+    const controller = new AbortController();
+    const readReal = cas.read.bind(cas);
+    const read = vi.spyOn(cas, "read").mockImplementationOnce(async (...args) => {
+      const bytes = await readReal(...args);
+      controller.abort();
+      return bytes;
+    });
+    const contributions = createAssetsWorkloadContributions({ db, cas, assets: createAssetsService(harness.ctx) });
+    expect(await contributions[0].run(ctxFor(null), {}, vi.fn(), controller.signal)).toEqual({ scanned: 0, changed: 0, dryRun: false });
+    expect(read).toHaveBeenCalledTimes(1);
+    expect((await db.select().from(characters)).every((row) => row.avatarAssetId === null)).toBe(true);
+  });
+
+  test("abort after an owner's real links prevents the next owner and retry gathers only the remainder", async () => {
+    await seedStagedCard(ownerId, "character_mine");
+    await seedStagedCard(otherOwnerId, "character_theirs");
+    const controller = new AbortController();
+    const linkReal = harness.ctx.linkCharacterAvatars;
+    const link = vi.fn(async (args: Parameters<typeof linkReal>[0]) => {
+      await linkReal(args);
+      controller.abort();
+    });
+    const assets = createAssetsService({ ...harness.ctx, linkCharacterAvatars: link });
+    const contributions = createAssetsWorkloadContributions({ db, cas, assets });
+    expect(await contributions[0].run(ctxFor(null), {}, vi.fn(), controller.signal)).toEqual({ scanned: 1, changed: 1, dryRun: false });
+    expect(link).toHaveBeenCalledTimes(1);
+    expect((await db.select().from(characters)).filter((row) => row.avatarAssetId !== null)).toHaveLength(1);
+    expect(await contributions[0].run(ctxFor(null), {}, vi.fn(), sig())).toEqual({ scanned: 1, changed: 1, dryRun: false });
+    expect((await db.select().from(characters)).every((row) => row.avatarAssetId !== null)).toBe(true);
+  });
+
+  test("pre-abort starts no candidate or CAS work", async () => {
+    await seedStagedCard(ownerId, "character_mine");
+    const { assets, contributions } = build();
+    const select = vi.spyOn(db, "select");
+    const exists = vi.spyOn(cas, "exists");
+    const read = vi.spyOn(cas, "read");
+    const controller = new AbortController();
+    controller.abort();
+    expect(await contributions[0].run(ctxFor(ownerId), {}, vi.fn(), controller.signal)).toEqual({ scanned: 0, changed: 0, dryRun: false });
+    expect(select).not.toHaveBeenCalled();
+    expect(exists).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
+    expect(assets.backfillAvatars).not.toHaveBeenCalled();
+  });
+
+  test("abort during a CAS presence probe starts no byte read or owner work", async () => {
+    await seedStagedCard(ownerId, "character_mine");
+    await seedStagedCard(otherOwnerId, "character_theirs");
+    const controller = new AbortController();
+    const existsReal = cas.exists.bind(cas);
+    const exists = vi.spyOn(cas, "exists").mockImplementationOnce(async (...args) => {
+      const found = await existsReal(...args);
+      controller.abort();
+      return found;
+    });
+    const read = vi.spyOn(cas, "read");
+    const { assets, contributions } = build();
+    expect(await contributions[0].run(ctxFor(null), {}, vi.fn(), controller.signal)).toEqual({ scanned: 0, changed: 0, dryRun: false });
+    expect(exists).toHaveBeenCalledTimes(1);
+    expect(read).not.toHaveBeenCalled();
+    expect(assets.backfillAvatars).not.toHaveBeenCalled();
+  });
+
   test("a SINGULAR run gathers only THAT owner's staged cards", async () => {
     await seedStagedCard(ownerId, "character_mine");
     await seedStagedCard(otherOwnerId, "character_theirs");

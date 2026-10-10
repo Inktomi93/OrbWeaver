@@ -34,9 +34,14 @@ interface PendingSegment {
 }
 
 /** Each owner's target generation for this batch — resolved once per owner, read by the gate and the receipts. */
-async function targetGenerations(ctx: EmbeddingsContext, params: readonly SegmentStoreParams[]): Promise<ReadonlyMap<UserId, PinnedGeneration>> {
+async function targetGenerations(
+  ctx: EmbeddingsContext,
+  params: readonly SegmentStoreParams[],
+  signal?: AbortSignal,
+): Promise<ReadonlyMap<UserId, PinnedGeneration>> {
   const generations = new Map<UserId, PinnedGeneration>();
   for (const ownerId of new Set(params.map((p) => p.ownerId))) {
+    signal?.throwIfAborted();
     const generation = await resolveTargetGeneration(ctx, ownerId, "embed");
     if (generation !== null) {
       generations.set(ownerId, generation);
@@ -111,6 +116,7 @@ async function flood(
   }
   const out = new Map<number, { readonly model: string; readonly vector: Float32Array | null }>();
   for (const items of byOwner.values()) {
+    signal?.throwIfAborted();
     const result = await items[0]?.generation.connection.embed(
       items.map((p) => p.params.text),
       { signal },
@@ -127,7 +133,9 @@ async function flood(
 
 export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["storeSegments"] {
   return async (params: readonly SegmentStoreParams[], signal?: AbortSignal): Promise<readonly StoreResult[]> => {
-    const generations = await targetGenerations(ctx, params);
+    signal?.throwIfAborted();
+    const generations = await targetGenerations(ctx, params, signal);
+    signal?.throwIfAborted();
     const results: StoreResult[] = params.map((p) => ({
       outcome: "noop",
       contentHash: p.contentHash,
@@ -135,6 +143,7 @@ export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["
       ...receiptOf(generations.get(p.ownerId)),
     }));
     const pending = params.length === 0 ? [] : await gate(ctx, params, generations);
+    signal?.throwIfAborted();
     if (pending.length === 0) {
       return results;
     }
@@ -143,6 +152,7 @@ export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["
 
     // The row writes stay SEQUENTIAL — they are db upserts, and the engine is already done by here.
     for (const [i, item] of pending.entries()) {
+      signal?.throwIfAborted();
       const p = item.params;
       const embedded = embeddedByIndex.get(i) ?? { model: p.model, vector: null };
       const landed = await upsertChatSegment(ctx.db, {

@@ -12,7 +12,8 @@ import type { CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { eq } from "drizzle-orm";
-import { describe, onTestFinished } from "vitest";
+import { describe, onTestFinished, vi } from "vitest";
+import type { BackfillCard } from "../../../../../packages/server/src/domain/assets/contract/maintenance.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, pngBytes, seedCharacter, seedUser } from "../_support.ts";
@@ -30,6 +31,56 @@ async function avatarOf(db: Awaited<ReturnType<typeof freshDb>>, characterId: Ch
 }
 
 describe("backfillAvatars", () => {
+  test.each([false, true])("pre-abort writes nothing and forecasts nothing (dryRun=%s)", async (dryRun) => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db);
+    const character = await seedCharacter(db, owner);
+    const bytes = pngBytes(1);
+    const controller = new AbortController();
+    controller.abort();
+    const put = vi.spyOn(h.ctx.cas, "putBytes");
+    const cancellation = { signal: controller.signal };
+    expect(
+      await svc.backfillAvatars({ ownerId: owner, cards: [{ characterId: character, bytes, importHash: sha256(bytes) }], dryRun, ...cancellation }),
+    ).toEqual({ scanned: 0, linked: 0, mismatched: 0, dryRun });
+    expect(put).not.toHaveBeenCalled();
+    expect(await avatarOf(db, character)).toBeNull();
+    expect(await db.select().from(assets)).toHaveLength(0);
+  });
+
+  test("abort in the first store wave completes its links but starts no next wave; retry finishes", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db);
+    const cards: BackfillCard[] = [];
+    for (let i = 0; i < 9; i++) {
+      const characterId = await seedCharacter(db, owner, { id: `character_${i}`, handle: castId<CharacterHandle>(`hero_${i}`) });
+      const bytes = pngBytes(i);
+      cards.push({ characterId, bytes, importHash: sha256(bytes) });
+    }
+    const controller = new AbortController();
+    const putReal = h.ctx.cas.putBytes.bind(h.ctx.cas);
+    const put = vi.spyOn(h.ctx.cas, "putBytes").mockImplementationOnce(async (...args) => {
+      const stored = await putReal(...args);
+      controller.abort();
+      return stored;
+    });
+    const cancellation = { signal: controller.signal };
+    expect(await svc.backfillAvatars({ ownerId: owner, cards, ...cancellation })).toEqual({ scanned: 8, linked: 8, mismatched: 0, dryRun: false });
+    expect(put).toHaveBeenCalledTimes(8);
+    const rows = await db.select().from(characters);
+    expect(rows.filter((row) => row.avatarAssetId !== null)).toHaveLength(8);
+    expect(await db.select().from(assets)).toHaveLength(8);
+    expect(await svc.backfillAvatars({ ownerId: owner, cards })).toEqual({ scanned: 9, linked: 9, mismatched: 0, dryRun: false });
+    expect((await db.select().from(characters)).every((row) => row.avatarAssetId !== null)).toBe(true);
+    expect(await db.select().from(assets)).toHaveLength(9);
+  });
+
   test("links the avatar when the stored hash matches importHash", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);
