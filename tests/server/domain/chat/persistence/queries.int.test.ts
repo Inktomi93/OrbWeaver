@@ -13,6 +13,7 @@ import {
   loadChatMessageStats,
   loadChatRow,
   loadForkChildren,
+  loadHasSelectedCanonUserMessage,
   loadIsReplyToLatestUserMessage,
   loadMaxMessageSeq,
   loadMemberChat,
@@ -266,6 +267,24 @@ describe("persistence/queries — canon reads (D26)", () => {
     expect(history[0]?.selectedVariantIdx).toBe(0);
     expect(history[1]?.excludedFromPrompt).toBe(true);
     expect(history[1]?.variantCount).toBe(1);
+  });
+
+  test("loadHasSelectedCanonUserMessage matches selected canon rather than message slots", async () => {
+    const chatId = await seedChat(db, "selected-user");
+    const otherChatId = await seedChat(db, "other");
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "AI greeting" });
+    const unselectedUser = await seedMessage(db, chatId, 2, { role: "user", content: "not selected" });
+    await addVariant(db, unselectedUser.messageId, 1, "also unselected");
+    await db.update(messages).set({ selectedVariantId: null }).where(eq(messages.id, unselectedUser.messageId));
+    await seedMessage(db, otherChatId, 1, { role: "user", content: "another room" });
+
+    expect((await loadCanonHistory(db, chatId)).map((message) => message.role)).toEqual(["assistant"]);
+    expect(await loadHasSelectedCanonUserMessage(db, chatId)).toBe(false);
+
+    await seedMessage(db, chatId, 3, { role: "user", excludedFromPrompt: true, content: "selected but hidden" });
+
+    expect((await loadCanonHistory(db, chatId)).map((message) => message.role)).toEqual(["assistant", "user"]);
+    expect(await loadHasSelectedCanonUserMessage(db, chatId)).toBe(true);
   });
 
   test("loadMessagesPage windows backwards from beforeSeq, newest-first, capped at limit", async () => {
