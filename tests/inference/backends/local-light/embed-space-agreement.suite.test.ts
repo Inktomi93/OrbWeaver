@@ -18,20 +18,29 @@
 // corpus. That residual is named in the `embedSpaceOf` header and is a connection-`declared` override away
 // from being expressible; this pin closes the SHIPPED path, which is the one every box runs.
 
+import { providerIdSchema } from "@orb/contracts/inference";
 import { describe } from "vitest";
 import { localLightEmbedSpaceTag, resolveEmbedDtype } from "../../../../packages/inference/src/backends/local-light/model-cache.ts";
 import { DEFAULT_EMBED_MODEL } from "../../../../packages/inference/src/backends/local-light/tasks.ts";
+import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
 import { localLightRows } from "../../../../packages/inference/src/capability/sources/curated/local-light.ts";
+import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 /** The curated embedding row for the default encoder — the fact the READ side derives its tag from. */
 function curatedEncoderDtype(): string | undefined {
   const row = localLightRows.find((candidate) => candidate.kind === "embedding" && candidate.match.ids.includes(DEFAULT_EMBED_MODEL));
   expect(row, `no curated embedding row matches the default local-light encoder ${DEFAULT_EMBED_MODEL}`).toBeDefined();
-  return row?.kind === "embedding" ? row.embedding.dtype : undefined;
+  return row !== undefined && "embedding" in row && "dtype" in row.embedding ? row.embedding.dtype : undefined;
 }
 
 describe("local-light embed space — the backend's served dtype and the curated row's dtype are one fact", () => {
+  test("the native execution recipe never changes a model served over another wire", () => {
+    const { capability } = synthesizeCapability("embedding", "other", {
+      curated: curatedRows({ model: DEFAULT_EMBED_MODEL, providerId: providerIdSchema.parse("openai"), wire: "openai-compat" }),
+    });
+    expect(capability.kind === "embedding" && capability.embedding.localTextEncoding).toBeUndefined();
+  });
   test("the shipped default precision the backend serves is the precision the curated row states", () => {
     // `undefined` = no deployment override, i.e. what every box runs unless it opts out.
     expect(resolveEmbedDtype(undefined)).toBe(curatedEncoderDtype());

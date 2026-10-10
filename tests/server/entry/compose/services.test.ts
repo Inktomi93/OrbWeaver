@@ -997,11 +997,11 @@ async function runEmbedSweeps(result: Awaited<ReturnType<typeof buildGatedGraph>
 }
 
 describe("corpusAutoindex indexer gate (Piece D)", () => {
-  test("fresh seeded content indexes through events and catch-up without any seed inference", async () => {
+  test("fresh seeded content rebuilds text for its recipe while reusing unchanged raw-image seeds", async () => {
     const db = await freshDb();
     await writeAppOverride(db, { corpusAutoindex: true, schemaVersion: 2 }, createFrozenClock().now());
     const cache = fakeLocalLightCache(BUILT_IN_EMBED_DIMS);
-    const textCalls = vi.spyOn(cache, "embedTexts").mockRejectedValue(new Error("seed text reached inference"));
+    const textCalls = vi.spyOn(cache, "embedTexts");
     const imageCalls = vi.spyOn(cache, "embedImages").mockRejectedValue(new Error("seed image reached inference"));
     const result = await buildGatedGraph(db, cache);
     const owner = await seedUser(db, { handle: castId<Handle>("seeded-owner") });
@@ -1013,7 +1013,11 @@ describe("corpusAutoindex indexer gate (Piece D)", () => {
     const images = await db.select().from(imageEmbeddings);
     expect(cards).toHaveLength(MANIFEST_CHARACTERS.length);
     expect(images).toHaveLength(MANIFEST_CHARACTERS.length);
-    expect(textCalls).not.toHaveBeenCalled();
+    expect(textCalls).toHaveBeenCalled();
+    const encodedTexts = new Set(textCalls.mock.calls.flatMap((call) => call[1]));
+    for (const card of cards) {
+      expect(encodedTexts.has((await result.services.character.loadCardText(card.characterId)) ?? "")).toBe(true);
+    }
     expect(imageCalls).not.toHaveBeenCalled();
     const first = cards[0];
     if (first === undefined) {

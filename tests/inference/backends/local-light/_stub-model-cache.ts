@@ -3,6 +3,7 @@
 // ProviderError, and the worker thread dying mid-call.
 
 import process from "node:process";
+import type { LocalTextEncoding } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import type { LocalLightModelCache } from "../../../../packages/inference/src/backends/local-light/model-cache.ts";
 import type { ProviderErrorInit } from "../../../../packages/inference/src/contract/errors.ts";
@@ -13,6 +14,7 @@ export const BLOCK_PREFIX = "block:";
 export const CRASH = "crash";
 export const REFUSE = "refuse";
 export const REFUSE_EVERY_FIELD = "refuse-every-field";
+export const ENCODING = "encoding";
 export const ABSENT_MODEL = "orb-test/absent-model";
 export const CRASH_EXIT_CODE = 7;
 
@@ -39,8 +41,11 @@ export function holdThread(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT)), 0, 0, ms);
 }
 
-function embed(texts: readonly string[]): Promise<Float32Array[]> {
+function embed(texts: readonly string[], encoding?: LocalTextEncoding): Promise<Float32Array[]> {
   const [first = ""] = texts;
+  if (first === ENCODING) {
+    return Promise.resolve([Float32Array.of(encoding?.maxTokens ?? 0, encoding?.version ?? 0)]);
+  }
   if (first.startsWith(BLOCK_PREFIX)) {
     holdThread(Number(first.slice(BLOCK_PREFIX.length)));
   }
@@ -59,8 +64,8 @@ function embed(texts: readonly string[]): Promise<Float32Array[]> {
 export function createModelCache(): LocalLightModelCache {
   const failed = new Set<ModelId>();
   return {
-    embedTexts: (_modelId, texts): Promise<Float32Array[]> => embed(texts),
-    embedClipTexts: (_modelId, texts): Promise<Float32Array[]> => embed(texts),
+    embedTexts: (_modelId, texts, _inputType, encoding): Promise<Float32Array[]> => embed(texts, encoding),
+    embedClipTexts: (_modelId, texts, encoding): Promise<Float32Array[]> => embed(texts, encoding),
     embedImages: (_modelId, images): Promise<Float32Array[]> =>
       Promise.resolve(images.map((image) => Float32Array.from(typeof image === "string" ? [] : [image[0] ?? 0, image.at(-1) ?? 0]))),
     scorePairs: (_modelId, _query, documents): Promise<number[]> => Promise.resolve(documents.map((_doc, i) => i)),

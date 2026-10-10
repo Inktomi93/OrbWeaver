@@ -1,4 +1,6 @@
 // One native call runs at a time. Queries precede queued indexing batches; an active call finishes first.
+
+import type { LocalTextEncoding } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import { ProviderError } from "../../contract/errors.ts";
 import type { LocalLightModelCache } from "./model-cache.ts";
@@ -18,6 +20,7 @@ interface TextGroup {
   readonly modelId: ModelId;
   readonly method: "embedTexts" | "embedClipTexts";
   readonly items: TextItem[];
+  readonly encoding: LocalTextEncoding | undefined;
 }
 
 function textBatches(items: readonly TextItem[]): TextItem[][] {
@@ -43,10 +46,10 @@ function textBatches(items: readonly TextItem[]): TextItem[][] {
 async function settleTextBatch(cache: LocalLightModelCache, group: TextGroup, batch: readonly TextItem[]): Promise<void> {
   // @orb-waive caught-failure-ownership(error): every batch caller owns a promise rejected below; no failure is lost. Ends if batch promises stop being the caller's result.
   try {
-    const vectors = await cache[group.method](
-      group.modelId,
-      batch.map((item) => item.text),
-    );
+    const texts = batch.map((item) => item.text);
+    const vectors = await (group.method === "embedTexts"
+      ? cache.embedTexts(group.modelId, texts, undefined, group.encoding)
+      : cache.embedClipTexts(group.modelId, texts, group.encoding));
     if (vectors.length !== batch.length) {
       throw new ProviderError({ kind: "server", retryable: false, message: "local-light: the text batch returned the wrong vector count" });
     }
@@ -119,12 +122,18 @@ export function createScheduledCache(cache: LocalLightModelCache): LocalLightMod
     });
   }
 
-  function text(method: TextGroup["method"], modelId: ModelId, texts: readonly string[], isQuery = false): Promise<Float32Array[]> {
+  function text(
+    method: TextGroup["method"],
+    modelId: ModelId,
+    texts: readonly string[],
+    options: { readonly isQuery: boolean; readonly encoding: LocalTextEncoding | undefined },
+  ): Promise<Float32Array[]> {
+    const { isQuery, encoding } = options;
     return admit(() => {
-      const key = `${method}:${modelId}:${isQuery}`;
+      const key = `${method}:${modelId}:${isQuery}:${JSON.stringify(encoding)}`;
       let group = groups.get(key);
       if (group === undefined) {
-        group = { method, modelId, items: [] };
+        group = { method, modelId, items: [], encoding };
         groups.set(key, group);
         const captured = group;
         queueMicrotask(() => {
@@ -150,8 +159,8 @@ export function createScheduledCache(cache: LocalLightModelCache): LocalLightMod
   }
 
   return {
-    embedTexts: (modelId, texts, inputType) => text("embedTexts", modelId, texts, inputType === "query"),
-    embedClipTexts: (modelId, texts) => text("embedClipTexts", modelId, texts),
+    embedTexts: (modelId, texts, inputType, encoding) => text("embedTexts", modelId, texts, { isQuery: inputType === "query", encoding }),
+    embedClipTexts: (modelId, texts, encoding) => text("embedClipTexts", modelId, texts, { isQuery: false, encoding }),
     embedImages: (modelId, images) => admit(() => enqueue(() => cache.embedImages(modelId, images))),
     scorePairs: (modelId, query, documents, serving) => admit(() => enqueue(() => cache.scorePairs(modelId, query, documents, serving))),
     preload: (slot, modelId, onnx) => admit(() => enqueue(() => cache.preload(slot, modelId, onnx))),

@@ -12,8 +12,8 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import type { DataType, DeviceType, Tensor } from "@huggingface/transformers";
-import type { RerankOnnx } from "@orb/contracts/inference";
-import { embedSpaceOf, modelIdSchema } from "@orb/contracts/inference";
+import type { LocalTextEncoding, RerankOnnx } from "@orb/contracts/inference";
+import { embedSpaceOf, LOCAL_TEXT_ENCODING, modelIdSchema } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
 import { l2Normalize } from "@orb/kit/vector-math";
@@ -25,6 +25,7 @@ import type { InferenceLog } from "../../deps.ts";
 import { localLightCpuThreads } from "./cpu-budget.ts";
 import type { StHead } from "./st-head.ts";
 import { loadStHead, scoreHiddenStates } from "./st-head.ts";
+import { encodeTextWindows } from "./text-windows.ts";
 
 // Small on purpose — each ONNX session holds native (off-heap) memory.
 const MODEL_CACHE_CAP = 4;
@@ -84,11 +85,16 @@ function toLoadProgress(info: TransformersProgressInfo): LocalLightLoadProgress 
 
 /** The inference seam the task files depend on — raw un-normalized vectors; task files own L2 + MRL. */
 export interface LocalLightModelCache {
-  readonly embedTexts: (modelId: ModelId, texts: readonly string[], inputType?: EmbedRequest["inputType"]) => Promise<Float32Array[]>;
+  readonly embedTexts: (
+    modelId: ModelId,
+    texts: readonly string[],
+    inputType?: EmbedRequest["inputType"],
+    encoding?: LocalTextEncoding,
+  ) => Promise<Float32Array[]>;
   /** Every pair is cut to `serving.maxInputTokens` real tokens; `serving.onnx` picks the head, file and dtype. */
   readonly scorePairs: (modelId: ModelId, query: string, documents: readonly string[], serving: LocalLightRerankServing) => Promise<number[]>;
   readonly embedImages: (modelId: ModelId, images: readonly ImageInput[]) => Promise<Float32Array[]>;
-  readonly embedClipTexts: (modelId: ModelId, texts: readonly string[]) => Promise<Float32Array[]>;
+  readonly embedClipTexts: (modelId: ModelId, texts: readonly string[], encoding?: LocalTextEncoding) => Promise<Float32Array[]>;
   /** Warm a slot's memos WITHOUT running inference — the prefetch's whole surface. `onnx` as in `scorePairs`. */
   readonly preload: (slot: LocalLightModelSlot, modelId: ModelId, onnx?: RerankOnnx) => Promise<void>;
   /** Whether the latest load of any part of this model (weights, tokenizer, processor) failed and no later
@@ -677,13 +683,34 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
     config.detach,
     "local-light.model.dispose:processor",
   );
-  const embedJinaTexts = async (modelId: ModelId, texts: readonly string[]): Promise<Float32Array[]> =>
+  const embedJinaTexts = async (modelId: ModelId, texts: readonly string[], encoding: LocalTextEncoding): Promise<Float32Array[]> =>
     processor.withLease(modelId, (proc) =>
       jinaEmbedder.withLease(modelId, async (model) => {
         const { Tensor: TensorCtor } = await transformers();
-        const inputs = await proc([...texts], null, { padding: true, truncation: true });
-        const out: Record<string, unknown> = await model(inputs);
-        return tensorRows(requireTensor(out, "text_embeddings", modelId, TensorCtor));
+        const vectors: Float32Array[] = [];
+        for (const text of texts) {
+          vectors.push(
+            await encodeTextWindows(
+              text,
+              encoding,
+              async (piece) => {
+                const inputs = await proc([piece], null, { padding: true, truncation: false });
+                const ids = requireTensor(inputs, "input_ids", modelId, TensorCtor);
+                return { inputs, batch: ids.dims[0] ?? 0, length: ids.dims.length === 2 ? (ids.dims[1] ?? 0) : 0 };
+              },
+              async (inputs) => {
+                const out: Record<string, unknown> = await model(inputs);
+                const rows = tensorRows(requireTensor(out, "text_embeddings", modelId, TensorCtor));
+                const vector = rows[0];
+                if (rows.length !== 1 || vector === undefined) {
+                  throw new ProviderError({ kind: "server", retryable: false, message: "local-light: a singleton text pass returned the wrong vector count" });
+                }
+                return vector;
+              },
+            ),
+          );
+        }
+        return vectors;
       }),
     );
 
@@ -706,8 +733,8 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
       await slotLoaders[slot](modelId, onnx);
     },
     loadFailed: (modelId): boolean => modelParts.some((part) => part.failed(modelId)) || rerankFailed(modelId),
-    embedTexts(modelId, texts): Promise<Float32Array[]> {
-      return texts.length === 0 ? Promise.resolve([]) : embedJinaTexts(modelId, texts);
+    embedTexts(modelId, texts, _inputType, encoding = LOCAL_TEXT_ENCODING): Promise<Float32Array[]> {
+      return texts.length === 0 ? Promise.resolve([]) : embedJinaTexts(modelId, texts, encoding);
     },
     async scorePairs(modelId, query, documents, serving): Promise<number[]> {
       if (documents.length === 0) {
@@ -752,15 +779,19 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
       return await processor.withLease(modelId, (proc) =>
         jinaEmbedder.withLease(modelId, async (model) => {
           const { RawImage, Tensor: TensorCtor } = await transformers();
-          const raws = await Promise.all(images.map((image) => RawImage.read(toImageSource(image))));
-          const inputs = await proc(null, raws);
-          const out: Record<string, unknown> = await model(inputs);
-          return tensorRows(requireTensor(out, "image_embeddings", modelId, TensorCtor));
+          const vectors: Float32Array[] = [];
+          for (const image of images) {
+            const raw = await RawImage.read(toImageSource(image));
+            const inputs = await proc(null, [raw]);
+            const out: Record<string, unknown> = await model(inputs);
+            vectors.push(...tensorRows(requireTensor(out, "image_embeddings", modelId, TensorCtor)));
+          }
+          return vectors;
         }),
       );
     },
-    embedClipTexts(modelId, texts): Promise<Float32Array[]> {
-      return texts.length === 0 ? Promise.resolve([]) : embedJinaTexts(modelId, texts);
+    embedClipTexts(modelId, texts, encoding = LOCAL_TEXT_ENCODING): Promise<Float32Array[]> {
+      return texts.length === 0 ? Promise.resolve([]) : embedJinaTexts(modelId, texts, encoding);
     },
   };
 }

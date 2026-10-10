@@ -9,6 +9,7 @@
 //     persisted only on the captioned lens.
 
 import { createHash } from "node:crypto";
+import { LOCAL_TEXT_ENCODING } from "@orb/contracts/inference";
 import { characterEmbeddings, chatDigestSpeakers, chatDigests, documentChunks, imageEmbeddings } from "@orb/db";
 import { DEFAULT_EMBED_MODEL, localLightEmbedSpaceTag } from "@orb/inference";
 import type { CharacterId, ChatDigestId, Handle } from "@orb/kit/ids";
@@ -43,6 +44,26 @@ test("a store inside a refused binding probe leaves the target and old index int
 });
 
 describe("store — card-text (character_embeddings)", () => {
+  test("a window-centroid generation never accepts legacy card seed vectors", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const ownerId = await seedUser(db);
+    const characterId = await seedCharacter(db, ownerId);
+    const svc = createEmbeddingsService({
+      ...h.ctx,
+      resolveEmbeddingConnection: async (...args) => {
+        const resolved = await h.ctx.resolveEmbeddingConnection(...args);
+        if (resolved === null || resolved.capability.kind !== "embedding") {
+          throw new Error("the embedding fixture must resolve");
+        }
+        return { ...resolved, capability: { ...resolved.capability, embedding: { ...resolved.capability.embedding, localTextEncoding: LOCAL_TEXT_ENCODING } } };
+      },
+      precomputedEmbedding: (_hash, model) => ({ model, vector: new Float32Array(EMBED_DIM).fill(99) }),
+    });
+    await svc.store({ kind: "card", lens: "card-text", ownerId, characterId, content: CARD_TEXT, model: EMBED_MODEL });
+    expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
+    expect((await db.select().from(characterEmbeddings))[0]?.embedding).toEqual(fakeVector());
+  });
   test("a seed vector uses the normal generation and dimension checks without calling the encoder", async () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);

@@ -7,12 +7,22 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runInNewContext } from "node:vm";
 import { Worker } from "node:worker_threads";
-import { LOCAL_LIGHT_SEED_ROWS, modelIdSchema } from "@orb/contracts/inference";
+import { LOCAL_LIGHT_SEED_ROWS, LOCAL_TEXT_ENCODING, modelIdSchema } from "@orb/contracts/inference";
 import type { WorkerModelCache } from "../../../../packages/inference/src/backends/local-light/worker-cache.ts";
 import { createWorkerModelCache } from "../../../../packages/inference/src/backends/local-light/worker-cache.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { expect, test } from "../../../support/fixtures.ts";
-import { ABSENT_MODEL, BLOCK_PREFIX, CRASH, CRASH_EXIT_CODE, EVERY_PROVIDER_ERROR_FIELD, holdThread, REFUSE, REFUSE_EVERY_FIELD } from "./_stub-model-cache.ts";
+import {
+  ABSENT_MODEL,
+  BLOCK_PREFIX,
+  CRASH,
+  CRASH_EXIT_CODE,
+  ENCODING,
+  EVERY_PROVIDER_ERROR_FIELD,
+  holdThread,
+  REFUSE,
+  REFUSE_EVERY_FIELD,
+} from "./_stub-model-cache.ts";
 
 const MODEL = modelIdSchema.parse("orb-test/stub");
 const ABSENT = modelIdSchema.parse(ABSENT_MODEL);
@@ -90,6 +100,20 @@ test("vectors, scores and bytes cross the thread boundary intact", async () => {
     expect(images.map((row) => [...row])).toEqual([
       [1, 3],
       [5, 6],
+    ]);
+  } finally {
+    await cache.close();
+  }
+});
+
+test("the resolved native text recipe crosses the worker boundary on both text entry points", async () => {
+  const cache = stubCache();
+  try {
+    expect(await cache.embedTexts(MODEL, [ENCODING], undefined, LOCAL_TEXT_ENCODING)).toEqual([
+      Float32Array.of(LOCAL_TEXT_ENCODING.maxTokens, LOCAL_TEXT_ENCODING.version),
+    ]);
+    expect(await cache.embedClipTexts(MODEL, [ENCODING], LOCAL_TEXT_ENCODING)).toEqual([
+      Float32Array.of(LOCAL_TEXT_ENCODING.maxTokens, LOCAL_TEXT_ENCODING.version),
     ]);
   } finally {
     await cache.close();

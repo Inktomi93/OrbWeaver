@@ -3,7 +3,7 @@
 // than the model emits is refused (never padded), the space tag rides as `result.model`, rerank preserves
 // caller ids and sorts by score, the multimodal PAIR kind is refused.
 
-import { EMBEDDING_FLOOR, RERANK_FLOOR } from "@orb/contracts/inference";
+import { EMBEDDING_FLOOR, LOCAL_TEXT_ENCODING, RERANK_FLOOR } from "@orb/contracts/inference";
 import { createLocalLightEmbed, createLocalLightImageEmbed, createLocalLightRerank } from "../../../../packages/inference/src/backends/local-light/tasks.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -17,7 +17,10 @@ function embedConn(): ReturnType<typeof fakeResolved<"embed">> {
     task: "embed",
     providerId: "local-light",
     model: MODEL,
-    capability: { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, dims: 1024, mrl: true, input: ["text", "image"] } },
+    capability: {
+      kind: "embedding",
+      embedding: { ...EMBEDDING_FLOOR, dims: 1024, mrl: true, input: ["text", "image"], localTextEncoding: LOCAL_TEXT_ENCODING },
+    },
   });
 }
 
@@ -151,7 +154,10 @@ test("imageEmbed: image and text arms share the space tag; the multimodal pair i
     task: "imageEmbed",
     providerId: "local-light",
     model: MODEL,
-    capability: { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, dims: 1024, mrl: true, input: ["text", "image"] } },
+    capability: {
+      kind: "embedding",
+      embedding: { ...EMBEDDING_FLOOR, dims: 1024, mrl: true, input: ["text", "image"], localTextEncoding: LOCAL_TEXT_ENCODING },
+    },
   });
   const cache = fakeModelCache();
   const imageEmbed = createLocalLightImageEmbed(cache, tag);
@@ -192,7 +198,10 @@ test("imageEmbed: an MRL encoder declared at a shorter width embeds images and i
     task: "imageEmbed",
     providerId: "local-light",
     model: MODEL,
-    capability: { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, dims: 512, mrl: true, input: ["text", "image"] } },
+    capability: {
+      kind: "embedding",
+      embedding: { ...EMBEDDING_FLOOR, dims: 512, mrl: true, input: ["text", "image"], localTextEncoding: LOCAL_TEXT_ENCODING },
+    },
   });
   const imageEmbed = createLocalLightImageEmbed(fakeModelCache(1024), tag);
   const images = await imageEmbed({ connection: conn, input: { kind: "image", input: new Uint8Array([1, 2, 3]) } });
@@ -207,7 +216,10 @@ test("embed: an MRL encoder declared at a shorter width cuts text to it even whe
     task: "embed",
     providerId: "local-light",
     model: MODEL,
-    capability: { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, dims: 512, mrl: true, input: ["text", "image"] } },
+    capability: {
+      kind: "embedding",
+      embedding: { ...EMBEDDING_FLOOR, dims: 512, mrl: true, input: ["text", "image"], localTextEncoding: LOCAL_TEXT_ENCODING },
+    },
   });
   const embed = createLocalLightEmbed(fakeModelCache(1024), tag);
   const out = await embed({ connection: conn, input: "a red square" });

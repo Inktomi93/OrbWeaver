@@ -3,15 +3,28 @@
 // composition order (a later row refines an earlier one). Adding a model is a row here + the table test.
 
 import type { CapabilityOverrideInput } from "@orb/contracts/inference";
-import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
+import { BUILT_IN_EMBED_DIMS, LOCAL_LIGHT_SEED_ROWS, LOCAL_TEXT_ENCODING } from "@orb/contracts/inference";
+
+const JINA_EMBED_IDS = [LOCAL_LIGHT_SEED_ROWS[0].model] as const;
+
+export const localLightExecutionRows = [
+  {
+    match: { model: ".*", wire: "local-light" },
+    embedding: { localTextEncoding: LOCAL_TEXT_ENCODING },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-10",
+      cite: "backends/local-light/text-windows.ts serves declared compatible encoders with the same tokenizer-checked native windows",
+    },
+  },
+] as const satisfies readonly CapabilityOverrideInput[];
 
 export const localLightRows = [
   {
     match: {
-      ids: ["jinaai/jina-clip-v2"],
-      provider: "local-light",
+      ids: [...JINA_EMBED_IDS],
+      wire: "local-light",
     },
-    catalog: { name: "Jina CLIP v2", description: "Default. Embeds text and images in one space." },
     kind: "embedding",
     embedding: {
       dims: BUILT_IN_EMBED_DIMS,
@@ -24,9 +37,14 @@ export const localLightRows = [
     },
     evidence: {
       tier: "curated",
-      dated: "2026-09-19",
-      cite: "backends/local-light/embed.ts DEFAULT_EMBED_MODEL + image-embed.ts (one multimodal space); the q8 dtype is the served precision (#2417, role-clients.ts:187-204)",
+      dated: "2026-10-10",
+      cite: "backends/local-light/model-cache.ts serves q8 joint-space weights; text-windows.ts bounds native text passes and pools lossless windows",
     },
+  },
+  {
+    match: { ids: [...JINA_EMBED_IDS], provider: "local-light" },
+    catalog: { name: "Jina CLIP v2", description: "Default. Embeds text and images in one space." },
+    kind: "embedding",
   },
   {
     match: {

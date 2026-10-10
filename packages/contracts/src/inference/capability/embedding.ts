@@ -7,6 +7,17 @@
 import { z } from "zod";
 import { modalitySchema } from "../modalities.ts";
 
+const NATIVE_TEXT_WINDOW_TOKENS = 512;
+export const localTextEncodingSchema = z.object({
+  version: z.literal(1),
+  maxTokens: z.literal(NATIVE_TEXT_WINDOW_TOKENS),
+  pooling: z.literal("mean-normalized"),
+});
+export type LocalTextEncoding = z.infer<typeof localTextEncodingSchema>;
+
+/** Native text attention is bounded independently of the model's accepted input window. */
+export const LOCAL_TEXT_ENCODING = { version: 1, maxTokens: NATIVE_TEXT_WINDOW_TOKENS, pooling: "mean-normalized" } as const satisfies LocalTextEncoding;
+
 export const embeddingCapabilitySchema = z.object({
   dims: z.number().int().positive(),
   /** Matryoshka: the model honours `dimensions` truncation. */
@@ -19,6 +30,8 @@ export const embeddingCapabilitySchema = z.object({
   instructionAware: z.boolean(),
   /** The served precision (`q8`, `fp16`) — part of the space tag when present (#2417). */
   dtype: z.string().min(1).optional(),
+  /** The local encoder's lossless window/centroid recipe; changing it moves the vector generation. */
+  localTextEncoding: localTextEncodingSchema.optional(),
   /** The text scaffold the encoder was trained on when served over a plain `/v1/embeddings` `input`:
    *  `chatml` = the Qwen3-VL-Embedding cookbook conversation (`<|im_start|>system … assistant\n`). A
    *  capability fact the curated row states, never a wire feature — a served OpenAI embedder has none. */

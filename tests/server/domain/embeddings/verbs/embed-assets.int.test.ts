@@ -9,7 +9,7 @@
 //   • a vanished asset row is a skip, not an error;
 //   • cooperative abort: an aborted signal does no work.
 
-import { CONNECTION_OP_CODES, EMBEDDING_FLOOR, providerIdSchema } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, providerIdSchema } from "@orb/contracts/inference";
 import { embedGenerations, embedGenerationTargets, embedSpaceState, imageEmbeddings, imageIndexSkips } from "@orb/db";
 import { DEFAULT_EMBED_MODEL, localLightEmbedSpaceTag } from "@orb/inference";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
@@ -22,7 +22,6 @@ import { passthroughImageNormalizer } from "../../../../../packages/inference/sr
 import { createLocalLightImageEmbed } from "../../../../../packages/inference/src/backends/local-light/tasks.ts";
 import { runOpenAiCompatImageEmbed } from "../../../../../packages/inference/src/backends/openai-compat/image-embed.ts";
 import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
-import { localLightRows } from "../../../../../packages/inference/src/capability/sources/curated/local-light.ts";
 import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
 import { createImageAnalysisCounter } from "../../../../../packages/server/src/domain/embeddings/indexer/image.ts";
 import { resolveTargetGeneration } from "../../../../../packages/server/src/domain/embeddings/substrate/generation.ts";
@@ -105,7 +104,10 @@ test("a successful caption uses the local-light text tower while retaining the r
     task: "imageEmbed",
     providerId: "local-light",
     model: DEFAULT_EMBED_MODEL,
-    capability: { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, ...localLightRows[0].embedding, input: ["text", "image"], dims: EMBED_DIM } },
+    capability: synthesizeCapability("embedding", "other", {
+      curated: curatedRows({ model: DEFAULT_EMBED_MODEL, providerId: providerIdSchema.parse("local-light"), wire: "local-light" }),
+      declared: { embedding: { dims: EMBED_DIM } },
+    }).capability,
   });
   const imageEmbed = createLocalLightImageEmbed(cache, () => space);
   h.roleClients.imageEmbed.mockImplementation((input) => imageEmbed({ connection, input }));

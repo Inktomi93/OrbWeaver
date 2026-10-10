@@ -28,9 +28,9 @@ interface CacheModule {
 function run(cache: LocalLightModelCache, call: LocalLightWorkerCall): Promise<LocalLightWorkerValue> {
   switch (call.op) {
     case "embedTexts":
-      return cache.embedTexts(call.modelId, call.texts);
+      return cache.embedTexts(call.modelId, call.texts, undefined, call.encoding);
     case "embedClipTexts":
-      return cache.embedClipTexts(call.modelId, call.texts);
+      return cache.embedClipTexts(call.modelId, call.texts, call.encoding);
     case "embedImages":
       return cache.embedImages(call.modelId, call.images);
     case "scorePairs":

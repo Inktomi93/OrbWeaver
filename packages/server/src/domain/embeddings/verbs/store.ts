@@ -78,6 +78,14 @@ function seedFor(
   ctx: EmbeddingsContext,
   { hash, kind, generation }: { readonly hash: string; readonly kind: "card-text" | "image-raw"; readonly generation: PinnedGeneration },
 ): { readonly model: string; readonly vector: Float32Array<ArrayBuffer> } | null {
+  // Packaged card vectors predate lossless native windows and carry no recipe provenance.
+  if (
+    kind === "card-text" &&
+    generation.connection.capability.kind === "embedding" &&
+    generation.connection.capability.embedding.localTextEncoding !== undefined
+  ) {
+    return null;
+  }
   const seeded = ctx.precomputedEmbedding?.(hash, generation.space, kind, generation.connection) ?? null;
   return seeded !== null && seeded.vector.length === generation.dims ? seeded : null;
 }
