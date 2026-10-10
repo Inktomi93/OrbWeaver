@@ -39,7 +39,7 @@ updates:
     # TypeScript moves by hand. The checker runs two compilers side by side (6.x as `typescript`, 7.x through
     # the `ts7` and `@typescript/native` catalog aliases), and typescript-eslint caps its peer below 6.1, so
     # anything past a 6.0 patch breaks lint while every resolver still calls it compatible.
-    ignore: &npm-ignored
+    ignore:
       - dependency-name: typescript
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       # This release rejects required null checks on regex results and sparse dictionaries.
@@ -72,7 +72,26 @@ updates:
       npm-security:
         applies-to: security-updates
         patterns: ["*"]
-    ignore: *npm-ignored
+    # Dependabot rejects YAML aliases; the test requires matching npm ignore policies.
+    ignore:
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # This release rejects required null checks on regex results and sparse dictionaries.
+      - dependency-name: "@biomejs/biome"
+        versions: ["2.5.14"]
+      # Its public types force DOM globals into the pure Node compiler world.
+      - dependency-name: colorjs.io
+        versions: ["0.7.1"]
+      # The runner and CT package share a pinned Chromium revision; update them together by hand.
+      - dependency-name: "@playwright/*"
+      # Version-keyed patches must be ported before a dependency bump; unused patches fail installation.
+      # Stryker's core, runner, checker and API are a pinned lockstep suite.
+      - dependency-name: "@stryker-mutator/*"
+      - dependency-name: "@ts-morph/common"
+      - dependency-name: chrome-devtools-mcp
+      - dependency-name: isomorphic-git
+      - dependency-name: ts-morph
+      - dependency-name: node-av
     commit-message:
       prefix: fix
       include: scope

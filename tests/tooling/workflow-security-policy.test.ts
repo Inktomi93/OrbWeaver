@@ -92,7 +92,7 @@ test("security dependency updates configure the default branch without changing 
         }),
       ),
     })
-    .parse(parse(readFileSync(join(repoRoot, ".github/dependabot.yml"), "utf8")));
+    .parse(parse(readFileSync(join(repoRoot, ".github/dependabot.yml"), "utf8"), { maxAliasCount: 0 }));
   const npm = config.updates.filter((entry) => entry["package-ecosystem"] === "npm");
   const main = npm.find((entry) => entry["target-branch"] === "main");
   const security = npm.find((entry) => entry["target-branch"] === undefined);
