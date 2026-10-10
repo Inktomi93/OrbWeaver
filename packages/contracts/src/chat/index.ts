@@ -3,7 +3,7 @@
 //   • participants.ts   — participant kinds + drive/identity axes + the AI-speaker ref + `messageRoleSchema`
 //                         + the MESSAGE-KIND axis (`MESSAGE_KINDS` / `MESSAGE_KIND_POLICY` — row PURPOSE)
 //   • assemble.ts       — the ASSEMBLE family (slim projections, `AssembleContext`, traces, injections)
-//   • messages.ts       — the D26 message/variant wire (`messageSlotSchema`, `MessageView`, tool/var records)
+//   • messages.ts       — the D26 message/variant wire (`MessageView`, tool/var records)
 //   • producers.ts      — the member-gated kind-polymorphic CHAT IDENTITY producer (D137) + its two projections
 //   • bus.ts            — the stream delta, the `ChatBusEvent` union, warning codes, turn origin, D50 transform
 //   • metadata.ts       — the `chats.metadata` sub-blobs (roomOverrides/group/opening/visibility/steer)
@@ -130,7 +130,6 @@ export {
   AUTOMATION_DEPTH_HARD_CAP,
   CHAT_BUS_EVENT_TYPES,
   CHAT_WARNING_CODES,
-  isChatBusEventType,
   LIVE_ONLY_CHAT_EVENT_TYPES,
   MEMORY_RECALL_PHASES,
   PLAIN_CHAT_WARNING_CODES,
@@ -172,7 +171,6 @@ export type {
   CueRole,
   MacroFreezeRecord,
   MessageAssetOrigin,
-  MessageSlot,
   MessageView,
   ReasoningPartMeta,
   ReattributeScope,
@@ -199,7 +197,6 @@ export {
   MESSAGE_ASSET_ORIGINS,
   macroFreezeRecordSchema,
   macroFreezeSchema,
-  messageSlotSchema,
   messageViewSchema,
   parseVariantMetadata,
   reattributeScopeSchema,

@@ -1,5 +1,5 @@
 import type { ChatBusEvent, ChatDeltaEvent, ChatIdentity } from "@orb/contracts/chat";
-import { buildIdentityNameContext, CHAT_BUS_EVENT_TYPES, CHAT_WARNING_CODES, isChatBusEventType, LIVE_ONLY_CHAT_EVENT_TYPES } from "@orb/contracts/chat";
+import { buildIdentityNameContext, CHAT_BUS_EVENT_TYPES, CHAT_WARNING_CODES, LIVE_ONLY_CHAT_EVENT_TYPES } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { PersonaId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -45,18 +45,23 @@ test("the `delta` bus member carries its target slot's seq — the D16 anchor th
 });
 
 test("CHAT_BUS_EVENT_TYPES is the exhaustive discriminator set incl. the embedded WI events", () => {
-  // The guard recognizes a chat-owned event AND an embedded world-info event; rejects an unknown.
-  expect(isChatBusEventType("messageCommitted")).toBe(true);
-  expect(isChatBusEventType("wiBookAttached")).toBe(true);
-  expect(isChatBusEventType("credentialLeaked")).toBe(false);
-  expect(isChatBusEventType("worldInfoActivated")).toBe(true);
-  expect(isChatBusEventType("chatOpened")).toBe(true);
-  expect(isChatBusEventType("warning")).toBe(true);
-  expect(isChatBusEventType("messageHidden")).toBe(true);
-  expect(isChatBusEventType("turnAccepted")).toBe(true);
-  expect(isChatBusEventType("roomEntityChanged")).toBe(true);
-  expect(isChatBusEventType("memoryRecall")).toBe(true);
-  expect(isChatBusEventType("reactionsChanged")).toBe(true);
+  // Membership is the registry itself: a chat-owned event, an embedded world-info event, and no unknown type.
+  const known = (type: string): boolean => Object.hasOwn(CHAT_BUS_EVENT_TYPES, type);
+  for (const type of [
+    "messageCommitted",
+    "wiBookAttached",
+    "worldInfoActivated",
+    "chatOpened",
+    "warning",
+    "messageHidden",
+    "turnAccepted",
+    "roomEntityChanged",
+    "memoryRecall",
+    "reactionsChanged",
+  ]) {
+    expect(known(type)).toBe(true);
+  }
+  expect(known("credentialLeaked")).toBe(false);
   // 24 chat-owned (incl. the D45 `warning`, the `messageHidden`, the pre-arbitration `turnAccepted`,
   // the entity→room bridge's `roomEntityChanged`, the #313 `memoryRecall`, the B6 `reactionsChanged`)
   // + 6 WI variants.
@@ -129,9 +134,8 @@ test("chatOpened + worldInfoActivated round-trip their id-only shapes (event-bus
 });
 
 // The compile-time pin that credentials / secrets / caller id are UNREPRESENTABLE in ChatBusEvent moved to
-// index.test-d.ts (bus-payload allowlist). The runtime secret-strip backstop lives on messageSlotSchema above
-// (ChatBusEvent itself is schema-less — never zod-parsed), and the no-caller-id check sits in the
-// representative-round-trip test above.
+// index.test-d.ts (bus-payload allowlist). ChatBusEvent is schema-less (never zod-parsed); the no-caller-id
+// check sits in the representative-round-trip test above.
 
 // ── §6 parity keystone (Chat-Macro-Resolution.md §6 / task #59 P1) ──────────────────────────────────
 // The doctrine's ONE shared fixture: anchor(pinned)=Nyx, active=Zara, a row stamped personaId=Mira,

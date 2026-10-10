@@ -699,11 +699,6 @@ export const CHAT_BUS_EVENT_TYPES = {
   roomEntityChanged: true,
 } satisfies Record<ChatBusEvent["type"], true>;
 
-/** True when `t` is a known `ChatBusEvent` discriminator (see {@link CHAT_BUS_EVENT_TYPES}). */
-export function isChatBusEventType(t: string): t is ChatBusEvent["type"] {
-  return Object.hasOwn(CHAT_BUS_EVENT_TYPES, t);
-}
-
 /** THE LIVE-ONLY LANE (design §3.4). These members are fanned on the room's live channel WITHOUT a
  *  `chat_events` append — they carry no canon and have nothing to replay, so paying a durable row per fan
  *  would pollute the log and cost an INSERT per seated room per edit.

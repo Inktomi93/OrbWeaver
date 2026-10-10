@@ -110,9 +110,6 @@ import { createServices } from "./compose/index.ts";
 import type { FirstRunRouteDeps, LocalAuthenticator, OidcRoutesDeps, SignupRouteDeps } from "./http/index.ts";
 import { createRateLimitGate } from "./rate-limit-gate.ts";
 
-const MS_PER_HOUR = 3_600_000;
-const CATALOG_CHECK_INTERVAL_MS = MS_PER_HOUR;
-
 /** The chosen HTTP/1 connection-reuse and inbound-request limits. These do not bound response duration:
  *  `requestTimeout` ends once Node has received the request, so a long-lived SSE response is unaffected. */
 export const HTTP_SERVER_TIMEOUTS = {
@@ -848,7 +845,6 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       ownerId: ownerId ?? null,
       now,
       scheduleInterval,
-      checkIntervalMs: CATALOG_CHECK_INTERVAL_MS,
       // Item 5: the success-refresh cadence is a live admin knob (catalogRefreshIntervalMs).
       refreshEveryMs: () => built.services.settings.getEffectiveConfig().catalogRefreshIntervalMs,
     });

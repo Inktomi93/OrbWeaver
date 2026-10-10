@@ -56,7 +56,7 @@ export const BACKEND_DEFS: Record<Wire, BackendDef> = {
 /** The constructed backends: the registry the executor dispatches on, plus the per-wire handles the runtime
  *  composes beside it (the endpoint reachability prober, the daemon catalog warm, the in-process tier's
  *  prefetch). A handle is `undefined` exactly when its wire was not built. */
-export interface BuiltBackends {
+interface BuiltBackends {
   readonly registry: BackendRegistry;
   readonly openAiCompat: OpenAiCompatBackend;
   readonly agentSdk: AgentSdkBackend | undefined;

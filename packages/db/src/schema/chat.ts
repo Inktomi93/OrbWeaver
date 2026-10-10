@@ -358,7 +358,7 @@ export const messages = sqliteTable(
       .references(() => personas.id, { onDelete: "set null" }),
     // D26: the pointer to the displayed generation. NULLABLE at the DB layer SOLELY to break the
     // message↔variant circular FK at insert time (insert slot → insert variant → set pointer); the
-    // contract `MessageSlot` treats it as non-null post-commit. SET NULL (never CASCADE — that would
+    // message contract treats it as non-null post-commit. SET NULL (never CASCADE — that would
     // delete the slot) so deleting the pointed-at variant can't dangle.
     selectedVariantId: text("selected_variant_id")
       .$type<MessageVariantId>()

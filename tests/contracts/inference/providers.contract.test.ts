@@ -3,6 +3,7 @@
 // widens) its wire's ceiling, and the derived policy reproduces the hand rows it replaced without being
 // wider than the belt (`generateImage` on hosted rows = openrouter + openai; `agent` = the agent-sdk wire).
 
+import type { ProviderDef, Task } from "@orb/contracts/inference";
 import {
   BUILTIN_PROVIDERS,
   builtinProvider,
@@ -12,7 +13,6 @@ import {
   pluginNameOfProviderId,
   providerDefSchema,
   providerTasks,
-  taskProviders,
   WIRE_DEFS,
 } from "@orb/contracts/inference";
 import { expect, test } from "../../support/fixtures.ts";
@@ -60,6 +60,7 @@ test("a dialect exists exactly on the openai-compat wire; auth/catalog agree wit
 });
 
 test("derived policy is not wider than the hand rows it replaced", () => {
+  const taskProviders = (task: Task): readonly ProviderDef[] => BUILTIN_PROVIDERS.filter((row) => providerTasks(row).includes(task));
   // generateImage: openrouter (whole wire set) + openai (names it) among hosted rows — nothing else metered.
   const imageProviders = taskProviders("generateImage")
     .map((row) => row.id)

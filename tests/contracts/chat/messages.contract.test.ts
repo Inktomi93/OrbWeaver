@@ -1,10 +1,9 @@
-import type { MessageSlot, MessageView, UserMacroDraws } from "@orb/contracts/chat";
+import type { MessageView, UserMacroDraws } from "@orb/contracts/chat";
 import {
   CONNECTION_ATTRIBUTION_PROVENANCES,
   connectionAttributionProvenanceSchema,
   MESSAGE_ASSET_ORIGINS,
   macroFreezeRecordSchema,
-  messageSlotSchema,
   messageViewSchema,
   parseVariantMetadata,
   reattributeScopeSchema,
@@ -14,8 +13,7 @@ import {
   VARIANT_METADATA_TOKEN_COUNT_KEY,
   variantMetadataSchema,
 } from "@orb/contracts/chat";
-import type { UserId } from "@orb/kit/ids";
-import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../support/inference-identities.ts";
 
@@ -43,8 +41,6 @@ const SAMPLE_MESSAGE_ID = mintTypeId(ID_PREFIX.message);
 const SAMPLE_CHAT_ID = mintTypeId(ID_PREFIX.chat);
 const SAMPLE_VARIANT_ID = mintTypeId(ID_PREFIX.messageVariant);
 const SAMPLE_CHARACTER_ID = mintTypeId(ID_PREFIX.character);
-const SAMPLE_PERSONA_ID = mintTypeId(ID_PREFIX.persona);
-const SAMPLE_USER_ID = castId<UserId>("user-alice");
 
 test("connection attribution provenance distinguishes a recorded connection from an absent record", () => {
   expect(CONNECTION_ATTRIBUTION_PROVENANCES).toEqual(["recorded", "unrecorded"]);
@@ -56,76 +52,7 @@ test("message asset origins keep generated posts outside the inline-reply admiss
   expect(MESSAGE_ASSET_ORIGINS).toEqual(["attached", "illustration", "generated-post", "inline-reply"]);
 });
 
-// ═══ D26 — the message SLOT carries NO content; content lives on the variant ════
-
-test("messageSlotSchema round-trips a valid slot", () => {
-  const slot: MessageSlot = {
-    id: SAMPLE_MESSAGE_ID,
-    chatId: SAMPLE_CHAT_ID,
-    seq: 4,
-    role: "assistant",
-    kind: "standard",
-    authorUserId: null,
-    characterId: SAMPLE_CHARACTER_ID,
-    personaId: null,
-    selectedVariantId: SAMPLE_VARIANT_ID,
-    excludedFromPrompt: false,
-    createdAt: 1,
-    editedAt: null,
-  };
-  expect(messageSlotSchema.parse(slot)).toEqual(slot);
-});
-
-test("a content field is STRIPPED from the slot at the boundary (D26 — slot has no content)", () => {
-  const slotWithContent = {
-    id: SAMPLE_MESSAGE_ID,
-    chatId: SAMPLE_CHAT_ID,
-    seq: 0,
-    role: "user" as const,
-    kind: "standard" as const,
-    authorUserId: SAMPLE_USER_ID,
-    characterId: null,
-    personaId: SAMPLE_PERSONA_ID,
-    selectedVariantId: SAMPLE_VARIANT_ID,
-    excludedFromPrompt: false,
-    createdAt: 1,
-    editedAt: null,
-    // The D26 violation — a generation's text on the slot. The plain z.object strips it.
-    content: "this must not survive on the slot",
-    reasoning: "neither must this",
-  };
-  const parsed = messageSlotSchema.parse(slotWithContent);
-  expect("content" in parsed).toBe(false);
-  expect("reasoning" in parsed).toBe(false);
-});
-
-// SECRET-STRIP BACKSTOP (bus-payload-allowlist, mirrors the notifications strip test). `ChatBusEvent` is a
-// schema-less TS union (validated only via `isChatBusEventType`, never zod-parsed — its secret-free shape is
-// pinned at the type level in `index.test-d.ts`). `messageSlotSchema` is the canonical chat payload that DOES
-// cross a zod boundary: it is a plain `z.object` (NOT `.loose()`), so an injected secret-bearing field is
-// STRIPPED at parse — it can never ride into the durable row or the stream. If someone loosens it, this goes
-// red. The values are obvious non-secret literals (noSecrets); the field NAMES are what an exfil would use.
-test("an injected secret field is stripped from a chat payload at the schema boundary", () => {
-  const slotWithSecret = {
-    id: SAMPLE_MESSAGE_ID,
-    chatId: SAMPLE_CHAT_ID,
-    seq: 1,
-    role: "assistant" as const,
-    kind: "standard" as const,
-    authorUserId: null,
-    characterId: SAMPLE_CHARACTER_ID,
-    personaId: null,
-    selectedVariantId: SAMPLE_VARIANT_ID,
-    excludedFromPrompt: false,
-    createdAt: 1,
-    editedAt: null,
-    apiKey: "injected-extra-field",
-    token: "injected-extra-field",
-  };
-  const parsed = messageSlotSchema.parse(slotWithSecret);
-  expect("apiKey" in parsed).toBe(false);
-  expect("token" in parsed).toBe(false);
-});
+// ═══ D26 — content lives on the variant; the slot row's shape is pinned in tests/db/schema/chat.test-d.ts ════
 
 test("MessageView is the slot joined with its selected variant (content + economics present)", () => {
   const view: MessageView = {

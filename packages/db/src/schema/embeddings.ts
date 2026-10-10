@@ -569,7 +569,7 @@ export const imageIndexSkips = sqliteTable(
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // embed_space_state — the LAST COMPLETE `(model[@dtype])` space per `(owner, vector scope)` (inference
-// program §10-5, the `activeSpace` getter). NOT a vector table and not a cache: it is the only durable
+// program §10-5, `readGeneration`). NOT a vector table and not a cache: it is the only durable
 // answer to "has this owner's corpus actually finished moving into the space their binding resolves to?"
 //
 // WHY IT EXISTS. A binding change re-points the READ side at the new space instantly while the corpus is
@@ -581,8 +581,8 @@ export const imageIndexSkips = sqliteTable(
 // WHY `(owner, scope)` AND NOT `(owner, task)`. A space change fans out to four sweeps with four aborts
 // (`VECTOR_SCOPES`, @orb/contracts/embeddings): cards, memory, documents, images. Three of them write the
 // `embed` space, so a per-task row would have to claim completion while a third of the geometry is stale.
-// The getter folds scopes → task through `VECTOR_SCOPES_BY_TASK` and calls the space complete only when
-// every scope of that task agrees.
+// The generation reader folds scopes → task through `VECTOR_SCOPES_BY_TASK` and calls the space complete only
+// when every scope of that task agrees on one active generation.
 //
 // NO `dim` COLUMN, deliberately: the width is per-owner, but it is a property of the generation (its id hashes
 // the encoder's stated width — `kit/embedding-generation`), so the generation ids here already carry it.

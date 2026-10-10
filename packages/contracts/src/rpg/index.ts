@@ -357,7 +357,6 @@ export {
   RPG_HINT_MAX,
   RPG_TRACKER_COLOR_RE,
   RPG_TRACKER_VALUE_EMPTY,
-  resolveTrackerCarriers,
   resolveTrackerMaxOverride,
   rpgTrackerAppliesToSchema,
   rpgTrackerDefSchema,

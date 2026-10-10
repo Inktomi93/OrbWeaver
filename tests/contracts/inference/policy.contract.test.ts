@@ -11,7 +11,6 @@ import {
   canFund,
   connectionTasks,
   EVIDENCE_TIERS,
-  evidenceRank,
   foldFeatures,
   GENERATION_FLOOR,
   isBeltOwnedBodyKey,
@@ -118,5 +117,4 @@ test("the belt is exactly eight named keys", () => {
 
 test("EVIDENCE_TIERS is the one ladder, ranked highest first", () => {
   expect(EVIDENCE_TIERS).toEqual(["declared", "measured", "advertised", "curated", "family-floor", "kind-floor"]);
-  expect(evidenceRank("declared")).toBeLessThan(evidenceRank("kind-floor"));
 });

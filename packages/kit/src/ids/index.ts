@@ -77,7 +77,6 @@ export const ID_PREFIX = {
   connectionBinding: "connection_binding",
   imageEmbedding: "image_embedding",
   characterStat: "character_stat",
-  ownerStat: "owner_stat",
   dailyStat: "daily_stat",
   modelStat: "model_stat",
   // One priced compaction pass (`compaction_spend`) — the canon the stats rebuild re-derives that spend from.
