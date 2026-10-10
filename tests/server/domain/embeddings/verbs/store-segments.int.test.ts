@@ -13,7 +13,7 @@ import { castId } from "@orb/kit/ids";
 import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsService, EmbedFailedError, SpaceMismatchError } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedChat, seedUser } from "../_support.ts";
@@ -46,6 +46,89 @@ function segment(chatId: SegmentStoreParams["chatId"], over: Partial<SegmentStor
 }
 
 describe("storeSegments — the batched verbatim lens", () => {
+  test("a target move during embedding still refuses every retired segment row", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    await seedUser(db, { id: OWNER });
+    const chatId = await seedChat(db);
+    const before = await svc.resolveGeneration(OWNER, "embed");
+    h.roleClients.embed.mockImplementationOnce(async () => {
+      h.embedDtypeAs("float16");
+      const after = await svc.resolveGeneration(OWNER, "embed");
+      expect(after?.id).not.toBe(before?.id);
+      return { vectors: [fakeVector(EMBED_DIM, 1), fakeVector(EMBED_DIM, 2)], model: EMBED_MODEL, usage: { promptTokens: null, totalTokens: null } };
+    });
+    const results = await svc.storeSegments([segment(chatId), segment(chatId, { chunkIdx: 1, contentHash: "second" })]);
+    expect(results.map((result) => result.outcome)).toEqual(["noop", "noop"]);
+    expect(results.every((result) => result.generationId === before?.id)).toBe(true);
+    expect(await db.select().from(chatSegments)).toEqual([]);
+  });
+
+  test("pre-abort starts no generation resolution or database work", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    await seedUser(db, { id: OWNER });
+    const chatId = await seedChat(db);
+    const resolve = vi.spyOn(h.ctx, "resolveEmbeddingConnection");
+    const select = vi.spyOn(db, "select");
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(svc.storeSegments([segment(chatId)], controller.signal)).rejects.toThrow(/abort/iu);
+    expect(resolve).not.toHaveBeenCalled();
+    expect(select).not.toHaveBeenCalled();
+  });
+
+  test("abort at embed return starts no row batches", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    await seedUser(db, { id: OWNER });
+    const chatId = await seedChat(db);
+    await svc.resolveGeneration(OWNER, "embed");
+    const batch = vi.spyOn(db, "batch");
+    const controller = new AbortController();
+    h.roleClients.embed.mockImplementationOnce(() => {
+      controller.abort();
+      return Promise.resolve({
+        vectors: [fakeVector(EMBED_DIM, 1), fakeVector(EMBED_DIM, 2)],
+        model: EMBED_MODEL,
+        usage: { promptTokens: null, totalTokens: null },
+      });
+    });
+
+    await expect(svc.storeSegments([segment(chatId), segment(chatId, { chunkIdx: 1, contentHash: "second" })], controller.signal)).rejects.toThrow(/abort/iu);
+    expect(batch).not.toHaveBeenCalled();
+    expect(await db.select().from(chatSegments)).toHaveLength(0);
+  });
+
+  test("abort after one atomic row leaves it coherent and retry skips it", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    await seedUser(db, { id: OWNER });
+    const chatId = await seedChat(db);
+    await svc.resolveGeneration(OWNER, "embed");
+    const controller = new AbortController();
+    const realBatch = db.batch.bind(db);
+    const batch = vi.spyOn(db, "batch").mockImplementationOnce(async (statements) => {
+      const result = await realBatch(statements);
+      controller.abort();
+      return result;
+    });
+    const params = [segment(chatId), segment(chatId, { chunkIdx: 1, text: "second", contentHash: "second" })];
+
+    await expect(svc.storeSegments(params, controller.signal)).rejects.toThrow(/abort/iu);
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect(await db.select().from(chatSegments)).toMatchObject([{ chunkIdx: 0, contentHash: "seg-h", text: SEGMENT_TEXT }]);
+    h.roleClients.embed.mockClear();
+    expect((await svc.storeSegments(params)).map((result) => result.outcome)).toEqual(["noop", "written"]);
+    expect(h.roleClients.embed).toHaveBeenCalledWith(["second"], { signal: undefined });
+    expect(await db.select().from(chatSegments)).toHaveLength(2);
+  });
+
   test("persists the verbatim text + seq-span; the PRECOMPUTED contentHash rides through (no recompute)", async () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);

@@ -91,6 +91,7 @@ import {
   loadCanonHistory,
   loadChatRow,
   loadContinueSnapshot,
+  loadHasSelectedCanonUserMessage,
   loadIsReplyToLatestUserMessage,
   loadMaxMessageSeq,
   loadMessageView,
@@ -1667,9 +1668,11 @@ async function commitUserTurn(
 
   // A greeting's volatile macros freeze at the first user turn; detect it before this send commits (no
   // role:"user" row exists yet), then bake the greetings after the row lands.
-  // @orb-waive chat-viewer-plane-canon-reads(loadCanonHistory): the first-user-turn greeting-freeze probe, reached by BOTH `send` and the D56 post-without-generate `commitMessage`, which shares `send`'s COMMIT half (`commitUserTurn`). Its product is a BOOLEAN (`isFirstUserTurn`) + a server-side greeting-volatile freeze — NO canon bytes flow to the caller (it returns only the just-committed user row, §3.6-projected); the prompt is the ROOM's.
-  const priorCanon = await loadCanonHistory(ctx.db, chatId);
-  const isFirstUserTurn = !priorCanon.some((m) => m.role === "user");
+  // Keep this existence check in the same selected-canon domain as loadCanonHistory, but do not materialize
+  // the transcript for established rooms; only the first-user branch needs greeting rows to freeze.
+  // @orb-waive chat-viewer-plane-canon-reads(loadHasSelectedCanonUserMessage): the first-user greeting-freeze probe, reached by BOTH `send` and the D56 post-without-generate `commitMessage`, which shares `commitUserTurn`. Its product is a BOOLEAN + a server-side greeting-volatile freeze — NO canon bytes flow to the caller; the prompt is the ROOM's.
+  const isFirstUserTurn = !(await loadHasSelectedCanonUserMessage(ctx.db, chatId));
+  const priorCanon = isFirstUserTurn ? await loadCanonHistory(ctx.db, chatId) : [];
 
   const userView = await persistUserMessage(ctx, deps.emit, {
     chatId,

@@ -35,6 +35,8 @@ export interface BackfillParams {
   readonly cards: readonly BackfillCard[];
   /** Report what WOULD link without storing bytes or writing the `avatarAssetId` UPDATE. */
   readonly dryRun?: boolean;
+  /** Stop before the next store wave; already-started stores finish with their avatar links. */
+  readonly signal?: AbortSignal;
 }
 
 /** `backfillAvatars` outcome: cards scanned, avatars actually (re)linked, and integrity mismatches skipped. */

@@ -12,6 +12,7 @@
 // `entry/compose/assets-character.ts`) — the same shape `domain/import` uses for six domains' canon.
 
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
+import { isAborted } from "#kit/abort";
 import { sha256Hex } from "#kit/content-hash";
 import type { AssetsContext } from "../context.ts";
 import type { BackfillCard } from "../contract/maintenance.ts";
@@ -55,8 +56,25 @@ async function storeCard(ctx: AssetsContext, ownerId: UserId, card: BackfillCard
   return { characterId: card.characterId, assetId: stored.assetId };
 }
 
+async function storeWave(ctx: AssetsContext, ownerId: UserId, cards: readonly BackfillCard[]): Promise<{ links: LinkCandidate[]; mismatched: number }> {
+  const results = await Promise.all(cards.map((card) => storeCard(ctx, ownerId, card)));
+  const links: LinkCandidate[] = [];
+  let mismatched = 0;
+  for (const result of results) {
+    if (result === undefined) {
+      mismatched++;
+    } else {
+      links.push(result);
+    }
+  }
+  return { links, mismatched };
+}
+
 export function createBackfillAvatars(ctx: AssetsContext): AssetsService["backfillAvatars"] {
-  return async ({ ownerId, cards, dryRun = false }) => {
+  return async ({ ownerId, cards, dryRun = false, signal }) => {
+    if (signal !== undefined && isAborted(signal)) {
+      return { scanned: 0, linked: 0, mismatched: 0, dryRun };
+    }
     if (dryRun) {
       // Validate-only: nothing is stored, but the integrity verdict comes from the bytes, so the forecast is
       // the REAL split the run would produce ("report what WOULD link" — contract/maintenance.ts). A fixed
@@ -66,24 +84,25 @@ export function createBackfillAvatars(ctx: AssetsContext): AssetsService["backfi
     }
 
     const links: LinkCandidate[] = [];
+    let scanned = 0;
     let mismatched = 0;
     for (let i = 0; i < cards.length; i += CONCURRENCY) {
-      const wave = cards.slice(i, i + CONCURRENCY);
-      const results = await Promise.all(wave.map((card) => storeCard(ctx, ownerId, card)));
-      for (const result of results) {
-        if (result === undefined) {
-          mismatched++;
-        } else {
-          links.push(result);
-        }
+      if (signal !== undefined && isAborted(signal)) {
+        break;
       }
+      const wave = cards.slice(i, i + CONCURRENCY);
+      const result = await storeWave(ctx, ownerId, wave);
+      scanned += wave.length;
+      mismatched += result.mismatched;
+      links.push(...result.links);
     }
 
     if (links.length > 0) {
+      // Finish the store→link unit even after abort; stopping here strands the stores already completed.
       // The pointer write is CHARACTER's (`characters.avatarAssetId`) — delegated through the injected
       // owning-domain op, never an assets-side UPDATE (Constitution.md §2; Tier-1-DB.md §"Cross-tier composition").
       await ctx.linkCharacterAvatars({ ownerId, links });
     }
-    return { scanned: cards.length, linked: links.length, mismatched, dryRun: false };
+    return { scanned, linked: links.length, mismatched, dryRun: false };
   };
 }

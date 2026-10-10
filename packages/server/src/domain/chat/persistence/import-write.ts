@@ -23,7 +23,7 @@ import {
   messageVariants,
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/kit";
+import { batchMany, batchStmt, chunkRows, isConstraintViolation } from "@orb/db/kit";
 import { tokenizeContent } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
@@ -34,6 +34,9 @@ import type { BulkImportChats, ChatImportContext } from "../contract/import.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
 import { importedObservationRows } from "../substrate/import-observations.ts";
 import { carriesAssetBackground, guardedChatId } from "./background-write.ts";
+
+// Budget a scope bind alongside each varying value, so the statement's fixed scope always fits too.
+const SCOPED_FILTER_BIND_BUDGET = 2;
 
 /** The distinct inline `asset:<id>` refs in a message's content, across all its variants. */
 function assetRefsInMessage(message: BulkImportChatInput["messages"][number]): AssetId[] {
@@ -58,17 +61,20 @@ interface PendingParent {
 /** Ownership gate: EVERY seat (the primary + any extra roster id) must be the caller's — checked before a
  *  single row is written, so a foreign id can never be seated into a room the caller hosts. Leak-free
  *  `DomainNotFoundError`, the same refusal shape a stranger's characterId got when the op was
- *  single-character. One query for the whole set; the miss is reported by id. */
+ *  single-character. Bounded reads preserve the first missing id's input order. */
 async function assertOwnedCharacters(db: Db, ownerId: UserId, characterIds: readonly CharacterId[]): Promise<void> {
-  const owned = await db
-    .select({ id: characters.id })
-    .from(characters)
-    .where(and(inArray(characters.id, [...characterIds]), eq(characters.ownerId, ownerId)));
-  // @orb-waive persistence-no-in-memory-state(Set): query-local membership Set over the row set this query just returned. Ends if it outlives the call.
-  const ownedIds = new Set(owned.map((row) => row.id));
-  for (const characterId of characterIds) {
-    if (!ownedIds.has(characterId)) {
-      throw new DomainNotFoundError("character", characterId);
+  for (const ids of chunkRows(characterIds, SCOPED_FILTER_BIND_BUDGET)) {
+    // @orb-waive no-await-db-in-loop(where): parameter-safe chunks complete the ownership gate before any canon write. Ends if the driver lifts its bind cap.
+    const owned = await db
+      .select({ id: characters.id })
+      .from(characters)
+      .where(and(inArray(characters.id, ids), eq(characters.ownerId, ownerId)));
+    // @orb-waive persistence-no-in-memory-state(Set): query-local membership Set over this chunk's returned rows. Ends if it outlives the call.
+    const ownedIds = new Set(owned.map((row) => row.id));
+    for (const characterId of ids) {
+      if (!ownedIds.has(characterId)) {
+        throw new DomainNotFoundError("character", characterId);
+      }
     }
   }
 }
@@ -127,17 +133,19 @@ interface ExistingImport {
  *  room never got one. */
 async function loadExistingImports(db: Db, characterId: CharacterId, hashes: readonly string[]): Promise<Record<string, ExistingImport>> {
   const seen: Record<string, ExistingImport> = {};
-  if (hashes.length === 0) {
-    return seen;
-  }
-  const rows = await db
-    .select({ id: chats.id, importHash: chatImportClaims.importHash, anchorPersonaId: chats.anchorPersonaId })
-    .from(chatImportClaims)
-    .innerJoin(chats, eq(chats.id, chatImportClaims.chatId))
-    .where(and(eq(chatImportClaims.characterId, characterId), inArray(chatImportClaims.importHash, [...hashes])));
-  for (const r of rows) {
-    if (seen[r.importHash] === undefined) {
-      seen[r.importHash] = { chatId: r.id, anchorPersonaId: r.anchorPersonaId };
+  // @orb-waive persistence-no-in-memory-state(Set): query-local dedup of requested import identities. Ends if it outlives the call.
+  const uniqueHashes = new Set(hashes);
+  for (const chunk of chunkRows([...uniqueHashes], SCOPED_FILTER_BIND_BUDGET)) {
+    // @orb-waive no-await-db-in-loop(where): each chunk reserves the character-scope bind under the driver cap. Ends if the driver lifts its bind cap.
+    const rows = await db
+      .select({ id: chats.id, importHash: chatImportClaims.importHash, anchorPersonaId: chats.anchorPersonaId })
+      .from(chatImportClaims)
+      .innerJoin(chats, eq(chats.id, chatImportClaims.chatId))
+      .where(and(eq(chatImportClaims.characterId, characterId), inArray(chatImportClaims.importHash, chunk)));
+    for (const r of rows) {
+      if (seen[r.importHash] === undefined) {
+        seen[r.importHash] = { chatId: r.id, anchorPersonaId: r.anchorPersonaId };
+      }
     }
   }
   return seen;
@@ -614,20 +622,35 @@ function buildChatStatements(args: OneChatArgs): {
  *  named speaker. Ownership-gated in one pass before any write, so a foreign id anywhere refuses the whole
  *  run rather than landing a partially-correct room. */
 function everyReferencedCharacter(primary: CharacterId, input: readonly BulkImportChatInput[]): CharacterId[] {
-  const ids: CharacterId[] = [primary];
+  // @orb-waive persistence-no-in-memory-state(Set): call-local first-seen ownership set across the complete import input. Ends if it outlives the call.
+  const ids = new Set<CharacterId>([primary]);
   for (const c of input) {
-    ids.push(...(c.characterIds ?? []));
+    for (const id of c.characterIds ?? []) {
+      ids.add(id);
+    }
     // A knob names a seat; an id that reaches the ownership gate here can never be one the seat gate below
     // then refuses for the wrong reason (foreign reads as unseated).
-    ids.push(...(c.seatKnobs ?? []).map((knob) => knob.characterId));
+    for (const knob of c.seatKnobs ?? []) {
+      ids.add(knob.characterId);
+    }
     for (const m of c.messages) {
       const named = namedSpeaker(m);
       if (named !== null) {
-        ids.push(named);
+        ids.add(named);
       }
     }
   }
-  return ids;
+  return [...ids];
+}
+
+async function filterImportedAssetIds(ctx: ChatImportContext, ownerId: UserId, ci: BulkImportChatInput): Promise<AssetId[]> {
+  // @orb-waive persistence-no-in-memory-state(Set): call-local dedup of the complete chat's inline references. Ends if it outlives the call.
+  const requested = new Set(ci.messages.flatMap(assetRefsInMessage));
+  const existing: AssetId[] = [];
+  for (const ids of chunkRows([...requested], SCOPED_FILTER_BIND_BUDGET)) {
+    existing.push(...(await ctx.filterExistingAssetIds(ownerId, ids)));
+  }
+  return existing;
 }
 
 /** Resolve one chat's two async preconditions and build its statement plan. Both preconditions run in ONE
@@ -637,7 +660,7 @@ function everyReferencedCharacter(primary: CharacterId, input: readonly BulkImpo
 async function planOneChat(args: Omit<OneChatArgs, "existingAssetIds" | "narratorCharacterId">): Promise<ReturnType<typeof buildChatStatements>> {
   const { ctx, ci, ownerId, chatId } = args;
   const [existingAssetIds, narratorCharacterId] = await Promise.all([
-    ctx.filterExistingAssetIds(ownerId, ci.messages.flatMap(assetRefsInMessage)),
+    filterImportedAssetIds(ctx, ownerId, ci),
     hasNarratorSlot(ci) ? ctx.mintSyntheticGroupCharacter({ ownerId, chatId }).then((ref) => ref.characterId) : Promise.resolve(null),
   ]);
   return buildChatStatements({ ...args, existingAssetIds, narratorCharacterId });
@@ -669,7 +692,7 @@ interface ImportRunState {
   readonly realConversationsWritten: ChatId[];
 }
 
-/** Record a deduplicated candidate and its optional attribution heal in one place. */
+/** Resolve the claimed room's complete index-aligned identity without history-sized binds. */
 async function loadImportedIdentity(db: Db, chatId: ChatId): Promise<ImportedChatIdentity> {
   const slots = await db.select({ id: messages.id }).from(messages).where(eq(messages.chatId, chatId)).orderBy(asc(messages.seq));
   const messageIds = slots.map((slot) => slot.id);
@@ -679,7 +702,8 @@ async function loadImportedIdentity(db: Db, chatId: ChatId): Promise<ImportedCha
   const variants = await db
     .select({ id: messageVariants.id, messageId: messageVariants.messageId })
     .from(messageVariants)
-    .where(inArray(messageVariants.messageId, messageIds))
+    .innerJoin(messages, eq(messages.id, messageVariants.messageId))
+    .where(eq(messages.chatId, chatId))
     .orderBy(asc(messageVariants.idx));
   // @orb-waive persistence-no-in-memory-state(Map): query-local regrouping of the variant rows just loaded. Ends if it outlives the call.
   const variantsByMessage = new Map<MessageId, MessageVariantId[]>();
