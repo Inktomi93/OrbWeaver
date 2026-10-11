@@ -49,11 +49,14 @@ function stub(page: Page): Promise<TrpcRecorder> {
     }),
     "settings.listThemes": () => [],
     "rosterPreset.list": [],
+    "rosterPreset.count": 0,
     "sessions.me": { userId: "user_ct_rowchrome", handle: "ct_rowchrome", globalRole: "user" as const },
     "worldInfo.listBooksWithUsage": () => [],
+    "worldInfo.countBooks": 0,
     // The LIST pane's collection counts — fed empty (this file is about the CONTENT rows).
     "tag.listTagsWithUsage": () => [],
     "regex.listScripts": () => [],
+    "regex.countScripts": 0,
     "persona.list": () => [],
     "character.list": () => ({ items: [], nextCursor: null }),
     [SAVE_PROC]: () => ({
@@ -205,9 +208,12 @@ test("auto-swipe is ONE row, not three — its dependents ride inside it", async
     ...UTILITY_RUNNING_ROUTES,
     "settings.listThemes": () => [],
     "rosterPreset.list": [],
+    "rosterPreset.count": 0,
     "worldInfo.listBooksWithUsage": () => [],
+    "worldInfo.countBooks": 0,
     "tag.listTagsWithUsage": () => [],
     "regex.listScripts": () => [],
+    "regex.countScripts": 0,
     "persona.list": () => [],
     "character.list": () => ({ items: [], nextCursor: null }),
     [SAVE_PROC]: () => ({

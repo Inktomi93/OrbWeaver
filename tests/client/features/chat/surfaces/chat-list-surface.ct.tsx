@@ -365,7 +365,7 @@ test.describe("#372 coarse chat-list header target", () => {
 
   for (const width of [430, 390, 320] as const) {
     test(`@${String(width)}: transcript import is a contained 44px coarse target`, async ({ mount, page }) => {
-      await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]) });
+      await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]), "chat.countChats": 1 });
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
       const component = await mount(<ChatListHeaderStory width={width} />);
       const header = component.locator(".shell-panel-header");
@@ -383,7 +383,7 @@ test.describe("#372 coarse chat-list header target", () => {
 });
 
 test("#372 keeps the accessible import control compact at a fine pointer", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]), "chat.countChats": 1 });
   await expect.poll(() => page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
   const component = await mount(<ChatListHeaderStory width={320} />);
   const button = component.getByRole("button", { name: "Import a chat transcript" });
@@ -396,7 +396,7 @@ test("#372 keeps the accessible import control compact at a fine pointer", async
 
 for (const trigger of ["hover", "focus"] as const) {
   test(`#377 ${trigger}: transcript import exposes tooltip copy byte-equal to its accessible name`, async ({ mount, page }) => {
-    await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]) });
+    await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]), "chat.countChats": 1 });
     const component = await mount(<ChatListHeaderStory width={430} />);
     const button = component.getByRole("button", { name: "Import a chat transcript" });
 
@@ -664,7 +664,7 @@ test("the active chat's row is marked current", async ({ mount, page }) => {
 });
 
 test("the per-row kebab opens the actions menu", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]), "chat.countChats": 1 });
 
   const component = await mount(<ChatListSurfaceStory />);
   // Finding #4: the kebab is named after the row ("Chat actions for <title> · <stamp>"), not a bare,
@@ -697,7 +697,7 @@ test("the delete confirm names the chat it is about to delete", async ({ mount, 
 // read. `.orb.json` (R6 fidelity container, listed first) rides `?format=orb`; `.jsonl` is the default
 // route (ST/share transcript); `.txt` is the reading copy.
 test("§12 export homes on the row kebab — all three formats link to the host-gated download route", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]), "chat.countChats": 1 });
 
   const component = await mount(<ChatListSurfaceStory />);
   await component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" }).hover();
@@ -804,7 +804,7 @@ test("§12 the star is the row's state TOGGLE, and clicking it fires the star MU
 });
 
 test("§12 the kebab KEEPS its Star item beside the inline toggle (N3 mirror parity)", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]), "chat.countChats": 1 });
 
   const component = await mount(<ChatListSurfaceStory />);
   const row = component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" });
@@ -1558,14 +1558,13 @@ test("#525 both filter clears sit INSIDE their field's box, and the field never 
 
 test("#490 the chrome band's count reflects the pane's filters, and returns to the library census", async ({ mount, page }) => {
   const library = [ADVENTURE, UNTITLED, GAME];
+  const scopeTo = (search: string | undefined): typeof library =>
+    search === undefined ? library : library.filter((chat) => (chat.title ?? "").toLowerCase().includes(search.toLowerCase()));
   await routeTrpc(page, {
     ...CHAT_ROOM_ROUTES,
-    "chat.listChats": (input: TrpcInput<"chat.listChats">) => {
-      const search = input?.search;
-      const scoped = search === undefined ? library : library.filter((chat) => (chat.title ?? "").toLowerCase().includes(search.toLowerCase()));
-      // The band reads `totalCount` off the SCOPED page, so the responder must narrow it honestly.
-      return chatListResponder(scoped)(input);
-    },
+    "chat.listChats": (input: TrpcInput<"chat.listChats">) => chatListResponder(scopeTo(input?.search))(input),
+    // The band reads its census from `chat.countChats`, so the responder must narrow it honestly.
+    "chat.countChats": (input: TrpcInput<"chat.countChats">) => scopeTo(input?.search).length,
     "character.list": CHARACTERS,
   });
   const component = await mount(<ChatListBandAndSurfaceStory />);

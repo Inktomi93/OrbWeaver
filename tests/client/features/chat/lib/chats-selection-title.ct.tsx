@@ -23,8 +23,9 @@ import { makeParticipant } from "./_support.ts";
  *  to print the roster's size, so the hook composes the census the LIST band's shed title took with it. Fed
  *  ambiently here — every test below has a room OPEN, where the census is deliberately not the answer, so a
  *  roster of three is the fixture that would EXPOSE a leak of it rather than hide one. */
-const ROSTER_OF_THREE: TrpcRoutes<"chat.listChats"> = {
+const ROSTER_OF_THREE: TrpcRoutes<"chat.listChats" | "chat.countChats"> = {
   "chat.listChats": chatListResponder([1, 2, 3].map((n) => makeChatSummary({ id: `chat_ct_title_${String(n)}` }))),
+  "chat.countChats": 3,
 };
 
 test("the open room's stored title IS the mobile screen title", async ({ mount, page }) => {

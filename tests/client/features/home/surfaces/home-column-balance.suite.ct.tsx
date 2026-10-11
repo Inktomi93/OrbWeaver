@@ -186,6 +186,7 @@ async function routeHouse(page: Page, house: House): Promise<void> {
     "databank.bankHealth": house.health,
     "databank.list": house.bank,
     "rosterPreset.list": [...SEEDED_ROSTERS],
+    "rosterPreset.count": SEEDED_ROSTERS.length,
     "automation.listRulePresets": [],
     "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: "user_ct_balance" },
   });

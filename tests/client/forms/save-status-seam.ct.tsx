@@ -26,12 +26,22 @@ const UPDATE_PROC = "settings.updateUserSettingsSection";
 const VIEWER = { userId: "user_ct_save_seam", globalRole: "user" as const, handle: "save_seam" };
 /** The config LIST paints every shelf, so the four collection bands read their rosters — fed empty. */
 const LIST_ROSTER_ROUTES: TrpcRoutes<
-  "tag.listTagsWithUsage" | "regex.listScripts" | "worldInfo.listBooksWithUsage" | "rosterPreset.list" | "settings.listThemes"
+  | "tag.listTagsWithUsage"
+  | "regex.listScripts"
+  | "regex.countScripts"
+  | "worldInfo.listBooksWithUsage"
+  | "worldInfo.countBooks"
+  | "rosterPreset.list"
+  | "rosterPreset.count"
+  | "settings.listThemes"
 > = {
   "tag.listTagsWithUsage": [],
   "regex.listScripts": [],
+  "regex.countScripts": 0,
   "worldInfo.listBooksWithUsage": [],
+  "worldInfo.countBooks": 0,
   "rosterPreset.list": [],
+  "rosterPreset.count": 0,
   "settings.listThemes": [],
 };
 

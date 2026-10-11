@@ -152,11 +152,15 @@ const HOST_AMBIENT_ROUTES = defineTrpcRoutes({
   "automation.listOwnerRules": [],
   "automation.getOwnerBudgets": { maxFiresPerHour: OWNER_RATE_CEILING },
   // The collection rosters the LIST paints counts for (the same reads `config-list-surface.ct.tsx` feeds).
+  // Each band's number is its own census read, not the length of the page above it.
   "regex.listScripts": [],
+  "regex.countScripts": 0,
   "regex.listGlobal": [],
   "worldInfo.listBooksWithUsage": [],
+  "worldInfo.countBooks": 0,
   "worldInfo.listGlobal": [],
   "rosterPreset.list": [],
+  "rosterPreset.count": 0,
 });
 
 async function stub(page: Page, extra: Partial<TrpcRoutes<TrpcProcedurePath>> = {}): Promise<void> {
@@ -1086,7 +1090,7 @@ const REGEX_BLURB = "Find/replace that runs on input, output, or both; everywher
 // is this library — is what the ruling was protecting, and it is asserted whole below, now including the rows
 // themselves, which are the thing that actually arrived.
 test("#1725: a collection band ENTERS its library in one act — the location moves AND CONTENT is the library", async ({ mount, page }) => {
-  await stub(page, { "regex.listScripts": () => POPULATED_SCRIPTS });
+  await stub(page, { "regex.listScripts": () => POPULATED_SCRIPTS, "regex.countScripts": POPULATED_SCRIPTS.length });
   const component = await mount(<ConfigHostStory />);
 
   const band = component.locator(EMPTY_BAND);
@@ -1159,7 +1163,9 @@ test("switching between libraries with DIFFERENT declared hook sets keeps the ap
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await stub(page, {
     "regex.listScripts": () => [SWITCH_SCRIPT],
+    "regex.countScripts": 1,
     "worldInfo.listBooksWithUsage": () => [SWITCH_BOOK],
+    "worldInfo.countBooks": 1,
     "worldInfo.getBook": () => ({ id: SWITCH_BOOK.id, name: SWITCH_BOOK.name, description: null, createdAt: 1 }),
     "worldInfo.listEntries": () => [],
     "rosterPreset.list": () => [],
@@ -1217,6 +1223,7 @@ const INSIGHT_BOOKS = [
 ] satisfies TrpcWireOutput<"worldInfo.listBooksWithUsage">;
 const INSIGHT_ROUTES = {
   "worldInfo.listBooksWithUsage": INSIGHT_BOOKS,
+  "worldInfo.countBooks": INSIGHT_BOOKS.length,
   "worldInfo.getBook": { id: "world_book_orphan0001", name: "orphan-book", description: null, createdAt: 1 },
   "worldInfo.listEntries": [],
 } satisfies Partial<TrpcRoutes<TrpcProcedurePath>>;
@@ -1281,8 +1288,8 @@ test("a library whose census FAILED says so on the landing, and offers a retry t
   // WHAT THE STUB ANSWERS NEXT, as a PUSHED array rather than a boolean flip: biome narrows a
   // `= false` initializer to the literal type and reds the later flip as an always-falsy condition,
   // and the `: boolean` that would fix that is itself `noInferrableTypes`. Data, not a flag.
-  let current: TrpcWireOutput<"regex.listScripts"> | ReturnType<typeof trpcError> = trpcError({ message: "the census is down" });
-  await stub(page, { "regex.listScripts": () => current });
+  let current: number | ReturnType<typeof trpcError> = trpcError({ message: "the census is down" });
+  await stub(page, { "regex.listScripts": () => POPULATED_SCRIPTS, "regex.countScripts": () => current });
   const component = await mount(<ConfigHostStory />);
 
   await component.locator(EMPTY_BAND).click();
@@ -1296,7 +1303,7 @@ test("a library whose census FAILED says so on the landing, and offers a retry t
   await expect(landing.locator('[data-slot="collection-control-row"]')).toHaveCount(0);
   await expect(landing.getByRole("button", { name: "New script" })).toHaveCount(0);
 
-  current = POPULATED_SCRIPTS;
+  current = POPULATED_SCRIPTS.length;
   await landing.getByRole("button", { name: "Retry" }).click();
   // A real refetch, and the pane returns to the arm the answer earns — control row, and the members it
   // controls.
@@ -1483,7 +1490,7 @@ for (const width of [1440, 990] as const) {
     // POPULATED, deliberately: at zero the landing is an `EmptyState`, whose own title is a different
     // element on a different rule — the pane-title register this pins is the one a library with members
     // opens on, which is the state the review measured.
-    await stub(page, { "regex.listScripts": () => [SWITCH_SCRIPT] });
+    await stub(page, { "regex.listScripts": () => [SWITCH_SCRIPT], "regex.countScripts": 1 });
     const component = await mount(<ConfigHostStory width={width} />);
     // BY SLOT, NOT BY REGION NAME: the CONTENT region is named for whatever is OPEN in it ("Appearance
     // settings" · "Regex scripts settings"), so a name-scoped locator would have to change with the arm under test.

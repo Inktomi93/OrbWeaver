@@ -177,8 +177,11 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
   return await routeTrpc(page, {
     // The full config host mounts its library shelves while the canonical Chat leaf lands.
     "regex.listScripts": () => [],
+    "regex.countScripts": () => 0,
     "rosterPreset.list": () => [],
+    "rosterPreset.count": () => 0,
     "worldInfo.listBooksWithUsage": () => [],
+    "worldInfo.countBooks": () => 0,
     "sessions.me": () => ({ userId: OWNER_ID, handle: "owner", globalRole: opts.role ?? "owner" }),
     "connection.list": () => connections,
     "connection.listBindings": () => bindings,
