@@ -54,7 +54,16 @@ const RESTAMP_PROC = "chat.reattributePersona";
 function stub(
   page: Page,
   extra?: Partial<
-    TrpcRoutes<"chat.getChat" | "regex.countScripts" | "rosterPreset.count" | "sessions.me" | "settings.getAppSettingsWithOverrides" | "worldInfo.countBooks">
+    TrpcRoutes<
+      | "chat.getChat"
+      | "regex.countScripts"
+      | "settings.getUserSettings"
+      | "settings.updateUserSettingsSection"
+      | "rosterPreset.count"
+      | "sessions.me"
+      | "settings.getAppSettingsWithOverrides"
+      | "worldInfo.countBooks"
+    >
   >,
 ): Promise<TrpcRecorder> {
   return routeTrpc(page, {
@@ -657,7 +666,7 @@ test.describe("coarse pointer", () => {
 });
 
 test("clearing the default raises a notice with Undo, and Undo pins the persona again", async ({ mount, page }) => {
-  const trpc = await stub(page);
+  const { trpc } = await stubStatefulDefault(page);
   await stubAuth(page);
   await mount(<PersonaYouSheetStory />);
   await page.getByRole("button", { name: DEFAULT_PIN_BUTTON, pressed: true }).dispatchEvent("click");
@@ -686,13 +695,22 @@ test("the persona list is ONE tab stop: arrow keys rove between rows and each ro
   await expect(page.getByRole("button", { name: "Nova — current persona" })).toBeVisible();
   const stops = (): Promise<number> =>
     page.evaluate(() => {
-      const rowControl = /^(Switch to |Pin |Pinned|Edit |.+ — current persona$)/u;
+      const rowControl = /^(Switch to |Pin |Edit |.+ — current persona$|.+ is pinned as your default$)/u;
       return [...document.querySelectorAll("button")].filter(
         (b) => b.tabIndex >= 0 && b.offsetParent !== null && rowControl.test(b.getAttribute("aria-label") ?? ""),
       ).length;
     });
-  // One row's main button + its pin + its Edit; the other rows' controls are out of the tab order.
-  await expect.poll(stops).toBeLessThanOrEqual(3);
+  // EXACTLY one row's main button + its pin + its Edit are in the tab order — a zero-stop list would be a trap.
+  await expect.poll(stops).toBe(3);
+  const stopRows = (): Promise<{ mains: number; siblings: number }> =>
+    page.evaluate(() => {
+      const mains = [...document.querySelectorAll<HTMLElement>("[data-switch-row-button]")].filter((b) => b.tabIndex >= 0);
+      const row = mains[0]?.parentElement;
+      const siblings =
+        row === null || row === undefined ? 0 : [...row.querySelectorAll("button")].filter((b) => b.tabIndex >= 0 && b.offsetParent !== null).length - 1;
+      return { mains: mains.length, siblings };
+    });
+  await expect.poll(stopRows).toEqual({ mains: 1, siblings: 2 });
   await page.getByRole("button", { name: "Nova — current persona" }).focus();
   await page.keyboard.press("ArrowUp");
   await expect(page.getByRole("button", { name: "Switch to Orion", exact: true })).toBeFocused();
@@ -701,4 +719,46 @@ test("the persona list is ONE tab stop: arrow keys rove between rows and each ro
   // Tab from the row's main button reaches that row's own pin.
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Pin Lyra as your default", exact: true })).toBeFocused();
+});
+
+/** Settings that behave like the server's: a pin write lands in the default the next read returns. */
+async function stubStatefulDefault(page: Page): Promise<{ readonly trpc: TrpcRecorder; readonly currentDefault: () => string | null }> {
+  let defaultId: string | null = NOVA;
+  const settings = (): TrpcFixtureOutput<"settings.getUserSettings"> => ({
+    userId: "user_ct",
+    schemaVersion: 1,
+    config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, currentPersonaId: NOVA, defaultPersonaId: defaultId } },
+    updatedAt: 0,
+    configUnreadable: null,
+  });
+  const trpc = await stub(page, {
+    "settings.getUserSettings": () => settings(),
+    "settings.updateUserSettingsSection": (input) => {
+      const patch = (input as { patch?: { defaultPersonaId?: string | null } }).patch;
+      if (patch?.defaultPersonaId !== undefined) {
+        defaultId = patch.defaultPersonaId;
+      }
+      return settings();
+    },
+  });
+  return { trpc, currentDefault: (): string | null => defaultId };
+}
+
+test("a stale Undo never overwrites a default pinned since", async ({ mount, page }) => {
+  const { trpc, currentDefault } = await stubStatefulDefault(page);
+  await stubAuth(page);
+  await mount(<PersonaYouSheetStory />);
+
+  await page.getByRole("button", { name: DEFAULT_PIN_BUTTON, pressed: true }).dispatchEvent("click");
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeVisible();
+  // The user pins another persona before pressing the stale Undo.
+  await page.getByRole("button", { name: "Pin Orion as your default", exact: true }).dispatchEvent("click");
+  await expect(page.getByRole("button", { name: /^Orion is pinned as your default$/, pressed: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  // The Undo ran and stood down: its notice is replaced by one without an action.
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toHaveCount(0);
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the Undo has already answered above
+  expect(trpc.count(SEED_PROC)).toBe(2);
+  expect(currentDefault()).toBe(ORION);
 });

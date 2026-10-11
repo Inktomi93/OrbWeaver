@@ -3,7 +3,7 @@
 // viewer's SEAT; with none it is the global pointer. A switch inside a room always moves the seat; the
 // "Everywhere" scope (and any switch with no room) also writes the global pointer.
 
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
@@ -60,8 +60,12 @@ export function usePlayingPersona(): PlayingPersonaState {
 export function useDefaultPin(state: PlayingPersonaState): { readonly pin: (personaId: string) => void; readonly clear: () => void } {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
+  const queryClient = useQueryClient();
   const setSeed = useSetPersonaSeed({ trpc, invalidation });
   const previousId = state.seeds.defaultPersonaId;
+  // Undo reads the default AS IT IS NOW, not as it was when the notice was raised: a pin made since is newer
+  // than the one being restored and must not be overwritten by a stale Undo.
+  const defaultNow = (): string | null => queryClient.getQueryData(trpc.settings.getUserSettings.queryKey())?.config.seeds.defaultPersonaId ?? null;
   const pin = (personaId: string): void => {
     setSeed.mutate({ section: "seeds", patch: { defaultPersonaId: personaId } });
   };
@@ -72,7 +76,20 @@ export function useDefaultPin(state: PlayingPersonaState): { readonly pin: (pers
         onSuccess: (): void => {
           notify.info({
             title: "Default persona cleared",
-            ...(previousId === null ? {} : { action: { label: "Undo", onClick: (): void => pin(previousId) } }),
+            ...(previousId === null
+              ? {}
+              : {
+                  action: {
+                    label: "Undo",
+                    onClick: (): void => {
+                      if (defaultNow() === null) {
+                        pin(previousId);
+                      } else {
+                        notify.info("You've picked a new default since — nothing to undo.");
+                      }
+                    },
+                  },
+                }),
           });
         },
       },
