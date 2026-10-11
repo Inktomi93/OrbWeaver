@@ -56,17 +56,37 @@ export async function loadPersonasForOwners(db: Db, personaIds: readonly Persona
     return [];
   }
   const rows = await db
-    .select({ id: personas.id, ownerId: personas.ownerId, name: personas.name, description: personas.description, metadata: personas.metadata })
+    .select(PERSONA_VIEW_COLUMNS)
     .from(personas)
     .where(and(inArray(personas.id, [...personaIds]), inArray(personas.ownerId, [...ownerIds])));
-  return rows.map((row) => ({
+  return rows.map(toPersonaView);
+}
+
+/** One persona's presentation surface by id, whoever owns it — the room pin's read (`contract/ops.ts`). */
+export async function loadPersonaView(db: Db, personaId: PersonaId): Promise<PersonaListView | undefined> {
+  // @orb-waive owner-scoped-reads(personas): the pointer IS the consent (item 885, ADR 0314): the only caller passes the room's stored chats.anchorPersonaId, set through ownership-checked verbs, and gets back the presentation surface the room already consumed. Ends if a caller passes an id from a request.
+  const rows = await db.select(PERSONA_VIEW_COLUMNS).from(personas).where(eq(personas.id, personaId)).limit(LIMIT_ONE);
+  const row = rows[0];
+  return row === undefined ? undefined : toPersonaView(row);
+}
+
+const PERSONA_VIEW_COLUMNS = {
+  id: personas.id,
+  ownerId: personas.ownerId,
+  name: personas.name,
+  description: personas.description,
+  metadata: personas.metadata,
+};
+
+function toPersonaView(row: { id: PersonaId; ownerId: UserId; name: string; description: string; metadata: unknown }): PersonaListView {
+  return {
     id: row.id,
     ownerId: row.ownerId,
     name: row.name,
     description: row.description,
     // The SAME read-seam narrowing `detailOf` applies — a corrupt blob degrades to null, never poisons the view.
     metadata: personaMetadataSchema.nullable().catch(null).parse(row.metadata),
-  }));
+  };
 }
 
 /** The owner's personas + avatars, newest first. */

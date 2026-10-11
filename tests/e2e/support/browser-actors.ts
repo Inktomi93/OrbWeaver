@@ -107,8 +107,8 @@ async function openChat(page: Page, chatId: ChatId): Promise<void> {
 /** Open a chat AND its MEMBERS context tab through the REAL user affordance: the chat header's roster entry
  *  (accessible name `Members — <n>`). Deliberately NOT `__orb.nav.contextTab("members")` — that sets the tab
  *  request but does NOT dock the context panel, so the panel mounts at zero size and a screenshot of it is a
- *  1.9KB sliver of nothing (measured). The header entry does both (`setContextTab` + `setPanelMode("context",
- *  "docked")`, chat-header.tsx), which is why it is the one doorway a human has. */
+ *  1.9KB sliver of nothing (measured). The header entry does both (`setContextTab` +
+ *  `setPanelMode("context", "docked")`, chat-header.tsx), which is why it is the one doorway a human has. */
 export async function openMembersTab(page: Page, chatId: ChatId): Promise<void> {
   await openChat(page, chatId);
   await page.locator(MEMBERS_ENTRY).first().click({ timeout: READY_TIMEOUT_MS });

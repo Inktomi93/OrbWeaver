@@ -256,7 +256,7 @@ in its own module header, never restated here.
 | `no-untrusted-html-in-main-dom` | — | reviewed-grant/error | @client,@ui | dangerouslySetInnerHTML in the app… |
 | `no-untyped-soft-ref` | drizzle-schema | reviewed-grant/error | @db\* | an id-shaped column (its JS key ends… |
 | `no-use-context` | react-origin | ordinary/error | @authored | React 19 deprecates useContext. Read… |
-| `no-vanity-alias` | — | ordinary/error | @product | vanity rename — one symbol, one name;… |
+| `no-vanity-alias` | — | ordinary/error | @product,@tests | vanity rename — one symbol, one name;… |
 | `nullable-column-inequality` | drizzle-schema | ordinary/error | @packages,@tests | an inequality predicate (ne /… |
 | `one-principal-mint-population` | — | ordinary/error | @server,@inference | a new Principal construction site in… |
 | `open-json-column-key-parity` | — | reviewed-grant/error | @db,@server\* | an OPEN JSON column (mode:"json" +… |
@@ -407,9 +407,9 @@ in its own module header, never restated here.
 | `wire-schema-vocab-one-home` | — | reviewed-grant/error | @server,@kit,@inference\* | a JSON-Schema wire keyword vocabulary… |
 | `z-index-tier-health` | ui-z-index-tier | hard/error | @client,@ui | the reviewed z-index home set or… |
 | `z-index-tier-permission` | ui-z-index-tier | reviewed-grant/error | @client,@ui | reviewed z-index implementation home… |
-| `zod-error-issues-home` | zod-modern-spellings | reviewed-grant/error | @product | a hand-flattened zod issues read on a… |
-| `zod-export-membership` | zod-output-twin-parity | reviewed-grant/error | @product | an exported Zod schema has no… |
-| `zod-modern-spellings` | — | ordinary/error | @product | a superseded zod spelling — the 4.4.3… |
+| `zod-error-issues-home` | zod-modern-spellings | reviewed-grant/error | @product,@tests | a hand-flattened zod issues read on a… |
+| `zod-export-membership` | zod-output-twin-parity | reviewed-grant/error | @product,@tests | an exported Zod schema has no… |
+| `zod-modern-spellings` | — | ordinary/error | @product,@tests | a superseded zod spelling — the 4.4.3… |
 | `zod-output-twin-parity` | — | hard/error | @product | a hand-authored ZodType twin… |
 | `zustand-selector-derived` | — | ordinary/error | @client | zustand selector returns a fresh… |
 | `zustand-selector-stability` | — | ordinary/error | @authored\* | zustand selector returns a fresh… |

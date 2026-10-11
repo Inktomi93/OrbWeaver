@@ -17,8 +17,9 @@
 // identity. `allowedOwnerIds` is that gate, and it is IN THE PARAMS on purpose (the injected-op caller-gate
 // law): an op that reads tenant-scoped rows without carrying its gate is ungated by construction, and every
 // future caller inherits an unfenced read. A persona whose owner is absent from the set simply does not
-// appear in the result — which preserves the HEAL semantics for free (a departed member's persona stops
-// resolving, so a stale anchor falls to the active persona instead of being copied or resurrected).
+// appear in the result. The one exception is the room's PIN (`heldPersonaId`): the host's standing pin keeps
+// resolving after its owner leaves or is disabled, so a card never re-resolves to someone else on its own
+// (item 885). It is read live, never copied, and clears when the owner deletes the persona.
 
 import type { JoinerPersona } from "@orb/contracts/persona";
 import type { AwaitableBatchStmt } from "@orb/db/query";
@@ -30,10 +31,12 @@ import type { PersonaListView } from "./views.ts";
  *  `personaIds` are the ids the room references (its anchor + its present humans' active personas);
  *  `allowedOwnerIds` are the room's PRESENT human participants. The result carries an entry ONLY for an id
  *  that exists AND is owned by one of `allowedOwnerIds` — a foreign, deleted, or departed-member persona is
- *  simply ABSENT (indistinguishable, no existence oracle). Both lists empty ⇒ an empty map, no query. */
+ *  simply ABSENT (indistinguishable, no existence oracle). `heldPersonaId` is the room's pin, which resolves
+ *  whoever owns it; pass only the room's stored `chats.anchorPersonaId`. */
 export type ResolvePersonasForParticipants = (args: {
   readonly personaIds: readonly PersonaId[];
   readonly allowedOwnerIds: readonly UserId[];
+  readonly heldPersonaId?: PersonaId | null;
 }) => Promise<ReadonlyMap<PersonaId, PersonaListView>>;
 
 /** D259 — a sign-up joiner's persona insert, unexecuted, with the id it mints. It runs inside chat's signup batch

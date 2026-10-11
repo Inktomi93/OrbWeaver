@@ -30,6 +30,7 @@ import { QueryErrorState, SkeletonRows, useChatBus, useDisplayScripts, usePrefet
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { RenderProfiler, resolveRowRenderPolicy, useFocusOnMount } from "#lib";
 import { isLiveTurnPhase, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
+import { ArtViewerProvider } from "../components/art-viewer-provider.tsx";
 import { GhostMessageRow } from "../components/ghost-message-row.tsx";
 import { JumpToLatestPill } from "../components/jump-to-latest-pill.tsx";
 import { MessageRow } from "../components/message-row.tsx";
@@ -389,47 +390,49 @@ function ChatThread({
     );
   }
   return (
-    <Container className="h-full min-h-0">
-      <Stack className="relative h-full min-h-0">
-        {sourceStatus}
-        <MessageList
-          ref={listHandleRef}
-          ariaLabel="Conversation messages"
-          items={items}
-          getItemKey={messageItemKey}
-          estimateSize={(index): number => estimateMessageRow(items[index] ?? { kind: "ghost" })}
-          keepMounted={(item): boolean => liveCardRows.has(messageItemKey(item))}
-          renderItem={(item, index, meta): ReactNode => {
-            const highlighted =
-              item.kind === "message" &&
-              window !== null &&
-              window.anchorSeq !== null &&
-              window.endSeq !== null &&
-              item.view.seq >= window.anchorSeq &&
-              item.view.seq <= window.endSeq;
-            return (
-              <Stack data-corpus-anchor={highlighted ? "" : undefined} className={highlighted ? "bg-muted ring-1 ring-ring" : undefined}>
-                {renderItem(item, index, meta)}
-              </Stack>
-            );
-          }}
-          rowNavigation="roving"
-          scrollContainerRef={jump.scrollContainerRef}
-          followTail={window === null}
-          scrollMode={behaviorPrefs.streamScrollMode}
-          gapToken="block"
-          // Block breathing rides the virtualizer's OWN padding (never CSS `py-*` on the scroll
-          // container): sticky `top: 0` resolves against the scroller's content box, so container padding
-          // pinned the sticky name band 12px below the visible top with a guillotined strip of prose
-          // permanently above it (#204). The first/last rows still breathe off the topbar/composer edges.
-          blockPaddingToken="block"
-          // Narrow tracks keep exactly the row focus ring's clearance (2px outline + 2px offset) and no more:
-          // the phone's transcript margin is the room's own inset (owner ruling, about 24px of text margin).
-          className="h-full @max-md:px-tight"
-        />
-        <JumpToLatestPill count={jump.count} visible={jump.visible} onJump={jump.onJump} />
-      </Stack>
-    </Container>
+    <ArtViewerProvider>
+      <Container className="h-full min-h-0">
+        <Stack className="relative h-full min-h-0">
+          {sourceStatus}
+          <MessageList
+            ref={listHandleRef}
+            ariaLabel="Conversation messages"
+            items={items}
+            getItemKey={messageItemKey}
+            estimateSize={(index): number => estimateMessageRow(items[index] ?? { kind: "ghost" })}
+            keepMounted={(item): boolean => liveCardRows.has(messageItemKey(item))}
+            renderItem={(item, index, meta): ReactNode => {
+              const highlighted =
+                item.kind === "message" &&
+                window !== null &&
+                window.anchorSeq !== null &&
+                window.endSeq !== null &&
+                item.view.seq >= window.anchorSeq &&
+                item.view.seq <= window.endSeq;
+              return (
+                <Stack data-corpus-anchor={highlighted ? "" : undefined} className={highlighted ? "bg-muted ring-1 ring-ring" : undefined}>
+                  {renderItem(item, index, meta)}
+                </Stack>
+              );
+            }}
+            rowNavigation="roving"
+            scrollContainerRef={jump.scrollContainerRef}
+            followTail={window === null}
+            scrollMode={behaviorPrefs.streamScrollMode}
+            gapToken="block"
+            // Block breathing rides the virtualizer's OWN padding (never CSS `py-*` on the scroll
+            // container): sticky `top: 0` resolves against the scroller's content box, so container padding
+            // pinned the sticky name band 12px below the visible top with a guillotined strip of prose
+            // permanently above it (#204). The first/last rows still breathe off the topbar/composer edges.
+            blockPaddingToken="block"
+            // Narrow tracks keep exactly the row focus ring's clearance (2px outline + 2px offset) and no more:
+            // the phone's transcript margin is the room's own inset (owner ruling, about 24px of text margin).
+            className="h-full @max-md:px-tight"
+          />
+          <JumpToLatestPill count={jump.count} visible={jump.visible} onJump={jump.onJump} />
+        </Stack>
+      </Container>
+    </ArtViewerProvider>
   );
 }
 

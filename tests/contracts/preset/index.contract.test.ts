@@ -1,3 +1,4 @@
+import { z } from "zod";
 // are exactly what an ST preset blob carries (the D68-A import mapping tests below).
 
 import { BELT_OWNED_BODY_KEYS, isBeltOwnedBodyKey } from "@orb/contracts/inference";
@@ -1179,9 +1180,9 @@ test("the write boundary REFUSES a wiFormat that dropped {{entry}}, naming the t
     formatStrings: { wiFormat: "Lore: (nothing here)" },
   });
   expect(result.success).toBe(false);
-  const issue = result.error?.issues[0];
-  expect(issue?.path).toStrictEqual(["formatStrings", "wiFormat"]);
-  expect(issue?.message).toContain("{{entry}}");
+  const refusal = result.success ? "" : z.prettifyError(result.error);
+  expect(refusal).toContain("→ at formatStrings.wiFormat");
+  expect(refusal).toContain("{{entry}}");
 });
 
 test("blank-means-default survives the guard: an empty (or absent) wiFormat is accepted", () => {
@@ -1224,9 +1225,9 @@ test("the write boundary REFUSES a note frame that dropped {{note}}, naming the 
   for (const slotId of NOTE_CARRIER_SLOTS) {
     const result = promptConfigWriteSchema.safeParse(withProse(slotId, "[A note from the operator.]"));
     expect(result.success, slotId).toBe(false);
-    const issue = result.error?.issues[0];
-    expect(issue?.path, slotId).toStrictEqual(["prose", slotId, "text"]);
-    expect(issue?.message, slotId).toContain("{{note}}");
+    const refusal = result.success ? "" : z.prettifyError(result.error);
+    expect(refusal, slotId).toContain(`→ at prose["${slotId}"].text`);
+    expect(refusal, slotId).toContain("{{note}}");
   }
 });
 
@@ -1234,8 +1235,9 @@ test("the write boundary REFUSES a note frame that dropped {{note}}, naming the 
 test("the write boundary REFUSES a game-notes frame that dropped {{reminder}}, and takes one that keeps it", () => {
   const dropped = promptConfigWriteSchema.safeParse(withProse("rpg.reminder.frame", "[Game notes.]"));
   expect(dropped.success).toBe(false);
-  expect(dropped.error?.issues[0]?.path).toStrictEqual(["prose", "rpg.reminder.frame", "text"]);
-  expect(dropped.error?.issues[0]?.message).toContain("{{reminder}}");
+  const refusal = dropped.success ? "" : z.prettifyError(dropped.error);
+  expect(refusal).toContain('→ at prose["rpg.reminder.frame"].text');
+  expect(refusal).toContain("{{reminder}}");
   expect(promptConfigWriteSchema.safeParse(withProse("rpg.reminder.frame", "<<{{reminder}}>>")).success).toBe(true);
 });
 
@@ -1247,8 +1249,9 @@ test("the write boundary REFUSES a teaching-note frame that dropped its token, a
   ] as const) {
     const dropped = promptConfigWriteSchema.safeParse(withProse(slotId, "[A note for the model.]"));
     expect(dropped.success, slotId).toBe(false);
-    expect(dropped.error?.issues[0]?.path, slotId).toStrictEqual(["prose", slotId, "text"]);
-    expect(dropped.error?.issues[0]?.message, slotId).toContain(token);
+    const refusal = dropped.success ? "" : z.prettifyError(dropped.error);
+    expect(refusal, slotId).toContain(`→ at prose["${slotId}"].text`);
+    expect(refusal, slotId).toContain(token);
     expect(promptConfigWriteSchema.safeParse(withProse(slotId, `<<${token}>>`)).success, slotId).toBe(true);
   }
 });
@@ -1313,7 +1316,7 @@ test("C8: the write boundary REFUSES an over-cap guided prompt and accepts one e
     guidedActions: { ...DEFAULT_GUIDED_ACTIONS, response: { prompt: OVER_CAP_PROMPT, role: "system" } },
   });
   expect(over.success).toBe(false);
-  expect(over.error?.issues[0]?.path).toStrictEqual(["guidedActions", "response", "prompt"]);
+  expect(over.success ? "" : z.prettifyError(over.error)).toContain("→ at guidedActions.response.prompt");
   const at = promptConfigWriteSchema.safeParse({
     ...DEFAULT_PROMPT_CONFIG,
     guidedActions: { ...DEFAULT_GUIDED_ACTIONS, response: { prompt: AT_CAP_PROMPT, role: "system" } },

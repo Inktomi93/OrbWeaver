@@ -96,8 +96,8 @@ const REDOS_INPUT = `${"a".repeat(40)}!`;
  *  THE MEASURED PAIR, AND WHY THE SCALING DOES NOT RESCUE IT (cb-v-instruments-3, 2026-09-13). This arm
  *  builds the REAL composition root and seeds through the real regex + chat verbs, so its wall clock is
  *  mostly the BOX: **5,770 ms solo · 7,865 ms in a two-file scoped run · TIMED OUT at 10,117 ms in a
- *  three-file one**. That 10,117 is `budget(10_000)` at `loadavg1 10.2 · cpuCount 16 · throttle
- *  5346/462343` — a factor of **1.0116**, and the whole 1.16% came from the throttle arm, because
+ *  three-file one**. That 10,117 is `budget(10_000)` at
+ *  `loadavg1 10.2 · cpuCount 16 · throttle 5346/462343` — a factor of **1.0116**, and the whole 1.16% came from the throttle arm, because
  *  `computeLoadFactor` is `max(1, loadavg/cores)` and returns EXACTLY 1 across the entire sub-saturation
  *  band this box actually runs in. So the scaling is correct and it is not enough: the residual is the
  *  CURVE, which is #2206's subject, not this base.
@@ -370,8 +370,8 @@ test("the room's chat preset params follow the GM redirect: a GM preset's Max co
 
 // ── #760 — the composed persona-read catches narrow to PersonaNotFoundError, END TO END ─────────────────────
 // `resolveCurrentPersona` and `resolveDefaultPersona` (compose/chat.ts) are both reachable through
-// `chat.startChat`'s founding-anchor chain (`resolveFoundingAnchor`: explicit > connected > current >
-// default). Each is pinned in isolation by leaving the OTHER seed pointer unset (so its own read never
+// `chat.startChat`'s founding-anchor chain (`resolveFoundingAnchor`: explicit > connected > default >
+// current). Each is pinned in isolation by leaving the OTHER seed pointer unset (so its own read never
 // fires — an unset pointer returns null without calling `persona.get` at all).
 describe("compose/chat.ts — the persona-read catches narrow to PersonaNotFoundError (#760)", () => {
   test("startChat (resolveCurrentPersona): a non-not-found persona rejection PROPAGATES", async ({ db, services }) => {

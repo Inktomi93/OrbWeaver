@@ -26,7 +26,7 @@ Settings → Plugins → drop the zip → tick the capabilities → turn it on. 
 ```
 
 No network, no model spend, no room writes — the deck's core is still the cheapest archetype there is.
-`ui.surface` draws the whole UI plane (the card, the page, the dialog, the command, the table mark); drop it
+`ui.surface` draws the whole UI plane (the card, the page, the dialog, the command); drop it
 and the tools still work, in the generic block. `chat.transform` carries the omen MACRO (a macro substitutes
 into the prompt, which is that capability's reach), and `plugin_events` lets the deck ANNOUNCE its draws to
 your other plugins. Every registration feature-detects its grant, so any subset of ticks still activates.

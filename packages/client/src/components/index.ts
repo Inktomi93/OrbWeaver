@@ -38,6 +38,8 @@ export type { MemberDrillBack, MemberDrillHeaderProps } from "./member-drill-hea
 export { MemberDrillHeader } from "./member-drill-header.tsx";
 export type { ModelRunConfirmDialogProps } from "./model-run-confirm-dialog.tsx";
 export { ModelRunConfirmDialog } from "./model-run-confirm-dialog.tsx";
+export type { PanelEdgeControlProps } from "./panel-edge-control.tsx";
+export { PanelEdgeControl } from "./panel-edge-control.tsx";
 export {
   CHIP_TOUCH_FLOOR_AT_COARSE,
   CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE,

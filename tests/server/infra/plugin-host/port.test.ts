@@ -1688,7 +1688,7 @@ describe("port.dispose — the detached cleanup join surfaces a settle failure (
 
   /** A bridge whose `chat.getVariables` NEVER settles: a fire-and-forget guest call leaves one host op in flight
    *  at dispose, so `cancelHostOperations` only signals it (controllers stay registered — `pendingHostOperations`
-   *  stays > 0) and dispose takes the DEFERRED `superviseDetached` teardown path rather than the synchronous one. */
+   *  stays above 0) and dispose takes the DEFERRED `superviseDetached` teardown path rather than the synchronous one. */
   function pendingGetVarsBridge(): PluginBridge {
     const base = fakeBridge().bridge;
     const neverSettles = new Promise<Record<string, string>>(() => undefined);

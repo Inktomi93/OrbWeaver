@@ -88,7 +88,7 @@ const RESET_NAME_RE = /^Reset to starter arrangement$/;
 /** The Activate command, matched on the half of its name that is NOT under test (the visible label is what
  *  the WCAG 2.5.3 pin reads off the DOM and compares). */
 const ACTIVATE_NAME_RE = /use this preset for generation/i;
-/** A band flush to the pane is ~one padding step in; a band sharing a capped column at 1520px is >300px in.
+/** A band flush to the pane is ~one padding step in; a band sharing a capped column at 1520px is over 300px in.
  *  Stated as a floor well clear of any padding so the pin cannot pass on chrome alone. */
 const MIN_COLUMN_INSET_PX = 100;
 /** The view strip's own accessible name (P3-4) — the surface's last DOM-fallback selector. */

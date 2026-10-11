@@ -220,8 +220,9 @@ test("sonnet 4.5 / 4.6 keep the shared sonnet reasoning cell without the sonnet-
   expect(direct("claude-sonnet-4-6").reasoning.mode).toBe("effort");
 });
 
-/** The ids Anthropic documents as rejecting a forced `tool_choice` (`any` / `tool` → 400 `tool_choice: type "tool"
- *  and "any" are not supported for this model`, on Messages, Batches and count_tokens). Fable 5 and Opus 5 accept it. */
+/** The ids Anthropic documents as rejecting a forced `tool_choice` (`any` / `tool` → 400
+ *  `tool_choice: type "tool" and "any" are not supported for this model`, on Messages, Batches and count_tokens).
+ *  Fable 5 and Opus 5 accept it. */
 const REJECTS_FORCED_TOOL = [
   { providerId: "anthropic", model: "claude-fable-5-1" },
   { providerId: "anthropic", model: "claude-mythos-5-1" },

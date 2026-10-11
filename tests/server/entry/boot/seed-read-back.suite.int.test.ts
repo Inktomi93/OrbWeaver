@@ -182,7 +182,7 @@ function driftOf(value: unknown, plan: Plan, path: string, fills: Fills = "drift
   if (plan instanceof z.ZodType) {
     const parsed = plan.safeParse(value);
     if (!parsed.success) {
-      return parsed.error.issues.map((issue) => `${[path, ...issue.path.map(String)].join(".")}: ${issue.message}`);
+      return [`${path}: ${z.prettifyError(parsed.error)}`];
     }
     return lossOf(value, parsed.data, path, fills);
   }

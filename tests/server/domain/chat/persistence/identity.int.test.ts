@@ -49,6 +49,19 @@ describe("persistence/identity — loadChatIdentityProducer (§1 member-gated co
     expect(identities).toHaveLength(2);
   });
 
+  test("covers the room's pin when no seat and no line names it (a pinned player who left)", async () => {
+    const owner = await seedUser(db, castId<Handle>("owner"));
+    const gone = await seedUser(db, castId<Handle>("gone"));
+    const seated = await seedPersona(db, owner, "zara");
+    const pinned = await seedPersona(db, gone, "mara");
+
+    const identities = await loadChatIdentityProducer(db, {
+      participants: [{ characterId: null, activePersonaId: seated }],
+      anchorPersonaId: pinned,
+    });
+    expect(entryOf(identities, pinned)).toEqual({ kind: "persona", id: pinned, name: "mara", description: "mara description", avatarHash: null });
+  });
+
   test("covers a message-stamped id NOT on any participant (a since-switched persona)", async () => {
     const owner = await seedUser(db, castId<Handle>("owner"));
     const activePersona = await seedPersona(db, owner, "zara");

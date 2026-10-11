@@ -35,7 +35,7 @@
 // the host's own payload. Strip the return; emit the truth.
 
 import type { DurableChatBusEvent, MessageView, ReattributeScope } from "@orb/contracts/chat";
-import { macroFreezeRecordSchema, parseVariantMetadata } from "@orb/contracts/chat";
+import { isSeededGreetingRow, macroFreezeRecordSchema, parseVariantMetadata } from "@orb/contracts/chat";
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/query";
@@ -581,8 +581,8 @@ function createSetSeededGreeting(ctx: ChatContext, emit: EmitChatEvent): ChatSer
   return async ({ principal, chatId, messageId, greetingIndex }: SetSeededGreetingParams) => {
     const membership = await requireHost(ctx, principal, chatId);
     const slot = await loadSlotInChat(ctx, chatId, messageId);
-    if (slot.role !== "assistant" || slot.characterId === null) {
-      throw new ChatOperationError(CHAT_OP_CODES.notGreetingRow, `chat ${chatId}: only a character-voiced greeting row has alternates to step`);
+    if (!isSeededGreetingRow(slot)) {
+      throw new ChatOperationError(CHAT_OP_CODES.notGreetingRow, `chat ${chatId}: only a seeded greeting row has alternates to step`);
     }
     if (await loadHasUserMessage(ctx.db, chatId)) {
       throw new ChatOperationError(CHAT_OP_CODES.greetingFrozen, `chat ${chatId}: the greeting froze at the first user turn`);

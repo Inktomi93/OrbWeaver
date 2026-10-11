@@ -18,6 +18,10 @@ import { chatIdentitySchema } from "./producers.ts";
 import type { ParticipantView } from "./roster.ts";
 import { participantViewSchema } from "./roster.ts";
 
+/** How a room's pin stands — see {@link ChatDetail.anchorState}. */
+export const ANCHOR_STATES = ["live", "held", "none"] as const;
+export type AnchorState = (typeof ANCHOR_STATES)[number];
+
 /** The full chat read (getChat) — the row resolved + the present roster + the effective room behavior
  *  (`group`/`roomOverrides`/`opening` parsed from `metadata`, fault-isolated to their defaults). The message
  *  list is fetched separately (listMessages, paged). */
@@ -35,6 +39,9 @@ export interface ChatDetail {
   readonly forkedAt: number | null;
   /** The stable `{{user}}` anchor persona (chat-open POV for card-authored sections). */
   readonly anchorPersonaId: ParticipantView["activePersonaId"];
+  /** How the pin stands: `live` while a present, enabled player owns it; `held` when its owner is no longer
+   *  in the room, the card still meaning that persona; `none` with no pin. Never says why it is held. */
+  readonly anchorState: AnchorState;
   readonly participants: readonly ParticipantView[];
   /** The CALLER's own participant's `activePersonaId` (FINAL-Persona §A — Chat persona #3) — populated
    *  server-side from the resolving `principal`, so the client never has to find-and-match its own
@@ -137,6 +144,7 @@ export const chatDetailSchema = z.strictObject({
   parentChatId: typeIdSchema(ID_PREFIX.chat).nullable(),
   forkedAt: z.number().nullable(),
   anchorPersonaId: typeIdSchema(ID_PREFIX.persona).nullable(),
+  anchorState: z.enum(ANCHOR_STATES),
   participants: z.array(participantViewSchema).readonly(),
   viewerActivePersonaId: typeIdSchema(ID_PREFIX.persona).nullable(),
   viewerIsHost: z.boolean(),

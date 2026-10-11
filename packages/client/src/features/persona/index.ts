@@ -3,8 +3,8 @@
 // is registered at the main.tsx door; no feature imports this slice's internals, and this slice
 // imports no other feature (cross-domain reads ride trpc.*).
 //
-// The Personas config GROUP is a `sections` skimmer: its three sections
-// are the contributions below, assembled into the config-section registry at the door.
+// The Personas config GROUP is a `sections` skimmer: its sections are the contributions below,
+// assembled into the config-section registry at the door.
 
 // `PersonaPanelRow` is front-door-exported so its CT (the side-eye item-13 stretched-overlay rework)
 // drives it directly from a non-test story — the CharacterCardTile precedent.
@@ -16,5 +16,4 @@ export { useViewerCanSpeak } from "./hooks/use-viewer-can-speak.ts";
 export { personaChrome } from "./lib/persona-chrome.tsx";
 export { personaListSection } from "./lib/persona-list-section.tsx";
 export { personaNotificationsSection } from "./lib/persona-notifications-section.tsx";
-export { personaThisChatSection } from "./lib/persona-this-chat-section.tsx";
 export { personasGroup } from "./lib/personas-group.tsx";

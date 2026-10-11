@@ -1132,7 +1132,7 @@ test.describe("#655: coarse pointer — the fire-log door meets the touch floor"
 
 const WIDTHS = [384, 430, 1024] as const;
 const THEMES = ["dark", "light"] as const;
-/** The share of the row the NAME COLUMN must own — the reviewer's ">=55% at 384px", made a range property. */
+/** The share of the row the NAME COLUMN must own — the reviewer's "`>=55%` at 384px", made a range property. */
 const NAME_COLUMN_SHARE = 0.55;
 const TRANSPARENT_BG = "rgba(0, 0, 0, 0)";
 

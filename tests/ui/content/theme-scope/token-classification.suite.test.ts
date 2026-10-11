@@ -26,7 +26,7 @@ import { expect, test } from "../../../support/fixtures.ts";
 type TokenPath = keyof typeof TOKENS;
 
 const LEADING_DASHES_RE = /^--/u;
-/** `--color-secondary-foreground` -> `color.secondary-foreground` (the TOKENS map key shape). */
+/** `--color-secondary-foreground` → `color.secondary-foreground` (the TOKENS map key shape). */
 function cssVarToTokenPath(cssVar: string): string {
   const stripped = cssVar.replace(LEADING_DASHES_RE, "");
   const dashIndex = stripped.indexOf("-");

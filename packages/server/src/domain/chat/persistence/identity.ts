@@ -39,6 +39,8 @@ import type { MessageMacroIdSource, ParticipantMacroIdSource } from "../contract
 interface ChatIdentityLoadArgs {
   readonly participants?: readonly ParticipantMacroIdSource[];
   readonly messages?: readonly MessageMacroIdSource[];
+  /** The room's stored pin. A pin whose owner left names no seat and maybe no line, yet the room still shows it. */
+  readonly anchorPersonaId?: PersonaId | null;
 }
 
 interface ChatIdentityIdSource<Id extends string> {
@@ -90,7 +92,9 @@ function collectIdentityIds<Id extends string>(args: ChatIdentityLoadArgs, sourc
  */
 export async function loadChatIdentityProducer(db: Db, args: ChatIdentityLoadArgs): Promise<readonly ChatIdentity[]> {
   const characterIds = collectIdentityIds(args, CHAT_IDENTITY_ID_SOURCES.character);
-  const personaIds = collectIdentityIds(args, CHAT_IDENTITY_ID_SOURCES.persona);
+  const coveredPersonaIds = collectIdentityIds(args, CHAT_IDENTITY_ID_SOURCES.persona);
+  const pin = args.anchorPersonaId ?? null;
+  const personaIds = pin === null || coveredPersonaIds.includes(pin) ? coveredPersonaIds : [...coveredPersonaIds, pin];
   // @orb-waive owner-scoped-reads(characters): the id union is derived from the room's OWN canon (`CHAT_IDENTITY_ID_SOURCES` over roster seats + per-message attribution stamps), never from caller input, and the read returns only display names, the persona description the transcript already renders, and CAS hashes — the member-gated vocabulary a room's transcript already shows (D18; a seated card's avatar is room-visible by construction, D18/D64). Ends if the producer ever accepts an id set from a request.
   // @orb-waive owner-scoped-reads(personas): the id union is derived from the room's OWN canon (`CHAT_IDENTITY_ID_SOURCES` over roster seats + per-message attribution stamps), never from caller input, and the read returns only display names, the persona description the transcript already renders, and CAS hashes — the member-gated vocabulary a room's transcript already shows (D18; a seated card's avatar is room-visible by construction, D18/D64). Ends if the producer ever accepts an id set from a request.
   const [characterRows, personaRows] = await Promise.all([

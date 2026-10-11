@@ -9,14 +9,16 @@ import { Row } from "@orb/ui/layout";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
-import { usePluginCommands, useRunPluginCommand } from "../hooks/use-plugin-commands.ts";
-import { pluginCommandActionLabel, pluginCommandAttributedActionLabel, pluginCommandAttribution } from "../lib/plugin-command-copy.ts";
+import { usePluginCommands, useRunPluginCommand, useSharedPluginNames } from "../hooks/use-plugin-commands.ts";
+import { pluginCommandActionLabel, pluginCommandShownName } from "../lib/plugin-command-copy.ts";
 import { PLUGIN_ICON_GLYPHS } from "../lib/plugin-icon-glyphs.ts";
 
 interface PlacedCommand {
   readonly command: ReturnType<typeof usePluginCommands>[number];
   readonly label: string;
   readonly icon: keyof typeof PLUGIN_ICON_GLYPHS | undefined;
+  /** What the composer calls the plugin: its display name, plus the slug only when another install shares it. */
+  readonly shownName: string;
 }
 
 interface PlacedCommandGroup {
@@ -38,20 +40,21 @@ function PlacedActionButton({
 }): ReactElement {
   const glyph = item.icon === undefined ? Blocks : PLUGIN_ICON_GLYPHS[item.icon];
   return (
-    <Button
-      aria-label={pluginCommandAttributedActionLabel(item.command.pluginName, item.command.slug, item.command.group ?? "Commands", item.label)}
-      className="shrink-0"
-      intent="ghost"
-      loading={isPending}
-      onClick={onRun}
-      shape="pill"
-      size="sm"
-      type="button"
-    >
+    <Button aria-label={placedActionLabel(item)} className="shrink-0" intent="ghost" loading={isPending} onClick={onRun} shape="pill" size="sm" type="button">
       <Icon icon={glyph} size="sm" />
-      {pluginCommandAttribution(item.command.pluginName, item.command.slug)} · {pluginCommandActionLabel(item.label)}
+      {item.shownName} · {pluginCommandActionLabel(item.label)}
     </Button>
   );
+}
+
+// A button's name is exactly what it shows (label-in-name); a menu item shows only its command under a group label, so
+// its name carries the group the label above it spells.
+function placedActionLabel(item: PlacedCommand): string {
+  return `${item.shownName} · ${pluginCommandActionLabel(item.label)}`;
+}
+
+function placedItemLabel(item: PlacedCommand): string {
+  return `${item.shownName} · ${item.command.group ?? "Commands"} · ${pluginCommandActionLabel(item.label)}`;
 }
 
 // Host order: the shown attribution (name, then slug), then group, then the label shown at THIS target. The
@@ -68,10 +71,15 @@ function comparePlaced(a: PlacedCommand, b: PlacedCommand): number {
 }
 
 function usePlacedCommands(target: PluginCommandPlacementTarget): readonly PlacedCommand[] {
-  return usePluginCommands(target === "composer-action")
+  const commands = usePluginCommands(true);
+  // A display name is not an identity, so the slug stays on screen exactly when two installs share a name.
+  const shared = useSharedPluginNames();
+  return commands
+    .filter((command) => target === "composer-action" || command.composerDraft !== true)
     .flatMap((command) => {
       const placement = command.placements.find((candidate) => candidate.target === target);
-      return placement === undefined ? [] : [{ command, label: placement.label, icon: placement.icon }];
+      const shownName = pluginCommandShownName(command.pluginName, command.slug, shared);
+      return placement === undefined ? [] : [{ command, label: placement.label, icon: placement.icon, shownName }];
     })
     .toSorted(comparePlaced);
 }
@@ -85,7 +93,7 @@ function groupPlacedCommands(placed: readonly PlacedCommand[]): readonly PlacedC
     if (previous?.id === id) {
       previous.commands.push(item);
     } else {
-      groups.push({ id, label: `${pluginCommandAttribution(item.command.pluginName, item.command.slug)} · ${commandGroup}`, commands: [item] });
+      groups.push({ id, label: `${item.shownName} · ${commandGroup}`, commands: [item] });
     }
   }
   return groups;
@@ -168,7 +176,7 @@ export function PluginComposerActions({ chatId }: { readonly chatId: ChatId }): 
                   const glyph = item.icon === undefined ? Blocks : PLUGIN_ICON_GLYPHS[item.icon];
                   return (
                     <MenuItem
-                      aria-label={pluginCommandAttributedActionLabel(item.command.pluginName, item.command.slug, item.command.group ?? "Commands", item.label)}
+                      aria-label={placedItemLabel(item)}
                       disabled={isPending}
                       key={`${item.command.pluginId}:${item.command.name}`}
                       onClick={(): void => run(item.command)}
@@ -204,7 +212,7 @@ export function PluginComposerMediaItems({ chatId }: { readonly chatId: ChatId }
             const glyph = item.icon === undefined ? Blocks : PLUGIN_ICON_GLYPHS[item.icon];
             return (
               <MenuItem
-                aria-label={pluginCommandAttributedActionLabel(item.command.pluginName, item.command.slug, item.command.group ?? "Commands", item.label)}
+                aria-label={placedItemLabel(item)}
                 disabled={isPending}
                 key={`${item.command.pluginId}:${item.command.name}`}
                 onClick={(): void => run(item.command)}

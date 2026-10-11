@@ -692,6 +692,10 @@ const profileSchema = z
   .object({
     // @orb-waive no-raw-id(avatarAssetId): lenient UserSettings tier — a stale/deleted asset id degrades at consumption (not a validated entity boundary), so it stays plain.
     avatarAssetId: z.string().nullable().optional(),
+    // Plugins whose chat panels this user hid, in every room. Element-wise: one stale element costs itself only.
+    hiddenChatPluginIds: tolerantArray(typeIdSchema(ID_PREFIX.plugin), []).default([]),
+    // The inline plugin flank is collapsed: the header icon folds the column away so the transcript takes its width.
+    flankCollapsed: z.boolean().catch(false).default(false),
   })
   .prefault({});
 

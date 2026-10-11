@@ -17,7 +17,7 @@ import { Container, Row, Stack, Surface } from "@orb/ui/layout";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { Fragment, useDeferredValue, useRef } from "react";
+import { Fragment, useDeferredValue, useId, useRef } from "react";
 import type { ChatBusDeps } from "#data";
 import { SkeletonRows, useCarriedAppearance, useTRPC } from "#data";
 import type { ChatRoomSurfaceState, ChatSurfaceAnchor, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
@@ -28,6 +28,9 @@ import { ChatCharacterBar } from "../components/chat-character-bar.tsx";
 import { ChoiceSendProvider } from "../components/choice-send-provider.tsx";
 import { Composer } from "../components/composer.tsx";
 import { MessageSelectionBar } from "../components/message-selection-bar.tsx";
+import { FlankColumn, FlankEdge, InlineFlankFitProbe } from "../components/room-flank.tsx";
+import { useFlankPresentation } from "../hooks/use-flank-presentation.ts";
+import { useFlankTrackFlip } from "../hooks/use-flank-track-flip.ts";
 import { resolveRoomTheme } from "../lib/attribution.ts";
 import { CHAT_TRACK } from "../lib/chat-track.ts";
 import { BG_PHOTO_LOADING_PLATE } from "../lib/message-row-backing.ts";
@@ -86,6 +89,12 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   useFocusOnMount(surfaceRef, bodyMounted);
 
   const roomState: ChatRoomSurfaceState = { chatId };
+  const flankColumnRef = useRef<HTMLDivElement>(null);
+  const flankControlRef = useRef<HTMLButtonElement>(null);
+  const flank = useFlankPresentation(flankColumnRef, flankControlRef);
+  const flankId = useId();
+  const flankRowRef = useRef<HTMLDivElement>(null);
+  useFlankTrackFlip(flankRowRef, flank.occupiesRow);
   const flankContributions = resolveRoomAnchor(surfaceContributors, "thread-flank", roomState);
   const aboveComposerContributions = resolveRoomAnchor(surfaceContributors, "above-composer", roomState);
   const composerActionContributions = resolveRoomAnchor(surfaceContributors, "composer-action", roomState);
@@ -94,8 +103,10 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
 
   // `min-w-0` beside `min-h-0`: inside the flank ROW the thread is a horizontal flex child, and without it
   // a long unbreakable line in the transcript would push the column past its share instead of scrolling.
+  // With the plugin column out of the row, its edge control sits over the transcript's top corner: the thread keeps
+  // that corner clear (`pe-control-lg` is the control plus a gap; shell.css's flank distance reads the same token).
   const thread = (
-    <Stack className="min-h-0 min-w-0 flex-1">
+    <Stack className={cn("min-h-0 min-w-0 flex-1", !flank.occupiesRow && "pe-control-lg")} data-slot="chat-room-thread">
       <MessageThreadAnchor>
         {/* P5 CYOA (§5.3): the thread's choice buttons send through the room's own send capability —
             a separate useSendMessage instance from the composer's, so a pick never clears the draft. */}
@@ -129,6 +140,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           )}
           gap="block"
           ref={surfaceRef}
+          data-slot="chat-room-surface"
           role="group"
           tabIndex={-1}
         >
@@ -163,8 +175,17 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                *  flank stacks BELOW the thread instead of crushing its reading column (the
                *  settings-shell-surface.tsx / role-slot-row.tsx `@max-md`/`@2xl` precedent, at the `lg` step
                *  since a thread+flank split needs more room than a nav+content split before beside is comfy). */}
-              <Container className="min-h-0 flex-1">
-                <Row gap="block" align="stretch" className="h-full min-h-0 @max-lg:flex-col" data-slot="chat-room-flank-row">
+              <Container className="relative min-h-0 flex-1">
+                <InlineFlankFitProbe />
+                {/* `relative` makes the row the parked column's containing block, so the row's `overflow-x-clip`
+                    clips it; positioned against the Container, it would show through the docked Details pane. */}
+                <Row
+                  gap="block"
+                  align="stretch"
+                  className="relative h-full min-h-0 overflow-x-clip @max-lg:flex-col"
+                  data-slot="chat-room-flank-row"
+                  ref={flankRowRef}
+                >
                   {thread}
                   {/* `empty:hidden` is the SILENT-CONTRIBUTOR collapse, the same property (and the same
                   reason) the above-composer band carries below: a contributor whose applicability is DATA
@@ -195,16 +216,13 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                   {/* The column's own top gap (`pt-block`) keeps a card off the topbar's divider while the column
                   still starts on the row's top edge, where the transcript does. Stacked, the row's `gap` already
                   separates the column from the thread. */}
-                  <Stack
-                    gap="block"
-                    className="empty:hidden max-w-(--width-sidebar-sm) relative pt-block @max-lg:max-h-1/2 @max-lg:max-w-none @max-lg:overflow-y-auto @max-lg:pt-0"
-                    data-slot="chat-thread-flank"
-                  >
+                  <FlankColumn columnRef={flankColumnRef} flank={flank} id={flankId}>
                     {flankContributions.map((c) => (
                       <Fragment key={c.id}>{c.node}</Fragment>
                     ))}
-                  </Stack>
+                  </FlankColumn>
                 </Row>
+                <FlankEdge controlRef={flankControlRef} controls={flankId} flank={flank} />
               </Container>
               <MessageSelectionBar chatId={chatId} />
               {/* THE ROOM'S ONE TRACK (#213): a band between the transcript and the composer is part of the same

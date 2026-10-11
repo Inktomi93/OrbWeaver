@@ -26,6 +26,7 @@ import { ChevronLeft, ChevronRight, Icon } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { variantCountName } from "../lib/message-action-names.ts";
 import type { SwipeFoot } from "../lib/pager-chrome.ts";
 import { SWIPE_COUNTER } from "../lib/pager-chrome.ts";
 import { SwipeFootRow } from "./swipe-strip.tsx";
@@ -65,9 +66,10 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, foot 
   const total = variants.length;
   const currentIdx = variants.indexOf(current);
   const atCustom = currentIdx === -1;
-  const canPrev = atCustom || currentIdx > 0;
+  // Back wraps to the last alternate, as the reply pager's does; forward stops at the last.
+  const canPrev = total > 1;
   const canNext = atCustom || currentIdx < total - 1;
-  const prevIdx = atCustom ? total - 1 : currentIdx - 1;
+  const prevIdx = atCustom || currentIdx === 0 ? total - 1 : currentIdx - 1;
   const nextIdx = atCustom ? 0 : currentIdx + 1;
 
   const pick = (idx: number): void => {
@@ -81,6 +83,7 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, foot 
     <SwipeFootRow
       foot={foot}
       slot="greeting-swipe-strip"
+      label={variantCountName(atCustom ? null : currentIdx + 1, total)}
       prev={
         <Button
           intent="ghost"
@@ -95,7 +98,7 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, foot 
         </Button>
       }
       count={
-        <Text as="span" voice="datum" data-slot="greeting-swipe-strip-counter" className={SWIPE_COUNTER}>
+        <Text as="span" voice="datum" aria-hidden="true" data-slot="greeting-swipe-strip-counter" className={SWIPE_COUNTER}>
           {atCustom ? "—" : currentIdx + 1} / {total}
         </Text>
       }

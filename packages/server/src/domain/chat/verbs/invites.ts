@@ -45,6 +45,7 @@ import {
 import { loadChatRow, loadMemberChat } from "../persistence/queries.ts";
 import { resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
+import { resolveAnchorState } from "../substrate/participants-humans.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 
 /** The collaborators the invite verbs close over (see the file header). */
@@ -120,7 +121,7 @@ function resolveMaxUses(requested: number | null | undefined): number | null {
 }
 
 /** THE SEAT'S PERSONA AT JOIN — the same seed chain `startChat` runs for the founding host row
- *  (`start-chat.ts`: current persona, then default). Both join paths owe it: a seat born with
+ *  (`start-chat.ts`: default persona, then last played). Both join paths owe it: a seat born with
  *  `activePersonaId = NULL` stamps `persona_id = NULL` on every message that member writes, and a row with no
  *  identity of its own gets floored on both render surfaces — and, before the SHAPE guard, borrowed the
  *  HOST's persona on the wire (INVITE-JOIN-NULL-PERSONA: the model was told the host said it).
@@ -128,7 +129,7 @@ function resolveMaxUses(requested: number | null | undefined): number | null {
  *  `null` survives as an honest outcome for a user who holds no persona at all — it is the floor, never the
  *  anchor. The joiner's OWN ids only; neither resolver reads the room. */
 async function resolveJoinerPersona(ctx: ChatContext, joinerUserId: UserId): Promise<PersonaId | null> {
-  return (await ctx.resolveCurrentPersona(joinerUserId)) ?? (await ctx.resolveDefaultPersona(joinerUserId));
+  return (await ctx.resolveDefaultPersona(joinerUserId)) ?? (await ctx.resolveCurrentPersona(joinerUserId));
 }
 
 /** D259 — the gates on an `allowSignup` mint, after `requireHost`. The mode must mint signup invites, the host
@@ -281,7 +282,7 @@ function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["re
     if (participant === undefined) {
       throw new ChatNotFoundError(chatId);
     }
-    const identities = await loadChatIdentityProducer(ctx.db, { participants });
+    const identities = await loadChatIdentityProducer(ctx.db, { participants, anchorPersonaId: chat.anchorPersonaId });
     return {
       chat: toChatDetail({
         chat,
@@ -293,6 +294,7 @@ function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["re
         // receive the compaction checkpoint (a distillation of the canon their floor withholds) on the very
         // response that seats them.
         viewerHistoryFloorSeq: resolveHistoryFloorSeq(participant),
+        anchorState: await resolveAnchorState(ctx, participants, chat.anchorPersonaId),
       }),
       participant,
     };
@@ -342,7 +344,7 @@ function createAcceptInvite(ctx: ChatContext, deps: InviteDeps): ChatService["ac
     if (participant === undefined) {
       throw new ChatNotFoundError(chatId);
     }
-    const identities = await loadChatIdentityProducer(ctx.db, { participants });
+    const identities = await loadChatIdentityProducer(ctx.db, { participants, anchorPersonaId: chat.anchorPersonaId });
     return {
       chat: toChatDetail({
         chat,
@@ -354,6 +356,7 @@ function createAcceptInvite(ctx: ChatContext, deps: InviteDeps): ChatService["ac
         // receive the compaction checkpoint (a distillation of the canon their floor withholds) on the very
         // response that seats them.
         viewerHistoryFloorSeq: resolveHistoryFloorSeq(participant),
+        anchorState: await resolveAnchorState(ctx, participants, chat.anchorPersonaId),
       }),
       participant,
     };

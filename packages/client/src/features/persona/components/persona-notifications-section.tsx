@@ -1,14 +1,14 @@
 // The Personas group's NOTIFICATIONS section — the one peripheral per-user
 // persona pref: the "notify me when my persona changes in a chat" switch. A contributed, anchored section
-// like every other settings knob (D120); the this-chat section reads the SAME key to decide whether its
-// switch/restamp confirmations toast. Owns its own boundary — a slow settings read never blanks the list
+// like every other settings knob (D120); the switcher reads the SAME key to decide whether its persona
+// notices show. Owns its own boundary — a slow settings read never blanks the list
 // beside it.
 
 import { Section } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary, SettingSwitchRow } from "#components";
+import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, SettingSwitchRow } from "#components";
 import { createEntityMutation, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { configAnchorId } from "#state";
 import { PERSONA_NOTIFICATIONS_SUBCATEGORY } from "../lib/personas-nav.ts";
@@ -46,11 +46,18 @@ function NotificationsSwitch(): ReactElement {
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
   const setPrefs = useSetPersonaPrefs({ trpc, invalidation });
+  // Real row chrome (the `i`, the default-vs-current block): the leaf declares `key: "showNotifications"`.
   return (
-    <SettingSwitchRow
-      label="Notify me when my persona changes in a chat"
-      checked={data.config.persona.showNotifications}
-      onChange={(next): void => setPrefs.mutate({ section: "persona", patch: { showNotifications: next } })}
-    />
+    <ConfigTeachScope value={{ group: "personas", sub: PERSONA_NOTIFICATIONS_SUBCATEGORY }}>
+      <SettingRowGroup>
+        <SettingRow settingId="persona-notifications">
+          <SettingSwitchRow
+            label="Notify me when my persona changes in a chat"
+            checked={data.config.persona.showNotifications}
+            onChange={(next): void => setPrefs.mutate({ section: "persona", patch: { showNotifications: next } })}
+          />
+        </SettingRow>
+      </SettingRowGroup>
+    </ConfigTeachScope>
   );
 }

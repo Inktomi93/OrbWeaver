@@ -11,6 +11,7 @@
 
 import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation, usePluginDisplayText, useTRPC } from "@orb/client/data";
+import { AppShell } from "@orb/client/features/app-shell";
 import { CommandPaletteSurface } from "@orb/client/features/chat";
 import {
   pluginChatFlankSurface,
@@ -19,6 +20,7 @@ import {
   pluginCommandsChrome,
   pluginComposerActionSurface,
   pluginComposerMediaSurface,
+  pluginComposerPanelsSurface,
   pluginDistributeSection,
   pluginMessageFooterSurface,
   pluginsInstalledSection,
@@ -75,6 +77,7 @@ import {
   useUninstallPlugin,
   useWithdrawPlugin,
 } from "#client/features/plugin/lib/plugin-mutations.ts";
+import { setActiveSection, setPanelMode } from "#client/state/shell-store.ts";
 import {
   CtAppDataProviders,
   CtChatContributorSectionRegistry,
@@ -238,6 +241,78 @@ export function PluginChatFlankRoomStory({ registered = true }: { readonly regis
       <CtChatContributorSectionRegistry surfaceContributors={registered ? pluginFlankContributors : noContributors}>
         <ChatRoomHarness />
       </CtChatContributorSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** The flank AND its touch-device door in Message tools, registered exactly as the door registers them. */
+const pluginFlankAndDoorContributors: ReturnType<typeof createContributorRegistry<ChatSurfaceContribution>> =
+  createContributorRegistry<ChatSurfaceContribution>("chat-surface", [pluginChatFlankSurface, pluginComposerPanelsSurface]);
+
+/** The room with its composer: the production path for a touch device's plugin-panels sheet. Toasts are mounted
+ *  because hiding the last panel leaves its Undo in one. */
+export function PluginFlankSheetRoomStory(): ReactElement {
+  useEffect(() => {
+    selectChat(CHAT_ID);
+  }, []);
+  return (
+    <CtDataProviders>
+      <CtToastSurface>
+        <CtChatContributorSectionRegistry surfaceContributors={pluginFlankAndDoorContributors}>
+          <ChatRoomHarness />
+        </CtChatContributorSectionRegistry>
+      </CtToastSurface>
+    </CtDataProviders>
+  );
+}
+
+/** The REAL shell on the chats section with the flank and its touch door at the door, the list docked when asked.
+ *  A test opens Details through its own topbar toggle, as a person does. */
+export function PluginPhoneShellStory({ listDocked = false }: { readonly listDocked?: boolean }): ReactElement {
+  useEffect(() => {
+    setActiveSection("chats");
+    selectChat(CHAT_ID);
+    if (listDocked) {
+      setPanelMode("list", "docked");
+    }
+  }, [listDocked]);
+  return (
+    <CtDataProviders>
+      <CtToastSurface>
+        <CtChatContributorSectionRegistry surfaceContributors={pluginFlankAndDoorContributors}>
+          <AppShell />
+        </CtChatContributorSectionRegistry>
+      </CtToastSurface>
+    </CtDataProviders>
+  );
+}
+
+function InstalledPluginRows(): ReactElement {
+  const trpc = useTRPC();
+  const { data } = useQuery(trpc.plugin.list.queryOptions());
+  return (
+    <Stack gap="block">
+      {(data ?? []).map((plugin) => (
+        <PluginRow key={plugin.id} plugin={plugin} />
+      ))}
+    </Stack>
+  );
+}
+
+/** The room's flank beside the installed plugin rows: hide from the panel, undo from the notice, re-show from
+ *  the row's switch — all over the one settings read. */
+export function PluginChatVisibilityStory(): ReactElement {
+  useEffect(() => {
+    selectChat(CHAT_ID);
+  }, []);
+  return (
+    <CtDataProviders>
+      <CtToastSurface>
+        <CtChatContributorSectionRegistry surfaceContributors={pluginFlankContributors}>
+          <ChatRoomHarness />
+          <InstalledPluginRows />
+        </CtChatContributorSectionRegistry>
+      </CtToastSurface>
     </CtDataProviders>
   );
 }

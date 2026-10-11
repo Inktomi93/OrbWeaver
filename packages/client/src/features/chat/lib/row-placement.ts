@@ -6,7 +6,6 @@ import type { AppearanceSettings } from "@orb/contracts/settings";
 import type { MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { gutterCentredTracks } from "@orb/ui/layout";
-import type { RowAttribution } from "./attribution.ts";
 import { PILL_PHONE_CAP } from "./chat-track.ts";
 import type { ActionsReveal } from "./message-actions-reveal.ts";
 import type { RowSkin } from "./message-row-variants.ts";
@@ -92,11 +91,4 @@ export function actionsRevealFor(skin: RowSkin, lastRow: boolean, setting: Appea
 /** The settled transcript's last row id. While a turn is live the ghost is the tail, so no row is last. */
 export function settledLastRowId(messages: readonly MessageView[], live: boolean): MessageId | undefined {
   return live ? undefined : messages.at(-1)?.id;
-}
-
-/** The row's identity treatment: the skin's, except that a portrait with no art falls back to the chip.
- *  A ripple row with no portrait image was a full-height flat block padding every message to its height. */
-export function avatarTreatmentFor(skin: RowSkin, kind: RowAttribution["kind"], avatarHash: string | null): ReturnType<RowSkin["avatarTreatment"]> {
-  const treatment = skin.avatarTreatment(kind);
-  return treatment === "sticky-portrait" && avatarHash === null ? "icon-left" : treatment;
 }

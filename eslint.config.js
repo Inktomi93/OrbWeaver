@@ -640,12 +640,12 @@ export default tseslint.config(
     rules: { "@typescript-eslint/require-await": "error" },
   },
   {
-    // The TSDoc doc-comment gate over the tooling surface (#472, the first family of the
+    // The TSDoc doc-comment gate over the tooling surface and every test tree (#472, the first family of the
     // deferred wave — see the SAFETY_SURFACE header for the four fix classes). Same rule the typed-API
     // packages carry above: tooling's file headers ARE its per-domain law (the per-domain prose was
     // gutted), so a malformed doc comment there is exactly as load-bearing as one in `packages/server`.
     // Purely syntactic (the TSDoc parser), so it needs no program — but these files have one anyway.
-    files: [TOOLING_SRC, TOOLING_TESTS],
+    files: [...SAFETY_SURFACE, ...CT_SURFACE],
     plugins: { tsdoc },
     rules: { "tsdoc/syntax": "error" },
   },

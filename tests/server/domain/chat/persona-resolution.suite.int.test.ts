@@ -58,7 +58,7 @@ function principal(userId: UserId): Principal {
 
 /** A minimal character card, description overridable — the worked examples put `{{user}}`/`{{persona}}`
  *  tokens INSIDE the card's own description field (the real-world card-author shape, per §A.2's "whose card
- *  description contains '{{user}} is my brother'"). */
+ *  description contains '`{{user}}` is my brother'"). */
 function cardOf(name: string, description: string): CharacterCard {
   return {
     name,
@@ -112,7 +112,7 @@ function inputOf(
 }
 
 /** Assemble against `DEFAULT_PROMPT_CONFIG` + flatten both halves — the default preset's `main_prompt`
- *  ("...ongoing roleplay with {{user}}...") is the PROMPT-context probe (renders against the ACTIVE persona,
+ *  ("...ongoing roleplay with `{{user}}`...") is the PROMPT-context probe (renders against the ACTIVE persona,
  *  assemble.ts `renderOverridableMarker`); `char_description` (default template `{{description}}`, which
  *  recursively macro-expands a card field that itself contains `{{` — `kit/macro/registry.ts` `charField`)
  *  is the CARD-context probe (renders against the PINNED/anchor persona). */
