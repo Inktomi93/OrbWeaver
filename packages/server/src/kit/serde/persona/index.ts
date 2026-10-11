@@ -71,11 +71,12 @@ export function parsePersonaBackup(bytes: Uint8Array): PortableParse<PersonaBack
 }
 
 // ── The persona content identity ─────────────────────────────────────────────────────────────────────
-// One rule for every door (the backup restore, the profile import, the single-file restore): a persona
+// One identity for every door (the backup restore, the profile import, the single-file restore): a persona
 // matches an owned persona when its folded name and its content are equal — the description, the title,
-// the placement knobs, and the ART. Same name with different content is a second persona under the next
-// free name; nothing is ever merged in place. The name is compared with its free-name count stripped, so a
-// row that landed as "Alex 2" is found again by the same content.
+// the placement knobs, and the ART. The name is compared with its free-name count stripped, so a row that
+// landed as "Alex 2" is found again by the same content. Same name with different content is a COLLISION:
+// the profile import asks per collision (merge into the owned persona, or keep both under the next free
+// name); the single-file and bundle restores keep both. Nothing is ever edited in place.
 
 /** The folded form a persona NAME is compared under: whitespace trimmed, case folded. The stored value is
  *  never folded; only the question "is this the same person?" is asked in this form. */
@@ -136,4 +137,11 @@ export function personaContentKey(identity: PersonaIdentity): string {
 export function findDuplicatePersona(incoming: PersonaIdentity, candidates: readonly PersonaCandidate[]): PersonaCandidate | null {
   const key = personaContentKey(incoming);
   return candidates.find((candidate) => personaContentKey(candidate) === key) ?? null;
+}
+
+/** The owned persona holding the incoming one's exact folded name. Asked only after
+ *  {@link findDuplicatePersona} found no content match, so a hit is a same-name, different-content collision. */
+export function findNameCollision(incoming: PersonaIdentity, candidates: readonly PersonaCandidate[]): PersonaCandidate | null {
+  const key = foldPersonaName(incoming.name);
+  return candidates.find((candidate) => foldPersonaName(candidate.name) === key) ?? null;
 }

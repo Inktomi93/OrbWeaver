@@ -5,9 +5,11 @@
 // (the driver + the import-st runner order it so).
 //
 // DEDUP is the persona op's job (content identity per D290: an equal persona is reused; a different persona under
-// the same name lands beside it under a numbered name, never merged). `avatarAssetId` is set by the driver after storing `avatarBytes` (domain/import can't
+// the same name follows the run's per-collision choice — merge into the owned one, or land beside it under a
+// numbered name). `avatarAssetId` is set by the driver after storing `avatarBytes` (domain/import can't
 // reach domain/assets — the avatar store is injected, same as the card PNG).
 
+import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonaInput, PersonaMetadata } from "@orb/contracts/persona";
 import type { ImportContext } from "../context.ts";
 import type { ImportPersonasResult } from "../contract/results.ts";
@@ -16,7 +18,13 @@ import type { ImportPersonaInput } from "../contract/views.ts";
 import { requireProfile } from "../guard.ts";
 
 export function createImportPersonas(ctx: ImportContext): ImportService["importPersonas"] {
-  return async ({ personas: input }: { readonly personas: readonly ImportPersonaInput[] }): Promise<ImportPersonasResult> => {
+  return async ({
+    personas: input,
+    collisions,
+  }: {
+    readonly personas: readonly ImportPersonaInput[];
+    readonly collisions?: PersonaCollisionChoices | undefined;
+  }): Promise<ImportPersonasResult> => {
     const profile = requireProfile(ctx);
 
     const personas: BulkImportPersonaInput[] = input.map((pi) => ({
@@ -27,7 +35,7 @@ export function createImportPersonas(ctx: ImportContext): ImportService["importP
       isDefault: pi.parsed.isDefault,
     }));
 
-    const result = await profile.bulkImportPersonas({ ownerId: ctx.ownerId, personas });
+    const result = await profile.bulkImportPersonas({ ownerId: ctx.ownerId, personas, collisions });
 
     // The chat importers read `personaByUserName` (lowercased name → id) to attribute `user_name`s.
     for (const [key, personaId] of Object.entries(result.idByName)) {

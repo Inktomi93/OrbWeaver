@@ -6,6 +6,7 @@
 // portability descriptors take — one slice, built once, shared by both consumers.
 
 import type { CompareAndSetImportedTokenUsage, ImportWindow, ListImportedTokenUsageCandidates } from "@orb/contracts/chat";
+import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BundleImportWorkloadResult, ImportTokenUsageBackfillResult, ReportProgress } from "@orb/contracts/workloads";
 import type { ChatId, UserId } from "@orb/kit/ids";
 
@@ -50,7 +51,13 @@ export interface ImportWorkloadDeps extends ImportTokenUsageBackfillDeps {
   /** The ST profile directory `import-st` reads when the row carries no `stagedDir` override. */
   readonly stProfileDir: string;
   /** The ST profile-directory bulk loop (personas first, then per-bundle character + chats). */
-  readonly runProfileDirImport: (args: { profileRoot: string; ownerId: UserId; dryRun: boolean; signal: AbortSignal }) => Promise<ImportPassCounts>;
+  readonly runProfileDirImport: (args: {
+    profileRoot: string;
+    ownerId: UserId;
+    dryRun: boolean;
+    signal: AbortSignal;
+    personaCollisions: PersonaCollisionChoices | undefined;
+  }) => Promise<ImportPassCounts>;
   /** The single-archive portability import (its own extract belts + caps). */
   readonly runBundleImport: (args: { archive: Uint8Array; ownerId: UserId; stagingRoot: string; signal: AbortSignal }) => Promise<BundleImportWorkloadResult>;
   /** The folder-upload variant: a staged directory tree walked through the SAME entity routing. */

@@ -17,8 +17,10 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { PersonaCollision } from "@orb/contracts/import";
 import { driveFileDrop, driveFileUpload } from "@orb/tooling/_shared/upload";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
 import { dropFiles } from "../../../../support/browser/drop-files.ts";
 import { makeImportedCard } from "../../../../support/factories/imported-card.ts";
 import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
@@ -36,6 +38,13 @@ const FILE_ACTION_ROOT = mkdtempSync(join(tmpdir(), "orb-file-actions-"));
 test.afterAll(() => {
   rmSync(FILE_ACTION_ROOT, { recursive: true, force: true });
 });
+
+/** A folder pick with a `settings.json` asks the server for its persona collisions; this answers it. */
+async function routePersonaReview(page: Page, collisions: readonly PersonaCollision[] = []): Promise<void> {
+  await page.route("**/api/import/tree/review", (route) =>
+    route.fulfill({ status: 200, headers: { "content-type": "application/json" }, body: JSON.stringify({ collisions }) }),
+  );
+}
 
 test("a REJECTED card import shows NO success ✓ and a non-success toast (0 imported · 1 failed)", async ({ mount, page }) => {
   await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
@@ -331,6 +340,7 @@ test("a DROPPED file stages too — the drop is a pick, never a send", async ({ 
 
 test("the shared browser file actions drive the production dropzone and sibling FolderPicker with honest identity/tree receipts", async ({ mount, page }) => {
   await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
+  await routePersonaReview(page);
   const card = join(FILE_ACTION_ROOT, "agent-card.png");
   const tree = join(FILE_ACTION_ROOT, "library-tree");
   mkdirSync(join(tree, "characters"), { recursive: true });
@@ -357,6 +367,7 @@ test("the shared browser file actions drive the production dropzone and sibling 
 // multipart body, not on a rendered line.
 test("a picked SillyTavern folder never posts secrets.json, and the preflight names it as left out", async ({ mount, page }) => {
   await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
+  await routePersonaReview(page);
   const tree = join(FILE_ACTION_ROOT, "st-profile");
   mkdirSync(join(tree, "characters"), { recursive: true });
   writeFileSync(join(tree, "settings.json"), "{}");
@@ -384,4 +395,70 @@ test("a picked SillyTavern folder never posts secrets.json, and the preflight na
   expect(body).toContain('filename="st-profile/settings.json"');
   expect(body).not.toContain("secrets.json");
   expect(body).not.toContain("never-sent");
+});
+
+// ── THE PERSONA REVIEW: no same-name collision is resolved silently ────────────────────────────────────
+// The folder's persona "Nate" differs from the owner's. The preflight lists it with the two answers, Merge
+// preselected, and the answer rides the ONE POST the confirm makes — asserted on the real multipart body.
+const NATE_COLLISION: PersonaCollision = { key: "nate", name: "Nate", existingDescription: "Orbweaver Nate", incomingDescription: "SillyTavern Nate" };
+const COLLISION_PROFILE = join(FILE_ACTION_ROOT, "st-collision-profile");
+
+/** The multipart `personaCollision` values the one tree POST carried. */
+async function postedCollisionChoices(page: Page, press: () => Promise<void>): Promise<string[]> {
+  const bodies: string[] = [];
+  await page.route("**/api/import/tree", async (route) => {
+    bodies.push(route.request().postDataBuffer()?.toString("latin1") ?? "");
+    await route.fulfill({ status: 400, headers: { "content-type": "application/json" }, body: JSON.stringify({ error: "captured by the test" }) });
+  });
+  await press();
+  await expect.poll(() => bodies.length, { intervals: [20, 50, 100] }).toBe(1);
+  return [...(bodies[0] ?? "").matchAll(/name="personaCollision"\r\n\r\n([^\r]*)\r\n/gu)].map((m) => m[1] ?? "");
+}
+
+async function stageCollisionFolder(page: Page): Promise<void> {
+  mkdirSync(join(COLLISION_PROFILE, "characters"), { recursive: true });
+  writeFileSync(join(COLLISION_PROFILE, "settings.json"), "{}");
+  writeFileSync(join(COLLISION_PROFILE, "characters", "hero.png"), "PNG");
+  await driveFileUpload(page.getByRole("button", { name: "Import a folder…" }), "role=button[name='Import a folder…']", [COLLISION_PROFILE], 10_000);
+}
+
+test("a persona collision is listed with Merge preselected, and importing untouched sends Merge", async ({ mount, page }) => {
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
+  await routePersonaReview(page, [NATE_COLLISION]);
+  await mount(<BackupSettingsStory />);
+  await stageCollisionFolder(page);
+
+  const collision = page.locator('[data-slot="persona-collision"]');
+  await expect(collision).toBeVisible();
+  await expect(collision).toContainText("Orbweaver Nate");
+  await expect(collision).toContainText("SillyTavern Nate");
+  await expect(collision.getByRole("radio", { name: "Merge into your existing persona" })).toBeChecked();
+  await expect(collision.getByRole("radio", { name: "Keep both" })).not.toBeChecked();
+
+  const posted = await postedCollisionChoices(page, () => page.getByRole("button", { name: "Import", exact: true }).click());
+  expect(posted).toEqual(["merge:nate"]);
+});
+
+test("choosing Keep both on a collision sends Keep both for that persona", async ({ mount, page }) => {
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
+  await routePersonaReview(page, [NATE_COLLISION, { key: "eve", name: "Eve", existingDescription: "Orbweaver Eve", incomingDescription: "SillyTavern Eve" }]);
+  await mount(<BackupSettingsStory />);
+  await stageCollisionFolder(page);
+
+  const nate = page.locator('[data-slot="persona-collision"]').filter({ hasText: "Nate" });
+  await nate.getByRole("radio", { name: "Keep both" }).click();
+  await expect(nate.getByRole("radio", { name: "Keep both" })).toBeChecked();
+
+  const posted = await postedCollisionChoices(page, () => page.getByRole("button", { name: "Import", exact: true }).click());
+  expect(posted.toSorted()).toEqual(["keep-both:nate", "merge:eve"]);
+});
+
+test("a folder with no collisions shows no persona question", async ({ mount, page }) => {
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
+  await routePersonaReview(page, []);
+  await mount(<BackupSettingsStory />);
+  await stageCollisionFolder(page);
+
+  await expect(page.locator('[data-slot="import-preflight"]')).toBeVisible();
+  await expect(page.locator('[data-slot="persona-collision"]')).toHaveCount(0);
 });

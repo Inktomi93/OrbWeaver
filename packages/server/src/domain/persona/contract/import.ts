@@ -8,6 +8,7 @@
 // (`@orb/contracts/persona`) and calls the op. Persona owns the WRITE (dedup-by-name + `personas` insert) and
 // returns `idByName` so import can attribute chat `user_name`s.
 
+import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
 import type { PersonaId, UserId } from "@orb/kit/ids";
@@ -20,9 +21,11 @@ export interface PersonaImportContext {
 }
 
 /** The persona-owned bulk-import op the entry root wires into `import`'s
- *  `ImportContext.profile.bulkImportPersonas`. Dedups by lowercased name; never duplicates an authoring
- *  identity. */
+ *  `ImportContext.profile.bulkImportPersonas`. An equal-content persona is reused; a same-name,
+ *  different-content one follows `collisions[foldedName]` (merge into the owned persona, or keep both). */
 export type BulkImportPersonas = (args: {
   readonly ownerId: UserId;
   readonly personas: readonly BulkImportPersonaInput[];
+  /** Absent or unlisted ⇒ merge. */
+  readonly collisions?: PersonaCollisionChoices | undefined;
 }) => Promise<BulkImportPersonasResult>;

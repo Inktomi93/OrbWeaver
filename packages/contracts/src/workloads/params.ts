@@ -15,6 +15,7 @@ import { z } from "zod";
 import type { MemoryBackfillWorkloadParams } from "#chat";
 import { documentIdSchema, reindexModeSchema, reindexScopeSchema } from "#databank";
 import type { ComputeThemesWorkloadParams, FindDuplicatesWorkloadParams } from "#discovery";
+import { personaCollisionChoicesSchema } from "#import";
 import type { RefineScoreSweepWorkloadParams } from "#refinery";
 import type { WorkloadKind } from "./axes.ts";
 import { indexSourceSchema, workloadKindSchema } from "./axes.ts";
@@ -76,10 +77,12 @@ export const maintenanceWorkloadParams = z.object({ dryRun: z.boolean().optional
 
 /** import-st tunables: the maintenance `dryRun` plus an optional folder-upload `stagedDir` override (a
  *  server-minted staging handle — a single safe path segment; the import contribution resolves it to a
- *  strict descendant of the staging root). Absent `stagedDir` ⇒ the env-configured ST profile dir. */
+ *  strict descendant of the staging root). Absent `stagedDir` ⇒ the env-configured ST profile dir.
+ *  `personaCollisions` is the review's per-collision choice; an unlisted collision merges. */
 export const importStWorkloadParams = z.object({
   dryRun: z.boolean().optional(),
   stagedDir: stagedHandleSchema.optional(),
+  personaCollisions: personaCollisionChoicesSchema.optional(),
 });
 
 /** import-bundle: a server-minted staging handle (a single safe path segment); the import contribution

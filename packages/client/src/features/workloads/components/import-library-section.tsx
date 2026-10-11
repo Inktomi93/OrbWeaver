@@ -13,18 +13,23 @@
 //     card is skipped and two "Eleni" cards stay two characters.
 //   · the world-book, theme and preset imports — equal content is reused; a same-named DIFFERENT row keeps
 //     its row and the file lands under a numbered name. Nothing is edited in place.
-//   · `import-personas.ts` — an equal persona is reused; a DIFFERENT persona under a taken name lands beside
-//     it under a numbered name.
+//   · `import-personas.ts` — an equal persona is reused; a DIFFERENT persona under a taken name in a
+//     SillyTavern folder is listed here as a COLLISION, and the reader chooses per persona: merge into the
+//     existing one (preselected) or keep both. A backup's personas land beside it under a numbered name.
 //   · `import-user-settings.ts` — a backup's share-safe settings namespaces deep-MERGE into the owner's.
 // Nothing in any wave deletes, and seed rows (`ownerId IS NULL`) are structurally unreachable — so "adds,
 // never deletes; a backup's settings merge into yours" is the whole true statement. A folder pick also shows
 // its PLAN (`planNotes`): what the browser leaves out before uploading (and why), and how many uploads the
 // folder takes.
 
+import type { PersonaCollision, PersonaCollisionChoice, PersonaCollisionChoices } from "@orb/contracts/import";
+import { DEFAULT_PERSONA_COLLISION_CHOICE } from "@orb/contracts/import";
 import { Button } from "@orb/ui/button";
+import { Fieldset, FieldsetLegend } from "@orb/ui/fieldset";
 import { FileDropzone, FolderPicker } from "@orb/ui/file-dropzone";
 import { Row, Stack } from "@orb/ui/layout";
 import { Progress } from "@orb/ui/progress";
+import { RadioGroup, RadioGroupItem } from "@orb/ui/radio-group";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { ImportedChatsMemoryOffer } from "#components";
@@ -41,7 +46,7 @@ import { ImportReportSummary } from "./import-report-summary.tsx";
 const IMPORT_CONSEQUENCE = [
   "Importing ADDS to your library — nothing you already have is deleted. Settings in an Orbweaver backup merge into yours.",
   "Anything already in your library — the same card, world book, theme or preset — is skipped, so running the same import twice is not a duplicate.",
-  "A world book, theme, preset or persona that shares a name with a DIFFERENT one of yours is imported under a numbered name. Two different cards that share a name stay two characters.",
+  "A world book, theme, preset or backup persona that shares a name with a DIFFERENT one of yours is imported under a numbered name. Two different cards that share a name stay two characters.",
 ] as const;
 
 /** What was picked, in words — the folder arm counts the files the plan will send, the file arm names the
@@ -54,17 +59,66 @@ function stagedTitle(files: readonly File[], plan: TreeImportPlan | null): strin
   return files.length === 1 && first !== undefined ? `Import “${first.name}”?` : `Import ${String(files.length)} files?`;
 }
 
+const EXCERPT_CHARS = 120;
+
+/** A persona description cut to a line the choice can be read against. */
+function excerpt(description: string): string {
+  const text = description.trim();
+  if (text.length === 0) {
+    return "no description";
+  }
+  return text.length > EXCERPT_CHARS ? `${text.slice(0, EXCERPT_CHARS)}…` : text;
+}
+
+/** One persona the folder would split: both versions side by side and the two ways out. Merge is the
+ *  preselected answer; neither is applied until the reader presses Import. */
+function PersonaCollisionChoiceRow({
+  collision,
+  choice,
+  onChoose,
+}: {
+  readonly collision: PersonaCollision;
+  readonly choice: PersonaCollisionChoice;
+  readonly onChoose: (choice: PersonaCollisionChoice) => void;
+}): ReactElement {
+  return (
+    <Fieldset data-slot="persona-collision">
+      <FieldsetLegend>{`“${collision.name.trim()}” is already one of your personas, with different content`}</FieldsetLegend>
+      <Text voice="gloss">{`Yours: ${excerpt(collision.existingDescription)}`}</Text>
+      <Text voice="gloss">{`In the import: ${excerpt(collision.incomingDescription)}`}</Text>
+      <RadioGroup value={choice} onValueChange={(next): void => onChoose(next === "keep-both" ? "keep-both" : "merge")}>
+        <RadioGroupItem value="merge">
+          <Text as="span" voice="label">
+            Merge into your existing persona
+          </Text>
+        </RadioGroupItem>
+        <RadioGroupItem value="keep-both">
+          <Text as="span" voice="label">
+            Keep both
+          </Text>
+        </RadioGroupItem>
+      </RadioGroup>
+    </Fieldset>
+  );
+}
+
 /** The staged selection, its consequence, and the two answers. Its own component so the title is computed
  *  ONCE and used twice — as the visible heading and as the group's accessible name, which is what makes a
  *  bare "Import" button unambiguous to a screen reader that jumped straight to it. */
 function ImportPreflight({
   files,
   plan,
+  collisions,
+  choices,
+  onChoose,
   onConfirm,
   onCancel,
 }: {
   readonly files: readonly File[];
   readonly plan: TreeImportPlan | null;
+  readonly collisions: readonly PersonaCollision[];
+  readonly choices: PersonaCollisionChoices;
+  readonly onChoose: (key: string, choice: PersonaCollisionChoice) => void;
   readonly onConfirm: () => void;
   readonly onCancel: () => void;
 }): ReactElement {
@@ -87,6 +141,14 @@ function ImportPreflight({
               </Text>
             ))}
       </Stack>
+      {collisions.map((collision) => (
+        <PersonaCollisionChoiceRow
+          key={collision.key}
+          collision={collision}
+          choice={choices[collision.key] ?? DEFAULT_PERSONA_COLLISION_CHOICE}
+          onChoose={(choice): void => onChoose(collision.key, choice)}
+        />
+      ))}
       <Row justify="start" align="center" gap="field">
         <Button intent="primary" onClick={onConfirm} disabled={plan !== null && plan.batches.length === 0 && plan.skipped.length > 0}>
           Import
@@ -105,7 +167,7 @@ export function ImportLibrarySection(): ReactElement {
   // file is rejected inline, not after a wasted round-trip. The folder picker carries NO cap of its own: the
   // plan decides per file against the served folder caps and says why a file stays behind.
   const importMaxBytes = useUploadCaps().importTotal;
-  const { state, stageFiles, stageFolder, confirm, cancel, reset, track } = useLibraryImport();
+  const { state, stageFiles, stageFolder, chooseCollision, confirm, cancel, reset, track } = useLibraryImport();
   const staged = state.status === "staged" ? state : null;
   const busy = state.status === "uploading" || state.status === "running";
   const done = state.status === "done";
@@ -138,7 +200,17 @@ export function ImportLibrarySection(): ReactElement {
         </FolderPicker>
         <Text voice="gloss">An unzipped Orbweaver backup or a SillyTavern profile folder. Your API keys (secrets.json) never leave this browser.</Text>
       </Row>
-      {staged === null ? null : <ImportPreflight files={staged.files} plan={staged.plan} onCancel={cancel} onConfirm={confirm} />}
+      {staged === null ? null : (
+        <ImportPreflight
+          files={staged.files}
+          plan={staged.plan}
+          collisions={staged.collisions}
+          choices={staged.choices}
+          onChoose={chooseCollision}
+          onCancel={cancel}
+          onConfirm={confirm}
+        />
+      )}
       {state.status === "running" ? (
         <>
           <BundleWorkloadTracker workloadId={state.workloadId} onProgress={track.onProgress} onSucceeded={track.onSucceeded} onFailed={track.onFailed} />

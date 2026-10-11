@@ -223,7 +223,13 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
         const profileRoot = params.stagedDir !== undefined ? await resolveStagedPath(ownerRoot, params.stagedDir) : deps.stProfileDir;
         let result: Awaited<ReturnType<ImportWorkloadDeps["runProfileDirImport"]>>;
         try {
-          result = await deps.runProfileDirImport({ profileRoot, ownerId: targetOwnerId, dryRun, signal });
+          result = await deps.runProfileDirImport({
+            profileRoot,
+            ownerId: targetOwnerId,
+            dryRun,
+            signal,
+            personaCollisions: params.personaCollisions,
+          });
         } finally {
           // A folder-upload staging tree is owned by this run; remove it (success OR error) through the
           // contained-rm belt. The configured default profile dir is persistent and is NEVER removed here.

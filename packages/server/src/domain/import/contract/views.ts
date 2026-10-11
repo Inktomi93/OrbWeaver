@@ -3,6 +3,7 @@
 // Card-path types stay in contract/params.ts + contract/results.ts.
 
 import type { ChatMetadata } from "@orb/contracts/chat";
+import type { PersonaMetadata } from "@orb/contracts/persona";
 import type { PresetFile, StDroppedField } from "@orb/contracts/preset";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
@@ -17,6 +18,21 @@ export interface ParsedPersona {
   readonly avatarFile: string;
   readonly isDefault: boolean;
   readonly metadata: Record<string, unknown> | null;
+}
+
+/** A persona a profile upload would write, with the content hash of its avatar bytes — what the pre-commit
+ *  review compares against the owner's personas. */
+export interface IncomingPersona {
+  readonly name: string;
+  readonly description: string;
+  readonly metadata: PersonaMetadata | null;
+  readonly artHash: string | null;
+}
+
+/** One uploaded file: its path in the picked folder and its bytes. */
+export interface UploadedFile {
+  readonly relPath: string;
+  readonly bytes: Uint8Array;
 }
 
 export interface ParsedPersonas {

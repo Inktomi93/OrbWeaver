@@ -60,7 +60,7 @@ export { importCharacters } from "./import-characters.ts";
 export type { ChatImportResult } from "./import-chats.ts";
 export { importChats } from "./import-chats.ts";
 export type { TreeImportStarted } from "./import-tree.ts";
-export { importTree, relativePathOf } from "./import-tree.ts";
+export { importTree, relativePathOf, reviewTreePersonas } from "./import-tree.ts";
 export type { SkippedTreeFile, TreeImportCaps, TreeImportPlan } from "./import-tree-plan.ts";
 export { OVER_FILE_CAP_REASON, planTreeImport, skippedByReason } from "./import-tree-plan.ts";
 export type { InvalidateFilter, Invalidation } from "./invalidation.ts";

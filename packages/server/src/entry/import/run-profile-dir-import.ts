@@ -30,6 +30,7 @@ import type { Dirent } from "node:fs";
 import { readdir as readdirFs, readFile as readFileFs, stat as statFs } from "node:fs/promises";
 import { join } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
+import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { ASSET_UPLOAD_MAX_BYTES, IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
@@ -150,6 +151,8 @@ export interface ProfileDirImportDeps {
   readonly stWallClockZone?: string;
   readonly dryRun: boolean;
   readonly signal: AbortSignal;
+  /** The review's per-collision persona choices; an unlisted collision merges. */
+  readonly personaCollisions?: PersonaCollisionChoices | undefined;
 }
 
 /** Apply the direct-tree byte belts at the read boundary. `stat` rejects before the allocation, while the
@@ -1060,7 +1063,7 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
     personaInputs.push(await toPersonaInput(store, deps.principal, p));
   }
   if (personaInputs.length > 0) {
-    const personaResult = await service.importPersonas({ personas: personaInputs });
+    const personaResult = await service.importPersonas({ personas: personaInputs, collisions: deps.personaCollisions });
     changed += personaResult.personasCreated;
   }
 

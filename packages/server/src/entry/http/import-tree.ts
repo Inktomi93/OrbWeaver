@@ -20,14 +20,16 @@ import { randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
 import { mkdir, open, rm } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
-import { isStSecretsFile } from "@orb/contracts/import";
+import type { PersonaCollisionChoices } from "@orb/contracts/import";
+import { decodePersonaCollisionChoices, isStSecretsFile, PERSONA_COLLISION_FIELD } from "@orb/contracts/import";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import { IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_FILES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
-import { DEFAULT_IMPORT_STAGING_DIR, stagedOwnerRoot } from "#domain/import";
+import { DEFAULT_IMPORT_STAGING_DIR, incomingPersonasOf, stagedOwnerRoot } from "#domain/import";
+import type { PersonaService } from "#domain/persona";
 import type { WorkloadService } from "#domain/workloads";
 import { getLog } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
@@ -41,6 +43,7 @@ const PAYLOAD_TOO_LARGE = 413;
 const CONFLICT = 409;
 const ACCEPTED = 202;
 const TREE_ROUTE = "/api/import/tree";
+const REVIEW_ROUTE = "/api/import/tree/review";
 const UPLOAD_FIELD = "file";
 /** Staging dirs are per-uploader, so they are created rwx for the app user only. */
 const OWNER_ONLY_DIR = 0o700;
@@ -66,6 +69,7 @@ const ST_SHARED_DIRS = new Set(["characters/", "chats/", "themes/", "assets/"]);
 
 export interface ImportTreeDeps {
   readonly workloads: Pick<WorkloadService, "start">;
+  readonly persona: Pick<PersonaService, "reviewImport">;
   /** The portability registry — its entity-dir names (minus the ST-shared ones) are the positive orb signal. */
   readonly registry: PortabilityRegistry;
   readonly stagingDir?: string;
@@ -247,8 +251,21 @@ async function stageTree(stagedRoot: string, parts: readonly UploadPart[], wrapp
 }
 
 /** The workload the sniffed layout dispatches to (the token names the staged dir under the staging root). */
-function startInput(layout: "st" | "orb", token: string): StartWorkloadInput {
-  return layout === "st" ? { kind: "import-st", params: { stagedDir: token } } : { kind: "import-bundle", params: { token, source: "dir" } };
+function startInput(layout: "st" | "orb", token: string, choices: PersonaCollisionChoices): StartWorkloadInput {
+  return layout === "st"
+    ? { kind: "import-st", params: { stagedDir: token, personaCollisions: choices } }
+    : { kind: "import-bundle", params: { token, source: "dir" } };
+}
+
+/** The review's per-collision choices off the commit form. Malformed ones reject the whole upload: a choice
+ *  that cannot be read must not fall back to a silent default. */
+function readCollisionChoices(form: FormData): PersonaCollisionChoices {
+  const values = form.getAll(PERSONA_COLLISION_FIELD).filter((v): v is string => typeof v === "string");
+  const choices = decodePersonaCollisionChoices(values);
+  if (choices === null) {
+    throw new TreeRejected(BAD_REQUEST, `malformed "${PERSONA_COLLISION_FIELD}" field`);
+  }
+  return choices;
 }
 
 /** Sniff + stage the batch into a fresh unique dir. Throws {@link TreeRejected} on an unrecognized layout;
@@ -257,6 +274,7 @@ async function stageUpload(
   orbDirs: ReadonlySet<string>,
   stagingRoot: string,
   parts: readonly UploadPart[],
+  choices: PersonaCollisionChoices,
 ): Promise<{ readonly stagedRoot: string; readonly input: StartWorkloadInput }> {
   const wrapper = commonWrapper(parts.map((p) => p.relPath));
   const layout = sniffTreeLayout(
@@ -277,7 +295,7 @@ async function stageUpload(
     await rm(stagedRoot, { recursive: true, force: true });
     throw err;
   }
-  return { stagedRoot, input: startInput(layout.kind, token) };
+  return { stagedRoot, input: startInput(layout.kind, token, choices) };
 }
 
 /** Map a caught upload failure to its typed response; rethrows an unexpected error to the app's onError. */
@@ -310,8 +328,14 @@ export function registerImportTree(app: Hono<PrincipalEnv>, deps: ImportTreeDeps
     // cleanup) rethrows unconditionally. Never a silent swallow. Ends if this route stops being the terminal
     // HTTP handler.
     try {
-      const parts = await collectParts(await c.req.formData());
-      const { stagedRoot, input } = await stageUpload(orbDirs, stagedOwnerRoot(deps.stagingDir ?? DEFAULT_IMPORT_STAGING_DIR, principal.userId), parts);
+      const form = await c.req.formData();
+      const parts = await collectParts(form);
+      const { stagedRoot, input } = await stageUpload(
+        orbDirs,
+        stagedOwnerRoot(deps.stagingDir ?? DEFAULT_IMPORT_STAGING_DIR, principal.userId),
+        parts,
+        readCollisionChoices(form),
+      );
       try {
         const { id } = await deps.workloads.start({
           input,
@@ -324,6 +348,29 @@ export function registerImportTree(app: Hono<PrincipalEnv>, deps: ImportTreeDeps
         await rm(stagedRoot, { recursive: true, force: true });
         throw err;
       }
+    } catch (err) {
+      return errorResponse(c, err);
+    }
+  });
+  registerPersonaReview(app, deps);
+}
+
+/** Register `POST /api/import/tree/review`. Read-only: the same belts, but nothing is staged and no workload
+ *  starts. The browser sends only the `settings.json` + `User Avatars/` parts; the answer lists the personas
+ *  the real run would split. */
+function registerPersonaReview(app: Hono<PrincipalEnv>, deps: ImportTreeDeps): void {
+  app.post(REVIEW_ROUTE, authCsrfGuard, bodyCap(IMPORT_TREE_MAX_TOTAL_BYTES), async (c) => {
+    const principal = c.get("principal");
+    if (principal === null) {
+      return c.body(null, UNAUTHORIZED);
+    }
+    // @orb-waive caught-failure-ownership(err): propagated — `errorResponse` answers the caller with the
+    // failure as a response; nothing is swallowed. Ends if this route stops being the terminal HTTP handler.
+    try {
+      const parts = await collectParts(await c.req.formData());
+      const incoming = incomingPersonasOf(parts);
+      const collisions = await deps.persona.reviewImport({ principal, incoming });
+      return c.json({ collisions });
     } catch (err) {
       return errorResponse(c, err);
     }

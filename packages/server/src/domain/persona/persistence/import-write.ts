@@ -1,11 +1,13 @@
 // domain/persona/persistence/import-write — the persona-owned bulk-import WRITE. A named exception to
-// "persistence is queries only": batch-inserts a profile's personas, ADDITIVELY (owner ruling): an owned
-// persona with equal content — folded name, description, title, placement and art (`findDuplicatePersona`,
-// the ONE identity beside the persona serde) — is reused; the same name with different content lands as a
-// second persona under the next free name (`nextFreeName`); nothing is merged or updated in place. No
-// per-CRUD audit/user-bus — a bulk migration writes silently; the driver reconciles + emits once at the run
-// level.
+// "persistence is queries only": batch-inserts a profile's personas. An owned persona with equal content —
+// folded name, description, title, placement and art (`findDuplicatePersona`, the ONE identity beside the
+// persona serde) — is reused. The same name with different content is a collision, resolved by the run's
+// per-collision choice: merge links to the owned persona and leaves its content alone (the default), keep-both
+// lands a second persona under the next free name (`nextFreeName`). No per-CRUD audit/user-bus — a bulk
+// migration writes silently; the driver reconciles + emits once at the run level.
 
+import type { PersonaCollisionChoice } from "@orb/contracts/import";
+import { DEFAULT_PERSONA_COLLISION_CHOICE } from "@orb/contracts/import";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
 import { personas } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -13,7 +15,7 @@ import { batchMany, batchStmt } from "@orb/db/kit";
 import type { AssetId, PersonaId } from "@orb/kit/ids";
 import { nextFreeName } from "@orb/kit/strings";
 import type { PersonaCandidate, PersonaIdentity } from "#kit/serde/persona";
-import { findDuplicatePersona, foldPersonaName, personaPlacementOf } from "#kit/serde/persona";
+import { findDuplicatePersona, findNameCollision, foldPersonaName, personaPlacementOf } from "#kit/serde/persona";
 import type { BulkImportPersonas, PersonaImportContext } from "../contract/import.ts";
 import { loadOwnedAssetHashes, loadOwnedPersonaCandidates } from "./queries.ts";
 
@@ -23,11 +25,31 @@ function identityOf(pi: BulkImportPersonaInput, artHashes: readonly { readonly i
   return { name: pi.name, title: null, description: pi.description, placement: personaPlacementOf(pi.metadata), artHash: artHash ?? null };
 }
 
+/** The persona an input lands on without minting a row, or null to mint a copy. Equal content is always
+ *  reused; the same name with different content (a collision with a persona owned before the run) only when
+ *  the choice is merge. */
+function reusedPersonaId(
+  identity: PersonaIdentity,
+  candidates: readonly PersonaCandidate[],
+  owned: readonly PersonaCandidate[],
+  choice: PersonaCollisionChoice,
+): PersonaId | null {
+  const duplicate = findDuplicatePersona(identity, candidates);
+  if (duplicate !== null) {
+    return duplicate.id;
+  }
+  const collision = findNameCollision(identity, owned);
+  return collision !== null && choice === "merge" ? collision.id : null;
+}
+
 /** Build the persona-owned bulk-import WRITE op. */
 export function createBulkImportPersonas(ctx: PersonaImportContext): BulkImportPersonas {
-  return async ({ ownerId, personas: input }): Promise<BulkImportPersonasResult> => {
+  return async ({ ownerId, personas: input, collisions }): Promise<BulkImportPersonasResult> => {
     const { db } = ctx;
     const candidates = await loadOwnedPersonaCandidates(db, ownerId);
+    // Only personas owned BEFORE this call can collide: two inputs sharing a name inside one run still land
+    // side by side, as they always did.
+    const owned = [...candidates];
     const artHashes = await loadOwnedAssetHashes(
       db,
       ownerId,
@@ -77,14 +99,11 @@ export function createBulkImportPersonas(ctx: PersonaImportContext): BulkImportP
         continue;
       }
       const identity = identityOf(pi, artHashes);
-      const duplicate = findDuplicatePersona(identity, candidates);
-      let personaId: PersonaId;
-      if (duplicate === null) {
-        personaId = mint(identity, pi);
-      } else {
+      const reused = reusedPersonaId(identity, candidates, owned, collisions?.[key] ?? DEFAULT_PERSONA_COLLISION_CHOICE);
+      if (reused !== null) {
         personasSkipped += 1;
-        personaId = duplicate.id;
       }
+      const personaId = reused ?? mint(identity, pi);
       idByName[key] ??= personaId;
       if (pi.isDefault) {
         defaultPersonaId = personaId;

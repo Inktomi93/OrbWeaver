@@ -7,6 +7,7 @@
 // a reject leaves nothing behind. The Hono app + File aren't test-resolvable through Hono, so the registrar
 // runs over a captured mock app + ctx (the same seam upload.test uses).
 
+import { createHash } from "node:crypto";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -21,6 +22,7 @@ import { afterEach, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const TREE_ROUTE = "POST /api/import/tree";
+const REVIEW_ROUTE = "POST /api/import/tree/review";
 
 const OWNER: Principal = {
   userId: castId<UserId>("usr_owner"),
@@ -101,12 +103,14 @@ function guardCtx(principal: Principal | null, headers?: Record<string, string>)
 let stagingDir: string;
 const startSpy = vi.fn<(p: { input: { kind: string; params: Record<string, unknown> }; ownerId: UserId | null }) => Promise<WorkloadRef>>();
 
+const reviewSpy = vi.fn<ImportTreeDeps["persona"]["reviewImport"]>();
+
 function deps(): ImportTreeDeps {
-  return { workloads: { start: startSpy }, registry: fakeRegistry(), stagingDir };
+  return { workloads: { start: startSpy }, persona: { reviewImport: reviewSpy }, registry: fakeRegistry(), stagingDir };
 }
 
 /** Capture the belt chain the registrar mounts. */
-function chain(): Handler[] {
+function chain(route: string = TREE_ROUTE): Handler[] {
   const routes = new Map<string, Handler[]>();
   const app = {
     post: (path: string, ...handlers: Handler[]): unknown => {
@@ -116,9 +120,9 @@ function chain(): Handler[] {
   };
   // @orb-waive no-test-fabrication(unknown): narrowing a captured mock app to Hono's registrar param — a test seam, not a domain value. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   registerImportTree(app as unknown as Parameters<typeof registerImportTree>[0], deps());
-  const c = routes.get(TREE_ROUTE);
+  const c = routes.get(route);
   if (c === undefined) {
-    throw new Error("tree route not registered");
+    throw new Error(`${route} not registered`);
   }
   return c;
 }
@@ -127,6 +131,14 @@ function handler(): Handler {
   const h = chain().at(-1);
   if (h === undefined) {
     throw new Error("no handler");
+  }
+  return h;
+}
+
+function reviewHandler(): Handler {
+  const h = chain(REVIEW_ROUTE).at(-1);
+  if (h === undefined) {
+    throw new Error("no review handler");
   }
   return h;
 }
@@ -156,6 +168,8 @@ async function stagedSubdirs(): Promise<string[]> {
 
 beforeEach(async () => {
   stagingDir = await mkdtemp(join(tmpdir(), "orb-tree-test-"));
+  reviewSpy.mockReset();
+  reviewSpy.mockResolvedValue([]);
   startSpy.mockReset();
   startSpy.mockResolvedValue({ id: castId<WorkloadId>("workload_1") });
 });
@@ -306,5 +320,72 @@ describe("registerImportTree — layout sniff dispatch (caller-scoped ownerId)",
     const body = (await res.json()) as { error: string };
     expect(body.error).toContain("unrecognized library layout");
     expect(await stagedSubdirs()).toHaveLength(0);
+  });
+});
+
+describe("registerImportTree — persona collision choices ride the commit", () => {
+  test("the review's choices reach the import-st params", async () => {
+    const form = formOf(fileOf("default-user/characters/Aria.png"), fileOf("default-user/settings.json"));
+    form.append("personaCollision", "keep-both:nate");
+    form.append("personaCollision", "merge:eve");
+    const res = await handler()(makeCtx(OWNER, form));
+    expect(res.status).toBe(202);
+    expect(startSpy.mock.calls[0]?.[0].input.params["personaCollisions"]).toEqual({ nate: "keep-both", eve: "merge" });
+  });
+
+  test("a malformed choice rejects the whole upload rather than falling back to a default", async () => {
+    const form = formOf(fileOf("default-user/characters/Aria.png"), fileOf("default-user/settings.json"));
+    form.append("personaCollision", "swap:nate");
+    const res = await handler()(makeCtx(OWNER, form));
+    expect(res.status).toBe(400);
+    expect(startSpy).not.toHaveBeenCalled();
+    expect(await stagedSubdirs()).toHaveLength(0);
+  });
+});
+
+describe("registerImportTree — the collision review route", () => {
+  // Raw JSON: the ST wire keys are snake_case and stay verbatim.
+  const settings = '{"power_user":{"personas":{"nate.png":"Nate"},"persona_descriptions":{"nate.png":{"description":"ST Nate"}}}}';
+  const eveSettings = '{"power_user":{"personas":{"eve.png":"Eve"}}}';
+
+  test("hands the service the uploaded personas with their art hashed, and stages nothing", async () => {
+    const art = new Uint8Array([9, 8, 7]);
+    reviewSpy.mockResolvedValue([{ key: "nate", name: "Nate", existingDescription: "orb", incomingDescription: "ST Nate" }]);
+    const form = formOf(
+      fileOf("default-user/settings.json", new TextEncoder().encode(settings)),
+      fileOf("default-user/User Avatars/nate.png", art),
+      fileOf("default-user/User Avatars/other.png"),
+    );
+
+    const res = await reviewHandler()(makeCtx(OWNER, form));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ collisions: [{ key: "nate", name: "Nate", existingDescription: "orb", incomingDescription: "ST Nate" }] });
+    expect(reviewSpy).toHaveBeenCalledWith({
+      principal: OWNER,
+      incoming: [{ name: "Nate", description: "ST Nate", metadata: null, artHash: createHash("sha256").update(art).digest("hex") }],
+    });
+    expect(startSpy).not.toHaveBeenCalled();
+    expect(await stagedSubdirs()).toHaveLength(0);
+  });
+
+  test("a persona whose art is not in the upload hashes as art-less; a second profile is read beside the first", async () => {
+    const form = formOf(
+      fileOf("root/a/settings.json", new TextEncoder().encode(settings)),
+      fileOf("root/b/settings.json", new TextEncoder().encode(eveSettings)),
+    );
+
+    await reviewHandler()(makeCtx(OWNER, form));
+
+    expect(reviewSpy.mock.calls[0]?.[0].incoming.map((p) => [p.name, p.artHash])).toEqual([
+      ["Nate", null],
+      ["Eve", null],
+    ]);
+  });
+
+  test("anonymous → 401", async () => {
+    const res = await reviewHandler()(makeCtx(null, formOf(fileOf("default-user/settings.json"))));
+    expect(res.status).toBe(401);
+    expect(reviewSpy).not.toHaveBeenCalled();
   });
 });
