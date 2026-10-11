@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-11
 priority: P2
 area: tests
+lane: wt/agent-a610037145affe8fb
 ---
 
 # Refinery content CT fails the unfed-read ratchet on main

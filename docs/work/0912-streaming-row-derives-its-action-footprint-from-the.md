@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-11
 priority: P2
 area: client
+lane: wt/agent-a0668353edd804aa8
 ---
 
 # Streaming row derives its action footprint from the real action cluster

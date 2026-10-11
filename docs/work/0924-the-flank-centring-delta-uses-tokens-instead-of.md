@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-11
 priority: P2
 area: client
+lane: wt/agent-a0ca70b1d44bcdbdb
 ---
 
 # The flank centring delta uses tokens instead of a waived zero floor
