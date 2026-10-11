@@ -443,8 +443,8 @@ export function AppShellWidthProbeStory(): ReactElement {
 }
 
 /** `AppShellStory` + the ROOM'S OWN TRACK carriers in the chats CONTENT slot: a transcript row and the
- *  composer, both wearing the production `CHAT_TRACK` string (`.orb-chat-track w-full
- *  max-w-(--width-shell-content)`, #213). The shell's centred-child FLIP counter (#1646, re-keyed to the
+ *  composer, both wearing the production `CHAT_TRACK` string
+ *  (`.orb-chat-track w-full max-w-(--width-shell-content)`, #213). The shell's centred-child FLIP counter (#1646, re-keyed to the
  *  marker family by #2442) is a CSS rule on that marker, so two boxes that resolve their horizontal
  *  placement exactly the way production's six carriers do is the whole fixture it needs — this file cannot
  *  route a real transcript (see app-shell.ct.tsx's #1677 header) and does not have to: the counter's

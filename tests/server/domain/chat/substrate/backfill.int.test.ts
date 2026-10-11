@@ -40,7 +40,7 @@ beforeEach(async () => {
 });
 
 /** Seed: a solo room (1 char), a group room (2 chars), and an empty room (no characters). Tiny canon (none) —
- *  every memory build early-returns (cutoff < blockSize), so the sweep's ENUMERATION is what's observable. */
+ *  every memory build early-returns (cutoff below blockSize), so the sweep's ENUMERATION is what's observable. */
 async function seedRooms(host: UserId): Promise<{ soloChar: CharacterId; groupChars: number }> {
   const soloChar = await seedCharacter(db, host, "solo_c");
   const g1 = await seedCharacter(db, host, "g1");

@@ -1,3 +1,4 @@
+import { z } from "zod";
 // The authored default-card pack is BORN VALID: every card in `DEFAULT_CHARACTER_CARDS` is parsed through
 // the same schemas the tRPC boundary uses (createCharacterSchema for the card body, themeOverrideSchema +
 // themeBackgroundSchema for the carried presentation), so a hand-authored pack edit can never ship a card
@@ -56,7 +57,7 @@ describe("DEFAULT_CHARACTER_CARDS — the authored pack parses at the write boun
 
     test(`${handle}: the card body parses through createCharacterSchema`, () => {
       const parsed = createCharacterSchema.safeParse(card.input);
-      expect(parsed.success ? null : parsed.error.issues, `${handle} create input`).toBeNull();
+      expect(parsed.success ? null : z.prettifyError(parsed.error), `${handle} create input`).toBeNull();
     });
 
     test(`${handle}: greetings[0] is never groupOnly + every greeting carries text`, () => {
@@ -71,11 +72,11 @@ describe("DEFAULT_CHARACTER_CARDS — the authored pack parses at the write boun
 
     test(`${handle}: ships lore that parses as a world book, with keyed, uniquely titled entries`, () => {
       const book = createBookSchema.safeParse({ name: card.lore.name, description: card.lore.description ?? undefined });
-      expect(book.success ? null : book.error.issues, `${handle} lore book`).toBeNull();
+      expect(book.success ? null : z.prettifyError(book.error), `${handle} lore book`).toBeNull();
       expect(card.lore.entries.length, `${handle} ships at least one lore entry`).toBeGreaterThan(0);
       for (const entry of card.lore.entries) {
         const parsed = createEntrySchema.safeParse(entry);
-        expect(parsed.success ? null : parsed.error.issues, `${handle} lore entry ${entry.title}`).toBeNull();
+        expect(parsed.success ? null : z.prettifyError(parsed.error), `${handle} lore entry ${entry.title}`).toBeNull();
         // A keyless entry fires on every turn; seeded lore fires only when the chat names what it concerns.
         expect(entry.keys.length, `${handle} lore entry ${entry.title} is keyed`).toBeGreaterThan(0);
       }

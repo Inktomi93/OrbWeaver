@@ -1199,7 +1199,7 @@ function ComposerDraftReader(): ReactElement {
 
 /** SettingsSaveStatusProbe — drives the settings save-status store (SET-SEAMS §3) through its module
  *  actions and reads the aggregate + errored ids through its reactive hooks, so a CT can prove the
- *  precedence fold (error > saving > saved), the "nothing reported ⇒ nothing to render" null, and that an
+ *  precedence fold (error, then saving, then saved), the "nothing reported ⇒ nothing to render" null, and that an
  *  unmount CLEARS a section's report (no ghost "saving" in the footer after a pane swap). A CT, not a unit
  *  test: the store's only read surface is the reactive hook (useSyncExternalStore needs a browser render). */
 export function SettingsSaveStatusProbe(): ReactElement {

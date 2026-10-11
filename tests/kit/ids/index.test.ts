@@ -1,5 +1,6 @@
 import type { ChatId } from "@orb/kit/ids";
 import { brandedId, castId, ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
+import { z } from "zod";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("mintTypeId produces a prefixed TypeID", () => {
@@ -42,8 +43,9 @@ test("typeIdSchema's issue message never echoes the rejected value", () => {
   for (const value of secretShaped) {
     const result = schema.safeParse(value);
     expect(result.success).toBe(false);
-    expect(result.error?.issues.map((issue) => issue.message)).toEqual(["Invalid persona id"]);
-    expect(JSON.stringify(result.error?.issues)).not.toContain("sk");
+    const refusal = result.success ? "" : z.prettifyError(result.error);
+    expect(refusal).toBe("✖ Invalid persona id");
+    expect(refusal).not.toContain("sk");
   }
 });
 

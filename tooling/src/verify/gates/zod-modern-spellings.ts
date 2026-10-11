@@ -148,9 +148,9 @@ export const gate = defineGate({
   family: "zod-modern-spellings",
   authority: "ordinary",
   severity: "error",
-  // `packages/**` only, exactly as legacy scanned: `scripts/` and `tests/` are OUT because dev tooling is
-  // KISS by doctrine and a test may plant an old spelling deliberately as a fixture.
-  population: "@product",
+  // `packages/**` plus `tests/**`: a test that spells the superseded form teaches the next author the old one.
+  // `scripts/` and `tooling/` stay out — dev tooling is KISS by doctrine.
+  population: { in: ["@product", "@tests"] },
   analysis: "types",
   execution: "selected-files",
   facts: [],
@@ -225,6 +225,17 @@ export const gate = defineGate({
       },
       expect: { count: 1, token: ENUM },
       why: "ARM D's founding shape — the hand-rolled env boolean the pinned `envBool` codec replaced",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.d.ts":
+          "export interface ZodObject {\n  strict(): ZodObject;\n}\nexport declare const z: {\n  object: (shape: unknown) => ZodObject;\n  strictObject: (shape: unknown) => ZodObject;\n};\n",
+        "packages/contracts/src/anchor.ts": "export const anchor = 1;\n",
+        "tests/tooling/x.test.ts": 'import { z } from "zod";\nexport const s = z.object({}).strict();\n',
+      },
+      expect: { count: 1, token: STRICT },
+      why: "THE TEST-PATH ARM: the same superseded spelling in `tests/**` is judged, because a test is product evidence and a stale spelling there teaches the next author the old one. The `packages/contracts` anchor keeps the run off a `[population]` tool error when the test file is the only finding",
     },
   ],
   mustPass: [
@@ -360,6 +371,16 @@ export const gate = defineGate({
         "packages/server/src/foundation/env/x.ts": 'import { z } from "zod";\nexport const flag = z.enum(["true", "false"], { error: "not a boolean" });\n',
       },
       why: "THE SOLE-ARGUMENT FENCE in `soleArrayArgument`: ARM D's founding shape plus a params object. A `z.enum` carrying custom error params is not a drop-in for the pinned `envBool` codec — the params are exactly what F5 says are the point — so the arm requires the array to be the call's ONLY argument. Cut `args.length === 1` and this row reds. It is the one fence shared by all three arms, since every arm reads its members through this helper",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.d.ts":
+          "export interface ZodObject {\n  strict(): ZodObject;\n}\nexport declare const z: {\n  object: (shape: unknown) => ZodObject;\n  strictObject: (shape: unknown) => ZodObject;\n};\n",
+        "packages/contracts/src/anchor.ts": "export const anchor = 1;\n",
+        "tests/tooling/x.test.ts": 'import { z } from "zod";\nexport const s = z.strictObject({});\n',
+      },
+      why: "the pass control of the test-path arm: the modern `z.strictObject` spelling under `tests/**` is clean, so the arm flags the spelling and not the directory",
     },
   ],
 });

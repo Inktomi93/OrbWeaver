@@ -7,7 +7,7 @@
 import { JsonSchemaLiftError, liftJsonSchema, MAX_LIFT_DEPTH, projectJsonSchema } from "@orb/kit/json-schema";
 import { expect, test } from "../../support/fixtures.ts";
 
-/** Build a `properties`-chain of the given nesting depth ({ type:object, properties:{ child:{ …deeper } } }),
+/** Build a `properties`-chain of the given nesting depth (`{ type: object, properties: { child: { …deeper } } }`),
  *  bottoming out in a string leaf — the shape a deeply-nested guest schema takes. */
 function nestObjects(depth: number): Record<string, unknown> {
   let node: Record<string, unknown> = { type: "string" };

@@ -251,7 +251,7 @@ export const gate = defineGate({
   family: "no-vanity-alias",
   authority: "ordinary",
   severity: "error",
-  population: "@product",
+  population: { in: ["@product", "@tests"] },
   analysis: "syntax",
   execution: "entire-population",
   facts: [],
@@ -353,6 +353,12 @@ export const gate = defineGate({
       expect: { count: 2, token: "RouteOverlay" },
       why: "two bare type aliases onto one identifier outside a /contract/ home — the RouteOverlay/RoutableChat case (rule c). Two findings, one per alias, each naming its OWN position — a marker must name which alias it forgives",
     },
+    {
+      mode: "source",
+      files: { "tests/client/features/x/x.ct.tsx": 'import { Foo as Bar } from "@orb/kit/x";\nexport const use = Bar;\n' },
+      expect: { count: 1, token: "Foo" },
+      why: "THE TEST-PATH ARM: a cosmetic workspace rename-import in a `tests/**` file that is not a `.test.ts` is judged like product code (rule a)",
+    },
   ],
   mustPass: [
     {
@@ -423,6 +429,11 @@ export const gate = defineGate({
       mode: "source",
       files: { "packages/server/src/domain/x/x.test.ts": 'import { Foo as Bar } from "@orb/kit/x";\nexport const use = Bar;\n' },
       why: "THE POPULATION FENCE, pinned: a `.test.ts` file inside `@server` is admitted to the population but excluded by the `TEST_FILE`-suffix content filter — the same rename that would flag in a prod file is invisible here. Deleting the `inScope` filter leaves every other row green; this is the row that dies without it",
+    },
+    {
+      mode: "source",
+      files: { "tests/client/features/x/x.ct.tsx": 'import { Foo } from "@orb/kit/x";\nexport const use = Foo;\n' },
+      why: "the pass control of the test-path arm: the un-renamed import under `tests/**` is clean, so the arm flags the alias and not the directory",
     },
   ],
 });

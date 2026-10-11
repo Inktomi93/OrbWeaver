@@ -16,7 +16,7 @@ export interface CanvasBandInk {
   /** Backing-store height of the sampled band, in device px. */
   readonly bandHeightPx: number;
   readonly dpr: number;
-  /** Ink (alpha > 0) pixel count for each backing-store column, left → right. Length === `widthPx`. */
+  /** Ink (alpha above 0) pixel count for each backing-store column, left → right. Length === `widthPx`. */
   readonly columnInk: readonly number[];
   /** The most frequent fully-opaque `r,g,b` in the band — a solid bar's fill, or "" if the band is empty. */
   readonly dominantColor: string;
