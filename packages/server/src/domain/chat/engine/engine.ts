@@ -313,7 +313,7 @@ function variantPayloadOf(
     contextWindow: e?.contextWindow ?? null,
     maxOutputTokens: e?.maxOutputTokens ?? null,
     // The APPLIED effort off the runner (compose reads `ChatResult.appliedEffort`), never the requested intent —
-    // that is `params` (inference audit B1). The two economics sidecars every wire normalizes ride beside it (B5/B8).
+    // that folds into `params` (inference audit B1). The two economics sidecars every wire normalizes ride beside it (B5/B8).
     reasoningEffort: e?.reasoningEffort ?? null,
     reasoningTokens: e?.reasoningTokens ?? null,
     costDetails: e?.costDetails ?? null,
@@ -330,7 +330,9 @@ function variantPayloadOf(
     stopReason: e?.stopReason ?? null,
     terminalReason: e?.terminalReason ?? null,
     generationId: e?.generationId ?? null,
-    params: prep.intent,
+    // The EFFECTIVE settings the request ran under (preset params folded with the per-send intent) — the same
+    // value the pipeline handed the wire, recorded as-is.
+    params: result.request.intent,
     promptSnapshot: result.request.prompt,
     // The turn's macro op-log is copied (never aliased) since the shared per-round array is cleared after
     // each speaker's commit.

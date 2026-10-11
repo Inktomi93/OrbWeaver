@@ -10,7 +10,8 @@ import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { ENTRY_KEY_MODES, ENTRY_POSITIONS, ENTRY_SCOPE_MODES } from "@orb/kit/world-info";
 import { z } from "zod";
 
-const NAME_MAX = 200;
+/** The cap on a book or entry name. */
+export const WORLD_INFO_NAME_MAX = 200;
 const DESCRIPTION_MAX = 2000;
 const KEY_MAX = 2000;
 const KEYS_MAX = 500;
@@ -30,13 +31,13 @@ export const worldInfoScopeSchema = z.enum(WORLD_INFO_SCOPES);
 export type WorldInfoScope = z.infer<typeof worldInfoScopeSchema>;
 
 export const createBookSchema = z.object({
-  name: z.string().min(1).max(NAME_MAX),
+  name: z.string().min(1).max(WORLD_INFO_NAME_MAX),
   description: z.string().max(DESCRIPTION_MAX).optional(),
 });
 export type CreateBookInput = z.infer<typeof createBookSchema>;
 
 export const updateBookSchema = z.object({
-  name: z.string().min(1).max(NAME_MAX).optional(),
+  name: z.string().min(1).max(WORLD_INFO_NAME_MAX).optional(),
   description: z.string().max(DESCRIPTION_MAX).optional(),
 });
 export type UpdateBookInput = z.infer<typeof updateBookSchema>;
@@ -93,7 +94,7 @@ export const entryMetadataWriteSchema = z.record(z.string(), z.unknown()).superR
 }) satisfies z.ZodType<Record<string, unknown>>;
 
 export const createEntrySchema = z.object({
-  title: z.string().min(1).max(NAME_MAX),
+  title: z.string().min(1).max(WORLD_INFO_NAME_MAX),
   /** Author-facing memo (= ST's `comment`). Optional; rendered in the entry list. NEVER prompt. */
   description: z.string().max(DESCRIPTION_MAX).nullable().optional(),
   content: z.string().min(1).max(CONTENT_MAX),
@@ -109,7 +110,7 @@ export const createEntrySchema = z.object({
 export type CreateEntryInput = z.infer<typeof createEntrySchema>;
 
 export const updateEntrySchema = z.object({
-  title: z.string().min(1).max(NAME_MAX).optional(),
+  title: z.string().min(1).max(WORLD_INFO_NAME_MAX).optional(),
   description: z.string().max(DESCRIPTION_MAX).nullable().optional(),
   content: z.string().min(1).max(CONTENT_MAX).optional(),
   keys: z.array(z.string().max(KEY_MAX)).max(KEYS_MAX).optional(),

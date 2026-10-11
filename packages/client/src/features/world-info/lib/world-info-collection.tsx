@@ -14,6 +14,7 @@
 // `importFile` — D121-D's `band=Import` half, re-homed onto the group band as DATA the host renders (the
 // contract's `importFile` field, added by this stage). EXPORT stays the row's own kebab arm, per-member.
 
+import { WORLD_INFO_NAME_MAX } from "@orb/contracts/world-info";
 import type { CollectionContribution } from "#lib";
 import { WorldInfoCollectionRows } from "../components/world-info-collection-rows.tsx";
 import { WorldInfoContextBody } from "../components/world-info-context-body.tsx";
@@ -33,7 +34,7 @@ export const worldInfoCollection: CollectionContribution = {
   // launcher rendered as a hollow shell in the lead column). The rank is ATTACHMENT, named by the kicker.
   insights: { useInsights: useWorldInfoInsights },
   useMemberTitle: useWorldInfoMemberTitle,
-  create: { label: "New book", useRun: useCreateWorldInfoMember },
+  create: { label: "New book", useRun: useCreateWorldInfoMember, askName: { fieldLabel: "Book name", maxLength: WORLD_INFO_NAME_MAX } },
   importFile: { label: "Import a world-info book", accept: "application/json", useRun: useImportWorldInfoMember },
   list: (view) => <WorldInfoCollectionRows view={view} />,
   // The WHOLE view: the editor draws the drill row out of `library` too (#1747, §3.4).
