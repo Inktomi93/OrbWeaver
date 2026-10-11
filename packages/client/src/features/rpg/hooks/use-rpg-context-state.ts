@@ -129,7 +129,7 @@ export function useRpgContextState(chatId: ChatId): RpgPanelState | null {
     // D108: hand edits are NOT gated by trackersReadOnly (that gates the MODEL write path only) — a host
     // hand-edits the shared plane whether or not the model can write it.
     canEditShared: isHost,
-    // Cache-first and NEVER suspending on its own account (the `chat-context-band.tsx` precedent for the
+    // Cache-first and NEVER suspending on its own account (the `chat-preset-chip.tsx` precedent for the
     // same read): while the settings response is on its way the answer is the DEFAULT scale, so the band
     // keeps the row — today's behaviour — rather than flashing it out and back.
     satellitesInBody: (settings?.config.appearance.fontScale ?? DEFAULT_FONT_SCALE) >= SATELLITES_TO_BODY_FONT_SCALE,

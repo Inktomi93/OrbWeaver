@@ -1234,51 +1234,33 @@
   min-width: var(--dimension-shell-title-floor);
 }
 
-/* THE TOPBAR YIELDS THE ROOM'S IDENTITY TO THE PANE (#846 by relocation, #860 — owner-ruled 2026-08-30).
- * MEASURED at 1280×800 with BOTH panes docked: the content column is 568px and the room title rendered 104px
- * of its 220px natural width ("Example — …", the prefix every seeded room shares); the row's fixed furniture
- * is 476px (lead 34 + 48 + 53 + 40 · trail 225 · 5×8 gaps · 24 padding), so a 220px name needs a ~696px
- * column. It failed in exactly the state where the CONTEXT pane — whose head band now NAMES the room — was
- * open beside it, 300px away. So while the context pane is DOCKED the topbar sheds the name and the two
- * chips whose home is that pane (the members chip opens the Members cell; the recall chip lives in the
- * band): the band is the identity's one home while it is on screen (§13 IA de-dup — the same rule that
- * killed the pre-CP-1 twin, pointed the other way). Keyed on the shell's own `data-context-mode`, never a
- * width: the crush is a band, not a cliff (1440 dock+dock rendered 176/220), and the rule is IA, not
- * arithmetic. A COLLAPSED pane leaves the row exactly as it was — chats default to a collapsed
- * pane, and a room with no name on screen is the injury #846 describes, made permanent. The avatar cluster
- * stays as the row's anchor.
+/* THE PHONE'S SCREEN TITLE YIELDS TO THE OPEN PANE'S BAND. While the context pane is on screen and its head band
+ * names the artifact (a heading in the band), the narrow identity's title would print the same string a few
+ * pixels above it, so it steps aside. This is keyed on the band carrying a heading rather than on a width: a
+ * pane whose band has no heading never takes the row's name away.
  *
- * OVERLAY YIELDS TOO (#875 F4, side-eye 2026-08-30). The rule keyed on `docked` alone, so at 430 coarse and
- * at 1024×768 — where the pane resolves to `overlay` — the topbar kept the title and the band printed the
- * identical string 45px beneath it (measured: topbar y≈23, band y≈68 on `cbbe-chat-430.png`). That is the
- * #846 injury inverted, at the width where space is scarcest, and the argument for the docked arm is
- * STRONGER here, not weaker: an open sheet covers the very content the topbar row was describing. Only
- * `collapsed` — the state with no band on screen — keeps the row.
- *
- * AT EVERY IDENTITY VARIANT, NOT JUST THE WIDE ONE (#896, post-fix verification 2026-08-30). Widening
- * `docked` → `docked|overlay` above fixed the desktop overlay widths and left the PHONE untouched, because
- * the selector still carried its OTHER discriminator: `[data-identity="wide"]`. At ≤30rem the shed block
- * below swaps the wide identity out and mounts the `narrow` one — which this rule could not reach.
- * MEASURED at 430 coarse AND fine, chat room and Characters alike: two `.shell-topbar-title` nodes, the
- * `wide` one `display:none` and the **`narrow` one `display:block` at y=13**, with the band's `h2` at y=65.
- * That is the exact injury F4 filed, at the width F4 named FIRST, and the half-fix made it worse to
- * diagnose than the original: one product rule, two behaviours, split by a viewport the user cannot see.
- * The identity variant was never part of the rule's reason — so the selector states the REAL reason
- * instead: yield when the band is on screen AND IS NAMING THE ARTIFACT, which is exactly "the band carries
- * a heading". Dropping the identity discriminator alone over-reached in the other direction and the tree
- * said so within one run: `app-shell.ct.tsx`'s #375 Reading arm went red because a section whose band has
- * NO heading (Presets) lost its topbar title too — nameless, the #846 injury itself. `:has()` puts the
- * condition where the reason is, so a pane that does not name the artifact never takes the row's name
- * away, at ANY identity or width. */
-.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]):has([data-slot="context-bracket-band"] :is(h1, h2, h3)) .shell-topbar-identity
-  .shell-topbar-title,
-.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]):has([data-slot="context-bracket-band"] :is(h1, h2, h3))
-  .shell-topbar-identity
-  .shell-chat-member-chip,
-.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]):has([data-slot="context-bracket-band"] :is(h1, h2, h3))
-  .shell-topbar-identity
-  .shell-chat-recall-chip {
+ * It is ONLY the narrow arm. The desktop (wide) identity keeps the room's title and its member and memory chips
+ * with both panes docked: the chips collapse to their glyphs and the title truncates last (the container query
+ * below), instead of the whole identity vanishing from a row that still has room to shrink. */
+.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]):has(
+    [data-slot="context-bracket-band"] :is(h1, h2, h3)
+  ) .shell-topbar-identity[data-identity="narrow"]
+  .shell-topbar-title {
   display: none;
+}
+
+/* SHRINK PRIORITY on the desktop identity, matched off .shell-main: the room's own name gives way first (it is
+ * the most optional text), then the date drops out and the chips fall back to glyph-only (their accessible
+ * names already carry the count), and the participants' title is the last thing to truncate. */
+.shell-topbar-identity .shell-topbar-subtitle,
+.shell-topbar-identity .shell-chat-preset-chip {
+  flex-shrink: 8;
+}
+@container shell-main (max-width: 56rem) {
+  .shell-topbar-identity .shell-topbar-date,
+  .shell-topbar-identity .shell-chat-chip-count {
+    display: none;
+  }
 }
 
 /* …AND THE CONTENT COLUMN'S OWN IDENTITY ECHO GOES WITH IT (#875 F5, side-eye 2026-08-30). The same

@@ -146,12 +146,10 @@ export function ContextBracket({ view, band, empty, railLabel, dismissLabel, onD
         <Stack
           data-slot="context-bracket-band"
           gap="row"
-          // The band wears the RAISED fill — the same `bg-surface-raised` the owning rail wears, so the
-          // pane's two "own" surfaces read as one material (the mock's `--raised` on `.band` and `.rail.own`,
-          // and `--raised` IS this token; retuned off `sidebar-accent/40` by #875 F2 — the ownership map in
-          // context-rail.tsx carries the measurement and the reason). `pe-control-md` only while the dismiss
-          // occupies the corner: the title must not run under the X.
-          className={`relative shrink-0 bg-surface-raised px-block py-row ${hasDismiss ? "pe-control-md" : ""}`}
+          // The band wears the PANE's own surface (`bg-sidebar`, what `.shell-panel` paints), so the header is not a
+          // second shade inside one pane. `pe-control-md` only while the dismiss occupies the corner: the title
+          // must not run under the X.
+          className={`relative shrink-0 bg-sidebar px-block py-row ${hasDismiss ? "pe-control-md" : ""}`}
         >
           {band}
           {hasDismiss ? (

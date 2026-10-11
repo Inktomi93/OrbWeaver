@@ -8,9 +8,10 @@
 // deleted with the Members tab's size gate (#162, owner-ruled 2026-08-18) — one roster surface, every room.
 
 import type { ParticipantRole } from "@orb/contracts/identity";
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ChatContextHeaderStory, ChatHeaderNarrowStory, ChatHeaderStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage } from "../fixtures.ts";
 
@@ -219,4 +220,127 @@ test("#239: the room title carries its full value as a title attribute", async (
   await expect(heading).toHaveAttribute("title", longTitle);
   // The tooltip is the SAME string the eye sees — a re-worded one would be a second, disagreeing home.
   await expect.poll(async () => (await heading.textContent())?.trim()).toBe(longTitle);
+});
+
+// ── 0852: THE HEADER SAYS WHO YOU ARE CHATTING WITH, AND RENAMES IN PLACE ────────────────────────────
+// A stored "<cast> — Mon D, YYYY" title is a date stamp the importer wrote, not a name; it presents as no
+// user name. The room's own name appears only when the user set one.
+const STAMPED_TITLE = "Hikari — Oct 3, 2026";
+
+function roomRoutes(title: string, viewerIsHost = true): Parameters<typeof routeTrpc>[1] {
+  return {
+    ...CHAT_AMBIENT_ROUTES,
+    "chat.getChat": () => ({ title, participants: [human("host"), character("Hikari")], viewerIsHost, createdAt: 1_750_000_000_000 }),
+    "chat.listMessages": () => makeMessagesPage([]),
+    "chat.updateTitle": null,
+  };
+}
+
+test("0852: a stamped default title leads with the participants and never prints the date stamp as the name", async ({ mount, page }) => {
+  await routeTrpc(page, roomRoutes(STAMPED_TITLE));
+  const component = await mount(<ChatHeaderStory />);
+
+  await expect(component.locator(".shell-topbar-title")).toHaveText("Hikari");
+  await expect(component.getByText(STAMPED_TITLE)).toHaveCount(0);
+  await expect(component.locator(".shell-topbar-subtitle")).toHaveCount(0);
+  await expect(component.locator(".shell-topbar-date")).toBeVisible();
+});
+
+test("0852: a name the user set shows beside the participants", async ({ mount, page }) => {
+  await routeTrpc(page, roomRoutes("Rooftop night"));
+  const component = await mount(<ChatHeaderStory />);
+
+  await expect(component.locator(".shell-topbar-title")).toHaveText("Hikari");
+  await expect(component.locator(".shell-topbar-subtitle")).toHaveText("Rooftop night");
+});
+
+test("0852: clicking the title renames in place - Enter saves once, even when pressed twice", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, roomRoutes(STAMPED_TITLE));
+  const component = await mount(<ChatHeaderStory />);
+
+  await component.getByRole("button", { name: /^Rename chat/u }).click();
+  const input = component.getByRole("textbox", { name: "Chat name" });
+  // The stamped default is not a name: the box opens empty rather than seeding the date stamp.
+  await expect(input).toHaveValue("");
+  await input.fill("  Rooftop night ");
+  // Keyboard-level presses: the box unmounts on the first save, so a locator press would wait for it forever.
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
+
+  await expect.poll(() => trpc.count("chat.updateTitle")).toBe(1);
+  await expect.poll(() => trpc.lastInput("chat.updateTitle")).toMatchObject({ title: "Rooftop night" });
+  await expect(input).toHaveCount(0);
+});
+
+test("0852: Escape cancels the rename without a write", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, roomRoutes("Rooftop night"));
+  const component = await mount(<ChatHeaderStory />);
+
+  await component.getByRole("button", { name: /^Rename chat/u }).click();
+  const input = component.getByRole("textbox", { name: "Chat name" });
+  await expect(input).toHaveValue("Rooftop night");
+  await input.fill("Something else");
+  await input.press("Escape");
+
+  await expect(input).toHaveCount(0);
+  await expect(component.locator(".shell-topbar-subtitle")).toHaveText("Rooftop night");
+  await expect.poll(() => trpc.count("chat.updateTitle")).toBe(0);
+});
+
+test("0852: a failed save keeps the box open with the typed text", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { ...roomRoutes("Rooftop night"), "chat.updateTitle": () => trpcError() });
+  const component = await mount(<ChatHeaderStory />);
+
+  await component.getByRole("button", { name: /^Rename chat/u }).click();
+  const input = component.getByRole("textbox", { name: "Chat name" });
+  await input.fill("Doomed name");
+  await input.press("Enter");
+
+  await expect.poll(() => trpc.count("chat.updateTitle")).toBe(1);
+  await expect(input).toHaveValue("Doomed name");
+});
+
+test("0852: a non-host sees the title as plain text, not a rename door", async ({ mount, page }) => {
+  await routeTrpc(page, roomRoutes("Rooftop night", false));
+  const component = await mount(<ChatHeaderStory />);
+
+  await expect(component.locator(".shell-topbar-title")).toHaveText("Hikari");
+  await expect(component.getByRole("button", { name: /^Rename chat/u })).toHaveCount(0);
+});
+
+// ── THE HEADER CARRIES THE ROOM'S CHIPS: members, memory, preset — one type voice, never a scroll ────────
+function presetRoutes(seededPreset: string | null, presets: readonly { id: string; name: string }[]): Parameters<typeof routeTrpc>[1] {
+  return {
+    ...roomRoutes("Rooftop night"),
+    "preset.list": () => presets,
+    "settings.getUserSettings": () => ({
+      userId: "user_ct",
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: seededPreset } },
+      configUnreadable: null,
+      updatedAt: 0,
+    }),
+  };
+}
+
+test("the preset chip SAYS it could not name the preset instead of vanishing", async ({ mount, page }) => {
+  await routeTrpc(page, presetRoutes("preset_ct_gone", []));
+  const component = await mount(<ChatHeaderStory />);
+  const chip = component.locator('[data-slot="chat-preset-chip"]');
+  await expect(chip).toHaveAttribute("data-preset-state", "unnameable");
+  await expect(chip).toHaveText("Preset unavailable");
+});
+
+test("a viewer on the built-in preset is an answer, and a named preset shows its name", async ({ mount, page }) => {
+  await routeTrpc(page, presetRoutes(null, []));
+  const component = await mount(<ChatHeaderStory />);
+  await expect(component.locator('[data-slot="chat-preset-chip"]')).toHaveText("Built-in preset");
+});
+
+test("a named preset shows its name in the header beside the members and memory chips", async ({ mount, page }) => {
+  await routeTrpc(page, presetRoutes("preset_ct_house", [{ id: "preset_ct_house", name: "House style" }]));
+  const component = await mount(<ChatHeaderStory />);
+  await expect(component.locator('[data-slot="chat-preset-chip"]')).toHaveText("House style");
+  await expect(component.getByRole("button", { name: "Members — 1" })).toBeVisible();
+  await expect(component.getByRole("button", { name: /^Memory — / })).toBeVisible();
 });

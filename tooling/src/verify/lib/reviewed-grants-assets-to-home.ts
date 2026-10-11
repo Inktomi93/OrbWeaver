@@ -32,6 +32,7 @@ const STRUCTURAL_LENGTH_GRANT_SUBJECTS = {
   "26": "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(22rem,100%),1fr))]",
   "27": ".shell-grid { --shell-content-track: calc(100dvw - env(safe-area-inset-left) - env(safe-area-inset-right) - var(--rail-w) - var(--list-track) - var(--context-track)) }",
   "28": ".shell-grid { --shell-centre-flip-from: calc( ( max(0px, var(--shell-content-track) + var(--shell-track-shrink) - var(--width-shell-content)) - max(0px, var(--shell-content-track) - var(--width-shell-content)) ) / 2 ) }",
+  "29": "@container shell-main (max-width: 56rem) {",
 } as const;
 
 export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [

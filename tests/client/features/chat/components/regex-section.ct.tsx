@@ -262,7 +262,7 @@ test("host: a PREVIOUS host's row can still be DETACHED — the room gate, not t
 
 // ── #1754 — the preset tier's NAME comes off the wire ────────────────────────────────────────────────
 // The section must never name the wrong preset. The only client-side route to a preset name is the
-// VIEWER's active-preset chip (`chat-context-band.tsx` → `settings.getUserSettings` + `preset.list`), and
+// VIEWER's active-preset chip (`chat-preset-chip.tsx` → `settings.getUserSettings` + `preset.list`), and
 // on a GM-redirect room that is a DIFFERENT preset from the one this room's turn assembles. So the read
 // carries the label, and these two pin that the rendered heading is the wire's answer and nothing else.
 

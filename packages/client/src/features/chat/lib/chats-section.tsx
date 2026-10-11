@@ -27,7 +27,6 @@ import { chatDeletedFromList, chatSectionSelection, openNewChatPicker, selectCha
 import { ChatListAnchor } from "../anchors/chat-list-anchor.tsx";
 import { AssemblyPreviewPanel } from "../components/assembly-preview-panel.tsx";
 import { ChatContent } from "../components/chat-content.tsx";
-import { ChatContextBand } from "../components/chat-context-band.tsx";
 import { ChatsTopbarHeader } from "../components/chats-topbar-header.tsx";
 import type { CommittedMembersTabProps } from "../components/committed-members-tab.tsx";
 import { CommittedMembersTab } from "../components/committed-members-tab.tsx";
@@ -157,12 +156,9 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
     context: defineContextTabs<ChatContextState>({
       useContextState: useChatContextState,
       tabs: chatContextTabs(settingsSections),
-      // THE HEAD BAND (#860, owner-ruled 2026-08-30 — the context bracket): the room's title + the members ·
-      // memory · preset chips, in the bracket's band slot. This REVERSES the CP-1 de-dup that emptied this
-      // slot ("the topbar owns the chat's avatar + title") — the band is the identity's home now, and the
-      // TOPBAR sheds its title + chips while the context pane is docked (#846 by relocation, shell.css).
-      // A claiming region (the rpg Waystone on a game chat) takes this same slot instead.
-      header: (s) => <ChatContextBand state={s} />,
+      // The room's identity (participants, name, chips) lives in the center header, open pane or closed; the
+      // pane draws only its own content, so this slot is empty unless a region claims it (the rpg Waystone).
+      header: () => null,
       // The FOOT rail's name — the artifact noun, printed as its kicker ("CHAT · MEMBERS") and carried as
       // its a11y group name. "Chat", not "Game": the crown host console is a TAB named "Game" in this rail.
       railLabel: "Chat",

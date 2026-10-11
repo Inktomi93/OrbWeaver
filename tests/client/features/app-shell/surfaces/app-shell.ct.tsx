@@ -2074,20 +2074,15 @@ test("#375 Reading derives the context crossover from the resolved pane geometry
   await expect.poll(() => topbarTitle.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 });
 
-// ── #846 / #860: THE TOPBAR YIELDS THE ROOM'S IDENTITY TO THE DOCKED CONTEXT PANE ───────────────────────
+// ── THE DESKTOP TOPBAR KEEPS THE ROOM'S IDENTITY WITH BOTH PANES DOCKED (board 0851) ────────────────────
 //
-// MEASURED on the live stack at 1280×800 with BOTH panes docked: the content column is 568px and the room
-// title rendered 104px of its 220px natural width, showing "Example — …" — the prefix every seeded room
-// shares — on the one row that names the room, in exactly the state where the user has opened the detail
-// panel to configure the room they can no longer identify. The owner ruled the fix by RELOCATION (#860):
-// the room's name lives in the context pane's HEAD BAND, so while that pane is DOCKED the topbar sheds its
-// title + the members chip + the recall chip (their home is on screen 300px away — one identity, one home)
-// and keeps the avatar cluster. A collapsed pane leaves the row as it was: chats default to a collapsed
-// pane, and a nameless room is the injury #846 describes.
+// At 1280×800 with both panes docked the content column is ~568px. The topbar used to shed the title and both
+// chips whenever the context pane was docked, even though the row could shrink: the owner could not tell which
+// room they were in. The wide identity now keeps the participants' title and both chips at every pane state; the
+// chips collapse to their glyphs and the title truncates last. Only the PHONE's narrow screen title still defers
+// to the open pane's band (#896 below).
 //
-// The pins read the RENDERED result through user-visible affordances (`offsetParent` — the yield is
-// `display: none`), so both arms compile and run against the pre-#860 source, where the first REDS: the
-// title and both chips were visible (and the title truncated) at dock+dock.
+// The pins read the RENDERED result through user-visible affordances (`offsetParent`, measured widths).
 
 /** The room this pin seats: a name long enough to have been crushed, and a four-seat roster so the member
  *  chip renders at its real width. */
@@ -2134,13 +2129,13 @@ interface TopbarIdentityReadout {
   readonly title: boolean;
   readonly membersChip: boolean;
   readonly recallChip: boolean;
+  /** The member chip's count digit — it collapses away on a narrow column, leaving the glyph. */
+  readonly membersCount: boolean;
   readonly avatars: boolean;
   /** The notifications bell — NOT a subject, a PREMISE: the `snap --isolated` stage renders the trail
    *  WITHOUT it (183px vs live main's 225px), so a receipt taken there measures a row the production user
    *  does not have. This pin refuses to read a bell-less row. */
   readonly bell: boolean;
-  /** `clientWidth - scrollWidth` on the visible title, `NaN` when it is not rendered. */
-  readonly titleSlack: number;
 }
 
 /** Seat the notifications BELL in the trail by answering the capability it gates on at the network
@@ -2198,38 +2193,45 @@ async function settledTopbarIdentity(page: Page, shell: Locator, mode: "docked" 
       title: shown(title),
       membersChip: shown(document.querySelector('[aria-label^="Members — "]')),
       recallChip: shown(document.querySelector('[aria-label^="Memory — "]')),
+      membersCount: shown(document.querySelector('[aria-label^="Members — "] .shell-chat-chip-count')),
       avatars: shown(
         document.querySelector(
           '.shell-topbar-identity[data-identity="wide"] [data-slot="avatar-stack-root"], .shell-topbar-identity[data-identity="wide"] [data-slot="avatar-root"]',
         ),
       ),
       bell: shown(document.querySelector('[aria-label="Notifications"]')),
-      titleSlack: title === null || !shown(title) ? Number.NaN : title.clientWidth - title.scrollWidth,
     };
   });
 }
 
-test("#846: at 1280 with BOTH panes docked the topbar yields the room's name + chips to the context band — the avatars stay", async ({ mount, page }) => {
+test("0851: at 1280 with BOTH panes docked the topbar keeps the participants title and both chips — chips shrink to glyphs, nothing is hidden", async ({
+  mount,
+  page,
+}) => {
   // The bell brings its own inbox read into the tree — FED ambiently by `SHELL_AMBIENT_ROUTES`, not declared.
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.getChat": () => TOPBAR_IDENTITY_ROOM });
   await seatNotificationBell(page);
   await page.setViewportSize({ width: 1280, height: 800 });
-  // WITH THE BAND: the shed's condition is that the band NAMES the room (`shell.css` keys on it with
-  // `:has()`), so a story whose context pane has no band would assert the yield in a state production
-  // never has — which is exactly what this pin did until #896 put the condition in the selector.
+  // WITH THE BAND: the band is on screen naming the room, which is the state that used to shed the topbar identity.
   const shell = await mount(<AppShellChatTopbarIdentityStory withBand={true} />);
 
-  const readout = await settledTopbarIdentity(page, shell, "docked", true);
+  const readout = await settledTopbarIdentity(page, shell, "docked", false);
   // The premise: the row carries the SAME trailing furniture a real account has.
   expect(readout.bell).toBe(true);
-  // THE DEFECT PIN: nothing of the identity that the band now carries is on this row — no crushed title.
-  expect(readout).toMatchObject({ title: false, membersChip: false, recallChip: false, avatars: true });
+  expect(readout).toMatchObject({ title: true, membersChip: true, recallChip: true, avatars: true });
+  // The column is the narrow one that failed in the report; the digit collapsed so the chip is its glyph.
+  expect(readout.membersCount).toBe(false);
+  const title = page.locator('.shell-topbar-identity[data-identity="wide"] .shell-topbar-title');
+  await expect(title).toHaveText("Aria, Bolt, Cass");
+  // The column cannot hold the whole string beside the trail, so the title truncates — but it keeps a real box
+  // (the floor), and the optional room name has already given way to it.
+  const titleBox = await title.boundingBox();
+  expect(titleBox?.width ?? 0).toBeGreaterThan(0);
+  const subtitle = page.locator(".shell-topbar-subtitle");
+  await expect.poll(() => subtitle.evaluate((element) => element.clientWidth)).toBe(0);
 });
 
-test("#846: with the context pane COLLAPSED the topbar names the room WHOLE, chips and all — the yield buys room, it does not keep it", async ({
-  mount,
-  page,
-}) => {
+test("0851: with the context pane COLLAPSED the topbar still names the participants, chips and all", async ({ mount, page }) => {
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.getChat": () => TOPBAR_IDENTITY_ROOM });
   await seatNotificationBell(page);
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -2238,12 +2240,11 @@ test("#846: with the context pane COLLAPSED the topbar names the room WHOLE, chi
   const readout = await settledTopbarIdentity(page, shell, "collapsed", false);
   expect(readout.bell).toBe(true);
   expect(readout).toMatchObject({ title: true, membersChip: true, recallChip: true, avatars: true });
-  await expect(page.locator(".shell-topbar-title:visible")).toHaveText(TOPBAR_IDENTITY_ROOM.title);
-  // …and WHOLE: with the pane closed the column has the room, so no "Example — …".
-  expect(readout.titleSlack).toBeGreaterThanOrEqual(0);
+  await expect(page.locator(".shell-topbar-title:visible")).toHaveText("Aria, Bolt, Cass");
 });
 
-// ── #896: THE YIELD REACHES EVERY IDENTITY VARIANT ────────────────────────────────────────────────────
+// ── #896: THE PHONE'S NARROW TITLE YIELDS TO THE OPEN PANE ────────────────────────────────────────────
+// (0851 narrowed the yield to the narrow identity only: the wide desktop identity keeps its title.)
 // The post-fix drive REFUTED F4 at the phone: widening the rule from `docked` to `docked|overlay` fixed the
 // desktop overlay widths and left `[data-identity="wide"]` in the selector, which the 430 shell's `narrow`
 // identity mount cannot match — so the room's name still printed TWICE there (topbar y=13 + the band's
@@ -2257,8 +2258,8 @@ test("#846: with the context pane COLLAPSED the topbar names the room WHOLE, chi
 // yields the title, and a closed one keeps it. The existing #846 pins are blind to this by construction —
 // they read the `wide` mount's own visibility and cannot see a second mount printing the same string.
 const TOPBAR_YIELD_ARMS = [
-  { width: 1280, height: 800, identity: "wide" },
-  { width: 430, height: 740, identity: "narrow" },
+  { width: 1280, height: 800, identity: "wide", titlesWhenOpen: 1 },
+  { width: 430, height: 740, identity: "narrow", titlesWhenOpen: 0 },
 ] as const;
 
 /** Drive the context pane to open/closed by READING its resolved mode, never by assuming which label the
@@ -2281,7 +2282,7 @@ function visibleTopbarTitles(page: Page): Promise<number> {
 }
 
 for (const arm of TOPBAR_YIELD_ARMS) {
-  test(`#896 @${String(arm.width)} (${arm.identity} identity): an OPEN context pane yields the topbar title, a CLOSED one keeps it`, async ({
+  test(`#896 @${String(arm.width)} (${arm.identity} identity): an OPEN context pane ${arm.titlesWhenOpen === 0 ? "yields" : "keeps"} the topbar title, a CLOSED one keeps it`, async ({
     mount,
     page,
   }) => {
@@ -2301,9 +2302,11 @@ for (const arm of TOPBAR_YIELD_ARMS) {
     await setContextPane(page, shell, "collapsed");
     await expect.poll(() => visibleTopbarTitles(page)).toBe(1);
 
-    // OPEN: the band is on screen, so the row yields — at BOTH identities, which is the whole finding.
+    // OPEN: the phone's narrow title yields to the band; the desktop identity keeps its title.
     await setContextPane(page, shell, "open");
-    await expect.poll(() => visibleTopbarTitles(page)).toBe(0);
+    // Barrier on the band the rule keys on: a count read before it paints can match the pre-shed frame.
+    await expect(page.locator('[data-slot="context-bracket-band"] h2')).toBeVisible();
+    await expect.poll(() => visibleTopbarTitles(page)).toBe(arm.titlesWhenOpen);
   });
 }
 

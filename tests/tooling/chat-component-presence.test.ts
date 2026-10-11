@@ -193,9 +193,13 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     coveredBy: "appearance-message-style-section",
     why: "appearance-message-style-section.ct drives the real style-card grid's persisted selection, every mode's name/gloss/preview anatomy, and the pressed-state transition that patches chatStyle.",
   },
-  "chat-context-band": {
-    coveredBy: "chats-section",
-    why: "chats-section.ct drives the real context band's whole room title, members/memory/preset chips, readable and coarse-pointer floors, and members-chip navigation in both directions.",
+  "chat-header-title": {
+    coveredBy: "chat-header",
+    why: "chat-header.ct drives the participant-first title, the user-set name, the in-place rename (Enter, Escape, double submit, failed save) and the non-host plain-text arm.",
+  },
+  "chat-preset-chip": {
+    coveredBy: "chat-header",
+    why: "chat-header.ct drives the chip's named, built-in and unnameable states beside the roster and memory chips.",
   },
 
   // chat-summary-row has a dedicated logic test (the row's derivation), not a CT — named here so the

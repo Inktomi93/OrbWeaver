@@ -299,7 +299,7 @@ describe("read — listEffectiveRegex (host-only, #1742)", () => {
 
   // ── #1754 — THE PRESET TIER'S NAME ────────────────────────────────────────────────────────────────
   // The tier KEY is the bare word `preset`, so the client has no way to a name except the VIEWER's own
-  // active preset chip (`chat-context-band.tsx`) — which is NOT the preset this room assembles whenever the
+  // active preset chip (`chat-preset-chip.tsx`) — which is NOT the preset this room assembles whenever the
   // rpg GM redirect fires. The name therefore has to come from the read, which already resolves through
   // `resolvePreviewInputs` (the redirect included). These three pin the three answers it can give.
 

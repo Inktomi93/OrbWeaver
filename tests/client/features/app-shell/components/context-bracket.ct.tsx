@@ -96,7 +96,7 @@ function themeAttr(theme: (typeof SHIPPED_THEMES)[number]): Record<string, strin
 }
 
 for (const theme of SHIPPED_THEMES) {
-  test(`${theme}: FENCE — the composited surface order is band == owning rail > receded rail == pane`, async ({ mount, page }) => {
+  test(`${theme}: FENCE — the composited surface order is band == pane == receded rail < owning rail`, async ({ mount, page }) => {
     const component = await mount(
       <div {...themeAttr(theme)}>
         <ContextOwnershipStory />
@@ -110,10 +110,10 @@ for (const theme of SHIPPED_THEMES) {
     ]);
     const owningStep = contrastRatio(owning.rgb, pane.rgb);
     const recededStep = contrastRatio(receded.rgb, pane.rgb);
-    // The band and the owning rail are ONE material — the mock's `--raised` on `.band` and `.rail.own`.
-    expect(Math.abs(band.rgb.r - owning.rgb.r), `band ${band.describe} vs owning ${owning.describe}`).toBeLessThanOrEqual(SAME_SURFACE_SLACK);
-    expect(Math.abs(band.rgb.g - owning.rgb.g)).toBeLessThanOrEqual(SAME_SURFACE_SLACK);
-    expect(Math.abs(band.rgb.b - owning.rgb.b)).toBeLessThanOrEqual(SAME_SURFACE_SLACK);
+    // The band wears the PANE's own surface — one shade inside one pane (owner ruling), not the raised slab.
+    expect(Math.abs(band.rgb.r - pane.rgb.r), `band ${band.describe} vs pane ${pane.describe}`).toBeLessThanOrEqual(SAME_SURFACE_SLACK);
+    expect(Math.abs(band.rgb.g - pane.rgb.g)).toBeLessThanOrEqual(SAME_SURFACE_SLACK);
+    expect(Math.abs(band.rgb.b - pane.rgb.b)).toBeLessThanOrEqual(SAME_SURFACE_SLACK);
     // The receded rail IS the pane (the mock draws no `.rail.recede` fill), and the owning one is a step
     // above both. The step is small by the artboard's own palette — the assertion is the ORDER.
     expect(recededStep, `receded ${receded.describe} vs pane ${pane.describe}`).toBeLessThan(owningStep);

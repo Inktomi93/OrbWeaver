@@ -84,7 +84,7 @@ export function regexTierLeverCount(rows: readonly RegexTierRowView[]): number {
  *
  * TWO SOURCES, ONE MAP, AND THE SPLIT IS THE POINT (#1754). The PRESET tier's name can only come off the
  * WIRE (`RegexTierGroupView.label`): its key is the bare word `preset`, and the only preset name reachable
- * here is the viewer's own active one (`chat-context-band.tsx`), which is NOT the preset this room's turn
+ * here is the viewer's own active one (`chat-preset-chip.tsx`), which is NOT the preset this room's turn
  * assembles whenever the rpg GM redirect fires — naming the wrong preset on the one surface built to say
  * what runs here is worse than not naming it. A CHARACTER tier's name comes off the ROSTER, by an EXACT
  * match on the seat id its own key carries (`chat.getChat`, already loaded for this tab): the key carries

@@ -15,13 +15,25 @@
  *  pre-send draft has its own ("New chat", `draftChatTitle`). */
 export const UNTITLED_CHAT_TITLE = "Untitled chat";
 
+/** The title shape the Silly-Tavern import stored before names were user-owned: `<cast> — Mon D, YYYY`, or the
+ *  bare date when no cast name resolved, with ` (n)` on a same-day duplicate (server `import/substrate/chat-input.ts`).
+ *  It is a date stamp, not a name anyone chose, so it presents as "no user name". Stored rows are never rewritten. */
+const STAMPED_DEFAULT_TITLE = /^(?:.+ \u2014 )?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2}, \d{4}(?: \(\d+\))?$/u;
+
+/** The name a user gave the room, or null when there is none: the stored title is null, blank, or the stamped
+ *  default. The ONE test every surface shares for "did the user name this room". */
+export function authoredChatName(title: string | null): string | null {
+  const trimmed = (title ?? "").trim();
+  return trimmed.length === 0 || STAMPED_DEFAULT_TITLE.test(trimmed) ? null : trimmed;
+}
+
 /** The ONE chat display-title fallback chain: authored title → participant display names → "Untitled chat".
  *  Stored titles are EMPTY STRINGS until renamed (not just null), so the fallback trims — a
  *  `?? "Untitled chat"` is defeated by `""` and renders a blank title. */
 export function deriveChatTitle(title: string | null, participantNames: readonly string[]): string {
-  const trimmed = (title ?? "").trim();
-  if (trimmed.length > 0) {
-    return trimmed;
+  const authored = authoredChatName(title);
+  if (authored !== null) {
+    return authored;
   }
   return participantNames.length > 0 ? participantNames.join(", ") : UNTITLED_CHAT_TITLE;
 }
