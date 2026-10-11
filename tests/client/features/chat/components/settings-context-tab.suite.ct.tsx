@@ -54,7 +54,7 @@ test("the actual Story Clocks panel is visible without opening native or unrelat
   const component = await mount(<HostControlTruthStory chatId={chatId} />);
   await expect(component.getByRole("button", { name: "Host controls", exact: true })).toHaveAttribute("aria-expanded", "false");
   await expect(component.getByRole("button", { name: "Unrelated rules", exact: true })).toHaveAttribute("aria-expanded", "false");
-  await expect(component.getByRole("button", { name: "Plugin panels", exact: true })).toHaveAttribute("aria-expanded", "true");
+  await expect(component.getByRole("button", { name: "Plugin controls", exact: true })).toHaveAttribute("aria-expanded", "true");
   await expect(component.getByRole("textbox", { name: "Clock", exact: true })).toBeVisible();
   await expect(component.getByRole("button", { name: "Start", exact: true })).toBeVisible();
   await expect(component.getByRole("button", { name: "Unrelated action", exact: true })).toBeHidden();
@@ -64,7 +64,7 @@ test("the actual Story Clocks panel is visible without opening native or unrelat
 test("a remembered collapse survives leaving and returning to This chat", async ({ mount, page }) => {
   const chatId = await routes(page);
   const component = await mount(<HostControlTruthStory chatId={chatId} />);
-  const panels = component.getByRole("button", { name: "Plugin panels", exact: true });
+  const panels = component.getByRole("button", { name: "Plugin controls", exact: true });
   await expect(panels).toHaveAttribute("aria-expanded", "true");
   await panels.click();
   await expect(panels).toHaveAttribute("aria-expanded", "false");
@@ -80,13 +80,13 @@ test("members do not mount host or plugin controls", async ({ mount, page }) => 
   const component = await mount(<HostControlTruthStory chatId={chatId} isHost={false} />);
   await expect(component.getByRole("heading", { name: "Field overrides", exact: true })).toBeVisible();
   await expect(component.getByRole("button", { name: "Host controls", exact: true })).toHaveCount(0);
-  await expect(component.getByRole("button", { name: "Plugin panels", exact: true })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Plugin controls", exact: true })).toHaveCount(0);
   await expect(component.getByRole("textbox", { name: "Clock", exact: true })).toHaveCount(0);
 });
 
-test("no applicable panel produces no empty Plugin panels chrome", async ({ mount, page }) => {
+test("no applicable panel produces no empty Plugin controls chrome", async ({ mount, page }) => {
   const chatId = await routes(page, false);
   const component = await mount(<HostControlTruthStory chatId={chatId} />);
   await expect(component.getByRole("button", { name: "Host controls", exact: true })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Plugin panels", exact: true })).toBeHidden();
+  await expect(component.getByRole("button", { name: "Plugin controls", exact: true })).toBeHidden();
 });
