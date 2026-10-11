@@ -1,5 +1,5 @@
-// THE SWIPE FOOT — the message's own last line: ‹ at its leading edge, the `n / m` count and › at its
-// trailing edge. It is part of the message, never a separate card under it, so it costs one glyph-row of
+// THE SWIPE FOOT — the message's own last line: ‹ `n / m` › grouped at its trailing corner. It is part of the message,
+// never a separate card under it, so it costs one glyph-row of
 // height and no plate of its own inside a container. Each chat style says WHERE the foot sits and how its
 // chevrons meet the edge through `RowSkin.swipeFoot` (message-row-variants.ts); the two strips
 // (`swipe-strip.tsx`, `greeting-swipe-strip.tsx`) read the same treatment, so to a reader they are one gesture.

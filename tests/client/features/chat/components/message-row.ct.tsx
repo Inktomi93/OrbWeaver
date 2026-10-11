@@ -2280,7 +2280,7 @@ test("#106 CONTROL: with no background photo the same row is byte-identically ba
 });
 
 // ── THE SWIPE FOOT: the message's own last line, per chat style (owner ruling, SillyTavern's inline swipe) ──
-// ‹ sits at the container's leading edge and the count beside › at its trailing edge, as the message's own
+// ‹ n / m › sit together at the container's trailing corner, as the message's own
 // foot rather than a separate card under it. Each style decides where that foot lives (`RowSkin.swipeFoot`):
 // inside the container for the seven single-container styles, under the train for tide. The count is the
 // position and nothing else.
@@ -2365,8 +2365,9 @@ for (const chatStyle of THEME_CHAT_STYLES) {
         rendered: true,
         onTrain:
           chatStyle !== "tide" || (widest !== undefined && Math.abs(footBox.x - widest.left) < 1 && Math.abs(footBox.x + footBox.width - widest.right) < 1),
-        // ‹ and › sit on the container's reading inset, the same inset the header bar's actions sit on.
-        leading: Math.abs(prev.x - container.contentLeft) < 1,
+        // ‹ n / m › are one group: the arrows hug the count, and › ends on the container's reading inset, the
+        // same inset the header bar's actions end on.
+        grouped: counter.x - (prev.x + prev.width) < prev.width && next.x - (counter.x + counter.width) < next.width,
         trailing: Math.abs(next.x + next.width - container.contentRight) < 1,
         matchesHeader: Math.abs(next.x + next.width - (await headerActionsRight(component))) < 1,
         countBesideNext: counter.x > prev.x + prev.width && counter.x + counter.width <= next.x + 0.5,
@@ -2376,7 +2377,7 @@ for (const chatStyle of THEME_CHAT_STYLES) {
     };
     await expect
       .poll(footLaw)
-      .toEqual({ rendered: true, onTrain: true, leading: true, trailing: true, matchesHeader: true, countBesideNext: true, oneLine: true });
+      .toEqual({ rendered: true, onTrain: true, grouped: true, trailing: true, matchesHeader: true, countBesideNext: true, oneLine: true });
     // Echo's foot rides the card's fill across the art pane; every other inside foot sits on its container.
     const fill = await foot.evaluate((el) => getComputedStyle(el).backgroundColor);
     // @orb-waive ct-no-oneshot-live-read-assert(expect): the foot law above polled the row to its settled layout; its fill is a static class.

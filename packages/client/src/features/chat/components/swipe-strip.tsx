@@ -65,8 +65,8 @@ export interface SwipeStripProps {
   readonly foot: SwipeFoot;
 }
 
-/** The foot line both swipe strips share: ‹ alone at the leading edge, the count beside › at the trailing
- *  edge, as SillyTavern lays its swipe out. The strips own their verbs; this owns only the arrangement. */
+/** The foot line both swipe strips share: ‹ n / m › grouped at the trailing corner of the message. The strips
+ *  own their verbs; this owns only the arrangement. */
 export function SwipeFootRow(props: {
   readonly foot: SwipeFoot;
   readonly slot: string;
@@ -75,12 +75,10 @@ export function SwipeFootRow(props: {
   readonly next: ReactNode;
 }): ReactElement {
   return (
-    <Row align="center" justify="between" gap="glyph" data-slot={props.slot} className={props.foot.row}>
+    <Row align="center" justify="end" gap="tight" data-slot={props.slot} className={props.foot.row}>
       {props.prev}
-      <Row align="center" gap="tight">
-        {props.count}
-        {props.next}
-      </Row>
+      {props.count}
+      {props.next}
     </Row>
   );
 }
