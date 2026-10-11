@@ -18,7 +18,7 @@ Counts and the inbox disagree.
 
 ## Done when
 
-The library counts and the inbox agree on seed-tag suggestions, with one shared definition of the seed tags.
+The suggestion inbox hides internal seed tags through one shared definition (contracts tag, used by the seeder too), and the library reports their true pending state, so no screen calls them unused while prune keeps them.
 
 ## Evidence
 
