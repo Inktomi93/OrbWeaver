@@ -72,8 +72,7 @@ import { createProviderExecutor } from "./roles/executor.ts";
 import { createRoleClientsFor } from "./roles/role-clients.ts";
 
 export { resolveClaudeExecutable } from "./backends/agent-sdk/executable.ts";
-export type { AgentToolResult, AgentToolSpec, SessionEntryWriter } from "./backends/agent-sdk/index.ts";
-export { createAgentToolServer } from "./backends/agent-sdk/index.ts";
+export type { SessionEntryWriter } from "./backends/agent-sdk/index.ts";
 export { cacheDepthCovering, preservesCacheBlockEnds, rowIndexAtCacheDepth } from "./backends/kit/cache-control.ts";
 export { providerErrorFromHttp } from "./backends/kit/error-classify.ts";
 export { cachePolicyContextOf, responseReplaySupportedFor } from "./backends/kit/response-cache.ts";

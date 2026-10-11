@@ -52,6 +52,31 @@ test("a spine reference to a missing chapter file is skipped, not fatal", async 
   expect(out.text).toBe("Only chapter.");
 });
 
+test("decodes numeric references in the OPF title", async () => {
+  const container = MINIMAL_CONTAINER;
+  const opf = `<package xmlns="http://www.idpf.org/2007/opf"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Alice&#39;s &#x2014; Tale</dc:title></metadata><manifest><item id="c0" href="a.xhtml"/></manifest><spine><itemref idref="c0"/></spine></package>`;
+  const epub = zipSync({
+    "META-INF/container.xml": enc.encode(container),
+    "OEBPS/content.opf": enc.encode(opf),
+    "OEBPS/a.xhtml": enc.encode("<html><body><p>Body.</p></body></html>"),
+  });
+  const out = await loadEpub(epub);
+  expect(out.title).toBe("Alice's \u2014 Tale");
+});
+
+test("resolves a chapter whose manifest href is percent-encoded or carries a character reference", async () => {
+  const opf = `<package xmlns="http://www.idpf.org/2007/opf"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Encoded</dc:title></metadata><manifest><item id="c0" href="Chapter%201.xhtml"/><item id="c1" href="Tom&amp;Jerry.xhtml"/><item id="c2" href="caf&#233;.xhtml"/></manifest><spine><itemref idref="c0"/><itemref idref="c1"/><itemref idref="c2"/></spine></package>`;
+  const epub = zipSync({
+    "META-INF/container.xml": enc.encode(MINIMAL_CONTAINER),
+    "OEBPS/content.opf": enc.encode(opf),
+    "OEBPS/Chapter 1.xhtml": enc.encode("<html><body><p>Spaced.</p></body></html>"),
+    "OEBPS/Tom&Jerry.xhtml": enc.encode("<html><body><p>Ampersand.</p></body></html>"),
+    "OEBPS/caf\u00E9.xhtml": enc.encode("<html><body><p>Accent.</p></body></html>"),
+  });
+  const out = await loadEpub(epub);
+  expect(out.text).toBe("Spaced.\n\nAmpersand.\n\nAccent.");
+});
+
 test("throws when META-INF/container.xml is absent", async () => {
   await expect(loadEpub(zipSync({ "OEBPS/content.opf": enc.encode("<package/>") }))).rejects.toThrow(MISSING_CONTAINER);
 });

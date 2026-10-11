@@ -29,3 +29,11 @@ Move default-model fixture consumers to canonical seed rows or test-owned projec
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Partly done: `evidenceRank` and `taskProviders` are removed. The tier-order assertion remains, and the provider-eligibility test filters `BUILTIN_PROVIDERS` through the live `providerTasks`.
+
+Still open:
+
+- `DEFAULT_RERANK_MODEL` has a non-test consumer, `scripts/probes/speaker-pick/run.ts:18,410`. It stays.
+- `DEFAULT_EMBED_MODEL` is read only by tests (`pnpm ast dead`: test-anchored). Moving those fixtures to the canonical seed rows is not done.
+- The clause that curated provenance strings cite nonexistent backend files is wrong. All five strings (`packages/inference/src/capability/sources/curated/local-light.ts:17,41,74,94,112`) name files that exist (`text-windows.ts`, `model-cache.ts`, `tasks.ts`). Only `:74` names the alias. No citation edit is needed.

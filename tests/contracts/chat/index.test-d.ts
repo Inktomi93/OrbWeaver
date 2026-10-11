@@ -1,4 +1,4 @@
-import type { AdjustedKnob, ChatBusEvent, ChatContentPart, ChatWarning, InviteView, MessageSlot, MessageView } from "@orb/contracts/chat";
+import type { AdjustedKnob, ChatBusEvent, ChatContentPart, ChatWarning, InviteView, MessageView } from "@orb/contracts/chat";
 import type { UserIntent } from "@orb/contracts/preset";
 import { expectTypeOf, test } from "vitest";
 
@@ -12,11 +12,7 @@ import { expectTypeOf, test } from "vitest";
 type UnionMemberHasKey<U, K extends PropertyKey> = U extends unknown ? (K extends keyof U ? true : false) : never;
 
 // ── D26: the SLOT carries no content/reasoning/economics; the JOIN view (slot + variant) does ─────────
-test("MessageSlot has no content/reasoning/economics key; MessageView carries content (D26)", () => {
-  expectTypeOf<UnionMemberHasKey<MessageSlot, "content">>().toEqualTypeOf<false>();
-  expectTypeOf<UnionMemberHasKey<MessageSlot, "reasoning">>().toEqualTypeOf<false>();
-  // economics ride on the variant, surfaced only through the read model.
-  expectTypeOf<UnionMemberHasKey<MessageSlot, "tokensOut">>().toEqualTypeOf<false>();
+test("MessageView carries content (D26; the slot row's lack of it is pinned in tests/db/schema/chat.test-d.ts)", () => {
   // The read model DOES carry content (slot joined with its selected variant).
   expectTypeOf<UnionMemberHasKey<MessageView, "content">>().toEqualTypeOf<true>();
 });

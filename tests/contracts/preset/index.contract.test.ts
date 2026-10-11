@@ -36,7 +36,6 @@ import {
   REWRITE_TOGGLES,
   SIDE_GEN_POSTURES,
   TEMPLATE_CLUSTERS,
-  TEMPLATE_DEF_BY_ID,
   TEMPLATE_DEFS,
   TEMPLATE_KINDS,
   THINK_PREFIX_DEFAULT,
@@ -1111,15 +1110,9 @@ test("every TemplateDef points at a REAL prose slot, and its kind is a declared 
   const unresolvedSlots = TEMPLATE_DEFS.filter((def) => def.defaultSlot !== undefined && PROSE_SLOTS[def.defaultSlot] === undefined);
   expect(unresolvedSlots).toStrictEqual([]);
   // Every def ghosts real bytes: a slot-less def would be a default nobody can see.
-  expect(TEMPLATE_DEF_BY_ID.newChatMarker.defaultSlot).toBe("preset.format.newChatMarker");
+  expect(TEMPLATE_DEFS.find((def) => def.id === "newChatMarker")?.defaultSlot).toBe("preset.format.newChatMarker");
   expect(TEMPLATE_DEFS.filter((def) => !TEMPLATE_KINDS.includes(def.kind))).toStrictEqual([]);
   expect(TEMPLATE_DEFS.filter((def) => def.label.length === 0 || def.fires.length === 0)).toStrictEqual([]);
-});
-
-test("the by-id lookup is total over the registry (the client renders a row without a fallback)", () => {
-  for (const def of TEMPLATE_DEFS) {
-    expect(TEMPLATE_DEF_BY_ID[def.id]).toBe(def);
-  }
 });
 
 test("clusters pair with the banded kind TWO-SIDEDLY: every extract row declares one, nothing else does", () => {
@@ -1143,9 +1136,10 @@ test("clusters pair with the banded kind TWO-SIDEDLY: every extract row declares
 });
 
 test("a guided template declares role + depth; a nudge declares neither (text-only BY DERIVATION)", () => {
-  expect(TEMPLATE_DEF_BY_ID.response.caps.map((cap) => cap.kind)).toStrictEqual(["role", "depth", "tokens"]);
-  expect(TEMPLATE_DEF_BY_ID.continueNudge.caps).toStrictEqual([]);
-  expect(TEMPLATE_DEF_BY_ID.newChatMarker.caps).toStrictEqual([]);
+  const capsOf = (id: string): TemplateDef["caps"] | undefined => TEMPLATE_DEFS.find((def) => def.id === id)?.caps;
+  expect(capsOf("response")?.map((cap) => cap.kind)).toStrictEqual(["role", "depth", "tokens"]);
+  expect(capsOf("continueNudge")).toStrictEqual([]);
+  expect(capsOf("newChatMarker")).toStrictEqual([]);
 });
 
 // ── G10: the guided-action `depth` is byte-compatible with every stored blob ───────────────────────

@@ -19,6 +19,7 @@
 // Empty text is truthful (a spine of empty chapters).
 
 import { DATABANK_EXTRACT_MAX_DECOMPRESSED_BYTES } from "@orb/contracts/uploads";
+import { decodeXmlText } from "@orb/kit/strings";
 import { strFromU8, unzipSync } from "fflate";
 import type { RawExtraction } from "../loader.ts";
 import { loadHtml } from "./html.ts";
@@ -41,11 +42,16 @@ const MANIFEST_ITEM = /<item\b([^>]*)>/g;
 const ITEM_ID = /\bid="([^"]+)"/;
 const ITEM_HREF = /\bhref="([^"]+)"/;
 const WHITESPACE_RUN = /\s+/g;
-const XML_ENTITIES: Readonly<Record<string, string>> = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&apos;": "'" };
-const XML_ENTITY = /&(?:amp|lt|gt|quot|apos);/g;
+/** A run of `%XX` octets — one or more UTF-8 bytes of a percent-encoded path segment. */
+const PERCENT_RUN = /(?:%[0-9A-Fa-f]{2})+/g;
 
-function decodeXml(raw: string): string {
-  return raw.replace(XML_ENTITY, (m) => XML_ENTITIES[m] ?? m);
+/** An OPF `href` is a URI reference: XML-unescape it, then percent-decode it to reach the zip entry name
+ *  (`Chapter%201.xhtml` → `Chapter 1.xhtml`). Decoding the bytes through `TextDecoder` never throws, unlike
+ *  `decodeURIComponent` on a malformed sequence — a bad escape just misses the lookup and the chapter is skipped. */
+function hrefToZipPath(href: string): string {
+  return decodeXmlText(href).replace(PERCENT_RUN, (run) =>
+    new TextDecoder().decode(Uint8Array.from(run.slice(1).split("%"), (hex) => Number.parseInt(hex, 16))),
+  );
 }
 
 /** Build the per-call bomb guard: refuse an over-cap ENTRY, and refuse the whole archive once the accepted
@@ -84,7 +90,7 @@ function manifestHrefs(opf: string): Map<string, string> {
     const id = ITEM_ID.exec(attrs)?.[1];
     const href = ITEM_HREF.exec(attrs)?.[1];
     if (id !== undefined && href !== undefined) {
-      hrefs.set(id, decodeXml(href));
+      hrefs.set(id, hrefToZipPath(href));
     }
   }
   return hrefs;
@@ -109,7 +115,7 @@ function titleOf(opf: string): string | undefined {
   if (captured === undefined) {
     return;
   }
-  const title = decodeXml(captured).replace(WHITESPACE_RUN, " ").trim();
+  const title = decodeXmlText(captured).replace(WHITESPACE_RUN, " ").trim();
   return title.length > 0 ? title : undefined;
 }
 

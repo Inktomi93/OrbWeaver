@@ -5,17 +5,8 @@
 // is the one that must hold today: a wire that serves `chat` has to be able to emit TEXT and USAGE, or its
 // turns stream nothing visible and cost nothing measurable.
 
-import { DELTA_KINDS, deltaKindSchema, WIRE_DEFS, WIRES } from "@orb/contracts/inference";
+import { DELTA_KINDS, WIRE_DEFS, WIRES } from "@orb/contracts/inference";
 import { expect, test } from "../../support/fixtures.ts";
-
-test("every member parses to itself and anything else is REFUSED", () => {
-  for (const kind of DELTA_KINDS) {
-    expect(deltaKindSchema.parse(kind)).toBe(kind);
-  }
-  for (const notADelta of ["content", "delta", "text-delta", ""]) {
-    expect(deltaKindSchema.safeParse(notADelta).success, `"${notADelta}" must not parse as a delta kind`).toBe(false);
-  }
-});
 
 test("no wire declares a delta outside the tuple — the bus dispatches on this union", () => {
   const known: ReadonlySet<string> = new Set<string>(DELTA_KINDS);

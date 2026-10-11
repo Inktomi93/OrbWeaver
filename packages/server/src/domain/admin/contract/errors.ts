@@ -3,8 +3,6 @@
 
 export const ADMIN_OP_CODES = {
   cannotModifyOwner: "cannot_modify_owner",
-  /** An agent principal's role/password is not human-mutable; setEnabled still works (it's the containment verb). */
-  cannotModifyAgent: "cannot_modify_agent",
   cannotDisableSelf: "cannot_disable_self",
   userExists: "user_exists",
   invalidHandle: "invalid_handle",

@@ -12,7 +12,6 @@ import {
   carriesTracker,
   gameTrackers,
   RPG_TRACKER_VALUE_EMPTY,
-  resolveTrackerCarriers,
   resolveTrackerMaxOverride,
   rpgTrackerDefSchema,
   rpgTrackerValueSchema,
@@ -130,7 +129,7 @@ test("a GRANT reaches an actor the class missed; a REVOKE beats the class AND a 
 test("a GAME-subject tracker has no carriers at all (it is one reading on the snapshot)", () => {
   const alarm = def({ key: "alarm", label: "Alarm", shape: "meter", write: "set", subject: "game", appliesTo: "everyone" });
   expect(carriesTracker(alarm, carrier("Kael", "party"))).toBe(false);
-  expect(resolveTrackerCarriers(alarm, [carrier("Kael", "party"), carrier("Mira", "npcs")])).toEqual([]);
+  expect(carriesTracker(alarm, carrier("Mira", "npcs"))).toBe(false);
   expect(gameTrackers([alarm]).map((d) => d.key)).toEqual(["alarm"]);
 });
 
@@ -140,7 +139,7 @@ test("the two read directions agree — who carries THIS tracker, and what does 
   const kael = carrier("Kael", "party");
   const sola = carrier("Sola", "party", { revokes: ["mana"] });
   const mira = carrier("Mira", "npcs");
-  expect(resolveTrackerCarriers(mana, [kael, sola, mira]).map((c) => c.name)).toEqual(["Kael"]);
+  expect([kael, sola, mira].filter((c) => carriesTracker(mana, c)).map((c) => c.name)).toEqual(["Kael"]);
   expect(trackersForCarrier([mana, trust], kael).map((d) => d.key)).toEqual(["mana"]);
   expect(trackersForCarrier([mana, trust], sola)).toEqual([]);
   expect(trackersForCarrier([mana, trust], mira).map((d) => d.key)).toEqual(["trust"]);

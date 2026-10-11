@@ -192,3 +192,31 @@ export function fileStem(filename: string): string {
   const base = filename.split(PATH_SEPARATOR).pop() ?? filename;
   return base.replace(FILE_EXTENSION, "").trim();
 }
+
+// ── XML character references ─────────────────────────────────────────────────────────────────────────
+// ONE decoder for the XML text the extraction loaders and the caption scraper read (docx runs, EPUB OPF
+// titles and hrefs, YouTube timedtext cues).
+const XML_NAMED_ENTITIES: Readonly<Record<string, string>> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
+const XML_REFERENCE = /&(?:(amp|lt|gt|quot|apos)|#(\d+)|#x([0-9a-fA-F]+));/g;
+
+const MAX_CODE_POINT = 1_114_111;
+/** The XML 1.0 `Char` production — NUL, lone surrogates and most C0 controls are not in it, so a reference to
+ *  one is left as written rather than minted into the text. */
+const XML_CHAR = /^[\t\n\r\u{20}-\u{D7FF}\u{E000}-\u{FFFD}\u{10000}-\u{10FFFF}]$/u;
+
+function isXmlChar(codePoint: number): boolean {
+  return codePoint <= MAX_CODE_POINT && XML_CHAR.test(String.fromCodePoint(codePoint));
+}
+
+/** Decode the five predefined XML entities plus decimal (`&#39;`) and hex (`&#x27;`) character references in
+ *  ONE pass, so `&amp;lt;` yields `&lt;`, never `<`. Anything else — an unknown entity, an unterminated
+ *  reference, a reference to a non-`Char` — stays literal. */
+export function decodeXmlText(raw: string): string {
+  return raw.replace(XML_REFERENCE, (match, named: string | undefined, decimal: string | undefined, hex: string | undefined) => {
+    if (named !== undefined) {
+      return XML_NAMED_ENTITIES[named] ?? match;
+    }
+    const codePoint = decimal === undefined ? Number.parseInt(hex ?? "", 16) : Number.parseInt(decimal, 10);
+    return isXmlChar(codePoint) ? String.fromCodePoint(codePoint) : match;
+  });
+}

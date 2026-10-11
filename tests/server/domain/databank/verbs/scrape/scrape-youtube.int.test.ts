@@ -20,7 +20,7 @@ import { makeDatabankHarness, principalFor, seedUser } from "../../_support.ts";
 const VIDEO_ID = "dQw4w9WgXcQ";
 const WATCH_URL = `https://www.youtube.com/watch?v=${VIDEO_ID}`;
 const CAPTIONS_XML =
-  '<?xml version="1.0"?><transcript><text start="0" dur="2">Never gonna give you up</text><text start="2" dur="2">Never gonna let you down</text></transcript>';
+  '<?xml version="1.0"?><transcript><text start="0" dur="2">Never gonna give you up</text><text start="2" dur="2">Never gonna let you down</text><text start="4" dur="2">It&#39;s &#x2014; fine</text></transcript>';
 
 function bytesOf(s: string): Uint8Array {
   return new TextEncoder().encode(s);
@@ -53,6 +53,7 @@ test("scrapes captions: derives the video id, fetches timedtext, stamps 'youtube
   expect(rows[0]?.origin).toBe("youtube");
   expect(rows[0]?.extractedText).toContain("Never gonna give you up");
   expect(rows[0]?.extractedText).toContain("Never gonna let you down");
+  expect(rows[0]?.extractedText).toContain("It's \u2014 fine");
 });
 
 test("accepts a youtu.be short link and a bare id", async () => {

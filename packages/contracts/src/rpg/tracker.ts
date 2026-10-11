@@ -173,11 +173,6 @@ export function carriesTracker(def: RpgTrackerDef, carrier: RpgTrackerCarrier): 
   return carrier.grants.includes(def.key) || trackerAppliesToCarrier(def.appliesTo, carrier);
 }
 
-/** Every actor that effectively carries ONE tracker (the def-side read — "who has Mana?"). */
-export function resolveTrackerCarriers(def: RpgTrackerDef, carriers: readonly RpgTrackerCarrier[]): readonly RpgTrackerCarrier[] {
-  return carriers.filter((c) => carriesTracker(def, c));
-}
-
 /** The ONE tracker ordering: `sort` ascending, ties broken by `key` so the order is total + stable across
  *  reads (a set-order-dependent render is exactly the kind of drift the panel used to show). */
 export function sortTrackers(defs: readonly RpgTrackerDef[]): readonly RpgTrackerDef[] {

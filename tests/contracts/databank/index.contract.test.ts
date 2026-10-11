@@ -3,7 +3,6 @@ import {
   bankHealthViewSchema,
   chatDocumentVisibilitySchema,
   chunkParamsSchema,
-  DEFAULT_CHAT_DOCUMENT_VISIBILITY,
   DOC_ORIGINS,
   databankSettingsSchema,
   docOriginSchema,
@@ -156,9 +155,4 @@ test("chatDocumentVisibilitySchema (D85) validates a branded document-id set and
   // Strict at the trust boundary: a malformed id is rejected, and a stray key is default-denied.
   expect(chatDocumentVisibilitySchema.safeParse({ hidden: ["not-a-document-id"] }).success).toBe(false);
   expect(chatDocumentVisibilitySchema.safeParse({ hidden: [a], evil: true }).success).toBe(false);
-});
-
-test("DEFAULT_CHAT_DOCUMENT_VISIBILITY is the empty (nothing-hidden) set", () => {
-  expect(DEFAULT_CHAT_DOCUMENT_VISIBILITY).toEqual({ hidden: [] });
-  expect(chatDocumentVisibilitySchema.parse(DEFAULT_CHAT_DOCUMENT_VISIBILITY)).toEqual({ hidden: [] });
 });

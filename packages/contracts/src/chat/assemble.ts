@@ -141,8 +141,8 @@ export const CHAT_INJECTION_POSITIONS = ["before_prompt", "in_static", "in_promp
 
 /** The `setChatInjection` wire INPUT — the `ChatInjection` fields a client authors + the optional `id`
  *  (present ⇒ update; absent ⇒ create). `chatId`/`principal` are added at the transport edge (the router
- *  extends this), never here. Derived-checked: `satisfies` (below) proves the inferred shape matches the
- *  domain `SetChatInjectionParams` slice, so a params reshape breaks HERE, not silently at the boundary. */
+ *  extends this), never here. The domain `SetChatInjectionParams` derives from {@link ChatInjectionInput}, so a
+ *  field change here reaches the verb's params by construction. */
 export const chatInjectionInputSchema = z.object({
   id: typeIdSchema(ID_PREFIX.chatInjection).optional(),
   position: z.enum(CHAT_INJECTION_POSITIONS),
