@@ -368,9 +368,9 @@ describe("attachMembrane — the host-call deadline rejects with a NAMED error",
     await withRuntime(runtime, async (ctx) => {
       const out = await runAsync(
         ctx,
-        `(async () => { try { await host.chat.getVariables(${JSON.stringify(TOKEN)}); return 'NO-THROW' } catch (e) { return e.name } })()`,
+        `(async () => { try { await host.chat.getVariables(${JSON.stringify(TOKEN)}); return 'NO-THROW' } catch (e) { return e.name + ':' + e.hostFunction } })()`,
       );
-      expect(out).toBe("PluginHostDeadlineError");
+      expect(out).toBe("PluginHostDeadlineError:getVariables");
     });
   });
 });

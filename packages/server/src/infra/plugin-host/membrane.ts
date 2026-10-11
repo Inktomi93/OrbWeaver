@@ -1842,6 +1842,11 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
           // feature-detects by type, not by a message substring. Nameless/non-Error reasons fall back
           // to a plain `"Error"`.
           using err = reason instanceof Error ? ctx.newError({ name: reason.name, message: reason.message }) : ctx.newError(String(reason));
+          if (reason instanceof PluginHostDeadlineError) {
+            // The bare name of a host function this guest called itself, so it leaks nothing.
+            using hostFunction = ctx.newString(reason.hostFunction);
+            ctx.setProp(err, "hostFunction", hostFunction);
+          }
           deferred.reject(err);
         },
       )

@@ -44,7 +44,7 @@ export class PluginSuggestedError extends Error {
  *  it (a started turn or a paint keeps running), so a guest reads this name as "no answer yet", never as a
  *  refusal. `name` crosses the QuickJS boundary intact, so a guest matches `e.name === "PluginHostDeadlineError"`. */
 export class PluginHostDeadlineError extends Error {
-  /** The host function that outlived the bound, e.g. `chat.requestTurn`. */
+  /** The host function that outlived the bound, the bare property name, e.g. `getVariables`. */
   readonly hostFunction: string;
   constructor(hostFunction: string, deadlineMs: number) {
     super(`${hostFunction} exceeded ${deadlineMs}ms host bound`);
