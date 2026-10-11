@@ -5,7 +5,7 @@ import { getCorpusMode, healCorpusModeFrom, subscribeCorpusMode, writeCorpusMode
 // actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser) and
 // assert the store's OWN surface: section switch, PER-SECTION panel override memory (§4.2 rule 2), and
 // the modal open/close read. The resolve step (override ?? the registry's panelDefaults) + the
-// toggle/focus derivations moved to the app-shell feature's `use-shell-layout.ts` — those are exercised
+// toggle derivations moved to the app-shell feature's `use-shell-layout.ts` — those are exercised
 // end-to-end by app-shell.ct.tsx, the correct tier. `SectionRegistryProbe` reads the section registry
 // context (useSectionRegistry) so the context+provider primitives carry a behavioral test.
 
@@ -136,7 +136,6 @@ import {
   setCorpusSearchTarget,
   setDatabankPhaseFilter,
   setExtensionsSearchQuery,
-  setFocusMode,
   setLabelFilter,
   setLabelNameFocus,
   setMobileViewport,
@@ -197,7 +196,6 @@ import {
   useExtensionsSearchQuery,
   useFavoritesOnly,
   useFiltersOpen,
-  useFocusMode,
   useLabelFilter,
   useLabelNameFocus,
   useModalRegistry,
@@ -349,9 +347,6 @@ function ShellStoreProbeBody(): ReactElement {
   // `chats`/`corpus` default `docked` — which is why the docked assertions below drive a section first.
   const docked = useSectionListMode(section) === "docked";
   const narrowViewport = useNarrowViewport();
-  // The ONE focus flag (item 20) — the probe prints it BESIDE the raw overrides so a CT can assert the two
-  // never disagree, and that focus mode never writes into the overrides it is hiding.
-  const focus = useFocusMode();
   // The context-tab REGISTRY the mounted surface publishes for the dev bridge — read back through the
   // non-reactive getter right after a publish, so a CT proves the store held what was written. A `p`, not
   // the `<output>` line, so the exact-text layout assertions above are untouched.
@@ -365,7 +360,7 @@ function ShellStoreProbeBody(): ReactElement {
   return (
     <div>
       <output>
-        {`section=${section} list=${list} context=${context} modal=${modal ?? "none"} docked=${docked} settingsTarget=${settingsTarget ?? "none"} contextTab=${contextTab ?? "none"} openOverlayPanel=${openOverlayPanel ?? "none"} narrowViewport=${narrowViewport} focus=${focus}`}
+        {`section=${section} list=${list} context=${context} modal=${modal ?? "none"} docked=${docked} settingsTarget=${settingsTarget ?? "none"} contextTab=${contextTab ?? "none"} openOverlayPanel=${openOverlayPanel ?? "none"} narrowViewport=${narrowViewport}`}
       </output>
       <p>{`ctxTabIds=${ctxTabIds}`}</p>
       <p>{`watchedTab=${watchedTab}`}</p>
@@ -430,12 +425,6 @@ function ShellStoreProbeBody(): ReactElement {
       </button>
       <button type="button" onClick={(): void => setNarrowViewport(false)}>
         enter wide viewport
-      </button>
-      <button type="button" onClick={(): void => setFocusMode(true)}>
-        enter focus
-      </button>
-      <button type="button" onClick={(): void => setFocusMode(false)}>
-        exit focus
       </button>
       <button type="button" onClick={(): void => setOpenOverlayPanel("context")}>
         open context overlay
@@ -1108,7 +1097,7 @@ function ModalRegistryReader(): ReactElement {
 
 /** ChromeRegistryProbe — reads the chrome registry via `useChromeRegistry` inside its provider (the
  *  mirror of ModalRegistryProbe), rendering the delivered `topbar.trail` widget ids as text so a CT
- *  proves the context delivers the real registered widgets (notifications-bell/fullscreen-toggle/
+ *  proves the context delivers the real registered widgets (notifications-bell/
  *  context-toggle) assembled at the door. */
 export function ChromeRegistryProbe(): ReactElement {
   return (

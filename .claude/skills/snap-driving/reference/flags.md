@@ -57,7 +57,6 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--drop-files [@N] <value>` | `selector=path[,path]` — dispatch dragenter/dragover/drop with a real DataTransfer |
 | `--every <value>` | ms — the tick interval for --watch |
 | `--fill [@N] <value>` | selector=value — type into a field; the selector may be an engine form |
-| `--focus [@N] <value>` | the shell's zen/focus-mode toggle |
 | `--force-click [@N] <value>` | hover-then-forced pointer click for hover-revealed/overlaid controls |
 | `--goto [@N] <value>` | SPA navigation through `__orb.nav` — a bare rail section id, `config:<group>[.<sub>[.<setting>]]`, or `modal:<slot>` |
 | `--hover [@N] <value>` | synthetic hover (loses :hover on any list re-render) |

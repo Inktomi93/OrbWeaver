@@ -68,8 +68,8 @@ export type {
 export { BORDER_CONTRAST_SIDES } from "./contract/samples-interactive.ts";
 export type { BuriedRasterInput } from "./contract/samples-media.ts";
 export type { RelationalCensusAccountingInput } from "./contract/samples-populations.ts";
-export type { DriveStateCandidate, FocusStateCandidate, PanelModeCandidate, SurfaceStateAccounting } from "./contract/surface-state.ts";
-export { DRIVE_STATE_SPACE, FOCUS_STATE_SPACE, PANEL_MODE_SPACE } from "./contract/surface-state.ts";
+export type { DriveStateCandidate, PanelModeCandidate, SurfaceStateAccounting } from "./contract/surface-state.ts";
+export { DRIVE_STATE_SPACE, PANEL_MODE_SPACE } from "./contract/surface-state.ts";
 export type { BackdropRefusal, DomPopulation, HoverPass, PixelPass, ShellStateSnapshot } from "./contract/types.ts";
 export { checkControlAspect, checkObscuredTarget, checkTapTarget, checkTapTargetPopulations, classifyControlAspect } from "./lib/checks-a11y.ts";
 export { checkAccessibleName, checkHeadingOrder, checkMainLandmark, checkTabIndexSmell } from "./lib/checks-a11y-navigability.ts";

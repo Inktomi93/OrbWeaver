@@ -87,7 +87,6 @@ mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled
     never a section, room, tab or modal.
   --panel <name>=<docked|overlay|collapsed>   drive the shell's panel layout — also the docked↔collapsed
                             FLIP transition (use-shell-track-flip.ts + shell.css's shell-main-flip)
-  --focus <on|off>          the shell's zen/focus-mode toggle
   --panels <preset>         reach a NAMED panel configuration in one flag (see Panel state below)
   --watch <totalMs> [--every <ms>]  poll evals and optional screenshots over time
   --stream-settle <seconds> fixed post-drive settle for a streaming surface

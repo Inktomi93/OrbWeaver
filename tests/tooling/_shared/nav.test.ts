@@ -19,11 +19,6 @@ test("--panel decodes name=mode into TWO bridge arguments", () => {
   expect(buildNavScript("panel", "list=docked")).toContain('nav.panel("list", "docked")');
 });
 
-test("--focus decodes on|off into a bridge boolean", () => {
-  expect(buildNavScript("focus", "on")).toContain("nav.focus(true)");
-  expect(buildNavScript("focus", "off")).toContain("nav.focus(false)");
-});
-
 test("--goto is DECODED in Node, so the emitted script names one concrete method", () => {
   // The bridge does not understand the namespaced spelling; parseGotoTarget (_kit/flags.ts) picks the arm.
   expect(buildNavScript("goto", "config:appearance")).toContain('nav.openConfig("appearance")');
@@ -51,5 +46,5 @@ test("a missing bridge answers with a stated reason instead of throwing in-page"
 });
 
 test("the flag table and the verb union are the same list — a probe cannot offer half of it", () => {
-  expect(NAV_FLAGS.map((flag) => NAV_FLAG_METHOD[flag])).toEqual(["goto", "open-chat", "open-character", "context-tab", "panel", "focus"]);
+  expect(NAV_FLAGS.map((flag) => NAV_FLAG_METHOD[flag])).toEqual(["goto", "open-chat", "open-character", "context-tab", "panel"]);
 });

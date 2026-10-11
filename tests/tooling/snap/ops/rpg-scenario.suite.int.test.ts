@@ -41,7 +41,7 @@ function fixtureHtml(mode: FixtureMode): string {
     .shell-rail{grid-column:1}.shell-panel[data-panel-side="list"]{grid-column:2}.shell-main{grid-column:3;min-height:100vh}
     .shell-panel[data-panel-side="context"]{grid-column:4}.shell-topbar{height:3rem}.shell-content{min-height:33rem}
     .shell-panel{min-height:36rem;border:1px solid #999;padding:1rem}
-  </style></head><body><div class="shell-grid" data-section="chats" data-context-mode="docked" data-focus-mode="false">
+  </style></head><body><div class="shell-grid" data-section="chats" data-context-mode="docked">
     <nav class="shell-rail" aria-label="Orbweaver">Chats</nav>
     <aside class="shell-panel" data-panel-side="list" data-panel-mode="docked" data-panel-available="true" aria-label="Chats list">Game room</aside>
     <div class="shell-main"><header class="shell-topbar" aria-label="Game toolbar">Game</header><main class="shell-content" aria-label="Game chat">Game chat fixture</main></div>
@@ -62,7 +62,7 @@ function fixtureHtml(mode: FixtureMode): string {
     globalThis.__orb = {
       resetEvidence(){},
       snap(){return {ready:true,game:activeChat};},
-      shell(){return {section:"Chats",panels:[{side:"list",mode:"docked",available:true},{side:"context",mode:"docked",available:true}],chatOpen:activeChat !== null,focus:false};},
+      shell(){return {section:"Chats",panels:[{side:"list",mode:"docked",available:true},{side:"context",mode:"docked",available:true}],chatOpen:activeChat !== null};},
       consoleErrors(){return {records:[],dropped:0,cap:128};},
       seed:{async game(args){if(config.seedFailure) throw new Error("planted seed failure"); if(args.profile !== "d20") throw new Error("expected d20"); return {chatId:"chat_rpg_fixture"};}},
       nav:{

@@ -23,25 +23,18 @@ export function surfaceStateRows(shellState: ShellStateSnapshot | null, accounti
     const label = surfaceStateAxisLabel(census);
     return label === "withheld" ? "NO-VERDICT" : label;
   };
-  const focusLabel = shellState === null ? "unmounted" : shellFocusOnOff(shellState.focus);
   return [
     ["section", shellState?.section ?? "unmounted"],
     ["panel-list-mode", shellState?.panels.find((p) => p.side === "list")?.mode ?? "unmounted"],
     ["panel-list-axis", axisVerdict(accounting.panelList)],
     ["panel-context-mode", shellState?.panels.find((p) => p.side === "context")?.mode ?? "unmounted"],
     ["panel-context-axis", axisVerdict(accounting.panelContext)],
-    ["focus-state", focusLabel],
-    ["focus-axis", axisVerdict(accounting.focus)],
     // THE DRIVE AXIS (#1059): which REGIME this run measured. A driven population and a rest population
     // are not comparable, so the machine line states it rather than leaving it to be inferred from
     // `actions=` — contract/surface-state.ts carries the why.
     ["drive-state", drive],
     ["drive-axis", axisVerdict(accounting.drive)],
   ];
-}
-
-function shellFocusOnOff(focus: boolean): "on" | "off" {
-  return focus ? "on" : "off";
 }
 
 /** The reach rows of the RESULT line. `-1` is the absent-counters arm (a pinned pre-#653 sample set) —

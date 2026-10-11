@@ -21,7 +21,6 @@ export interface ShellSnapshot {
    *  a run on it rather than reading it as a fact — #1122). */
   readonly panels: ReadonlyArray<{ side: string | null; mode: string | null; available: boolean | null }>;
   readonly chatOpen: boolean;
-  readonly focus: boolean;
 }
 
 /** Loud outcome of a `__orb.nav.*` action — never a silent no-op. */
@@ -89,7 +88,4 @@ export interface OrbNavHandle {
    *  before reporting `ok:true` — a store write that lands in a channel the current regime does not read is
    *  a silent no-op, and a section with no such pane can never resolve `docked` at all. */
   readonly panel: (name: string, mode: string) => Promise<NavResult>;
-  /** Flip the shell's ONE focus flag — hides every panel when `true`, restores the section's own saved
-   *  layout when `false`. Regime-free (see `shell-store.ts`'s `setFocusMode`), so this can never no-op. */
-  readonly focus: (on: boolean) => NavResult;
 }

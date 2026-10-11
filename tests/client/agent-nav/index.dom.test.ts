@@ -536,19 +536,6 @@ test("openCharacter() with no id/name match REFUSES — no dispatch", async () =
   expect(selectSpy).not.toHaveBeenCalled();
 });
 
-// ── focus: the one arm with no channel to route wrong (regime-free — shell-store.ts's own header) ──
-
-test("focus(true/false) dispatches the real setFocusMode flag and always succeeds", () => {
-  const spy = vi.spyOn(state, "setFocusMode");
-  const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
-
-  expect(nav.focus(true)).toEqual({ ok: true });
-  expect(spy).toHaveBeenLastCalledWith(true);
-
-  expect(nav.focus(false)).toEqual({ ok: true });
-  expect(spy).toHaveBeenLastCalledWith(false);
-});
-
 // ── panel: routing + refusal only — this suite runs in the NODE unit lane (no DOM), so it proves the
 // dispatch/validation surface `panel()` owns before it ever reads the rendered `data-panel-mode` landing
 // signal (`vitest.config.ts`'s "unit" project has no jsdom/happy-dom environment configured — `document`

@@ -18,7 +18,7 @@ A toggle whose icon lies and panels that do not come back are disorienting.
 
 ## Done when
 
-One source of truth: focus on hides both panels, focus off restores exactly the panels open before, opening a panel while in focus exits focus, and the toggle's icon and pressed state always reflect whether any side panel is showing; CTs cover enter, exit, open-a-panel-in-focus, both-panels and one-panel cases at desktop widths.
+Focus mode is removed; the panel toggles are the only panel controls.
 
 ## Evidence
 

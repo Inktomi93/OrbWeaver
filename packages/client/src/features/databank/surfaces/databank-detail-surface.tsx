@@ -103,7 +103,7 @@ const EMPTY_BANK_COLLAPSED =
  * Databank is, pointing at the list's one Add door (#434: still no second Add button).
  *
  * #445 — THE POPULATED ARM NAMES THE DOOR TOO. "Pick a document from the list" presupposes a list on screen,
- * which is false in the same three regimes the empty arm handles (narrow-desktop auto-collapse, focus mode, a
+ * which is false in the same three regimes the empty arm handles (narrow-desktop auto-collapse, a
  * hand-collapsed pane) — the F-28 defect the Presets welcome was fixed for, left standing here by #434
  * because that lane's scope was the empty bank. Same signal, same conditional shape, same verbatim
  * affordance name; the instruction is unchanged for the reader who can see the list.
@@ -201,7 +201,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
           AND THE TOKEN'S CONSUMPTION IS THREE CLASSES, NOT ONE (#1664): its `$description` says the column
           is CENTERED and BREATHES to `--width-content-col-wide` once its container clears `@5xl`, so the
           bare cap left-pinned 720px inside a pane measured (snap --isolated, 2026-09-05) at 968px with both
-          panels docked and 1864px in focus mode at 1920 — 1096px of dead void beside a 720px column, which
+          panels docked and 1864px with both collapsed at 1920 — 1096px of dead void beside a 720px column, which
           is the defect the breathe step exists for. The query container here is the SHELL'S `content`
           region (`RegionAnchor`), not a box this surface owns: `<Surface>` is `display: contents`, so it
           adds none. `w-full` rides with `mx-auto` because that region is a flex column. */}

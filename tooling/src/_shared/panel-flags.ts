@@ -3,12 +3,12 @@
 // rather than inside it because nav.ts's job is "one verb → one bridge call" and this file's job is "one
 // preset name → the ordered verbs that reach a named configuration". Splitting them keeps nav.ts a decoder.
 //
-// WHY THE AXIS EXISTS (#148 item 3): --panel/--focus made the shell's panel layout DRIVABLE, but a run with
+// WHY THE AXIS EXISTS (#148 item 3): --panel made the shell's panel layout DRIVABLE, but a run with
 // no panel flags still occupies whichever configuration the account happened to be left in — so two runs of
 // the same probe measured two different surfaces and neither said so. A preset lets a run OCCUPY a named
-// configuration. It adds no mechanism: a preset expands into the same `--panel`/`--focus` nav actions, in
-// the ONE argv-ordered queue, AT THE FLAG'S OWN POSITION — `--goto config --panels focus` and
-// `--panels focus --goto config` therefore mean what they read as, and an explicit `--panel`/`--focus`
+// configuration. It adds no mechanism: a preset expands into the same `--panel` nav actions, in
+// the ONE argv-ordered queue, AT THE FLAG'S OWN POSITION — `--goto config --panels list-only` and
+// `--panels list-only --goto config` therefore mean what they read as, and an explicit `--panel`
 // written AFTER a preset composes over it (last write to a pane wins), the same way `--appearance` composes
 // over `--appearance-preset`.
 
@@ -33,7 +33,7 @@ const PRESETS_PATH = new URL("./panel-presets.json", import.meta.url);
 
 /** The only verbs a panel preset may expand into. `goto`/`open-chat`/… are deliberately excluded: a "panel"
  *  preset that could navigate would silently move the surface the run claims to be measuring. */
-const PRESET_METHODS: readonly NavMethod[] = ["panel", "focus"];
+const PRESET_METHODS: readonly NavMethod[] = ["panel"];
 
 interface PresetFile {
   readonly presets?: Record<string, { readonly why?: string; readonly nav?: unknown }>;
@@ -57,8 +57,7 @@ export function panelPresetNames(): readonly string[] {
 
 /** Validate ONE committed row into its action. The vocabulary of panel NAMES and MODES is not re-homed here
  *  (packages/client/src/agent-nav/panel-request.ts owns it and refuses loudly on an unknown one); what is
- *  checked is the SHAPE the flags themselves check — `<name>=<mode>` with both halves present, and a bare
- *  `on|off` for focus — so a malformed committed row is misuse at parse time rather than a mid-run refusal. */
+ *  checked is the SHAPE the flags themselves check — `<name>=<mode>` with both halves present — so a malformed committed row is misuse at parse time rather than a mid-run refusal. */
 function readPresetAction(name: string, raw: unknown): PanelPresetAction | string {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     return `--panels "${name}" has a nav entry that is not an object in tooling/src/_shared/panel-presets.json`;
@@ -69,9 +68,6 @@ function readPresetAction(name: string, raw: unknown): PanelPresetAction | strin
   }
   if (typeof target !== "string") {
     return `--panels "${name}" has a ${method} entry with no string target in tooling/src/_shared/panel-presets.json`;
-  }
-  if (method === "focus" && target !== "on" && target !== "off") {
-    return `--panels "${name}" has a focus entry of ${JSON.stringify(target)} — expected on|off`;
   }
   const eq = target.lastIndexOf("=");
   if (method === "panel" && (eq <= 0 || eq === target.length - 1)) {
@@ -130,8 +126,8 @@ export function panelPresetHelpBlock(): string {
   --panels <name>               named configuration: ${panelPresetNames().join(" | ")}
                                 (tooling/src/_shared/panel-presets.json is the ONE home for these — new
                                 coverage is a new profile there, never a new flag). A preset expands into
-                                the SAME --panel/--focus actions at ITS OWN argv position, so a --panel /
-                                --focus written AFTER it composes over it (last write to a pane wins) and
+                                the SAME --panel actions at ITS OWN argv position, so a --panel
+                                written AFTER it composes over it (last write to a pane wins) and
                                 one written before it is what the preset overwrites. A profile naming a pane
                                 the active section does not declare REFUSES loudly (nav error, exit 1) —
                                 it never half-applies. No flag = whatever layout the account was left in.`;

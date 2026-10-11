@@ -21,7 +21,7 @@ test("renders the slim no-selection state — where you are + the section's own 
 });
 
 // #446 — THE INSTRUCTION IS ONLY PERFORMABLE WHILE THE ROSTER IS ON SCREEN. "Pick a thread from your chats"
-// points at a pane the shell auto-collapses in the narrow-desktop band, hides in focus mode, and lets the
+// points at a pane the shell auto-collapses in the narrow-desktop band, and lets the
 // reader collapse by hand. The footnote is CONDITIONALLY RENDERED off the shell's own resolved list mode —
 // never printed as an unconditional "if" — and it names the topbar's control verbatim. Both arms, ONE mount.
 const LIST_PANEL_DOOR = /Show list panel in the top bar/u;

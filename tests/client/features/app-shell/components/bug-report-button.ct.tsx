@@ -211,7 +211,7 @@ test("with a bridge present: the window FILTERS the timestamped censuses and the
         flags: () => [{ tag: "anim", at: anHourBeforeLoad, offender: ".card", detail: "animating height", overBudget: true }],
         renders: () => [{ id: "region:content", count: 19, mounts: 1, updates: 18, totalMs: 40, avgMs: 2, maxMs: 21 }],
         perf: () => [{ name: "app-ready", ms: 300 }],
-        shell: () => ({ section: "Chats", panels: [], chatOpen: true, focus: false }),
+        shell: () => ({ section: "Chats", panels: [], chatOpen: true }),
       },
     });
   });
@@ -308,7 +308,7 @@ test("a capture that throws while ASSEMBLING says so too — the button never we
         flags: () => [],
         renders: () => [],
         perf: () => [],
-        shell: () => ({ section: "Chats", panels: [], chatOpen: true, focus: false }),
+        shell: () => ({ section: "Chats", panels: [], chatOpen: true }),
       },
     });
   });

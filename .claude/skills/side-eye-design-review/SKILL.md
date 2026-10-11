@@ -97,7 +97,7 @@ At every decision point, count competing visible options: 4 or fewer is fine, 5-
 
 ## §11 The appearance effect axes (intentional — never flag as slop; verify each)
 
-New user-tunable, token/accent-driven effects. Check they render right and are not mistaken for AI-slop. Toggle an axis via the Appearance settings pane, or by reading the attribute at its real host (root `<html>` for theme/blur/shadow/texture/font-scale variables; `.shell-grid` for `data-elevation`/`data-density`/`data-list-mode`/`data-context-mode`/`data-focus-mode`/`data-reduced-motion`/`data-has-bg-image`) — read them with `snap --eval`, never from memory, and never assume a handle is on the root.
+New user-tunable, token/accent-driven effects. Check they render right and are not mistaken for AI-slop. Toggle an axis via the Appearance settings pane, or by reading the attribute at its real host (root `<html>` for theme/blur/shadow/texture/font-scale variables; `.shell-grid` for `data-elevation`/`data-density`/`data-list-mode`/`data-context-mode`/`data-reduced-motion`/`data-has-bg-image`) — read them with `snap --eval`, never from memory, and never assume a handle is on the root.
 
 | Axis | What it is | Verify |
 | - | - | - |

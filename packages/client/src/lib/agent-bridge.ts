@@ -129,7 +129,7 @@ const ORB_DEBUG_CAPABILITIES = {
   isReady: "read whether the app-ready marker is present",
   queries: "read the TanStack Query cache census",
   bus: "read live chat-bus subscriptions and recent canon events",
-  shell: "read the mounted shell section, panels, chat, and focus state",
+  shell: "read the mounted shell section, panels and chat state",
   perf: "read session User Timing measures",
   renders: "read checkpoint render-profiler evidence",
   motion: "read checkpoint LoAF and layout-shift evidence",
@@ -143,7 +143,7 @@ const ORB_DEBUG_CAPABILITIES = {
   appearanceMatrixContract: "read the live Appearance carrier matrix contract and reached subject counts",
   setMotionAuditDropTrackingPaused: "coordinate in-page drop tracking with motion-audit",
   snap: "read a cheap combined bridge overview",
-  nav: "call __orb.nav.capabilities() for exact vocabularies; section(id), corpusMode(mode), openModal(slot), openConfig(group,sub?,setting?), closeModal(), focus(on) and awaited contextTab(id), openChat(id|title|first|latest|current), openCharacter(id|name), panel(name,mode) return {ok:true}|{ok:false,reason}",
+  nav: "call __orb.nav.capabilities() for exact vocabularies; section(id), corpusMode(mode), openModal(slot), openConfig(group,sub?,setting?), closeModal() and awaited contextTab(id), openChat(id|title|first|latest|current), openCharacter(id|name), panel(name,mode) return {ok:true}|{ok:false,reason}",
   seed: "call await __orb.seed.game({profile:'d20'|'freeform',title?}) -> {chatId}; creates a fresh complete development game through production APIs",
   rpg: "call await __orb.rpg() -> {chatId,game,tracker,journal,turnToolCalls}; reads the active game through production APIs",
   pluginLog: "read installed plugins or one server-runtime host log",
@@ -245,7 +245,6 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
       available: panelAvailability(p),
     })),
     chatOpen: [...document.querySelectorAll('article,[role="article"]')].some(isRenderedElement),
-    focus: document.querySelector(".shell-grid")?.getAttribute("data-focus-mode") === "true",
   });
   const queries = (): readonly QuerySummary[] =>
     queryClient

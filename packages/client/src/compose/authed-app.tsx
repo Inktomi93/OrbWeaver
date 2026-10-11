@@ -17,7 +17,7 @@
 // lands here instead of in `main.tsx`.
 
 import type { ReactElement } from "react";
-import { bugReportChrome, contextToggleChrome, fullscreenChrome, youModal } from "#features/app-shell";
+import { bugReportChrome, contextToggleChrome, youModal } from "#features/app-shell";
 import { reauthModal } from "#features/auth";
 import {
   automationActivityTab,
@@ -341,7 +341,7 @@ const chrome = createContributorRegistry(
     // `characterCreateChrome` (#1669) is the first SECTION-scoped trail entry: the Characters pane's primary,
     // on a phone only, where the LIST band that used to carry it is shed. Its `useVisible` states the three
     // conditions; the zone is shell-global, the affordance is not.
-    widgets: [notificationsChrome, pluginCommandsChrome, characterCreateChrome, fullscreenChrome, contextToggleChrome, personaChrome, bugReportChrome],
+    widgets: [notificationsChrome, pluginCommandsChrome, characterCreateChrome, contextToggleChrome, personaChrome, bugReportChrome],
   }),
 );
 
