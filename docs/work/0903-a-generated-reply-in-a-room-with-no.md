@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-11
 priority: P1
 area: client
+lane: wt/agent-a99f2fa53745aa239
 ---
 
 # A generated reply in a room with no user turn gets the greeting pager and can be overwritten
