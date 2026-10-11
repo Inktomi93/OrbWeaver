@@ -926,6 +926,29 @@ test("the LIST teaches on a phone and stays silent on the desktop", async ({ mou
   expect(overflow, "no sideways scroll on a phone").toBe(0);
 });
 
+// The teaching sentences are prose, not labels: on a phone they paint at the label step, never the 10.5px micro step.
+test("the phone LIST's teaching paragraphs paint at the label step, not the micro step", async ({ mount, page }) => {
+  await stub(page);
+  const listPane = await mount(<ConfigMobileListStory />);
+  await listPane.getByRole("button", { name: "reset groups" }).click();
+  await listPane.getByRole("button", { name: "go mobile" }).click();
+  const teaching = listPane.locator('[data-slot="config-mobile-teaching"]').getByText("Regex scripts rewrite text", { exact: false });
+  await expect(teaching).toBeVisible();
+  const [painted, label, micro] = await teaching.evaluate((node) => {
+    const px = (token: string): number => {
+      const probe = document.createElement("div");
+      probe.style.fontSize = `var(${token})`;
+      node.append(probe);
+      const size = Number.parseFloat(getComputedStyle(probe).fontSize);
+      probe.remove();
+      return size;
+    };
+    return [Number.parseFloat(getComputedStyle(node).fontSize), px("--text-label"), px("--text-micro")];
+  });
+  expect(label).toBeGreaterThan(micro ?? 0);
+  expect(painted).toBeGreaterThanOrEqual(label ?? Number.POSITIVE_INFINITY);
+});
+
 // ── #978 F1 · THE LIST'S ROW HEIGHT IS ONE GOVERNED BOX ──────────────────────────────────────────────
 //
 // The settings bands measured 290.2 × 16.0px on the live surface at BOTH pointer classes (side-eye

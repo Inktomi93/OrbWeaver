@@ -200,7 +200,7 @@ export function ConnectionRoleSlot({
         />
         <Stack gap="tight">
           <Text voice="label">{row.heading}</Text>
-          <Text voice="gloss" className={PROSE_MEASURE}>
+          <Text prose={true} voice="gloss" className={PROSE_MEASURE}>
             {description ?? row.description}
           </Text>
           {verdicts.length === 0 ? null : <RequirementRail verdicts={verdicts} />}

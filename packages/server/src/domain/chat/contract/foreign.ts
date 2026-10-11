@@ -193,7 +193,8 @@ export const DEFAULT_CHAT_BEHAVIOR: ChatBehaviorInputs = {
 export type ResolveForeignInputsOp = (args: {
   readonly chatId: ChatId;
   readonly runAsUserId: UserId;
-  readonly model: string;
+  /** The resolved connection's model, when the caller has one — the room's Regex read resolves none. */
+  readonly model?: string | undefined;
   readonly anchorPersonaId: PersonaId | null;
   /** The room's PRESENT human participants — the persona-read consent set (see above). Empty ⇒ no persona
    *  resolves (a hostless/stale room assembles with the kit floor rather than an unscoped read). */

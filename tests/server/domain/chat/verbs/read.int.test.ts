@@ -252,6 +252,20 @@ describe("read — listEffectiveRegex (host-only, #1742)", () => {
     expect(view.effective.map((e) => e.runsAt)).toEqual([1, 2, 3, 4]);
   });
 
+  test("a room with NO chat connection bound still lists its scripts — the read calls no model", async () => {
+    const host = await seedUser(db, castId<Handle>("rx-read-noconn"));
+    const chatId = await seedChat(db, "rx-read-noconn");
+    const character = await seedCharacter(db, host, "rx-read-noconn-char");
+    await seedParticipant(db, { chatId, key: "rxnc_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "rxnc_c", characterId: character });
+    const ctx = makeChatContext(db, { resolveRegexSources: regexSources(character) });
+    const unbound = makeDeps({ resolveConnection: () => Promise.reject(new NoConnectionError("chat")) });
+
+    const view = await createRead(ctx, unbound).listEffectiveRegex({ principal: principal(host), chatId });
+
+    expect(view.tiers.flatMap((t) => t.rows.map((r) => r.script.name))).toEqual(["g1", "p1", "c1", "r1"]);
+  });
+
   test("a MEMBER is refused — three of the four tiers are the host's own library (D19)", async () => {
     const host = await seedUser(db, castId<Handle>("rx-read-host2"));
     const member = await seedUser(db, castId<Handle>("rx-read-member"));

@@ -87,7 +87,7 @@ function ModelRolesBody(): ReactElement {
   return (
     <Section divider={true} heading={CONNECTIONS_ROLES_SUBCATEGORY.label} id={configAnchorId("connections", CONNECTIONS_ROLES_SUBCATEGORY.id)}>
       {/* Funding belongs to the frozen room host; triggering a shared turn does not spend this viewer's role. */}
-      <Text voice="gloss" className={PROSE_MEASURE}>
+      <Text prose={true} voice="gloss" className={PROSE_MEASURE}>
         Pick which connection each role uses. An unset role does nothing — there is no default model. These roles apply in rooms you host and to your work
         outside rooms. Shared-room turns use the room host's connections, frozen when the turn starts.
       </Text>
