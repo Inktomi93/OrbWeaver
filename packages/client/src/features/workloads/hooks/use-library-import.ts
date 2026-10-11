@@ -88,6 +88,8 @@ export interface LibraryImport {
   readonly stageFolder: (files: readonly File[]) => void;
   /** Answer one persona collision of the staged folder. */
   readonly chooseCollision: (key: string, choice: PersonaCollisionChoice) => void;
+  /** Give every collision of the staged folder the same answer (Merge all / Keep all). */
+  readonly chooseAllCollisions: (choice: PersonaCollisionChoice) => void;
   /** Send the staged selection — the ONE caller of the upload seams. */
   readonly confirm: () => void;
   /** Drop the staged selection, having sent nothing. */
@@ -231,10 +233,10 @@ export function useLibraryImport(): LibraryImport {
   const importFolder = (plan: TreeImportPlan, choices: PersonaCollisionChoices): void => {
     const epoch = ++requestEpoch.current;
     if (plan.batches.length === 0) {
-      finish(epoch, { imported: 0, skipped: 0, failed: 0, outcomes: [], notes: planNotes(plan), memoryScope: null });
+      finish(epoch, { imported: 0, skipped: 0, merged: 0, failed: 0, outcomes: [], notes: planNotes(plan), memoryScope: null });
       return;
     }
-    const run: FolderRun = { epoch, plan, choices, index: 0, done: { imported: 0, skipped: 0, failed: 0, notes: [], memoryScope: null } };
+    const run: FolderRun = { epoch, plan, choices, index: 0, done: { imported: 0, skipped: 0, merged: 0, failed: 0, notes: [], memoryScope: null } };
     folderRun.current = run;
     sendBatch(run);
   };
@@ -282,12 +284,18 @@ export function useLibraryImport(): LibraryImport {
     setState((prev) => (prev.status === "staged" ? { ...prev, choices: { ...prev.choices, [key]: choice } } : prev));
   };
 
+  const chooseAllCollisions = (choice: PersonaCollisionChoice): void => {
+    setState((prev) =>
+      prev.status === "staged" ? { ...prev, choices: Object.fromEntries(prev.collisions.map((c): [string, PersonaCollisionChoice] => [c.key, choice])) } : prev,
+    );
+  };
+
   const reset = (): void => {
     requestEpoch.current += 1;
     folderRun.current = null;
     setState({ status: "idle" });
   };
-  return { state, stageFiles, stageFolder, chooseCollision, confirm, cancel, reset, track };
+  return { state, stageFiles, stageFolder, chooseCollision, chooseAllCollisions, confirm, cancel, reset, track };
 }
 
 function errorMessage(error: unknown): string {

@@ -6,7 +6,11 @@ import { SELECTION_CONTROL, tv } from "#lib";
 export const radioGroupVariants = tv({
   slots: {
     root: "flex flex-col gap-row",
-    label: "inline-flex cursor-pointer items-center gap-row text-body leading-body text-foreground has-data-readonly:cursor-default",
+    // `pointer-coarse:min-h-touch-target`: each item's ::before hit area is touch-target tall and centred on
+    // the 18px circle, so the row must be that tall too or neighbouring hit areas overlap and a low tap on
+    // one item selects the next.
+    label:
+      "inline-flex cursor-pointer items-center gap-row text-body leading-body text-foreground pointer-coarse:min-h-touch-target has-data-readonly:cursor-default",
     item: [SELECTION_CONTROL, "rounded-full", "data-checked:border-primary data-checked:bg-primary"],
     indicator: "group flex items-center justify-center",
     dot: "hidden size-field rounded-full bg-primary-foreground group-data-[checked]:block group-data-[readonly]:hidden",

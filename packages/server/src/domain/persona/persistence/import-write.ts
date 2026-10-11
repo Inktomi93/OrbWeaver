@@ -33,13 +33,19 @@ function reusedPersonaId(
   candidates: readonly PersonaCandidate[],
   owned: readonly PersonaCandidate[],
   choice: PersonaCollisionChoice,
-): PersonaId | null {
+): { readonly id: PersonaId; readonly kind: "skipped" | "merged" } | null {
   const duplicate = findDuplicatePersona(identity, candidates);
   if (duplicate !== null) {
-    return duplicate.id;
+    return { id: duplicate.id, kind: "skipped" };
   }
   const collision = findNameCollision(identity, owned);
-  return collision !== null && choice === "merge" ? collision.id : null;
+  return collision !== null && choice === "merge" ? { id: collision.id, kind: "merged" } : null;
+}
+
+/** Count a reused persona under its kind and return its id. */
+function tally(counts: Record<"skipped" | "merged", number>, reused: { readonly id: PersonaId; readonly kind: "skipped" | "merged" }): PersonaId {
+  counts[reused.kind] += 1;
+  return reused.id;
 }
 
 /** Build the persona-owned bulk-import WRITE op. */
@@ -61,8 +67,7 @@ export function createBulkImportPersonas(ctx: PersonaImportContext): BulkImportP
     // `idByName` keys the INPUT's folded name (what a transcript's `user_name` says) to the row it resolved
     // to; the first input under a name wins, as the chat attribution map it feeds keeps one id per name.
     const idByName: Record<string, PersonaId> = {};
-    let personasCreated = 0;
-    let personasSkipped = 0;
+    const counts = { created: 0, skipped: 0, merged: 0 };
     let defaultPersonaId: PersonaId | null = null;
     const inserts: BatchStmt[] = [];
     const at = ctx.now();
@@ -89,7 +94,7 @@ export function createBulkImportPersonas(ctx: PersonaImportContext): BulkImportP
           }),
         ),
       );
-      personasCreated += 1;
+      counts.created += 1;
       return personaId;
     };
 
@@ -100,10 +105,7 @@ export function createBulkImportPersonas(ctx: PersonaImportContext): BulkImportP
       }
       const identity = identityOf(pi, artHashes);
       const reused = reusedPersonaId(identity, candidates, owned, personaCollisionChoiceFor(collisions, key));
-      if (reused !== null) {
-        personasSkipped += 1;
-      }
-      const personaId = reused ?? mint(identity, pi);
+      const personaId = reused === null ? mint(identity, pi) : tally(counts, reused);
       idByName[key] ??= personaId;
       if (pi.isDefault) {
         defaultPersonaId = personaId;
@@ -113,6 +115,6 @@ export function createBulkImportPersonas(ctx: PersonaImportContext): BulkImportP
     if (inserts.length > 0) {
       await db.batch(batchMany(inserts));
     }
-    return { personasCreated, personasSkipped, defaultPersonaId, idByName };
+    return { personasCreated: counts.created, personasSkipped: counts.skipped, personasMerged: counts.merged, defaultPersonaId, idByName };
   };
 }

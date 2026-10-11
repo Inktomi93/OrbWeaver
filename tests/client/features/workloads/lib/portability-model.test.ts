@@ -47,13 +47,22 @@ test("asBundleCounts narrows the `unknown` workload result, defaulting missing/g
   expect(asBundleCounts({ imported: 3, skipped: 1, failed: 2 })).toEqual({
     imported: 3,
     skipped: 1,
+    merged: 0,
     failed: 2,
     notes: [],
     memoryScope: null,
   });
-  expect(asBundleCounts({ imported: 5 })).toEqual({ imported: 5, skipped: 0, failed: 0, notes: [], memoryScope: null });
-  expect(asBundleCounts(null)).toEqual({ imported: 0, skipped: 0, failed: 0, notes: [], memoryScope: null });
-  expect(asBundleCounts("boom")).toEqual({ imported: 0, skipped: 0, failed: 0, notes: [], memoryScope: null });
+  expect(asBundleCounts({ imported: 5 })).toEqual({ imported: 5, skipped: 0, merged: 0, failed: 0, notes: [], memoryScope: null });
+  expect(asBundleCounts({ scanned: 4, changed: 1, failed: 0, merged: 2 })).toEqual({
+    imported: 1,
+    skipped: 1,
+    merged: 2,
+    failed: 0,
+    notes: [],
+    memoryScope: null,
+  });
+  expect(asBundleCounts(null)).toEqual({ imported: 0, skipped: 0, merged: 0, failed: 0, notes: [], memoryScope: null });
+  expect(asBundleCounts("boom")).toEqual({ imported: 0, skipped: 0, merged: 0, failed: 0, notes: [], memoryScope: null });
 });
 
 // #1710 — the flattened per-file notes a bundle import's workload result carries. A garbage/non-string
@@ -62,6 +71,7 @@ test("asBundleCounts carries the flattened `notes` array through, filtering out 
   expect(asBundleCounts({ imported: 2, skipped: 0, failed: 0, notes: ["book kept: primary already exists"] })).toEqual({
     imported: 2,
     skipped: 0,
+    merged: 0,
     failed: 0,
     notes: ["book kept: primary already exists"],
     memoryScope: null,
@@ -69,6 +79,7 @@ test("asBundleCounts carries the flattened `notes` array through, filtering out 
   expect(asBundleCounts({ imported: 1, skipped: 0, failed: 0, notes: ["ok", 7, null] })).toEqual({
     imported: 1,
     skipped: 0,
+    merged: 0,
     failed: 0,
     notes: ["ok"],
     memoryScope: null,
@@ -89,8 +100,8 @@ test("asBundleCounts carries the import's span; sumBundleCounts joins a folder's
 });
 
 test("summarizeBundleCounts carries the counts + notes with an empty per-file list", () => {
-  const summary = summarizeBundleCounts({ imported: 4, skipped: 0, failed: 1, notes: ["book kept: primary already exists"], memoryScope: null });
-  expect(summary).toEqual({ imported: 4, skipped: 0, failed: 1, notes: ["book kept: primary already exists"], memoryScope: null, outcomes: [] });
+  const summary = summarizeBundleCounts({ imported: 4, skipped: 0, merged: 0, failed: 1, notes: ["book kept: primary already exists"], memoryScope: null });
+  expect(summary).toEqual({ imported: 4, skipped: 0, merged: 0, failed: 1, notes: ["book kept: primary already exists"], memoryScope: null, outcomes: [] });
 });
 
 test("summarizeCardImport maps the server's REAL result — created→imported, deduped→skipped", () => {
@@ -104,6 +115,7 @@ test("summarizeCardImport maps the server's REAL result — created→imported, 
   expect(summary).toEqual({
     imported: 1,
     skipped: 1,
+    merged: 0,
     failed: 0,
     notes: [],
     memoryScope: null,
@@ -159,6 +171,11 @@ test("summarizeCardImport surfaces a server `failed` entry as a FAILURE with its
 });
 
 test("summaryCaption shows only the non-zero tallies", () => {
-  expect(summaryCaption({ imported: 3, skipped: 0, failed: 0, outcomes: [], notes: [], memoryScope: null })).toBe("3 imported");
-  expect(summaryCaption({ imported: 3, skipped: 1, failed: 2, outcomes: [], notes: [], memoryScope: null })).toBe("3 imported · 1 skipped · 2 failed");
+  expect(summaryCaption({ imported: 3, skipped: 0, merged: 0, failed: 0, outcomes: [], notes: [], memoryScope: null })).toBe("3 imported");
+  expect(summaryCaption({ imported: 3, skipped: 1, merged: 0, failed: 2, outcomes: [], notes: [], memoryScope: null })).toBe(
+    "3 imported · 1 skipped · 2 failed",
+  );
+  expect(summaryCaption({ imported: 2, skipped: 0, merged: 1, failed: 0, outcomes: [], notes: [], memoryScope: null })).toBe(
+    "2 imported · 1 merged into existing",
+  );
 });

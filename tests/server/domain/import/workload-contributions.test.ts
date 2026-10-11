@@ -203,6 +203,13 @@ describe("import-st — the run's own logic", () => {
     expect(await contributions[0].run(ctx, { dryRun: true }, vi.fn(), sig())).not.toHaveProperty("memoryScope");
   });
 
+  test("merged personas ride the result as their own tally, and are absent when none merged", async () => {
+    const { stagingRoot } = await makeStaging();
+    const merging = build(stagingRoot, { runProfileDirImport: vi.fn(async () => ({ scanned: 3, changed: 1, failed: 0, merged: 2, memoryScope: null })) });
+    expect((await merging.contributions[0].run(ctx, {}, vi.fn(), sig())).merged).toBe(2);
+    expect(await build(stagingRoot).contributions[0].run(ctx, {}, vi.fn(), sig())).not.toHaveProperty("merged");
+  });
+
   test("the upload's persona-collision choices reach the profile driver", async () => {
     const { stagingRoot } = await makeStaging();
     const { deps, contributions } = build(stagingRoot);

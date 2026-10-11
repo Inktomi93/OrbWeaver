@@ -11,6 +11,7 @@
 // Round-trip drift guard: buildPersonaBackup(parsePersonaBackup(buildPersonaBackup(p))) deep-equals
 // buildPersonaBackup(p).
 
+import type { PersonaDifference } from "@orb/contracts/import";
 import type { PersonaMetadata } from "@orb/contracts/persona";
 import { personaBackupSchema, personaMetadataSchema } from "@orb/contracts/persona";
 import type { PortableParse } from "@orb/contracts/portability";
@@ -137,6 +138,24 @@ export function personaContentKey(identity: PersonaIdentity): string {
 export function findDuplicatePersona(incoming: PersonaIdentity, candidates: readonly PersonaCandidate[]): PersonaCandidate | null {
   const key = personaContentKey(incoming);
   return candidates.find((candidate) => personaContentKey(candidate) === key) ?? null;
+}
+
+/** Which parts of identity differ between two personas (the name aside), in the order the review names them. */
+export function differingPersonaFields(incoming: PersonaIdentity, owned: PersonaIdentity): PersonaDifference[] {
+  const differs: PersonaDifference[] = [];
+  if (incoming.description !== owned.description) {
+    differs.push("description");
+  }
+  if (incoming.artHash !== owned.artHash) {
+    differs.push("avatar");
+  }
+  if (incoming.title !== owned.title) {
+    differs.push("title");
+  }
+  if (stableStringify(incoming.placement) !== stableStringify(owned.placement)) {
+    differs.push("placement");
+  }
+  return differs;
 }
 
 /** The owned persona holding the incoming one's exact folded name. Asked only after

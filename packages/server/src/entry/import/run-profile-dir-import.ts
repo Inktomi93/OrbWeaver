@@ -599,6 +599,8 @@ interface WaveOutcomes {
   /** ALREADY-IMPORTED rooms this run back-filled persona attribution onto, summed across the solo, group and
    *  orphan waves (the dedup-skip HEAL — `BulkImportChatsResult.chatsPersonaHealed`). */
   readonly chatsPersonaHealed: number;
+  /** Personas the persona wave linked to an owned persona of the same name (the merge choice). */
+  readonly personasMerged: number;
   /** Every wave's written real conversations, in run order: solo bundles, group rooms, orphans. */
   readonly memoryChatIds: readonly ChatId[];
   /** The GLOBAL regex wave (found counts ride `collected`; these are the write-time outcomes). */
@@ -639,6 +641,7 @@ const NO_WAVES: WaveOutcomes = {
   seatedDisabledMembers: [],
   unresolvedPinnedPersonas: [],
   chatsPersonaHealed: 0,
+  personasMerged: 0,
   memoryChatIds: [],
   globalRegexScriptsLifted: 0,
   globalRegexScriptsReused: 0,
@@ -1053,6 +1056,7 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
   const service = createImportService(contextFor(deps, store));
 
   let changed = 0;
+  let personasMerged = 0;
 
   // Personas FIRST — populates personaByUserName so the chat importers can attribute their user_names.
   const personaInputs: ImportPersonaInput[] = [];
@@ -1065,6 +1069,7 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
   if (personaInputs.length > 0) {
     const personaResult = await service.importPersonas({ personas: personaInputs, collisions: deps.personaCollisions });
     changed += personaResult.personasCreated;
+    personasMerged = personaResult.personasMerged;
   }
 
   // Standalone ST worlds BEFORE characters — imported as UNATTACHED owner library books (additive by content).
@@ -1175,6 +1180,7 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
       // Every wave's dedup-skip HEALS, summed: this is the number the operator reads to see an existing
       // corpus gain the persona attribution its first import could not resolve.
       chatsPersonaHealed: bundleResult.chatsPersonaHealed + groupResult.chatsPersonaHealed + orphanResult.chatsPersonaHealed,
+      personasMerged,
       memoryChatIds: [...bundleResult.memoryChatIds, ...groupResult.memoryChatIds, ...orphanResult.memoryChatIds],
       globalRegexScriptsLifted,
       globalRegexScriptsReused,

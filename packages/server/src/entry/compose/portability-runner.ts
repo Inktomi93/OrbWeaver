@@ -266,6 +266,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
           scanned: report.scanned,
           changed: report.changed,
           failed: report.skippedCards.length,
+          merged: report.personasMerged,
           memoryScope: await settleImportMemory({ ownerId, from, memoryChatIds: report.memoryChatIds }),
           ...(reportPath !== undefined ? { reportPath } : {}),
         };

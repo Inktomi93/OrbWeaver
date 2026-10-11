@@ -382,7 +382,9 @@ describe("registerImportTree — the collision review route", () => {
 
   test("hands the service the uploaded personas with their art hashed, and stages nothing", async () => {
     const art = new Uint8Array([9, 8, 7]);
-    reviewSpy.mockResolvedValue([{ key: "nate", name: "Nate", existingDescription: "orb", incomingDescription: "ST Nate" }]);
+    reviewSpy.mockResolvedValue([
+      { key: "nate", name: "Nate", existingDescription: "orb", incomingDescription: "ST Nate", differs: ["description"], keepBothName: "Nate 2" },
+    ]);
     const form = formOf(
       fileOf("default-user/settings.json", new TextEncoder().encode(settings)),
       fileOf("default-user/User Avatars/nate.png", art),
@@ -392,7 +394,9 @@ describe("registerImportTree — the collision review route", () => {
     const res = await reviewHandler()(makeCtx(OWNER, form));
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ collisions: [{ key: "nate", name: "Nate", existingDescription: "orb", incomingDescription: "ST Nate" }] });
+    expect(await res.json()).toEqual({
+      collisions: [{ key: "nate", name: "Nate", existingDescription: "orb", incomingDescription: "ST Nate", differs: ["description"], keepBothName: "Nate 2" }],
+    });
     expect(reviewSpy).toHaveBeenCalledWith({
       principal: OWNER,
       incoming: [{ name: "Nate", description: "ST Nate", metadata: null, artHash: createHash("sha256").update(art).digest("hex") }],

@@ -400,7 +400,22 @@ test("a picked SillyTavern folder never posts secrets.json, and the preflight na
 // ── THE PERSONA REVIEW: no same-name collision is resolved silently ────────────────────────────────────
 // The folder's persona "Nate" differs from the owner's. The preflight lists it with the two answers, Merge
 // preselected, and the answer rides the ONE POST the confirm makes — asserted on the real multipart body.
-const NATE_COLLISION: PersonaCollision = { key: "nate", name: "Nate", existingDescription: "Orbweaver Nate", incomingDescription: "SillyTavern Nate" };
+const NATE_COLLISION: PersonaCollision = {
+  key: "nate",
+  name: "Nate",
+  existingDescription: "Orbweaver Nate",
+  incomingDescription: "SillyTavern Nate",
+  differs: ["description"],
+  keepBothName: "Nate 2",
+};
+const EVE_COLLISION: PersonaCollision = {
+  key: "eve",
+  name: "Eve",
+  existingDescription: "Orbweaver Eve",
+  incomingDescription: "SillyTavern Eve",
+  differs: ["description"],
+  keepBothName: "Eve 2",
+};
 const COLLISION_PROFILE = join(FILE_ACTION_ROOT, "st-collision-profile");
 
 /** The multipart `personaCollision` values the one tree POST carried. */
@@ -441,7 +456,7 @@ test("a persona collision is listed with Merge preselected, and importing untouc
 
 test("choosing Keep both on a collision sends Keep both for that persona", async ({ mount, page }) => {
   await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
-  await routePersonaReview(page, [NATE_COLLISION, { key: "eve", name: "Eve", existingDescription: "Orbweaver Eve", incomingDescription: "SillyTavern Eve" }]);
+  await routePersonaReview(page, [NATE_COLLISION, EVE_COLLISION]);
   await mount(<BackupSettingsStory />);
   await stageCollisionFolder(page);
 
@@ -461,4 +476,77 @@ test("a folder with no collisions shows no persona question", async ({ mount, pa
 
   await expect(page.locator('[data-slot="import-preflight"]')).toBeVisible();
   await expect(page.locator('[data-slot="persona-collision"]')).toHaveCount(0);
+});
+
+test("a collision that differs only in the avatar says so and shows the shared description once", async ({ mount, page }) => {
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
+  const tamsin: PersonaCollision = {
+    key: "tamsin",
+    name: "Tamsin",
+    existingDescription: "Tamsin is a tavern singer.",
+    incomingDescription: "Tamsin is a tavern singer.",
+    differs: ["avatar"],
+    keepBothName: "Tamsin 2",
+  };
+  await routePersonaReview(page, [tamsin]);
+  await mount(<BackupSettingsStory />);
+  await stageCollisionFolder(page);
+
+  const collision = page.locator('[data-slot="persona-collision"]');
+  await expect(collision).toContainText("Same description. The avatar differs.");
+  await expect(collision.getByText("Tamsin is a tavern singer.")).toHaveCount(1);
+  await expect(collision.getByText("In the import")).toHaveCount(0);
+});
+
+test("a long description is shown in full once expanded, and the choice names what each answer does", async ({ mount, page }) => {
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
+  const shared = "Mira maps the drowned quarter by lantern light and trades her charts to anyone who asks nicely. ".repeat(4);
+  const mira: PersonaCollision = {
+    key: "mira",
+    name: "Mira",
+    existingDescription: `${shared}Yours ends here.`,
+    incomingDescription: `${shared}The import ends here instead.`,
+    differs: ["description", "avatar"],
+    keepBothName: "Mira 2",
+  };
+  await routePersonaReview(page, [mira]);
+  await mount(<BackupSettingsStory />);
+  await stageCollisionFolder(page);
+
+  const collision = page.locator('[data-slot="persona-collision"]');
+  await expect(collision).toContainText("The description and avatar differ.");
+  // Both tails are in the DOM from the start (clamped by CSS, not cut), and Show all is offered per side.
+  await expect(collision).toContainText("The import ends here instead.");
+  await expect(collision.getByRole("button", { name: "Show all" })).toHaveCount(2);
+  await collision.getByRole("button", { name: "Show all" }).first().click();
+  await expect(collision.getByRole("button", { name: "Show less" })).toHaveCount(1);
+
+  // Each radio carries its consequence as its description; Keep both names the copy it will mint.
+  await expect(collision.getByRole("radio", { name: "Keep both" })).toHaveAccessibleDescription(/as “Mira 2” beside your “Mira”/u);
+  await expect(collision.getByRole("radio", { name: "Merge into your existing persona" })).toHaveAccessibleDescription(
+    /discards the imported description and avatar/u,
+  );
+  await expect(collision.getByRole("radiogroup")).toHaveAccessibleDescription(/The description and avatar differ\./u);
+});
+
+test("with two collisions, Keep all and Merge all set every answer at once", async ({ mount, page }) => {
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
+  await routePersonaReview(page, [NATE_COLLISION, EVE_COLLISION]);
+  await mount(<BackupSettingsStory />);
+  await stageCollisionFolder(page);
+
+  await page.getByRole("button", { name: "Keep all" }).click();
+  await expect(page.getByRole("radio", { name: "Keep both", checked: true })).toHaveCount(2);
+  await page.getByRole("button", { name: "Merge all" }).click();
+  await expect(page.getByRole("radio", { name: "Merge into your existing persona", checked: true })).toHaveCount(2);
+});
+
+test("a single collision offers no Merge all / Keep all", async ({ mount, page }) => {
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
+  await routePersonaReview(page, [NATE_COLLISION]);
+  await mount(<BackupSettingsStory />);
+  await stageCollisionFolder(page);
+
+  await expect(page.locator('[data-slot="persona-collision"]')).toBeVisible();
+  await expect(page.getByRole("button", { name: "Keep all" })).toHaveCount(0);
 });

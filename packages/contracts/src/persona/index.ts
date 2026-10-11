@@ -113,6 +113,9 @@ export interface BulkImportPersonaInput {
 export interface BulkImportPersonasResult {
   readonly personasCreated: number;
   readonly personasSkipped: number;
+  /** Inputs linked to an owned persona of the same name but different content (the merge choice). Not in
+   *  `personasSkipped`, which counts equal-content reuse. */
+  readonly personasMerged: number;
   readonly defaultPersonaId: PersonaId | null;
   readonly idByName: Record<string, PersonaId>;
 }

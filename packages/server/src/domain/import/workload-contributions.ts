@@ -30,6 +30,11 @@ import { stagedOwnerRoot } from "./substrate/staging.ts";
 import { createBackfillTokenUsage } from "./verbs/backfill-token-usage.ts";
 
 // Planner statistics are derived maintenance: a failed refresh must not reject committed import data.
+/** The result's `merged` tally, present only when a persona was merged. */
+function mergedField(merged: number | undefined): { readonly merged?: number } {
+  return merged !== undefined && merged > 0 ? { merged } : {};
+}
+
 async function refreshPlannerAfterImport(refresh: ImportWorkloadDeps["refreshPlannerStats"], ownerId: UserId, report: ReportProgress): Promise<void> {
   try {
     await refresh({ ownerId });
@@ -251,6 +256,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           changed: result.changed,
           dryRun,
           failed: result.failed,
+          ...mergedField(result.merged),
           ...(result.reportPath !== undefined ? { reportPath: result.reportPath } : {}),
           ...(dryRun ? {} : { memoryScope: result.memoryScope }),
         };

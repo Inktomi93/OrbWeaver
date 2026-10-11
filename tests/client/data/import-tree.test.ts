@@ -93,7 +93,7 @@ test("importTree carries each persona collision choice as its own multipart valu
 
 test("reviewTreePersonas posts ONLY settings.json and User Avatars parts, and returns the server's collisions", async () => {
   let captured: { url: string; init: RequestInit } | undefined;
-  const collision = { key: "nate", name: "Nate", existingDescription: "a", incomingDescription: "b" };
+  const collision = { key: "nate", name: "Nate", existingDescription: "a", incomingDescription: "b", differs: ["description"], keepBothName: "Nate 2" };
   vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
     captured = { url, init };
     return Promise.resolve(new Response(JSON.stringify({ collisions: [collision] }), { status: 200 }));

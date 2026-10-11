@@ -30,8 +30,36 @@ describe("reviewImport", () => {
       incoming: [incoming("NATE ", "ST Nate"), incoming("Nate", "another ST Nate"), incoming("Eve", "same Eve"), incoming("Robin", "new")],
     });
 
-    expect(collisions).toEqual([{ key: "nate", name: "NATE ", existingDescription: "orb Nate", incomingDescription: "ST Nate" }]);
+    expect(collisions).toEqual([
+      { key: "nate", name: "NATE ", existingDescription: "orb Nate", incomingDescription: "ST Nate", differs: ["description"], keepBothName: "NATE " },
+    ]);
     expect(await db.select().from(personas).where(eq(personas.ownerId, owner))).toHaveLength(2);
+  });
+
+  test("says what differs, not just that something does: an art-only difference carries the avatar and not the description", async () => {
+    const db = await freshDb();
+    const svc = createPersonaService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await seedPersona(db, { ownerId: owner, name: "Tamsin", description: "a tavern singer" });
+
+    const collisions = await svc.reviewImport({
+      principal: principal(owner),
+      incoming: [{ name: "Tamsin", description: "a tavern singer", metadata: null, artHash: "hash-of-new-art" }],
+    });
+
+    expect(collisions.map((c) => c.differs)).toEqual([["avatar"]]);
+  });
+
+  test("keepBothName is the name keep-both would really mint: the next free one", async () => {
+    const db = await freshDb();
+    const svc = createPersonaService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await seedPersona(db, { ownerId: owner, name: "Nate", description: "one" });
+    await seedPersona(db, { ownerId: owner, name: "Nate 2", description: "two" });
+
+    const collisions = await svc.reviewImport({ principal: principal(owner), incoming: [incoming("Nate", "three")] });
+
+    expect(collisions.map((c) => c.keepBothName)).toEqual(["Nate 3"]);
   });
 
   test("never lists another owner's persona", async () => {

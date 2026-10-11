@@ -106,7 +106,9 @@ describe("createBulkImportPersonas", () => {
 
     for (const result of [unlisted, listed]) {
       expect(result.personasCreated).toBe(0);
-      expect(result.personasSkipped).toBe(1);
+      // A merge is its own tally: it is not an equal-content skip.
+      expect(result.personasMerged).toBe(1);
+      expect(result.personasSkipped).toBe(0);
       expect(result.idByName["alex"]).toBe(first.idByName["alex"]);
       expect(result.defaultPersonaId).toBe(first.idByName["alex"]);
     }

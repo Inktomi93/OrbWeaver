@@ -54,12 +54,20 @@ export function personaCollisionChoiceFor(choices: PersonaCollisionChoices | und
   return choices !== undefined && Object.hasOwn(choices, key) ? (choices[key] ?? DEFAULT_PERSONA_COLLISION_CHOICE) : DEFAULT_PERSONA_COLLISION_CHOICE;
 }
 
+/** Which parts of a persona's identity differ between the owned persona and the incoming one. */
+export const PERSONA_DIFFERENCES = ["description", "avatar", "title", "placement"] as const;
+export type PersonaDifference = (typeof PERSONA_DIFFERENCES)[number];
+
 const personaCollisionSchema = z.strictObject({
   /** The folded name — the key the choice is recorded under. */
   key: z.string(),
   name: z.string(),
   existingDescription: z.string(),
   incomingDescription: z.string(),
+  /** What differs, so the review can say it instead of showing two identical lines. Never empty. */
+  differs: z.array(z.enum(PERSONA_DIFFERENCES)).readonly(),
+  /** The name keep-both would land the incoming persona under. */
+  keepBothName: z.string(),
 });
 export type PersonaCollision = z.infer<typeof personaCollisionSchema>;
 

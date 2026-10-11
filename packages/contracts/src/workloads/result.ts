@@ -30,6 +30,9 @@ export interface MaintenanceResult {
   readonly reportPath?: string;
   /** import-st only: see {@link BundleImportWorkloadResult.memoryScope}. Absent on a dry run. */
   readonly memoryScope?: ImportWindow | null;
+  /** import-st only: personas linked to an owned persona of the same name (the merge choice). Counted in
+   *  `scanned`, not in `changed`, and not a skip. Absent when none. */
+  readonly merged?: number;
 }
 
 /** A portability bundle import's per-entity tallies. `notes` (#1710) is what a file that DID import still
@@ -101,9 +104,11 @@ export const maintenanceResultSchema = z
     failed: z.number().optional(),
     reportPath: z.string().optional(),
     memoryScope: storedImportWindowSchema.nullable().optional(),
+    merged: z.number().optional(),
   })
-  .transform(({ failed, reportPath, memoryScope, ...view }) => ({
+  .transform(({ failed, reportPath, memoryScope, merged, ...view }) => ({
     ...view,
+    ...(merged !== undefined ? { merged } : {}),
     ...(failed !== undefined ? { failed } : {}),
     ...(reportPath !== undefined ? { reportPath } : {}),
     ...(memoryScope !== undefined ? { memoryScope } : {}),

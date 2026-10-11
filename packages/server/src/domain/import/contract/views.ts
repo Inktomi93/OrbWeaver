@@ -488,6 +488,8 @@ export interface ImportReport {
    *  reports its repairs here. NOT part of `changed`: a heal writes no new canon. Zero on every fresh
    *  import, and zero on a re-run of an already-attributed corpus. */
   readonly chatsPersonaHealed: number;
+  /** Personas this run linked to an owned persona of the same name (the merge choice). Scanned, not changed. */
+  readonly personasMerged: number;
   /** Every real conversation the solo, group and orphan waves WROTE — the scope of the client's memory-build
    *  offer. Empty on a dry run. Not rendered into the written report. */
   readonly memoryChatIds: readonly ChatId[];

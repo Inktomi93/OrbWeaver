@@ -23,13 +23,10 @@
 // folder takes.
 
 import type { PersonaCollision, PersonaCollisionChoice, PersonaCollisionChoices } from "@orb/contracts/import";
-import { DEFAULT_PERSONA_COLLISION_CHOICE } from "@orb/contracts/import";
 import { Button } from "@orb/ui/button";
-import { Fieldset, FieldsetLegend } from "@orb/ui/fieldset";
 import { FileDropzone, FolderPicker } from "@orb/ui/file-dropzone";
 import { Row, Stack } from "@orb/ui/layout";
 import { Progress } from "@orb/ui/progress";
-import { RadioGroup, RadioGroupItem } from "@orb/ui/radio-group";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { ImportedChatsMemoryOffer } from "#components";
@@ -40,13 +37,14 @@ import { useLibraryImport } from "../hooks/use-library-import.ts";
 import { planNotes } from "../lib/portability-model.ts";
 import { BundleWorkloadTracker } from "./bundle-workload-tracker.tsx";
 import { ImportReportSummary } from "./import-report-summary.tsx";
+import { PersonaCollisionReview } from "./persona-collision-review.tsx";
 
 /** What an import DOES to a library that already has things in it — the sentence the reader needs BEFORE
  *  the request, not in the report afterwards. One home: the preflight is the only place it is spoken. */
 const IMPORT_CONSEQUENCE = [
   "Importing ADDS to your library — nothing you already have is deleted. Settings in an Orbweaver backup merge into yours.",
   "Anything already in your library — the same card, world book, theme or preset — is skipped, so running the same import twice is not a duplicate.",
-  "A world book, theme, preset or backup persona that shares a name with a DIFFERENT one of yours is imported under a numbered name. Two different cards that share a name stay two characters.",
+  "A world book, theme or preset that shares a name with a DIFFERENT one of yours is imported under a numbered name, and so is a persona restored from an Orbweaver backup. A persona in a SillyTavern folder asks you instead, above. Two different cards that share a name stay two characters.",
 ] as const;
 
 /** What was picked, in words — the folder arm counts the files the plan will send, the file arm names the
@@ -59,49 +57,6 @@ function stagedTitle(files: readonly File[], plan: TreeImportPlan | null): strin
   return files.length === 1 && first !== undefined ? `Import “${first.name}”?` : `Import ${String(files.length)} files?`;
 }
 
-const EXCERPT_CHARS = 120;
-
-/** A persona description cut to a line the choice can be read against. */
-function excerpt(description: string): string {
-  const text = description.trim();
-  if (text.length === 0) {
-    return "no description";
-  }
-  return text.length > EXCERPT_CHARS ? `${text.slice(0, EXCERPT_CHARS)}…` : text;
-}
-
-/** One persona the folder would split: both versions side by side and the two ways out. Merge is the
- *  preselected answer; neither is applied until the reader presses Import. */
-function PersonaCollisionChoiceRow({
-  collision,
-  choice,
-  onChoose,
-}: {
-  readonly collision: PersonaCollision;
-  readonly choice: PersonaCollisionChoice;
-  readonly onChoose: (choice: PersonaCollisionChoice) => void;
-}): ReactElement {
-  return (
-    <Fieldset data-slot="persona-collision">
-      <FieldsetLegend>{`“${collision.name.trim()}” is already one of your personas, with different content`}</FieldsetLegend>
-      <Text voice="gloss">{`Yours: ${excerpt(collision.existingDescription)}`}</Text>
-      <Text voice="gloss">{`In the import: ${excerpt(collision.incomingDescription)}`}</Text>
-      <RadioGroup value={choice} onValueChange={(next): void => onChoose(next === "keep-both" ? "keep-both" : "merge")}>
-        <RadioGroupItem value="merge">
-          <Text as="span" voice="label">
-            Merge into your existing persona
-          </Text>
-        </RadioGroupItem>
-        <RadioGroupItem value="keep-both">
-          <Text as="span" voice="label">
-            Keep both
-          </Text>
-        </RadioGroupItem>
-      </RadioGroup>
-    </Fieldset>
-  );
-}
-
 /** The staged selection, its consequence, and the two answers. Its own component so the title is computed
  *  ONCE and used twice — as the visible heading and as the group's accessible name, which is what makes a
  *  bare "Import" button unambiguous to a screen reader that jumped straight to it. */
@@ -111,6 +66,7 @@ function ImportPreflight({
   collisions,
   choices,
   onChoose,
+  onChooseAll,
   onConfirm,
   onCancel,
 }: {
@@ -119,6 +75,7 @@ function ImportPreflight({
   readonly collisions: readonly PersonaCollision[];
   readonly choices: PersonaCollisionChoices;
   readonly onChoose: (key: string, choice: PersonaCollisionChoice) => void;
+  readonly onChooseAll: (choice: PersonaCollisionChoice) => void;
   readonly onConfirm: () => void;
   readonly onCancel: () => void;
 }): ReactElement {
@@ -127,6 +84,7 @@ function ImportPreflight({
     // A named GROUP, not an alert: nothing has happened yet and nothing is being interrupted.
     <Stack aria-label={title} className="rounded-control border border-input p-field" data-slot="import-preflight" gap="field" role="group">
       <Text voice="label">{title}</Text>
+      <PersonaCollisionReview collisions={collisions} choices={choices} onChoose={onChoose} onChooseAll={onChooseAll} />
       <Stack gap="tight">
         {IMPORT_CONSEQUENCE.map((line) => (
           <Text key={line} voice="reading">
@@ -141,14 +99,6 @@ function ImportPreflight({
               </Text>
             ))}
       </Stack>
-      {collisions.map((collision) => (
-        <PersonaCollisionChoiceRow
-          key={collision.key}
-          collision={collision}
-          choice={choices[collision.key] ?? DEFAULT_PERSONA_COLLISION_CHOICE}
-          onChoose={(choice): void => onChoose(collision.key, choice)}
-        />
-      ))}
       <Row justify="start" align="center" gap="field">
         <Button intent="primary" onClick={onConfirm} disabled={plan !== null && plan.batches.length === 0 && plan.skipped.length > 0}>
           Import
@@ -167,7 +117,7 @@ export function ImportLibrarySection(): ReactElement {
   // file is rejected inline, not after a wasted round-trip. The folder picker carries NO cap of its own: the
   // plan decides per file against the served folder caps and says why a file stays behind.
   const importMaxBytes = useUploadCaps().importTotal;
-  const { state, stageFiles, stageFolder, chooseCollision, confirm, cancel, reset, track } = useLibraryImport();
+  const { state, stageFiles, stageFolder, chooseCollision, chooseAllCollisions, confirm, cancel, reset, track } = useLibraryImport();
   const staged = state.status === "staged" ? state : null;
   const busy = state.status === "uploading" || state.status === "running";
   const done = state.status === "done";
@@ -207,6 +157,7 @@ export function ImportLibrarySection(): ReactElement {
           collisions={staged.collisions}
           choices={staged.choices}
           onChoose={chooseCollision}
+          onChooseAll={chooseAllCollisions}
           onCancel={cancel}
           onConfirm={confirm}
         />
