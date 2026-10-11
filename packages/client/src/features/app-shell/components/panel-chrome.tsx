@@ -59,10 +59,25 @@ export interface PanelChromeProps {
   readonly primaryContent?: boolean;
   /** The pane element itself — the skip link needs to move focus onto it in the `primaryContent` state. */
   readonly ref?: Ref<HTMLElement>;
+  /** Is this pane a SHEET over a desktop-shaped layout in the current regime (narrow viewport, or a constrained
+   *  context column) — a pane that is only ever overlay or collapsed? shell.css keeps its box identical across
+   *  open and close, so the exit changes `transform` alone. Absent on a phone, whose sheets have their own rules. */
+  readonly sheet?: boolean;
   readonly children: ReactNode;
 }
 
-export function PanelChrome({ panel, label, header, mode, available, onDismiss, primaryContent = false, ref, children }: PanelChromeProps): ReactElement {
+export function PanelChrome({
+  panel,
+  label,
+  header,
+  mode,
+  available,
+  onDismiss,
+  primaryContent = false,
+  ref,
+  sheet = false,
+  children,
+}: PanelChromeProps): ReactElement {
   // A collapsed panel is translated out of the shell and inert, so its first body mount cannot be seen or
   // reached — it must not ride the boot commit (a227aa1b4d). THAT RULING SURVIVES; ITS INPUT CHANGED (#895).
   // Latching the mount DURING RENDER (`if (mode !== "collapsed") setBodyMounted(true)`) satisfied it and
@@ -117,6 +132,7 @@ export function PanelChrome({ panel, label, header, mode, available, onDismiss, 
       {...(panel === "list" ? { "aria-labelledby": LIST_PANE_TITLE_ID } : {})}
       data-panel-available={available ? "true" : "false"}
       data-panel-mode={mode}
+      {...(sheet ? { "data-panel-sheet": "" } : {})}
       data-panel-side={panel}
       aria-hidden={mode === "collapsed" ? "true" : undefined}
       inert={mode === "collapsed" ? true : undefined}

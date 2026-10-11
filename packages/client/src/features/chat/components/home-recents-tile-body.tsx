@@ -37,7 +37,7 @@ import { Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
-import { openNewChatPicker, selectChatFromList, setActiveSection } from "#state";
+import { openNewChatPicker, resumeChat } from "#state";
 import { usePrefetchRoom } from "../hooks/use-prefetch-room.ts";
 import { splitHearth } from "../lib/home-hearth.ts";
 import { RECENTS_EMPTY_BLOCK_PX } from "../lib/home-recents-reservation.ts";
@@ -48,8 +48,7 @@ import { HomeHearthRoom } from "./home-hearth-room.tsx";
 export const RECENTS_LIMIT = 8;
 
 function openRecent(chatId: ChatId): void {
-  selectChatFromList(chatId);
-  setActiveSection("chats");
+  resumeChat(chatId);
 }
 
 export function HomeRecentsTileBody(): ReactElement {

@@ -3,7 +3,6 @@
 // devtools-instrumented + action-labeled: `createGatedStore` (hook-shaped singletons), `createEntityDraftStore` (persist-shaped,
 // per-entity vanilla factories), and `createPersistedStore` (hook-shaped singletons that persist to storage).
 
-export type { NewChatIntent } from "./active-chat-store.ts";
 export {
   __migrateActiveChatForTest,
   activeChatId,
@@ -13,6 +12,7 @@ export {
   clearRoomInvite,
   enterCreatedChat,
   goToLanding,
+  type NewChatIntent,
   openChatMoment,
   openNewChatPicker,
   openRoomInvite,
@@ -84,6 +84,7 @@ export {
   useChatListSearch,
 } from "./chat-list-filter-store.ts";
 export { clearChatMoment, consumeChatMoment, requestChatMoment, useChatMoment } from "./chat-moment-store.ts";
+export { consumeReturnFocus, useReturnedChat } from "./chat-return-store.ts";
 export type { ChatStreamApi, RecallState, TurnSlot } from "./chat-stream.ts";
 export {
   __setFrameSchedulerForTest,
@@ -393,7 +394,7 @@ export {
 } from "./rule-creation-store.ts";
 export type { SectionId } from "./section-ids.ts";
 export { isSectionId, RETIRED_SECTION_HEAL, resolveSectionPath, SECTION_IDS } from "./section-ids.ts";
-export { LIST_OFF_SCREEN_HINT, useSectionHasSelection, useSectionListIsScreen, useSectionListMode } from "./section-list-projection.ts";
+export { LIST_OFF_SCREEN_HINT, useSectionBackTarget, useSectionHasSelection, useSectionListIsScreen, useSectionListMode } from "./section-list-projection.ts";
 export type {
   RailZone,
   SectionDefinition,

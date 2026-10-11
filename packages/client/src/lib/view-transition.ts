@@ -100,6 +100,34 @@ export function runAfterViewTransition(effect: () => void): void {
   runWhenTransitionsSettle(current, effect);
 }
 
+/** Skeleton rows in the two regions a swap changes: the content pane (the captured region) and an open list
+ *  pane. A collapsed pane is off screen, so its loading state is not part of what the user sees arrive. */
+const DESTINATION_PENDING =
+  '.shell-content [data-slot="skeleton"], .shell-panel[data-panel-side="list"]:not([data-panel-mode="collapsed"]) [data-slot="skeleton"]';
+/** How long the old frame may be held for the destination's first real paint. */
+const DESTINATION_DEADLINE_MS = 150;
+const DESTINATION_POLL_MS = 16;
+
+/** Resolve once the destination shows no skeleton, or at the deadline. Returned from the update callback,
+ *  it keeps the old frame up until then, so the crossfade lands on content and the skeleton never paints
+ *  as a second, unanimated step. */
+function destinationSettled(): Promise<void> {
+  const g = globalThis as VtGlobals;
+  return new Promise((resolve) => {
+    let waited = 0;
+    const check = (): void => {
+      if (waited >= DESTINATION_DEADLINE_MS || (g.document?.querySelector?.(DESTINATION_PENDING) ?? null) === null) {
+        resolve();
+        return;
+      }
+      waited += DESTINATION_POLL_MS;
+      setTimeout(check, DESTINATION_POLL_MS);
+    };
+    // One macrotask first: the swap's React commit must land before the destination can be read.
+    setTimeout(check, 0);
+  });
+}
+
 /**
  * Run a view-state update inside a View Transition when the platform supports it (and the user
  * hasn't asked for reduced motion) — otherwise apply the update directly. Fire-and-forget: the
@@ -118,6 +146,11 @@ export function runAfterViewTransition(effect: () => void): void {
  * any microtask, and a transition whose callback never fires can therefore never strand the queue.
  * Ordering is unchanged (the updates run in the order they were raised) and every caller keeps the exact
  * fire-and-forget signature it had.
+ *
+ * THE OLD FRAME HOLDS FOR THE DESTINATION'S FIRST REAL PAINT: the browser snapshots whatever React committed
+ * first, so a destination that suspends would be captured as skeleton rows and its content would then appear
+ * without any transition. The update callback therefore resolves only after the content and an open list pane
+ * show no skeleton (`destinationSettled`), within a deadline.
  *
  * A SUPERSEDED transition (a second one starting before the first settles — e.g. the draft→committed
  * promotion swapping the active chat while the context panel re-renders) rejects the visual settlement
@@ -151,6 +184,7 @@ export function withViewTransition(update: () => void): void {
     for (const run of current.updates) {
       run();
     }
+    return destinationSettled();
   });
   current.finished = transition?.finished;
   if (current.finished !== undefined) {

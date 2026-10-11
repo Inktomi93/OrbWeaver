@@ -63,6 +63,7 @@ import {
   CommandPaletteSourceRegistryProvider,
   cancelEditingMessage,
   chatDeletedFromList,
+  chatSectionSelection,
   chatStream,
   committedChat,
   enterSelectionMode,
@@ -75,6 +76,7 @@ import {
   requestComposerFocus,
   SlashCommandRegistryProvider,
   selectChat,
+  selectChatFromList,
   setMobileViewport,
   setNarrowViewport,
   startEditingMessage,
@@ -1640,6 +1642,22 @@ export function ChatListSurfaceStory({ activeChatId = null, width = 320, mobile 
   return (
     <CtDataProviders>
       <ChatListInner activeChatId={activeChatId} width={width} />
+    </CtDataProviders>
+  );
+}
+
+/** The Chats list wired to the real selection door, plus the phone Back's act (`chatSectionSelection.clear`). */
+export function ChatListReturnStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 480, width: 320 }}>
+        <ChatListAnchor>
+          <ChatListSurface onNewChat={(): void => undefined} onSelect={selectChatFromList} />
+        </ChatListAnchor>
+        <button onClick={(): void => chatSectionSelection.clear()} type="button">
+          leave the room
+        </button>
+      </div>
     </CtDataProviders>
   );
 }

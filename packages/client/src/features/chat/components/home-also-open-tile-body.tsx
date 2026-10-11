@@ -25,16 +25,15 @@ import { Row, Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
-import { selectChatFromList, setActiveSection } from "#state";
+import { resumeChat } from "#state";
 import { splitHearth } from "../lib/home-hearth.ts";
 import { ChatSummaryRow } from "./chat-summary-row.tsx";
 import { RECENTS_LIMIT } from "./home-recents-tile-body.tsx";
 
 /** Selecting a recent is a CROSS-SECTION navigation: write chat's own selection AND move the rail to chats
- *  (`#state` module actions — §12's sanctioned channel; home never wires this). */
+ *  (`#state` module action — §12's sanctioned channel; home never wires this). Back returns here. */
 function openRecent(chatId: ChatId): void {
-  selectChatFromList(chatId);
-  setActiveSection("chats");
+  resumeChat(chatId);
 }
 
 export function HomeAlsoOpenTileBody(): ReactElement {

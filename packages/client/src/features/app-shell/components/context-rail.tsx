@@ -229,13 +229,13 @@ export function ContextHeaderTabs({
 }): ReactElement {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const overflow = useTrackOverflow(trackRef, tabs.length);
-  // One tab is not a strip: with nothing to choose between, the header names the view in the tabs' own type
-  // (a plain heading, no tablist) beside the trailing controls, and the bracket's panel names itself.
+  // One tab is not a strip: with nothing to choose between, the header names the PANE in the tabs' own type
+  // (a plain heading, no tablist) beside the trailing controls, and the bracket's panel names the tab.
   if (tabs.length <= 1) {
     return (
       <Row data-slot="context-tab-strip" align="center" className="min-w-0 flex-1 self-stretch px-block">
         <Text as="span" voice="label" data-slot="context-header-title" className="min-w-0 truncate">
-          {tabs[0]?.label ?? ariaLabel}
+          {ariaLabel}
         </Text>
       </Row>
     );

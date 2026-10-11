@@ -106,6 +106,73 @@ describe("withViewTransition", () => {
     expect(effect).toHaveBeenCalledOnce();
   });
 
+  // The crossfade must land on the destination, not on a skeleton the real content then replaces without a
+  // transition: the update callback holds the old frame until the destination stops showing skeleton rows,
+  // within a deadline, so a slow read costs a short hold rather than a second unanimated paint.
+  describe("holds the old frame until the destination has content", () => {
+    const skeletonSelector = /skeleton/u;
+
+    function stubTransitionDocument(pending: () => boolean): Array<() => void | Promise<void>> {
+      const callbacks: Array<() => void | Promise<void>> = [];
+      vi.stubGlobal("matchMedia", () => ({ matches: false }));
+      vi.stubGlobal("document", {
+        querySelector: (selector: string) => (skeletonSelector.test(selector) && pending() ? {} : null),
+        startViewTransition: (callback: () => void | Promise<void>) => {
+          callbacks.push(callback);
+          return { ready: Promise.resolve(), finished: Promise.resolve(), updateCallbackDone: Promise.resolve() };
+        },
+      });
+      return callbacks;
+    }
+
+    test("applies the update at once and resolves only after the skeleton clears", async () => {
+      // @orb-waive test-determinism(vi.useFakeTimers): the subject is the hold's elapsed time against its deadline
+      vi.useFakeTimers();
+      try {
+        let skeleton = true;
+        const callbacks = stubTransitionDocument(() => skeleton);
+        const update = vi.fn();
+        withViewTransition(update);
+
+        let settled = false;
+        const held = Promise.resolve(callbacks[0]?.()).then(() => {
+          settled = true;
+        });
+        expect(update).toHaveBeenCalledOnce();
+        await vi.advanceTimersByTimeAsync(64);
+        expect(settled).toBe(false);
+
+        skeleton = false;
+        await vi.advanceTimersByTimeAsync(32);
+        expect(settled).toBe(true);
+        await held;
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    test("gives up at the deadline when the skeleton never clears", async () => {
+      // @orb-waive test-determinism(vi.useFakeTimers): the subject is the hold's elapsed time against its deadline
+      vi.useFakeTimers();
+      try {
+        const callbacks = stubTransitionDocument(() => true);
+        withViewTransition(vi.fn());
+
+        let settled = false;
+        const held = Promise.resolve(callbacks[0]?.()).then(() => {
+          settled = true;
+        });
+        await vi.advanceTimersByTimeAsync(100);
+        expect(settled).toBe(false);
+        await vi.advanceTimersByTimeAsync(100);
+        expect(settled).toBe(true);
+        await held;
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   test("skips the native snapshot when the app-level reduced-motion preference is active", () => {
     const update = vi.fn();
     const start = vi.fn();

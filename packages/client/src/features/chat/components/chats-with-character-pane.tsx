@@ -32,7 +32,7 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { CharacterChatsProjectionView } from "#lib";
 import { useDebouncedValue } from "#lib";
-import { selectChatFromList, setActiveSection, useActiveChatId } from "#state";
+import { resumeChat, useActiveChatId } from "#state";
 import { useChatListCollection } from "../hooks/use-chat-list-collection.ts";
 import { useChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
 import { chatRowQualifiers } from "../lib/chat-summary-row.ts";
@@ -101,10 +101,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
     <ChatListRow
       actions={actions}
       chat={chat}
-      onSelect={(chatId): void => {
-        selectChatFromList(chatId);
-        setActiveSection("chats");
-      }}
+      onSelect={resumeChat}
       portraits={chat.participantPortraits}
       qualifier={qualifiers[index]}
       selected={chat.id === activeChatId}

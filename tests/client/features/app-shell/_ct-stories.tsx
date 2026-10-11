@@ -28,6 +28,7 @@ import {
   ChromeRegistryProvider,
   dockListPanel,
   NO_SELECTION_TITLE,
+  resumeChat,
   selectCharacter,
   selectChat,
   selectCollectionMember,
@@ -409,6 +410,35 @@ export function AppShellMobileRuleStory({ section }: { readonly section: Section
       >
         <LandOn section={section} />
         <button type="button" onClick={(): void => openMemberIn(section)}>
+          open a member
+        </button>
+        <AppShell />
+      </CtFakeSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** The phone's room Back, end to end over the REAL chats selection seam: a chats section with a list, a room
+ *  and a details pane, landing on `section`. "resume from here" is the Home tiles' act (`resumeChat`), which
+ *  records the section it was fired from. */
+export function AppShellPhoneBackStory({ section }: { readonly section: SectionId }): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtFakeSectionRegistry
+        sections={{
+          chats: {
+            list: <p>chats list pane</p>,
+            content: <p>chats content pane</p>,
+            context: <p>chats context pane</p>,
+            selectionTitle: useChatsStoryTitle,
+          },
+        }}
+      >
+        <LandOn section={section} />
+        <button type="button" onClick={(): void => resumeChat(mintTypeId(ID_PREFIX.chat))}>
+          resume from here
+        </button>
+        <button type="button" onClick={(): void => openMemberIn("chats")}>
           open a member
         </button>
         <AppShell />

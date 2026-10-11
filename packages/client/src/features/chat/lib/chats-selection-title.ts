@@ -30,7 +30,7 @@ export function useChatsSelectionTitle(): string | null {
     if (data === undefined) {
       return null;
     }
-    // Participants first, then the user's own room name — the one order the header and the list row share.
+    // The user's own room name leads when there is one, so same-cast rooms read apart; participants otherwise.
     return chatRoomTitle(
       data.title,
       filterCharacters(data.participants).map((character) => character.displayName),

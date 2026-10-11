@@ -23,10 +23,11 @@ import type { ChatContextTabId } from "#lib";
 import type { ChatHandle } from "./chat-handle.ts";
 import { committedChat, isCommitted, isLanding, landingChat } from "./chat-handle.ts";
 import { clearChatMoment, requestChatMoment } from "./chat-moment-store.ts";
+import { chatOrigin, clearChatReturn, markChatReturned, noteChatOrigin, subscribeChatOrigin } from "./chat-return-store.ts";
 import { readComposerDraft } from "./composer-draft-store.ts";
 import { createPersistedStore } from "./create-persisted-store.ts";
 import type { SectionSelection } from "./section-registry.ts";
-import { openModal, revealContextPanel, setActiveSection, setOpenOverlayPanel, withContentSwap } from "./shell-store.ts";
+import { activeSectionNow, openModal, revealContextPanel, setActiveSection, setOpenOverlayPanel, withContentSwap } from "./shell-store.ts";
 
 /** The CREATION-ONLY parameters of a new chat — what a launcher pre-arms the picker with, and what the
  *  picker hands `chat.startChat`. All fields optional: an empty intent is a legal narrator-only room. */
@@ -150,6 +151,7 @@ export function clearNewChatIntent(): void {
  *  switching chats remounts the slot. */
 export function selectChat(chatId: ChatId): void {
   clearChatMoment();
+  clearChatReturn();
   // The three user-driven CONTENT pane swaps (create, select-a-chat, return-to-landing) go through the
   // shell's ONE content-swap door: the router's VT never fires at a constant route, and a room change must
   // not leave a float ABOUT THE OLD ROOM's content painted over the new one (#1795).
@@ -162,6 +164,7 @@ export function selectChat(chatId: ChatId): void {
 /** Enter a room this device just CREATED (`chat.startChat` resolved). Identical to `selectChat` except that
  *  the room is remembered as the husk-reap candidate until it is left (§4.6). */
 export function enterCreatedChat(chatId: ChatId): void {
+  clearChatReturn();
   withContentSwap(() => {
     releaseCreatedChat(chatId);
     useActiveChatStore.setState(
@@ -177,6 +180,8 @@ export function goToLanding(): void {
   withContentSwap(() => {
     const createdChatId = releaseCreatedChat(null);
     useActiveChatStore.setState({ handle: landingChat(), newChatIntent: undefined, createdChatId, inviteChatId: null }, true, "activeChat/goToLanding");
+    // A sheet left open over the room would otherwise stay up over the list it lands on.
+    setOpenOverlayPanel(null);
   });
 }
 
@@ -194,10 +199,13 @@ export function openChatMoment(chatId: ChatId, target: MessageWindowTarget): voi
  * both spelled `selectChat(id); setActiveSection("chats")` — the same two-line intent written twice, which
  * is how one of them comes to skip the section change. One intent, one name, one home; the WORD is the
  * product's (`docs/law/vocabulary-map.md` — resume = re-enter the room you were already in, as opposed
- * to start, which mints one).
+ * to start, which mints one). It also records the section it was called from, so the phone's Back returns there.
  */
 export function resumeChat(chatId: ChatId): void {
+  const from = activeSectionNow();
   selectChat(chatId);
+  // Back returns to where the room was resumed from; resuming from Chats itself needs no detour.
+  noteChatOrigin(from === "chats" ? null : from);
   setActiveSection("chats");
 }
 
@@ -228,13 +236,35 @@ export function selectChatFromList(chatId: ChatId): void {
   setOpenOverlayPanel(null);
 }
 
+/** The phone's Back out of a room: the landing, then the section the room was resumed from (if not Chats).
+ *  The left room's row is marked so the list it returns to can focus and flag it. */
+function leaveRoom(): void {
+  const { handle } = useActiveChatStore.getState();
+  const origin = chatOrigin();
+  if (isCommitted(handle)) {
+    markChatReturned(handle.id);
+  }
+  goToLanding();
+  if (origin !== null) {
+    setActiveSection(origin);
+  }
+}
+
 /** The section-registry SEAM (`SectionSelection`) — what the SHELL reads for the mobile ONE-SHELL rule.
  *  A chat's "selection" is the HANDLE: landing is nothing-open, an open room counts as open. `clear` is
- *  `goToLanding`, so back-from-a-room lands in the same state every other route to the landing does. */
+ *  `leaveRoom`: the landing every other route to it lands in, plus the return to the resuming section. */
 export const chatSectionSelection: SectionSelection = {
-  subscribe: (onStoreChange: () => void): (() => void) => useActiveChatStore.subscribe(onStoreChange),
+  subscribe: (onStoreChange: () => void): (() => void) => {
+    const unsubscribeChat = useActiveChatStore.subscribe(onStoreChange);
+    const unsubscribeOrigin = subscribeChatOrigin(onStoreChange);
+    return (): void => {
+      unsubscribeChat();
+      unsubscribeOrigin();
+    };
+  },
   hasSelection: (): boolean => !isLanding(useActiveChatStore.getState().handle),
-  clear: goToLanding,
+  clear: leaveRoom,
+  backTarget: chatOrigin,
 };
 
 /** After a host deletes the chat CONTENT is currently showing, return to landing so the room never

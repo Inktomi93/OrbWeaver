@@ -1002,14 +1002,18 @@
 .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
   width: var(--list-panel-collapsed-w);
 }
-/* A CLOSED (collapsed) panel is off-screen regardless of block inset, so it only needs the full-height
- * box; an OPEN overlay must clear the topbar row (mirrors the mobile overlay rule below) so it never
+/* A panel that leaves a DOCKED track slides out at the docked, full-height box, so a collapsed panel is
+ * full-height. An OPEN overlay must clear the topbar row (mirrors the mobile overlay rule below) so it never
  * occludes the topbar's panel-toggle button underneath it (M10 correction — the desktop overlay
- * previously covered the topbar and made the toggle unreachable while the panel it opened was showing). */
+ * previously covered the topbar and made the toggle unreachable while the panel it opened was showing).
+ * A panel in an overlay regime (`data-panel-sheet`) never had a docked box, and it is ON SCREEN for the
+ * first part of its exit: it keeps the overlay's inset, so open and close change `transform` and nothing else
+ * (a full-height collapsed box made the closing sheet jump up over the topbar before it slid away). */
 .shell-panel[data-panel-mode="collapsed"] {
   inset-block: 0;
 }
-.shell-panel[data-panel-mode="overlay"] {
+.shell-panel[data-panel-mode="overlay"],
+.shell-panel[data-panel-sheet][data-panel-mode="collapsed"] {
   inset-block: var(--dimension-chrome-row) 0;
 }
 .shell-panel[data-panel-side="list"][data-panel-mode="overlay"],
@@ -1253,23 +1257,24 @@
 
 /* SHRINK ORDER of the desktop chat identity, matched off .shell-main. The title GROUP owns the floor and clips
  * its own overflow, so the title can never paint over the chips beside it; the chips are `shrink-0`, so only
- * text gives. Inside the group the participants lead and the user's room name keeps a real floor of its own
- * (a name the user chose is never drawn at 0px); the name yields to the participants first. Below 56rem of
- * content column the avatar goes (a group's faces live in the cast row), the chips collapse to their glyphs
- * (their accessible names already carry the count) and the ⌘K chip drops its word; below 72rem the creation
- * date goes, first, before the name is ever squeezed. */
+ * text gives. Inside the group the participants and the user's room name each keep the same real floor (a stub
+ * of either is useless, so neither is drawn at a few letters); the name yields to the participants first, down
+ * to that floor. Below 56rem of content column the avatar goes (a group's faces live in the cast row), the
+ * chips collapse to their glyphs (their accessible names already carry the count) and the ⌘K chip drops its
+ * word; below 72rem the creation date goes, first, before the name is ever squeezed. */
 .shell-topbar-title-group {
   min-width: var(--dimension-shell-title-floor);
   overflow: hidden;
 }
 .shell-topbar-title-group:has(.shell-topbar-subtitle) {
-  min-width: calc(var(--dimension-shell-title-floor) * 3);
+  min-width: calc(var(--dimension-shell-title-floor) * 3 + var(--spacing-row));
 }
-/* The room name's floor is twice the title's: a name the user chose is never drawn as a stub, and the date (below)
- * is gone before the name ever sits at it. */
+.shell-topbar-title-group:has(.shell-topbar-subtitle) .shell-topbar-title,
+.shell-topbar-identity .shell-topbar-subtitle {
+  min-width: calc(var(--dimension-shell-title-floor) * 1.5);
+}
 .shell-topbar-identity .shell-topbar-subtitle {
   flex-shrink: 8;
-  min-width: calc(var(--dimension-shell-title-floor) * 2);
 }
 /* The rename field is the name's slot: at least as wide as its content or a sensible minimum, the group caps it. */
 .shell-topbar-rename {
@@ -1481,11 +1486,26 @@
   view-transition-name: orb-section-content;
 }
 
-::view-transition-group(orb-section-content),
 ::view-transition-old(orb-section-content),
 ::view-transition-new(orb-section-content) {
   animation-duration: var(--motion-base);
   animation-timing-function: var(--ease-out-expo);
+}
+/* ONE EFFECT: THE CROSSFADE, AT A FIXED SCALE. The UA's default group morph animates the group between the two
+ * panes' boxes and its default image sizing (`inline-size: 100%`, auto height) stretches each snapshot to the
+ * group, so whenever the two sections' content panes differ in width the incoming content lunged in at up to
+ * 2.15x and the outgoing shrank to 0.46x, while two sections with the same pane geometry just faded. The group
+ * snaps to the destination's box and each snapshot is painted 1:1 from the pane's top-left, clipped to it:
+ * every section pair fades the same way, and the chrome's own FLIP/transform motion is not duplicated here. */
+::view-transition-group(orb-section-content) {
+  animation: none;
+}
+::view-transition-old(orb-section-content),
+::view-transition-new(orb-section-content) {
+  width: 100%;
+  height: 100%;
+  object-fit: none;
+  object-position: 0 0;
 }
 .shell-region-fill {
   flex: 1 1 auto;

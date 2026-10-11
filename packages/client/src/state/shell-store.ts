@@ -361,6 +361,11 @@ export function useActiveSection(): SectionId {
   return useShellStore((s) => s.activeSection);
 }
 
+/** Non-rendering read of the active section, for an action that must know where the user is as it fires. */
+export function activeSectionNow(): SectionId {
+  return useShellStore.getState().activeSection;
+}
+
 /** The stored override for one (section, panel) — `undefined` when the user hasn't toggled it. */
 export function usePanelOverride(section: SectionId, panel: PanelName): PanelMode | undefined {
   return useShellStore((s) => s.panelOverrides[section]?.[panel]);

@@ -331,6 +331,7 @@ export function AppShell(): ReactElement {
               onDismiss={(): void => layout.collapsePanel("list")}
               primaryContent={layout.listIsPrimaryContent}
               ref={listPaneRef}
+              sheet={layout.listIsSheet}
             >
               <RegionAnchor region="list">{listContent}</RegionAnchor>
             </PanelChrome>
@@ -354,7 +355,7 @@ export function AppShell(): ReactElement {
                     onToggleList={(): void => layout.togglePanel("list")}
                     // The section resolves mode vocabulary without teaching the shell its feature state.
                     onBack={layout.backToList}
-                    backLabel={`Back to ${contentLabel ?? layout.activeSectionLabel}`}
+                    backLabel={`Back to ${layout.backTargetLabel ?? contentLabel ?? layout.activeSectionLabel}`}
                   />
                 )}
               </SectionTopbarTitle>
@@ -399,6 +400,7 @@ export function AppShell(): ReactElement {
               mode={layout.contextMode}
               onDismiss={(): void => layout.collapsePanel("context")}
               ref={contextPaneRef}
+              sheet={layout.contextIsSheet}
             >
               {contextPane.body}
             </PanelChrome>
