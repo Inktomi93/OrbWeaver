@@ -429,10 +429,8 @@ export function chatPanelHiddenTitle(pluginName: string): string {
 export const CHAT_PANEL_HIDDEN_HINT = "Turn it back on from its row in Settings, Plugins.";
 export const CHAT_PANEL_UNDO_LABEL = "Undo";
 export const CHAT_PANEL_HIDE_LABEL = "Hide";
-export const SHOW_IN_CHAT_LABEL = "Show in chat";
-export const PLUGIN_PANELS_SHEET_LABEL = "Plugin panels";
-
-/** What the inline flank's header toggle does when pressed. */
-export function flankToggleLabel(collapsed: boolean): string {
-  return collapsed ? "Expand plugin panels" : "Collapse plugin panels";
+/** The Plugins pane's switch for one plugin's chat panels, named for the plugin so a list of them reads as a list. */
+export function showInChatLabel(pluginName: string): string {
+  return `Show ${pluginName}'s panel in chat`;
 }
+export const PLUGIN_PANELS_SHEET_LABEL = "Plugin panels";

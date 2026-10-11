@@ -56,7 +56,7 @@ const DRAFT_ROUTES = {
 test("a composer action names its plugin and command, not the plugin's slug", async ({ mount, page }) => {
   await routeTrpc(page, DRAFT_ROUTES);
   await mount(<PluginComposerDraftRoomStory />);
-  const polish = page.getByRole("button", { name: "Draft Polish · Commands · Run Polish", exact: true });
+  const polish = page.getByRole("button", { name: "Draft Polish · Run Polish", exact: true });
   await expect(polish).toBeVisible();
   await expect(polish).toHaveText("Draft Polish · Run Polish");
 });
@@ -71,7 +71,7 @@ test("explicit Polish replaces the visible draft,Undo restores exact bytes, and 
   });
   await mount(<PluginComposerDraftRoomStory />);
   const draft = page.getByRole("textbox", { name: "Message", exact: true });
-  const polish = page.getByRole("button", { name: "Draft Polish · Commands · Run Polish", exact: true });
+  const polish = page.getByRole("button", { name: "Draft Polish · Run Polish", exact: true });
   await draft.fill(original);
   await expect(polish).toBeVisible();
   await expect.poll(() => recorder.count("plugin.invokeUiCommand")).toBe(0);
@@ -106,7 +106,7 @@ test("a pending Polish cannot overwrite an edit-and-restore or another room, and
   });
   await mount(<PluginComposerDraftRoomStory />);
   const draft = page.getByRole("textbox", { name: "Message", exact: true });
-  const polish = page.getByRole("button", { name: "Draft Polish · Commands · Run Polish", exact: true });
+  const polish = page.getByRole("button", { name: "Draft Polish · Run Polish", exact: true });
   await draft.fill("Original");
   await polish.click();
   await expect.poll(() => runs).toBe(1);
@@ -152,7 +152,7 @@ test("a late plugin reply cannot replace the draft after its command registratio
   await mount(<PluginComposerDraftRoomStory revocablePluginId={FIRST_ID} />);
   const draft = page.getByRole("textbox", { name: "Message", exact: true });
   await draft.fill("Keep this exact draft");
-  const polish = page.getByRole("button", { name: "Draft Polish · Commands · Run Polish", exact: true });
+  const polish = page.getByRole("button", { name: "Draft Polish · Run Polish", exact: true });
   await polish.click();
   await page.getByRole("button", { name: "Disable draft plugin", exact: true }).click();
   await expect(polish).toHaveCount(0);
@@ -170,7 +170,7 @@ test("a failed explicit Polish leaves the draft intact and gives a visible error
   await mount(<PluginComposerDraftRoomStory />);
   const draft = page.getByRole("textbox", { name: "Message", exact: true });
   await draft.fill("Keep my draft");
-  await page.getByRole("button", { name: "Draft Polish · Commands · Run Polish", exact: true }).click();
+  await page.getByRole("button", { name: "Draft Polish · Run Polish", exact: true }).click();
   await expect(page.getByLabel("Alerts").getByText("Polish failed", { exact: true })).toBeVisible();
   await expect(draft).toHaveValue("Keep my draft");
   await expect(page.getByRole("button", { name: "Undo Polish", exact: true })).toHaveCount(0);
@@ -241,8 +241,10 @@ test("fitting attributed actions render directly, cap at three, and move into or
   await expect(direct).toHaveCount(3);
   const names = ORDERED_MENUS[0].names;
   for (const [index, name] of names.slice(0, 3).entries()) {
-    await expect(direct.nth(index)).toHaveAccessibleName(name);
-    await expect(direct.nth(index)).toContainText(name.split(" · ")[0] ?? "");
+    // A button's name is exactly what it shows (label-in-name); the menu names below carry their group.
+    const shown = name.replace(/ · (Cards|Scenes|Commands) · Run/, " · Run");
+    await expect(direct.nth(index)).toHaveAccessibleName(shown);
+    await expect(direct.nth(index)).toHaveText(shown);
   }
   await direct.nth(2).focus();
   await page.keyboard.press("Enter");
@@ -518,7 +520,7 @@ for (const transition of ["disable", "uninstall", "auto-disable"] as const) {
     });
     await page.setViewportSize({ width: 1600, height: 900 });
     const component = await mount(<PluginComposerRemovalStory pluginId={SECOND_ID} transition={transition} width={1400} />);
-    const secondAction = component.getByRole("button", { name: "Same Name (second) · Scenes · Run Open", exact: true });
+    const secondAction = component.getByRole("button", { name: "Same Name (second) · Run Open", exact: true });
     await expect(secondAction).toBeVisible();
     await expect(component.getByRole("button", { name: "Plugin actions", exact: true })).toHaveCount(0);
     await component.getByRole("button", { name: "Message tools", exact: true }).click();
@@ -527,7 +529,7 @@ for (const transition of ["disable", "uninstall", "auto-disable"] as const) {
     await page.keyboard.press("Escape");
     await component.getByRole("button", { name: `Run ${transition}`, exact: true }).click();
     await expect(secondAction).toHaveCount(0);
-    await expect(component.getByRole("button", { name: "Same Name · Cards · Run Open", exact: true })).toBeVisible();
+    await expect(component.getByRole("button", { name: "Same Name · Run Open", exact: true })).toBeVisible();
     await component.getByRole("button", { name: "Message tools", exact: true }).click();
     await expect(media).toHaveCount(0);
   });
@@ -781,7 +783,7 @@ test("the room composer mounts the production placement contributions and runs p
   });
   const component = await mount(<PluginComposerRoomStory />);
 
-  const action = component.getByRole("button", { name: "Same Name (second) · Scenes · Run Open", exact: true });
+  const action = component.getByRole("button", { name: "Same Name (second) · Run Open", exact: true });
   await expect(action).toBeVisible();
   const send = component.getByRole("button", { name: "Send message", exact: true });
   await expect

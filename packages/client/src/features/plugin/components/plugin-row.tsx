@@ -38,6 +38,7 @@
 // precisely the coupling the guard exists to prevent.
 
 import { pluginGrantTasks } from "@orb/contracts/plugin";
+import type { PluginId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Card } from "@orb/ui/card";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -47,6 +48,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
+import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
@@ -63,7 +65,7 @@ import {
   PLUGIN_ERROR_COPY_SUBJECT,
   PLUGIN_ERROR_SENTENCE,
   REMOVE_PLUGIN_DESCRIPTION,
-  SHOW_IN_CHAT_LABEL,
+  showInChatLabel,
   statusCopy,
 } from "../lib/plugin-copy.ts";
 import { PLUGIN_MODEL_HEADING } from "../lib/plugin-model-copy.ts";
@@ -85,6 +87,27 @@ export interface PluginRowProps {
   readonly onApproved?: () => void;
 }
 
+/** The Plugins pane's switch for one plugin's chat panels. The switch governs chat panels, so only a plugin that
+ *  registered one has anything for it to govern. */
+function ShowInChatSwitch({ pluginId, pluginName }: { readonly pluginId: PluginId; readonly pluginName: string }): ReactElement | null {
+  const trpc = useTRPC();
+  const chatVisibility = usePluginChatVisibility();
+  const { data: surfaces } = useQuery(trpc.plugin.listSurfaces.queryOptions());
+  const hasChatPanel = (surfaces ?? []).some(
+    (surface) => surface.pluginId === pluginId && (surface.anchor === "chat-flank" || surface.anchor === "chat-settings-section"),
+  );
+  if (!hasChatPanel) {
+    return null;
+  }
+  return (
+    <SettingSwitchRow
+      checked={!chatVisibility.isHidden(pluginId)}
+      label={showInChatLabel(pluginName)}
+      onChange={(shown): void => chatVisibility.setShown(pluginId, shown)}
+    />
+  );
+}
+
 export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -92,7 +115,6 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
   const upgrade = useUpgradePlugin({ trpc, invalidation });
   const setGrant = useSetPluginGrant({ trpc, invalidation });
   const uninstall = useUninstallPlugin({ trpc, invalidation });
-  const chatVisibility = usePluginChatVisibility();
   const [uploadError, setUploadError] = useState<string | null>(null);
   const enableAdmission = useRef(false);
 
@@ -233,11 +255,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
         </Stack>
 
         {/* Per user and in every room: the plugin's chat panels show by default and are hidden from the panel itself. */}
-        <SettingSwitchRow
-          checked={!chatVisibility.isHidden(plugin.id)}
-          label={SHOW_IN_CHAT_LABEL}
-          onChange={(shown): void => chatVisibility.setShown(plugin.id, shown)}
-        />
+        <ShowInChatSwitch pluginId={plugin.id} pluginName={plugin.name} />
 
         {upgrade.isPending ? (
           <Text prose={true} role="status" voice="gloss">

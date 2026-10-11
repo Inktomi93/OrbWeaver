@@ -130,3 +130,23 @@ test("two hides made before the first write lands both stay hidden, and the seco
   await expect(component.getByText("first body")).toHaveCount(0);
   await expect(component.getByText("second body")).toHaveCount(0);
 });
+
+test("after a hide, focus lands on the next panel's Hide, and on the room when none is left", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  let hidden: readonly PluginId[] = [];
+  const view = (): ReturnType<typeof userSettingsView> => userSettingsView({ profile: { hiddenChatPluginIds: [...hidden] } });
+  await routeTwoPluginRoom(page, {
+    "settings.getUserSettings": () => view(),
+    "settings.updateUserSettingsSection": (input: TrpcInput<"settings.updateUserSettingsSection">): ReturnType<typeof view> => {
+      hidden = input.patch["hiddenChatPluginIds"] as readonly PluginId[];
+      return view();
+    },
+  });
+  await mount(<PluginChatVisibilityStory />);
+
+  await page.getByRole("button", { name: "Hide First Plugin" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("button", { name: "Hide Second Plugin" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator('[data-slot="chat-room-surface"]')).toBeFocused();
+});

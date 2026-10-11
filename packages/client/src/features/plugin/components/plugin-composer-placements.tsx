@@ -47,7 +47,13 @@ function PlacedActionButton({
   );
 }
 
+// A button's name is exactly what it shows (label-in-name); a menu item shows only its command under a group label, so
+// its name carries the group the label above it spells.
 function placedActionLabel(item: PlacedCommand): string {
+  return `${item.shownName} · ${pluginCommandActionLabel(item.label)}`;
+}
+
+function placedItemLabel(item: PlacedCommand): string {
   return `${item.shownName} · ${item.command.group ?? "Commands"} · ${pluginCommandActionLabel(item.label)}`;
 }
 
@@ -170,7 +176,7 @@ export function PluginComposerActions({ chatId }: { readonly chatId: ChatId }): 
                   const glyph = item.icon === undefined ? Blocks : PLUGIN_ICON_GLYPHS[item.icon];
                   return (
                     <MenuItem
-                      aria-label={placedActionLabel(item)}
+                      aria-label={placedItemLabel(item)}
                       disabled={isPending}
                       key={`${item.command.pluginId}:${item.command.name}`}
                       onClick={(): void => run(item.command)}
@@ -206,7 +212,7 @@ export function PluginComposerMediaItems({ chatId }: { readonly chatId: ChatId }
             const glyph = item.icon === undefined ? Blocks : PLUGIN_ICON_GLYPHS[item.icon];
             return (
               <MenuItem
-                aria-label={placedActionLabel(item)}
+                aria-label={placedItemLabel(item)}
                 disabled={isPending}
                 key={`${item.command.pluginId}:${item.command.name}`}
                 onClick={(): void => run(item.command)}

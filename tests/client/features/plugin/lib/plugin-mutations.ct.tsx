@@ -136,7 +136,7 @@ test("the documented Draft Polish switch removes Polish and restores displayed b
   });
   await mount(<PluginOptOutStory />);
   const transcript = page.getByRole("status", { name: "Transcript row", exact: true });
-  const polish = page.getByRole("button", { name: "Draft Polish · Commands · Run Polish", exact: true });
+  const polish = page.getByRole("button", { name: "Draft Polish · Run Polish", exact: true });
   await expect(polish).toBeVisible();
   await expect(transcript).toHaveText("Viewer-only typography");
   const card = page.getByRole("group", { name: "Draft Polish plugin", exact: true });

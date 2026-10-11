@@ -254,7 +254,7 @@ test.describe("the flank anchor", () => {
     });
     const component = await mount(<PluginFlankSheetRoomStory />);
     await expect(component.getByText("Your latest warmth reading, 7 of 10.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Collapse plugin panels", exact: true })).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByRole("button", { name: "Hide plugin panels", exact: true })).toHaveAttribute("aria-expanded", "true");
     await expect(page.getByRole("button", { name: "Plugin panels", exact: true })).toHaveCount(0);
   });
 
@@ -329,7 +329,7 @@ test("a plugin's chat panel hides in one tap, Undo brings it back, and its row's
 
   const warmth = page.getByRole("group", { name: `${PLUGIN_NAME} — Warmth` });
   const moods = page.getByRole("group", { name: `${OTHER_NAME} — Moods` });
-  const showInChat = page.getByRole("group", { name: `${PLUGIN_NAME} plugin` }).getByRole("switch", { name: "Show in chat" });
+  const showInChat = page.getByRole("group", { name: `${PLUGIN_NAME} plugin` }).getByRole("switch", { name: `Show ${PLUGIN_NAME}'s panel in chat` });
   await expect(warmth).toBeVisible();
   await expect(showInChat).toBeChecked();
 
@@ -511,6 +511,7 @@ test("a pointer that turns coarse mid-session leaves exactly one host for the fr
     const trigger = page.locator(".shell-topbar").getByRole("button", { name: SHEET_TRIGGER.name, exact: true });
     await expect(page.locator("iframe")).toHaveCount(0);
     await expect(trigger).toBeVisible();
+    await expect(page.getByRole("button", { name: /^(Hide|Show) plugin panels$/ })).toHaveCount(0);
 
     // The header slot is keyed by section, so a round trip remounts it while the room stays alive.
     await page.getByRole("button", { name: "Hop to config" }).click();
@@ -527,19 +528,26 @@ test("a pointer that turns coarse mid-session leaves exactly one host for the fr
   }
 });
 
-test("with both side panels docked on a mid-width desktop the transcript keeps its reading floor, the flank lives in the sheet, and widening hands it back with one frame throughout", async ({
+/** The one control a column has, found by its house verbs wherever it sits. */
+const PANEL_CONTROL = /^(Hide|Show) plugin panels$/;
+
+test("on a mid-width desktop the flank starts collapsed to its edge tab, opens over the transcript without reflow, and never moves a frame", async ({
   mount,
   page,
 }) => {
   await page.setViewportSize({ width: 1100, height: 800 });
-  await routePhoneShell(page);
+  const routed = await routePhoneShell(page);
   await mount(<PluginPhoneShellStory dockPanels={true} />);
-  await expect(page.locator(SCROLLER)).toBeVisible();
+  const scroller = page.locator(SCROLLER);
+  await expect(scroller).toBeVisible();
 
-  // The room is too narrow for the transcript to hold its floor beside the flank, so the sheet hosts the panels.
-  const trigger = page.locator(".shell-topbar").getByRole("button", { name: SHEET_TRIGGER.name, exact: true });
-  await expect(trigger).toBeVisible();
-  await expect(page.locator("iframe")).toHaveCount(0);
+  // No room for the transcript to hold its floor beside the column: the column waits at its edge, one tab, no sheet.
+  const control = page.getByRole("button", { name: PANEL_CONTROL });
+  await expect(control).toHaveCount(1);
+  await expect(control).toHaveAccessibleName("Show plugin panels");
+  await expect(control).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("button", { name: SHEET_TRIGGER.name, exact: true })).toHaveCount(0);
+  await expect(page.locator("iframe")).toHaveCount(1);
   const floor = await page.evaluate(() => {
     const probe = document.createElement("div");
     probe.style.width = "calc(var(--dimension-content-reading-floor) - 2 * var(--spacing-block))";
@@ -548,18 +556,37 @@ test("with both side panels docked on a mid-width desktop the transcript keeps i
     probe.remove();
     return width;
   });
-  await expect.poll(async () => (await page.locator(SCROLLER).boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(floor);
-  await trigger.click();
-  await expect(page.locator("iframe")).toHaveCount(1);
+  const closed = await scroller.boundingBox();
+  expect(closed?.width ?? 0).toBeGreaterThanOrEqual(floor);
+  const tab = await control.boundingBox();
 
-  // Past the threshold the inline flank takes the frame back: the icon goes and the count never exceeds one.
+  // Opened, it overlays from the room's edge at its design width; the transcript does not move or resize.
+  await control.click();
+  await expect(control).toHaveAccessibleName("Hide plugin panels");
+  const column = page.locator(FLANK_SLOT);
+  await expect.poll(async () => (await column.boundingBox())?.x ?? 0).toBeLessThan(closed === null ? 0 : closed.x + closed.width);
+  await expect.poll(async () => (await scroller.boundingBox())?.width).toBe(closed?.width);
+  await expect.poll(async () => (await scroller.boundingBox())?.x).toBe(closed?.x);
+  const design = await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.width = "var(--width-sidebar-sm)";
+    document.body.append(probe);
+    const width = probe.getBoundingClientRect().width;
+    probe.remove();
+    return width;
+  });
+  await expect.poll(async () => (await column.boundingBox())?.width ?? 0).toBeCloseTo(design, 0);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect.poll(async () => (await control.boundingBox())?.x).toBe(tab?.x);
+  await expect.poll(async () => (await control.boundingBox())?.y).toBe(tab?.y);
+
+  // Past the threshold the same column goes inline: nothing was remounted along the way.
   await page.setViewportSize({ width: 1920, height: 1000 });
-  await expect(trigger).toHaveCount(0);
-  await expect(page.locator(FLANK_SLOT)).toBeVisible();
   await expect(page.locator("iframe")).toHaveCount(1);
+  expect(routed.mints()).toBe(1);
 });
 
-test("the header icon collapses and expands the inline flank: the transcript takes and gives back the width, one frame throughout, and the choice survives a reload", async ({
+test("the plugin column collapses and expands from its own edge: one control that never moves, the transcript takes and gives back the width, one frame throughout, and the choice survives a reload", async ({
   mount,
   page,
 }) => {
@@ -568,34 +595,65 @@ test("the header icon collapses and expands the inline flank: the transcript tak
   const component = await mount(<PluginPhoneShellStory />);
   const scroller = page.locator(SCROLLER);
   const widthOf = async (): Promise<number> => (await scroller.boundingBox())?.width ?? 0;
+  const control = page.getByRole("button", { name: PANEL_CONTROL });
   await expect(scroller).toBeVisible();
   await expect(page.locator("iframe")).toHaveCount(1);
   const expanded = await widthOf();
-  const topbar = page.locator(".shell-topbar");
+  // The side panels' own control is the only other panel control: the topbar carries none of ours.
+  await expect(page.locator(".shell-topbar").getByRole("button", { name: PANEL_CONTROL })).toHaveCount(0);
+  await expect(control).toHaveCount(1);
+  await expect(control).toHaveAccessibleName("Hide plugin panels");
+  await expect(control).toHaveAttribute("aria-expanded", "true");
+  const spot = await control.boundingBox();
 
-  await expect(topbar.getByRole("button", { name: "Collapse plugin panels", exact: true })).toHaveAttribute("aria-expanded", "true");
-  await topbar.getByRole("button", { name: "Collapse plugin panels", exact: true }).click();
-  await expect(topbar.getByRole("button", { name: "Expand plugin panels", exact: true })).toHaveAttribute("aria-expanded", "false");
+  await control.click();
+  await expect(control).toHaveAccessibleName("Show plugin panels");
+  await expect(control).toHaveAttribute("aria-expanded", "false");
+  await expect(control).toHaveCount(1);
   await expect.poll(widthOf).toBeGreaterThan(expanded + 100);
-  // Collapsing folds the column away without unmounting the frame, so expanding cannot mint a second one.
+  // The control did not move under the pointer.
+  await expect.poll(async () => (await control.boundingBox())?.x).toBe(spot?.x);
+  await expect.poll(async () => (await control.boundingBox())?.y).toBe(spot?.y);
+  // Collapsing slides the column out without unmounting its frame, so expanding cannot mint a second one.
   await expect(page.locator("iframe")).toHaveCount(1);
   expect(routed.mints()).toBe(1);
 
-  await topbar.getByRole("button", { name: "Expand plugin panels", exact: true }).click();
-  await expect(topbar.getByRole("button", { name: "Collapse plugin panels", exact: true })).toHaveAttribute("aria-expanded", "true");
+  await control.click();
+  await expect(control).toHaveAccessibleName("Hide plugin panels");
   await expect.poll(widthOf).toBeCloseTo(expanded, 0);
   await expect(page.locator("iframe")).toHaveCount(1);
   expect(routed.mints()).toBe(1);
 
   // The setting round-trips: collapse, remount the whole shell, and it comes back collapsed.
-  await topbar.getByRole("button", { name: "Collapse plugin panels", exact: true }).click();
+  await control.click();
   await expect.poll(widthOf).toBeGreaterThan(expanded + 100);
   await component.unmount();
   await mount(<PluginPhoneShellStory />);
   await expect(page.locator(SCROLLER)).toBeVisible();
-  await expect(page.locator(".shell-topbar").getByRole("button", { name: "Expand plugin panels", exact: true })).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("button", { name: PANEL_CONTROL })).toHaveAccessibleName("Show plugin panels");
   await expect.poll(widthOf).toBeGreaterThan(expanded + 100);
   await expect(page.locator("iframe")).toHaveCount(1);
+});
+
+test.describe("the phone topbar", () => {
+  test.use({ hasTouch: true });
+
+  for (const width of [390, 430]) {
+    test(`@${width}: the plugin panels icon costs the topbar no height`, async ({ mount, page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await routePhoneShell(page);
+      await mount(<PluginPhoneShellStory />);
+      await expect(page.locator(SCROLLER)).toBeVisible();
+      const trigger = page.locator(".shell-topbar").getByRole("button", { name: SHEET_TRIGGER.name, exact: true });
+      await expect(trigger).toBeVisible();
+      const topbarHeight = async (): Promise<number> => (await page.locator(".shell-topbar").boundingBox())?.height ?? 0;
+      const withTrigger = await topbarHeight();
+      await trigger.evaluate((element) => {
+        element.style.display = "none";
+      });
+      await expect.poll(topbarHeight).toBe(withTrigger);
+    });
+  }
 });
 
 // ── The `chat-settings-section` anchor, inside the "This chat" tab's host-only band ────────────────────────
@@ -652,8 +710,8 @@ test("the grafted section paints NOTHING — not even its heading — when the c
   await openContextSections(component, HOST_BAND);
   // …and the plugin section is not there: the contribution mounts (its `when` cannot see the data) and
   // renders null, and the host's grafted <Section> collapses with it.
-  await expect(component.getByRole("heading", { name: "Plugin panels" })).toHaveCount(0);
-  await expect(component.getByRole("button", { name: "Plugin panels" })).toHaveCount(0);
+  await expect(component.getByRole("heading", { name: "Plugin controls" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Plugin controls" })).toHaveCount(0);
 });
 
 test("a chat-settings-section surface renders in the labelled shell, and its action repaints the published state", async ({ mount, page }) => {
@@ -675,9 +733,9 @@ test("a chat-settings-section surface renders in the labelled shell, and its act
 
   // Plugin panels opt into discovery independently of the native band. The shared opener also respects
   // an already-open section, so this existing action contract covers the same panel after its move.
-  await openContextSections(component, HOST_BAND, "Plugin panels");
+  await openContextSections(component, HOST_BAND, "Plugin controls");
 
-  await expect(component.getByRole("heading", { name: "Plugin panels" })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Plugin controls" })).toBeVisible();
   await expect(component.getByRole("group", { name: `${PLUGIN_NAME} — Room readings` })).toBeVisible();
   await expect(component.getByText("No readings yet.")).toBeVisible();
 

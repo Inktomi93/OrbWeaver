@@ -81,12 +81,14 @@ export function usePluginChatVisibility(): PluginChatVisibility {
 }
 
 export interface PluginFlankCollapse {
+  /** The user's settings have arrived: the answer below is theirs, not the default. */
+  readonly ready: boolean;
   readonly collapsed: boolean;
   readonly toggle: () => void;
 }
 
-/** Whether the user folded the inline flank away, and the one door that flips it. Stored in the user's settings,
- *  so it holds across rooms, reloads and devices. */
+/** Whether the user folded the room's plugin column away, and the one door that flips it. Stored in the user's
+ *  settings, so it holds across rooms, reloads and devices. */
 export function usePluginFlankCollapsed(): PluginFlankCollapse {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -94,6 +96,7 @@ export function usePluginFlankCollapsed(): PluginFlankCollapse {
   const setPrefs = useSetPluginPanelPrefs({ trpc, invalidation });
   const { data } = useQuery(trpc.settings.getUserSettings.queryOptions());
   return {
+    ready: data !== undefined,
     collapsed: data?.config.profile.flankCollapsed ?? false,
     // Read at click time for the same reason `hide` does: the cache already holds a write still in flight.
     toggle: (): void => {

@@ -73,11 +73,10 @@ test("a room whose plugins have no flank panel grows no header icon", async ({ m
 
   // Both reads have been answered, so the absence below is a settled one.
   await expect.poll(() => Math.min(recorder.count("plugin.list"), recorder.count("plugin.listSurfaces"))).toBeGreaterThan(0);
-  await expect(page.getByRole("button", { name: "Collapse plugin panels", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Plugin panels", exact: true })).toHaveCount(0);
 });
 
-test("a fine pointer keeps the panels beside the transcript: the control collapses them and opens no sheet", async ({ mount, page }) => {
+test("a fine pointer keeps the panels in the room's own column, so the header has no sheet control", async ({ mount, page }) => {
   const recorder = await routeTrpc(page, {
     "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [PLUGIN_ROW],
@@ -89,6 +88,5 @@ test("a fine pointer keeps the panels beside the transcript: the control collaps
   await mount(<PluginFlankSheetStory />);
 
   await expect.poll(() => Math.min(recorder.count("plugin.list"), recorder.count("plugin.listSurfaces"))).toBeGreaterThan(0);
-  await expect(page.getByRole("button", { name: "Collapse plugin panels", exact: true })).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByRole("button", { name: "Plugin panels", exact: true })).toHaveCount(0);
 });

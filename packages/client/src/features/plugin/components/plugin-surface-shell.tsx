@@ -69,7 +69,9 @@ export function PluginSurfaceShell({ pluginName, title, scale = "panel", childre
           {showTitle ? (
             <>
               <Text voice="gloss">·</Text>
-              <Text voice="gloss">{title}</Text>
+              <Text className="text-foreground" voice="gloss">
+                {title}
+              </Text>
             </>
           ) : null}
           {/* The KICKER names the CLASS, not the instance: "this is a plugin", which is the sentence a
@@ -110,7 +112,9 @@ export function PluginSurfaceShell({ pluginName, title, scale = "panel", childre
         {showTitle ? (
           <>
             <Text voice="gloss">·</Text>
-            <Text voice="gloss">{title}</Text>
+            <Text className="text-foreground" voice="gloss">
+              {title}
+            </Text>
           </>
         ) : null}
         {action === undefined ? null : <Row className="ms-auto">{action}</Row>}

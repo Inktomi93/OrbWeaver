@@ -29,8 +29,11 @@ import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EyeOff, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
-import { usePluginChatVisibility } from "../hooks/use-plugin-chat-visibility.ts";
+import { useEffect, useRef, useState } from "react";
+import { publishFlankHost } from "#lib";
+import { usePluginChatVisibility, usePluginFlankCollapsed } from "../hooks/use-plugin-chat-visibility.ts";
 import { useFlankInSheet, useVisibleAnchoredSurfaces } from "../hooks/use-visible-anchored-surfaces.ts";
 import { CHAT_PANEL_HIDE_LABEL } from "../lib/plugin-copy.ts";
 import { PluginFrame } from "./plugin-frame.tsx";
@@ -57,24 +60,65 @@ export function PluginAnchoredSurfaces({ anchor, chatId, inSheet = false }: Plug
   const { hide } = usePluginChatVisibility();
   // The inline flank stands down whenever its panels live in the header's sheet (`PluginFlankSheet`).
   const standsDown = useFlankInSheet() && anchor === "chat-flank" && !inSheet;
+  const hostsFlank = anchor === "chat-flank" && !inSheet;
+  const hasPanels = visible.length > 0;
+  // The room's column and its edge control follow this answer: no panels, no control. The toggle is published
+  // through a stable door onto the latest one, so a re-render never re-announces the host.
+  const { ready, collapsed, toggle } = usePluginFlankCollapsed();
+  const latestToggle = useRef(toggle);
+  useEffect(() => {
+    latestToggle.current = toggle;
+  });
+  const [stableToggle] = useState(() => (): void => latestToggle.current());
+  const announce = hostsFlank && ready && hasPanels;
+  useEffect(() => {
+    if (!hostsFlank) {
+      return;
+    }
+    publishFlankHost({ panels: announce, collapsed, toggle: stableToggle });
+    return (): void => publishFlankHost(null);
+  }, [hostsFlank, announce, collapsed, stableToggle]);
+  // After a hide, focus lands on the next panel's Hide (or, with none left, the room itself), never on the document.
+  const focusAfterHide = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    const target = focusAfterHide.current;
+    if (target === undefined) {
+      return;
+    }
+    focusAfterHide.current = undefined;
+    const next = target === null ? null : document.querySelector<HTMLElement>(`[data-hide-for="${target}"]`);
+    (next ?? document.querySelector<HTMLElement>('[data-slot="chat-room-surface"]'))?.focus();
+  });
 
-  if (visible.length === 0 || standsDown) {
+  if (!hasPanels || standsDown) {
     return null;
   }
   const surfacesStack = (
     <Stack gap="block">
       {visible.map((surface) => {
         // One-tap Hide on the panel's own attribution line; the notice it raises carries the Undo.
+        const hideLabel = `${CHAT_PANEL_HIDE_LABEL} ${surface.pluginName}`;
         const hideAction = (
-          <Button
-            aria-label={`${CHAT_PANEL_HIDE_LABEL} ${surface.pluginName}`}
-            intent="ghost"
-            onClick={(): void => hide({ id: surface.pluginId, name: surface.pluginName })}
-            size="sm"
-          >
-            <Icon icon={EyeOff} size="sm" />
-            {CHAT_PANEL_HIDE_LABEL}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  aria-label={hideLabel}
+                  data-hide-for={surface.pluginId}
+                  intent="ghost"
+                  onClick={(): void => {
+                    focusAfterHide.current = visible.find((other) => other.pluginId !== surface.pluginId)?.pluginId ?? null;
+                    hide({ id: surface.pluginId, name: surface.pluginName });
+                  }}
+                  size="icon-sm"
+                  type="button"
+                >
+                  <Icon icon={EyeOff} size="sm" />
+                </Button>
+              }
+            />
+            <TooltipPopup side="bottom">{hideLabel}</TooltipPopup>
+          </Tooltip>
         );
         // The U7 FRAME arm draws its OWN shell (`plugin-frame.tsx`: an un-minted frame must render nothing at
         // all, chrome included, and the §4.8 label must have no opt-out). The `scripted` (U4) and `static` arms

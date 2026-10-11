@@ -14,14 +14,16 @@
 import type { ChatId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Container, Row, Stack, Surface } from "@orb/ui/layout";
+import { useCoarsePointer } from "@orb/ui/lib";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { Fragment, useDeferredValue, useLayoutEffect, useRef } from "react";
+import { Fragment, useDeferredValue, useId, useLayoutEffect, useRef, useState } from "react";
+import { PanelEdgeControl } from "#components";
 import type { ChatBusDeps } from "#data";
 import { SkeletonRows, useCarriedAppearance, useTRPC } from "#data";
 import type { ChatRoomSurfaceState, ChatSurfaceAnchor, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
-import { cn, deriveChatTitle, publishInlineFlankFit, useFocusOnMount } from "#lib";
+import { cn, deriveChatTitle, publishInlineFlankFit, useFlankHost, useFocusOnMount, useInlineFlankFits } from "#lib";
 import type { ActiveChatHandle } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor.tsx";
 import { ChatCharacterBar } from "../components/chat-character-bar.tsx";
@@ -86,9 +88,8 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   useFocusOnMount(surfaceRef, bodyMounted);
 
   const roomState: ChatRoomSurfaceState = { chatId };
-  // The flank column folds away when the user collapsed it (the header's toggle writes this setting).
-  const { data: settings } = useQuery(trpc.settings.getUserSettings.queryOptions());
-  const flankCollapsed = settings?.config.profile.flankCollapsed ?? false;
+  const flank = useFlankPresentation();
+  const flankId = useId();
   const flankContributions = resolveRoomAnchor(surfaceContributors, "thread-flank", roomState);
   const aboveComposerContributions = resolveRoomAnchor(surfaceContributors, "above-composer", roomState);
   const composerActionContributions = resolveRoomAnchor(surfaceContributors, "composer-action", roomState);
@@ -132,6 +133,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           )}
           gap="block"
           ref={surfaceRef}
+          data-slot="chat-room-surface"
           role="group"
           tabIndex={-1}
         >
@@ -168,7 +170,13 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                *  since a thread+flank split needs more room than a nav+content split before beside is comfy). */}
               <Container className="relative min-h-0 flex-1">
                 <InlineFlankFitProbe />
-                <Row gap="block" align="stretch" className="h-full min-h-0 @max-lg:flex-col" data-slot="chat-room-flank-row">
+                {/* The column's one control, anchored to the room's top outer corner so open and closed share a spot. */}
+                {flank.panelMode ? (
+                  <PanelPosition>
+                    <PanelEdgeControl controls={flankId} edge="end" expanded={flank.expanded} noun="plugin panels" onToggle={flank.toggle} />
+                  </PanelPosition>
+                ) : null}
+                <Row gap="block" align="stretch" className="h-full min-h-0 overflow-x-clip @max-lg:flex-col" data-slot="chat-room-flank-row">
                   {thread}
                   {/* `empty:hidden` is the SILENT-CONTRIBUTOR collapse, the same property (and the same
                   reason) the above-composer band carries below: a contributor whose applicability is DATA
@@ -199,22 +207,11 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                   {/* The column's own top gap (`pt-block`) keeps a card off the topbar's divider while the column
                   still starts on the row's top edge, where the transcript does. Stacked, the row's `gap` already
                   separates the column from the thread. */}
-                  <Stack
-                    gap="block"
-                    className={cn(
-                      "empty:hidden relative pt-block transition-[max-width,margin,opacity] duration-(--motion-layout) ease-out-expo @max-lg:max-h-1/2 @max-lg:max-w-none @max-lg:overflow-y-auto @max-lg:pt-0",
-                      // Collapsed, the column keeps its place in the tree (a plugin frame in it stays minted) and gives
-                      // its width back, and the row's gap with it, so the transcript takes the whole room.
-                      flankCollapsed ? "pointer-events-none -ms-block max-w-0 overflow-hidden opacity-0" : "max-w-(--width-sidebar-sm)",
-                    )}
-                    data-collapsed={flankCollapsed ? "true" : undefined}
-                    data-slot="chat-thread-flank"
-                    inert={flankCollapsed}
-                  >
+                  <FlankColumn flank={flank} id={flankId}>
                     {flankContributions.map((c) => (
                       <Fragment key={c.id}>{c.node}</Fragment>
                     ))}
-                  </Stack>
+                  </FlankColumn>
                 </Row>
               </Container>
               <MessageSelectionBar chatId={chatId} />
@@ -279,6 +276,65 @@ function InlineFlankFitProbe(): ReactElement {
       style={{ width: "calc(var(--dimension-content-reading-floor) + var(--width-sidebar-sm) + var(--spacing-block))" }}
     />
   );
+}
+
+/** THE PLUGIN-PANEL PRESENTATIONS (`useFlankPresentation`): one column at its design width, in the row when there
+ *  is room, and out of the row otherwise, sliding on the side panels' own transform and timing. Collapsed it waits
+ *  off the room's edge; opened without room it overlays the transcript from that edge. It never changes width, so a
+ *  frame inside it is never squeezed, and it never leaves the tree, so a frame inside it stays minted. */
+function FlankColumn({ flank, id, children }: { readonly flank: FlankPresentation; readonly id: string; readonly children: ReactNode }): ReactElement {
+  return (
+    <Stack
+      gap="block"
+      className={cn(
+        "empty:hidden",
+        flank.panelMode
+          ? cn(
+              "relative min-h-0 w-(--width-sidebar-sm) overflow-y-auto pt-control-sm transition-transform duration-(--shell-motion) ease-(--shell-ease)",
+              !(flank.inline && flank.expanded) && "absolute end-0 top-0 bottom-0",
+              flank.expanded ? "translate-x-0" : "pointer-events-none translate-x-full",
+              flank.expanded && !flank.inline && "z-(--z-raised) bg-card shadow-overlay",
+            )
+          : "max-w-(--width-sidebar-sm) relative pt-block @max-lg:max-h-1/2 @max-lg:max-w-none @max-lg:overflow-y-auto @max-lg:pt-0",
+      )}
+      data-collapsed={flank.panelMode && !flank.expanded ? "true" : undefined}
+      data-slot="chat-thread-flank"
+      id={id}
+      inert={flank.panelMode && !flank.expanded}
+    >
+      {children}
+    </Stack>
+  );
+}
+
+/** The control's anchor: the room's top outer corner, where the plugin column's edge is whether it is open or not. */
+function PanelPosition({ children }: { readonly children: ReactNode }): ReactElement {
+  return <Row className="absolute end-0 top-0 z-(--z-raised)">{children}</Row>;
+}
+
+interface FlankPresentation {
+  /** The room hosts plugin panels beside the transcript (a touch device holds them in the header sheet instead). */
+  readonly panelMode: boolean;
+  /** The column sits in the row, taking its share of the width, rather than over the transcript. */
+  readonly inline: boolean;
+  readonly expanded: boolean;
+  readonly toggle: () => void;
+}
+
+/** How the plugin column is shown. With room for the transcript to keep its reading floor beside it, it is inline
+ *  and open unless the user collapsed it (the plugin host's setting, so it holds across rooms and reloads). Without room it starts
+ *  collapsed to its edge tab and opens as an overlay for the moment, never reflowing the transcript. */
+function useFlankPresentation(): FlankPresentation {
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  const fits = useInlineFlankFits();
+  const host = useFlankHost();
+  const coarse = useCoarsePointer();
+  return {
+    panelMode: host.panels && !coarse,
+    inline: fits,
+    expanded: fits ? !host.collapsed : overlayOpen,
+    toggle: fits ? host.toggle : (): void => setOverlayOpen(!overlayOpen),
+  };
 }
 
 function RoomTranscriptSkeleton(): ReactElement {

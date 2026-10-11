@@ -138,6 +138,8 @@ export {
 } from "./embedder-rebuild.ts";
 export type { AppErrorBoundaryProps } from "./error-boundary.tsx";
 export { AppErrorBoundary } from "./error-boundary.tsx";
+export type { FlankHost } from "./flank-placement.ts";
+export { publishFlankHost, publishInlineFlankFit, useFlankHost, useInlineFlankFits } from "./flank-placement.ts";
 export type { SendRefusalKey } from "./injection-copy.ts";
 export {
   ADD_CONNECTION_PATH,
@@ -172,7 +174,6 @@ export {
   SWIPE_NEEDS_REPLY,
   sendUnavailableReason,
 } from "./injection-copy.ts";
-export { publishInlineFlankFit, useInlineFlankFits } from "./inline-flank-fit.ts";
 export { DEAD_INVITE_SENTENCE, inviteRoomSentence, memberCountPhrase } from "./invite-copy.ts";
 export type { ListPaneHeaderProps, ListPaneHeaderView, ListSearchPolicy } from "./list-pane-header-view.ts";
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";

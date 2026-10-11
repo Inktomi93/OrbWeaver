@@ -84,7 +84,7 @@ export const pluginComposerMediaSurface: ChatSurfaceContribution = {
 export const pluginChatSettingsSection: ChatSettingsSectionContribution = {
   id: "pluginChatSurfaces",
   anchor: "host-controls",
-  kicker: "Plugin panels",
+  kicker: "Plugin controls",
   defaultOpen: true,
   body: ({ chatId }): ReactElement | null => <PluginAnchoredSurfaces anchor="chat-settings-section" chatId={chatId} />,
 };
