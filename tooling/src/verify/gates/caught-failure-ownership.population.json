@@ -708,7 +708,7 @@
     {
       "siteId": "packages/client/src/lib/view-transition-settlement.ts::observeViewTransition.observe::settled::1",
       "verdict": "deliberate-absorb",
-      "reason": "platform AbortError/TimeoutError skips the visual transition; callback settlement never absorbs either. Every other unique rejection is rethrown on the microtask error surface. Ends if callers begin awaiting settlement."
+      "reason": "platform AbortError/TimeoutError/InvalidStateError skips the visual transition; callback settlement never absorbs any of them. Every other unique rejection is rethrown on the microtask error surface. Ends if callers begin awaiting settlement."
     },
     {
       "siteId": "packages/client/src/main.tsx::reportClientError::trpcClient.clientError.mutate::1",
