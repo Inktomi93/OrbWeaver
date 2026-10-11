@@ -99,6 +99,7 @@ function foreignFor(binding: Binding, db: Db, promptConfig: PromptConfig): Resol
     if (binding === "base") {
       const activeId = activePersonaIdFor({ trigger: args.trigger, anchorPersonaId: args.anchorPersonaId });
       const rows = await read({
+        chatId: args.chatId,
         personaIds: [args.anchorPersonaId, activeId].flatMap((id) => (id === null ? [] : [id])),
         allowedOwnerIds: args.presentHumanUserIds,
       });

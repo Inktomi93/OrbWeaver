@@ -5,9 +5,10 @@
 // Internal (non-front-door) files are imported by RELATIVE path — the package `./*` map only resolves a
 // module's directory front door, not a flat file.
 
-import { personas } from "@orb/db";
-import type { AssetId, CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
+import { chats, personas } from "@orb/db";
+import type { AssetId, CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { PersonaCharacterNotFoundError, PersonaNotFoundError } from "#server/domain/persona/contract/errors.ts";
 import {
@@ -16,8 +17,10 @@ import {
   ensurePersonaOwned,
   loadOwnedPersonaWithAvatar,
   loadPersonasForOwners,
+  loadPinnedPersonaView,
 } from "#server/domain/persona/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { seedChat } from "../../../../support/factories/chat.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedCharacter, seedUser } from "../_support.ts";
 
@@ -113,6 +116,41 @@ describe("metadata read seam (detailOf)", () => {
         [wrongPrefix, null],
       ]),
     );
+  });
+});
+
+// The room pin read takes a chat, never a persona id: scope rides `chats.anchorPersonaId`, so the only persona it
+// can return is the one that room pinned, whoever owns it (ADR 0314).
+describe("room pin read (loadPinnedPersonaView)", () => {
+  test("returns only the chat's own pin: another room's pinned persona, another owner's included, never comes back", async () => {
+    const db = await freshDb();
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
+    const hostPersona = await seedPersonaRow(db, host, { id: "persona_host" });
+    const strangerPersona = await seedPersonaRow(db, stranger, { id: "persona_stranger" });
+    const hostRoom = (await seedChat(db, { anchorPersonaId: hostPersona })).id;
+    const strangerRoom = (await seedChat(db, { anchorPersonaId: strangerPersona })).id;
+    const unpinnedRoom = (await seedChat(db)).id;
+
+    expect((await loadPinnedPersonaView(db, hostRoom))?.id).toBe(hostPersona);
+    expect((await loadPinnedPersonaView(db, strangerRoom))?.id).toBe(strangerPersona);
+    expect((await loadPinnedPersonaView(db, strangerRoom))?.ownerId).toBe(stranger);
+    expect(await loadPinnedPersonaView(db, unpinnedRoom)).toBeUndefined();
+    expect(await loadPinnedPersonaView(db, castId<ChatId>(mintTypeId(ID_PREFIX.chat)))).toBeUndefined();
+  });
+
+  test("reads the pin live: a re-pin moves the answer, and a cleared pin reads undefined", async () => {
+    const db = await freshDb();
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
+    const first = await seedPersonaRow(db, host, { id: "persona_first" });
+    const second = await seedPersonaRow(db, host, { id: "persona_second" });
+    const room = (await seedChat(db, { anchorPersonaId: first })).id;
+
+    await db.update(chats).set({ anchorPersonaId: second }).where(eq(chats.id, room));
+    expect((await loadPinnedPersonaView(db, room))?.id).toBe(second);
+
+    await db.update(chats).set({ anchorPersonaId: null }).where(eq(chats.id, room));
+    expect(await loadPinnedPersonaView(db, room)).toBeUndefined();
   });
 });
 

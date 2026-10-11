@@ -167,18 +167,31 @@ describe("createTurnPersonaResolver — the people projection", () => {
       ] as const
     ).map(([id, ownerId, name]) => [castId<PersonaId>(id), { id: castId<PersonaId>(id), ownerId, name, description: `${name}-DESC`, metadata: null }]),
   );
-  const resolve = createTurnPersonaResolver(({ personaIds, allowedOwnerIds, heldPersonaId }) =>
+  // The fake reads each room's pin from its own table, as the real op reads `chats.anchorPersonaId`.
+  const aliceRoom = castId<ChatId>("chat_alice_pinned");
+  const bobRoom = castId<ChatId>("chat_bob_pinned");
+  const pins: ReadonlyMap<ChatId, PersonaId> = new Map([
+    [aliceRoom, castId<PersonaId>("persona_alice")],
+    [bobRoom, castId<PersonaId>("persona_bob")],
+  ]);
+  const resolve = createTurnPersonaResolver(({ chatId, personaIds, allowedOwnerIds }) =>
     Promise.resolve(
       new Map(
         personaIds.flatMap((id): [PersonaId, PersonaListView][] => {
           const hit = personaRows.get(id);
-          return hit !== undefined && (allowedOwnerIds.includes(hit.ownerId) || id === heldPersonaId) ? [[id, hit]] : [];
+          return hit !== undefined && (allowedOwnerIds.includes(hit.ownerId) || id === pins.get(chatId)) ? [[id, hit]] : [];
         }),
       ),
     ),
   );
   const seat = (userId: UserId, personaId: PersonaId | null): HumanSeatPersona => ({ userId, personaId });
-  const base = { anchorPersonaId: castId<PersonaId>("persona_alice"), runAsUserId: host, trigger: { kind: "none" } as const, voice: "anchor" as const };
+  const base = {
+    chatId: aliceRoom,
+    anchorPersonaId: castId<PersonaId>("persona_alice"),
+    runAsUserId: host,
+    trigger: { kind: "none" } as const,
+    voice: "anchor" as const,
+  };
   const names = (people: readonly { readonly name: string }[] | undefined): readonly string[] | undefined => people?.map((p) => p.name);
 
   test("every other seat persona, in seat order, with the voice human excluded and a persona-less seat skipped", async () => {
@@ -201,6 +214,7 @@ describe("createTurnPersonaResolver — the people projection", () => {
   test("a pinned persona whose owner left still projects as the anchor, while the voice stays the host's", async () => {
     const out = await resolve({
       ...base,
+      chatId: bobRoom,
       anchorPersonaId: castId<PersonaId>("persona_bob"),
       presentHumanUserIds: [host],
       humanSeats: [seat(host, castId<PersonaId>("persona_alice"))],
