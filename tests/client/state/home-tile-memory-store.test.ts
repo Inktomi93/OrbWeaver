@@ -9,7 +9,7 @@ import {
   rememberHomeFootPaired,
   rememberHomeRegion,
   rememberHomeTileSettledHidden,
-} from "../../../packages/client/src/state/home-tile-memory-store.ts";
+} from "#client/state/home-tile-memory-store.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const ROSTERS = "rosterPreset.rosters";

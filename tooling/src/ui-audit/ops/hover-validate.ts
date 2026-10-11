@@ -4,7 +4,7 @@
 // number[]` over selector STRINGS, which silently disabled the restoration withholding), so every
 // shape the page hands back is VALIDATED here and a violation is a loud INSTRUMENT ERROR, never a
 // quietly dropped or quietly trusted sample.
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { GlowShadowInput, RadialGlowInput } from "../contract/samples.ts";
 import type { HoverCensusResult, HoverForcedReadRow, HoverGroupReadResult } from "../contract/samples-hover.ts";
 

@@ -113,7 +113,7 @@ catalog:
   # THE CORE PATCH CARRIES A SECOND, INDEPENDENT HUNK since #2505 (2026-09-20): `dist/src/utils/file-utils.js`
   # `findNodeModulesList`. That walk is a bare BFS over `readdir` rooted at `process.cwd()` (sandbox.js, under
   # Stryker's own `// TODO: Change with this.options.basePath when we have it`) and it consults NO Stryker
-  # option but `tempDirName` — so `ignorePatterns`, where `tooling/src/_shared/stryker-config.ts` already lists
+  # option but `tempDirName` — so `ignorePatterns`, where `tooling/src/floor/testing/stryker-config.ts` already lists
   # `.claude/**`, CANNOT REACH IT. Unfenced it finds `.claude/worktrees/<lane>/node_modules` and the sandbox
   # symlinks other agents' modules into the mutation run (reproduced against stock 10.0.0: with one planted
   # worktree the walk returned two of its trees), and a lane swept mid-walk turns an enumerated path into an

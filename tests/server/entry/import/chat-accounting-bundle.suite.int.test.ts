@@ -11,7 +11,7 @@ import { loadWorkload, runWorkload } from "@orb/server/domain/workloads";
 import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import type { PrincipalEnv } from "@orb/server/entry/http";
 import { registerExport, registerImportBundle } from "@orb/server/entry/http";
-import { parseChatBundleFile } from "@orb/server/kit/serde/chat-bundle";
+import { parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { onTestFinished } from "vitest";

@@ -70,7 +70,7 @@
 // `bus-payload-allowlist` descriptor at ddee5116a989e15ab36c7269ecd35eb9c8e45430, the parent of the conversion
 // `b6a112823f`; this module did not exist there, so it is measured against the module it was carved from,
 // `bus-payload-allowlist` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
-// the SAME 7,558 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// the SAME 7,558 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy
 // `scanRoot` admits 8 and final `population` admits 105. legacy − final = ∅. final − legacy = 97 `@contracts` sources
 // beyond the sibling's eight `BUS_FILES` — the same forced carrier widening. Controls: inside: no virtual sibling
 // fits the exact-path population, so the real shared member `packages/contracts/src/automation/index.ts` is the

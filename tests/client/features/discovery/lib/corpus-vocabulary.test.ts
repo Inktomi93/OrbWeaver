@@ -3,7 +3,7 @@
 // and the rendered halves are pinned by the surfaces that use them.
 
 import { describe } from "vitest";
-import { facetLabel, matchWord, percent, sentenceCase } from "../../../../../packages/client/src/features/discovery/lib/corpus-vocabulary.ts";
+import { facetLabel, matchWord, percent, sentenceCase } from "#client/features/discovery/lib/corpus-vocabulary.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("percent (P2-5)", () => {

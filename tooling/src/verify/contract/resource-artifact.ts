@@ -9,7 +9,7 @@
 //
 // THE VALIDATORS STAY WHERE THEY ARE. `validateTokenContractTexts` and the DevTools pin/manifest/licence
 // validation are unique algorithms owned by their gates (`packages/ui/token-contract.ts:757`,
-// `tooling/src/_shared/devtools-assets.ts`'s `adjudicateDevToolsClosure`). These doors own LOADING,
+// `tooling/src/floor/devtools/devtools-assets.ts`'s `adjudicateDevToolsClosure`). These doors own LOADING,
 // identity, refusal and the receipt — which is why each publishes the count the validator would otherwise
 // have to be trusted about: seven token texts, and the exact file/byte census of the closure.
 //
@@ -18,7 +18,7 @@
 // rather than re-spelled — two identical structural declarations would type-check forever and drift the
 // first time the census gains a field.
 import type { TokenContractTexts, TokenRemovalBaseline } from "@orb/ui/token-contract";
-import type { DevToolsClosureFile } from "../../_shared/devtools-assets.ts";
+import type { DevToolsClosureFile } from "../../floor/devtools/devtools-assets.ts";
 
 /** The canonical token bundle, by the same field names the validator takes. Keeping the SHAPE aligned with
  *  `TokenContractTexts` is what lets the consuming gate hand this straight to `validateTokenContractTexts`

@@ -4,12 +4,7 @@
 // two confirms quote it mid-sentence, and the revocation cause is a CLOSED dispatch that never echoes
 // anything the provider said.
 
-import {
-  keyRowSubtitle,
-  keySubject,
-  reuseSentence,
-  revokedReasonCopy,
-} from "../../../../../packages/client/src/features/credentials/lib/credential-key-model.ts";
+import { keyRowSubtitle, keySubject, reuseSentence, revokedReasonCopy } from "#client/features/credentials/lib/credential-key-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("a key names itself ONE way — the row's title and every action's subject are the same string", () => {

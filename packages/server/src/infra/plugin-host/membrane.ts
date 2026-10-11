@@ -64,7 +64,7 @@ import {
 import type { VarOp } from "@orb/kit/macro";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle } from "quickjs-emscripten-core";
 import { z } from "zod";
-import { superviseDetached } from "../../foundation/observability/tracing.ts";
+import { superviseDetached } from "#src/foundation/observability/tracing.ts";
 import {
   HOST_CALLS_IN_FLIGHT_MAX,
   HOST_FN_ARGS_MAX_BYTES,

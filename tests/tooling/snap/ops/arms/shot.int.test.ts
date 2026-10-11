@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import sharp from "sharp";
 import { vi } from "vitest";
 import type { CliResult } from "../../../../support/tool-fixtures.ts";

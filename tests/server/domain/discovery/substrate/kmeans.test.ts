@@ -2,7 +2,7 @@
 // (esoteric #6), and the k clamp.
 
 import { describe } from "vitest";
-import { kmeans } from "../../../../../packages/server/src/domain/discovery/substrate/kmeans.ts";
+import { kmeans } from "#server/domain/discovery/substrate/kmeans.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const v = (...xs: number[]): Float32Array => new Float32Array(xs);

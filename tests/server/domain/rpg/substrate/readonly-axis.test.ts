@@ -10,7 +10,7 @@ import {
   deriveTrackersReadOnly,
   hasStructuredWriter,
   structuredVehicleUnavailable,
-} from "../../../../../packages/server/src/domain/rpg/substrate/readonly-axis.ts";
+} from "#server/domain/rpg/substrate/readonly-axis.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A minimal capability with the two write-relevant axes toggleable. */

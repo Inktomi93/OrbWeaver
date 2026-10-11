@@ -15,8 +15,8 @@
 // leaves the chat with no game rather than half a campaign.
 
 import { rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnToolCalls } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, isConstraintViolation } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, isConstraintViolation } from "@orb/db/query";
 import type { RpgSnapshotId } from "@orb/kit/ids";
 import { asc, eq, inArray } from "drizzle-orm";
 import type {

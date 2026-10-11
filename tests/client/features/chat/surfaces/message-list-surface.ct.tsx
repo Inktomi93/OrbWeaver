@@ -27,12 +27,12 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { CharacterId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { contrastRatio } from "@orb/tooling/_shared/wcag";
+import { contrastRatio } from "@orb/tooling/floor/instrument/wcag";
 import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { MESSAGE_EDIT_NAME, VARIANT_GENERATE_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
-import { viewImageActionName } from "../../../../../packages/client/src/lib/row-qualifiers.ts";
+import { MESSAGE_EDIT_NAME, VARIANT_GENERATE_NAME } from "#client/features/chat/lib/message-action-names.ts";
+import { viewImageActionName } from "#client/lib/row-qualifiers.ts";
 import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
 import { corpusSceneSource } from "../../../../support/node/corpus-source.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
@@ -1513,7 +1513,7 @@ test("the ghost yields AT THE COMMIT — one row, never the canon row beside a s
 // the row's opaque card AND the body prose painted on it. Over the flat page background that is a dissolve
 // into the colour the reader is already looking at; over a background PHOTO the card dissolves and the
 // prose lands on the ART, measured at 1.29–3.34:1 across the top band with the first row clearing AA only
-// at y≈128. The rule is inert under the shell's `data-has-bg-image` flag now.
+// at y≈128. Under the shell's `data-has-bg-image` flag the band is one short step.
 //
 // WHY THIS IS A PIXEL ASSERTION AND NOT A COMPUTED-STYLE ONE — the finding's most reusable half: a mask is
 // PAINT. `elementFromPoint` + `getComputedStyle` report the fully-opaque cream card for every faded row, so
@@ -1557,15 +1557,15 @@ async function samplePixel(page: Page, x: number, y: number): Promise<{ readonly
 /** Scroll the thread off its top edge so `data-fade-top` arms, then sample a proven text-free inset
  * INSIDE the fade band. The old horizontal centre crossed the rendered message glyphs, so it compared
  * ink to CARD_RGB and called the expected dark text a leaking backdrop. */
-async function sampleTopBandPixel(page: Page, scroller: Locator): Promise<{ readonly r: number; readonly g: number; readonly b: number }> {
+async function sampleTopBandPixel(page: Page, scroller: Locator, offsetY = 8): Promise<{ readonly r: number; readonly g: number; readonly b: number }> {
   await scroller.evaluate((el: HTMLElement) => {
     el.scrollTop = 200;
   });
   await expect(scroller).toHaveAttribute("data-fade-top", "");
   await expect.poll(async () => scroller.boundingBox()).not.toBeNull();
   const box = await scroller.boundingBox();
-  // 8px below the top edge: deep inside the 10% (~40px) band, where the mask's alpha is ~0.2.
-  const point = { x: Math.round((box?.x ?? 0) + (box?.width ?? 0) - 24), y: Math.round((box?.y ?? 0) + 8) };
+  // `offsetY` below the top edge, inside the 10% (~40px) band. The default 8px is the line the edge cuts.
+  const point = { x: Math.round((box?.x ?? 0) + (box?.width ?? 0) - 24), y: Math.round((box?.y ?? 0) + offsetY) };
   const crossesText = await scroller.evaluate((element, sample) => {
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
@@ -1581,18 +1581,19 @@ async function sampleTopBandPixel(page: Page, scroller: Locator): Promise<{ read
   return await samplePixel(page, point.x, point.y);
 }
 
-test("EDGE FADE: over an art backdrop the thread's top band paints the CARD, not the art behind it", async ({ mount, page }) => {
+test("EDGE FADE: over an art backdrop only the cut line dissolves; below one section step the band paints the CARD", async ({ mount, page }) => {
   const component = await mount(<MessageListEdgeFadeStory artBackdrop={true} />);
   const scroller = component.locator(FADE_SCROLLER);
-  await expect(scroller).toHaveCSS("mask-image", "none");
-  const pixel = await sampleTopBandPixel(page, scroller);
+  const cut = await sampleTopBandPixel(page, scroller, 4);
+  const clear = await sampleTopBandPixel(page, scroller, 36);
 
-  // The backdrop is pure green; the card is cream. A dissolved card reads green-dominant. This asserts the
-  // sampled pixel IS the card — within a generous tolerance, because this fences "does the art show
-  // through", not the card's exact hue.
-  expect(Math.abs(pixel.r - CARD_RGB.r)).toBeLessThan(24);
-  expect(Math.abs(pixel.g - CARD_RGB.g)).toBeLessThan(24);
-  expect(Math.abs(pixel.b - CARD_RGB.b)).toBeLessThan(24);
+  // The backdrop is pure green; the card is cream. The card's blue channel is the gauge: the line the edge
+  // cuts is gone, and past the short band (one section step, 24px) the pixel IS the card, not the art. The
+  // tolerance fences "does the art show through", not the card's exact hue.
+  expect(cut.b, "4px under the edge the card has dissolved").toBeLessThan(40);
+  expect(Math.abs(clear.r - CARD_RGB.r)).toBeLessThan(24);
+  expect(Math.abs(clear.g - CARD_RGB.g)).toBeLessThan(24);
+  expect(Math.abs(clear.b - CARD_RGB.b)).toBeLessThan(24);
 });
 
 test("EDGE FADE CONTROL: the same probe DOES see the dissolve where the fade is still live", async ({ mount, page }) => {
@@ -1605,6 +1606,21 @@ test("EDGE FADE CONTROL: the same probe DOES see the dissolve where the fade is 
 
   // Green pulls far away from the cream card's blue channel long before it reaches the backdrop.
   expect(pixel.b).toBeLessThan(CARD_RGB.b - 24);
+});
+
+// The line the top edge cuts must read as gone, not half drawn: the band eases in, so the first stretch
+// under the edge (about a line) paints almost nothing, and the band still ramps up to the full card by its
+// far side. A linear ramp left that first stretch a fifth of the way up, which drew the cut line as a dim
+// half-glyph under the toolbar.
+test("EDGE FADE: the line the top edge cuts is gone, and the band still ramps up to the card", async ({ mount, page }) => {
+  const component = await mount(<MessageListEdgeFadeStory artBackdrop={false} />);
+  const scroller = component.locator(FADE_SCROLLER);
+  const cut = await sampleTopBandPixel(page, scroller, 8);
+  const clear = await sampleTopBandPixel(page, scroller, 36);
+
+  // The card's blue channel is the dissolve gauge (the backdrop has none): near 0 = backdrop, 227 = card.
+  expect(cut.b, "8px under the edge the card has all but dissolved").toBeLessThan(20);
+  expect(clear.b, "36px under the edge (of a ~40px band) the card is nearly back").toBeGreaterThan(CARD_RGB.b * 0.6);
 });
 
 // ── THE LOADING STATE MUST BE LEGIBLE OVER ART (#468) ─────────────────────────────────────────────
@@ -2035,7 +2051,7 @@ test("#113 a turn taller than the scrollport pins its speaker row to the top of 
 // ink. The page here is light and the row is the dark default theme: the same pairing, with honest inks.
 const LIGHT_PAGE = "html, body { background: oklch(0.98 0.004 75) !important; }";
 
-test("a pinned speaker band keeps AA contrast over a light page: the top fade stands down while it is pinned", async ({ mount, page }) => {
+test("a pinned speaker band keeps AA contrast over a light page: the top fade starts under it", async ({ mount, page }) => {
   const tall = makeMessageView({ id: castId<MessageId>("msg_tall_light"), role: "assistant", kind: "narrator", content: TALL_BODY, seq: 1 });
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage([tall]) });
   await routeOrbSocket(page, { frames: [], awaitAttaches: 0 });
@@ -2051,7 +2067,13 @@ test("a pinned speaker band keeps AA contrast over a light page: the top fade st
   // Scrolled deep into the turn: content lies above the edge, and the band is what covers it.
   await expect.poll(() => scroller.evaluate((el: HTMLElement) => el.scrollTop)).toBeGreaterThan(0);
   await expect.poll(async () => (await pixelContrast(page, name)).ratio).toBeGreaterThanOrEqual(4.5);
-  await expect(scroller).not.toHaveAttribute("data-fade-top");
+  // The fade stays on and starts under the pinned band, so the line cut at its bottom edge dissolves too.
+  await expect(scroller).toHaveAttribute("data-fade-top", "");
+  const bandBottom = await component.locator(STUCK_NAME_ROW).evaluate((el: HTMLElement) => el.getBoundingClientRect().bottom);
+  const scrollerTop = await scroller.evaluate((el: HTMLElement) => el.getBoundingClientRect().top);
+  await expect
+    .poll(() => scroller.evaluate((el: HTMLElement) => Number.parseFloat(el.style.getPropertyValue("--mask-top-inset"))))
+    .toBeCloseTo(bandBottom - scrollerTop, 0);
 });
 
 test("#113 CONTROL: a short turn is left alone — no sticky, no chip, no measured height change", async ({ mount, page }) => {

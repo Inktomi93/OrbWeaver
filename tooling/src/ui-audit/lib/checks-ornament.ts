@@ -1,8 +1,8 @@
 // Ornament censuses: radial-gradient washes, decorative stripe/grid patterns, icon tiles above
 // headings, static motion offenders. Pure. Provenance: lib/collect.ts header.
 
-import type { Rgb } from "@orb/tooling/_shared/wcag";
-import { rgbChroma } from "@orb/tooling/_shared/wcag";
+import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
+import { rgbChroma } from "@orb/tooling/floor/instrument/wcag";
 import type { CandidateDisposition, Finding } from "../contract/findings.ts";
 import type { BgPatternInput, IconTileInput, MotionStaticInput, RadialGlowInput } from "../contract/samples.ts";
 import { findColorToken } from "./css-color.ts";

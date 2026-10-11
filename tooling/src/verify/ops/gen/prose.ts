@@ -13,8 +13,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { PROSE_SLOT_IDS, PROSE_SLOTS } from "@orb/contracts/prose";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 
 refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts baseline prose");
 

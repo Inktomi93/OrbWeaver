@@ -11,10 +11,10 @@
 
 import { buildWeb, WEAVE_TIMELINE } from "@orb/ui/web-weave";
 import { describe } from "vitest";
-import type { SpiderPose } from "../../../../packages/ui/src/art/web-weave/web-weave-character.ts";
-import { burstEase, WEAVE_CHARACTER_PRESETS } from "../../../../packages/ui/src/art/web-weave/web-weave-character.ts";
-import type { SpiderTracker } from "../../../../packages/ui/src/art/web-weave/web-weave-spider.ts";
-import { idleTwitchPhase, spiderPose } from "../../../../packages/ui/src/art/web-weave/web-weave-spider.ts";
+import type { SpiderPose } from "#ui/art/web-weave/web-weave-character.ts";
+import { burstEase, WEAVE_CHARACTER_PRESETS } from "#ui/art/web-weave/web-weave-character.ts";
+import type { SpiderTracker } from "#ui/art/web-weave/web-weave-spider.ts";
+import { idleTwitchPhase, spiderPose } from "#ui/art/web-weave/web-weave-spider.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 /** The default character — the motion the component shipped with. */

@@ -17,8 +17,8 @@ import {
   worldBooks as worldBooksTable,
   worldBookTags,
 } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, fetchOwned } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, fetchOwned } from "@orb/db/query";
 import type { CharacterId, TagId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, notExists, sql } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";

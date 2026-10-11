@@ -1,11 +1,11 @@
 // The one dispatch behind `pnpm stack`, `pnpm start`, `pnpm share` and `pnpm fixture`: parse, build the
 // stack's context from the ambient env, and hand the verb to its op.
-import { REPO_ROOT } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { ExitCode } from "../../_shared/exit-contract.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { warn } from "../../_shared/log.ts";
-import { inheritedProcessEnv } from "../../_shared/process-env.ts";
+import { REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { ExitCode } from "../../floor/cli/exit-contract.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { warn } from "../../floor/cli/log.ts";
+import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import type { StackContext, StackInvocation } from "../contract/types.ts";
 import { parseStackCommand, STACK_USAGE } from "../lib/argv.ts";
 import { envFilePath, readEnvText } from "../lib/env-file.ts";

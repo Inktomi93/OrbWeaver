@@ -8,8 +8,8 @@
 import type { ProcessMacroOptions, UserMacroDef } from "@orb/kit/macro";
 import { createMacroContext } from "@orb/kit/macro";
 import { describe } from "vitest";
-import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros.ts";
-import type { TurnUserMacros } from "../../../../../packages/server/src/domain/chat/contract/assembly-macros.ts";
+import { buildTurnUserMacros } from "#server/domain/chat/assembly/user-macros.ts";
+import type { TurnUserMacros } from "#server/domain/chat/contract/assembly-macros.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** Assert-and-narrow: `buildTurnUserMacros` returns `TurnUserMacros | null`; every non-empty-defs test

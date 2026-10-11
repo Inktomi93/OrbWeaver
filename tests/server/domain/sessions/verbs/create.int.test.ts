@@ -6,7 +6,7 @@ import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { createTokenHasher } from "../../../../../packages/server/src/domain/sessions/tokens/tokens.ts";
+import { createTokenHasher } from "#server/domain/sessions/tokens/tokens.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

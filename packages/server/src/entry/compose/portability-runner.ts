@@ -38,7 +38,7 @@ import type { WorkloadService } from "#domain/workloads";
 import { WORKLOAD_NOT_ADMISSIBLE } from "#domain/workloads";
 import type { AttachOwnedBooksByName, ImportStandaloneLorebook, WorldInfoExportContext } from "#domain/world-info";
 import { stageDirectory } from "#infra/storage";
-import { publishChatChanged, publishUserEvent, withQuietBulkFanout } from "../../transport/trpc/index.ts";
+import { publishChatChanged, publishUserEvent, withQuietBulkFanout } from "#transport/trpc";
 import { writeImportReport } from "../import/import-report.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
 import {

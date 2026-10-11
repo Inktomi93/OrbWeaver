@@ -48,12 +48,12 @@ vi.stubEnv("VLLM_DISABLED", "true");
 vi.stubEnv("LOCAL_LIGHT_PREFETCH", "off");
 vi.stubEnv("EGRESS_ALLOWLIST", "localhost");
 
-const { createLifecycle } = await import("../../../packages/server/src/entry/lifecycle.ts").catch((error: unknown) => {
+const { createLifecycle } = await import("#server/entry/lifecycle.ts").catch((error: unknown) => {
   rmSync(TEMP_DIR, { force: true, recursive: true });
   throw error;
 });
-const { loopbackOrigin } = await import("../../../packages/server/src/foundation/env/index.ts");
-const { startTlsTerminator } = await import("../../../packages/server/src/infra/network/index.ts");
+const { loopbackOrigin } = await import("#server/foundation/env/index.ts");
+const { startTlsTerminator } = await import("#server/infra/network/index.ts");
 
 const relaySeams = fakeRelaySeams();
 const lifecycle = createLifecycle({ listenPort: 0, relaySeams });

@@ -5,7 +5,7 @@
 // measured nothing is NAMED above the verdict line, because the failure count alone cannot tell a
 // broken instrument from a real red.
 import process from "node:process";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import type { StageResult, Tier, VerifyReport } from "../contract/stage.ts";
 import { RUNNABLE_VERIFY_TIERS } from "../contract/stage.ts";
 import { producedNoVerdict } from "./exit-classifiers.ts";

@@ -1,8 +1,8 @@
 import type { GenerationCapability, ProviderId } from "@orb/contracts/inference";
 import { castId } from "@orb/kit/ids";
-import { detectModelFamily } from "../../../../../packages/inference/src/capability/families.ts";
-import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
-import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
+import { detectModelFamily } from "#inference/capability/families.ts";
+import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function cacheTurns(model: string, provider: string): GenerationCapability["turns"] {

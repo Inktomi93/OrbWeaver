@@ -5,11 +5,11 @@
 // PLANTED CONTROLS, BOTH DIRECTIONS, for every fence:
 //  • the reap arm is the POSITIVE control that makes each fence meaningful — the same row that a live
 //    session, a connected client or a reserved port protects IS reaped once that one fact is removed;
-//  • the RESERVED fence is asserted against the real `_shared/ports.ts` dev pair, not a made-up number, so
+//  • the RESERVED fence is asserted against the real `floor/host/ports.ts` dev pair, not a made-up number, so
 //    a future port move cannot leave this passing against a port nobody owns;
 //  • the identity rule gets both halves: a row naming a DIFFERENT live keeper releases, and a row naming a
 //    DEAD one is ADOPTED rather than released (the arming race, and the self-heal for a killed timer).
-import { DEV_PORTS, stageBandPorts } from "@orb/tooling/_shared/ports";
+import { DEV_PORTS, stageBandPorts } from "@orb/tooling/floor/host/ports";
 import type { StageKeeperEvidence, StageRow } from "@orb/tooling/snap";
 import {
   describeStageKeeper,

@@ -2,7 +2,7 @@
 // a tooling program at exactly ONE place and flows DOWN as a `readonly string[]` parameter. A `process.argv`
 // read is legal only in a tool's `cli.ts` — derived by SHAPE (`tooling/src/<tool>/cli.ts`), so a cli.ts that
 // moves reds at its new path — or in a censused ENTRY: the node half a `.sh` execs, which has no cli.ts by
-// §2.5, plus `_shared/entrypoint.ts`, whose subject is `argv[1]` (the ENTRY IDENTITY), never the operator's
+// §2.5, plus `floor/cli/entrypoint.ts`, whose subject is `argv[1]` (the ENTRY IDENTITY), never the operator's
 // flags. A library reading the GLOBAL argv makes its behaviour depend on how the process was started: it
 // cannot be driven at its own seam, it silently re-admits flags the front door refused, and two callers of
 // the same helper get different answers. Comment posture: comment-SAFE (node kinds only).
@@ -54,7 +54,7 @@
 // Legacy descriptor: `29d09f0697` (`tooling/src/verify/gates/tooling-argv-front-door.ts`). No private marker
 // grammar; zero live `@orb-gate-ignore tooling-argv-front-door` markers at conversion (rg over packages/,
 // tests/, tooling/, scripts/), so no translation was owed. The `isGovernedArgvEntry` door the legacy
-// exported for `tests/tooling/_shared/entrypoint.int.test.ts` is gone with the table: that twin derives the
+// exported for `tests/tooling/floor/cli/entrypoint.int.test.ts` is gone with the table: that twin derives the
 // governed entries from `REVIEWED_GRANTS` itself.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
@@ -62,8 +62,8 @@
 // `24ed572f1c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `29d09f0697`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,445 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,105 and final `population` admits 1,105.
-// legacy − final = ∅. final − legacy = ∅. Controls: inside `tooling/src/_shared/__cbbhr_in_appearance-flags.ts`
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,105 and final `population` admits 1,105.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside `tooling/src/floor/appearance/__cbbhr_in_appearance-flags.ts`
 // (virtual) admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by
 // both.
 import { SyntaxKind } from "ts-morph";

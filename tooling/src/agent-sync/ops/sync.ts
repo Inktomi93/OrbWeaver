@@ -3,8 +3,8 @@
 // a stale role manifest is a role Codex can still dispatch after the role was deleted.
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { REPO_ROOT } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { AgentSyncResult } from "../contract/types.ts";
 import { parseClaudeAgent, parseFrontmatter } from "../lib/frontmatter.ts";
 import { isFamilyModel, resolveRoleModels } from "../lib/model-resolution.ts";

@@ -21,8 +21,8 @@
 import type { ApplyStatsDelta, BumpStatsCanonVersion, StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characterStats, dailyStats, modelStats, ownerStats, statsCanonVersions } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchStmt } from "@orb/db/query";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { MODEL_PROVIDER_UNKNOWN } from "@orb/kit/stats-tally";
 import { sql } from "drizzle-orm";

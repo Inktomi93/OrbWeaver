@@ -10,7 +10,7 @@ import type { AuthConfigShare, AuthMode, UserRole } from "@orb/contracts/identit
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { AuthConfig } from "../../../../../packages/client/src/data/auth-config.ts";
+import type { AuthConfig } from "#client/data/auth-config.ts";
 import { auditRenderedTextContrast } from "../../../../support/browser/pixel-contrast.ts";
 import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";

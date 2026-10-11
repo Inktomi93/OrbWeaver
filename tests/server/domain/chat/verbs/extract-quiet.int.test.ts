@@ -15,7 +15,7 @@ import { parseIanaTimeZone } from "@orb/kit/time";
 import type { ChatUserMacroDefs } from "@orb/server/domain/chat";
 import { createExtractQuiet } from "@orb/server/domain/chat";
 import { describe } from "vitest";
-import type { SummarizeOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
+import type { SummarizeOp } from "#server/domain/chat/contract/context.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";

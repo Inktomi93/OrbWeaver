@@ -51,14 +51,14 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import process from "node:process";
-import { adoptRunSlot } from "@orb/tooling/_shared/artifact-out";
-import type { RunSlot } from "@orb/tooling/_shared/artifacts";
-import { publishRunSlot, transferRunSlotOwnership } from "@orb/tooling/_shared/artifacts";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { LOAD_SUSPECT_ANNOTATION } from "@orb/tooling/_shared/load-budget";
-import { readBudgetRows } from "@orb/tooling/_shared/ratchet-rows";
+import { adoptRunSlot } from "@orb/tooling/floor/artifacts/artifact-out";
+import type { RunSlot } from "@orb/tooling/floor/artifacts/artifacts";
+import { publishRunSlot, transferRunSlotOwnership } from "@orb/tooling/floor/artifacts/artifacts";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { LOAD_SUSPECT_ANNOTATION } from "@orb/tooling/floor/host/load-budget";
+import { readBudgetRows } from "@orb/tooling/floor/verdict/ratchet-rows";
 import type { FullResult, Reporter, Suite, TestCase, TestResult } from "@playwright/test/reporter";
-import { NATIVE_TIMING_CASE_ANNOTATION, TIMING_CAPABILITY_ANNOTATION, TIMING_MEASUREMENT_ANNOTATION } from "../../_shared/timing-capability.ts";
+import { NATIVE_TIMING_CASE_ANNOTATION, TIMING_CAPABILITY_ANNOTATION, TIMING_MEASUREMENT_ANNOTATION } from "../../floor/host/timing-capability.ts";
 import type {
   CtFlakyTest,
   CtLoadSuspectTest,
@@ -162,7 +162,7 @@ function announceUnstubbed(byFile: ReadonlyMap<string, ReadonlySet<string>>): vo
 }
 
 /** Print the LOAD-SUSPECT arms (#1232 §7.1 as amended by #1616). A CT whose verdict is a measured RATE now
- *  MEASURES on a contended box and LABELS the number (`annotateRateLoad`, _shared/load-budget.ts) — but a
+ *  MEASURES on a contended box and LABELS the number (`annotateRateLoad`, floor/host/load-budget.ts) — but a
  *  bare annotation is INVISIBLE in a green bar, which is the same disappearing act this reporter exists to
  *  end for retry-masked flakes. So each one is announced by name with the loadavg that caused it.
  *

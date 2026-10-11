@@ -5,9 +5,9 @@
 // check would red.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { referenceProblems } from "../../_shared/prose-references.ts";
-import { glossaryWords, proseFindings } from "../../_shared/prose-rules.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { referenceProblems } from "../../floor/prose/prose-references.ts";
+import { glossaryWords, proseFindings } from "../../floor/prose/prose-rules.ts";
 import type { DocEdit, GovernedDoc } from "../contract/types.ts";
 import { allItems } from "../lib/generated.ts";
 import { docProblems } from "../lib/rules.ts";

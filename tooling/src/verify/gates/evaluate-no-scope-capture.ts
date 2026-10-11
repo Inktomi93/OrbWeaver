@@ -69,14 +69,14 @@
 // `71c52aa677` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `(pruned from public history)`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,437 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,101 and final `population` admits 1,101.
-// legacy − final = ∅. final − legacy = ∅. Controls: inside `tooling/src/_shared/__cbbhr_in_appearance-flags.ts`
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,101 and final `population` admits 1,101.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside `tooling/src/floor/appearance/__cbbhr_in_appearance-flags.ts`
 // (virtual) admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by
 // both.
 import type { Identifier, SourceFile, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
-import { resolveCallableDeclaration } from "../../_shared/reference-fact-call.ts";
+import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
+import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 

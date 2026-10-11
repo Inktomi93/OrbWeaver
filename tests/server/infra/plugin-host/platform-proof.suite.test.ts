@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import process from "node:process";
-import { pluginBrokerExecArgv } from "../../../../packages/server/src/infra/plugin-host/process-permission.ts";
+import { pluginBrokerExecArgv } from "#server/infra/plugin-host/process-permission.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { runPluginBrokerPlatformProof } from "./_platform-proof.ts";
 

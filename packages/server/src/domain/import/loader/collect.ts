@@ -13,10 +13,10 @@ import { regexScriptCardSchema } from "@orb/contracts/regex";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
-import { chatContentHash, parseChatJsonl } from "#kit/serde/chat";
-import { portableParseError } from "#kit/serde/lib";
-import { parseThemeFile, THEME_SCHEMA_KIND } from "#kit/serde/theme";
-import { parseWorldBookFile } from "#kit/serde/world-info";
+import { chatContentHash, parseChatJsonl } from "#primitives/serde/chat";
+import { portableParseError } from "#primitives/serde/lib";
+import { parseThemeFile, THEME_SCHEMA_KIND } from "#primitives/serde/theme";
+import { parseWorldBookFile } from "#primitives/serde/world-info";
 import { ImportInfraFailureError, ProfileImportLimitError } from "../contract/errors.ts";
 import type {
   CollectedBackground,

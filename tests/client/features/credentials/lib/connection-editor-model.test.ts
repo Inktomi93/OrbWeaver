@@ -9,7 +9,7 @@
 import type { Capability, DeclaredCapability, EndpointFeatures } from "@orb/contracts/inference";
 import { declaredCapabilitySchema, RERANK_MIN_WINDOW_TOKENS, SUMMARIZE_CONCURRENCY_MAX } from "@orb/contracts/inference";
 import { describe } from "vitest";
-import { capabilityFactRows } from "../../../../../packages/client/src/features/credentials/lib/connection-capability-fact-model.ts";
+import { capabilityFactRows } from "#client/features/credentials/lib/connection-capability-fact-model.ts";
 import {
   beltKeyGloss,
   capabilityBadges,
@@ -24,8 +24,8 @@ import {
   purposeNotes,
   rowsFromExtras,
   rowWithReadValue,
-} from "../../../../../packages/client/src/features/credentials/lib/connection-editor-model.ts";
-import type { FactRow } from "../../../../../packages/client/src/features/credentials/lib/connection-fact-model.ts";
+} from "#client/features/credentials/lib/connection-editor-model.ts";
+import type { FactRow } from "#client/features/credentials/lib/connection-fact-model.ts";
 import {
   boundRefusal,
   parseFactValue,
@@ -34,7 +34,7 @@ import {
   quirkFactRows,
   withDeclaredOverride,
   withoutDeclaredOverride,
-} from "../../../../../packages/client/src/features/credentials/lib/connection-fact-model.ts";
+} from "#client/features/credentials/lib/connection-fact-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const VLLM_FEATURES = {

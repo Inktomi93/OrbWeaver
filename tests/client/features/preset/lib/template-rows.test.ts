@@ -11,7 +11,7 @@ import {
   templateGroups,
   templateRowById,
   templateRowMatches,
-} from "../../../../../packages/client/src/features/preset/lib/template-rows.ts";
+} from "#client/features/preset/lib/template-rows.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("the partition is TOTAL and disjoint: every registry def lands exactly once, flat or banded", () => {

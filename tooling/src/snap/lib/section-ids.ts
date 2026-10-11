@@ -1,9 +1,9 @@
 // The client router's first-segment vocabulary, read as TEXT from the client's own source (the rail
 // sections and the router's static routes): tooling may not import the client package, the same reason
-// `_shared/argv.ts`'s `--goto` grammar reads `SECTION_IDS` this way.
+// `floor/instrument/argv.ts`'s `--goto` grammar reads `SECTION_IDS` this way.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 

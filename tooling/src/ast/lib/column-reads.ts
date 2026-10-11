@@ -2,8 +2,8 @@
 // classification + candidate collection.
 import type { SourceFile, Type } from "ts-morph";
 import { Node, SyntaxKind, ts } from "ts-morph";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
-import { canonicalCompilerPath } from "../../_shared/ts-workspace.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
+import { canonicalCompilerPath } from "../../floor/compiler/ts-workspace.ts";
 import type { ColumnAudit, ColumnCandidate, ColumnClass, ColumnDef, ProducerlessTableCandidate, TableDef } from "../contract/types.ts";
 import { byProdFirst, relPath } from "../ops/swallowed.ts";
 import { memberReadOf } from "../ops/wiring.ts";

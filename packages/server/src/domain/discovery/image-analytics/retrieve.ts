@@ -20,7 +20,7 @@ import type { ImageCaptionMeta, ImageFacetMetaKey } from "@orb/contracts/embeddi
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
-import { sha256Hex } from "#kit/content-hash";
+import { sha256Hex } from "#primitives/content-hash";
 import type { DiscoveryContext } from "../context.ts";
 import type { ArchetypeMember, ImageDuplicatePair, VisualArchetype } from "../contract/results.ts";
 import type { DiscoveryService } from "../contract/service.ts";

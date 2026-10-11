@@ -4,7 +4,7 @@
 // a unique credentialId — the underlying cache is a module-scope singleton.
 
 import { describe } from "vitest";
-import { beginProbe, recordStrike, resetStrikes } from "../../../../../packages/server/src/domain/credentials/substrate/health-throttle.ts";
+import { beginProbe, recordStrike, resetStrikes } from "#server/domain/credentials/substrate/health-throttle.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("beginProbe", () => {

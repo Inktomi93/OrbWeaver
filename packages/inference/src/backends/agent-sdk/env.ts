@@ -9,7 +9,7 @@
 
 import type { ClaudeIsolationPinKey } from "@orb/contracts/preset";
 import { HOST_OWNED_CLAUDE_ENV_KEYS, isAllowedClaudeRuntimeEnvKey } from "@orb/contracts/preset";
-import { ProviderError } from "../../contract/errors.ts";
+import { ProviderError } from "#contract";
 
 /** The documented headless subscription credential env (`claude setup-token`).
  *  @public Test-anchored module surface; the firewall's env spec pins this key by name. */

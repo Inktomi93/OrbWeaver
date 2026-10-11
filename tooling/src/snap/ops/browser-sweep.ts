@@ -1,7 +1,7 @@
 // SNAP'S ONE BROWSER SWEEP ENTRY (#1848) — every path that ends a snap workload comes through here, so a
 // Chromium can never outlive the run that launched it.
 //
-// THE DEFECT. `_shared/browser.ts` launches through `chromium.launch` / `launchPersistentContext`, and
+// THE DEFECT. `floor/browser/browser.ts` launches through `chromium.launch` / `launchPersistentContext`, and
 // Playwright gives each browser its OWN session: a normal exit closes it (`closeProbeSession`) and the
 // session daemon handles SIGTERM, but a snap killed any other way — SIGKILL, a stage timeout, a lane's
 // worktree torn down under it — leaves the browser running with nothing pointing at it. That is the same
@@ -9,7 +9,7 @@
 // this box on 2026-09-06. The owner's ruling: "orphaned chromiums are not acceptable."
 //
 // WHAT IT MAY KILL, AND WHY THAT IS SAFE. Only a process whose `/proc/<pid>/environ` carries a RUN MARKER
-// whose OWNER PID IS GONE (`_shared/run-marker.ts`). A live sibling lane's fleet has a live owner and is
+// whose OWNER PID IS GONE (`floor/process/run-marker.ts`). A live sibling lane's fleet has a live owner and is
 // never touched; a process this run started is reaped by its own exit path. Killing "every
 // chrome-headless" by name is precisely the harm this closes, so the sweep never asks what a process IS —
 // only which dead run started it.
@@ -18,9 +18,9 @@
 // teardown (`ops/stage-teardown.ts`, which the idle keeper, `--stage-down` and the boot-dead arm all run
 // through), `--stage-sweep`, and the session daemon's shutdown. The processes it reaches have already
 // outlived everything that could be waiting on them, so a TERM grace would buy nothing.
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { RunMarkerDeps } from "../../_shared/run-marker.ts";
-import { describeRunMarkerSweep, sweepAbandonedRunMarkersNow, sweepRunMarkerNow } from "../../_shared/run-marker.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { RunMarkerDeps } from "../../floor/process/run-marker.ts";
+import { describeRunMarkerSweep, sweepAbandonedRunMarkersNow, sweepRunMarkerNow } from "../../floor/process/run-marker.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 

@@ -13,18 +13,18 @@
 // time and measures frames DURING the interaction, not after a settle. Coverage of gesture-driven
 // surfaces (drawer swipe, drag-reorder release) therefore requires live manual measurement or a
 // purpose-built gesture-audit instrument — it cannot be bolted onto this tool's reach queue.
-import type { AppearancePatch } from "@orb/tooling/_shared/appearance";
-import type { Viewport } from "@orb/tooling/_shared/argv";
-import type { BrowserEnvironmentEvidence } from "@orb/tooling/_shared/browser-environment";
-import type { NavMethod } from "@orb/tooling/_shared/nav";
-import type { ThemeRequest } from "@orb/tooling/_shared/theme";
+import type { AppearancePatch } from "@orb/tooling/floor/appearance/appearance";
+import type { ThemeRequest } from "@orb/tooling/floor/appearance/theme";
+import type { BrowserEnvironmentEvidence } from "@orb/tooling/floor/browser/browser-environment";
+import type { Viewport } from "@orb/tooling/floor/instrument/argv";
+import type { NavMethod } from "@orb/tooling/floor/instrument/nav";
 
 /** One pre-trace REACH action, in argv order: a DOM click or a dev-bridge navigation. Never measured —
  *  see the header's reach-vs-measure note. */
 type ReachAction = { kind: "click"; selector: string } | { kind: "nav"; method: NavMethod; target: string };
 
 export interface Args {
-  /** `--help`/`-h` (HELP_FLAGS, `_shared/instrument-argv.ts`): print `MOTION_AUDIT_HELP` and exit 0 —
+  /** `--help`/`-h` (HELP_FLAGS, `floor/instrument/instrument-argv.ts`): print `MOTION_AUDIT_HELP` and exit 0 —
    *  before this family, `--help` was an unknown flag and exited 3 (measured 8 hits, design §1 P5). */
   help: boolean;
   route: string;
@@ -54,14 +54,14 @@ export interface Args {
   json: boolean;
   vnc: boolean;
   throttle: boolean;
-  /** `--appearance`/`--appearance-preset`/`--full-motion`: the app-SETTING shim (_shared/appearance.ts).
+  /** `--appearance`/`--appearance-preset`/`--full-motion`: the app-SETTING shim (floor/appearance/appearance.ts).
    *  This is independent of `osReducedMotion`: the former owns the app carrier, while the latter owns the
    *  browser media query. null = the account's real app state. */
   appearance: AppearancePatch | null;
   /** `--theme <name|id|none>`: the ACTIVE THEME this run pretends is selected, shimmed over the same
-   *  `settings.getUserSettings` response (never written — _shared/theme.ts). null = the account's own theme. */
+   *  `settings.getUserSettings` response (never written — floor/appearance/theme.ts). null = the account's own theme. */
   theme: ThemeRequest | null;
-  /** `--session <name>` (#1285, WHERE_FLAGS `_shared/instrument-argv.ts`): attach to a live snap
+  /** `--session <name>` (#1285, WHERE_FLAGS `floor/instrument/instrument-argv.ts`): attach to a live snap
    *  session's browser instead of launching a fresh one — null = launch (today's behaviour, unchanged). */
   session: string | null;
   /** CLI misuse collected without side effects; any entry means EXIT.misuse (3) before a browser boots. */

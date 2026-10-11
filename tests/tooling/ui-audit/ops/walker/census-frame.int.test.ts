@@ -23,7 +23,7 @@ import { join } from "node:path";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 import { AUDIT_ARGV, RELATIONAL_CLI_TIMEOUT_MS } from "../../../../support/ui-audit-relational.ts";
 
-/** The refusal's own headline, as `_shared/evidence.ts` renders an EvidenceGap. */
+/** The refusal's own headline, as `floor/verdict/evidence.ts` renders an EvidenceGap. */
 const FRAME_REFUSAL = "the page's frame against the viewport it was judged at is ABSENT — this run is not a verdict";
 
 /** DELIBERATELY NOT `relationalDocument` — that helper wraps its body in a `<main>`, and a wrapper

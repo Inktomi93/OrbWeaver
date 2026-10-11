@@ -7,7 +7,7 @@ import { worldBooks } from "@orb/db";
 import type { UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { createListOwnedBookIds } from "../../../../../packages/server/src/domain/world-info/verbs/list-owned-book-ids.ts";
+import { createListOwnedBookIds } from "#server/domain/world-info/verbs/list-owned-book-ids.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

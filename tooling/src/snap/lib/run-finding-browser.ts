@@ -2,8 +2,8 @@
 // console-annotation parser and diagnostic-draft reader live in run-finding-console-annotation.ts
 // (moved out to hold the 450-line cap); re-exported here so callers keep one import surface.
 
-import { aggregateDimension, exactDimension, exactScope, pageIndex, scopeV1 } from "../../_shared/artifact-scope.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { aggregateDimension, exactDimension, exactScope, pageIndex, scopeV1 } from "../../floor/artifacts/artifact-scope.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { DriveFailure } from "../contract/actions.ts";
 import type { SnapFindingEvidenceRef, SnapRunArtifact } from "../contract/run-index.ts";
 import type { FindingDraft } from "./run-finding-common.ts";

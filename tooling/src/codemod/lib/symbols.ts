@@ -1,8 +1,8 @@
 // Symbol & reference + rename operations (TypeScript's reference engine).
 // ── §11 ─ Symbol & reference operations ──────────────────────────────────────
 
-import type { SemanticSourceView } from "@orb/tooling/_shared/ts-workspace";
-import { canonicalCompilerPath } from "@orb/tooling/_shared/ts-workspace";
+import type { SemanticSourceView } from "@orb/tooling/floor/compiler/ts-workspace";
+import { canonicalCompilerPath } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { Project, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { CodemodContext, OperationOptions, Plan } from "../contract/types.ts";

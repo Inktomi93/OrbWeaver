@@ -1,6 +1,6 @@
 import { EMBEDDING_FLOOR, LOCAL_TEXT_ENCODING, modelIdSchema } from "@orb/contracts/inference";
-import { createScheduledCache } from "../../../../packages/inference/src/backends/local-light/scheduled-cache.ts";
-import { createLocalLightEmbed } from "../../../../packages/inference/src/backends/local-light/tasks.ts";
+import { createScheduledCache } from "#inference/backends/local-light/scheduled-cache.ts";
+import { createLocalLightEmbed } from "#inference/backends/local-light/tasks.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { fakeModelCache, fakeResolved } from "../../_support.ts";
 

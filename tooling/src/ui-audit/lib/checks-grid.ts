@@ -46,7 +46,7 @@ export const GRID_EXEMPTIONS = {
 } as const;
 
 /** The page-side expression the walker interpolates, so the exempt surface is spelled EXACTLY ONCE across
- *  the Node verdict layer and the in-page census (the `INACTIVE_KIND_EXPR` precedent, _shared/wcag.ts). */
+ *  the Node verdict layer and the in-page census (the `INACTIVE_KIND_EXPR` precedent, floor/instrument/wcag.ts). */
 export const GRID_READING_SURFACE_SELECTOR_JS = JSON.stringify(GRID_EXEMPTIONS.readingSurface.selector);
 
 function offGrid(input: { readonly topDeviceFrac: number; readonly leftDeviceFrac: number }): boolean {

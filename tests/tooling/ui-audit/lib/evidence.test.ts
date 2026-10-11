@@ -3,8 +3,8 @@
 // tests/tooling/ui-audit/index.int.test.ts; this file pins the READINESS arm's pure verdict, whose whole job
 // is to be true when the two count-based arms cannot see the problem.
 
-import type { SettingsShimEvidence } from "../../../../tooling/src/_shared/appearance.ts";
-import { instrumentPageError, pageErrorText, runtimePageError } from "../../../../tooling/src/_shared/browser-contract.ts";
+import type { SettingsShimEvidence } from "../../../../tooling/src/floor/appearance/appearance.ts";
+import { instrumentPageError, pageErrorText, runtimePageError } from "../../../../tooling/src/floor/browser/browser-contract.ts";
 import type { RowVoidInput } from "../../../../tooling/src/ui-audit/contract/samples-layout.ts";
 import type { TierDriftInput } from "../../../../tooling/src/ui-audit/contract/samples-populations.ts";
 import type { DomPopulation, RawSamples, ThemeRenderInput } from "../../../../tooling/src/ui-audit/index.ts";
@@ -250,7 +250,7 @@ test("the census denominator counts subject families and not detector families",
 
 // @instrument-absence-proof: THE INSTRUMENT BLAMING THE APP (#1317 item 1). `session.pageErrors` carries
 // two kinds and ops/run.ts used to flatten both through `pageErrorText` into `checkScriptErrors`, so a
-// FAILURE OF THIS HARNESS ("browser diagnostic setup failed: …", pushed by _shared/browser-capture.ts
+// FAILURE OF THIS HARNESS ("browser diagnostic setup failed: …", pushed by floor/browser/browser-capture.ts
 // from a wire-up promise with no awaiter) was filed as a `script-error` P0 DEFECT OF THE PAGE and exited
 // 1. The first arm is the receipt that the old flattening really did mint an app finding out of an
 // instrument failure; the second is the polarity that replaces it — exit-2 class, no finding.

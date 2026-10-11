@@ -31,7 +31,7 @@
 // synthetic inputs that each isolate one direction of the defect.
 import { matchesGlob } from "node:path";
 import process from "node:process";
-import { harnessGlobs } from "../../../../tooling/src/_shared/ts-workspace.ts";
+import { harnessGlobs } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "../../../../tooling/src/verify/contract/population.ts";
 import { readPolicyRepositoryInventory, readPolicyWorkspacePackages } from "../../../../tooling/src/verify/lib/policy-repo-inventory.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -49,7 +49,7 @@ interface ExclusionRow {
 const MEMBERS_WITHOUT_A_ROOT: readonly ExclusionRow[] = [
   {
     key: ".",
-    why: 'the workspace ROOT manifest is a member of the pnpm workspace but is not an authored source tree — it has no `src/`. Its own authored files are NOT all claimed by a root: the repo-root configs and declarations (`knip.ts`, `platform.d.ts`, the vitest/playwright/stryker configs), the package files outside `src/` and `playwright/` join no root. A root for them would widen every `@authored` policy at once, so the gate corpus loads them instead (`_shared/ts-workspace.ts#harnessGlobs`, held by the corpus test below), and a policy that must judge every authored file declares `of: "all"` (`suppressions`, work item 0036).',
+    why: 'the workspace ROOT manifest is a member of the pnpm workspace but is not an authored source tree — it has no `src/`. Its own authored files are NOT all claimed by a root: the repo-root configs and declarations (`knip.ts`, `platform.d.ts`, the vitest/playwright/stryker configs), the package files outside `src/` and `playwright/` join no root. A root for them would widen every `@authored` policy at once, so the gate corpus loads them instead (`floor/compiler/ts-workspace.ts#harnessGlobs`, held by the corpus test below), and a policy that must judge every authored file declares `of: "all"` (`suppressions`, work item 0036).',
   },
   {
     key: "packages/plugin-sdk",

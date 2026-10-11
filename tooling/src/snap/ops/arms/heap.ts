@@ -4,14 +4,14 @@
 import { randomUUID } from "node:crypto";
 import { errorMessage } from "@orb/kit/error-message";
 import type { BrowserContext } from "@playwright/test";
-import { artifactKey } from "../../../_shared/artifact-naming.ts";
-import type { InstrumentArtifactCompleteness, InstrumentArtifactMetadata } from "../../../_shared/artifact-out.ts";
-import { artifactFile, registerInstrumentArtifact } from "../../../_shared/artifact-out.ts";
-import { aggregateScope, exactScope } from "../../../_shared/artifact-scope.ts";
-import type { ResultPair } from "../../../_shared/artifacts.ts";
-import { print } from "../../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import { EXIT } from "../../../_shared/exit-contract.ts";
+import { artifactKey } from "../../../floor/artifacts/artifact-naming.ts";
+import type { InstrumentArtifactCompleteness, InstrumentArtifactMetadata } from "../../../floor/artifacts/artifact-out.ts";
+import { artifactFile, registerInstrumentArtifact } from "../../../floor/artifacts/artifact-out.ts";
+import { aggregateScope, exactScope } from "../../../floor/artifacts/artifact-scope.ts";
+import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
+import { print } from "../../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../../floor/cli/exit-contract.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPageContext, ArmPairInput } from "../../contract/arms.ts";
 import type {
   HeapCaptureSessionId,

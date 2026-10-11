@@ -8,14 +8,14 @@
 // same one-family-per-module shape the stage and session families already use, except that for an arm the
 // argv class, the help row and the RESULT pair are derived from the SAME row, so they cannot drift apart.
 
-import { mergeAppearancePatches } from "../../_shared/appearance.ts";
-import { applyAppearanceFlag, FULL_MOTION_PATCH, loadAppearancePreset, parseAppearancePatch } from "../../_shared/appearance-flags.ts";
-import { parseViewport, splitFirstEq, splitLastEq, splitSelectorEq } from "../../_shared/argv.ts";
-import { DEFAULT_BASE } from "../../_shared/browser.ts";
-import { DEFAULT_VIEWPORT, MOBILE_DEVICE, WIDE_VIEWPORT } from "../../_shared/browser-environment.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { applyPanelPresetFlag, loadPanelPreset } from "../../_shared/panel-flags.ts";
-import { applyThemeFlag, parseThemeFlag } from "../../_shared/theme.ts";
+import { mergeAppearancePatches } from "../../floor/appearance/appearance.ts";
+import { applyAppearanceFlag, FULL_MOTION_PATCH, loadAppearancePreset, parseAppearancePatch } from "../../floor/appearance/appearance-flags.ts";
+import { applyThemeFlag, parseThemeFlag } from "../../floor/appearance/theme.ts";
+import { DEFAULT_BASE } from "../../floor/browser/browser.ts";
+import { DEFAULT_VIEWPORT, MOBILE_DEVICE, WIDE_VIEWPORT } from "../../floor/browser/browser-environment.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { parseViewport, splitFirstEq, splitLastEq, splitSelectorEq } from "../../floor/instrument/argv.ts";
+import { applyPanelPresetFlag, loadPanelPreset } from "../../floor/instrument/panel-flags.ts";
 import { VISION_DEFICIENCIES } from "../contract/load-emulation.ts";
 import type { Args } from "../contract/types.ts";
 import { parseShotScale } from "../lib/shot-scale.ts";
@@ -103,6 +103,34 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
     }
     pushStep(a, { kind: "swipe", selector: head, dy, page });
   },
+  "--swipe-x": (a, rest, page) => {
+    const { head, tail } = splitLastEq(rest.shift() ?? "");
+    const dx = Number(tail);
+    if (head === "" || tail === "" || !Number.isFinite(dx)) {
+      a.errors.push(`--swipe-x expects selector=dx (CSS px; positive drags the finger left), got ${JSON.stringify(`${head}=${tail}`)}`);
+      return;
+    }
+    pushStep(a, { kind: "swipe-x", selector: head, dx, page });
+  },
+  "--long-press": (a, rest, page) => {
+    const { head, tail } = splitLastEq(rest.shift() ?? "");
+    const ms = Number(tail);
+    if (head === "" || tail === "" || !Number.isInteger(ms) || ms < 1) {
+      a.errors.push(`--long-press expects selector=ms (whole milliseconds held, at least 1), got ${JSON.stringify(`${head}=${tail}`)}`);
+      return;
+    }
+    pushStep(a, { kind: "long-press", selector: head, ms, page });
+  },
+  "--tap-at": (a, rest, page) => {
+    const raw = rest.shift() ?? "";
+    const parts = raw.split(",");
+    const [x, y] = parts.map((part) => (part.trim() === "" ? Number.NaN : Number(part)));
+    if (parts.length !== 2 || x === undefined || y === undefined || !Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) {
+      a.errors.push(`--tap-at expects x,y (viewport CSS px, both at least 0), got ${JSON.stringify(raw)}`);
+      return;
+    }
+    pushStep(a, { kind: "tap-at", x, y, page });
+  },
   "--soft-keyboard": (a, rest, page) => {
     const raw = rest.shift() ?? "";
     const height = Number(raw);
@@ -170,7 +198,7 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
   // --upload <selector>=<path[,path...]> (#651): LAST '=' splits (--key convention; --fill diverges,
   // see above — its value is a literal that commonly contains '='); boundary +
-  // existence + real-input resolution happen at DRIVE time (_shared/upload.ts) — parse stays side-effect free.
+  // existence + real-input resolution happen at DRIVE time (floor/browser/upload.ts) — parse stays side-effect free.
   "--upload": (a, rest, page) => {
     const s = splitLastEq(rest.shift() ?? "");
     const paths = s.tail
@@ -205,7 +233,7 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
     pushNav(a, { kind: "panel", target: rest.shift() ?? "", page });
   },
   // `--panels <preset>` expands into the SAME panel navs at ITS argv position and on THIS page tab,
-  // so a preset is composition over the flag above, never a second mechanism (_shared/panel-flags.ts).
+  // so a preset is composition over the flag above, never a second mechanism (floor/instrument/panel-flags.ts).
   "--panels": (a, rest, page) => {
     applyPanelPresetFlag(loadPanelPreset(rest.shift() ?? ""), a.errors, (action) => {
       pushNav(a, { kind: action.method, target: action.target, page });

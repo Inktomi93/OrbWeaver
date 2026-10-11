@@ -23,7 +23,7 @@
 //    shape of "we told the user we dropped it and sent it anyway".
 
 import type { CapabilityOverrideInput, Wire } from "@orb/contracts/inference";
-import { WARNING_CODES } from "../../../packages/inference/src/contract/resolve.ts";
+import { WARNING_CODES } from "#inference/contract/resolve.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import type { ChatScript } from "./_harness.ts";
 import { CONFORMANCE_WIRES, cellTest, chatCapability, driveChat, warningCodesOf } from "./_harness.ts";
@@ -97,7 +97,7 @@ for (const wire of CONFORMANCE_WIRES) {
 // which outranks curated in the fold — and the silent path opens. Then this reds, and it reds pointing at
 // the translation gap rather than at a mysteriously missing warning.
 test("the agent-sdk curated capability exposes NO sampler range — the row D41 depends on, on that wire", async () => {
-  const { anthropicRows } = await import("../../../packages/inference/src/capability/sources/curated/anthropic.ts");
+  const { anthropicRows } = await import("#inference/capability/sources/curated/anthropic.ts");
   // Widened to the declared row type: the module ships a `const` TUPLE, whose members do not share a `wire`
   // or a `sampling` key, so the literal type cannot be filtered on either.
   const rows: readonly CapabilityOverrideInput[] = anthropicRows;

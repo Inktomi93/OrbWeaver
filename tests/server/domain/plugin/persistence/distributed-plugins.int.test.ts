@@ -16,7 +16,7 @@ import {
   listDistributions,
   toDistributedPluginView,
   upsertDistribution,
-} from "../../../../../packages/server/src/domain/plugin/persistence/distributed-plugins.ts";
+} from "#server/domain/plugin/persistence/distributed-plugins.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";

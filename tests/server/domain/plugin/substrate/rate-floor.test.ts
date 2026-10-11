@@ -11,7 +11,7 @@
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { createPluginRateFloor } from "../../../../../packages/server/src/domain/plugin/substrate/rate-floor.ts";
+import { createPluginRateFloor } from "#server/domain/plugin/substrate/rate-floor.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

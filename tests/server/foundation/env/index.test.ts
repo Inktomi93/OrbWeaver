@@ -9,8 +9,8 @@ import { parseEnv } from "node:util";
 import { AUTH_MODES, envFileText, SIGN_IN_TARGET_MODES, signInModeEnvLines } from "@orb/contracts/identity";
 import { ENV_FROM_FILE_KEY } from "@orb/kit/env-file";
 import { afterAll, afterEach, beforeEach, describe, vi } from "vitest";
-import { runsInContainer } from "../../../../packages/server/src/foundation/env/container.ts";
-import { APP_SECRET_ENV_KEYS } from "../../../../packages/server/src/foundation/env/index.ts";
+import { runsInContainer } from "#server/foundation/env/container.ts";
+import { APP_SECRET_ENV_KEYS } from "#server/foundation/env/index.ts";
 import { startLaunch } from "../../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 

@@ -6,10 +6,10 @@
 //
 // Exit: 0 clean · 1 the mirror is stale or a layer has problems (--check) · 2 the tool broke · 3 misuse.
 import process from "node:process";
-import { print, REPO_ROOT } from "../_shared/artifacts.ts";
-import { EXIT } from "../_shared/exit-contract.ts";
-import { warn } from "../_shared/log.ts";
-import { runTool, UsageError } from "../_shared/run-tool.ts";
+import { print, REPO_ROOT } from "../floor/artifacts/artifacts.ts";
+import { EXIT } from "../floor/cli/exit-contract.ts";
+import { warn } from "../floor/cli/log.ts";
+import { runTool, UsageError } from "../floor/cli/run-tool.ts";
 import {
   ALWAYS_ON_LINE_BUDGET,
   alwaysOnLines,

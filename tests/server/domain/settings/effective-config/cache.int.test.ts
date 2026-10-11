@@ -7,12 +7,8 @@
 import { env } from "@orb/server/foundation/env";
 import { logger } from "@orb/server/foundation/observability";
 import { afterEach, beforeEach, describe } from "vitest";
-import {
-  __resetEffectiveConfigCache,
-  getEffectiveConfig,
-  reloadEffectiveConfig,
-} from "../../../../../packages/server/src/domain/settings/effective-config/cache.ts";
-import { writeAppOverride } from "../../../../../packages/server/src/domain/settings/persistence/queries.ts";
+import { __resetEffectiveConfigCache, getEffectiveConfig, reloadEffectiveConfig } from "#server/domain/settings/effective-config/cache.ts";
+import { writeAppOverride } from "#server/domain/settings/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness } from "../_support.ts";

@@ -10,7 +10,7 @@ vi.stubEnv("AUTH_MODE", "local");
 vi.stubEnv("SESSION_SECRET", undefined);
 vi.stubEnv("VLLM_DISABLED", "true");
 
-const { createLifecycle } = await import("../../../packages/server/src/entry/lifecycle.ts");
+const { createLifecycle } = await import("#server/entry/lifecycle.ts");
 
 test("AUTH_MODE=local with no session secret and a remote db refuses before binding", async () => {
   const lifecycle = createLifecycle({ listenPort: 0 });

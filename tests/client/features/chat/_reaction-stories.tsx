@@ -23,10 +23,10 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 // The leaf ACTION ROW, the PICKER and the reaction hooks are feature internals the front door does not
 // re-export — the `_ct-stories` precedent for a leaf (`MessageRow`/`MessageActionsRow` both come in this way).
-import { MessageActionsRow } from "../../../../packages/client/src/features/chat/components/message-actions-row.tsx";
-import { ReactionPicker } from "../../../../packages/client/src/features/chat/components/reaction-picker.tsx";
-import { useReactionsForVariant, useViewerSeatId } from "../../../../packages/client/src/features/chat/hooks/use-message-reactions.ts";
-import { useToggleReactionMutation } from "../../../../packages/client/src/features/chat/lib/reaction-mutations.ts";
+import { MessageActionsRow } from "#client/features/chat/components/message-actions-row.tsx";
+import { ReactionPicker } from "#client/features/chat/components/reaction-picker.tsx";
+import { useReactionsForVariant, useViewerSeatId } from "#client/features/chat/hooks/use-message-reactions.ts";
+import { useToggleReactionMutation } from "#client/features/chat/lib/reaction-mutations.ts";
 import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { makeMessageView } from "./fixtures.ts";
 

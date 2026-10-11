@@ -20,8 +20,8 @@ import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clien
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats, messages, messageVariants, personaBooks, personas, statsCanonVersions, worldBooks, worldEntries } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { Resolved } from "@orb/inference";
 import { generationOf } from "@orb/inference";
 import type { CharacterId, ChatId, ChatTurnId, Handle, MessageId, MessageVariantId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
@@ -34,18 +34,18 @@ import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns.ts";
-import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
-import type { SpeakerArbiter } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
-import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
-import type { ChatBehaviorInputs } from "../../../../../packages/server/src/domain/chat/contract/foreign.ts";
-import type { TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
-import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine.ts";
-import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
-import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
-import { continueVariantStatements } from "../../../../../packages/server/src/domain/chat/persistence/canon-write.ts";
-import { loadPendingTurns, loadPendingTurnsForReclaim } from "../../../../../packages/server/src/domain/chat/persistence/invites.ts";
-import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock.ts";
+import { createActiveTurns } from "#server/domain/chat/active-turns.ts";
+import type { ChatContext } from "#server/domain/chat/context.ts";
+import type { SpeakerArbiter } from "#server/domain/chat/contract/arbitration.ts";
+import { ChatNotFoundError, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
+import type { ChatBehaviorInputs } from "#server/domain/chat/contract/foreign.ts";
+import type { TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
+import { createTurnEngine } from "#server/domain/chat/engine/engine.ts";
+import { loadWitnessHorizons } from "#server/domain/chat/memory/persistence/queries.ts";
+import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
+import { continueVariantStatements } from "#server/domain/chat/persistence/canon-write.ts";
+import { loadPendingTurns, loadPendingTurnsForReclaim } from "#server/domain/chat/persistence/invites.ts";
+import { tryAcquireLock } from "#server/domain/chat/persistence/lock.ts";
 import {
   loadCanonContentSignatures,
   loadCanonHistory,
@@ -53,14 +53,14 @@ import {
   loadMessageView,
   loadSlotTarget,
   loadTurnOrigin,
-} from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
-import { continuedSignatureMetadata } from "../../../../../packages/server/src/domain/chat/substrate/content-signatures.ts";
-import { buildWireHistory } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
-import { createClaimChat } from "../../../../../packages/server/src/domain/chat/verbs/claim-chat.ts";
-import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read.ts";
-import { createRequestTurn, createTurn } from "../../../../../packages/server/src/domain/chat/verbs/turn.ts";
-import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
-import { createToolUseService, createToolUseTeachingContributions } from "../../../../../packages/server/src/domain/tool-use/index.ts";
+} from "#server/domain/chat/persistence/queries.ts";
+import { continuedSignatureMetadata } from "#server/domain/chat/substrate/content-signatures.ts";
+import { buildWireHistory } from "#server/domain/chat/substrate/wire-history.ts";
+import { createClaimChat } from "#server/domain/chat/verbs/claim-chat.ts";
+import { createRead } from "#server/domain/chat/verbs/read.ts";
+import { createRequestTurn, createTurn } from "#server/domain/chat/verbs/turn.ts";
+import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
+import { createToolUseService, createToolUseTeachingContributions } from "#server/domain/tool-use/index.ts";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";

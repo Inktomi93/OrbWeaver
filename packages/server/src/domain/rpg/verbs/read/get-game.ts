@@ -3,11 +3,11 @@
 // structured writer the host born-state round needs — one resolve, both answers). Member-gated.
 
 import type { RpgGameView } from "@orb/contracts/rpg";
-import type { ReadGameParams } from "../../contract/params.ts";
-import type { RpgContext, RpgService } from "../../contract/service.ts";
-import { resolveMember } from "../../guard.ts";
-import { currentSnapshotState } from "../../snapshot-edit.ts";
-import { deriveEffectiveDelivery } from "../../substrate/readonly-axis.ts";
+import type { ReadGameParams } from "#src/domain/rpg/contract/params.ts";
+import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
+import { resolveMember } from "#src/domain/rpg/guard.ts";
+import { currentSnapshotState } from "#src/domain/rpg/snapshot-edit.ts";
+import { deriveEffectiveDelivery } from "#src/domain/rpg/substrate/readonly-axis.ts";
 
 export function createGetGame(ctx: RpgContext): Pick<RpgService, "getGame"> {
   async function getGame(params: ReadGameParams): Promise<RpgGameView> {

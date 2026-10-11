@@ -12,7 +12,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createRegexService } from "@orb/server/domain/regex";
 import { describe } from "vitest";
-import { createResolveRegexSources } from "../../../../../packages/server/src/domain/regex/persistence/resolve-sources.ts";
+import { createResolveRegexSources } from "#server/domain/regex/persistence/resolve-sources.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { allowChat, makeHarness, principal, seedCharacter, seedChat, seedPreset, seedScript, seedUser } from "../_support.ts";

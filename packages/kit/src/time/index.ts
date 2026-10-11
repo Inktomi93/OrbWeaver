@@ -84,7 +84,7 @@ function naiveIsoMs(value: string): number | null {
  *  designator or an `[IANA/Zone]` annotation or neither. The luxon parser this replaced ALSO accepted
  *  five forms that now read `null` — reduced precision (`2026`, `2026-07`), ISO week (`2026-W27-5`),
  *  ISO ordinal (`2026-185`) and end-of-day (`…T24:00:00`). Deliberate and fail-closed: the sole
- *  consumer (`server/kit/serde/chat` parseStDate) feeds it ST timestamps containing `T`, which are
+ *  consumer (`server/primitives/serde/chat` parseStDate) feeds it ST timestamps containing `T`, which are
  *  plain date-times, and every one of the five is pinned in the suite so a re-widening is a decision.
  *  A SPACE separator (`2026-07-03 12:00:00`) stays rejected — Temporal accepts it as an extension,
  *  luxon did not, and this function's contract is ISO. */

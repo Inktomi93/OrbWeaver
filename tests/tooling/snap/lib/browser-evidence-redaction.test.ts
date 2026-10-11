@@ -1,7 +1,7 @@
 // Positive controls for every browser-diagnostic carrier persisted by Snap. Canary bytes must exist in
 // raw fixtures and disappear from every disk-safe projection without destroying ordinary provenance.
-import type { BrowserDiagnostic } from "../../../../tooling/src/_shared/browser-diagnostics.ts";
-import { redactedRequestUrl } from "../../../../tooling/src/_shared/browser-request-url.ts";
+import type { BrowserDiagnostic } from "../../../../tooling/src/floor/browser/browser-diagnostics.ts";
+import { redactedRequestUrl } from "../../../../tooling/src/floor/browser/browser-request-url.ts";
 import {
   redactBrowserDiagnostic,
   redactBrowserDiagnostics,

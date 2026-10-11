@@ -4,8 +4,8 @@
 
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
 import type { PersonaMetadata } from "@orb/contracts/persona";
-import { sha256Hex } from "#kit/content-hash";
-import { decodePortableObject } from "#kit/serde/lib";
+import { sha256Hex } from "#primitives/content-hash";
+import { decodePortableObject } from "#primitives/serde/lib";
 import type { IncomingPersona, UploadedFile } from "../contract/views.ts";
 import { parseStPersonas } from "./persona.ts";
 

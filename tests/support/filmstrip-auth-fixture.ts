@@ -3,8 +3,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { spawnNicedChild } from "@orb/tooling/_shared/proc";
-import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
+import { spawnNicedChild } from "@orb/tooling/floor/process/proc";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 
 const READY_ATTEMPTS = 100;
 const READY_POLL_MS = 50;

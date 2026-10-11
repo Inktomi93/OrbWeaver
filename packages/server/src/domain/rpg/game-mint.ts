@@ -8,7 +8,7 @@
 import type { RpgRuleset } from "@orb/contracts/rpg";
 import { RPG_RULESET_DEFAULT, RPG_RULESET_PROFILE, rpgGameConfigSchema, rpgSeedTrackers } from "@orb/contracts/rpg";
 import { rpgGames } from "@orb/db";
-import { batchMany, batchStmt } from "@orb/db/kit";
+import { batchMany, batchStmt } from "@orb/db/query";
 import type { ChatId, RpgGameId } from "@orb/kit/ids";
 import type { ChatRpgGameBirthPlan } from "../chat/index.ts";
 import type { RpgContext } from "./contract/service.ts";

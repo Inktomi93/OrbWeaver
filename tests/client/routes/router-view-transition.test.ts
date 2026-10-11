@@ -1,5 +1,5 @@
 import { afterEach, describe, vi } from "vitest";
-import { observeRouterViewTransitions } from "../../../packages/client/src/routes/router-view-transition.ts";
+import { observeRouterViewTransitions } from "#client/routes/router-view-transition.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 afterEach(() => {

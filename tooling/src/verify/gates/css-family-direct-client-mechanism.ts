@@ -38,7 +38,7 @@
 // `(pruned from public history)` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its
 // in-run path filter — parent css-family-ownership: `ownerForPath`, `packages/{ui,client}/src/`. Over the SAME 7,567
-// harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 1,686 and the
+// harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`) it admits 1,686 and the
 // final `population` admits 1,686 (the bare harness dispatch was 7,567). legacy − final = ∅. final − legacy = ∅.
 // Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` rejected by both.

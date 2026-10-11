@@ -3,7 +3,7 @@
 import { mkdirSync, rmdirSync, statSync } from "node:fs";
 import { dirname, relative, sep } from "node:path";
 import type { Project } from "ts-morph";
-import { warn } from "../../_shared/log.ts";
+import { warn } from "../../floor/cli/log.ts";
 import type { FileSnapshot } from "../contract/types.ts";
 import { CodemodError } from "./errors.ts";
 import { absolutePath, repoRelative } from "./plans.ts";

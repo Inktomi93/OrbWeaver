@@ -20,6 +20,7 @@ const AVATAR_MD_PX = SNAPPED_LENGTH_BASE_PX["spacing.avatar-md"];
 /** WCAG 2.5.5's target floor — the law's coarse-pointer bar (D62 P1 / touch-target-floor.suite.ct.tsx). */
 const WCAG_FLOOR = 44;
 const OVERFLOW_COUNT_TEXT_RE = /^\+\d+$/u;
+const TRANSPARENT = "rgba(0, 0, 0, 0)";
 
 test("each face is a named button; the selected one announces aria-current", async ({ mount }) => {
   const component = await mount(<FaceStrip items={[AVELINE, SOLA]} label="Recent characters" onSelect={(): void => undefined} selectedId={AVELINE.id} />);
@@ -33,6 +34,19 @@ test("each face is a named button; the selected one announces aria-current", asy
   await expect(component).toHaveRole("list");
   await expect(component.getByRole("listitem")).toHaveCount(2);
   await expect(component).toHaveAttribute("aria-label", "Recent characters");
+});
+
+// UI-Density-Law §2.1 gives avatars the full radius. A face that beat that to a rounded square sat beside the
+// round avatars of the chat rows, the members and the topbar, and the app read as two avatar shapes.
+test("a face is a circle, the same shape as every other avatar beside a name", async ({ mount }) => {
+  const component = await mount(<FaceStrip items={[AVELINE]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />);
+
+  const { radius, width } = await component.locator('[data-slot="avatar-root"]').evaluate((el) => ({
+    radius: Number.parseFloat(getComputedStyle(el).borderTopLeftRadius),
+    width: el.getBoundingClientRect().width,
+  }));
+  expect(width, "the avatar box must have measured, or the radius comparison is vacuous").toBeGreaterThan(0);
+  expect(radius).toBeGreaterThanOrEqual(width / 2);
 });
 
 test("tapping a face fires onSelect with its id", async ({ mount }) => {
@@ -283,10 +297,11 @@ interface StripReadout {
   readonly tile: string | null;
 }
 
-// #521 (side-eye 2026-08-22 rail-chats). The tile wore the FACES' clothes — a filled square at the avatar
-// radius, the identical silhouette to the portraits beside it — so a folded strip scanned as one more
-// character, named "More". The BOX must not move (that is #153's pitch ruling, asserted separately above);
-// only the DRESS may. Both halves are pinned here so a fix to either cannot quietly undo the other.
+// #521 (side-eye 2026-08-22 rail-chats). The tile wore the FACES' clothes — a filled plate, the identical
+// silhouette to the portraits beside it — so a folded strip scanned as one more character, named "More".
+// The BOX must not move (that is #153's pitch ruling, asserted separately above); only the DRESS may. Faces
+// are circles now (one avatar shape), so the dress that tells the tile apart is the dashed outline on no
+// fill, not the corner radius. Both halves are pinned here so a fix to either cannot quietly undo the other.
 test("#521 the overflow tile does not wear a face's silhouette, and still takes a face's box", async ({ mount }) => {
   const component = await mount(<FaceStripFoldHarness />);
   const tile = component.getByRole("button", { name: OVERFLOW_TILE });
@@ -297,18 +312,19 @@ test("#521 the overflow tile does not wear a face's silhouette, and still takes 
   const portrait = component.locator('[data-slot="avatar-root"]').first();
   const face = await portrait.evaluate((el) => {
     const style = getComputedStyle(el);
-    return { radius: style.borderTopLeftRadius, box: Math.round(el.getBoundingClientRect().width) };
+    return { fill: style.backgroundColor, box: Math.round(el.getBoundingClientRect().width) };
   });
 
   const plate = tile.getByText(TILE_COUNT_RE).locator("..");
   const dress = await plate.evaluate((el) => {
     const style = getComputedStyle(el);
-    return { radius: style.borderTopLeftRadius, style: style.borderTopStyle, box: Math.round(el.getBoundingClientRect().width) };
+    return { fill: style.backgroundColor, style: style.borderTopStyle, box: Math.round(el.getBoundingClientRect().width) };
   });
 
   expect(dress.box, "the tile keeps the avatar token's box — #153's pitch is about the cell, not the dress").toBe(face.box);
   expect(dress.style, "an outline, not a plate").toBe("dashed");
-  expect(dress.radius, "the portrait's square-ish radius is what made it read as a face").not.toBe(face.radius);
+  expect(face.fill, "the positive control: a face is a filled plate").not.toBe(TRANSPARENT);
+  expect(dress.fill, "the filled plate is what made it read as a face").toBe(TRANSPARENT);
   expect(await tile.locator('[data-slot="avatar-root"]').count(), "the tile is not a portrait").toBe(0);
 });
 

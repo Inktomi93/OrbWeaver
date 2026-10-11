@@ -1,7 +1,7 @@
-import { print } from "../../_shared/artifacts.ts";
-import type { BrowserDiagnostic, DiagnosticLevel } from "../../_shared/browser-diagnostics.ts";
-import { DIAGNOSTIC_LEVELS } from "../../_shared/browser-diagnostics.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import type { BrowserDiagnostic, DiagnosticLevel } from "../../floor/browser/browser-diagnostics.ts";
+import { DIAGNOSTIC_LEVELS } from "../../floor/browser/browser-diagnostics.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { DiagnosticQuery } from "../contract/diagnostics.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --diagnostics <query> <route>");

@@ -8,8 +8,8 @@
 
 import { personaMetadataSchema } from "@orb/contracts/persona";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { PersonaFormValues } from "../../../../../packages/client/src/features/persona/lib/persona-editor-model.ts";
-import { isPrefillCombo, personaInputFromForm } from "../../../../../packages/client/src/features/persona/lib/persona-editor-model.ts";
+import type { PersonaFormValues } from "#client/features/persona/lib/persona-editor-model.ts";
+import { isPrefillCombo, personaInputFromForm } from "#client/features/persona/lib/persona-editor-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const BASE_VALUES: PersonaFormValues = {

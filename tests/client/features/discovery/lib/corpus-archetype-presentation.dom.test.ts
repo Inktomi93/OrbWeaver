@@ -1,7 +1,7 @@
 import type { CorpusDestination } from "@orb/client/lib";
 import type { EmbedGenerationId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { resolveCorpusArchetypeNames } from "../../../../../packages/client/src/features/discovery/lib/corpus-archetype-presentation.ts";
+import { resolveCorpusArchetypeNames } from "#client/features/discovery/lib/corpus-archetype-presentation.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 type Cluster = Extract<CorpusDestination, { kind: "cluster" }>["cluster"];

@@ -5,8 +5,8 @@
 import { join } from "node:path";
 import process from "node:process";
 import { vi } from "vitest";
-import { installOutputSink } from "../../../tooling/src/_shared/log.ts";
-import type { PortOwner } from "../../../tooling/src/_shared/platform.ts";
+import { installOutputSink } from "../../../tooling/src/floor/cli/log.ts";
+import type { PortOwner } from "../../../tooling/src/floor/host/platform.ts";
 import type { StackContext, StackInvocation } from "../../../tooling/src/stack/contract/types.ts";
 import { stackContext } from "../../../tooling/src/stack/lib/stack-plan.ts";
 import type { DevPortDeps } from "../../../tooling/src/stack/ops/dev-down.ts";

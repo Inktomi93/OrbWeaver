@@ -1,8 +1,8 @@
 // A scenario normally owns its browser lifetime; matrix-on-session supplies a disposable context instead,
 // so the same capture engine can finish or fail without ever closing the daemon's owner browser.
-import { closeProbeSessionAfterError } from "../../_shared/browser.ts";
-import type { ProbeSession } from "../../_shared/browser-contract.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { closeProbeSessionAfterError } from "../../floor/browser/browser.ts";
+import type { ProbeSession } from "../../floor/browser/browser-contract.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { FailureArtifacts } from "../contract/run.ts";
 import type { Args } from "../contract/types.ts";
 import { finishSession, launchSnapSession } from "./session.ts";

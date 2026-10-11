@@ -17,8 +17,8 @@
 
 import type { Db } from "@orb/db";
 import { chatRegexScripts, regexScripts } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, batchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, batchStmt } from "@orb/db/query";
 import type { ChatId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { and, asc, eq } from "drizzle-orm";
 import type { SplitScript } from "../contract/dedup.ts";

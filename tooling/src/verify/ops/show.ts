@@ -11,7 +11,7 @@
  * ONE DOOR, THREE ARTIFACTS (#2502). This verb also reads the verify run's per-stage transcripts
  * (`--stage`/`--stages`/`--run`, lib/show-stage.ts) and the pointer inventory (`--pointers`,
  * lib/show-pointers.ts). What the three SHARE is the resolution — which run am I reading, is it the newest
- * complete one, is a newer one in flight — which is centralized in `_shared/artifact-pointer.ts` because
+ * complete one, is a newer one in flight — which is centralized in `floor/artifacts/artifact-pointer.ts` because
  * every misattribution this closes was a RESOLUTION failure. What stays SPLIT is the rendering: this file's
  * first provenance line is the precedent the other two print through, and nothing else is shared.
  *
@@ -39,9 +39,9 @@
  * (2), and invalid argv is always misuse (3), filters or not.
  */
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { UsageError } from "@orb/tooling/_shared/run-tool";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { UsageError } from "@orb/tooling/floor/cli/run-tool";
 import type { StructureReport } from "../contract/show-artifact.ts";
 import {
   brokenEvidenceCount,
@@ -257,7 +257,7 @@ function printVerifyFailureSummary(root: string, structureRun: StructureReport["
  *  and null when this is an ordinary structure read.
  *
  *  ONE DOOR, THREE RENDERERS. What the three share is the RESOLUTION — which run am I reading, is it the
- *  newest complete one, is a newer one in flight (`_shared/artifact-pointer.ts`) — and that is the whole of
+ *  newest complete one, is a newer one in flight (`floor/artifacts/artifact-pointer.ts`) — and that is the whole of
  *  what was centralized: every misattribution this closes was a resolution failure, not a rendering one. The
  *  vocabularies stay apart, because a single renderer would have to speak `--gate`/`--file` AND stage modes
  *  AND, tomorrow, snap's arms and viewports — two homes for one concept, inverted. */

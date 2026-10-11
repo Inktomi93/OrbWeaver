@@ -6,9 +6,9 @@
 import { validateThemeCss } from "@orb/kit/css-validate";
 import type { UserId } from "@orb/kit/ids";
 import { nextFreeName } from "@orb/kit/strings";
-import { portableParseError } from "#kit/serde/lib";
-import type { CanonicalTheme } from "#kit/serde/theme";
-import { parseThemeFile, THEME_SCHEMA_KIND, themeContentKey } from "#kit/serde/theme";
+import { portableParseError } from "#primitives/serde/lib";
+import type { CanonicalTheme } from "#primitives/serde/theme";
+import { parseThemeFile, THEME_SCHEMA_KIND, themeContentKey } from "#primitives/serde/theme";
 import type { ImportedThemeLanding, ImportTheme, SettingsImportOutcome } from "../contract/portability.ts";
 import type { SettingsContext } from "../contract/service.ts";
 import { insertThemes, listOwnedThemes } from "../persistence/theme-queries.ts";

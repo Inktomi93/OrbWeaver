@@ -49,7 +49,7 @@
 // `c2b5253308` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its
 // in-run path filter — run: `if (!sf.getFilePath().includes(CLIENT_SRC)) continue`. Over the SAME 7,432 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 1,319 and the final
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`) it admits 1,319 and the final
 // `population` admits 1,319 (the bare harness dispatch was 7,432). legacy − final = ∅. final − legacy = ∅. Controls:
 // inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` rejected by both.

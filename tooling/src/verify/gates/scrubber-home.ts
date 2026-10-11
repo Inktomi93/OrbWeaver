@@ -40,7 +40,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `scrubber-home` descriptor at b01dff396ad1f8f51bfd1cc92a0f972de8cdc731, the parent of the conversion `b5acbf2594`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,219 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 3,372
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 3,372
 // and final `population` admits 3,371. legacy − final = {`packages/showcase-plugins/src/index.ts`} — the one source
 // of an authored package outside the declared composite roots (`@showcase` is not in `@authored`/`@packages`, #1980,
 // `contract/population.ts`); a one-file NARROWING. final − legacy = ∅. Controls: inside
@@ -56,7 +56,7 @@
 // showcase narrowing above. The widened policy remains clean on the real tree.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../_shared/reference-fact.ts";
+import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { SCRUBBER_HOME, SCRUBBER_SYMBOL } from "../lib/scrubber-home.ts";
 import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";

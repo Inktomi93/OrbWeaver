@@ -17,10 +17,10 @@
 // that produced it (`capEvalText`'s 20 000-char both-ends cap, the map's entry cap, the aria depth), and
 // says so in `completenessDetail`. This door adds no second cap and no second read of the page.
 import { writeFile } from "node:fs/promises";
-import type { InstrumentArtifactCompleteness, InstrumentArtifactLimitReceipt } from "../../../_shared/artifact-out.ts";
-import { artifactFile } from "../../../_shared/artifact-out.ts";
-import { aggregateScope } from "../../../_shared/artifact-scope.ts";
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import type { InstrumentArtifactCompleteness, InstrumentArtifactLimitReceipt } from "../../../floor/artifacts/artifact-out.ts";
+import { artifactFile } from "../../../floor/artifacts/artifact-out.ts";
+import { aggregateScope } from "../../../floor/artifacts/artifact-scope.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 import type { Arm } from "../../contract/arm-vocabulary.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --eval <expression>");

@@ -9,9 +9,9 @@ import {
   fitBlockToBudget,
   MAX_SEGMENT_CHUNKS_PER_BLOCK,
   SUMMARIZER_CONTEXT_FLOOR,
-} from "../../../../../../../packages/server/src/domain/chat/memory/generate/substrate/token-guard.ts";
-import { renderTranscript } from "../../../../../../../packages/server/src/domain/chat/memory/generate/substrate/transcript.ts";
-import type { MsgRow, SummarizerBudget } from "../../../../../../../packages/server/src/domain/chat/memory/types.ts";
+} from "#server/domain/chat/memory/generate/substrate/token-guard.ts";
+import { renderTranscript } from "#server/domain/chat/memory/generate/substrate/transcript.ts";
+import type { MsgRow, SummarizerBudget } from "#server/domain/chat/memory/types.ts";
 import { expect, test } from "../../../../../../support/fixtures.ts";
 
 const aria = castId<CharacterId>("character_aria");

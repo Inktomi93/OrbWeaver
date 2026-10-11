@@ -7,7 +7,7 @@ import type { VectorWidthMismatch } from "@orb/inference";
 import { embedRequestTimeoutMs, ProviderError } from "@orb/inference";
 import type { EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
-import { connectionFingerprint, generationIdOf, vectorSpaceFingerprint } from "#kit/embedding-generation";
+import { connectionFingerprint, generationIdOf, vectorSpaceFingerprint } from "#primitives/embedding-generation";
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
 import type { GenerationReceipt, GenerationTask } from "../contract/generation.ts";
 import type { EmbeddingConnectionSnapshot, EmbeddingsContext, PinnedGeneration, PinnedImageSpace } from "../contract/service.ts";

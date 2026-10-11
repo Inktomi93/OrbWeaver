@@ -21,7 +21,7 @@
 // resolving, so a stale anchor falls to the active persona instead of being copied or resurrected).
 
 import type { JoinerPersona } from "@orb/contracts/persona";
-import type { AwaitableBatchStmt } from "@orb/db/kit";
+import type { AwaitableBatchStmt } from "@orb/db/query";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import type { PersonaListView } from "./views.ts";
 

@@ -8,18 +8,18 @@
 // is what a lane runs while another lane's battery is live, and making it wait behind a 17-minute `--push`
 // would be the change that gets this whole mechanism switched off.
 //
-// IT NEVER REFUSES — a refused verify breaks a merge train (the pool's own header, _shared/host-slots.ts). The
+// IT NEVER REFUSES — a refused verify breaks a merge train (the pool's own header, floor/host/host-slots.ts). The
 // queue applies under `ORB_DEDICATED_BOX=1` too (`wholeVerifyQueue` is true in BOTH profiles), because
 // "the box is mine" does not make two simultaneous batteries a good idea.
 //
 // Lives in lib/ rather than in ops/run.ts because run.ts is the tier orchestrator and sits against the
 // tooling-size cap; this is one self-contained decision with one seam.
 import process from "node:process";
-import { checkoutName } from "@orb/tooling/_shared/artifacts";
-import { readConcurrencyProfile, readStageBudgets } from "@orb/tooling/_shared/concurrency-profile";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import type { HostSlotDeps, HostSlotLease, HostSlotPool } from "@orb/tooling/_shared/host-slots";
-import { acquireHostSlot } from "@orb/tooling/_shared/host-slots";
+import { checkoutName } from "@orb/tooling/floor/artifacts/artifacts";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { readConcurrencyProfile, readStageBudgets } from "@orb/tooling/floor/host/concurrency-profile";
+import type { HostSlotDeps, HostSlotLease, HostSlotPool } from "@orb/tooling/floor/host/host-slots";
+import { acquireHostSlot } from "@orb/tooling/floor/host/host-slots";
 import type { Tier } from "../contract/stage.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm verify [--push|--full])");

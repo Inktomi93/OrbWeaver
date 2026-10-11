@@ -5,7 +5,7 @@
 // FAMILY: singleton, and honestly so. Its subject is one vendored generated closure plus the installed
 // Playwright tuple it is pinned against; no `lib/` reader is involved, and the nearest sibling
 // (`tokens-contract`) judges a different generated artifact through a different door. The shared
-// computation it DOES have is `_shared/devtools-assets.ts#adjudicateDevToolsClosure` — but that is the
+// computation it DOES have is `floor/devtools/devtools-assets.ts#adjudicateDevToolsClosure` — but that is the
 // runtime's own validator, not a gate-family reader, which is exactly why it lives there (§12.7: a
 // world-program guarantee is an INPUT to conversion, preserved rather than reimplemented).
 //
@@ -22,11 +22,11 @@
 // policy structurally cannot: `readFileSync`/`lstatSync`/`readdirSync`/`realpathSync` over the closure,
 // `import.meta.resolve` into `node_modules`, an `existsSync` pre-check for the pin, and a real-tree anchor
 // guard so synthetic mini-projects stayed quiet (§12.3 bans every one). None of it was DELETED: the
-// ADJUDICATION was extracted into `_shared/devtools-assets.ts#adjudicateDevToolsClosure`, a pure function
+// ADJUDICATION was extracted into `floor/devtools/devtools-assets.ts#adjudicateDevToolsClosure`, a pure function
 // over already-read bytes, and `verifyDevToolsAssetsSync` keeps its signature and delegates to it before
 // reading the member bodies the static server needs. So the two callers reach the same verdict through the
 // same code — the one thing §12.7 requires of a replaced implementation — and the runtime path keeps its
-// independent regression proof at tests/tooling/_shared/devtools-assets.test.ts (hash drift, tuple drift,
+// independent regression proof at tests/tooling/floor/devtools/devtools-assets.test.ts (hash drift, tuple drift,
 // a missing notice, an unexpected member, a symlink, and the served closure itself).
 //
 // THE MISSING-PIN ARM IS NOW A REFUSAL, NOT A FINDING, AND THAT IS LOUDER. The legacy descriptor reported
@@ -62,7 +62,7 @@
 // `b6a112823f` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `(pruned from public history)`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,558 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,558, and the final
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,558, and the final
 // `population` admits 0; the subject is the declared `devtools-closure` + two `installed-package` doors.
 // legacy − final = all 7,558 harness candidates — dispatched to the legacy `run`, which read none of them (its
 // subject came off disk through `readFileSync`/`readdirSync` over the closure and `import.meta.resolve`); retired
@@ -72,8 +72,8 @@
 // not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
 // neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 import { createHash } from "node:crypto";
-import type { DevToolsClosureInput, DevToolsInstalledTuple } from "../../_shared/devtools-assets.ts";
-import { adjudicateDevToolsClosure, readChromiumBrowserVersion } from "../../_shared/devtools-assets.ts";
+import type { DevToolsClosureInput, DevToolsInstalledTuple } from "../../floor/devtools/devtools-assets.ts";
+import { adjudicateDevToolsClosure, readChromiumBrowserVersion } from "../../floor/devtools/devtools-assets.ts";
 import { defineGate } from "../contract/policy.ts";
 import { DEVTOOLS_CLOSURE_LICENSES, DEVTOOLS_CLOSURE_MANIFEST, DEVTOOLS_CLOSURE_PIN, DEVTOOLS_CLOSURE_ROOT } from "../contract/resource-artifact.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";

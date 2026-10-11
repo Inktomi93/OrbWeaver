@@ -6,18 +6,16 @@ import type { EmbedResult, EmbedUsage, ImageEmbedResult } from "@orb/contracts/p
 import type { ImageInput } from "@orb/contracts/role-clients";
 import { clampToTokenBudget, safeTokenWindow } from "@orb/kit/tokens";
 import { z } from "zod";
-import { ProviderError } from "../../contract/errors.ts";
-import type { GoogleBackendDeps } from "../../contract/google.ts";
-import type { EmbedRequest, ImageEmbedRequest } from "../../contract/roles.ts";
-import { embedRequestTimeoutMs } from "../../contract/roles.ts";
-import { embeddingCostOf } from "../kit/embedding-cost.ts";
-import { embeddingPrompt, fitToDim } from "../kit/embedding-input.ts";
-import { providerErrorFromHttp } from "../kit/error-classify.ts";
-import { turnAbortSignal } from "../kit/idle-timeout.ts";
-import { createImageNormalizer, passthroughImageNormalizer, toImageUrl } from "../kit/image-normalize.ts";
-import { providerLogger } from "../kit/provider-log.ts";
-import { resolvedScrubSet } from "../kit/sanitize.ts";
+import type { EmbedRequest, GoogleBackendDeps, ImageEmbedRequest } from "#contract";
+import { embedRequestTimeoutMs, ProviderError } from "#contract";
+import { providerErrorFromHttp } from "../http/error-classify.ts";
+import { turnAbortSignal } from "../http/idle-timeout.ts";
+import { providerLogger } from "../http/provider-log.ts";
+import { resolvedScrubSet } from "../http/sanitize.ts";
 import { mediaFilePart } from "../v4/prompt.ts";
+import { embeddingCostOf } from "../wire/embedding-cost.ts";
+import { embeddingPrompt, fitToDim } from "../wire/embedding-input.ts";
+import { createImageNormalizer, passthroughImageNormalizer, toImageUrl } from "../wire/image-normalize.ts";
 import { GOOGLE_KEY, googleModelId, googleProviderFor } from "./model.ts";
 
 const INPUT_RESERVE_TOKENS = 64;

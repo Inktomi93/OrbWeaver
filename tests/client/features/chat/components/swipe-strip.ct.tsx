@@ -11,12 +11,7 @@ import type { MessageView } from "@orb/contracts/chat";
 import type { MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import {
-  VARIANT_GENERATE_NAME,
-  VARIANT_NEXT_NAME,
-  VARIANT_PREV_NAME,
-  variantCountName,
-} from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
+import { VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME, variantCountName } from "#client/features/chat/lib/message-action-names.ts";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { SwipeStripStory } from "../_ct-stories.tsx";

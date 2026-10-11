@@ -8,8 +8,9 @@
 // That is correct for the case snap was minted for (an agent is the reader). `--scale` is the escape
 // hatch for the one case where a HUMAN is the reader: committed design-mock renders, a durable visual
 // record that was previously produced at 2x by the Claude Design canvas export. Do not "fix" the default.
-import type { Viewport } from "../../_shared/argv.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { Viewport } from "../../floor/instrument/argv.ts";
 import type { ShotScale } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");

@@ -12,7 +12,7 @@ import type { RpgActorEntry, RpgActorRef, RpgFieldLocks, RpgSnapshotState } from
 import { actorRefKey } from "@orb/contracts/rpg";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { rekeyActor } from "../../../../../packages/server/src/domain/rpg/substrate/actor-rekey.ts";
+import { rekeyActor } from "#server/domain/rpg/substrate/actor-rekey.ts";
 import { emptyState, expect, test } from "../_support.ts";
 
 const VESNA: RpgActorRef = { kind: "npc", npcKey: "vesna" };

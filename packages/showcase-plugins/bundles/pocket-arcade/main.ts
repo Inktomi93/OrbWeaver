@@ -63,15 +63,15 @@ const GAME_HTML = `
 // frame's own engine — no token machinery needed on this side.
 const GAME_CSS = `
 #wrap { display: flex; flex-direction: column; gap: 10px; padding: 4px; }
-#bar { display: flex; gap: 8px; align-items: stretch; }
+#bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
 #score-box, #best-box {
-  flex: 1; display: flex; flex-direction: column; align-items: center; padding: 4px 8px;
+  flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; padding: 4px 8px;
   border-radius: 8px; background: color-mix(in oklab, var(--sandbox-fg) 8%, var(--sandbox-bg));
 }
 #score-label { font-size: 10px; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.08em; }
 #score, #best { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
 #new {
-  padding: 4px 12px; border-radius: 8px; border: 1px solid color-mix(in oklab, var(--sandbox-fg) 25%, var(--sandbox-bg));
+  flex: 1 1 100%; white-space: nowrap; padding: 4px 12px; border-radius: 8px; border: 1px solid color-mix(in oklab, var(--sandbox-fg) 25%, var(--sandbox-bg));
   background: transparent; color: var(--sandbox-fg); font: inherit; cursor: pointer;
 }
 #new:hover { background: color-mix(in oklab, var(--sandbox-fg) 10%, var(--sandbox-bg)); }

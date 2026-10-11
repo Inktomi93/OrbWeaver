@@ -35,7 +35,7 @@
 //     so the successor citation check (#2349) has something to read. Per row, the cite that
 //     lost its liveness check: `node-modules`, `dist`, `cache`, `claude-worktrees`, `st-goldens-runtime` →
 //     `.gitignore`; `stryker-tmp` →
-//     `tooling/src/_shared/stryker-config.ts`.
+//     `tooling/src/floor/testing/stryker-config.ts`.
 //
 // POPULATION PORT: `{ of: "none" }` and the `native-config:eslint` declaration are unchanged. The
 // `tracked-files` declaration left with DEAD-CITE, its only reader. The other removed behavior is the

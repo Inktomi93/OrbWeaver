@@ -31,7 +31,7 @@ The whole static tier stays the verdict for done. It runs at pre-push inside `ve
 
 ## Consequences
 
-- On 4 cores and 15 GB, a five-file commit across `tooling/src/_shared` takes 184 seconds. `types:native` is the largest stage.
+- On 4 cores and 15 GB, a five-file commit across `tooling/src/floor` takes 184 seconds. `types:native` is the largest stage.
 - `reports/verify-history.jsonl` records each run's `wallMs` beside the stage sum.
 - A commit proves no whole-tree reconciliation. Every row of `WHOLE_COMMAND_PATH_TRIGGERS` and every cross-file structure policy runs at pre-push and at the barrier, and the commit's summary names each one it deferred. A stale ledger or a broken `.test-d.ts` assertion can commit clean and fail the push.
 - Type-aware ESLint rules judge only the staged files. A change that breaks such a rule in an unchanged importer fails at the barrier.

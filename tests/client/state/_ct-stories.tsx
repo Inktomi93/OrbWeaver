@@ -1,5 +1,5 @@
-import { stampAppearanceBootHint } from "../../../packages/client/src/compose/stamp-appearance-boot-hint.ts";
-import { getCorpusMode, healCorpusModeFrom, subscribeCorpusMode, writeCorpusMode } from "../../../packages/client/src/state/corpus-mode-store.ts";
+import { stampAppearanceBootHint } from "#client/compose/stamp-appearance-boot-hint.ts";
+import { getCorpusMode, healCorpusModeFrom, subscribeCorpusMode, writeCorpusMode } from "#client/state/corpus-mode-store.ts";
 // Story module for the state-tier CTs (Spine-Testing §7 — CT mounts ONLY from a non-test module).
 // ShellStoreProbe renders the shell store's read-hook values as text + buttons that fire its module
 // actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser) and
@@ -236,7 +236,7 @@ import type { AssetId, CharacterId, ChatId, PluginId, PresetId, TagId, UserConne
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { Fragment, useEffect, useState, useSyncExternalStore } from "react";
-import { ModalHost } from "../../../packages/client/src/features/app-shell/components/modal-host.tsx";
+import { ModalHost } from "#client/features/app-shell/components/modal-host.tsx";
 import { CtDataProviders, CtFakeSectionRegistry, CtRealSectionRegistry } from "../../support/browser/ct-data-providers.tsx";
 
 // ── section-list-projection: the #state answers to "is my LIST docked / is it the mobile SCREEN?" ──────

@@ -6,7 +6,7 @@ import type { UserConnection } from "@orb/contracts/inference";
 import { SUMMARIZE_CONCURRENCY_MAX } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { userConnections } from "@orb/db";
-import { fetchOwned } from "@orb/db/kit";
+import { fetchOwned } from "@orb/db/query";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, getTableColumns, isNull } from "drizzle-orm";
 

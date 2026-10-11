@@ -1,5 +1,5 @@
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags } from "../contract/types.ts";
 import { emit, narrate } from "../lib/emit.ts";
 import { noteUnits, scanCorpus } from "../lib/ledger.ts";

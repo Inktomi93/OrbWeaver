@@ -3,15 +3,11 @@
 
 import type { Db } from "@orb/db";
 import { chatHandoffResumptions } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import {
-  clearHandoffResumption,
-  insertHandoffResumptionStatement,
-  loadHandoffResumption,
-} from "../../../../../packages/server/src/domain/chat/persistence/handoff-resume.ts";
+import { clearHandoffResumption, insertHandoffResumptionStatement, loadHandoffResumption } from "#server/domain/chat/persistence/handoff-resume.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, seedChat, seedUser } from "../_support.ts";

@@ -3,7 +3,7 @@
 // degenerate floors (empty / zero-dim).
 
 import { describe } from "vitest";
-import { pca2d } from "../../../../../packages/server/src/domain/discovery/substrate/pca.ts";
+import { pca2d } from "#server/domain/discovery/substrate/pca.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 // A D-dim vector with leading components set (rest zero).

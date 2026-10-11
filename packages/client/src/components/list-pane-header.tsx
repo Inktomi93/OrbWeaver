@@ -1,7 +1,7 @@
 // ListPaneHeader — the client-shared LIST chrome-band cluster (D12). The content
 // a section definition's `useListHeader` slot feeds into `.shell-panel-header`: an optional back affordance, the
 // section title at the DISPLAY step (optionally `Title · <accent>` for a scoped/entity mode — #1136, see the
-// heading), a live mono count, and the panel's ONE primary action (D66 A2).
+// heading), a live count, and the panel's ONE primary action (D66 A2).
 //
 // Minted because three landed headers hand-copied the identical `Row(Heading micro/caps/semibold + Text
 // micro/mono/muted)` cluster (chat · corpus · analytics) and the character screen's modal band adds two more
@@ -21,6 +21,7 @@ import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { ListPaneHeaderProps } from "#lib";
 import { LIST_PANE_TITLE_ID } from "#lib";
+import { CountText } from "./count-text.tsx";
 
 export type { ListPaneHeaderProps } from "#lib";
 
@@ -66,10 +67,10 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
             IT KEEPS `truncate` AND THE MOBILE SHED: a 24px name in a 307px docked band ellipsises exactly
             as the 10.5px one did, and shell.css still sheds an unscoped title when the pane IS the screen. */}
         <Heading
-          // `gap-row`, not `gap-field` (#525): 6px of air between the NAME and a mono DATUM is below the
+          // `gap-row`, not `gap-field` (#525): 6px of air between the NAME and a figure is below the
           // step the eye needs to read them as two things, and the census is the one child here that is not
           // part of the title's phrase.
-          className="flex min-w-0 items-center gap-row"
+          className="flex min-w-0 items-baseline gap-row"
           data-scoped={accent === undefined ? undefined : "true"}
           data-slot="list-pane-title"
           id={LIST_PANE_TITLE_ID}
@@ -109,9 +110,9 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
             // `normal-case` is gone with the heading's caps: the #525 defect it existed to stop
             // (`CHATS 129 OF 896` — the joining word shouting at the section name's weight) cannot occur
             // now that nothing in this cluster uppercases.
-            <Text as="span" className="min-w-0 truncate font-mono" size="label" tone="muted" weight="regular">
-              {count}
-            </Text>
+            // THE COUNT WEARS THE TITLE'S FAMILY: an unlabelled mono figure beside a sans name reads as a stray
+            // datum, not the census of the list. Tabular figures keep it from jittering as it changes.
+            <CountText className="min-w-0 truncate">{count}</CountText>
           )}
         </Heading>
       </Row>

@@ -11,14 +11,14 @@
 // second means the run is not a verdict about the app at all.
 //
 // THE CONTRACT: zero rendered matches for a requirement ABOUT a matched element (text / focus /
-// no-overflow) prints `NO-MATCH` and exits 2 (the zero-hygiene law, _shared/exit-contract.ts +
-// _shared/evidence.ts). `--expect-visible` and `--expect-count` are DELIBERATELY excluded — a zero
+// no-overflow) prints `NO-MATCH` and exits 2 (the zero-hygiene law, floor/cli/exit-contract.ts +
+// floor/verdict/evidence.ts). `--expect-visible` and `--expect-count` are DELIBERATELY excluded — a zero
 // population is the very answer those two exist to give — and `--include-hidden` widens the population it
 // always did.
 //
 // @instrument-proof: every arm below runs the SAME selectors against a page that carries the element and
 // one that does not, through the real CLI, so a refusal that fired unconditionally reds the control.
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../../_load-budget.ts";
 

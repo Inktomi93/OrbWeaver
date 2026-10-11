@@ -6,7 +6,7 @@
 import { DEFAULT_MAX_IMAGE_BYTES } from "@orb/contracts/settings";
 import { env } from "@orb/server/foundation/env";
 import { describe } from "vitest";
-import { layer } from "../../../../../packages/server/src/domain/settings/effective-config/layer.ts";
+import { layer } from "#server/domain/settings/effective-config/layer.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("layer (floor-merge)", () => {

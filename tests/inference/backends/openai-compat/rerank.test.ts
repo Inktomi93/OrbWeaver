@@ -3,7 +3,7 @@
 // before anything is sent, never posted as an empty query the engine would score. The floor is a no-op here; this pins it.
 
 import { RERANK_FLOOR, RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
-import { runOpenAiCompatRerank } from "../../../../packages/inference/src/backends/openai-compat/rerank.ts";
+import { runOpenAiCompatRerank } from "#inference/backends/openai-compat/rerank.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { fakeApiKeySecret, fakeDeps, fakeResolved } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";

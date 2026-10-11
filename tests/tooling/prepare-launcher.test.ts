@@ -5,8 +5,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { runGit } from "@orb/tooling/_shared/git";
-import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
+import { runGit } from "@orb/tooling/floor/git/git";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { expect, test } from "../support/tool-fixtures.ts";
 
 const PREPARE = join(process.cwd(), "scripts/prepare.ts");

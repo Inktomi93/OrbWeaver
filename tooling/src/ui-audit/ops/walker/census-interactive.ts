@@ -4,7 +4,7 @@
 // One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the
 // segments IN ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
-// _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
+// floor/browser/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // WHAT EACH CENSUS FAMILY NEEDS FROM THE VIEWPORT (#653 — the classification the next author will
@@ -68,7 +68,7 @@
 //   • The reveal budget (REVEAL_SCROLL_BUDGET) bounds a pathological surface. Exhausting it sets
 //     `budgetExhausted`, which the runner prints — an exhausted budget is a refusal, not a clean run.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 import { IMPLICIT_INTERACTIVE_ROLES_JS } from "../../lib/checks-interactive.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");

@@ -5,8 +5,8 @@
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { execGit, runGit } from "../../_shared/git.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { execGit, runGit } from "../../floor/git/git.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 

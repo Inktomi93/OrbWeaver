@@ -18,7 +18,7 @@ import type { SocketRegistry } from "@orb/server/transport/trpc";
 import { createSocketRegistry, FRAME_QUEUE_CAPACITY, publishChatEvent } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
 // The LEAF, not the `@orb/client/data/bus` barrel (it value-exports the socket/room hooks — type-worlds #1351).
-import { createChatEventSeqGuard } from "../../../../../packages/client/src/data/bus/chat-event-seq-guard.ts";
+import { createChatEventSeqGuard } from "#client/data/bus/chat-event-seq-guard.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 import { consumeServerReady } from "./_support.ts";

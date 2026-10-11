@@ -5,7 +5,7 @@
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { createCaptionAvatar } from "../../../../../packages/server/src/domain/imagery/verbs/caption-avatar.ts";
+import { createCaptionAvatar } from "#server/domain/imagery/verbs/caption-avatar.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { fakeCard, makeHarness, principal, seedOwner } from "../_support.ts";

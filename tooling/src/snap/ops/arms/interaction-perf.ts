@@ -1,19 +1,19 @@
 // Per-step responsiveness analyzer over Snap's one argv-ordered tape. The meter is installed before
 // navigation; lifecycle callbacks mark the exact shared action index instead of replaying a second tape.
 import { writeFile } from "node:fs/promises";
-import { splitLastEq } from "../../../_shared/argv.ts";
-import type { InstrumentArtifactCompleteness } from "../../../_shared/artifact-out.ts";
-import { artifactFile } from "../../../_shared/artifact-out.ts";
-import { aggregateScope, exactScope } from "../../../_shared/artifact-scope.ts";
-import type { ResultPair } from "../../../_shared/artifacts.ts";
-import { print } from "../../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import type { EvidenceGap } from "../../../_shared/evidence.ts";
-import { printEvidenceGaps } from "../../../_shared/evidence.ts";
-import { EXIT } from "../../../_shared/exit-contract.ts";
-import type { TimingEvidencePolicy } from "../../../_shared/timing-capability.ts";
 import type { MeterData, StepReport } from "../../../cpu-profile/index.ts";
 import { buildReports, METER_INIT_JS, meterApparatusGap, meterEvidenceGaps, parseMeterData, printTable } from "../../../cpu-profile/index.ts";
+import type { InstrumentArtifactCompleteness } from "../../../floor/artifacts/artifact-out.ts";
+import { artifactFile } from "../../../floor/artifacts/artifact-out.ts";
+import { aggregateScope, exactScope } from "../../../floor/artifacts/artifact-scope.ts";
+import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
+import { print } from "../../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../../floor/cli/exit-contract.ts";
+import type { TimingEvidencePolicy } from "../../../floor/host/timing-capability.ts";
+import { splitLastEq } from "../../../floor/instrument/argv.ts";
+import type { EvidenceGap } from "../../../floor/verdict/evidence.ts";
+import { printEvidenceGaps } from "../../../floor/verdict/evidence.ts";
 import type { SnapAnalyzerProblem } from "../../contract/analyzer.ts";
 import type { ArmActionDisposition, ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmRunContext, ArmRunInstance } from "../../contract/arms.ts";
 import type { Args, SnapAction } from "../../contract/types.ts";
@@ -107,6 +107,9 @@ function label(action: SnapAction): string | null {
   }
   if (step.kind === "soft-keyboard") {
     return `soft-keyboard ${String(step.height)}px`;
+  }
+  if (step.kind === "tap-at") {
+    return `tap-at ${String(step.x)},${String(step.y)}`;
   }
   if (step.kind === "keyboard") {
     return `keyboard ${step.key}`;

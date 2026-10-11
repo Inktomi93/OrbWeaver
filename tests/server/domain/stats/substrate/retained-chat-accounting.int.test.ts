@@ -1,7 +1,7 @@
 import { chatParticipants } from "@orb/db";
 import type { CharacterId, ChatParticipantId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import { retainedRebaseProjection } from "../../../../../packages/server/src/domain/stats/substrate/retained-chat-accounting.ts";
+import { retainedRebaseProjection } from "#server/domain/stats/substrate/retained-chat-accounting.ts";
 import { seedCharacter } from "../../../../support/factories/character.ts";
 import { seedChat } from "../../../../support/factories/chat.ts";
 import { seedUser } from "../../../../support/factories/user.ts";

@@ -1,5 +1,5 @@
 // SNAP'S SHUTDOWN SWEEP IS SCOPED TO THE LEASE IT MINTED (#2504) — the door-level half of the fix whose
-// mechanism is pinned in tests/tooling/_shared/run-marker.test.ts.
+// mechanism is pinned in tests/tooling/floor/process/run-marker.test.ts.
 //
 // THE DEFECT, MEASURED. `sweepOwnBrowsers()` took no argument and swept `currentRunMarker()`, which
 // INHERITS: inside a marked run its subject was the OUTER run, not this daemon. A session daemon is spawned
@@ -12,8 +12,8 @@
 // WHICH VALUE this door handed it. A pin on the mechanism alone stays green while the door reads an ambient
 // identity again, which is exactly how the drift survived #1848's own suite.
 
-import type { RunMarkerDeps } from "@orb/tooling/_shared/run-marker";
-import { markedPids, mintRunMarker } from "@orb/tooling/_shared/run-marker";
+import type { RunMarkerDeps } from "@orb/tooling/floor/process/run-marker";
+import { markedPids, mintRunMarker } from "@orb/tooling/floor/process/run-marker";
 import { sweepOwnBrowsers } from "../../../../tooling/src/snap/ops/browser-sweep.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 

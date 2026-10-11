@@ -14,12 +14,12 @@
 // enable the localMultiUser AppSetting (D17 toggle) → create the member (idempotent) → ASSERT
 // /api/auth/config reports multiHumanCapable and that BOTH humans authenticate.
 import process from "node:process";
-import { print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { ExitCode } from "../../_shared/exit-contract.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { UsageError } from "../../_shared/run-tool.ts";
-import { SESSION_COOKIE_MINTED } from "../../_shared/session-cookie.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { ExitCode } from "../../floor/cli/exit-contract.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { UsageError } from "../../floor/cli/run-tool.ts";
+import { SESSION_COOKIE_MINTED } from "../../floor/http/session-cookie.ts";
 import type { MultiUserConfig } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm seed:demo (node tooling/src/seed/cli.ts <demo|chat|multi-user>)");

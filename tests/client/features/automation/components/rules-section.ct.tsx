@@ -20,7 +20,7 @@ import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { ROLE_STATUS_LABELS } from "../../../../../packages/client/src/lib/connection-roles.ts";
+import { ROLE_STATUS_LABELS } from "#client/lib/connection-roles.ts";
 import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { makeResolvedView } from "../../../../support/factories/resolved-connection.ts";
 import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
@@ -1791,6 +1791,55 @@ for (const [arm, width] of Object.entries(REVIEW_WIDTHS)) {
   });
 }
 
+// The closed row keeps its gloss to one line so the pane stays dense; opening the row reads the whole sentence.
+test("a rule's gloss is one line when the row is shut and whole when it is open", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<RulesSectionStory chatId={CHAT} width={REVIEW_WIDTHS.desktop} />);
+  const gloss = ruleDisclosure(page, "Illustrate the scene").getByText(RULE.description, { exact: true });
+  await expect(gloss).toBeVisible();
+  const lineHeight = (): Promise<number> => gloss.evaluate((el) => Number.parseFloat(getComputedStyle(el).lineHeight));
+  const clipped = (): Promise<boolean> => gloss.evaluate((el) => el.scrollWidth > el.clientWidth);
+  await expect.poll(async () => (await gloss.boundingBox())?.height ?? 0).toBeLessThan((await lineHeight()) * 1.5);
+  await expect.poll(clipped, { message: "the long sentence must really be clipped when shut" }).toBe(true);
+
+  await openRule(page, "Illustrate the scene");
+  await expect.poll(async () => (await gloss.boundingBox())?.height ?? 0).toBeGreaterThan((await lineHeight()) * 1.5);
+  await expect.poll(clipped).toBe(false);
+});
+
+// On a phone the closed gloss gets two lines before it ellipsises; the desktop keeps one.
+test("a rule's closed gloss clamps to two lines on a phone", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<RulesSectionStory chatId={CHAT} mobile={true} width={260} />);
+  const gloss = ruleDisclosure(page, "Illustrate the scene").getByText(RULE.description, { exact: true });
+  await expect(gloss).toBeVisible();
+  const lineHeight = (): Promise<number> => gloss.evaluate((el) => Number.parseFloat(getComputedStyle(el).lineHeight));
+  await expect.poll(async () => (await gloss.boundingBox())?.height ?? 0).toBeGreaterThan((await lineHeight()) * 1.5);
+  await expect.poll(async () => (await gloss.boundingBox())?.height ?? 0).toBeLessThan((await lineHeight()) * 2.5);
+  await expect
+    .poll(() => gloss.evaluate((el) => el.scrollHeight > el.clientHeight), { message: "the long sentence must really be clipped when shut" })
+    .toBe(true);
+});
+
+// The rate-cap note is prose: it holds the reading measure instead of running the whole row.
+test("the rate-cap note holds the prose measure on a wide pane", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<RulesSectionStory chatId={CHAT} width={1024} />);
+  await openRule(page, "Illustrate the scene");
+  const note = page.getByText(/fire-rate cap/u);
+  await expect(note).toBeVisible();
+  const cap = await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.width = "var(--reading-measure-prose)";
+    document.body.append(probe);
+    const px = probe.getBoundingClientRect().width;
+    probe.remove();
+    return px;
+  });
+  expect(cap, "the measure token must resolve, or the cap below is vacuous").toBeGreaterThan(0);
+  await expect.poll(async () => (await note.boundingBox())?.width ?? 0).toBeLessThanOrEqual(cap + 1);
+});
+
 // ── a rule's CONNECTIONS (item 0025): the rule as a binding actor ──────────────────────────────────────
 // The disclosure offers one role slot per task the rule's arms spend (`generate_image` → Image generation). Every
 // write carries the rule as the actor, and the slot reads the rule's OWN `listBindings` view.
@@ -1864,6 +1913,26 @@ async function openRuleConnections(page: Page): Promise<Locator> {
   await page.getByRole("button", { name: "Connections for Illustrate the scene" }).click();
   return page.locator('[data-slot="rule-connections"]');
 }
+
+// One card, one size for its teaching copy: the rule's own summary, the note under its rate-cap switch and the
+// connection slot's description are sibling sentences. The slot's reads at the label step, so a summary or note
+// left at the micro step made the slot the loudest text in the card.
+test("a rule card's summary, rate-cap note and connection description are one size", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  const slots = await openRuleConnections(page);
+
+  const sizeOf = (copy: Locator): Promise<number> => copy.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
+  const summary = ruleDisclosure(page, "Illustrate the scene").getByText(RULE.description, { exact: true });
+  const note = page.getByText("When this rule hits a fire-rate cap", { exact: false });
+  const description = slots.getByText("Pictures this rule makes are drawn with it", { exact: false });
+  await expect(summary).toBeVisible();
+  await expect(note).toBeVisible();
+  await expect(description).toBeVisible();
+  const [summarySize, noteSize, descriptionSize] = await Promise.all([sizeOf(summary), sizeOf(note), sizeOf(description)]);
+  expect(descriptionSize, "the slot description is the label step; the probe must have measured it").toBeGreaterThan(0);
+  expect({ summary: summarySize, note: noteSize }).toEqual({ summary: descriptionSize, note: descriptionSize });
+});
 
 test("a rule's slot binds a connection AS THE RULE, and reads the rule's own bindings back", async ({ mount, page }) => {
   const trpc = await stub(page);

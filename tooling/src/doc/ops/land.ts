@@ -6,7 +6,7 @@
 // All-or-nothing: any refusal writes and commits nothing.
 import { rmSync } from "node:fs";
 import { join } from "node:path";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { DocEdit, WorkItem } from "../contract/types.ts";
 import { DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { closesTrailer } from "../lib/drift.ts";

@@ -16,7 +16,7 @@
 // `node` directly (node 26 runs .ts source; the tsx launcher was shed 2026-08-03 — spawning tsx here
 // was launcher rot).
 //
-// PROCESS MODEL: the child rides _shared/proc's spawnNicedChild (detached, own process group) and every
+// PROCESS MODEL: the child rides floor/process/proc's spawnNicedChild (detached, own process group) and every
 // exit path — including runTool's crash arm — SIGKILLs the group via the `process.on("exit")` belt.
 // No process.exit here: signal handlers resolve the op's promise and the runner owns exits.
 import { randomBytes } from "node:crypto";
@@ -28,14 +28,14 @@ import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { errorMessage } from "@orb/kit/error-message";
 import type { RequestTrace } from "@orb/server/foundation/observability";
-import { budget } from "@orb/tooling/_shared/load-budget";
-import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { instrumentError, printVerdict } from "../../_shared/evidence.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { spawnNicedChild } from "../../_shared/proc.ts";
-import { UsageError } from "../../_shared/run-tool.ts";
-import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "../../_shared/server-entry.ts";
+import { budget } from "@orb/tooling/floor/host/load-budget";
+import { print, REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { UsageError } from "../../floor/cli/run-tool.ts";
+import { spawnNicedChild } from "../../floor/process/proc.ts";
+import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "../../floor/process/server-entry.ts";
+import { instrumentError, printVerdict } from "../../floor/verdict/evidence.ts";
 import { fireEvidenceGap } from "../lib/evidence.ts";
 import { renderTrace } from "../lib/render.ts";
 

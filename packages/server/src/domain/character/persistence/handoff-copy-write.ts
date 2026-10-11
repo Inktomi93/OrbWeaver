@@ -28,7 +28,7 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource } from "@orb/contracts/theme";
 import type { AssetId, CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { cardContentHash } from "#kit/serde/card";
+import { cardContentHash } from "#primitives/serde/card";
 import type { CharacterHandoffCopyContext, CopyHandoffCards, HandoffCardCopy } from "../contract/handoff-copy.ts";
 import { handoffProvenance } from "../contract/handoff-copy.ts";
 import { cardTokenSize } from "../substrate/card-tokens.ts";

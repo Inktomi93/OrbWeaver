@@ -18,8 +18,8 @@
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, beforeEach, vi } from "vitest";
-import type { AuthMe } from "../../../../../packages/client/src/data/auth-bootstrap.ts";
-import { redirectIfAuthed, requireAuthed } from "../../../../../packages/client/src/features/auth/lib/route-guards.ts";
+import type { AuthMe } from "#client/data/auth-bootstrap.ts";
+import { redirectIfAuthed, requireAuthed } from "#client/features/auth/lib/route-guards.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { stubTabStorage } from "../../../../support/tab-storage.ts";
 

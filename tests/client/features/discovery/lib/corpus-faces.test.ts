@@ -7,7 +7,7 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { toFaceItems } from "../../../../../packages/client/src/features/discovery/lib/corpus-faces.ts";
+import { toFaceItems } from "#client/features/discovery/lib/corpus-faces.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function member(name: string, avatarHash: string | null): { characterId: CharacterId; name: string; avatarHash: string | null } {

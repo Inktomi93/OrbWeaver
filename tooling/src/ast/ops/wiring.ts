@@ -1,7 +1,7 @@
 // unwired (tRPC procedures no client consumes) + clientgap (server-only client-facing shapes).
 import { Node, SyntaxKind } from "ts-morph";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { collectAppRouterOutputProvenance } from "../lib/app-router-provenance.ts";
 import { emit, hitOf, narrate } from "../lib/emit.ts";

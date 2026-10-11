@@ -1,6 +1,6 @@
 // Concise terminal end-card for the immutable Snap run index.
-import { print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { snapDiagnosticRetention } from "../contract/run-facts.ts";
 import type { SnapCompositeFinding, SnapFindingDisposition, SnapRunIndex } from "../contract/run-index.ts";
 import { findingDispositionDisplay, findingEvidenceDisplay, findingNextDisplay } from "../lib/run-finding-display.ts";

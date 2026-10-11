@@ -1,8 +1,8 @@
 // verb: getTheme — one theme readable by this owner (own or seed); ThemeNotFoundError for missing/foreign.
 
 import { describe } from "vitest";
-import { ThemeNotFoundError } from "../../../../../packages/server/src/domain/settings/contract/errors.ts";
-import { ensureSeedThemes } from "../../../../../packages/server/src/domain/settings/seed-themes.ts";
+import { ThemeNotFoundError } from "#server/domain/settings/contract/errors.ts";
+import { ensureSeedThemes } from "#server/domain/settings/seed-themes.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { findSeedTheme, makeHarness, principal, seedUser } from "../_support.ts";

@@ -7,8 +7,8 @@ import type { ImportedTokenUsageCandidate } from "@orb/contracts/chat";
 import type { MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import type { ImportTokenUsageBackfillDeps } from "../../../../../packages/server/src/domain/import/contract/workloads.ts";
-import { createBackfillTokenUsage } from "../../../../../packages/server/src/domain/import/verbs/backfill-token-usage.ts";
+import type { ImportTokenUsageBackfillDeps } from "#server/domain/import/contract/workloads.ts";
+import { createBackfillTokenUsage } from "#server/domain/import/verbs/backfill-token-usage.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The verb's own page size — mirrored here so the recursion arm is driven at its real boundary. */

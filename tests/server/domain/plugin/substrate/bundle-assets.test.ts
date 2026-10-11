@@ -8,8 +8,8 @@ import type { StoredAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { PluginBundleAssetLink, PluginBundleAssetStoreOutcome } from "../../../../../packages/server/src/domain/plugin/contract/bundle-assets.ts";
-import { storeBundleAssets } from "../../../../../packages/server/src/domain/plugin/substrate/bundle-assets.ts";
+import type { PluginBundleAssetLink, PluginBundleAssetStoreOutcome } from "#server/domain/plugin/contract/bundle-assets.ts";
+import { storeBundleAssets } from "#server/domain/plugin/substrate/bundle-assets.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { magicBytes } from "../../../../support/magic-bytes.ts";
 

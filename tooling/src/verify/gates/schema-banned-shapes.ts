@@ -22,7 +22,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `schema-banned-shapes` descriptor at 3034bdad6c79e4f9423c07c5a3133ce2a32e4a49, the parent of the conversion
 // `faf2dc3857` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,137 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy harness
+// 7,137 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy harness
 // dispatch (no `scanRoot`) admits 7,137 and final `population` admits 30. legacy − final = 7,107 harness sources
 // outside `packages/db/src/schema/` — read by the combined module's contract and import arms, which left for
 // `contract-banned-shapes` and biome; the schema arm itself tested `SCHEMA_DIR`. final − legacy = ∅. Controls: inside

@@ -1,7 +1,7 @@
 // The two-human fixture, pure: the env recipe that runs the dev stack as a real multi-human deployment
 // beside the operator's own (its own port pair, data root and run dir), and the credentials it seeds.
 import { join } from "node:path";
-import { FIXTURE_PORTS } from "../../_shared/ports.ts";
+import { FIXTURE_PORTS } from "../../floor/host/ports.ts";
 import { ENV_NO_FILE, PORT_ENV, RUN_DIR_ENV, VITE_API_TARGET_ENV, VITE_PORT_ENV } from "./stack-plan.ts";
 
 /** Where the fixture keeps its DB, assets, secrets and run dir, under the repo root. */

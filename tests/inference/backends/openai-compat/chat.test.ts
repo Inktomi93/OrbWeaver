@@ -20,11 +20,11 @@ import type { UserIntent } from "@orb/contracts/preset";
 import { createInferenceRuntime } from "@orb/inference";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
-import { runOpenAiCompatChatTurn } from "../../../../packages/inference/src/backends/openai-compat/chat.ts";
-import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
-import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
-import type { ChatDeltaSubscription, ChatResult, OpenAiCompatChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
-import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
+import { runOpenAiCompatChatTurn } from "#inference/backends/openai-compat/chat.ts";
+import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "#inference/capability/synthesize.ts";
+import type { ChatDeltaSubscription, ChatResult, OpenAiCompatChatRequest } from "#inference/contract/chat.ts";
+import { ProviderError } from "#inference/contract/errors.ts";
 import { principal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
@@ -1140,7 +1140,7 @@ test("C3: `web_search_options` rides when declared, and the body carries nothing
 //
 // It is the recovery for an endpoint that rejects `reasoning.effort:"none"` with a 400: the runner peels the
 // upstream body off the RAW thrown error, recognises the refusal, and replays the turn ONCE with the
-// reasoning block omitted. That peel is also the reason `backends/kit/retry.ts` re-throws the ORIGINAL error
+// reasoning block omitted. That peel is also the reason `backends/http/retry.ts` re-throws the ORIGINAL error
 // rather than its classification — `providerErrorFromHttp` replaces `cause` with a scrubbed `new Error(safe)`
 // on any credential-bearing scrub set, which would destroy exactly the body this reads.
 //

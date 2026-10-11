@@ -27,7 +27,7 @@
 import type { AssetKind } from "@orb/contracts/assets";
 import type { ApplyStatsDelta, BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 
 /** Re-own ONE image blob into the recipient's library, returning the RECIPIENT's asset id (or `null` when

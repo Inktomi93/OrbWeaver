@@ -2,9 +2,9 @@
 // cannot accidentally move `Tracing.start` below `page.goto` and turn a boot trace into a post-nav span.
 import { writeFile } from "node:fs/promises";
 import { errorMessage } from "@orb/kit/error-message";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { budget, loadKillError } from "@orb/tooling/_shared/load-budget";
-import { warn } from "@orb/tooling/_shared/log";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { warn } from "@orb/tooling/floor/cli/log";
+import { budget, loadKillError } from "@orb/tooling/floor/host/load-budget";
 import type { CDPSession, Page } from "@playwright/test";
 import { defaultConfig, traceCategories } from "lighthouse";
 import { TraceEngineResult } from "lighthouse/core/computed/trace-engine-result.js";

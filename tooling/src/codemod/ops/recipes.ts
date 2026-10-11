@@ -1,6 +1,6 @@
 // RECIPES + the help printers (`pnpm codemod help|list|recipes|recipe|search`).
 
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { flushBuffer } from "../lib/diagnostics.ts";
 import { MANIFEST } from "./manifest.ts";
 

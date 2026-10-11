@@ -15,7 +15,7 @@ import { castId } from "@orb/kit/ids";
 import type { PresenceRegistry } from "@orb/server/transport/trpc";
 import { createPresenceRegistry } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
-import { readPresenceDisclosure } from "../../../../packages/server/src/transport/trpc/presence-disclosure.ts";
+import { readPresenceDisclosure } from "#server/transport/trpc/presence-disclosure.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const ALICE = castId<UserId>("user_alice");

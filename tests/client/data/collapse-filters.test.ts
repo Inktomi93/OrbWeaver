@@ -7,7 +7,7 @@
 
 import type { InvalidateQueryFilters } from "@tanstack/react-query";
 import { describe } from "vitest";
-import { collapseFilters } from "../../../packages/client/src/data/collapse-filters.ts";
+import { collapseFilters } from "#client/data/collapse-filters.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const personaRoot: InvalidateQueryFilters = { queryKey: [["persona"]] };

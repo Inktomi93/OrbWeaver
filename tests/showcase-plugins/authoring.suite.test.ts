@@ -2,7 +2,7 @@ import { readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { HOST_FUNCTION_CAPABILITY, UI_PROXYABLE_HOST_FUNCTIONS } from "@orb/contracts/plugin";
 import { getPluginQuickJS } from "@orb/server/infra/plugin-host";
-import { budget } from "@orb/tooling/_shared/load-budget";
+import { budget } from "@orb/tooling/floor/host/load-budget";
 import { compileShowcasePlugins, writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { isFail } from "quickjs-emscripten-core";
 import { expect, test } from "../support/tool-fixtures.ts";

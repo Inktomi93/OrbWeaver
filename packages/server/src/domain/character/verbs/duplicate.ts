@@ -12,7 +12,7 @@
 import { deriveCharacterHandle } from "@orb/contracts/character";
 import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import { cardContentHash } from "#kit/serde/card";
+import { cardContentHash } from "#primitives/serde/card";
 import type { CharacterContext } from "../context.ts";
 import { CharacterNotFoundError } from "../contract/errors.ts";
 import type { DuplicateCharacterParams } from "../contract/params.ts";

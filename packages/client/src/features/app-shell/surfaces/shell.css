@@ -1205,8 +1205,19 @@
 .shell-topbar-trail {
   flex: none;
 }
-/* The one seam in the trail: separates the bordered ⌘K chip (group 1) from the ghost toggle cluster
- * (group 2) so the topbar reads as exactly two groups (P1/N1). */
+/* The trail's icon actions are one group: tighter than the row's rhythm so they read as a cluster, and a
+ * cluster whose members are all hidden paints nothing. Both groups wear the ghost control. */
+.shell-topbar-cluster {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-field);
+}
+.shell-topbar-cluster:empty {
+  display: none;
+}
+/* The one seam in the trail: separates the ⌘K chip (group 1) from the icon cluster (group 2) so the topbar
+ * reads as exactly two groups (P1/N1). */
 .shell-topbar-divider {
   flex: none;
   width: var(--border-width-control);
@@ -1256,7 +1267,7 @@
  * text gives. Inside the group the participants lead and the user's room name keeps a real floor of its own
  * (a name the user chose is never drawn at 0px); the name yields to the participants first. Below 56rem of
  * content column the avatar goes (a group's faces live in the cast row), the chips collapse to their glyphs
- * (their accessible names already carry the count) and the ⌘K chip drops its word; below 72rem the creation
+ * (their accessible names already carry the count); below 72rem the creation
  * date goes, first, before the name is ever squeezed. */
 .shell-topbar-title-group {
   min-width: var(--dimension-shell-title-floor);
@@ -1284,8 +1295,7 @@
 }
 @container shell-main (max-width: 56rem) {
   .shell-topbar-identity .shell-chat-header-avatar,
-  .shell-topbar-identity .shell-chat-chip-count,
-  .shell-topbar:has(.shell-chat-member-chip) .shell-topbar-jump-label {
+  .shell-topbar-identity .shell-chat-chip-count {
     display: none;
   }
 }

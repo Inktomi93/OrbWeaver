@@ -11,7 +11,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { evictFieldIndex, FIELD_INDEX_TTL_MS } from "../../../../../packages/server/src/domain/search/substrate/field-index.ts";
+import { evictFieldIndex, FIELD_INDEX_TTL_MS } from "#server/domain/search/substrate/field-index.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

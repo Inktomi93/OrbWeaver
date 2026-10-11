@@ -1,7 +1,7 @@
-// ZERO HYGIENE (#409) — motion-audit's half of the fleet rule in _shared/evidence.ts (read that first):
+// ZERO HYGIENE (#409) — motion-audit's half of the fleet rule in floor/verdict/evidence.ts (read that first):
 // an audit whose evidence population is EMPTY has measured nothing, and `0%` / `PASS` over nothing is a
 // smoothness claim nothing observed. Pure over the collected data — ops/ prints and maps to EXIT.toolError.
-import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
+import type { EvidenceGap } from "@orb/tooling/floor/verdict/evidence";
 import type { AuditData } from "../contract/types.ts";
 import { clsBudgeted, framePopulationBasis } from "./verdicts.ts";
 

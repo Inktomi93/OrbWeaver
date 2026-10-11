@@ -11,8 +11,8 @@
 import type { ChatDeltaEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatStreamEvents, chats, messages } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchStmt } from "@orb/db/query";
 import type { ChatId, ChatStreamEventId, ChatStreamGenerationId, MessageId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 

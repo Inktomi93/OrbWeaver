@@ -10,10 +10,10 @@
 // read exactly like "the client posted no section", and a false accusation from the instrument is the
 // failure this seam exists to make impossible.
 
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { instrumentRefusal } from "@orb/tooling/_shared/page-validate";
+import { instrumentRefusal } from "@orb/tooling/floor/browser/page-validate";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import type { Page, Route } from "@playwright/test";
-import { settle } from "../../_shared/browser.ts";
+import { settle } from "../../floor/browser/browser.ts";
 import { MOUNT_SETTLE_MS, STEP_TIMEOUT_MS } from "../lib/budgets.ts";
 import type { AppearanceMutationIsolationEvidence } from "./appearance-invariant-check-context.ts";
 import type { AppearanceDomSnapshot } from "./appearance-invariant-dom.ts";

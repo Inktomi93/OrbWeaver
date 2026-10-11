@@ -14,7 +14,7 @@
 // the `text-over-art` family's question and it is already asked at rest; asking it again in the hover
 // state would file the same art-legibility concern twice under a second id. Those are `excluded` with a
 // named reason, never silently dropped.
-import type { Rgb } from "@orb/tooling/_shared/wcag";
+import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import {
   compositeForeground,
   contrastRatio,
@@ -24,7 +24,7 @@ import {
   LARGE_MIN_RATIO,
   MEASURABLE_OPACITY_MIN,
   NORMAL_MIN_RATIO,
-} from "@orb/tooling/_shared/wcag";
+} from "@orb/tooling/floor/instrument/wcag";
 import type { Finding, RulePopulationAccounting } from "../contract/findings.ts";
 import type { Backdrop } from "../contract/samples.ts";
 import type { HoverContrastInput, HoverScanInput } from "../contract/samples-hover.ts";

@@ -1,6 +1,6 @@
 // Pure argv/query and row-filter logic for Snap's browser-free run-index reader.
 
-import { scopeMatches } from "../../_shared/artifact-scope.ts";
+import { scopeMatches } from "../../floor/artifacts/artifact-scope.ts";
 import type { DiskSafeBrowserDiagnostic } from "../contract/browser-evidence-redaction.ts";
 import type { SnapCompositeFinding, SnapReportQuery, SnapRunArtifact, SnapRunListQuery } from "../contract/run-index.ts";
 

@@ -14,8 +14,8 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
 import { describe, vi } from "vitest";
-import type { ArbiterCandidate, SpeakerArbiter, TranscriptLine } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
-import { smartArbitrate } from "../../../../../packages/server/src/domain/chat/engine/smart-arbitrate.ts";
+import type { ArbiterCandidate, SpeakerArbiter, TranscriptLine } from "#server/domain/chat/contract/arbitration.ts";
+import { smartArbitrate } from "#server/domain/chat/engine/smart-arbitrate.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);

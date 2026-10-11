@@ -17,7 +17,7 @@
 // from a live Tier-B card at a glance without inventing a new visual language.
 
 import type { ReactElement, ReactNode } from "react";
-import { Badge } from "../../primitives/badge/index.ts";
+import { Badge } from "#primitives/badge";
 import { inertCardVariants } from "./variants.ts";
 
 /** Matches `ImmersiveCard`'s untitled fallback so the two states label identically. */

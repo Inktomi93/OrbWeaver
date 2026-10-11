@@ -2,7 +2,7 @@ import type { PromptConfig, PromptSection, UserMacroSpec } from "@orb/contracts/
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { cacheInvalidatingSections } from "../../../../../packages/client/src/features/preset/lib/prompt-cache-warning.ts";
+import { cacheInvalidatingSections } from "#client/features/preset/lib/prompt-cache-warning.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const PRESET_ID = castId<PresetId>("preset_cachewarning");

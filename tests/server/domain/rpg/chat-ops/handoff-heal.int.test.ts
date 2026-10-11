@@ -12,11 +12,11 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { characters, presets, rpgSheets } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import type { CharacterHandle, CharacterId, ChatId, Handle, PresetId, RpgGameId, RpgSheetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { findGameByChat, insertGame } from "../../../../../packages/server/src/domain/rpg/persistence/games.ts";
+import { findGameByChat, insertGame } from "#server/domain/rpg/persistence/games.ts";
 import { freshDb } from "../../../../support/db.ts";
 import type { RpgHarness } from "../_support.ts";
 import { expect, FROZEN_AT, liteConfig, makeRpgService, seedChat, seedUser, test } from "../_support.ts";

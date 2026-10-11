@@ -1,9 +1,9 @@
 // Git index membership is independent of authored disk/overlay liveness and loaded once by the host.
 
 import { resolve } from "node:path";
-import { runGit } from "@orb/tooling/_shared/git";
-import { budget } from "@orb/tooling/_shared/load-budget";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { runGit } from "@orb/tooling/floor/git/git";
+import { budget } from "@orb/tooling/floor/host/load-budget";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ResourceLoad, ResourceSubprocessReceipt, TrackedFileModeOverlay, TrackedResourceIndex } from "../contract/resource.ts";
 import { normalizePathSet } from "../lib/policy-validation.ts";
 import { candidateIndexGitEnvironment } from "./resource-index.ts";

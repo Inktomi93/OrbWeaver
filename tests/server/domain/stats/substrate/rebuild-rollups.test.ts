@@ -3,7 +3,7 @@ import { generationUsageLegSchema } from "@orb/contracts/inference";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { statsBucketStart } from "@orb/kit/stats-tally";
-import type { CanonMessage } from "../../../../../packages/server/src/domain/stats/contract/rebuild-from-canon.ts";
+import type { CanonMessage } from "#server/domain/stats/contract/rebuild-from-canon.ts";
 import {
   buildChatMeta,
   buildOwnerRows,
@@ -11,7 +11,7 @@ import {
   foldCanonMessage,
   foldCanonSwipe,
   ownerExtrema,
-} from "../../../../../packages/server/src/domain/stats/substrate/rebuild-rollups.ts";
+} from "#server/domain/stats/substrate/rebuild-rollups.ts";
 import { makeUser } from "../../../../support/factories/user.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";

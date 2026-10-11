@@ -7,10 +7,10 @@ import { characterEmbeddings, chatParticipants, chatSegments, embedGenerations, 
 import type { CharacterEmbeddingId, CharacterId, ChatSegmentId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import type { GenerationReceipt, GenerationTask } from "../../../../../packages/server/src/domain/embeddings/contract/generation.ts";
-import { upsertCharacterEmbedding } from "../../../../../packages/server/src/domain/embeddings/persistence/queries.ts";
-import { markGenerationComplete, switchTargetGeneration } from "../../../../../packages/server/src/domain/embeddings/persistence/space-state.ts";
-import { readGeneration } from "../../../../../packages/server/src/domain/search/persistence/active-space.ts";
+import type { GenerationReceipt, GenerationTask } from "#server/domain/embeddings/contract/generation.ts";
+import { upsertCharacterEmbedding } from "#server/domain/embeddings/persistence/queries.ts";
+import { markGenerationComplete, switchTargetGeneration } from "#server/domain/embeddings/persistence/space-state.ts";
+import { readGeneration } from "#server/domain/search/persistence/active-space.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedUser } from "../_support.ts";

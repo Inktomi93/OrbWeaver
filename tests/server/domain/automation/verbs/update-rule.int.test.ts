@@ -6,7 +6,7 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
 import { createAutomationService, createEnabledRuleIndex, createSuggestionStore, RuleValidationError } from "@orb/server/domain/automation";
 import { and, eq, isNull } from "drizzle-orm";
-import type { SuggestionStore } from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
+import type { SuggestionStore } from "#server/domain/automation/contract/ops.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedParticipant } from "../../chat/_support.ts";

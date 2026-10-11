@@ -16,7 +16,7 @@ import { createImportService } from "@orb/server/domain/import";
 import { createBulkImportLorebook, createHasPrimaryBook } from "@orb/server/domain/world-info";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import type { ImportContext } from "../../../../../packages/server/src/domain/import/context.ts";
+import type { ImportContext } from "#server/domain/import/context.ts";
 import { seedCharacter, seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

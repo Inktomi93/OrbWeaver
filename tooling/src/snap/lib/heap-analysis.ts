@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readFile, stat, writeFile } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
-import type { InstrumentArtifactLimitReceipt } from "../../_shared/artifact-out.ts";
+import type { InstrumentArtifactLimitReceipt } from "../../floor/artifacts/artifact-out.ts";
 import type { SnapAnalyzerProblem } from "../contract/analyzer.ts";
 import type {
   HeapBrowserIdentity,

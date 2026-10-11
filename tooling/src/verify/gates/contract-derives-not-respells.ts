@@ -62,7 +62,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `contract-derives-not-respells` descriptor at (pruned from public history), the parent of the
 // conversion `1692e75291` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
-// the SAME 7,358 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// the SAME 7,358 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy
 // `scanRoot` admits 1,283 and final `population` admits 1,640. legacy − final = ∅. final − legacy = 357 — `@server`
 // outside `domain/` (345) and `@db` outside `schema/` (12): root-level declaration, no arm reads them. Controls:
 // inside `packages/contracts/src/assets/__cbbhr_in_index.ts` (virtual) admitted by both; outside

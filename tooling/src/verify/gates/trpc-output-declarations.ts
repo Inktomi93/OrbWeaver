@@ -7,8 +7,8 @@
 // RETIRED MARKERS: none (new policy). Hard zero, not a source-derived numeric ratchet or an exemption table.
 import type { Node as MorphNode, SourceFile, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference, resolveExportedDeclarations, resolveStableExpression } from "../../_shared/reference-fact.ts";
-import { resolveCallableDeclaration } from "../../_shared/reference-fact-call.ts";
+import { readMemberReference, resolveExportedDeclarations, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
+import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";

@@ -9,7 +9,7 @@
 // with a spurious "before restore" entry already in the log — and every retry added another. Both writes are
 // one `restoreCardInPlace` batch now; see its doc for the `changes()` witness that ties them together.
 
-import { cardContentHash } from "#kit/serde/card";
+import { cardContentHash } from "#primitives/serde/card";
 import type { CharacterContext } from "../context.ts";
 import { CHARACTER_BACKGROUND_UNAVAILABLE, CharacterNotFoundError, CharacterOperationError } from "../contract/errors.ts";
 import type { RestoreParams } from "../contract/params.ts";

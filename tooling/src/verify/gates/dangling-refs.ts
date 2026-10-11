@@ -16,13 +16,13 @@
 // is a law corpus that resolves to zero documents — a walk pointed at a moved or wrong root goes silently
 // empty exactly like a stale census would, and arms 2-4 would then judge only the hand-named directories.
 //
-// BINDING RESOLUTION (#2163): descriptor const aliases resolve through _shared/reference-fact.ts
+// BINDING RESOLUTION (#2163): descriptor const aliases resolve through floor/code-facts/reference-fact.ts
 // resolveStableExpression. Bare descriptor names resolve docs/law, then repository root;
 // Markdown links resolve relative to their own document first.
 import { dirname, join, normalize } from "node:path";
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveStableExpression } from "../../_shared/reference-fact.ts";
+import { resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
 import type { GatePolicyContext, GatePolicyProof } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { PathStatusIndex } from "../lib/dangling-ref-citations.ts";

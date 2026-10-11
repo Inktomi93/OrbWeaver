@@ -272,7 +272,7 @@ function CharacterPickerRow({ character, onSelect, isSelected }: CharacterPicker
   return (
     <CommandItem keywords={[character.name]} onSelect={(): void => onSelect(id, character.name, character.avatarHash)} value={character.id}>
       <Row align="center" className="min-w-0 flex-1" gap="row">
-        <Avatar fallbackDelay={0} hueSeed={character.id} shape="square" size="sm" {...avatarSrc}>
+        <Avatar fallbackDelay={0} hueSeed={character.id} size="sm" {...avatarSrc}>
           {initialsFor(character.name)}
         </Avatar>
         <Text as="span" className="min-w-0 flex-1 truncate">

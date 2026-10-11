@@ -7,13 +7,13 @@ import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { vi } from "vitest";
+import { DEV_PORTS, ORB_APP_PORT_NUMBERS, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 // THE PARSER, NOT THE BARREL (#1743). `snap/index.ts` re-exports the whole op graph — `ops/run.ts` and
 // with it Playwright — so importing the two grammar doors through it made this pure file pay for the
 // browser driver at collection. Measured on this box at loadavg ~30 (node, type-stripped, 5 runs each):
 // the barrel 0.86-2.05s vs the three own modules 0.73-0.76s. Both doors have a module of their own, so
 // the cheap seam is simply naming them (`ops/flags-handlers.ts` was already named this way below).
-import { parseGotoTarget } from "../../../../tooling/src/_shared/argv.ts";
-import { DEV_PORTS, ORB_APP_PORT_NUMBERS, stageBandPorts } from "../../../../tooling/src/_shared/ports.ts";
+import { parseGotoTarget } from "../../../../tooling/src/floor/instrument/argv.ts";
 import { snapFlagDescriptors } from "../../../../tooling/src/snap/ops/flag-grammar.ts";
 import { FLAG_HANDLERS } from "../../../../tooling/src/snap/ops/flags-handlers.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";

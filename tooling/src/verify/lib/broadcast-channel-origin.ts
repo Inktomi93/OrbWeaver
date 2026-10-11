@@ -14,7 +14,7 @@
 //
 // A pure reader over one delivered node: no walk, no Project, no filesystem, no cache.
 
-import { resolveGlobalMemberOrigin } from "@orb/tooling/_shared/reference-fact";
+import { resolveGlobalMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 import type { BroadcastChannelVerdict } from "../contract/origin-verdict.ts";

@@ -1,7 +1,7 @@
 // Bounded valid-row normalization proof for JSON write provenance. Schema output parity alone is not
 // identity: transforms/custom parses refuse, and catch explicitly retains a historical-heal arm.
-import { resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
-import { resolveCallableOrigin } from "@orb/tooling/_shared/reference-fact-call";
+import { resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
+import { resolveCallableOrigin } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { JsonNormalizerProof } from "../contract/json-column-origin.ts";

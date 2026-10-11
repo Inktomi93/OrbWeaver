@@ -4,9 +4,9 @@
 
 import type { GenerationCapability, NativeChatApi, SamplingCapability } from "@orb/contracts/inference";
 import { builtinProvider, foldFeatures, SAMPLER_ORDER_TOKENS } from "@orb/contracts/inference";
-import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
-import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
-import { resolveChat } from "../../../../../packages/inference/src/funnel/resolve-chat.ts";
+import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "#inference/capability/synthesize.ts";
+import { resolveChat } from "#inference/funnel/resolve-chat.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testProviderId } from "../../../../support/inference-identities.ts";
 

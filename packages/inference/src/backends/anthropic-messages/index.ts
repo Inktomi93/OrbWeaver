@@ -6,21 +6,27 @@ import type { CredentialHealth } from "@orb/contracts/credentials";
 import type { ModelCatalogEntry, ModelListing } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
-import type { ProviderBackend } from "../../contract/backend.ts";
-import type { AnthropicChatRequest, ChatRequest, ChatResult } from "../../contract/chat.ts";
-import type { ListModelsRequest, ProbeRequest } from "../../contract/diagnostics.ts";
-import type { ProviderScrubSet } from "../../contract/errors.ts";
-import { ProviderError } from "../../contract/errors.ts";
-import type { StructuredRequest, SummarizeRequest } from "../../contract/roles.ts";
-import type { AddSpanEvent } from "../../contract/runtime.ts";
-import type { InferenceDeps } from "../../deps.ts";
-import { runSideGen } from "../../roles/side-gen.ts";
-import { fetchJson } from "../kit/fetch-json.ts";
-import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
-import { createImageNormalizer, passthroughImageNormalizer } from "../kit/image-normalize.ts";
-import { bareCatalogEntry, failedListing, listingOf } from "../kit/model-listing.ts";
-import { redactSecretsFromText } from "../kit/openai-body.ts";
-import { resolvedScrubSet, sanitizeApiError } from "../kit/sanitize.ts";
+import type {
+  AddSpanEvent,
+  AnthropicChatRequest,
+  ChatRequest,
+  ChatResult,
+  ListModelsRequest,
+  ProbeRequest,
+  ProviderBackend,
+  ProviderScrubSet,
+  StructuredRequest,
+  SummarizeRequest,
+} from "#contract";
+import { ProviderError } from "#contract";
+import { runSideGen } from "#roles";
+import type { InferenceDeps } from "#src/deps.ts";
+import { fetchJson } from "../http/fetch-json.ts";
+import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
+import type { NormalizeImageBytes } from "../wire/image-normalize.ts";
+import { createImageNormalizer, passthroughImageNormalizer } from "../wire/image-normalize.ts";
+import { bareCatalogEntry, failedListing, listingOf } from "../wire/model-listing.ts";
+import { redactSecretsFromText } from "../wire/openai-body.ts";
 import { runAnthropicChatTurn } from "./chat.ts";
 import type { AnthropicTransportDeps } from "./model.ts";
 import { anthropicBaseUrl } from "./model.ts";

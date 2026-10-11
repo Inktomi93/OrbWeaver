@@ -2,7 +2,7 @@
 // list; the surface pins whatever index this returns to the viewport top on a new send. The helper is typed
 // structurally, so these fixtures need only `{ kind, view: { id, role } }` — no full MessageView value.
 import type { MessageView } from "@orb/contracts/chat";
-import { lastUserRowIndex } from "../../../../../packages/client/src/features/chat/hooks/use-message-items.ts";
+import { lastUserRowIndex } from "#client/features/chat/hooks/use-message-items.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function row(id: string, role: MessageView["role"]): { kind: "message"; view: { id: string; role: MessageView["role"] } } {

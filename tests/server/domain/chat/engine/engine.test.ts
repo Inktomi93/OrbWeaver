@@ -16,7 +16,7 @@ import type { ResolvedWarning, WarningCode } from "@orb/inference";
 import { WARNING_CODES } from "@orb/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { emitCapabilityDropWarnings } from "../../../../../packages/server/src/domain/chat/engine/engine.ts";
+import { emitCapabilityDropWarnings } from "#server/domain/chat/engine/engine.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_warnmap");

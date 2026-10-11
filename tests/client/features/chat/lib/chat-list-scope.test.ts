@@ -13,8 +13,8 @@ import {
   monthExclusiveUpperBound,
   phoneFiltersLabel,
   searchEmptyDescription,
-} from "../../../../../packages/client/src/features/chat/lib/chat-list-scope.ts";
-import { timeLib } from "../../../../../packages/client/src/lib/time.ts";
+} from "#client/features/chat/lib/chat-list-scope.ts";
+import { timeLib } from "#client/lib/time.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const ARIA = castId<CharacterId>("char_aria");

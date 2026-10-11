@@ -21,8 +21,8 @@ import type {
   StoreDigestParams,
   StoreSegmentParams,
   SummarizeOp,
-} from "../../../../../packages/server/src/domain/chat/contract/context.ts";
-import type { MemoryScope } from "../../../../../packages/server/src/domain/chat/memory/types.ts";
+} from "#server/domain/chat/contract/context.ts";
+import type { MemoryScope } from "#server/domain/chat/memory/types.ts";
 import type { StoreHarness } from "../../embeddings/_support.ts";
 import { EMBED_DIM, EMBED_MODEL, makeStoreHarness } from "../../embeddings/_support.ts";
 import { makeChatContext, seedMessage } from "../_support.ts";

@@ -16,10 +16,10 @@
 // `E2E_ALLOW_DEV_TARGET=1` is the ONE deliberate override (an operator-supervised live drive against their
 // own configured stack); it waives BOTH arms, because "I accept a non-harness target" is one decision.
 
-import { DEV_PORTS } from "@orb/tooling/_shared/ports";
+import { DEV_PORTS } from "@orb/tooling/floor/host/ports";
 import type { ModeProject } from "./modes.ts";
 
-/** The canonical dev-stack ports, read from the ONE port registry (`tooling/src/_shared/ports.ts`; the
+/** The canonical dev-stack ports, read from the ONE port registry (`tooling/src/floor/host/ports.ts`; the
  *  same numbers the stack tool defaults to). A harness target holding either is refused — that stack is the
  *  operator's, and its DB is their real data. */
 export const DEV_STACK_PORTS: readonly string[] = [String(DEV_PORTS.server), String(DEV_PORTS.vite)];

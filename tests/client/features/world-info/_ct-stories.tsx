@@ -11,11 +11,11 @@ import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { EntryEditor } from "../../../../packages/client/src/features/world-info/components/entry-editor.tsx";
-import { WorldInfoCollectionRows } from "../../../../packages/client/src/features/world-info/components/world-info-collection-rows.tsx";
-import { WorldInfoContextBody } from "../../../../packages/client/src/features/world-info/components/world-info-context-body.tsx";
-import { WorldInfoSettingsSection } from "../../../../packages/client/src/features/world-info/components/world-info-settings-section.tsx";
-import { WorldInfoMemberSurface } from "../../../../packages/client/src/features/world-info/surfaces/world-info-member-surface.tsx";
+import { EntryEditor } from "#client/features/world-info/components/entry-editor.tsx";
+import { WorldInfoCollectionRows } from "#client/features/world-info/components/world-info-collection-rows.tsx";
+import { WorldInfoContextBody } from "#client/features/world-info/components/world-info-context-body.tsx";
+import { WorldInfoSettingsSection } from "#client/features/world-info/components/world-info-settings-section.tsx";
+import { WorldInfoMemberSurface } from "#client/features/world-info/surfaces/world-info-member-surface.tsx";
 import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 
 /** The World-info settings SECTION (Phase B ②) over the real data layer — getUserSettings +

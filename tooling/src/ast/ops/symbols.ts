@@ -2,9 +2,9 @@
 import { dirname, resolve } from "node:path";
 import type { ExportDeclaration, ImportDeclaration, SourceFile } from "ts-morph";
 import { Node, SyntaxKind, ts } from "ts-morph";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
-import { semanticReferenceNodes } from "../../_shared/ts-workspace.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
+import { semanticReferenceNodes } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { scanCorpus, WHOLE_CORPUS } from "../lib/ledger.ts";

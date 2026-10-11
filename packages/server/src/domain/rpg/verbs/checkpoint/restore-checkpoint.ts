@@ -6,11 +6,11 @@
 // checkpoint id → leak-free NOT-FOUND).
 
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { RestoreCheckpointParams } from "../../contract/params.ts";
-import type { RpgContext, RpgService } from "../../contract/service.ts";
-import { resolveHost } from "../../guard.ts";
-import { findCheckpoint } from "../../persistence/checkpoints.ts";
-import { buildRestoredSnapshotStatement, findSnapshotById } from "../../persistence/snapshots.ts";
+import type { RestoreCheckpointParams } from "#src/domain/rpg/contract/params.ts";
+import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
+import { resolveHost } from "#src/domain/rpg/guard.ts";
+import { findCheckpoint } from "#src/domain/rpg/persistence/checkpoints.ts";
+import { buildRestoredSnapshotStatement, findSnapshotById } from "#src/domain/rpg/persistence/snapshots.ts";
 
 const RESTORE_MESSAGE = "— scene restored —";
 

@@ -1,5 +1,5 @@
-import type { EvidenceGap } from "../../_shared/evidence.ts";
-import type { TimingCapability } from "../../_shared/timing-capability.ts";
+import type { TimingCapability } from "../../floor/host/timing-capability.ts";
+import type { EvidenceGap } from "../../floor/verdict/evidence.ts";
 import type { AuditData } from "../../motion-audit/index.ts";
 
 export interface MotionMeasurement {

@@ -11,7 +11,7 @@ import {
   isPresent,
   markUserLeft,
   parseParticipant,
-} from "../../../../../packages/server/src/domain/chat/persistence/participant.ts";
+} from "#server/domain/chat/persistence/participant.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant, seedUser } from "../_support.ts";

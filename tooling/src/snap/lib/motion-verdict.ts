@@ -1,4 +1,4 @@
-import type { TimingEvidencePolicy } from "../../_shared/timing-capability.ts";
+import type { TimingEvidencePolicy } from "../../floor/host/timing-capability.ts";
 import type { MotionMeasurement } from "../contract/motion.ts";
 import type { SnapArmState } from "../contract/run-facts.ts";
 

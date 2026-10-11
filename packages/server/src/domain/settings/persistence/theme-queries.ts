@@ -7,7 +7,7 @@
 
 import type { Db } from "@orb/db";
 import { themes, userSettings } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 

@@ -2,8 +2,8 @@
 // census keyed on the command line, which the run-marker argument makes unique per launch, so a pid the OS
 // reuses never reads as the browser that carried it.
 import process from "node:process";
-import { listProcesses, processGroupId, processInfo } from "@orb/tooling/_shared/platform";
-import { runMarkerArg } from "@orb/tooling/_shared/run-marker";
+import { listProcesses, processGroupId, processInfo } from "@orb/tooling/floor/host/platform";
+import { runMarkerArg } from "@orb/tooling/floor/process/run-marker";
 
 // One sample is a full process-table read (tens of ms under load); a shorter interval starves the test's
 // own event loop, and a leaked chromium stays a descendant for far longer than this.
@@ -82,7 +82,7 @@ export function watchChromiumDescendants(rootPid: number, sampleMs = DEFAULT_SAM
 
 /** THE ARGS a simulated reparented-leak chromium must launch with (#1926). `marker === null` reproduces
  *  the shape that left 11 four-day-old orphans on the box on 2026-09-11: a detached grandchild chromium
- *  with no run-marker channel is invisible to `_shared/run-marker.ts`'s abandoned-run sweep in EITHER
+ *  with no run-marker channel is invisible to `floor/process/run-marker.ts`'s abandoned-run sweep in EITHER
  *  reader (its environ is erased by chromium's own process-title rewrite, and nothing stamped its argv),
  *  so if the fixture's own explicit `terminateChromiumIdentities` cleanup never runs — the test process is
  *  SIGKILLed, OOM-killed, or its worktree torn down mid-test — the leak is PERMANENT: no sweep, ever, can

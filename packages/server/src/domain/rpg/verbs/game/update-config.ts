@@ -10,11 +10,11 @@ import type { RpgGameConfig, RpgGameFeatures, RpgStatProfile, RpgTrackerDef } fr
 import { applyRulesetVocabulary, RPG_CONFIG_MAX_TRACKERS, RPG_EXTRACTION_MODES, rpgGameConfigSchema } from "@orb/contracts/rpg";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { RpgGameId } from "@orb/kit/ids";
-import type { UpdateConfigParams } from "../../contract/params.ts";
-import type { RpgContext, RpgService } from "../../contract/service.ts";
-import { resolveHost } from "../../guard.ts";
-import { updateGame } from "../../persistence/games.ts";
-import { listSheets } from "../../persistence/sheets.ts";
+import type { UpdateConfigParams } from "#src/domain/rpg/contract/params.ts";
+import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
+import { resolveHost } from "#src/domain/rpg/guard.ts";
+import { updateGame } from "#src/domain/rpg/persistence/games.ts";
+import { listSheets } from "#src/domain/rpg/persistence/sheets.ts";
 
 /** The profile's SELF-coherence, independent of any sheet (#1371 item 2). Three states
  *  `rpgStatProfileSchema` permits and no consumer can honestly use: a duplicate attribute `key` (a sheet's

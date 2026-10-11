@@ -24,9 +24,9 @@
 //
 // Depends on ops/walker/state-paint.ts's vocabulary (`stateTestAnywhere`, the strippers, `stateAttrScan`)
 // and is composed ONLY into the forced-state pass — the main walk builds no pairs and would carry dead
-// bytes. Raw JS in a template literal (no backticks / dollar-brace — see _shared/browser.ts for why a
+// bytes. Raw JS in a template literal (no backticks / dollar-brace — see floor/browser/browser.ts for why a
 // string, not a function). Provenance + attribution: ops/walker.ts.
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 

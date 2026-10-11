@@ -10,7 +10,7 @@ import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { GenerationCapability, GenerationUsage } from "@orb/contracts/inference";
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { BindingActor, Resolved } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";

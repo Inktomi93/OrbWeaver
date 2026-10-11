@@ -16,7 +16,7 @@ import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
+import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";

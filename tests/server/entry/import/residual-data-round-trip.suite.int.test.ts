@@ -1,5 +1,5 @@
 // The REAL DB-mediated import→export round-trip for `residualData`. Wave 4 proved the serde
-// halves in isolation (`cardFromJson`/`buildCardV3` unit tests, `tests/server/kit/serde/card/index.test.ts`);
+// halves in isolation (`cardFromJson`/`buildCardV3` unit tests, `tests/server/primitives/serde/card/index.test.ts`);
 // this proves the actual flow a user hits: `runProfileImport` (the entry composition driver) wired to the
 // REAL `createCharacterService` writes the parsed card's `residualData` into the `characters.residual_data`
 // column, then the REAL `createExportService` reads that column back and re-emits it at the V3 card's

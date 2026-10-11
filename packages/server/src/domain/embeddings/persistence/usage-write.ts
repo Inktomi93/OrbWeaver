@@ -5,8 +5,8 @@ import type { EmbeddingBatchObservation, EmbeddingInvocationContext, EmbeddingIn
 import { embeddingBatchObservationSchema } from "@orb/contracts/embeddings";
 import { embeddingSpendDelta } from "@orb/contracts/stats";
 import { embeddingCalls, userConnections } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, batchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, batchStmt } from "@orb/db/query";
 import type { EmbeddingInvocationId } from "@orb/kit/ids";
 import { and, eq, sql } from "drizzle-orm";
 import type { EmbeddingAccountingContext } from "../contract/accounting.ts";

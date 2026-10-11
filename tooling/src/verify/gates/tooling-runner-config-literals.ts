@@ -3,7 +3,7 @@
 // (`vitest.config.ts`, `playwright.config.ts`, `playwright-ct.config.ts`) carry the clocks that cost the most
 // (the vitest lane timeouts, the CT `mount()` timeout, the e2e webServer boot ceiling) and the CT vite port,
 // and NO population reaches a repo-root file. Both literal laws — a port is a registry row
-// (`_shared/ports.ts`), a wall clock is `budget(<base>)` (`_shared/load-budget.ts`) — are judged here over
+// (`floor/host/ports.ts`), a wall clock is `budget(<base>)` (`floor/host/load-budget.ts`) — are judged here over
 // the configs' TEXT. Comment posture: comment-SAFE (a scratch parse; node kinds + numeric literals).
 //
 // ONE HARD RESOURCE POLICY (#1950 group 4; fork 2 ruled BUILD 2026-09-12): the three files are
@@ -42,13 +42,13 @@
 // `tooling-shared-plumbing` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
 // `bbdccb2d5c` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,464 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 1,617, and the final
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 1,617, and the final
 // `population` admits 0; the subject is the declared three `exact-file` runner-config ids. legacy − final = all 1,617
 // `tooling/src` + `tests/tooling` + `tests/e2e/support` paths the parent `tooling-shared-plumbing` scanned — this arm
 // (`sweepRootConfigs`/`sweepPlaywrightConfigs`) read none of them; it read the repo-root runner configs off disk.
 // final − legacy = ∅. Controls: the legacy side is non-empty and the final side is empty by declaration, so equality
 // cannot pass vacuously; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` rejected by both.
-import { RESERVED_PORT_NUMBERS, STAGE_BAND_PORT_NUMBERS } from "../../_shared/ports.ts";
+import { RESERVED_PORT_NUMBERS, STAGE_BAND_PORT_NUMBERS } from "../../floor/host/ports.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { ExactResourceId } from "../contract/resource-exact.ts";
 import { runnerConfigLiteralFacts } from "../lib/plumbing-literals.ts";
@@ -60,14 +60,14 @@ const REGISTRY_PORTS: ReadonlySet<number> = new Set([...RESERVED_PORT_NUMBERS, .
 const CONFIGS: readonly ExactResourceId[] = ["vitest-config", "playwright-config", "playwright-ct-config"];
 
 const MESSAGE =
-  "a runner-config literal outside its one home — a root runner config (vitest.config.ts, playwright.config.ts, playwright-ct.config.ts) spells a WALL CLOCK as a numeric timeout literal instead of `budget(<base>)` (_shared/load-budget.ts), or a TCP PORT as a number instead of a `_shared/ports.ts` row; these are the clocks that cost the most and the port every CT run binds, and they sit where no source population reaches (docs/law/Core-Tooling-Law.md §4.4).";
+  "a runner-config literal outside its one home — a root runner config (vitest.config.ts, playwright.config.ts, playwright-ct.config.ts) spells a WALL CLOCK as a numeric timeout literal instead of `budget(<base>)` (floor/host/load-budget.ts), or a TCP PORT as a number instead of a `floor/host/ports.ts` row; these are the clocks that cost the most and the port every CT run binds, and they sit where no source population reaches (docs/law/Core-Tooling-Law.md §4.4).";
 const CLOCK_MESSAGE =
-  "a fixed wall clock in a root runner config — derive it with `budget(<X>_BASE_MS)` from @orb/tooling/_shared/load-budget, as the other clocks in these configs already are.";
+  "a fixed wall clock in a root runner config — derive it with `budget(<X>_BASE_MS)` from @orb/tooling/floor/host/load-budget, as the other clocks in these configs already are.";
 const PORT_MESSAGE =
-  "a port literal in a root runner config — read the named row from @orb/tooling/_shared/ports (CT_VITE_PORT, E2E_PORTS, …) instead of spelling the number.";
+  "a port literal in a root runner config — read the named row from @orb/tooling/floor/host/ports (CT_VITE_PORT, E2E_PORTS, …) instead of spelling the number.";
 const UNPARSEABLE = "a root runner config does not parse, so its clocks and ports cannot be judged — the arm is blind to this file until it parses again";
 const FIX =
-  "derive every timeout with `budget(<X>_BASE_MS)` (@orb/tooling/_shared/load-budget) and every port from a `@orb/tooling/_shared/ports` row; a fourth runner config needs its own `exact-file` id in contract/resource-exact.ts before this policy can see it.";
+  "derive every timeout with `budget(<X>_BASE_MS)` (@orb/tooling/floor/host/load-budget) and every port from a `@orb/tooling/floor/host/ports` row; a fourth runner config needs its own `exact-file` id in contract/resource-exact.ts before this policy can see it.";
 
 export const gate = defineGate({
   id: "tooling-runner-config-literals",

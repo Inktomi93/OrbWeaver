@@ -9,8 +9,8 @@
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { castId } from "@orb/kit/ids";
 import { z } from "zod";
-import type { PluginToolSpec } from "../../../../../packages/server/src/domain/tool-use/index.ts";
-import { createToolUseService, ToolNotFoundError } from "../../../../../packages/server/src/domain/tool-use/index.ts";
+import type { PluginToolSpec } from "#server/domain/tool-use/index.ts";
+import { createToolUseService, ToolNotFoundError } from "#server/domain/tool-use/index.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { ANY_DRIVER, defOf, execOf, makeHarness } from "../_support.ts";

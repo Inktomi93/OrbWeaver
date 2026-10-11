@@ -5,7 +5,7 @@
 // guesses turns "I read the wrong report" into a silent outcome. Same posture as `__orb.pluginLog`'s loud
 // refusal on an ambiguous ref.
 
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { BugReportListing, BugReportResolution, BugReportSummary } from "../contract/index.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm bug:reports <id-or-unique-prefix>");

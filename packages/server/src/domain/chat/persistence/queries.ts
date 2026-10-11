@@ -41,7 +41,7 @@ import type { UserMacroValues } from "@orb/contracts/preset";
 import { userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { characters, chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, messageAssets, messages, messageVariants } from "@orb/db";
-import { chatRecencyExpr, memberVisibleChatScope } from "@orb/db/kit";
+import { chatRecencyExpr, memberVisibleChatScope } from "@orb/db/query";
 import { HIDDEN_TAGS } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatEventId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -405,7 +405,7 @@ function searchPredicate(db: Db, needle: string): SQL | undefined {
 function memberChatScope(db: Db, userId: UserId, opts: MemberChatFilter): SQL | undefined {
   const characterId = opts.characterId;
   return and(
-    // MEMBERSHIP + THE TEMPORARY/HUSK/ARCHIVED LENSES ARE `@orb/db/kit`'S NOW (#1131) — the character
+    // MEMBERSHIP + THE TEMPORARY/HUSK/ARCHIVED LENSES ARE `@orb/db/query`'S NOW (#1131) — the character
     // library's row has to count the SAME rooms this list pages, and neither domain may import the other
     // (constitution §2), so those four arms live one layer down and both readers spell them once. What
     // stays here is what is a chat-LIST lens rather than visibility: the recency bound, the per-character
@@ -429,7 +429,7 @@ function memberChatScope(db: Db, userId: UserId, opts: MemberChatFilter): SQL | 
  *  most recent conversation" is true BY CONSTRUCTION rather than by a coincidence of write paths (it used to
  *  order on `chats.updated_at`, a row-modification stamp a turn does not write and a metadata touch does).
  *
- *  THE EXPRESSION MOVED TO `@orb/db/kit` WITH THE VISIBILITY SCOPE (#1131) so the character library's
+ *  THE EXPRESSION MOVED TO `@orb/db/query` WITH THE VISIBILITY SCOPE (#1131) so the character library's
  *  per-character `MAX` reads the same clock; this alias keeps the call sites in this file reading as before.
  *
  *  IT MIRRORS {@link loadChatMessageStats}'S PREDICATE EXACTLY, selected-variant join included: that read is

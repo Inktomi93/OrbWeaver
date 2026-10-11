@@ -1,5 +1,5 @@
 import { EMBEDDING_FLOOR } from "@orb/contracts/inference";
-import { structuredTargetOf } from "../../../packages/inference/src/structured/target.ts";
+import { structuredTargetOf } from "#inference/structured/target.ts";
 import { makeGenerationCapability, makeResolved } from "../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../support/fixtures.ts";
 

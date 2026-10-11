@@ -7,7 +7,7 @@
 import { basename, dirname, join } from "node:path";
 import { parseEnv } from "node:util";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
-import { stageBandForPort } from "../../_shared/ports.ts";
+import { stageBandForPort } from "../../floor/host/ports.ts";
 import { ENV_NO_FILE, PORT_ENV, STACK_CLI_REL, VITE_API_TARGET_ENV, VITE_PORT_ENV } from "../../stack/index.ts";
 import type { BandAccess, StageAuthMode, StageBandClaim, StageLauncher, StageLauncherSpawn, StagePaths, StagePorts, StageRow } from "../contract/stage.ts";
 import { LOCAL_STAGE_DIR_SUFFIX, stageRowAuth } from "../contract/stage.ts";
@@ -25,7 +25,7 @@ export const STAGE_ROOT_REL = join(".cache", "snap-stage");
 /** The BAND TABLE (#1276) — one row per band, the file every checkout of the repo agrees on. */
 export const BANDS_REL = join(STAGE_ROOT_REL, "bands.json");
 /** Where band k's idle timer writes (#1163 arm b). A DETACHED child must never hold a pipe to the process
- *  that spawned it — `_shared/proc.ts` `spawnNicedChild` states the rule and the session daemon already
+ *  that spawned it — `floor/process/proc.ts` `spawnNicedChild` states the rule and the session daemon already
  *  obeys it: without a `logPath` the child gets `["ignore","pipe","pipe"]`, whose first write after the
  *  launcher exits is EPIPE, and whose stream handles keep the LAUNCHER's event loop referenced. The keeper
  *  outlives every snap call by design, so its one reap line has to land in a file. `--stage-status` names
@@ -340,7 +340,7 @@ export function stageInheritedEnv(envFileContent: string): Record<string, string
 // stage currently holds that band, and the numbers look completely normal. Lane p-home-perf took three
 // AFTER receipts off a sibling checkout's tree that way (2026-09-02, discarded).
 //
-// Every band is a REGISTERED port pair (_shared/ports.ts) and the table naming each one's owner is ONE
+// Every band is a REGISTERED port pair (floor/host/ports.ts) and the table naming each one's owner is ONE
 // shared file, so "am I allowed to read this?" is answerable EXACTLY, without a heuristic: a base at a
 // band port whose row names another checkout is a REFUSAL, and so is one no row accounts for — an unowned
 // band is "I cannot say whose tree this is", which is the same defect

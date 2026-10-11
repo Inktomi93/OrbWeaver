@@ -29,7 +29,7 @@ import { documents } from "@orb/db";
 import { chunkText } from "@orb/kit/chunk";
 import type { DocumentId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { isAborted } from "#kit/abort";
+import { isAborted } from "#primitives/abort";
 import { DatabankNoEmbedSpaceError } from "../contract/errors.ts";
 import type { DatabankContext, DatabankIngest } from "../contract/service.ts";
 import { listAllDocumentIds, listOwnedDocumentIds, loadDocument } from "../persistence/queries.ts";

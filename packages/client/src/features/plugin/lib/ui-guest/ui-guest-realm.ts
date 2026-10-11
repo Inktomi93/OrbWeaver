@@ -15,8 +15,8 @@ import { PLUGIN_LOG_LEVELS } from "@orb/contracts/plugin";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
 // The wire leaf, never the `#lib` barrel — this module runs inside the worker (see ui-guest.worker.ts).
-import type { UiGuestBootMessage, UiGuestOutbound } from "../../../../lib/plugin-ui-guest-protocol.ts";
-import { UI_GUEST_BUDGETS } from "../../../../lib/plugin-ui-guest-protocol.ts";
+import type { UiGuestBootMessage, UiGuestOutbound } from "#src/lib/plugin-ui-guest-protocol.ts";
+import { UI_GUEST_BUDGETS } from "#src/lib/plugin-ui-guest-protocol.ts";
 
 /** The ONE outbound channel — the realm's producers and the worker's driver share this spelling. */
 export function post(message: UiGuestOutbound): void {

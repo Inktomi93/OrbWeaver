@@ -33,7 +33,7 @@
 // transferred with its tracker rows still keyed to the old ids, and a re-run converges (a re-key whose `from`
 // is already gone refuses per-actor and changes nothing).
 
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { HandStateHead, HandStateWrite, RpgContext } from "../contract/service.ts";
 import { clearGmPresetStatement, findGameByChat, setGmPresetStatement } from "../persistence/games.ts";

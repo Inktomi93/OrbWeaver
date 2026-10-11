@@ -1,7 +1,7 @@
 // Promise identity is a wrapper/owner fact, not proof that a value was loaded from storage.
 // The JSON-write policy separately proves actual Drizzle producer bodies.
 
-import { resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
+import { resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Expression, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import { schemaRowOriginIdentity } from "../../../../tooling/src/verify/lib/open-json-row-origin.ts";

@@ -3,7 +3,7 @@
 // it; the two intermediate tokens guarantee each source macro lands exactly once.
 
 import { describe } from "vitest";
-import { swapPersonaMacros } from "../../../../../packages/server/src/domain/persona/substrate/macro-swap.ts";
+import { swapPersonaMacros } from "#server/domain/persona/substrate/macro-swap.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("swapPersonaMacros", () => {

@@ -1,9 +1,9 @@
 // Literal semantic judgments for #953's seven historical rows. This is intentionally a closed switch,
 // not a generic assertion DSL: a new invariant belongs in the client policy and in one explicit arm.
 
-import type { RuntimeAppearanceHistoricalRow } from "../../_shared/appearance-matrix.ts";
-import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { RuntimeAppearanceHistoricalRow } from "../../floor/appearance/appearance-matrix.ts";
+import type { BrowserEnvironmentEvidence } from "../../floor/browser/browser-environment.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { AppearanceInvariantCheck } from "../contract/appearance-invariants.ts";
 import type { AppearanceCheckContext } from "./appearance-invariant-check-context.ts";
 import { buildDensityPreviewChecks, buildPrepaintChecks } from "./appearance-invariant-checks-settings.ts";

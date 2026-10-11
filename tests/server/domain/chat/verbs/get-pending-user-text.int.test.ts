@@ -4,7 +4,7 @@
 
 import type { Db } from "@orb/db";
 import { beforeEach, describe } from "vitest";
-import { createGetPendingUserText } from "../../../../../packages/server/src/domain/chat/verbs/get-pending-user-text.ts";
+import { createGetPendingUserText } from "#server/domain/chat/verbs/get-pending-user-text.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedChat, seedMessage } from "../_support.ts";

@@ -22,8 +22,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import type { SourceFile } from "ts-morph";
 import type { CaughtFailureArm, CaughtFailurePopulation, CaughtFailureRow, CaughtFailureVerdict } from "../../contract/caught-failure.ts";
 import { CAUGHT_FAILURE_ARMS } from "../../contract/caught-failure.ts";

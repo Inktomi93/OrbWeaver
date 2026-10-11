@@ -15,18 +15,18 @@
 // usual cause (lib/motion-gaps.ts) — and the gap list prints that cause before the zero-frame arithmetic.
 
 import { writeFile } from "node:fs/promises";
-import { readRuntimeAppearanceContract } from "../../../_shared/appearance-matrix.ts";
-import { artifactFile } from "../../../_shared/artifact-out.ts";
-import { exactScope } from "../../../_shared/artifact-scope.ts";
-import type { ResultPair } from "../../../_shared/artifacts.ts";
-import { print } from "../../../_shared/artifacts.ts";
-import type { ProbeSession } from "../../../_shared/browser-contract.ts";
-import { pageErrorText } from "../../../_shared/browser-contract.ts";
-import { readBrowserEnvironment } from "../../../_shared/browser-environment.ts";
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import type { EvidenceGap, VerdictDenominator } from "../../../_shared/evidence.ts";
-import { printEvidenceGaps } from "../../../_shared/evidence.ts";
-import { EXIT } from "../../../_shared/exit-contract.ts";
+import { readRuntimeAppearanceContract } from "../../../floor/appearance/appearance-matrix.ts";
+import { artifactFile } from "../../../floor/artifacts/artifact-out.ts";
+import { exactScope } from "../../../floor/artifacts/artifact-scope.ts";
+import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
+import { print } from "../../../floor/artifacts/artifacts.ts";
+import type { ProbeSession } from "../../../floor/browser/browser-contract.ts";
+import { pageErrorText } from "../../../floor/browser/browser-contract.ts";
+import { readBrowserEnvironment } from "../../../floor/browser/browser-environment.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../../floor/cli/exit-contract.ts";
+import type { EvidenceGap, VerdictDenominator } from "../../../floor/verdict/evidence.ts";
+import { printEvidenceGaps } from "../../../floor/verdict/evidence.ts";
 import type { AuditData } from "../../../motion-audit/index.ts";
 import {
   animationTotals,
@@ -293,7 +293,7 @@ export const MOTION_ARM = {
   --motion-no-throttle    disable motion's default 4x CPU throttle. Dropped-frame rates are advisory only
                           when this run's RATE POSTURE is not "hardware" — headless is NOT structurally
                           vsync-less here: snap launches Chromium with the GPU enabled and classifies the
-                          posture from SystemInfo (_shared/browser-acceleration.ts). What withholds the
+                          posture from SystemInfo (floor/browser/browser-acceleration.ts). What withholds the
                           rates is a software/unknown posture, never the absence of a display, so a REFUSED
                           window is about what did or did not move in it — the gap list names that first`,
   result: {

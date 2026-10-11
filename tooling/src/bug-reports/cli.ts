@@ -7,9 +7,9 @@
 // Exit: 0 clean (including an EMPTY listing — nothing captured yet is an answer, not a failure) · 1 the ref
 // matched nothing or was ambiguous · 2 the tool broke · 3 misuse.
 import process from "node:process";
-import { print } from "../_shared/artifacts.ts";
-import { EXIT } from "../_shared/exit-contract.ts";
-import { runTool, UsageError } from "../_shared/run-tool.ts";
+import { print } from "../floor/artifacts/artifacts.ts";
+import { EXIT } from "../floor/cli/exit-contract.ts";
+import { runTool, UsageError } from "../floor/cli/run-tool.ts";
 import { formatListing, formatShow, readBugReportMarkdown, readBugReports, resolveBugReport, resolvedSummary } from "./index.ts";
 
 const USAGE = "usage: pnpm bug:reports [<id-or-unique-prefix>]";

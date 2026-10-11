@@ -18,11 +18,11 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { SkeletonRows } from "#data";
-import type { EffectiveProfileRow } from "../../lib/effective-knobs.ts";
-import { honoredKnobLabels, knobLabel, MIROSTAT_SKIPPED_GLOSS, provenanceSuffix, resolvedForLabel } from "../../lib/effective-knobs.ts";
-import { formatCount } from "../../lib/format-count.ts";
-import { PARAMS_VIEW_LABEL } from "../../lib/preset-nav.ts";
-import { resolveFailureCopy, resolveFailureMessage } from "../../lib/resolve-failure.ts";
+import type { EffectiveProfileRow } from "#src/features/preset/lib/effective-knobs.ts";
+import { honoredKnobLabels, knobLabel, MIROSTAT_SKIPPED_GLOSS, provenanceSuffix, resolvedForLabel } from "#src/features/preset/lib/effective-knobs.ts";
+import { formatCount } from "#src/features/preset/lib/format-count.ts";
+import { PARAMS_VIEW_LABEL } from "#src/features/preset/lib/preset-nav.ts";
+import { resolveFailureCopy, resolveFailureMessage } from "#src/features/preset/lib/resolve-failure.ts";
 
 /** ONE number format across the whole readout (side-eye F-29): a cluster printed `1,500` beside `8192`
  *  because two producers formatted independently. EVERY integer groups (`2048` → `2,048`) — this comment

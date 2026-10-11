@@ -17,30 +17,24 @@ import { createToastManager, ToastProvider } from "@orb/ui/toast";
 import { QueryClient, QueryClientProvider, useMutation } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import type { OrbAgentHandles } from "../../../packages/client/src/lib/agent-bridge.ts";
-import { installAgentDebugHandle } from "../../../packages/client/src/lib/agent-bridge.ts";
+import type { OrbAgentHandles } from "#client/lib/agent-bridge.ts";
+import { installAgentDebugHandle } from "#client/lib/agent-bridge.ts";
 // Deep, not `@orb/client/lib`: production readiness and the dev bridge stay OUT of the barrel. Keeping
 // their homes separate is the production boot boundary (#995); a barrel re-export could reconnect them.
-import type { RouteResolution } from "../../../packages/client/src/lib/app-ready-signal.ts";
-import { appReady, installAppReadySignal } from "../../../packages/client/src/lib/app-ready-signal.ts";
-import { __resetBootReads, setBootReadPending } from "../../../packages/client/src/lib/boot-reads.ts";
-import { busInvalidate, busSubscribe, busUnsubscribe } from "../../../packages/client/src/lib/bus-devlog.ts";
+import type { RouteResolution } from "#client/lib/app-ready-signal.ts";
+import { appReady, installAppReadySignal } from "#client/lib/app-ready-signal.ts";
+import { __resetBootReads, setBootReadPending } from "#client/lib/boot-reads.ts";
+import { busInvalidate, busSubscribe, busUnsubscribe } from "#client/lib/bus-devlog.ts";
 // Deep, not `@orb/client/lib`: motion-stats is deliberately OUT of the barrel (its header — a barrel
 // re-export would drag the dev observers into the prod bundle), so the only way to reach it is the path.
-import { __resetLongTaskEvidence, installLongTaskTracer } from "../../../packages/client/src/lib/long-task-tracer.ts";
-import { installAnimationLifecycleRecorder } from "../../../packages/client/src/lib/motion-animation-record.ts";
-import { setFrameDropTrackingPaused } from "../../../packages/client/src/lib/motion-animation-state.ts";
-import { installDeadClassFlagger, motionFlaggersDrain, motionFlaggersSettled } from "../../../packages/client/src/lib/motion-dead-class-flagger.ts";
-import { __resetMotionFlags, installMotionFlaggers, motionFlags } from "../../../packages/client/src/lib/motion-flaggers.ts";
-import {
-  __resetMotionStats,
-  installMotionObservers,
-  markAgentNavigation,
-  motionSnapshot,
-  subscribeLongAnimationFrames,
-} from "../../../packages/client/src/lib/motion-stats.ts";
-import { perfMeasureFromLoad } from "../../../packages/client/src/lib/perf-marks.ts";
-import { recordRender } from "../../../packages/client/src/lib/render-stats.ts";
+import { __resetLongTaskEvidence, installLongTaskTracer } from "#client/lib/long-task-tracer.ts";
+import { installAnimationLifecycleRecorder } from "#client/lib/motion-animation-record.ts";
+import { setFrameDropTrackingPaused } from "#client/lib/motion-animation-state.ts";
+import { installDeadClassFlagger, motionFlaggersDrain, motionFlaggersSettled } from "#client/lib/motion-dead-class-flagger.ts";
+import { __resetMotionFlags, installMotionFlaggers, motionFlags } from "#client/lib/motion-flaggers.ts";
+import { __resetMotionStats, installMotionObservers, markAgentNavigation, motionSnapshot, subscribeLongAnimationFrames } from "#client/lib/motion-stats.ts";
+import { perfMeasureFromLoad } from "#client/lib/perf-marks.ts";
+import { recordRender } from "#client/lib/render-stats.ts";
 import type { AppBlockingReceipt } from "../../support/iso/app-blocking-receipt.ts";
 import { APP_BLOCKING_MARKS } from "../../support/iso/app-blocking-receipt.ts";
 import { blockMainThread } from "../../support/node/block-main-thread.ts";

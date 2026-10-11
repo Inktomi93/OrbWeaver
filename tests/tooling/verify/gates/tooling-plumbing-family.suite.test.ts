@@ -57,7 +57,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { Project, SyntaxKind } from "ts-morph";
-import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
+import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { NODE_TYPES_HOME, nodeTypesProof } from "../../../../tooling/src/verify/gates/_proof/node-types.ts";
@@ -106,9 +106,9 @@ const GRANT_POLICIES: readonly GatePolicy[] = [projectHome, browserDoor, artifac
 const PLUMBING_GRANT_COUNT = 20;
 const REAL_TREE_BUDGET_MS = scaledBudget(300_000);
 
-const PROC_HOME = "tooling/src/_shared/proc.ts";
-const RUNNER_HOME = "tooling/src/_shared/run-tool.ts";
-const ARTIFACT_OUT_HOME = "tooling/src/_shared/artifact-out.ts";
+const PROC_HOME = "tooling/src/floor/process/proc.ts";
+const RUNNER_HOME = "tooling/src/floor/cli/run-tool.ts";
+const ARTIFACT_OUT_HOME = "tooling/src/floor/artifacts/artifact-out.ts";
 const PROC_STUB =
   "export function spawnFullPrioritySync(cmd: string, args: readonly string[]): void {\n  void cmd;\n  void args;\n}\nexport function spawnFullPriorityChild(cmd: string, args: readonly string[]): void {\n  void cmd;\n  void args;\n}\n";
 const RUNNER_STUB = "export async function runTool(main: () => number): Promise<void> {\n  void main;\n}\n";
@@ -183,27 +183,27 @@ const GRANT_CASES: readonly GrantCase[] = [
     policy: projectHome,
     grantId: "tooling-project-home:ts-workspace",
     files: {
-      "tooling/src/_shared/ts-workspace.ts":
+      "tooling/src/floor/compiler/ts-workspace.ts":
         'import { Project } from "ts-morph";\nexport const p = new Project({});\nexport const q = new Project({ useInMemoryFileSystem: true });\n',
     },
-    stopped: { "tooling/src/_shared/ts-workspace.ts": "export const p = 1;\n" },
+    stopped: { "tooling/src/floor/compiler/ts-workspace.ts": "export const p = 1;\n" },
     wrongOperation: "ts-morph-project-import",
   },
   {
     policy: browserDoor,
     grantId: "tooling-browser-door:browser-launch",
-    files: { "tooling/src/_shared/browser.ts": 'import { chromium } from "@playwright/test";\nexport const b = chromium.launch({ headless: true });\n' },
-    stopped: { "tooling/src/_shared/browser.ts": "export const b = 1;\n" },
+    files: { "tooling/src/floor/browser/browser.ts": 'import { chromium } from "@playwright/test";\nexport const b = chromium.launch({ headless: true });\n' },
+    stopped: { "tooling/src/floor/browser/browser.ts": "export const b = 1;\n" },
     wrongOperation: "browser-attach",
   },
   {
     policy: artifactPathHome,
     grantId: "tooling-artifact-path-home:artifacts",
     files: {
-      "tooling/src/_shared/artifacts.ts":
+      "tooling/src/floor/artifacts/artifacts.ts":
         'import { join } from "node:path";\nexport function reportsPath(root: string, ...s: readonly string[]): string {\n  return join(root, "reports", ...s);\n}\n',
     },
-    stopped: { "tooling/src/_shared/artifacts.ts": "export const reports = 1;\n" },
+    stopped: { "tooling/src/floor/artifacts/artifacts.ts": "export const reports = 1;\n" },
     wrongOperation: "reports-path-write",
   },
   {
@@ -219,7 +219,7 @@ const GRANT_CASES: readonly GrantCase[] = [
     files: {
       [PROC_HOME]: PROC_STUB,
       "tooling/src/snap/ops/stage.ts":
-        'import { spawnFullPrioritySync } from "../../_shared/proc.ts";\nexport const boot = (): void => spawnFullPrioritySync("bash", []);\n',
+        'import { spawnFullPrioritySync } from "../../floor/process/proc.ts";\nexport const boot = (): void => spawnFullPrioritySync("bash", []);\n',
     },
     stopped: { [PROC_HOME]: PROC_STUB, "tooling/src/snap/ops/stage.ts": "export const boot = 1;\n" },
     wrongOperation: "child-process-import",
@@ -227,8 +227,8 @@ const GRANT_CASES: readonly GrantCase[] = [
   {
     policy: portRegistry,
     grantId: "tooling-port-registry:ports",
-    files: { "tooling/src/_shared/ports.ts": "export const DEV_PORTS = { server: 8788, vite: 5173 };\n" },
-    stopped: { "tooling/src/_shared/ports.ts": "export const DEV_PORTS = { server: 0, vite: 0 };\n" },
+    files: { "tooling/src/floor/host/ports.ts": "export const DEV_PORTS = { server: 8788, vite: 5173 };\n" },
+    stopped: { "tooling/src/floor/host/ports.ts": "export const DEV_PORTS = { server: 0, vite: 0 };\n" },
     wrongOperation: "port-name",
   },
 ];
@@ -305,7 +305,7 @@ test("the browser home carries TWO grants because it performs two licensed acts,
   const both = passOf(
     [browserDoor],
     {
-      "tooling/src/_shared/browser.ts":
+      "tooling/src/floor/browser/browser.ts":
         'import { chromium } from "@playwright/test";\nexport const b = chromium.launch({ headless: true });\nexport const a = chromium.connectOverCDP("http://127.0.0.1:9222");\n',
     },
     { grants: [grantOf("tooling-browser-door:browser-attach"), grantOf("tooling-browser-door:browser-launch")] },
@@ -353,9 +353,9 @@ function refusalOf(result: ReturnType<typeof runPolicyPass>): Refusal {
 
 const SLOTTED_TOOL = {
   "tooling/src/slotted/cli.ts":
-    'import { withInstrumentRun } from "../_shared/artifact-out.ts";\nimport { shoot } from "./ops/shoot.ts";\nexport const run = withInstrumentRun("slotted", shoot);\n',
+    'import { withInstrumentRun } from "../floor/artifacts/artifact-out.ts";\nimport { shoot } from "./ops/shoot.ts";\nexport const run = withInstrumentRun("slotted", shoot);\n',
   "tooling/src/slotted/ops/shoot.ts":
-    'import { artifactFile } from "../../_shared/artifact-out.ts";\nexport async function shoot(): Promise<number> {\n  await artifactFile("snaps", "root", ".png");\n  return 0;\n}\n',
+    'import { artifactFile } from "../../floor/artifacts/artifact-out.ts";\nexport async function shoot(): Promise<number> {\n  await artifactFile("snaps", "root", ".png");\n  return 0;\n}\n',
 };
 
 test("a complete run files one receipt PER LOCATED HOME, all resolved", () => {
@@ -367,7 +367,7 @@ test("a complete run files one receipt PER LOCATED HOME, all resolved", () => {
   ]);
   const entry = passOf([cliEntry], {
     [RUNNER_HOME]: RUNNER_STUB,
-    "tooling/src/goodcli/cli.ts": 'import { runTool } from "../_shared/run-tool.ts";\nawait runTool(() => 0);\n',
+    "tooling/src/goodcli/cli.ts": 'import { runTool } from "../floor/cli/run-tool.ts";\nawait runTool(() => 0);\n',
   });
   expect(refusalOf(entry)).toEqual({ toolErrors: [], withheld: [], effective: 0 });
   expect(entry.policies[0]?.receipts).toEqual([{ kind: "population", source: "program-entry home: run-tool", members: 1, unresolved: 0 }]);
@@ -381,7 +381,7 @@ test("an ABSENT home REFUSES at the receipt phase — the legacy rename tripwire
     [artifactRunSlot, SLOTTED_TOOL, '"artifact home: filers" resolved zero members'],
     [
       cliEntry,
-      { "tooling/src/goodcli/cli.ts": 'import { runTool } from "../_shared/run-tool.ts";\nawait runTool(() => 0);\n' },
+      { "tooling/src/goodcli/cli.ts": 'import { runTool } from "../floor/cli/run-tool.ts";\nawait runTool(() => 0);\n' },
       '"program-entry home: run-tool" resolved zero members',
     ],
     [childProcessDoor, { "tooling/src/snap/lib/clean.ts": "export const clean = true;\n" }, '"child-process home: proc" resolved zero members'],

@@ -19,7 +19,7 @@ import type { ToolUseService } from "#domain/tool-use";
 import { createToolUseService } from "#domain/tool-use";
 import type { AuditEntry } from "#foundation/observability";
 import { buildAuditStatementIfPrecedingWrote } from "#foundation/observability";
-import { publishUserEvent } from "../../transport/trpc/index.ts";
+import { publishUserEvent } from "#transport/trpc";
 import type { SessionSocketEviction } from "../http/index.ts";
 
 /** What the admin seam needs from the composition root: boot primitives + the sibling services admin's

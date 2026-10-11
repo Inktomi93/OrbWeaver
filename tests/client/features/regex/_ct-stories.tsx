@@ -20,12 +20,12 @@ import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfigCollectionLanding } from "../../../../packages/client/src/features/config/components/config-collection-landing.tsx";
-import { RegexBulkBar } from "../../../../packages/client/src/features/regex/components/regex-bulk-bar.tsx";
-import { RegexContextBody } from "../../../../packages/client/src/features/regex/components/regex-context-body.tsx";
-import { regexGroup } from "../../../../packages/client/src/features/regex/lib/regex-group.tsx";
+import { ConfigCollectionLanding } from "#client/features/config/components/config-collection-landing.tsx";
+import { RegexBulkBar } from "#client/features/regex/components/regex-bulk-bar.tsx";
+import { RegexContextBody } from "#client/features/regex/components/regex-context-body.tsx";
+import { regexGroup } from "#client/features/regex/lib/regex-group.tsx";
 
-import { RegexMemberSurface } from "../../../../packages/client/src/features/regex/surfaces/regex-member-surface.tsx";
+import { RegexMemberSurface } from "#client/features/regex/surfaces/regex-member-surface.tsx";
 import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/browser/measure-content-column.ts";
 

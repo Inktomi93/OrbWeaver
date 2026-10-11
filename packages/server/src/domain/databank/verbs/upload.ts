@@ -8,7 +8,7 @@
 // the canon still lands, un-indexed until a reindex; `substrate/queue-ingest`).
 
 import type { UserId } from "@orb/kit/ids";
-import { sha256Hex } from "#kit/content-hash";
+import { sha256Hex } from "#primitives/content-hash";
 import type { UploadDocumentParams } from "../contract/params.ts";
 import type { UploadResult } from "../contract/results.ts";
 import type { DatabankContext, DatabankService } from "../contract/service.ts";

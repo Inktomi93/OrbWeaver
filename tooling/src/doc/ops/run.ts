@@ -1,10 +1,10 @@
 // Command dispatch — one arm per DocCommand kind, each returning an exit code. A write verb's refusals
 // print to stderr and exit 1 with nothing written; its writes print to stdout, one path per line.
-import { print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { ExitCode } from "../../_shared/exit-contract.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { warn } from "../../_shared/log.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { ExitCode } from "../../floor/cli/exit-contract.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { warn } from "../../floor/cli/log.ts";
 import type { DocCommand } from "../contract/types.ts";
 import { drift, overview } from "./board.ts";
 import { formatDocs, formatTargets } from "./format.ts";

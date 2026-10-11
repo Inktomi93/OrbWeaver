@@ -18,13 +18,7 @@ import { castId } from "@orb/kit/ids";
 import { buildKeywordHaystack, matchEntryKeys, resolveEntryInjection, resolveEntryPosition, resolveEntryScope } from "@orb/kit/world-info";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import {
-  listBookEntries,
-  loadOwnedBook,
-  loadOwnedEntry,
-  toBookView,
-  toEntryView,
-} from "../../../../../packages/server/src/domain/world-info/persistence/queries.ts";
+import { listBookEntries, loadOwnedBook, loadOwnedEntry, toBookView, toEntryView } from "#server/domain/world-info/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";

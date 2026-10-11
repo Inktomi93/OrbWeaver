@@ -11,11 +11,11 @@
 // receipts, three docs and the rewritten cli suite all grep `census=`, `population-verdict=`,
 // `reached=`, `tap-judged=`, `no-verdict=`. A rename here would be a silent break of every one of them
 // while the numbers stayed correct.
-import type { ResultPair } from "../../_shared/artifacts.ts";
-import { print } from "../../_shared/artifacts.ts";
-import { actualDeviceLabel } from "../../_shared/browser-environment.ts";
-import type { VerdictDenominator } from "../../_shared/evidence.ts";
-import { printEvidenceGaps } from "../../_shared/evidence.ts";
+import type { ResultPair } from "../../floor/artifacts/artifacts.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { actualDeviceLabel } from "../../floor/browser/browser-environment.ts";
+import type { VerdictDenominator } from "../../floor/verdict/evidence.ts";
+import { printEvidenceGaps } from "../../floor/verdict/evidence.ts";
 import {
   backdropRefusalSummary,
   populationWithheldSummary,

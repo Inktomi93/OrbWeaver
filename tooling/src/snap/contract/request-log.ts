@@ -2,7 +2,7 @@
 // for, in order (replacing the retired MCP's
 // `list_network_requests` / `get_network_request`).
 //
-// This is deliberately a SECOND, ordered log rather than a widening of `_shared/browser-capture.ts`'s
+// This is deliberately a SECOND, ordered log rather than a widening of `floor/browser/browser-capture.ts`'s
 // `CapturedRequest` map: that map is keyed by URL because its job is the failed-request verdict (one
 // entry per URL is exactly right there), and a request LOG must keep every attempt in issue order — a
 // surface that re-reads the same tRPC route twice is the question this arm exists to answer.

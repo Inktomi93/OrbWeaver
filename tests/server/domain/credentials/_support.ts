@@ -7,17 +7,17 @@
 // connection router (inference program §5.3), so there is nothing left here to fake but the audit recorder.
 
 import { handleKey } from "@orb/kit/handle-key";
-import type { Principal, UserRole } from "../../../../packages/contracts/src/identity/index.ts";
-import { builtinProvider } from "../../../../packages/contracts/src/inference/index.ts";
-import type { Db } from "../../../../packages/db/src/client/index.ts";
-import { users } from "../../../../packages/db/src/schema/index.ts";
-import type { Handle, UserCredentialId, UserId } from "../../../../packages/kit/src/ids/index.ts";
-import { castId } from "../../../../packages/kit/src/ids/index.ts";
-import type { CredentialContext } from "../../../../packages/server/src/domain/credentials/context.ts";
-import type { CredentialView } from "../../../../packages/server/src/domain/credentials/contract/views.ts";
-import type { CredentialsService } from "../../../../packages/server/src/domain/credentials/index.ts";
-import { createCredentialsService } from "../../../../packages/server/src/domain/credentials/index.ts";
-import { createSecretBox } from "../../../../packages/server/src/infra/crypto/secrets.ts";
+import type { Principal, UserRole } from "#contracts/identity/index.ts";
+import { builtinProvider } from "#contracts/inference/index.ts";
+import type { Db } from "#db/client/index.ts";
+import { users } from "#db/schema/index.ts";
+import type { Handle, UserCredentialId, UserId } from "#kit/ids/index.ts";
+import { castId } from "#kit/ids/index.ts";
+import type { CredentialContext } from "#server/domain/credentials/context.ts";
+import type { CredentialView } from "#server/domain/credentials/contract/views.ts";
+import type { CredentialsService } from "#server/domain/credentials/index.ts";
+import { createCredentialsService } from "#server/domain/credentials/index.ts";
+import { createSecretBox } from "#server/infra/crypto/secrets.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
 
 const FROZEN_AT = 1_750_000_000_000;

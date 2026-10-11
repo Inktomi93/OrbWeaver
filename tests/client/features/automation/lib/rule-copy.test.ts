@@ -18,7 +18,7 @@ import {
   ruleGloss,
   runOutcomeNotice,
   triggerLabel,
-} from "../../../../../packages/client/src/features/automation/lib/rule-copy.ts";
+} from "#client/features/automation/lib/rule-copy.ts";
 // The unreadable-rule refusal vocabulary moved to its own module when #1673 pushed rule-copy.ts past the
 // component-size cap (4f9052b99c); the #1665 pins below still own these four symbols.
 import {
@@ -26,7 +26,7 @@ import {
   ruleUnreadableEnableRefusal,
   ruleUnreadableLine,
   ruleUnreadableRunRefusal,
-} from "../../../../../packages/client/src/features/automation/lib/rule-refusal-copy.ts";
+} from "#client/features/automation/lib/rule-refusal-copy.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CAPS = { cooldownSeconds: 45, maxFiresPerHour: 30 } as const;

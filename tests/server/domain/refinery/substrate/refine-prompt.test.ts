@@ -10,7 +10,7 @@ import {
   buildScorePrompt,
   defaultSelectionOf,
   overlayRewrite,
-} from "../../../../../packages/server/src/domain/refinery/substrate/refine-prompt.ts";
+} from "#server/domain/refinery/substrate/refine-prompt.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const ZWSP = "\u200b";

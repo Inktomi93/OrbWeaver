@@ -1,9 +1,9 @@
 // dead: the composite evidence-ladder verdict for ONE symbol.
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
-import { semanticReferenceNodes } from "../../_shared/ts-workspace.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
+import { semanticReferenceNodes } from "../../floor/compiler/ts-workspace.ts";
 import type { DeadEvidence, DeadVerdict, Flags, Hit, Liveness, PublicMarker } from "../contract/types.ts";
 import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";

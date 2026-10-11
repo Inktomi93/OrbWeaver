@@ -19,13 +19,8 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import {
-  BACKGROUND_BLUR_MAX,
-  BACKGROUND_BLUR_MIN,
-  BACKGROUND_DIM_MAX,
-  BACKGROUND_DIM_MIN,
-} from "../../../../../packages/client/src/features/app-shell/lib/appearance-bounds.ts";
-import { DEFAULT_DEBOUNCE_MS } from "../../../../../packages/client/src/forms/entity-form-base.ts";
+import { BACKGROUND_BLUR_MAX, BACKGROUND_BLUR_MIN, BACKGROUND_DIM_MAX, BACKGROUND_DIM_MIN } from "#client/features/app-shell/lib/appearance-bounds.ts";
+import { DEFAULT_DEBOUNCE_MS } from "#client/forms/entity-form-base.ts";
 import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { AppearanceBackgroundSectionStory } from "../_ct-stories.tsx";

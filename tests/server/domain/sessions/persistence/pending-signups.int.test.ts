@@ -3,7 +3,7 @@
 
 import type { Db } from "@orb/db";
 import { oidcPendingSignups, users } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
@@ -13,8 +13,8 @@ import {
   selectLivePendingSignup,
   takePendingSignupStatement,
   upsertPendingSignup,
-} from "../../../../../packages/server/src/domain/sessions/persistence/pending-signups.ts";
-import { insertPendingSignupUserStatement } from "../../../../../packages/server/src/domain/sessions/persistence/users.ts";
+} from "#server/domain/sessions/persistence/pending-signups.ts";
+import { insertPendingSignupUserStatement } from "#server/domain/sessions/persistence/users.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

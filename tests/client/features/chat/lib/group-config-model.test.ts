@@ -10,7 +10,7 @@
 
 import type { GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "@orb/contracts/chat";
-import { fromGroupConfigForm, toGroupConfigForm } from "../../../../../packages/client/src/features/chat/lib/group-config-model.ts";
+import { fromGroupConfigForm, toGroupConfigForm } from "#client/features/chat/lib/group-config-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const NARRATOR: GroupConfig = {

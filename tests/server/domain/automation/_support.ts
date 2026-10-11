@@ -23,16 +23,16 @@ import type {
   PromptTransformIndex,
   SuggestionStore,
   TurnOriginRead,
-} from "../../../../packages/server/src/domain/automation/contract/ops.ts";
-import type { PluginSubscriberRegistry } from "../../../../packages/server/src/domain/automation/contract/plugin-subscribers.ts";
-import type { AutomationContext, AutomationService } from "../../../../packages/server/src/domain/automation/contract/service.ts";
+} from "#server/domain/automation/contract/ops.ts";
+import type { PluginSubscriberRegistry } from "#server/domain/automation/contract/plugin-subscribers.ts";
+import type { AutomationContext, AutomationService } from "#server/domain/automation/contract/service.ts";
 import {
   createAutomationService,
   createEnabledRuleIndex,
   createPluginSubscriberRegistry,
   createPromptTransformIndex,
   createSuggestionStore,
-} from "../../../../packages/server/src/domain/automation/index.ts";
+} from "#server/domain/automation/index.ts";
 import { freshDb } from "../../../support/db.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";

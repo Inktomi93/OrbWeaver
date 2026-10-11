@@ -55,7 +55,7 @@
 // LEGACY SHA: 02bab80ad4 (`git show 02bab80ad4:tooling/src/verify/gates/context-definition-shape.ts`).
 import type { Node as MorphNode, SourceFile, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { referenceResolutionServices, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import { referenceResolutionServices, resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readStringValue } from "../lib/ast-read.ts";
 import { DEFINE_CONTEXT_REGION, REGISTRY_CONTRACTS_RE } from "../lib/context-definition-shape.ts";

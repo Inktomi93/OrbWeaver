@@ -13,7 +13,7 @@
 //     `--full` at all.
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../../../../tooling/src/verify/contract/selection.ts";
 import { stagesForTier } from "../../../../tooling/src/verify/lib/registry.ts";
 import { selectAffectedInstrumentTests } from "../../../../tooling/src/verify/ops/instrument-affected.ts";
@@ -36,7 +36,7 @@ const TOOLING_TSCONFIG = JSON.stringify({
 const TOOLING_PACKAGE_JSON = JSON.stringify({
   name: "@orb/tooling",
   type: "module",
-  exports: { "./*": "./src/*/index.ts", "./_shared/*": "./src/_shared/*.ts" },
+  exports: { "./*": "./src/*/index.ts", "./floor/*": "./src/floor/*.ts" },
   imports: { "#*": "./src/*/index.ts" },
 });
 
@@ -180,12 +180,12 @@ test("transitive imports cross re-export, cycle, tooling-alias and conservative 
     "tooling/src/verify/lib/cycle-a.ts": 'import "./cycle-b.ts";\n',
     "tooling/src/verify/lib/cycle-b.ts": 'import "./cycle-a.ts";\nexport { data } from "./barrel/index.ts";\n',
     "tooling/src/verify/lib/hash-door.ts": 'export { probe } from "#probe";\n',
-    "tooling/src/_shared/alias-data.ts": "export const aliasData = true;\n",
-    "tooling/src/_shared/type-data.ts": "export interface TypeData { readonly value: string }\n",
+    "tooling/src/floor/host/alias-data.ts": "export const aliasData = true;\n",
+    "tooling/src/floor/host/type-data.ts": "export interface TypeData { readonly value: string }\n",
     "tooling/src/probe/index.ts": 'export { probe } from "./probe-data.ts";\n',
     "tooling/src/probe/probe-data.ts": "export const probe = true;\n",
     "tests/tooling/verify/ops/import-reach.test.ts":
-      'import "../../../../tooling/src/verify/lib/cycle-a.ts";\nimport "../../../../tooling/src/verify/lib/hash-door.ts";\nimport { aliasData } from "@orb/tooling/_shared/alias-data";\nimport type { TypeData } from "@orb/tooling/_shared/type-data";\ntype Seen = TypeData;\nvoid aliasData;\n',
+      'import "../../../../tooling/src/verify/lib/cycle-a.ts";\nimport "../../../../tooling/src/verify/lib/hash-door.ts";\nimport { aliasData } from "@orb/tooling/floor/host/alias-data";\nimport type { TypeData } from "@orb/tooling/floor/host/type-data";\ntype Seen = TypeData;\nvoid aliasData;\n',
     "tests/tooling/verify/ops/downstream.test.ts": 'import "./import-reach.test.ts";\n',
   });
   mkdirSync(join(root, "node_modules/@orb"), { recursive: true });
@@ -193,8 +193,8 @@ test("transitive imports cross re-export, cycle, tooling-alias and conservative 
 
   const selection = selectAffectedInstrumentTests(root, [
     "tooling/src/verify/lib/data.ts",
-    "tooling/src/_shared/alias-data.ts",
-    "tooling/src/_shared/type-data.ts",
+    "tooling/src/floor/host/alias-data.ts",
+    "tooling/src/floor/host/type-data.ts",
     "tooling/src/probe/probe-data.ts",
   ]);
   expect(selection.specs).toEqual(["tests/tooling/verify/ops/downstream.test.ts", "tests/tooling/verify/ops/import-reach.test.ts"]);
@@ -407,7 +407,7 @@ test("enclosing CI measurement ends at the native tooling subprocess while fixtu
       'import { test, expect } from "vitest";',
       'import "../../../../tooling/src/verify/gates/scope-policy.ts";',
       `import { resolveMeasurementBoundary } from ${JSON.stringify(join(repoRoot, "tooling/src/verify/lib/repo-paths.ts"))};`,
-      `import { inheritedProcessEnv } from ${JSON.stringify(join(repoRoot, "tooling/src/_shared/process-env.ts"))};`,
+      `import { inheritedProcessEnv } from ${JSON.stringify(join(repoRoot, "tooling/src/floor/process/process-env.ts"))};`,
       'test("nested fixture owns its measurement", () => {',
       "const env = inheritedProcessEnv();",
       'for (const key of ["ORB_VERIFY_BASE", "ORB_VERIFY_HEAD"]) expect(env[key]).toBeUndefined();',

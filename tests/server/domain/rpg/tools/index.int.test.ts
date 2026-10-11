@@ -8,8 +8,8 @@ import { RPG_LITE_TOOL_NAMES } from "@orb/contracts/rpg";
 import type { ChatId, ChatTurnId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { rpgToolDefinitions } from "../../../../../packages/server/src/domain/rpg/index.ts";
-import type { ToolDefinition, ToolExecutionContext, ToolHandlerResult } from "../../../../../packages/server/src/domain/tool-use/index.ts";
+import { rpgToolDefinitions } from "#server/domain/rpg/index.ts";
+import type { ToolDefinition, ToolExecutionContext, ToolHandlerResult } from "#server/domain/tool-use/index.ts";
 import { expect, principal, seedLiteGame, test } from "../_support.ts";
 
 const TURN = castId<ChatTurnId>("chat_turn_t1");

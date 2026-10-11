@@ -5,7 +5,7 @@
 // it thinks, it calls the tools, it writes no prose. `assertGeneratedContent` then refuses the turn — correctly,
 // an empty variant is not a reply — and the whole turn is discarded, the model's good state writes with it.
 // What the operator sees is the reasoning stream rendering and then stopping dead, early, with "the model
-// returned no text". The stall is the length of the REASONING PHASE, not a timeout (`backends/kit/idle-timeout.ts` is 180s and resets on
+// returned no text". The stall is the length of the REASONING PHASE, not a timeout (`backends/http/idle-timeout.ts` is 180s and resets on
 // every received chunk — the idle-stall theory was falsified against source before this was built).
 //
 // THE RECOVERY. The tool calls are the expensive, hard-to-reproduce half of the turn and they are ALREADY

@@ -5,8 +5,8 @@
 
 import { createHash } from "node:crypto";
 import { describe } from "vitest";
-import type { UploadedFile } from "../../../../../packages/server/src/domain/import/contract/views.ts";
-import { incomingPersonasOf } from "../../../../../packages/server/src/domain/import/substrate/persona-review.ts";
+import type { UploadedFile } from "#server/domain/import/contract/views.ts";
+import { incomingPersonasOf } from "#server/domain/import/substrate/persona-review.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const ENC = new TextEncoder();

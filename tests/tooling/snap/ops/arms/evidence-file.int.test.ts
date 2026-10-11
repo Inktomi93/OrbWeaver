@@ -17,7 +17,7 @@
 // `evidence/map.json` claiming a population this run never measured.
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../../_load-budget.ts";
 

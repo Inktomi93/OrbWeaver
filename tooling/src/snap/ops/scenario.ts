@@ -1,17 +1,17 @@
 // --scenario: sequential checkpoints in ONE shared browser lifetime, each with its own evidence window.
 import type { Page } from "@playwright/test";
-import { artifactFilePath, artifactKey } from "../../_shared/artifact-naming.ts";
-import { artifactDir } from "../../_shared/artifact-out.ts";
-import { evidenceWindowId } from "../../_shared/artifact-scope.ts";
-import { print } from "../../_shared/artifacts.ts";
-import type { CapturedRequest } from "../../_shared/browser-capture.ts";
-import { browserEvidenceRetention } from "../../_shared/browser-capture.ts";
-import type { ProbeSession } from "../../_shared/browser-contract.ts";
-import { summarizeOrbConsoleCompleteness } from "../../_shared/browser-diagnostics.ts";
-import { reassertOwnerDevice } from "../../_shared/browser-emulation-guard.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { printVerdictReceipt } from "../../_shared/evidence.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
+import { artifactFilePath, artifactKey } from "../../floor/artifacts/artifact-naming.ts";
+import { artifactDir } from "../../floor/artifacts/artifact-out.ts";
+import { evidenceWindowId } from "../../floor/artifacts/artifact-scope.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import type { CapturedRequest } from "../../floor/browser/browser-capture.ts";
+import { browserEvidenceRetention } from "../../floor/browser/browser-capture.ts";
+import type { ProbeSession } from "../../floor/browser/browser-contract.ts";
+import { summarizeOrbConsoleCompleteness } from "../../floor/browser/browser-diagnostics.ts";
+import { reassertOwnerDevice } from "../../floor/browser/browser-emulation-guard.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { printVerdictReceipt } from "../../floor/verdict/evidence.ts";
 import type { ArmRunContext } from "../contract/arms.ts";
 import type { SnapDetailedResult } from "../contract/run.ts";
 import type { ScenarioSpec } from "../contract/scenario.ts";
@@ -102,7 +102,7 @@ interface ScenarioEvidenceRange {
   readonly diagnosticWindow: number;
 }
 
-// Raw string, not a function: the tooling program is DOM-less and has no __orb ambient (_shared/browser.ts).
+// Raw string, not a function: the tooling program is DOM-less and has no __orb ambient (floor/browser/browser.ts).
 async function resetScenarioEvidence(page: Page): Promise<void> {
   await page.evaluate("window.__orb && window.__orb.resetEvidence()");
 }

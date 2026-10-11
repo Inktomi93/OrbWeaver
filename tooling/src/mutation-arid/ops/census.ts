@@ -5,7 +5,7 @@
 // That makes "how many mutants does it drop, and for which reason" the evidence a recalibration rests on —
 // and before this op the only way to see it was to read a 20MB report by hand.
 import { readFileSync } from "node:fs";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { AridCensus, AridReason } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm mutation:arid");

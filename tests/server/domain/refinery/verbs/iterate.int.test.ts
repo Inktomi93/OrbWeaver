@@ -9,7 +9,7 @@ import { refineryRuns, refinerySessions } from "@orb/db";
 import type { RefinerySessionId } from "@orb/kit/ids";
 import { RefineryRoundInFlightError, RefineryRunFailedError, RefineryStageNotReadyError } from "@orb/server/domain/refinery";
 import { eq } from "drizzle-orm";
-import { REFINERY_ROUND_LEASE_MS } from "../../../../../packages/server/src/domain/refinery/substrate/round-claim.ts";
+import { REFINERY_ROUND_LEASE_MS } from "#server/domain/refinery/substrate/round-claim.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { analyzeReply, makeRefineryHarness, principal, rewriteReply, scoreReply, seedOwnedCharacter, seedUser } from "../_support.ts";

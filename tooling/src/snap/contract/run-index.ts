@@ -1,6 +1,6 @@
-import type { InstrumentArtifactCompleteness, InstrumentArtifactLimitReceipt, InstrumentArtifactRole } from "../../_shared/artifact-out.ts";
-import type { ArtifactRef, EvidenceWindowId, InstrumentEvidenceScope } from "../../_shared/artifact-scope.ts";
-import type { DiagnosticLevel, OrbConsoleCompleteness } from "../../_shared/browser-diagnostics.ts";
+import type { InstrumentArtifactCompleteness, InstrumentArtifactLimitReceipt, InstrumentArtifactRole } from "../../floor/artifacts/artifact-out.ts";
+import type { ArtifactRef, EvidenceWindowId, InstrumentEvidenceScope } from "../../floor/artifacts/artifact-scope.ts";
+import type { DiagnosticLevel, OrbConsoleCompleteness } from "../../floor/browser/browser-diagnostics.ts";
 import type { Arm } from "./arm-vocabulary.ts";
 import type { SnapArmState, SnapRunResults } from "./run-facts.ts";
 import type { SessionBinding } from "./session.ts";
@@ -192,11 +192,11 @@ export interface SnapRunIndex {
  *
  *  SEAM (2026-09-04, lanes p-snap-printers ↔ p-snap-receipts): the retention ledger and its reader
  *  (`prunedRuns(root, instrument)` over `reports/runs/<instrument>/.pruned.jsonl`) are the RECEIPTS lane's
- *  and land in `tooling/src/_shared/artifacts.ts`. This declares only the shape this module's PRINTER
+ *  and land in `tooling/src/floor/artifacts/artifacts.ts`. This declares only the shape this module's PRINTER
  *  consumes, so the two halves could be built in parallel; it is structurally identical to that reader's
  *  `PrunedRun` on purpose. Folded in 2026-09-04: this is now a re-export of the reader's own
  *  `PrunedRun` — one home, one shape. */
-export type { PrunedRun as SnapPrunedRun } from "../../_shared/run-retention.ts";
+export type { PrunedRun as SnapPrunedRun } from "../../floor/artifacts/run-retention.ts";
 
 /** `--reports`' own filters (#1345). The list is a NAVIGATION surface — ten slots have to map back to the
  *  ten commands that made them — so it takes a window (`--last`) and a lane, and nothing else: any

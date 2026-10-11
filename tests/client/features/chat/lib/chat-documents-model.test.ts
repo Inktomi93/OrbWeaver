@@ -11,13 +11,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { DocumentId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import {
-  attachableDocuments,
-  isDetachableFromChat,
-  nextHiddenSet,
-  placesDatabankSlot,
-  sourceChips,
-} from "../../../../../packages/client/src/features/chat/lib/chat-documents-model.ts";
+import { attachableDocuments, isDetachableFromChat, nextHiddenSet, placesDatabankSlot, sourceChips } from "#client/features/chat/lib/chat-documents-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const AT = 1_700_000_000_000;

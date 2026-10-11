@@ -3,7 +3,7 @@
 // `UserId`. None is a `Principal` itself — the seam adds `via` and mints it.
 
 import type { UserRole } from "@orb/contracts/identity";
-import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
+import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 

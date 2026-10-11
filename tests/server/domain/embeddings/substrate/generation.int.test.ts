@@ -6,13 +6,9 @@ import type { DocumentChunkId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { vi } from "vitest";
-import type { EmbeddingConnectionSnapshot } from "../../../../../packages/server/src/domain/embeddings/contract/service.ts";
-import { markGenerationComplete } from "../../../../../packages/server/src/domain/embeddings/persistence/space-state.ts";
-import {
-  LOCAL_ENCODER_PROBE_TIMEOUT_MS,
-  probeWidth,
-  resolveTargetGeneration,
-} from "../../../../../packages/server/src/domain/embeddings/substrate/generation.ts";
+import type { EmbeddingConnectionSnapshot } from "#server/domain/embeddings/contract/service.ts";
+import { markGenerationComplete } from "#server/domain/embeddings/persistence/space-state.ts";
+import { LOCAL_ENCODER_PROBE_TIMEOUT_MS, probeWidth, resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeFakeRoleClients } from "../../../../support/factories/role-clients.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

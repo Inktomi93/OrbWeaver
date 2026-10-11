@@ -11,7 +11,7 @@
 // D-cite has one spelling — and guide §2 decides a family on a shared SUBJECT READER or computation. The
 // two policies' subject readers are disjoint: the schema partition consumes `lib/schema-fact.ts`'s
 // `drizzleSchemaFact` and is `family: "drizzle-schema"`; this one reads AUTHORED contract declarations
-// through `_shared/reference-fact.ts#readMemberReference` and `lib/schema-fact-value.ts#objectEntries`, and
+// through `floor/code-facts/reference-fact.ts#readMemberReference` and `lib/schema-fact-value.ts#objectEntries`, and
 // touches no Drizzle fact at all. Naming `drizzle-schema` here would claim a fact this policy never reads;
 // naming a joint "banned-shapes" family would make a shared data table a family key, which is the "theme
 // is not a family" shape §3 forbids. Same call, same reason, as `warning-code-coverage`'s singleton over
@@ -30,7 +30,7 @@
 // `schema-banned-shapes` descriptor at 3034bdad6c79e4f9423c07c5a3133ce2a32e4a49, the parent of the conversion
 // `faf2dc3857`; this module did not exist there, so it is measured against the module it was carved from,
 // `schema-banned-shapes` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
-// the SAME 7,137 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// the SAME 7,137 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy
 // harness dispatch (no `scanRoot`) admits 7,137 and final `population` admits 105. legacy − final = 7,032 harness
 // sources outside `@contracts` — the combined legacy module's IMPORT arm (now biome `noRestrictedImports`) and its
 // schema arm (now `schema-banned-shapes`) read them; the contract partition judges only `@contracts` declarations.
@@ -41,7 +41,7 @@
 // neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 import type { Node as MorphNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../_shared/reference-fact.ts";
+import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
 import type { ContractBannedShape } from "../contract/ledger-banned-shapes.ts";
 import { defineGate } from "../contract/policy.ts";
 import { bannedMessage, CONTRACT_BANNED_SHAPES, contractBanHome } from "../lib/ledger-banned-shapes.ts";
@@ -184,7 +184,7 @@ export const gate = defineGate({
   // reds rather than going quiet.
   population: "@contracts",
   // `types`, NOT `syntax` (#2256, corrected 2026-09-13). The declaration used to read `syntax` while this
-  // policy rests its verdict on the CHECKER one import hop out: `_shared/reference-fact.ts#readMemberReference`
+  // policy rests its verdict on the CHECKER one import hop out: `floor/code-facts/reference-fact.ts#readMemberReference`
   // reaches `resolveStableExpressionInternal` -> `importedTarget`, which calls
   // `lexicalReferenceSymbol(current)?.getAliasedSymbol()` to follow an import door to its declaration — and
   // that reader's own header already says "checker-proven". A syntax declaration on a checker-backed policy

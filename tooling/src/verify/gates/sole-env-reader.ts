@@ -55,7 +55,7 @@
 // stub #2037 rules out. So the clause is defensive against a future `@types/node` shape rather than
 // against a constructible one, and it stays: deleting it would widen the ambient arm onto any nested `env`.
 //
-// FAMILY: SINGLETON (`sole-env-reader`). `_shared/reference-fact.ts`'s global and module member-origin readers
+// FAMILY: SINGLETON (`sole-env-reader`). `floor/code-facts/reference-fact.ts`'s global and module member-origin readers
 // are corpus-wide primitives shared by ~20 policies; this policy's own composition — the TWO candidate arms
 // (member read plus destructure site) and the per-KEY operation grain derived from the read's own shape —
 // has no sibling.
@@ -67,7 +67,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `sole-env-reader` descriptor at b01dff396ad1f8f51bfd1cc92a0f972de8cdc731, the parent of the conversion `b5acbf2594`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,219 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,492
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,492
 // and final `population` admits 1,492. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
@@ -80,7 +80,7 @@ import {
   resolveGlobalMemberOrigin,
   resolveModuleMemberOrigin,
   resolveStableExpression,
-} from "../../_shared/reference-fact.ts";
+} from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { originModuleSpecifier } from "../lib/sealed-origin.ts";

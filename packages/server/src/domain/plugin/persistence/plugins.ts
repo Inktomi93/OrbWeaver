@@ -10,8 +10,8 @@
 import type { PluginCapability, PluginManifest, PluginOrigin, PluginStatus } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { plugins } from "@orb/db";
-import type { AwaitableBatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { AwaitableBatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { PluginBundleAssetLink } from "../contract/bundle-assets.ts";

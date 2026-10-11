@@ -35,7 +35,7 @@
 // call sites themselves, and central reconciliation owns the staleness judgment the ratchet arm used to.
 //
 // THE MATRIX IS RESOLVED, NOT READ FLAT (#947): its object literal is read through the shared stable-binding
-// reader (`_shared/reference-fact.ts`), following object SPREADS of local/imported sibling matrices.
+// reader (`floor/code-facts/reference-fact.ts`), following object SPREADS of local/imported sibling matrices.
 // `{...BASE_AUTHORITY, listMessages:"member"}` used to yield ONE verb while staying non-empty — so the
 // blindness arm was satisfied, the gate reported a live matrix, and every spread-in viewer-plane verb was
 // simply not judged. Composition shapes the matrix's own law does not sanction (a spread of a call, an
@@ -58,7 +58,7 @@
 // or a per-candidate descendant re-walk. `callsIn` reproduces the legacy `fn.getDescendantsOfKind(Call)`
 // exactly, because a call is registered under EVERY function that encloses it.
 
-import { resolveLexicalValueDeclaration } from "@orb/tooling/_shared/reference-fact";
+import { resolveLexicalValueDeclaration } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyVisitor } from "../contract/policy-primitives.ts";

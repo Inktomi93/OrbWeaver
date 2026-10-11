@@ -31,7 +31,7 @@ import {
   throughputProvenance,
   WEEKDAY_LABELS,
   weekdayBarItems,
-} from "../../../../../packages/client/src/features/stats/lib/analytics-view-model.ts";
+} from "#client/features/stats/lib/analytics-view-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("formatDurationMs", () => {

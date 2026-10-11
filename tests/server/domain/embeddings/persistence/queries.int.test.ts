@@ -10,14 +10,14 @@ import type { CharacterEmbeddingId, EmbedGenerationId, Handle, ImageEmbeddingId,
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { saveImageAnalysis } from "../../../../../packages/server/src/domain/embeddings/persistence/image-analysis.ts";
+import { saveImageAnalysis } from "#server/domain/embeddings/persistence/image-analysis.ts";
 import {
   existingCharacterHash,
   existingImageHash,
   upsertCharacterEmbedding,
   upsertImageEmbedding,
   writeHubScoreRows,
-} from "../../../../../packages/server/src/domain/embeddings/persistence/queries.ts";
+} from "#server/domain/embeddings/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, IMAGE_EMBED_MODEL, seedAsset, seedCharacter, seedUser } from "../_support.ts";

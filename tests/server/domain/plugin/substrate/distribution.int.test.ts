@@ -7,7 +7,7 @@
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { alreadyHolds, installDistributedCopy } from "../../../../../packages/server/src/domain/plugin/substrate/distribution.ts";
+import { alreadyHolds, installDistributedCopy } from "#server/domain/plugin/substrate/distribution.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";

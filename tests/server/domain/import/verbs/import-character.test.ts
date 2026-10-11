@@ -135,7 +135,7 @@ describe("importCharacter", () => {
     expect(entry?.content).toBe("A realm of dusk.");
     expect(entry?.keys).toEqual(["kingdom"]);
     expect(entry?.priority).toBe(10); // ST `insertion_order` → priority
-    // `constant:true` → `scopeMode:'always'` (the load-bearing runtime-scope derivation, #kit/serde/card).
+    // `constant:true` → `scopeMode:'always'` (the load-bearing runtime-scope derivation, #primitives/serde/card).
     expect(entry?.metadata?.["scopeMode"]).toBe("always");
   });
 

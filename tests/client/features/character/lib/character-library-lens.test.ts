@@ -11,7 +11,7 @@ import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 // Deep import the PURE lib module (NOT the "@orb/client/features/character" barrel): a barrel import drags
 // browser TSX into the dom-less root typecheck:graph program (the character-list-view precedent).
-import type { LibraryChipTag } from "../../../../../packages/client/src/features/character/lib/character-library-lens.ts";
+import type { LibraryChipTag } from "#client/features/character/lib/character-library-lens.ts";
 import {
   effectiveTagFilter,
   knownTagIds,
@@ -20,7 +20,7 @@ import {
   tagIdsInState,
   tagVocabulary,
   vocabularyPanelTags,
-} from "../../../../../packages/client/src/features/character/lib/character-library-lens.ts";
+} from "#client/features/character/lib/character-library-lens.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 // The chip rail reads the four-field character tag projection, already most-used-first, not the management

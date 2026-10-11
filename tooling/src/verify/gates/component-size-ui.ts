@@ -17,7 +17,7 @@
 // descriptor had no `scanRoot`, so its effective population is its in-run path filter — fs walk of `packages/ui/src`,
 // SKIP_DIRS {node_modules,dist,__screenshots__}, `.ts`/`.tsx` minus `/\.(?:test|spec|ct|fixtures|gen)\.tsx?$/` and
 // `.d.ts`. Over the SAME 7,047 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`; the walk-based filter over every tracked `.ts`/`.tsx` path) it admits 358
+// `floor/compiler/ts-workspace.ts#harnessGlobs`; the walk-based filter over every tracked `.ts`/`.tsx` path) it admits 358
 // and the final `population` admits 358 (the bare harness dispatch was 7,047). legacy − final = ∅. final − legacy =
 // ∅. Controls: inside `packages/ui/src/art/art-bleed/__cbbhr_in_art-bleed.tsx` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` rejected by both.

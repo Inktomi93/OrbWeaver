@@ -21,8 +21,8 @@
 
 import type { LucideIcon } from "lucide-react";
 import { createLucideIcon } from "lucide-react";
-import type { WebGlyphGeometry } from "../../art/web-weave/web-glyph.ts";
-import { webGlyph } from "../../art/web-weave/web-glyph.ts";
+import type { WebGlyphGeometry } from "#src/art/web-weave/web-glyph.ts";
+import { webGlyph } from "#src/art/web-weave/web-glyph.ts";
 
 /** The lucide icon grid — createLucideIcon renders `viewBox="0 0 24 24"`, so the glyph is emitted in 24-space. */
 const LUCIDE_VIEW = 24;

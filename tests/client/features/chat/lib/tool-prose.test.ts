@@ -1,5 +1,5 @@
 import type { ToolCallRecord } from "@orb/contracts/chat";
-import { toolBoundaryDisplayMessage } from "../../../../../packages/client/src/features/chat/lib/tool-prose.ts";
+import { toolBoundaryDisplayMessage } from "#client/features/chat/lib/tool-prose.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeMessageView } from "../fixtures.ts";
 

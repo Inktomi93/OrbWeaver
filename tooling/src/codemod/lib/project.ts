@@ -3,8 +3,8 @@
 import { existsSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import process from "node:process";
-import { readAuthoredRepositoryPathnames } from "@orb/tooling/_shared/authored-repository";
-import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
+import { readAuthoredRepositoryPathnames } from "@orb/tooling/floor/compiler/authored-repository";
+import { getWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { Project } from "ts-morph";
 import type { CreateProjectOptions } from "../contract/types.ts";
 import { CodemodError } from "./errors.ts";

@@ -1,6 +1,6 @@
 // The verb dispatch tables — what the cli routes through (re-exported via index.ts).
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags } from "../contract/types.ts";
 import { cmdApiSurface } from "./apisurface.ts";
 import { cmdChains } from "./chains.ts";

@@ -15,7 +15,7 @@ paths:
 
 ## Two config mechanisms
 
-TypeScript configs are generated: `tooling/src/_shared/type-config-intent.ts` is the source, `pnpm
+TypeScript configs are generated: `tooling/src/floor/compiler/type-config-intent.ts` is the source, `pnpm
 typecheck` and `verify baseline type-configs --check` verify freshness. Never hand-edit a generated
 field; change the intent.
 
@@ -41,7 +41,7 @@ them.
 ## Process control
 
 Never signal a process group with the `kill` binary; a negative pgid without `--` parses by its first
-digit and can kill the wrong group — use `killPidGroup` (`tooling/src/_shared/proc.ts`). Never run
+digit and can kill the wrong group — use `killPidGroup` (`tooling/src/floor/process/proc.ts`). Never run
 `pnpm` inside a `git archive` extraction that symlinks a worktree's `node_modules`; its dep-status
 check can purge the real directory through the symlink. A test-run watchdog kills on silence and zero
 CPU across the process tree, never silence alone.
@@ -60,6 +60,6 @@ and rules in the same change; never add a refusal path or alias shim.
 
 Declare `sideEffects` on every new workspace `package.json` at birth, or prod tree-shaking cannot reach
 consumers below the cake. A new `packages/*` package also needs a population root and an entry in
-`tooling/src/_shared/project-worlds.ts`, a dep-cruiser rule pair, `package.json`/`tsconfig`, and a knip
+`tooling/src/floor/compiler/project-worlds.ts`, a dep-cruiser rule pair, `package.json`/`tsconfig`, and a knip
 entry. Scope a `pnpm-workspace.yaml` override to its parent
 chain when a name is shared across major lines; a bare-name override collapses every instance onto one version.

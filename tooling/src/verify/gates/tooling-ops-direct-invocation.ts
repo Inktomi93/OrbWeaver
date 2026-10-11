@@ -15,7 +15,7 @@
 //
 // FAMILY `tooling-program-entry`, shared with `tooling-cli-entry` ("every tool cli.ts enters through
 // `runTool`" — §12.6's exit/CLI arm of the retired `tooling-shared-plumbing`, which reads the SAME runner home
-// through the same readers). The shared readers are `_shared/ts-workspace.ts` (`moduleScopeCalls`, the
+// through the same readers). The shared readers are `floor/compiler/ts-workspace.ts` (`moduleScopeCalls`, the
 // statement-level "what runs when this module loads" read) and `lib/project-home-origin.ts`
 // (`locateProjectHome` + `classifyProjectHomeOrigin`, the declaration-identity judgment against a located
 // home). The family name was minted WITH the second member: the loader refuses a one-member family whose
@@ -31,7 +31,7 @@
 // leaves its home's receipt `unresolved: 1` and refuses, where the legacy re-derived the new name silently.
 //
 // POPULATION PORT: the legacy `OPS_RE` (`tooling/src/[^/]+/ops/.+\.ts`) is `tooling/src/*/ops/**` with
-// `ext: ["ts"]`, byte-identical over the tree; the two `_shared` homes are ADDED to the population so the
+// `ext: ["ts"]`, byte-identical over the tree; the two floor homes are ADDED to the population so the
 // policy can read its vocabulary through `ctx.files` (an intentional delta — they are skipped by the
 // per-file arm, never judged). `entire-population` because every per-file verdict depends on those two
 // files, which no per-file subset carries; a narrowed request DEFERS this policy rather than refusing on
@@ -40,27 +40,27 @@
 // Legacy descriptor: `d53fc98828` (`tooling/src/verify/gates/tooling-ops-direct-invocation.ts`). No private
 // marker grammar; zero live `@orb-gate-ignore tooling-ops-direct-invocation` markers at conversion (rg over
 // packages/, tests/, tooling/, scripts/), so no translation was owed. Behavioral twin:
-// `tests/tooling/_shared/entrypoint.int.test.ts` RUNS every ops module and asserts exit 2.
+// `tests/tooling/floor/cli/entrypoint.int.test.ts` RUNS every ops module and asserts exit 2.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `tooling-ops-direct-invocation` descriptor at (pruned from public history), the parent of the
 // conversion `12d34bb79a` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
 // `d53fc98828` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,441 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 270 and final `population` admits 272.
-// legacy − final = ∅. final − legacy = {`tooling/src/_shared/entrypoint.ts`, `tooling/src/_shared/run-tool.ts`} — the
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 270 and final `population` admits 272.
+// legacy − final = ∅. final − legacy = {`tooling/src/floor/cli/entrypoint.ts`, `tooling/src/floor/cli/run-tool.ts`} — the
 // two vocabulary homes added so `ctx.files` carries them. Controls: inside
 // `tooling/src/agent-sync/ops/__cbbhr_in_render.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { SourceFile } from "ts-morph";
-import { moduleScopeCalls } from "../../_shared/module-entry.ts";
+import { moduleScopeCalls } from "../../floor/compiler/module-entry.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { LocatedProjectHome } from "../lib/project-home-origin.ts";
 import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-home-origin.ts";
 
-/** The two `_shared` homes whose exports make a module a guarded library or a program. */
-const GUARD_HOME = { path: "tooling/src/_shared/entrypoint.ts", names: ["refuseDirectInvocation"] } as const;
-const RUNNER_HOME = { path: "tooling/src/_shared/run-tool.ts", names: ["runTool"] } as const;
+/** The two floor homes whose exports make a module a guarded library or a program. */
+const GUARD_HOME = { path: "tooling/src/floor/cli/entrypoint.ts", names: ["refuseDirectInvocation"] } as const;
+const RUNNER_HOME = { path: "tooling/src/floor/cli/run-tool.ts", names: ["runTool"] } as const;
 const GUARD_RECEIPT = "program-entry home: entrypoint";
 const RUNNER_RECEIPT = "program-entry home: run-tool";
 
@@ -68,16 +68,16 @@ const MESSAGE =
   "an ops/ module can be RUN as a program and would exit 0 without doing anything — the lying-instrument " +
   "shape (#509): a library module has no main, so `node <that path>` loads it, executes nothing, and prints " +
   "a bare zero a reader takes for a clean verdict. Every tooling/src/<tool>/ops/** module must refuse being " +
-  "the process entry, or genuinely BE one. See tooling/src/_shared/entrypoint.ts.";
+  "the process entry, or genuinely BE one. See tooling/src/floor/cli/entrypoint.ts.";
 
 const FIX =
   'add `refuseDirectInvocation(import.meta.url, "<the real door>")` as the first statement after the ' +
-  "imports (tooling/src/_shared/entrypoint.ts), naming the command the caller actually meant — the refusal " +
+  "imports (tooling/src/floor/cli/entrypoint.ts), naming the command the caller actually meant — the refusal " +
   "is a fix, not a scolding. A module that IS a documented process entry (a bash-fronted tool's node half) " +
   "instead enters through `runTool` at module scope, which makes running it do real work.";
 
 const missing = (rel: string): string =>
-  `${rel} is an ops/ LIBRARY module with no module-scope \`refuseDirectInvocation(…)\` call resolving to _shared/entrypoint.ts and no module-scope \`runTool(…)\` resolving to _shared/run-tool.ts — running it directly would load it, execute nothing and exit 0.`;
+  `${rel} is an ops/ LIBRARY module with no module-scope \`refuseDirectInvocation(…)\` call resolving to floor/cli/entrypoint.ts and no module-scope \`runTool(…)\` resolving to floor/cli/run-tool.ts — running it directly would load it, execute nothing and exit 0.`;
 
 /** Does any module-scope call PROVABLY enter one of the two homes? An unreadable callee is no proven guard. */
 function entersHome(sourceFile: SourceFile, home: LocatedProjectHome): boolean {
@@ -123,8 +123,8 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/entrypoint.ts": "export function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\n",
-        "tooling/src/_shared/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
+        "tooling/src/floor/cli/entrypoint.ts": "export function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\n",
+        "tooling/src/floor/cli/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
         "tooling/src/aa/ops/x.ts": "export const x = 1;\n",
       },
       expect: { count: 1, line: 1 },
@@ -133,8 +133,8 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/entrypoint.ts": "export function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\n",
-        "tooling/src/_shared/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
+        "tooling/src/floor/cli/entrypoint.ts": "export function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\n",
+        "tooling/src/floor/cli/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
         "tooling/src/aa/ops/x.ts":
           'export const SCAFFOLD = `refuseDirectInvocation(import.meta.url, "pnpm aa");`;\n// refuseDirectInvocation(import.meta.url, "pnpm aa");\n',
       },
@@ -144,8 +144,8 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/entrypoint.ts": "export function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\n",
-        "tooling/src/_shared/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
+        "tooling/src/floor/cli/entrypoint.ts": "export function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\n",
+        "tooling/src/floor/cli/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
         "tooling/src/aa/ops/x.ts":
           'function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\nrefuseDirectInvocation(import.meta.url, "pnpm aa");\nexport const x = 1;\n',
       },
@@ -155,8 +155,8 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/entrypoint.ts": "export function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\n",
-        "tooling/src/_shared/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
+        "tooling/src/floor/cli/entrypoint.ts": "export function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\n",
+        "tooling/src/floor/cli/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
         "tooling/src/aa/ops/x.ts": 'import { refuseDirectInvocation } from "./missing.ts";\n\nrefuseDirectInvocation(import.meta.url, "pnpm aa");\n',
       },
       expect: { count: 1, line: 1 },
@@ -165,10 +165,10 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/entrypoint.ts":
+        "tooling/src/floor/cli/entrypoint.ts":
           "export function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\nexport function other(): void {}\n",
-        "tooling/src/_shared/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
-        "tooling/src/aa/ops/x.ts": 'import { other } from "../../_shared/entrypoint.ts";\n\nother();\n\nexport const x = 1;\n',
+        "tooling/src/floor/cli/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
+        "tooling/src/aa/ops/x.ts": 'import { other } from "../../floor/cli/entrypoint.ts";\n\nother();\n\nexport const x = 1;\n',
       },
       expect: { count: 1, line: 1 },
       why: "THE EXPORT-NAME HALF of the identity: a module-scope call into the guard HOME that is not the guard EXPORT is not a guard. Widening GUARD_HOME.names to admit `other` turns this row green, which is what pins the name half of the `(file, export)` pair",
@@ -178,27 +178,27 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/entrypoint.ts": "export function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\n",
-        "tooling/src/_shared/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
+        "tooling/src/floor/cli/entrypoint.ts": "export function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\n",
+        "tooling/src/floor/cli/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
         "tooling/src/aa/ops/x.ts":
-          'import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";\n\nrefuseDirectInvocation(import.meta.url, "pnpm aa");\n\nexport const x = 1;\n',
+          'import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";\n\nrefuseDirectInvocation(import.meta.url, "pnpm aa");\n\nexport const x = 1;\n',
       },
       why: "the armed library shape — the guard called at module scope, naming the real door. The two homes are in the population and are SKIPPED, never judged: deleting the home skip reds this row with the homes' own absent-guard findings",
     },
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/entrypoint.ts": "export function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\n",
-        "tooling/src/_shared/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
-        "tooling/src/aa/ops/entry.ts": 'import { runTool } from "../../_shared/run-tool.ts";\n\nawait runTool(() => 0);\n',
+        "tooling/src/floor/cli/entrypoint.ts": "export function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\n",
+        "tooling/src/floor/cli/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
+        "tooling/src/aa/ops/entry.ts": 'import { runTool } from "../../floor/cli/run-tool.ts";\n\nawait runTool(() => 0);\n',
       },
       why: "DERIVED EXEMPTION, not an allowlist: a module that ends in a module-scope `runTool` IS a program (a private process boundary such as `verify/ops/config-snapshot-entry.ts`) — running it does the real work, so the silent-zero lie is unrepresentable there. Structural, so it can never rot into a stale path row. Replacing the runner-home verdict with `true` reds mustFlag[2]; replacing it with `false` reds this row",
     },
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/entrypoint.ts": "export function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\n",
-        "tooling/src/_shared/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
+        "tooling/src/floor/cli/entrypoint.ts": "export function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\n",
+        "tooling/src/floor/cli/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
         "tooling/src/aa/lib/x.ts": "export const x = 1;\n",
         "tooling/src/aa/cli.ts": "export const c = 1;\n",
       },
@@ -207,21 +207,21 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/entrypoint.ts": "export function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\n",
-        "tooling/src/_shared/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
+        "tooling/src/floor/cli/entrypoint.ts": "export function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\n",
+        "tooling/src/floor/cli/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
         "tooling/src/aa/ops/x.ts":
-          'import { refuseDirectInvocation as refuse } from "../../_shared/entrypoint.ts";\n\nrefuse(import.meta.url, "pnpm aa");\n\nexport const x = 1;\n',
+          'import { refuseDirectInvocation as refuse } from "../../floor/cli/entrypoint.ts";\n\nrefuse(import.meta.url, "pnpm aa");\n\nexport const x = 1;\n',
       },
       why: "AN IMPORT ALIAS enters the same guard — the callee resolves to the home's export whatever it was spelled as. The legacy text comparison reported this module as unguarded",
     },
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/entrypoint.ts":
+        "tooling/src/floor/cli/entrypoint.ts":
           "export function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\nexport function other(): void {}\n",
-        "tooling/src/_shared/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
+        "tooling/src/floor/cli/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
         "tooling/src/aa/ops/x.ts":
-          'import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";\n\nrefuseDirectInvocation(import.meta.url, "pnpm aa");\n\nexport const x = 1;\n',
+          'import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";\n\nrefuseDirectInvocation(import.meta.url, "pnpm aa");\n\nexport const x = 1;\n',
       },
       why: "THE LEGACY BLINDNESS SHAPE, judged normally: the guard home exporting a SECOND function is still the home and the guard call still resolves to the named export. The legacy sole-exported-function derivation returned undefined here and reported the whole run BLIND; a fixed export name has nothing to derive. Classified in the §4.6 differential, not a narrowing",
     },

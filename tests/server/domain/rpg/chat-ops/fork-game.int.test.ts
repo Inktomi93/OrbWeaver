@@ -25,16 +25,11 @@ import { messageVariants, presets, rpgCheckpoints, rpgGames, rpgJournal, rpgShee
 import type { ChatId, Handle, MessageId, MessageVariantId, PresetId, RpgGameId, RpgSnapshotId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, getTableColumns } from "drizzle-orm";
-import { insertCheckpoint, listCheckpoints } from "../../../../../packages/server/src/domain/rpg/persistence/checkpoints.ts";
-import { findGameByChat, insertGame, updateGame } from "../../../../../packages/server/src/domain/rpg/persistence/games.ts";
-import { insertJournalEntry, listAllJournal } from "../../../../../packages/server/src/domain/rpg/persistence/journal.ts";
-import { listSheets, upsertSheet } from "../../../../../packages/server/src/domain/rpg/persistence/sheets.ts";
-import {
-  insertSnapshot,
-  listSnapshots,
-  resolveSnapshotForTurn,
-  writeHandSnapshot,
-} from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { insertCheckpoint, listCheckpoints } from "#server/domain/rpg/persistence/checkpoints.ts";
+import { findGameByChat, insertGame, updateGame } from "#server/domain/rpg/persistence/games.ts";
+import { insertJournalEntry, listAllJournal } from "#server/domain/rpg/persistence/journal.ts";
+import { listSheets, upsertSheet } from "#server/domain/rpg/persistence/sheets.ts";
+import { insertSnapshot, listSnapshots, resolveSnapshotForTurn, writeHandSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
 import { freshDb } from "../../../../support/db.ts";
 import {
   actorWithWallet,

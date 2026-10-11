@@ -18,9 +18,9 @@
 // backgrounds on the element itself (packages/ui/src/lib/popup-surface.ts, menu/variants.ts).
 // One IIFE, concatenated IN ORDER by ops/walker.ts (state-paint precedes this segment, so its `var`s
 // are initialized), so scope/hoisting is byte-identical to the monolith. Raw JS in a template literal
-// (no backticks / dollar-brace — see _shared/browser.ts for why a string, not a function).
+// (no backticks / dollar-brace — see floor/browser/browser.ts for why a string, not a function).
 // Provenance + attribution: ops/walker.ts.
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 

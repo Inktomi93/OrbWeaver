@@ -22,7 +22,7 @@ import {
 import { Hono } from "hono";
 import { Configuration } from "openid-client";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import { createOidcStore } from "../../../packages/server/src/domain/sessions/persistence/oidc-store.ts";
+import { createOidcStore } from "#server/domain/sessions/persistence/oidc-store.ts";
 import { freshDb } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures.ts";
 

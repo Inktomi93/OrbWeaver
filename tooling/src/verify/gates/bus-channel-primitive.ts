@@ -25,7 +25,7 @@
 // before this conversion moved both onto the callable-origin reader and the central reviewed-grant table.
 //
 // FAMILY: SINGLETON (`bus-channel-primitive`). No sibling policy resolves a CONSTRUCTED class's door
-// identity; `_shared/reference-fact-call.ts#resolveCallableOrigin` and `lib/origin-verdict.ts`'s
+// identity; `floor/code-facts/reference-fact-call.ts#resolveCallableOrigin` and `lib/origin-verdict.ts`'s
 // `classifyOriginRefusal`/`referenceNamesExport` are corpus-wide primitives that ~20 policies across four
 // families consume, which is a shared PRIMITIVE and not a shared family computation (guide §2: a theme or a
 // shared topic is not a family).
@@ -38,13 +38,13 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `bus-channel-primitive` descriptor at b01dff396ad1f8f51bfd1cc92a0f972de8cdc731, the parent of the conversion
 // `b5acbf2594` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,219 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// 7,219 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 58 and final `population` admits 58. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/transport/jobs/__cbbhr_in_catalog-refresh-scheduler.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveCallableOrigin } from "../../_shared/reference-fact-call.ts";
+import { resolveCallableOrigin } from "../../floor/code-facts/reference-fact-call.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal, referenceNamesExport } from "../lib/origin-verdict.ts";
 import { originModuleSpecifier } from "../lib/sealed-origin.ts";
@@ -245,7 +245,7 @@ export const gate = defineGate({
         ...emitterGlobalLookalikeProof(),
         "packages/server/src/transport/trpc/global-emitter.ts": "export const bus = new EventEmitter();\n",
       },
-      why: `THE ORIGIN-KIND FENCE, PINNED: a TRUSTED AMBIENT GLOBAL constructor spelled \`EventEmitter\` (${EMITTER_GLOBAL_HOME}) is admitted by the name prefilter and RESOLVES — to a global origin rather than a module one — so it is the only fixture that reaches \`target.kind !== "module"\`. Node declares no such global; the twin exists so that comparison is enforced rather than asserted. Before it the branch was reached by zero rows, and the row that claimed it planted \`new Map()\`/\`new Set()\`, which the name prefilter rejects before any origin is resolved (wave-8 D5, \gate-runtime audit wave 8\`)`,
+      why: `THE ORIGIN-KIND FENCE, PINNED: a TRUSTED AMBIENT GLOBAL constructor spelled \`EventEmitter\` (${EMITTER_GLOBAL_HOME}) is admitted by the name prefilter and RESOLVES — to a global origin rather than a module one — so it is the only fixture that reaches \`target.kind !== "module"\`. Node declares no such global; the twin exists so that comparison is enforced rather than asserted. Before it the branch was reached by zero rows, and the row that claimed it planted \`new Map()\`/\`new Set()\`, which the name prefilter rejects before any origin is resolved (wave-8 D5, gate-runtime audit wave 8\`)`,
     },
     {
       mode: "types",

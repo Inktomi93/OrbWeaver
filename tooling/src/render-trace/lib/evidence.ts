@@ -1,11 +1,11 @@
-// ZERO HYGIENE (#409) — render-trace's half of the fleet rule in _shared/evidence.ts (read that first).
+// ZERO HYGIENE (#409) — render-trace's half of the fleet rule in floor/verdict/evidence.ts (read that first).
 //
 // Two zeros live in this tool and they are NOT the same shape:
 //   · a trace with no spans / a fire run whose requests produced no trace → the tracer recorded
 //     nothing, so there is no evidence and the run is not a verdict (EXIT.toolError);
 //   · an empty TRACES LIST → a healthy endpoint with nothing recorded yet, which is a real answer.
 //     That one stays clean and is SAID out loud instead (ops/render.ts).
-import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
+import type { EvidenceGap } from "@orb/tooling/floor/verdict/evidence";
 
 export function emptySpansGap(requestId: string): EvidenceGap {
   return {

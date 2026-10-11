@@ -6,7 +6,7 @@ import { userSeedLedger } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach } from "vitest";
-import { listSeededItemKeys, recordSeededItemKeys } from "../../../../../packages/server/src/domain/settings/persistence/seed-ledger.ts";
+import { listSeededItemKeys, recordSeededItemKeys } from "#server/domain/settings/persistence/seed-ledger.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

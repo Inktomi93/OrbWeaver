@@ -32,10 +32,10 @@ import { castId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { RosterCollectionRows } from "../../../../packages/client/src/features/roster-preset/components/roster-collection-rows.tsx";
-import { RosterPicker } from "../../../../packages/client/src/features/roster-preset/components/roster-picker.tsx";
-import { rosterPresetHomeTile } from "../../../../packages/client/src/features/roster-preset/lib/home-rosters-tile.tsx";
-import { RosterMemberSurface } from "../../../../packages/client/src/features/roster-preset/surfaces/roster-member-surface.tsx";
+import { RosterCollectionRows } from "#client/features/roster-preset/components/roster-collection-rows.tsx";
+import { RosterPicker } from "#client/features/roster-preset/components/roster-picker.tsx";
+import { rosterPresetHomeTile } from "#client/features/roster-preset/lib/home-rosters-tile.tsx";
+import { RosterMemberSurface } from "#client/features/roster-preset/surfaces/roster-member-surface.tsx";
 import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/browser/measure-content-column.ts";
 

@@ -12,14 +12,7 @@ import type { InboxView, NotificationEvent } from "@orb/contracts/notifications"
 import type { ChatId, ChatInviteId, NotificationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import {
-  asksNothing,
-  asRaised,
-  asSettled,
-  NO_STANDING_ASKS,
-  standingAsksOf,
-  withActionable,
-} from "../../../../../packages/server/src/domain/notifications/substrate/actionable.ts";
+import { asksNothing, asRaised, asSettled, NO_STANDING_ASKS, standingAsksOf, withActionable } from "#server/domain/notifications/substrate/actionable.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const RECIPIENT = castId<UserId>("user_reader");

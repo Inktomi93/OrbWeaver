@@ -3,7 +3,7 @@
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { EXIT } from "../../../../tooling/src/_shared/exit-contract.ts";
+import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import { LEADER_RECORD_FILE } from "../../../../tooling/src/stack/index.ts";
 import { doDevUp } from "../../../../tooling/src/stack/ops/dev-up.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";

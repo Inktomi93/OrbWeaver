@@ -67,18 +67,18 @@ test("a spread that resolves to ZERO members refuses — an empty contribution i
 // ── #947: the per-member provenance the semantic-member gates report through ────────────────────────────
 test("readTupleDeclaration resolves one declaration and keeps each member's own declaring node", () => {
   const project = projectOf({
-    "tooling/src/_shared/instrument-core.ts": 'export const CORE_INSTRUMENTS = ["ghost"] as const;',
-    "tooling/src/_shared/instruments.ts":
+    "tooling/src/floor/instrument/instrument-core.ts": 'export const CORE_INSTRUMENTS = ["ghost"] as const;',
+    "tooling/src/floor/instrument/instruments.ts":
       'import { CORE_INSTRUMENTS } from "./instrument-core.ts";\nexport const INSTRUMENT_TOOLS = [...CORE_INSTRUMENTS, "snap"] as const;',
   });
-  const declaration = project.getSourceFileOrThrow("/repo/tooling/src/_shared/instruments.ts").getVariableDeclarationOrThrow("INSTRUMENT_TOOLS");
+  const declaration = project.getSourceFileOrThrow("/repo/tooling/src/floor/instrument/instruments.ts").getVariableDeclarationOrThrow("INSTRUMENT_TOOLS");
   const vocabulary = readTupleDeclaration(declaration);
   expect(vocabulary.entries.map((entry) => entry.value)).toEqual(["ghost", "snap"]);
   // The spread-in member's node lives in the module that WROTE it — a gate reporting "this member owes a
   // proof" must land there, not on the tuple that composed it.
-  expect(vocabulary.entries[0]?.node.getSourceFile().getFilePath()).toBe("/repo/tooling/src/_shared/instrument-core.ts");
-  expect(vocabulary.entries[0]?.source).toBe("tooling/src/_shared/instrument-core.ts#CORE_INSTRUMENTS");
-  expect(vocabulary.entries[1]?.node.getSourceFile().getFilePath()).toBe("/repo/tooling/src/_shared/instruments.ts");
+  expect(vocabulary.entries[0]?.node.getSourceFile().getFilePath()).toBe("/repo/tooling/src/floor/instrument/instrument-core.ts");
+  expect(vocabulary.entries[0]?.source).toBe("tooling/src/floor/instrument/instrument-core.ts#CORE_INSTRUMENTS");
+  expect(vocabulary.entries[1]?.node.getSourceFile().getFilePath()).toBe("/repo/tooling/src/floor/instrument/instruments.ts");
 });
 
 test("readTupleDeclaration refuses the same unsanctioned shapes as the project-wide read", () => {

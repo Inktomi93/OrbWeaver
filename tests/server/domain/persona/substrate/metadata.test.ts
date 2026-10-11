@@ -3,7 +3,7 @@
 // field throws at the write seam (the strict parse) rather than silently storing garbage.
 
 import { describe } from "vitest";
-import { normalizeWriteMetadata } from "../../../../../packages/server/src/domain/persona/substrate/metadata.ts";
+import { normalizeWriteMetadata } from "#server/domain/persona/substrate/metadata.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("normalizeWriteMetadata", () => {

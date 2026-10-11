@@ -5,7 +5,7 @@
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { ownsFactSubject } from "../../../../../packages/server/src/domain/automation/substrate/fact-scope.ts";
+import { ownsFactSubject } from "#server/domain/automation/substrate/fact-scope.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedCharacter } from "../../chat/_support.ts";
 import { ruleFixture, seedUser } from "../_support.ts";

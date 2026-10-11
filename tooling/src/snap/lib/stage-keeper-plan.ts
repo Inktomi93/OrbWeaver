@@ -25,7 +25,7 @@
 // about peers — because it only ever fires when a lane NEEDS the band, which is the right moment to break
 // a tie. The timer fires under no pressure at all, so it can afford to be the conservative arm: every
 // uncertainty (an unidentifiable peer, an unreadable row) resolves to `wait`.
-import { reservedPort } from "../../_shared/ports.ts";
+import { reservedPort } from "../../floor/host/ports.ts";
 import type { StageKeeperEvidence, StageKeeperVerdict, StageRow } from "../contract/stage.ts";
 import { describeStageAgePhrase, shortSha, stageIdleMs, stageKeeperLogPath } from "./stage-plan.ts";
 

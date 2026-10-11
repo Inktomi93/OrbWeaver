@@ -3,12 +3,12 @@
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { ExitCode } from "../../_shared/exit-contract.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { runNicedSync } from "../../_shared/proc.ts";
-import { inheritedProcessEnv } from "../../_shared/process-env.ts";
+import { print, REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { ExitCode } from "../../floor/cli/exit-contract.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { runNicedSync } from "../../floor/process/proc.ts";
+import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import type { FixtureVerb, StackContext } from "../contract/types.ts";
 import { FIXTURE_DIR_REL, FIXTURE_SEED_CLI_REL, fixtureEnv } from "../lib/fixture-plan.ts";
 import { stackContext } from "../lib/stack-plan.ts";

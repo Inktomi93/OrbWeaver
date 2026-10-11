@@ -1,6 +1,6 @@
 import type { SourceFile } from "ts-morph";
-import type { PackageName } from "../../_shared/project-worlds.ts";
-import { PACKAGE_NAMES } from "../../_shared/project-worlds.ts";
+import type { PackageName } from "../../floor/compiler/project-worlds.ts";
+import { PACKAGE_NAMES } from "../../floor/compiler/project-worlds.ts";
 import type { ConfigSnapshotRunner } from "./config-snapshot.ts";
 import { CONFIG_SNAPSHOT_RUNNERS } from "./config-snapshot.ts";
 

@@ -8,7 +8,7 @@ import type { ChatId, ChatParticipantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { ownerChatIds } from "../../../../../packages/server/src/domain/stats/substrate/owner-chat-scope.ts";
+import { ownerChatIds } from "#server/domain/stats/substrate/owner-chat-scope.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedUser, T0 } from "../_support.ts";

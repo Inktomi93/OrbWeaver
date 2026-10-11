@@ -4,7 +4,7 @@ import type { ParticipantRole } from "@orb/contracts/identity";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { isFirstRun, splitHearth } from "../../../../../packages/client/src/features/chat/lib/home-hearth.ts";
+import { isFirstRun, splitHearth } from "#client/features/chat/lib/home-hearth.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function room(

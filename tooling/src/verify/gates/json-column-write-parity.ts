@@ -31,7 +31,7 @@
 // ARM B — THE DOMINANCE ARM (#879, from the #471 settings-blob wipe). A JSON column whose `$type<T>` is a
 // type a `defineVersionedConfig(...)` OWNS carries a blob whose READ seam DEGRADES an unreadable value to
 // schema defaults; a whole-replace write built on that read persists the stand-in and destroys the real
-// blob silently and permanently. `@orb/server/kit`'s `stored-config` module (it lived at
+// blob silently and permanently. `@orb/server/primitives`'s `stored-config` module (it lived at
 // `domain/settings/substrate/stored-config.ts` until #1026 gave it a second domain caller) and its
 // `requireIntactStoredConfig(...)` are the ONE refusal seam, and until this arm its totality over future
 // writers rested on a header sentence (0 of 233 gate files referenced it). So: EVERY whole-replace writer
@@ -57,7 +57,7 @@
 // second home for the ownership fact and rots silently the day the key moves (§3). The end condition is the
 // blob moving to a `$type`d column of its own, at which point this arm covers it with no gate edit.
 // COLUMNS ARE RESOLVED, NOT REQUIRED INLINE (#945): the columns argument is read through
-// `_shared/schema-read.ts`, which follows an imported/aliased object-literal binding (and object spreads)
+// `floor/code-facts/schema-read.ts`, which follows an imported/aliased object-literal binding (and object spreads)
 // and refuses loudly on any other shape. `sqliteTable("x", importedColumns, …)` used to yield ZERO columns
 // here, erasing this gate's obligations while the schema file scan stayed healthy; findings anchor on the
 // column's DECLARING file and the scan line prints the resolved table/column population.

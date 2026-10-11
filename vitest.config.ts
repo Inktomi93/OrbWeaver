@@ -1,9 +1,9 @@
-import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
-import { budget } from "@orb/tooling/_shared/load-budget";
-import type { TestCompilerWorld, TestFamily, TestResource } from "@orb/tooling/_shared/test-kinds";
-import { runtimeForTestFamily, SEMANTIC_CORPUS_RESOURCE, TEST_KIND_DEFINITIONS, vitestTypecheckGroupName } from "@orb/tooling/_shared/test-kinds";
-import { applicationTestExclusions } from "@orb/tooling/_shared/test-population";
-import { LONG_TEST_TIMEOUT_BASE_MS, TEST_TAGS } from "@orb/tooling/_shared/test-tags";
+import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
+import { budget } from "@orb/tooling/floor/host/load-budget";
+import type { TestCompilerWorld, TestFamily, TestResource } from "@orb/tooling/floor/testing/test-kinds";
+import { runtimeForTestFamily, SEMANTIC_CORPUS_RESOURCE, TEST_KIND_DEFINITIONS, vitestTypecheckGroupName } from "@orb/tooling/floor/testing/test-kinds";
+import { applicationTestExclusions } from "@orb/tooling/floor/testing/test-population";
+import { LONG_TEST_TIMEOUT_BASE_MS, TEST_TAGS } from "@orb/tooling/floor/testing/test-tags";
 import type { TestProjectConfiguration, ViteUserConfig } from "vitest/config";
 import { defineConfig } from "vitest/config";
 import type { TestUserConfig } from "vitest/node";
@@ -122,7 +122,7 @@ function typecheckProjects(applicationOnly: boolean): readonly TestProjectConfig
 // docs/work/0062 — every project inherits this through `extends: true`, so each one captures the working
 // tree before its own first test and re-checks it at close: a suite that writes the real tree (repo law
 // forbids it) reds naming the file instead of passing unseen.
-const WORKING_TREE_GUARD = "@orb/tooling/_shared/working-tree-guard";
+const WORKING_TREE_GUARD = "@orb/tooling/floor/testing/working-tree-guard";
 
 export function vitestConfig(runtimeOnly = false, applicationOnly = false): ViteUserConfig {
   const runtimeGlobs = (globs: readonly string[]): string[] => withIgnored([...globs, ...applicationTestExclusions(applicationOnly).map((glob) => `!${glob}`)]);

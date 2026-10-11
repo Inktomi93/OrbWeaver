@@ -27,7 +27,7 @@ import type { PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { testId } from "../../../packages/client/src/lib/test-ids.ts";
+import { testId } from "#client/lib/test-ids.ts";
 import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../support/node/route-trpc.ts";
 import { UTILITY_RUNNING_ROUTES } from "../../support/node/utility-role.ts";

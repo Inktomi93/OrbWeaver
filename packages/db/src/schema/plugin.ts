@@ -16,7 +16,7 @@ import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
 import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { checkList } from "../kit/check-list.ts";
+import { checkList } from "../query/check-list.ts";
 import { assets } from "./assets.ts";
 import { users } from "./users.ts";
 

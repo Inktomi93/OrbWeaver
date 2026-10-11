@@ -16,7 +16,7 @@
 // policy went inert in one commit — 14 suppressions LOST, reported by `gate-ignore-inventory` as 14 STALE
 // markers and by this policy as 14 newly-effective findings. Translated 1:1 (14 legacy = 14 waives, no
 // MULTI split, no DEAD marker) across 9 files: `Date.now` ×4 (tests/tooling/{vitest-supervised,
-// snap/ops/session-client,snap/ops/stage-keeper,_shared/proc}), `process.hrtime` ×9
+// snap/ops/session-client,snap/ops/stage-keeper,floor/process/proc}), `process.hrtime` ×9
 // (plugin-host/{sandbox ×4,escape.suite ×2}, entry/{compose/chat ×2,lifecycle}), `performance.timeOrigin` ×1
 // (plugin-host/realm). The 22 raw grep hits minus 4 legacy-engine fixtures in
 // tests/tooling/gate-ignore-grammar.repo.int.test.ts, 3 file-header prose mentions and this header's own
@@ -37,7 +37,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `test-determinism` descriptor at a2a93cac726442da889b41f089610914f5dc692f, the parent of the conversion `9c04cd7182`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,353 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 2,744
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 2,744
 // and final `population` admits 2,744. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `tests/client/a11y/__cbbhr_in__ct-stories.tsx` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.

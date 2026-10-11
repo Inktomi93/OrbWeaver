@@ -1,14 +1,14 @@
 // Bounded exact-page transition contact sheet over the existing Playwright page and argv action tape.
 import { relative } from "node:path";
 import type { Page } from "@playwright/test";
-import { artifactKey, routeSlug } from "../../../_shared/artifact-naming.ts";
-import { activeRunSlot, artifactFile } from "../../../_shared/artifact-out.ts";
-import { artifactRef } from "../../../_shared/artifact-scope.ts";
-import type { ResultPair } from "../../../_shared/artifacts.ts";
-import { print } from "../../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import { EXIT } from "../../../_shared/exit-contract.ts";
-import { processEnvValue } from "../../../_shared/process-env.ts";
+import { artifactKey, routeSlug } from "../../../floor/artifacts/artifact-naming.ts";
+import { activeRunSlot, artifactFile } from "../../../floor/artifacts/artifact-out.ts";
+import { artifactRef } from "../../../floor/artifacts/artifact-scope.ts";
+import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
+import { print } from "../../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../../floor/cli/exit-contract.ts";
+import { processEnvValue } from "../../../floor/process/process-env.ts";
 import type { ArmArgs, ArmDef, ArmFailureCounts, ArmNeeds, ArmRunInstance } from "../../contract/arms.ts";
 import type { FilmstripCaptureReceipt, FilmstripLimits } from "../../contract/filmstrip.ts";
 import { FILMSTRIP_LIMITS } from "../../contract/filmstrip.ts";

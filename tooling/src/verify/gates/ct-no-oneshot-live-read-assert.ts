@@ -60,7 +60,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `ct-no-oneshot-live-read-assert` descriptor at 1692e75291431f4ef5246b641b8927f2ae4d6876, the parent of the
 // conversion `608deaffcb` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
-// the SAME 7,360 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// the SAME 7,360 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy
 // `scanRoot` admits 491 and final `population` admits 491. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `tests/client/a11y/__cbbhr_in_accessible-name-quality.suite.ct.tsx` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
@@ -70,7 +70,7 @@
 // `analysis: "types"`; its finding semantics and population are unchanged.
 import type { CallExpression, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveLexicalValueDeclaration, resolveStableExpression } from "../../_shared/reference-fact.ts";
+import { resolveLexicalValueDeclaration, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 
 const ACTIVE_ELEMENT = "activeElement";

@@ -1,7 +1,7 @@
 // The request-log arm's PURE half: the substring filter and the bounded-ring receipt block. No
 // Playwright, no filesystem — so the accounting a reviewer reads is provable from hand-built entries
 // (ops/request-log.ts owns the event wiring).
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { RequestBodyOutcome, RequestLogEntry, RequestLogReceipt } from "../contract/request-log.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --requests");

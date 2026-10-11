@@ -47,7 +47,7 @@ const ROOT = "/tooling-front-door-family";
 const IMPORT_FAMILY: readonly GatePolicy[] = [frontDoor, rootConfigImport];
 const ARGV_FAMILY: readonly GatePolicy[] = [argvFrontDoor, argvHealth];
 const ALL: readonly GatePolicy[] = [...IMPORT_FAMILY, ...ARGV_FAMILY];
-const ANCHOR = "tooling/src/_shared/exit-contract.ts";
+const ANCHOR = "tooling/src/floor/cli/exit-contract.ts";
 const ANCHOR_SOURCE = "export const EXIT = { clean: 0 } as const;\n";
 const ENGINES_GRANT_ID = "tooling-argv-front-door:verify-config-snapshot-entry";
 const ENGINES = "tooling/src/verify/ops/config-snapshot-entry.ts";
@@ -130,7 +130,7 @@ test("an argv grant whose entry stopped reading argv is STALE after a complete r
 
 test("every argv grant row in the central table names a subject that exists on the tree and is not a cli.ts", ({ repoRoot }) => {
   const rows = REVIEWED_GRANTS.filter((grant) => grant.policyId === argvFrontDoor.id);
-  // The literal is the pin: `_shared/entrypoint.ts`, `_shared/niced-exec.ts` and
+  // The literal is the pin: `floor/cli/entrypoint.ts`, `floor/process/niced-exec.ts` and
   // `verify/ops/config-snapshot-entry.ts`. A new reviewed argv reader bumps it here in the same change
   // as its grant row.
   expect(rows).toHaveLength(3);
@@ -147,16 +147,16 @@ test("a narrowed request judges the selected-files policies on the requested row
     [ANCHOR]: ANCHOR_SOURCE,
     "tooling/src/aa/ops/root-config.ts": 'import knipConfig from "../../../../knip.ts";\nexport const globs = knipConfig;\n',
     "tooling/src/snap/cli.ts": 'import process from "node:process";\nexport const a = process.argv.slice(2);\n',
-    "tooling/src/_shared/log.ts": "export const warn = 1;\n",
+    "tooling/src/floor/cli/log.ts": "export const warn = 1;\n",
   };
   for (const policy of [rootConfigImport, argvFrontDoor]) {
-    const narrowed = passOf([policy], files, { requestedPaths: ["tooling/src/_shared/log.ts"] });
+    const narrowed = passOf([policy], files, { requestedPaths: ["tooling/src/floor/cli/log.ts"] });
     expect(narrowed.toolErrors, policy.id).toEqual([]);
     expect(narrowed.policies.find(({ id }) => id === policy.id)?.owner, policy.id).toMatchObject({ status: "success", population: "complete" });
     expect(narrowed.authority.effectiveFindings, policy.id).toEqual([]);
     expect(narrowed.authority.authorityAlarms, policy.id).toEqual([]);
   }
-  const health = passOf([argvHealth], files, { requestedPaths: ["tooling/src/_shared/log.ts"] });
+  const health = passOf([argvHealth], files, { requestedPaths: ["tooling/src/floor/cli/log.ts"] });
   expect(health.toolErrors).toEqual([]);
   expect(health.policies.find(({ id }) => id === argvHealth.id)?.owner).toMatchObject({ status: "not-applicable", population: "complete" });
 });

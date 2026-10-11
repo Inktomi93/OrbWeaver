@@ -158,7 +158,7 @@ export const AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: testMockDoctrine,
-    overlays: [add("tests/tooling/liveness-mock.test.ts", 'import { vi } from "vitest";\nvi.mock("../../packages/server/src/kit/regex/index.ts");\n')],
+    overlays: [add("tests/tooling/liveness-mock.test.ts", 'import { vi } from "vitest";\nvi.mock("../../packages/server/src/primitives/regex/index.ts");\n')],
     messageIncludes: "vi.mock on an internal module",
   },
   {

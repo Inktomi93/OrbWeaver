@@ -10,7 +10,7 @@
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { ChatNotFoundError } from "../../../packages/server/src/domain/chat/contract/errors.ts";
+import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import { expect, test } from "../fixtures.ts";
 import { assertEventSequence, assertStaticPrefixStable, assertTokenTotalsConsistent } from "./assertions.ts";
 import { scenario } from "./scenario.ts";

@@ -4,8 +4,8 @@
 // window is `null` when the capability declares none — a `0` there would make every budget computation clamp
 // to nothing instead of falling back.
 
-import { RefineryNotConfiguredError } from "../../../../../packages/server/src/domain/refinery/contract/errors.ts";
-import { summarizerFactsOf } from "../../../../../packages/server/src/domain/refinery/substrate/summarizer.ts";
+import { RefineryNotConfiguredError } from "#server/domain/refinery/contract/errors.ts";
+import { summarizerFactsOf } from "#server/domain/refinery/substrate/summarizer.ts";
 import { makeFakeRoleClients } from "../../../../support/factories/role-clients.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

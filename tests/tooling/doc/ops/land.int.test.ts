@@ -5,10 +5,10 @@ import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { vi } from "vitest";
-import { REPO_ROOT } from "../../../../tooling/src/_shared/artifacts.ts";
-import { configureFixtureGitIdentity, execFixtureGit, runFixtureGit } from "../../../../tooling/src/_shared/git-fixture.ts";
 import { landItems, newAdr, newItem, nextAdrId } from "../../../../tooling/src/doc/index.ts";
 import { commitPaths } from "../../../../tooling/src/doc/ops/tree.ts";
+import { REPO_ROOT } from "../../../../tooling/src/floor/artifacts/artifacts.ts";
+import { configureFixtureGitIdentity, execFixtureGit, runFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 

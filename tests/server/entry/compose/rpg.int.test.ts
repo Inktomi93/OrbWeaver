@@ -1,4 +1,4 @@
-import { stateRoundNeededTokens } from "../../../../packages/server/src/domain/rpg/substrate/state-round-fit.ts";
+import { stateRoundNeededTokens } from "#server/domain/rpg/substrate/state-round-fit.ts";
 // entry/compose/rpg — the lite-rpg vertical, COMPOSED-REAL (docs/plans/rpg/design.md). The [compose-stub-goes-stale]/
 // [ct-stub-lie] antidote: drive the domain end-to-end through the ACTUAL `buildRpg` wiring — the real
 // `RpgService` over the real db, the real staging accumulator, the real `ChatRpgOps` flush, the REAL chat-side
@@ -43,16 +43,16 @@ import type { ServicesResult } from "@orb/server/entry/compose";
 import { logger } from "@orb/server/foundation/observability";
 import { and, eq, isNull } from "drizzle-orm";
 import { vi } from "vitest";
-import { detectModelFamily } from "../../../../packages/inference/src/capability/families.ts";
-import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
-import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
-import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat/index.ts";
-import { subscribeRpgEvents } from "../../../../packages/server/src/domain/rpg/index.ts";
-import { findGameByChat } from "../../../../packages/server/src/domain/rpg/persistence/games.ts";
-import { commitSnapshotForVariant, findSnapshotByVariant, writeStagedSnapshot } from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
-import { findTurnToolCallsByVariant } from "../../../../packages/server/src/domain/rpg/persistence/turn-tool-calls.ts";
-import { defaultSnapshotState } from "../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
-import { buildRpg, rpgPromotionProvenance } from "../../../../packages/server/src/entry/compose/rpg.ts";
+import { detectModelFamily } from "#inference/capability/families.ts";
+import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "#inference/capability/synthesize.ts";
+import type { RpgTurnContext, RpgTurnTranscriptMessage } from "#server/domain/chat/index.ts";
+import { subscribeRpgEvents } from "#server/domain/rpg/index.ts";
+import { findGameByChat } from "#server/domain/rpg/persistence/games.ts";
+import { commitSnapshotForVariant, findSnapshotByVariant, writeStagedSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
+import { findTurnToolCallsByVariant } from "#server/domain/rpg/persistence/turn-tool-calls.ts";
+import { defaultSnapshotState } from "#server/domain/rpg/substrate/default-state.ts";
+import { buildRpg, rpgPromotionProvenance } from "#server/entry/compose/rpg.ts";
 import { OLLAMA_NATIVE_RECORDINGS } from "../../../inference/backends/openai-compat/_ollama-native-recordings.ts";
 import { makeCapability, makeGenerationCapability, makeResolved, TEST_CONNECTION_ID } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";

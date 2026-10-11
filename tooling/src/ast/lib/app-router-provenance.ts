@@ -1,6 +1,6 @@
 import type { Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import { declKey } from "./keys.ts";
 
 const CONTRACTS_SRC_PREFIX = "/packages/contracts/src/";

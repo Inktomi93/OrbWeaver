@@ -8,7 +8,7 @@ import { createCertificateController } from "@orb/server/domain/share";
 import { getLog } from "@orb/server/foundation/observability";
 import type { IssuedCertificate, IssueOutcome, IssueRequest } from "@orb/server/infra/acme";
 import { describe, vi } from "vitest";
-import { EXPIRY_GUARD_MS, RENEWAL_RETRY_FIRST_MS } from "../../../../../packages/server/src/domain/share/substrate/renewal.ts";
+import { EXPIRY_GUARD_MS, RENEWAL_RETRY_FIRST_MS } from "#server/domain/share/substrate/renewal.ts";
 import { createFrozenClock } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

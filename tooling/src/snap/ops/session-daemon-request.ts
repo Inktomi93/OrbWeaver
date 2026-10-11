@@ -3,12 +3,12 @@
 // refuses to rearm once shutdown begins. The process/bootstrap/close half stays in session-daemon.ts.
 import type { Socket } from "node:net";
 import { errorMessage } from "@orb/kit/error-message";
-import { print } from "../../_shared/artifacts.ts";
-import type { ProbeSession } from "../../_shared/browser-contract.ts";
-import { summarizeOrbConsoleCompleteness } from "../../_shared/browser-diagnostics.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { installOutputSink, warn } from "../../_shared/log.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import type { ProbeSession } from "../../floor/browser/browser-contract.ts";
+import { summarizeOrbConsoleCompleteness } from "../../floor/browser/browser-diagnostics.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { installOutputSink, warn } from "../../floor/cli/log.ts";
 import type { SessionEvent, SessionRequest, SessionRow, SessionRunProvenance } from "../contract/session.ts";
 import { sessionCallTarget, sessionIdleMs } from "../lib/session-plan.ts";
 import { foreignSessionRefusal, sessionBusyRefusal, sessionStageDeadRefusal } from "../lib/session-refusals.ts";

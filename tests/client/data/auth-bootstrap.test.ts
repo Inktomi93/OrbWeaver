@@ -7,8 +7,8 @@
 import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { afterEach, beforeEach, vi } from "vitest";
-import { confirmPendingJoin, fetchAuthMe, login, logout, signOut } from "../../../packages/client/src/data/auth-bootstrap.ts";
-import { bindSessionDocumentHost } from "../../../packages/client/src/lib/session-document-host.ts";
+import { confirmPendingJoin, fetchAuthMe, login, logout, signOut } from "#client/data/auth-bootstrap.ts";
+import { bindSessionDocumentHost } from "#client/lib/session-document-host.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const signOutOrder: string[] = [];

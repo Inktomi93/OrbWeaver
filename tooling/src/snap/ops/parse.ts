@@ -1,10 +1,11 @@
 // Argv → Args: the side-effect-free scan (unknown flags, value/type validation, page-suffix rules),
 // the parse loop over ops/flags-handlers.ts's table, mode cross-validation, and the ARG WARNING set.
-import { splitPageSuffix } from "../../_shared/argv.ts";
-import { DEFAULT_BASE, DEFAULT_DEBUG_TOKEN } from "../../_shared/browser.ts";
-import { DEFAULT_VIEWPORT } from "../../_shared/browser-environment.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { STAGE_BAND_COUNT } from "../../_shared/ports.ts";
+
+import { DEFAULT_BASE, DEFAULT_DEBUG_TOKEN } from "../../floor/browser/browser.ts";
+import { DEFAULT_VIEWPORT } from "../../floor/browser/browser-environment.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { STAGE_BAND_COUNT } from "../../floor/host/ports.ts";
+import { splitPageSuffix } from "../../floor/instrument/argv.ts";
 import type { NonArmArgs } from "../contract/arms.ts";
 import type { Args } from "../contract/types.ts";
 import { parsedArgWarnings } from "../lib/parse-warnings.ts";
@@ -19,7 +20,7 @@ import { scanArgv } from "./parse-scan.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
-// ALIAS_REFUSALS (§4.3, _shared/instrument-argv.ts): snap owns the real targets (--full/--every/
+// ALIAS_REFUSALS (§4.3, floor/instrument/instrument-argv.ts): snap owns the real targets (--full/--every/
 // --shot-of/--out), so an asked-for --full-page/--watch-every/--screenshot/--name refuses BY NAME here.
 type ValidationPair = readonly [boolean, string];
 
@@ -74,7 +75,7 @@ function stageKeeperValidationPairs(args: Args): ValidationPair[] {
   return [
     [
       band !== null && (band < 0 || band >= STAGE_BAND_COUNT),
-      `--stage-keeper <band> takes a band in 0..${STAGE_BAND_COUNT - 1} (tooling/src/_shared/ports.ts STAGE_BANDS)`,
+      `--stage-keeper <band> takes a band in 0..${STAGE_BAND_COUNT - 1} (tooling/src/floor/host/ports.ts STAGE_BANDS)`,
     ],
     [
       band !== null && (args.stageDown || args.stageStatus || args.stageSweep || args.session !== null || args.sessionDaemon !== null),
@@ -115,7 +116,7 @@ function lighthouseValidationPairs(args: Args, analyzerRequested: boolean): Vali
     ],
     [
       args.lighthouse !== null && args.cascade.length > 0,
-      "--lighthouse and --cascade are mutually exclusive: both need the browser's debugging endpoint, and --cascade owns it through a persistent profile (tooling/src/_shared/devtools-runtime.ts). Take the two receipts in two runs",
+      "--lighthouse and --cascade are mutually exclusive: both need the browser's debugging endpoint, and --cascade owns it through a persistent profile (tooling/src/floor/devtools/devtools-runtime.ts). Take the two receipts in two runs",
     ],
     [args.lighthouse === null && args.lighthouseMode !== "snapshot", "--lighthouse-mode requires --lighthouse <desktop|mobile>"],
     [
@@ -216,6 +217,10 @@ function armValidationPairs(args: Args): ValidationPair[] {
 function tapValidationPairs(args: Args, device: Args["device"]): ValidationPair[] {
   const taps = args.actions.filter((entry) => entry.type === "step" && entry.action.kind === "tap").length;
   const swipes = args.actions.filter((entry) => entry.type === "step" && entry.action.kind === "swipe").length;
+  const touchOnly = (flag: string, kind: string): ValidationPair => [
+    device === null && args.actions.some((entry) => entry.type === "step" && entry.action.kind === kind),
+    `${flag} needs a touch-capable context: pass --mobile on a one-shot run or at session/scenario boot. It dispatches touch events, which a desktop context without a touchscreen cannot receive`,
+  ];
   const keyboards = args.actions.filter((entry) => entry.type === "step" && entry.action.kind === "soft-keyboard").length;
   return [
     [
@@ -226,6 +231,9 @@ function tapValidationPairs(args: Args, device: Args["device"]): ValidationPair[
       swipes > 0 && device === null,
       "--swipe needs a touch-capable context: pass --mobile on a one-shot run or at session/scenario boot. It dispatches touch events, which a desktop context without a touchscreen does not scroll with — use --wheel for a mouse scroll",
     ],
+    touchOnly("--swipe-x", "swipe-x"),
+    touchOnly("--long-press", "long-press"),
+    touchOnly("--tap-at", "tap-at"),
     [
       taps > 0 && device === null,
       "--tap needs a touch-capable context: pass --mobile on a one-shot run or at session/scenario boot (the iPhone 14 Pro Max descriptor carries hasTouch + pointer:coarse). A desktop context has no touchscreen, so every tap would throw. --click is NOT the fallback — it is a mouse dispatch even under --mobile, which is the difference this verb exists to measure",

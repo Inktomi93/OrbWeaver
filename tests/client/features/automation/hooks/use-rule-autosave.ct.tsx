@@ -3,7 +3,7 @@ import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { editableRule } from "../../../../../packages/client/src/features/automation/lib/rule-save-session.ts";
+import type { editableRule } from "#client/features/automation/lib/rule-save-session.ts";
 import { createSeededIds } from "../../../../support/ids.ts";
 import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";

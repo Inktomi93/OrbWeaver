@@ -6,10 +6,10 @@
 // Exit: 0 no real survivors in range · 1 real survivors confirmed · 2 the probe could not measure
 // (report drift, uncovered path, zero reported survivors, no mirror suite) · 3 bad arguments.
 import process from "node:process";
-import { print } from "../_shared/artifacts.ts";
-import { printVerdict } from "../_shared/evidence.ts";
-import { EXIT } from "../_shared/exit-contract.ts";
-import { runTool, UsageError } from "../_shared/run-tool.ts";
+import { print } from "../floor/artifacts/artifacts.ts";
+import { EXIT } from "../floor/cli/exit-contract.ts";
+import { runTool, UsageError } from "../floor/cli/run-tool.ts";
+import { printVerdict } from "../floor/verdict/evidence.ts";
 import { probeMutants } from "./index.ts";
 
 const HELP = [

@@ -10,7 +10,7 @@
 // to end.
 //
 // The fix is one atomic batch per verb: [privileged write, guarded audit insert, …DB tails]. `db.batch` is
-// the only atomic unit available (`db.transaction()` is banned in product code; see `@orb/db/kit`'s
+// the only atomic unit available (`db.transaction()` is banned in product code; see `@orb/db/query`'s
 // TRANSACTION-MODE note) and these batches are WRITES ONLY — no SELECT rides ahead of them, so the DEFERRED
 // snapshot upgrade the note warns about is unreachable.
 //
@@ -27,8 +27,8 @@
 // socket eviction (`sessions.evictUserSockets`) and the `identityChanged` user-bus emit. Both are
 // synchronous, void and total by construction, and neither is a durable fact — the committed rows are.
 
-import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { AuditEntry } from "#foundation/observability";
 import type { AdminContext } from "../context.ts";
 

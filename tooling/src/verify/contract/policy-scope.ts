@@ -1,12 +1,12 @@
 // The final policy runtime's scope and compiler-manifest contract. Requests name intent; resolutions carry
 // exact authored path identities and compiler facts without command-specific argv or lint ownership.
-import type { CompilerProgramMembership } from "../../_shared/compiler-programs-contract.ts";
+import type { CompilerProgramMembership } from "../../floor/compiler/compiler-programs-contract.ts";
 
 export type {
   CompilerConfigEntries,
   CompilerProgram,
   CompilerSourceOverlay,
-} from "../../_shared/compiler-programs-contract.ts";
+} from "../../floor/compiler/compiler-programs-contract.ts";
 
 export const POLICY_SCOPE_KINDS = ["whole", "changed", "file", "folder", "package", "project"] as const;
 /** @public knip type-face false positive — a structural field (`kind`) of the exported `PolicyScopeResolution` shape,

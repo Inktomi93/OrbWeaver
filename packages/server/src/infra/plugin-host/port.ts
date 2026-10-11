@@ -29,8 +29,8 @@
 import { randomUUID } from "node:crypto";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance, PluginInvokeArgs, PluginLogLevel } from "@orb/contracts/plugin";
 import { DomainConflictError } from "@orb/kit/errors";
-import { getLog } from "../../foundation/observability/logger.ts";
-import { superviseDetached } from "../../foundation/observability/tracing.ts";
+import { getLog } from "#src/foundation/observability/logger.ts";
+import { superviseDetached } from "#src/foundation/observability/tracing.ts";
 import { createAdmission } from "./admission.ts";
 import {
   EVENT_QUEUE_DEPTH,

@@ -7,11 +7,11 @@
 // an idempotent re-attach is silent (no phantom pool-invalidation event).
 
 import { chatBooks } from "@orb/db";
-import type { WorldInfoContext } from "../../context.ts";
-import { WorldInfoNotFoundError } from "../../contract/errors.ts";
-import type { AttachToChatParams } from "../../contract/params.ts";
-import type { WorldInfoService } from "../../contract/service.ts";
-import { loadOwnedBook } from "../../persistence/queries.ts";
+import type { WorldInfoContext } from "#src/domain/world-info/context.ts";
+import { WorldInfoNotFoundError } from "#src/domain/world-info/contract/errors.ts";
+import type { AttachToChatParams } from "#src/domain/world-info/contract/params.ts";
+import type { WorldInfoService } from "#src/domain/world-info/contract/service.ts";
+import { loadOwnedBook } from "#src/domain/world-info/persistence/queries.ts";
 
 export function createAttachToChat(ctx: WorldInfoContext): WorldInfoService["attachToChat"] {
   return async ({ principal, chatId, bookId }: AttachToChatParams) => {

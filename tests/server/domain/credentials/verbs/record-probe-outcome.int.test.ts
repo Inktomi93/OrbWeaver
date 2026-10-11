@@ -6,7 +6,7 @@
 // revocation; and the throttle is claimed AFTER the dial on the credential id, so a second ask inside the
 // window answers `throttled` with no row write.
 
-import { HEALTH_STRIKE_LIMIT, HEALTH_THROTTLE_MS } from "../../../../../packages/server/src/domain/credentials/health/cache.ts";
+import { HEALTH_STRIKE_LIMIT, HEALTH_THROTTLE_MS } from "#server/domain/credentials/health/cache.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedCredential, seedUser } from "../_support.ts";

@@ -5,8 +5,8 @@
 // `baseline <kind>` WRITES; `baseline <kind> --check` derives and DIFFS, writing nothing (#817). Only the
 // kinds in LEDGER_CHECKS carry freshness arms; a `--check` for a kind that has none is misuse,
 // never a silent write.
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { UsageError } from "../../_shared/run-tool.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { UsageError } from "../../floor/cli/run-tool.ts";
 import { generateActiveGatesIndex } from "./gen/active-gates-index.ts";
 import { generateBaseuiSurface } from "./gen/baseui-surface.ts";
 import { generateCaughtFailurePopulation } from "./gen/caught-failure-population.ts";

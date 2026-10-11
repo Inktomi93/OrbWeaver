@@ -1,4 +1,4 @@
-import { effectiveHttpPort, parseTcpPort } from "../../../packages/kit/src/http-endpoint/index.ts";
+import { effectiveHttpPort, parseTcpPort } from "#kit/http-endpoint/index.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("effective HTTP ports keep client admission and server dialing equal", () => {

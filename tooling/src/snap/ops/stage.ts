@@ -19,7 +19,7 @@
 //
 // EVERY LANE GETS ITS OWN STAGE (issue #1276, design §3.6). There used to be ONE band, so two lanes wanting
 // a stage was a refusal by construction — four were blocked in a single afternoon (2026-09-02). There are
-// now ten registered bands (`_shared/ports.ts`) and a locked ALLOCATOR: this checkout's own row, else a
+// now ten registered bands (`floor/host/ports.ts`) and a locked ALLOCATOR: this checkout's own row, else a
 // sibling's healthy row at our sha, else the lowest free band, else the lowest stranded one (reaped on
 // acquire), else an exit-2 refusal naming every row with its idle age. The decision is
 // lib/stage-bands.ts's, the census + the claim are ops/stage-census.ts's; this file boots what it is given.
@@ -67,12 +67,12 @@ import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { runGit } from "../../_shared/git.ts";
-import { listeningPids } from "../../_shared/platform.ts";
-import { stageBandPorts } from "../../_shared/ports.ts";
-import { runNicedSync, spawnFullPrioritySync } from "../../_shared/proc.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { runGit } from "../../floor/git/git.ts";
+import { listeningPids } from "../../floor/host/platform.ts";
+import { stageBandPorts } from "../../floor/host/ports.ts";
+import { runNicedSync, spawnFullPrioritySync } from "../../floor/process/proc.ts";
 import { FIXTURE_SEED_CLI_REL, fixtureIdentityEnv } from "../../stack/index.ts";
 import type { EnsureStageOpts, StageAuthMode, StagePaths, StagePorts, StageRow, StageStopVerdict } from "../contract/stage.ts";
 import { stageRowAuth } from "../contract/stage.ts";

@@ -5,7 +5,7 @@ import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { execFixtureGit, fixtureGitEnvironment } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit, fixtureGitEnvironment } from "@orb/tooling/floor/git/git-fixture";
 import YAML from "yaml";
 import { z } from "zod";
 import { REGISTRY, resolveSelection, stagesForTier } from "../../../../tooling/src/verify/index.ts";

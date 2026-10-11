@@ -13,7 +13,7 @@ import {
   messageVariants,
   ownerStats,
 } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { SQL, Table } from "drizzle-orm";
 import { and, asc, eq, getTableColumns, inArray, or, sql } from "drizzle-orm";

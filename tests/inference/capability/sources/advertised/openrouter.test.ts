@@ -5,7 +5,7 @@
 // curated / measured statement. The sampling NAMES still gate presence (§8.7) — that half is unchanged.
 
 import type { ModelCatalogEntry } from "@orb/contracts/inference";
-import { advertisedFromOpenRouter } from "../../../../../packages/inference/src/capability/sources/advertised/openrouter.ts";
+import { advertisedFromOpenRouter } from "#inference/capability/sources/advertised/openrouter.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function entry(overrides: Partial<ModelCatalogEntry>): ModelCatalogEntry {

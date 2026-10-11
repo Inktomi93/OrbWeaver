@@ -1,4 +1,4 @@
-import { getCorpusMode, healCorpusModeFrom, subscribeCorpusMode, writeCorpusMode } from "../../../packages/client/src/state/corpus-mode-store.ts";
+import { getCorpusMode, healCorpusModeFrom, subscribeCorpusMode, writeCorpusMode } from "#client/state/corpus-mode-store.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("mode subscribers observe writes and healing, and unsubscribe releases the observer", () => {

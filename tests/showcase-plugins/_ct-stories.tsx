@@ -8,6 +8,8 @@ interface RegisteredFrame {
 
 interface PocketArcadeFrameProps {
   readonly mainSource: string;
+  /** The frame's width in CSS px — the chat flank hands a plugin frame a fixed narrow column. */
+  readonly widthPx?: number;
 }
 
 interface PocketArcadeHost {
@@ -56,8 +58,15 @@ function registeredFrame(mainSource: string): RegisteredFrame {
   return registered;
 }
 
-export function PocketArcadeFrame({ mainSource }: PocketArcadeFrameProps): ReactElement {
+export function PocketArcadeFrame({ mainSource, widthPx }: PocketArcadeFrameProps): ReactElement {
   const frame = registeredFrame(mainSource);
 
-  return <iframe title={frame.title} sandbox="allow-scripts" srcDoc={`<style>${frame.css ?? ""}</style>${frame.html}`} />;
+  return (
+    <iframe
+      title={frame.title}
+      sandbox="allow-scripts"
+      srcDoc={`<style>${frame.css ?? ""}</style>${frame.html}`}
+      {...(widthPx === undefined ? {} : { style: { width: widthPx } })}
+    />
+  );
 }

@@ -7,7 +7,7 @@ import type { Db } from "@orb/db";
 import { messageVariants } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { readCharacterEconomics, readCharacterModelEconomics } from "../../../../../packages/server/src/domain/stats/persistence/messages-economics.ts";
+import { readCharacterEconomics, readCharacterModelEconomics } from "#server/domain/stats/persistence/messages-economics.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

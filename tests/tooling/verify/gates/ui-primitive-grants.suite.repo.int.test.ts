@@ -2,7 +2,7 @@
 // the real checkout, then their production owner results drive the central authority coordinator's identity,
 // stale, and multiplicity controls. No hand-written finding can make this test green.
 import process from "node:process";
-import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
+import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { GateOwnerResult, ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/ui-primitive-overlay-health.ts";

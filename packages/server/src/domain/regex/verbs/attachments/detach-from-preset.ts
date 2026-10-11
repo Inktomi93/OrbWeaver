@@ -4,12 +4,12 @@
 
 import { presetRegexScripts } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import type { RegexContext } from "../../context.ts";
-import { RegexNotFoundError } from "../../contract/errors.ts";
-import type { DetachFromPresetParams } from "../../contract/params.ts";
-import type { RegexService } from "../../contract/service.ts";
-import { ensurePresetOwned } from "../../persistence/ownership.ts";
-import { loadOwnedScript } from "../../persistence/queries.ts";
+import type { RegexContext } from "#src/domain/regex/context.ts";
+import { RegexNotFoundError } from "#src/domain/regex/contract/errors.ts";
+import type { DetachFromPresetParams } from "#src/domain/regex/contract/params.ts";
+import type { RegexService } from "#src/domain/regex/contract/service.ts";
+import { ensurePresetOwned } from "#src/domain/regex/persistence/ownership.ts";
+import { loadOwnedScript } from "#src/domain/regex/persistence/queries.ts";
 
 export function createDetachFromPreset(ctx: RegexContext): RegexService["detachFromPreset"] {
   return async ({ principal, presetId, scriptId }: DetachFromPresetParams) => {

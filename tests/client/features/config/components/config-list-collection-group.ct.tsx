@@ -21,8 +21,8 @@
 // rows, its empty arm) is `surfaces/config-content-surface.ct.tsx`'s — the round trip needs the whole host.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { Rgb } from "@orb/tooling/_shared/wcag";
-import { contrastRatio, relativeLuminance } from "@orb/tooling/_shared/wcag";
+import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
+import { contrastRatio, relativeLuminance } from "@orb/tooling/floor/instrument/wcag";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // The design-audit exemption's own selector, run against the real carriers rather than re-spelled here —

@@ -6,7 +6,7 @@
 // Each builder answers the same question — "given the selection's paths for this tool, what child do we
 // spawn?" — and each may answer `skip-empty` (nothing in scope) or `whole-only` (this stage cannot be
 // narrowed honestly). That vocabulary is `../contract/stage.ts`'s `ScopedArgv`.
-import { applicationTestExclusions } from "@orb/tooling/_shared/test-population";
+import { applicationTestExclusions } from "@orb/tooling/floor/testing/test-population";
 import type { Selection } from "../contract/selection.ts";
 import type { ScopedArgv } from "../contract/stage.ts";
 

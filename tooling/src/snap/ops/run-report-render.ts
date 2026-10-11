@@ -1,9 +1,9 @@
 // Terminal rendering for an already-validated immutable run index. Resolution and validation stay in
 // run-report.ts so this module cannot turn a malformed file into a display-only success.
 
-import { scopeLabel, scopeMatches } from "../../_shared/artifact-scope.ts";
-import { print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { scopeLabel, scopeMatches } from "../../floor/artifacts/artifact-scope.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { snapDiagnosticRetention } from "../contract/run-facts.ts";
 import type { SnapPrunedRun, SnapReportQuery, SnapRunIndex, SnapRunListQuery } from "../contract/run-index.ts";
 import { readReactProfileSummary } from "../lib/react-profile-receipt.ts";

@@ -7,7 +7,7 @@
 // avatar JOIN for the detail view.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import { cardContentHash } from "#kit/serde/card";
+import { cardContentHash } from "#primitives/serde/card";
 import type { CharacterContext } from "../context.ts";
 import { CHARACTER_HANDLE_RESERVED, CharacterNotFoundError, CharacterOperationError } from "../contract/errors.ts";
 import type { CharacterImportProvenance, CreateCharacterParams } from "../contract/params.ts";

@@ -5,9 +5,9 @@
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import { awaitDevClientReady } from "#dev";
-import { print } from "../../_shared/artifacts.ts";
-import { settle } from "../../_shared/browser.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { settle } from "../../floor/browser/browser.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { Args, DriveFailure } from "../contract/types.ts";
 import { MOUNT_SETTLE_MS, NETWORKIDLE_TIMEOUT_MS, STAGE_WARMUP_MAX_RENAVIGATIONS, STAGE_WARMUP_TIMEOUT_MS, WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
 import { READ_FAILURE_SURFACE_JS } from "../lib/failure-surface.ts";

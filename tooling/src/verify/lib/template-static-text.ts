@@ -5,7 +5,7 @@
 // SQL `length(col) <= ${CAP}` cap is a quasi skeleton with the cap in a hole. Reading the two apart is what
 // keeps a needle inside an interpolated expression from counting as authored text.
 
-import { readStaticString, referenceResolutionServices } from "@orb/tooling/_shared/reference-fact";
+import { readStaticString, referenceResolutionServices } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 

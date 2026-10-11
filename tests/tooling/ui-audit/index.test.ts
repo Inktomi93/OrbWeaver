@@ -6,7 +6,7 @@
 // The impeccable-adapted checks (origin "impeccable") each get a firing fixture AND a passing/exempt
 // control — a green that cannot fail is not a fence.
 
-import type { Rgb } from "@orb/tooling/_shared/wcag";
+import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import type { HoverContrastInput, HoverScanInput } from "../../../tooling/src/ui-audit/contract/samples-hover.ts";
 import type {
   AccentBorderInput,

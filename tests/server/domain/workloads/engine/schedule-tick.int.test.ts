@@ -8,7 +8,7 @@ import { workloadSchedules } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { tickWorkloadSchedules } from "../../../../../packages/server/src/domain/workloads/engine/schedule-tick.ts";
+import { tickWorkloadSchedules } from "#server/domain/workloads/engine/schedule-tick.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeService, principal, seedUser, seedWorkloadRow, T0 } from "../_support.ts";

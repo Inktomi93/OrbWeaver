@@ -3,7 +3,7 @@
 // coherence writer) — but ONLY when the card's own content hash matches its recorded `importHash` (the
 // whole-file sha-256 the import path stamped on the flat row; a mismatch is a wrong/corrupt staging file,
 // counted `mismatched`, never stored and never linked) — then link `characters.avatarAssetId` to it. Stores
-// run at BOUNDED CONCURRENCY (~8); the links land as ONE batched UPDATE via the `@orb/db/kit` batch helpers.
+// run at BOUNDED CONCURRENCY (~8); the links land as ONE batched UPDATE via the `@orb/db/query` batch helpers.
 // `dryRun` forecasts the same link/mismatch split (the hash verdict needs no store) without writing bytes or
 // the pointer. UN-PRINCIPAL (D20) — the `ownerId` scopes every store + the batched UPDATE.
 //
@@ -12,8 +12,8 @@
 // `entry/compose/assets-character.ts`) — the same shape `domain/import` uses for six domains' canon.
 
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
-import { isAborted } from "#kit/abort";
-import { sha256Hex } from "#kit/content-hash";
+import { isAborted } from "#primitives/abort";
+import { sha256Hex } from "#primitives/content-hash";
 import type { AssetsContext } from "../context.ts";
 import type { BackfillCard } from "../contract/maintenance.ts";
 import type { AssetsService } from "../contract/service.ts";

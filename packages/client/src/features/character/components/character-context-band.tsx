@@ -58,14 +58,7 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
   const tokens = totalTokenCount(characterCardFormFromDetail(detail), RESTING_GREETING);
   return (
     <Row gap="block" align="center" data-slot="character-context-band" className="min-w-0">
-      <Avatar
-        size="lg"
-        shape="rounded"
-        alt={detail.name}
-        hueSeed={detail.id}
-        className="shrink-0"
-        {...(detail.avatarHash === null ? {} : { src: blobUrl(detail.avatarHash) })}
-      >
+      <Avatar size="lg" alt={detail.name} hueSeed={detail.id} className="shrink-0" {...(detail.avatarHash === null ? {} : { src: blobUrl(detail.avatarHash) })}>
         {initialsFor(detail.name)}
       </Avatar>
       <Stack gap="field" className="min-w-0 flex-1">

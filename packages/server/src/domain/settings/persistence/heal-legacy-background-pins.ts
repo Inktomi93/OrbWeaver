@@ -19,7 +19,7 @@
 // "rows written before #1478.1 shipped" and a boot heal exhausts it once. Ends if a future writer needs to
 // tolerate a MID-LIFE kind change (nothing does today) — then the narrow arm is the one to build.
 //
-// SKIPS UNREADABLE ROWS ON PURPOSE: a row this heal cannot parse is not this heal's job — `#kit/stored-config`
+// SKIPS UNREADABLE ROWS ON PURPOSE: a row this heal cannot parse is not this heal's job — `#primitives/stored-config`
 // already refuses any write over it (#471), and healing would mean building the next blob from a degraded
 // read, which is exactly the wipe #471 exists to prevent. An unreadable row surfaces at the user's own next
 // write attempt via the ordinary `stored_config_unreadable` refusal.
@@ -30,7 +30,7 @@ import type { Db } from "@orb/db";
 import { assets, userSettings } from "@orb/db";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
-import { requireIntactStoredConfig } from "#kit/stored-config";
+import { requireIntactStoredConfig } from "#primitives/stored-config";
 import { BACKGROUND_ASSET_KIND, pinnedBackgroundAssetIds } from "./queries.ts";
 
 /** The healed config: the current-selection pointer clears to "none" if it names a stale id; the library

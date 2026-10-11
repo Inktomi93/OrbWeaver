@@ -17,7 +17,7 @@ import { seedParticipant } from "../../chat/_support.ts";
 import { FIXED_NOW_MS, MSG_COMMITTED, principal, ruleFixture, SET_VAR, seedHostChat, seedUser } from "../_support.ts";
 
 const CREATION_REQUEST_PREFIX = ID_PREFIX.automationRuleCreation;
-const rulePersistence = await import("../../../../../packages/server/src/domain/automation/persistence/rules.ts");
+const rulePersistence = await import("#server/domain/automation/persistence/rules.ts");
 
 describe("createRule — authority", () => {
   test("a competing birth does not conceal a later live admission refusal; a sequential retry still recovers", async () => {

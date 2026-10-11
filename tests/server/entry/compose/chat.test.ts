@@ -24,12 +24,12 @@ import {
 } from "@orb/server/entry/compose";
 import { describe } from "vitest";
 import { z } from "zod";
-import type { ChatToolExecFrame, ChatToolOps } from "../../../../packages/server/src/domain/chat/contract/context.ts";
-import { runTurnPipeline } from "../../../../packages/server/src/domain/chat/engine/pipeline.ts";
-import type { ImageryService } from "../../../../packages/server/src/domain/imagery/index.ts";
-import type { PersonaListView } from "../../../../packages/server/src/domain/persona/contract/views.ts";
-import type { ToolExecutionContext, ToolUseService } from "../../../../packages/server/src/domain/tool-use/index.ts";
-import { createToolUseService } from "../../../../packages/server/src/domain/tool-use/index.ts";
+import type { ChatToolExecFrame, ChatToolOps } from "#server/domain/chat/contract/context.ts";
+import { runTurnPipeline } from "#server/domain/chat/engine/pipeline.ts";
+import type { ImageryService } from "#server/domain/imagery/index.ts";
+import type { PersonaListView } from "#server/domain/persona/contract/views.ts";
+import type { ToolExecutionContext, ToolUseService } from "#server/domain/tool-use/index.ts";
+import { createToolUseService } from "#server/domain/tool-use/index.ts";
 import { fakeConnection, fakeDeps, fakeModelCache, memoryStores, newUserId } from "../../../inference/_support.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as principalOf } from "../../../support/factories/principal.ts";

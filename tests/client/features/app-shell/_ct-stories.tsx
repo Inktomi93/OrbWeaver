@@ -47,28 +47,28 @@ import { Toaster } from "@orb/ui/toast";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { AppearanceBackgroundSection } from "../../../../packages/client/src/features/app-shell/components/appearance-background-section.tsx";
-import { AppearanceEffectsSection } from "../../../../packages/client/src/features/app-shell/components/appearance-effects-section.tsx";
-import { AppearanceReadingSection } from "../../../../packages/client/src/features/app-shell/components/appearance-reading-section.tsx";
-import { AppearanceSizingSection } from "../../../../packages/client/src/features/app-shell/components/appearance-sizing-section.tsx";
-import { ContextTabsPanel } from "../../../../packages/client/src/features/app-shell/components/context-tabs-panel.tsx";
-import { CustomThemeStyle } from "../../../../packages/client/src/features/app-shell/components/custom-theme-style.tsx";
-import { Rail } from "../../../../packages/client/src/features/app-shell/components/rail.tsx";
-import { SectionContent } from "../../../../packages/client/src/features/app-shell/components/section-content.tsx";
-import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
-import { useShellLayout } from "../../../../packages/client/src/features/app-shell/hooks/use-shell-layout.ts";
+import { AppearanceBackgroundSection } from "#client/features/app-shell/components/appearance-background-section.tsx";
+import { AppearanceEffectsSection } from "#client/features/app-shell/components/appearance-effects-section.tsx";
+import { AppearanceReadingSection } from "#client/features/app-shell/components/appearance-reading-section.tsx";
+import { AppearanceSizingSection } from "#client/features/app-shell/components/appearance-sizing-section.tsx";
+import { ContextTabsPanel } from "#client/features/app-shell/components/context-tabs-panel.tsx";
+import { CustomThemeStyle } from "#client/features/app-shell/components/custom-theme-style.tsx";
+import { Rail } from "#client/features/app-shell/components/rail.tsx";
+import { SectionContent } from "#client/features/app-shell/components/section-content.tsx";
+import { SectionContextHeader, SectionContextHost } from "#client/features/app-shell/components/section-context-host.tsx";
+import { useShellLayout } from "#client/features/app-shell/hooks/use-shell-layout.ts";
 // The chats topbar identity passenger, reached the same way the Rail leaf is (a story may reach a feature
 // internal the front door does not re-export). Same absolute file the app resolves, so the React/provider
 // context is the one `CtDataProviders` mounts — the `tests/client/features/chat` stories reach it this way.
-import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header.tsx";
-import { useChatStyle } from "../../../../packages/client/src/features/chat/hooks/use-chat-style.ts";
-import { useMessageAppearance } from "../../../../packages/client/src/features/chat/hooks/use-message-appearance.ts";
+import { ChatHeaderSurface } from "#client/features/chat/components/chat-header.tsx";
+import { useChatStyle } from "#client/features/chat/hooks/use-chat-style.ts";
+import { useMessageAppearance } from "#client/features/chat/hooks/use-message-appearance.ts";
 // THE ROOM'S ONE TRACK, the production string (#213 — features/chat/lib/chat-track.ts). Reached the same
 // way `ChatHeaderSurface` is: the shell's centred-child FLIP counter is keyed on the `.orb-chat-track`
 // marker this const carries, so a story that re-spelled the class would prove the spelling, not the rule.
-import { CHAT_TRACK } from "../../../../packages/client/src/features/chat/lib/chat-track.ts";
-import type { ModalSlotId } from "../../../../packages/client/src/state/modal-slot-ids.ts";
-import { openModal, setActiveSection, useActiveSection, useContextTab } from "../../../../packages/client/src/state/shell-store.ts";
+import { CHAT_TRACK } from "#client/features/chat/lib/chat-track.ts";
+import type { ModalSlotId } from "#client/state/modal-slot-ids.ts";
+import { openModal, setActiveSection, useActiveSection, useContextTab } from "#client/state/shell-store.ts";
 import {
   CtDataProviders,
   CtFakeModalRegistry,

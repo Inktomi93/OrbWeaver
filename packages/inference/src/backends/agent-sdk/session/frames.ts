@@ -6,11 +6,8 @@ import { createHash } from "node:crypto";
 import type { SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatId, UserConnectionId } from "@orb/kit/ids";
 import { z } from "zod";
-import type { AgentSdkSessionTotals } from "../../../contract/agent.ts";
-import type { AgentSeedBlock, AgentSeedTurn } from "../../../contract/chat.ts";
-import { AGENT_PROMPT_TAIL_JOINER } from "../../../contract/chat.ts";
-import type { AgentSdkSessionId } from "../../../contract/identity.ts";
-import { agentSdkSessionIdSchema } from "../../../contract/identity.ts";
+import type { AgentSdkSessionId, AgentSdkSessionTotals, AgentSeedBlock, AgentSeedTurn } from "#contract";
+import { AGENT_PROMPT_TAIL_JOINER, agentSdkSessionIdSchema } from "#contract";
 
 /** The contract's seed turn plus the assistant model this frame should claim — EXTENDED, never re-spelled, so
  *  the two cannot drift into different content vocabularies. */

@@ -18,9 +18,9 @@
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { avatarFallbackHueColor } from "@orb/ui/avatar";
 import { afterEach, vi } from "vitest";
-import type { BubbleDecorationArgs } from "../../../../../packages/client/src/features/chat/lib/art-decorations.ts";
-import { avatarTreatmentFor } from "../../../../../packages/client/src/features/chat/lib/avatar-treatment.ts";
-import { avatarPortraitSrcProp, MESSAGE_ROW_SKINS } from "../../../../../packages/client/src/features/chat/lib/message-row-variants.ts";
+import type { BubbleDecorationArgs } from "#client/features/chat/lib/art-decorations.ts";
+import { avatarTreatmentFor } from "#client/features/chat/lib/avatar-treatment.ts";
+import { avatarPortraitSrcProp, MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A `bubbleDecoration` argument builder; a case overrides what it asserts. */

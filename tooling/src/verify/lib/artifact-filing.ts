@@ -1,6 +1,6 @@
 // The family reader for the ARTIFACT laws — `tooling-artifact-path-home` (a `reports/…` path is spelled in
-// ONE home, `_shared/artifacts.ts`) and `tooling-artifact-run-slot` (a tool that FILES an artifact through
-// `_shared/artifact-out.ts` opens a run slot in its cli.ts) — so what counts as "a reports path literal fed
+// ONE home, `floor/artifacts/artifacts.ts`) and `tooling-artifact-run-slot` (a tool that FILES an artifact through
+// `floor/artifacts/artifact-out.ts` opens a run slot in its cli.ts) — so what counts as "a reports path literal fed
 // to a path call" and "a filing door" is ONE predicate in two policies (family `tooling-artifact`).
 //
 // IDENTITY, NOT SPELLING. The legacy gate compared callee TEXT: `join(` matched, `path.join(` did not, and
@@ -9,13 +9,13 @@
 // judged by where it RESOLVES — node's own path/fs doors, through the shared callable-origin reader — so the
 // default-import, namespace-import and aliased spellings are one read; a callee the readers cannot place is
 // `unreadable`, which the consuming policy reports rather than passes (#944's third answer). The filing doors
-// are judged against the LOCATED `_shared/artifact-out.ts` home (`lib/project-home-origin.ts`), so a local
+// are judged against the LOCATED `floor/artifacts/artifact-out.ts` home (`lib/project-home-origin.ts`), so a local
 // function named `artifactFile` is not a filer and an aliased import is.
 //
 // A pure reader over delivered nodes: no walk, no Project, no filesystem, no cache.
 
-import { readMemberReference, readStaticString } from "@orb/tooling/_shared/reference-fact";
-import { resolveCallableOrigin } from "@orb/tooling/_shared/reference-fact-call";
+import { readMemberReference, readStaticString } from "@orb/tooling/floor/code-facts/reference-fact";
+import { resolveCallableOrigin } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 import type { PathCalleeVerdict, ProjectHomeVerdict } from "../contract/origin-verdict.ts";
@@ -25,8 +25,8 @@ import { classifyProjectHomeOrigin } from "./project-home-origin.ts";
 import { originModuleSpecifier } from "./sealed-origin.ts";
 
 /** The `--out` filing layer: the two FILING doors and the one RUN-SLOT door, all exported from one home. */
-export const ARTIFACT_FILERS: ProjectHomeDeclaration = { path: "tooling/src/_shared/artifact-out.ts", names: ["artifactDir", "artifactFile"] };
-export const RUN_SLOT_DOOR: ProjectHomeDeclaration = { path: "tooling/src/_shared/artifact-out.ts", names: ["withInstrumentRun"] };
+export const ARTIFACT_FILERS: ProjectHomeDeclaration = { path: "tooling/src/floor/artifacts/artifact-out.ts", names: ["artifactDir", "artifactFile"] };
+export const RUN_SLOT_DOOR: ProjectHomeDeclaration = { path: "tooling/src/floor/artifacts/artifact-out.ts", names: ["withInstrumentRun"] };
 
 /** The path-shaped callees a `reports/…` literal is fed to, and node's own doors that declare them. */
 const PATH_CALLEES: ReadonlySet<string> = new Set(["join", "resolve", "mkdir", "mkdirSync"]);

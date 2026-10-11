@@ -1,9 +1,9 @@
 // The positional route's SECTION check: an unknown `/<x>` renders the app's not-found page, which reads like
 // a boot failure, so it refuses before the browser launches. It judges only an orb app target: a `--base`
 // fixture server serves files, not sections, and refusing those is the instrument lying the other way.
-import { DEFAULT_BASE } from "../../_shared/browser.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { ORB_APP_PORT_NUMBERS } from "../../_shared/ports.ts";
+import { DEFAULT_BASE } from "../../floor/browser/browser.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { ORB_APP_PORT_NUMBERS } from "../../floor/host/ports.ts";
 import type { Args } from "../contract/types.ts";
 import { knownRouteSections, serverRouteSegments, staticRouteSegments } from "../lib/section-ids.ts";
 

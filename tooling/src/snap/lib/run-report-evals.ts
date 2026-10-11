@@ -9,7 +9,7 @@
 // AN ARM THAT MEASURED NOTHING WRITES NO FILE. A missing artifact is "nothing measured" and prints
 // nothing; a PRESENT file that will not parse is an instrument defect and says so.
 import { readFile } from "node:fs/promises";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { SnapRunIndex } from "../contract/run-index.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --report <index> --arm eval");

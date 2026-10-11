@@ -2,7 +2,7 @@ import type { UserRole } from "@orb/contracts/identity";
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import { sessions, users } from "@orb/db";
-import type { AwaitableBatchStmt } from "@orb/db/kit";
+import type { AwaitableBatchStmt } from "@orb/db/query";
 import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { Sealed } from "#infra/crypto";

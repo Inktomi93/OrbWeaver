@@ -19,8 +19,8 @@ import type { CharacterHandle, CharacterId, ChatId, MessageId, MessageVariantId,
 import { castId } from "@orb/kit/ids";
 import type { ImportService } from "@orb/server/domain/import";
 import { createImportService } from "@orb/server/domain/import";
-import type { PortableChat } from "@orb/server/kit/serde/chat-bundle";
-import { buildChatBundleFile } from "@orb/server/kit/serde/chat-bundle";
+import type { PortableChat } from "@orb/server/primitives/serde/chat-bundle";
+import { buildChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 import type { ProfileHarness } from "../_support.ts";

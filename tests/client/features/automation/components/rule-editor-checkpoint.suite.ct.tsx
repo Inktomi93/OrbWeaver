@@ -4,7 +4,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ruleEditorValues } from "../../../../../packages/client/src/features/automation/lib/rule-editor-model.ts";
+import { ruleEditorValues } from "#client/features/automation/lib/rule-editor-model.ts";
 import { createSeededIds } from "../../../../support/ids.ts";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
