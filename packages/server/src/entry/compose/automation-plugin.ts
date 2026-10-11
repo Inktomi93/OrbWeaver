@@ -944,11 +944,9 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
                 const role = await loadPresentRole(db, factChatId, scope.installer.userId);
                 eventChat = { chatId: factChatId, canWrite: role === "host", automationDepth };
               }
-              const outcomes = await Promise.allSettled(refs.map((handler) => invoke(handler, argsJson, eventChat)));
-              const failures = outcomes.flatMap((outcome) => (outcome.status === "rejected" ? [outcome.reason] : []));
-              if (failures.length > 0) {
-                throw new AggregateError(failures, "plugin event delivery failed");
-              }
+              // A rejected handler is already logged with its plugin and cause by the resident `invoke`, so it is
+              // not rethrown here (that would log the same failure twice).
+              await Promise.allSettled(refs.map((handler) => invoke(handler, argsJson, eventChat)));
             });
           },
         });

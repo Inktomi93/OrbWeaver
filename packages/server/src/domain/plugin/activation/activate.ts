@@ -19,6 +19,7 @@ import type { PluginActivationScope, PluginInvokeHandler, PluginRegistrationHand
 import type { ActivateInput, ActivateOutcome, CrashPolicy, PluginContext, PluginProviderLifecycle, PluginRegistry } from "../contract/service.ts";
 import { setStatus } from "../persistence/plugins.ts";
 import { buildPluginBridge } from "../substrate/bridge.ts";
+import { invokeFailureKind, logPluginFailure } from "../substrate/failure-log.ts";
 import { consentedNetHosts } from "../substrate/grants.ts";
 import { parseBundle } from "../substrate/manifest.ts";
 
@@ -169,6 +170,8 @@ export function createActivate(
   return async (input: ActivateInput): Promise<ActivateOutcome> => {
     const revalidated = await loadRevalidatedBundle(ctx, input);
     if (!revalidated.ok) {
+      // The slug lives in the bundle that failed to parse, so the id is the only name this line can carry.
+      logPluginFailure(input.pluginId, "activation-failed", `bundle re-validation failed: ${revalidated.error}`);
       await setStatus(ctx.db, input.pluginId, {
         status: "errored",
         lastError: `bundle re-validation failed: ${revalidated.error}`,
@@ -177,6 +180,11 @@ export function createActivate(
       return { ok: false, error: revalidated.error };
     }
     const { mainJs, slug, displayName, netHosts, matchAutomationEvents, providers } = revalidated.bundle;
+    const activationFailed = async (error: string, lastError: string): Promise<{ readonly ok: false; readonly error: string }> => {
+      logPluginFailure(slug, "activation-failed", lastError);
+      await setStatus(ctx.db, input.pluginId, { status: "errored", lastError, updatedAt: ctx.now() });
+      return { ok: false, error };
+    };
 
     // The membrane bridge is built PER INSTALLER (global-vars closes over the installer); an installed plugin's
     // `main.js` runs registration-only, so no chat is admitted for the activation run (chat: null). (The
@@ -198,8 +206,7 @@ export function createActivate(
       ...(netHosts !== undefined ? { netHosts } : {}),
     });
     if (!outcome.ok) {
-      await setStatus(ctx.db, input.pluginId, { status: "errored", lastError: outcome.error, updatedAt: ctx.now() });
-      return { ok: false, error: outcome.error };
+      return await activationFailed(outcome.error, outcome.error);
     }
 
     const { instance } = outcome;
@@ -216,6 +223,7 @@ export function createActivate(
         if (isHostAdmissionRefusal(err)) {
           throw err;
         }
+        logPluginFailure(slug, invokeFailureKind(err), errorMessage(err));
         await crashPolicy.recordCrash({ pluginId: input.pluginId, recipientUserId: input.caller.userId, error: errorMessage(err) });
         throw err;
       }
@@ -228,6 +236,7 @@ export function createActivate(
       // Discard the partial activation: nothing this run registered survives, and the instance is disposed.
       ctx.host.dispose(instance);
       const error = err instanceof Error ? err.message : String(err);
+      logPluginFailure(slug, "activation-failed", `registration failed: ${error}`);
       await setStatus(ctx.db, input.pluginId, { status: "errored", lastError: `registration failed: ${error}`, updatedAt: ctx.now() });
       return { ok: false, error };
     }
@@ -255,12 +264,7 @@ export function createActivate(
     const providerError = await providerActivationError(providerLifecycle, providers, input.pluginId, slug);
     if (providerError !== null) {
       discardActivation(ctx, instance, handles);
-      await setStatus(ctx.db, input.pluginId, {
-        status: "errored",
-        lastError: `provider registration failed: ${providerError}`,
-        updatedAt: ctx.now(),
-      });
-      return { ok: false, error: providerError };
+      return await activationFailed(providerError, `provider registration failed: ${providerError}`);
     }
     registry.set(input.pluginId, { instance, handles, invoke });
     return { ok: true };

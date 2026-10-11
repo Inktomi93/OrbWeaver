@@ -25,6 +25,7 @@ import { PluginNotFoundError } from "../contract/errors.ts";
 import type { ReportUiCrashParams } from "../contract/params.ts";
 import type { CrashPolicy, PluginContext, PluginService } from "../contract/service.ts";
 import { getById } from "../persistence/plugins.ts";
+import { logPluginFailure } from "../substrate/failure-log.ts";
 
 /** How much of the client-supplied reason is retained on the row's `lastError`. The reason is UNTRUSTED text
  *  from a realm that runs plugin code, and it lands in an operator-facing column — so it is bounded here (the
@@ -43,6 +44,7 @@ export function createReportUiCrash(ctx: PluginContext, crashPolicy: CrashPolicy
     // The recipient of the auto-disable notice is the OWNER of the row, read off the row rather than taken from
     // the caller — they are the same principal today (viewer == installer), and writing it this way means the
     // notice still goes to the right person if that ever stops being true.
+    logPluginFailure(existing.slug, "ui-crash", `surface '${surfaceId}': ${reason.slice(0, CRASH_REASON_MAX)}`);
     await crashPolicy.recordCrash({
       pluginId,
       recipientUserId: existing.ownerId,

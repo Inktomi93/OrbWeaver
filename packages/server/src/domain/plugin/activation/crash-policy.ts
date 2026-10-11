@@ -17,7 +17,8 @@
 import type { PluginId } from "@orb/kit/ids";
 import type { PluginLifecycleLanes } from "../contract/ops.ts";
 import type { CrashPolicy, PluginContext } from "../contract/service.ts";
-import { incrementCrashes, resetCrashes, setLastError, setStatus } from "../persistence/plugins.ts";
+import { getById, incrementCrashes, resetCrashes, setLastError, setStatus } from "../persistence/plugins.ts";
+import { logPluginFailure } from "../substrate/failure-log.ts";
 
 /** Consecutive guest-invocation crashes before a resident plugin auto-disables. A LEAN — the
  *  resolution criterion is measured abuse or measured legitimate flakiness, whichever arrives first. */
@@ -33,6 +34,8 @@ export function createCrashPolicy(ctx: PluginContext, deactivate: (pluginId: Plu
           // later one carries the newer failure detail, which is the honest `lastError` for the row.
           await setStatus(ctx.db, pluginId, { status: "errored", lastError: error, updatedAt: ctx.now() });
           await deactivate(pluginId);
+          const row = await getById(ctx.db, recipientUserId, pluginId);
+          logPluginFailure(row?.slug ?? pluginId, "auto-disabled", `${count} consecutive crashes; last: ${error}`);
           // …but the NOTIFICATION is not idempotent: it appends a durable row to the owner's inbox. So it is
           // gated on the CROSSING (was below, now at or above), which exactly one caller can observe because
           // the increment is atomic and hands each caller its own `previous`. Without that gate, two crashes
