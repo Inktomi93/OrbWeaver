@@ -24,7 +24,7 @@ import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 // @orb-waive dialog-via-composite(Dialog): this level-clamped member-card viewer is read-only content with one Close; ends if a content-viewer dialog composite owns it.
-import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { DIALOG_SCROLL_CLASS, Dialog, DialogClose, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { BookOpen, Drama, EyeOff, Icon, Lock, ScrollText, SlidersHorizontal, Sparkles, Tag } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -67,7 +67,7 @@ export function MemberCardViewer({ chatId, characterId, open, onOpenChange }: Me
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPopup size="lg" data-testid={testId("memberCardViewer")}>
-        <Stack gap="block" className="min-h-0">
+        <Stack gap="block" className={`${DIALOG_SCROLL_CLASS} flex-1`}>
           <MemberCardBody
             onManage={(): void => onOpenChange(false)}
             isError={card.isError}
@@ -75,9 +75,9 @@ export function MemberCardViewer({ chatId, characterId, open, onOpenChange }: Me
             data={card.data}
             onRetry={(): void => void card.refetch().catch(globalThis.reportError)}
           />
-          <Row justify="end" className="shrink-0">
+          <DialogFooter>
             <DialogClose render={<Button intent="ghost">Close</Button>} />
-          </Row>
+          </DialogFooter>
         </Stack>
       </DialogPopup>
     </Dialog>

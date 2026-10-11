@@ -7,6 +7,12 @@ import { MODAL_SURFACE, OVERLAY_MOTION, SCRIM, tv } from "#lib";
 // correctly on the popup. The popup pairs that clamp with
 // `overflow-y-auto overscroll-contain` (matching drawer-content) so tall content — a FormDialog whose
 // body outgrows the viewport — actually scrolls to its submit button instead of overflowing off-screen.
+/**
+ * The class for a region that scrolls a dialog body above a DialogFooter. `scroll-pb-control-lg` is the
+ * footer's height, so a focused field scrolls clear of the sticky footer instead of under it.
+ */
+export const DIALOG_SCROLL_CLASS = "relative min-h-0 overflow-y-auto overscroll-contain scroll-pb-control-lg";
+
 export const dialogVariants = tv({
   slots: {
     // The modal scrim + the dialog-only `backdrop-blur-sm` on top (alert-dialog shares the scrim, not the blur).
@@ -19,6 +25,9 @@ export const dialogVariants = tv({
     popup: `relative flex max-h-full flex-col overflow-y-auto overscroll-contain ${MODAL_SURFACE} ${OVERLAY_MOTION.modalPopup}`,
     title: "text-title leading-title font-semibold",
     description: "mt-field text-body leading-body text-muted-foreground",
+    // The action row: the LAST child of a DIALOG_SCROLL_CLASS region, never of the popup itself. The popup's padding
+    // surrounds that region, so `sticky bottom-0` lands the buttons exactly one popup inset above the popup edge.
+    footer: "sticky bottom-0 z-10 flex shrink-0 flex-wrap items-center justify-end gap-field bg-popover pt-field",
   },
   variants: {
     size: {

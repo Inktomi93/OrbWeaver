@@ -6,10 +6,10 @@ import { blobUrl } from "@orb/contracts/assets";
 import type { AssetId, CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 // @orb-waive dialog-via-composite(Dialog): the gallery add-picker owns its root and selection surface; ends if a gallery-dialog composite owns that species.
-import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { DIALOG_SCROLL_CLASS, Dialog, DialogClose, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Images } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import type { MediaGridHandle, MediaGridItem, MediaGridKey } from "@orb/ui/media-grid";
 import { MediaGrid } from "@orb/ui/media-grid";
 import { Text } from "@orb/ui/text";
@@ -99,7 +99,7 @@ export function GalleryAddPicker({ open, onOpenChange, characterId, onUploadInst
       }}
     >
       <DialogPopup size="lg">
-        <Stack gap="block" className="@container">
+        <Stack gap="block" className={`${DIALOG_SCROLL_CLASS} flex-1 @container`}>
           <DialogTitle>Add images to the gallery</DialogTitle>
           <OwnedAssetPicker characterId={characterId} failure={failure} isOwned={isOwned} onConfirm={confirmAdd} onUploadInstead={onUploadInstead} />
         </Stack>
@@ -203,23 +203,21 @@ function OwnedAssetPicker({ characterId, failure, isOwned, onConfirm, onUploadIn
         </Text>
       )}
       {/* The count never breaks inside itself; at a phone's width the buttons wrap below it instead. */}
-      <Row justify="between" align="center" gap="row" className="flex-wrap">
-        <Text voice="gloss" className="whitespace-nowrap">
+      <DialogFooter>
+        <Text voice="gloss" className="me-auto whitespace-nowrap">
           {selected.size} selected
         </Text>
-        <Row gap="row">
-          <DialogClose
-            render={
-              <Button intent="ghost" disabled={isOwned}>
-                Cancel
-              </Button>
-            }
-          />
-          <Button intent="primary" disabled={selected.size === 0 || isOwned} onClick={submit}>
-            Add selected
-          </Button>
-        </Row>
-      </Row>
+        <DialogClose
+          render={
+            <Button intent="ghost" disabled={isOwned}>
+              Cancel
+            </Button>
+          }
+        />
+        <Button intent="primary" disabled={selected.size === 0 || isOwned} onClick={submit}>
+          Add selected
+        </Button>
+      </DialogFooter>
     </Stack>
   );
 }

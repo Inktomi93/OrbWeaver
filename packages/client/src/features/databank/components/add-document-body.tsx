@@ -29,7 +29,7 @@ import { DOCUMENT_SCOPE_SOURCES } from "@orb/contracts/databank";
 import { DOC_UPLOAD_ACCEPT, docUploadMime } from "@orb/contracts/extraction";
 import type { DocumentId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { DialogClose } from "@orb/ui/dialog";
+import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
 import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
 import { FileDropzone } from "@orb/ui/file-dropzone";
@@ -40,9 +40,9 @@ import { Textarea } from "@orb/ui/textarea";
 import { useToastManager } from "@orb/ui/toast";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CharacterPicker, FormSubmitButton } from "#components";
+import { CharacterPicker } from "#components";
 import { uploadDocument, useGatedQuery, useInvalidation, useTRPC, useUploadCaps } from "#data";
-import { notify } from "#lib";
+import { notify, testId } from "#lib";
 import { closeModal, selectDocumentFromList, setActiveSection, useActiveChatId } from "#state";
 import { useCreateDocumentFromText, useScrapeWeb, useScrapeWiki, useScrapeYoutube } from "../hooks/use-databank-mutations.ts";
 import { useScrapeForm } from "../hooks/use-scrape-form.ts";
@@ -247,9 +247,9 @@ function UploadBody({ onLanded, destination }: { readonly onLanded: OnLanded; re
           shipped with no footer at all: the dialog had ZERO buttons besides the three mode toggles, so its
           only exit was Esc or the backdrop, while both sibling arms offered a labelled way out. A dismiss is
           not part of the submit; it is owed by every arm. */}
-      <Row className="mt-auto" gap="field" justify="end">
+      <DialogFooter className="mt-auto">
         <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-      </Row>
+      </DialogFooter>
     </Stack>
   );
 }
@@ -292,12 +292,12 @@ function PasteBody({ onLanded, destination }: { readonly onLanded: OnLanded; rea
       <Field label="Text">
         <Textarea onChange={(event): void => setText(event.target.value)} placeholder="Paste or write the content to index…" rows={8} value={text} />
       </Field>
-      <Row className="mt-auto" gap="field" justify="end">
+      <DialogFooter className="mt-auto">
         <DialogClose render={<Button intent="ghost">Cancel</Button>} />
         <Button disabled={!canCreate} intent="primary" loading={create.isPending} onClick={onSubmit} type="button">
           Add
         </Button>
-      </Row>
+      </DialogFooter>
     </Stack>
   );
 }
@@ -383,21 +383,23 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
           ) : null
         }
       </form.Subscribe>
-      <Row className="mt-auto" gap="field" justify="end">
+      <DialogFooter className="mt-auto">
         <DialogClose render={<Button intent="ghost">Cancel</Button>} />
         <form.Subscribe selector={(state): boolean => state.values.url.trim() === ""}>
           {(urlEmpty): ReactElement => (
-            <FormSubmitButton
+            <Button
+              data-testid={testId("databankScrapeSubmit")}
               disabled={destination === null || urlEmpty || pending}
-              label={pending ? "Fetching…" : "Fetch and add"}
-              onSubmit={(): void => {
+              intent="primary"
+              onClick={(): void => {
                 form.handleSubmit().catch(() => notify.error("Couldn't add the document."));
               }}
-              testKey="databankScrapeSubmit"
-            />
+            >
+              {pending ? "Fetching…" : "Fetch and add"}
+            </Button>
           )}
         </form.Subscribe>
-      </Row>
+      </DialogFooter>
     </Stack>
   );
 }

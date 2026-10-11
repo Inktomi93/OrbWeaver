@@ -18,7 +18,7 @@
 import type { ChatId, RegexScriptId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
-import { DialogClose } from "@orb/ui/dialog";
+import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Code, Icon, Search } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
@@ -160,7 +160,7 @@ function PickerBody({
           {failure}
         </Text>
       )}
-      <Row gap="field" justify="end">
+      <DialogFooter>
         <DialogClose render={<Button intent="ghost">Cancel</Button>} />
         <Button
           disabled={picked.length === 0 || attach.isPending}
@@ -170,7 +170,7 @@ function PickerBody({
         >
           Attach to this chat
         </Button>
-      </Row>
+      </DialogFooter>
     </Stack>
   );
 }

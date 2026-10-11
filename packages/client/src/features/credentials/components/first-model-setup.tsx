@@ -5,6 +5,7 @@
 import type { RoutableTask } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { Button } from "@orb/ui/button";
+import { DialogFooter } from "@orb/ui/dialog";
 import { Row, Stack } from "@orb/ui/layout";
 import { RadioGroup, RadioGroupItem } from "@orb/ui/radio-group";
 import { Select } from "@orb/ui/select";
@@ -225,7 +226,7 @@ export function FirstModelSetup({
           {`That didn't go through: ${failure}`}
         </Text>
       )}
-      <Row gap="field" justify="end">
+      <DialogFooter>
         {choice === "add" ? (
           <Button disabled={chatState.pending || chatState.failure !== null} intent="primary" onClick={onAddUtility}>
             Add a model
@@ -241,7 +242,7 @@ export function FirstModelSetup({
             Finish
           </Button>
         )}
-      </Row>
+      </DialogFooter>
     </Stack>
   );
 }

@@ -407,6 +407,15 @@ body {
         color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), transparent)
       );
     }
+    /* The sticky footer wears the popup's own glass fill, so it is no solid band across the glass; its blur
+     * softens the body text scrolling beneath it. */
+    html[data-blur-modals] [data-slot="dialog-footer"] {
+      backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
+      background-color: light-dark(
+        color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), var(--color-reading-plate)),
+        color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), transparent)
+      );
+    }
     /* Per-role bubble base so the glass tints as that bubble, not a generic grey. */
     html[data-blur-messages] [data-role="user"] [data-slot="message-bubble"] {
       backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
