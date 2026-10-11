@@ -71,11 +71,11 @@ export function makeCharactersSection(
     // …and what the phone topbar calls this screen: the open character, else `Characters · <census>` (#1670).
     useSelectionTitle: useCharactersSelectionTitle,
     content: () => <CharacterContent detailContributors={detailContributors} />,
-    // THE SIX-SLOT META RAIL (#860, owner 2026-08-30): Overview · Chats · Links · Look · History · Trust.
+    // THE SIX-TAB HEADER STRIP (#860, owner 2026-08-30): Overview · Chats · Links · Look · History · Trust.
     // Overview is the resting card + the drilled facet detail; Chats is #501's home for her threads (the
     // pane the LIST used to become); Links is world books + personas; Look is the theme override +
-    // background; History is the snapshot log; Trust is the render posture. The context-panel program seats
-    // this roster in a shared foot rail with a kicker on top — the CHROME is its lane's, the ROSTER is here.
+    // background; History is the snapshot log; Trust is the render posture. The bracket seats this roster as the
+    // pane's one header tablist — the CHROME is the shell's, the ROSTER is here.
     //
     // `Overview`, NOT `Field` (side-eye 2026-08-30 rail-characters P3, #843). The tab's default body is the
     // overview card (#513) with the pick-a-field instruction as its FOOTER — so a tab named "Field"
@@ -87,11 +87,10 @@ export function makeCharactersSection(
     // the 2253px-in-a-693px-pane measurement that made the split due.
     context: defineContextTabs<CharacterContextState>({
       useContextState: useCharacterContextState,
-      // THE HEAD BAND (#860): portrait · name · handle line · chips (Own look · N chats · N tokens) in the
-      // context bracket's band slot — the pane's identity, over the six-cell rail at its foot.
+      // THE IDENTITY BAND (#860): portrait · name · handle line · chips (Own look · N chats · N tokens) in the
+      // context bracket's band slot — the pane's identity, under its header tab strip.
       header: (s) => <CharacterContextBand characterId={s.characterId} />,
-      // The FOOT rail's name — the artifact noun, printed as its kicker ("CHARACTER · OVERVIEW") and carried
-      // as its a11y group name.
+      // The header tablist's name — the artifact noun, carried as its a11y group name.
       railLabel: "Character",
       tabs: [
         {

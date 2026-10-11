@@ -361,7 +361,7 @@ export function ConfigWorkspaceStory(): ReactElement {
           </div>
           {/* The CONTEXT pane through the PRODUCTION resolve (#866 S3): the section definition's `tabs`
               context — the teacher — rendered by the same `SectionContextHost` the shell mounts, so the
-              band, the foot rail and the tab bodies are the real bracket, never a hand-assembled pair (a
+              header row, its tabs and the tab bodies are the real bracket, never a hand-assembled pair (a
               CT fixture hand-authoring a state the shell can't produce ratifies nothing). */}
           <div data-slot="ct-config-context-pane" style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "auto", width: 360 }}>
             <SectionContextHost definition={makeConfigSection(groups)} />

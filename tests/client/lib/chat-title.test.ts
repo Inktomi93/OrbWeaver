@@ -8,7 +8,7 @@
 // Pins the side-eye P1-2 fix: stored titles are EMPTY STRINGS until renamed (not just null), so the fallback
 // must TRIM — `?? "Untitled chat"` was defeated by "" and rendered blank rows/options everywhere.
 
-import { deriveChatTitle, UNTITLED_CHAT_TITLE } from "@orb/client/lib";
+import { authoredChatName, chatRoomTitle, deriveChatTitle, UNTITLED_CHAT_TITLE } from "@orb/client/lib";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("deriveChatTitle: an authored title wins, trimmed", () => {
@@ -35,4 +35,34 @@ test("deriveChatTitle: no title AND no participants → 'Untitled chat'", () => 
 test("deriveChatTitle: names join in the order given (roster order is the caller's to decide)", () => {
   expect(deriveChatTitle(null, ["Aveline", "Niko"])).toBe("Aveline, Niko");
   expect(deriveChatTitle(null, ["Niko", "Aveline"])).toBe("Niko, Aveline");
+});
+
+// Imported rooms were stored as "<cast> — Mon D, YYYY" (a date stamp, not a name). Existing rows are never
+// rewritten, so the display chain must read them as "no user name".
+test("deriveChatTitle: a stored '<cast> — Mon D, YYYY' date stamp presents as no user name", () => {
+  expect(deriveChatTitle("Hikari — Oct 3, 2026", ["Hikari"])).toBe("Hikari");
+  expect(deriveChatTitle("Mar 6, 2024", ["Aveline", "Niko"])).toBe("Aveline, Niko");
+  expect(deriveChatTitle("Hikari — Oct 3, 2026 (2)", ["Hikari"])).toBe("Hikari");
+});
+
+test("authoredChatName: only a name the user chose survives; look-alikes that are not the stamp stay names", () => {
+  expect(authoredChatName(null)).toBeNull();
+  expect(authoredChatName("   ")).toBeNull();
+  expect(authoredChatName("Hikari — Oct 3, 2026")).toBeNull();
+  expect(authoredChatName("  The Weave  ")).toBe("The Weave");
+  // A date followed by more words, or a hyphen instead of the em dash, is a deliberate title.
+  expect(authoredChatName("Hikari — Oct 3, 2026 trip notes")).toBe("Hikari — Oct 3, 2026 trip notes");
+  expect(authoredChatName("Hikari - Oct 3, 2026")).toBe("Hikari - Oct 3, 2026");
+});
+
+// The one order every surface that names a room by its people uses: participants first, then the user's name.
+test("chatRoomTitle: participants lead, the user's own room name follows, a stamp or blank is no name", () => {
+  expect(chatRoomTitle("Rooftop night", ["Hikari", "Pamela"])).toBe("Hikari, Pamela \u00b7 Rooftop night");
+  expect(chatRoomTitle("Hikari \u2014 Oct 3, 2026 (5)", ["Hikari"])).toBe("Hikari");
+  expect(chatRoomTitle(null, ["Hikari"])).toBe("Hikari");
+  expect(chatRoomTitle("", [])).toBe(UNTITLED_CHAT_TITLE);
+  // A name that only repeats the people is not printed twice.
+  expect(chatRoomTitle("Hikari", ["Hikari"])).toBe("Hikari");
+  // A room with no characters leads with its name alone.
+  expect(chatRoomTitle("Rooftop night", [])).toBe("Rooftop night");
 });

@@ -5,7 +5,7 @@
 // components/chat-summary-row.tsx (biome forbids a component + a plain export in one module).
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { deriveChatTitle, rowQualifiers, timeLib } from "#lib";
+import { authoredChatName, deriveChatTitle, rowQualifiers, timeLib } from "#lib";
 
 type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>["items"][number];
 /** One seat on that row, straight off the wire — the base {@link ChatRowPortrait} extends. */
@@ -87,7 +87,7 @@ export function chatRowQualifiers(chats: readonly ChatSummaryItem[]): readonly s
  *  the participant names, or the message count when the title ALREADY is the names (never print them twice). */
 export function chatSummaryRowView(chat: ChatSummaryItem): { readonly title: string; readonly subtitle: string; readonly when: number } {
   const names = chat.participantNames.length > 0 ? chat.participantNames.join(", ") : null;
-  const titleIsNames = (chat.title ?? "").trim().length === 0 && names !== null;
+  const titleIsNames = authoredChatName(chat.title) === null && names !== null;
   const identity = titleIsNames ? `${chat.messageCount} ${chat.messageCount === 1 ? "message" : "messages"}` : (names ?? "No characters");
   return {
     title: deriveChatTitle(chat.title, chat.participantNames),

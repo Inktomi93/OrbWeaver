@@ -594,7 +594,7 @@ test("#844 P3 the token census datum carries no wide letter-spacing", async ({ m
   await expect.poll(() => census.evaluate((node) => Number.parseFloat(globalThis.getComputedStyle(node).letterSpacing) || 0)).toBeLessThan(0.1);
 });
 
-// ONE HOME PER FACT: while the CONTEXT pane is open its head band prints the token count, so the editor's
+// ONE HOME PER FACT: while the CONTEXT pane is open its identity band prints the token count, so the editor's
 // own census stands down (the shell keys the yield on the context mode, as it does for the hero's echoes).
 test("the editor token census yields while the CONTEXT pane is docked", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHARACTER_EDITOR_AMBIENT_ROUTES, "character.get": () => CARD, "chat.listChats": chatListResponder([]) });
@@ -627,7 +627,7 @@ test("the Overview card does not restate an empty tag list the hero already show
 // those tabs were a strip away. The 2026-08-30 delta pass then measured both rendering as a section INSIDE
 // this tab *and* as their own tabs, simultaneously visible in one 384px pane — two homes for one concept,
 // the exact IA defect the card exists to avoid — and the context-panel program put every tab on a
-// persistent foot rail, so a preview of a control that is always on screen is chrome, not a glance. What
+// persistent tab strip, so a preview of a control that is always on screen is chrome, not a glance. What
 // replaces them is the ruled Overview roster: ORIGIN + ACTIVITY + TAGS.
 // ── #878 F13: THE ACTIVITY ROW NAMES THE THREAD, AND THE CENSUS GROUPS ITS DIGITS ──────────────────────
 test("#878 F13: Last chat names the thread beside its recency", async ({ mount, page }) => {

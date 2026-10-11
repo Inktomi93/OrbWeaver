@@ -1,8 +1,8 @@
-// The TEACHER's tab list (#866 S3) — About · Applies · Learn on the
-// #860 bracket's FOOT rail, ids namespaced `config.*` (the `rpg.*` posture: `contextTab` stays an opaque
+// The TEACHER's tab list (#866 S3) — About · Applies · Learn in the
+// bracket's header strip, ids namespaced `config.*` (the `rpg.*` posture: `contextTab` stays an opaque
 // shared string; this file is where the spelling lives).
 //
-// EVERY CELL IS APPLICABILITY-GATED AND THE STRIP IS USUALLY ONE CELL (owner packet 2026-09-01, #926;
+// EVERY TAB IS APPLICABILITY-GATED AND THE STRIP IS USUALLY ONE TAB (owner packet 2026-09-01, #926;
 // nit 23 of the 2026-09-02 re-drive). Applies used to be ALWAYS visible on the argument that a stable rail
 // is worth a sentence — and then the census settled it: `overriddenBy` is declared by ZERO of the 107 live
 // `teach` declarations, so for every setting on the surface the tab opened onto "Nothing narrower overrides
@@ -13,17 +13,15 @@
 //     or a leaf that really declares `overriddenBy` — and NEVER takes the landing, which is the other half
 //     of the #926 census finding: a member used to open on Applies and land on a null state;
 //   · Learn exists only while a contribution supplied `more`.
-// The RESIDUAL is stated rather than hidden: the ordinary settings state now renders ONE full-width About
-// cell. The rail's `minmax(max-content, 1fr)` track sizing is the 2026-07-28 equal-columns ruling and lives
-// in `features/app-shell/components/context-rail.tsx` — a lane does not reverse it, and a one-cell strip is
-// a different (much smaller) question than the two-cell switch nit 23 measured.
+// The RESIDUAL is stated rather than hidden: the ordinary settings state resolves ONE About tab, and one tab
+// is not a strip — the bracket draws just its header row with the close × (`context-rail.tsx`).
 //
 // THE ARMS ARE EXHAUSTIVE BY TYPE, not by a list nobody re-reads: `CONFIG_TEACHER_TAB_IDS` (the axis, homed
 // in `lib/registry-contracts.ts` beside `CHAT_CONTEXT_TAB_IDS` — a feature `lib/` is not a type home) is
 // paired here with a total `Record` over it (spine §5.5), so a fourth tab fails `tsc` here until someone
 // writes its def AND its `when` — it can never default to permanently visible the way Applies did.
 //
-// The canvas boards' foot cells ("About · Preview · Activity") were extraction SCAFFOLD, not contract —
+// The canvas boards' cells ("About · Preview · Activity") were extraction SCAFFOLD, not contract —
 // orchestrator ruling 2026-08-30 (§7.1): the boards' own head gloss and the mock design's pane contract name
 // this list.
 

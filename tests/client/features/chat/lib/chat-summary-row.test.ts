@@ -48,6 +48,12 @@ test("chatSummaryRowView: names-derived title → message-count subtitle (never 
   expect(many.subtitle).toBe("4 messages");
 });
 
+test("chatSummaryRowView: a stamped import title is no name, so the identity line is the message count", () => {
+  const view = chatSummaryRowView(makeSummary({ title: "Hikari \u2014 Oct 3, 2026 (5)", participantNames: ["Hikari"], messageCount: 2 }));
+  expect(view.title).toBe("Hikari");
+  expect(view.subtitle).toBe("2 messages");
+});
+
 test("chatSummaryRowView: untitled AND participant-less → 'Untitled chat' / 'No characters'", () => {
   const view = chatSummaryRowView(makeSummary({ title: null, participantNames: [] }));
   expect(view.title).toBe("Untitled chat");

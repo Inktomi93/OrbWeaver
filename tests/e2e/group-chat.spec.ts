@@ -98,7 +98,7 @@ test("a solo room converts to a group: the character bar and Group-behavior sect
     // SOLO: one character ⇒ no character bar and the "This chat" tab carries NO Group-behavior section. The
     // Members tab is still available because hosts can manage identity and seat state in solo rooms.
     expect(await characterChips(page).count()).toBe(0);
-    await expect(page.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Members", exact: true })).toBeVisible();
+    await expect(page.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Members", exact: true })).toBeVisible();
     await openContextTab(page, "This chat");
     // OPEN THE HOST BAND BEFORE CLAIMING THE SECTION IS ABSENT (#1851). The tab is an index of disclosures
     // (#830) and a closed panel is REMOVED from the DOM, so this count was 0 for a solo room and a group
@@ -113,7 +113,7 @@ test("a solo room converts to a group: the character bar and Group-behavior sect
 
     await expect.poll(async () => (await characterChipNames(page)).length, { timeout: 15_000 }).toBe(2);
     expect(await characterChipNames(page)).toEqual(expect.arrayContaining([CHARACTERS[0].name, CHARACTERS[1].name]));
-    await expect(page.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Members", exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Members", exact: true })).toBeVisible({ timeout: 10_000 });
     // …and the group-behavior controls arrive with it, live, inside the "This chat" tab.
     await openGroupBehaviorSection(page);
 

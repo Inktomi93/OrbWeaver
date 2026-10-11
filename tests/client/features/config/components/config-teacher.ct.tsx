@@ -162,7 +162,7 @@ test("CONTEXT is never navigation — with a group open the pane teaches the sec
   // BARRIER on a SETTLED state that exists in both worlds, so the absence sweep below can never pass
   // vacuously against a pane that has not painted: the teacher bracket is up and the group's body has
   // mounted its rows.
-  await expect(pane.getByRole("button", { name: "About" })).toBeVisible();
+  await expect(pane.getByRole("region", { name: "About" })).toBeVisible();
   await expect(workspace.locator('[data-setting="chat-style"]')).toBeVisible();
 
   // Not one LIST row has a twin in here (UI-Architecture-and-Layout.md §4.2: "CONTEXT … Never navigation
@@ -218,10 +218,10 @@ test("a settings state offers NO Applies cell, and About is the landing", async 
     .click();
 
   const pane = workspace.locator(CONTEXT_PANE);
-  await expect(pane.getByRole("button", { name: "About" })).toHaveAttribute("aria-current", "true");
+  await expect(pane.getByRole("region", { name: "About" })).toBeVisible();
   // `overriddenBy` is declared by ZERO of the 107 live teach declarations, so the cell's only content was
   // its own null state — a permanent cell teaching nothing (#926's census, #864's furniture ban).
-  await expect(pane.getByRole("button", { name: "Applies" })).toHaveCount(0);
+  await expect(pane.getByRole("tab", { name: "Applies" })).toHaveCount(0);
   await expect(pane.getByRole("button", { name: "Learn" })).toHaveCount(0);
 });
 
@@ -257,7 +257,7 @@ test("focusing a knob row teaches THAT setting — head and About swap, and the 
     .getByRole("button", { name: /Appearance/ })
     .click();
   const pane = workspace.locator(CONTEXT_PANE);
-  await expect(pane.getByRole("button", { name: "About" })).toBeVisible();
+  await expect(pane.getByRole("region", { name: "About" })).toBeVisible();
 
   // Focus the Chat-display row through the real SettingRow seam (a click inside the row publishes
   // focus). A PLAIN section's row on purpose — the folded sections' rows are behind the collapsed
@@ -315,15 +315,15 @@ test("the foot tab KEEPS across a subject change — a reader on Applies stays o
   const pane = workspace.locator(CONTEXT_PANE);
   // A MEMBER LANDS ON ABOUT (#926): the old `defaultTab` opened every member on Applies, which for a `none`
   // collection is a null state — the pane's landing was its emptiest arm.
-  await expect(pane.getByRole("button", { name: "About" })).toHaveAttribute("aria-current", "true");
-  await pane.getByRole("button", { name: "Applies" }).click();
-  await expect(pane.getByRole("button", { name: "Applies" })).toHaveAttribute("aria-current", "true");
+  await expect(pane.getByRole("region", { name: "About" })).toBeVisible();
+  await pane.getByRole("tab", { name: "Applies" }).click();
+  await expect(pane.getByRole("tab", { name: "Applies" })).toHaveAttribute("aria-selected", "true");
 
   // Back to the library, then the SECOND row — a member→member change through the same seam.
   await content.getByRole("button", { name: /^Back to / }).click();
   await content.getByRole("button", { name: second, exact: true }).click();
   await expect(workspace.getByRole("heading", { name: second, exact: true })).toBeVisible();
-  await expect(pane.getByRole("button", { name: "Applies" })).toHaveAttribute("aria-current", "true");
+  await expect(pane.getByRole("tab", { name: "Applies" })).toHaveAttribute("aria-selected", "true");
 });
 
 test("an open member turns Applies into the collection's own arm — stated ONCE", async ({ mount, page }) => {
@@ -337,7 +337,7 @@ test("an open member turns Applies into the collection's own arm — stated ONCE
   await workspace.locator('[data-slot="config-content"]').getByRole("button", { name: "strip ooc", exact: true }).click();
 
   const pane = workspace.locator(CONTEXT_PANE);
-  await pane.getByRole("button", { name: "Applies" }).click();
+  await pane.getByRole("tab", { name: "Applies" }).click();
   await expect(pane.getByText("Where it’s attached")).toHaveCount(1);
 });
 
@@ -350,7 +350,7 @@ test("a member of a NONE collection renders that collection's copy, once", async
   await workspace.locator('[data-slot="config-content"]').getByRole("button", { name: ROSTER.name, exact: true }).click();
 
   const pane = workspace.locator(CONTEXT_PANE);
-  await pane.getByRole("button", { name: "Applies" }).click();
+  await pane.getByRole("tab", { name: "Applies" }).click();
   await expect(pane.getByText("Nothing to attach")).toHaveCount(1);
 });
 

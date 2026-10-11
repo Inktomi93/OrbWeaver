@@ -1014,22 +1014,22 @@ test("desktop: Corpus holds Explore, Insights and Labels in one workspace, with 
   await component.getByRole("button", { name: "Show details" }).click();
   const context = component.locator(CORPUS_CONTEXT);
   await expect(context.getByText("Whole corpus", { exact: true })).toBeVisible();
-  await expect(context.getByRole("button", { name: "Archetypes", exact: true })).toBeVisible();
+  await expect(context.getByRole("tab", { name: "Archetypes", exact: true })).toBeVisible();
 
   // Insights: the leaderboard is the finder, the dashboard is CONTENT, and its dimension tabs replace Explore's.
   await modes.getByRole("radio", { name: "Insights" }).click();
   await expect(list.getByRole("textbox", { name: "Search characters" })).toBeVisible();
   const main = component.locator("main.shell-content");
   await expect(main.getByText("No insights yet")).toBeVisible();
-  await expect(context.getByRole("button", { name: "Models", exact: true })).toBeVisible();
-  await expect(context.getByRole("button", { name: "Archetypes", exact: true })).toHaveCount(0);
+  await expect(context.getByRole("tab", { name: "Models", exact: true })).toBeVisible();
+  await expect(context.getByRole("tab", { name: "Archetypes", exact: true })).toHaveCount(0);
 
   // Labels: the tag library is the finder, its facts are CONTENT, and its one inspector explains labels.
   await modes.getByRole("radio", { name: "Tags" }).click();
   await expect(list.getByRole("textbox", { name: "Filter tags" })).toBeVisible();
   await expect(main.getByRole("heading", { name: "Tags", level: 2 })).toBeVisible();
-  await expect(context.getByRole("button", { name: "Usage", exact: true })).toBeVisible();
-  await expect(context.getByRole("button", { name: "Models", exact: true })).toHaveCount(0);
+  await expect(context.getByRole("region", { name: "Usage", exact: true })).toBeVisible();
+  await expect(context.getByRole("tab", { name: "Models", exact: true })).toHaveCount(0);
 });
 
 // FOCUS: a keyboard mode switch hands focus to the new mode's CONTENT, never to nowhere.

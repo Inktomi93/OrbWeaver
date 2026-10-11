@@ -1,6 +1,6 @@
 // Tier-4 contract home for the CONTEXT-PANEL registry model (client-architecture-lockdown.md §6b) — the
 // vocabulary-independent shapes a host feature and its cross-feature contributors both need (the CONTEXT
-// model, a contributor tab def, and a contributor's HEAD-BAND region claim) without either importing the
+// model, a contributor tab def, and a contributor's identity-BAND region claim) without either importing the
 // other, plus every section's published `S` projection. May import `@orb/contracts` types +
 // the registry primitive; imports zero features. `SectionDefinition` itself lives in `#state` (it binds
 // these shapes to the shell's SectionId/PanelMode vocabulary, which state owns — §5 rule 5).
@@ -29,18 +29,17 @@ import type { CorpusDestination } from "./corpus-destination.ts";
 import type { CorpusMode } from "./corpus-modes.ts";
 import type { ContributorRegistry } from "./registry.ts";
 
-/** RAIL MEMBERSHIP — which of the bracket's two rails a CONTEXT tab belongs to (HUD-1 §4, owner decision 5;
- *  universal since the context bracket, #860). `"game"` = the STATE rail above the viewport; `"meta"` = the
- *  ADMINISTRATION rail pinned to the pane's foot. Membership is a property of the tab's JOB, declared by its
- *  owner, so chat's own tabs stay `"meta"` without knowing a state contributor exists (an id-prefix rule
- *  would break the moment a non-rpg contributor ships a state tab). The shell's bracket renders the TOP rail
- *  only when a `"game"` tab resolved (APPLICABILITY) and the FOOT rail always. */
+/** STRIP MEMBERSHIP — where a CONTEXT tab is offered in the bracket (HUD-1 §4, owner decision 5; universal since
+ *  the context bracket). `"game"` = the STATE rail under the header row; `"meta"` = the pane's header tablist.
+ *  Membership is a property of the tab's JOB, declared by its owner, so chat's own tabs stay `"meta"` without
+ *  knowing a state contributor exists (an id-prefix rule would break the moment a non-rpg contributor ships a
+ *  state tab). The state rail renders only when a `"game"` tab resolved (APPLICABILITY). */
 export type ContextTabStrip = "game" | "meta";
 
-/** The TOP (state) rail's on-screen name and a11y group name — a property of the closed strip vocabulary,
- *  homed beside it. "Game state", not "Game": the crown host console in the FOOT rail is a TAB named "Game",
- *  and two sibling groups where one's name is the other's member collide for anyone navigating by name.
- * The FOOT rail is named by its SECTION (`ContextTabsSpec.railLabel`). */
+/** The state rail's on-screen name and a11y group name — a property of the closed strip vocabulary, homed
+ *  beside it. "Game state", not "Game": the crown host console in the header strip is a TAB named "Game", and
+ *  two sibling groups where one's name is the other's member collide for anyone navigating by name.
+ *  The header tablist is named by its SECTION (`ContextTabsSpec.railLabel`). */
 export const GAME_STRIP_LABEL = "Game state";
 
 /** One CONTEXT-panel tab. `S` is the host section's OWN context-state projection — a real named type
@@ -118,9 +117,9 @@ export interface ContextRegionView {
   readonly actions?: ReactNode;
 }
 
-/** A contributor's CLAIM on the CONTEXT pane's HEAD BAND (HUD-1 §3.1 as re-shaped by the context bracket,
- *  #860) — the third contributor arm beside context-tabs and surface-anchors (§6c). The shell renders ONE
- *  column for every tabs pane (band → optional state rail → viewport → ground → meta rail); the ONLY slot
+/** A contributor's CLAIM on the CONTEXT pane's identity BAND (HUD-1 §3.1 as re-shaped by the context bracket)
+ *  — the third contributor arm beside context-tabs and surface-anchors (§6c). The shell renders ONE
+ *  column for every tabs pane (header row → optional band → optional state rail → viewport); the ONLY slot
  *  a contributor can take over is the band, and while the claim holds the claimant's band REPLACES the
  *  host section's own `header` in that slot — "one slot, three contents, never a second head". There is
  *  no API through which a claimant could render a rail or a viewport; the pane's chrome is the shell's
@@ -153,7 +152,7 @@ export interface ResolvedContextTabs {
   readonly tabs: readonly ResolvedContextTab[];
   readonly actions?: ReactNode;
   readonly header?: ReactNode;
-  /** The FOOT rail's name (`ContextTabsSpec.railLabel`), passed through untouched; absent ⇒ the host
+  /** The header tablist's name (`ContextTabsSpec.railLabel`), passed through untouched; absent ⇒ the host
    *  falls back to the section's rail label. */
   readonly railLabel?: string;
 }
@@ -204,14 +203,15 @@ export interface ContextTabsSpec<S> {
   readonly useContextState: () => S | null;
   readonly tabs: readonly ContextTabDef<S>[];
   readonly actions?: (state: S) => ReactNode;
-  /** The pane's HEAD BAND — the artifact's identity (a room's title + chips, a character's portrait + name),
-   *  drawn from the SAME `S` the tabs read (north-star §4 N4, P4; the context bracket's band slot, #860).
-   *  Definition-owned + mint-supplied (never a route-fed prop or a shell-side per-section switch); the
-   *  shell renders it blind in the bracket's band. A claiming region's band replaces it. */
+  /** The pane's identity BAND, under the header row — the artifact's own identity where it has one (a
+   *  character's portrait + name), drawn from the SAME `S` the tabs read (north-star §4 N4, P4). A chat room
+   *  has none: its identity is the center header's. Definition-owned + mint-supplied (never a route-fed prop
+   *  or a shell-side per-section switch); the shell renders it blind in the bracket's band. A claiming
+   *  region's band replaces it. */
   readonly header: (state: S) => ReactNode;
-  /** The FOOT rail's name — the artifact NOUN the pane is about ("Chat", "Character"), printed as the
-   *  rail's kicker and carried as its a11y group name. Absent ⇒ the section's rail label (the honest name
-   *  for a pane that is about the section itself: Corpus, Refinery). */
+  /** The header tablist's name — the artifact NOUN the pane is about ("Chat", "Character"), carried as its
+   *  a11y group name. Absent ⇒ the section's rail label (the honest name for a pane that is about the section
+   *  itself: Corpus, Refinery). */
   readonly railLabel?: string;
   /** §6c — injected at the door (M8); merged after own tabs, same `when` gating. */
   readonly contributors?: ContributorRegistry<ContextTabDef<S>>;

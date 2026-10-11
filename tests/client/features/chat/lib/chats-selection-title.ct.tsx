@@ -28,13 +28,16 @@ const ROSTER_OF_THREE: TrpcRoutes<"chat.listChats" | "chat.countChats"> = {
   "chat.countChats": 3,
 };
 
-test("the open room's stored title IS the mobile screen title", async ({ mount, page }) => {
-  await routeTrpc(page, { ...ROSTER_OF_THREE, "chat.getChat": { title: "The Ashfall Road", participants: [], identities: [] } });
+test("the mobile screen title leads with the participants, then the user's own room name", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...ROSTER_OF_THREE,
+    "chat.getChat": { title: "The Ashfall Road", participants: [makeParticipant({ displayName: "Elias Thorn" })], identities: [] },
+  });
 
   await mount(<ChatsSelectionTitleStory />);
 
   // The PAGE locator: `CtDataProviders` renders the probe outside the mount's component wrapper.
-  await expect(page.getByTestId("selection-title")).toHaveText("The Ashfall Road");
+  await expect(page.getByTestId("selection-title")).toHaveText("Elias Thorn \u00b7 The Ashfall Road");
 });
 
 test("a seeded character names an untitled new room on mobile through the canonical fallback", async ({ mount, page }) => {
