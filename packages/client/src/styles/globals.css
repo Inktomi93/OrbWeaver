@@ -823,14 +823,11 @@ html[data-shadow] [data-slot="message-bubble"] {
 }
 /* Streamdown's Copy and Download are 24px glyph buttons; at a coarse pointer they take the room's touch floor
  * through an invisible centred hit area, the same pointer-conditional token every glyph button uses. */
-/* @orb-waive css-selector-has-a-writer([data-streamdown="code-block-copy-button"]): Streamdown's code block writes it. */
 [data-streamdown="code-block-copy-button"],
-/* @orb-waive css-selector-has-a-writer([data-streamdown="code-block-download-button"]): Streamdown's code block writes it. */
 [data-streamdown="code-block-download-button"] {
   position: relative;
 }
 /* …and the pair is spaced so those areas never overlap: the floor less the 24px button box. */
-/* @orb-waive css-selector-has-a-writer([data-streamdown="code-block-actions"]): Streamdown's code block writes it. */
 [data-streamdown="code-block-actions"] {
   column-gap: calc(var(--spacing-touch-target) - var(--spacing-glyph-md));
 }
@@ -847,7 +844,8 @@ html[data-shadow] [data-slot="message-bubble"] {
 /* WITH THE SOFT KEYBOARD UP the transcript is what the reader needs: the plugin panels' disclosure folds
  * away and the composer's refusal keeps to one line. `data-keyboard-up` is written beside
  * `--orb-keyboard-inset` by `use-keyboard-inset-var.ts`. */
-html[data-keyboard-up] [data-slot="plugin-flank"] {
+/* …unless the keyboard is the flank's own: hiding a focused plugin field drops focus and the typing with it. */
+html[data-keyboard-up] [data-slot="plugin-flank"]:not(:focus-within) {
   display: none;
 }
 html[data-keyboard-up] [data-slot="composer-guided-refusal"] {

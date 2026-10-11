@@ -81,15 +81,19 @@ import { defineGate } from "../contract/policy.ts";
 import { subjectAnchor } from "../lib/absent-subject-anchor.ts";
 import { CLEAN_PRODUCT_CSS, HOOKLESS_HOMES, STREAMDOWN_BUNDLE, STREAMDOWN_EMITTING_BUNDLE, VENDOR_SURFACE_FIXTURE } from "../lib/css-family-proof-fixtures.ts";
 import { selectorHookIdentities } from "../lib/css-family-selector-provenance.ts";
-import { readVendorHooks, STREAMDOWN_HOOK_NAME, STREAMDOWN_HOOK_VALUE } from "../lib/css-vendor-hooks.ts";
+import { readVendorHooks, STREAMDOWN_HOOK_NAME, STREAMDOWN_HOOK_VALUES } from "../lib/css-vendor-hooks.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const MESSAGE =
   "the product-CSS selector census is BLIND or its vendor emission contract has drifted — a clean selector verdict rests on both (tooling/src/verify/gates/css-selector-has-a-writer-health.ts)";
 
 const BLIND = `the selector census learned ZERO authored hooks from the five product stylesheets — every "this hook has a writer" verdict below it is vacuous. ${MESSAGE}`;
-const VENDOR_UNSELECTED = `Streamdown still emits the contracted ${STREAMDOWN_HOOK_NAME}="${STREAMDOWN_HOOK_VALUE}" hook but no product stylesheet selects it: the narrow vendor contract is stale on the CSS side. ${MESSAGE}`;
-const VENDOR_UNEMITTED = `a product stylesheet selects Streamdown's ${STREAMDOWN_HOOK_NAME}="${STREAMDOWN_HOOK_VALUE}" hook but no installed bundle emits it: the narrow vendor contract is stale on the VENDOR side. ${MESSAGE}`;
+function vendorUnselected(value: (typeof STREAMDOWN_HOOK_VALUES)[number]): string {
+  return `Streamdown still emits the contracted ${STREAMDOWN_HOOK_NAME}="${value}" hook but no product stylesheet selects it: the narrow vendor contract is stale on the CSS side. ${MESSAGE}`;
+}
+function vendorUnemitted(value: (typeof STREAMDOWN_HOOK_VALUES)[number]): string {
+  return `a product stylesheet selects Streamdown's ${STREAMDOWN_HOOK_NAME}="${value}" hook but no installed bundle emits it: the narrow vendor contract is stale on the VENDOR side. ${MESSAGE}`;
+}
 
 /** THE EMPTY VENDOR SIDES the surface reader hands a policy that declares only `vendor-css-surface`. The
  *  Base UI reconciliation moved to `baseui-surface-manifest` (see the header), so this module reads the
@@ -128,11 +132,13 @@ export const gate = defineGate({
         installedValues: new Map(),
         selectorSources: readyResourceValue(ctx.resources.vendorCssSurface()).selectorSources,
       });
-      const selected = hooks.some(
-        (hook) => hook.kind === "data" && hook.name === STREAMDOWN_HOOK_NAME && hook.operator === "=" && hook.value === STREAMDOWN_HOOK_VALUE,
-      );
-      if (vendor.streamdownEmitted !== selected) {
-        ctx.report.file(sheet, { line: 1, column: 1, message: vendor.streamdownEmitted ? VENDOR_UNSELECTED : VENDOR_UNEMITTED });
+      // Each contracted hook is reconciled on its own: one renamed control must not hide behind a live sibling.
+      for (const value of STREAMDOWN_HOOK_VALUES) {
+        const selected = hooks.some((hook) => hook.kind === "data" && hook.name === STREAMDOWN_HOOK_NAME && hook.operator === "=" && hook.value === value);
+        const emitted = vendor.streamdownEmitted.has(value);
+        if (emitted !== selected) {
+          ctx.report.file(sheet, { line: 1, column: 1, message: emitted ? vendorUnselected(value) : vendorUnemitted(value) });
+        }
       }
       // The denominator is the SHEET COUNT, never the hook census: `receiptFailures` reds on `members === 0`,
       // so receipting the census would turn this policy's own blindness finding into a TOOL ERROR — §12.3's
@@ -162,6 +168,17 @@ export const gate = defineGate({
       },
       expect: { count: 1, line: 1, messageIncludes: "stale on the VENDOR side" },
       why: "a product stylesheet selects the hook and the installed bundles — read WHOLE, not through a content-hashed chunk name — no longer emit it. This is the rot receipt: a Streamdown bump that renames its chunk cannot silence this arm the way it silenced the legacy literal path",
+    },
+    {
+      mode: "resource",
+      files: {
+        ...VENDOR_SURFACE_FIXTURE,
+        ...CLEAN_PRODUCT_CSS,
+        "packages/ui/src/styles/globals.css": '[data-streamdown="code-block"] { contain: paint; }\n[data-streamdown="code-block-actions"] { column-gap: 0; }\n',
+        [STREAMDOWN_BUNDLE]: STREAMDOWN_EMITTING_BUNDLE,
+      },
+      expect: { count: 1, line: 1, messageIncludes: 'data-streamdown="code-block-actions" hook but no installed bundle emits it' },
+      why: "each contracted hook reconciles alone: a renamed control is reported even while the `code-block` prefix it shares is still emitted and selected",
     },
   ],
   mustPass: [

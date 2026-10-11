@@ -2347,8 +2347,15 @@ for (const chatStyle of THEME_CHAT_STYLES) {
       if (prev === null || next === null || counter === null || footBox === null) {
         return { rendered: false };
       }
+      // Tide's foot is its own container, so pin that container to the train: it spans the widest pill.
+      const pills = await component
+        .locator(BUBBLE)
+        .evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map(({ left, right }) => ({ left, right })));
+      const widest = pills.toSorted((a, b) => b.right - b.left - (a.right - a.left))[0];
       return {
         rendered: true,
+        onTrain:
+          chatStyle !== "tide" || (widest !== undefined && Math.abs(footBox.x - widest.left) < 1 && Math.abs(footBox.x + footBox.width - widest.right) < 1),
         // ‹ and › sit on the container's reading inset, the same inset the header bar's actions sit on.
         leading: Math.abs(prev.x - container.contentLeft) < 1,
         trailing: Math.abs(next.x + next.width - container.contentRight) < 1,
@@ -2358,7 +2365,9 @@ for (const chatStyle of THEME_CHAT_STYLES) {
         oneLine: Math.abs(footBox.height - next.height) < 0.5,
       };
     };
-    await expect.poll(footLaw).toEqual({ rendered: true, leading: true, trailing: true, matchesHeader: true, countBesideNext: true, oneLine: true });
+    await expect
+      .poll(footLaw)
+      .toEqual({ rendered: true, onTrain: true, leading: true, trailing: true, matchesHeader: true, countBesideNext: true, oneLine: true });
     // Echo's foot rides the card's fill across the art pane; every other inside foot sits on its container.
     const fill = await foot.evaluate((el) => getComputedStyle(el).backgroundColor);
     // @orb-waive ct-no-oneshot-live-read-assert(expect): the foot law above polled the row to its settled layout; its fill is a static class.
