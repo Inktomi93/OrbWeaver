@@ -17,8 +17,10 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PluginHandlerRef, PluginHostOps, PluginInstance } from "@orb/server/domain/plugin";
 import { PluginCrashedError } from "@orb/server/domain/plugin";
+import { logger } from "@orb/server/foundation/observability";
 import { createPluginHost } from "@orb/server/infra/plugin-host";
 import { eq } from "drizzle-orm";
+import { vi } from "vitest";
 import { reactivatePluginsOnBoot } from "../../../../packages/server/src/entry/boot/reactivate-plugins.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { freshDb } from "../../../support/db.ts";
@@ -202,4 +204,40 @@ test("an unresolvable owner fails only its own rows — the step never throws ou
 
   expect(report).toEqual({ restored: 0, failed: 1 });
   expect(second.port.created).toEqual([]);
+});
+
+// Boot must log each failed plugin once: activation's own line when it refused, the boot line when something else threw.
+test("a missing bundle asset lands the row errored with one log line; a non-activation throw is logged once by boot", async () => {
+  const db = await freshDb();
+  const first = makePluginHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const caller = ownerPrincipalFor(owner);
+  first.port.script({ ok: true, instance: instanceWithPage("atlas") });
+  const installed = await first.service.install({ caller, bundle: makeBundle({ id: "card-atlas", capabilities: ["ui.surface"] }), grant: ["ui.surface"] });
+  await first.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+
+  // The restart loses the CAS bytes: the stored bundle can no longer be read.
+  const second = makePluginHarness(db);
+  const warnSpy = vi.spyOn(logger, "warn");
+  const errorSpy = vi.spyOn(logger, "error");
+  const lineCount = (): number => warnSpy.mock.calls.length + errorSpy.mock.calls.length;
+  try {
+    const report = await reactivatePluginsOnBoot({ db, setEnabled: second.service.setEnabled, resolvePrincipal: resolverFor(owner) });
+    expect(report).toEqual({ restored: 0, failed: 1 });
+    const row = (await db.select().from(plugins).where(eq(plugins.id, installed.id)))[0];
+    expect(row?.status).toBe("errored");
+    expect(row?.lastError).toContain("stored bundle unreadable");
+    expect(lineCount()).toBe(1);
+    expect(errorSpy.mock.calls[0]?.[0]).toMatchObject({ pluginSlug: "card-atlas", kind: "activation-failed" });
+
+    // A throw outside activation (the principal cannot be resolved) is logged once, by boot.
+    await db.update(plugins).set({ status: "enabled" }).where(eq(plugins.id, installed.id));
+    const before = lineCount();
+    const refused = await reactivatePluginsOnBoot({ db, setEnabled: second.service.setEnabled, resolvePrincipal: resolverFor() });
+    expect(refused).toEqual({ restored: 0, failed: 1 });
+    expect(lineCount() - before).toBe(1);
+  } finally {
+    warnSpy.mockRestore();
+    errorSpy.mockRestore();
+  }
 });

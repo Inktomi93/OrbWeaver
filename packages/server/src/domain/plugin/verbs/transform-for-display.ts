@@ -22,12 +22,12 @@
 // THE REFUSAL POSTURE IS D53's, verbatim: a transform that throws or outruns its deadline is SKIPPED — the fold
 // keeps the prior text and moves on. A display transform can never blank a message, and it can never block one.
 
+import { DEADLINE_ABORT_REASON } from "@orb/contracts/chat";
 import type { PluginDisplayTransformRegistration } from "@orb/contracts/plugin";
-import type { PluginId } from "@orb/kit/ids";
-import { getLog } from "#foundation/observability";
 import type { TransformForDisplayParams } from "../contract/params.ts";
 import type { PluginContext, PluginRegistry, PluginService } from "../contract/service.ts";
 import { listOwned } from "../persistence/plugins.ts";
+import { logPluginFailure } from "../substrate/failure-log.ts";
 
 /** The per-TRANSFORM wall-clock bound (the "per-message budget" seam 14 names). Tighter than the 250 ms
  *  `PROMPT_TRANSFORM_DEADLINE_MS` would be generous here for the opposite reason it is generous there: this
@@ -36,24 +36,31 @@ import { listOwned } from "../persistence/plugins.ts";
 export const PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS = 200;
 
 /** One resident's crash-policy'd re-entry, curried to the (handler, argsJson) pair this seam uses. */
-type ResidentInvoke = (handler: PluginDisplayTransformRegistration["handler"], argsJson: string) => Promise<string>;
+type ResidentInvoke = (handler: PluginDisplayTransformRegistration["handler"], argsJson: string, signal: AbortSignal) => Promise<string>;
 
-/** Run ONE display transform under the deadline. Returns the new text, or `null` for EVERY failure mode (throw,
- *  rejected invoke, deadline) — the caller keeps the prior text. The timer is always cleared. */
-async function applyBounded(invoke: ResidentInvoke, transform: PluginDisplayTransformRegistration, argsJson: string): Promise<string | null> {
+/** Why a transform left the row's text alone. A throw or rejected invoke already reached the log through the
+ *  resident's crash-policy'd `invoke`, so only a deadline overrun is logged here. */
+type Outcome = { readonly text: string } | { readonly skip: "deadline" | "failed" };
+
+/** Run ONE display transform under the deadline. Returns the new text, or why it was skipped (throw, rejected
+ *  invoke, deadline) — the caller keeps the prior text. The timer is always cleared. */
+async function applyBounded(invoke: ResidentInvoke, transform: PluginDisplayTransformRegistration, argsJson: string): Promise<Outcome> {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const deadline = new Promise<null>((resolve) => {
-    timer = setTimeout(() => resolve(null), PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS);
+  // Aborted on the deadline so the orphaned invocation's later rejection counts a crash without a second log line.
+  const orphan = new AbortController();
+  const deadline = new Promise<Outcome>((resolve) => {
+    timer = setTimeout(() => {
+      orphan.abort(DEADLINE_ABORT_REASON);
+      resolve({ skip: "deadline" });
+    }, PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS);
   });
-  // @orb-waive caught-failure-ownership(catch): documented above — `null` covers EVERY failure
-  // mode (throw, rejected invoke, deadline); the caller keeps the row's prior text on any of them. Ends if a
-  // guest crash needs to surface distinctly from a timeout.
+  // @orb-waive caught-failure-ownership(catch): the rejection was already logged by the resident's `invoke`; the
+  // caller keeps the row's prior text. Ends if `invoke` stops logging the failures it rethrows.
   try {
-    const answer = await Promise.race([invoke(transform.handler, argsJson), deadline]);
-    // A guest that returns a non-string has malfunctioned; that is the skip case, not a coercion case.
-    return typeof answer === "string" ? answer : null;
+    const answer = await Promise.race([invoke(transform.handler, argsJson, orphan.signal), deadline]);
+    return typeof answer === "string" ? { text: answer } : answer;
   } catch {
-    return null;
+    return { skip: "failed" };
   } finally {
     if (timer !== undefined) {
       clearTimeout(timer);
@@ -68,7 +75,7 @@ export function createTransformForDisplay(ctx: PluginContext, registry: PluginRe
     const rows = await listOwned(ctx.db, caller.userId);
     // FLATTEN FIRST, fold second. Registration order within a plugin; plugin order is the caller's own install
     // order (`listOwned`). Both are the only orderings that exist here and both are the installer's own doing.
-    const steps: { readonly pluginId: PluginId; readonly transform: PluginDisplayTransformRegistration; readonly invoke: ResidentInvoke }[] = [];
+    const steps: { readonly slug: string; readonly transform: PluginDisplayTransformRegistration; readonly invoke: ResidentInvoke }[] = [];
     for (const row of rows) {
       const resident = registry.get(row.id);
       if (resident === undefined) {
@@ -80,7 +87,7 @@ export function createTransformForDisplay(ctx: PluginContext, registry: PluginRe
         // exactly like a tool, event or surface-action handler. `null` chat scope: a display transform reads the
         // text it was handed and nothing else — admitting a room would hand it a `chat.read` window this seam
         // has no reason to open.
-        steps.push({ pluginId: row.id, transform, invoke: (handler, json) => resident.invoke(handler, json, null) });
+        steps.push({ slug: row.slug, transform, invoke: (handler, json, signal) => resident.invoke(handler, json, null, signal) });
       }
     }
     if (steps.length === 0) {
@@ -95,19 +102,12 @@ export function createTransformForDisplay(ctx: PluginContext, registry: PluginRe
       }
       const argsJson = JSON.stringify({ text: current, env: { chatId, messageId } });
       const next = await applyBounded(step.invoke, step.transform, argsJson);
-      if (next === null) {
-        logSkip(step.pluginId, step.transform.name);
+      if ("skip" in next && next.skip === "deadline") {
+        logPluginFailure(step.slug, "display-deadline", `display transform '${step.transform.name}' exceeded ${PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS}ms`);
         return foldFrom(index + 1, current);
       }
-      return foldFrom(index + 1, next);
+      return foldFrom(index + 1, "text" in next ? next.text : current);
     };
     return { text: await foldFrom(0, text) };
   };
-}
-
-/** One skip line per skipped transform — the diagnosability half of the D53 posture (the person's row rendered
- *  fine; the plugin author needs to know theirs did not run). Off the hot path by construction: a healthy
- *  transform never reaches it. */
-function logSkip(pluginId: PluginId, name: string): void {
-  getLog().warn({ pluginId, transform: name }, "plugin: display transform SKIPPED (deadline/throw) — row text unchanged");
 }

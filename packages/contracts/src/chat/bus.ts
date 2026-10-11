@@ -408,6 +408,10 @@ export type PromptTransformResult =
   | { readonly aborted: false; readonly text: string }
   | { readonly aborted: true; readonly transformId: string; readonly reason: string };
 
+/** The abort reason a caller gives a guest invocation it stopped waiting for after logging the overrun itself, so
+ *  the invocation's late rejection still counts a crash but is not logged a second time. */
+export const DEADLINE_ABORT_REASON = "deadline-reported";
+
 /** An ordered, bounded, synchronous-per-call transform over a turn's draft text. Registered at
  *  `entry/compose` into the pipeline's transform list; applied in ascending `order` (automation registers
  *  0–999, plugins 1000+ — host policy wraps guest). Each `apply` is deadline-bounded by the CALLER (250 ms);
@@ -419,6 +423,8 @@ export interface PromptTransform {
   readonly point: PromptTransformPoint;
   readonly order: number;
   readonly apply: (draft: string, env: PromptTransformEnv) => Promise<PromptTransformOutcome>;
+  /** The transform logs its own thrown failures, so the registry's skip warning does not repeat a throw. */
+  readonly logsOwnFailures?: true;
 }
 
 /** The entity kinds whose OWNER-PLANE edits reach a room's member-visible projections (the entity→room

@@ -17,7 +17,8 @@
 import type { PluginId } from "@orb/kit/ids";
 import type { PluginLifecycleLanes } from "../contract/ops.ts";
 import type { CrashPolicy, PluginContext } from "../contract/service.ts";
-import { incrementCrashes, resetCrashes, setLastError, setStatus } from "../persistence/plugins.ts";
+import { getById, incrementCrashes, resetCrashes, setLastError, setStatus } from "../persistence/plugins.ts";
+import { logPluginFailure } from "../substrate/failure-log.ts";
 
 /** Consecutive guest-invocation crashes before a resident plugin auto-disables. A LEAN — the
  *  resolution criterion is measured abuse or measured legitimate flakiness, whichever arrives first. */
@@ -40,6 +41,8 @@ export function createCrashPolicy(ctx: PluginContext, deactivate: (pluginId: Plu
           // "your plugin was disabled" rows for one disable. Tested against `>=`, not `===`: a threshold LOWERED
           // by a deploy must still disable a row already parked above it.
           if (previous < PLUGIN_CRASH_DISABLE_THRESHOLD) {
+            const row = await getById(ctx.db, recipientUserId, pluginId);
+            logPluginFailure(row?.slug ?? pluginId, "auto-disabled", `${count} consecutive crashes; last: ${error}`);
             // "the owner is notified" — the closed `plugin-disabled` member (recipient = the installing
             // owner; a human, an agent has no inbox). Rides the SAME injected notifications emit an automation
             // action uses (one durable-first inbox path — never a re-rolled delivery).

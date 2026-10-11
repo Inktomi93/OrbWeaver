@@ -14,6 +14,8 @@ import { pluginToolWireName } from "@orb/contracts/plugin";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { globalMacroRegistry, processMacros } from "@orb/kit/macro";
+import { logger } from "@orb/server/foundation/observability";
+import { vi } from "vitest";
 import type { PluginInvokeHandler } from "../../../../../packages/server/src/domain/plugin/contract/ops.ts";
 import { createPluginMacroRegistry, PLUGIN_MACROS_MAX, pluginMacroName } from "../../../../../packages/server/src/domain/plugin/substrate/plugin-macros.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -157,8 +159,12 @@ test('a THROWING resolver degrades that macro to "" — the turn is never eaten'
   const registry = createPluginMacroRegistry();
   const { invoke } = invoker({ [HANDLER]: () => Promise.reject(new Error("guest blew up")) });
   registry.register({ installer: ALICE, slug: "oracle", macros: [{ name: "draw", description: "", handler: HANDLER }], invoke });
+  const warnSpy = vi.spyOn(logger, "warn");
 
   const defs = await registry.resolveForTurn(ALICE, CHAT);
+  // The rejection is logged by the resident `invoke`; the registry must not log it again.
+  expect(warnSpy).not.toHaveBeenCalled();
+  warnSpy.mockRestore();
   // The macro is still REGISTERED (with an empty body) rather than dropped: a dropped name re-emits its raw
   // `{{…}}` bytes into the assembled prompt, which is worse than rendering nothing.
   expect(defs).toHaveLength(1);
@@ -169,9 +175,16 @@ test("a HANGING resolver is bounded by the assembly deadline and degrades the sa
   const registry = createPluginMacroRegistry(() => 20);
   const { invoke } = invoker({ [HANDLER]: () => new Promise<string>(() => undefined) });
   registry.register({ installer: ALICE, slug: "oracle", macros: [{ name: "draw", description: "", handler: HANDLER }], invoke });
+  const warnSpy = vi.spyOn(logger, "warn");
+  const errorSpy = vi.spyOn(logger, "error");
 
   const defs = await registry.resolveForTurn(ALICE, CHAT);
   expect(defs[0]?.body).toBe("");
+  // The overrun is a plugin failure: exactly one line, naming the plugin and the kind.
+  const lines = [...warnSpy.mock.calls, ...errorSpy.mock.calls];
+  warnSpy.mockRestore();
+  errorSpy.mockRestore();
+  expect(lines.map(([fields]) => fields)).toEqual([expect.objectContaining({ pluginSlug: "oracle", kind: "macro-deadline" })]);
 });
 
 test("LAW 7 — a guest answer carrying macro syntax is NEUTRALIZED before it becomes a body", async () => {

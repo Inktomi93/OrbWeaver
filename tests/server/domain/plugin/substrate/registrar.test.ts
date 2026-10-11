@@ -8,7 +8,9 @@ import type { PromptTransformEnv } from "@orb/contracts/chat";
 import type { PluginHandlerRef, PluginTransformRegistration } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe } from "vitest";
+import { logger } from "@orb/server/foundation/observability";
+import { describe, vi } from "vitest";
+import { createPromptTransformRegistry } from "../../../../../packages/server/src/domain/chat/substrate/prompt-transforms.ts";
 import { buildPluginPromptTransform, capFactContent } from "../../../../../packages/server/src/domain/plugin/substrate/registrar.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -51,6 +53,7 @@ describe("buildPluginPromptTransform — the §6 host-gate + guest re-entry", ()
   test("carries the caller-assigned id/point/order (the plugin band is compose's to assign)", () => {
     const t = buildPluginPromptTransform(reg, {
       id: "plugin:mood:shout:0",
+      slug: "mood",
       order: 1000,
       isInstallerHost: () => Promise.resolve(true),
       invoke: () => Promise.resolve("x"),
@@ -64,6 +67,7 @@ describe("buildPluginPromptTransform — the §6 host-gate + guest re-entry", ()
     let invoked = 0;
     const t = buildPluginPromptTransform(reg, {
       id: "t",
+      slug: "mood",
       order: 1000,
       isInstallerHost: () => Promise.resolve(false),
       invoke: () => {
@@ -80,6 +84,7 @@ describe("buildPluginPromptTransform — the §6 host-gate + guest re-entry", ()
     const seen: string[] = [];
     const t = buildPluginPromptTransform(reg, {
       id: "t",
+      slug: "mood",
       order: 1000,
       isInstallerHost: () => Promise.resolve(true),
       invoke: (handler, argsJson) => {
@@ -91,5 +96,39 @@ describe("buildPluginPromptTransform — the §6 host-gate + guest re-entry", ()
 
     expect(await t.apply("hi", env)).toBe("SHOUTED");
     expect(JSON.parse(seen[0] ?? "{}")).toEqual({ draft: "hi", env: { chatId: CHAT, vars: { tension: "3" } } });
+  });
+
+  test("a deadline that fires during the host read is still logged once as a prompt-deadline failure", async () => {
+    const registry = createPromptTransformRegistry(
+      () => Promise.resolve(),
+      () => 30,
+    );
+    const invoked: string[] = [];
+    registry.register(
+      buildPluginPromptTransform(reg, {
+        id: "t",
+        slug: "mood",
+        order: 1000,
+        isInstallerHost: () => new Promise((resolve) => setTimeout(() => resolve(true), 60)),
+        invoke: (_handler, argsJson) => {
+          invoked.push(argsJson);
+          return Promise.resolve("SHOUTED");
+        },
+      }),
+    );
+    const warnSpy = vi.spyOn(logger, "warn");
+    const errorSpy = vi.spyOn(logger, "error");
+    try {
+      const result = await registry.apply("assembled_dynamic", CHAT, "hi", {});
+      // The host read outlives the deadline, so the draft stands and the guest is never entered.
+      expect(result).toEqual({ aborted: false, text: "hi" });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(invoked).toEqual([]);
+      const lines = [...warnSpy.mock.calls, ...errorSpy.mock.calls].map(([fields]) => fields);
+      expect(lines).toEqual([expect.objectContaining({ pluginSlug: "mood", kind: "prompt-deadline" })]);
+    } finally {
+      warnSpy.mockRestore();
+      errorSpy.mockRestore();
+    }
   });
 });
