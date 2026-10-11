@@ -27,7 +27,7 @@ export interface AssetMetadata {
   readonly mime: string;
   readonly size: number;
   /** The actual CAS owner; present only on roster-avatar exceptions (asset owned by a co-participant). */
-  readonly ownerId?: string;
+  readonly ownerId?: UserId;
 }
 
 // Structurally mirrors @orb/contracts/portability's PortableFile/PortableImportOutcome so the entry root can
