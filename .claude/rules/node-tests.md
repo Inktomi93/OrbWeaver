@@ -9,6 +9,10 @@ paths:
 
 Read a suite's result from its own output file. `AGENTS.md` owns the piping rule.
 
+## Tests run the product
+
+Follow `docs/law/Spine-Testing.md` §10. Call production, derive types, import constants, and mount the real door. Never copy product logic, registries or wire shapes into a test.
+
 ## Fixtures and timeouts
 
 - A `test.extend` fixture's first parameter must be object-destructured. A bare `(ctx)` parameter throws

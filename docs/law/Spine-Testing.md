@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-09
+updated: 2026-10-11
 ---
 
 # Orbweaver — Spine: Testing
@@ -294,6 +294,20 @@ kill-tests for a survivor list.
 sentinels** (`stryker.config.js` — currently the runtime-string-key and shipped-inversion classes: chat
 stats-delta, stats rebuild-from-canon, chat canon-write, chat memory recall). Promoting a sentinel into the
 gate requires a fresh calibration run, because `break` is bound to the measured set.
+
+## 10. Tests run the product
+
+A test proves what ships. Helpers, stories and fixtures must follow a product change without edits.
+
+- **Call production; never copy it.** A harness, fixture or story calls the production function, query, predicate, reducer or default. If the rule is private to a compose closure or a `.tsx` file, export it or move it to `@orb/contracts` or `@orb/kit` first. A test-side copy of production logic is a defect.
+- **Derive types.** Take wire and row shapes from the contract, `inferOutput`, `TrpcInput`, `TrpcWireOutput` or the `AppRouter` type. Never hand-declare a shape production owns. Cast only to feed a refusal path bad input, with the reason beside the cast.
+- **Import constants.** Labels, ids, defaults, limits, tokens, timings and contrast floors come from their production home. If a CT cannot import a `.tsx` value, move the value to a zero-import `.ts` module.
+- **Seed through real builders.** Write rows through the production verb or a factory in `tests/support/factories`. Never mint a state production cannot produce.
+- **Mount the real door.** CT harnesses and stories build every registry from the production list, in production order: config sections, tool renderers, chat surfaces, home tiles, chrome widgets, slash commands and palette sources. Stories mount the real surface and stub only the network edge. A story never re-implements product wiring.
+- **Snapshot the product.** Build an aria or text snapshot from what production renders, never from a hand-listed roster.
+- **Smoke the running app.** e2e specs drive the real stack on a copy of the owner's container data for the core flows.
+- **Share setup.** Move repeated setup to a builder in the same file or in `tests/support`. Split a test file by concern before it is too large to review.
+- **A mirror is an import, not a filename.** A mirrored test imports its module and exercises its exports. A file at the mirrored path proves only that the file exists.
 
 ## Esoterica (must-preserve facts)
 
