@@ -1,8 +1,8 @@
 // Which product modules the test tree reaches (docs/law/Spine-Testing.md §5). A test reaches a module when the
 // test, or a test-tree helper it imports (a story, a harness, a fixture), names one of the module's value
-// exports through an import, a re-export, a barrel chain, a dynamic import or a `vi.mock` literal, or when the
-// test declares the module in an `@subject` header. Reach stops at the first product module: a composition
-// root that wires a verb reaches the root, never the verb.
+// exports through an import, a re-export, a barrel chain or a dynamic import, or when the test declares the
+// module in an `@subject` header. A module the same file mocks is faked, so a binding imported from it is not
+// reach. Reach stops at the first product module: a composition root that wires a verb reaches the root.
 import { posix } from "node:path";
 import type { ExportDeclaration, ImportDeclaration, Node as MorphNode, Symbol as MorphSymbol, SourceFile, TypeChecker } from "ts-morph";
 import { Node, SyntaxKind, ts } from "ts-morph";
@@ -11,8 +11,8 @@ import { classifyTestFilename } from "../../floor/testing/test-kinds.ts";
 
 const TEST_ROOT = "tests/";
 const SUBJECT_RE = /@subject[\t ]+(\S+)/gu;
-/** `vi` members whose first argument is a module specifier the runner resolves. */
-const VI_MODULE_MEMBERS: ReadonlySet<string> = new Set(["mock", "doMock", "unmock", "doUnmock", "importActual", "importMock"]);
+/** `vi` members that replace a module's exports for the file that calls them. */
+const VI_MOCK_MEMBERS: ReadonlySet<string> = new Set(["mock", "doMock"]);
 /** The root `package.json` imports map: `#<package>/<path>` is `packages/<package>/src/<path>`. */
 const SUBPATH_IMPORT_RE = /^#([a-z][a-z-]*)\/(.+)$/u;
 const SPECIFIER_SUFFIXES: readonly string[] = ["", ".ts", ".tsx", "/index.ts", "/index.tsx"];
@@ -106,6 +106,9 @@ class Walker {
     const declarations: readonly (ImportDeclaration | ExportDeclaration)[] =
       file === undefined ? [] : [...file.getImportDeclarations(), ...file.getExportDeclarations()];
     const helpers = declarations.flatMap((declaration) => {
+      if (declaration.isTypeOnly()) {
+        return [];
+      }
       const target = this.pathOf(declaration.getModuleSpecifierSourceFile());
       return target?.startsWith(TEST_ROOT) === true ? [target] : [];
     });
@@ -122,9 +125,10 @@ class Walker {
     const out = new Set<string>();
     const file = this.fileByPath.get(path);
     if (file !== undefined) {
-      this.collectImports(file, out);
+      const mocked = this.mockedModules(file);
+      this.collectImports(file, mocked, out);
       this.collectReExports(file, out);
-      this.collectModuleLiterals(file, out);
+      this.collectDynamicImports(file, mocked, out);
     }
     this.referenceCache.set(path, out);
     return out;
@@ -164,25 +168,48 @@ class Walker {
     }
   }
 
-  private collectImports(file: SourceFile, out: Set<string>): void {
-    for (const declaration of file.getImportDeclarations()) {
-      if (declaration.isTypeOnly()) {
+  /** The modules this file replaces with `vi.mock`/`vi.doMock`; what it imports from them is a fake. */
+  private mockedModules(file: SourceFile): ReadonlySet<SourceFile> {
+    const mocked = new Set<SourceFile>();
+    for (const call of file.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+      const callee = call.getExpression();
+      const [argument] = call.getArguments();
+      if (argument === undefined || !Node.isStringLiteral(argument) || !Node.isPropertyAccessExpression(callee)) {
         continue;
       }
-      const defaultImport = declaration.getDefaultImport();
-      if (defaultImport !== undefined) {
-        this.addSymbol(defaultImport.getSymbol(), out);
+      if (callee.getExpression().getText() !== "vi" || !VI_MOCK_MEMBERS.has(callee.getName())) {
+        continue;
       }
-      for (const specifier of declaration.getNamedImports()) {
-        if (!specifier.isTypeOnly()) {
-          this.addSymbol((specifier.getAliasNode() ?? specifier.getNameNode()).getSymbol(), out);
-        }
+      const module = this.moduleOfLiteral(file, argument.getLiteralText(), undefined);
+      if (module !== undefined) {
+        mocked.add(module);
       }
-      const namespace = declaration.getNamespaceImport();
+    }
+    return mocked;
+  }
+
+  private collectImports(file: SourceFile, mocked: ReadonlySet<SourceFile>, out: Set<string>): void {
+    for (const declaration of file.getImportDeclarations()) {
       const module = declaration.getModuleSpecifierSourceFile();
-      if (namespace !== undefined && module !== undefined) {
-        this.addExportsNamed(module, namespaceMembers(file, namespace.getText()), out);
+      if (!(declaration.isTypeOnly() || (module !== undefined && mocked.has(module)))) {
+        this.collectImport(file, declaration, module, out);
       }
+    }
+  }
+
+  private collectImport(file: SourceFile, declaration: ImportDeclaration, module: SourceFile | undefined, out: Set<string>): void {
+    const defaultImport = declaration.getDefaultImport();
+    if (defaultImport !== undefined) {
+      this.addSymbol(defaultImport.getSymbol(), out);
+    }
+    for (const specifier of declaration.getNamedImports()) {
+      if (!specifier.isTypeOnly()) {
+        this.addSymbol((specifier.getAliasNode() ?? specifier.getNameNode()).getSymbol(), out);
+      }
+    }
+    const namespace = declaration.getNamespaceImport();
+    if (namespace !== undefined && module !== undefined) {
+      this.addExportsNamed(module, namespaceMembers(file, namespace.getText()), out);
     }
   }
 
@@ -205,26 +232,20 @@ class Walker {
     }
   }
 
-  /** `import("x")` and `vi.mock("x")`: the specifier is the edge, so the module itself counts. A destructured
-   *  dynamic import also resolves its names, which carries reach through a barrel. */
-  private collectModuleLiterals(file: SourceFile, out: Set<string>): void {
+  /** `import("x")`: the specifier is the edge, so the module itself counts. A destructured dynamic import also
+   *  resolves its names, which carries reach through a barrel. */
+  private collectDynamicImports(file: SourceFile, mocked: ReadonlySet<SourceFile>, out: Set<string>): void {
     for (const call of file.getDescendantsOfKind(SyntaxKind.CallExpression)) {
       const [argument] = call.getArguments();
-      if (argument === undefined || !Node.isStringLiteral(argument)) {
+      if (argument === undefined || !Node.isStringLiteral(argument) || call.getExpression().getKind() !== SyntaxKind.ImportKeyword) {
         continue;
       }
-      const callee = call.getExpression();
-      if (callee.getKind() === SyntaxKind.ImportKeyword) {
-        const module = this.moduleOfLiteral(file, argument.getLiteralText(), argument);
-        this.addModule(module, out);
-        if (module !== undefined) {
-          this.addExportsNamed(module, destructuredNames(call), out);
-        }
+      const module = this.moduleOfLiteral(file, argument.getLiteralText(), argument);
+      if (module === undefined || mocked.has(module)) {
         continue;
       }
-      if (Node.isPropertyAccessExpression(callee) && callee.getExpression().getText() === "vi" && VI_MODULE_MEMBERS.has(callee.getName())) {
-        this.addModule(this.moduleOfLiteral(file, argument.getLiteralText(), undefined), out);
-      }
+      this.addModule(module, out);
+      this.addExportsNamed(module, destructuredNames(call), out);
     }
   }
 

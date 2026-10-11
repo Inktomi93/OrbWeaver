@@ -1,5 +1,5 @@
 // Reviewed grants: test-reach — server domain verbs. Each row is a module no test reached when the reach rule replaced
-// the file mirror (docs/law/Spine-Testing.md §5); the burn-down is docs/work item 899. Delete a row when a test
+// the file mirror (docs/law/Spine-Testing.md §5); the burn-down is docs/work item 915. Delete a row when a test
 // reaches its module; central liveness reds a row whose module is reached.
 import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 import { testReachGrants } from "./reviewed-grants-test-reach-rows.ts";

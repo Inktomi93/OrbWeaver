@@ -11,6 +11,6 @@ export function testReachGrants(surface: string, modules: readonly string[]): re
     subject,
     operation: `unreached:${surface}`,
     why: `${subject} was reached by no test of the kind its ${surface} surface owes when presence became reach; the tests near it reach it only through a composition root, a sibling module or a type import.`,
-    endsWhen: `a test imports ${subject} and uses one of its exports, or names it in an @subject header (burn-down: docs/work item 899); this row then consumes nothing and reds stale.`,
+    endsWhen: `a test imports ${subject} and uses one of its exports, or names it in an @subject header (burn-down: docs/work item 915); this row then consumes nothing and reds stale.`,
   }));
 }

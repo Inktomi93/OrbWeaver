@@ -1,5 +1,5 @@
 // Gate: contract-verb-presence (docs/law/Spine-Testing.md §5) — the INTERFACE-level complement to
-// `test-presence`'s FILE-mirror rule: it catches a method a `*Service` interface DECLARES but no test
+// `test-reach`'s MODULE reach rule: it catches a method a `*Service` interface DECLARES but no test
 // ever invokes (wired into the contract with zero behavioral coverage). Enumerates every exported
 // `*Service` interface's members per `domain/<d>/contract/service.ts` and requires a boundary-anchored
 // service call `<service>.<verb>(` or its `create<Verb>(` factory call in domain tests. COMMENT POSTURE:
