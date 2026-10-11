@@ -204,17 +204,29 @@ test("flipping the scope to This chat routes the SAME row to persona.setActivePe
   expect(trpc.count(SEED_PROC)).toBe(0);
 });
 
-test("under the This-chat scope the MARKED row is the chat's active persona, not the global pointer", async ({ mount, page }) => {
-  // The chat plays ORION while the seed points at NOVA — the two lenses must disagree, visibly.
+test("in a room the playing-as check marks the seat persona under either scope, not the global pointer", async ({ mount, page }) => {
+  // The seed points at NOVA while the room's seat persona is ORION (a swap made in the room): the check
+  // follows the seat — what preset text and the viewer's lines use — whatever Applies says.
   await stub(page, { "chat.getChat": () => ({ ...CHAT, viewerActivePersonaId: ORION }) });
   await stubAuth(page);
   await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
   await openPopover(page);
 
-  await expect(page.getByRole("button", { name: "Nova — current persona" })).toBeAttached();
+  // Everywhere is the default scope.
+  await expect(rowOf(page, "Orion").getByRole("img", { name: PLAYING, exact: true })).toBeVisible();
+  await expect(rowOf(page, "Nova").getByRole("img", { name: PLAYING, exact: true })).toHaveCount(0);
   await pickScope(page, "This chat");
-  await expect(page.getByRole("button", { name: "Orion — current persona" })).toBeAttached();
-  await expect(page.getByRole("button", { name: "Switch to Nova", exact: true })).toBeAttached();
+  await expect(rowOf(page, "Orion").getByRole("img", { name: PLAYING, exact: true })).toBeVisible();
+  await expect(page.getByRole("img", { name: PLAYING, exact: true })).toHaveCount(1);
+});
+
+test("with Everywhere scope a switch still writes the seed pointer, even to the persona the room already plays", async ({ mount, page }) => {
+  const trpc = await stub(page, { "chat.getChat": () => ({ ...CHAT, viewerActivePersonaId: ORION }) });
+  await stubAuth(page);
+  await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
+  await openPopover(page);
+  await page.getByRole("button", { name: "Orion — current persona" }).dispatchEvent("click");
+  await expect.poll(() => trpc.lastInput(SEED_PROC), { intervals: [20, 50, 100] }).toMatchObject({ section: "seeds", patch: { currentPersonaId: ORION } });
 });
 
 test("re-attribute fires chat.reattributePersona with the server-resolved {kind:'mine'} scope", async ({ mount, page }) => {
@@ -377,15 +389,14 @@ test("a row's Edit door closes the popover and lands in that persona's open, foc
 // ── The three persona states, one marker each ───────────────────────────────────────────────────────
 
 const ZARA = "persona_zara";
+const PLAYING = "Playing as";
+const CARD_PIN = "Pinned to this chat";
+const DEFAULT_PIN = "Pinned — your default persona";
 
 /** The switch row holding the control named `persona` (its stretched button is the row's direct child). */
 function rowOf(page: Page, persona: string): Locator {
   return page.getByRole("button", { name: new RegExp(`^(Switch to ${persona}|${persona} — current persona)$`) }).locator("..");
 }
-
-const PLAYING = "Playing as";
-const CARD_PIN = "Pinned to this chat";
-const DEFAULT_PIN = "Pinned — your default persona";
 
 test("after a swap the playing-as and card-pin markers sit on different rows, each state shown once", async ({ mount, page }) => {
   // Nova is the global default; the chat opened as Lyra (the anchor) and was swapped to Orion for this room.
@@ -449,4 +460,15 @@ test("a non-host sees the card-pin room line but no Re-pin", async ({ mount, pag
   await openPopover(page);
   await expect(page.getByText("Card sees you as Zara")).toBeVisible();
   await expect(page.getByRole("button", { name: "Re-pin" })).toHaveCount(0);
+});
+
+test("expanding a persona's editor with its chevron does not move focus", async ({ mount, page }) => {
+  await stub(page, { "chat.getChat": () => CHAT });
+  await stubAuth(page);
+  await mount(<PersonaEditDoorStory />);
+  const chevron = page.getByRole("button", { name: "Show details for Lyra", exact: true });
+  await chevron.click();
+  await expect(page.getByRole("group", { name: "Edit Lyra", exact: true })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Edit Lyra", exact: true })).not.toBeFocused();
+  await expect(page.getByRole("button", { name: "Hide details for Lyra", exact: true })).toBeFocused();
 });

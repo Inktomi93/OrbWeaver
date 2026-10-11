@@ -38,7 +38,8 @@ export interface PersonaSwitchListProps {
   readonly defaultId: string | null;
   /** The persona pinned to THIS chat — the card's `{{user}}` — while a room is open; `null` otherwise. */
   readonly cardPinId: string | null;
-  /** Switch to this persona under the caller's scope. Never fired for the current row (its arm is state). */
+  /** Switch to this persona under the caller's scope. Also fired for the marked row: the scope may write a
+   *  different pointer than the one the mark reads, so the caller decides whether it is a no-op. */
   readonly onSwitch: (persona: PersonaListItem) => void;
   /** Write `seeds.defaultPersonaId` to this persona (the pin). */
   readonly onPin: (persona: PersonaListItem) => void;
@@ -112,7 +113,7 @@ function SwitchRow({
         aria-label={isCurrent ? `${subject} — current persona` : `Switch to ${subject}`}
         className="absolute inset-0 rounded-control"
         intent="ghost"
-        {...(isCurrent ? {} : { onClick: onSwitch })}
+        onClick={onSwitch}
       />
       {/* Ornament over the stretched button (`relative` paints it above the button's hover fill, so the name
           never disappears under it) — the row's one control already names the persona. */}

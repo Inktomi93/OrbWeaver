@@ -20,6 +20,7 @@ import type { Trpc } from "#data";
 import { useInvalidation, usePromptMacroSuggestions, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { ASSISTANT_PREFILL_WARNING, MESSAGE_ROLE_ITEMS } from "#lib";
+import { takePersonaEditorFocus } from "#state";
 import { PersonaForm } from "../hooks/use-persona-form.ts";
 import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations.ts";
 import type { PersonaFormValues } from "../lib/persona-editor-model.ts";
@@ -70,15 +71,19 @@ export function PersonaEditor({ persona, onRequestDelete }: PersonaEditorProps):
   );
 }
 
-/** The editor inside its named, bordered row panel. Focus lands on it as it mounts, so a deep link (the
- *  switcher's Edit door) opens the editor AND moves the keyboard into it. */
+/** The editor inside its named, bordered row panel. Focus lands on it as it mounts only when the switcher's
+ *  Edit door opened it (`takePersonaEditorFocus`); a chevron expand leaves focus where it is. */
 export function PersonaEditorRegion({ persona, subject, onRequestDelete }: PersonaEditorProps & { readonly subject: string }): ReactElement {
   return (
     <Stack
       aria-label={`Edit ${subject}`}
       className="rounded-base border border-border p-block outline-none"
       gap="section"
-      ref={(node): void => node?.focus()}
+      ref={(node): void => {
+        if (node !== null && takePersonaEditorFocus(persona.id)) {
+          node.focus();
+        }
+      }}
       role="group"
       tabIndex={-1}
     >

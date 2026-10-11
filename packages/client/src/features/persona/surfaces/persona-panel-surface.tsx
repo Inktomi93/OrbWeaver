@@ -110,7 +110,17 @@ function PanelBody({ presentation }: PersonaPanelSurfaceProps): ReactElement {
   const current = resolveCurrentPersona(personas, seeds);
   const notifyOnChange = settings.config.persona.showNotifications;
 
+  // In a room, who is playing is the SEAT persona (what preset text and your lines use), whatever Applies
+  // says; Applies only picks what the next switch writes. With no room open it is the global pointer.
+  const seatId = chatOpen ? chat.viewerActivePersonaId : null;
+  const playing = (seatId === null ? undefined : personas.find((p) => p.id === seatId)) ?? current;
+  const currentId = chatOpen ? seatId : (current?.id ?? null);
+
   const onSwitch = (persona: PersonaListItem): void => {
+    // The marked row is not always the one the scope would write, so a no-op write is skipped here.
+    if (persona.id === (scope === "chat" ? seatId : current?.id)) {
+      return;
+    }
     if (scope === "chat" && chatId !== null) {
       setActive.mutate(
         { chatId, personaId: persona.id },
@@ -130,14 +140,9 @@ function PanelBody({ presentation }: PersonaPanelSurfaceProps): ReactElement {
     setSeed.mutate({ section: "seeds", patch: { defaultPersonaId: persona.id } });
   };
 
-  // Under the This-chat scope the marked row is the CHAT's active persona — the row the switch would
-  // actually displace — not the global pointer.
-  const chatActiveId = chatOpen ? chat.viewerActivePersonaId : null;
-  const currentId = scope === "chat" ? chatActiveId : (current?.id ?? null);
-
   const sections: ReactNode = (
     <Stack gap="row">
-      <WhoHead current={current} />
+      <WhoHead current={playing} />
       <Separator />
       <Stack gap="field">
         <Text voice="kicker">Switch persona</Text>
