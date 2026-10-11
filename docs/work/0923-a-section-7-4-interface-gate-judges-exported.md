@@ -24,3 +24,5 @@ The sibling gate runs with a planted failing and passing control and a waiver bu
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Sites from the item 900 lane (no-inline-wire-interface waivers that are not wire): hook results packages/client/src/data/use-open-refinery.ts:79, data/use-start-chat.ts:54, features/chat/hooks/use-composer-utilities.ts:49, use-continue-turn.ts:46, use-generate-image.ts:29, use-guided-actions.ts:127, use-send-message.ts:43, use-stop-turn.ts:32, features/roster-preset/hooks/use-start-roster.ts:15; compose bundles packages/server/src/entry/compose/admin.ts:59, assets-character.ts:87, automation-plugin.ts:191, chat.ts:262, chat.ts:354, databank.ts:61, portability-runner.ts:105, regex.ts:88, rpg.ts:336, search-discovery.ts:117, services.ts:271, world-info.ts:61; local inputs client/src/features/chat/lib/composer-send-keys.ts:7, client/src/components/face-strip-fold.ts:20, server/src/infra/storage/cas.ts:33.
