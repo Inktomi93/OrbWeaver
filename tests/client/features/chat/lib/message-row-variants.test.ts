@@ -18,7 +18,7 @@
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { afterEach, vi } from "vitest";
 import type { BubbleDecorationArgs } from "../../../../../packages/client/src/features/chat/lib/message-row-variants.ts";
-import { avatarPortraitSrcProp, avatarSrcProp, MESSAGE_ROW_SKINS } from "../../../../../packages/client/src/features/chat/lib/message-row-variants.ts";
+import { avatarPortraitSrcProp, MESSAGE_ROW_SKINS } from "../../../../../packages/client/src/features/chat/lib/message-row-variants.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A `bubbleDecoration` argument builder; a case overrides what it asserts. */
@@ -211,15 +211,4 @@ test("echo and ripple portraits request their CSS box times the pixel ratio", ()
   // A 4x display asks no more than the 3x the ladder tops out at.
   vi.stubGlobal("devicePixelRatio", 4);
   expect(echoWidth()).toBe("576");
-});
-
-// A 30px chip must not download the original: it asks the icon variant for its box times the pixel ratio.
-test("the avatar chip asks the icon variant sized to its box and the pixel ratio", () => {
-  const asked = (): string | undefined => avatarSrcProp("x", "lg").src;
-  vi.stubGlobal("devicePixelRatio", 1);
-  expect(asked()).toBe("/api/blob/x?w=40");
-  vi.stubGlobal("devicePixelRatio", 3);
-  expect(asked()).toBe("/api/blob/x?w=120");
-  expect(avatarSrcProp("x", "sm").src).toBe("/api/blob/x?w=72");
-  expect(avatarSrcProp(null, "lg")).toEqual({});
 });

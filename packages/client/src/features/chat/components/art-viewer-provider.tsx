@@ -3,19 +3,21 @@
 
 import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
-import type { ArtToView, OpenArtViewer } from "../hooks/art-viewer-context.tsx";
+import type { ArtToView, ArtViewer } from "../hooks/art-viewer-context.tsx";
 import { ArtViewerContext } from "../hooks/art-viewer-context.tsx";
 import { GalleryLightbox } from "./gallery-lightbox.tsx";
 
 export function ArtViewerProvider({ children }: { readonly children: ReactNode }): ReactElement {
   const [art, setArt] = useState<ArtToView | null>(null);
   const openerRef = useRef<HTMLElement | null>(null);
-  const open: OpenArtViewer = (next, opener) => {
-    openerRef.current = opener;
-    setArt(next);
+  const viewer: ArtViewer = {
+    open: (next, opener) => {
+      openerRef.current = opener;
+      setArt(next);
+    },
   };
   return (
-    <ArtViewerContext value={open}>
+    <ArtViewerContext value={viewer}>
       {children}
       <GalleryLightbox
         image={art}

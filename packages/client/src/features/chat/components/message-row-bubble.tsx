@@ -50,7 +50,7 @@ function whisperBand(headerBand: NonNullable<BubbleDecoration["headerBand"]>, vi
     <Stack
       aria-hidden={view === null ? "true" : undefined}
       data-slot="message-band"
-      className={cn("relative rounded-t-card", headerBand.className)}
+      className={cn("relative rounded-t-card", view !== null && "hover:opacity-80", headerBand.className)}
       style={headerBand.style}
     >
       {view === null ? null : artViewButton(view)}
@@ -69,12 +69,16 @@ function echoArtTile(art: NonNullable<BubbleDecoration["art"]>, view: ArtView | 
       aria-hidden={view === null ? "true" : undefined}
       className={cn(
         "absolute top-0 aspect-(--aspect-portrait) max-h-full @max-md:aspect-auto @max-md:h-(--immersive-echo-art-height-phone)",
-        view === null && "pointer-events-none",
+        view === null ? "pointer-events-none" : "group/art",
         art.side === "left" ? "left-0" : "right-0",
       )}
       style={{ width }}
     >
-      <Stack data-slot="message-echo-art" className={cn("absolute inset-0 bg-center bg-cover bg-no-repeat", rounding)} style={paint} />
+      <Stack
+        data-slot="message-echo-art"
+        className={cn("absolute inset-0 bg-center bg-cover bg-no-repeat", view !== null && "group-hover/art:opacity-80", rounding)}
+        style={paint}
+      />
       {view === null ? null : artViewButton(view, rounding)}
     </Stack>
   );

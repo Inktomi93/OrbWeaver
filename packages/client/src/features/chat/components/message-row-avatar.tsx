@@ -7,7 +7,7 @@ import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import type { ReactElement } from "react";
 import { cn, viewImageActionName } from "#lib";
-import type { OpenArtViewer } from "../hooks/art-viewer-context.tsx";
+import type { ArtViewer } from "../hooks/art-viewer-context.tsx";
 import type { RowAttribution } from "../lib/attribution.ts";
 import type { BubbleDecorationArgs, RowSkin } from "../lib/message-row-variants.ts";
 import { avatarPortraitSrcProp, avatarSrcProp } from "../lib/message-row-variants.ts";
@@ -51,7 +51,7 @@ export function renderRowAvatar(args: {
   readonly gutterRail: "none" | "leading" | "trailing";
   readonly imageUrlFor?: BubbleDecorationArgs["imageUrlFor"];
   /** The transcript's art viewer; null outside one, which leaves the avatar plain paint. */
-  readonly viewArt: OpenArtViewer | null;
+  readonly viewArt: ArtViewer | null;
 }): ReactElement | null {
   if (args.attribution.name === null || !args.showInChatAvatars) {
     return null;
@@ -79,7 +79,7 @@ export function renderRowAvatar(args: {
       fallbackDelay={0}
       hueSeed={args.attribution.hueSeed}
       {...(target === null && chipClass !== "" ? { className: chipClass } : {})}
-      {...(args.imageUrlFor === undefined ? avatarSrcProp(args.attribution.avatarHash, args.avatarSize) : { src: args.imageUrlFor("icon") })}
+      {...(args.imageUrlFor === undefined ? avatarSrcProp(args.attribution.avatarHash) : { src: args.imageUrlFor("icon") })}
     >
       {initialsFor(args.attribution.name)}
     </Avatar>
@@ -88,7 +88,7 @@ export function renderRowAvatar(args: {
 }
 
 /** The tap target for echo's tile or whisper's band: the speaker's own art, opened in the transcript's viewer. */
-export function artViewFor(viewArt: OpenArtViewer | null, attribution: RowAttribution): ArtView | null {
+export function artViewFor(viewArt: ArtViewer | null, attribution: RowAttribution): ArtView | null {
   if (attribution.name === null) {
     return null;
   }
@@ -101,13 +101,13 @@ export function artViewFor(viewArt: OpenArtViewer | null, attribution: RowAttrib
 
 /** What a tap on a speaker's art opens: the blob and the name it is titled with. Null leaves the art plain paint. */
 interface ViewTarget {
-  readonly open: OpenArtViewer;
+  readonly open: ArtViewer["open"];
   readonly hash: string;
   readonly name: string;
 }
 
-function viewTargetFor(viewArt: OpenArtViewer | null, hash: string | null, name: string): ViewTarget | null {
-  return viewArt === null || hash === null ? null : { open: viewArt, hash, name };
+function viewTargetFor(viewArt: ArtViewer | null, hash: string | null, name: string): ViewTarget | null {
+  return viewArt === null || hash === null ? null : { open: viewArt.open, hash, name };
 }
 
 // `media` sizes the button from its child, so the avatar keeps its own box and the button adds only the press.

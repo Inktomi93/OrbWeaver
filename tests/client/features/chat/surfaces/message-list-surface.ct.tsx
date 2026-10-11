@@ -445,6 +445,18 @@ test.describe("the art viewer and its controls, desktop", () => {
         return box === null ? Number.POSITIVE_INFINITY : box.y + box.height;
       })
       .toBeLessThanOrEqual(800);
+    // Height limits a portrait, so the frame is sized by height: its box matches the image's own aspect, with
+    // no grey bars either side.
+    const natural = await dialog
+      .locator("img")
+      .first()
+      .evaluate((img: HTMLImageElement) => img.naturalWidth / img.naturalHeight);
+    await expect
+      .poll(async () => {
+        const box = await frame.boundingBox();
+        return box === null ? 0 : Math.abs(box.width / box.height - natural);
+      })
+      .toBeLessThan(0.02);
   });
 
   for (const chatStyle of ["echo", "whisper"] as const) {
@@ -478,6 +490,10 @@ test.describe("the art viewer and its controls, desktop", () => {
       await chip.hover();
       await expect(chip).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
       await expect(chip).toHaveCSS("cursor", "pointer");
+      // The art dims on hover as the chip does: echo's tile, whisper's band.
+      await art.hover();
+      const painted = component.locator(chatStyle === "echo" ? '[data-slot="message-echo-art"]' : '[data-slot="message-band"]').last();
+      await expect(painted).toHaveCSS("opacity", "0.8");
     });
   }
 });

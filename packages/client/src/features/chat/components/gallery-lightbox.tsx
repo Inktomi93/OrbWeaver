@@ -70,13 +70,17 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
       }}
       onOpenChangeComplete={onSettled}
     >
-      <DialogPopup size="lg" initialFocus={closeRef} finalFocus={finalFocus}>
+      <DialogPopup size="xl" initialFocus={closeRef} finalFocus={finalFocus}>
         {image === null ? null : (
-          <Stack gap="block" className="min-h-0">
+          <Stack gap="block" className="min-h-0 flex-1">
             <DialogTitle>{image.name}</DialogTitle>
-            {/* The frame follows the image's own aspect: as wide as the dialog, as tall as the viewport leaves it. */}
-            <Stack align="center" justify="center" className="relative min-h-0 flex-1">
-              <CrossfadeImage src={blobUrl(image.hash)} alt={image.name} aspectRatio={aspect} fit="contain" className="max-h-full" />
+            {/* The frame is the largest box of the image's own aspect that fits the area: sized by height when
+                height limits it (no grey bars), by width otherwise. The area is a size container so the frame can
+                read both its extents. */}
+            <Stack align="center" justify="center" className="relative min-h-0 flex-1" style={{ containerType: "size" }}>
+              <Stack style={{ aspectRatio: aspect, width: `min(100cqw, calc(100cqh * ${String(aspect)}))` }}>
+                <CrossfadeImage src={blobUrl(image.hash)} alt={image.name} aspectRatio={aspect} fit="contain" className="size-full" />
+              </Stack>
             </Stack>
             <Row justify={removal === undefined ? "end" : "between"} align="center" gap="row" className="shrink-0">
               {removal === undefined ? null : (
