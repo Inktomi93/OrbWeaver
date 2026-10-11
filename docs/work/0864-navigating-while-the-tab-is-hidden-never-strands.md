@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-11
 priority: P1
 area: client
+lane: wt/agent-af804bb63e2a3feb2
 ---
 
 # Navigating while the tab is hidden never strands the app on the splash

@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-11
 priority: P2
 area: persona
+lane: wt/agent-a7775a75de5fb4f78
 ---
 
 # The persona switcher is one clean, consistent menu
