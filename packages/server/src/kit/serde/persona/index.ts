@@ -140,6 +140,18 @@ export function findDuplicatePersona(incoming: PersonaIdentity, candidates: read
   return candidates.find((candidate) => personaContentKey(candidate) === key) ?? null;
 }
 
+/** The name a kept-both copy lands under: `base` when free, else the lowest `"<base> <n>"` (n of 2 or more) — free
+ *  meaning no owned persona folds to it. The ONE mint for the review's preview and the write, so the name
+ *  shown is the name written. */
+export function mintPersonaName(base: string, takenFolded: ReadonlySet<string>): string {
+  const free = (candidate: string): boolean => !takenFolded.has(foldPersonaName(candidate));
+  let name = base;
+  for (let ordinal = 2; !free(name); ordinal += 1) {
+    name = `${base} ${String(ordinal)}`;
+  }
+  return name;
+}
+
 /** Which parts of identity differ between two personas (the name aside), in the order the review names them. */
 export function differingPersonaFields(incoming: PersonaIdentity, owned: PersonaIdentity): PersonaDifference[] {
   const differs: PersonaDifference[] = [];

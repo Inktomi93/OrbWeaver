@@ -236,7 +236,7 @@ export function useLibraryImport(): LibraryImport {
       finish(epoch, { imported: 0, skipped: 0, merged: 0, failed: 0, outcomes: [], notes: planNotes(plan), memoryScope: null });
       return;
     }
-    const run: FolderRun = { epoch, plan, choices, index: 0, done: { imported: 0, skipped: 0, merged: 0, failed: 0, notes: [], memoryScope: null } };
+    const run: FolderRun = { epoch, plan, choices, index: 0, done: { imported: 0, skipped: 0, mergedKeys: [], failed: 0, notes: [], memoryScope: null } };
     folderRun.current = run;
     sendBatch(run);
   };

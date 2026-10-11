@@ -30,8 +30,8 @@ interface ImportPassCounts {
   readonly changed: number;
   /** Cards skipped by per-card isolation (a single card's defect never aborts the batch). */
   readonly failed: number;
-  /** Personas merged into an owned persona of the same name (not a skip, not new canon). */
-  readonly merged?: number;
+  /** Folded names of personas merged into an owned persona of the same name (not a skip, not new canon). */
+  readonly mergedKeys?: readonly string[];
   /** Path to the written import report (what landed / what didn't). Absent on a dry run (nothing written). */
   readonly reportPath?: string;
   /** The span in which the run wrote real conversations (null = none): the client's memory-build offer scope. */

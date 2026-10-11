@@ -44,8 +44,12 @@ import { PersonaCollisionReview } from "./persona-collision-review.tsx";
 const IMPORT_CONSEQUENCE = [
   "Importing ADDS to your library — nothing you already have is deleted. Settings in an Orbweaver backup merge into yours.",
   "Anything already in your library — the same card, world book, theme or preset — is skipped, so running the same import twice is not a duplicate.",
-  "A world book, theme or preset that shares a name with a DIFFERENT one of yours is imported under a numbered name, and so is a persona restored from an Orbweaver backup. A persona in a SillyTavern folder asks you instead, above. Two different cards that share a name stay two characters.",
+  "A world book, theme or preset that shares a name with a DIFFERENT one of yours is imported under a numbered name, and so is a persona restored from an Orbweaver backup. Two different cards that share a name stay two characters.",
 ] as const;
+
+/** Said only when the folder's personas are listed above, so a zip or card import never points at a list that
+ *  is not there. */
+const PERSONA_QUESTION_NOTE = "A persona in this SillyTavern folder that shares a name with one of yours asks you instead, above.";
 
 /** What was picked, in words — the folder arm counts the files the plan will send, the file arm names the
  *  single file it is about to send. */
@@ -86,7 +90,7 @@ function ImportPreflight({
       <Text voice="label">{title}</Text>
       <PersonaCollisionReview collisions={collisions} choices={choices} onChoose={onChoose} onChooseAll={onChooseAll} />
       <Stack gap="tight">
-        {IMPORT_CONSEQUENCE.map((line) => (
+        {[...IMPORT_CONSEQUENCE, ...(collisions.length > 0 ? [PERSONA_QUESTION_NOTE] : [])].map((line) => (
           <Text key={line} voice="reading">
             {line}
           </Text>

@@ -3,9 +3,7 @@
 // review can never list a persona the write would reuse, nor miss one it would split.
 
 import type { PersonaCollision } from "@orb/contracts/import";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { nextFreeName } from "@orb/kit/strings";
-import { differingPersonaFields, findDuplicatePersona, findNameCollision, foldPersonaName, personaPlacementOf } from "#kit/serde/persona";
+import { differingPersonaFields, findDuplicatePersona, findNameCollision, foldPersonaName, mintPersonaName, personaPlacementOf } from "#kit/serde/persona";
 import type { PersonaContext } from "../context.ts";
 import type { ReviewPersonaImportParams } from "../contract/params.ts";
 import type { PersonaService } from "../contract/service.ts";
@@ -14,9 +12,9 @@ import { loadOwnedPersonaCandidates } from "../persistence/queries.ts";
 export function createReviewImport(ctx: PersonaContext): PersonaService["reviewImport"] {
   return async ({ principal, incoming }: ReviewPersonaImportParams): Promise<readonly PersonaCollision[]> => {
     const owned = await loadOwnedPersonaCandidates(ctx.db, principal.userId);
-    // Replays the write's mint order, so `keepBothName` is the name keep-both would really land.
-    const candidates = [...owned];
-    const taken = new Set(owned.map((c) => c.name));
+    // Judged against the OWNED set alone, the way the write's default (merge) path judges it: nothing is
+    // minted until the owner chooses keep-both, so a minted copy never hides a later collision.
+    const taken = new Set(owned.map((c) => foldPersonaName(c.name)));
     const collisions = new Map<string, PersonaCollision>();
     for (const persona of incoming) {
       const key = foldPersonaName(persona.name);
@@ -27,12 +25,9 @@ export function createReviewImport(ctx: PersonaContext): PersonaService["reviewI
         placement: personaPlacementOf(persona.metadata),
         artHash: persona.artHash,
       };
-      if (key.length === 0 || findDuplicatePersona(identity, candidates) !== null) {
+      if (key.length === 0 || findDuplicatePersona(identity, owned) !== null) {
         continue;
       }
-      const keepBothName = nextFreeName(persona.name, taken);
-      taken.add(keepBothName);
-      candidates.push({ ...identity, id: mintTypeId(ID_PREFIX.persona), name: keepBothName });
       const holder = findNameCollision(identity, owned);
       if (holder !== null && !collisions.has(key)) {
         collisions.set(key, {
@@ -41,7 +36,7 @@ export function createReviewImport(ctx: PersonaContext): PersonaService["reviewI
           existingDescription: holder.description,
           incomingDescription: persona.description,
           differs: differingPersonaFields(identity, holder),
-          keepBothName,
+          keepBothName: mintPersonaName(persona.name, taken),
         });
       }
     }

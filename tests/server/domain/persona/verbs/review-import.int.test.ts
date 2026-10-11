@@ -31,7 +31,7 @@ describe("reviewImport", () => {
     });
 
     expect(collisions).toEqual([
-      { key: "nate", name: "NATE ", existingDescription: "orb Nate", incomingDescription: "ST Nate", differs: ["description"], keepBothName: "NATE " },
+      { key: "nate", name: "NATE ", existingDescription: "orb Nate", incomingDescription: "ST Nate", differs: ["description"], keepBothName: "NATE  2" },
     ]);
     expect(await db.select().from(personas).where(eq(personas.ownerId, owner))).toHaveLength(2);
   });
@@ -60,6 +60,34 @@ describe("reviewImport", () => {
     const collisions = await svc.reviewImport({ principal: principal(owner), incoming: [incoming("Nate", "three")] });
 
     expect(collisions.map((c) => c.keepBothName)).toEqual(["Nate 3"]);
+  });
+
+  test("lists every collision the default (merge) write would resolve, including one a keep-both copy would have hidden", async () => {
+    const db = await freshDb();
+    const svc = createPersonaService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await seedPersona(db, { ownerId: owner, name: "Nate", description: "A" });
+    await seedPersona(db, { ownerId: owner, name: "Nate 2", description: "B" });
+
+    const collisions = await svc.reviewImport({ principal: principal(owner), incoming: [incoming("Nate", "Y"), incoming("Nate 2", "Y")] });
+
+    expect(collisions.map((c) => c.key)).toEqual(["nate", "nate 2"]);
+  });
+
+  test("keepBothName avoids a case-differing twin and does not depend on the other collisions' answers", async () => {
+    const db = await freshDb();
+    const svc = createPersonaService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await seedPersona(db, { ownerId: owner, name: "Nate", description: "A" });
+    await seedPersona(db, { ownerId: owner, name: "Eve", description: "B" });
+    await seedPersona(db, { ownerId: owner, name: "eve 2", description: "C" });
+
+    const collisions = await svc.reviewImport({ principal: principal(owner), incoming: [incoming("Nate", "x"), incoming("Eve", "y")] });
+
+    expect(collisions.map((c) => [c.key, c.keepBothName])).toEqual([
+      ["nate", "Nate 2"],
+      ["eve", "Eve 3"],
+    ]);
   });
 
   test("never lists another owner's persona", async () => {

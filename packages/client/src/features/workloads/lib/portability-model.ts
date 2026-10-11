@@ -73,7 +73,9 @@ export interface ImportSummary {
 export interface BundleCounts {
   readonly imported: number;
   readonly skipped: number;
-  readonly merged: number;
+  /** Folded names of the personas merged into one the reader owns. Keys, so the uploads of a split folder
+   *  (which each re-merge the same persona) union instead of adding. */
+  readonly mergedKeys: readonly string[];
   readonly failed: number;
   readonly notes: readonly string[];
   readonly memoryScope: ImportWindow | null;
@@ -97,12 +99,12 @@ export function asBundleCounts(result: unknown): BundleCounts {
   const memoryScope = importWindowSchema.safeParse(record["memoryScope"]);
   const failed = count(record["failed"]);
   const imported = record["imported"] === undefined ? count(record["changed"]) : count(record["imported"]);
-  const merged = count(record["merged"]);
-  const skipped = record["skipped"] === undefined ? Math.max(0, count(record["scanned"]) - imported - failed - merged) : count(record["skipped"]);
+  const mergedKeys = Array.isArray(record["mergedKeys"]) ? record["mergedKeys"].filter((key): key is string => typeof key === "string") : [];
+  const skipped = record["skipped"] === undefined ? Math.max(0, count(record["scanned"]) - imported - failed - mergedKeys.length) : count(record["skipped"]);
   return {
     imported,
     skipped,
-    merged,
+    mergedKeys,
     failed,
     notes: Array.isArray(notes) ? notes.filter((note): note is string => typeof note === "string") : [],
     memoryScope: memoryScope.success ? memoryScope.data : null,
@@ -114,7 +116,7 @@ export function sumBundleCounts(a: BundleCounts, b: BundleCounts): BundleCounts 
   return {
     imported: a.imported + b.imported,
     skipped: a.skipped + b.skipped,
-    merged: a.merged + b.merged,
+    mergedKeys: [...new Set([...a.mergedKeys, ...b.mergedKeys])],
     failed: a.failed + b.failed,
     notes: [...a.notes, ...b.notes],
     memoryScope: mergeScopes(a.memoryScope, b.memoryScope),
@@ -134,8 +136,8 @@ export function planNotes(plan: TreeImportPlan): string[] {
 }
 
 /** Normalize a finished bundle workload's counts into the summary view (no per-file outcomes). */
-export function summarizeBundleCounts(counts: BundleCounts): ImportSummary {
-  return { ...counts, outcomes: [] };
+export function summarizeBundleCounts({ mergedKeys, ...counts }: BundleCounts): ImportSummary {
+  return { ...counts, merged: mergedKeys.length, outcomes: [] };
 }
 
 const UNNAMED_CARD = "Unnamed card";

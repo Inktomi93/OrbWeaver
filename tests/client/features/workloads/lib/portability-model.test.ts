@@ -47,31 +47,42 @@ test("asBundleCounts narrows the `unknown` workload result, defaulting missing/g
   expect(asBundleCounts({ imported: 3, skipped: 1, failed: 2 })).toEqual({
     imported: 3,
     skipped: 1,
-    merged: 0,
+    mergedKeys: [],
     failed: 2,
     notes: [],
     memoryScope: null,
   });
-  expect(asBundleCounts({ imported: 5 })).toEqual({ imported: 5, skipped: 0, merged: 0, failed: 0, notes: [], memoryScope: null });
-  expect(asBundleCounts({ scanned: 4, changed: 1, failed: 0, merged: 2 })).toEqual({
+  expect(asBundleCounts({ imported: 5 })).toEqual({ imported: 5, skipped: 0, mergedKeys: [], failed: 0, notes: [], memoryScope: null });
+  expect(asBundleCounts({ scanned: 4, changed: 1, failed: 0, mergedKeys: ["a", "b"] })).toEqual({
     imported: 1,
     skipped: 1,
-    merged: 2,
+    mergedKeys: ["a", "b"],
     failed: 0,
     notes: [],
     memoryScope: null,
   });
-  expect(asBundleCounts(null)).toEqual({ imported: 0, skipped: 0, merged: 0, failed: 0, notes: [], memoryScope: null });
-  expect(asBundleCounts("boom")).toEqual({ imported: 0, skipped: 0, merged: 0, failed: 0, notes: [], memoryScope: null });
+  expect(asBundleCounts(null)).toEqual({ imported: 0, skipped: 0, mergedKeys: [], failed: 0, notes: [], memoryScope: null });
+  expect(asBundleCounts("boom")).toEqual({ imported: 0, skipped: 0, mergedKeys: [], failed: 0, notes: [], memoryScope: null });
 });
 
 // #1710 — the flattened per-file notes a bundle import's workload result carries. A garbage/non-string
 // entry in the array is dropped rather than surfacing `[object Object]` to the reader.
+// A split folder sends settings.json and the avatars in EVERY upload, so each upload re-merges the same
+// persona. The tally is the union of persona keys, not the sum of per-upload counts.
+test("three uploads that each merge the same persona read as ONE merged persona", () => {
+  const upload = asBundleCounts({ scanned: 4, changed: 1, failed: 0, mergedKeys: ["nate"] });
+
+  const total = sumBundleCounts(sumBundleCounts(upload, upload), upload);
+
+  expect(summarizeBundleCounts(total).merged).toBe(1);
+  expect(summaryCaption(summarizeBundleCounts(total))).toContain("1 merged into existing");
+});
+
 test("asBundleCounts carries the flattened `notes` array through, filtering out non-string entries", () => {
   expect(asBundleCounts({ imported: 2, skipped: 0, failed: 0, notes: ["book kept: primary already exists"] })).toEqual({
     imported: 2,
     skipped: 0,
-    merged: 0,
+    mergedKeys: [],
     failed: 0,
     notes: ["book kept: primary already exists"],
     memoryScope: null,
@@ -79,7 +90,7 @@ test("asBundleCounts carries the flattened `notes` array through, filtering out 
   expect(asBundleCounts({ imported: 1, skipped: 0, failed: 0, notes: ["ok", 7, null] })).toEqual({
     imported: 1,
     skipped: 0,
-    merged: 0,
+    mergedKeys: [],
     failed: 0,
     notes: ["ok"],
     memoryScope: null,
@@ -100,7 +111,14 @@ test("asBundleCounts carries the import's span; sumBundleCounts joins a folder's
 });
 
 test("summarizeBundleCounts carries the counts + notes with an empty per-file list", () => {
-  const summary = summarizeBundleCounts({ imported: 4, skipped: 0, merged: 0, failed: 1, notes: ["book kept: primary already exists"], memoryScope: null });
+  const summary = summarizeBundleCounts({
+    imported: 4,
+    skipped: 0,
+    mergedKeys: [],
+    failed: 1,
+    notes: ["book kept: primary already exists"],
+    memoryScope: null,
+  });
   expect(summary).toEqual({ imported: 4, skipped: 0, merged: 0, failed: 1, notes: ["book kept: primary already exists"], memoryScope: null, outcomes: [] });
 });
 

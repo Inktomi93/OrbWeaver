@@ -109,12 +109,46 @@ describe("createBulkImportPersonas", () => {
       // A merge is its own tally: it is not an equal-content skip.
       expect(result.personasMerged).toBe(1);
       expect(result.personasSkipped).toBe(0);
+      expect(result.mergedKeys).toEqual(["alex"]);
       expect(result.idByName["alex"]).toBe(first.idByName["alex"]);
       expect(result.defaultPersonaId).toBe(first.idByName["alex"]);
     }
     const rows = await db.select({ name: personas.name, description: personas.description }).from(personas).where(eq(personas.ownerId, owner.id));
     // The owned row keeps its content: merge links, it never edits.
     expect(rows).toEqual([{ name: "Alex", description: "Alex desc" }]);
+  });
+
+  test("the default merge resolves each owned name on its own: 'Nate' and 'Nate 2' merge into their own rows", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const op = createBulkImportPersonas(importCtx(db));
+    const a = await op({ ownerId: owner.id, personas: [{ ...persona("Nate"), description: "A" }] });
+    const b = await op({ ownerId: owner.id, personas: [{ ...persona("Nate 2"), description: "B" }] });
+
+    const result = await op({
+      ownerId: owner.id,
+      personas: [
+        { ...persona("Nate"), description: "Y" },
+        { ...persona("Nate 2"), description: "Y" },
+      ],
+    });
+
+    expect(result.personasCreated).toBe(0);
+    expect(result.mergedKeys.toSorted()).toEqual(["nate", "nate 2"]);
+    expect(result.idByName["nate"]).toBe(a.idByName["nate"]);
+    expect(result.idByName["nate 2"]).toBe(b.idByName["nate 2"]);
+  });
+
+  test("keep-both mints the name the review shows: the next one no owned name folds to", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const op = createBulkImportPersonas(importCtx(db));
+    await op({ ownerId: owner.id, personas: [persona("Eve"), persona("eve 2")] });
+
+    await op({ ownerId: owner.id, personas: [{ ...persona("Eve"), description: "other" }], collisions: { eve: "keep-both" } });
+
+    const rows = await db.select({ name: personas.name }).from(personas).where(eq(personas.ownerId, owner.id));
+    expect(rows.map((r) => r.name).toSorted()).toEqual(["Eve", "Eve 3", "eve 2"]);
   });
 
   test("a persona named like an Object.prototype member still merges by default", async () => {

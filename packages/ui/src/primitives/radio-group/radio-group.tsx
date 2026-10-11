@@ -3,6 +3,7 @@ import { Radio } from "@base-ui/react/radio";
 import type { RadioGroupProps as BaseRadioGroupProps } from "@base-ui/react/radio-group";
 import { RadioGroup as BaseRadioGroup } from "@base-ui/react/radio-group";
 import type { ReactElement, ReactNode } from "react";
+import { useState } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
 import { Check, Icon, Lock } from "#primitives/icons";
@@ -26,8 +27,44 @@ export interface RadioGroupItemProps extends RadioRootProps {
   children?: ReactNode;
 }
 
-export function RadioGroup({ className, ...rest }: RadioGroupProps): ReactElement {
-  return <BaseRadioGroup className={cn(slots.root(), className)} data-slot="radio-group-root" {...rest} />;
+// Base UI parks the group's tab stop on the item the user last interacted with and never re-reads it when a
+// controlled `value` changes from OUTSIDE (a "set all" button), so Tab would land on the unchecked radio. An
+// outside change while focus is elsewhere remounts the group, which seats the tab stop on the checked item.
+// A change the user made through the radios, or made while focus is inside the group, never remounts.
+export function RadioGroup({ className, value, onValueChange, onFocus, onBlur, ...rest }: RadioGroupProps): ReactElement {
+  const [mountKey, setMountKey] = useState(0);
+  const [seenValue, setSeenValue] = useState(value);
+  const [pickedValue, setPickedValue] = useState<unknown>(undefined);
+  const [focusInside, setFocusInside] = useState(false);
+  if (seenValue !== value) {
+    setSeenValue(value);
+    if (pickedValue !== value && !focusInside) {
+      setMountKey(mountKey + 1);
+    }
+  }
+  return (
+    <BaseRadioGroup
+      key={mountKey}
+      className={cn(slots.root(), className)}
+      data-slot="radio-group-root"
+      value={value}
+      onValueChange={(next, details): void => {
+        setPickedValue(next);
+        onValueChange?.(next, details);
+      }}
+      onFocus={(event): void => {
+        setFocusInside(true);
+        onFocus?.(event);
+      }}
+      onBlur={(event): void => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setFocusInside(false);
+        }
+        onBlur?.(event);
+      }}
+      {...rest}
+    />
+  );
 }
 
 // `readOnly` renders distinctly from `disabled`: the circle keeps its normal token colors and a Lock

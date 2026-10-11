@@ -30,6 +30,7 @@ import { BackupSettingsStory, LibraryImportEpochStory } from "../_ct-stories.tsx
 /** The host's viewer projection (`useSettingsViewerView`) — the group body resolves each section's `when` off it. */
 const HOST_VIEWER_ROUTE: TrpcRoutes<"sessions.me"> = { "sessions.me": { userId: "user_ct_import", handle: "ct_import", globalRole: "user" } };
 
+const NON_EMPTY = /.+/u;
 const DROPZONE_ROOT = '[data-slot="file-dropzone"]';
 const A_CARD = { name: "villain.png", mimeType: "image/png", buffer: Buffer.from("PNG") };
 const A_DROPPED_CARD = { name: "villain.png", mimeType: "image/png", content: "PNG" };
@@ -521,12 +522,56 @@ test("a long description is shown in full once expanded, and the choice names wh
   await collision.getByRole("button", { name: "Show all" }).first().click();
   await expect(collision.getByRole("button", { name: "Show less" })).toHaveCount(1);
 
-  // Each radio carries its consequence as its description; Keep both names the copy it will mint.
-  await expect(collision.getByRole("radio", { name: "Keep both" })).toHaveAccessibleDescription(/as “Mira 2” beside your “Mira”/u);
-  await expect(collision.getByRole("radio", { name: "Merge into your existing persona" })).toHaveAccessibleDescription(
+  // The consequence lives INSIDE each option, so the name states it and tapping it selects the option.
+  await expect(collision.getByRole("radio", { name: "Keep both" })).toHaveAccessibleName(/as “Mira 2” beside your “Mira”/u);
+  await expect(collision.getByRole("radio", { name: "Merge into your existing persona" })).toHaveAccessibleName(
     /discards the imported description and avatar/u,
   );
-  await expect(collision.getByRole("radiogroup")).toHaveAccessibleDescription(/The description and avatar differ\./u);
+  const group = collision.getByRole("radiogroup");
+  await expect(group).toHaveAccessibleDescription(/The description and avatar differ\./u);
+  // The group's description is the comparison text only: the Show all control is not read into it.
+  await expect(group).not.toHaveAccessibleDescription(/Show all|Show less/u);
+  await expect(collision.getByRole("button", { name: "Show less" })).toHaveAttribute("aria-controls", NON_EMPTY);
+});
+
+test("tapping an option's consequence sentence selects that option", async ({ mount, page }) => {
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
+  await routePersonaReview(page, [NATE_COLLISION]);
+  await mount(<BackupSettingsStory />);
+  await stageCollisionFolder(page);
+
+  await page.getByText("Adds the imported persona as “Nate 2” beside your “Nate”.").click();
+
+  await expect(page.getByRole("radio", { name: "Keep both" })).toBeChecked();
+});
+
+test("two collisions are divided, and the persona name heads each block", async ({ mount, page }) => {
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
+  await routePersonaReview(page, [NATE_COLLISION, EVE_COLLISION]);
+  await mount(<BackupSettingsStory />);
+  await stageCollisionFolder(page);
+
+  const review = page.locator('[data-slot="persona-collision-review"]');
+  await expect(review.getByRole("separator")).toHaveCount(1);
+  const [name, body] = await review
+    .locator('[data-slot="persona-collision"]')
+    .first()
+    .evaluate((el) => {
+      const legend = el.querySelector("legend");
+      const text = el.querySelector("p");
+      return [Number.parseFloat(getComputedStyle(legend?.firstElementChild ?? el).fontSize), Number.parseFloat(getComputedStyle(text ?? el).fontSize)];
+    });
+  expect(name).toBeGreaterThan(body ?? 0);
+});
+
+test("the SillyTavern persona note is said only when the folder's personas are listed", async ({ mount, page }) => {
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
+  await routePersonaReview(page, []);
+  await mount(<BackupSettingsStory />);
+  await stageCollisionFolder(page);
+
+  await expect(page.locator('[data-slot="import-preflight"]')).toBeVisible();
+  await expect(page.locator('[data-slot="import-preflight"]')).not.toContainText("asks you instead");
 });
 
 test("with two collisions, Keep all and Merge all set every answer at once", async ({ mount, page }) => {

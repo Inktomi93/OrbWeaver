@@ -116,6 +116,9 @@ export interface BulkImportPersonasResult {
   /** Inputs linked to an owned persona of the same name but different content (the merge choice). Not in
    *  `personasSkipped`, which counts equal-content reuse. */
   readonly personasMerged: number;
+  /** The folded names of the merged inputs, once each. A split folder runs this write once per upload, so the
+   *  client unions the keys across uploads instead of summing counts. */
+  readonly mergedKeys: readonly string[];
   readonly defaultPersonaId: PersonaId | null;
   readonly idByName: Record<string, PersonaId>;
 }

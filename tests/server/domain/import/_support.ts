@@ -302,6 +302,7 @@ export function makeProfileHarness(ownerId: UserId): ProfileHarness {
         personasCreated: created,
         personasSkipped: args.personas.length - created,
         personasMerged: 0,
+        mergedKeys: [],
         defaultPersonaId,
         idByName,
       });

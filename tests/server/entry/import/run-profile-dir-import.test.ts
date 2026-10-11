@@ -278,6 +278,7 @@ function fakes(): Fakes {
       personasCreated: created,
       personasSkipped: args.personas.length - created,
       personasMerged: 0,
+      mergedKeys: [],
       defaultPersonaId: null,
       idByName,
     });
