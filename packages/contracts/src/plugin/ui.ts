@@ -606,6 +606,9 @@ export interface PluginButtonNode {
   readonly actionId: string;
   readonly label: string;
   readonly variant?: PluginButtonVariant | undefined;
+  /** TRUE (declared, or bound to a state path) ⇒ the button renders disabled and its action cannot fire. A
+   *  path that is missing or not a boolean reads as enabled. */
+  readonly disabled?: PluginBoundBoolean | undefined;
 }
 /** A GLYPH from the curated {@link PLUGIN_ICON_NAMES} tuple (#799) — the vocabulary's icon reach, which was
  *  previously NONE: a stat row could say "7.4k" but never mark it, and a source line could never carry its
@@ -945,7 +948,13 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
       step: finiteNumber.optional(),
       value: finiteNumber.optional(),
     }),
-    z.object({ kind: z.literal("button"), actionId: identSchema, label: labelSchema, variant: z.enum(PLUGIN_BUTTON_VARIANTS).optional() }),
+    z.object({
+      kind: z.literal("button"),
+      actionId: identSchema,
+      label: labelSchema,
+      variant: z.enum(PLUGIN_BUTTON_VARIANTS).optional(),
+      disabled: boundBoolean.optional(),
+    }),
     z.object({
       kind: z.literal("confirmButton"),
       actionId: identSchema,
@@ -1429,10 +1438,6 @@ export type PluginSurfaceRegistrationMeta = z.infer<typeof pluginSurfaceRegistra
 export const PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES = 1_048_576;
 /** Max serialized bytes of ONE `plugin.uiHostCall` result payload (the server→client direction). */
 export const PLUGIN_UI_HOST_CALL_RESULT_MAX_BYTES = 1_048_576;
-/** Max bytes of a `ui.js` bundle entry — the SAME ceiling `main.js` carries (one pre-bundled ES script per
- *  guest, `domain/plugin/substrate/manifest.ts`). Declared here so the bytes ROUTE and the unzip allow-list
- *  cite one number. */
-export const PLUGIN_UI_ENTRY_MAX_BYTES = 1_048_576;
 
 /** The owner-gated route serving a plugin's `ui.js` as INERT BYTES: `GET /api/plugin-ui/:pluginId` (the
  *  `BLOB_ROUTE` precedent — the path is a contract, not a client-side string, so the route and its one caller
@@ -1507,6 +1512,9 @@ export interface PluginCommandArgSpec {
   readonly describe?: string | undefined;
   /** The accepted values — REQUIRED for `type: "enum"`, forbidden otherwise. */
   readonly enumValues?: readonly string[] | undefined;
+  /** The value the args dialog opens with. It must match `type`, and an enum default must be one of
+   *  `enumValues`. A prefill only: the person still submits it, and the composer's `name=value` path ignores it. */
+  readonly default?: PluginCommandArgValue | undefined;
 }
 
 /** A TYPED arg value — what the surfaces collect and the guest receives (the ST-parity typed bag). The three
@@ -1533,6 +1541,13 @@ export type PluginCommandArgsFor<TSpecs extends readonly PluginCommandArgSpec[]>
       [TName in Exclude<TSpecs[number]["name"], RequiredPluginCommandArgName<TSpecs>>]?: PluginCommandArgValue;
     };
 
+function defaultFitsArg(type: PluginCommandArgType, value: PluginCommandArgValue, enumValues: readonly string[] | undefined): boolean {
+  if (type === "enum") {
+    return typeof value === "string" && (enumValues ?? []).includes(value);
+  }
+  return typeof value === type;
+}
+
 /** A declared arg spec, validated host-side at registration. The enum biconditional lives here so a malformed
  *  arg is a REGISTRATION refusal (the command absent, a log line), never activation-fatal. */
 export const pluginCommandArgSpecSchema = z
@@ -1542,10 +1557,14 @@ export const pluginCommandArgSpecSchema = z
     required: z.boolean().optional(),
     describe: z.string().min(1).max(PLUGIN_COMMAND_DESCRIBE_MAX).optional(),
     enumValues: readonlyArrayOutput(z.array(z.string().min(1).max(LABEL_MAX)).min(1).max(PLUGIN_COMMAND_ENUM_VALUES_MAX)).optional(),
+    default: z.union([z.string().max(LABEL_MAX), finiteNumber, z.boolean()]).optional(),
   })
   .superRefine((arg, ctx) => {
     if ((arg.type === "enum") !== (arg.enumValues !== undefined)) {
       ctx.addIssue({ code: "custom", message: "an enum arg must name its enumValues, and only an enum arg may", path: ["enumValues"] });
+    }
+    if (arg.default !== undefined && !defaultFitsArg(arg.type, arg.default, arg.enumValues)) {
+      ctx.addIssue({ code: "custom", message: "an arg's default must match its type, and an enum default must be one of its enumValues", path: ["default"] });
     }
   }) satisfies z.ZodType<PluginCommandArgSpec>;
 

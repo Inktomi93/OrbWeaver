@@ -459,9 +459,9 @@ export function AppShellChatTrackStory(): ReactElement {
   );
 }
 
-/** THE THREE DOORS OVER ONE ROOM (#2456): `AppShellChatTrackStory`'s centred carriers PLUS a real LIST
- *  pane, a two-child LIST band and a CONTEXT pane — so the list toggle, the context toggle and the focus
- *  toggle (which drives both at once) all have something to move in the same mount.
+/** THE TWO DOORS OVER ONE ROOM (#2456): `AppShellChatTrackStory`'s centred carriers PLUS a real LIST
+ *  pane, a two-child LIST band and a CONTEXT pane — so the list toggle and the context toggle
+ *  both have something to move in the same mount.
  *
  *  The chats CONTEXT default is `collapsed` and its LIST default is `docked` (the real `panelDefaults`,
  *  carried through by `CtFakeSectionRegistry`), so "Show details" is a real dock from a real rest state.

@@ -24,5 +24,5 @@ import { ChromeRegistryProbe } from "./_ct-stories.tsx";
 test("useChromeRegistry resolves the real registered topbar.trail entries inside the provider", async ({ mount }) => {
   const probe = await mount(<ChromeRegistryProbe />);
   const out = probe.locator("output");
-  await expect(out).toContainText("ids=command,notifications-bell,character-create,fullscreen-toggle,context-toggle");
+  await expect(out).toContainText("ids=command,notifications-bell,character-create,context-toggle");
 });

@@ -30,7 +30,7 @@ const capabilityMatchSchema = z
     wire: z.enum(WIRES).optional(),
     api: chatApiSchema.optional(),
     /** The chat route the connection's folded `features.nativeChat` selects: a server's native route and its `/v1`
-     *  route take different request fields (D296). */
+     *  route take different request fields (D310). */
     nativeChat: z.enum(NATIVE_CHAT_APIS).optional(),
   })
   .refine((match) => (match.model === undefined) !== (match.ids === undefined), { message: "a match names `model` (a regex) or `ids`, not both" });

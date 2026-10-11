@@ -204,11 +204,8 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--panel": (a, rest, page) => {
     pushNav(a, { kind: "panel", target: rest.shift() ?? "", page });
   },
-  "--focus": (a, rest, page) => {
-    pushNav(a, { kind: "focus", target: rest.shift() ?? "", page });
-  },
-  // `--panels <preset>` expands into the SAME panel/focus navs at ITS argv position and on THIS page tab,
-  // so a preset is composition over the two flags above, never a second mechanism (_shared/panel-flags.ts).
+  // `--panels <preset>` expands into the SAME panel navs at ITS argv position and on THIS page tab,
+  // so a preset is composition over the flag above, never a second mechanism (_shared/panel-flags.ts).
   "--panels": (a, rest, page) => {
     applyPanelPresetFlag(loadPanelPreset(rest.shift() ?? ""), a.errors, (action) => {
       pushNav(a, { kind: action.method, target: action.target, page });

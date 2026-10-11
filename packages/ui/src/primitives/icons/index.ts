@@ -34,7 +34,6 @@ export {
   ChevronsUpDown,
   ChevronUp,
   CircleAlert,
-  CircleGauge,
   CircleUser,
   Clock,
   Code,
@@ -98,7 +97,6 @@ export {
   PanelRightOpen,
   Pencil,
   Pin,
-  PinOff,
   Plus,
   Redo2,
   RefreshCw,
@@ -118,7 +116,6 @@ export {
   SunMoon,
   Sword,
   Swords,
-  Syringe,
   Tag,
   Trash2,
   Type,
@@ -126,7 +123,6 @@ export {
   // The per-chat document rack's "Detach from this chat" — a broken link, for cutting a junction row (as
   // distinct from `EyeOff`, which hides a document from retrieval while leaving every attachment intact).
   Unlink,
-  Unlock,
   Upload,
   UserPlus,
   Users,

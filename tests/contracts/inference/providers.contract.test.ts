@@ -3,16 +3,17 @@
 // widens) its wire's ceiling, and the derived policy reproduces the hand rows it replaced without being
 // wider than the belt (`generateImage` on hosted rows = openrouter + openai; `agent` = the agent-sdk wire).
 
+import type { ProviderDef, Task } from "@orb/contracts/inference";
 import {
   BUILTIN_PROVIDERS,
   builtinProvider,
   coherentApis,
+  exampleBaseUrl,
   isPluginProviderId,
   PROVIDER_ID,
   pluginNameOfProviderId,
   providerDefSchema,
   providerTasks,
-  taskProviders,
   WIRE_DEFS,
 } from "@orb/contracts/inference";
 import { expect, test } from "../../support/fixtures.ts";
@@ -60,6 +61,7 @@ test("a dialect exists exactly on the openai-compat wire; auth/catalog agree wit
 });
 
 test("derived policy is not wider than the hand rows it replaced", () => {
+  const taskProviders = (task: Task): readonly ProviderDef[] => BUILTIN_PROVIDERS.filter((row) => providerTasks(row).includes(task));
   // generateImage: openrouter (whole wire set) + openai (names it) among hosted rows — nothing else metered.
   const imageProviders = taskProviders("generateImage")
     .map((row) => row.id)
@@ -113,4 +115,20 @@ test("the openai row declares outputCapField: max_completion_tokens; every other
   for (const row of others) {
     expect(row.features?.outputCapField, `${row.id} declares an output-cap spelling`).toBeUndefined();
   }
+});
+
+// The example Server URL is static pane metadata for built-in endpoint rows, not a provider-row field, so a plugin or
+// admin row (persisted through `provider_rows`) carries none.
+test("only built-in endpoint rows have an example Server URL, and it parses as an http URL", () => {
+  // `custom-openai` is any server at all, so it keeps the generic placeholder.
+  const endpointIds = BUILTIN_PROVIDERS.filter((row) => row.auth === "endpoint" && row.id !== "custom-openai").map((row) => row.id);
+  expect(endpointIds).toContain("ollama");
+  for (const id of endpointIds) {
+    const example = exampleBaseUrl(id);
+    expect(example, `${id} has no example Server URL`).toBeDefined();
+    expect(new URL(example ?? "").protocol).toBe("http:");
+  }
+  expect(exampleBaseUrl("openai")).toBeUndefined();
+  expect(exampleBaseUrl("plugin:acme/x")).toBeUndefined();
+  expect(Object.keys(providerDefSchema.shape)).not.toContain("exampleBaseUrl");
 });

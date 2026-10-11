@@ -401,11 +401,31 @@ body {
      * the plateless base verbatim. */
     html[data-blur-modals] [data-slot="dialog-popup"],
     html[data-blur-modals] [data-slot="alert-dialog-popup"] {
-      backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
+      /* The BLUR sits on ::before, not here: a backdrop-filter on the popup makes it a backdrop root, and the
+       * sticky footer's nested blur then cannot see the body scrolling beneath it. `relative` bounds that layer
+       * to the popup (the alert popup is otherwise static, so the layer would cover the viewport). */
+      position: relative;
+      isolation: isolate;
       background-color: light-dark(
         color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), var(--color-reading-plate)),
         color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), transparent)
       );
+    }
+    html[data-blur-modals] [data-slot="dialog-popup"]::before,
+    html[data-blur-modals] [data-slot="alert-dialog-popup"]::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      border-radius: inherit;
+      pointer-events: none;
+      backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
+    }
+    /* The footer only blurs: the popup already paints the fill, and a second one reads as a slab. */
+    /* @orb-waive over-art-plate-arm([data-slot="dialog-footer"]): the footer sits inside the dialog popup, whose own fill and plate arm lie beneath it, so it never composites over the wallpaper. */
+    html[data-blur-modals] [data-slot="dialog-footer"] {
+      backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
+      background-color: transparent;
     }
     /* Per-role bubble base so the glass tints as that bubble, not a generic grey. */
     html[data-blur-messages] [data-role="user"] [data-slot="message-bubble"] {
@@ -521,8 +541,9 @@ body {
   html[data-blur-panels] .shell-panel::before,
   html[data-blur-composer] [data-slot="composer"],
   html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main::before,
-  html[data-blur-modals] [data-slot="dialog-popup"],
-  html[data-blur-modals] [data-slot="alert-dialog-popup"],
+  html[data-blur-modals] [data-slot="dialog-popup"]::before,
+  html[data-blur-modals] [data-slot="alert-dialog-popup"]::before,
+  html[data-blur-modals] [data-slot="dialog-footer"],
   html[data-blur-messages] [data-role] [data-slot="message-bubble"] {
     backdrop-filter: none;
   }

@@ -1,5 +1,5 @@
-import type { CompletedSpaceRow, ImageLens, VectorScope } from "@orb/contracts/embeddings";
-import { foldActiveSpace, IMAGE_LENSES, imageLensSchema, VECTOR_SCOPES, VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
+import type { ImageLens } from "@orb/contracts/embeddings";
+import { IMAGE_LENSES, imageLensSchema, VECTOR_SCOPES, VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import { expect, test } from "../../support/fixtures.ts";
 
 // ── The IMAGE-lens axis (D34 — promoted to contracts so the db `image_embeddings.lens` column derives it) ──
@@ -43,23 +43,4 @@ test("every vector scope is claimed by exactly one task — no scope is unowned 
   // block a task it has nothing to do with.
   expect(claimed.toSorted()).toEqual(VECTOR_SCOPES.toSorted());
   expect(new Set(claimed).size).toBe(claimed.length);
-});
-
-const rows = (spaces: Partial<Record<VectorScope, string>>): CompletedSpaceRow[] =>
-  Object.entries(spaces).map(([scope, space]) => ({ scope: scope as VectorScope, space }));
-
-test("foldActiveSpace keeps `unrecorded` and `moving` APART — collapsing them serves a foreign space", () => {
-  // `unrecorded` (a scope has never completed) means the live space is the only space that exists, and a
-  // reader SERVES it. `moving` means part of the corpus has already left, and a reader REFUSES. Spelled as
-  // one `null` these are indistinguishable, and the reader would scan mid-move — the §10-5 defect itself.
-  expect(foldActiveSpace("embed", rows({ cards: "a", memory: "a" }))).toEqual({ kind: "unrecorded" });
-  expect(foldActiveSpace("embed", rows({ cards: "a", memory: "a", documents: "b" }))).toEqual({ kind: "moving" });
-  expect(foldActiveSpace("embed", rows({ cards: "a", memory: "a", documents: "a" }))).toEqual({ kind: "complete", space: "a" });
-});
-
-test("foldActiveSpace ignores the OTHER task's scopes — an image sweep never gates a text read", () => {
-  // `images` is `imageEmbed`'s alone. A complete image sweep must not make the embed space look complete,
-  // and a lagging one must not block a text search.
-  expect(foldActiveSpace("embed", rows({ images: "a" }))).toEqual({ kind: "unrecorded" });
-  expect(foldActiveSpace("imageEmbed", rows({ images: "a", cards: "b" }))).toEqual({ kind: "complete", space: "a" });
 });

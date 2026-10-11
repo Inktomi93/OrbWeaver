@@ -34,8 +34,11 @@ const SHELL_VIEWER_ROUTE = defineTrpcRoutes({
   // (the honest fresh-library arm) rather than left to routeTrpc's inert null.
   "tag.listTagsWithUsage": [],
   "regex.listScripts": [],
+  "regex.countScripts": 0,
   "worldInfo.listBooksWithUsage": [],
+  "worldInfo.countBooks": 0,
   "rosterPreset.list": [],
+  "rosterPreset.count": 0,
   // THE ARRIVAL DEFAULT MOUNTS A REAL GROUP (#925 ruling 4): a host with no deep link now lands on the first
   // group (Appearance) before these tests click their way to Chat behavior, and its Looks section reads the
   // theme library — so this file's mounts exercise that pipeline whether or not they are about it.

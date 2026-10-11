@@ -31,7 +31,7 @@ function atlas(section: string | null): AvailableAtlas {
       contextTabsPublished: true,
       chatPositions: [mapChatPositionSchema.parse("latest")],
     },
-    place: { url: "http://localhost:5173/", section: section === null ? null : mapSectionIdSchema.parse(section), chatOpen: false, focus: false },
+    place: { url: "http://localhost:5173/", section: section === null ? null : mapSectionIdSchema.parse(section), chatOpen: false },
   };
 }
 

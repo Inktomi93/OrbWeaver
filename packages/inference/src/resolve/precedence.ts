@@ -29,7 +29,7 @@ function taskLadder(task: Task): readonly RoutableTask[] {
   return isRoutableTask(task) && task !== rides ? [task, rides] : [rides];
 }
 
-export interface FoldResult {
+interface FoldResult {
   readonly connectionId: UserConnectionId | null;
   /** Which hop answered — for the pane's "resolves through" readout and the trace. */
   readonly via: Hop | null;

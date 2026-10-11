@@ -165,7 +165,7 @@ export const READ_MAP_BRIDGE_SCRIPT = `(() => {
     published = orb.shell();
     atlas = {
       status: "available", url, capabilities,
-      place: { url, section: published?.section, chatOpen: published?.chatOpen, focus: published?.focus }
+      place: { url, section: published?.section, chatOpen: published?.chatOpen }
     };
   }
 
@@ -207,7 +207,7 @@ export const READ_MAP_BRIDGE_SCRIPT = `(() => {
       viewport: { width: innerWidth, height: innerHeight, devicePixelRatio },
       section: grid.getAttribute("data-section"), published,
       contentIdentity: document.querySelector(".shell-content")?.getAttribute("aria-label") || null,
-      focus: grid.getAttribute("data-focus-mode") === "true", activeContextTab: activeTabName,
+      activeContextTab: activeTabName,
       contextRelation: "unspecified/auxiliary",
       regions: [
         region("rail", ".shell-rail", false), region("topbar", ".shell-topbar", false),

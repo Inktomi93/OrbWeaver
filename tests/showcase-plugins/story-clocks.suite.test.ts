@@ -16,7 +16,12 @@ interface Drive {
   readonly act: (actionId: string, values: Record<string, string>) => Promise<void>;
 }
 
-const HOST_BOUND = "chat.requestTurn exceeded 5000ms host bound";
+/** What the membrane rejects with when a host call outlives its bound. */
+function hostDeadline(): Error {
+  const error = new Error("chat.requestTurn exceeded 5000ms host bound");
+  error.name = "PluginHostDeadlineError";
+  return error;
+}
 interface ClockTool {
   readonly handler: (args: unknown) => Promise<string>;
   readonly displayName?: string;
@@ -119,7 +124,7 @@ test("a second panel action inside the toast floor still writes and refreshes th
 });
 
 test("a filled clock whose requestTurn outlives the host bound is not logged as refused", async () => {
-  const drive = await bootClocks({ vars: { "clock:the_ritual": "5/6" }, requestTurn: () => Promise.reject(new Error(HOST_BOUND)) });
+  const drive = await bootClocks({ vars: { "clock:the_ritual": "5/6" }, requestTurn: () => Promise.reject(hostDeadline()) });
   await drive.act("tick", { name: "the ritual", segments: "6" });
 
   expect(drive.logs.filter(({ level }) => level === "warn")).toEqual([]);

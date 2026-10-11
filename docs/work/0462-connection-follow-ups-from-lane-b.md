@@ -22,4 +22,4 @@ Each sub-point is built or explicitly ruled, with a test where built.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Owner ruling on sub-point 2: exampleBaseUrl is a static hint on built-in provider rows only, with no schema change.

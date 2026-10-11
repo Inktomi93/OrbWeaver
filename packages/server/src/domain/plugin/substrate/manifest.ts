@@ -54,7 +54,6 @@ import {
   PLUGIN_UI_ASSETS_MAX_COUNT,
   PLUGIN_UI_ASSETS_TOTAL_MAX_BYTES,
   PLUGIN_UI_ENTRY,
-  PLUGIN_UI_ENTRY_MAX_BYTES,
   pluginBundleHashSchema,
   pluginManifestSchema,
 } from "@orb/contracts/plugin";
@@ -101,11 +100,8 @@ function isBundleAssetEntry(name: string): boolean {
   return PLUGIN_UI_ASSET_ENTRY_RE.test(name);
 }
 
-/** The DECOMPRESSED `main.js` cap (a single pre-bundled ES script ≤ 1 MiB) — server-internal, no client
- *  reaches it. The Tier-C `ui.js` carries the SAME ceiling but CITES it from contracts
- *  (`PLUGIN_UI_ENTRY_MAX_BYTES`, imported above and applied in {@link capFor}), so the guest-source route and
- *  this unzip allow-list bound the one artifact by ONE number: it is the same kind of thing — one pre-bundled
- *  ES script for one guest — and a divergent budget would be a number with no reason behind it. */
+/** The DECOMPRESSED cap for either guest script entry (`main.js`, `ui.js`) — one pre-bundled ES script per
+ *  guest, bounded by the one contracts-owned {@link PLUGIN_SCRIPT_ENTRY_MAX_BYTES}. */
 const MAX_MAIN_JS_BYTES = PLUGIN_SCRIPT_ENTRY_MAX_BYTES;
 /** The DECOMPRESSED `manifest.json` cap — a tiny metadata doc; 64 KiB is generous for the manifest shape. */
 const MAX_MANIFEST_JSON_BYTES = PLUGIN_MANIFEST_ENTRY_MAX_BYTES;
@@ -137,7 +133,7 @@ function capFor(entryName: string): number {
     return MAX_MANIFEST_JSON_BYTES;
   }
   if (entryName === UI_ENTRY) {
-    return PLUGIN_UI_ENTRY_MAX_BYTES;
+    return PLUGIN_SCRIPT_ENTRY_MAX_BYTES;
   }
   if (isBundleAssetEntry(entryName)) {
     return PLUGIN_UI_ASSET_MAX_BYTES;

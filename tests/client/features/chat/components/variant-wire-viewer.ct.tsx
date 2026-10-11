@@ -138,6 +138,25 @@ test("opening fires exactly one fetch keyed by the shown swipe's variantId and r
   await expect(dialog).toContainText("temperature");
 });
 
+test("a reply recorded without settings says they were not recorded, never an empty object; the intro is capped and readable", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, [WIRE_PROC]: () => ({ ...WIRE_DATA, params: {} }) });
+  const component = await mount(<MessageRowStory chatStyle="bubble" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={true} />);
+
+  await openActionsMenu(component);
+  await menuItem(page, WIRE_ITEM).click();
+  const dialog = page.locator('[data-testid="variant-wire-viewer"]');
+  await expect(dialog).toContainText("Static prefix");
+  await expect(dialog.locator('[data-slot="wire-params-unrecorded"]')).toBeVisible();
+  await expect(dialog.getByText("{}", { exact: true })).toHaveCount(0);
+
+  const intro = dialog.locator('[data-slot="wire-intro"]');
+  const gloss = dialog.locator('[data-slot="wire-section-gloss"]').first();
+  const fontSizeOf = (locator: Locator): Promise<number> => locator.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
+  await expect.poll(() => intro.evaluate((el) => getComputedStyle(el).maxWidth)).not.toBe("none");
+  // The label step, not the 10.5px micro gloss step.
+  await expect.poll(async () => (await fontSizeOf(intro)) > (await fontSizeOf(gloss))).toBe(true);
+});
+
 // #1032 — the three recorded inputs the dialog served but never rendered. A host asking "why did it say
 // THAT" of a nondeterministic turn got the prompt and the knobs and nothing about the roll that decided it.
 test("the freeze provenance renders: the frozen draws, the baked volatile macros, and the pre-transform text", async ({ mount, page }) => {

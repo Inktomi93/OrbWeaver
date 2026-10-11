@@ -96,7 +96,7 @@ test("the two empty panes do not print the same sentence, and only ONE offers Ad
 });
 
 // …AND THE STAND-DOWN IS CONDITIONED ON THE LIST BEING ON SCREEN, not on the bank alone. `panelDefaults.list`
-// is `docked`, but the shell auto-collapses a docked default in the narrow-desktop band and focus mode hides
+// is `docked`, but the shell auto-collapses a docked default in the narrow-desktop band hides
 // both panes — deferring to a pane that is not there would leave a blank CONTENT region and no door at all.
 // The REFUSED arm is pinned in the same breath: the way out is the NAMED shell affordance, never a second Add
 // button minted in this pane (the two-Add-doors finding).
@@ -124,7 +124,7 @@ test("#434 on an empty bank the CONTENT pane explains the Databank — and names
 // an empty CONTENT pane reads as unbuilt, and that ruling is extended above, not reversed.
 //
 // #445 — AND IT NAMES THE DOOR WHEN THE LIST IS OFF SCREEN. "Pick a document from the list" presupposes a
-// list on screen, which is false in the narrow-desktop auto-collapse, in focus mode and after a hand
+// list on screen, which is false in the narrow-desktop auto-collapse and after a hand
 // collapse — the F-28 class the Presets welcome was fixed for, left standing here by #434's empty-bank
 // scope. The instruction is unchanged for the reader who can see the list; the footnote is an addition.
 test("#434/#445 with documents in the bank and nothing selected, the welcome teaches — and names the list door only while the list is off screen", async ({

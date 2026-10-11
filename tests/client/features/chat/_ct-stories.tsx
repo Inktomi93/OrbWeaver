@@ -75,8 +75,8 @@ import {
   requestComposerFocus,
   SlashCommandRegistryProvider,
   selectChat,
-  setFocusMode,
   setMobileViewport,
+  setNarrowViewport,
   startEditingMessage,
   toggleMessageSelected,
   useActiveChatId,
@@ -1700,17 +1700,17 @@ function ChatListInner({ activeChatId, width }: { readonly activeChatId: string 
  *  but it does read the shell's LIST MODE (#446), which resolves this section's declared `panelDefaults`,
  *  so it mounts under the REAL section registry.
  *
- *  The two buttons drive that mode through FOCUS — the shell's ONE flag for "no side panel is showing"
- *  (item 20): synchronous and section-independent, where `setPanelMode` writes the ACTIVE section's
+ *  The two buttons drive that mode through the narrow regime, where a docked default auto-collapses:
+ *  synchronous and section-independent, where `setPanelMode` writes the ACTIVE section's
  *  override and `setActiveSection` defers its write through `withViewTransition` (measured, #434). */
 export function ChatLandingSurfaceStory(): ReactElement {
   const [newCount, setNewCount] = useState(0);
   return (
     <CtRealSectionRegistry>
-      <button onClick={(): void => setFocusMode(true)} type="button">
+      <button onClick={(): void => setNarrowViewport(true)} type="button">
         take the list off screen
       </button>
-      <button onClick={(): void => setFocusMode(false)} type="button">
+      <button onClick={(): void => setNarrowViewport(false)} type="button">
         put the list back
       </button>
       <div style={{ height: 640, width: 720 }}>

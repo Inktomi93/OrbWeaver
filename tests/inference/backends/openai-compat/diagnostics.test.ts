@@ -2,9 +2,12 @@
 // classifier with the behavior the provider runtime actually calls: auth refusals revoke, every other
 // failure is unreachable, and no upstream prose may carry configured credential literals to the result.
 
-import { probeOpenAiCompat } from "../../../../packages/inference/src/backends/openai-compat/diagnostics.ts";
+import { runOpenAiCompatChatTurn } from "../../../../packages/inference/src/backends/openai-compat/chat.ts";
+import { inspectOpenAiCompatEndpoint, probeOpenAiCompat } from "../../../../packages/inference/src/backends/openai-compat/diagnostics.ts";
+import type { OpenAiCompatChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
 import { expect, test } from "../../../support/fixtures.ts";
-import { fakeApiKeySecret, fakeResolved } from "../../_support.ts";
+import { fakeApiKeySecret, fakeResolved, memoryTokenLexicon } from "../../_support.ts";
+import type { RecordedRequest } from "../_hosted-support.ts";
 import { generationCapability } from "../_hosted-support.ts";
 
 const NOW = 1_700_000_000_000;
@@ -75,4 +78,129 @@ test("an unreachable verdict carries the status when the server answered, and no
   const silent = await probeOpenAiCompat({ connection: connection() }, { fetch: dead, now: () => NOW });
   expect(silent.status).toBe("unreachable");
   expect(silent).not.toHaveProperty("httpStatus");
+});
+
+// ── the inspector rides the route chat uses (D310) ──────────────────────────────────────────────────────
+
+const APP = { name: "t", url: "http://localhost:0" };
+const OLLAMA_BASE = "http://127.0.0.1:11434/v1";
+const OLLAMA_WINDOW = 8192;
+const OLLAMA_REPLY = JSON.stringify({ model: "qwen2.5:0.5b", message: { role: "assistant", content: "p" }, done: true, ["done_reason"]: "length" });
+const OPENAI_REPLY = JSON.stringify({
+  id: "c1",
+  object: "chat.completion",
+  created: 1,
+  model: "m",
+  choices: [{ index: 0, message: { role: "assistant", content: "p" }, ["finish_reason"]: "length" }],
+});
+
+function silentLog(): Parameters<typeof runOpenAiCompatChatTurn>[1]["log"] {
+  const noop = (): void => undefined;
+  return { debug: noop, info: noop, warn: noop, error: noop };
+}
+
+/** Answers every send with `reply` as JSON and records where each went and what it carried. */
+function answering(reply: string, recorded: RecordedRequest[]): typeof fetch {
+  return (input, init) => {
+    recorded.push({ url: String(input), body: JSON.parse(typeof init?.body === "string" ? init.body : "{}") as Record<string, unknown> });
+    return Promise.resolve(new Response(reply, { status: 200, headers: { "content-type": "application/json" } }));
+  };
+}
+
+/** One chat turn and one inspection on the same row; each returns the first send it made. */
+async function chatAndInspect(
+  row: OpenAiCompatChatRequest["connection"],
+  reply: string,
+): Promise<{ chat: RecordedRequest | undefined; inspect: RecordedRequest | undefined; ok: boolean }> {
+  const chatSends: RecordedRequest[] = [];
+  const turn: OpenAiCompatChatRequest = {
+    api: "chat-completions",
+    connection: row,
+    params: { temperature: 0.8, maxOutputTokens: 64 },
+    systemPrompt: { static: "", dynamic: "" },
+    history: [{ role: "user", content: [{ type: "text", text: "Say hello." }] }],
+  };
+  await runOpenAiCompatChatTurn(turn, {
+    now: () => NOW,
+    log: silentLog(),
+    transport: { fetch: answering(reply, chatSends), app: APP },
+    tokens: memoryTokenLexicon(),
+  }).catch(() => undefined);
+  const inspectSends: RecordedRequest[] = [];
+  const inspection = await inspectOpenAiCompatEndpoint({ connection: row }, { fetch: answering(reply, inspectSends), app: APP });
+  return { chat: chatSends[0], inspect: inspectSends[0], ok: inspection.ok };
+}
+
+test("an Ollama row's test request rides the native /api/chat route its chat turn takes, with the same native shaping", async () => {
+  const row = fakeResolved({
+    task: "chat",
+    providerId: "ollama",
+    model: "qwen2.5:0.5b",
+    capability: generationCapability({ reasoning: { mode: "none", enabled: false }, context: { window: OLLAMA_WINDOW } }),
+    baseUrl: OLLAMA_BASE,
+  });
+  const { chat, inspect, ok } = await chatAndInspect(row, OLLAMA_REPLY);
+  expect(chat?.url).toBe("http://127.0.0.1:11434/api/chat");
+  expect(inspect?.url).toBe(chat?.url);
+  // The native translation ran on both: the window as num_ctx, the cap as num_predict, no OpenAI-only cap key.
+  expect(inspect?.body["options"]).toMatchObject({ ["num_ctx"]: OLLAMA_WINDOW, ["num_predict"]: 1 });
+  expect(chat?.body["options"]).toMatchObject({ ["num_ctx"]: OLLAMA_WINDOW });
+  expect(Object.hasOwn(inspect?.body ?? {}, "max_tokens")).toBe(false);
+  expect(ok).toBe(true);
+});
+
+test("a Custom row's test request rides /v1/chat/completions with the row's own body, as its chat turn does", async () => {
+  const row = fakeResolved({
+    task: "chat",
+    providerId: "custom-openai",
+    model: "m",
+    capability: generationCapability(),
+    baseUrl: "https://byo.example.com/v1",
+    secret: fakeApiKeySecret(API_KEY),
+    extras: { ["mirostat_tau"]: 5 },
+    declaredFeatures: { outputCapField: "max_completion_tokens" },
+  });
+  const { chat, inspect, ok } = await chatAndInspect(row, OPENAI_REPLY);
+  expect(chat?.url).toBe("https://byo.example.com/v1/chat/completions");
+  expect(inspect?.url).toBe(chat?.url);
+  // The body shaper ran on both: the user's extras ride, and the cap uses the row's spelling.
+  expect(chat?.body["mirostat_tau"]).toBe(5);
+  expect(inspect?.body["mirostat_tau"]).toBe(5);
+  expect(inspect?.body["max_completion_tokens"]).toBe(1);
+  expect(Object.hasOwn(inspect?.body ?? {}, "max_tokens")).toBe(false);
+  expect(ok).toBe(true);
+});
+
+test("a test request whose 2xx reply the chat path cannot read is not ok, and says why", async () => {
+  const row = connection();
+  const inspection = await inspectOpenAiCompatEndpoint({ connection: row }, { fetch: responseFetch(200, "not json at all"), app: APP });
+  expect(inspection.ok).toBe(false);
+  expect(inspection.response?.status).toBe(200);
+  expect(inspection.response?.bodyPreview).toBe("not json at all");
+  expect(inspection.error).toBeDefined();
+});
+
+// The test fails as fast as a chat turn would: the row's own idle bound ends a hung endpoint.
+test("a hung endpoint fails the test request within the row's requestTimeoutMs, not at the transport's own timeout", async () => {
+  const idleMs = 50;
+  const row = fakeResolved({
+    task: "chat",
+    providerId: "custom-openai",
+    model: "m",
+    capability: generationCapability(),
+    baseUrl: "https://byo.example.com/v1",
+    secret: fakeApiKeySecret(API_KEY),
+    declaredFeatures: { requestTimeoutMs: idleMs },
+  });
+  const hung: typeof fetch = (_input, init) =>
+    new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => {
+        reject(init.signal?.reason);
+      });
+    });
+
+  const inspection = await inspectOpenAiCompatEndpoint({ connection: row }, { fetch: hung, app: APP });
+
+  expect(inspection.ok).toBe(false);
+  expect(inspection.error).toContain(`${idleMs} ms`);
 });

@@ -268,6 +268,32 @@ test("renderer coverage — a spec mixing container, display, and form kinds ren
   await expect(page.getByRole("button", { name: "Reset" })).toBeVisible();
 });
 
+test("a badge whose text is wider than its surface wraps inside the surface instead of clipping", async ({ mount, page }) => {
+  const text = "draws are committed and the reveal verifies every card that was dealt at this table, however long the session runs";
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = { kind: "stack", children: [{ kind: "badge", text, intent: "neutral" }] };
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Long Badge")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "long-badge", spec)],
+    "plugin.getSurfaceState": () => null,
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory width={240} />);
+
+  const badge = page.locator("[data-slot='badge']", { hasText: "draws are committed" });
+  await expect(badge).toBeVisible();
+  await expect
+    .poll(() =>
+      badge.evaluate((el) => {
+        const bounds = el.parentElement?.getBoundingClientRect();
+        const box = el.getBoundingClientRect();
+        return bounds !== undefined && box.right <= bounds.right + 1 && el.scrollWidth <= el.clientWidth + 1;
+      }),
+    )
+    .toBe(true);
+});
+
 test("#798: a card-atlas-style detail stage shows its cover — the BOUND hero (assetFrom) resolves a fetched assetId from state and renders the art", async ({
   mount,
   page,
@@ -460,6 +486,29 @@ test("#799: the SAME grid spec with `busy: false` shows its tiles — the loadin
 
   await expect(page.getByText("Aria")).toBeVisible();
   await expect(page.locator('[data-slot="media-tile-grid-skeleton"]')).toHaveCount(0);
+});
+
+test("a button's bound `disabled` follows published state — disabled while the path is true, enabled when it flips", async ({ mount, page }) => {
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = {
+    kind: "row",
+    children: [
+      { kind: "button", actionId: "prev_page", label: "Previous", variant: "outline", disabled: { $state: "noSearch" } },
+      { kind: "button", actionId: "next_page", label: "Next", variant: "outline", disabled: { $state: "somethingElse" } },
+    ],
+  };
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
+    "plugin.getSurfaceState": () => ({ noSearch: true }),
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+
+  await expect(page.getByRole("button", { name: "Previous" })).toBeDisabled();
+  // A bound path the plugin never published reads as enabled, so a typo can never lock the control.
+  await expect(page.getByRole("button", { name: "Next" })).toBeEnabled();
 });
 
 test("0698: a grid still loading once the plugin's continuation window has passed stops skeletoning and says so", async ({ mount, page }) => {

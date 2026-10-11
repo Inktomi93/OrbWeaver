@@ -98,7 +98,15 @@ import { armStageKeeper } from "./stage-keeper.ts";
 import { clearRow, markerRoot, readBands, touchRow, writeRow } from "./stage-marker.ts";
 import { holderProcessRunning, stageBandPortPid, stageDirs } from "./stage-probe.ts";
 import { recordStageReap } from "./stage-reap-log.ts";
-import { assertStageSourceSupportsIsolation, pnpmInstall, prepareStageSource, removeStageDir, seedStageData, syncDirtyTree } from "./stage-source.ts";
+import {
+  assertStageSourceSupportsIsolation,
+  pnpmInstall,
+  prepareStageSource,
+  printClonedStageWarning,
+  removeStageDir,
+  seedStageData,
+  syncDirtyTree,
+} from "./stage-source.ts";
 import { stopStage } from "./stage-teardown.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -116,10 +124,16 @@ function devInheritedEnv(root: string): Record<string, string> {
   return stageInheritedEnv(readFileSync(p, "utf8"));
 }
 
-function bootStage(root: string, paths: StagePaths, ports: StagePorts, auth: StageAuthMode): void {
-  // A local-auth stage owns an empty data root, so no dev db key applies; the fixture recipe's identity
-  // half (local sign-in, its insecure secrets, the owner handle) takes their place.
-  const inherited = auth === "local" ? fixtureIdentityEnv(ports.server) : devInheritedEnv(root);
+/** A local stage's empty data root takes the fixture identity; a cloned db inherits no dev env, so the stack
+ *  cli's fixed dev keys apply and `cloneStageDb` drops the rows sealed under the source box's keys. */
+function stageIdentityEnv(root: string, ports: StagePorts, auth: StageAuthMode, clonedDb: boolean): Record<string, string> {
+  if (auth === "local") {
+    return fixtureIdentityEnv(ports.server);
+  }
+  return clonedDb ? {} : devInheritedEnv(root);
+}
+
+function bootStage(paths: StagePaths, ports: StagePorts, inherited: Record<string, string>): void {
   const env: NodeJS.ProcessEnv = {
     // biome-ignore lint/style/noProcessEnv: the stage stack inherits the operator's ambient env (PATH etc) — harness plumbing, not app config.
     ...process.env,
@@ -235,6 +249,7 @@ function reuseWarmStage(homes: { readonly root: string; readonly home: string },
     return resynced;
   }
   print(`[snap-stage] reusing warm stage ${shortSha(row.sha)} on band ${row.band} → ${stageRowBaseUrl(row)}`);
+  printClonedStageWarning(row);
   touchRow(home, row.band, nowIso);
   return { ...row, lastUsedAt: nowIso };
 }
@@ -249,8 +264,9 @@ function bootOntoBand(input: {
   readonly dirty: boolean;
   readonly fresh: boolean;
   readonly auth: StageAuthMode;
+  readonly stageDb: string | undefined;
 }): StageRow {
-  const { root, home, band, targetSha, dirty, auth } = input;
+  const { root, home, band, targetSha, dirty, auth, stageDb } = input;
   const paths = stagePaths(root, targetSha, auth);
   const ports = stageBandPorts(band);
   assertStageSourceSupportsIsolation(root, dirty, targetSha);
@@ -263,11 +279,11 @@ function bootOntoBand(input: {
     print(`[snap-stage] pnpm install (shared store) in ${paths.dir}`);
     pnpmInstall(paths.dir);
   }
-  const dbProvenance = auth === "local" ? null : seedStageData(root, paths);
+  const dbProvenance = auth === "local" ? null : seedStageData(root, paths, stageDb);
 
   print(`[snap-stage] booting isolated stack on band ${band} — server:${ports.server} vite:${ports.vite} · auth ${auth}`);
   try {
-    bootStage(root, paths, ports, auth);
+    bootStage(paths, ports, stageIdentityEnv(root, ports, auth, stageDb !== undefined));
     if (auth === "local") {
       seedStageHumans(paths, ports);
     }
@@ -372,6 +388,7 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
     print(
       `[snap-stage] reusing ${allocation.row.checkout}'s warm stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (same commit) → ${stageRowBaseUrl(allocation.row)}`,
     );
+    printClonedStageWarning(allocation.row);
     // OUR use keeps THEIR stage alive: the heartbeat measures the band's use, not one checkout's (#324).
     touchRow(home, allocation.band, nowIso);
     return { row: { ...allocation.row, lastUsedAt: nowIso }, booted: false };
@@ -391,7 +408,7 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
     );
     dropStage(root, home, allocation.row);
     writeRow(home, claimRow({ band: allocation.band, checkout: root, targetSha, dir, nowIso }));
-    return { row: bootOntoBand({ root, home, band: allocation.band, targetSha, dirty, fresh: opts.fresh, auth }), booted: true };
+    return { row: bootOntoBand({ root, home, band: allocation.band, targetSha, dirty, fresh: opts.fresh, auth, stageDb: opts.stageDb }), booted: true };
   }
   if (allocation.kind === "reap") {
     // LAZY REAP-ON-ACQUIRE (#1163 arm a): the band was already claimed for us inside the lock, so this
@@ -413,7 +430,7 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
     // one is still running, sees a row naming a different keeper at its next poll and RELEASES.
     recordStageReap(home, allocation.row, "acquire", nowMs);
   }
-  return { row: bootOntoBand({ root, home, band: allocation.band, targetSha, dirty, fresh: opts.fresh, auth }), booted: true };
+  return { row: bootOntoBand({ root, home, band: allocation.band, targetSha, dirty, fresh: opts.fresh, auth, stageDb: opts.stageDb }), booted: true };
 }
 
 /** Sweep stage dirs on THIS checkout that no row accounts for (#324): a crashed run leaves a bare

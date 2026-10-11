@@ -213,7 +213,6 @@ async function takeSnapshot(chat: ChatHandle, styleKey: string, note: string): P
   // THE PAINT. `quiet: false` ⇒ the finished postcard POSTS TO THE ROOM regardless of whether this call
   // answers inside the host bound (teaching point 2 in the header). The args shape is the SAME
   // `generate_image` vocabulary automation rules use — one vocabulary across rule, tool, and plugin.
-  const paintStartedMs = host.clock.nowEpochMs();
   let assetId: string;
   try {
     ({ assetId } = await host.imagery.generatePicture(chat, {
@@ -232,7 +231,7 @@ async function takeSnapshot(chat: ChatHandle, styleKey: string, note: string): P
       return;
     }
     host.log.info(`snapshot not caught: ${String(err)}`);
-    await host.ui.toast(...snapshotFailureToast(name, host.clock.nowEpochMs() - paintStartedMs));
+    await host.ui.toast(...snapshotFailureToast(name));
     return;
   }
 
@@ -248,26 +247,22 @@ async function takeSnapshot(chat: ChatHandle, styleKey: string, note: string): P
   await host.ui.toast("success", `Kept: "${chosen.title}" — the postcard is in the room and the album.`);
 }
 
-/** The membrane's per-call deadline (`HOST_FN_DEADLINE_MS`). Its rejection is a plain `Error` with no
- *  distinguishing name, so the camera recognizes it by the one fact that defines it: the call ran that long. */
-const HOST_CALL_DEADLINE_MS = 5000;
-/** Timer and wall-clock granularity can land a deadline rejection a hair before the full bound. */
-const DEADLINE_SLACK_MS = 250;
-
-/** The error NAMES the host carries across the boundary for the two failures a person can act on. */
+/** The error NAMES the host carries across the boundary: the two failures a person can act on, and the
+ *  membrane's per-call deadline. */
 const IMAGERY_NOT_CONFIGURED = "ImageryNotConfiguredError";
 const PROVIDER_FAILURES = ["ProviderError", "GenerationFailedError"];
+const HOST_DEADLINE = "PluginHostDeadlineError";
 
 /** Say what actually happened. Only the deadline means "still painting": every other failure means nothing is
  *  coming, and a toast that promises a postcard then is a lie the person waits on. */
-function snapshotFailureToast(name: string, elapsedMs: number): readonly [PluginToastLevel, string] {
+function snapshotFailureToast(name: string): readonly [PluginToastLevel, string] {
   if (name === IMAGERY_NOT_CONFIGURED) {
     return ["warn", "No image model set up — add one in Settings › Connections › Image generation."];
   }
   if (PROVIDER_FAILURES.includes(name)) {
     return ["error", "The image model refused to paint this postcard, so nothing was made. Try again, or choose another image model."];
   }
-  if (elapsedMs >= HOST_CALL_DEADLINE_MS - DEADLINE_SLACK_MS) {
+  if (name === HOST_DEADLINE) {
     // The room still gets its postcard when the pipeline finishes (`quiet: false`); only the album misses it.
     return ["info", "The postcard is developing — it will appear in the room. (The album only keeps ones the camera catches in time.)"];
   }
@@ -429,8 +424,9 @@ if (canShoot) {
   host.ui.registerCommand({
     name: "snapshot",
     describe: "Paint this moment of the scene into a postcard for the room (and the album)",
+    placements: [{ target: "composer-media", label: "Snapshot", icon: "images" }],
     args: [
-      { name: "style", type: "enum", enumValues: Object.keys(STYLES), describe: "The postcard's look (default painterly)" },
+      { name: "style", type: "enum", enumValues: Object.keys(STYLES), default: "painterly", describe: "The postcard's look" },
       { name: "note", type: "string", describe: "Something the painter should not miss" },
     ],
     onRun: async (a) => {

@@ -9,7 +9,7 @@
 // 2+ hops, so the chat context panel was STRUCTURALLY unmeasurable by both, and a throttled INP number for
 // a 208ms keydown could not be taken at all. One vocabulary, four probes, identical semantics.
 //
-// `panel`/`focus` (2026-08-31, #148 item 2 — the same gap one level out): panels docked/collapsed/focus-mode
+// `panel` (2026-08-31, #148 item 2 — the same gap one level out): panels docked/collapsed
 // were not an axis ANY probe could reach — not an arm, not a matrix cell, nothing enumerated the states — so
 // a report of text flush to a panel edge or a clipped rounded button could not be told apart from "lives in
 // a state no instrument visits". For motion-audit specifically a panel toggle is not only a state to reach
@@ -26,11 +26,11 @@ import { budget } from "./load-budget.ts";
 import { navResultShape } from "./page-validate.ts";
 
 /** The nav verbs a probe CLI offers, spelled as they appear on the command line (minus the `--`). */
-export const NAV_METHODS = ["goto", "open-chat", "open-character", "context-tab", "panel", "focus"] as const;
+export const NAV_METHODS = ["goto", "open-chat", "open-character", "context-tab", "panel"] as const;
 export type NavMethod = (typeof NAV_METHODS)[number];
 
 /** The CLI flags that carry a nav action, in the order the help text lists them. */
-export const NAV_FLAGS: readonly string[] = ["--goto", "--open-chat", "--open-character", "--context-tab", "--panel", "--focus"];
+export const NAV_FLAGS: readonly string[] = ["--goto", "--open-chat", "--open-character", "--context-tab", "--panel"];
 
 /** `--<flag>` → the nav verb it queues. */
 export const NAV_FLAG_METHOD: Record<string, NavMethod> = {
@@ -39,7 +39,6 @@ export const NAV_FLAG_METHOD: Record<string, NavMethod> = {
   "--open-character": "open-character",
   "--context-tab": "context-tab",
   "--panel": "panel",
-  "--focus": "focus",
 };
 
 // The 1:1 verb→bridge-method map. `goto` and `panel` are absent by design: `goto`'s target is namespaced
@@ -51,7 +50,6 @@ const NAV_BRIDGE_METHOD: Record<Exclude<NavMethod, "goto" | "panel">, string> = 
   "open-chat": "openChat",
   "open-character": "openCharacter",
   "context-tab": "contextTab",
-  focus: "focus",
 };
 
 /** The decoded bridge call: the concrete `__orb.nav` method plus its already-JS-literal argument list. */
@@ -63,8 +61,7 @@ interface NavCall {
 /** Decode one verb+target pair into its bridge call. `goto`'s target is namespaced and picks its method
  *  through parseGotoTarget; `panel`'s target is `<name>=<mode>` (the same `<a>=<b>` shape `--fill`/
  *  `--key`/`--expect-text` use, split with splitLastEq — a panel NAME never contains `=`) and becomes TWO
- *  bridge arguments; `focus` takes a `"on"|"off"` target and becomes ONE boolean argument (each CLI's own
- *  parse validates the value is exactly `on`/`off` before this ever runs — this module trusts it); every
+ *  bridge arguments; every
  *  other verb passes its target through as one bridge argument. */
 function decodeNavCall(method: NavMethod, target: string): NavCall {
   if (method === "goto") {
@@ -84,9 +81,6 @@ function decodeNavCall(method: NavMethod, target: string): NavCall {
   if (method === "panel") {
     const { head, tail } = splitLastEq(target);
     return { bridgeMethod: "panel", args: `${JSON.stringify(head)}, ${JSON.stringify(tail)}` };
-  }
-  if (method === "focus") {
-    return { bridgeMethod: NAV_BRIDGE_METHOD.focus, args: JSON.stringify(target === "on") };
   }
   return { bridgeMethod: NAV_BRIDGE_METHOD[method], args: JSON.stringify(target) };
 }

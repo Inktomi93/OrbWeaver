@@ -239,10 +239,7 @@ type ChatRowView = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
 
 /** The resolved preview substrate: the host, the resolved seated characters/personas, the connection `model`, and the
  *  cross-domain assemble inputs. The previews + `getActivePresetConfig` share this resolution. */
-interface PreviewInputs {
-  /** The previewed chat — carried so the registry build can stamp the GAME group's `MacroSourceRef.id`. */
-  readonly chatId: ChatId;
-  readonly hostUserId: UserId;
+interface PreviewInputs extends RoomInputs {
   /** The room host whose connection the preview resolved under (§8.4-3). */
   readonly funderUserId: UserId;
   readonly model: string;
@@ -254,6 +251,14 @@ interface PreviewInputs {
   /** The resolved protocol axis — previewContextFit source-modes the divider boundary on it (agent-sdk → the
    *  marker coverage point; stateless → the fit boundary). */
   readonly api: Resolved<"chat">["api"];
+}
+
+/** The room-derived half of {@link PreviewInputs}: everything a read that never calls a model needs. It owns no
+ *  connection, so a read that only inspects the room (the Regex section) resolves without one. */
+interface RoomInputs {
+  /** The previewed chat — carried so the registry build can stamp the GAME group's `MacroSourceRef.id`. */
+  readonly chatId: ChatId;
+  readonly hostUserId: UserId;
   readonly characterIds: readonly CharacterId[];
   readonly personaIds: readonly PersonaId[];
   /** The room seats more than one present human — the SHAPE name-stamp's multi-human rule. */
@@ -461,26 +466,49 @@ async function buildSummaries(ctx: ChatContext, deps: ReadDeps, rows: readonly C
  *  `previewSection`, `previewActionTemplates`, `getActivePresetConfig` — answers about the preset the TURN
  *  assembles on a game chat — the same preset-redirect hop as the turn, so a preview never renders a preset
  *  the turn wouldn't. */
-async function resolvePreviewInputs(
+async function resolvePreviewInputs(ctx: ChatContext, deps: ReadDeps, chatId: ChatId, opts: PreviewInputsOpts): Promise<PreviewInputs> {
+  const participants = await loadParticipants(ctx.db, chatId);
+  const hostUserId = hostUserIdOf(participants);
+  if (hostUserId === null) {
+    throw new ChatNotFoundError(chatId);
+  }
+  const connection = await deps.resolveConnection({ funderUserId: hostUserId, chatId });
+  const room = await resolveRoomInputs(ctx, deps, chatId, { ...opts, model: connection.model });
+  return {
+    ...room,
+    funderUserId: hostUserId,
+    model: connection.model,
+    // The window the next turn sends and fits: the preset's, on a route whose request sets it.
+    capability: windowForPreset(generationOf(connection), room.foreign.promptConfig.params.maxContextTokens),
+    explicitCacheMarkers: preservesCacheBlockEnds(connection, generationOf(connection), room.foreign.promptConfig.params),
+    api: connection.api,
+  };
+}
+
+interface PreviewInputsOpts {
+  readonly anchorPersonaId: PersonaId | null;
+  readonly speakerCharacterId?: CharacterId | null | undefined;
+  /** D8 / §7.1 — assemble as if THIS preset were the chat's active one (the preset editor's bound readout
+   *  inspects a preset the room has not adopted). Rides the LANDED `ResolveForeignInputsOp.presetOverride`
+   *  seam (minted for the rpg GM-voice redirect): compose resolves it owned-or-system under the HOST and
+   *  falls back to the host's own default on a stale/unowned id — the lenient-id rule, so an override can
+   *  never read a preset outside the host's library. Absent ⇒ the GM-preset redirect, else the host default.
+   *
+   *  EXPLICIT OUTRANKS THE REDIRECT: this is a host pointing at a candidate preset and asking what it would
+   *  render here. Letting a game chat's `gmPresetId` win would answer a question nobody asked, on the one
+   *  surface whose entire job is inspecting a preset the room has NOT adopted. */
+  readonly presetOverride?: PresetId | undefined;
+}
+
+/** The room half of the preview inputs. `model` is the resolved connection's, or absent for a read that needs no
+ *  model (the foreign-inputs op ignores it either way). */
+async function resolveRoomInputs(
   ctx: ChatContext,
   deps: ReadDeps,
   chatId: ChatId,
-  opts: {
-    readonly anchorPersonaId: PersonaId | null;
-    readonly speakerCharacterId?: CharacterId | null | undefined;
-    /** D8 / §7.1 — assemble as if THIS preset were the chat's active one (the preset editor's bound readout
-     *  inspects a preset the room has not adopted). Rides the LANDED `ResolveForeignInputsOp.presetOverride`
-     *  seam (minted for the rpg GM-voice redirect): compose resolves it owned-or-system under the HOST and
-     *  falls back to the host's own default on a stale/unowned id — the lenient-id rule, so an override can
-     *  never read a preset outside the host's library. Absent ⇒ the GM-preset redirect, else the host default.
-     *
-     *  EXPLICIT OUTRANKS THE REDIRECT: this is a host pointing at a candidate preset and asking what it would
-     *  render here. Letting a game chat's `gmPresetId` win would answer a question nobody asked, on the one
-     *  surface whose entire job is inspecting a preset the room has NOT adopted. */
-    readonly presetOverride?: PresetId | undefined;
-  },
-): Promise<PreviewInputs> {
-  const { anchorPersonaId, speakerCharacterId } = opts;
+  opts: PreviewInputsOpts & { readonly model?: string | undefined },
+): Promise<RoomInputs> {
+  const { anchorPersonaId, speakerCharacterId, model } = opts;
   const participants = await loadParticipants(ctx.db, chatId);
   const hostUserId = hostUserIdOf(participants);
   if (hostUserId === null) {
@@ -503,7 +531,6 @@ async function resolvePreviewInputs(
       const actor = classifyParticipant(r);
       return actor?.kind === "human" && actor.userId === hostUserId;
     })?.activePersonaId ?? null;
-  const connection = await deps.resolveConnection({ funderUserId: hostUserId, chatId });
   // THE GM-PRESET REDIRECT — the SAME early hop the turn runs (`verbs/turn.ts`: `resolvePresetOverride` before
   // the foreign read). A game chat assembles its `gmPresetId`, not the host's default preset; without this hop
   // every preview surface on a game chat would render the host's DEFAULT preset's templates
@@ -525,7 +552,7 @@ async function resolvePreviewInputs(
   const foreign = await deps.resolveForeignInputs({
     chatId,
     runAsUserId: hostUserId,
-    model: connection.model,
+    ...(model !== undefined ? { model } : {}),
     anchorPersonaId,
     presentHumanUserIds: previewPresentHumanUserIds,
     humanSeats,
@@ -539,12 +566,6 @@ async function resolvePreviewInputs(
   return {
     chatId,
     hostUserId,
-    funderUserId: hostUserId,
-    model: connection.model,
-    // The window the next turn sends and fits: the preset's, on a route whose request sets it.
-    capability: windowForPreset(generationOf(connection), foreign.promptConfig.params.maxContextTokens),
-    explicitCacheMarkers: preservesCacheBlockEnds(connection, generationOf(connection), foreign.promptConfig.params),
-    api: connection.api,
     characterIds,
     // The same membership rule as the live turn (`memberPersonaIdsOf`), so the preview shows the lore it sends.
     personaIds: memberPersonaIdsOf(humanSeats),
@@ -1103,17 +1124,18 @@ function createListParticipants(ctx: ChatContext, deps: ReadDeps): ChatService["
  *  not learn what the host owns — they read the room's own tier through `regex.listForChat` (member-gated,
  *  room-public) instead.
  *
- *  IT RESOLVES THROUGH `resolvePreviewInputs`, deliberately: the section is an HONESTY INSTRUMENT in exactly
- *  the sense the previews are. The tier list must name the preset the TURN would assemble (including the rpg
+ *  IT RESOLVES THROUGH `resolveRoomInputs` (the preview preamble minus the connection), deliberately: the
+ *  section is an HONESTY INSTRUMENT in exactly the sense the previews are. The tier list must name the preset the TURN would assemble (including the rpg
  *  GM redirect) and the characters the TURN would seat, or a host bisecting a weird room would be switching
- *  levers on a set the next reply does not use. Sharing the preamble is what makes that structural.
+ *  levers on a set the next reply does not use. Sharing the preamble is what makes that structural. Listing
+ *  scripts calls no model, so a room with no chat connection bound still answers.
  *
  *  The pure resolver answers both halves at once (`substrate/regex-tier::resolveRegexTiers`) — the same
  *  function the turn's union comes out of — so the section and the wire can never disagree about run order. */
 function createListEffectiveRegex(ctx: ChatContext, deps: ReadDeps): ChatService["listEffectiveRegex"] {
   return async ({ principal, chatId }: ListEffectiveRegexParams): Promise<EffectiveRegexView> => {
     const { chat } = await requireHost(ctx, principal, chatId);
-    const inputs = await resolvePreviewInputs(ctx, deps, chatId, { anchorPersonaId: chat.anchorPersonaId });
+    const inputs = await resolveRoomInputs(ctx, deps, chatId, { anchorPersonaId: chat.anchorPersonaId });
     return resolveRegexTiers(
       {
         ...(await ctx.resolveRegexSources({

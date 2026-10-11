@@ -46,8 +46,11 @@ function stub(page: Page): Promise<TrpcRecorder> {
     // fed empty (the honest fresh-library arm) rather than left to routeTrpc's inert null.
     "tag.listTagsWithUsage": [],
     "regex.listScripts": [],
+    "regex.countScripts": 0,
     "worldInfo.listBooksWithUsage": [],
+    "worldInfo.countBooks": 0,
     "rosterPreset.list": [],
+    "rosterPreset.count": 0,
     ...STREAM_MUTATION_ROUTES,
     // The jobs section owns the paid-run confirm, which reads the Utility role on mount.
     ...PAID_RUN_ROUTES,
@@ -272,8 +275,11 @@ test("POPULATED: both lanes, a job in flight, a poison row, a finished stats reb
     // fed empty (the honest fresh-library arm) rather than left to routeTrpc's inert null.
     "tag.listTagsWithUsage": [],
     "regex.listScripts": [],
+    "regex.countScripts": 0,
     "worldInfo.listBooksWithUsage": [],
+    "worldInfo.countBooks": 0,
     "rosterPreset.list": [],
+    "rosterPreset.count": 0,
     ...STREAM_MUTATION_ROUTES,
     ...PAID_RUN_ROUTES,
     "settings.getUserSettings": () => ({ userId: USER_VIEWER.userId, schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),

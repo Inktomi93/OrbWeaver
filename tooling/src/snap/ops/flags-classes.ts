@@ -43,7 +43,6 @@ export const REQUIRED_VALUE_FLAGS = new Set([
   "--open-character",
   "--context-tab",
   "--panel",
-  "--focus",
   ...PANEL_PRESET_VALUE_FLAGS,
   "--pages",
   "--contexts",
@@ -63,6 +62,7 @@ export const REQUIRED_VALUE_FLAGS = new Set([
   ...THEME_VALUE_FLAGS,
   "--ref",
   "--stage-auth",
+  "--stage-db",
   "--session",
   "--session-daemon",
   "--session-close",
@@ -110,6 +110,5 @@ export const PAGE_TARGET_FLAGS = new Set([
   "--open-character",
   "--context-tab",
   "--panel",
-  "--focus",
   ...pageTargetableArmFlags(),
 ]);

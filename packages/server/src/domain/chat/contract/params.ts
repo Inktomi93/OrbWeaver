@@ -3,7 +3,6 @@
 // is membership-scoped, resolving requireParticipant/requireHost(principal, chatId); there is no ownerId.
 
 import type {
-  ChatInjection,
   ChatInjectionInput,
   ChatLibraryLens,
   ChatListCursor,
@@ -46,7 +45,6 @@ import type {
   PresetId,
   UserId,
 } from "@orb/kit/ids";
-import type { MessageRole } from "@orb/kit/message-role";
 import type { IanaTimeZone } from "@orb/kit/time";
 
 // The one-turn typed steer is the CONTRACTS wire shape (`guidedSteerSchema`) — re-exported here so the
@@ -434,14 +432,7 @@ export interface ForkChatParams extends ChatScopedParams {
 
 /** `setChatInjection` — upserts a persisted positional injection. The resolved actor/chat scope wraps the
  *  wire input fields; `id` set means update, absent means create. */
-export interface SetChatInjectionParams extends ChatScopedParams {
-  readonly id?: ChatInjectionId | undefined;
-  readonly position: ChatInjection["position"];
-  readonly depth: number;
-  readonly role: MessageRole;
-  readonly content: string;
-  readonly order?: number | undefined;
-}
+export interface SetChatInjectionParams extends ChatScopedParams, Readonly<ChatInjectionInput> {}
 
 export interface ListChatInjectionsParams extends ChatScopedParams {}
 

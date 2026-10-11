@@ -61,7 +61,7 @@ Every rule-owned population row is valid only when every count is a finite, non-
 
 Any non-cap withholding makes the rule's verdict incomplete: the run prints the full population evidence and `NO VERDICT` (an instrument error), never `no findings — clean`, and exits non-clean. Cap withholding stays complete, because the whole population was judged and only the presentation was bounded. Invalid arithmetic fails before classification.
 
-The surface-state axes follow the same polarity. A pane whose section declares it unavailable (`data-panel-available`, and `available` per panel row in `__orb.shell()`) excludes its mode space as `excluded(sectionDeclaresNoPane=N)`; the focus axis excludes only when both panes are declared absent. An absent declaration (`null`) is never guessed into `true`: the census refuses the run. A surface has two regimes, rest and driven (an argv-ordered action queue), and a run declares which one it measured; a one-sided cohort at rest stays withheld, and a driven run is where its twin comes from.
+The surface-state axes follow the same polarity. A pane whose section declares it unavailable (`data-panel-available`, and `available` per panel row in `__orb.shell()`) excludes its mode space as `excluded(sectionDeclaresNoPane=N)`. An absent declaration (`null`) is never guessed into `true`: the census refuses the run. A surface has two regimes, rest and driven (an argv-ordered action queue), and a run declares which one it measured; a one-sided cohort at rest stays withheld, and a driven run is where its twin comes from.
 
 ## The mechanism-match table
 

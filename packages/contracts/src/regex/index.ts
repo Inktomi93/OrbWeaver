@@ -45,7 +45,8 @@ import { visibleRoomRefSchema } from "../chat/visible-rooms.ts";
 // ── Field caps (named so the literals aren't bare magic numbers) ──────────────
 const MIN_CARD_ID_LENGTH = 1;
 const MAX_CARD_ID_LENGTH = 128;
-const MAX_NAME_LENGTH = 200;
+/** The cap on a script name. */
+export const REGEX_SCRIPT_NAME_MAX = 200;
 const MAX_REPLACE_LENGTH = 10_000;
 const MAX_TRIM_STRING_LENGTH = 2000;
 const MAX_TRIM_STRINGS = 100;
@@ -136,7 +137,7 @@ export type RegexScriptBehavior = z.infer<typeof regexScriptBehaviorSchema>;
  *  because the library has no separate summary: `regex.listScripts` returns exactly this. */
 export const regexScriptSchema = regexScriptBehaviorSchema.extend({
   id: typeIdSchema(ID_PREFIX.regexScript),
-  name: z.string().max(MAX_NAME_LENGTH),
+  name: z.string().max(REGEX_SCRIPT_NAME_MAX),
   enabled: z.boolean().default(true),
   updatedAt: z.number().int(),
 });
@@ -160,7 +161,7 @@ export const regexScriptViewSchema = regexScriptSchema.strict().safeExtend({
  *  `toRegexScriptCardWire` writes both back out so a foreign ST reading our card honours the state too. */
 const regexScriptCardFieldsSchema = regexScriptBehaviorSchema.extend({
   id: z.string().min(MIN_CARD_ID_LENGTH).max(MAX_CARD_ID_LENGTH),
-  name: z.string().max(MAX_NAME_LENGTH),
+  name: z.string().max(REGEX_SCRIPT_NAME_MAX),
   enabled: z.boolean().optional(),
   disabled: z.boolean().optional(),
 });
@@ -245,7 +246,7 @@ export function toRegexScriptCardWire(card: RegexScriptCard): RegexScriptCard & 
 /** Create one library script. `id`/`ownerId`/`createdAt` are the server's (an app-minted TypeID + the
  *  principal), so the wire carries only authored content. */
 export const createRegexScriptSchema = regexScriptBehaviorSchema.extend({
-  name: z.string().max(MAX_NAME_LENGTH),
+  name: z.string().max(REGEX_SCRIPT_NAME_MAX),
   enabled: z.boolean().default(true),
 });
 
@@ -258,7 +259,7 @@ export type CreateRegexScriptInput = z.infer<typeof createRegexScriptSchema>;
  *  Descends from the UN-refined shape because zod refuses `.partial()` on a refined object — and that is
  *  the correct seam anyway: a patch is not a behavior, so the depth/placement pairing is checked on the
  *  MERGED body (`updateScript` re-parses through `regexScriptBehaviorSchema`), where it is actually true. */
-export const updateRegexScriptSchema = regexScriptBehaviorFields.extend({ name: z.string().max(MAX_NAME_LENGTH), enabled: z.boolean() }).partial();
+export const updateRegexScriptSchema = regexScriptBehaviorFields.extend({ name: z.string().max(REGEX_SCRIPT_NAME_MAX), enabled: z.boolean() }).partial();
 
 export type UpdateRegexScriptInput = z.infer<typeof updateRegexScriptSchema>;
 

@@ -1115,7 +1115,44 @@ function identityVersusControls(page: Page): Promise<number> {
   });
 }
 
-// A wide pane never runs a sentence across its whole width: the intro and every role's description stop at the
+// The role glosses are sentences: they paint at the label step, not the 10.5px micro step.
+test("the Model roles intro and a role description paint at the label step, not the micro step", async ({ mount, page }) => {
+  await stubTheTwoDotStates(page);
+  await mount(<ConnectionsPaneWideStory />);
+  const roles = page.locator("#config-anchor-connections-model-roles");
+  const intro = roles.getByText("Shared-room turns use the room host's connections", { exact: false });
+  const description = roles.getByText("Unset falls back to the captioned-text lens.", { exact: false }).first();
+  await expect(intro).toBeVisible();
+  await expect
+    .poll(() =>
+      roles.evaluate((section) => {
+        const px = (token: string): number => {
+          const probe = document.createElement("div");
+          probe.style.fontSize = `var(${token})`;
+          section.append(probe);
+          const size = Number.parseFloat(getComputedStyle(probe).fontSize);
+          probe.remove();
+          return size;
+        };
+        const find = (text: string): number => {
+          const node = [...section.querySelectorAll("*")].find(
+            (candidate) => candidate.childElementCount === 0 && candidate.textContent?.includes(text) === true,
+          );
+          return node === undefined ? Number.NaN : Number.parseFloat(getComputedStyle(node).fontSize);
+        };
+        const label = px("--text-label");
+        return {
+          stepsApart: label > px("--text-micro"),
+          intro: find("Shared-room turns use the room host's connections") >= label,
+          description: find("Unset falls back to the captioned-text lens.") >= label,
+        };
+      }),
+    )
+    .toEqual({ stepsApart: true, intro: true, description: true });
+  await expect(description).toBeVisible();
+});
+
+// A wide pane never runs a sentence across its whole width:the intro and every role's description stop at the
 // prose measure, which at 870 is narrower than the section.
 test("at 870px the intro and every role description stop at the prose measure", async ({ mount, page }) => {
   await stubTheTwoDotStates(page);

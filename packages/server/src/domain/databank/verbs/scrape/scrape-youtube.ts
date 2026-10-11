@@ -8,6 +8,7 @@
 // empty cue set → the same `ScrapeFailedError` (there is nothing to ingest — a caption-less video is not canon).
 // Stamps: origin 'youtube', sourceUrl = the canonical watch URL, name = the video id (timedtext carries no title).
 
+import { decodeXmlText } from "@orb/kit/strings";
 import { ScrapeFailedError } from "../../contract/errors.ts";
 import type { ScrapeYoutubeParams } from "../../contract/params.ts";
 import type { UploadResult } from "../../contract/results.ts";
@@ -26,12 +27,6 @@ const HOST_PREFIX = /^(?:www\.|m\.)/;
 const YOUTUBE_HOSTS = new Set(["youtube.com", "youtube-nocookie.com"]);
 /** A caption cue: `<text start="1.2" dur="3.4">the words</text>` (attribute order/extra attrs vary). */
 const CUE = /<text\b[^>]*>([\s\S]*?)<\/text>/g;
-const XML_ENTITIES: Readonly<Record<string, string>> = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&apos;": "'", "&#39;": "'" };
-const XML_ENTITY = /&(?:amp|lt|gt|quot|apos|#39);/g;
-
-function decodeXml(raw: string): string {
-  return raw.replace(XML_ENTITY, (m) => XML_ENTITIES[m] ?? m);
-}
 
 /** The 11-char video id from a watch/short/embed/youtu.be URL, or a bare id. `undefined` when none is present
  *  (the verb collapses that to `ScrapeFailedError` — a leak-free BAD_REQUEST, the caller's URL is at fault). */
@@ -69,7 +64,7 @@ function videoIdFrom(input: string): string | undefined {
 function captionsToText(xml: string): string {
   const cues: string[] = [];
   for (const match of xml.matchAll(CUE)) {
-    const line = decodeXml(match[1] ?? "").trim();
+    const line = decodeXmlText(match[1] ?? "").trim();
     if (line.length > 0) {
       cues.push(line);
     }

@@ -2129,24 +2129,6 @@ type UnregisteredTemplateId = Exclude<RegistryTemplateId, (typeof TEMPLATE_DEFS)
 const _templateDefsAreExhaustive: [UnregisteredTemplateId] extends [never] ? true : UnregisteredTemplateId = true;
 void _templateDefsAreExhaustive;
 
-/** By-id lookup for the surfaces that render ONE template (a drill-in, a per-kind row) rather than walking
- *  the ordered table. TOTAL over `RegistryTemplateId` by construction — the guard above proves every id has
- *  a row, which is why the fold's assertion carries no runtime fallback (there is no missing case to handle).
- *  PARTIAL over `ProseSlotId` by TYPE only: the framing rows cover exactly `PRESET_PROSE_SLOT_IDS`, which is a
- *  runtime narrowing tsc cannot express here, so that half's totality is the contract test's (see
- *  `TemplateDefId`). */
-export const TEMPLATE_DEF_BY_ID: Record<RegistryTemplateId, TemplateDef> & Partial<Record<ProseSlotId, TemplateDef>> = ((): Record<
-  RegistryTemplateId,
-  TemplateDef
-> &
-  Partial<Record<ProseSlotId, TemplateDef>> => {
-  const out: Partial<Record<TemplateDefId, TemplateDef>> = {};
-  for (const def of TEMPLATE_DEFS) {
-    out[def.id] = def;
-  }
-  return out as Record<RegistryTemplateId, TemplateDef> & Partial<Record<ProseSlotId, TemplateDef>>;
-})();
-
 /** Default `/compact` steering (RP-tuned vs the SDK's generic coding-agent summary). DERIVED from the
  *  PROSE-1 slot (census 49, §4.6 adapted): the override stays `promptConfig.compaction.instructions`; the
  *  slot is what gives the default a version, a staleness signal and registry coverage from ONE place. */

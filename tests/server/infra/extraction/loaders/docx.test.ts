@@ -54,6 +54,12 @@ test("decodes XML entities in run text", async () => {
   expect(out.text).toBe("Tom & Jerry <3");
 });
 
+test("decodes numeric character references and the apostrophe in either spelling", async () => {
+  const xml = "<w:document><w:body><w:p><w:r><w:t>it&#39;s &apos;fine&apos; &#x2014; ok</w:t></w:r></w:p></w:body></w:document>";
+  const out = await loadDocx(docxWithDocumentXml(xml));
+  expect(out.text).toBe("it's 'fine' \u2014 ok");
+});
+
 test("a doc with no runs extracts to empty text (truthful, not a throw)", async () => {
   const out = await loadDocx(buildDocx([]));
   expect(out.text).toBe("");

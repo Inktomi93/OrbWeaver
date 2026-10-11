@@ -10,7 +10,7 @@
 
 import { z } from "zod";
 import type { ChatApi } from "./apis.ts";
-import { BUILTIN_PROVIDER_ROWS } from "./builtin-providers.ts";
+import { BUILTIN_EXAMPLE_BASE_URLS, BUILTIN_PROVIDER_ROWS } from "./builtin-providers.ts";
 import type { ProviderDef } from "./provider-schema.ts";
 import { isPluginProviderId, providerDefSchema } from "./provider-schema.ts";
 import type { Task } from "./tasks.ts";
@@ -31,6 +31,11 @@ const BUILTIN_BY_ID: ReadonlyMap<string, ProviderDef> = new Map(BUILTIN_PROVIDER
 
 export function builtinProvider(id: string): ProviderDef | undefined {
   return BUILTIN_BY_ID.get(id);
+}
+
+/** The placeholder Server URL for a built-in endpoint row; `undefined` for any other row. */
+export function exampleBaseUrl(providerId: string): string | undefined {
+  return BUILTIN_EXAMPLE_BASE_URLS[providerId];
 }
 
 /** The apis a provider's rows may pick — the ONE coherence home (no `assertCoherent` matrix, no client

@@ -37,7 +37,7 @@ import { makeCachePolicy, makeResolved, makeResolvedCacheView } from "../../../.
 import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ALL_AVAILABLE, catalogEntry, catalogOf, SIGNED_IN } from "../_connection-fixtures.ts";
-import { ConnectionEditorClosableStory, ConnectionEditorNarrowStory, ConnectionEditorStory } from "../_ct-stories.tsx";
+import { ConnectionEditorClosableStory, ConnectionEditorNarrowStory, ConnectionEditorScrollPaneStory, ConnectionEditorStory } from "../_ct-stories.tsx";
 
 const CONNECTION_ID = "user_connection_cteditor0001";
 
@@ -329,6 +329,48 @@ test("a listed catalog shows the searchable list with the saved model picked, an
   await expect
     .poll(() => trpc.lastInput("connection.update"))
     .toEqual({ connectionId: CONNECTION_ID, patch: { model: "Qwen/Qwen3-8B", modelCheck: "listed" } });
+});
+
+test("a long catalog opens with the saved model scrolled into the list's view", async ({ mount, page }) => {
+  const filler = Array.from({ length: 30 }, (_unused, index) => catalogEntry(`filler/model-${String(index).padStart(2, "0")}`));
+  await stubEditor(page, {
+    connection: connectionRow({ model: "zzz/saved-model", modelCheck: "listed" }),
+    catalogModels: catalogOf([...filler, catalogEntry("zzz/saved-model")]),
+  });
+  const component = await mount(<ConnectionEditorStory />);
+  const list = component.getByRole("listbox", { name: /^Models on/u });
+  // The list grows past the palette's compact viewport (12rem) to the picker's own 18rem.
+  const rootFontSize = await list.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize));
+  await expect.poll(async () => (await list.boundingBox())?.height).toBe(18 * rootFontSize);
+  const picked = list.getByRole("option").filter({ hasText: "Selected" });
+  await expect(picked).toHaveCount(1);
+  await expect
+    .poll(async () => {
+      const [row, box] = await Promise.all([picked.boundingBox(), list.boundingBox()]);
+      return row !== null && box !== null && row.y >= box.y - 1 && row.y + row.height <= box.y + box.height + 1;
+    })
+    .toBe(true);
+});
+
+test("landing on the saved model scrolls only the list, never the pane around it", async ({ mount, page }) => {
+  const filler = Array.from({ length: 30 }, (_unused, index) => catalogEntry(`filler/model-${String(index).padStart(2, "0")}`));
+  await stubEditor(page, {
+    connection: connectionRow({ model: "zzz/saved-model", modelCheck: "listed" }),
+    catalogModels: catalogOf([...filler, catalogEntry("zzz/saved-model")]),
+  });
+  const component = await mount(<ConnectionEditorScrollPaneStory />);
+  const list = component.getByRole("listbox", { name: /^Models on/u });
+  const picked = list.getByRole("option").filter({ hasText: "Selected" });
+  await expect(picked).toHaveCount(1);
+  await expect.poll(async () => await list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  // The row sits inside the list's own viewport, centered rather than clipped at an edge.
+  await expect
+    .poll(async () => {
+      const [row, box] = await Promise.all([picked.boundingBox(), list.boundingBox()]);
+      return row !== null && box !== null && row.y >= box.y - 1 && row.y + row.height <= box.y + box.height + 1;
+    })
+    .toBe(true);
+  await expect.poll(() => page.getByTestId("scroll-pane").evaluate((el) => el.scrollTop)).toBe(0);
 });
 
 // The row's list is the provider's whole catalog (the add-model dialog needs every kind); this picker changes the
@@ -852,6 +894,40 @@ test("a test request that never got an answer says why and shows no response", a
   await expect(inspection).toHaveAttribute("data-ok", "false");
   await expect(inspection).toContainText("ECONNREFUSED");
   await expect(component.locator('[data-slot="connection-inspection-response"]')).toHaveCount(0);
+});
+
+test("a test request whose answer chat cannot read shows the answer and the reason", async ({ mount, page }) => {
+  await stubEditor(page, { inspectEndpoint: { ...INSPECTED, ok: false, error: "Invalid JSON response" } });
+  const component = await mount(<ConnectionEditorStory />);
+  await openDiagnostics(page);
+
+  await component.getByRole("button", { name: "Send a test request" }).click();
+  const inspection = component.locator('[data-slot="connection-inspection"]');
+  await expect(inspection).toHaveAttribute("data-ok", "false");
+  await expect(component.locator('[data-slot="connection-inspection-verdict"]')).toContainText("Invalid JSON response");
+  await expect(component.locator('[data-slot="connection-inspection-verdict"]')).toHaveAttribute("data-verdict", "unreadable");
+  await expect(component.locator('[data-slot="connection-inspection-response"]')).toContainText("pong");
+});
+
+test("a test request the server refused with an HTTP error is a rejected verdict, read at the label step", async ({ mount, page }) => {
+  await stubEditor(page, {
+    inspectEndpoint: {
+      ...INSPECTED,
+      ok: false,
+      response: { status: 404, statusText: "Not Found", bodyPreview: "404 page not found" },
+      error: "Not Found",
+    },
+  });
+  const component = await mount(<ConnectionEditorStory />);
+  await openDiagnostics(page);
+
+  await component.getByRole("button", { name: "Send a test request" }).click();
+  const verdict = component.locator('[data-slot="connection-inspection-verdict"]');
+  await expect(verdict).toHaveAttribute("data-verdict", "rejected");
+  // The status is named once, not echoed back by an appended error.
+  expect(((await verdict.textContent()) ?? "").split("Not Found")).toHaveLength(2);
+  const fontSize = (locator: Locator): Promise<string> => locator.evaluate((el) => getComputedStyle(el).fontSize);
+  expect(await fontSize(verdict)).toBe(await fontSize(component.locator('[data-slot="connection-inspection"]').getByText("Request", { exact: true })));
 });
 
 // ── what must not render ───────────────────────────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@
 // the @orb/kit/regex engine in the chat pipeline — neither settings nor chat is their reader, so the
 // library homes here.
 
+import { REGEX_SCRIPT_NAME_MAX } from "@orb/contracts/regex";
 import type { CollectionContribution } from "#lib";
 import { RegexCollectionRows } from "../components/regex-collection-rows.tsx";
 import { RegexContextBody } from "../components/regex-context-body.tsx";
@@ -27,7 +28,7 @@ export const regexCollection: CollectionContribution = {
   // last touched — two questions a rules library answers and its LIST of rows cannot.
   insights: { useInsights: useRegexInsights },
   useMemberTitle: useRegexMemberTitle,
-  create: { label: "New script", useRun: useCreateRegexMember },
+  create: { label: "New script", useRun: useCreateRegexMember, askName: { fieldLabel: "Script name", maxLength: REGEX_SCRIPT_NAME_MAX } },
   // The two REGX2 band affordances, declared as DATA the host renders in its own chrome grammar (C-4).
   // `importFile` exists at all because the owner's REGX2 ruling ENDED the `{ ruled }` exemption that used to
   // say a script only travels inside the card it belongs to — see `lifecycle-portability.ts`'s regex cells.

@@ -52,7 +52,15 @@ import type { ReactElement } from "react";
 import { useId } from "react";
 import { ConfirmDialog } from "#components";
 import { PLUGIN_ICON_GLYPHS } from "../lib/plugin-icon-glyphs.ts";
-import { imageNodeCoverKey, keyValueRows, METER_DEFAULT_MAX, numFromValues, resolveNumber, resolveString } from "../lib/plugin-surface-bindings.ts";
+import {
+  buttonDisabled,
+  imageNodeCoverKey,
+  keyValueRows,
+  METER_DEFAULT_MAX,
+  numFromValues,
+  resolveNumber,
+  resolveString,
+} from "../lib/plugin-surface-bindings.ts";
 import { SurfaceGrid } from "./plugin-browse-nodes.tsx";
 import { BoundSelect, TabsStrip } from "./plugin-option-controls.tsx";
 
@@ -182,7 +190,8 @@ function DisplayLeaf({
   }
   if (node.kind === "badge") {
     return (
-      <Badge intent={node.intent ?? "neutral"} size="sm" tone="soft">
+      // Plugin text has no length bound the pill was drawn for: wrap inside the surface rather than clip.
+      <Badge className="max-w-full whitespace-normal" intent={node.intent ?? "neutral"} size="sm" tone="soft">
         {resolveString(node.text, state)}
       </Badge>
     );
@@ -390,7 +399,13 @@ function FormLeaf({
     // anchor admits, so a second `primary` falls through to `secondary` exactly like a `neutral` one and the
     // renderer has already told the plugin's author why (`warnPrimaryRefused`).
     return (
-      <Button intent={buttonIntent(node, primaryButton)} loading={submitting} onClick={(): void => submit(node.actionId)} size="sm">
+      <Button
+        disabled={buttonDisabled(node, state)}
+        intent={buttonIntent(node, primaryButton)}
+        loading={submitting}
+        onClick={(): void => submit(node.actionId)}
+        size="sm"
+      >
         {node.label}
       </Button>
     );

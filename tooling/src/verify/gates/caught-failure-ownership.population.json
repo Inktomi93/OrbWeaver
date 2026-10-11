@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 701,
+    "sites": 703,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 701,
+      "deliberate-absorb": 703,
       "unproven": 0
     },
     "byGrammar": {
       "default": 160,
       "empty": 356,
-      "promise": 185
+      "promise": 187
     }
   },
   "rows": [
@@ -296,6 +296,11 @@
       "reason": "each TanStack Query observer owns its rejection in `settings.isError`/`preset.isError`; this event only starts the paired retry. Ends if either refetch stops updating query error state."
     },
     {
+      "siteId": "packages/client/src/features/chat/components/chat-import-dialog.tsx::ChatImportDialog.readMemoryOn::queryClient.query::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a deliberate fail-closed; an unreadable switch takes the Memory-off arm, the import's own toast already reported what landed, and every chat still builds at its next reply. Ends if the offer becomes the only way imported chats build memory."
+    },
+    {
       "siteId": "packages/client/src/features/chat/components/chat-list-row-menu.tsx::ChatListRowMenu.confirmDelete::actions.remove::1",
       "verdict": "deliberate-absorb",
       "reason": "useDeleteChat carries errorToast: \"Couldn't delete the chat.\" — the toast is the surface. Ends if useDeleteChat drops errorToast."
@@ -576,6 +581,11 @@
       "reason": "the failed mutation's own errorToast already spoke — the toast is the surface. Ends if usePopulateFromCharacter drops its errorToast."
     },
     {
+      "siteId": "packages/client/src/features/tag/components/labels-suggestions.tsx::SuggestionGroupBlock::Promise.allSettled::1",
+      "verdict": "deliberate-absorb",
+      "reason": "allSettled never rejects; each failed attach already raises the mutation's own error toast, and the catch only releases the busy flag."
+    },
+    {
       "siteId": "packages/client/src/features/tag/hooks/use-tag-library.ts::useCreateLabel.createOnce::error::1",
       "verdict": "deliberate-absorb",
       "reason": "a non-conflict failure is toasted by `useCreateTag`'s errorToast through the MutationCache; a conflict is retried below. Ends if the create stops toasting its own failures."
@@ -698,7 +708,7 @@
     {
       "siteId": "packages/client/src/lib/view-transition-settlement.ts::observeViewTransition.observe::settled::1",
       "verdict": "deliberate-absorb",
-      "reason": "platform AbortError/TimeoutError skips the visual transition; callback settlement never absorbs either. Every other unique rejection is rethrown on the microtask error surface. Ends if callers begin awaiting settlement."
+      "reason": "platform AbortError/TimeoutError/InvalidStateError skips the visual transition; callback settlement never absorbs any of them. Every other unique rejection is rethrown on the microtask error surface. Ends if callers begin awaiting settlement."
     },
     {
       "siteId": "packages/client/src/main.tsx::reportClientError::trpcClient.clientError.mutate::1",
@@ -886,7 +896,7 @@
       "reason": "every batch caller owns a promise rejected below; no failure is lost. Ends if batch promises stop being the caller's result."
     },
     {
-      "siteId": "packages/inference/src/backends/openai-compat/diagnostics.ts::inspectOpenAiCompatEndpoint::readBodyPreview::1",
+      "siteId": "packages/inference/src/backends/openai-compat/diagnostics.ts::inspectionOf::readBodyPreview::1",
       "verdict": "deliberate-absorb",
       "reason": "a preview read failure degrades to an explicit empty preview while status and headers remain inspectable. Precedent: the gate mustPass fixture tooling/src/probe/unproven-outcome.ts proves the same degraded inspection result. Ends if preview bytes become authoritative."
     },

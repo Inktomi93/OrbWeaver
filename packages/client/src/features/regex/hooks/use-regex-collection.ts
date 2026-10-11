@@ -75,12 +75,24 @@ export function useRegexMemberTitle(memberId: string): string | undefined {
 
 /** The create runner: mint a script from the schema defaults, then OPEN it in CONTENT — the same
  *  create-then-edit motion the settings pane had, minus the dialog stacked on a modal (C-7). */
-export function useCreateRegexMember(): () => void {
+export function useCreateRegexMember(): (name?: string, onCreated?: () => void, onSettled?: () => void) => void {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const create = useCreateRegexScript({ trpc, invalidation });
-  return (): void => {
-    create.mutate({ input: makeRegexScriptDefaults() }, { onSuccess: (row): void => selectCollectionMember(REGEX_COLLECTION_ID, row.id) });
+  return (name, onCreated, onSettled): void => {
+    if (name === undefined) {
+      return;
+    }
+    create.mutate(
+      { input: { ...makeRegexScriptDefaults(), name } },
+      {
+        onSuccess: (row): void => {
+          onCreated?.();
+          selectCollectionMember(REGEX_COLLECTION_ID, row.id);
+        },
+        onSettled: (): void => onSettled?.(),
+      },
+    );
   };
 }
 

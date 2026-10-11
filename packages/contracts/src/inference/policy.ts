@@ -8,7 +8,7 @@
 
 import type { ModelKind } from "./kinds.ts";
 import type { ProviderDef } from "./provider-schema.ts";
-import { BUILTIN_PROVIDERS, providerTasks } from "./providers.ts";
+import { providerTasks } from "./providers.ts";
 import type { Task } from "./tasks.ts";
 import { TASK_DEFS, tasksOfKind } from "./tasks.ts";
 
@@ -16,11 +16,6 @@ import { TASK_DEFS, tasksOfKind } from "./tasks.ts";
 export function connectionTasks(provider: ProviderDef, kind: ModelKind): readonly Task[] {
   const ofKind = tasksOfKind(kind);
   return providerTasks(provider).filter((task) => ofKind.includes(task));
-}
-
-/** The providers whose rows may serve a task — the picker's grouping input. */
-export function taskProviders(task: Task, providers: readonly ProviderDef[] = BUILTIN_PROVIDERS): readonly ProviderDef[] {
-  return providers.filter((provider) => providerTasks(provider).includes(task));
 }
 
 /** A foreground task spends any row; a background task spends a row only when its owner said so (F5).

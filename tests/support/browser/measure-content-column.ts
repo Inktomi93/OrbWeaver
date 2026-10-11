@@ -26,7 +26,7 @@ import type { Locator } from "@playwright/test";
 /** A host pane WIDER than `--width-content-col` (so the cap binds and the centering is visible) but below
  *  the `@5xl` container step — the shell's list-only config pane measured 869px here. */
 export const CONTENT_COLUMN_NARROW_PANE = 900;
-/** A host pane past `@5xl` — the shell's focus-mode content pane measured 1176px at a 1280 viewport and
+/** A host pane past `@5xl` — the shell's both-panels-collapsed content pane measured 1176px at a 1280 viewport and
  *  1816px at 1920, so this is inside the real range, not a hypothetical monitor. */
 export const CONTENT_COLUMN_WIDE_PANE = 1440;
 

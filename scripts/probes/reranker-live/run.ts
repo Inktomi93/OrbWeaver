@@ -168,6 +168,7 @@ async function buildStack(cacheDir: string, allowRemoteModels: boolean): Promise
     runtime,
     audit: () => Promise.resolve(),
     credentialOwned: () => Promise.resolve(true),
+    relabelCredential: () => Promise.resolve(),
     ruleOwnedBy: () => Promise.resolve(true),
     pluginGrantTasksOf: () => Promise.resolve(null),
     endpointAdmission: () => Promise.resolve("admitted"),

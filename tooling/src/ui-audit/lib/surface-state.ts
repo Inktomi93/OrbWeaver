@@ -3,7 +3,7 @@
 // (`packages/client/src/lib/agent-bridge.ts`) is the one home for what a panel's rendered mode is.
 import type { RelationalCensusAccountingInput } from "../contract/samples-populations.ts";
 import type { DriveStateCandidate, SurfaceStateAccounting } from "../contract/surface-state.ts";
-import { DRIVE_STATE_SPACE, FOCUS_STATE_SPACE, PANEL_MODE_SPACE } from "../contract/surface-state.ts";
+import { DRIVE_STATE_SPACE, PANEL_MODE_SPACE } from "../contract/surface-state.ts";
 import type { ShellStateSnapshot } from "../contract/types.ts";
 import { assertCensusAccounting } from "./population.ts";
 
@@ -15,12 +15,6 @@ const PANEL_NOT_RENDERED_REASON = "panel-not-rendered";
  *  like `srOnly`/`flatBackdrop`) because it is a MEASURED FACT ABOUT THE SUBJECT, not a fact about the
  *  probe's own reach — which is what the three kebab reasons above all are. */
 const SECTION_DECLARES_NO_PANE_REASON = "sectionDeclaresNoPane";
-/** The FOCUS twin. Focus mode IS "hide every panel" — `fullscreen-chrome.tsx` renders its toggle only
- *  when the section has a pane and the viewport is not a phone, so on a section that
- *  declares BOTH panes unavailable the on-state is not merely unvisited, it is unreachable. One pane
- *  declared available is enough to put focus back in play, and the axis returns to WITHHELD. */
-const SECTION_DECLARES_NO_PANES_REASON = "sectionDeclaresNoPanes";
-
 /** One axis's census: `excludedReason` set ⇒ the WHOLE space is a proven inapplicability (no shell
  *  mounted at all, or a section that declares it has no such pane — see `panelExcludedReason`);
  *  `observed` outside the space (or absent on a mounted shell) ⇒ the axis was never
@@ -62,48 +56,25 @@ function panelExcludedReason(noShell: boolean, panel: { readonly mode: string | 
   return panel.available === false ? SECTION_DECLARES_NO_PANE_REASON : null;
 }
 
-/** The FOCUS axis's exclusion reason. Same two-arm shape as a panel's: no shell at all, or a section that
- *  declares BOTH panes unavailable — where the shell ships no focus toggle (`fullscreen-chrome.tsx`'s
- *  toggle: it renders only when the section has a pane and the viewport is not a phone), so `focus:on`
- *  is unreachable rather than unvisited.
- *  An UNPUBLISHED declaration on either pane (`null`) is not a proof of anything and leaves focus WITHHELD. */
-function focusExcludedReason(noShell: boolean, panels: readonly ({ readonly available: boolean | null } | null)[]): string | null {
-  if (noShell) {
-    return NO_SHELL_REASON;
-  }
-  return panels.every((panel) => panel !== null && panel.available === false) ? SECTION_DECLARES_NO_PANES_REASON : null;
-}
-
-function focusObservedState(noShell: boolean, focus: boolean | undefined): string | null {
-  if (noShell) {
-    return null;
-  }
-  return focus === true ? "on" : "off";
-}
-
 /** `null` (or an unmounted shell — `section: null`/no panels at all) EXCLUDES every SHELL axis outright:
  *  that is a PROVEN fact about the route (the landing/auth screen, or a boot still in flight), not a
  *  guess. The SECOND proven arm (#1122) is per-pane: a section that DECLARES a pane unavailable excludes
- *  that pane's whole mode space, and declaring BOTH excludes focus with them.
+ *  that pane's whole mode space.
  *  The DRIVE axis is exempt from every exclusion arm on purpose (contract/surface-state.ts states why): the
  *  regime is an argv fact this run always knows, so it is judged even when no shell mounted. */
 export function buildSurfaceStateAccounting(shell: ShellStateSnapshot | null, drive: DriveStateCandidate): SurfaceStateAccounting {
   const noShell = shell === null || shell.section === null || shell.panels.length === 0;
   const listPanel = shell?.panels.find((p) => p.side === "list") ?? null;
   const contextPanel = shell?.panels.find((p) => p.side === "context") ?? null;
-  const focusObserved = focusObservedState(noShell, shell?.focus);
-
   const panelList = censusOfSpace(PANEL_MODE_SPACE, noShell ? null : (listPanel?.mode ?? null), panelExcludedReason(noShell, listPanel));
   const panelContext = censusOfSpace(PANEL_MODE_SPACE, noShell ? null : (contextPanel?.mode ?? null), panelExcludedReason(noShell, contextPanel));
-  const focus = censusOfSpace(FOCUS_STATE_SPACE, focusObserved, focusExcludedReason(noShell, [listPanel, contextPanel]));
   const driveCensus = censusOfSpace(DRIVE_STATE_SPACE, drive, null);
 
   assertCensusAccounting("panel-list", panelList);
   assertCensusAccounting("panel-context", panelContext);
-  assertCensusAccounting("focus", focus);
   assertCensusAccounting("drive", driveCensus);
 
-  return { panelList, panelContext, focus, drive: driveCensus };
+  return { panelList, panelContext, drive: driveCensus };
 }
 
 /** One axis's summary label for the RESULT line — `"complete"` is the space this run genuinely reached

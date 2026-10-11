@@ -314,35 +314,6 @@ export function legacyNotionalCostSamples(costUsd: number | null | undefined, me
   return costUsd !== null && costUsd !== undefined && (metadata?.usageLegs?.length ?? 0) === 0 && metadata?.providerMetadata?.provider === "claude-sub" ? 1 : 0;
 }
 
-/** The `messages` SLOT (D26): identity + attribution + selection ONLY — NO content, NO economics. A swipe
- *  APPENDs a `message_variants` row and `selectVariant` flips `selectedVariantId` (a pointer move, never a
- *  content copy). Attribution (`authorUserId`/`characterId`/`personaId`) is slot-level — a swipe never
- *  changes the voiced speaker. The schema is a plain `z.object` (strips unknown keys), so an attempt to
- *  carry a `content` field on the slot is dropped at the boundary — the D26 invariant made unrepresentable. */
-export const messageSlotSchema = z.object({
-  id: typeIdSchema(ID_PREFIX.message),
-  chatId: typeIdSchema(ID_PREFIX.chat),
-  seq: z.number().int().min(SEQ_MIN),
-  role: messageRoleSchema,
-  /** WHAT SORT OF ROW this is, DECLARED at mint ({@link messageKindSchema} — the axis + its policy live in
-   *  `participants.ts`). Orthogonal to `role` (the conversation plane) and to attribution (the voice): a
-   *  narrator row is `kind:'narrator'` AND `role:'assistant'`, and stays narrator after an identity delete
-   *  SET-NULLs its attribution or the room's output dial flips. Born `standard` unless a writer declares. */
-  kind: messageKindSchema,
-  /** The human who SENT a user message (server-stamped). Null on assistant/system rows. */
-  authorUserId: brandedId<UserId>().nullable(),
-  /** The AI identity that VOICED an assistant message (keyed on `characters.id`). Null on user/system. */
-  characterId: typeIdSchema(ID_PREFIX.character).nullable(),
-  /** Which persona authored a user message. Null on assistant/system / no-persona chats. */
-  personaId: typeIdSchema(ID_PREFIX.persona).nullable(),
-  selectedVariantId: typeIdSchema(ID_PREFIX.messageVariant),
-  /** When true, the slot is held out of the assembled prompt (a hidden message). */
-  excludedFromPrompt: z.boolean(),
-  createdAt: z.number().int(),
-  editedAt: z.number().int().nullable(),
-});
-export type MessageSlot = z.infer<typeof messageSlotSchema>;
-
 /** ONE recorded runtime variable mutation (D46) — the read-parse boundary for `message_variants.variable_delta`.
  *  A discriminated union on `op` MIRRORING the kit {@link VarOp} (`set`/`add` carry a string `value`; `inc`/`dec`/
  *  `delete` don't). The db column is `$type<readonly VarOp[]>`; every read parses through {@link variableDeltaSchema}
@@ -527,7 +498,7 @@ export interface MessageView {
   chatId: ChatId;
   seq: number;
   role: MessageRole;
-  /** The row's declared PURPOSE (see {@link messageSlotSchema}). Member-visible and safe — it is chrome
+  /** The row's declared PURPOSE (see {@link messageKindSchema}). Member-visible and safe — it is chrome
    *  vocabulary, not content: the client renders narrator tint / speaker splitting / OOC treatment off THIS
    *  field instead of re-deriving purpose from attribution + the room's current output mode. */
   kind: MessageKind;

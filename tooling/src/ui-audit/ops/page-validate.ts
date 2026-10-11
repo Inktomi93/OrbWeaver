@@ -184,7 +184,6 @@ export function shellStateSnapshot(parsed: unknown, label = "the __orb.shell() b
     instrumentRefusal(`${label} returned ${describePageValue(section)} for "section", not a string or null`);
   }
   checkField("chatOpen", "boolean", shell["chatOpen"], label);
-  checkField("focus", "boolean", shell["focus"], label);
   checkField("panels", "array", shell["panels"], label);
   for (const panel of shell["panels"] as readonly unknown[]) {
     checkPanelRow(panel, label);

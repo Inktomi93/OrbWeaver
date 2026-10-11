@@ -12,6 +12,7 @@ import type {
   RpgActorEntry,
   RpgActorOp,
   RpgActorRef,
+  RpgAddJournalEntryInput,
   RpgDateMode,
   RpgExtractionContext,
   RpgGameFeatures,
@@ -342,14 +343,8 @@ export interface DeleteQuestParams {
 }
 
 /** `addJournalEntry` — a hand journal entry (host); stamps `variantId: NULL` (every-lineage room note, §2.5). */
-export interface AddJournalEntryParams {
+export interface AddJournalEntryParams extends Readonly<RpgAddJournalEntryInput> {
   readonly principal: Principal;
-  readonly chatId: ChatId;
-  readonly type: RpgJournalType;
-  /** R4c — the free gloss carried when `type === "custom"`; omit ⇒ "". */
-  readonly label?: string | undefined;
-  readonly title: string;
-  readonly content: string;
 }
 
 /** `editJournalEntry` — patch an entry's mutable text (host; reaches model entries — the recovery path). */

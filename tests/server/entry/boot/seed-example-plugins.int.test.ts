@@ -48,8 +48,8 @@ import { seedChat, seedParticipant } from "../../domain/chat/_support.ts";
 import { makeInertOps, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../../domain/plugin/_support.ts";
 
 const DRAW_LINE_RE = /^\d+\. (.+)$/;
-/** The public commitment's shape — ten digits, zero-padded (`commitmentFor`). */
-const COMMITMENT_RE = /^\d{10}$/;
+/** The public commitment's shape — a check value of two four-digit hex groups (`commitmentFor`). */
+const COMMITMENT_RE = /^[0-9A-F]{4}-[0-9A-F]{4}$/;
 const FAMILIAR_BOOK_ID = castId<WorldBookId>("wib_01h455vb4pex5vsknk084sn02q");
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..", "..");
 
@@ -430,13 +430,13 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
   expect(await h.service.listSurfaces({ caller })).toEqual([
     expect.objectContaining({ id: "draw_card", anchor: "tool-card", toolName: "draw", toolWireName: "plugin_oracle__deck_draw" }),
     // …and the two U5 surfaces the same activation registered (#679 U5): the full-page deck behind the ONE
-    // Extensions rail entry, and the reveal DIALOG — which the deck opens only from its own page/command, never
+    // Plugins rail entry, and the reveal DIALOG — which the deck opens only from its own page/command, never
     // spontaneously. This is the end-to-end receipt that `page` and `dialog` survive a REAL activation over the
     // WASM runtime, not just the schema.
     expect.objectContaining({ id: "deck_page", anchor: "page", title: "The Deck" }),
     expect.objectContaining({ id: "reveal_dialog", anchor: "dialog", title: "Reveal this session" }),
-    // …and the U6 per-row mark — the smallest legal `message-footer` occupant (one static badge).
-    expect.objectContaining({ id: "table_mark", anchor: "message-footer", tier: "static" }),
+    // …and the once-per-room table mark: a static badge at `chat-flank`, not a per-row footer.
+    expect.objectContaining({ id: "table_mark", anchor: "chat-flank", tier: "static" }),
   ]);
 
   // The two COMMANDS the same activation registered — what `/plugin oracle-deck draw` and the Plugins wand menu
@@ -448,6 +448,7 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
     expect.objectContaining({ pluginId: installed.id, slug: "oracle-deck", pluginName: "Oracle Deck", name: "draw" }),
     expect.objectContaining({ pluginId: installed.id, slug: "oracle-deck", pluginName: "Oracle Deck", name: "reveal", args: [] }),
   ]);
+  expect(commands.map((command) => command.placements.map((placement) => placement.target))).toEqual([["composer-action"], ["composer-action"]]);
   expect(commands[0]?.args).toEqual([
     expect.objectContaining({ name: "count", type: "number" }),
     expect.objectContaining({ name: "spread", type: "enum", enumValues: ["single", "past_present_future"] }),
@@ -1026,7 +1027,9 @@ test("keepsake camera: the spend pipeline — structured quiet falls back, the p
   // is a BOUND grid and whose detail stage is a BOUND image — this passing the real registration validation
   // IS the receipt that the new vocabulary survives an actual activation over the WASM runtime).
   const commands = await h.service.listCommands({ caller });
-  expect(commands).toEqual([expect.objectContaining({ name: "snapshot", slug: "keepsake-camera" })]);
+  expect(commands).toEqual([
+    expect.objectContaining({ name: "snapshot", slug: "keepsake-camera", placements: [{ target: "composer-media", label: "Snapshot", icon: "images" }] }),
+  ]);
   expect(commands[0]?.args?.map((arg) => arg.name)).toEqual(["style", "note"]);
   expect(await h.service.listSurfaces({ caller })).toEqual([expect.objectContaining({ id: "album_page", anchor: "page", tier: "static" })]);
 
@@ -1131,6 +1134,8 @@ test("card atlas: the ARM C flagship page registers, publishes its empty browse 
   expect(spec).toContain('"name":"exclude_tags"');
   expect(spec).toContain('"actionId":"prev_page"');
   expect(spec).toContain('"actionId":"next_page"');
+  // Both pager buttons wait on a search: bound to the same published flag, so neither is enabled before one.
+  expect(spec.match(/"disabled":\{"\$state":"noSearch"\}/g)).toHaveLength(2);
   expect(spec).toContain('"label":"Add to library"');
   expect(spec).not.toContain("Summon");
   // #818: the decision CTA is the page's ONE primary, and it is the only claimant in the whole spec — so
@@ -1156,6 +1161,7 @@ test("card atlas: the ARM C flagship page registers, publishes its empty browse 
   const initial = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "atlas_page" });
   expect(initial?.["stage"]).toBe("browse");
   expect(initial?.["tiles"]).toEqual([]);
+  expect(initial?.["noSearch"]).toBe(true);
   expect(initial?.["sortOptions"]).toEqual(
     expect.arrayContaining([expect.objectContaining({ value: "relevance" }), expect.objectContaining({ value: "downloads", label: "Most downloaded" })]),
   );

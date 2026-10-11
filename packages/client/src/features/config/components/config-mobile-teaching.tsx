@@ -50,13 +50,15 @@ export function ConfigMobileTeaching({ groups }: ConfigMobileTeachingProps): Rea
             subordinate one. The masthead voice stays on the desktop hero — at 430px the display step over a
             list is a banner, and the frame's job here is to be read once and scrolled past. */}
         <Heading level={2}>{CONFIG_WELCOME.title}</Heading>
-        <Text voice="gloss">{CONFIG_WELCOME.teaching}</Text>
+        <Text prose={true} voice="gloss">
+          {CONFIG_WELCOME.teaching}
+        </Text>
       </Stack>
       {/* One line per collection, in the SAME canonical `(order, id)` order the list groups below it use,
           so the frame reads as a key to the list rather than as a second list. */}
       <Stack gap="tight">
         {collectionGroups(groups).map((group) => (
-          <Text key={group.id} voice="gloss">
+          <Text key={group.id} prose={true} voice="gloss">
             <Text as="span" voice="label">
               {group.label}
             </Text>{" "}

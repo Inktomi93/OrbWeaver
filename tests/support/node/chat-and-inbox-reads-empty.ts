@@ -39,5 +39,7 @@ const EMPTY_INBOX: EmptyInboxPage = { items: [], nextCursor: null };
  *  composition story) for a reason of its own. */
 export const CHAT_AND_INBOX_READS_EMPTY = {
   "chat.listChats": (): EmptyChatListPage => EMPTY_CHAT_LIST,
+  // The rail's chat-library census is its own read, separate from the enriched page above.
+  "chat.countChats": (): number => 0,
   "notifications.list": (): EmptyInboxPage => EMPTY_INBOX,
 } as const;

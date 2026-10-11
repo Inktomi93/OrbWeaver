@@ -60,6 +60,12 @@ import { useConfigScrollSpy } from "../hooks/use-config-scroll-spy.ts";
 import { CONFIG_SECTION_LABEL, CONFIG_WELCOME } from "../lib/config-copy.ts";
 import { scrollContentToTop, scrollToAnchor } from "../lib/config-jump.ts";
 
+/** The landmark containers the shell's focus rescue lands on (`main`, the list pane, the pane scroller) are
+ *  `tabindex=-1` stops no reader tabs to. */
+function isShellRescueTarget(element: Element): boolean {
+  return element.getAttribute("tabindex") === "-1";
+}
+
 export interface ConfigContentSurfaceProps {
   readonly groups: ConfigGroupRegistry;
 }
@@ -74,7 +80,7 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
   const { contentRef, suppressSpyRef } = useConfigScrollSpy(activeGroup);
   const target = useConfigTarget();
   const sectionRegistry = useConfigSectionRegistry();
-  const viewer = useSettingsViewerView();
+  const { isAdmin, isOwner } = useSettingsViewerView();
   // THIS PANE STANDS DOWN WHEN NOTHING IS OPEN (side-eye 2026-08-19 ARIA): with nothing selected the LIST is
   // the surface the reader arrived for, and the moment a member or a group IS open this pane is where they
   // asked to be, so it takes focus. Which pane wins has to be a DECISION, not effect-order roulette.
@@ -100,13 +106,34 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
 
   // LAND A DEEP LINK / A LIST CLICK THE WAY A CLICK LANDS (#549; SET-SEAMS §10 Q4 for the SUB arm). Keyed on
   // the TARGET (its nonce changes per request), never on `active`, so a later user switch can't re-fire a
-  // stale jump. `viewer` is a dependency on purpose: a cold link to a `when`-gated group resolves while the
-  // non-suspense `sessions.me` probe is in flight, and the landing must re-apply once visibility GROWS.
+  // stale jump. The viewer's FLAGS are dependencies on purpose: a cold link to a `when`-gated group resolves
+  // while the non-suspense `sessions.me` probe is in flight, and the landing must re-apply once visibility
+  // GROWS. Flags, not the projection object: it is a fresh literal per render, so depending on it re-fired the
+  // landing on unrelated re-renders, after the reader had moved focus.
   useEffect((): (() => void) => {
+    const viewer = { isAdmin, isOwner };
     // The cleanup marks this landing superseded, so its late focus below stands down.
     let superseded = false;
+    // The reader moving on is INPUT (a press or a key) after the request, or focus landing on a control other
+    // than where the request found it: assistive technology and `element.focus()` move focus with no input
+    // event. The shell's focus rescue and the LIST's arrival focus move it too, and neither is the reader, so
+    // a move onto their targets does not count.
+    let readerMoved = false;
+    const doc = contentRef.current?.ownerDocument;
+    const foundAt = doc?.activeElement ?? null;
+    const noteReader = (): void => {
+      readerMoved = true;
+    };
+    const focusMovedByReader = (): boolean => {
+      const now = doc?.activeElement ?? null;
+      return now !== foundAt && now !== null && now !== doc?.body && !isShellRescueTarget(now);
+    };
+    const listening = new AbortController();
+    doc?.addEventListener("pointerdown", noteReader, { capture: true, signal: listening.signal });
+    doc?.addEventListener("keydown", noteReader, { capture: true, signal: listening.signal });
     const supersede = (): void => {
       superseded = true;
+      listening.abort();
     };
     if (target === null) {
       return supersede;
@@ -125,9 +152,7 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
     // A setting-level landing lands on the leaf's own control when its section stamps one: the control is
     // scrolled into view (a leaf low in a long section sits below the fold once the section's top is in view)
     // and takes keyboard focus, so the reader lands on the thing the link named rather than on the LIST row
-    // that holds it. The section may suspend first, so a focus the reader moved meanwhile wins over this late one.
-    const doc = contentRef.current?.ownerDocument;
-    const focusedAtRequest = doc?.activeElement ?? null;
+    // that holds it. The section may suspend first, so a reader who pressed or typed meanwhile wins over this late one.
     const landOnControl =
       setting === null
         ? undefined
@@ -137,8 +162,7 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
               return;
             }
             control.scrollIntoView({ block: "center", behavior: scrollBehavior() });
-            const focusedNow = doc?.activeElement ?? null;
-            if (focusedNow === focusedAtRequest || focusedNow === doc?.body) {
+            if (!(readerMoved || focusMovedByReader())) {
               control.focus({ preventScroll: true });
             }
           };
@@ -151,7 +175,7 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
     return supersede;
     // The two refs are DECLARED now that they arrive from the spy hook rather than being minted here: they
     // are stable identities, so naming them re-fires nothing, and the alternative is a suppression.
-  }, [target, groups, sectionRegistry, viewer, contentRef, suppressSpyRef]);
+  }, [target, groups, sectionRegistry, isAdmin, isOwner, contentRef, suppressSpyRef]);
 
   const regionLabel = shownGroup === null ? CONFIG_SECTION_LABEL : `${shownGroup.label} settings`;
   return (

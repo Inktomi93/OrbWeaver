@@ -102,7 +102,6 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--open-character": { group: "Reach", summary: "Characters section + select by id or name" },
   "--context-tab": { group: "Reach", summary: "switch the context panel's tab" },
   "--panel": { group: "Reach", summary: "name=mode — drive one shell pane's layout mode (also the docked <-> collapsed FLIP)" },
-  "--focus": { group: "Reach", summary: "the shell's zen/focus-mode toggle" },
   "--panels": { group: "Reach", summary: "a named pane configuration in one flag (composes over --panel)" },
   "--pages": { group: "Reach", summary: "N tabs in ONE browser context (shared cookies, independent DOM)" },
   "--contexts": { group: "Reach", summary: "N isolated fixture users in separate contexts (one-direction comparison)" },
@@ -148,6 +147,10 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
     group: "Where",
     summary:
       "the stage's sign-in mode: single-user (default, a dev-db copy) or local (empty data, seeded owner+member for --contexts/--as; implies --isolated)",
+  },
+  "--stage-db": {
+    group: "Where",
+    summary: "clone a database file (and its -wal/-shm) into a rebuilt stage instead of the dev db; implies --isolated and --fresh",
   },
   "--stage-owner": { group: "Where", summary: "names the owner for a cross-checkout --stage-down" },
   "--stage-keeper": { group: "Where", summary: "the band idle timer's own entry — spawned by snap, never typed by an operator" },

@@ -3,9 +3,9 @@
 // nothing derived moves, no re-index is triggered. Owns its overlay (a component, not a surface).
 
 import { Button } from "@orb/ui/button";
-import { DialogClose } from "@orb/ui/dialog";
+import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Input } from "@orb/ui/input";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { FormDialog } from "#components";
@@ -51,12 +51,12 @@ export function DatabankRenameDialog({ open, onOpenChange, currentName, onRename
           {/* Focus lands on the field through the shared mount hook rather than `autoFocus` — same behavior,
               no a11y suppression to carry (the suppressions ratchet only shrinks). */}
           <Input aria-label="Document name" onValueChange={setName} placeholder="Document name" ref={inputRef} value={name} />
-          <Row gap="field" justify="end">
+          <DialogFooter>
             <DialogClose render={<Button intent="ghost">Cancel</Button>} />
             <Button disabled={!canSave} intent="primary" type="submit">
               Save
             </Button>
-          </Row>
+          </DialogFooter>
         </Stack>
       </form>
     </FormDialog>

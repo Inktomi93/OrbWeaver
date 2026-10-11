@@ -8,7 +8,7 @@
 // reviewable entries, a lane's cross-claims), and this one is about the LIVE CARD's addressable text with
 // no run involved at all. The manual path exists precisely for when no run is worth waiting for.
 
-import type { RefineryRewriteField, RefinerySelection } from "@orb/contracts/refinery";
+import type { RefinableField, RefineryRewriteField, RefinerySelection } from "@orb/contracts/refinery";
 
 /** One addressable slot the hand-edit dialog offers. It lives HERE rather than beside the dialog for two
  *  reasons: `components/*.tsx` exports components (the rule `lib/review-entries.ts` was re-homed under),
@@ -52,7 +52,7 @@ export function manualTextOf(
     creatorNotes: string | null;
     depthPrompt: { prompt: string } | null;
   },
-  field: string,
+  field: Exclude<RefinableField, "greetings">,
 ): string {
   switch (field) {
     case "description":
@@ -71,7 +71,5 @@ export function manualTextOf(
       return card.depthPrompt === null ? "" : card.depthPrompt.prompt;
     case "creatorNotes":
       return card.creatorNotes ?? "";
-    default:
-      return "";
   }
 }

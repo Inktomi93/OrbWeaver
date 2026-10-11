@@ -26,7 +26,7 @@ import { createContributorRegistry } from "@orb/client/lib";
 import {
   clearCharacterSelection,
   selectCharacter,
-  setFocusMode,
+  setNarrowViewport,
   useActiveChatId,
   useActiveSection,
   useCharacterGalleryTarget,
@@ -633,7 +633,7 @@ export function CharactersScreenStory({ deepLinkCharacterId }: CharactersScreenS
 /** The Characters CONTENT teaching hero with a live driver for the shell's LIST MODE (#446). Both arms in
  *  ONE mount, because a CT mounts once per test and the finding is which arm the SAME pane shows.
  *
- *  THE DRIVER IS FOCUS MODE — the shell's ONE flag for "no side panel is showing" (item 20): regime-free,
+ *  THE DRIVER IS THE NARROW REGIME — a docked default auto-collapses there, so no side panel is showing:
  *  section-independent and SYNCHRONOUS, where `setPanelMode` writes the ACTIVE section's override and
  *  `setActiveSection` defers its write through `withViewTransition` (a story doing both in one handler
  *  lands the override on the previous section — measured, #434). The pane reads the RESOLVED mode, so any
@@ -653,10 +653,10 @@ export function CharacterLibraryWelcomeListModeStory(): ReactElement {
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
-        <button onClick={(): void => setFocusMode(true)} type="button">
+        <button onClick={(): void => setNarrowViewport(true)} type="button">
           take the list off screen
         </button>
-        <button onClick={(): void => setFocusMode(false)} type="button">
+        <button onClick={(): void => setNarrowViewport(false)} type="button">
           put the list back
         </button>
         <CharacterSelectionReadout />

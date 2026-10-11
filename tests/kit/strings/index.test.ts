@@ -1,4 +1,14 @@
-import { fileStem, formatBytes, formatUsd, groupThousands, nextFreeLabel, nextFreeName, stripLabelSuffix, stripNameSuffix } from "@orb/kit/strings";
+import {
+  decodeXmlText,
+  fileStem,
+  formatBytes,
+  formatUsd,
+  groupThousands,
+  nextFreeLabel,
+  nextFreeName,
+  stripLabelSuffix,
+  stripNameSuffix,
+} from "@orb/kit/strings";
 import { expect, test } from "../../support/fixtures.ts";
 
 // The three `escapeRegExp` tests died with the function (Node-26 program §4.7 — `RegExp.escape` owns
@@ -120,4 +130,24 @@ test("stripNameSuffix removes only a trailing ' N' count", () => {
   expect(stripNameSuffix("Alex")).toBe("Alex");
   expect(stripNameSuffix("Agent 47")).toBe("Agent");
   expect(stripNameSuffix("Alex 2 backup")).toBe("Alex 2 backup");
+});
+
+test("decodeXmlText: the five named entities and decimal/hex character references decode, case-sensitively", () => {
+  expect(decodeXmlText("Tom &amp; Jerry &lt;3 &gt; &quot;hi&quot; it&apos;s")).toBe('Tom & Jerry <3 > "hi" it\'s');
+  expect(decodeXmlText("it&#39;s &#x27;ok&#X27;")).toBe("it's 'ok&#X27;");
+  expect(decodeXmlText("&#8212; &#x2014; &#x1F600;")).toBe("\u2014 \u2014 \u{1F600}");
+  expect(decodeXmlText("&AMP; &nbsp;")).toBe("&AMP; &nbsp;");
+});
+
+test("decodeXmlText: decodes in ONE pass, so an escaped reference is not decoded twice", () => {
+  expect(decodeXmlText("&amp;lt;")).toBe("&lt;");
+  expect(decodeXmlText("&amp;#39;")).toBe("&#39;");
+});
+
+test("decodeXmlText: malformed or non-character references stay literal", () => {
+  // NUL, a lone surrogate, past U+10FFFF, a C0 control XML forbids, an unterminated and an empty reference.
+  for (const raw of ["&#0;", "&#xD800;", "&#x110000;", "&#1;", "&#39", "&#;", "&#x;", "&#99999999999999999999;"]) {
+    expect(decodeXmlText(raw)).toBe(raw);
+  }
+  expect(decodeXmlText("tab&#9;nl&#10;")).toBe("tab\tnl\n");
 });

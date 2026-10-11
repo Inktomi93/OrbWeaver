@@ -37,7 +37,6 @@
   --color-ring: oklch(0.72 0.175 52);
   --color-sidebar: oklch(0.132 0.006 60);
   --color-sidebar-foreground: oklch(0.92 0.004 75);
-  --color-sidebar-primary: oklch(0.72 0.175 52);
   --color-sidebar-accent: oklch(0.235 0.008 60);
   --color-sidebar-accent-foreground: oklch(0.92 0.004 75);
   --color-sidebar-border: oklch(0.99 0.005 60 / 0.07);

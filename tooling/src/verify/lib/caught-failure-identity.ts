@@ -17,6 +17,7 @@
 // named container is `<module>`.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { JsonValue } from "../contract/resource-json.ts";
 import type { CaughtFailureSite } from "./caught-failure.ts";
 
 const MODULE = "<module>";
@@ -86,4 +87,27 @@ export function keyCaughtFailureSites(path: string, sites: readonly CaughtFailur
       ordinals.set(scope, ordinal);
       return { site, siteId: `${scope}::${ordinal}`, ordinal };
     });
+}
+
+type CensusRead = { readonly ok: true; readonly siteIds: readonly string[] } | { readonly ok: false; readonly reason: string };
+
+/** The committed ids, or why the file is not a census. Only `rows[].siteId` is read: the verdict and reason
+ *  are `ledgers:fresh`'s to judge (header). */
+export function censusSiteIds(value: JsonValue): CensusRead {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return { ok: false, reason: "the top level is not an object" };
+  }
+  const rows = (value as { readonly [key: string]: JsonValue })["rows"];
+  if (!Array.isArray(rows)) {
+    return { ok: false, reason: "it has no `rows` array" };
+  }
+  const siteIds: string[] = [];
+  for (const [index, row] of rows.entries()) {
+    const siteId = typeof row === "object" && row !== null && !Array.isArray(row) ? (row as { readonly [key: string]: JsonValue })["siteId"] : undefined;
+    if (typeof siteId !== "string" || siteId.length === 0) {
+      return { ok: false, reason: `row ${index} has no \`siteId\` string` };
+    }
+    siteIds.push(siteId);
+  }
+  return { ok: true, siteIds };
 }

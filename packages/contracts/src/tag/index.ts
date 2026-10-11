@@ -6,6 +6,7 @@
 
 import type { CharacterId, ChatId, PersonaId, PresetId, TagId, WorldBookId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { tagMatchKey } from "@orb/kit/tag";
 import { z } from "zod";
 
 const NAME_MIN_LENGTH = 1;
@@ -40,6 +41,16 @@ export const tagFolderTypeSchema = z.enum(TAG_FOLDER_TYPES) satisfies z.ZodType<
 export const TAG_STATUSES = ["pending", "accepted"] as const;
 export const tagStatusSchema = z.enum(TAG_STATUSES);
 export type TagStatus = z.infer<typeof tagStatusSchema>;
+
+/** Tags the default-card seeder stamps on its own card; suggesting them back to the reader is noise, so
+ *  neither the suggestion inbox nor the per-tag pending counts include them. */
+export const INTERNAL_SEED_TAG_NAMES = ["assistant", "default", "utility"] as const;
+
+const INTERNAL_SEED_TAG_KEYS: ReadonlySet<string> = new Set(INTERNAL_SEED_TAG_NAMES);
+
+export function isInternalSeedTagName(name: string): boolean {
+  return INTERNAL_SEED_TAG_KEYS.has(tagMatchKey(name));
+}
 
 export const createTagSchema = z.object({
   name: z.string().min(NAME_MIN_LENGTH).max(NAME_MAX_LENGTH),

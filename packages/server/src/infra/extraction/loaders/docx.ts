@@ -16,6 +16,7 @@
 // document the PROCESS ever loads. A corrupt zip / missing document part throws — the dispatch wraps it as
 // `ExtractionFailedError('docx')`. Empty text is truthful (a doc with no runs).
 
+import { decodeXmlText } from "@orb/kit/strings";
 import type { UnzipFileInfo } from "fflate";
 import { strFromU8, unzipSync } from "fflate";
 import type { RawExtraction } from "../loader.ts";
@@ -30,14 +31,6 @@ const PARAGRAPH = /<w:p(?:\s[^>]*)?>([\s\S]*?)<\/w:p>/g;
  *  keeps leading/trailing spaces — we do not trim), a `<w:tab/>` (→ tab), or a `<w:br/>`/`<w:cr/>` (→ newline).
  *  Matched together so their DOCUMENT ORDER is preserved (a tab between two runs stays between them). */
 const PARAGRAPH_TOKEN = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab\b[^>]*\/?>|<w:(?:br|cr)\b[^>]*\/?>/g;
-/** The five predefined XML entities `<w:t>` text can carry. */
-const XML_ENTITIES: Readonly<Record<string, string>> = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&apos;": "'" };
-const XML_ENTITY = /&(?:amp|lt|gt|quot|apos);/g;
-
-function decodeXml(raw: string): string {
-  return raw.replace(XML_ENTITY, (m) => XML_ENTITIES[m] ?? m);
-}
-
 /** Concatenate a paragraph's tokens into its line, in document order: `<w:t>` → its decoded text, `<w:tab>` →
  *  a tab, `<w:br>`/`<w:cr>` → a newline. */
 function paragraphText(inner: string): string {
@@ -45,7 +38,7 @@ function paragraphText(inner: string): string {
   for (const match of inner.matchAll(PARAGRAPH_TOKEN)) {
     const [token, runText] = match;
     if (runText !== undefined) {
-      parts.push(decodeXml(runText));
+      parts.push(decodeXmlText(runText));
     } else if (token.startsWith("<w:tab")) {
       parts.push("\t");
     } else {

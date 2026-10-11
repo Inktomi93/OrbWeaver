@@ -140,7 +140,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D153 | [the persona PIN/ACTIVE resolution semantics are owner-gated; the persona SURFACES are not](0153-the-persona-pin-active-resolution-semantics-are-owner.md) | superseded by [0284-persona-resolution-proof-allows-publication-anonymization.md](0284-persona-resolution-proof-allows-publication-anonymization.md) |
 | D154 | [generation settings belong to the USER'S PRESET: global, never per-conversation, and a feature may RECOMMEND but never force-set one](0154-generation-settings-belong-to-the-user-s-preset.md) | active |
 | D155 | [spend policing is not this product's job: no $ ceilings, no spend envelopes, no spend-confirm gates — and their ABSENCE is never a finding](0155-spend-policing-is-not-this-product-s-job.md) | active |
-| D156 | [`customParameters` passthrough exists for endpoints we cannot model, never as a second sampling surface for one we own](0156-customparameters-passthrough-exists-for-endpoints-we-cannot-model.md) | active |
+| D156 | [`customParameters` passthrough exists for endpoints we cannot model, never as a second sampling surface for one we own](0156-customparameters-passthrough-exists-for-endpoints-we-cannot-model.md) | superseded by [0311-the-users-own-body-wins-every-collision-outside-the-denylist.md](0311-the-users-own-body-wins-every-collision-outside-the-denylist.md) |
 | D157 | [pre-launch there is no legacy: a schema or wire change is a CLEAN BREAK](0157-pre-launch-there-is-no-legacy-a-schema.md) | active |
 | D158 | [a theme's raw CUSTOM CSS field is footgun-allowed and deliberately bypasses the legibility engine](0158-a-theme-s-raw-custom-css-field-is.md) | active |
 | D159 | [a FORM-CONTROL edge and a DECORATIVE divider are two tokens, not one: `--color-input-border` holds WCAG 1.4.11's 3:1, `--color-border` deliberately does not](0159-a-form-control-edge-and-a-decorative-divider.md) | active |
@@ -243,7 +243,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D293 | [Memory is off until each user turns it on, behind a cost confirm](0293-memory-is-off-until-each-user-turns-it-on.md) | active |
 | D294 | [Rich content uses trust tiers, and interactive story cards are on by default](0294-interactive-story-cards-are-on-by-default.md) | active |
 | D295 | [Sampler order on the chat wire](0295-sampler-order-on-the-chat-wire.md) | active |
-| D296 | [Ollama chat rides its native route](0296-ollama-chat-rides-its-native-route.md) | active |
+| D296 | [Ollama chat rides its native route](0296-ollama-chat-rides-its-native-route.md) | superseded by [0310-ollama-chat-and-the-connection-test-ride-the-native-route.md](0310-ollama-chat-and-the-connection-test-ride-the-native-route.md) |
 | D298 | [A picture made in a room runs as the room host](0298-room-images-run-as-the-host.md) | active |
 | D299 | [Each model role picks its preset](0299-each-model-role-picks-its-preset.md) | superseded by [0304-each-model-role-picks-its-preset-and-tag-pair.md](0304-each-model-role-picks-its-preset-and-tag-pair.md) |
 | D300 | [Rooms attribute each reply honestly, and room pictures belong to the host](0300-room-attribution-and-host-owned-pictures.md) | active |
@@ -256,3 +256,5 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D307 | [Separate product qualification from weekly tooling proof](0307-weekly-tooling-proof-and-product-qualification.md) | active |
 | D308 | [Timing budgets qualify only on a named hardware class](0308-hardware-scoped-timing-budgets.md) | active |
 | D309 | [Keep mutation measurement outside GitHub-hosted CI](0309-hosted-mutation-execution.md) | active |
+| D310 | [Ollama chat and the connection test ride the native route](0310-ollama-chat-and-the-connection-test-ride-the-native-route.md) | active |
+| D311 | [The user's own request body wins every collision outside the denylist](0311-the-users-own-body-wins-every-collision-outside-the-denylist.md) | active |

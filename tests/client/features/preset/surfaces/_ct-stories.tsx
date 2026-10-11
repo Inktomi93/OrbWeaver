@@ -11,7 +11,7 @@
 import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation } from "@orb/client/data";
 import { PresetEditorSurface, PresetLibrarySurface, PresetLibraryWelcome } from "@orb/client/features/preset";
-import { __resetPresetSelection, selectPreset, setFocusMode, setPresetSearchQuery, useSectionRegistry, useSelectedPresetId } from "@orb/client/state";
+import { __resetPresetSelection, selectPreset, setNarrowViewport, setPresetSearchQuery, useSectionRegistry, useSelectedPresetId } from "@orb/client/state";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
@@ -233,8 +233,8 @@ export function PresetLibraryWelcomeFilteredStory(): ReactElement {
 /** The teaching state WITH a live driver for the shell's LIST MODE (#434). Both arms in ONE mount, because a
  *  CT mounts once per test and the finding is about which arm the SAME pane shows.
  *
- *  THE DRIVER IS FOCUS MODE, and that is a deliberate choice over `setPanelMode`. Focus is the shell's ONE
- *  flag for "no side panel is showing" (item 20) — regime-free, section-independent and SYNCHRONOUS, whereas
+ *  THE DRIVER IS THE NARROW REGIME, and that is a deliberate choice over `setPanelMode`. A docked default
+ *  auto-collapses there, so no side panel is showing — section-independent and SYNCHRONOUS, whereas
  *  `setPanelMode` writes the ACTIVE section's override and `setActiveSection` defers its state write through
  *  `withViewTransition` (a story clicking both in one handler lands the override on the previous section —
  *  measured). What this pane reads is the RESOLVED mode, so any regime that resolves `collapsed` exercises
@@ -245,10 +245,10 @@ export function PresetLibraryWelcomeListModeStory(): ReactElement {
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
-        <button type="button" onClick={(): void => setFocusMode(true)}>
+        <button type="button" onClick={(): void => setNarrowViewport(true)}>
           take the list off screen
         </button>
-        <button type="button" onClick={(): void => setFocusMode(false)}>
+        <button type="button" onClick={(): void => setNarrowViewport(false)}>
           put the list back
         </button>
         <div style={{ height: 720, width: 720 }}>

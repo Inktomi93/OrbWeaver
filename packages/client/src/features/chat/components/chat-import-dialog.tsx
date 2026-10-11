@@ -13,7 +13,7 @@
 import type { ImportWindow } from "@orb/contracts/chat";
 import { mergeImportWindows } from "@orb/contracts/chat";
 import { FileDropzone } from "@orb/ui/file-dropzone";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog, ImportedChatsMemoryOffer } from "#components";
@@ -62,9 +62,17 @@ export interface ChatImportDialogProps {
  *  or stay on the memory-build offer when the batch wrote real conversations while Memory is on. */
 export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps): ReactElement {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const invalidation = useInvalidation();
-  // Read while open, and pessimistic until it lands: an unread switch closes the dialog as before, never strands it.
-  const memoryOn = useQuery({ ...trpc.settings.getUserSettings.queryOptions(), enabled: open }).data?.config.memory.enabled === true;
+  // Warm the Memory switch while open. Each import reads it when it lands, so a drop made before this read answered
+  // is still judged by the real switch; a failed read counts as off and closes the dialog, never strands it.
+  useQuery({ ...trpc.settings.getUserSettings.queryOptions(), enabled: open });
+  const readMemoryOn = (): Promise<boolean> =>
+    // @orb-waive caught-failure-ownership(queryClient.query): a deliberate fail-closed; an unreadable switch takes the Memory-off arm, the import's own toast already reported what landed, and every chat still builds at its next reply. Ends if the offer becomes the only way imported chats build memory.
+    queryClient.query({ ...trpc.settings.getUserSettings.queryOptions(), staleTime: Number.POSITIVE_INFINITY }).then(
+      (settings) => settings.config.memory.enabled,
+      () => false,
+    );
   // The scope on offer: every drop since the last started build, merged. A closed dialog forgets it.
   const [offer, setOffer] = useState<{ readonly scope: ImportWindow; readonly started: boolean } | null>(null);
   const changeOpen = (next: boolean): void => {
@@ -82,7 +90,7 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
       return;
     }
     importChats(accepted).then(
-      (result) => {
+      async (result) => {
         const notice = importNotice(result);
         notify[notice.kind](notice.message);
         if (result.imported.length === 0) {
@@ -91,7 +99,7 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
         }
         // A raw multipart POST (not a tRPC mutation) — fire the same user-bus path-invalidate manually.
         invalidation.invalidateUser({ type: "chatsChanged" });
-        if (memoryOn && result.memoryScope !== null) {
+        if (result.memoryScope !== null && (await readMemoryOn())) {
           offerScope(result.memoryScope);
           return;
         }

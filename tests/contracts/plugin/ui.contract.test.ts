@@ -1141,6 +1141,23 @@ test("#799: a grid's `loading` accepts a literal or a binding, and nothing else"
   expect(pluginSurfaceSpecSchema.safeParse({ ...grid, loading: 1 }).success).toBe(false);
 });
 
+test("a button's `disabled` is kept as a literal or a binding, and nothing else passes", () => {
+  const button = { kind: "button", actionId: "next_page", label: "Next" };
+  expect(pluginSurfaceSpecSchema.parse({ ...button, disabled: { $state: "noSearch" } })).toMatchObject({ disabled: { $state: "noSearch" } });
+  expect(pluginSurfaceSpecSchema.parse({ ...button, disabled: true })).toMatchObject({ disabled: true });
+  expect(pluginSurfaceSpecSchema.safeParse({ ...button, disabled: "yes" }).success).toBe(false);
+});
+
+test("a command arg's `default` must match its type, and an enum default must be one of its values", () => {
+  expect(pluginCommandArgSpecSchema.safeParse({ name: "style", type: "enum", enumValues: ["ink", "oil"], default: "oil" }).success).toBe(true);
+  expect(pluginCommandArgSpecSchema.safeParse({ name: "style", type: "enum", enumValues: ["ink", "oil"], default: "chalk" }).success).toBe(false);
+  expect(pluginCommandArgSpecSchema.safeParse({ name: "n", type: "number", default: 3 }).success).toBe(true);
+  expect(pluginCommandArgSpecSchema.safeParse({ name: "n", type: "number", default: "3" }).success).toBe(false);
+  expect(pluginCommandArgSpecSchema.safeParse({ name: "loud", type: "boolean", default: true }).success).toBe(true);
+  expect(pluginCommandArgSpecSchema.safeParse({ name: "note", type: "string", default: 1 }).success).toBe(false);
+  expect(pluginCommandArgSpecSchema.parse({ name: "n", type: "number", default: 3 })).toMatchObject({ default: 3 });
+});
+
 test("#799: resolvePluginBoundBoolean is TRUE only on a real true — a binding miss can never wedge a permanent skeleton", () => {
   expect(resolvePluginBoundBoolean({}, true)).toBe(true);
   expect(resolvePluginBoundBoolean({}, false)).toBe(false);

@@ -93,6 +93,17 @@ export function insertSealed(
   });
 }
 
+/** Set one credential's label (owner-scoped). */
+export function setLabelOwned(
+  db: Db,
+  args: { readonly ownerId: UserId; readonly credentialId: UserCredentialId; readonly label: string; readonly now: number },
+): Promise<unknown> {
+  return db
+    .update(userCredentials)
+    .set({ label: args.label, updatedAt: args.now })
+    .where(and(eq(userCredentials.id, args.credentialId), eq(userCredentials.ownerId, args.ownerId)));
+}
+
 /** Delete a credential (owner-scoped). `user_connections.credential_id` SET-NULLs (the connection survives
  *  as `no-connection` until re-keyed). */
 export function deleteOwnedCredential(db: Db, ownerId: UserId, credentialId: UserCredentialId): Promise<unknown> {

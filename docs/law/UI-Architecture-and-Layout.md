@@ -258,7 +258,7 @@ Labels uses one visible word for manual labels. Its Usage rail retains the share
 
 - **Refinery is a first-class rail section + feature surface** (Score→Rewrite→Analyze — D28). Its sub-parts (stage-stepper, assay, issue-list, compare-diff → `@orb/ui/diff`, guidance-bar) are app components over the primitives.
 - **Each side panel has a 3-state model** in the shell store: **`docked`** · **`overlay`** (slides over via the §11.1 clamp — zero width closed) · **`collapsed`**. Per-panel, persisted, auto-`overlay` below a width breakpoint (the one app-shell `@media`).
-- **"Immersive-ST" = both side panels collapsed; "command-center" = panels docked.** One persisted **focus toggle**; the §11.1 clamp-overlay is the `overlay` mechanism.
+- **"Immersive-ST" = both side panels collapsed; "command-center" = panels docked.** Each panel has its own toggle; nothing else hides both at once. The §11.1 clamp-overlay is the `overlay` mechanism.
 - **A migrating ST user loses nothing:** swipes · edit-in-place · branch/fork · italics-narration · hide-from-AI all live in the CONTENT thread, identical regardless of chrome.
 
 ##### 4.1a The shell's stacking contract — three things, and only one of them is a paint order
@@ -318,7 +318,6 @@ Preset numeric sampling controls, effective labels and unsupported-value clearin
 3. Per-section panel DEFAULTS, user override wins (each `SectionDefinition.panelDefaults` sets only the initial value; the persisted per-panel mode wins thereafter).
 4. Cross-section actions carry their subject in ONE action path (`startNewChat({characterIds})` + `setActiveSection`) — the user lands ready to act.
 5. Modals are for interrupts and pickers ONLY (new-chat picker, add-member, theme, settings, account, ⌘K). Section content NEVER lives in a modal — it is a CONTEXT tab or a CONTENT state.
-6. Focus mode = both side panels collapsed (`toggleFocus`); the topbar reopen affordances are the way back.
 
 #### 4.3 Interaction & visual grammar — the ten UX rules (ledger D62)
 

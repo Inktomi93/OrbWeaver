@@ -89,7 +89,9 @@ const SPREAD_CARDS = 3;
 const HASH_MODULUS = 2_147_483_647; // 2^31 - 1, a Mersenne prime — the modulus for both the hash and the PRNG.
 const HASH_MULTIPLIER = 31; // The classic polynomial-rolling-hash multiplier.
 const LEHMER_MULTIPLIER = 48_271; // MINSTD. `48271 * (2^31 - 2)` stays under 2^53, so float math is exact.
-const COMMITMENT_DIGITS = 10;
+const HEX_RADIX = 16;
+const COMMITMENT_HEX_DIGITS = 8; // `HASH_MODULUS` is below 16^8, so eight hex digits hold any hash.
+const COMMITMENT_GROUP_DIGITS = 4;
 
 /** A polynomial rolling hash over a string → an integer in `[0, HASH_MODULUS)`. Used for BOTH the commitment
  *  and the PRNG seed, so a verifier needs exactly this one five-line function to check a reveal. */
@@ -129,9 +131,12 @@ function shuffleFor(seed: string): string[] {
   return cards;
 }
 
-/** The public commitment for a secret seed — printed BEFORE any card is dealt, checkable AFTER the reveal. */
+/** The public commitment for a secret seed — printed BEFORE any card is dealt, checkable AFTER the reveal. It is
+ *  the hash in upper-case hex, zero-padded and split in two groups (`7F3A-C91B`): a check value a person can
+ *  read aloud and compare, where the bare integer read as a stray number. */
 function commitmentFor(seed: string): string {
-  return String(hashOf(`commit:${seed}`)).padStart(COMMITMENT_DIGITS, "0");
+  const hex = hashOf(`commit:${seed}`).toString(HEX_RADIX).toUpperCase().padStart(COMMITMENT_HEX_DIGITS, "0");
+  return `${hex.slice(0, COMMITMENT_GROUP_DIGITS)}-${hex.slice(COMMITMENT_GROUP_DIGITS)}`;
 }
 
 /** Parse one stored session record. A malformed value (hand-edited, or written by an older version of this
@@ -486,6 +491,7 @@ if (host.grants.includes("ui.surface")) {
   host.ui.registerCommand({
     name: "draw",
     describe: "Draw from the oracle deck — one card, several, or a past/present/future spread",
+    placements: [{ target: "composer-action", label: "Draw", icon: "sparkles" }],
     args: [
       { name: "count", type: "number", describe: "How many cards to draw (1-3, default 1)" },
       {
@@ -526,6 +532,7 @@ if (host.grants.includes("ui.surface")) {
   host.ui.registerCommand({
     name: "reveal",
     describe: "Open the reveal dialog for this oracle session",
+    placements: [{ target: "composer-action", label: "Reveal" }],
     onRun: async () => {
       const session = await loadSession();
       await host.ui.setState("reveal_dialog", {
@@ -617,18 +624,13 @@ if (host.grants.includes("ui.surface")) {
     },
   });
 
-  // ── THE MESSAGE-FOOTER MARK — the per-row anchor, and its honest constraints ─────────────────────────────
-  // `message-footer` mounts once per COMMITTED transcript row, so it carries the tightest bounds in the
-  // vocabulary, all enforced at registration: STATIC tier only, decoration kinds only (badge/text/meter/
-  // image/row — no buttons, no lists, no markdown), ≤ 8 nodes, depth ≤ 2, and — the one that shapes what a
-  // footer can BE — no `$state` bindings: a bound footer would paint fallbacks under every row until you
-  // publish, so the mount skips bound specs entirely. A footer is therefore a FIXED mark, the same under
-  // every message. Use it for something that is true of every row, keep it to ONE small node, and remember
-  // the strip already carries your plugin's name — say one thing, quietly. Here: the deck's table-presence
-  // mark, the standing reminder that this room's draws are commitment-checked.
+  // ── THE TABLE MARK — a once-per-room flank surface, not a footer ─────────────────────────────────────────
+  // A `message-footer` surface is a FIXED per-row spec repeated under every committed message, which would
+  // stamp this reminder under every draw. The room's standing reminder that draws are commitment-checked is
+  // true once per room, so it lives at `chat-flank`.
   host.ui.register({
     id: "table_mark",
-    anchor: "message-footer",
+    anchor: "chat-flank",
     title: "At the table",
     tier: "static",
     spec: { kind: "badge", intent: "neutral", text: "⟡ draws are committed — reveal verifies" },

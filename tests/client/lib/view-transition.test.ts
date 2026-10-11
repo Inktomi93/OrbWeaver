@@ -121,7 +121,19 @@ describe("withViewTransition", () => {
     expect(after).toHaveBeenCalledOnce();
   });
 
-  test.each(["AbortError", "TimeoutError"])("absorbs platform %s but surfaces the same error from the update callback", async (name) => {
+  test("applies the update directly and starts no native transition while the document is hidden", () => {
+    const update = vi.fn();
+    const start = vi.fn();
+    vi.stubGlobal("matchMedia", () => ({ matches: false }));
+    vi.stubGlobal("document", { querySelector: () => null, visibilityState: "hidden", startViewTransition: start });
+
+    withViewTransition(update);
+
+    expect(start).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledOnce();
+  });
+
+  test.each(["AbortError", "TimeoutError", "InvalidStateError"])("absorbs platform %s but surfaces the same error from the update callback", async (name) => {
     const queued: Array<() => void> = [];
     const failure = Object.assign(new Error("update callback failed"), { name });
     const abort = Object.assign(new Error("transition skipped"), { name });

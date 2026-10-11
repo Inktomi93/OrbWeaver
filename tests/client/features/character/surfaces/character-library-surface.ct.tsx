@@ -43,7 +43,7 @@ import { characterListResponder, makeCharacterSummary, makeTagFixture } from "..
  * own note, below) — so this feeds the pipeline without moving any existing assertion. A test that needs a
  * different size lists `settings.getUserSettings` AFTER the spread and wins (the eviction test does).
  */
-const LIBRARY_AMBIENT_ROUTES: TrpcRoutes<"settings.getUserSettings" | "chat.listChats" | "character.listTagGroups"> = {
+const LIBRARY_AMBIENT_ROUTES: TrpcRoutes<"settings.getUserSettings" | "chat.listChats" | "character.listTagGroups" | "character.count"> = {
   "settings.getUserSettings": { userId: "user_ct_lib", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null },
   "chat.listChats": chatListResponder([]),
   // The GROUP-BY-TAG census (#1696). Ambient because the categorized view asks for it the moment it is
@@ -52,6 +52,8 @@ const LIBRARY_AMBIENT_ROUTES: TrpcRoutes<"settings.getUserSettings" | "chat.list
   // override this key with their own census; this default is "there is nothing to say", which is the honest
   // answer for the untagged three-row fixtures most of this file mounts.
   "character.listTagGroups": () => ({ groups: [], uncategorized: 0 }),
+  // The band's census is its own `character.count` read, not a page. Ambient is the untagged three-row library.
+  "character.count": () => THREE_ROW_TOTAL,
 };
 
 /** A census as `character.listTagGroups` answers it — the server's own order, so a CT that overrides it is
@@ -1035,17 +1037,13 @@ test("W5 a LIVE tag filter still filters — the drop is referential, not a disa
 // number available then was "loaded so far". The server serves a census now, so it prints again — and it is
 // the LIBRARY's count, never the loaded page's.
 const LIBRARY_CENSUS = 412;
-const COUNT_ONLY_PAGE = 1;
 
 test("the list band prints the server census, not the loaded row count", async ({ mount, page }) => {
   const rows = characterListResponder([STARLA, BOLT2, TAGGED]);
   await routeTrpc(page, {
     ...LIBRARY_AMBIENT_ROUTES,
-    "character.list": (input) => {
-      const args = (input ?? {}) as { limit?: number };
-      // The band asks for the cheapest possible page and reads `totalCount` off it.
-      return args.limit === COUNT_ONLY_PAGE ? { items: [STARLA], nextCursor: null, totalCount: LIBRARY_CENSUS } : rows(input);
-    },
+    "character.list": rows,
+    "character.count": LIBRARY_CENSUS,
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => RPG_TAG_LIBRARY,
   });
@@ -1666,10 +1664,10 @@ function routePartialLibrary(page: Page, rows: readonly ReturnType<typeof makeCh
   return routeTrpc(page, {
     ...LIBRARY_AMBIENT_ROUTES,
     "character.list": (input) => {
-      const args = (input ?? {}) as { starred?: boolean; limit?: number };
-      const isCollection = args.starred === undefined && args.limit !== COUNT_ONLY_PAGE;
-      return { items: isCollection ? rows : [], nextCursor: null, totalCount: BIG_CENSUS };
+      const args = (input ?? {}) as { starred?: boolean };
+      return { items: args.starred === undefined ? rows : [], nextCursor: null, totalCount: BIG_CENSUS };
     },
+    "character.count": BIG_CENSUS,
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => [],
     "character.listTagGroups": () => tagGroupCensus([["tag_rpg", "rpg", BIG_RPG_BUCKET, "NONE"]], BIG_UNCATEGORIZED),
@@ -1979,6 +1977,8 @@ test("#518 the census has ONE visible home — the band answers the lens, the pa
   await routeTrpc(page, {
     ...LIBRARY_AMBIENT_ROUTES,
     "character.list": characterListResponder([ARIA, BOLT, CASSIUS]),
+    // The lens narrows the census: a searched count is the one matching row.
+    "character.count": (input) => ((input as { search?: string } | undefined)?.search === undefined ? THREE_ROW_TOTAL : 1),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => [],
   });

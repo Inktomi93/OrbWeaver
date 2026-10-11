@@ -1,4 +1,4 @@
-// Ollama's native chat route under the openai-compat backend (D296): the SDK still builds an OpenAI chat body
+// Ollama's native chat route under the openai-compat backend (D310): the SDK still builds an OpenAI chat body
 // and parses OpenAI chunks, and this file translates both ends. `/v1/chat/completions` drops `num_ctx` and
 // the samplers Ollama's Go decoder has no field for, so a row whose folded `features.nativeChat` is `ollama`
 // sends `/api/chat` instead. Both ends are translated inside `wrapFetch`, the request in `shapeBody` and the reply

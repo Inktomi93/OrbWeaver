@@ -294,15 +294,15 @@
   --list-track-docked: var(--panel-w);
   --context-track-docked: var(--panel-context-w);
   /* ── THE PREVIOUS LAYOUT, RE-DERIVED (#2456) ───────────────────────────────────────────────────────
-   * Every FLIP below is ONE rule per moving element reading ONE composed distance, because the FOCUS
-   * door moves BOTH tracks in the same commit and `animation` does NOT compose across two matching rules
+   * Every FLIP below is ONE rule per moving element reading ONE composed distance, because a section
+   * switch can move BOTH tracks in the same commit and `animation` does NOT compose across two matching rules
    * — a second rule keyed on a second attribute simply wins the cascade and deletes the first track's
    * motion (dock-R built exactly that and it killed the list FLIP outright, #2449).
    *
    * A PER-TRACK SUM IS THE WRONG SHAPE, AND THE COMPOUND DOOR IS WHERE IT SHOWS. The two tracks are NOT
    * independent: the #242 squeeze makes each one's width depend on whether the OTHER is docked, so
    * "the list's contribution plus the context's contribution" double-counts (or, when both move at once,
-   * loses) the squeeze. MEASURED at 1280x800 with a per-track sum in place: `Enter focus mode` from
+   * loses) the squeeze. MEASURED at 1280x800 with a per-track sum in place: collapsing both panes from
    * BOTH-docked held `.shell-main` at 363 when its old start edge was 328 — 35px out, exactly the
    * squeeze, because the term that was supposed to carry it reads a track that had already gone to zero.
    *
@@ -354,8 +354,8 @@
   --list-collapsed-w-was: calc(var(--panel-w) + var(--context-docked-was) * (var(--both-docked-list-track) - var(--panel-w)));
   /* WHAT THE COLLAPSED PANE ACTUALLY WEARS. At rest it is the `now` arm — which is `--list-track-docked`
    * itself, because that var is the same conditional resolved off the same `[data-context-mode="docked"]`
-   * attribute. The `out` rule below swaps in the `was` arm for the one commit where the two disagree: the
-   * FOCUS door undocks BOTH panes together, so by the time this pane starts leaving the `now` arm has
+   * attribute. The `out` rule below swaps in the `was` arm for the one commit where the two disagree: a
+   * commit that undocks BOTH panes together, so by the time this pane starts leaving the `now` arm has
    * already stopped being squeezed. Gated on the LIST's own direction because that is the only one where
    * this pane has a previous width at all (docking, it is in `docked` mode and wears its track). */
   --list-panel-collapsed-w: var(--list-track-docked);
@@ -428,7 +428,7 @@
    * runs, the pane is MOVING — `shell-list-panel-flip` slides the whole box, action included, and that
    * travel is the motion rather than something to cancel. Countering it there would hold the action
    * still while the pane it sits in slid out from under it. `--list-flip-dir` is 0 in exactly the case
-   * this corner is for (a CONTEXT or FOCUS commit that leaves the list docked), so `1 - |dir|` is the
+   * this corner is for (a CONTEXT commit that leaves the list docked), so `1 - |dir|` is the
    * whole gate: `max(d, -d)` is `abs(d)` over the -1/0/1 the flip attributes publish, spelled with
    * `max()` because it is the form every browser this ships to has had since the tracks were minted.
    * Same shape as the corners above — the direction lives in the number, never in a second rule. */
@@ -457,7 +457,7 @@
    * THE WIDTH IS `--list-collapsed-w-was`, NOT `--panel-w` (#2474). The clamp is the collapsed pane's width
    * only while the CONTEXT pane is undocked; with both panes in play the pane rests at its #242 squeezed
    * width, and naming the clamp threw the entrance a whole squeeze further out than the corner it was
-   * supposed to hold. The `was` arm is the one that answers on the FOCUS door too, where the context pane's
+   * supposed to hold. The `was` arm is the one that answers on a both-panes commit too, where the context pane's
    * own mode changes in the very commit whose old layout this has to name. */
   --list-panel-flip-from: calc(-1 * max(0, var(--list-flip-dir)) * (var(--list-collapsed-w-was) + var(--rail-w)));
   --context-panel-flip-from: calc((100% - var(--context-track-was)) * max(var(--context-docked), var(--context-docked-was)));
@@ -610,7 +610,7 @@
  * and happens to differ for the context track (both edges move). `--shell-track-shrink` IS that number
  * for whatever moved, so this keyframe is unchanged for the list door and correct for the other two.
  * MEASURED before the fix, same stage, `Show details`: the trail CUT 1043 → 659 in ONE frame (384px, the
- * whole context track), and the focus door inherited it.
+ * whole context track), and every commit that moved the track inherited it.
  *
  * WHY A SECOND ANIMATION AND NOT AN EXEMPTION FROM THE FIRST: the counter must be the EXACT inverse, in
  * lockstep, or the trail shears against the chrome around it. Same `--shell-motion`/`--shell-ease`
@@ -667,7 +667,7 @@
  *
  * ── #2456: THE SAME CLAMP, OVER THE SUMMED WIDTH CHANGE ──────────────────────────────────────────────
  * The centred class needs no per-track rule either: its input is `--shell-track-shrink`, so the context
- * door and the focus door are the same expression with a different number in it. MEASURED at 1280x800,
+ * door and any other track change are the same expression with a different number in it. MEASURED at 1280x800,
  * `Show details` (the DOCK direction, where the clamp is exact in every regime): both carriers cut
  * 437 → 328 in one frame before the fix; the composed corner holds them at 437.5, of which 35px is
  * `.shell-main`'s own translate and 74.5px this counter — and `clamp(0px, 568 + 349 - 768, 349) / 2` IS

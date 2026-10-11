@@ -69,8 +69,11 @@ function stub(page: Page, update: TrpcResponder<typeof UPDATE_PROC> = () => SETT
     // fed empty (the honest fresh-library arm) rather than left to routeTrpc's inert null.
     "tag.listTagsWithUsage": [],
     "regex.listScripts": [],
+    "regex.countScripts": 0,
     "worldInfo.listBooksWithUsage": [],
+    "worldInfo.countBooks": 0,
     "rosterPreset.list": [],
+    "rosterPreset.count": 0,
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "settings.listThemes": () => LOOKS_THEMES,
     "sessions.me": () => ({ userId: SETTINGS_VIEW.userId, handle: "ct_appearance", globalRole: "user" }),
@@ -167,8 +170,11 @@ test("library entries render once, as tiles; removing the selected entry resets 
   const trpc = await routeTrpc(page, {
     "tag.listTagsWithUsage": [],
     "regex.listScripts": [],
+    "regex.countScripts": 0,
     "worldInfo.listBooksWithUsage": [],
+    "worldInfo.countBooks": 0,
     "rosterPreset.list": [],
+    "rosterPreset.count": 0,
     "settings.getUserSettings": () => withLibrary,
     "settings.listThemes": () => LOOKS_THEMES,
     "sessions.me": () => ({ userId: SETTINGS_VIEW.userId, handle: "ct_appearance", globalRole: "user" }),

@@ -14,13 +14,13 @@
 import type { ReactElement } from "react";
 import type { ChromeEntry } from "#state";
 import { PluginCommandsMenu } from "../components/plugin-commands-menu.tsx";
-import { usePluginCommands } from "../hooks/use-plugin-commands.ts";
+import { useLauncherCommands } from "../hooks/use-plugin-commands.ts";
 
 export const pluginCommandsChrome: ChromeEntry = {
   id: "plugin-commands",
   label: "Plugin commands",
   zone: "topbar.trail",
   mobile: "sheet",
-  useVisible: (): boolean => usePluginCommands().length > 0,
+  useVisible: (): boolean => useLauncherCommands().length > 0,
   behavior: { kind: "widget", body: (presentation): ReactElement | null => <PluginCommandsMenu presentation={presentation} /> },
 };

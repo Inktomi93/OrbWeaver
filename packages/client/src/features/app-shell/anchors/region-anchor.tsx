@@ -7,7 +7,13 @@
 
 import { Container } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
+import { Suspense } from "react";
+import { SkeletonRows } from "#data";
 import { RenderProfiler } from "#lib";
+
+// A section read that suspends past its own boundary must stop at its region: with none here it unmounts the whole
+// shell into the router pending screen.
+const REGION_SKELETON_ROWS = 4;
 
 // File-local, tuple-derived (Spine string-union discipline §5.5 — declared once, not an inline
 // re-spelled union; not exported — callers pass the literal `region="content"`).
@@ -25,7 +31,9 @@ export function RegionAnchor({ region, children, inset = false }: RegionAnchorPr
     <Container name={region} className={inset ? "shell-region-fill px-section" : "shell-region-fill"}>
       {/* Per-region <Profiler> boundary → the render heatmap (`window.__orb.renders()`, dev-only; bare
           children in prod). Gives content/list/context render frequency + cost with one wrapper. */}
-      <RenderProfiler id={`region:${region}`}>{children}</RenderProfiler>
+      <RenderProfiler id={`region:${region}`}>
+        <Suspense fallback={<SkeletonRows count={REGION_SKELETON_ROWS} />}>{children}</Suspense>
+      </RenderProfiler>
     </Container>
   );
 }

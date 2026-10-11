@@ -42,10 +42,10 @@ import type { VariantWireView } from "@orb/contracts/chat";
 import type { ChatId, MessageVariantId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 // @orb-waive dialog-via-composite(Dialog): this host-only wire inspector is read-only content with one Close; ends if a content-viewer dialog composite owns it.
-import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { DIALOG_SCROLL_CLASS, Dialog, DialogClose, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, ScrollText } from "@orb/ui/icons";
-import { Row, Section, Stack } from "@orb/ui/layout";
+import { Section, Stack } from "@orb/ui/layout";
 import type { LogLine } from "@orb/ui/log-viewer";
 import { LogViewer } from "@orb/ui/log-viewer";
 import { Text } from "@orb/ui/text";
@@ -53,6 +53,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
+
+const PROSE_MEASURE = "max-w-(--reading-measure-prose)";
 
 export interface VariantWireViewerProps {
   readonly chatId: ChatId;
@@ -77,12 +79,14 @@ function toLines(text: string): readonly LogLine[] {
 }
 
 /** One labelled slab of the sent prompt. `LogViewer` carries the mono panel + its own copy affordance, so a
- *  host can lift the exact bytes out without a second control per section. */
+ *  host can lift the text out without a second control per section. */
 function WireSection({ heading, gloss, text }: { readonly heading: string; readonly gloss: string; readonly text: string }): ReactElement {
   return (
     <Section heading={<Text voice="kicker">{heading}</Text>}>
       <Stack gap="field">
-        <Text voice="gloss">{gloss}</Text>
+        <Text data-slot="wire-section-gloss" voice="gloss">
+          {gloss}
+        </Text>
         <LogViewer lines={toLines(text)} className="max-h-64" />
       </Stack>
     </Section>
@@ -179,18 +183,32 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
   }
   return (
     <Stack gap="section">
-      <Text voice="gloss">
-        The prompt text this reply was generated from, as recorded when it was sent — not a re-render. It holds the system prose, the turn's own instruction and
-        the in-history injections; the chat history rows are not stored here. Host-only: it carries every member's content, the room's hidden spans, and each
-        character's full card.
+      <Text className={PROSE_MEASURE} data-slot="wire-intro" prose={true} voice="gloss">
+        The prompt text this reply was generated from, as recorded when it was sent — not a re-render. It holds the system prose and the in-history injections;
+        the chat history rows are not stored here. Host-only: it carries every member's content, the room's hidden spans, and each character's full card.
       </Text>
-      <WireSection heading="Static prefix" gloss="The cache-stable half — system prose, cards, world info." text={prompt.static} />
-      <WireSection heading="Dynamic suffix" gloss="The per-turn half — steering, game state, the turn's own instruction." text={prompt.dynamic} />
+      <WireSection
+        heading="Static prefix"
+        gloss="The cache-stable half — the preset's fixed sections: prose, cards and always-on world info."
+        text={prompt.static}
+      />
+      <WireSection
+        heading="Dynamic suffix"
+        gloss="The per-turn half — memory and databank recall, guided steering, trigger-gated sections and keyword-matched world info."
+        text={prompt.dynamic}
+      />
       <InjectionsSection prompt={prompt} />
       {prompt.sendHistory ? null : <Text voice="gloss">History was DISABLED for this turn — the model saw no transcript.</Text>}
       {params === null ? null : (
-        <Section heading={<Text voice="kicker">Settings set for this send</Text>}>
-          <LogViewer lines={JSON.stringify(params, null, 2).split("\n")} className="max-h-40" />
+        <Section heading={<Text voice="kicker">Settings this send ran under</Text>}>
+          {Object.keys(params).length === 0 ? (
+            // Replies recorded before the effective settings were stamped carry `{}`, which would read as "ran under no settings".
+            <Text data-slot="wire-params-unrecorded" voice="gloss">
+              Not recorded for this reply.
+            </Text>
+          ) : (
+            <LogViewer lines={JSON.stringify(params, null, 2).split("\n")} className="max-h-40" />
+          )}
         </Section>
       )}
       <WireProvenance wire={wire} />
@@ -211,12 +229,12 @@ export function VariantWireViewer({ chatId, variantId, open, onOpenChange }: Var
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPopup size="lg" data-testid={testId("variantWireViewer")}>
-        <Stack gap="block" className="min-h-0">
+        <Stack gap="block" className={`${DIALOG_SCROLL_CLASS} flex-1`}>
           <DialogTitle>What this reply sent</DialogTitle>
           <WireDialogBody isError={wire.isError} error={wire.error} data={wire.data} onRetry={(): void => void wire.refetch().catch(globalThis.reportError)} />
-          <Row justify="end" className="shrink-0">
+          <DialogFooter>
             <DialogClose render={<Button intent="secondary">Close</Button>} />
-          </Row>
+          </DialogFooter>
         </Stack>
       </DialogPopup>
     </Dialog>

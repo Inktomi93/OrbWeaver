@@ -193,7 +193,8 @@ export function cacheDepthCovering(rows: readonly { readonly role: string; reado
  *  (`provider.cache_depth_unreachable`).
  *
  *  @public Test-anchored module surface; tests/inference/backends/kit/cache-control.test.ts calls it
- *  directly, in addition to the in-file use by the openrouter runner mapping. */
+ *  directly, in addition to the in-file use by {@link placeExplicitCacheMarkers}, the placer shared by the
+ *  native Anthropic and OpenRouter runners. */
 export function computeCacheBreakpointPlacements(args: {
   readonly rows: readonly CacheBreakpointRow[];
   readonly systemStaticTokens: number;

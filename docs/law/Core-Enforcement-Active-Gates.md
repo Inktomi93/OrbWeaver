@@ -50,7 +50,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(354 registered gates)
+(355 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -82,6 +82,7 @@ in its own module header, never restated here.
 | `bus-payload-allowlist-health` | bus-payload | hard/error | @contracts | a bus-event wire shape could not be… |
 | `bus-producer-coverage` | bus-fact | ordinary/error | @contracts,@server | declared bus member has NO server… |
 | `byte-check-cast` | drizzle-schema | ordinary/error | @db\* | a schema CHECK's length(\<col>) <= \<N>… |
+| `caught-failure-census-row` | caught-failure-ownership | hard/error | @product,@tooling | a caught-failure site has no row in… |
 | `caught-failure-ownership` | — | ordinary/error | @product,@tooling | UNPROVEN OWNERSHIP for a caught… |
 | `caught-failure-ownership-health` | caught-failure-ownership | hard/error | @product,@tooling | the committed caught-failure census… |
 | `chat-stream-writes-in-bus-only` | — | reviewed-grant/error | @authored\* | the chatStream WRITE api is taken… |

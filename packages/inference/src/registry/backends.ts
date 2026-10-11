@@ -39,9 +39,10 @@ class RefreshingBackendRegistry extends Map<Wire, ProviderBackend> {
 }
 
 /** @public Test-anchored module surface; the table test pins every wire's `serves` against `WIRE_DEFS`.
- *  Unreachable from `server` BY DESIGN — the package's exports map carries only the star subpath onto each
- *  directory index, so there is no `registry` subpath at all: that is what seals wire→backend dispatch
- *  inside this package at RESOLVE time (a server import fails `tsc` TS2307 and dependency-cruiser both). */
+ *  Unreachable from `server` BY DESIGN — the package's exports map carries only the root (`.`), so there is
+ *  no `registry` subpath at all: that is what seals wire→backend dispatch inside this package at RESOLVE
+ *  time (a server import fails `tsc` TS2307 and dependency-cruiser both). The `#*` star mapping onto each
+ *  directory index lives in the `imports` map, which only this package's own files can reach. */
 export const BACKEND_DEFS: Record<Wire, BackendDef> = {
   "google-generative-ai": { serves: WIRE_DEFS["google-generative-ai"].serves, needs: ALWAYS },
   "openai-compat": { serves: WIRE_DEFS["openai-compat"].serves, needs: ALWAYS },
@@ -56,7 +57,7 @@ export const BACKEND_DEFS: Record<Wire, BackendDef> = {
 /** The constructed backends: the registry the executor dispatches on, plus the per-wire handles the runtime
  *  composes beside it (the endpoint reachability prober, the daemon catalog warm, the in-process tier's
  *  prefetch). A handle is `undefined` exactly when its wire was not built. */
-export interface BuiltBackends {
+interface BuiltBackends {
   readonly registry: BackendRegistry;
   readonly openAiCompat: OpenAiCompatBackend;
   readonly agentSdk: AgentSdkBackend | undefined;

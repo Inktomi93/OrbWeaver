@@ -24,7 +24,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { TrpcFixtureOutput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
 /** The CONTENT pane — the box whose height the windowed arm now inherits. */
@@ -93,20 +93,31 @@ const BOOK = {
 };
 const BOOK_DETAIL = { id: BOOK.id, name: BOOK.name, description: BOOK.description, createdAt: BOOK.createdAt };
 
-function stub(page: Page, scripts: TrpcFixtureOutput<"regex.listScripts"> = [SCRIPT]): Promise<TrpcRecorder> {
+function stub(
+  page: Page,
+  scripts: TrpcFixtureOutput<"regex.listScripts"> = [SCRIPT],
+  books: readonly (typeof BOOK)[] = [BOOK],
+  bookCreate: { readonly failFirst?: boolean; readonly hold?: ReturnType<typeof trpcHold> } = {},
+): Promise<TrpcRecorder> {
+  let bookCreates = 0;
   return routeTrpc(page, {
     "rosterPreset.list": () => [ROSTER],
+    "rosterPreset.count": 1,
     "settings.getUserSettings": () => ({ userId: "user_ct_config", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 }),
     "settings.listThemes": () => [],
     "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },
     "regex.listScripts": () => scripts,
+    "regex.countScripts": () => scripts.length,
     "regex.listGlobal": () => [],
     "regex.listScriptUsage": () => ({ presets: [], characters: [], rooms: [] }),
-    "worldInfo.listBooksWithUsage": () => [BOOK],
+    "worldInfo.listBooksWithUsage": () => [...books],
+    "worldInfo.countBooks": () => books.length,
     "worldInfo.listGlobal": () => [],
     // The BOOK EDITOR's own two reads — the drill-row pin below opens a book, and an unstubbed suspense
     // read resolves `null` and throws INSIDE the boundary, which reads as "the header is missing".
     "worldInfo.getBook": () => BOOK_DETAIL,
+    "worldInfo.createBook": () => bookCreate.hold ?? (bookCreate.failFirst === true && bookCreates++ === 0 ? trpcError() : BOOK_DETAIL),
+    "regex.createScript": () => SCRIPT,
     "worldInfo.listEntries": () => [],
     "persona.list": () => [],
     "character.list": () => ({ items: [], nextCursor: null }),
@@ -164,6 +175,12 @@ for (const width of [752, 1440, 1920]) {
 // enabled and stable", and then fails the click with "element is outside of the viewport". The width matrix
 // above is the place a 1440/1920 host belongs, because it MEASURES and never clicks.
 const INTERACTIVE_WIDTH = 900;
+/** A host width whose content pane (about 400px) is under the control row's container breakpoint, as on a phone. */
+const NARROW_WIDTH = 752;
+/** A host whose content pane is about 620px, where the filter was crushed by an inline form. */
+const MEDIUM_WIDTH = 980;
+/** The name field measured 50px in the squeezed row; a name worth typing needs well over that. */
+const NAME_FIELD_FLOOR = 150;
 
 test("the control row reads filter · bulk · create · overflow, left to right", async ({ mount, page }) => {
   await stub(page);
@@ -261,4 +278,110 @@ test("the drill row carries the member's own verbs beside its name (board 06)", 
   await expect(header.getByRole("button", { name: /Delete/ })).toHaveCount(0);
   // And the name is stated ONCE on the whole pane, exactly as the pin above requires.
   await expect(content.getByRole("heading", { name: BOOK.name })).toHaveCount(1);
+});
+
+// A NEW MEMBER ASKS FOR ITS NAME, INLINE (0641) — the create verb swaps for a name field instead of minting a
+// placeholder-named row. The same shared flow serves the control row and the empty library.
+test("New book swaps for an inline name field: Escape cancels and clears, a failed create keeps the typed name, success creates under the trimmed name", async ({
+  mount,
+  page,
+}) => {
+  const trpc = await stub(page, [SCRIPT], [BOOK], { failFirst: true });
+  const workspace = await mount(<ConfigHostStory height={900} target="worldInfo" width={INTERACTIVE_WIDTH} />);
+  const row = workspace.locator(CONTROL_ROW);
+  const field = row.getByRole("textbox", { name: "Book name" });
+  const create = row.getByRole("button", { name: "Create" });
+
+  await row.getByRole("button", { name: "New book" }).click();
+  await expect(row.getByRole("button", { name: "New book" })).toHaveCount(0);
+  await expect(create).toBeDisabled();
+  await expect(field).toHaveAttribute("maxlength", "200");
+
+  // Escape cancels and the typed name does not survive into the next ask.
+  await field.fill("Abandoned");
+  await field.press("Escape");
+  await expect(field).toHaveCount(0);
+  await row.getByRole("button", { name: "New book" }).click();
+  await expect(field).toHaveValue("");
+
+  // The first create fails: the field stays open with what was typed.
+  await field.fill("  The Hollow Crown  ");
+  await field.press("Enter");
+  await expect.poll(() => trpc.count("worldInfo.createBook")).toBe(1);
+  await expect(field).toHaveValue("  The Hollow Crown  ");
+
+  await create.click();
+  await expect.poll(() => trpc.inputs("worldInfo.createBook")).toEqual([{ input: { name: "The Hollow Crown" } }, { input: { name: "The Hollow Crown" } }]);
+  await expect(field).toHaveCount(0);
+});
+
+test("the empty library asks for a book name inline too, and Cancel puts the button back", async ({ mount, page }) => {
+  const trpc = await stub(page, [SCRIPT], []);
+  const workspace = await mount(<ConfigHostStory height={900} target="worldInfo" width={INTERACTIVE_WIDTH} />);
+  const content = workspace.locator(CONTENT_PANE);
+
+  await content.getByRole("button", { name: "New book" }).click();
+  const field = content.getByRole("textbox", { name: "Book name" });
+  await field.fill("Cancelled");
+  await content.getByRole("button", { name: "Cancel" }).click();
+  await expect(content.getByRole("button", { name: "New book" })).toBeVisible();
+
+  await content.getByRole("button", { name: "New book" }).click();
+  await expect(field).toHaveValue("");
+  await field.fill("First Book");
+  await content.getByRole("button", { name: "Create" }).click();
+  await expect.poll(() => trpc.inputs("worldInfo.createBook")).toEqual([{ input: { name: "First Book" } }]);
+});
+
+test("New script asks for a name inline and creates the script under it", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  const workspace = await mount(<ConfigHostStory height={900} target="regex" width={INTERACTIVE_WIDTH} />);
+  const row = workspace.locator(CONTROL_ROW);
+
+  await row.getByRole("button", { name: "New script" }).click();
+  await row.getByRole("textbox", { name: "Script name" }).fill("Strip OOC");
+  await row.getByRole("button", { name: "Create" }).click();
+  await expect.poll(() => (trpc.lastInput("regex.createScript") as { input: { name: string } } | undefined)?.input.name).toBe("Strip OOC");
+});
+
+for (const width of [NARROW_WIDTH, MEDIUM_WIDTH]) {
+  test(`at a ${String(width)}px host the inline name form takes its own row and the filter keeps its width`, async ({ mount, page }) => {
+    await stub(page);
+    const workspace = await mount(<ConfigHostStory height={900} target="regex" width={width} />);
+    const row = workspace.locator(CONTROL_ROW);
+    const filter = row.getByRole("textbox", { name: "Filter regex scripts" });
+    const restWidth = (await filter.boundingBox())?.width ?? 0;
+
+    await row.getByRole("button", { name: "New script" }).click();
+    const field = row.getByRole("textbox", { name: "Script name" });
+    await expect(field).toBeVisible();
+    const filterBox = await filter.boundingBox();
+    const fieldBox = await field.boundingBox();
+    expect(filterBox?.width ?? 0).toBeGreaterThanOrEqual(restWidth);
+    expect(fieldBox?.y ?? 0).toBeGreaterThanOrEqual((filterBox?.y ?? 0) + (filterBox?.height ?? 0));
+    expect(fieldBox?.width ?? 0).toBeGreaterThanOrEqual(NAME_FIELD_FLOOR);
+    // A blank box beside a disabled Create names nothing for a sighted reader: the field carries a placeholder.
+    await expect(field).toHaveAttribute("placeholder", /\S/);
+  });
+}
+
+test("a create in flight cannot be submitted twice: Enter then Create makes exactly one request", async ({ mount, page }) => {
+  const hold = trpcHold();
+  const trpc = await stub(page, [SCRIPT], [BOOK], { hold });
+  const workspace = await mount(<ConfigHostStory height={900} target="worldInfo" width={INTERACTIVE_WIDTH} />);
+  const row = workspace.locator(CONTROL_ROW);
+
+  await row.getByRole("button", { name: "New book" }).click();
+  const field = row.getByRole("textbox", { name: "Book name" });
+  await field.fill("Twice");
+  await field.press("Enter");
+  await hold.requested;
+  await expect(row.getByRole("button", { name: "Create" })).toBeDisabled();
+  // A forced click and a second Enter both land on a disabled / guarded control.
+  await row.getByRole("button", { name: "Create" }).click({ force: true });
+  await field.press("Enter");
+
+  hold.release(BOOK_DETAIL);
+  await expect(field).toHaveCount(0);
+  await expect.poll(() => trpc.count("worldInfo.createBook")).toBe(1);
 });

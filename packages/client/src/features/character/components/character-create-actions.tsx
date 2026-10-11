@@ -18,7 +18,7 @@
 
 import { slugifyHandle } from "@orb/kit/slug";
 import { Button } from "@orb/ui/button";
-import { DialogClose } from "@orb/ui/dialog";
+import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Icon, Plus, Upload } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
@@ -133,12 +133,12 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
           A name and a description are both required.
         </Text>
       ) : null}
-      <Row gap="field" justify="end">
+      <DialogFooter>
         <DialogClose render={<Button intent="ghost">Cancel</Button>} />
         <Button disabled={incomplete || create.isPending} intent="primary" onClick={onCreate}>
           Create
         </Button>
-      </Row>
+      </DialogFooter>
     </FormDialog>
   );
 }

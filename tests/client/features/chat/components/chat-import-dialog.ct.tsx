@@ -16,7 +16,7 @@ import type { ImportWindow } from "@orb/contracts/chat";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { PAID_RUN_ROUTES } from "../../../../support/node/utility-role.ts";
 import { ChatImportDialogStory } from "../_ct-stories.tsx";
@@ -164,6 +164,24 @@ test("with Memory on, a batch that wrote real conversations stays open on a memo
   await confirm.getByRole("button", { name: BUILD_LABEL, exact: true }).click();
   await expect.poll(() => trpc.lastInput("workloads.start")).toEqual(buildOver(FIRST_SPAN));
   await expect(offer.getByRole("button")).toHaveCount(0);
+});
+
+// The import is judged against the Memory switch as read when it lands, so a drop made before the switch's
+// first read answered is not treated as Memory off.
+test("a drop made before the Memory switch is read still offers the build once the switch reads on", async ({ mount, page }) => {
+  const settings = trpcHold();
+  await routeTrpc(page, { ...MEMORY_ON_ROUTES, "settings.getUserSettings": () => settings });
+  const post = await routeImport(page, writtenBatch(FIRST_SPAN));
+
+  const component = await mount(<ChatImportDialogStory />);
+  await settings.requested;
+  await dropBatch(page);
+  await expect.poll(() => post.seen()?.method, { intervals: [20, 50, 100] }).toBe("POST");
+  await expect(component.getByTestId("import-notice")).toHaveText("success: 2 chats imported.");
+  settings.release(userSettingsView({ memory: { enabled: true } }));
+
+  await expect(page.getByTestId("imported-chats-memory-offer").getByRole("button")).toHaveCount(1);
+  await expect(component.getByTestId("import-closes")).toHaveText("0");
 });
 
 // Repro A: a build already started, then a new drop. The new batch is a new offer over ITS span alone — the

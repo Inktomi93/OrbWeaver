@@ -1,7 +1,7 @@
 // AppShell CT — the composed four-region frame end-to-end: the default chats CONTENT renders, a rail
 // click switches the section (store → CONTENT/LIST slots), the topbar panel toggle collapses a panel
 // via the §11.1 clamp-overlay (data-panel-mode + zero rendered width, not just a class string), the
-// focus toggle drives immersive ⇄ command-center, and a footer modal trigger (derived from the modal
+// panel toggles drive the layout, and a footer modal trigger (derived from the modal
 // registry) opens its real body. The MOBILE block (L6/J12 · D62 P3) covers the bottom-tab-bar reflow at a mobile
 // viewport: the curated four tabs, land-on-CONTENT, and the "You" bottom sheet + its overflow/handoff.
 // Each test gets a fresh page (isolated localStorage) so the store starts default.
@@ -12,7 +12,7 @@
 // anatomy — rail, `panels`, `panelDefaults`, `placeholder`, the modal/chrome/config registries, and each
 // section's real `selection` store whenever a story injects a `list` — and STORY-INJECTED for everything a
 // section RENDERS: `list`, `content`, `context`, `header` and `useListHeader` bodies. So this file is the
-// floor for shell CHROME: region layout, panel clamp/overlay, focus modes, the rail, the modal host, the
+// floor for shell CHROME: region layout, panel clamp/overlay, the rail, the modal host, the
 // mobile tab bar and the one-shell rule.
 //
 // It is NOT the observer of SECTION-TITLE COMPOSITION. `useSelectionTitle` falls back to the section's real
@@ -183,7 +183,6 @@ const LIST_TOGGLE_RE = /^(?:(?:Show|Hide) list panel|Show .+ (?:list|overview))$
 // spelling is gone, so this matcher no longer spans two arms: it IS the pin that the two-name split does
 // not come back (a regex that still admitted the dead spelling would let it).
 const CONTEXT_TOGGLE_RE = /^(?:Show|Hide) details$/u;
-const FOCUS_TOGGLE_RE = /focus mode$/u;
 const JUMP_COMMAND_MENU_RE = /jump.*command menu/iu;
 
 /** WCAG 2.5.8 Target Size (Minimum) — the floor a revealed control owes on BOTH axes (side-eye rail-home
@@ -1845,58 +1844,6 @@ function shellPersistedOverrides(page: Page): Promise<unknown> {
   });
 }
 
-// ── Focus mode: ONE flag, coherent at every step of the MEASURED repro (crunch-list item 20) ────────
-// Live receipt (owner, __orb.shell()): enter focus → exit (panels returned but the button still read
-// "Exit focus mode") → click → panels COLLAPSED (exit *entered* the focus look) → click → nothing at all,
-// terminal state = both panels collapsed + label "Exit focus mode". Three truths disagreed because the
-// label was DERIVED from "both panels resolve collapsed" — the same reading the narrow auto-collapse
-// produces with no user intent — while entering focus WROTE `collapsed` over the user's panel overrides
-// and exiting docked BOTH panels back. Focus is one flag now; these two walk the exact click sequence.
-
-test("the focus toggle round-trips coherently at every step of the measured repro (enter → exit → click → click)", async ({ mount, page }) => {
-  await page.setViewportSize(WIDE);
-  const shell = await mount(<AppShellStory />);
-  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
-  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
-  const shellGrid = page.locator(".shell-grid");
-  const focusToggle = shell.getByRole("button", { name: FOCUS_TOGGLE_RE });
-
-  // Chats' real defaults: LIST docked, CONTEXT collapsed — nobody has entered focus, so the button says so.
-  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
-  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
-  await expect(focusToggle).toHaveAccessibleName("Enter focus mode");
-  // data-focus-mode on .shell-grid is the __orb.shell().focus DOM source (agent-bridge.ts) — it must
-  // track the store's focusMode flag at every step, not just the panel-derived label.
-  await expect(shellGrid).toHaveAttribute("data-focus-mode", "false");
-
-  // 1) ENTER — everything hides, the label flips, the button reads pressed.
-  await focusToggle.click();
-  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
-  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
-  await expect(focusToggle).toHaveAccessibleName("Exit focus mode");
-  await expect(focusToggle).toHaveAttribute("aria-pressed", "true");
-  await expect(shellGrid).toHaveAttribute("data-focus-mode", "true");
-
-  // 2) EXIT — the section's OWN pre-focus layout returns: the LIST docks, and the CONTEXT pane the user
-  // never had open stays collapsed. (The old implementation docked BOTH here — "restore" meant "dock
-  // everything", so exiting focus opened a pane the user had closed.)
-  await focusToggle.click();
-  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
-  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
-  await expect(focusToggle).toHaveAccessibleName("Enter focus mode");
-  await expect(focusToggle).toHaveAttribute("aria-pressed", "false");
-  await expect(shellGrid).toHaveAttribute("data-focus-mode", "false");
-
-  // 3) + 4) The next two clicks repeat the SAME two states — no drift, no dead click.
-  await focusToggle.click();
-  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
-  await expect(focusToggle).toHaveAccessibleName("Exit focus mode");
-  await focusToggle.click();
-  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
-  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
-  await expect(focusToggle).toHaveAccessibleName("Enter focus mode");
-});
-
 /** The persisted overrides AFTER the store's own first write has landed — the only honest "before" for a
  *  test whose claim is "this action wrote nothing".
  *
@@ -1909,29 +1856,6 @@ async function settledPersistedOverrides(page: Page): Promise<unknown> {
   await expect.poll(() => shellPersistedOverrides(page)).not.toBeNull();
   return shellPersistedOverrides(page);
 }
-
-test("at 48-64rem the focus toggle is NOT pre-pressed by the auto-collapse, and its second click exits (the measured no-op)", async ({ mount, page }) => {
-  await page.setViewportSize(NARROW_DESKTOP);
-  const shell = await mount(<AppShellStory />);
-  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
-  const focusToggle = shell.getByRole("button", { name: FOCUS_TOGGLE_RE });
-  const before = await settledPersistedOverrides(page);
-
-  // Cold boot at this width: the auto-overlay derivation already resolves BOTH panels collapsed. That is
-  // the shell being narrow — NOT the user in focus mode, which is exactly what the old derived label
-  // claimed ("Exit focus mode" on a section nobody focused, with a first click that did nothing).
-  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
-  await expect(focusToggle).toHaveAccessibleName("Enter focus mode");
-
-  await focusToggle.click();
-  await expect(focusToggle).toHaveAccessibleName("Exit focus mode");
-  // The measured terminal state was this click doing nothing forever. It exits.
-  await focusToggle.click();
-  await expect(focusToggle).toHaveAccessibleName("Enter focus mode");
-
-  // Still a pure presentation flag at this width — no persisted panel preference was written.
-  expect(await shellPersistedOverrides(page)).toEqual(before);
-});
 
 // ── O-19: the Presets section opens with BOTH panes docked ───────────────────────────────
 // Owner ruling: the library is how you pick what you are editing and the readout IS the product, so a
@@ -2400,7 +2324,6 @@ for (const profileName of APPEARANCE_PROFILE_NAMES) {
     const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
     const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
     const contextToggle = shell.getByRole("button", { name: "Show details" });
-    const focusToggle = shell.getByRole("button", { name: FOCUS_TOGGLE_RE });
     await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
     await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
 
@@ -2409,16 +2332,6 @@ for (const profileName of APPEARANCE_PROFILE_NAMES) {
     await contextToggle.click();
     await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
     await page.keyboard.press("Escape");
-    await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
-
-    // Focus is still the one explicit flag: enter hides LIST, exit restores the registry/default layout
-    // for this constrained regime without promoting CONTEXT to a persisted dock.
-    await focusToggle.focus();
-    await page.keyboard.press("Enter");
-    await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
-    await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
-    await page.keyboard.press("Enter");
-    await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
     await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
 
     await page.setViewportSize({ width: crossover.equality, height: 900 });
@@ -2783,29 +2696,6 @@ test("the scrim is not a Tab stop while a sheet is up", async ({ mount, page }) 
     await page.keyboard.press("Tab");
     await expect(scrim).not.toBeFocused();
   }
-});
-
-// ── toggleFocus regime-awareness (M10 completeness fold) — the same ephemeral-vs-persisted bug class
-// togglePanel/collapsePanel were already corrected for. At narrow width, focus-toggle must not write the
-// persisted panelOverrides (there's nothing "docked" to persist-collapse — it's already an on-demand
-// overlay), it just closes whatever slide-over happens to be open.
-
-test("toggleFocus at narrow width closes an open slide-over without writing panelOverrides", async ({ mount, page }) => {
-  await page.setViewportSize(NARROW_DESKTOP);
-  const shell = await mount(<AppShellStory />);
-  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
-  const before = await settledPersistedOverrides(page);
-
-  // Open the narrow auto-overlay slide-over first.
-  await shell.getByRole("button", { name: "Show list panel" }).click();
-  await expect(listPanel).toHaveAttribute("data-panel-mode", "overlay");
-
-  // toggleFocus (the topbar focus button) must close it — ephemeral, not a persisted docked/collapsed flip.
-  await shell.getByRole("button", { name: "Enter focus mode" }).click();
-  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
-
-  const after = await shellPersistedOverrides(page);
-  expect(after).toEqual(before);
 });
 
 // ── Escape closes the open narrow/mobile auto-overlay panel (side-eye's top item) ────────────────
@@ -3869,12 +3759,12 @@ test("#2442 the phone's docking list sheet never enters from beyond its own widt
   expect(strays, `the phone sheet entered from beyond its own width (${panelWidth}): ${strays.join(", ")} — ring ${samples.join(" ")}`).toEqual([]);
 });
 
-// ── #2456: ONE GRAMMAR, THREE DOORS ─────────────────────────────────────────────────────────────────
+// ── #2456: ONE GRAMMAR, TWO DOORS ─────────────────────────────────────────────────────────────────
 // The owner's report (2026-09-19): "dock/undock list and context have uncentralized jank and the
-// fullscreen button is jank and not consistent." dock-R's per-rAF census (#2449) named the cause — the
+// panel toggles are jank and not consistent." dock-R's per-rAF census (#2449) named the cause — the
 // CONTEXT track had no FLIP at all, so a context toggle CUT the topbar trail 1043 -> 659, the docking
 // context pane 1280 -> 896, `.shell-main` 363 -> 328 and both `.orb-chat-track` carriers 437 -> 328 in ONE
-// frame, and the FOCUS door (which drives both tracks) inherited every one of them.
+// frame.
 //
 // THE ACCEPTANCE IS THE CENSUS ITSELF: every door moves the same boxes on the same curve. A FLIP's whole
 // promise is that in the first frame painted after the track resized, every box it counters is still where
@@ -4047,17 +3937,14 @@ async function landDoorsStory(shell: Locator, page: Page): Promise<void> {
 }
 
 const LIST_DOOR_BOXES = ["main", "trail", "listPanel", "row", "composer"] as const;
-// `listAction` rides the CONTEXT door only, and the omission from the other two sets is a MEASURED fact
+// `listAction` rides the CONTEXT door only, and the omission from the LIST set is a MEASURED fact
 // rather than a gap (#2463). The LIST door MOVES the pane the action lives in — its entrance/exit slide is
 // the motion, not a defect to cancel — so a corridor arm over a box that is deliberately travelling
-// off-screen would assert the opposite of the truth. The FOCUS door drives BOTH tracks, so it moves the
-// list pane too and inherits the same exemption; what it does NOT inherit is a clean bill, because a
-// collapsing list pane swaps its docked (squeezed) width for the unsqueezed `--panel-w` in the same frame
+// off-screen would assert the opposite of the truth. A collapsing list pane swaps its docked (squeezed) width for the unsqueezed `--panel-w` in the same frame
 // its exit transition starts. That is a separate, pre-existing discontinuity of the PANE's own entrance
 // corner (`--list-panel-flip-from` reads `--panel-w`, never `--list-track-was`), reported rather than
 // silently folded into this row.
 const CONTEXT_DOOR_BOXES = ["main", "trail", "contextPanel", "row", "composer", "listAction"] as const;
-const FOCUS_DOOR_BOXES = ["main", "trail", "listPanel", "contextPanel", "row", "composer"] as const;
 
 test("#2456 the LIST door holds every box it moves on the first painted frame, in both directions", async ({ mount, page }) => {
   await page.setViewportSize(WIDE);
@@ -4090,31 +3977,6 @@ test("#2456 the CONTEXT door holds every box it moves on the first painted frame
     const census = await driveDoor(shell, page, leg);
     expect(census.samples.length, `the rAF sampler must have run on "${leg}" — an empty ring proves nothing`).toBeGreaterThan(2);
     assertDoorHeld(census, leg, CONTEXT_DOOR_BOXES);
-  }
-});
-
-// THE COMPOUND DOOR, AND THE REASON THE DISTANCES ARE A DIFFERENCE OF LAYOUTS RATHER THAN A SUM OF TRACKS
-// (shell.css "THE PREVIOUS LAYOUT, RE-DERIVED"). Focus drives BOTH tracks in one commit, and the #242
-// squeeze makes each track's width depend on the other pane's mode — so a per-track sum loses the squeeze
-// exactly here. Measured with a per-track sum in place: this leg held `.shell-main` at 363 when its old
-// start edge was 328, 35px out, the squeeze to the pixel.
-test("#2456 the FOCUS door moves the same boxes on the same curve, from BOTH panes docked", async ({ mount, page }) => {
-  await page.setViewportSize(WIDE);
-  await emulateMediaFeatures(page, [
-    ["prefers-reduced-motion", "no-preference"],
-    ["prefers-reduced-transparency", "no-preference"],
-    ["prefers-contrast", "no-preference"],
-  ]);
-  const shell = await mount(<AppShellTrackDoorsStory />);
-  await landDoorsStory(shell, page);
-  // BOTH docked is the state the compound door is about — and the state the #242 squeeze exists in.
-  await driveDoor(shell, page, "Show details");
-  await expect(page.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-mode", "docked");
-
-  for (const leg of ["Enter focus mode", "Exit focus mode"] as const) {
-    const census = await driveDoor(shell, page, leg);
-    expect(census.samples.length, `the rAF sampler must have run on "${leg}" — an empty ring proves nothing`).toBeGreaterThan(2);
-    assertDoorHeld(census, leg, FOCUS_DOOR_BOXES);
   }
 });
 
@@ -4162,11 +4024,10 @@ test("#2456 both doors hold their boxes at rem 20, where the reading cap binds o
   assertDoorHeld(await driveDoor(shell, page, "Show details"), "Show details @rem20", CONTEXT_DOOR_BOXES);
   await expect(contextPane).toHaveAttribute("data-panel-mode", "docked");
 
-  for (const leg of ["Hide details", "Show details", "Enter focus mode", "Exit focus mode"] as const) {
-    const boxes = leg.includes("details") ? CONTEXT_DOOR_BOXES : FOCUS_DOOR_BOXES;
+  for (const leg of ["Hide details", "Show details"] as const) {
     const census = await driveDoor(shell, page, leg);
     expect(census.samples.length, `the rAF sampler must have run on "${leg}" at rem 20`).toBeGreaterThan(2);
-    assertDoorHeld(census, `${leg} @rem20`, boxes);
+    assertDoorHeld(census, `${leg} @rem20`, CONTEXT_DOOR_BOXES);
   }
 });
 
@@ -4315,7 +4176,7 @@ test("#2474 the exit width holds at rem 20, where the clamp and the squeeze have
   const docked = (await readDoorBoxes(page))["listPanelWidth"] ?? Number.NaN;
   expect(docked, `the squeeze must be live at rem 20 (pane ${docked} vs clamp ${clamp}) or this arm is a fence`).toBeLessThan(clamp - 2);
 
-  for (const leg of ["Hide list panel", "Show list panel", "Enter focus mode"] as const) {
+  for (const leg of ["Hide list panel", "Show list panel"] as const) {
     assertListPaneWidthHeld(await driveDoor(shell, page, leg), `${leg} @rem20`);
   }
 });
@@ -6124,17 +5985,15 @@ test("a non-file drag is left entirely alone — the guard is files-only", async
 
 // ── PANE-LESS SECTIONS (side-eye F1/F2/F6) — no doors onto panes that do not exist ──────────────────
 
-test("a section with NO panes ships NO panel chrome: no list toggle, no detail-panel toggle, no focus toggle", async ({ mount, page }) => {
+test("a section with NO panes ships NO panel chrome: no list toggle, no detail-panel toggle", async ({ mount, page }) => {
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.listChats": chatListResponder([]), "character.list": { items: [], nextCursor: null } });
   const shell = await mount(<AppShellOnSectionStory section="home" />);
 
   await expect(shell.locator('[data-home-tile="home.jump"]')).toBeVisible();
-  // Home declares BOTH panels unavailable, so all three panel affordances are absent — not disabled, not
-  // present-but-dead. The focus toggle in particular cold-booted labelled "Exit focus mode", because zero
-  // panels trivially reads as "both collapsed".
+  // Home declares BOTH panels unavailable, so both panel affordances are absent — not disabled, not
+  // present-but-dead.
   await expect(page.getByRole("button", { name: LIST_TOGGLE_RE })).toHaveCount(0);
   await expect(page.getByRole("button", { name: CONTEXT_TOGGLE_RE })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: FOCUS_TOGGLE_RE })).toHaveCount(0);
   // …and the CONTEXT track carries no body at all (no "Select something to see its details here" pane
   // parked off-screen behind a toggle nothing can reach).
   await expect(page.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-mode", "collapsed");
@@ -6180,7 +6039,6 @@ test("a section WITH panes still ships both toggles — the gate is per-section 
 
   await expect(shell.getByRole("button", { name: LIST_TOGGLE_RE })).toBeVisible();
   await expect(shell.getByRole("button", { name: CONTEXT_TOGGLE_RE })).toBeVisible();
-  await expect(shell.getByRole("button", { name: FOCUS_TOGGLE_RE })).toBeVisible();
   // The #1122 control in the other polarity: a section that DOES declare its panes publishes `true`, so
   // "false everywhere" cannot pass on a tree where the attribute was hardcoded or dropped.
   await expect(shell.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-available", "true");
@@ -6764,9 +6622,8 @@ test.describe("the mobile topbar at 320px, coarse pointer", () => {
 
   test("P1: the desktop-shaped trail affordances shed on a phone and the command modal keeps a home in the You sheet", async ({ mount, page }) => {
     const shell = await mount(<AppShellMobileRuleStory section="chats" />);
-    // ⌘K and focus mode are gone from the phone row (the budget) …
+    // ⌘K is gone from the phone row (the budget) …
     await expect(page.getByRole("button", { name: "⌘K jump — the command menu" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: FOCUS_TOGGLE_RE })).toHaveCount(0);
     // … and the command modal is still REACHABLE, as a named row in the You sheet.
     await shell.getByRole("button", { name: "You", exact: true }).click();
     await expect(page.getByRole("button", { name: "Jump to…" })).toBeVisible();

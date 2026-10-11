@@ -5,6 +5,9 @@
 //   • FORM body — the submit lives INSIDE `children` via FormSubmitButton (it calls form.handleSubmit()).
 //   • PROMPT — a single control is `children`; pass `submit` for the Cancel/Confirm footer this composite
 //     renders below it (the tag-prompt / rename / merge shape). TagPickerDialog is built on this mode.
+// Every footer here — PROMPT's Cancel/Confirm, the dismiss-only button, and a FORM body's own (FormSubmitButton)
+// — is a sticky DialogFooter at the end of the one scrolling body, so it stays in view when a tall body outgrows
+// a phone.
 // OWNER RULING: lives client-shared (NOT @orb/ui — ui stays parts-only; the ConfirmDialog homing). G24
 // (dialog-via-composite) seals the raw @orb/ui/dialog door in features/**: a form/prompt dialog uses this.
 //
@@ -17,10 +20,11 @@
 
 import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
-import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { DIALOG_SCROLL_CLASS, Dialog, DialogClose, DialogDescription, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Icon, X } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
+import { useId } from "react";
 import { testId } from "#lib";
 
 /** A registered test-id key (the registry is the API — never a new literal). */
@@ -104,6 +108,7 @@ export function FormDialog({
   closeButton = false,
   finalFocus,
 }: FormDialogProps): ReactElement {
+  const promptFormId = useId();
   return (
     <Dialog onOpenChange={onOpenChange} onOpenChangeComplete={onOpenChangeComplete} open={open}>
       <DialogPopup
@@ -112,15 +117,19 @@ export function FormDialog({
         {...(testKey === undefined ? {} : { "data-testid": testId(testKey) })}
         {...(finalFocus === undefined ? {} : { finalFocus })}
       >
-        <Stack gap="block">
+        {/* The popup clamps to the viewport, so a tall body scrolls inside this Stack while the sticky footer
+            stays visible on a phone. */}
+        <Stack className={`${DIALOG_SCROLL_CLASS} flex-1`} gap="block">
           <DialogTitle className={closeButton ? "pe-control-md" : ""}>{title}</DialogTitle>
           {description === undefined ? null : <DialogDescription>{description}</DialogDescription>}
-          {submit === undefined ? children : <PromptBody submit={submit}>{children}</PromptBody>}
-          {submit === undefined && dismissLabel !== undefined ? (
-            <Row gap="field" justify="end">
-              <DialogClose render={<Button intent="ghost">{dismissLabel}</Button>} />
-            </Row>
-          ) : null}
+          {submit === undefined ? (
+            children
+          ) : (
+            <PromptBody formId={promptFormId} submit={submit}>
+              {children}
+            </PromptBody>
+          )}
+          <OwnedFooter dismissLabel={dismissLabel} formId={promptFormId} submit={submit} />
         </Stack>
         {closeButton ? (
           <DialogClose
@@ -136,16 +145,49 @@ export function FormDialog({
   );
 }
 
-/** The PROMPT footer's `<form>` — the single control plus the Cancel/Confirm Row, submitted by Enter.
+/** The footer this composite owns: PROMPT's Cancel/Confirm, else the dismiss-only button, else nothing. */
+function OwnedFooter({
+  submit,
+  dismissLabel,
+  formId,
+}: {
+  readonly submit: FormDialogSubmit | undefined;
+  readonly dismissLabel: string | undefined;
+  readonly formId: string;
+}): ReactElement | null {
+  if (submit !== undefined) {
+    return (
+      <DialogFooter>
+        <DialogClose render={<Button intent="ghost">{submit.cancelLabel ?? "Cancel"}</Button>} />
+        <Button disabled={submit.disabled ?? false} form={formId} intent={submit.intent ?? "primary"} loading={submit.loading ?? false} type="submit">
+          {submit.label}
+        </Button>
+      </DialogFooter>
+    );
+  }
+  if (dismissLabel === undefined) {
+    return null;
+  }
+  return (
+    <DialogFooter>
+      <DialogClose render={<Button intent="ghost">{dismissLabel}</Button>} />
+    </DialogFooter>
+  );
+}
+
+/** The PROMPT body's `<form>` — the single control, submitted by Enter.
  *
  *  A bare `<form>` intrinsic is the point: implicit submission is a BROWSER behaviour keyed on a real form
  *  owning a real `type="submit"` button, and no amount of `onKeyDown` on the control reproduces it for
- *  every child a prompt might carry. `noValidate` because the confirm's own `disabled` is this composite's
- *  validity model — a native bubble would speak a second, uncoordinated one. */
-function PromptBody({ submit, children }: { readonly submit: FormDialogSubmit; readonly children: ReactNode }): ReactElement {
+ *  every child a prompt might carry. The submit button lives in the sticky footer, OUTSIDE this form, and
+ *  names it through the `form` attribute — which still makes it the form's default button for Enter.
+ *  `noValidate` because the confirm's own `disabled` is this composite's validity model — a native bubble
+ *  would speak a second, uncoordinated one. */
+function PromptBody({ formId, submit, children }: { readonly formId: string; readonly submit: FormDialogSubmit; readonly children: ReactNode }): ReactElement {
   const blocked = (submit.disabled ?? false) || (submit.loading ?? false);
   return (
     <form
+      id={formId}
       noValidate={true}
       onSubmit={(event): void => {
         event.preventDefault();
@@ -154,15 +196,7 @@ function PromptBody({ submit, children }: { readonly submit: FormDialogSubmit; r
         }
       }}
     >
-      <Stack gap="block">
-        {children}
-        <Row gap="field" justify="end">
-          <DialogClose render={<Button intent="ghost">{submit.cancelLabel ?? "Cancel"}</Button>} />
-          <Button disabled={submit.disabled ?? false} intent={submit.intent ?? "primary"} loading={submit.loading ?? false} type="submit">
-            {submit.label}
-          </Button>
-        </Row>
-      </Stack>
+      <Stack gap="block">{children}</Stack>
     </form>
   );
 }
@@ -178,10 +212,10 @@ export interface FormSubmitButtonProps {
 /** The align-end primary submit button for a FORM-body dialog (fires the form's handleSubmit). */
 export function FormSubmitButton({ testKey, disabled, label, onSubmit }: FormSubmitButtonProps): ReactElement {
   return (
-    <Stack align="end">
+    <DialogFooter>
       <Button data-testid={testId(testKey)} disabled={disabled} intent="primary" onClick={onSubmit}>
         {label}
       </Button>
-    </Stack>
+    </DialogFooter>
   );
 }

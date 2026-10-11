@@ -642,6 +642,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     runtime,
     audit,
     credentialOwned: async (ownerId, credentialId) => (await fetchOwned(db, userCredentials, credentialId, ownerId)) !== undefined,
+    relabelCredential: credentials.relabel,
     ruleOwnedBy: async (ruleId, userId) => (await fetchOwned(db, automationRules, ruleId, userId)) !== undefined,
     pluginGrantTasksOf: async (pluginId, userId) => {
       const row = await fetchOwned(db, plugins, pluginId, userId);

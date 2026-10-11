@@ -155,6 +155,10 @@ function stub(
   return routeTrpc(page, {
     // The fourth collection (casts) + the viewer projection the LIST's `when` gate reads (#866 S1).
     "rosterPreset.list": [],
+    // The group bands read their census from the count procedures, not from the enriched page.
+    "rosterPreset.count": 0,
+    "regex.countScripts": () => scripts.length,
+    "worldInfo.countBooks": () => books.length,
     // The workspace story now mounts the CONTEXT through the real resolve (#866 S3), and a selected
     // group's skimmer sections read the settings blob — fed the real defaults, never an inert null.
     "settings.getUserSettings": () => ({ userId: "user_ct_config", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 }),
@@ -546,7 +550,10 @@ test("the library's create verb fires the OWNER's create mutation", async ({ mou
   // The verb moved panes at #1725, not seams: it is still `create.useRun`, still host-drawn from the
   // contribution's DATA, and still the owner's own mutation behind it. Only its address changed.
   await workspace.locator(LIST_PANE).getByRole("button", { name: REGEX_BAND }).click();
+  // The owner's create asks for a name inline first; the mutation fires on Create.
   await workspace.locator(CONTENT_PANE).getByRole("button", { name: "New script" }).click();
+  await workspace.locator(CONTENT_PANE).getByRole("textbox", { name: "Script name" }).fill("Strip OOC");
+  await workspace.locator(CONTENT_PANE).getByRole("button", { name: "Create" }).click();
   await expect.poll(() => trpc.count("regex.createScript"), { intervals: [20, 50, 100] }).toBe(1);
 });
 
@@ -920,6 +927,29 @@ test("the LIST teaches on a phone and stays silent on the desktop", async ({ mou
   expect(frameBox.y + frameBox.height, "the frame leads the list").toBeLessThanOrEqual(bandBox.y + 1);
   const overflow = await frame.evaluate((node) => node.scrollWidth - node.clientWidth);
   expect(overflow, "no sideways scroll on a phone").toBe(0);
+});
+
+// The teaching sentences are prose, not labels: on a phone they paint at the label step, never the 10.5px micro step.
+test("the phone LIST's teaching paragraphs paint at the label step, not the micro step", async ({ mount, page }) => {
+  await stub(page);
+  const listPane = await mount(<ConfigMobileListStory />);
+  await listPane.getByRole("button", { name: "reset groups" }).click();
+  await listPane.getByRole("button", { name: "go mobile" }).click();
+  const teaching = listPane.locator('[data-slot="config-mobile-teaching"]').getByText("Regex scripts rewrite text", { exact: false });
+  await expect(teaching).toBeVisible();
+  const [painted, label, micro] = await teaching.evaluate((node) => {
+    const px = (token: string): number => {
+      const probe = document.createElement("div");
+      probe.style.fontSize = `var(${token})`;
+      node.append(probe);
+      const size = Number.parseFloat(getComputedStyle(probe).fontSize);
+      probe.remove();
+      return size;
+    };
+    return [Number.parseFloat(getComputedStyle(node).fontSize), px("--text-label"), px("--text-micro")];
+  });
+  expect(label).toBeGreaterThan(micro ?? 0);
+  expect(painted).toBeGreaterThanOrEqual(label ?? Number.POSITIVE_INFINITY);
 });
 
 // ── #978 F1 · THE LIST'S ROW HEIGHT IS ONE GOVERNED BOX ──────────────────────────────────────────────

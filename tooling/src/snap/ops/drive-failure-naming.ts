@@ -42,7 +42,6 @@ const NAV_METHOD_FLAG: Record<NavAction["kind"], string> = {
   "open-character": "--open-character",
   "context-tab": "--context-tab",
   panel: "--panel",
-  focus: "--focus",
 };
 
 const FAILURE_REASON_MAX = 220;

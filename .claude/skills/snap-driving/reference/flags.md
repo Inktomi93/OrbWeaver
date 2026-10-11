@@ -36,6 +36,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--local-storage <value>` | key=json — seed localStorage before navigation (the FIRST = splits; the value is JSON) |
 | `--ref <value>` | pin the isolated stage to a commit (implies --isolated; survives a merge train) |
 | `--stage-auth <value>` | the stage's sign-in mode: single-user (default, a dev-db copy) or local (empty data, seeded owner+member for --contexts/--as; implies --isolated) |
+| `--stage-db <value>` | clone a database file (and its -wal/-shm) into a rebuilt stage instead of the dev db; implies --isolated and --fresh |
 | `--stage-down` | tear down this checkout's stages |
 | `--stage-owner <value>` | names the owner for a cross-checkout --stage-down |
 | `--stage-status` | the shared stage-band table: owner, checkout, ref, age, sessions, db provenance |
@@ -56,7 +57,6 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--drop-files [@N] <value>` | `selector=path[,path]` — dispatch dragenter/dragover/drop with a real DataTransfer |
 | `--every <value>` | ms — the tick interval for --watch |
 | `--fill [@N] <value>` | selector=value — type into a field; the selector may be an engine form |
-| `--focus [@N] <value>` | the shell's zen/focus-mode toggle |
 | `--force-click [@N] <value>` | hover-then-forced pointer click for hover-revealed/overlaid controls |
 | `--goto [@N] <value>` | SPA navigation through `__orb.nav` — a bare rail section id, `config:<group>[.<sub>[.<setting>]]`, or `modal:<slot>` |
 | `--hover [@N] <value>` | synthetic hover (loses :hover on any list re-render) |

@@ -145,6 +145,11 @@ function browseOwnBinding(node: PluginSurfaceNode): boolean {
   if (node.kind === "select" || node.kind === "tabs") {
     return node.optionsFrom !== undefined;
   }
+  // A bound `disabled` makes a button follow state, so a page whose only binding is a pager that waits for a
+  // search must not read as "purely static".
+  if (node.kind === "button") {
+    return node.disabled !== undefined && isBinding(node.disabled);
+  }
   // The remaining form/action kinds carry no bindable value (their values are client-transient until an
   // action submits them), so a form-only surface is static by construction.
   return false;
@@ -302,6 +307,12 @@ export function tabOptions(node: Extract<PluginSurfaceNode, { kind: "tabs" }>, s
  *  skeleton). Absent ⇒ not loading. */
 export function gridLoading(node: Extract<PluginSurfaceNode, { kind: "grid" }>, state: Record<string, unknown>): boolean {
   return node.loading !== undefined && resolvePluginBoundBoolean(state, node.loading);
+}
+
+/** A button's effective DISABLED verdict — the declared literal or the bound path through the contracts-side
+ *  gate (a miss or a non-boolean is FALSE, so a binding typo can never lock a button). Absent ⇒ enabled. */
+export function buttonDisabled(node: Extract<PluginSurfaceNode, { kind: "button" }>, state: Record<string, unknown>): boolean {
+  return node.disabled !== undefined && resolvePluginBoundBoolean(state, node.disabled);
 }
 
 /** A keyValue's effective row list (hub v1.3) — declared rows verbatim (values may still bind), or the

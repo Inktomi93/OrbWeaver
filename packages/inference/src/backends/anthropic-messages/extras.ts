@@ -4,7 +4,7 @@
 // options the SDK already spells, and dropping them left the user's own connection unable to say things the
 // API accepts.
 //
-// PRECEDENCE IS UNCHANGED (D143(b)/D156, F21): an allowlisted key is still BEHIND the belt. Nothing here can
+// PRECEDENCE (D311, F21): an allowlisted key is still BEHIND the belt. Nothing here can
 // reach a knob the funnel owns (`thinking`, `effort`, `disableParallelToolUse`, `cacheControl`,
 // `structuredOutputMode`, `sendReasoning`) — those are not in the allowlist at all, so a user cannot use an
 // extras key to take a modelled decision away from the turn. Every other key is dropped LOUDLY with

@@ -41,7 +41,7 @@ import type { ConfigSectionContribution } from "#state";
 import { queryClient, trpcClient, trpcProxy } from "./compose/app-singletons.ts";
 import { stampAppearanceBootHint } from "./compose/stamp-appearance-boot-hint.ts";
 import { installAppReadySignal } from "./lib/app-ready-signal.ts";
-import { routeResolution, router } from "./routes/router.tsx";
+import { bindRouteCrashReporter, routeResolution, router } from "./routes/router.tsx";
 import "./styles/index.ts";
 
 // EVERY dev-only instrument install, behind the literal import.meta.env.DEV the bundler constant-folds —
@@ -130,6 +130,8 @@ function reportClientError(error: Error, ownerStack: string | null): void {
     // A failed error report must never itself throw — there is nowhere left to report that to.
   });
 }
+
+bindRouteCrashReporter(reportClientError);
 
 // BEFORE THE FIRST RENDER, ON PURPOSE (#188 N-1, widened by #231). Reduced motion, font scale and the
 // selected theme are SYNCED settings, so the shell can only stamp `<html>` once `settings.getUserSettings`

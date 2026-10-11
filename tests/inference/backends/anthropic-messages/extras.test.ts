@@ -76,7 +76,7 @@ test("the three AGENT-SHAPED keys the SDK models are REFUSED, loudly — they ma
   expect(warnings.every((w) => w.code === "custom_parameters_ignored")).toBe(true);
 });
 
-test("a MODELLED knob cannot be taken from the turn through extras (D143(b)/D156 — modelled wins)", () => {
+test("a MODELLED knob cannot be taken from the turn through extras (D311 — no body field, so modelled wins)", () => {
   // `thinking` is the funnel's decision. It is not in the allowlist, so it drops like any unknown key —
   // which is the belt, expressed as an absence rather than as a special case.
   const warnings: ResolvedWarning[] = [];

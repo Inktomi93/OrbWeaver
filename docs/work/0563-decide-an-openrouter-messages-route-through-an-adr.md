@@ -1,9 +1,10 @@
 ---
 kind: decision
-status: open
-updated: 2026-10-04
+status: blocked
+updated: 2026-10-10
 priority: P3
 area: inference
+blocked: owner
 ---
 
 # Decide an OpenRouter Messages route through an ADR 0288 revision
@@ -22,4 +23,4 @@ A smaller proposal and an explicit ADR 0288 revision are written and ruled befor
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Owner parked this; ADR 0288 stands meanwhile.

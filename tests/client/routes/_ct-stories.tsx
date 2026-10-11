@@ -16,12 +16,14 @@ import { useActiveSection, useCorpusMode } from "@orb/client/state";
 import { useQueryClient } from "@tanstack/react-query";
 import { createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, use, useEffect, useState } from "react";
+import { RegionAnchor } from "../../../packages/client/src/features/app-shell/anchors/region-anchor.tsx";
 // Deep, not `@orb/client/lib`: production readiness stays out of the barrel.
 import type { RouteResolution } from "../../../packages/client/src/lib/app-ready-signal.ts";
 import { installAppReadySignal } from "../../../packages/client/src/lib/app-ready-signal.ts";
 import { AppRoot } from "../../../packages/client/src/routes/app-root.tsx";
-import { router } from "../../../packages/client/src/routes/router.tsx";
+import { RoutePending } from "../../../packages/client/src/routes/route-pending.tsx";
+import { bindRouteCrashReporter, router } from "../../../packages/client/src/routes/router.tsx";
 import { CtDataProviders, CtRealSectionRegistry } from "../../support/browser/ct-data-providers.tsx";
 
 /** The PRODUCTION router singleton (real route tree, guards, pending component and view transitions) under the
@@ -37,6 +39,18 @@ export function ProductionRouterStory(): ReactElement {
       </CtDataProviders>
     </StrictMode>
   );
+}
+
+/** {@link ProductionRouterStory} with the route crash reporter bound, as main.tsx binds it. Reports land on
+ *  `globalThis.__ctRouteCrashes` for the test to read. */
+export function ProductionRouterCrashReportStory(): ReactElement {
+  const [bound] = useState(() => {
+    const crashes: string[] = [];
+    Object.assign(globalThis, { __ctRouteCrashes: crashes });
+    bindRouteCrashReporter((error) => crashes.push(error.message));
+    return true;
+  });
+  return bound ? <ProductionRouterStory /> : <p />;
 }
 
 export function ProductionRouterOverlapStory(): ReactElement {
@@ -109,6 +123,58 @@ export function HomePageReadinessStory(): ReactElement {
         <InstallAppReadySignal />
         <HomePageRouter />
       </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** {@link HomePageStory} under the production router pending screen: a read that suspends past every section
+ *  boundary replaces the whole shell with the loading glyph here, exactly as it does in the app. */
+export function HomePagePendingStory(): ReactElement {
+  const [pendingRouter] = useState(() => {
+    const root = createRootRoute();
+    const home = createRoute({ getParentRoute: () => root, path: "/", component: AppRoot });
+    return createRouter({ routeTree: root.addChildren([home]), defaultPendingComponent: RoutePending, defaultPendingMs: 0 });
+  });
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <RouterProvider router={pendingRouter} />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+function SuspendsUntilReleased({ released }: { readonly released: Promise<void> }): ReactElement {
+  use(released);
+  return <p>list settled</p>;
+}
+
+/** A shell region whose body suspends with no boundary of its own, under the router pending screen. The release
+ *  button and the marker sit OUTSIDE the region: they stay on screen only if the region itself holds the suspension. */
+export function RegionSuspenseStory(): ReactElement {
+  const [gate] = useState(() => Promise.withResolvers<void>());
+  const [pendingRouter] = useState(() => {
+    const root = createRootRoute();
+    const home = createRoute({
+      getParentRoute: () => root,
+      path: "/",
+      component: (): ReactElement => (
+        <>
+          <p>shell outside the region</p>
+          <button type="button" onClick={(): void => gate.resolve()}>
+            Release list
+          </button>
+          <RegionAnchor region="list">
+            <SuspendsUntilReleased released={gate.promise} />
+          </RegionAnchor>
+        </>
+      ),
+    });
+    return createRouter({ routeTree: root.addChildren([home]), defaultPendingComponent: RoutePending, defaultPendingMs: 0 });
+  });
+  return (
+    <CtDataProviders>
+      <RouterProvider router={pendingRouter} />
     </CtDataProviders>
   );
 }
