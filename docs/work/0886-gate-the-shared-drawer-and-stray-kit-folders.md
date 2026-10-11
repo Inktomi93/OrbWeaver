@@ -10,7 +10,7 @@ area: tooling
 
 ## What
 
-Add hard structure gates: no directory whose name starts with an underscore anywhere in the tree (Core-0 §3: no underscore junk drawers), after renaming the two survivors by role, tooling/src/verify/gates/\_proof and tests/tooling/verify/gates/\_liveness, with their importers, and no directory named kit outside packages/kit; each with mustFlag and mustPass proofs and a real-corpus liveness check.
+Add hard structure gates: no directory whose name starts with an underscore anywhere in the tree (Core-0 §3: no underscore junk drawers), except exactly two owner-ruled exceptions named in the gate: tooling/src/verify/gates/\_proof and tests/tooling/verify/gates/\_liveness, and no directory named kit outside packages/kit; each with mustFlag and mustPass proofs and a real-corpus liveness check.
 
 ## Why
 
