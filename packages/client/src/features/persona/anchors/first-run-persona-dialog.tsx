@@ -18,6 +18,7 @@
 
 import type { PersonaId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { DialogFooter } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Textarea } from "@orb/ui/textarea";
@@ -195,14 +196,16 @@ export function FirstRunPersonaDialog(): ReactElement | null {
       <Field label="Description" description="Optional — how characters should picture you.">
         <Textarea value={description} onChange={(event): void => setDescription(event.target.value)} />
       </Field>
-      <Button
-        intent="primary"
-        disabled={!canSubmit}
-        data-testid={testId("firstRunPersonaCreate")}
-        onClick={(): void => void submit().catch(globalThis.reportError)}
-      >
-        {submitLabel}
-      </Button>
+      <DialogFooter>
+        <Button
+          intent="primary"
+          disabled={!canSubmit}
+          data-testid={testId("firstRunPersonaCreate")}
+          onClick={(): void => void submit().catch(globalThis.reportError)}
+        >
+          {submitLabel}
+        </Button>
+      </DialogFooter>
     </FormDialog>
   );
 }

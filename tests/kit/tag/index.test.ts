@@ -1,4 +1,4 @@
-import { normalizeTagName } from "@orb/kit/tag";
+import { normalizeTagName, tagMatchKey } from "@orb/kit/tag";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("normalizeTagName trims leading/trailing whitespace", () => {
@@ -26,4 +26,9 @@ test("normalizeTagName leaves an already-canonical name untouched (idempotent)",
   const canonical = "Female Knight";
   expect(normalizeTagName(canonical)).toBe(canonical);
   expect(normalizeTagName(normalizeTagName("  Female   Knight  "))).toBe(canonical);
+});
+
+test("tagMatchKey makes case, spacing and punctuation variants of one label match", () => {
+  expect(tagMatchKey("Slice of Life")).toBe(tagMatchKey("slice-of-life"));
+  expect(tagMatchKey("Slice of Life")).not.toBe(tagMatchKey("Slice of Death"));
 });

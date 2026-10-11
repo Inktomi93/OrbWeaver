@@ -7,6 +7,7 @@
 import type { RefineryRewriteField } from "@orb/contracts/refinery";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
+import { DialogFooter } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -109,12 +110,12 @@ export function ManualRewriteDialog({ open, onOpenChange, targets, saving, onSub
             </Stack>
           );
         })}
-        <Row gap="row" justify="end">
+        <DialogFooter>
           <Text voice="gloss">{entries.length === 0 ? "No changes yet." : `${entries.length} field${entries.length === 1 ? "" : "s"} changed.`}</Text>
           <Button disabled={saving || entries.length === 0} onClick={(): void => onSubmit(entries)} size="sm">
             Save as a rewrite round
           </Button>
-        </Row>
+        </DialogFooter>
       </Stack>
     </FormDialog>
   );

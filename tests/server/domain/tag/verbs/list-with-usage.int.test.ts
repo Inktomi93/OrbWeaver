@@ -20,19 +20,16 @@ describe("listTagsWithUsage", () => {
     expect((await svc.listTagsWithUsage({ principal: principal(owner) }))[0]).toMatchObject({ usage: { characters: 1, total: 1 }, pendingSuggestions: 0 });
   });
 
-  test("pending counts leave out the internal seed tags the inbox hides", async () => {
+  test("a seed tag with only a pending row is not unused, and prune leaves it", async () => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const svc = createTagService(makeTagHarness(db).ctx);
     const characterId = await seedCharacter(db, owner);
-    const seedId = await seedTag(db, owner, { id: "tag_seed", name: "Default" });
-    const plainId = await seedTag(db, owner, { id: "tag_plain", name: "alpha" });
-    for (const tagId of [seedId, plainId]) {
-      await svc.attachTag({ principal: principal(owner), tagId, targetType: "character", targetId: characterId, status: "pending" });
-    }
-    const rollup = await svc.listTagsWithUsage({ principal: principal(owner) });
-    expect(rollup.find((t) => t.id === seedId)?.pendingSuggestions).toBe(0);
-    expect(rollup.find((t) => t.id === plainId)?.pendingSuggestions).toBe(1);
+    const seedId = await seedTag(db, owner, { id: "tag_seed", name: "default" });
+    await svc.attachTag({ principal: principal(owner), tagId: seedId, targetType: "character", targetId: characterId, status: "pending" });
+    expect((await svc.listTagsWithUsage({ principal: principal(owner) })).find((t) => t.id === seedId)).toMatchObject({ pendingSuggestions: 1 });
+    expect(await svc.pruneUnusedTags({ principal: principal(owner) })).toEqual({ removed: 0 });
+    expect((await svc.listTagsWithUsage({ principal: principal(owner) })).some((t) => t.id === seedId)).toBe(true);
   });
 
   test("rolls up per-junction counts and the total", async () => {

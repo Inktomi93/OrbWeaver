@@ -8,7 +8,7 @@ import type {
   DialogTriggerProps as BaseTriggerProps,
 } from "@base-ui/react/dialog";
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
-import type { ReactElement } from "react";
+import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { usePortalContainer, variantAttrs } from "#lib";
 import { dialogVariants } from "./variants.ts";
@@ -73,4 +73,18 @@ export function DialogDescription(props: DialogDescriptionProps): ReactElement {
 
 export function DialogClose(props: BaseCloseProps): ReactElement {
   return <BaseDialog.Close {...props} />;
+}
+
+export interface DialogFooterProps extends Omit<ComponentProps<"div">, "className"> {
+  className?: string;
+}
+
+/**
+ * The dialog's action row: stays in view at the bottom of the popup while the body scrolls. Render it as the
+ * LAST child of a `DIALOG_SCROLL_CLASS` region (never of the popup itself, which must not scroll); every
+ * dialog's Cancel/Confirm/Done row composes this rather than a Row.
+ */
+export function DialogFooter(props: DialogFooterProps): ReactElement {
+  const { className, ...rest } = props;
+  return <div className={slots.footer({ className })} data-slot="dialog-footer" {...rest} />;
 }

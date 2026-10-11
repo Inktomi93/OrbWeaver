@@ -607,28 +607,43 @@ test.describe("on a touch screen", () => {
 
   // The show-key toggle draws a small glyph box; its hit area is the touch-target pseudo around it. Probe the
   // hit area itself: a point 21px from the glyph's centre, on every side, still lands on the toggle.
-  test("the show-key toggle takes a tap 44px wide around its glyph", async ({ mount, page }) => {
-    await stubConnectionsPane(page);
-    await mount(<ConnectionsAuthoringStory width={390} />);
-    const dialog = await openAddDialog(page);
-    await pickProvider(page, dialog, "OpenRouter");
-    const reveal = dialog.getByRole("button", { name: "Show key" });
-    await reveal.scrollIntoViewIfNeeded();
-    const reach = 21;
-    const hits = (): Promise<boolean[]> =>
-      reveal.evaluate((element, offset) => {
-        const box = element.getBoundingClientRect();
-        const x = box.left + box.width / 2;
-        const y = box.top + box.height / 2;
-        return [
-          [x - offset, y],
-          [x + offset, y],
-          [x, y - offset],
-          [x, y + offset],
-        ].map(([px, py]) => element.contains(document.elementFromPoint(px ?? 0, py ?? 0)));
-      }, reach);
-    await expect.poll(hits).toEqual([true, true, true, true]);
-  });
+  for (const density of ["comfortable", "compact"] as const) {
+    test(`the show-key toggle takes a tap 44px wide around its glyph at ${density} density`, async ({ mount, page }) => {
+      await stubConnectionsPane(page);
+      await mount(<ConnectionsAuthoringStory width={390} />);
+      const dialog = await openAddDialog(page);
+      await dialog.evaluate((element, value) => element.setAttribute("data-density", value), density);
+      await pickProvider(page, dialog, "OpenRouter");
+      const reveal = dialog.getByRole("button", { name: "Show key" });
+      await reveal.scrollIntoViewIfNeeded();
+      const reach = 21;
+      const hits = (): Promise<boolean[]> =>
+        reveal.evaluate((element, offset) => {
+          const box = element.getBoundingClientRect();
+          const x = box.left + box.width / 2;
+          const y = box.top + box.height / 2;
+          return [
+            [x - offset, y],
+            [x + offset, y],
+            [x, y - offset],
+            [x, y + offset],
+          ].map(([px, py]) => element.contains(document.elementFromPoint(px ?? 0, py ?? 0)));
+        }, reach);
+      await expect.poll(hits).toEqual([true, true, true, true]);
+      // The bleed that keeps the hit area whole must not make the body scroll sideways.
+      await expect
+        .poll(() =>
+          reveal.evaluate((element) => {
+            let region: Element | null = element.parentElement;
+            while (region !== null && getComputedStyle(region).overflowY !== "auto") {
+              region = region.parentElement;
+            }
+            return region === null ? null : region.scrollWidth - region.clientWidth;
+          }),
+        )
+        .toBe(0);
+    });
+  }
 });
 
 // ── the subscription step's command ─────────────────────────────────────────────────────────────────────
@@ -1233,5 +1248,30 @@ test.describe("first-model top anchor on a phone", () => {
     await page.keyboard.press("Escape");
     await expect(page.locator('[data-slot="dialog-popup"]')).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Add connection", exact: true }).first()).toBeFocused();
+  });
+});
+
+test.describe("add dialog footer on a phone", () => {
+  test.use({ viewport: { width: 430, height: 740 }, hasTouch: true });
+  test("the actions stay inside the viewport while the body scrolls", async ({ mount, page }) => {
+    await stubConnectionsPane(page);
+    await mount(<ConnectionsAuthoringStory width={430} />);
+    const dialog = await openAddDialog(page);
+    await pickProvider(page, dialog, "OpenRouter");
+    const add = dialog.getByRole("button", { name: "Add connection" });
+    await expect(add).toBeInViewport({ ratio: 1 });
+    await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeInViewport({ ratio: 1 });
+    // The form overflows the 740px phone, so something above the footer scrolls rather than the form fitting.
+    await expect
+      .poll(() =>
+        add.evaluate((element) => {
+          let node = element.parentElement;
+          while (node !== null && node.scrollHeight <= node.clientHeight) {
+            node = node.parentElement;
+          }
+          return node !== null && getComputedStyle(node).overflowY !== "visible";
+        }),
+      )
+      .toBe(true);
   });
 });

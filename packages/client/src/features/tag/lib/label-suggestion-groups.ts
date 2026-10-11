@@ -2,7 +2,8 @@
 // names merged into one group.
 
 import type { TagSuggestionView } from "@orb/contracts/tag";
-import { isInternalSeedTagName, normalizeTagName } from "@orb/contracts/tag";
+import { isInternalSeedTagName } from "@orb/contracts/tag";
+import { tagMatchKey } from "@orb/kit/tag";
 
 export interface SuggestionGroup {
   /** Normalized name shared by every row in the group. */
@@ -15,7 +16,7 @@ export interface SuggestionGroup {
 export function groupSuggestions(suggestions: readonly TagSuggestionView[]): readonly SuggestionGroup[] {
   const byKey = new Map<string, TagSuggestionView[]>();
   for (const suggestion of suggestions) {
-    const key = normalizeTagName(suggestion.name);
+    const key = tagMatchKey(suggestion.name);
     if (key === "" || isInternalSeedTagName(key)) {
       continue;
     }

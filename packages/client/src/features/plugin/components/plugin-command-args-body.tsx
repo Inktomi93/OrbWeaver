@@ -10,9 +10,10 @@
 import type { PluginCommandArgSpec } from "@orb/contracts/plugin";
 import { coercePluginCommandArgs } from "@orb/contracts/plugin";
 import { Button } from "@orb/ui/button";
+import { DialogFooter } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import { NumberField } from "@orb/ui/number-field";
 import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
@@ -172,14 +173,14 @@ export function PluginCommandArgsBody(): ReactElement {
           ))}
         </Stack>
       )}
-      <Row gap="field" justify="end">
+      <DialogFooter>
         <Button disabled={submitting} intent="ghost" onClick={(): void => closeModal()} size="sm">
           Cancel
         </Button>
         <Button intent="primary" loading={submitting} onClick={onSubmit} size="sm">
           {pluginCommandActionLabel(subject.name)}
         </Button>
-      </Row>
+      </DialogFooter>
     </Stack>
   );
 }

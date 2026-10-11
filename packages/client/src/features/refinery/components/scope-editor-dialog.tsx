@@ -30,6 +30,7 @@ import type { RefinableField, RefineryScorePayload, RefinerySelection, RefineryS
 import { REFINABLE_FIELDS } from "@orb/contracts/refinery";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
+import { DialogFooter } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -244,7 +245,7 @@ function ScopeEditorBody({ onOpenChange, card, selection, score, onSave }: Omit<
           />
         );
       })}
-      <Row align="center" gap="row">
+      <DialogFooter>
         <Button
           intent="ghost"
           onClick={(): void => {
@@ -280,7 +281,7 @@ function ScopeEditorBody({ onOpenChange, card, selection, score, onSave }: Omit<
             Save scope
           </Button>
         </Row>
-      </Row>
+      </DialogFooter>
     </Stack>
   );
 }

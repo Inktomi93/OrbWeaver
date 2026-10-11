@@ -6,10 +6,10 @@
 // the library row kebab) and for editing the open book's header in CONTENT.
 
 import { Button } from "@orb/ui/button";
-import { DialogClose } from "@orb/ui/dialog";
+import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -72,12 +72,12 @@ export function BookDetailsDialog({ open, onOpenChange, currentName, currentDesc
           <Field label="Description" description="An optional note for the library — never injected.">
             <Textarea value={description} onChange={(event): void => setDescription(event.target.value)} placeholder="Optional" rows={3} />
           </Field>
-          <Row gap="field" justify="end">
+          <DialogFooter>
             <DialogClose render={<Button intent="ghost">Cancel</Button>} />
             <Button intent="primary" type="submit" disabled={!canSave}>
               Save
             </Button>
-          </Row>
+          </DialogFooter>
         </Stack>
       </form>
     </FormDialog>

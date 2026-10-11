@@ -31,6 +31,7 @@
 
 import type { CreateCharacterInput } from "@orb/contracts/character";
 import { AUTHORED_CARD_CREATOR } from "@orb/contracts/character";
+import { INTERNAL_SEED_TAG_NAMES } from "@orb/contracts/tag";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SeedCard } from "../contract/seeder.ts";
@@ -79,7 +80,7 @@ type AuthoredCard = Omit<SeedCard, "backgroundSlug">;
 
 const AUTHORED_CARDS: readonly AuthoredCard[] = [
   {
-    tags: ["assistant", "default", "utility"],
+    tags: [...INTERNAL_SEED_TAG_NAMES],
     lore: {
       name: "Charlotte's web",
       description: "What the web in the corner of the app is made of.",

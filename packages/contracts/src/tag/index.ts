@@ -6,6 +6,7 @@
 
 import type { CharacterId, ChatId, PersonaId, PresetId, TagId, WorldBookId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { tagMatchKey } from "@orb/kit/tag";
 import { z } from "zod";
 
 const NAME_MIN_LENGTH = 1;
@@ -43,15 +44,12 @@ export type TagStatus = z.infer<typeof tagStatusSchema>;
 
 /** Tags the default-card seeder stamps on its own card; suggesting them back to the reader is noise, so
  *  neither the suggestion inbox nor the per-tag pending counts include them. */
-const INTERNAL_SEED_TAG_NAMES: ReadonlySet<string> = new Set(["assistant", "default", "utility"]);
+export const INTERNAL_SEED_TAG_NAMES = ["assistant", "default", "utility"] as const;
 
-/** The normalized form tag names are compared in: case, spacing and punctuation never make a different label. */
-export function normalizeTagName(name: string): string {
-  return name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
-}
+const INTERNAL_SEED_TAG_KEYS: ReadonlySet<string> = new Set(INTERNAL_SEED_TAG_NAMES);
 
 export function isInternalSeedTagName(name: string): boolean {
-  return INTERNAL_SEED_TAG_NAMES.has(normalizeTagName(name));
+  return INTERNAL_SEED_TAG_KEYS.has(tagMatchKey(name));
 }
 
 export const createTagSchema = z.object({

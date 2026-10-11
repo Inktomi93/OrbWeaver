@@ -18,7 +18,7 @@
 import type { StDroppedField, StImportOutcome, StImportResult } from "@orb/contracts/preset";
 import { PRESET_SCHEMA_KIND, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
-import { DialogClose } from "@orb/ui/dialog";
+import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -212,12 +212,12 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
         {parsed === null ? null : <ImportSummary parsed={parsed} />}
       </Stack>
 
-      <Row gap="field" justify="end">
+      <DialogFooter>
         <DialogClose render={<Button intent="ghost">Cancel</Button>} />
         <Button intent="primary" disabled={parsed === null || busy} onClick={onConfirm}>
           Import preset
         </Button>
-      </Row>
+      </DialogFooter>
     </FormDialog>
   );
 }

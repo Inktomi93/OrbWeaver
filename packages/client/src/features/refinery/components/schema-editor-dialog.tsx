@@ -28,6 +28,7 @@ import type { RefineryForgeArm, RefinerySchemaStage } from "@orb/contracts/refin
 import { REFINERY_FORGE_ARM_DEFAULT, REFINERY_FORGE_ARMS } from "@orb/contracts/refinery";
 import type { RefinerySchemaId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { DialogFooter } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
 import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
@@ -380,16 +381,16 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
         ) : (
           <Text voice="gloss">{previewEmptyTextOf(schemaText)}</Text>
         )}
-        <Row gap="row" justify="end">
+        <Field label="Name">
+          <Textarea
+            defaultValue={editing === null ? "" : editing.name}
+            onInput={(e): void => setNameFilled(e.currentTarget.value.trim().length > 0)}
+            ref={nameRef}
+            rows={1}
+          />
+        </Field>
+        <DialogFooter>
           {editing === null ? null : <DeleteSchemaAction onDeleted={(): void => onOpenChange(false)} schema={editing} />}
-          <Field label="Name">
-            <Textarea
-              defaultValue={editing === null ? "" : editing.name}
-              onInput={(e): void => setNameFilled(e.currentTarget.value.trim().length > 0)}
-              ref={nameRef}
-              rows={1}
-            />
-          </Field>
           {/* THE VISIBLE WAY OUT (#81 P1). Escape and the backdrop were the only exits this dialog had, and
               both are invisible: a reader looking at the longest authoring surface in the app could not
               SEE how to leave it without saving. It rides `requestClose`, so Cancel and Escape are one
@@ -404,7 +405,7 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
           >
             {editing === null ? "Save schema" : "Save changes"}
           </Button>
-        </Row>
+        </DialogFooter>
         {/* The guard. `forceRender` because it nests inside an open Dialog, which Base UI would otherwise
             let suppress this backdrop (the ConfirmDialog prop exists for exactly this). Both arms are named
             for what they DO — "Keep editing" / "Discard draft" — never Cancel/Confirm over a destructive
