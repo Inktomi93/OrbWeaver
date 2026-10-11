@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-11
 priority: P1
 area: server
+lane: wt/agent-acaca6604a47fa683
 ---
 
 # The persona pin read is scoped through its chat instead of waived

@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-11
 priority: P2
 area: chat
+lane: wt/agent-a4fd81354ff8efecd
 ---
 
 # Duplicate and prose rewrite keep the generation stamp so a greeting never overwrites them

@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-11
 priority: P2
 area: client
+lane: wt/agent-a472bd6f9bff44a8f
 ---
 
 # Command palette ranks fuzzy settings above Corpus rows
