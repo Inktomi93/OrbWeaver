@@ -19,8 +19,8 @@ import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuTrigger } fro
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useActiveChatId } from "#state";
-import { useLauncherCommands, useRunPluginCommand } from "../hooks/use-plugin-commands.ts";
-import { pluginCommandActionLabel, pluginCommandAttributedActionLabel, pluginCommandAttribution } from "../lib/plugin-command-copy.ts";
+import { useLauncherCommands, useRunPluginCommand, useSharedPluginNames } from "../hooks/use-plugin-commands.ts";
+import { pluginCommandActionLabel, pluginCommandAttributedActionLabel, pluginCommandShownName } from "../lib/plugin-command-copy.ts";
 
 /** Group the flat command list by plugin, preserving the hook's (plugin, command) order. */
 function groupByPlugin(
@@ -40,6 +40,7 @@ function groupByPlugin(
 
 export function PluginCommandsMenu({ presentation }: { readonly presentation: "bar" | "sheet" }): ReactElement | null {
   const commands = useLauncherCommands();
+  const shared = useSharedPluginNames();
   // The ROOM the command runs in, when there is one. A command run from a non-chat screen carries `null` and
   // the server admits no chat scope — `chat.current()` throws in the guest, which is the honest answer.
   const chatId = useActiveChatId();
@@ -55,7 +56,9 @@ export function PluginCommandsMenu({ presentation }: { readonly presentation: "b
       <>
         {commands.map((command) => (
           <Button disabled={isPending} intent="ghost" key={`${command.pluginId}:${command.name}`} onClick={(): void => runCommand(command)} size="sm">
-            <Text voice="label">{pluginCommandAttributedActionLabel(command.pluginName, command.slug, command.group ?? "Commands", command.name)}</Text>
+            <Text voice="label">
+              {pluginCommandAttributedActionLabel(pluginCommandShownName(command.pluginName, command.slug, shared), command.group ?? "Commands", command.name)}
+            </Text>
           </Button>
         ))}
       </>
@@ -75,10 +78,10 @@ export function PluginCommandsMenu({ presentation }: { readonly presentation: "b
           <MenuGroup key={group.pluginId}>
             {/* The group label IS the attribution: every command a person reads sits under the name of the
                 plugin that registered it, so the menu can never present a plugin's command as the app's own. */}
-            <MenuGroupLabel>{pluginCommandAttribution(group.pluginName, group.slug)}</MenuGroupLabel>
+            <MenuGroupLabel>{pluginCommandShownName(group.pluginName, group.slug, shared)}</MenuGroupLabel>
             {group.commands.map((command) => (
               <MenuItem
-                aria-label={`${pluginCommandAttributedActionLabel(command.pluginName, command.slug, command.group ?? "Commands", command.name)} · ${command.describe}`}
+                aria-label={`${pluginCommandAttributedActionLabel(pluginCommandShownName(command.pluginName, command.slug, shared), command.group ?? "Commands", command.name)} · ${command.describe}`}
                 disabled={isPending}
                 key={`${command.pluginId}:${command.name}`}
                 onClick={(): void => runCommand(command)}

@@ -177,7 +177,7 @@ for (const transition of ["uninstall", "withdraw", "auto-disable"] as const) {
 
     await expect(component.getByRole("group", { name: "Resident plugin — Resident settings" })).toBeVisible();
     await component.getByRole("button", { name: "Plugin commands" }).click();
-    await expect(page.getByRole("menuitem", { name: "Resident plugin (resident-plugin) · Tools · Run inspect · Inspect the resident plugin" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Resident plugin · Tools · Run inspect · Inspect the resident plugin" })).toBeVisible();
     await page.keyboard.press("Escape");
 
     await component.getByRole("button", { name: `Run ${transition}`, exact: true }).click();

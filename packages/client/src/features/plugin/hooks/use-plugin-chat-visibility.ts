@@ -4,18 +4,42 @@
 
 import type { PluginId } from "@orb/kit/ids";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { inferOutput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "#data";
 import { createEntityMutation, peekQueryData, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { CHAT_PANEL_HIDDEN_HINT, CHAT_PANEL_UNDO_LABEL, chatPanelHiddenTitle } from "../lib/plugin-copy.ts";
 
-interface HiddenChatPluginsPatchVars {
+interface PluginPanelPrefsPatchVars {
   readonly section: "profile";
-  readonly patch: { readonly hiddenChatPluginIds: readonly PluginId[] };
+  readonly patch: { readonly hiddenChatPluginIds?: readonly PluginId[]; readonly flankCollapsed?: boolean };
 }
-const useSetHiddenChatPlugins = createEntityMutation<HiddenChatPluginsPatchVars, unknown>({
+/** The settings read the write patches in place — tRPC-inferred, so a reshape of it breaks here. */
+type UserSettingsRead = inferOutput<Trpc["settings"]["getUserSettings"]>;
+
+// OPTIMISTIC, NOT ECHOED: the cache takes the write the moment it is made, so a second hide or an Undo pressed
+// before the first write lands builds its list from the first one's result. An echo would land the FIRST
+// response over the second's optimistic list when responses arrive late.
+const useSetPluginPanelPrefs = createEntityMutation<PluginPanelPrefsPatchVars, unknown, UserSettingsRead>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // emits `settingsChanged` → USER_BUS_FILTERS covers getUserSettings.
-  echo: (trpc) => trpc.settings.getUserSettings.queryKey(),
+  optimistic: {
+    readKey: (trpc) => trpc.settings.getUserSettings.queryKey(),
+    update: (old, vars) =>
+      old === undefined
+        ? undefined
+        : {
+            ...old,
+            config: {
+              ...old.config,
+              profile: {
+                ...old.config.profile,
+                ...(vars.patch.hiddenChatPluginIds === undefined ? {} : { hiddenChatPluginIds: [...vars.patch.hiddenChatPluginIds] }),
+                ...(vars.patch.flankCollapsed === undefined ? {} : { flankCollapsed: vars.patch.flankCollapsed }),
+              },
+            },
+          },
+  },
   errorToast: "Couldn't save that. Try again.",
 });
 
@@ -31,7 +55,7 @@ export function usePluginChatVisibility(): PluginChatVisibility {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const queryClient = useQueryClient();
-  const setHidden = useSetHiddenChatPlugins({ trpc, invalidation });
+  const setHidden = useSetPluginPanelPrefs({ trpc, invalidation });
   // A non-suspending read: a panel that mounts before settings arrive shows, which is the default.
   const { data } = useQuery(trpc.settings.getUserSettings.queryOptions());
   const hidden = data?.config.profile.hiddenChatPluginIds ?? [];
@@ -53,5 +77,28 @@ export function usePluginChatVisibility(): PluginChatVisibility {
       });
     },
     setShown: (pluginId, shown): void => write(shown ? without(pluginId) : [...without(pluginId), pluginId]),
+  };
+}
+
+export interface PluginFlankCollapse {
+  readonly collapsed: boolean;
+  readonly toggle: () => void;
+}
+
+/** Whether the user folded the inline flank away, and the one door that flips it. Stored in the user's settings,
+ *  so it holds across rooms, reloads and devices. */
+export function usePluginFlankCollapsed(): PluginFlankCollapse {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const queryClient = useQueryClient();
+  const setPrefs = useSetPluginPanelPrefs({ trpc, invalidation });
+  const { data } = useQuery(trpc.settings.getUserSettings.queryOptions());
+  return {
+    collapsed: data?.config.profile.flankCollapsed ?? false,
+    // Read at click time for the same reason `hide` does: the cache already holds a write still in flight.
+    toggle: (): void => {
+      const current = peekQueryData(queryClient, trpc.settings.getUserSettings.queryKey())?.config.profile.flankCollapsed ?? false;
+      setPrefs.mutate({ section: "profile", patch: { flankCollapsed: !current } });
+    },
   };
 }

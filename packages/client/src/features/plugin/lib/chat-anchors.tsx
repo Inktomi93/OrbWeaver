@@ -19,7 +19,6 @@
 // `chatId` is nullable (a draft room has none); the fan-out treats `null` as "plugin-wide only", which is
 // exactly right — there is no room for a room-keyed row to belong to yet.
 
-import { coarsePointerNow } from "@orb/ui/lib";
 import type { ReactElement } from "react";
 import type { ChatSettingsSectionContribution, ChatSurfaceContribution } from "#lib";
 import { PluginAnchoredSurfaces } from "../components/plugin-anchored-surfaces.tsx";
@@ -29,21 +28,21 @@ import { PluginMessageFooterSurfaces } from "../components/plugin-message-footer
 
 /** The `chat-flank` anchor: plugin surfaces mounted beside the transcript, in the room's flank column.
  *
- *  A TOUCH DEVICE MOUNTS THEM IN THE HEADER'S SHEET INSTEAD (`pluginRoomHeaderSurface`): the two bodies read the
- *  same pointer predicate in the same render, so exactly one of them mounts and a plugin frame never mounts twice. */
+ *  A TOUCH DEVICE HOLDS THEM IN THE HEADER'S SHEET INSTEAD (`pluginRoomHeaderSurface`). Both hosts read the one
+ *  subscribed pointer (`useCoarsePointer`) inside their own component, so a pointer flip re-renders both in the
+ *  same pass and exactly one of them holds the frames, whichever subtree remounted last. */
 export const pluginChatFlankSurface: ChatSurfaceContribution = {
   id: "pluginChatFlank",
   anchor: "thread-flank",
-  body: ({ chatId }): ReactElement | null =>
-    coarsePointerNow() ? null : <PluginAnchoredSurfaces anchor="chat-flank" {...(chatId === null ? {} : { chatId })} />,
+  body: ({ chatId }): ReactElement => <PluginAnchoredSurfaces anchor="chat-flank" {...(chatId === null ? {} : { chatId })} />,
 };
 
 /** The `room-header` anchor: on a touch device, the one icon that opens the sheet holding the room's flank
- *  panels. A fine pointer keeps them beside the transcript, so this is `null` there. */
+ *  panels. A fine pointer keeps them beside the transcript, so this renders nothing there. */
 export const pluginRoomHeaderSurface: ChatSurfaceContribution = {
   id: "pluginRoomHeader",
   anchor: "room-header",
-  body: ({ chatId }): ReactElement | null => (chatId === null || !coarsePointerNow() ? null : <PluginFlankSheet chatId={chatId} />),
+  body: ({ chatId }): ReactElement | null => (chatId === null ? null : <PluginFlankSheet chatId={chatId} />),
 };
 
 /** The `chat-settings-section` anchor: plugin panels inside the "This chat" tab's HOST-ONLY band. Host-gated by

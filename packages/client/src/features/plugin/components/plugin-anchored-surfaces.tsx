@@ -27,14 +27,12 @@
 import type { PluginSurfaceAnchor } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { ChevronDown, ChevronUp, EyeOff, Icon } from "@orb/ui/icons";
+import { EyeOff, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { useId, useState } from "react";
-import { cn } from "#lib";
 import { usePluginChatVisibility } from "../hooks/use-plugin-chat-visibility.ts";
-import { useVisibleAnchoredSurfaces } from "../hooks/use-visible-anchored-surfaces.ts";
-import { CHAT_PANEL_HIDE_LABEL, flankDisclosureLabel } from "../lib/plugin-copy.ts";
+import { useFlankInSheet, useVisibleAnchoredSurfaces } from "../hooks/use-visible-anchored-surfaces.ts";
+import { CHAT_PANEL_HIDE_LABEL } from "../lib/plugin-copy.ts";
 import { PluginFrame } from "./plugin-frame.tsx";
 import { PluginScriptedSurface } from "./plugin-scripted-surface.tsx";
 import { PluginSurfaceRenderer } from "./plugin-surface-renderer.tsx";
@@ -47,8 +45,7 @@ export interface PluginAnchoredSurfacesProps {
    *  then reads/writes the plugin-wide state row only, which is the honest answer (there is no room yet for a
    *  room-keyed publication to belong to). */
   readonly chatId?: ChatId;
-  /** Drawn inside the phone's plugin-panels sheet: the sheet is the disclosure, so the flank draws neither its
-   *  own toggle nor the folded-away stack. */
+  /** Drawn inside the header's plugin-panels sheet, the flank's other host. */
   readonly inSheet?: boolean;
 }
 
@@ -58,15 +55,14 @@ export interface PluginAnchoredSurfacesProps {
 export function PluginAnchoredSurfaces({ anchor, chatId, inSheet = false }: PluginAnchoredSurfacesProps): ReactElement | null {
   const visible = useVisibleAnchoredSurfaces(anchor, chatId);
   const { hide } = usePluginChatVisibility();
-  const panelId = useId();
-  const [flankOpen, setFlankOpen] = useState(false);
+  // The inline flank stands down whenever its panels live in the header's sheet (`PluginFlankSheet`).
+  const standsDown = useFlankInSheet() && anchor === "chat-flank" && !inSheet;
 
-  if (visible.length === 0) {
+  if (visible.length === 0 || standsDown) {
     return null;
   }
-  const folded = anchor === "chat-flank" && !inSheet;
   const surfacesStack = (
-    <Stack gap="block" id={panelId} className={cn(folded && !flankOpen && "@max-lg:hidden")}>
+    <Stack gap="block">
       {visible.map((surface) => {
         // One-tap Hide on the panel's own attribution line; the notice it raises carries the Undo.
         const hideAction = (
@@ -122,31 +118,7 @@ export function PluginAnchoredSurfaces({ anchor, chatId, inSheet = false }: Plug
       })}
     </Stack>
   );
-  if (!folded) {
-    return surfacesStack;
-  }
-  // THE NARROW ROOM. Below the room's `lg` container step the flank stacks under the transcript, and a plugin
-  // surface there is a third party's content competing with the conversation for one column: a game board
-  // took the whole room on a phone and a clock board was pushed under the composer. So on a narrow room the
-  // surfaces fold behind ONE closed disclosure and the transcript keeps the column; on a wide room the
-  // toggle is hidden and the surfaces show as before. Both arms are container queries on the room's own
-  // `Container`, so a docked panel narrowing a wide screen folds them too. A hidden surface stays mounted:
-  // opening the disclosure shows it instantly instead of re-minting a frame. A touch device never gets here:
-  // its flank lives in the header's sheet (`chat-anchors.tsx`).
-  return (
-    <Stack gap="row" data-slot="plugin-flank">
-      <Button
-        aria-controls={panelId}
-        aria-expanded={flankOpen}
-        className="justify-between @lg:hidden"
-        intent="outline"
-        onClick={(): void => setFlankOpen(!flankOpen)}
-        size="sm"
-      >
-        {flankDisclosureLabel(visible)}
-        <Icon icon={flankOpen ? ChevronUp : ChevronDown} size="sm" />
-      </Button>
-      {surfacesStack}
-    </Stack>
-  );
+  // The slot marker is what the soft-keyboard rule keys on (`globals.css`): the inline flank folds away while the
+  // keyboard is up unless a field inside it holds focus.
+  return anchor === "chat-flank" && !inSheet ? <Stack data-slot="plugin-flank">{surfacesStack}</Stack> : surfacesStack;
 }

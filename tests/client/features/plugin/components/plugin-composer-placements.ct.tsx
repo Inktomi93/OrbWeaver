@@ -732,7 +732,7 @@ test("a placed command shows at its placement only; the launcher lists the unpla
   await component.getByRole("button", { name: "Plugin commands" }).click();
   const launcher = page.getByRole("menu").getByRole("menuitem");
   await expect(launcher).toHaveCount(1);
-  await expect(launcher.first()).toHaveAccessibleName("Third Party (third-party) · Commands · Run open · Opens a thing");
+  await expect(launcher.first()).toHaveAccessibleName("Third Party · Commands · Run open · Opens a thing");
   await page.keyboard.press("Escape");
 
   await component.getByRole("button", { name: "Plugin actions" }).click();

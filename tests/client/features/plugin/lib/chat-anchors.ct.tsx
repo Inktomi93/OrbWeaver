@@ -26,14 +26,21 @@ import { PLUGIN_FRAME_ROUTE } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+import { CHAT_AND_INBOX_READS_EMPTY } from "../../../../support/node/chat-and-inbox-reads-empty.ts";
 import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
 import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts";
 import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../../chat/fixtures.ts";
-import { PluginChatFlankRoomStory, PluginChatSettingsSectionStory, PluginChatVisibilityStory, PluginFlankSheetRoomStory } from "../_ct-stories.tsx";
+import {
+  PluginChatFlankRoomStory,
+  PluginChatSettingsSectionStory,
+  PluginChatVisibilityStory,
+  PluginFlankSheetRoomStory,
+  PluginPhoneShellStory,
+} from "../_ct-stories.tsx";
 
 type PluginListRow = TrpcWireOutput<"plugin.list">[number];
 type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
@@ -203,7 +210,6 @@ test.describe("the flank anchor", () => {
     await expect(flank).toBeVisible();
     // THE IMPERSONATION WALL (§4.8): the surface is inside first-party chrome that names its author, and the
     // body is a labelled group region carrying "«plugin» — «title»".
-    // `exact`: the narrow-room disclosure toggle (hidden at this width) also spells the plugin's name.
     await expect(flank.getByText(PLUGIN_NAME, { exact: true })).toBeVisible();
     await expect(flank.getByRole("group", { name: `${PLUGIN_NAME} — Warmth` })).toBeVisible();
     // …and the spec's bound values resolved against the PUBLISHED state, not their fallbacks.
@@ -212,67 +218,8 @@ test.describe("the flank anchor", () => {
     await expect(page.locator(SCROLLER)).toBeVisible();
   });
 
-  test("phone: tall flank surfaces fold behind one disclosure, and opened they never take the transcript's column", async ({ mount, page }) => {
-    // The phone the defect was found on (iPhone 14 Pro Max CSS size). Two unbound surfaces that render on sight:
-    // a board taller than the room (the game-frame case) and a second widget under it (the clock-board case
-    // that was pushed under the composer).
-    await page.setViewportSize({ width: 430, height: 740 });
-    const tallSpec: NonNullable<PluginSurfaceRow["spec"]> = {
-      kind: "stack",
-      gap: "field",
-      children: Array.from({ length: 40 }, (_, i) => ({ kind: "text" as const, value: `board row ${i}` })),
-    };
-    const clockSpec: NonNullable<PluginSurfaceRow["spec"]> = { kind: "text", value: "clock face" };
-    await routeTrpc(page, {
-      ...CHAT_AMBIENT_ROUTES,
-      ...ROOM_ROUTES,
-      "plugin.list": () => [pluginRow("enabled")],
-      "plugin.listSurfaces": () => [surfaceRow("chat-flank", "board", "Board", tallSpec), surfaceRow("chat-flank", "clocks", "Clocks", clockSpec)],
-      "plugin.getSurfaceState": () => null,
-    });
-
-    const component = await mount(<PluginChatFlankRoomStory registered={true} />);
-    const scroller = page.locator(SCROLLER);
-    const toggle = page.getByRole("button", { name: "Plugin panels (2)", exact: true });
-    // The jump-to-latest pill is laid out (faded, inert) even while hidden, so its box is measurable. It is
-    // pinned to the transcript's own box, so a squeezed transcript floated it over the room title: it must
-    // sit in the lower half of the transcript, inside it.
-    const pillAtTranscriptFoot = async (): Promise<boolean> => {
-      const pill = await page.locator('[data-slot="jump-to-latest"]').boundingBox();
-      const box = await scroller.boundingBox();
-      return pill !== null && box !== null && pill.y > box.y + box.height / 2 && pill.y + pill.height <= box.y + box.height + 1;
-    };
-    const expectPillAtTranscriptFoot = async (): Promise<void> => {
-      await expect.poll(pillAtTranscriptFoot).toBe(true);
-    };
-    await expect(scroller).toBeVisible();
-    // Folded: the transcript has the room, and the one control that reveals the surfaces is on screen.
-    await expect(toggle).toBeInViewport();
-    await expect(toggle).toHaveAttribute("aria-expanded", "false");
-    await expect(component.getByText("board row 0")).toBeHidden();
-    await expect(component.getByText("clock face")).toBeHidden();
-    const viewportHeight = 740;
-    expect((await scroller.boundingBox())?.height ?? 0).toBeGreaterThan(viewportHeight / 4);
-    await expectPillAtTranscriptFoot();
-
-    // Opened: both surfaces are reachable inside the flank's own scroll, and the transcript keeps its column.
-    await toggle.click();
-    await expect(toggle).toHaveAttribute("aria-expanded", "true");
-    await expect(component.getByText("board row 0")).toBeVisible();
-    await expectPillAtTranscriptFoot();
-    await component.getByText("clock face").scrollIntoViewIfNeeded();
-    await expect(component.getByText("clock face")).toBeInViewport();
-    await expect(scroller).toBeVisible();
-    const row = (await page.locator('[data-slot="chat-room-flank-row"]').boundingBox())?.height ?? 0;
-    const flank = (await page.locator(FLANK_SLOT).boundingBox())?.height ?? Number.POSITIVE_INFINITY;
-    const transcript = (await scroller.boundingBox())?.height ?? 0;
-    // The flank is capped at half the row; the transcript keeps the other half (less the gap between them).
-    expect(flank).toBeLessThanOrEqual(row / 2 + 1);
-    expect(transcript).toBeGreaterThan(row / 3);
-  });
-
-  test("phone: a keyboard opened by a field inside the flank keeps that field, and the typing lands in it", async ({ mount, page }) => {
-    await page.setViewportSize({ width: 430, height: 740 });
+  test("a soft keyboard opened by a field inside the inline flank keeps that field, and the typing lands in it", async ({ mount, page }) => {
+    await page.setViewportSize(FLANK_ARMS[0].viewport);
     const fieldSpec: NonNullable<PluginSurfaceRow["spec"]> = { kind: "textField", name: "note", label: "Note" };
     await routeTrpc(page, {
       ...CHAT_AMBIENT_ROUTES,
@@ -282,7 +229,6 @@ test.describe("the flank anchor", () => {
       "plugin.getSurfaceState": () => null,
     });
     const component = await mount(<PluginChatFlankRoomStory registered={true} />);
-    await page.getByRole("button", { name: `${PLUGIN_NAME} — Notes`, exact: true }).click();
     const field = component.getByRole("textbox", { name: "Note", exact: true });
     await field.focus();
     // The soft keyboard this focus raised: the shell marks the root while it is up.
@@ -297,7 +243,7 @@ test.describe("the flank anchor", () => {
     await page.evaluate(() => document.documentElement.toggleAttribute("data-keyboard-up", false));
   });
 
-  test("desktop: chat-flank surfaces show beside the transcript with no disclosure", async ({ mount, page }) => {
+  test("desktop: chat-flank surfaces show beside the transcript, with a collapse control and no sheet", async ({ mount, page }) => {
     await page.setViewportSize(FLANK_ARMS[0].viewport);
     await routeTrpc(page, {
       ...CHAT_AMBIENT_ROUTES,
@@ -306,12 +252,10 @@ test.describe("the flank anchor", () => {
       "plugin.listSurfaces": () => [surfaceRow("chat-flank", "affinity_flank", "Warmth", FLANK_SPEC)],
       "plugin.getSurfaceState": () => FLANK_STATE,
     });
-    const component = await mount(<PluginChatFlankRoomStory registered={true} />);
+    const component = await mount(<PluginFlankSheetRoomStory />);
     await expect(component.getByText("Your latest warmth reading, 7 of 10.")).toBeVisible();
-    // Attached AND hidden: a bare `toBeHidden()` would also pass if the toggle never rendered at all.
-    const toggle = page.getByRole("button", { name: `${PLUGIN_NAME} — Warmth`, exact: true, includeHidden: true });
-    await expect(toggle).toBeAttached();
-    await expect(toggle).toBeHidden();
+    await expect(page.getByRole("button", { name: "Collapse plugin panels", exact: true })).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByRole("button", { name: "Plugin panels", exact: true })).toHaveCount(0);
   });
 
   test("§4.9: a BOUND flank surface with nothing published stays silent — no blank meter in the room", async ({ mount, page }) => {
@@ -348,14 +292,15 @@ const OTHER_ID = mintTypeId(ID_PREFIX.plugin);
 const OTHER_NAME = "Other Plugin";
 const HIDE_NOTICE = `${PLUGIN_NAME} hidden from chat`;
 
-/** `settings.getUserSettings` and its section write over ONE list of hidden plugin ids, the way the server keeps it. */
+/** `settings.getUserSettings` and its section write over ONE profile, the way the server keeps it. */
 function hiddenPluginRoutes(): TrpcRoutes<"settings.getUserSettings" | "settings.updateUserSettingsSection"> {
-  let hidden: readonly PluginId[] = [];
-  const view = (): ReturnType<typeof userSettingsView> => userSettingsView({ profile: { hiddenChatPluginIds: [...hidden] } });
+  let profile: { readonly hiddenChatPluginIds: readonly PluginId[]; readonly flankCollapsed: boolean } = { hiddenChatPluginIds: [], flankCollapsed: false };
+  const view = (): ReturnType<typeof userSettingsView> =>
+    userSettingsView({ profile: { hiddenChatPluginIds: [...profile.hiddenChatPluginIds], flankCollapsed: profile.flankCollapsed } });
   return {
     "settings.getUserSettings": () => view(),
     "settings.updateUserSettingsSection": (input: TrpcInput<"settings.updateUserSettingsSection">): ReturnType<typeof view> => {
-      hidden = input.patch["hiddenChatPluginIds"] as readonly PluginId[];
+      profile = { ...profile, ...input.patch };
       return view();
     },
   };
@@ -457,7 +402,6 @@ test.describe("a touch device", () => {
     await expect(trigger).toBeInViewport();
     // Closed: the transcript keeps the whole column, and nothing of the plugin is mounted anywhere.
     await expect.poll(async () => (await page.locator(SCROLLER).boundingBox())?.height).toBe(baseline?.height);
-    await expect(page.getByRole("button", { name: "Plugin panels (2)", exact: true })).toHaveCount(0);
     await expect(page.getByText(PLUGIN_NAME)).toHaveCount(0);
     await expect(page.locator("iframe")).toHaveCount(0);
 
@@ -491,6 +435,164 @@ test.describe("a touch device", () => {
     await expect(page.getByRole("button", SHEET_TRIGGER)).toBeVisible();
     await expect.poll(() => recorder.lastInput("settings.updateUserSettingsSection")).toEqual(SHOW_ALL);
   });
+});
+
+/** The phone shell's reads, the room's, and the plugin plane's, with a frame beside a static panel. */
+async function routePhoneShell(page: Page): Promise<{ readonly mints: () => number }> {
+  let mints = 0;
+  await page.route(`**${PLUGIN_FRAME_ROUTE}`, (route) => {
+    mints += 1;
+    return route.fulfill({ contentType: "application/json", body: JSON.stringify({ url: FRAME_URL, expiresInMs: 1_800_000 }) });
+  });
+  await page.route(`**${FRAME_URL}`, (route) =>
+    route.fulfill({
+      contentType: "text/html; charset=utf-8",
+      headers: { "content-security-policy": "sandbox allow-scripts" },
+      body: "<!doctype html><p>BOARD</p>",
+    }),
+  );
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...ROOM_ROUTES,
+    ...hiddenPluginRoutes(),
+    // The shell's own ambient reads, at their empty-but-real defaults: none of them is this file's subject.
+    ...CHAT_AND_INBOX_READS_EMPTY,
+    "character.list": () => ({ items: [], nextCursor: null, totalCount: 0 }),
+    "databank.list": () => ({ items: [], nextCursor: null, totalCount: 0 }),
+    "databank.bankHealth": () => ({
+      byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 },
+      chunks: 0,
+      passages: 0,
+      staleExtraction: 0,
+      total: 0,
+    }),
+    "persona.list": () => [],
+    "regex.countScripts": () => 0,
+    "rosterPreset.count": () => 0,
+    "worldInfo.countBooks": () => 0,
+    "settings.listThemes": () => [],
+    "sessions.me": () => ({ userId: "user_ct_plugin_shell", handle: "ct_plugin_shell", globalRole: "user" }),
+    "plugin.list": () => [pluginRow("enabled")],
+    "plugin.listSurfaces": () => [FRAME_SURFACE_ROW],
+    "plugin.getSurfaceState": () => FLANK_STATE,
+  });
+  return { mints: (): number => mints };
+}
+
+test.describe("the phone shell", () => {
+  test.use({ hasTouch: true });
+
+  test("the plugin panels icon rides the topbar beside the roster chip", async ({ mount, page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await routePhoneShell(page);
+    await mount(<PluginPhoneShellStory />);
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches), "hasTouch must make this a coarse pointer").toBe(true);
+    await expect(page.locator(SCROLLER)).toBeVisible();
+    const topbar = page.locator(".shell-topbar");
+    await expect(topbar.getByRole("button", { name: SHEET_TRIGGER.name, exact: true })).toBeVisible();
+    await expect(topbar.getByRole("button", { name: SHEET_TRIGGER.name, exact: true })).toBeInViewport();
+  });
+});
+
+test("a pointer that turns coarse mid-session leaves exactly one host for the frame, even after the header remounts", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  const routed = await routePhoneShell(page);
+  await mount(<PluginPhoneShellStory />);
+  await expect(page.locator(SCROLLER)).toBeVisible();
+  await expect(page.locator("iframe")).toHaveCount(1);
+
+  // The device flips from a fine pointer to a coarse one (a detached keyboard, a tablet undocked).
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 1 });
+  await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches), "the flip must reach the page").toBe(true);
+
+  // Both hosts follow the flip together: the inline flank stands down and the header icon takes over.
+  const trigger = page.locator(".shell-topbar").getByRole("button", { name: SHEET_TRIGGER.name, exact: true });
+  await expect(page.locator("iframe")).toHaveCount(0);
+  await expect(trigger).toBeVisible();
+
+  // The header slot is keyed by section, so a round trip remounts it while the room stays alive.
+  await page.getByRole("button", { name: "Hop to config" }).click();
+  await page.getByRole("button", { name: "Hop to chats" }).click();
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+  await expect(page.getByRole("group", { name: `${PLUGIN_NAME} — Board` })).toHaveCount(1);
+  await expect(page.locator("iframe")).toHaveCount(1);
+  // Every mint belongs to a mount that is, or was, the only one: the live count is the sheet's alone.
+  expect(routed.mints()).toBeGreaterThan(0);
+  // CDP touch emulation outlives the test that set it.
+  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+});
+
+test("with both side panels docked on a mid-width desktop the transcript keeps its reading floor, the flank lives in the sheet, and widening hands it back with one frame throughout", async ({
+  mount,
+  page,
+}) => {
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await routePhoneShell(page);
+  await mount(<PluginPhoneShellStory dockPanels={true} />);
+  await expect(page.locator(SCROLLER)).toBeVisible();
+
+  // The room is too narrow for the transcript to hold its floor beside the flank, so the sheet hosts the panels.
+  const trigger = page.locator(".shell-topbar").getByRole("button", { name: SHEET_TRIGGER.name, exact: true });
+  await expect(trigger).toBeVisible();
+  await expect(page.locator("iframe")).toHaveCount(0);
+  const floor = await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.width = "calc(var(--dimension-content-reading-floor) - 2 * var(--spacing-block))";
+    document.body.append(probe);
+    const width = probe.getBoundingClientRect().width;
+    probe.remove();
+    return width;
+  });
+  await expect.poll(async () => (await page.locator(SCROLLER).boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(floor);
+  await trigger.click();
+  await expect(page.locator("iframe")).toHaveCount(1);
+
+  // Past the threshold the inline flank takes the frame back: the icon goes and the count never exceeds one.
+  await page.setViewportSize({ width: 1920, height: 1000 });
+  await expect(trigger).toHaveCount(0);
+  await expect(page.locator(FLANK_SLOT)).toBeVisible();
+  await expect(page.locator("iframe")).toHaveCount(1);
+});
+
+test("the header icon collapses and expands the inline flank: the transcript takes and gives back the width, one frame throughout, and the choice survives a reload", async ({
+  mount,
+  page,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 1000 });
+  const routed = await routePhoneShell(page);
+  const component = await mount(<PluginPhoneShellStory />);
+  const scroller = page.locator(SCROLLER);
+  const widthOf = async (): Promise<number> => (await scroller.boundingBox())?.width ?? 0;
+  await expect(scroller).toBeVisible();
+  await expect(page.locator("iframe")).toHaveCount(1);
+  const expanded = await widthOf();
+  const topbar = page.locator(".shell-topbar");
+
+  await expect(topbar.getByRole("button", { name: "Collapse plugin panels", exact: true })).toHaveAttribute("aria-expanded", "true");
+  await topbar.getByRole("button", { name: "Collapse plugin panels", exact: true }).click();
+  await expect(topbar.getByRole("button", { name: "Expand plugin panels", exact: true })).toHaveAttribute("aria-expanded", "false");
+  await expect.poll(widthOf).toBeGreaterThan(expanded + 100);
+  // Collapsing folds the column away without unmounting the frame, so expanding cannot mint a second one.
+  await expect(page.locator("iframe")).toHaveCount(1);
+  expect(routed.mints()).toBe(1);
+
+  await topbar.getByRole("button", { name: "Expand plugin panels", exact: true }).click();
+  await expect(topbar.getByRole("button", { name: "Collapse plugin panels", exact: true })).toHaveAttribute("aria-expanded", "true");
+  await expect.poll(widthOf).toBeCloseTo(expanded, 0);
+  await expect(page.locator("iframe")).toHaveCount(1);
+  expect(routed.mints()).toBe(1);
+
+  // The setting round-trips: collapse, remount the whole shell, and it comes back collapsed.
+  await topbar.getByRole("button", { name: "Collapse plugin panels", exact: true }).click();
+  await expect.poll(widthOf).toBeGreaterThan(expanded + 100);
+  await component.unmount();
+  await mount(<PluginPhoneShellStory />);
+  await expect(page.locator(SCROLLER)).toBeVisible();
+  await expect(page.locator(".shell-topbar").getByRole("button", { name: "Expand plugin panels", exact: true })).toHaveAttribute("aria-expanded", "false");
+  await expect.poll(widthOf).toBeGreaterThan(expanded + 100);
+  await expect(page.locator("iframe")).toHaveCount(1);
 });
 
 // ── The `chat-settings-section` anchor, inside the "This chat" tab's host-only band ────────────────────────

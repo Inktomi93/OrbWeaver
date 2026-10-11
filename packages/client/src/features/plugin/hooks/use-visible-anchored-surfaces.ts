@@ -3,10 +3,12 @@
 
 import type { PluginCapability, PluginSurfaceAnchor, PluginSurfaceSpec } from "@orb/contracts/plugin";
 import type { ChatId, PluginId } from "@orb/kit/ids";
+import { useCoarsePointer } from "@orb/ui/lib";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { useTRPC } from "#data";
+import { useInlineFlankFits } from "#lib";
 import { specBindsState } from "../lib/plugin-surface-bindings.ts";
 import { usePluginChatVisibility } from "./use-plugin-chat-visibility.ts";
 
@@ -92,6 +94,15 @@ export function buildCandidates(surfaces: readonly PluginSurfaceView[], plugins:
     }
   }
   return candidates;
+}
+
+/** Whether the flank panels live in the header's sheet rather than beside the transcript: on a touch device
+ *  always, and on any pointer when the transcript would fall below its reading floor with the flank beside it.
+ *  Both hosts read this one answer, so exactly one of them holds the frames at any moment. */
+export function useFlankInSheet(): boolean {
+  const coarse = useCoarsePointer();
+  const fitsInline = useInlineFlankFits();
+  return coarse || !fitsInline;
 }
 
 /** The registrations of `anchor` that are showing right now: the caller's enabled plugins' surfaces, less the

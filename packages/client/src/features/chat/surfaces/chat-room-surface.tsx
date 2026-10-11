@@ -17,11 +17,11 @@ import { Container, Row, Stack, Surface } from "@orb/ui/layout";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { Fragment, useDeferredValue, useRef } from "react";
+import { Fragment, useDeferredValue, useLayoutEffect, useRef } from "react";
 import type { ChatBusDeps } from "#data";
 import { SkeletonRows, useCarriedAppearance, useTRPC } from "#data";
 import type { ChatRoomSurfaceState, ChatSurfaceAnchor, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
-import { cn, deriveChatTitle, useFocusOnMount } from "#lib";
+import { cn, deriveChatTitle, publishInlineFlankFit, useFocusOnMount } from "#lib";
 import type { ActiveChatHandle } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor.tsx";
 import { ChatCharacterBar } from "../components/chat-character-bar.tsx";
@@ -86,6 +86,9 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   useFocusOnMount(surfaceRef, bodyMounted);
 
   const roomState: ChatRoomSurfaceState = { chatId };
+  // The flank column folds away when the user collapsed it (the header's toggle writes this setting).
+  const { data: settings } = useQuery(trpc.settings.getUserSettings.queryOptions());
+  const flankCollapsed = settings?.config.profile.flankCollapsed ?? false;
   const flankContributions = resolveRoomAnchor(surfaceContributors, "thread-flank", roomState);
   const aboveComposerContributions = resolveRoomAnchor(surfaceContributors, "above-composer", roomState);
   const composerActionContributions = resolveRoomAnchor(surfaceContributors, "composer-action", roomState);
@@ -163,7 +166,8 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                *  flank stacks BELOW the thread instead of crushing its reading column (the
                *  settings-shell-surface.tsx / role-slot-row.tsx `@max-md`/`@2xl` precedent, at the `lg` step
                *  since a thread+flank split needs more room than a nav+content split before beside is comfy). */}
-              <Container className="min-h-0 flex-1">
+              <Container className="relative min-h-0 flex-1">
+                <InlineFlankFitProbe />
                 <Row gap="block" align="stretch" className="h-full min-h-0 @max-lg:flex-col" data-slot="chat-room-flank-row">
                   {thread}
                   {/* `empty:hidden` is the SILENT-CONTRIBUTOR collapse, the same property (and the same
@@ -194,8 +198,15 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                   other side. The transcript always keeps at least half the room. */}
                   <Stack
                     gap="block"
-                    className="empty:hidden max-w-(--width-sidebar-sm) relative @max-lg:max-h-1/2 @max-lg:max-w-none @max-lg:overflow-y-auto"
+                    className={cn(
+                      "empty:hidden relative transition-[max-width,margin,opacity] duration-(--motion-layout) ease-out-expo @max-lg:max-h-1/2 @max-lg:max-w-none @max-lg:overflow-y-auto",
+                      // Collapsed, the column keeps its place in the tree (a plugin frame in it stays minted) and gives
+                      // its width back, and the row's gap with it, so the transcript takes the whole room.
+                      flankCollapsed ? "pointer-events-none -ms-block max-w-0 overflow-hidden opacity-0" : "max-w-(--width-sidebar-sm)",
+                    )}
+                    data-collapsed={flankCollapsed ? "true" : undefined}
                     data-slot="chat-thread-flank"
+                    inert={flankCollapsed}
                   >
                     {flankContributions.map((c) => (
                       <Fragment key={c.id}>{c.node}</Fragment>
@@ -234,6 +245,36 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
         </Stack>
       </Surface>
     </ThemeScope>
+  );
+}
+
+/** Publishes whether the transcript would still hold its reading floor with the plugin flank beside it: the
+ *  room's width against the floor plus the flank column and the gap between them, each read off its token so the
+ *  threshold tracks the font scale. The sentinel is the threshold itself, laid out and measured. */
+function InlineFlankFitProbe(): ReactElement {
+  const sentinel = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const threshold = sentinel.current;
+    const room = threshold?.parentElement;
+    if (threshold === null || room === null || room === undefined) {
+      return;
+    }
+    const measure = (): void => publishInlineFlankFit(room.clientWidth >= threshold.getBoundingClientRect().width);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(room);
+    return (): void => {
+      observer.disconnect();
+      publishInlineFlankFit(true);
+    };
+  }, []);
+  return (
+    <Row
+      aria-hidden={true}
+      className="pointer-events-none invisible absolute h-0"
+      ref={sentinel}
+      style={{ width: "calc(var(--dimension-content-reading-floor) + var(--width-sidebar-sm) + var(--spacing-block))" }}
+    />
   );
 }
 

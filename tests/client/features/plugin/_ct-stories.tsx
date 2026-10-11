@@ -11,6 +11,7 @@
 
 import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation, usePluginDisplayText, useTRPC } from "@orb/client/data";
+import { AppShell } from "@orb/client/features/app-shell";
 import { CommandPaletteSurface } from "@orb/client/features/chat";
 import {
   pluginChatFlankSurface,
@@ -77,6 +78,7 @@ import {
   useUninstallPlugin,
   useWithdrawPlugin,
 } from "../../../../packages/client/src/features/plugin/lib/plugin-mutations.ts";
+import { setActiveSection, setPanelMode } from "../../../../packages/client/src/state/shell-store.ts";
 import {
   CtAppDataProviders,
   CtChatContributorSectionRegistry,
@@ -267,6 +269,37 @@ export function PluginFlankSheetRoomStory(): ReactElement {
         <CtChatContributorSectionRegistry surfaceContributors={pluginFlankAndHeaderContributors}>
           <ChatRoomHeaderHarness />
           <ChatRoomHarness />
+        </CtChatContributorSectionRegistry>
+      </CtToastSurface>
+    </CtDataProviders>
+  );
+}
+
+/** The REAL shell on the chats section with the flank and its header twin at the door, plus two hop buttons that
+ *  leave the section and come back: the header remounts (its slot is keyed by section) while the room's content
+ *  stays alive, which is the path that can put the two hosts out of step. */
+export function PluginPhoneShellStory({ dockPanels = false }: { readonly dockPanels?: boolean }): ReactElement {
+  useEffect(() => {
+    setActiveSection("chats");
+    selectChat(CHAT_ID);
+    if (dockPanels) {
+      setPanelMode("list", "docked");
+      setPanelMode("context", "docked");
+    }
+  }, [dockPanels]);
+  return (
+    <CtDataProviders>
+      <CtToastSurface>
+        <div style={{ position: "fixed", insetInlineEnd: 0, bottom: 0, zIndex: 9999 }}>
+          <button onClick={(): void => setActiveSection("config")} type="button">
+            Hop to config
+          </button>
+          <button onClick={(): void => setActiveSection("chats")} type="button">
+            Hop to chats
+          </button>
+        </div>
+        <CtChatContributorSectionRegistry surfaceContributors={pluginFlankAndHeaderContributors}>
+          <AppShell />
         </CtChatContributorSectionRegistry>
       </CtToastSurface>
     </CtDataProviders>

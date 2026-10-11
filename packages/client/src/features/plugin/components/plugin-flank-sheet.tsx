@@ -1,23 +1,34 @@
-// The phone's home for the room's plugin panels: one header icon that opens a bottom sheet holding them, so they
-// stop sitting under the last message. The sheet's panels are the room's only copy on a touch device — the inline
-// flank is not mounted there (`chat-anchors.tsx`), so a plugin frame never mounts twice.
+// The header's one control for the room's plugin panels. Where the panels live in a sheet (a touch device, or a
+// room too narrow for the transcript to keep its floor beside them) it opens that sheet; where they sit inline it
+// collapses and expands the column, so the transcript can take the width. The sheet holds the panels only while
+// that is their host (`useFlankInSheet`), so a plugin frame never mounts twice.
 
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Drawer, DrawerClose, DrawerPopup, DrawerTitle, DrawerTrigger, DrawerVirtualKeyboardProvider } from "@orb/ui/drawer";
-import { Blocks, Icon, X } from "@orb/ui/icons";
+import { Blocks, Icon, PanelRightClose, PanelRightOpen, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { useVisibleAnchoredSurfaces } from "../hooks/use-visible-anchored-surfaces.ts";
-import { PLUGIN_PANELS_SHEET_LABEL } from "../lib/plugin-copy.ts";
+import { usePluginFlankCollapsed } from "../hooks/use-plugin-chat-visibility.ts";
+import { useFlankInSheet, useVisibleAnchoredSurfaces } from "../hooks/use-visible-anchored-surfaces.ts";
+import { flankToggleLabel, PLUGIN_PANELS_SHEET_LABEL } from "../lib/plugin-copy.ts";
 import { PluginAnchoredSurfaces } from "./plugin-anchored-surfaces.tsx";
 
-/** The header icon and its sheet. `null` while the caller has no showing flank panel, so a room without plugin
- *  panels grows no header control. */
+/** The header control. `null` while the caller has no showing flank panel, so a room without plugin panels grows
+ *  no header control. */
 export function PluginFlankSheet({ chatId }: { readonly chatId: ChatId }): ReactElement | null {
   const visible = useVisibleAnchoredSurfaces("chat-flank", chatId);
+  const inSheet = useFlankInSheet();
+  const { collapsed, toggle } = usePluginFlankCollapsed();
   if (visible.length === 0) {
     return null;
+  }
+  if (!inSheet) {
+    return (
+      <Button aria-expanded={!collapsed} aria-label={flankToggleLabel(collapsed)} intent="ghost" onClick={toggle} size="icon" type="button">
+        <Icon icon={collapsed ? PanelRightOpen : PanelRightClose} size="sm" />
+      </Button>
+    );
   }
   return (
     <Drawer side="bottom">

@@ -1,14 +1,16 @@
 // CT: the per-user list of plugins whose chat panels are hidden, over the REAL settings read and section write.
 // The hide → Undo → re-show round trip for one plugin is pinned beside the anchors (lib/chat-anchors.ct.tsx);
 // what is pinned here is the property only the hook owns: an Undo restores the list AS IT IS WHEN PRESSED,
-// so a hide made after the notice it came from is not swept away with it.
+// so a hide made after the notice it came from is not swept away with it. And two hides made before the first
+// write lands both hold: the cache takes each write at once and the second is built from the first.
 
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import type { Page } from "@playwright/test";
+import type { TrpcInput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../../chat/fixtures.ts";
 import { PluginChatVisibilityStory } from "../_ct-stories.tsx";
@@ -42,18 +44,11 @@ function pluginRow(id: PluginId, name: string): PluginListRow {
   };
 }
 
-test("an Undo restores the list as it is now, not as it was: a later hide of another plugin stays hidden", async ({ mount, page }) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
-  let hidden: readonly PluginId[] = [];
-  const view = (): ReturnType<typeof userSettingsView> => userSettingsView({ profile: { hiddenChatPluginIds: [...hidden] } });
-  const settings: TrpcRoutes<"settings.getUserSettings" | "settings.updateUserSettingsSection"> = {
-    "settings.getUserSettings": () => view(),
-    "settings.updateUserSettingsSection": (input: TrpcInput<"settings.updateUserSettingsSection">) => {
-      hidden = input.patch["hiddenChatPluginIds"] as readonly PluginId[];
-      return view();
-    },
-  };
-  await routeTrpc(page, {
+type SettingsRoutes = TrpcRoutes<"settings.getUserSettings" | "settings.updateUserSettingsSection">;
+
+/** Two plugins, each with one flank panel, in a room whose reads are fed, over the caller's settings routes. */
+async function routeTwoPluginRoom(page: Page, settings: SettingsRoutes): Promise<TrpcRecorder> {
+  return await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     "chat.listMessages": () => makeMessagesPage([makeMessageView({ content: "Hi Aria", role: "user", seq: 1 })]),
     "chat.listReactions": () => ({ reactionsEnabled: true, groups: [] }),
@@ -76,6 +71,19 @@ test("an Undo restores the list as it is now, not as it was: a later hide of ano
     ],
     "plugin.getSurfaceState": () => null,
   });
+}
+
+test("an Undo restores the list as it is now, not as it was: a later hide of another plugin stays hidden", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  let hidden: readonly PluginId[] = [];
+  const view = (): ReturnType<typeof userSettingsView> => userSettingsView({ profile: { hiddenChatPluginIds: [...hidden] } });
+  await routeTwoPluginRoom(page, {
+    "settings.getUserSettings": () => view(),
+    "settings.updateUserSettingsSection": (input: TrpcInput<"settings.updateUserSettingsSection">): ReturnType<typeof view> => {
+      hidden = input.patch["hiddenChatPluginIds"] as readonly PluginId[];
+      return view();
+    },
+  });
   const component = await mount(<PluginChatVisibilityStory />);
 
   await page.getByRole("button", { name: "Hide First Plugin" }).click();
@@ -91,5 +99,34 @@ test("an Undo restores the list as it is now, not as it was: a later hide of ano
   await page.getByLabel("Alerts").hover();
   await page.getByLabel("Alerts").getByRole("button", { name: "Undo", exact: true }).last().click();
   await expect(component.getByText("first body")).toBeVisible();
+  await expect(component.getByText("second body")).toHaveCount(0);
+});
+
+test("two hides made before the first write lands both stay hidden, and the second write carries both", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  let hidden: readonly PluginId[] = [];
+  const view = (): ReturnType<typeof userSettingsView> => userSettingsView({ profile: { hiddenChatPluginIds: [...hidden] } });
+  const firstWrite = trpcHold();
+  let writes = 0;
+  const recorder = await routeTwoPluginRoom(page, {
+    "settings.getUserSettings": () => view(),
+    "settings.updateUserSettingsSection": (input: TrpcInput<"settings.updateUserSettingsSection">) => {
+      hidden = input.patch["hiddenChatPluginIds"] as readonly PluginId[];
+      writes += 1;
+      return writes === 1 ? firstWrite : view();
+    },
+  });
+  const component = await mount(<PluginChatVisibilityStory />);
+
+  await page.getByRole("button", { name: "Hide First Plugin" }).click();
+  await firstWrite.requested;
+  await page.getByRole("button", { name: "Hide Second Plugin" }).click();
+  await expect(component.getByText("second body")).toHaveCount(0);
+  await expect
+    .poll(() => recorder.lastInput("settings.updateUserSettingsSection"))
+    .toEqual({ section: "profile", patch: { hiddenChatPluginIds: [FIRST_ID, SECOND_ID] } });
+
+  firstWrite.release(view());
+  await expect(component.getByText("first body")).toHaveCount(0);
   await expect(component.getByText("second body")).toHaveCount(0);
 });

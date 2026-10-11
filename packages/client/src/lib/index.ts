@@ -172,6 +172,7 @@ export {
   SWIPE_NEEDS_REPLY,
   sendUnavailableReason,
 } from "./injection-copy.ts";
+export { publishInlineFlankFit, useInlineFlankFits } from "./inline-flank-fit.ts";
 export { DEAD_INVITE_SENTENCE, inviteRoomSentence, memberCountPhrase } from "./invite-copy.ts";
 export type { ListPaneHeaderProps, ListPaneHeaderView, ListSearchPolicy } from "./list-pane-header-view.ts";
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";

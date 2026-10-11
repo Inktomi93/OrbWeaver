@@ -9,8 +9,8 @@ import { Row } from "@orb/ui/layout";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
-import { usePluginCommands, useRunPluginCommand } from "../hooks/use-plugin-commands.ts";
-import { pluginCommandActionLabel, pluginCommandAttribution } from "../lib/plugin-command-copy.ts";
+import { usePluginCommands, useRunPluginCommand, useSharedPluginNames } from "../hooks/use-plugin-commands.ts";
+import { pluginCommandActionLabel, pluginCommandShownName } from "../lib/plugin-command-copy.ts";
 import { PLUGIN_ICON_GLYPHS } from "../lib/plugin-icon-glyphs.ts";
 
 interface PlacedCommand {
@@ -67,13 +67,12 @@ function comparePlaced(a: PlacedCommand, b: PlacedCommand): number {
 function usePlacedCommands(target: PluginCommandPlacementTarget): readonly PlacedCommand[] {
   const commands = usePluginCommands(true);
   // A display name is not an identity, so the slug stays on screen exactly when two installs share a name.
-  const installsByName = Map.groupBy(commands, (command) => command.pluginName);
-  const isShared = (pluginName: string): boolean => new Set(installsByName.get(pluginName)?.map((command) => command.pluginId)).size > 1;
+  const shared = useSharedPluginNames();
   return commands
     .filter((command) => target === "composer-action" || command.composerDraft !== true)
     .flatMap((command) => {
       const placement = command.placements.find((candidate) => candidate.target === target);
-      const shownName = isShared(command.pluginName) ? pluginCommandAttribution(command.pluginName, command.slug) : command.pluginName;
+      const shownName = pluginCommandShownName(command.pluginName, command.slug, shared);
       return placement === undefined ? [] : [{ command, label: placement.label, icon: placement.icon, shownName }];
     })
     .toSorted(comparePlaced);
