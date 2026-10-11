@@ -41,6 +41,19 @@ export const TAG_STATUSES = ["pending", "accepted"] as const;
 export const tagStatusSchema = z.enum(TAG_STATUSES);
 export type TagStatus = z.infer<typeof tagStatusSchema>;
 
+/** Tags the default-card seeder stamps on its own card; suggesting them back to the reader is noise, so
+ *  neither the suggestion inbox nor the per-tag pending counts include them. */
+const INTERNAL_SEED_TAG_NAMES: ReadonlySet<string> = new Set(["assistant", "default", "utility"]);
+
+/** The normalized form tag names are compared in: case, spacing and punctuation never make a different label. */
+export function normalizeTagName(name: string): string {
+  return name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+export function isInternalSeedTagName(name: string): boolean {
+  return INTERNAL_SEED_TAG_NAMES.has(normalizeTagName(name));
+}
+
 export const createTagSchema = z.object({
   name: z.string().min(NAME_MIN_LENGTH).max(NAME_MAX_LENGTH),
   color: z.string().optional(),

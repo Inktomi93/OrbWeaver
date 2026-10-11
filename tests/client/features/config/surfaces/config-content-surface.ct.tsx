@@ -701,6 +701,32 @@ test("a setting-level landing that resolves after the reader moved focus leaves 
   await expect(picker).not.toBeFocused();
 });
 
+// Assistive technology and `element.focus()` move focus with no press or key event; the late landing still yields.
+test("a setting-level landing that resolves after a focus move made without input events leaves focus alone", async ({ mount, page }) => {
+  const bindings = trpcHold();
+  await stub(page, { "connection.listBindings": bindings });
+  await mount(<ConfigDeepLinkFromDoorStory target="connections" sub="model-roles" setting="chat-model" />);
+
+  await page.getByRole("button", { name: "open the setting", exact: true }).click();
+  await bindings.requested;
+  const search = page.getByRole("combobox", { name: "Search settings" });
+  await search.focus();
+  await page.keyboard.insertText("chat");
+
+  bindings.release([]);
+  const picker = page.getByRole("combobox", { name: "Chat connection", exact: true });
+  await expect(picker).toBeVisible();
+  await expect(page.locator("#config-anchor-connections-model-roles")).toBeInViewport();
+  await page.evaluate(
+    async (): Promise<void> =>
+      await new Promise((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
+  await expect(search).toBeFocused();
+  await expect(picker).not.toBeFocused();
+});
+
 test("a group-only deep link still lands at the TOP of the group (no phantom jump)", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<ConfigHostStory target="chat-behavior" />);

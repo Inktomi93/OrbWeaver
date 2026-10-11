@@ -119,7 +119,10 @@ export function FormDialog({
         {/* The footer is pinned outside the scroll body: the popup clamps to the viewport, so a tall body
             scrolls inside it while the actions this composite owns stay visible on a phone. */}
         <Stack className="min-h-0 flex-1" gap="block">
-          <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="block">
+          {/* `-mx-block px-block`: overflow-y:auto also clips the inline axis, so a control flush with the body's edge
+              (a 44px touch pseudo wider than its glyph) would be cut. The padding moves the clip outward past
+              that overhang; the matching negative margin leaves the content where it was. */}
+          <Stack className="relative -mx-block min-h-0 flex-1 overflow-y-auto overscroll-contain px-block" gap="block">
             <DialogTitle className={closeButton ? "pe-control-md" : ""}>{title}</DialogTitle>
             {description === undefined ? null : <DialogDescription>{description}</DialogDescription>}
             {submit === undefined ? (

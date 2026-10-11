@@ -3,7 +3,7 @@
 // sibling `junctions.ts`.
 
 import type { TagFilterVocabularyEntry, TagSource, TagSuggestionView, TagTargetRef, TagTargetType, TagView, TagWithUsage } from "@orb/contracts/tag";
-import { TAG_REACH_PREVIEW_LIMIT } from "@orb/contracts/tag";
+import { isInternalSeedTagName, TAG_REACH_PREVIEW_LIMIT } from "@orb/contracts/tag";
 import type { Db } from "@orb/db";
 import {
   characters as charactersTable,
@@ -331,7 +331,7 @@ export async function listOwnedTagsWithUsage(db: Db, ownerId: UserId): Promise<T
       total: 0,
     };
     usage.total = usage.characters + usage.chats + usage.worldBooks + usage.personas + usage.presets;
-    return { ...toTagView(row), usage, pendingSuggestions: (allCharacters[row.id] ?? 0) - usage.characters };
+    return { ...toTagView(row), usage, pendingSuggestions: isInternalSeedTagName(row.name) ? 0 : (allCharacters[row.id] ?? 0) - usage.characters };
   });
 }
 
