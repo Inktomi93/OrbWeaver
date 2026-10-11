@@ -34,6 +34,8 @@ export function markChatReturned(chatId: ChatId): void {
   useChatReturnStore.setState({ origin: null, returned: { chatId, focusPending: true } }, false, "chat-return/returned");
 }
 
+/** Spend the focus claim. Any section change spends it too: a row that mounts after the user has moved on must
+ *  not take focus. */
 export function consumeReturnFocus(): void {
   const { returned } = useChatReturnStore.getState();
   if (returned?.focusPending === true) {

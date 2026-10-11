@@ -6,6 +6,7 @@
 
 import { isPlainObject } from "@orb/kit/guards";
 import { withViewTransition } from "../lib/view-transition.ts";
+import { consumeReturnFocus } from "./chat-return-store.ts";
 import { healCorpusModeFrom } from "./corpus-mode-store.ts";
 import { createPersistedStore } from "./create-persisted-store.ts";
 import type { ModalSlotId } from "./modal-slot-ids.ts";
@@ -204,6 +205,7 @@ export function withContentSwap(update: () => void): void {
 /** Switch the active rail section. Also closes any open slide-over — a rail-tab tap
  *  must land on the new section's own layout, never carry the prior section's open sheet/overlay across. */
 export function setActiveSection(id: SectionId): void {
+  consumeReturnFocus();
   // A rail-section swap is an in-app pane change at a constant route, so the router's VT never fires —
   // drive it by hand (and drop any CONTENT-scoped float with it) so every writer of the section inherits
   // both halves for free.

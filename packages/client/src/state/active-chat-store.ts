@@ -241,13 +241,14 @@ export function selectChatFromList(chatId: ChatId): void {
 function leaveRoom(): void {
   const { handle } = useActiveChatStore.getState();
   const origin = chatOrigin();
+  // The section change expires any older focus claim, so it comes before the new claim is made.
+  if (origin !== null) {
+    setActiveSection(origin);
+  }
   if (isCommitted(handle)) {
     markChatReturned(handle.id);
   }
   goToLanding();
-  if (origin !== null) {
-    setActiveSection(origin);
-  }
 }
 
 /** The section-registry SEAM (`SectionSelection`) — what the SHELL reads for the mobile ONE-SHELL rule.

@@ -147,6 +147,7 @@ import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat
 import { ChatImportDialog } from "../../../../packages/client/src/features/chat/components/chat-import-dialog.tsx";
 import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu.tsx";
 import { ChatRecallIndicator } from "../../../../packages/client/src/features/chat/components/chat-recall-indicator.tsx";
+import { ChatSummaryRow } from "../../../../packages/client/src/features/chat/components/chat-summary-row.tsx";
 import { ChatsTopbarHeader } from "../../../../packages/client/src/features/chat/components/chats-topbar-header.tsx";
 import { ChoiceSendProvider } from "../../../../packages/client/src/features/chat/components/choice-send-provider.tsx";
 import { CommittedMembersTab } from "../../../../packages/client/src/features/chat/components/committed-members-tab.tsx";
@@ -199,7 +200,7 @@ import type { SlashArgOffer } from "../../../../packages/client/src/lib/contribu
 import { CtAppDataProviders, CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
-import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures.ts";
+import { CHAT_ID, COMPOSER_CHAT_ID, makeChatSummary, makeMessageView } from "./fixtures.ts";
 
 // The door's empty chat-surface registry (§6c/M8) — stories that don't test the seam itself pass this,
 // mirroring main.tsx's zero-contribution assembly (no visual change over today's layout).
@@ -1658,6 +1659,33 @@ export function ChatListReturnStory(): ReactElement {
           leave the room
         </button>
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** The returned-row focus claim: one row for chat A that can be made inert (a collapsed sheet), a field to
+ *  hold focus elsewhere, and a button that mounts a second row for A later. */
+export function ReturnedRowClaimStory(): ReactElement {
+  const [inert, setInert] = useState(false);
+  const [second, setSecond] = useState(false);
+  const chat = { ...makeChatSummary({ title: "Room A" }), id: castId<ChatId>("chat_claim_a") };
+  return (
+    <CtDataProviders>
+      <div inert={inert}>
+        <ChatSummaryRow chat={chat} onSelect={selectChat} />
+      </div>
+      <button onClick={(): void => setInert(true)} type="button">
+        make inert
+      </button>
+      <button onClick={(): void => chatSectionSelection.clear()} type="button">
+        leave the room
+      </button>
+      <input aria-label="elsewhere" />
+      {/* mousedown is default-prevented so the click leaves focus where the test put it */}
+      <button onClick={(): void => setSecond(true)} onMouseDown={(event): void => event.preventDefault()} type="button">
+        mount second list
+      </button>
+      {second ? <ChatSummaryRow chat={chat} onSelect={selectChat} /> : null}
     </CtDataProviders>
   );
 }
