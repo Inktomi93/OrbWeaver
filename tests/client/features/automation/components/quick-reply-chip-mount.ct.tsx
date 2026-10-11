@@ -23,6 +23,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
+import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { AutomationChipsStory } from "../../chat/_ct-stories.tsx";
@@ -51,10 +52,7 @@ function chipsFrame(choices: QuickReplyChoices): StreamFrame {
 /** The room floor (the band CT's own `routeRoom`, plus the bus's attach mutations so `routeOrbSocket` owns the
  *  socket while the batched attaches still resolve), then the socket with an attach handshake gated on the
  *  AUTOMATION room specifically. */
-async function routeRoom(
-  page: Page,
-  frames: readonly StreamFrame[],
-): Promise<{ readonly count: (p: string) => number; readonly lastInput: (p: string) => unknown }> {
+async function routeRoom(page: Page, frames: readonly StreamFrame[]): Promise<TrpcRecorder> {
   const trpc = await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...STREAM_MUTATION_ROUTES,
@@ -119,8 +117,7 @@ test("send mode: clicking a chip posts the arm's rendered sendText as the member
   await component.getByRole("button", { name: "Draw your blade" }).click();
 
   await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBe(1);
-  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll settled the recorder — the send is recorded, so its input is a fixed value.
-  expect((trpc.lastInput("chat.send") as { readonly content?: string }).content).toBe("I draw my blade.");
+  expect(trpc.requireLastInput("chat.send").content).toBe("I draw my blade.");
 });
 
 test("compose mode: clicking a chip seeds THIS room's composer draft and fires NO send", async ({ mount, page }) => {

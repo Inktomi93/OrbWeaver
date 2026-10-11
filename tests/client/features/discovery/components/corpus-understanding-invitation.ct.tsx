@@ -130,7 +130,7 @@ test("the door ENQUEUES the pass — distill, then the backfill, then themes cha
   // at all — the shipped chain gated themes on distill and then ran it over a digest plane nobody had filled,
   // which "succeeded" at zero written. The backfill is the stage that actually produces its input.
   await expect.poll(() => recorder.count("workloads.start")).toBe(3);
-  const [first, second, third] = recorder.inputs("workloads.start") as { input: { kind: string }; dependsOn?: string[] }[];
+  const [first, second, third] = recorder.inputs("workloads.start");
   expect(first?.input.kind).toBe("distill-characters");
   expect(second?.input.kind).toBe("memory-backfill");
   expect(third?.input.kind).toBe("compute-themes");
@@ -157,7 +157,7 @@ test("MEMORY OFF: the pass enqueues distill ALONE, says why, and offers the swit
   await door.click();
 
   await expect.poll(() => recorder.count("workloads.start")).toBe(1);
-  const [only] = recorder.inputs("workloads.start") as { input: { kind: string } }[];
+  const [only] = recorder.inputs("workloads.start");
   expect(only?.input.kind).toBe("distill-characters");
 });
 
@@ -241,7 +241,7 @@ test("A PASS THAT CALLS A MODEL confirms with its count first, and enqueues only
     .poll(() =>
       recorder
         .inputs("workloads.estimateModelCalls")
-        .map((input) => (input as { input: { kind: string } }).input.kind)
+        .map((input) => input.input.kind)
         .toSorted(),
     )
     .toEqual(["compute-themes", "distill-characters", "memory-backfill"]);

@@ -6,21 +6,16 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
 import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AppearanceAvatarsSectionStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_avatars", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
-const UPDATE_PROC = "settings.updateUserSettingsSection";
 const OWNED_KEYS = ["avatarAspect", "avatarRing", "avatarShape", "avatarSize", "showInChatAvatars"];
 
 function stub(page: Page): Promise<TrpcRecorder> {
-  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => SETTINGS_VIEW });
-}
-
-function lastPatch(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  const input = trpc.lastInput(UPDATE_PROC) as { section?: string; patch?: Record<string, unknown> } | undefined;
-  return input?.section === "appearance" ? input.patch : undefined;
+  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
 }
 
 test("mounts with the persisted defaults rendered", async ({ mount, page }) => {
@@ -36,26 +31,26 @@ test("avatar size/shape/aspect/ring each patch their key, and the payload stays 
 
   await page.getByRole("combobox", { name: "Avatar size" }).click();
   await page.getByRole("option", { name: "Medium" }).click();
-  await expect.poll(() => lastPatch(trpc)?.["avatarSize"], { intervals: [20, 50, 100] }).toBe("md");
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["avatarSize"], { intervals: [20, 50, 100] }).toBe("md");
 
   await page.getByRole("combobox", { name: "Avatar shape" }).click();
   await page.getByRole("option", { name: "Square", exact: true }).click();
-  await expect.poll(() => lastPatch(trpc)?.["avatarShape"], { intervals: [20, 50, 100] }).toBe("square");
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["avatarShape"], { intervals: [20, 50, 100] }).toBe("square");
 
   await page.getByRole("combobox", { name: "Avatar aspect" }).click();
   await page.getByRole("option", { name: "Portrait (2:3)" }).click();
-  await expect.poll(() => lastPatch(trpc)?.["avatarAspect"], { intervals: [20, 50, 100] }).toBe("portrait");
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["avatarAspect"], { intervals: [20, 50, 100] }).toBe("portrait");
 
   await page.getByRole("combobox", { name: "Avatar ring" }).click();
   await page.getByRole("option", { name: "Accent" }).click();
-  await expect.poll(() => lastPatch(trpc)?.["avatarRing"], { intervals: [20, 50, 100] }).toBe("accent");
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["avatarRing"], { intervals: [20, 50, 100] }).toBe("accent");
 
   // The settled patch holds every OWNED field (the autosave listener submits the whole SECTION value) and
   // nothing else — P1: five keys, not the 41-key appearance blob.
   await expect
-    .poll(() => lastPatch(trpc), { intervals: [20, 50, 100] })
+    .poll(() => lastSettingsPatch(trpc, "appearance"), { intervals: [20, 50, 100] })
     .toMatchObject({ avatarSize: "md", avatarShape: "square", avatarAspect: "portrait", avatarRing: "accent" });
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  expect(Object.keys(lastSettingsPatch(trpc, "appearance") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 });
 
 // side-eye 2026-08-16 P2: with `Show avatars in chat` OFF, all four dependent comboboxes reported
@@ -88,6 +83,6 @@ test("the show-avatars switch patches showInChatAvatars, still key-minimal", asy
   await mount(<AppearanceAvatarsSectionStory />);
   await page.getByRole("switch", { name: "Show avatars in chat" }).click();
 
-  await expect.poll(() => lastPatch(trpc)?.["showInChatAvatars"], { intervals: [20, 50, 100] }).toBe(false);
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["showInChatAvatars"], { intervals: [20, 50, 100] }).toBe(false);
+  expect(Object.keys(lastSettingsPatch(trpc, "appearance") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 });

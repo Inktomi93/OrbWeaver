@@ -22,6 +22,7 @@ import type { SubscriptionErrorPayload } from "../../../support/node/route-orb-s
 import { routeOrbSocket } from "../../../support/node/route-orb-socket.ts";
 import type { TrpcFixtureOutput, TrpcInput, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../support/node/route-trpc.ts";
+import { SIGNED_IN_OWNER_ME, SIGNED_OUT_ME, stubAuthMe } from "../../../support/node/stub-auth-me.ts";
 import { RpgBusStory, SocketFaultToastStory, TwoRoomStory, UserBusStory } from "./_ct-stories.tsx";
 import { STREAM_MUTATION_ROUTES } from "./fixtures.ts";
 
@@ -177,13 +178,9 @@ test("TWO rooms cost ONE connect, and each room's frames reach only its own cons
 /** Stub the public session probe + count its hits — the observable that recovery ENTERED. */
 async function routeAuthMe(page: Page, authenticated: boolean): Promise<() => number> {
   let hits = 0;
-  await page.route("**/api/auth/me", async (route) => {
+  await stubAuthMe(page, () => {
     hits += 1;
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ authenticated, handle: authenticated ? "owner" : null, role: authenticated ? "owner" : null }),
-    });
+    return authenticated ? SIGNED_IN_OWNER_ME : SIGNED_OUT_ME;
   });
   return (): number => hits;
 }

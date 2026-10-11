@@ -277,10 +277,10 @@ test("Accept fires acceptInvite with the notification's inviteId, then dismisses
   await page.getByRole("button", { name: "Accept invitation from alex" }).click();
 
   await expect.poll(() => trpc.count("invites.acceptInvite"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  await expect.poll(async () => (trpc.lastInput("invites.acceptInvite") as { inviteId?: unknown }).inviteId).toBe("chatinvite_ct_1");
+  await expect.poll(async () => trpc.requireLastInput("invites.acceptInvite").inviteId).toBe("chatinvite_ct_1");
   // Acting on the invite clears its inbox row.
   await expect.poll(() => trpc.count("notifications.dismiss"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  await expect.poll(async () => (trpc.lastInput("notifications.dismiss") as { notificationId?: unknown }).notificationId).toBe("ntf_ct_1");
+  await expect.poll(async () => trpc.requireLastInput("notifications.dismiss").notificationId).toBe("ntf_ct_1");
 });
 
 test("each inbox row owns its pending action: double-click is singular while a sibling stays actionable", async ({ mount, page }) => {
@@ -302,10 +302,8 @@ test("each inbox row owns its pending action: double-click is singular while a s
     "notifications.list": () => ({ items: [first, second], nextCursor: null }),
     "notifications.markAllRead": () => ({ markedCount: 2 }),
     "notifications.dismiss": () => dismissedRow(inviteRow()),
-    "invites.acceptInvite": (input: unknown) =>
-      (input as { inviteId?: string }).inviteId === "chatinvite_ct_1"
-        ? held
-        : { chat: { id: "chat_ct_second", participants: [] }, participant: { id: "participant_ct_second" } },
+    "invites.acceptInvite": (input) =>
+      input.inviteId === "chatinvite_ct_1" ? held : { chat: { id: "chat_ct_second", participants: [] }, participant: { id: "participant_ct_second" } },
   });
   await routeInboxStream(page, []);
 
@@ -353,7 +351,7 @@ test("Decline fires declineInvite + dismisses; the row leaves the inbox on refet
   // The invalidate refetched the (now empty) inbox — the row is gone without a reload; this DOM
   // consequence is downstream of both the decline call and the dismiss, so await it directly.
   await expect(page.getByText("Invited to a chat by alex")).toHaveCount(0);
-  await expect.poll(async () => (trpc.lastInput("invites.declineInvite") as { inviteId?: unknown }).inviteId).toBe("chatinvite_ct_1");
+  await expect.poll(async () => trpc.requireLastInput("invites.declineInvite").inviteId).toBe("chatinvite_ct_1");
   await expect.poll(() => trpc.count("notifications.dismiss")).toBeGreaterThanOrEqual(1);
 });
 
@@ -579,7 +577,7 @@ test("Accept opens a confirm that reads out what the offer copies — and fires 
   await dialog.getByRole("button", { name: "Accept", exact: true }).click();
 
   await expect.poll(() => trpc.count("invites.acceptHostHandoff"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  await expect.poll(async () => (trpc.lastInput("invites.acceptHostHandoff") as { chatId?: unknown }).chatId).toBe("chat_ct_target");
+  await expect.poll(async () => trpc.requireLastInput("invites.acceptHostHandoff").chatId).toBe("chat_ct_target");
   // Acting on the nomination clears its inbox row.
   await expect.poll(() => trpc.count("notifications.dismiss"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
 });

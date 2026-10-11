@@ -280,7 +280,7 @@ test("typing reaches the WHOLE library — a character past the first page is fi
 
   await component.getByRole("combobox").fill("zephyr");
 
-  await expect.poll(() => (trpc.lastInput("character.list") as { search?: string } | undefined)?.search, { intervals: [50, 100, 200] }).toBe("zephyr");
+  await expect.poll(() => trpc.lastInput("character.list")?.search, { intervals: [50, 100, 200] }).toBe("zephyr");
   await expect(component.getByText("Zephyrine")).toBeVisible();
 });
 

@@ -329,7 +329,7 @@ test("a partial failure says the key IS saved and the connection is NOT, and the
   await expect(dialog).toBeHidden();
   await expect.poll(() => trpc.count("credentials.add")).toBe(1);
   await expect
-    .poll(() => trpc.inputs("connection.create").map((input) => (input as { readonly credentialId: string }).credentialId))
+    .poll(() => trpc.inputs("connection.create").map((input) => input.credentialId))
     .toEqual(["user_credential_ctminted001", "user_credential_ctminted001"]);
   await expect(component.getByTestId("held-secrets")).toHaveText("0");
 });
@@ -368,7 +368,7 @@ test("a keyed endpoint's partial-failure retry keeps the list and saves the list
 
   await submit(dialog);
   await expect(dialog).toBeHidden();
-  await expect.poll(() => trpc.inputs("connection.create").map((input) => (input as { readonly modelCheck: string }).modelCheck)).toEqual(["listed", "listed"]);
+  await expect.poll(() => trpc.inputs("connection.create").map((input) => input.modelCheck)).toEqual(["listed", "listed"]);
   await expect.poll(() => trpc.count("credentials.add")).toBe(1);
 });
 

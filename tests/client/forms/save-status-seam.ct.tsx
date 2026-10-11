@@ -7,6 +7,7 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { UPDATE_USER_SETTINGS_SECTION } from "../../support/node/last-settings-patch.ts";
 import type { TrpcRoutes } from "../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { UTILITY_RUNNING_ROUTES } from "../../support/node/utility-role.ts";
@@ -20,7 +21,6 @@ const SETTINGS_VIEW = {
   updatedAt: 0,
   configUnreadable: null,
 };
-const UPDATE_PROC = "settings.updateUserSettingsSection";
 /** The viewer identity every settings-shell mount resolves for pane nav (`sessions.me`, e.g.
  *  `use-settings-viewer-view.ts`) — feeding it runs that resolution for real instead of the no-data branch. */
 const VIEWER = { userId: "user_ct_save_seam", globalRole: "user" as const, handle: "save_seam" };
@@ -51,7 +51,7 @@ test("HOSTED: reporting sections stay quiet and the host shows ONE aggregate", a
     // The chat-behavior pane's Memory section reads the Utility role.
     ...UTILITY_RUNNING_ROUTES,
     "settings.getUserSettings": () => SETTINGS_VIEW,
-    [UPDATE_PROC]: () => SETTINGS_VIEW,
+    [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW,
     "sessions.me": () => VIEWER,
   });
   await mount(<ConfigHostStory />);
@@ -71,7 +71,7 @@ test("DEGRADED: with no host above it, a section renders its own inline status",
   await routeTrpc(page, {
     ...LIST_ROSTER_ROUTES,
     "settings.getUserSettings": () => SETTINGS_VIEW,
-    [UPDATE_PROC]: () => SETTINGS_VIEW,
+    [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW,
   });
   await mount(<WorldInfoSettingsSectionStory />);
 

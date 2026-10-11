@@ -10,12 +10,12 @@ import type { UserSettings } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
 import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
-import type { TrpcFixtureOutput, TrpcInput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ProseSettingsSectionStory } from "../_ct-stories.tsx";
 
-const UPDATE_PROC = "settings.updateUserSettingsSection";
 const ARBITER = "chat.arbiter.system";
 // A SECOND user-home slot that ALSO carries a required token, for the "untouched rides null" + lint proofs.
 // Was `chat.group.roundNudge` until the F4 re-home moved the group framings (and their `{{name}}`) to the
@@ -28,7 +28,6 @@ const ARBITER_FIELD = PROSE_SLOTS[ARBITER].title;
 const DIGEST_FIELD = PROSE_SLOTS[DIGEST].title;
 
 type ProseOverrides = UserSettings["prose"];
-type SettingsSectionInput = TrpcInput<"settings.updateUserSettingsSection">;
 
 function settingsView(prose: ProseOverrides = {}): TrpcFixtureOutput<"settings.getUserSettings"> {
   return { userId: "user_ct_prose", schemaVersion: 7, config: { ...DEFAULT_USER_SETTINGS, prose }, configUnreadable: null, updatedAt: 0 };
@@ -37,14 +36,8 @@ function settingsView(prose: ProseOverrides = {}): TrpcFixtureOutput<"settings.g
 function stub(page: Page, prose?: ProseOverrides): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "settings.getUserSettings": () => settingsView(prose),
-    [UPDATE_PROC]: () => settingsView(prose),
+    [UPDATE_USER_SETTINGS_SECTION]: () => settingsView(prose),
   });
-}
-
-/** The most recent prose-section patch body. */
-function lastPatch(trpc: TrpcRecorder): SettingsSectionInput["patch"] | undefined {
-  const input = trpc.lastInput(UPDATE_PROC) as SettingsSectionInput | undefined;
-  return input?.section === "prose" ? input.patch : undefined;
 }
 
 test("a virgin section ghosts each shipped default as the field placeholder (empty ⇒ use the built-in)", async ({ mount, page }) => {
@@ -64,10 +57,10 @@ test("typing an override fires updateUserSettingsSection('prose') stamped at the
   await arbiter.fill("Pick whoever has been quiet longest.");
   await arbiter.blur();
   await expect
-    .poll(() => lastPatch(trpc)?.[ARBITER], { intervals: [20, 50, 100] })
+    .poll(() => lastSettingsPatch(trpc, "prose")?.[ARBITER], { intervals: [20, 50, 100] })
     .toEqual({ text: "Pick whoever has been quiet longest.", baseVersion: PROSE_SLOTS[ARBITER].version });
   // An untouched slot rides as null (it has no override to preserve) — the patch spells every slot.
-  expect(lastPatch(trpc)?.[DIGEST]).toBeNull();
+  expect(lastSettingsPatch(trpc, "prose")?.[DIGEST]).toBeNull();
 });
 
 test("clearing an existing override sends the leaf null (reset to the shipped wording)", async ({ mount, page }) => {
@@ -77,7 +70,7 @@ test("clearing an existing override sends the leaf null (reset to the shipped wo
   await expect(arbiter).toHaveValue("an existing arbiter prompt");
   await arbiter.fill("");
   await arbiter.blur();
-  await expect.poll(() => lastPatch(trpc)?.[ARBITER], { intervals: [20, 50, 100] }).toBeNull();
+  await expect.poll(() => lastSettingsPatch(trpc, "prose")?.[ARBITER], { intervals: [20, 50, 100] }).toBeNull();
 });
 
 test("the Reset-to-built-in button clears the field, and the write clears the override", async ({ mount, page }) => {
@@ -86,7 +79,7 @@ test("the Reset-to-built-in button clears the field, and the write clears the ov
   const card = page.getByRole("group", { name: ARBITER_FIELD });
   await card.getByRole("button", { name: "Reset to built-in" }).click();
   await expect(page.getByRole("textbox", { name: ARBITER_FIELD, exact: true })).toHaveValue("");
-  await expect.poll(() => lastPatch(trpc)?.[ARBITER], { intervals: [20, 50, 100] }).toBeNull();
+  await expect.poll(() => lastSettingsPatch(trpc, "prose")?.[ARBITER], { intervals: [20, 50, 100] }).toBeNull();
 });
 
 // ── THE PROSE CAP (the same verifier finding, on this editor's half of the class) ─────────────────────
@@ -140,7 +133,7 @@ test("PROSE CAP — an ALREADY-over-cap stored override shows its real text and 
   // THE PIN: no write. The debounce plus a full round-trip have had their chance.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 900)));
   // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the preceding 900ms real-timer wait IS the negative-assertion window.
-  expect(trpc.count(UPDATE_PROC)).toBe(0);
+  expect(trpc.count(UPDATE_USER_SETTINGS_SECTION)).toBe(0);
   // The block is legible: this surface's cards are bound `<Field>`s, so the refusal renders as the field's
   // own error (with the aria-invalid wiring), not as a hand-rolled badge.
   await expect(arbiter).toHaveAttribute("aria-invalid", "true");
@@ -150,7 +143,9 @@ test("PROSE CAP — an ALREADY-over-cap stored override shows its real text and 
 
   // …AND IT LIFTS. A form that stayed invalid forever would be worse than the bug being fixed.
   await arbiter.fill("y".repeat(3000));
-  await expect.poll(() => (lastPatch(trpc)?.[ARBITER] as { text?: string } | null | undefined)?.text?.length, { intervals: [100, 200, 300, 500] }).toBe(3000);
+  await expect
+    .poll(() => (lastSettingsPatch(trpc, "prose")?.[ARBITER] as { text?: string } | null | undefined)?.text?.length, { intervals: [100, 200, 300, 500] })
+    .toBe(3000);
 });
 
 // ── THE GEOMETRY OF THE REFUSAL (side-eye PROSE-LIMIT P1/P2/P3) ───────────────────────────────────────
@@ -230,6 +225,6 @@ test("a required token dropped from an override lints — a warn, never a block"
   await expect(card.getByText("Missing keywords:")).toBeVisible();
   // The lint never blocks: the edit still saves.
   await expect
-    .poll(() => lastPatch(trpc)?.[DIGEST], { intervals: [20, 50, 100] })
+    .poll(() => lastSettingsPatch(trpc, "prose")?.[DIGEST], { intervals: [20, 50, 100] })
     .toEqual({ text: "Just summarize the block.", baseVersion: PROSE_SLOTS[DIGEST].version });
 });

@@ -249,7 +249,7 @@ test("a REJECTED save is not recorded as saved — leaving the tab re-sends the 
   // The edit was never persisted, so the ONE teardown flush must re-send it. A swallowed rejection makes
   // this stay at 1 forever, with the edit gone.
   await expect.poll(() => trpc.count("chat.setGroupConfig"), { intervals: [20, 50, 100, 200] }).toBe(2);
-  await expect.poll(() => (trpc.lastInput("chat.setGroupConfig") as { config?: { output?: string } } | undefined)?.config?.output).toBe("narrator");
+  await expect.poll(() => trpc.lastInput("chat.setGroupConfig")?.config?.output).toBe("narrator");
 });
 
 // The other direction, so a fix that simply always re-flushes cannot pass: a save that LANDED is the new

@@ -5,6 +5,7 @@
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { AuthConfig } from "#client/data/auth-config.ts";
+import { SIGNED_OUT_ME, stubAuthMe } from "../../support/node/stub-auth-me.ts";
 import { ProductionRouterAliasStory, ProductionRouterOverlapStory, ProductionRouterStory, RouterTokenHandoffStory } from "./_ct-stories.tsx";
 
 const JOIN_TOKEN = "ct-join-token";
@@ -39,12 +40,12 @@ const INVITE_CONFIG: AuthConfig = {
 test("a slow auth read on a signed-out /join landing reaches the invite form, not the crash fallback", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   const meReads: string[] = [];
-  await page.route("**/api/auth/me", async (route) => {
-    meReads.push(route.request().url());
+  await stubAuthMe(page, async (request) => {
+    meReads.push(request.url());
     await new Promise<void>((resolve) => {
       setTimeout(resolve, SLOW_ME_MS);
     });
-    await route.fulfill({ status: 200, json: { authenticated: false, handle: null, role: null } });
+    return SIGNED_OUT_ME;
   });
   await page.route("**/api/auth/config", (route) => route.fulfill({ status: 200, json: INVITE_CONFIG }));
   await page.route("**/api/auth/signup/preview", (route) => route.fulfill({ status: 200, json: ROOM }));
@@ -65,7 +66,7 @@ test("a slow auth read on a signed-out /join landing reaches the invite form, no
 });
 
 test("the /analytics alias heals to Corpus Insights before the auth redirect", async ({ mount, page }) => {
-  await page.route("**/api/auth/me", (route) => route.fulfill({ status: 200, json: { authenticated: false, handle: null, role: null } }));
+  await stubAuthMe(page, SIGNED_OUT_ME);
   await page.route("**/api/auth/config", (route) => route.fulfill({ status: 200, json: INVITE_CONFIG }));
   await page.evaluate(() => globalThis.history.replaceState(null, "", "/analytics"));
   await mount(<ProductionRouterAliasStory />);
@@ -77,10 +78,10 @@ test("the /analytics alias heals to Corpus Insights before the auth redirect", a
 test("overlapping navigations during a slow guard settle on the latest login location", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   let reads = 0;
-  await page.route("**/api/auth/me", async (route) => {
+  await stubAuthMe(page, async () => {
     reads += 1;
     await new Promise<void>((resolve) => setTimeout(resolve, SLOW_ME_MS));
-    await route.fulfill({ status: 200, json: { authenticated: false, handle: null, role: null } });
+    return SIGNED_OUT_ME;
   });
   await page.route("**/api/auth/config", (route) => route.fulfill({ status: 200, json: INVITE_CONFIG }));
   await page.evaluate(() => globalThis.history.replaceState(null, "", "/login"));
@@ -115,7 +116,7 @@ test("a signed-in handoff keeps the token once and replaces only its query field
 });
 
 test("leaving an OIDC pending join replaces only pendingJoin and keeps other query bytes and hash", async ({ mount, page }) => {
-  await page.route("**/api/auth/me", (route) => route.fulfill({ status: 200, json: { authenticated: false, handle: null, role: null } }));
+  await stubAuthMe(page, SIGNED_OUT_ME);
   await page.route("**/api/auth/config", (route) =>
     route.fulfill({ status: 200, json: { ...INVITE_CONFIG, mode: "oidc", oidcEnabled: true, localEnabled: false } }),
   );

@@ -38,6 +38,7 @@ import { pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { touchDrag } from "../../../../support/browser/weave-drive.ts";
 import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { defineTrpcRoutes, routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
+import { SIGNED_IN_OWNER_ME, stubAuthMe } from "../../../../support/node/stub-auth-me.ts";
 import { makeCharacterDetail, makeCharacterSummary } from "../../character/fixtures.ts";
 import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
 import { GrainDoublePaintFixture, OverArtGlassCensusFixture, ShellCascadeFixture } from "../_cascade-fixtures.tsx";
@@ -1658,9 +1659,7 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
       body: JSON.stringify({ mode: "local", requiresLogin: true, localEnabled: true, oidcEnabled: false, discreetLogin: false, defaultHandle: "owner" }),
     }),
   );
-  await page.route("**/api/auth/me", (route) =>
-    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ authenticated: true, handle: "owner", role: "owner" }) }),
-  );
+  await stubAuthMe(page, SIGNED_IN_OWNER_ME);
   const shell = await mount(<AppShellStory />);
   await shell.getByRole("button", { name: "You", exact: true }).click();
 

@@ -32,7 +32,7 @@ function stub(page: Page, overrides: Partial<AppSettingsOverrides> = {}): Promis
 
 /** The most recent updateAppSettings `partial` body. */
 function lastPartial(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  const input = trpc.lastInput(UPDATE_PROC) as { partial?: Record<string, unknown> } | undefined;
+  const input = trpc.lastInput(UPDATE_PROC);
   return input?.partial;
 }
 

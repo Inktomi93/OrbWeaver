@@ -10,25 +10,19 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
+import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
 import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AppearanceMessageStyleNarrowStory, AppearanceMessageStyleSectionStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_message_style", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
-const UPDATE_PROC = "settings.updateUserSettingsSection";
 const OWNED_KEYS = ["autoFixMarkdown", "chatStyle", "colorQuotedSpeech"];
 /** Re-spelled, not imported from `THEME_CHAT_STYLES` — a ninth mode shipping without a gloss must RED
  *  here rather than agree with the code by construction. */
 const CHAT_STYLE_COUNT = 8;
 
 function stub(page: Page): Promise<TrpcRecorder> {
-  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => SETTINGS_VIEW });
-}
-
-/** The most recent `appearance` section-patch body. */
-function lastPatch(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  const input = trpc.lastInput(UPDATE_PROC) as { section?: string; patch?: Record<string, unknown> } | undefined;
-  return input?.section === "appearance" ? input.patch : undefined;
+  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
 }
 
 test("mounts with the persisted defaults rendered — the default mode's CARD is the pressed one", async ({ mount, page }) => {
@@ -48,10 +42,10 @@ test("changing chat display patches the `appearance` section with ONLY this sect
   await mount(<AppearanceMessageStyleSectionStory />);
   await page.getByRole("radio", { name: "Flat", exact: true }).click();
 
-  await expect.poll(() => lastPatch(trpc)?.["chatStyle"], { intervals: [20, 50, 100] }).toBe("flat");
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["chatStyle"], { intervals: [20, 50, 100] }).toBe("flat");
   // P1: no sibling section's key rides along — a full-blob patch here would clobber whatever Avatars or
   // Background just saved (the lost-update SET-SEAMS §2.1 describes).
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  expect(Object.keys(lastSettingsPatch(trpc, "appearance") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 });
 
 test("the auto-fix switch patches autoFixMarkdown, still key-minimal", async ({ mount, page }) => {
@@ -59,8 +53,8 @@ test("the auto-fix switch patches autoFixMarkdown, still key-minimal", async ({ 
   await mount(<AppearanceMessageStyleSectionStory />);
   await page.getByRole("switch", { name: "Auto-fix unfinished formatting" }).click();
 
-  await expect.poll(() => lastPatch(trpc)?.["autoFixMarkdown"], { intervals: [20, 50, 100] }).toBe(true);
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["autoFixMarkdown"], { intervals: [20, 50, 100] }).toBe(true);
+  expect(Object.keys(lastSettingsPatch(trpc, "appearance") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 });
 
 // side-eye 2026-08-16 P2, RE-PINNED ON THE CARDS (#866 §7.8 — the Select's popup died with the flip; the

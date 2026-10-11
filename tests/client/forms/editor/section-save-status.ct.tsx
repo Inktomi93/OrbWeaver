@@ -5,6 +5,7 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { UPDATE_USER_SETTINGS_SECTION } from "../../../support/node/last-settings-patch.ts";
 import { routeTrpc, trpcError } from "../../../support/node/route-trpc.ts";
 import { UTILITY_RUNNING_ROUTES } from "../../../support/node/utility-role.ts";
 import { ConfigHostStory } from "../../features/config/_ct-stories.tsx";
@@ -16,7 +17,6 @@ const SETTINGS_VIEW = {
   updatedAt: 0,
   configUnreadable: null,
 };
-const UPDATE_PROC = "settings.updateUserSettingsSection";
 /** The viewer identity every settings-shell mount resolves for pane nav (`sessions.me`, e.g.
  *  `use-settings-viewer-view.ts`) — feeding it runs that resolution for real instead of the no-data branch. */
 const VIEWER = { userId: "user_ct_section_status", globalRole: "user" as const, handle: "section_status" };
@@ -24,7 +24,7 @@ const VIEWER = { userId: "user_ct_section_status", globalRole: "user" as const, 
 test("a failing section renders inline at its anchor WITH a retry, even while hosted", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "settings.getUserSettings": () => SETTINGS_VIEW,
-    [UPDATE_PROC]: () => trpcError({ code: "INTERNAL_SERVER_ERROR", message: "nope" }),
+    [UPDATE_USER_SETTINGS_SECTION]: () => trpcError({ code: "INTERNAL_SERVER_ERROR", message: "nope" }),
     "sessions.me": () => VIEWER,
     // The chat-behavior pane's Memory section reads the Utility role.
     ...UTILITY_RUNNING_ROUTES,
@@ -56,9 +56,9 @@ test("a failing section renders inline at its anchor WITH a retry, even while ho
   await expect(retry).toBeVisible();
 
   // The retry is the SECTION's own: it re-fires that section's write, never a broadcast.
-  const before = trpc.count(UPDATE_PROC);
+  const before = trpc.count(UPDATE_USER_SETTINGS_SECTION);
   await retry.click();
-  await expect.poll(() => trpc.count(UPDATE_PROC), { intervals: [20, 50, 100] }).toBeGreaterThan(before);
+  await expect.poll(() => trpc.count(UPDATE_USER_SETTINGS_SECTION), { intervals: [20, 50, 100] }).toBeGreaterThan(before);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll above already settled the recorder — this reads the call it just observed.
-  expect((trpc.lastInput(UPDATE_PROC) as { section?: string } | undefined)?.section).toBe("worldInfo");
+  expect(trpc.lastInput(UPDATE_USER_SETTINGS_SECTION)?.section).toBe("worldInfo");
 });

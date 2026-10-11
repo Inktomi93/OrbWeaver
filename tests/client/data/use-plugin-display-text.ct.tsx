@@ -41,8 +41,8 @@ test("a registered display transform ANNOTATES the row, and the request carries 
   const seen: { chatId?: unknown; messageId?: unknown; text?: unknown }[] = [];
   await routeTrpc(page, {
     "plugin.listDisplayTransforms": () => [{ pluginId: "plugin_ct_oracle000000001", name: "furigana" }],
-    "plugin.transformForDisplay": (input: unknown) => {
-      seen.push(input as { chatId?: unknown; messageId?: unknown; text?: unknown });
+    "plugin.transformForDisplay": (input) => {
+      seen.push(input);
       return { text: `${INPUT_TEXT} ✦` };
     },
   });

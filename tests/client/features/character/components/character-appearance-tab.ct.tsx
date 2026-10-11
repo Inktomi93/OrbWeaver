@@ -24,7 +24,7 @@ const OKLCH_RE = /oklch\(/u;
 
 /** The `themeOverride` blob carried by the most recent `character.update` (or undefined if none). */
 function lastThemeOverride(trpc: TrpcRecorder): unknown {
-  const input = trpc.lastInput("character.update") as { input?: { themeOverride?: unknown } } | undefined;
+  const input = trpc.lastInput("character.update");
   return input?.input?.themeOverride;
 }
 
@@ -281,7 +281,7 @@ const LADDER_COPY_RE = /Interactive: cards can run scripts in a sealed frame/u;
 
 /** The `character.update` input carried by the most recent write. */
 function lastUpdateInput(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  return (trpc.lastInput("character.update") as { input?: Record<string, unknown> } | undefined)?.input;
+  return trpc.lastInput("character.update")?.input;
 }
 
 test("the HTML rendering control offers the ladder IN ORDER, with Inherit as the no-override option (#111)", async ({ mount, page }) => {

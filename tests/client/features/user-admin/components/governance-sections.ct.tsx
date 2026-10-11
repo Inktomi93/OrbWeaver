@@ -57,7 +57,7 @@ function stub(page: Page, viewer: TrpcWireOutput<"sessions.me">, options: StubOp
 }
 
 function lastPartial(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  return (trpc.lastInput(UPDATE_PROC) as { partial?: Record<string, unknown> } | undefined)?.partial;
+  return trpc.lastInput(UPDATE_PROC)?.partial;
 }
 
 test("the section stamps its own admin anchor", async ({ mount, page }) => {

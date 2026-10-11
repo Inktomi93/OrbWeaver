@@ -7,6 +7,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { MEMORY_EXISTING_CHATS_NOTE, MEMORY_IMPORTED_CHATS_NOTE } from "#client/features/chat/lib/memory-settings-section-nav.ts";
+import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
 import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { UTILITY_ROW, utilityBindings } from "../../../../support/node/utility-role.ts";
@@ -22,31 +23,24 @@ const SETTINGS_VIEW = {
 
 const ENABLED_VIEW = { ...SETTINGS_VIEW, config: { ...DEFAULT_USER_SETTINGS, memory: { ...DEFAULT_USER_SETTINGS.memory, enabled: true } } };
 
-const UPDATE_PROC = "settings.updateUserSettingsSection";
 const SWITCH = "Remember earlier in long chats";
 const CONFIRM_TITLE = "Turn on Memory?";
 const CONFIRM_YES = "Turn on Memory";
 const MODEL_ROLES_DOOR = "Open Model roles";
 const BACKFILL_CALLS = 40;
 
-type MemoryRoutePath = "connection.listBindings" | "workloads.estimateModelCalls" | "workloads.start" | typeof UPDATE_PROC;
+type MemoryRoutePath = "connection.listBindings" | "workloads.estimateModelCalls" | "workloads.start" | typeof UPDATE_USER_SETTINGS_SECTION;
 
 function stub(page: Page, view: typeof SETTINGS_VIEW = SETTINGS_VIEW, routes: Partial<TrpcRoutes<MemoryRoutePath>> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "settings.getUserSettings": () => view,
-    [UPDATE_PROC]: () => view,
+    [UPDATE_USER_SETTINGS_SECTION]: () => view,
     "connection.list": [UTILITY_ROW],
     "connection.listBindings": utilityBindings("running"),
     "workloads.estimateModelCalls": { calls: 0 },
     "workloads.start": { id: "workload_ct_backfill" },
     ...routes,
   });
-}
-
-/** The most recent memory-section patch body. */
-function lastPatch(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  const input = trpc.lastInput(UPDATE_PROC) as { section?: string; patch?: Record<string, unknown> } | undefined;
-  return input?.section === "memory" ? input.patch : undefined;
 }
 
 test("mounts with the persisted default (memory OFF) rendered", async ({ mount, page }) => {
@@ -86,10 +80,10 @@ test("turning ON asks first: nothing is written until the confirm says yes, and 
   // The import path is said here too: an import offers its own build for the chats it wrote, never runs one unasked.
   await expect(confirm.getByText(MEMORY_IMPORTED_CHATS_NOTE)).toBeVisible();
   // @orb-waive ct-no-oneshot-live-read-assert(expect): a zero count after a settled barrier (the opt-in painted from the landed estimate); the only write path is the confirm's yes, not yet pressed, so a poll would pass at t=0 and prove less.
-  expect(trpc.count(UPDATE_PROC)).toBe(0);
+  expect(trpc.count(UPDATE_USER_SETTINGS_SECTION)).toBe(0);
 
   await confirm.getByRole("button", { name: CONFIRM_YES }).click();
-  await expect.poll(() => lastPatch(trpc)?.["enabled"], { intervals: [20, 50, 100] }).toBe(true);
+  await expect.poll(() => lastSettingsPatch(trpc, "memory")?.["enabled"], { intervals: [20, 50, 100] }).toBe(true);
   await expect(confirm).toBeHidden();
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the confirm has closed, which happens only after its whole act settled; an unchecked opt-in has no start call to wait for, so a poll would pass at t=0 and prove less.
   expect(trpc.count("workloads.start")).toBe(0);
@@ -102,7 +96,7 @@ test("turning ON with the opt-in checked writes memory on, THEN starts the backf
   let writesSeenByStart: number | null = null;
   const trpc = await stub(page, SETTINGS_VIEW, {
     "workloads.estimateModelCalls": { calls: BACKFILL_CALLS },
-    [UPDATE_PROC]: () => {
+    [UPDATE_USER_SETTINGS_SECTION]: () => {
       writes += 1;
       return ENABLED_VIEW;
     },
@@ -117,9 +111,9 @@ test("turning ON with the opt-in checked writes memory on, THEN starts the backf
   await confirm.getByRole("checkbox").check();
   await confirm.getByRole("button", { name: CONFIRM_YES }).click();
 
-  await expect.poll(() => (trpc.lastInput("workloads.start") as { input?: { kind?: string } } | undefined)?.input?.kind).toBe("memory-backfill");
+  await expect.poll(() => trpc.lastInput("workloads.start")?.input?.kind).toBe("memory-backfill");
   await expect.poll(() => writesSeenByStart).toBe(1);
-  await expect.poll(() => lastPatch(trpc)?.["enabled"]).toBe(true);
+  await expect.poll(() => lastSettingsPatch(trpc, "memory")?.["enabled"]).toBe(true);
   await expect
     .poll(() => trpc.lastInput("workloads.estimateModelCalls"))
     .toEqual({ input: { kind: "memory-backfill", params: {} }, mode: "singular", assumeAdmitted: true });
@@ -133,7 +127,7 @@ test("a dismissed confirm writes nothing", async ({ mount, page }) => {
   await confirm.getByRole("button", { name: "Cancel" }).click();
   await expect(confirm).toBeHidden();
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the cancel is the last interaction and it writes nothing by construction (Cancel is a close, the write only rides the confirm's yes); the settled barrier above is the closed dialog.
-  expect(trpc.count(UPDATE_PROC)).toBe(0);
+  expect(trpc.count(UPDATE_USER_SETTINGS_SECTION)).toBe(0);
 });
 
 test("from an ENABLED persisted state, flipping OFF writes enabled=false at once, with no confirm", async ({ mount, page }) => {
@@ -141,7 +135,7 @@ test("from an ENABLED persisted state, flipping OFF writes enabled=false at once
   await mount(<MemorySettingsSectionStory />);
   await expect(page.getByRole("switch", { name: SWITCH })).toBeChecked();
   await page.getByRole("switch", { name: SWITCH }).click();
-  await expect.poll(() => lastPatch(trpc)?.["enabled"], { intervals: [20, 50, 100] }).toBe(false);
+  await expect.poll(() => lastSettingsPatch(trpc, "memory")?.["enabled"], { intervals: [20, 50, 100] }).toBe(false);
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
 });
 

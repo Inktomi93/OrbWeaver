@@ -163,7 +163,7 @@ test("host: a tier switch writes THAT tier's key — never the master, never a n
   const component = await mount(<RegexSectionStory />);
   await component.getByRole("switch", { name: "Preset — in this chat" }).click();
   await expect
-    .poll(() => trpc.lastInput("chat.setRegexAllow") as { lever?: { kind?: string; tier?: string; enabled?: boolean } } | undefined, {
+    .poll(() => trpc.lastInput("chat.setRegexAllow"), {
       intervals: [20, 50, 100],
     })
     .toMatchObject({ lever: { kind: "tier", tier: "preset", enabled: false } });
@@ -173,9 +173,7 @@ test("host: the master writes the master lever", async ({ mount, page }) => {
   const trpc = await stubHost(page, board01());
   const component = await mount(<RegexSectionStory />);
   await component.getByRole("switch", { name: "Run regex in this chat" }).click();
-  await expect
-    .poll(() => trpc.lastInput("chat.setRegexAllow") as { lever?: { kind?: string; enabled?: boolean } } | undefined, { intervals: [20, 50, 100] })
-    .toMatchObject({ lever: { kind: "master", enabled: false } });
+  await expect.poll(() => trpc.lastInput("chat.setRegexAllow"), { intervals: [20, 50, 100] }).toMatchObject({ lever: { kind: "master", enabled: false } });
 });
 
 test("host: with the preset tier OFF its rows stay readable, lose their ranks, and the group says `off here`", async ({ mount, page }) => {
@@ -216,7 +214,7 @@ test("host: flipping a row that reaches beyond this chat raises the `everywhere`
   await expect(toast).toBeVisible();
   await toast.getByRole("button", { name: "Undo" }).click();
   await expect
-    .poll(() => trpc.inputs("regex.updateScript").map((input) => (input as { input?: { enabled?: boolean } }).input?.enabled), {
+    .poll(() => trpc.inputs("regex.updateScript").map((input) => input.input?.enabled), {
       intervals: [20, 50, 100],
     })
     .toEqual([false, true]);
@@ -229,9 +227,7 @@ test("host: flipping a chat-ONLY row raises no toast — the flip cannot reach a
   // The WRITE still fires — the flip is real, it just has nothing to warn about. (The switch's own repaint
   // is bus-driven: `setRegexAllow`/`updateScript` carry no optimistic arm, by design — see the mutations
   // file's header — so the settled post-flip render is pinned by mounting the view the server would answer.)
-  await expect
-    .poll(() => trpc.lastInput("regex.updateScript") as { input?: { enabled?: boolean } } | undefined, { intervals: [20, 50, 100] })
-    .toMatchObject({ input: { enabled: false } });
+  await expect.poll(() => trpc.lastInput("regex.updateScript"), { intervals: [20, 50, 100] }).toMatchObject({ input: { enabled: false } });
   // The TOAST, not any live region — the list surfaces mount an aria-announcer (role=status) of their own.
   await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(0);
 });
@@ -255,9 +251,7 @@ test("host: a PREVIOUS host's row can still be DETACHED — the room gate, not t
   // which `detachFromChat` no longer re-checks ownership against. Both facts live in this one menu.
   await expect(page.getByRole("menuitem", { name: /Only its owner can switch it off/u })).toBeDisabled();
   await page.getByRole("menuitem", { name: "Detach from this chat" }).click();
-  await expect
-    .poll(() => trpc.lastInput("regex.detachFromChat") as { scriptId?: string } | undefined, { intervals: [20, 50, 100] })
-    .toMatchObject({ scriptId: "regex_script_ct_sailor" });
+  await expect.poll(() => trpc.lastInput("regex.detachFromChat"), { intervals: [20, 50, 100] }).toMatchObject({ scriptId: "regex_script_ct_sailor" });
 });
 
 // ── #1754 — the preset tier's NAME comes off the wire ────────────────────────────────────────────────
@@ -451,9 +445,7 @@ test("host: `Attach a script` offers the library, marks what is already here, an
   await expect(dialog.getByRole("checkbox")).toHaveCount(1);
   await dialog.getByRole("checkbox", { name: "Attach Trim trailing hedges to this chat" }).click();
   await dialog.getByRole("button", { name: "Attach to this chat" }).click();
-  await expect
-    .poll(() => trpc.lastInput("regex.attachToChat") as { scriptId?: string } | undefined, { intervals: [20, 50, 100] })
-    .toMatchObject({ scriptId: "regex_script_ct_hedges" });
+  await expect.poll(() => trpc.lastInput("regex.attachToChat"), { intervals: [20, 50, 100] }).toMatchObject({ scriptId: "regex_script_ct_hedges" });
 });
 
 // ── #1755 — THE RANK AS A SPOKEN FACT ───────────────────────────────────────────────────────────────────
@@ -524,7 +516,5 @@ test("host: the room's own tier offers Detach, and no other tier does", async ({
   await expect(component.getByRole("button", { name: /^More for .*Strip OOC.*: Open in library$/u })).toBeVisible();
   await component.getByRole("button", { name: /^More for .*Redact the address.*: Open in library, Detach from this chat$/u }).click();
   await page.getByRole("menuitem", { name: "Detach from this chat" }).click();
-  await expect
-    .poll(() => trpc.lastInput("regex.detachFromChat") as { scriptId?: string } | undefined, { intervals: [20, 50, 100] })
-    .toMatchObject({ scriptId: "regex_script_ct_redact" });
+  await expect.poll(() => trpc.lastInput("regex.detachFromChat"), { intervals: [20, 50, 100] }).toMatchObject({ scriptId: "regex_script_ct_redact" });
 });

@@ -219,55 +219,11 @@ test("run dialog: singular by default, params ride the kind, and a non-owner see
   // The dialog closes only after `mutateAsync` resolves (RunWorkloadDialog's `onDone`) — an
   // event-driven proxy for "the mutation landed" instead of polling the mock call-count.
   await expect(page.getByTestId("run-workload-dialog")).toHaveCount(0);
-  await expect
-    .poll(
-      async () =>
-        (
-          trpc.lastInput("workloads.start") as {
-            input?: { kind?: unknown; params?: unknown };
-            mode?: unknown;
-            targetOwnerId?: unknown;
-          }
-        ).input?.kind,
-    )
-    .toBe("index");
+  await expect.poll(async () => trpc.requireLastInput("workloads.start").input?.kind).toBe("index");
   // `index` always carries its REQUIRED source; the form defaults to `all` (reindex everything).
-  await expect
-    .poll(
-      async () =>
-        (
-          trpc.lastInput("workloads.start") as {
-            input?: { kind?: unknown; params?: unknown };
-            mode?: unknown;
-            targetOwnerId?: unknown;
-          }
-        ).input?.params,
-    )
-    .toEqual({ source: "all" });
-  await expect
-    .poll(
-      async () =>
-        (
-          trpc.lastInput("workloads.start") as {
-            input?: { kind?: unknown; params?: unknown };
-            mode?: unknown;
-            targetOwnerId?: unknown;
-          }
-        ).mode,
-    )
-    .toBe("singular");
-  await expect
-    .poll(
-      async () =>
-        (
-          trpc.lastInput("workloads.start") as {
-            input?: { kind?: unknown; params?: unknown };
-            mode?: unknown;
-            targetOwnerId?: unknown;
-          }
-        ).targetOwnerId,
-    )
-    .toBeUndefined();
+  await expect.poll(async () => trpc.requireLastInput("workloads.start").input?.params).toEqual({ source: "all" });
+  await expect.poll(async () => trpc.requireLastInput("workloads.start").mode).toBe("singular");
+  await expect.poll(async () => trpc.requireLastInput("workloads.start").targetOwnerId).toBeUndefined();
 });
 
 test("owner bulk create-kind: the Bulk switch + required target picker wire targetOwnerId", async ({ mount, page }) => {
@@ -297,42 +253,9 @@ test("owner bulk create-kind: the Bulk switch + required target picker wire targ
 
   await page.getByTestId("run-workload-submit").click();
   await expect(page.getByTestId("run-workload-dialog")).toHaveCount(0);
-  await expect
-    .poll(
-      async () =>
-        (
-          trpc.lastInput("workloads.start") as {
-            input?: { kind?: unknown };
-            mode?: unknown;
-            targetOwnerId?: unknown;
-          }
-        ).input?.kind,
-    )
-    .toBe("import-st");
-  await expect
-    .poll(
-      async () =>
-        (
-          trpc.lastInput("workloads.start") as {
-            input?: { kind?: unknown };
-            mode?: unknown;
-            targetOwnerId?: unknown;
-          }
-        ).mode,
-    )
-    .toBe("bulk");
-  await expect
-    .poll(
-      async () =>
-        (
-          trpc.lastInput("workloads.start") as {
-            input?: { kind?: unknown };
-            mode?: unknown;
-            targetOwnerId?: unknown;
-          }
-        ).targetOwnerId,
-    )
-    .toBe("user_ct_mira");
+  await expect.poll(async () => trpc.requireLastInput("workloads.start").input?.kind).toBe("import-st");
+  await expect.poll(async () => trpc.requireLastInput("workloads.start").mode).toBe("bulk");
+  await expect.poll(async () => trpc.requireLastInput("workloads.start").targetOwnerId).toBe("user_ct_mira");
 });
 
 test("owner maintenance kind: the Maintenance group offers refresh-model-catalog; it runs mode:bulk with NO target", async ({ mount, page }) => {
@@ -364,42 +287,9 @@ test("owner maintenance kind: the Maintenance group offers refresh-model-catalog
 
   await page.getByTestId("run-workload-submit").click();
   await expect(page.getByTestId("run-workload-dialog")).toHaveCount(0);
-  await expect
-    .poll(
-      async () =>
-        (
-          trpc.lastInput("workloads.start") as {
-            input?: { kind?: unknown };
-            mode?: unknown;
-            targetOwnerId?: unknown;
-          }
-        ).input?.kind,
-    )
-    .toBe("refresh-model-catalog");
-  await expect
-    .poll(
-      async () =>
-        (
-          trpc.lastInput("workloads.start") as {
-            input?: { kind?: unknown };
-            mode?: unknown;
-            targetOwnerId?: unknown;
-          }
-        ).mode,
-    )
-    .toBe("bulk");
-  await expect
-    .poll(
-      async () =>
-        (
-          trpc.lastInput("workloads.start") as {
-            input?: { kind?: unknown };
-            mode?: unknown;
-            targetOwnerId?: unknown;
-          }
-        ).targetOwnerId,
-    )
-    .toBeUndefined();
+  await expect.poll(async () => trpc.requireLastInput("workloads.start").input?.kind).toBe("refresh-model-catalog");
+  await expect.poll(async () => trpc.requireLastInput("workloads.start").mode).toBe("bulk");
+  await expect.poll(async () => trpc.requireLastInput("workloads.start").targetOwnerId).toBeUndefined();
 });
 
 test("a failed row shows the FRIENDLY message; the raw exception stays one disclosure away", async ({ mount, page }) => {
@@ -472,11 +362,11 @@ test("cancel is confirm-gated (AlertDialog) and retry fires on a failure termina
   // No DOM correlate: the mock's `workloads.list` responder is static, so the invalidation-driven
   // refetch re-renders nothing observable — poll the call-count, but tightly (not the 1.85s default).
   await expect.poll(() => trpc.count("workloads.cancel"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  await expect.poll(async () => (trpc.lastInput("workloads.cancel") as { id?: unknown }).id).toBe("workload_ct_1");
+  await expect.poll(async () => trpc.requireLastInput("workloads.cancel").id).toBe("workload_ct_1");
 
   await page.getByRole("button", { name: "Retry — Distill characters" }).click();
   await expect.poll(() => trpc.count("workloads.retry"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  await expect.poll(async () => (trpc.lastInput("workloads.retry") as { id?: unknown }).id).toBe("workload_ct_2");
+  await expect.poll(async () => trpc.requireLastInput("workloads.retry").id).toBe("workload_ct_2");
 });
 
 test("a LIVE progress event drives the row's determinate progress bar (row-local buffer)", async ({ mount, page }) => {
@@ -523,10 +413,10 @@ test("run dialog: setting 'Run at' defers the run — start carries scheduledAt 
   await page.getByLabel("Run at").fill("2099-01-01T03:30");
   await page.getByTestId("run-workload-submit").click();
   await expect(page.getByTestId("run-workload-dialog")).toHaveCount(0);
-  const started = trpc.lastInput("workloads.start") as { scheduledAt?: unknown };
+  const started = trpc.requireLastInput("workloads.start");
   expect(typeof started.scheduledAt).toBe("number");
   // 2099 is ≈ 4.07e12 ms — well past any near-now default, tz-slack notwithstanding.
-  await expect.poll(async () => (trpc.lastInput("workloads.start") as { scheduledAt?: unknown }).scheduledAt as number).toBeGreaterThan(4_000_000_000_000);
+  await expect.poll(async () => trpc.requireLastInput("workloads.start").scheduledAt as number).toBeGreaterThan(4_000_000_000_000);
 });
 
 test("run dialog: 'Run after these complete' lists in-flight runs and wires dependsOn", async ({ mount, page }) => {
@@ -550,7 +440,7 @@ test("run dialog: 'Run after these complete' lists in-flight runs and wires depe
 
   await page.getByTestId("run-workload-submit").click();
   await expect(page.getByTestId("run-workload-dialog")).toHaveCount(0);
-  await expect.poll(async () => (trpc.lastInput("workloads.start") as { dependsOn?: unknown }).dependsOn).toEqual(["workload_ct_dep"]);
+  await expect.poll(async () => trpc.requireLastInput("workloads.start").dependsOn).toEqual(["workload_ct_dep"]);
 });
 
 test("list: a deferred (future-dated) queued row shows the Scheduled state, not a progress bar", async ({ mount, page }) => {
@@ -899,7 +789,7 @@ test("run dialog: a job that calls a model shows its count and starts only on ye
 
   await confirm.getByRole("button", { name: "Run job" }).click();
   await expect(page.getByTestId("run-workload-dialog")).toHaveCount(0);
-  await expect.poll(() => (trpc.lastInput("workloads.start") as { input?: { kind?: unknown } }).input?.kind).toBe("distill-characters");
+  await expect.poll(() => trpc.requireLastInput("workloads.start").input?.kind).toBe("distill-characters");
 });
 
 test("retry of a job that calls a model shows its count and re-runs only on yes", async ({ mount, page }) => {
@@ -926,5 +816,5 @@ test("retry of a job that calls a model shows its count and re-runs only on yes"
   expect(trpc.count("workloads.retry")).toBe(0);
 
   await confirm.getByRole("button", { name: "Retry" }).click();
-  await expect.poll(() => (trpc.lastInput("workloads.retry") as { id?: unknown } | undefined)?.id).toBe("workload_ct_2");
+  await expect.poll(() => trpc.lastInput("workloads.retry")?.id).toBe("workload_ct_2");
 });

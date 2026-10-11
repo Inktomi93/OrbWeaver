@@ -359,7 +359,7 @@ test("the character picker walks pages and sends search to the owner-scoped serv
   await expect(dialog.getByRole("option", { name: "Library character 100" })).toBeVisible();
 
   await dialog.getByRole("combobox").fill("zephyrine");
-  await expect.poll(() => (trpc.lastInput("character.list") as { search?: string } | undefined)?.search, { intervals: [50, 100, 200] }).toBe("zephyrine");
+  await expect.poll(() => trpc.lastInput("character.list")?.search, { intervals: [50, 100, 200] }).toBe("zephyrine");
   await expect(dialog.getByRole("option", { name: "Zephyrine Vale" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Clear search" })).toBeVisible();
 });

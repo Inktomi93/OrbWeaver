@@ -209,7 +209,7 @@ async function stubPane(
     "sessions.me": () => ({ userId: VIEWER_ID, handle: "member", globalRole: "user" }),
     "connection.list": () => opts.connections ?? [CHAT_ROW, UTILITY_ROW, EMBED_ROW],
     // The three reads an opened connection editor makes, for the door from a role to its row.
-    "connection.get": (input) => (opts.connections ?? [CHAT_ROW]).find((row) => row.id === (input as { connectionId: string }).connectionId) ?? CHAT_ROW,
+    "connection.get": (input) => (opts.connections ?? [CHAT_ROW]).find((row) => row.id === input.connectionId) ?? CHAT_ROW,
     "connection.capabilities": () => RERANK_CAPABILITY_VIEW,
     "connection.catalogModels": () => ({ listed: false, reason: "not listed in this test" }),
     "connection.listBindings": () => opts.bindings ?? UNBOUND,

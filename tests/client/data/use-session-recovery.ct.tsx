@@ -10,6 +10,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcWireOutput } from "../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../support/node/route-trpc.ts";
+import { stubAuthMe } from "../../support/node/stub-auth-me.ts";
 import { SessionRecoveryBindFailureStory, SessionRecoveryReauthStory, SessionRecoveryStory, SessionSwapStory } from "./_ct-stories.tsx";
 
 const VIEWER_HANDLE = castId<Handle>("owner");
@@ -61,9 +62,7 @@ test("surfaces a durable-local bind failure and retries to the ready workspace",
 async function stubSwappableAuth(page: Page): Promise<(handle: Handle) => void> {
   let handle: Handle = VIEWER_HANDLE;
   await page.route("**/api/auth/config", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ mode: "local" }) }));
-  await page.route("**/api/auth/me", (route) =>
-    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ authenticated: true, handle, role: "owner" }) }),
-  );
+  await stubAuthMe(page, () => ({ authenticated: true, handle, role: "owner" }));
   await routeTrpc(page, { "sessions.me": () => VIEWER });
   return (next: Handle): void => {
     handle = next;
@@ -117,13 +116,7 @@ test("keeps the mounted recovery host through a terminal sessions.me 401 and ope
     alive = false;
     return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
   });
-  await page.route("**/api/auth/me", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ authenticated: alive, handle: alive ? VIEWER.handle : null, role: alive ? VIEWER.globalRole : null }),
-    }),
-  );
+  await stubAuthMe(page, () => ({ authenticated: alive, handle: alive ? castId<Handle>(VIEWER.handle) : null, role: alive ? VIEWER.globalRole : null }));
   await page.route("**/api/auth/config", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ mode: "local" }) }));
   await routeTrpc(page, { "sessions.me": () => (alive ? VIEWER : trpcError({ code: "UNAUTHORIZED" })) });
 

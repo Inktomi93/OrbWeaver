@@ -26,7 +26,6 @@
 // session's `createdAt`, and `FROZEN_AT` here IS `tests/support/clock.ts`'s `FROZEN_AT_MS`, so the stamp
 // is a fixed string rather than a value that drifts with the wall clock.
 
-import type { RefinerySessionId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -77,9 +76,9 @@ const STAGE_CONFIG: TrpcWireOutput<"refinery.getSession">["stageConfig"] = {
   analyze: { kind: "fixed", mode: "full" },
 };
 
-function sessionView(sessionId: RefinerySessionId = SESSION_ID): TrpcWireOutput<"refinery.getSession"> {
+function sessionView(session: string = SESSION_ID): TrpcWireOutput<"refinery.getSession"> {
   return {
-    id: sessionId,
+    id: session,
     characterId: CHARACTER_ID,
     name: "Rev",
     status: "active",
@@ -296,7 +295,7 @@ function landingRoutes(
   return {
     "refinery.listSessions": () => roster,
     "character.list": characterListResponder([makeCharacterSummary({ id: CHARACTER_ID, name: "Zephyrine Vale" })]),
-    "refinery.getSession": (input: unknown) => sessionView((input as { sessionId: RefinerySessionId }).sessionId),
+    "refinery.getSession": (input) => sessionView(input.sessionId),
     "refinery.listRuns": ledger,
     "refinery.preflight": preflight,
     "character.get": () => CARD,
@@ -906,8 +905,8 @@ test("RE-ENTERING with an open session offers it on the landing, and the door op
   const asked: string[] = [];
   await routeTrpc(page, {
     ...landingRoutes([rosterRow(NEWEST_OPEN_SESSION_ID, "active", FROZEN_AT + 10_000), rosterRow(COMPLETED_SESSION_ID, "completed", FROZEN_AT)]),
-    "refinery.getSession": (input: unknown) => {
-      const { sessionId } = input as { sessionId: RefinerySessionId };
+    "refinery.getSession": (input) => {
+      const { sessionId } = input;
       asked.push(sessionId);
       return sessionView(sessionId);
     },

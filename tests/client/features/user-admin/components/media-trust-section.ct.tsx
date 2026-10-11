@@ -42,7 +42,7 @@ function stub(page: Page, overrides: Partial<AppSettingsOverrides> = {}): Promis
 
 /** The most recent override PARTIAL sent to `updateAppSettings`. */
 function lastPartial(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  return (trpc.lastInput(UPDATE_PROC) as { partial?: Record<string, unknown> } | undefined)?.partial;
+  return trpc.lastInput(UPDATE_PROC)?.partial;
 }
 
 test("mounts on the resolved values and stamps its own admin anchor", async ({ mount, page }) => {

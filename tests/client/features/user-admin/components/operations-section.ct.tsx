@@ -37,7 +37,7 @@ function stub(page: Page, overrides: Partial<AppSettingsOverrides> = {}): Promis
 }
 
 function lastPartial(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  return (trpc.lastInput(UPDATE_PROC) as { partial?: Record<string, unknown> } | undefined)?.partial;
+  return trpc.lastInput(UPDATE_PROC)?.partial;
 }
 
 const socketCleanupByPage = new Map<Page, () => Promise<void>>();

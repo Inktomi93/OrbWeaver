@@ -19,6 +19,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { SIGNED_IN_OWNER_ME, stubAuthMe } from "../../../../support/node/stub-auth-me.ts";
 import { PersonaEditDoorColdStory, PersonaEditDoorStory, PersonaSwitcherBarStory, PersonaYouSheetStory } from "../_ct-stories.tsx";
 
 const NOVA = "persona_nova";
@@ -108,9 +109,7 @@ async function stubAuth(page: Page, mode = "local"): Promise<void> {
       }),
     }),
   );
-  await page.route("**/api/auth/me", (route) =>
-    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ authenticated: true, handle: "owner", role: "owner" }) }),
-  );
+  await stubAuthMe(page, SIGNED_IN_OWNER_ME);
 }
 
 /** Open the bar lens's popover (the rail avatar chip). */
@@ -734,9 +733,10 @@ async function stubStatefulDefault(page: Page): Promise<{ readonly trpc: TrpcRec
   const trpc = await stub(page, {
     "settings.getUserSettings": () => settings(),
     "settings.updateUserSettingsSection": (input) => {
-      const patch = (input as { patch?: { defaultPersonaId?: string | null } }).patch;
-      if (patch?.defaultPersonaId !== undefined) {
-        defaultId = patch.defaultPersonaId;
+      // `patch` is an opaque record by contract; the one key this fake server honours is read as the id-or-null it is.
+      const next = input.patch["defaultPersonaId"];
+      if (next !== undefined) {
+        defaultId = next as string | null;
       }
       return settings();
     },

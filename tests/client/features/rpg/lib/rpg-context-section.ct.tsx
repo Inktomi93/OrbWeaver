@@ -1132,25 +1132,12 @@ test("editing an npc's tracker sends ONE op naming only that datum (her other pl
 
   await expect.poll(() => trpc.count("rpg.patchActor"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   // The call addresses HER, by ref — no image, no participant half, nothing to be partial about.
-  await expect
-    .poll(
-      async () =>
-        (trpc.lastInput("rpg.patchActor") as { readonly targetRef: Record<string, unknown>; readonly ops: readonly Record<string, unknown>[] }).targetRef,
-    )
-    .toEqual({ kind: "npc", npcKey: "sola" });
-  await expect
-    .poll(
-      async () => (trpc.lastInput("rpg.patchActor") as { readonly targetRef: Record<string, unknown>; readonly ops: readonly Record<string, unknown>[] }).ops,
-    )
-    .toEqual([{ op: "setTracker", key: "trust", value: { value: 5 } }]);
+  await expect.poll(async () => trpc.lastInput("rpg.patchActor").targetRef).toEqual({ kind: "npc", npcKey: "sola" });
+  await expect.poll(async () => trpc.lastInput("rpg.patchActor").ops).toEqual([{ op: "setTracker", key: "trust", value: { value: 5 } }]);
   // The planes the empty mint used to clear are not on the wire AT ALL — the server keeps them by construction.
   await Promise.all(
     ["inventory", "wallet", "status", "conditions"].map(async (plane) =>
-      expect
-        .poll(async () =>
-          JSON.stringify(trpc.lastInput("rpg.patchActor") as { readonly targetRef: Record<string, unknown>; readonly ops: readonly Record<string, unknown>[] }),
-        )
-        .not.toContain(plane),
+      expect.poll(async () => JSON.stringify(trpc.lastInput("rpg.patchActor"))).not.toContain(plane),
     ),
   );
 });
@@ -2178,11 +2165,9 @@ test("RV-5: the pack adds an item and edits its LOCATION in place — the patchA
   // The panel names the OP, not the lock path: the pin (`…inventory`, whose Release lives on the section
   // kicker) is DERIVED server-side per op (R1), so a client can no longer claim a path it didn't edit.
   await expect
-    .poll(async () => (trpc.lastInput("rpg.patchActor") as { readonly ops: readonly Record<string, unknown>[]; readonly autoLock?: boolean }).ops)
+    .poll(async () => trpc.lastInput("rpg.patchActor").ops)
     .toEqual([{ op: "patchItem", id: "item_ct_key", patch: { location: "sewn into the lining" } }]);
-  await expect
-    .poll(async () => (trpc.lastInput("rpg.patchActor") as { readonly ops: readonly Record<string, unknown>[]; readonly autoLock?: boolean }).autoLock)
-    .toBeUndefined();
+  await expect.poll(async () => trpc.lastInput("rpg.patchActor").autoLock).toBeUndefined();
 });
 
 // R4c — the journal `label` was write-only rot: model-writable, stored, returned on the view, rendered NOWHERE

@@ -109,7 +109,7 @@ function landingRoutes(by: {
   const newest = characterListResponder(by.newest);
   return {
     ...VIEWER_AMBIENT_ROUTES,
-    "character.list": (input) => ((input as { sort?: string }).sort === "newest" ? newest(input) : recent(input)),
+    "character.list": (input) => (input?.sort === "newest" ? newest(input) : recent(input)),
   };
 }
 
