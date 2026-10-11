@@ -40,13 +40,15 @@ export function renderSingleBubble(args: {
   readonly mirrored: boolean;
   /** Opens the decoration's art full size; null where the row has no art to open or no viewer to open it in. */
   readonly artView: ArtView | null;
+  /** Reports whether the row's art failed to load, so the row can drop the chip that would repeat its fallback. */
+  readonly onArtFailed?: (failed: boolean) => void;
 }): ReactElement {
   const headerBand = args.decoration?.headerBand;
   const bubbleStyle = args.decoration?.style;
   if (headerBand !== undefined) {
     return (
       <Stack data-slot="message-bubble" className={withoutBubblePadding(args.bubbleClassName)} style={bubbleStyle}>
-        <WhisperBand band={headerBand} view={args.artView} />
+        <WhisperBand band={headerBand} view={args.artView} onFailedChange={args.onArtFailed} />
         <Stack gap="row" className="px-block py-row">
           {args.header}
           {args.content}
@@ -59,7 +61,7 @@ export function renderSingleBubble(args: {
     const art = args.decoration?.art;
     return (
       <Stack gap="row" data-slot="message-bubble" className={cn(args.bubbleClassName, art !== undefined && "relative")} style={bubbleStyle}>
-        {art === undefined ? null : <EchoArtTile art={art} view={args.artView} />}
+        {art === undefined ? null : <EchoArtTile art={art} view={args.artView} onFailedChange={args.onArtFailed} />}
         {args.header}
         {args.content}
         {args.footer}

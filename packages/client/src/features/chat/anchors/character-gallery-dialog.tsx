@@ -192,10 +192,10 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
           <Stack gap="block" className="@container">
             <Row justify="between" align="center" gap="row">
               {/* Focusable by script only: a removal that empties the gallery puts focus here. */}
-              <DialogTitle ref={headingRef} tabIndex={-1}>
+              <DialogTitle className="min-w-0" ref={headingRef} tabIndex={-1}>
                 {galleryLabel}
               </DialogTitle>
-              <Row align="center" gap="row">
+              <Row align="center" className="shrink-0" gap="row">
                 {galleryEmpty && scope === "everywhere" ? null : (
                   <Button intent="secondary" size="sm" onClick={(): void => setPickerOpen(true)}>
                     <Icon icon={ImagePlus} size="sm" />

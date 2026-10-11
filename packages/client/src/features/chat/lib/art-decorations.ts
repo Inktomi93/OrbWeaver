@@ -45,6 +45,8 @@ export interface BubbleDecoration {
         readonly className: string;
         /** The gradient layer that dissolves the band into the bubble beneath it. */
         readonly feather: string;
+        /** The feather over a band with no image to show (none, or one that failed to load): the solid top holds the initial. */
+        readonly plainFeather: string;
         /** The speaker's initial, shown when there is no image or it fails to load. */
         readonly fallback: string;
         /** The banner image, asked at the width the band renders; absent when the speaker has none. */
@@ -176,7 +178,8 @@ export function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration 
     headerBand: {
       className: WHISPER_BAND_WIDTH,
       style: { aspectRatio: "var(--aspect-banner)", backgroundColor: avatarFallbackHueColor(args.hueSeed) },
-      feather: whisperFeather(args.role, urlAt !== undefined),
+      feather: whisperFeather(args.role, true),
+      plainFeather: whisperFeather(args.role, false),
       fallback: initialsFor(args.name ?? ""),
       ...(urlAt === undefined ? {} : { image: { urlAt } }),
     },

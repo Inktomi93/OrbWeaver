@@ -170,6 +170,7 @@ export function renderRowBubble(args: {
   readonly editing: boolean;
   /** Opens echo's tile or whisper's band full size; null when the row has none or sits outside a viewer. */
   readonly artView: ArtView | null;
+  readonly onArtFailed?: (failed: boolean) => void;
 }): ReactElement {
   // Hide-from-AI dims the row (still user-visible — the toggle holds it out of assembly only).
   const bubbleClassName =
@@ -194,6 +195,7 @@ export function renderRowBubble(args: {
         weldedAvatar: args.weldedAvatar,
         mirrored: args.mirrored,
         artView: args.artView,
+        ...(args.onArtFailed === undefined ? {} : { onArtFailed: args.onArtFailed }),
       })
     ) : (
       // A train has no single container, so an `inside` header would have nowhere to be inside — `tide` is

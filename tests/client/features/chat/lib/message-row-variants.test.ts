@@ -18,9 +18,9 @@
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { avatarFallbackHueColor } from "@orb/ui/avatar";
 import { afterEach, vi } from "vitest";
-import type { BubbleDecorationArgs } from "#client/features/chat/lib/art-decorations.ts";
+import type { BubbleDecoration, BubbleDecorationArgs } from "#client/features/chat/lib/art-decorations.ts";
 import { avatarTreatmentFor } from "#client/features/chat/lib/avatar-treatment.ts";
-import { avatarPortraitSrcProp, MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
+import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A `bubbleDecoration` argument builder; a case overrides what it asserts. */
@@ -152,18 +152,20 @@ test("without art, echo's tile and whisper's band carry the speaker's fallback, 
     expect(echo?.art?.style.backgroundImage, kind).toBeUndefined();
     expect(echo?.art?.style.maskImage, kind).toContain("linear-gradient");
     expect(echo?.art?.fallback, kind).toBe("M");
-    expect(avatarTreatmentFor(MESSAGE_ROW_SKINS.echo, kind, echo ?? null), kind).toBe("none");
+    expect(avatarTreatmentFor(MESSAGE_ROW_SKINS.echo, kind, echo ?? null, false), kind).toBe("none");
   }
   const whisper = MESSAGE_ROW_SKINS.whisper.bubbleDecoration?.(decoArgs("character", null));
   expect(whisper?.style?.borderTopColor).toBe("var(--color-speaker)");
   expect(whisper?.headerBand?.style.backgroundColor).toBe(hue);
   expect(whisper?.headerBand?.style.aspectRatio).toBe("var(--aspect-banner)");
   expect(whisper?.headerBand?.fallback).toBe("M");
-  expect(avatarTreatmentFor(MESSAGE_ROW_SKINS.whisper, "character", whisper ?? null)).toBe("none");
+  expect(avatarTreatmentFor(MESSAGE_ROW_SKINS.whisper, "character", whisper ?? null, false)).toBe("none");
   // Real art keeps the chip beside it; ripple shows its fallback in the portrait whether or not an image exists.
   const painted = MESSAGE_ROW_SKINS.echo.bubbleDecoration?.(decoArgs("character", "x"));
-  expect(avatarTreatmentFor(MESSAGE_ROW_SKINS.echo, "character", painted ?? null)).toBe("icon-left");
-  expect(avatarTreatmentFor(MESSAGE_ROW_SKINS.ripple, "character", null)).toBe("sticky-portrait");
+  expect(avatarTreatmentFor(MESSAGE_ROW_SKINS.echo, "character", painted ?? null, false)).toBe("icon-left");
+  // A failed load is treated exactly like no image: the chip steps aside for the fallback.
+  expect(avatarTreatmentFor(MESSAGE_ROW_SKINS.echo, "character", painted ?? null, true)).toBe("none");
+  expect(avatarTreatmentFor(MESSAGE_ROW_SKINS.ripple, "character", null, false)).toBe("sticky-portrait");
   // Avatars off: no identity art at all, fallback included.
   expect(MESSAGE_ROW_SKINS.echo.bubbleDecoration?.(decoArgs("character", null, { showInChatAvatars: false }))).toBeNull();
 });
@@ -209,12 +211,13 @@ test("owned renderer artwork uses the same geometry and respects identity-art ad
 });
 
 test("whisper's band fades into the row's own bubble colour", () => {
-  const fade = (role: "user" | "assistant", hash: string | null): string | undefined =>
-    MESSAGE_ROW_SKINS.whisper.bubbleDecoration?.(decoArgs("persona", hash, { role }))?.headerBand?.feather;
-  expect(fade("user", "x")).toContain("--color-user-bubble");
-  expect(fade("assistant", "x")).toContain("--color-ai-bubble");
-  // With no image the fallback keeps its solid top, where the initial sits.
-  expect(fade("user", null)).toContain("transparent 55%");
+  const fade = (role: "user" | "assistant", hash: string | null): BubbleDecoration["headerBand"] =>
+    MESSAGE_ROW_SKINS.whisper.bubbleDecoration?.(decoArgs("persona", hash, { role }))?.headerBand;
+  expect(fade("user", "x")?.feather).toContain("--color-user-bubble");
+  expect(fade("assistant", "x")?.feather).toContain("--color-ai-bubble");
+  // Without an image to show (none, or one that failed to load) the band keeps its solid top, where the initial sits.
+  expect(fade("user", "x")?.plainFeather).toContain("transparent 55%");
+  expect(fade("user", "x")?.plainFeather).toContain("--color-user-bubble");
 });
 
 test("hush's stripe paints for every kind (chrome, not portrait art — not hide-user-portrait's concern)", () => {
@@ -231,11 +234,10 @@ test("echo and ripple portraits request their CSS box times the pixel ratio", ()
     const url = MESSAGE_ROW_SKINS.echo.bubbleDecoration?.(decoArgs("character", "x"))?.art?.image?.urlAt(192);
     return url?.match(/w=(\d+)/u)?.[1];
   };
-  const rippleWidth = (): string | undefined => avatarPortraitSrcProp("x").src?.match(/w=(\d+)/u)?.[1];
-  const asked: Record<number, readonly [string, string]> = { 1: ["192", "180"], 2: ["384", "360"], 3: ["576", "540"] };
-  for (const [ratio, [echo, ripple]] of Object.entries(asked)) {
+  const asked: Record<number, string> = { 1: "192", 2: "384", 3: "576" };
+  for (const [ratio, echo] of Object.entries(asked)) {
     vi.stubGlobal("devicePixelRatio", Number(ratio));
-    expect([echoWidth(), rippleWidth()], `DPR ${ratio}`).toEqual([echo, ripple]);
+    expect(echoWidth(), `DPR ${ratio}`).toBe(echo);
   }
   // A 4x display asks no more than the 3x the ladder tops out at.
   vi.stubGlobal("devicePixelRatio", 4);

@@ -1,6 +1,7 @@
 // The row's identity art: the gutter chip, ripple's welded portrait and the full-size view they open. Split from
 // message-row-parts.tsx to stay under the component-size cap; pure (args) => ReactElement like its sibling.
 
+import { blobPortraitUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Avatar } from "@orb/ui/avatar";
@@ -9,11 +10,12 @@ import type { ReactElement } from "react";
 import { cn, viewImageActionName } from "#lib";
 import type { ArtViewer } from "../hooks/art-viewer-context.tsx";
 import type { BubbleDecorationArgs } from "../lib/art-decorations.ts";
+import { artRequestWidth } from "../lib/art-decorations.ts";
 import type { RowAttribution } from "../lib/attribution.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
-import { avatarPortraitSrcProp, avatarSrcProp } from "../lib/message-row-variants.ts";
+import { avatarSrcProp } from "../lib/message-row-variants.ts";
 import type { ArtView } from "./art-slot.tsx";
-import { FallbackLetter } from "./art-slot.tsx";
+import { FallbackLetter, PortraitAvatar } from "./art-slot.tsx";
 
 /** #1728 arm B — a chip in a `1fr` RAIL must hug the centred column's edge or it drifts to the far side of
  *  the margin. Mapped rather than branched, so a new rail member fails tsc here (the house dispatch rule). */
@@ -130,11 +132,16 @@ function viewable(target: ViewTarget | null, className: string, avatar: ReactEle
   );
 }
 
+/** The portrait URL at the width its slot renders at (times the pixel ratio); undefined with no hash or static art. */
+function portraitSource(hash: string | null, owned: boolean): ((cssWidth: number) => string) | undefined {
+  return hash === null || !owned ? undefined : (cssWidth: number): string => blobPortraitUrl(hash, artRequestWidth(cssWidth));
+}
+
 // Ripple's portrait sticks to the top of its card as the row scrolls; wrapped, the button is the sticky flex item.
 function stickyPortrait(args: Parameters<typeof renderRowAvatar>[0], target: ViewTarget | null): ReactElement {
   const weldRounding = args.mirrored ? "rounded-l-none rounded-r-card" : "rounded-l-card rounded-r-none";
   const portrait = (
-    <Avatar
+    <PortraitAvatar
       size={args.avatarSize}
       shape="square"
       aspect="portrait"
@@ -148,10 +155,11 @@ function stickyPortrait(args: Parameters<typeof renderRowAvatar>[0], target: Vie
           weldRounding,
         ) ?? ""
       }
-      {...(args.imageUrlFor === undefined ? avatarPortraitSrcProp(args.attribution.avatarHash) : { src: args.imageUrlFor("portrait") })}
+      urlAt={portraitSource(args.attribution.avatarHash, args.imageUrlFor === undefined)}
+      {...(args.imageUrlFor === undefined ? {} : { src: args.imageUrlFor("portrait") })}
     >
       <FallbackLetter className="absolute inset-0" initials={initialsFor(args.attribution.name ?? "")} />
-    </Avatar>
+    </PortraitAvatar>
   );
   return viewable(target, cn("sticky top-0 shrink-0", weldRounding) ?? "", portrait);
 }

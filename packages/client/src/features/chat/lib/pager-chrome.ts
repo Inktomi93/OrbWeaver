@@ -25,8 +25,8 @@ const FOOT_INSIDE_WIDTH = "contain-inline-size";
 export const SWIPE_FOOT_INSIDE: SwipeFoot = { placement: "inside", row: FOOT_INSIDE_WIDTH, chevron: "text-muted-foreground" };
 
 /** Echo: the foot reaches across the art pane on the card's fill, as the pinned header bar does
- *  (`--row-reach-*`, row-edges.ts), down to the card's bottom edge. Its group ends at the card's corner, one card
- *  inset in from the art side's edge (`--row-foot-inset-*`, set with the art). */
+ *  (`--row-reach-*`, row-edges.ts), down to the card's bottom edge. Its group ends at the card's corner: the inset
+ *  it keeps on each side is `--row-foot-inset-*`, set to the card inset in globals.css. */
 export const SWIPE_FOOT_ECHO: SwipeFoot = {
   placement: "inside",
   row: `${FOOT_INSIDE_WIDTH} -ml-(--row-reach-left) pl-(--row-foot-inset-left) -mr-(--row-reach-right) pr-(--row-foot-inset-right) -mb-row rounded-b-card bg-ai-bubble`,

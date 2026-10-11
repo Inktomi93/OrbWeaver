@@ -4,13 +4,13 @@
 // in message-row.tsx. Echo/Whisper's feather is a layered background-image gradient, not literal
 // `mask-image` (that would also fade the text painted on top).
 
-import { blobPortraitUrl, blobUrl } from "@orb/contracts/assets";
+import { blobUrl } from "@orb/contracts/assets";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { CSSProperties } from "react";
 import { cn, messageBubbleClass } from "#lib";
 import type { BubbleDecoration, BubbleDecorationArgs } from "./art-decorations.ts";
-import { artRequestWidth, ECHO_MAX_WIDTH_STYLE, echoDecoration, whisperDecoration } from "./art-decorations.ts";
+import { ECHO_MAX_WIDTH_STYLE, echoDecoration, whisperDecoration } from "./art-decorations.ts";
 import type { RowAttribution } from "./attribution.ts";
 import { BUBBLE_PHONE_CAP, CHAT_TRACK } from "./chat-track.ts";
 import { BG_PHOTO_READING_PLATE } from "./message-row-backing.ts";
@@ -159,9 +159,6 @@ function hushDecoration(): BubbleDecoration {
   return { style: STRIPE_LEFT };
 }
 
-// biome-ignore lint/style/noMagicNumbers: CSS px of `--immersive-ripple-portrait-width` (11.25rem); the request is sized from it.
-const RIPPLE_PORTRAIT_CSS_WIDTH = 180;
-
 // ECHO'S TRACK IS THE SHARED TRACK PLUS ITS ART PANE. A max-width only ALLOWS width — the column is a flex
 // child, so what it can actually occupy is what the track hands the row. Inside the plain track the art
 // went straight back to eating the line (measured: 436px of prose, 51ch). The art is ADDITIVE by
@@ -296,8 +293,4 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
 // exactOptionalPropertyTypes idiom: omit `src` rather than pass undefined.
 export function avatarSrcProp(avatarHash: string | null): { src?: string } {
   return avatarHash === null ? {} : { src: blobUrl(avatarHash) };
-}
-
-export function avatarPortraitSrcProp(avatarHash: string | null): { src?: string } {
-  return avatarHash === null ? {} : { src: blobPortraitUrl(avatarHash, artRequestWidth(RIPPLE_PORTRAIT_CSS_WIDTH)) };
 }

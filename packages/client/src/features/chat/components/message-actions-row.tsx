@@ -388,3 +388,31 @@ export function MessageActionsRow({
     </Row>
   );
 }
+
+/** The streaming row's stand-in for the action cluster: the same buttons, hidden and inert. A settled card is as
+ *  wide as its header, actions included, so the streaming card reserves that footprint and a short reply does not
+ *  reflow when it commits. A parity CT holds the two rows to the same boxes. */
+export function GhostActionsFootprint({ chatId, surface }: { readonly chatId: ChatId; readonly surface: string }): ReactElement {
+  const reactionsEnabled = useReactionsEnabled(chatId);
+  return (
+    <Row aria-hidden="true" align="center" className={`invisible ${surface}`} data-slot="message-actions-footprint" gap="glyph" inert={true} justify="end">
+      <Button aria-label={MESSAGE_EDIT_NAME} intent="ghost" size="glyph-lg" shape="pill" tabIndex={-1}>
+        <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Pencil} size="sm" />
+      </Button>
+      <Button aria-label={MESSAGE_FORK_NAME} className={ROW_ACTION_INLINE} intent="ghost" size="glyph-lg" shape="pill" tabIndex={-1}>
+        <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={GitFork} size="sm" />
+      </Button>
+      {reactionsEnabled ? (
+        <Button aria-label={MESSAGE_REACTION_ADD_NAME} className={ROW_ACTION_INLINE} intent="ghost" size="glyph-lg" shape="pill" tabIndex={-1}>
+          <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={SmilePlus} size="sm" />
+        </Button>
+      ) : null}
+      <RowActionsMenu
+        label={MESSAGE_ACTIONS_MENU_NAME}
+        triggerSize="glyph"
+        shape="pill"
+        destructive={{ title: "", description: "", confirmLabel: "", onConfirm: (): Promise<void> => Promise.resolve() }}
+      />
+    </Row>
+  );
+}

@@ -618,7 +618,8 @@ test("a user row mirrors it — avatar AFTER the content column (§B.1 own-messa
 // The identity is the gutter chip, or ripple's welded portrait.
 const MIRRORED_USER_STYLES: ReadonlySet<string> = new Set(["bubble", "echo", "tide"]);
 for (const chatStyle of THEME_CHAT_STYLES) {
-  test(`${chatStyle}: a user row's identity sits ${MIRRORED_USER_STYLES.has(chatStyle) ? "trailing" : "leading"}`, async ({ mount }) => {
+  test(`${chatStyle}: a user row's identity sits ${MIRRORED_USER_STYLES.has(chatStyle) ? "trailing" : "leading"}`, async ({ mount, page }) => {
+    await page.route("**/api/blob/**", (route) => route.fulfill({ status: 200, contentType: "image/png", body: ONE_BY_ONE_PNG }));
     test.skip(chatStyle === "document", "the document page names nobody, as stock does; its own pins are the document block");
     const component = await mount(
       <MessageRowStory
@@ -670,7 +671,8 @@ for (const chatStyle of ["bubble", "echo", "tide"] as const) {
     ["short", "Hi there."],
     ["long", PHONE_CAP_BODY],
   ] as const) {
-    test(`${chatStyle}: at a phone width a ${length} user message sits flush against its trailing chip`, async ({ mount }) => {
+    test(`${chatStyle}: at a phone width a ${length} user message sits flush against its trailing chip`, async ({ mount, page }) => {
+      await page.route("**/api/blob/**", (route) => route.fulfill({ status: 200, contentType: "image/png", body: ONE_BY_ONE_PNG }));
       const component = await mount(
         <MessageRowStory
           chatStyle={chatStyle}
@@ -798,7 +800,8 @@ test("no roster/persona threaded: {{char}}/{{user}} resolve to the kit floors, n
 // These mount the real DOM and assert against the RESOLVED `--immersive-*`/`--color-speaker` custom
 // properties (never a hardcoded px/hex literal — the golden rule), same as `theme-scope.ct.tsx`.
 
-test("whisper: the header band renders a 3:1 aspect box (matches the server's banner crop); its art is the banner variant", async ({ mount }) => {
+test("whisper: the header band renders a 3:1 aspect box (matches the server's banner crop); its art is the banner variant", async ({ mount, page }) => {
+  await page.route("**/api/blob/**", (route) => route.fulfill({ status: 200, contentType: "image/png", body: ONE_BY_ONE_PNG }));
   const component = await mount(<MessageRowStory chatStyle="whisper" messageRole="assistant" characterId={ALICE_ID} participants={[aliceWithAvatar()]} />);
   const band = component.locator('[data-slot="message-band"]');
   await expect(band).toBeVisible();

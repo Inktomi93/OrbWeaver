@@ -40,6 +40,7 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { TypingDots, useSmoothText } from "@orb/ui/stream";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import type { MessageRenderContext } from "#lib";
 import { cn, renderMessageForDisplay } from "#lib";
 import { useArtViewer } from "../hooks/art-viewer-context.tsx";
@@ -51,6 +52,7 @@ import { ROW_BODY_AT_PHONE_WIDTH } from "../lib/chat-track.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { columnClassFor, gutterRailFor, rowBodyClassFor } from "../lib/row-placement.ts";
 import { CardBlock } from "./card-block.tsx";
+import { GhostActionsFootprint } from "./message-actions-row.tsx";
 import { artViewFor, renderRowAvatar } from "./message-row-avatar.tsx";
 import { renderSingleBubble } from "./message-row-bubble.tsx";
 import { placeRowHeader, renderGhostNameRow } from "./message-row-header.tsx";
@@ -176,6 +178,14 @@ function GhostBubbleContent(props: {
   );
 }
 
+/** Ripple's portrait welds into the bubble; every other treatment is the gutter chip beside the column. */
+function placeAvatar(
+  treatment: ReturnType<typeof avatarTreatmentFor>,
+  node: ReactElement | null,
+): { readonly weldedAvatar: ReactElement | null; readonly leadingAvatar: ReactElement | null } {
+  return treatment === "sticky-portrait" ? { weldedAvatar: node, leadingAvatar: null } : { weldedAvatar: null, leadingAvatar: node };
+}
+
 export interface GhostMessageRowProps {
   readonly chatId: ChatId;
   readonly chatStyle: keyof typeof MESSAGE_ROW_SKINS;
@@ -272,7 +282,8 @@ export function GhostMessageRow({
       role: "assistant",
       showInChatAvatars,
     }) ?? null;
-  const avatarTreatment = avatarTreatmentFor(skin, kind, decoration);
+  const [artFailed, setArtFailed] = useState(false);
+  const avatarTreatment = avatarTreatmentFor(skin, kind, decoration, artFailed);
   const avatarNode =
     attribution === undefined
       ? null
@@ -291,6 +302,8 @@ export function GhostMessageRow({
           mirrored: false,
           viewArt,
         });
+  // Ripple welds its portrait into the bubble, as the settled row does, so the streaming card is the card it settles as.
+  const { weldedAvatar, leadingAvatar } = placeAvatar(avatarTreatment, avatarNode);
   // #1728 arm B — THE GHOST TAKES THE SETTLED ROW'S PLACEMENT, for the reason this file already states
   // about the header two blocks down: a live turn laid out one way that relaid out at commit is a visible
   // one-frame reflow on every reply. Same two helpers the settled row reads, so they cannot drift.
@@ -306,6 +319,7 @@ export function GhostMessageRow({
       placement: skin.headerPlacement,
       pinnedPaint: skin.pinnedHeader.paint("assistant"),
       named: skin.actionsRow.identity,
+      actionsFootprint: <GhostActionsFootprint chatId={chatId} surface={skin.actionsRow.surface} />,
     }),
     skin.headerPlacement,
   );
@@ -330,11 +344,12 @@ export function GhostMessageRow({
       />
     ),
     footer: null,
-    bubbleClassName: cn(skin.inner("assistant"), "w-full") ?? "",
+    bubbleClassName: skin.inner("assistant"),
     decoration,
-    weldedAvatar: null,
+    weldedAvatar,
     mirrored: false,
     artView: artViewFor(viewArt, attribution),
+    onArtFailed: setArtFailed,
   });
   // #2425 — ONE scope over the column's header AND bubble, the settled row's shape exactly
   // (`themedColumnContent`): an `outside` header (tide's) is a SIBLING above the box, so a bubble-only
@@ -366,7 +381,7 @@ export function GhostMessageRow({
           `ROW_BODY_AT_PHONE_WIDTH`, or a live turn at a phone width would reflow its gutter the
           instant it settled. */}
       <Row align="start" gap="row" data-slot="message-row-body" className={cn(rowBodyClassFor(skin), "w-full", ROW_BODY_AT_PHONE_WIDTH)}>
-        {avatarNode}
+        {leadingAvatar}
         {/* The skin's own column width rides the ghost too — a live turn that reflows at commit is a
             visible jump (the reading-measure suite pins the two columns equal). */}
         <Stack gap="row" data-slot="message-content-column" className={columnClass} style={skin.columnStyle}>

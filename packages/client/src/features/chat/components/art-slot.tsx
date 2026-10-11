@@ -2,6 +2,8 @@
 // the image at the width its slot actually renders, and falls back to the speaker's hue fill and initial when there
 // is no image or the image fails to load.
 
+import type { AvatarProps } from "@orb/ui/avatar";
+import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import type { CSSProperties, ReactElement } from "react";
@@ -92,29 +94,40 @@ export function FallbackLetter({
   );
 }
 
-/** Whisper's band: the hue fill with the initial in its solid top, or the banner image over it, under the feather. */
-export function WhisperBand({ band, view }: { readonly band: NonNullable<BubbleDecoration["headerBand"]>; readonly view: ArtView | null }): ReactElement {
+/** Whisper's band: the hue fill with the initial in its solid top, or the banner image over it, under the feather.
+ *  An image that fails to load is treated exactly like no image: the plain feather, the initial, and no tap target. */
+export function WhisperBand({
+  band,
+  view,
+  onFailedChange,
+}: {
+  readonly band: NonNullable<BubbleDecoration["headerBand"]>;
+  readonly view: ArtView | null;
+  readonly onFailedChange?: ((failed: boolean) => void) | undefined;
+}): ReactElement {
   const { attach, url, failed } = useSlotImage(band.image?.urlAt);
-  const style: CSSProperties =
-    url === undefined
-      ? { ...band.style, backgroundImage: band.feather, backgroundSize: "100% 100%", backgroundRepeat: "no-repeat" }
-      : {
-          ...band.style,
-          backgroundImage: `${band.feather}, url("${url}")`,
-          backgroundSize: "100% 100%, cover",
-          backgroundPosition: "0 0, top center",
-          backgroundRepeat: "no-repeat, no-repeat",
-        };
+  useFailedReport(failed, onFailedChange);
+  const showsImage = url !== undefined && !failed;
+  const tappable = view !== null && !failed;
+  const style: CSSProperties = showsImage
+    ? {
+        ...band.style,
+        backgroundImage: `${band.feather}, url("${url}")`,
+        backgroundSize: "100% 100%, cover",
+        backgroundPosition: "0 0, top center",
+        backgroundRepeat: "no-repeat, no-repeat",
+      }
+    : { ...band.style, backgroundImage: band.plainFeather, backgroundSize: "100% 100%", backgroundRepeat: "no-repeat" };
   return (
     <Stack
-      aria-hidden={view === null ? "true" : undefined}
+      aria-hidden={tappable ? undefined : "true"}
       data-slot="message-band"
-      className={cn("relative rounded-t-card", view !== null && "hover:opacity-80", band.className)}
+      className={cn("relative rounded-t-card", tappable && "hover:opacity-80", band.className)}
       ref={attach}
       style={style}
     >
       {band.image === undefined || failed ? <FallbackLetter className="absolute inset-x-0 top-0 h-3/5" initials={band.fallback} size="70cqmin" /> : null}
-      {view === null ? null : <ArtViewButton view={view} />}
+      {tappable ? <ArtViewButton view={view} /> : null}
     </Stack>
   );
 }
@@ -122,17 +135,27 @@ export function WhisperBand({ band, view }: { readonly band: NonNullable<BubbleD
 /** Echo's tile: a positioned pane on the role's side (a portrait's height, Moonlit's fixed mobile height on a phone,
  *  never past the card's own foot), cover-cropped and feathered by its own mask. The mask sits on the inner tile
  *  only, so the button over it is an unmasked layer and its focus ring shows. */
-export function EchoArtTile({ art, view }: { readonly art: NonNullable<BubbleDecoration["art"]>; readonly view: ArtView | null }): ReactElement {
+export function EchoArtTile({
+  art,
+  view,
+  onFailedChange,
+}: {
+  readonly art: NonNullable<BubbleDecoration["art"]>;
+  readonly view: ArtView | null;
+  readonly onFailedChange?: ((failed: boolean) => void) | undefined;
+}): ReactElement {
   const { attach, url, failed } = useSlotImage(art.image?.urlAt);
+  useFailedReport(failed, onFailedChange);
+  const tappable = view !== null && !failed;
   const rounding = art.side === "left" ? "rounded-tl-card" : "rounded-tr-card";
   const { width, ...paint } = art.style;
-  const paintStyle: CSSProperties = url === undefined ? paint : { ...paint, backgroundImage: `url("${url}")` };
+  const paintStyle: CSSProperties = url === undefined || failed ? paint : { ...paint, backgroundImage: `url("${url}")` };
   return (
     <Stack
-      aria-hidden={view === null ? "true" : undefined}
+      aria-hidden={tappable ? undefined : "true"}
       className={cn(
         "absolute top-0 aspect-(--aspect-portrait) max-h-full @max-md:aspect-auto @max-md:h-(--immersive-echo-art-height-phone)",
-        view === null ? "pointer-events-none" : "group/art",
+        tappable ? "group/art" : "pointer-events-none",
         art.side === "left" ? "left-0" : "right-0",
       )}
       ref={attach}
@@ -140,12 +163,26 @@ export function EchoArtTile({ art, view }: { readonly art: NonNullable<BubbleDec
     >
       <Stack
         data-slot="message-echo-art"
-        className={cn("absolute inset-0 bg-center bg-cover bg-no-repeat", view !== null && "group-hover/art:opacity-80", rounding)}
+        className={cn("absolute inset-0 bg-center bg-cover bg-no-repeat", tappable && "group-hover/art:opacity-80", rounding)}
         style={paintStyle}
       >
         {art.image === undefined || failed ? <FallbackLetter className="absolute inset-0" initials={art.fallback} /> : null}
       </Stack>
-      {view === null ? null : <ArtViewButton view={view} rounding={rounding} />}
+      {tappable ? <ArtViewButton view={view} rounding={rounding} /> : null}
     </Stack>
   );
+}
+
+// Tells the row whether its art failed to load, so the row can drop the letter chip that would repeat the fallback.
+function useFailedReport(failed: boolean, onFailedChange: ((failed: boolean) => void) | undefined): void {
+  useEffect(() => {
+    onFailedChange?.(failed);
+  }, [failed, onFailedChange]);
+}
+
+/** Ripple's portrait: the Avatar asking for its image at the width its slot renders at (times the pixel ratio),
+ *  not a fixed size. With no image the Avatar's own fallback shows. */
+export function PortraitAvatar({ urlAt, ...avatar }: AvatarProps & { readonly urlAt: ((cssWidth: number) => string) | undefined }): ReactElement {
+  const { attach, url } = useSlotImage(urlAt);
+  return <Avatar ref={attach} {...avatar} {...(url === undefined ? {} : { src: url })} />;
 }

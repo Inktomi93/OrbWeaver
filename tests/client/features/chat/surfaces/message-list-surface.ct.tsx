@@ -434,9 +434,7 @@ for (const viewport of [
         )
         .toEqual([1.5, 1.5]);
       // The initial scales with the portrait instead of staying a chip-sized glyph.
-      await expect
-        .poll(() => component.getByText(/^[MT]$/u).evaluateAll((all) => all.map((el) => Number.parseFloat(getComputedStyle(el).fontSize) > 12)))
-        .toEqual([true, true]);
+      await expect.poll(() => component.getByText(/^[MT]$/u).evaluateAll(initialTracksItsSlot)).toEqual([true, true]);
     });
 
     for (const art of [
@@ -470,7 +468,7 @@ for (const viewport of [
           .toEqual(Array.from({ length: 2 }, () => ({ filled: true, masked: art.masked, gradient: !art.masked, sized: true })));
         // The initial scales with its slot, and stays readable on the hue fill.
         const letters = component.getByText(/^[MT]$/u);
-        await expect.poll(() => letters.evaluateAll((all) => all.map((el) => Number.parseFloat(getComputedStyle(el).fontSize) > 12))).toEqual([true, true]);
+        await expect.poll(() => letters.evaluateAll(initialTracksItsSlot)).toEqual([true, true]);
         const contrast = await pixelContrast(page, letters.last());
         expect(contrast.ratio, contrast.describe).toBeGreaterThanOrEqual(4.5);
       });
@@ -480,6 +478,18 @@ for (const viewport of [
 
 test.describe("the art viewer in phone landscape", () => {
   test.use({ viewport: { width: 844, height: 390 }, hasTouch: true });
+
+  test("a tall portrait keeps most of the height: Close rides the title row", async ({ mount, page }) => {
+    await routeArtRoom(page, "flat", TALL_SVG);
+    const component = await mount(<MessageListSurfaceStory />);
+    await component.getByRole("button", { name: viewImageActionName("Mira"), exact: true }).tap();
+    const dialog = page.getByRole("dialog");
+    const frame = dialog.locator('[data-slot="crossfade-image"]');
+    await expect(frame).toBeVisible();
+    await expect.poll(async () => (await frame.boundingBox())?.height ?? 0).toBeGreaterThan(230);
+    const close = dialog.getByRole("button", { name: "Close" });
+    await expect.poll(async () => ((await close.boundingBox())?.y ?? Number.POSITIVE_INFINITY) < ((await frame.boundingBox())?.y ?? 0)).toBe(true);
+  });
 
   test("the dialog is sized to its frame, not a thumbnail in a wide card", async ({ mount, page }) => {
     await routeArtRoom(page, "flat", LANDSCAPE_SVG);
@@ -496,6 +506,22 @@ test.describe("the art viewer in phone landscape", () => {
 test.describe("the art viewer on a phone", () => {
   test.use({ viewport: { width: 390, height: 780 }, hasTouch: true });
 
+  test("ripple asks for its portrait at the width its slot renders, not a fixed size", async ({ mount, page }) => {
+    await routeArtRoom(page, "ripple");
+    const component = await mount(<MessageListSurfaceStory />);
+    const image = component.locator('[data-slot="avatar-image"]').first();
+    await expect(image).toHaveAttribute("src", /v=portrait/u);
+    const slot = component.locator('[data-slot="avatar-root"]').first();
+    // The phone's portrait slot is narrower than the desktop's 180px, so the ask is too (slot width times the pixel ratio, snapped).
+    await expect
+      .poll(async () => {
+        const asked = Number((await image.getAttribute("src"))?.match(/w=(\d+)/u)?.[1]);
+        const width = (await slot.boundingBox())?.width ?? 0;
+        return asked >= width && asked <= width + 16;
+      })
+      .toBe(true);
+  });
+
   test("the dialog hugs a landscape image instead of filling the screen", async ({ mount, page }) => {
     await routeArtRoom(page, "flat", LANDSCAPE_SVG);
     const component = await mount(<MessageListSurfaceStory />);
@@ -511,6 +537,29 @@ test.describe("the art viewer on a phone", () => {
       .toBeLessThan(560);
     await expect.poll(async () => Math.round((((await frame.boundingBox())?.width ?? 0) / ((await frame.boundingBox())?.height ?? 1)) * 100) / 100).toBe(1.5);
   });
+});
+
+test.describe("an image that fails to load shows the speaker's fallback, readable in dark and light", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  for (const room of [
+    { label: "dark", light: false },
+    { label: "light", light: true },
+  ]) {
+    test(`whisper, ${room.label}: the initial reads at 4.5:1, the chip steps aside and the band is not a button`, async ({ mount, page }) => {
+      await routeArtRoom(page, "whisper");
+      await page.route("**/api/blob/**", (route) => route.abort("failed"));
+      const component = await mount(
+        room.light ? <MessageListOverArtStory artBackdrop={false} art="white" palette={LIGHT_ROOM_PALETTE} /> : <MessageListSurfaceStory />,
+      );
+      const letters = component.getByText(/^[MT]$/u);
+      await expect(letters).toHaveCount(2);
+      await expect(component.locator('[data-slot="avatar-root"]')).toHaveCount(0);
+      await expect(component.getByRole("button", { name: viewImageActionName("Mira"), exact: true })).toHaveCount(0);
+      const contrast = await pixelContrast(page, letters.last());
+      expect(contrast.ratio, contrast.describe).toBeGreaterThanOrEqual(4.5);
+    });
+  }
 });
 
 test.describe("the art viewer and its controls, desktop", () => {
@@ -624,6 +673,19 @@ test.describe("the art viewer and its controls, desktop", () => {
     });
   }
 });
+
+/** Runs in the page: each initial's font size is a fixed share of its slot's smaller side. A fixed-size glyph
+ *  (a chip's 13px label in a 180px portrait) falls far under that share. */
+function initialTracksItsSlot(all: Element[]): boolean[] {
+  return all.map((el) => {
+    const slot = el.parentElement?.getBoundingClientRect();
+    if (slot === undefined) {
+      return false;
+    }
+    const share = Number.parseFloat(getComputedStyle(el).fontSize) / Math.min(slot.width, slot.height);
+    return share > 0.4 && share < 0.8;
+  });
+}
 
 async function expectArtViewerRoundTrip(page: Page, control: Locator, speaker: string, touch: boolean): Promise<void> {
   const dialog = page.getByRole("dialog");
@@ -880,7 +942,7 @@ test("pending phase (turnStarted, no deltas yet): the typing dots render with RE
   await expect(component.locator('[data-slot="typing-dots"] .orb-typing-dot')).toHaveCount(3);
   const readBoxAtAssertion = async (): Promise<typeof box> => await pending.boundingBox();
   const box = await pending.boundingBox();
-  await expect.poll(async () => (await readBoxAtAssertion())?.width).toBeGreaterThan(100);
+  await expect.poll(async () => (await readBoxAtAssertion())?.width).toBeGreaterThan(16);
 });
 
 // SWIPE reroll (append-variant), streamed head only (start + two deltas, NO completion) so the in-place

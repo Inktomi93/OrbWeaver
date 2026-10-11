@@ -13,7 +13,7 @@ import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { Fragment, useEffect } from "react";
+import { Fragment, useEffect, useState } from "react";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { cn, resolveRowRenderPolicy } from "#lib";
 import { appearanceMessageRegistryEnabled, registerAppearanceMessageSnapshot } from "#src/lib/appearance-message-registry.ts";
@@ -286,7 +286,8 @@ export function MessageRow({
       role,
       showInChatAvatars,
     }) ?? null;
-  const avatarTreatment = avatarTreatmentFor(skin, attribution.kind, decoration);
+  const [artFailed, setArtFailed] = useState(false);
+  const avatarTreatment = avatarTreatmentFor(skin, attribution.kind, decoration, artFailed);
   // #1728 arm B. `Grid` and `Row` are both `div`s taking `className`/`gap`/`data-*` and each ignores the
   // other's variant prop, so ONE element spelling serves both arms and the body's markup is not written
   // twice; the two placement facts are single-homed beside the skin table that decides them.
@@ -412,6 +413,7 @@ export function MessageRow({
                   narratorVoiced: isNarratorVoiced(message.kind),
                   editing,
                   artView: artViewFor(viewArt, attribution),
+                  onArtFailed: setArtFailed,
                 })}
               </>,
             )}
