@@ -106,9 +106,10 @@ function registerLiveProvenance(opts: Args): void {
  *  for the run, so `--contexts`/`--as` log in against it unless the caller named another fixture. */
 function bindIsolatedStage(opts: Args): StageRow {
   const auth = opts.stageAuth;
+  const stageDb = opts.stageDb === null ? {} : { stageDb: opts.stageDb };
   const stage = opts.dirty
-    ? ensureStage({ fresh: opts.fresh, dirty: true, auth })
-    : ensureStage(opts.ref === null ? { fresh: opts.fresh, auth } : { ref: opts.ref, fresh: opts.fresh, auth });
+    ? ensureStage({ fresh: opts.fresh, dirty: true, auth, ...stageDb })
+    : ensureStage(opts.ref === null ? { fresh: opts.fresh, auth, ...stageDb } : { ref: opts.ref, fresh: opts.fresh, auth, ...stageDb });
   opts.base = stageRowBaseUrl(stage);
   if (auth === "local") {
     opts.fixtureServer ??= `http://127.0.0.1:${String(stage.serverPort)}`;
