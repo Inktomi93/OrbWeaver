@@ -108,7 +108,10 @@ export function AddDocumentBody(): ReactElement {
   };
 
   return (
-    <Stack gap="block" padding="block">
+    // NO PADDING OF THE BODY'S OWN: the arms end in a sticky footer that rides the scroll region's bottom edge, and
+    // a wrapper padding it keeps the footer that far above the edge and makes it jump when the scroll ends. The
+    // popup's own inset already surrounds the region.
+    <Stack gap="block">
       {/* ModalHost draws the title + the close; the teaching gloss is the body's, and it is the ONE
           spelling (databank-copy) every add/empty surface prints.
 

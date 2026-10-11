@@ -412,9 +412,13 @@ function themeVarsBlock(themeTokens: Readonly<Record<string, string>>): string {
 // The base body rule so an UNSTYLED model card lands IN the app theme instead of browser-default
 // white/serif. It USES the injected surface/text vars (`--sandbox-bg`/`--sandbox-fg`) — so an under-filled
 // frame is a dark themed surface, not a white slab. The card's own CSS still layers on top of this.
+// The root's scrollbar is the app's thin one (ui globals.css), tinted from the frame's own foreground token:
+// a frame that outgrows its box scrolls inside itself, and the platform's wide light bar reads as a stray
+// native control in a dark room. The frame has no access to the app's stylesheet, so the rule is restated here.
 function baseBodyBlock(fontFamily: string | undefined): string {
   const font = fontFamily === undefined ? "sans-serif" : `${fontFamily}, sans-serif`;
-  return `body { margin: 0; padding: 0; background: var(--sandbox-bg); color: var(--sandbox-fg); font-family: ${font}; }`;
+  const scrollbar = "html { scrollbar-width: thin; scrollbar-color: color-mix(in oklab, var(--sandbox-fg) 22%, transparent) transparent; }";
+  return `${scrollbar} body { margin: 0; padding: 0; background: var(--sandbox-bg); color: var(--sandbox-fg); font-family: ${font}; }`;
 }
 
 /**

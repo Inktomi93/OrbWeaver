@@ -91,6 +91,8 @@ test("the finder reads filter · sort · overflow, the band carries New tag, and
   await expect(content(workspace).getByRole("heading", { name: "Tags", level: 2 })).toBeVisible();
   const facts = content(workspace).locator('[data-slot="labels-library-facts"]');
   await expect(facts).toContainText("Unattached1 of 3");
+  // One count spelling across the app: the fact's figure wears the list header's sans count, not mono.
+  await expect.poll(() => facts.getByText("1 of 3", { exact: true }).evaluate((el) => getComputedStyle(el).fontFamily)).not.toMatch(/mono/iu);
   await expect(facts).toContainText("Tags on characters2");
   await expect(facts).toContainText("Tags on chats2");
   // The orphan fact's door acts on EVERY orphan, not the first one: it opens the prune confirm.
@@ -327,6 +329,72 @@ test("suggestions group by tag, merge near-duplicates, hide seed tags and apply 
   await expect(inbox.getByRole("group", { name: /Suggested assistant/u })).toHaveCount(0);
   await inbox.getByRole("button", { name: "Apply to all", exact: true }).click();
   await expect.poll(() => recorder.count("tag.attachTag")).toBe(2);
+});
+
+// A suggestion row is a name and its two verbs. The verbs never stack (a phone row was ~118px tall, five rows
+// ~600px) and sit beside their name instead of a pane-width away from it (~700px on a desktop).
+const SUGGESTION_LAYOUTS = [
+  { label: "phone", viewport: { width: 390, height: 844 } },
+  { label: "desktop", viewport: { width: 1280, height: 800 } },
+] as const;
+
+for (const { label, viewport } of SUGGESTION_LAYOUTS) {
+  test(`${label}: a suggestion row keeps Apply and Reject on one line, beside the character's name`, async ({ mount, page }) => {
+    await page.setViewportSize(viewport);
+    const noir = tagRow("tag_noir", "noir", 0);
+    const { usage: _usage, pendingSuggestions: _pending, ...rest } = noir;
+    await routeTrpc(page, {
+      "tag.listTagsWithUsage": () => [noir],
+      "tag.listAttachedEntities": { entities: [], hasMore: false },
+      "tag.listPendingSuggestions": () => [{ ...rest, characterId: mintTypeId(ID_PREFIX.character), characterName: "Aria" }],
+    });
+    const workspace = await mount(<LabelsWorkspaceStory />);
+    const row = content(workspace).getByRole("group", { name: "Suggested noir for Aria", exact: true });
+    await expect(row).toBeVisible();
+
+    const apply = await row.getByRole("button", { name: "Apply", exact: true }).boundingBox();
+    const reject = await row.getByRole("button", { name: "Reject", exact: true }).boundingBox();
+    const name = await content(workspace).getByRole("button", { name: "Aria", exact: true }).boundingBox();
+    expect(apply, "Apply must have a box").not.toBeNull();
+    expect(reject, "Reject must have a box").not.toBeNull();
+    expect(name, "the character's name must have a box").not.toBeNull();
+    expect(Math.abs((apply?.y ?? 0) - (reject?.y ?? 0)), "Apply and Reject share a line").toBeLessThan(2);
+    const gap = (apply?.x ?? 0) - ((name?.x ?? 0) + (name?.width ?? 0));
+    expect(gap, "the verbs sit beside the name, not at the far edge of the pane").toBeLessThan(SUGGESTION_NAME_TO_ACTION_MAX_PX);
+  });
+}
+/** Far under the old ~700px pane-width gap, and far over what a table cell's padding needs. */
+const SUGGESTION_NAME_TO_ACTION_MAX_PX = 240;
+
+// A 320px phone gives the content pane about 295px. The story's own layout is not a phone shell, so the
+// table root is capped to that width directly. A long character name wraps inside its cell; the verbs stay
+// on one line and the table never needs its own horizontal scroll.
+const PHONE_PANE_PX = 295;
+
+test("a long character name wraps in a phone-width pane and the suggestion row does not overflow sideways", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const noir = tagRow("tag_noir", "noir", 0);
+  const { usage: _usage, pendingSuggestions: _pending, ...rest } = noir;
+  const longName = "Aria Nightshade of the Long Winter Court and Beyond";
+  await routeTrpc(page, {
+    "tag.listTagsWithUsage": () => [noir],
+    "tag.listAttachedEntities": { entities: [], hasMore: false },
+    "tag.listPendingSuggestions": () => [{ ...rest, characterId: mintTypeId(ID_PREFIX.character), characterName: longName }],
+  });
+  const workspace = await mount(<LabelsWorkspaceStory />);
+  const row = content(workspace).getByRole("group", { name: `Suggested noir for ${longName}`, exact: true });
+  await expect(row).toBeVisible();
+  const root = row.locator('xpath=ancestor::*[@data-slot="table-root"]');
+  await root.evaluate((el, width) => {
+    el.style.maxWidth = `${String(width)}px`;
+  }, PHONE_PANE_PX);
+
+  const apply = row.getByRole("button", { name: "Apply", exact: true });
+  const reject = row.getByRole("button", { name: "Reject", exact: true });
+  const scroller = row.locator('xpath=ancestor::*[@data-slot="table-scroll"]');
+  await expect.poll(async () => Math.round((await scroller.boundingBox())?.width ?? 0), { message: "the cap must bind" }).toBeLessThanOrEqual(PHONE_PANE_PX);
+  await expect.poll(async () => Math.abs(((await apply.boundingBox())?.y ?? 0) - ((await reject.boundingBox())?.y ?? 99))).toBeLessThan(2);
+  await expect.poll(() => scroller.evaluate((el) => el.scrollWidth <= el.clientWidth), { message: "the table must not need a sideways scroll" }).toBe(true);
 });
 
 test("pending-only labels stay outside In use and prune until Apply; Reject removes the staged junction", async ({ mount, page }) => {

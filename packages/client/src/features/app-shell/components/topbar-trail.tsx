@@ -23,11 +23,31 @@ function assertNever(behavior: never): never {
 export function TopbarTrailChrome({ mobile }: { readonly mobile: boolean }): ReactElement {
   const chrome = useChromeRegistry();
   const entries = chrome.list().filter((e) => e.zone === "topbar.trail" && !(mobile && e.mobile === "sheet"));
+  // Registry order is the trail's order, so a run of consecutive widgets is the unit that groups.
+  const runs: ChromeEntry[][] = [];
+  for (const entry of entries) {
+    const last = runs.at(-1);
+    if (last !== undefined && entry.behavior.kind === "widget" && last[0]?.behavior.kind === "widget") {
+      last.push(entry);
+    } else {
+      runs.push([entry]);
+    }
+  }
   return (
     <>
-      {entries.map((entry) => (
-        <TrailEntry key={entry.id} entry={entry} />
-      ))}
+      {runs.map((run) =>
+        run[0]?.behavior.kind === "widget" ? (
+          // The icon actions are ONE group, so the row reads as a palette trigger and a cluster, not a pill
+          // and a loose run of glyphs.
+          <div className="shell-topbar-cluster" key={run[0].id}>
+            {run.map((entry) => (
+              <TrailEntry key={entry.id} entry={entry} />
+            ))}
+          </div>
+        ) : (
+          run.map((entry) => <TrailEntry key={entry.id} entry={entry} />)
+        ),
+      )}
     </>
   );
 }

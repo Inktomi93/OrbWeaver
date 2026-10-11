@@ -154,6 +154,46 @@ test.describe("phone mode layout", () => {
   });
 });
 
+// The footer is the body's last child, so it rides the scroll region's bottom edge at every scroll position:
+// no padding of the body's own may wrap it, or it sits that far above the edge at the end of the scroll and
+// jumps by that much as it settles there.
+test.describe("footer in a short dialog", () => {
+  test.use({ viewport: { width: 430, height: 520 } });
+
+  test("the action row rests on the scroll region's bottom edge at the top, and stays there at the end", async ({ mount, page }) => {
+    await stubDatabank(page);
+    const band = await mount(<DatabankListHeaderStory />);
+    await band.getByRole("button", { name: "Add", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: "Paste text", exact: true }).click();
+    const region = dialog.locator(':scope > div[tabindex="-1"]');
+    const footer = dialog.locator('[data-slot="dialog-footer"]');
+    await expect(footer).toBeVisible();
+    await expect
+      .poll(() => region.evaluate((el) => el.scrollHeight > el.clientHeight), { message: "the dialog must overflow, or this measures nothing" })
+      .toBe(true);
+
+    const gapBelowFooter = (): Promise<number> =>
+      page.evaluate(() => {
+        const scroller = document.querySelector('[role="dialog"] > div[tabindex="-1"]');
+        const action = document.querySelector('[role="dialog"] [data-slot="dialog-footer"]');
+        if (scroller === null || action === null) {
+          throw new Error("dialog scroll region or footer missing");
+        }
+        return scroller.getBoundingClientRect().bottom - action.getBoundingClientRect().bottom;
+      });
+    await region.evaluate((el) => {
+      el.scrollTop = 0;
+    });
+    const atTop = await gapBelowFooter();
+    await region.evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+    });
+    await expect.poll(gapBelowFooter).toBeCloseTo(atTop, 0);
+    expect(atTop, "the pinned footer rests on the region's own bottom edge").toBeCloseTo(0, 0);
+  });
+});
+
 test.describe("footer on a 430x740 phone", () => {
   test.use({ viewport: { width: 430, height: 740 }, hasTouch: true });
 

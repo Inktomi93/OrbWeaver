@@ -201,7 +201,7 @@ export const SUGGEST_ON_REFUSAL_LABEL = "Offer to run it when rate-capped";
 
 /** The switch's help line — what the host will SEE if they leave it on, and what "off" buys them. */
 export const SUGGEST_ON_REFUSAL_HELP =
-  "When this rule hits a fire-rate cap, this chat offers you a card to run it anyway. Turn it off to let this one rule stay quiet when it's capped.";
+  "When this rule hits a fire-rate cap, you get a card to run it anyway. Turn it off to let this one rule stay quiet when it's capped.";
 
 /** N rules give N identical switches, so the accessible name carries the rule's own name to tell them apart
  *  — appended AFTER the visible label so the visible text is contained exactly, which is what 2.5.3 asks

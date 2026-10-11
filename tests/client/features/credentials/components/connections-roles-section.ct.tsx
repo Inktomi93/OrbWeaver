@@ -1115,8 +1115,9 @@ function identityVersusControls(page: Page): Promise<number> {
   });
 }
 
-// The role glosses are sentences: they paint at the label step, not the 10.5px micro step.
-test("the Model roles intro and a role description paint at the label step, not the micro step", async ({ mount, page }) => {
+// The role glosses are sentences: they paint at the label step, not the 10.5px micro step. The Utility
+// preset's note sits between two role descriptions, so it is the same size as they are.
+test("the Model roles intro, a role description and the Utility preset note paint at the label step, not the micro step", async ({ mount, page }) => {
   await stubTheTwoDotStates(page);
   await mount(<ConnectionsPaneWideStory />);
   const roles = page.locator("#config-anchor-connections-model-roles");
@@ -1145,10 +1146,11 @@ test("the Model roles intro and a role description paint at the label step, not 
           stepsApart: label > px("--text-micro"),
           intro: find("Shared-room turns use the room host's connections") >= label,
           description: find("Unset falls back to the captioned-text lens.") >= label,
+          utilityPresetNote: find("The sampling summaries, extraction, captions") >= label,
         };
       }),
     )
-    .toEqual({ stepsApart: true, intro: true, description: true });
+    .toEqual({ stepsApart: true, intro: true, description: true, utilityPresetNote: true });
   await expect(description).toBeVisible();
 });
 

@@ -14,13 +14,15 @@
 import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, MessageId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { modelDisplayName } from "@orb/kit/model-name";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_FORK_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { waitFrames } from "../../../../support/browser/weave-drive.ts";
+import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
 import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
@@ -483,12 +485,17 @@ test("#680 desktop: the flank wrapper is HEIGHT-neutral — a silent flank and n
 // (`git show e64a2c69b2^:…`), both arms are RED — which is the receipt that the centring the finding reported
 // was the SAME baked `items-center` #680 removed, i.e. this loop is a FENCE on today's tree, not a fix.
 // A one-arm pin is how the centring shipped in the first place (#680's own lesson).
+//
+// THE COLUMN'S TOP GAP: beside the transcript the flank column is the same box top as the row, and the gap
+// below the topbar's divider is the COLUMN'S OWN top padding, so a card never sits flush on the divider
+// while the box still starts where the transcript does. Stacked, the flank sits below the thread and the
+// row's own gap already separates them, so it pays none.
 const FLANK_START_ARMS = [
-  { label: "desktop (beside)", viewport: DESKTOP, axis: "block" },
-  { label: "mobile (stacked)", viewport: { width: 430, height: 932 }, axis: "inline" },
+  { label: "desktop (beside)", viewport: DESKTOP, axis: "block", hasTopGap: true },
+  { label: "mobile (stacked)", viewport: { width: 430, height: 932 }, axis: "inline", hasTopGap: false },
 ] as const;
 
-for (const { label, viewport, axis } of FLANK_START_ARMS) {
+for (const { label, viewport, axis, hasTopGap } of FLANK_START_ARMS) {
   test(`#685 ${label}: the flank column starts at the flank ROW's ${axis} edge — never centred on its cross axis`, async ({ mount, page }) => {
     await page.setViewportSize(viewport);
     await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(LONG_CANON) });
@@ -511,8 +518,13 @@ for (const { label, viewport, axis } of FLANK_START_ARMS) {
     const flankStart = axis === "block" ? (flankBox?.y ?? 0) : (flankBox?.x ?? 0);
     const rowStart = axis === "block" ? (rowBox?.y ?? 0) : (rowBox?.x ?? 0);
     expect(flankStart, `the flank's ${axis}-start against the row's`).toBeCloseTo(rowStart, 0);
-    // …and the widget is at the START of the column it sits in (no free space above it inside the flank).
-    expect(widgetBox?.y ?? 0).toBeCloseTo(flankBox?.y ?? 0, 0);
+    // …and the widget is at the START of the column it sits in: below the column's own top gap (beside) and
+    // otherwise with no free space above it inside the flank, which is what centring would have put there.
+    const topGap = await flank.evaluate((el) => Number.parseFloat(getComputedStyle(el).paddingTop));
+    expect(topGap > 0, `the flank column's top gap (${String(topGap)}px): beside the transcript it sits under the divider, stacked it pays none`).toBe(
+      hasTopGap,
+    );
+    expect(widgetBox?.y ?? 0).toBeCloseTo((flankBox?.y ?? 0) + topGap, 0);
   });
 }
 
@@ -1073,4 +1085,89 @@ test("colorQuotedSpeech OFF renders the same body plain — the knob really reac
   const bubble = component.locator(BUBBLE).first();
   await expect(bubble).toContainText("You’re late,");
   await expect(bubble.locator(DIALOGUE_SPAN)).toHaveCount(0);
+});
+
+// ── THE ROOM NAMES THE MODEL IN ONE PLACE: THE PER-MESSAGE STAMP ─────────────────────────────────────
+// Owner ruling: no in-room model or preset swaps, and attribution lives on the reply it describes. The
+// composer's next-reply line, the header and the context pane used to repeat the model name; each is now
+// silent about it, and nothing in the room switches the model or the preset (both are set in settings).
+// The room here can reply (a host with a resolved chat connection) and one reply carries a recorded model,
+// so every place that COULD name it has the data to.
+const ATTRIBUTION_MODEL = "anthropic/claude-sonnet-5";
+const ATTRIBUTION_KEY_ID = castId<UserConnectionId>("user_connection_ctroom0001");
+const ATTRIBUTION_KEY = {
+  id: ATTRIBUTION_KEY_ID,
+  label: "Work key",
+  providerId: "anthropic",
+  providerLabel: "Anthropic",
+  model: ATTRIBUTION_MODEL,
+  tasks: ["chat"],
+} satisfies TrpcFixtureOutput<"connection.list">[number];
+
+test("the room names the model only in the per-message stamp and mounts no model or preset swap", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...PREVIEW_FIT_STUB,
+    ...ROSTER_STUB,
+    "settings.getUserSettings": () => ({
+      userId: castId<UserId>("user_ct"),
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, showModelIcon: true } },
+      configUnreadable: null,
+      updatedAt: 0,
+    }),
+    "connection.list": [ATTRIBUTION_KEY],
+    "connection.resolveChatCapability": { task: "chat", connectionId: ATTRIBUTION_KEY_ID, providerId: "anthropic", model: ATTRIBUTION_MODEL },
+    "chat.listMessages": () =>
+      makeMessagesPage([
+        makeMessageView({
+          id: castId<MessageId>("msg_room_stamped"),
+          role: "assistant",
+          content: "Well met, traveller.",
+          model: testModelId(ATTRIBUTION_MODEL),
+          provider: testProviderId("anthropic"),
+          connectionId: ATTRIBUTION_KEY_ID,
+          connectionAttributionProvenance: "recorded",
+        }),
+      ]),
+  });
+  const component = await mount(<ChatRoomSurfaceStory />);
+  await expect(component.getByText("Well met, traveller.")).toBeVisible();
+
+  // The stamp is there, so the absence below is a verdict about every other place and not about a missing row.
+  const stamp = '[data-slot="message-metadata-model"]';
+  await expect(page.locator(stamp)).toHaveCount(1);
+  const named = modelDisplayName(ATTRIBUTION_MODEL);
+  const findStrays = (): Promise<string[]> =>
+    page.evaluate(
+      ({ needle, stampSelector }) =>
+        [...document.querySelectorAll("*")]
+          .filter((el) => {
+            const own = [...el.childNodes]
+              .filter((node) => node.nodeType === Node.TEXT_NODE)
+              .map((node) => node.textContent ?? "")
+              .join("");
+            const labelled = [own, el.getAttribute("title") ?? "", el.getAttribute("aria-label") ?? ""].some((text) => text.includes(needle));
+            return labelled && el.closest(stampSelector) === null;
+          })
+          .map((el) => `${el.tagName.toLowerCase()}: ${(el.textContent ?? "").slice(0, 60)}`),
+      { needle: named, stampSelector: stamp },
+    );
+  // THE POSITIVE CONTROL: a model name planted outside the stamp is found, so the empty verdict below is the
+  // room's and not a probe that cannot see.
+  await page.evaluate((text) => {
+    const planted = document.createElement("span");
+    planted.id = "planted-model-name";
+    planted.textContent = text;
+    document.body.append(planted);
+  }, named);
+  expect(await findStrays(), "the probe must see a model name outside the stamp").toHaveLength(1);
+  await page.evaluate(() => document.getElementById("planted-model-name")?.remove());
+  const strays = await findStrays();
+  expect(strays, `the model name appears outside the per-message stamp: ${strays.join(" | ")}`).toEqual([]);
+
+  // No control in the room switches the model, the connection or the preset.
+  await expect(component.getByRole("button", { name: /model|preset|connection/iu })).toHaveCount(0);
+  await expect(component.getByRole("combobox", { name: /model|preset|connection/iu })).toHaveCount(0);
+  await expect(component.getByRole("menuitem", { name: /model|preset|connection/iu })).toHaveCount(0);
 });

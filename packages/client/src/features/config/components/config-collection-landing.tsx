@@ -62,7 +62,7 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
-import { QueryBoundary } from "#components";
+import { CountText, QueryBoundary } from "#components";
 import { QueryErrorState } from "#data";
 import type { CollectionContribution, CollectionInsight } from "#lib";
 import { useFocusOnSwap } from "#lib";
@@ -335,9 +335,7 @@ function CollectionInsightList({ insights }: { readonly insights: readonly Colle
           <Text as="span" voice="kicker">
             {insight.label}
           </Text>
-          <Text as="span" voice="datum">
-            {insight.value}
-          </Text>
+          <CountText>{insight.value}</CountText>
           {insight.open === undefined ? null : (
             <Button className="ms-auto" intent="ghost" onClick={insight.open.run} size="sm" type="button">
               {insight.open.label}

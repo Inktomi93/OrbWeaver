@@ -19,7 +19,7 @@ export function ModelPickerRow({ entry, picked, current }: { readonly entry: Pic
     <Row align="start" className="min-w-0 flex-1" gap="row">
       <Stack className="min-w-0 flex-1" gap="field">
         <Row align="center" className="min-w-0" gap="field">
-          <Text as="span" className="line-clamp-2 min-w-0 break-all" ink="inherit" title={entry.label}>
+          <Text as="span" className="line-clamp-2 min-w-0 break-words" ink="inherit" title={entry.label}>
             {entry.label}
           </Text>
           {hasVision(entry) ? (

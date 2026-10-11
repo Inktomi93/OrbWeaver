@@ -60,7 +60,7 @@ export function UtilityPresetSelect(): ReactElement {
     <Row gap="field" align="start" justify="between" className="flex-wrap">
       <Stack gap="tight">
         <Text voice="label">Utility preset</Text>
-        <Text voice="gloss" className={PROSE_MEASURE}>
+        <Text prose={true} voice="gloss" className={PROSE_MEASURE}>
           The sampling summaries, extraction, captions and other background tasks run at. A preset here lends only its sampling settings, never its prompts.
         </Text>
       </Stack>
