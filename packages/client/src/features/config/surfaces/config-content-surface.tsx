@@ -60,6 +60,12 @@ import { useConfigScrollSpy } from "../hooks/use-config-scroll-spy.ts";
 import { CONFIG_SECTION_LABEL, CONFIG_WELCOME } from "../lib/config-copy.ts";
 import { scrollContentToTop, scrollToAnchor } from "../lib/config-jump.ts";
 
+/** The landmark containers the shell's focus rescue lands on (`main`, the list pane, the pane scroller) are
+ *  `tabindex=-1` stops no reader tabs to. */
+function isShellRescueTarget(element: Element): boolean {
+  return element.getAttribute("tabindex") === "-1";
+}
+
 export interface ConfigContentSurfaceProps {
   readonly groups: ConfigGroupRegistry;
 }
@@ -108,12 +114,19 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
     const viewer = { isAdmin, isOwner };
     // The cleanup marks this landing superseded, so its late focus below stands down.
     let superseded = false;
-    // The reader moving on is INPUT (a press or a key) after the request, never a change of `activeElement`:
-    // the shell's focus rescue and the LIST's arrival focus move it too, and neither is the reader.
+    // The reader moving on is INPUT (a press or a key) after the request, or focus landing on a control other
+    // than where the request found it: assistive technology and `element.focus()` move focus with no input
+    // event. The shell's focus rescue and the LIST's arrival focus move it too, and neither is the reader, so
+    // a move onto their targets does not count.
     let readerMoved = false;
     const doc = contentRef.current?.ownerDocument;
+    const foundAt = doc?.activeElement ?? null;
     const noteReader = (): void => {
       readerMoved = true;
+    };
+    const focusMovedByReader = (): boolean => {
+      const now = doc?.activeElement ?? null;
+      return now !== foundAt && now !== null && now !== doc?.body && !isShellRescueTarget(now);
     };
     const listening = new AbortController();
     doc?.addEventListener("pointerdown", noteReader, { capture: true, signal: listening.signal });
@@ -149,7 +162,7 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
               return;
             }
             control.scrollIntoView({ block: "center", behavior: scrollBehavior() });
-            if (!readerMoved) {
+            if (!(readerMoved || focusMovedByReader())) {
               control.focus({ preventScroll: true });
             }
           };

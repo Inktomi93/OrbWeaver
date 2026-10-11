@@ -206,7 +206,6 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--filmstrip` | `B` | capture; bounded exact-page transition contact sheet | checkpoint/arm | replaces retired Record video/GIF path | owned | KEEP; refuses contaminating profiler/trace arms |
 | `--fixture-base` | `V,L` URL | boot modifier; fixture app base | outer | child of contexts/as | owned | KEEP; refused without `--contexts`/`--as` |
 | `--fixture-server` | `V,L` URL | boot modifier; fixture controller | outer | child of contexts/as | owned | KEEP; refused without `--contexts`/`--as` |
-| `--focus` | `V,R,@N` selector | action; DOM focus | checkpoint | not panel focus | owned | KEEP |
 | `--force` | `B` | admin modifier; force close/down | admin only | shared by destructive admin verbs | owned | KEEP; refused without `--stage-down`/`--session-close` |
 | `--fresh` | `B` | boot WHERE; fresh isolated stage | outer | implies isolated; not dirty/ref alias | owned | KEEP |
 | `--full` | `B` | capture modifier; full-page shot | checkpoint | canonical; legacy `--full-page` refused | owned | KEEP |
@@ -244,7 +243,7 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--out` | `V,L` artifact base/name | capture/output and session-export destination | checkpoint/admin export | typed through the session request; custom JSON/HAR/trace artifacts enter the immutable index | owned | KEEP |
 | `--stage-owner` | `V,L` owner id | stage admin targeting | admin | child of stage-down | owned | KEEP; old `--owner` refuses by name |
 | `--pages` | `V,L` integer | boot/call; page count | outer/session boot | page suffix targets created pages | owned | KEEP |
-| `--panel` | `V,R,@N` panel name | action; open/select panel | checkpoint | `--panels` lists/sets collection; `--focus` DOM action | owned | KEEP |
+| `--panel` | `V,R,@N` panel name | action; open/select panel | checkpoint | `--panels` lists/sets collection | owned | KEEP |
 | `--panels` | `V,L` panel-set spec | boot/action appearance | outer/checkpoint contract-dependent | not singular alias | owned | KEEP |
 | `--pause` | `V,R,@N` milliseconds | action; explicit sleep | checkpoint | unlike readiness `--wait` | owned | KEEP |
 | `--perf` | `B` | analyzer; app performance snapshot | checkpoint/arm | not CPU/React/Lighthouse profiles | owned | KEEP |

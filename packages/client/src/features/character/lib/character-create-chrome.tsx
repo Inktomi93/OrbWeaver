@@ -15,7 +15,7 @@
 //     only the phone; `characters-list-header.tsx` renders `CharacterCreateActions` there). NOT a mobile
 //     MODE: it is the same affordance, in the one place a phone has room for it.
 //   · the active section IS Characters — this is a SECTION-scoped entry in a shell-global zone, and the
-//     registry's scoping vocabulary is `useVisible` (the `pluginCommandsChrome` / `fullscreenChrome`
+//     registry's scoping vocabulary is `useVisible` (the `pluginCommandsChrome` / `contextToggleChrome`
 //     precedent: a capability gate called unconditionally over the door-frozen list). `false` renders
 //     NOTHING, no gap.
 //   · the LIST is the SCREEN (`listMode === "docked"` — the ONE-SHELL arm). This is what keeps #520's "one

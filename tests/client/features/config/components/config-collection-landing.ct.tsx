@@ -175,6 +175,12 @@ for (const width of [752, 1440, 1920]) {
 // enabled and stable", and then fails the click with "element is outside of the viewport". The width matrix
 // above is the place a 1440/1920 host belongs, because it MEASURES and never clicks.
 const INTERACTIVE_WIDTH = 900;
+/** A host width whose content pane (about 400px) is under the control row's container breakpoint, as on a phone. */
+const NARROW_WIDTH = 752;
+/** A host whose content pane is about 620px, where the filter was crushed by an inline form. */
+const MEDIUM_WIDTH = 980;
+/** The name field measured 50px in the squeezed row; a name worth typing needs well over that. */
+const NAME_FIELD_FLOOR = 150;
 
 test("the control row reads filter · bulk · create · overflow, left to right", async ({ mount, page }) => {
   await stub(page);
@@ -337,6 +343,27 @@ test("New script asks for a name inline and creates the script under it", async 
   await row.getByRole("button", { name: "Create" }).click();
   await expect.poll(() => (trpc.lastInput("regex.createScript") as { input: { name: string } } | undefined)?.input.name).toBe("Strip OOC");
 });
+
+for (const width of [NARROW_WIDTH, MEDIUM_WIDTH]) {
+  test(`at a ${String(width)}px host the inline name form takes its own row and the filter keeps its width`, async ({ mount, page }) => {
+    await stub(page);
+    const workspace = await mount(<ConfigHostStory height={900} target="regex" width={width} />);
+    const row = workspace.locator(CONTROL_ROW);
+    const filter = row.getByRole("textbox", { name: "Filter regex scripts" });
+    const restWidth = (await filter.boundingBox())?.width ?? 0;
+
+    await row.getByRole("button", { name: "New script" }).click();
+    const field = row.getByRole("textbox", { name: "Script name" });
+    await expect(field).toBeVisible();
+    const filterBox = await filter.boundingBox();
+    const fieldBox = await field.boundingBox();
+    expect(filterBox?.width ?? 0).toBeGreaterThanOrEqual(restWidth);
+    expect(fieldBox?.y ?? 0).toBeGreaterThanOrEqual((filterBox?.y ?? 0) + (filterBox?.height ?? 0));
+    expect(fieldBox?.width ?? 0).toBeGreaterThanOrEqual(NAME_FIELD_FLOOR);
+    // A blank box beside a disabled Create names nothing for a sighted reader: the field carries a placeholder.
+    await expect(field).toHaveAttribute("placeholder", /\S/);
+  });
+}
 
 test("a create in flight cannot be submitted twice: Enter then Create makes exactly one request", async ({ mount, page }) => {
   const hold = trpcHold();

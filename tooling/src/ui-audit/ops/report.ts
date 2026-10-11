@@ -217,23 +217,13 @@ export function printPopulationAccounting(accounting: PopulationAccounting): voi
  *  this run, then — same law as `printPopulationAccounting` above — every candidate this run did NOT
  *  visit, named rather than silently folded into a clean-looking zero. A verdict that never prints this
  *  cannot be told apart from one that measured every configuration. */
-function shellFocusLabel(shell: ShellStateSnapshot | null): string {
-  if (shell === null) {
-    return "unmounted";
-  }
-  return shell.focus ? "on" : "off";
-}
-
 export function printSurfaceState(shell: ShellStateSnapshot | null, accounting: SurfaceStateAccounting, drive: DriveStateCandidate): void {
   const listMode = shell?.panels.find((p) => p.side === "list")?.mode ?? "unmounted";
   const contextMode = shell?.panels.find((p) => p.side === "context")?.mode ?? "unmounted";
-  print(
-    `SHELL STATE  section=${shell?.section ?? "unmounted"} panel-list=${listMode} panel-context=${contextMode} focus=${shellFocusLabel(shell)} drive=${drive}`,
-  );
+  print(`SHELL STATE  section=${shell?.section ?? "unmounted"} panel-list=${listMode} panel-context=${contextMode} drive=${drive}`);
   for (const [axis, census] of [
     ["panel-list", accounting.panelList],
     ["panel-context", accounting.panelContext],
-    ["focus", accounting.focus],
     ["drive", accounting.drive],
   ] as const) {
     const withheld = Object.entries(census.withheld)

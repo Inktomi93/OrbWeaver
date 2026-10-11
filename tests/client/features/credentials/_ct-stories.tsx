@@ -394,6 +394,18 @@ export function ConnectionEditorStory(): ReactElement {
   );
 }
 
+/** The editor inside a short scrolling pane, as the settings content pane holds it: a picker pick below the pane's
+ *  fold must not scroll the pane. */
+export function ConnectionEditorScrollPaneStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div data-testid="scroll-pane" style={{ height: 420, overflow: "auto", width: 870 }}>
+        <ConnectionEditorInner connectionId="user_connection_cteditor0001" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** The editor as the list opens it: Done closes it. Beside it, the toasts `notify` raised, because `bindNotify` is
  *  main.tsx-only and the CT harness leaves `notify` a no-op unless a story binds it. */
 function ClosableConnectionEditorInner(): ReactElement {

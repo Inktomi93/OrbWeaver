@@ -19,12 +19,12 @@ import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuTrigger } fro
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useActiveChatId } from "#state";
-import { usePluginCommands, useRunPluginCommand } from "../hooks/use-plugin-commands.ts";
+import { useLauncherCommands, useRunPluginCommand } from "../hooks/use-plugin-commands.ts";
 import { pluginCommandActionLabel, pluginCommandAttributedActionLabel, pluginCommandAttribution } from "../lib/plugin-command-copy.ts";
 
 /** Group the flat command list by plugin, preserving the hook's (plugin, command) order. */
 function groupByPlugin(
-  commands: ReturnType<typeof usePluginCommands>,
+  commands: ReturnType<typeof useLauncherCommands>,
 ): readonly { readonly pluginId: PluginId; readonly pluginName: string; readonly slug: string; readonly commands: typeof commands }[] {
   const groups: { pluginId: PluginId; pluginName: string; slug: string; commands: (typeof commands)[number][] }[] = [];
   for (const command of commands) {
@@ -39,7 +39,7 @@ function groupByPlugin(
 }
 
 export function PluginCommandsMenu({ presentation }: { readonly presentation: "bar" | "sheet" }): ReactElement | null {
-  const commands = usePluginCommands();
+  const commands = useLauncherCommands();
   // The ROOM the command runs in, when there is one. A command run from a non-chat screen carries `null` and
   // the server admits no chat scope — `chat.current()` throws in the guest, which is the honest answer.
   const chatId = useActiveChatId();

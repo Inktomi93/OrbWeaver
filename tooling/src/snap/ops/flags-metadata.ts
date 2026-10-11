@@ -98,7 +98,6 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--open-character": { group: "Reach", summary: "Characters section + select by id or name" },
   "--context-tab": { group: "Reach", summary: "switch the context panel's tab" },
   "--panel": { group: "Reach", summary: "name=mode — drive one shell pane's layout mode (also the docked <-> collapsed FLIP)" },
-  "--focus": { group: "Reach", summary: "the shell's zen/focus-mode toggle" },
   "--panels": { group: "Reach", summary: "a named pane configuration in one flag (composes over --panel)" },
   "--pages": { group: "Reach", summary: "N tabs in ONE browser context (shared cookies, independent DOM)" },
   "--contexts": { group: "Reach", summary: "N isolated fixture users in separate contexts (one-direction comparison)" },

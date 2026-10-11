@@ -1,6 +1,6 @@
 // useShellLayout — the shell's view-model and panel-resolve merge point. Bundles narrow shell-store
 // reads with derived bits (active section label, resolved per-panel modes, scrim) plus the
-// toggle/focus/collapse callbacks. Resolution lives here (not the store): the store exposes only the raw
+// toggle/collapse callbacks. Resolution lives here (not the store): the store exposes only the raw
 // per-panel override; this hook merges `override ?? the section's registry panelDefaults` then runs it
 // through `resolvePanelMode` — the SAME algebra `useSectionListMode` uses (`#state`), so the two tiers can
 // never drift (the M10 correction).
@@ -18,13 +18,11 @@ import type { ModalSlotId, PanelMode, PanelName, SectionId } from "#state";
 import {
   registerListFlipCarry,
   resolvePanelMode,
-  setFocusMode,
   setMobileViewport,
   setNarrowViewport,
   setOpenOverlayPanel,
   setPanelMode,
   useActiveSection,
-  useFocusMode,
   useOpenModal,
   useOpenOverlayPanel,
   usePanelOverride,
@@ -46,13 +44,6 @@ export interface ShellLayout {
   /** Does the active section HAVE a CONTEXT pane at all (`SectionDefinition.context`)? The LIST
    *  twin: `false` ⇒ NO detail-panel toggle and `contextMode` pinned `collapsed`. */
   readonly contextAvailable: boolean;
-  /** Does the section have ANY panel? `false` ⇒ focus mode is a control over nothing (the section has no
-   *  panels to hide), so the toggle does not render at all. */
-  readonly anyPanelAvailable: boolean;
-  /** The shell's focus flag, straight from the store (`#state`'s `focusMode`) — the ONE truth the toggle's
-   *  label/icon/pressed state reads. It is NOT re-derived from the resolved modes: that derivation is what
-   *  let the narrow auto-collapse read as "already in focus" and produced the item-20 desync. */
-  readonly focusMode: boolean;
   readonly openModalId: ModalSlotId | null;
   /** True when either panel is floating in overlay mode — the dismiss scrim shows behind it. */
   readonly scrimVisible: boolean;
@@ -80,11 +71,6 @@ export interface ShellLayout {
   /** Force one panel closed. Overlay regime: close the slide-over if it's the one open. Wide regime:
    *  collapse the persisted override. */
   readonly collapsePanel: (panel: PanelName) => void;
-  /** Flip the focus flag: ON hides every panel (and closes any open slide-over), OFF returns the section
-   *  to its own saved layout — which is simply the `panelOverrides` map focus never touched. Regime-free:
-   *  the same one flip in every viewport (at ≤64rem this is what replaced a toggle whose label never
-   *  changed and whose second click did nothing at all). */
-  readonly toggleFocus: () => void;
   /** THE MOBILE ONE-SHELL RULE (owner-ruled 2026-08-03), second half: on a phone, with a member OPEN in a
    *  list-bearing section, CONTENT is the screen and this is the way BACK to the roster — clearing the
    *  section's own selection through its declared seam. `null` in every other state (desktop, no list, or
@@ -129,7 +115,6 @@ export function useShellLayout(): ShellLayout {
     setNarrowViewport(isNarrow);
   }, [isNarrow]);
   const openOverlayPanel = useOpenOverlayPanel();
-  const focusMode = useFocusMode();
   const listOverride = usePanelOverride(activeSection, "list");
   const contextOverride = usePanelOverride(activeSection, "context");
 
@@ -166,12 +151,9 @@ export function useShellLayout(): ShellLayout {
   const listIsScreen = listAvailable && nothingSelected;
   const memberOpen = useSectionHasSelection(activeSection);
 
-  const listMode: PanelMode = listAvailable
-    ? resolvePanelMode("list", listDefault, { isFocus: focusMode, isMobile, isNarrow, openOverlayPanel, listIsScreen })
-    : "collapsed";
+  const listMode: PanelMode = listAvailable ? resolvePanelMode("list", listDefault, { isMobile, isNarrow, openOverlayPanel, listIsScreen }) : "collapsed";
   const contextMode: PanelMode = contextAvailable
     ? resolvePanelMode("context", contextDefault, {
-        isFocus: focusMode,
         isMobile,
         isNarrow: isNarrow || contextAutoOverlay,
         openOverlayPanel,
@@ -181,7 +163,6 @@ export function useShellLayout(): ShellLayout {
 
   const openModalId = useOpenModal();
   const activeSectionLabel = activeDef.rail.label;
-  const anyPanelAvailable = listAvailable || contextAvailable;
   const scrimVisible = listMode === "overlay" || contextMode === "overlay";
   // The ONE-SHELL screen: a phone, a list-bearing section, nothing selected. shell.css keys the same arm
   // off `data-list-mode="docked"` inside its one `@media`, so the two never disagree about what "the
@@ -205,11 +186,10 @@ export function useShellLayout(): ShellLayout {
   // The rule is the one this shell already uses for a reveal that must land in either regime
   // (`revealContextPanel`): write BOTH channels so each self-selects. Here it runs at the ONE moment the
   // regime changes under a panel the user did not touch, and it carries VISIBILITY — the fact the user
-  // can see — never a hidden pane's stored preference. Focus mode is excluded outright: nothing is
-  // showing, and focus owns no panel writes (the item-20 ruling).
+  // can see — never a hidden pane's stored preference.
   const carryContextAcrossListFlip = (nextListMode: PanelMode): void => {
     const nextAutoOverlay = contextContentConstrained && listAvailable && contextAvailable && nextListMode === "docked";
-    if (focusMode || nextAutoOverlay === contextAutoOverlay) {
+    if (nextAutoOverlay === contextAutoOverlay) {
       return;
     }
     if (contextMode !== "collapsed") {
@@ -267,13 +247,6 @@ export function useShellLayout(): ShellLayout {
     setPanelMode(panel, "collapsed");
   };
 
-  // One flip of the ONE flag — no panel writes in either direction, in any regime. Focus therefore cannot
-  // clobber the section's saved dock preferences (entering used to write `collapsed` over them, and
-  // exiting used to dock BOTH panels — re-opening a pane the user had collapsed before focus existed).
-  const toggleFocus = (): void => {
-    setFocusMode(!focusMode);
-  };
-
   // The way BACK out of a pushed detail (mobile, list-bearing, something open): the section's own declared
   // clear, WHICH IS THE SAME FUNCTION every other back in the app calls (it drops the selection and
   // releases the slide-over request — see `createDrillSelectionStore`). The shell adds nothing on top: a
@@ -291,8 +264,6 @@ export function useShellLayout(): ShellLayout {
     listAvailable,
     contextMode,
     contextAvailable,
-    anyPanelAvailable,
-    focusMode,
     openModalId,
     scrimVisible,
     contentInert,
@@ -300,6 +271,5 @@ export function useShellLayout(): ShellLayout {
     mobileViewport: isMobile,
     togglePanel,
     collapsePanel,
-    toggleFocus,
   };
 }

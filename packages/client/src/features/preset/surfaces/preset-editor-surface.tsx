@@ -380,11 +380,11 @@ function PresetEditorBody({
                 read, 2026-08-02), once, for all five views. The cap is why: a wide pane stretched rack rows
                 to ~840px with a ~60% dead gutter and ran drill-in glosses to ~130ch against the 65-75ch
                 reading measure. What the first build got wrong is the RULING: a 720px cap LEFT-PINNED inside
-                a 958px pane parks 240px of void on one side, and in focus mode ~800px ("looks okay when both
+                a 958px pane parks 240px of void on one side, and with both collapsed ~800px ("looks okay when both
                 panels are out, but when you close them it looks awful"). So the column CENTERS — the house
                 convention for a wide content-pane editor (character-editor-surface.tsx uses the same
                 `mx-auto w-full max-w-…`) — and BREATHES to `--width-content-col-wide` once the pane itself
-                clears @5xl, which is exactly the panels-collapsed / focus-mode regime. The `Container` is
+                clears @5xl, which is exactly the panels-collapsed regime. The `Container` is
                 what the @5xl query measures (the pane's own width), which is why the cap and the container
                 are two elements and not one. It lives HERE and not per view so no body can opt out. */}
             <Container className="w-full">

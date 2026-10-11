@@ -235,7 +235,6 @@ export function mapAtlasEvidence(value: unknown): MapAtlasEvidence {
       url: pageString(placeRecord["url"], `${label} place "url"`),
       section: placeRecord["section"] === null ? null : mapSectionIdSchema.parse(safeString(placeRecord["section"], `${label} place "section"`)),
       chatOpen: pageBoolean(placeRecord["chatOpen"], `${label} place "chatOpen"`),
-      focus: pageBoolean(placeRecord["focus"], `${label} place "focus"`),
     },
   };
 }
@@ -304,10 +303,6 @@ export function mapShellEvidence(value: unknown): MapShellEvidence {
       throw new Error(`INSTRUMENT ERROR: ${label} __orb.shell panel declaration disagrees with rendered ${String(panel.side)} attributes`);
     }
   }
-  const focus = pageBoolean(published["focus"], `${label} published "focus"`);
-  if (focus !== pageBoolean(record["focus"], `${label} field "focus"`)) {
-    throw new Error(`INSTRUMENT ERROR: ${label} __orb.shell focus disagrees with .shell-grid data-focus-mode`);
-  }
   return {
     status,
     regime: enumValue(record["regime"], MAP_SHELL_REGIMES, `${label} field "regime"`),
@@ -321,7 +316,6 @@ export function mapShellEvidence(value: unknown): MapShellEvidence {
     publishedPanels,
     contentIdentity: nullableString(record["contentIdentity"], `${label} field "contentIdentity"`),
     chatOpen: pageBoolean(published["chatOpen"], `${label} published "chatOpen"`),
-    focus,
     activeContextTab:
       record["activeContextTab"] === null ? null : mapContextTabIdSchema.parse(safeString(record["activeContextTab"], `${label} field "activeContextTab"`)),
     contextRelation: enumValue(record["contextRelation"], ["unspecified/auxiliary"] as const, `${label} field "contextRelation"`),

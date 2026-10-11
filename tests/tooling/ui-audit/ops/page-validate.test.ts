@@ -85,7 +85,7 @@ describe("the in-page fact walk's seam", () => {
 });
 
 describe("the __orb.shell() bridge seam", () => {
-  const shell = { section: "home", panels: [{ side: "left", mode: "docked", available: true }], chatOpen: true, focus: false };
+  const shell = { section: "home", panels: [{ side: "left", mode: "docked", available: true }], chatOpen: true };
 
   test("null is a REAL answer (no bridge on the page) and passes through", () => {
     expect(shellStateSnapshot(null)).toBeNull();

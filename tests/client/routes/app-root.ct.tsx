@@ -18,7 +18,7 @@
 // `tests/client/features/app-shell/surfaces/app-shell.ct.tsx` mounts through `CtFakeSectionRegistry`, whose
 // story-injected `list`/`content`/`header` bodies and stand-in mobile titles make that class of defect
 // structurally invisible there (its header states the same split). Shell CHROME — regions, panel clamp,
-// focus modes, rail, modal host, tab bar — stays that file's floor and is not re-pinned here.
+// rail, modal host, tab bar — stays that file's floor and is not re-pinned here.
 
 import { chatWithActionName } from "@orb/client/lib";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";

@@ -18,7 +18,7 @@ export type PanelName = "list" | "context";
  *
  *  `null` IS NOT "closed": it means *no explicit request*, so the regime's own default decides. That is what
  *  lets the mobile LIST-as-screen default (`resolvePanelMode`) exist without a second flag beside this one:
- *  every clear-the-selection / section-change / focus write already lands `null`, and `null` is exactly
+ *  every clear-the-selection / section-change write already lands `null`, and `null` is exactly
  *  "show me whatever this regime shows by default". `"none"` is the user's own close — the topbar toggle
  *  dropping the roster screen to reach the section's no-selection CONTENT. Two states, one field, so the
  *  "is anything floating?" question can never be answered two ways.
@@ -43,12 +43,9 @@ export const CORPUS_PHONE_LANDING: Readonly<Record<CorpusMode, PhoneLanding>> = 
 /** The ONE mode-resolution algebra — both `useShellLayout`'s `resolvePanel` (feature-tier hook, reads the
  *  section registry for `panelDefaults`) and `useSectionListMode` (the `#state` tier) call this SAME function so
  *  they can never drift (the M10 correction: a hand-copied mirror read only `mobileViewport` and
- *  disagreed with `resolvePanel` in the 48–64rem regime). Precedence isFocus → isMobile → narrow → wide.
+ *  disagreed with `resolvePanel` in the 48–64rem regime). Precedence isMobile → narrow → wide.
  *
- *  FOCUS WINS OVER EVERYTHING (item 20): focus mode is "no side panel is showing", in every regime, with
- *  ZERO writes to `panelOverrides` — which is what makes the flag, the label and the pixels one truth and
- *  leaves the pre-focus layout intact for the exit (the untouched override map IS the saved state).
- *  Then, as before: mobile never resolves "docked" (a transient sheet, open only when `openOverlayPanel` names it); a
+ *  Mobile never resolves "docked" (a transient sheet, open only when `openOverlayPanel` names it); a
  *  narrow-desktop `docked` DEFAULT auto-downgrades to a CLOSED slide-over (`collapsed`), opening to
  *  `overlay` only when `openOverlayPanel` names it (§4.1: overlay is zero-width closed by default, slides
  *  over on demand); wide resolves the raw override-or-default untouched.
@@ -75,7 +72,6 @@ export function resolvePanelMode(
   panel: PanelName,
   resolved: PanelMode,
   regime: {
-    readonly isFocus: boolean;
     readonly isMobile: boolean;
     readonly isNarrow: boolean;
     readonly openOverlayPanel: OverlayPanelRequest;
@@ -83,9 +79,6 @@ export function resolvePanelMode(
     readonly listIsScreen: boolean;
   },
 ): PanelMode {
-  if (regime.isFocus) {
-    return "collapsed";
-  }
   if (regime.isMobile) {
     if (panel === "list" && regime.listIsScreen) {
       return regime.openOverlayPanel === "none" ? "collapsed" : "docked";

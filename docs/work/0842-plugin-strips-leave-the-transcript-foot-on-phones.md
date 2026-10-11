@@ -18,8 +18,10 @@ Owner approved moving the plugin strip off the transcript on phones; deferred be
 
 ## Done when
 
-On coarse pointers the flank surfaces mount once inside a header-opened sheet, never twice, with a CT for single mounting and member visibility.
+On coarse pointers the flank surfaces mount once inside a header-opened sheet, never twice, with a CT for single mounting and member visibility. Every plugin chat panel carries a one-tap Hide action with undo, and each plugin's row in the Plugins pane has a Show in chat switch that brings it back; the choice is per plugin, per user, across all rooms, stored in user settings (no DB schema change), with CTs for hide, undo and re-show.
 
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner ruling: plugin panels show by default with a one-tap hide on the panel, and the per-plugin Show in chat switch lives on the plugin's row; scope is per plugin for that user in every room.

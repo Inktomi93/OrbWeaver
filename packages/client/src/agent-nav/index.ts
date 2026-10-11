@@ -36,7 +36,6 @@ import {
   selectChat,
   setActiveSection,
   setCorpusMode,
-  setFocusMode,
 } from "#state";
 import type { NavResult, OrbNavCapabilities, OrbNavHandle } from "../lib/agent-bridge.ts";
 import { markAgentNavigation } from "../lib/motion-stats.ts";
@@ -367,11 +366,6 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient, resolveConfi
     },
     async panel(name: string, mode: string): Promise<NavResult> {
       return await resolvePanelRequest(name, mode);
-    },
-    focus(on: boolean): NavResult {
-      markAgentNavigation();
-      setFocusMode(on);
-      return OK;
     },
   };
 }

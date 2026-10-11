@@ -60,7 +60,6 @@ export interface ShellStateSnapshot {
   readonly section: string | null;
   readonly panels: ReadonlyArray<{ readonly side: string | null; readonly mode: string | null; readonly available: boolean | null }>;
   readonly chatOpen: boolean;
-  readonly focus: boolean;
 }
 
 /** THE TWO NON-RUNNING ARMS ARE NOT THE SAME ARM, and collapsing them is how a broken checker reads as

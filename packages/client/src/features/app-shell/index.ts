@@ -1,7 +1,7 @@
 // app-shell front door. AppShell consumes the section + chrome registries (runtime context values) — it
 // stays domain-agnostic and gains no #features import. `ContextTabsPanel` is NOT exported here — only
 // `SectionContextHost` (app-shell-internal) consumes it now (client-architecture-lockdown.md §6b).
-// app-shell registers its OWN topbar.trail chrome (fullscreen + context toggle) through the same door as
+// app-shell registers its OWN topbar.trail chrome (the context toggle) through the same door as
 // any other feature — no self-privilege.
 
 export { AppToaster } from "./components/app-toaster.tsx";
@@ -19,6 +19,5 @@ export { appearanceSizingSection } from "./lib/appearance-sizing-section.tsx";
 // "Report a bug" — a `topbar.trail` widget in every build; its developer capture is dev-gated inside the form.
 export { bugReportChrome } from "./lib/bug-report-chrome.tsx";
 export { contextToggleChrome } from "./lib/context-toggle-chrome.tsx";
-export { fullscreenChrome } from "./lib/fullscreen-chrome.tsx";
 export { youModal } from "./lib/you-modal.tsx";
 export { AppShell } from "./surfaces/app-shell.tsx";

@@ -36,7 +36,6 @@
             { side: "context", mode: "docked", available: true },
           ],
           chatOpen: false,
-          focus: false,
         }),
         snap: () => ({ fixture: "ordinary", section: "home" }),
         consoleErrors: () => ({ records: [], dropped: 0, cap: 128 }),
@@ -44,7 +43,7 @@
     </script>
   </head>
   <body>
-    <div class="shell-grid" data-section="home" data-list-mode="docked" data-context-mode="docked" data-focus-mode="false">
+    <div class="shell-grid" data-section="home" data-list-mode="docked" data-context-mode="docked">
       <nav class="shell-rail" aria-label="Orbweaver"><button type="button" aria-current="page">Home</button></nav>
       <aside class="shell-panel" data-panel-side="list" data-panel-mode="docked" data-panel-available="true" aria-label="Recent items">
         <button type="button">Example item</button>

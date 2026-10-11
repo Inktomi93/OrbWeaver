@@ -292,7 +292,6 @@ export function AppShell(): ReactElement {
             data-section={layout.activeSection}
             data-list-mode={layout.listMode}
             data-context-mode={layout.contextMode}
-            data-focus-mode={layout.focusMode}
             data-elevation={appearance.elevation}
             {...(hasBgImage ? { "data-has-bg-image": true } : {})}
             style={shellVars}
