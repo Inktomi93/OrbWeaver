@@ -257,13 +257,14 @@ export interface CollectionContribution {
    *  selection write. The host calls it unconditionally, once, per rendered affordance. REQUIRED (not
    *  optional) so the call is never a conditional hook: a library you cannot add to is not a library.
    *
-   *  `askName` makes the host prompt for the new member's name before it runs: the runner then receives the
-   *  trimmed, non-empty name. Absent, the runner fires at once with no argument. `title` is the prompt's
-   *  heading and `fieldLabel` the name field's accessible name. */
+   *  `askName` makes the host swap the button for an inline name field before it runs: the runner then
+   *  receives the trimmed, non-empty name and an `onCreated` it calls only when the create succeeded (a
+   *  failure keeps the field open with the typed name). `fieldLabel` is the field's accessible name and
+   *  `maxLength` the contract's name cap. Absent, the runner fires at once with no arguments. */
   readonly create: {
     readonly label: string;
-    readonly useRun: () => (name?: string) => void;
-    readonly askName?: { readonly title: string; readonly fieldLabel: string };
+    readonly useRun: () => (name?: string, onCreated?: () => void) => void;
+    readonly askName?: { readonly fieldLabel: string; readonly maxLength: number };
   };
   /** The optional IMPORT door, declared as DATA exactly like {@link create} — the host draws a ghost
    *  `Upload` trigger in the group band beside the `+`, and the FileTrigger/accept plumbing stays one

@@ -70,15 +70,23 @@ export function useWorldInfoMemberTitle(memberId: string): string | undefined {
 
 /** The create runner: mint an empty book under the name the host asked for, then OPEN it in CONTENT — the
  *  same create-then-edit motion the rail section's band primary had. */
-export function useCreateWorldInfoMember(): (name?: string) => void {
+export function useCreateWorldInfoMember(): (name?: string, onCreated?: () => void) => void {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const create = useCreateWorldBook({ trpc, invalidation });
-  return (name): void => {
+  return (name, onCreated): void => {
     if (name === undefined) {
       return;
     }
-    create.mutate({ input: { name } }, { onSuccess: (created): void => selectCollectionMember(WORLD_INFO_COLLECTION_ID, created.id) });
+    create.mutate(
+      { input: { name } },
+      {
+        onSuccess: (created): void => {
+          onCreated?.();
+          selectCollectionMember(WORLD_INFO_COLLECTION_ID, created.id);
+        },
+      },
+    );
   };
 }
 

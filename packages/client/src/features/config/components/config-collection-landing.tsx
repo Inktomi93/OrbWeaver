@@ -61,10 +61,11 @@ import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { useState } from "react";
-import { FormDialog, QueryBoundary } from "#components";
+import { useRef, useState } from "react";
+import { QueryBoundary } from "#components";
 import { QueryErrorState } from "#data";
 import type { CollectionContribution, CollectionInsight } from "#lib";
+import { useFocusOnSwap } from "#lib";
 import type { CollectionGroupDefinition } from "#state";
 import { selectCollectionMemberFromList, useCollectionSelection } from "#state";
 import { ConfigPaneGlance } from "./config-pane-glance.tsx";
@@ -179,40 +180,67 @@ function CollectionControlRow({
   );
 }
 
-/** The create verb's button, and the name prompt a collection asks for (`create.askName`). `useRun` is a HOOK
- *  returning the runner, called unconditionally once per rendered affordance (the contract's own discipline),
- *  which is why the button is its own component. */
+/** The create verb's button. A collection that declares `create.askName` swaps the button for an inline name
+ *  field (Create / Cancel in place; Enter submits, Escape cancels). `useRun` is a HOOK returning the runner,
+ *  called unconditionally once per rendered affordance (the contract's own discipline), which is why this is
+ *  its own component. A failed create leaves the field open with what was typed; the runner calls its
+ *  `onCreated` only on success. */
 function CollectionCreate({ collection, inBand = false }: { readonly collection: CollectionContribution; readonly inBand?: boolean }): ReactElement {
   const { label, useRun, askName } = collection.create;
   const run = useRun();
-  const [open, setOpen] = useState(false);
+  const [asking, setAsking] = useState(false);
   const [name, setName] = useState("");
+  const nameRef = useRef<HTMLInputElement>(null);
+  useFocusOnSwap(nameRef, asking);
   const trimmed = name.trim();
-  return (
-    <>
-      <Button intent="primary" onClick={(): void => (askName === undefined ? run() : setOpen(true))} type="button" {...(inBand ? { size: "sm" as const } : {})}>
+  const cancel = (): void => {
+    setAsking(false);
+    setName("");
+  };
+  if (askName === undefined || !asking) {
+    return (
+      <Button
+        intent="primary"
+        onClick={(): void => (askName === undefined ? run() : setAsking(true))}
+        type="button"
+        {...(inBand ? { size: "sm" as const } : {})}
+      >
         {inBand ? <Icon icon={Plus} size="sm" /> : null}
         {label}
       </Button>
-      {askName === undefined ? null : (
-        <FormDialog
-          onOpenChange={setOpen}
-          open={open}
-          submit={{
-            label: "Create",
-            disabled: trimmed === "",
-            onSubmit: (): void => {
-              run(trimmed);
-              setOpen(false);
-              setName("");
-            },
+    );
+  }
+  return (
+    <form
+      noValidate={true}
+      onSubmit={(event): void => {
+        event.preventDefault();
+        if (trimmed !== "") {
+          run(trimmed, cancel);
+        }
+      }}
+    >
+      <Row align="center" gap="field">
+        <Input
+          aria-label={askName.fieldLabel}
+          maxLength={askName.maxLength}
+          onKeyDown={(event): void => {
+            if (event.key === "Escape") {
+              cancel();
+            }
           }}
-          title={askName.title}
-        >
-          <Input aria-label={askName.fieldLabel} onValueChange={setName} value={name} />
-        </FormDialog>
-      )}
-    </>
+          onValueChange={setName}
+          ref={nameRef}
+          value={name}
+        />
+        <Button disabled={trimmed === ""} intent="primary" type="submit" {...(inBand ? { size: "sm" as const } : {})}>
+          Create
+        </Button>
+        <Button intent="ghost" onClick={cancel} type="button" {...(inBand ? { size: "sm" as const } : {})}>
+          Cancel
+        </Button>
+      </Row>
+    </form>
   );
 }
 

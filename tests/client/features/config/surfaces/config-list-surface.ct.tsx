@@ -546,7 +546,10 @@ test("the library's create verb fires the OWNER's create mutation", async ({ mou
   // The verb moved panes at #1725, not seams: it is still `create.useRun`, still host-drawn from the
   // contribution's DATA, and still the owner's own mutation behind it. Only its address changed.
   await workspace.locator(LIST_PANE).getByRole("button", { name: REGEX_BAND }).click();
+  // The owner's create asks for a name inline first; the mutation fires on Create.
   await workspace.locator(CONTENT_PANE).getByRole("button", { name: "New script" }).click();
+  await workspace.locator(CONTENT_PANE).getByRole("textbox", { name: "Script name" }).fill("Strip OOC");
+  await workspace.locator(CONTENT_PANE).getByRole("button", { name: "Create" }).click();
   await expect.poll(() => trpc.count("regex.createScript"), { intervals: [20, 50, 100] }).toBe(1);
 });
 
