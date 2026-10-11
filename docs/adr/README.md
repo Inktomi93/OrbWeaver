@@ -260,4 +260,5 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D311 | [The user's own request body wins every collision outside the denylist](0311-the-users-own-body-wins-every-collision-outside-the-denylist.md) | active |
 | D312 | [A profile import asks per same-name persona collision](0312-profile-import-asks-per-persona-collision.md) | active |
 | D313 | [The context pane's tabs live in its header row, as the pane's one tablist: no foot rail, no kicker, no band title](0313-the-context-panes-tabs-live-in-its-header-row.md) | active |
-| D314 | [Persona pointers have one writer each, the default decides new chats, and the pin holds](0314-persona-pointers-have-one-writer-and-the-pin-holds.md) | active |
+| D314 | [Persona pointers have one writer each, the default decides new chats, and the pin holds](0314-persona-pointers-have-one-writer-and-the-pin-holds.md) | superseded by [0315-persona-pointers-one-writer-pin-read-through-chat.md](0315-persona-pointers-one-writer-pin-read-through-chat.md) |
+| D315 | [Persona pointers have one writer each, the default decides new chats, and the pin holds through its chat](0315-persona-pointers-one-writer-pin-read-through-chat.md) | active |

@@ -120,7 +120,7 @@ describe("metadata read seam (detailOf)", () => {
 });
 
 // The room pin read takes a chat, never a persona id: scope rides `chats.anchorPersonaId`, so the only persona it
-// can return is the one that room pinned, whoever owns it (ADR 0314).
+// can return is the one that room pinned, whoever owns it (ADR 0315).
 describe("room pin read (loadPinnedPersonaView)", () => {
   test("returns only the chat's own pin: another room's pinned persona, another owner's included, never comes back", async () => {
     const db = await freshDb();
