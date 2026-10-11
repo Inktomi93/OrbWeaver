@@ -1,13 +1,12 @@
-// All db access for the feature (queries only). Every read is OWNERSHIP-scoped, and the predicate is always
-// part of the WHERE, never a post-filter: one caller (`ownerId = ?`) for the owner-scoped verbs, and — for
-// the one ROOM-plane read (`loadPersonasForOwners`, the multi-human widening) — the room's present-human SET
-// (`ownerId IN (…)`). `detailOf` narrows the stored `metadata` blob through the schema at the read
-// seam — a corrupt row degrades to `null` instead of poisoning the view.
+// All db access for the feature (queries only). Every read is scoped IN THE WHERE, never by a post-filter: one
+// caller (`ownerId = ?`) for the owner-scoped verbs; the room's present-human SET (`ownerId IN (…)`) for the
+// ROOM-plane read; and the room's pin through its chat (`chats.anchorPersonaId`, the FK chain). `detailOf`
+// narrows the stored `metadata` blob at the read seam, so a corrupt row degrades to `null`.
 
 import { personaMetadataSchema } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
-import { assets, characterPersonas, characters, personas } from "@orb/db";
-import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
+import { assets, characterPersonas, characters, chats, personas } from "@orb/db";
+import type { AssetId, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import type { PersonaCandidate } from "#primitives/serde/persona";
 import { foldPersonaName, personaPlacementOf } from "#primitives/serde/persona";
@@ -62,10 +61,16 @@ export async function loadPersonasForOwners(db: Db, personaIds: readonly Persona
   return rows.map(toPersonaView);
 }
 
-/** One persona's presentation surface by id, whoever owns it — the room pin's read (`contract/ops.ts`). */
-export async function loadPersonaView(db: Db, personaId: PersonaId): Promise<PersonaListView | undefined> {
-  // @orb-waive owner-scoped-reads(personas): the pointer IS the consent (item 885, ADR 0314): the only caller passes the room's stored chats.anchorPersonaId, set through ownership-checked verbs, and gets back the presentation surface the room already consumed. Ends if a caller passes an id from a request.
-  const rows = await db.select(PERSONA_VIEW_COLUMNS).from(personas).where(eq(personas.id, personaId)).limit(LIMIT_ONE);
+/** The room pin's presentation surface: the persona `chats.anchorPersonaId` names for `chatId`, whoever owns it
+ *  (ADR 0314, `contract/ops.ts`). The read starts at the chat and walks the pin's FK, so a caller names a room,
+ *  never a persona; a chat with no pin, or no such chat, reads undefined. */
+export async function loadPinnedPersonaView(db: Db, chatId: ChatId): Promise<PersonaListView | undefined> {
+  const rows = await db
+    .select(PERSONA_VIEW_COLUMNS)
+    .from(chats)
+    .innerJoin(personas, eq(personas.id, chats.anchorPersonaId))
+    .where(eq(chats.id, chatId))
+    .limit(LIMIT_ONE);
   const row = rows[0];
   return row === undefined ? undefined : toPersonaView(row);
 }

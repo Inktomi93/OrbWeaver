@@ -17,13 +17,14 @@
 // identity. `allowedOwnerIds` is that gate, and it is IN THE PARAMS on purpose (the injected-op caller-gate
 // law): an op that reads tenant-scoped rows without carrying its gate is ungated by construction, and every
 // future caller inherits an unfenced read. A persona whose owner is absent from the set simply does not
-// appear in the result. The one exception is the room's PIN (`heldPersonaId`): the host's standing pin keeps
-// resolving after its owner leaves or is disabled, so a card never re-resolves to someone else on its own
-// (item 885). It is read live, never copied, and clears when the owner deletes the persona.
+// appear in the result. The one exception is the room's PIN (`chats.anchorPersonaId`, ADR 0314): the host's
+// standing pin keeps resolving after its owner leaves or is disabled, so a card never re-resolves to someone
+// else on its own. It is read live through `chatId`, never copied, and clears when the owner deletes the
+// persona. The op takes the room, never a pin id, so no caller can name a persona past the consent gate.
 
 import type { JoinerPersona } from "@orb/contracts/persona";
 import type { AwaitableBatchStmt } from "@orb/db/query";
-import type { PersonaId, UserId } from "@orb/kit/ids";
+import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { PersonaListView } from "./views.ts";
 
 /** Resolve the presentation surface of personas a room's PARTICIPANTS consent to.
@@ -31,12 +32,12 @@ import type { PersonaListView } from "./views.ts";
  *  `personaIds` are the ids the room references (its anchor + its present humans' active personas);
  *  `allowedOwnerIds` are the room's PRESENT human participants. The result carries an entry ONLY for an id
  *  that exists AND is owned by one of `allowedOwnerIds` — a foreign, deleted, or departed-member persona is
- *  simply ABSENT (indistinguishable, no existence oracle). `heldPersonaId` is the room's pin, which resolves
- *  whoever owns it; pass only the room's stored `chats.anchorPersonaId`. */
+ *  simply ABSENT (indistinguishable, no existence oracle). `chatId` is the room these ids belong to: its pin
+ *  (`chats.anchorPersonaId`) also resolves, whoever owns it. */
 export type ResolvePersonasForParticipants = (args: {
+  readonly chatId: ChatId;
   readonly personaIds: readonly PersonaId[];
   readonly allowedOwnerIds: readonly UserId[];
-  readonly heldPersonaId?: PersonaId | null;
 }) => Promise<ReadonlyMap<PersonaId, PersonaListView>>;
 
 /** D259 — a sign-up joiner's persona insert, unexecuted, with the id it mints. It runs inside chat's signup batch
