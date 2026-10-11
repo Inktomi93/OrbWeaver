@@ -296,6 +296,11 @@
       "reason": "each TanStack Query observer owns its rejection in `settings.isError`/`preset.isError`; this event only starts the paired retry. Ends if either refetch stops updating query error state."
     },
     {
+      "siteId": "packages/client/src/features/chat/components/chat-import-dialog.tsx::ChatImportDialog.readMemoryOn::queryClient.query::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a deliberate fail-closed; an unreadable switch takes the Memory-off arm, the import's own toast already reported what landed, and every chat still builds at its next reply. Ends if the offer becomes the only way imported chats build memory."
+    },
+    {
       "siteId": "packages/client/src/features/chat/components/chat-list-row-menu.tsx::ChatListRowMenu.confirmDelete::actions.remove::1",
       "verdict": "deliberate-absorb",
       "reason": "useDeleteChat carries errorToast: \"Couldn't delete the chat.\" — the toast is the surface. Ends if useDeleteChat drops errorToast."
