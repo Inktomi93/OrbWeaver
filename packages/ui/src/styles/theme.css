@@ -122,8 +122,8 @@
   --dimension-panel-floor: 17rem;
   --dimension-device-pixel: 1px;
   --dimension-panel-context-step: 24rem;
-  --dimension-content-reading-floor: 40rem;
-  --dimension-shell-content-floor: 46.125rem;
+  --dimension-content-reading-floor: 40.5rem;
+  --dimension-shell-content-floor: 46.625rem;
   --dimension-shell-breakpoint: 48rem;
   --shadow-prose: 0 1px 2px oklch(0 0 0 / 0.45), 0 0 6px oklch(0 0 0 / 0.25);
   --blur-strength: 14px;
@@ -134,6 +134,7 @@
   --immersive-whisper-feather: 70%;
   --immersive-stripe-width: 0.1875rem;
   --immersive-ripple-portrait-width: 11.25rem;
+  --immersive-document-last-row-min-height: 4.375rem;
   --immersive-ripple-portrait-width-phone: 6.25rem;
   --reading-line-height: 1.55;
   --reading-letter-spacing: 0rem;

@@ -17,16 +17,21 @@ export interface SwipeFoot {
   readonly chevron: string;
 }
 
-/** Filled cards (bubble, echo, whisper, ripple): the chevrons hug the card's own edges. The pull is the
- *  card's `px-block` inset less a `row` step, so a glyph sits a hair inside the border rather than on it. */
-export const SWIPE_FOOT_HUG: SwipeFoot = { placement: "inside", row: "-mx-row", chevron: "text-muted-foreground" };
+// An inside foot never sets its container's width: `contain: inline-size` takes it out of a shrink-to-fit
+// bubble's intrinsic width, so a "Hi." bubble stays as narrow as its header and the foot stretches to fit.
+const FOOT_INSIDE_WIDTH = "contain-inline-size";
 
-/** Unboxed columns padded at `px-section` (flat, hush): the chevrons sit out in the column gutter, past the
- *  prose inset, so the reading measure carries nothing but prose and the count. */
-export const SWIPE_FOOT_GUTTER_WIDE: SwipeFoot = { placement: "inside", row: "-mx-section", chevron: "text-muted-foreground" };
+/** Every single-container style: the foot sits on the container's reading inset, the same inset the header
+ *  bar's actions sit on, so the message's top and bottom edges line up glyph for glyph. */
+export const SWIPE_FOOT_INSIDE: SwipeFoot = { placement: "inside", row: FOOT_INSIDE_WIDTH, chevron: "text-muted-foreground" };
 
-/** The document page, padded at `px-block`: the same gutter placement at the page's own inset. */
-export const SWIPE_FOOT_GUTTER: SwipeFoot = { placement: "inside", row: "-mx-block", chevron: "text-muted-foreground" };
+/** Echo: the foot reaches across the art pane on the card's fill, as the pinned header bar does
+ *  (`--row-reach-*`, row-edges.ts), down to the card's bottom edge. */
+export const SWIPE_FOOT_ECHO: SwipeFoot = {
+  placement: "inside",
+  row: `${FOOT_INSIDE_WIDTH} -ml-(--row-reach-left) pl-(--row-reach-left) -mr-(--row-reach-right) pr-(--row-reach-right) -mb-row rounded-b-card bg-ai-bubble`,
+  chevron: "text-muted-foreground",
+};
 
 /** Tide's train of pills has no single container, so the foot runs under the train on the pager plate,
  *  which over a wallpaper is the only thing backing it. */

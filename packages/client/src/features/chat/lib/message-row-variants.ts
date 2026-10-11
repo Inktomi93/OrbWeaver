@@ -15,7 +15,9 @@ import type { RowAttribution } from "./attribution.ts";
 import { BUBBLE_PHONE_CAP, CHAT_TRACK, PILL_PHONE_CAP } from "./chat-track.ts";
 import { BG_PHOTO_READING_PLATE } from "./message-row-backing.ts";
 import type { SwipeFoot } from "./pager-chrome.ts";
-import { SWIPE_FOOT_GUTTER, SWIPE_FOOT_GUTTER_WIDE, SWIPE_FOOT_HUG, SWIPE_FOOT_TRAIN } from "./pager-chrome.ts";
+import { SWIPE_FOOT_ECHO, SWIPE_FOOT_INSIDE, SWIPE_FOOT_TRAIN } from "./pager-chrome.ts";
+import type { ActionsRow, PinnedHeader } from "./row-edges.ts";
+import { ACTIONS_ONLY, ACTIONS_WITH_IDENTITY, PINNED_BAND, PINNED_CARD, PINNED_CHIP, PINNED_PILL } from "./row-edges.ts";
 
 function alignFor(role: MessageRole): string {
   return role === "user" ? "items-end" : "items-start";
@@ -26,7 +28,7 @@ const cx = (...args: Parameters<typeof cn>): string => cn(...args) ?? "";
 
 /** How a row renders its identity art. `sticky-portrait` (Ripple) replaces the sibling avatar chip;
  *  `icon-left` keeps it, even for modes whose bubbleDecoration paints separate art. */
-const AVATAR_TREATMENTS = ["icon-left", "sticky-portrait"] as const;
+const AVATAR_TREATMENTS = ["icon-left", "sticky-portrait", "none"] as const;
 type AvatarTreatment = (typeof AVATAR_TREATMENTS)[number];
 
 /** `trains` (Tide) splits the body into per-paragraph bubbles; every other mode is `single`. */
@@ -107,7 +109,7 @@ export interface BubbleDecoration {
   readonly style?: CSSProperties;
   /** Whisper's header-art band, rendered as a real block-level child above the bubble text (never a
    *  background layer, which would let text sit on bright art). `initial` set only on the no-image fallback. */
-  readonly headerBand?: { readonly style: CSSProperties; readonly initial?: string | undefined } | undefined;
+  readonly headerBand?: { readonly style: CSSProperties; readonly className: string; readonly initial?: string | undefined } | undefined;
   /** Echo's no-avatar fallback edge tile, painting the entity's hue field at the same geometry the
    *  portrait would use — including which SIDE the art pane sits on (the role mirror, #212-3). Absent for
    *  the with-image Echo path and every other mode. */
@@ -120,6 +122,8 @@ export interface RowSkin {
   readonly columnPlacement: ColumnPlacement;
   readonly inner: (role: MessageRole) => string;
   readonly avatarTreatment: (kind: RowAttribution["kind"]) => AvatarTreatment;
+  /** The last row's extra inner class (stock document keeps a minimum block size there). */
+  readonly lastRowInner?: string;
   readonly bubbleDecoration?: (args: BubbleDecorationArgs) => BubbleDecoration | null;
   readonly bubbleLayout: BubbleLayout;
   /** {@link HeaderPlacement} — where this skin's speaker/timestamp/actions row lives (#288). */
@@ -127,8 +131,10 @@ export interface RowSkin {
   /** Whether a USER row mirrors to the trailing edge, chip and all (Moonlit Echoes: bubble, echo, tide). */
   readonly mirrorUser: boolean;
   readonly swipeFoot: SwipeFoot;
-  /** A pinned inside header's band bleeds to the container's edges (margin and padding cancel). */
-  readonly headerBleed: string;
+  /** The header bar's paint while pinned: the row's own surface, reaching its edges (row-edges.ts). */
+  readonly pinnedHeader: PinnedHeader;
+  /** What the header bar carries: the speaker and the actions, or the actions alone. */
+  readonly actionsRow: ActionsRow;
   /** A SKIN-OWNED override of the content column's width, as an inline style (#212-2). The styles tier caps
    *  that column at the reading measure — a rule about a column that holds PROSE. Echo's column holds prose
    *  AND an art pane, so capping the two together is what squeezed its line to 28 characters: the cap has to
@@ -157,7 +163,12 @@ function flatInner(role: MessageRole): string {
   // The plate constant carries the paired reading ink (#204 derive law); a system row keeps its muted
   // tone in BOTH arms — the second spelling out-cascades the plate's `in-data-…:text-prose-body` (same
   // variant, later in the merge), the first covers the plain-background arm.
-  return cx("w-full px-section py-row", BG_PHOTO_READING_PLATE, role === "system" && "text-muted-foreground in-data-[has-bg-image]:text-muted-foreground");
+  // On a phone the text sits a stock 10px from the avatar (SillyTavern flat), not a desktop section away.
+  return cx(
+    "w-full px-section py-row @max-md:px-row",
+    BG_PHOTO_READING_PLATE,
+    role === "system" && "text-muted-foreground in-data-[has-bg-image]:text-muted-foreground",
+  );
 }
 const iconLeftTreatment = (): AvatarTreatment => "icon-left";
 
@@ -216,7 +227,9 @@ function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | null {
     return null;
   }
   const side = echoArtSide(args.kind);
-  const padding: CSSProperties = side === "left" ? { paddingLeft: ECHO_ART_WIDTH } : { paddingRight: ECHO_ART_WIDTH };
+  // The art side's inset is the pane, and the header bar and swipe foot reach across it (`--row-reach-*`).
+  const inset: CSSProperties = side === "left" ? { paddingLeft: ECHO_ART_WIDTH } : { paddingRight: ECHO_ART_WIDTH };
+  const padding: CSSProperties = { ...inset, [`--row-reach-${side}`]: ECHO_ART_WIDTH };
   // The gradient always fades FROM the art edge INTO the bubble fill, so it mirrors with the pane.
   const fade = `linear-gradient(to ${side === "left" ? "right" : "left"}, transparent, var(--color-ai-bubble) ${ECHO_ART_WIDTH})`;
   const portraitUrl =
@@ -252,6 +265,8 @@ function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | null {
 }
 
 const WHISPER_BANNER_REQUEST_WIDTH = 800;
+// Moonlit Echoes' Glimmer preset: the banner is half the card, centred; a phone widens it to 55%.
+const WHISPER_BAND_WIDTH = "mx-auto w-1/2 @max-md:w-11/20";
 
 const WHISPER_STRIPE: CSSProperties = {
   borderTopWidth: "var(--immersive-stripe-width)",
@@ -264,9 +279,9 @@ const WHISPER_STRIPE: CSSProperties = {
 // bubble's fluid width so the box always matches the server's 3:1 crop.
 function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
   // The speaker STRIPE is chrome (a colour tick, not a portrait), so it survives an avatars-off reader;
-  // the BAND is identity art and does not (#212-6, owner ruling 2026-08-18: the toggle governs all
-  // identity art). Whisper used to read `avatarHash` alone and kept its banner either way.
-  if (args.kind !== "character" || !args.showInChatAvatars) {
+  // the BAND is identity art and does not (#212-6). Both roles get it: a persona's banner is its image here
+  // as a character's is (owner ruling, as Moonlit Echoes paints both), with the same hue-tile fallback.
+  if (args.kind === null || !args.showInChatAvatars) {
     return { style: WHISPER_STRIPE };
   }
   const bannerUrl =
@@ -276,6 +291,7 @@ function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
     return {
       style: WHISPER_STRIPE,
       headerBand: {
+        className: WHISPER_BAND_WIDTH,
         initial: args.initial,
         style: {
           aspectRatio: "var(--aspect-banner)",
@@ -288,6 +304,7 @@ function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
   return {
     style: WHISPER_STRIPE,
     headerBand: {
+      className: WHISPER_BAND_WIDTH,
       style: {
         aspectRatio: "var(--aspect-banner)",
         backgroundImage: `linear-gradient(to bottom, transparent, var(--color-ai-bubble) var(--immersive-whisper-feather)), url("${bannerUrl}")`,
@@ -308,8 +325,9 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "single",
     headerPlacement: "inside",
-    swipeFoot: SWIPE_FOOT_HUG,
-    headerBleed: "-mx-block px-block",
+    swipeFoot: SWIPE_FOOT_INSIDE,
+    pinnedHeader: PINNED_CARD,
+    actionsRow: ACTIONS_WITH_IDENTITY,
     mirrorUser: true,
   },
   flat: {
@@ -318,27 +336,26 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     inner: flatInner,
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "single",
-    // Flat has no box at rest, so `inside` buys it two things rather than one: over a wallpaper the
-    // header stops minting a second plate beside the body's, and at rest the header finally shares the
-    // body's `px-section` inset instead of hanging off the column's own left edge.
+    // No box at rest: inside, the header shares the body's plate over art and the body's own inset.
     headerPlacement: "inside",
-    swipeFoot: SWIPE_FOOT_GUTTER_WIDE,
-    headerBleed: "-mx-section px-section",
+    swipeFoot: SWIPE_FOOT_INSIDE,
+    pinnedHeader: PINNED_BAND,
+    actionsRow: ACTIONS_WITH_IDENTITY,
     mirrorUser: false,
   },
   document: {
     outer: () => cx(CHAT_TRACK, "items-center"),
     columnPlacement: "gutterCentred",
-    // `max-w-prose` is DELIBERATE RESIDUE here (#1175, refused with a receipt): this is transcript geometry,
-    // and #1145's owner ruling is "SPLIT the token, do not narrow the transcript". The reasoning, and why
-    // `--reading-measure-min` cannot be spelled as a ceiling either, is in `lib/message-bubble-class.ts`'s
-    // header — the twin site, and the one home for this refusal.
-    inner: () => cx("w-full max-w-prose px-block py-row text-prose-body", BG_PHOTO_READING_PLATE),
-    avatarTreatment: iconLeftTreatment,
+    // Stock SillyTavern's document: a full-track page with no reading cap, no avatar, name or timestamp, user
+    // and character rows identical, the text inset as stock insets it.
+    inner: () => cx("w-full pt-row pl-gutter pr-gutter text-prose-body", BG_PHOTO_READING_PLATE),
+    avatarTreatment: () => "none",
+    lastRowInner: "min-h-(--immersive-document-last-row-min-height)",
     bubbleLayout: "single",
     headerPlacement: "inside",
-    swipeFoot: SWIPE_FOOT_GUTTER,
-    headerBleed: "-mx-block px-block",
+    swipeFoot: SWIPE_FOOT_INSIDE,
+    pinnedHeader: PINNED_CHIP,
+    actionsRow: ACTIONS_ONLY,
     mirrorUser: false,
   },
   echo: {
@@ -349,13 +366,12 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     bubbleDecoration: echoDecoration,
     bubbleLayout: "single",
     columnStyle: ECHO_MAX_WIDTH_STYLE,
-    // DELIBERATE DIVERGENCE FROM ECHO'S OWN REFERENCE (the retired skin-parity-2026-08-18 review:138 rates ST's
-    // name-above-the-card as MINOR against ours). Echo is a FILLED container, so leaving its header
-    // outside would keep exactly the two-object read #288 exists to kill; the owner's attachment ruling
-    // outranks a MINOR ref row. One word here reverts it if the reference ever wins.
+    // Inside, not above the card as the reference has it: a filled container with its header outside
+    // reads as two objects, which the attachment ruling outranks.
     headerPlacement: "inside",
-    swipeFoot: SWIPE_FOOT_HUG,
-    headerBleed: "-mx-block px-block",
+    swipeFoot: SWIPE_FOOT_ECHO,
+    pinnedHeader: PINNED_CARD,
+    actionsRow: ACTIONS_WITH_IDENTITY,
     mirrorUser: true,
   },
   whisper: {
@@ -365,13 +381,12 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     avatarTreatment: iconLeftTreatment,
     bubbleDecoration: whisperDecoration,
     bubbleLayout: "single",
-    // DELIBERATE DIVERGENCE (the retired skin-parity-2026-08-18 review:171/:173): ST OVERLAYS whisper's header on the
-    // banner art; ours sits inside the card BELOW the band. The band is a real block child precisely so
-    // text can never sit on art (the §0 reading-surface law the same report credits us for) — the
-    // anatomy question #288 asked is "one container or two", and below-the-band answers it as one.
+    // Below the band rather than over the art as the reference has it: the band is a real block child so
+    // text never sits on art, and below it the card still reads as one container.
     headerPlacement: "inside",
-    swipeFoot: SWIPE_FOOT_HUG,
-    headerBleed: "-mx-block px-block",
+    swipeFoot: SWIPE_FOOT_INSIDE,
+    pinnedHeader: PINNED_CARD,
+    actionsRow: ACTIONS_WITH_IDENTITY,
     mirrorUser: false,
   },
   hush: {
@@ -381,11 +396,11 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     avatarTreatment: iconLeftTreatment,
     bubbleDecoration: hushDecoration,
     bubbleLayout: "single",
-    // Inside also puts the header to the RIGHT of hush's speaker stripe, which the stripe previously
-    // started below — the ST ref's "name row inside the card" for the same reason.
+    // Inside puts the header beside the speaker stripe, not under it.
     headerPlacement: "inside",
-    swipeFoot: SWIPE_FOOT_GUTTER_WIDE,
-    headerBleed: "-mx-section px-section",
+    swipeFoot: SWIPE_FOOT_INSIDE,
+    pinnedHeader: PINNED_BAND,
+    actionsRow: ACTIONS_WITH_IDENTITY,
     mirrorUser: false,
   },
   ripple: {
@@ -394,12 +409,11 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     inner: bubbleInner,
     avatarTreatment: rippleAvatarTreatment,
     bubbleLayout: "single",
-    // The welded portrait is a sibling INSIDE the bubble, so `inside` lands the header exactly where
-    // ripple's reference has it: in the card, right of the portrait (the retired skin-parity-2026-08-18 review:121 —
-    // "ours reads as a caption floating above a picture card, ref reads as a titled panel").
+    // The welded portrait sits inside the bubble, so the header lands in the card beside it, a titled panel.
     headerPlacement: "inside",
-    swipeFoot: SWIPE_FOOT_HUG,
-    headerBleed: "-mx-block px-block",
+    swipeFoot: SWIPE_FOOT_INSIDE,
+    pinnedHeader: PINNED_CARD,
+    actionsRow: ACTIONS_WITH_IDENTITY,
     mirrorUser: false,
   },
   tide: {
@@ -413,7 +427,8 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     // the sibling row AND the #167 chip — over art there is nothing else to back it.
     headerPlacement: "outside",
     swipeFoot: SWIPE_FOOT_TRAIN,
-    headerBleed: "",
+    pinnedHeader: PINNED_PILL,
+    actionsRow: ACTIONS_WITH_IDENTITY,
     mirrorUser: true,
   },
 };

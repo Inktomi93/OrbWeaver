@@ -789,7 +789,7 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
       };
     });
     await expect.poll(async () => (await readFocusedAtAssertion()).active).toBe(true);
-    expect(focused.carrierShadow, "the focus-within ring/glow must paint on the keyboard focus frame").not.toBe("none");
+    expect(focused.carrierShadow, "focus is a quiet border change, never a ring or glow").toBe("none");
     for (const transition of [...focused.carrierTransitions, ...focused.textareaTransitions]) {
       const animatesPaint = transition.durationMs > 0 && PAINT_TRANSITIONS.has(transition.property);
       expect(animatesPaint, `${transition.property} must not animate keyboard-focus paint for ${String(transition.durationMs)}ms`).toBe(false);
@@ -1819,78 +1819,36 @@ for (const viewport of [
 }
 
 for (const width of [1440, 360]) {
-  test.describe(`governed composer glow at ${width}`, () => {
+  test.describe(`quiet composer focus at ${width}`, () => {
     test.use({ viewport: { width, height: 900 }, hasTouch: width === 360 });
-    test("focus lift uses governed layers while backing, ring and real input remain intact", async ({ mount, page }, testInfo) => {
+    test("focus is a 1px border-colour change on the opaque backing: no ring, no glow; a drag still arms loudly", async ({ mount, page }, testInfo) => {
       await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
       const component = await mount(<ComposerStory />);
       const composer = component.locator('[data-slot="composer"]');
       const message = component.getByLabel("Message", { exact: true });
-      await message.click();
-      await expect(message).toBeFocused();
-      await page.keyboard.type("A focused draft");
-      await expect(message).toHaveValue("A focused draft");
-      await expect
-        .poll(() =>
-          composer.evaluate((element) => {
-            const root = getComputedStyle(element);
-            const effect = getComputedStyle(element, "::before");
-            const content = element.querySelector('[data-slot="composer-content"]');
-            const contentStyle = content === null ? null : getComputedStyle(content);
-            const probe = document.createElement("div");
-            probe.style.backgroundColor = "var(--color-muted)";
-            element.append(probe);
-            const expectedBacking = getComputedStyle(probe).backgroundColor;
-            probe.remove();
-            return {
-              ringPresent: root.getPropertyValue("--tw-ring-shadow") !== "",
-              ringNonzero: !root.getPropertyValue("--tw-ring-shadow").includes("0 0 #0000"),
-              rootNotGlow: root.getPropertyValue("--tw-shadow").trim() !== root.getPropertyValue("--shadow-glow").trim(),
-              contentPresent: effect.content !== "none",
-              effectPresent: effect.boxShadow !== "none",
-              pointer: effect.pointerEvents,
-              position: effect.position,
-              base: Number(effect.zIndex) === Number(root.getPropertyValue("--z-base")),
-              raised: contentStyle !== null && Number(contentStyle.zIndex) === Number(root.getPropertyValue("--z-raised")),
-              behindContent: contentStyle !== null && Number(effect.zIndex) < Number(contentStyle.zIndex),
-              sameRadius: effect.borderRadius === root.borderRadius,
-              isolation: root.isolation,
-              backing: root.backgroundColor === expectedBacking,
-              opacity: root.opacity,
-            };
-          }),
-        )
-        .toEqual({
-          ringPresent: true,
-          ringNonzero: true,
-          rootNotGlow: true,
-          contentPresent: true,
-          effectPresent: true,
-          pointer: "none",
-          position: "absolute",
-          base: true,
-          raised: true,
-          behindContent: true,
-          sameRadius: true,
-          isolation: "isolate",
-          backing: true,
-          opacity: "1",
+      const readPaint = async (): Promise<{ readonly border: string; readonly width: string; readonly shadow: string; readonly backing: boolean }> =>
+        await composer.evaluate((element) => {
+          const style = getComputedStyle(element);
+          const probe = document.createElement("div");
+          probe.style.backgroundColor = "var(--color-muted)";
+          element.append(probe);
+          const muted = getComputedStyle(probe).backgroundColor;
+          probe.remove();
+          return { border: style.borderTopColor, width: style.borderTopWidth, shadow: style.boxShadow, backing: style.backgroundColor === muted };
         });
+      await page.getByTestId("drive-begin").focus();
+      await page.mouse.move(0, 0);
+      const rest = await readPaint();
+      await message.focus();
+      await page.keyboard.type("A focused draft");
+      await expect.poll(async () => (await readPaint()).border).not.toBe(rest.border);
+      await expect.poll(readPaint).toEqual({ border: expect.any(String), width: "1px", shadow: "none", backing: true });
       await testInfo.attach(`focused-composer-${width}`, { body: await page.screenshot(), contentType: "image/png" });
       await dragFiles(component, [{ name: "cat.png", type: "image/png", bytes: 4 }], ["dragenter", "dragover"]);
-      const affordance = composer.locator('[data-slot="composer-content"]').locator(DROP_AFFORDANCE);
-      await expect(affordance).toBeVisible();
-      await expect(affordance).toHaveText("Drop images or video to attach");
       await expect(composer).toHaveAttribute("data-drag-over", "");
-      await testInfo.attach(`drag-composer-${width}`, { body: await page.screenshot(), contentType: "image/png" });
+      await expect.poll(async () => (await readPaint()).shadow).not.toBe("none");
       await dragFiles(component, [{ name: "cat.png", type: "image/png", bytes: 4 }], ["dragleave"]);
-      await expect(affordance).toHaveCount(0);
-
-      await component.getByRole("button", { name: "Message tools", exact: true }).click();
-      await page.getByRole("menuitem", { name: "Clear input", exact: true }).click();
-      await expect(message).toHaveValue("");
-      await page.getByTestId("drive-begin").focus();
-      await expect.poll(() => composer.evaluate((element) => getComputedStyle(element, "::before").boxShadow)).toBe("none");
+      await expect(composer.locator(DROP_AFFORDANCE)).toHaveCount(0);
     });
   });
 }

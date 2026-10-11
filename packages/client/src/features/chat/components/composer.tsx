@@ -1,7 +1,7 @@
 // The chat composer is a compact message-first footer: the growing textarea owns the main line, followed by
 // one wrapping action rail with room, guided-reply, utility and terminal-send groups. Image controls live
 // inside Message tools; attachments still upload local media to CAS and ride the send as attachmentAssetIds.
-// Under the card, a quiet line names the connection and model the next reply uses (`ComposerNextTurnLine`);
+// Under the card, a line states why the room cannot reply when it cannot (`ComposerNextTurnLine`);
 // it is the one home for the no-connection refusal and its recovery door.
 //
 // ATTACH HAS THREE GESTURES (#376), one seam: the ✨ menu's picker, a file DRAGGED onto the composer card,
@@ -421,6 +421,7 @@ export function Composer({
                 onSend={submit}
                 sendDisabled={sendGated || !(canSubmit || canEmptySend) || sendMessage.isPending || continueOnEmpty.isPending}
                 sendPending={sendMessage.isPending || continueOnEmpty.isPending}
+                hasDraft={canSubmit}
                 unavailable={sendGated}
                 unavailableReason={sendGated ? sendAvailability.reason : undefined}
                 unavailableStatedBy={sendGated ? refusalStatedBy : undefined}

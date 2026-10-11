@@ -22,7 +22,15 @@ import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { testId } from "#lib";
+import { cn, testId } from "#lib";
+
+// A draft waiting to send: a compact accent disc at the glyph box (32px; the 44px hit area stays invisible),
+// the messenger convention. With nothing to send the glyph rests muted on no fill.
+const SEND_READY = "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80";
+
+function sendClass(ready: boolean): string {
+  return cn(ready ? SEND_READY : "text-muted-foreground", "data-disabled:pointer-events-auto") ?? "";
+}
 
 export interface ComposerSendControlProps {
   readonly showStop: boolean;
@@ -31,6 +39,8 @@ export interface ComposerSendControlProps {
   readonly onSend: () => void;
   readonly sendDisabled: boolean;
   readonly sendPending: boolean;
+  /** A draft (text or attachments) is waiting: Send takes the accent ink, else it rests muted. */
+  readonly hasDraft: boolean;
   readonly unavailable: boolean;
   readonly unavailableReason: string | undefined;
   /** The id of the element that already states the refusal; Send is described by it and carries no copy. */
@@ -84,7 +94,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
             aria-label="Send message"
             onClick={props.onSend}
             shape="pill"
-            className="text-primary data-disabled:pointer-events-auto"
+            className={sendClass(props.hasDraft && !props.sendDisabled)}
           >
             <Icon icon={Send} size="sm" />
           </Button>

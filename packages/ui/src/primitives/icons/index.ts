@@ -53,7 +53,6 @@ export {
   ExternalLink,
   Eye,
   EyeOff,
-  FastForward,
   FileText,
   FlaskConical,
   Gauge,
@@ -138,7 +137,7 @@ export {
   X,
 } from "lucide-react";
 export type { FillableIcon } from "./fillable.ts";
-export { Bookmark, Circle, Crown, Droplet, Flag, Flame, Heart, Pause, Play, Shield, Square, Star, Zap } from "./fillable.ts";
+export { Bookmark, Circle, Crown, Droplet, FastForward, Flag, Flame, Heart, Pause, Play, Shield, Square, Star, Zap } from "./fillable.ts";
 export type { IconProps } from "./icon.tsx";
 export { ICON_LG, ICON_MD, ICON_SM, ICON_XS, Icon } from "./icon.tsx";
 // The orb-web BRAND glyph — minted through this seal (createLucideIcon; see orb-web.ts) so the mark

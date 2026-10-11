@@ -1,6 +1,7 @@
-// The quiet line under the composer naming the connection and model the next reply will use. The chat-role
-// read is the host viewer's own, so a member never fires it: the turn runs on the host's connection, and the
-// member's own chat binding would name the wrong row.
+// The line under the composer that says why the room cannot reply: no chat connection set, or the check
+// failed. Owner ruling: the chat page names no model or connection, so a room that can reply shows nothing.
+// The chat-role read is the host viewer's own, so a member never fires it: the turn runs on the host's
+// connection, and the member's own chat binding would name the wrong row.
 
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -8,7 +9,6 @@ import { Container } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { HIDE_AT_COARSE } from "#components";
 import { useTRPC } from "#data";
 import { cn } from "#lib";
 import { openConfigTo } from "#state";
@@ -34,16 +34,11 @@ const STATE_INK: Record<NextTurnLine["state"], string | undefined> = {
   failed: "text-destructive",
 };
 
-// Owner ruling: on a phone the line that only names the connection and model is height the transcript
-// needs, so it stands down there. A line that states why the room cannot reply stays at every pointer.
-const STATE_PHONE: Record<NextTurnLine["state"], string | undefined> = {
-  named: HIDE_AT_COARSE,
-  checking: HIDE_AT_COARSE,
-  unset: undefined,
-  failed: undefined,
-};
+// The states that state a refusal the reader can act on. Naming the connection and model, or checking it,
+// is attribution the chat page does not carry.
+const SHOWN_STATES: ReadonlySet<NextTurnLine["state"]> = new Set<NextTurnLine["state"]>(["unset", "failed"]);
 
-export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextTurnLineProps): ReactElement {
+export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextTurnLineProps): ReactElement | null {
   const trpc = useTRPC();
   const chat = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
   // `null` is the tRPC no-data wire shape (a CT stub yields it): an unknown viewer, never a host.
@@ -60,6 +55,9 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
     resolveFailed: resolve.isError,
     connections,
   });
+  if (!SHOWN_STATES.has(line.state)) {
+    return null;
+  }
   const { door } = line;
   return (
     // The card's own track, so the fill spans the card's width AND the text starts at the card's edge — the
@@ -69,7 +67,7 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
     // stated dark-arm hole for a custom pivot palette (D144(d)), so the line takes an opaque fill: `bg-card`'s
     // AA floor is proven for every ink it paints (`palette-contrast.suite.test.ts`). No `rounded-card`: a text
     // backdrop is not a second elevated surface (UI-Density-Law.md §3/§5.1).
-    <Container className={cn(CHAT_TRACK, "bg-card py-tight", STATE_PHONE[line.state])}>
+    <Container className={cn(CHAT_TRACK, "bg-card py-tight")}>
       <Text
         as="p"
         voice="quiet"

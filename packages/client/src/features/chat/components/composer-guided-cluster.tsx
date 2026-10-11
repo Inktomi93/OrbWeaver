@@ -172,7 +172,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
           </Row>
           <Row aria-label="Their reply" className="min-w-0 shrink-0" data-slot="composer-them-actions" gap="glyph" role="group">
             <GuidedIconButton
-              icon={RotateCcw}
+              icon={{ glyph: RotateCcw, fills: false }}
               label={hasText ? "Try another reply with this direction" : "Try another reply"}
               steerCue={STEER_CUE_SWIPE}
               hasText={hasText}
@@ -191,7 +191,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
               refusalStatedBy={offStatedBy}
             />
             <GuidedIconButton
-              icon={FastForward}
+              icon={{ glyph: FastForward, fills: true }}
               label={hasText ? "Continue the reply with this direction" : "Continue the reply"}
               steerCue={STEER_CUE_CONTINUE}
               hasText={hasText}

@@ -204,7 +204,7 @@ export function GhostMessageRow({
   renderContext,
   rowCharacterId,
   attribution,
-  avatarSize = "md",
+  avatarSize = "lg",
   avatarShape = "round",
   avatarAspect = "square",
   avatarRing = "none",
@@ -274,7 +274,13 @@ export function GhostMessageRow({
   // The placement is read off the skin here rather than hardcoded because a live turn whose header sat
   // above the bubble and jumped inside it at commit would be a visible one-frame reflow on every reply.
   const header = placeRowHeader(
-    renderGhostNameRow({ attribution, stickyAttribution, placement: skin.headerPlacement, bleed: skin.headerBleed }),
+    renderGhostNameRow({
+      attribution,
+      stickyAttribution,
+      placement: skin.headerPlacement,
+      pinnedPaint: skin.pinnedHeader.paint("assistant"),
+      named: skin.actionsRow.identity,
+    }),
     skin.headerPlacement,
   );
   const bubble = (
@@ -322,8 +328,8 @@ export function GhostMessageRow({
       {/* The `@container` above and this element's two arms are the settled row's, verbatim — the ghost is
           the one row that MUST be laid out identically to what it becomes (#1728 arm B). THE `@max-md`
           AVATAR STEP IS PART OF THAT PARITY: the row body takes the settled row's own
-          `ROW_BODY_AT_PHONE_WIDTH`, or a live turn at a phone width would paint its full-size chip
-          through the whole stream and step it down the instant it settled. */}
+          `ROW_BODY_AT_PHONE_WIDTH`, or a live turn at a phone width would reflow its gutter the
+          instant it settled. */}
       <Row align="start" gap="row" data-slot="message-row-body" className={cn(rowBodyClassFor(skin), "w-full", ROW_BODY_AT_PHONE_WIDTH)}>
         {avatarNode}
         {/* The skin's own column width rides the ghost too — a live turn that reflows at commit is a

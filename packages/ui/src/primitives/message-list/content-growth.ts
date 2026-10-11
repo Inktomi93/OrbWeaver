@@ -97,7 +97,8 @@ export function nextScrollportHeight(previousPx: number, clientHeightPx: number)
 /**
  * Re-pin the tail as measured content grows. `followOnAppend` only re-pins on a COUNT change, never on an
  * existing row growing taller — so a just-sent message plus a streaming ghost re-measuring past their
- * `estimateSize` would otherwise strand the reader above their own message.
+ * `estimateSize` would otherwise strand the reader above their own message. A SHRINKING scrollport (a
+ * soft keyboard rising) re-pins too: the scroll offset holds, so the tail would slide under the keyboard.
  */
 export function useTailRepin(input: {
   readonly virtualizer: MessageListVirtualizer;
@@ -105,15 +106,17 @@ export function useTailRepin(input: {
   readonly stickToBottomRef: RefObject<boolean>;
   readonly tailFollowActive: boolean;
   readonly contentHeightPx: number;
+  readonly scrollportHeightPx: number;
 }): void {
-  const { virtualizer, scrollRef, stickToBottomRef, tailFollowActive, contentHeightPx } = input;
+  const { virtualizer, scrollRef, stickToBottomRef, tailFollowActive, contentHeightPx, scrollportHeightPx } = input;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scrollportHeightPx is the re-pin trigger for a shrinking scrollport — the body reads the live clientHeight off the ref.
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (el !== null && shouldRepinTail({ tailFollowActive, sticking: stickToBottomRef.current, contentHeightPx, clientHeightPx: el.clientHeight })) {
       virtualizer.scrollToEnd({ behavior: "auto" });
     }
-    // The refs are stable boxes; the effect must re-run on measured growth and on the mode flip only.
-  }, [virtualizer, scrollRef, stickToBottomRef, tailFollowActive, contentHeightPx]);
+    // The refs are stable boxes; the effect re-runs on measured growth, a scrollport resize and the mode flip.
+  }, [virtualizer, scrollRef, stickToBottomRef, tailFollowActive, contentHeightPx, scrollportHeightPx]);
 }
 
 /**

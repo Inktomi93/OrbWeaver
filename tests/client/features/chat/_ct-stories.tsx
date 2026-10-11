@@ -189,7 +189,7 @@ import type { PendingAttachment } from "../../../../packages/client/src/features
 import { speakerThemesByName } from "../../../../packages/client/src/features/chat/lib/attribution.ts";
 import { useChatsSelectionTitle } from "../../../../packages/client/src/features/chat/lib/chats-selection-title.ts";
 import type { MemberCharacterRow, MemberPersonRow } from "../../../../packages/client/src/features/chat/lib/member-rows.ts";
-import { SWIPE_FOOT_HUG } from "../../../../packages/client/src/features/chat/lib/pager-chrome.ts";
+import { SWIPE_FOOT_INSIDE } from "../../../../packages/client/src/features/chat/lib/pager-chrome.ts";
 import { createWarningSurface } from "../../../../packages/client/src/features/chat/lib/turn-warning-surface.ts";
 import { warningNotice } from "../../../../packages/client/src/features/chat/lib/warning-notice.ts";
 import { enableAppearanceMessageRegistry } from "../../../../packages/client/src/lib/appearance-message-registry.ts";
@@ -300,6 +300,10 @@ export interface MessageRowStoryProps {
    *  The row is given 3 variants so the strip renders its full pager (#221 measures the strip's own
    *  backing over wallpaper, and a single-variant strip is just the generate chevron). */
   readonly showSwipes?: boolean;
+  /** The row is the transcript's last (its actions show at rest; a document page keeps its bar line). */
+  readonly lastRow?: boolean;
+  /** The reply's swipe count, for an EARLIER swiped reply (`showSwipes` off): its foot is the count alone. */
+  readonly variantCount?: number;
 }
 
 /** One row in a chosen chatStyle — the variant-mechanism CT mounts this three times; also the
@@ -336,6 +340,8 @@ export function MessageRowStory({
   scrollportHeight,
   model = "ct/model-x",
   showSwipes = false,
+  lastRow = false,
+  variantCount,
 }: MessageRowStoryProps): ReactElement {
   const participantsMap =
     participants === undefined
@@ -391,9 +397,11 @@ export function MessageRowStory({
               toolCalls: toolCalls ?? [],
               reasoning,
               ...(showSwipes ? { variantCount: 3, selectedVariantIdx: 1 } : {}),
+              ...(variantCount === undefined ? {} : { variantCount, selectedVariantIdx: 0 }),
             })}
             chatStyle={chatStyle}
             showSwipes={showSwipes}
+            lastRow={lastRow}
             stickyAttribution={stickyAttribution}
             showLLMReasoningIcon={showLLMReasoningIcon}
             metadataVisibility={metadataVisibility}
@@ -1144,7 +1152,7 @@ export interface SwipeStripStoryProps {
 export function SwipeStripStory({ message }: SwipeStripStoryProps = {}): ReactElement {
   return (
     <CtDataProviders>
-      <SwipeStrip message={message ?? makeMessageView({ variantCount: 3, selectedVariantIdx: 1 })} foot={SWIPE_FOOT_HUG} />
+      <SwipeStrip message={message ?? makeMessageView({ variantCount: 3, selectedVariantIdx: 1 })} foot={SWIPE_FOOT_INSIDE} />
     </CtDataProviders>
   );
 }
@@ -3492,7 +3500,7 @@ export function CompactSummaryPeekStory({ summary }: { readonly summary: string 
 export function GreetingSwipeStripStory({ variants, current }: { readonly variants: readonly string[]; readonly current: string }): ReactElement {
   return (
     <CtDataProviders>
-      <GreetingSwipeStrip chatId={CHAT_ID} messageId={castId<MessageId>("msg_ct_greeting")} variants={variants} current={current} foot={SWIPE_FOOT_HUG} />
+      <GreetingSwipeStrip chatId={CHAT_ID} messageId={castId<MessageId>("msg_ct_greeting")} variants={variants} current={current} foot={SWIPE_FOOT_INSIDE} />
     </CtDataProviders>
   );
 }

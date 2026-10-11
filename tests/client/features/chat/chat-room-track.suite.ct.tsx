@@ -13,8 +13,8 @@
 //
 // THE FOUR PANE STATES ARE MEASURED ONES, not invented (the design rescoring pass, 2026-08-18,
 // pane-states, viewport 1360, chatWidthPct 50): `list:docked+context:collapsed` → a 894px pane;
-// `list:docked+context:docked` → 509px BEFORE #242 and 579px after it (the shell grid's conditional
-// squeeze hands that state +70.4px of content track — the delta is read off the real
+// `list:docked+context:docked` → 509px BEFORE #242 and 587px after it (the shell grid's conditional
+// squeeze hands that state +78.4px of content track — the delta is read off the real
 // `grid-template-columns` in app-shell.ct.tsx, and it is the ONLY state that moved: the other three carry
 // no reading-floor deficit, so their tracks are byte-identical); `list:collapsed+context:docked` → 816px;
 // `list:collapsed+context:collapsed` (full width) → 1212px. The measured offsets there were +107 / 0 / +68 /
@@ -47,20 +47,20 @@ const NEXT_TURN_LINE = '[data-slot="composer-next-turn"]';
  *  demanding zero. */
 const MAX_GUTTER_PX = 48;
 
-/** The measured desktop pane widths (see the header). `both-open` MOVED at #242 (509 → 579): the shell
+/** The measured desktop pane widths (see the header). `both-open` MOVED at #242 (509 → 587): the shell
  *  grid now squeezes both docked panes when the content track would fall under the reading floor, and at
- *  this suite's own viewport (1360) that is a measured +70.4px of content track
+ *  this suite's own viewport (1360) that is a measured +78.4px of content track
  *  (`app-shell.ct.tsx` "#242 both docked at 1360…" reads it off the real `grid-template-columns`:
  *  569.6 → 640.0). The other three states carry no deficit and are untouched. */
 const PANE_STATES = [
   { name: "list docked · context collapsed (default)", paneWidth: 894 },
-  { name: "list docked · context docked (both open)", paneWidth: 579 },
+  { name: "list docked · context docked (both open)", paneWidth: 587 },
   { name: "list collapsed · context docked", paneWidth: 816 },
   { name: "list collapsed · context collapsed (full width)", paneWidth: 1212 },
 ] as const;
 
 /** The both-open pane, named once for the test that is ABOUT that state rather than about the axis. */
-const BOTH_OPEN_PANE_WIDTH = 579;
+const BOTH_OPEN_PANE_WIDTH = 587;
 /** …and the pane the SAME state had before the squeeze — the non-vacuity control for the floor. */
 const PRE_SQUEEZE_BOTH_OPEN_PANE_WIDTH = 509;
 /** The floor the owner ruled: 65 characters of the transcript's own prose (not 65 `ch` — see the test). */
@@ -113,7 +113,7 @@ function seat(): ParticipantView {
 }
 
 type ChatStyle = TrpcWireOutput<"settings.getUserSettings">["config"]["appearance"]["chatStyle"];
-function routeRoom(page: Page, chatStyle: ChatStyle, content: string = LONG_PROSE): Promise<unknown> {
+function routeRoom(page: Page, chatStyle: ChatStyle, content: string = LONG_PROSE, extra: TrpcRoutes = {}): Promise<unknown> {
   return routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
@@ -152,6 +152,7 @@ function routeRoom(page: Page, chatStyle: ChatStyle, content: string = LONG_PROS
       { variantId: "msgvar_track_2", idx: 2 },
     ],
     "character.get": () => ({ id: AZAREAL_ID, name: "Azareal", avatarHash: "ct_cas_hash_track", greetings: [] }),
+    ...extra,
   });
 }
 
@@ -178,6 +179,7 @@ interface TrackGeometry {
   readonly column: Box;
   readonly composer: Box;
   readonly strip: Box;
+  readonly actions: Box;
 }
 
 // All related boxes belong to one browser task, not five protocol calls across changing layout.
@@ -192,7 +194,17 @@ async function readTrackGeometry(page: Page): Promise<TrackGeometry> {
         const rect = element.getBoundingClientRect();
         return { left: rect.left, right: rect.right, centre: rect.left + rect.width / 2 };
       };
-      return { row: read(row), body: read(body), column: read(column), composer: read(composer), strip: read(strip) };
+      // The header bar's last action: the trailing edge the swipe foot's › lines up with.
+      const buttons = [...document.querySelectorAll('[data-slot="message-name-row"] [data-slot="message-actions-row"] button')].filter(
+        (button) => getComputedStyle(button).display !== "none",
+      );
+      const last = buttons.at(-1);
+      if (last === undefined) {
+        throw new Error("no header actions mounted");
+      }
+      const lastRect = last.getBoundingClientRect();
+      const actions = { left: lastRect.left, right: lastRect.right, centre: lastRect.left + lastRect.width / 2 };
+      return { row: read(row), body: read(body), column: read(column), composer: read(composer), strip: read(strip), actions };
     },
     { row: MESSAGE_ROW, body: ROW_BODY, column: CONTENT_COLUMN, composer: COMPOSER, strip: SWIPE_STRIP },
   );
@@ -210,7 +222,7 @@ async function readyTrack(page: Page): Promise<void> {
 // is invisible; the defect this pins was 68–260px.
 const AXIS_TOLERANCE_PX = 1;
 
-function expectTrackGeometry({ row, body, column, composer, strip }: TrackGeometry, paneWidth: number): void {
+function expectTrackGeometry({ row, body, column, composer, strip, actions }: TrackGeometry, paneWidth: number): void {
   // ONE TRACK: the element that owns the transcript's PLACEMENT and the composer resolve the same box —
   // same left edge, same right edge, therefore the same middle. This is the assertion the defect broke:
   // the row track used to be the whole pane (flat/hush carried a bare `w-full`) while the composer
@@ -229,9 +241,10 @@ function expectTrackGeometry({ row, body, column, composer, strip }: TrackGeomet
   const gutter = body.right - body.left - (column.right - column.left);
   expect(gutter).toBeLessThanOrEqual(MAX_GUTTER_PX);
   expect(Math.abs(column.centre - composer.centre)).toBeLessThanOrEqual(gutter / 2 + AXIS_TOLERANCE_PX);
-  // The pager rides the reading column's trailing/actions edge, not the track's centre: it is a compact
-  // chip sized to its own content (#228/#312), aligned under the assistant name-row actions.
-  expect(Math.abs(strip.right - column.right)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+  // The pager is the message's bottom edge, matched to its top: its › ends where the header bar's last
+  // action ends, inside the reading column.
+  expect(Math.abs(strip.right - actions.right)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+  expect(strip.right).toBeLessThanOrEqual(column.right + AXIS_TOLERANCE_PX);
   expect(strip.left).toBeGreaterThanOrEqual(column.left - AXIS_TOLERANCE_PX);
   expect(strip.right - strip.left).toBeLessThan(column.right - column.left);
   // …and nothing overflows the pane it lives in (the both-open state is still narrower than the
@@ -291,11 +304,11 @@ test("track sampling stays coherent across a queued pane resize and rejects pers
   expect(() => expectTrackGeometry(drifted, 1164)).toThrow();
 });
 
-// The next-turn line sits under the composer card: it starts at the card's edge rather than the pane's, and
-// its paragraph is capped at the prose reading measure, resolved in the line's own font.
+// The next-turn line (shown only when the room cannot reply) sits under the composer card: it starts at the
+// card's edge rather than the pane's, and its paragraph is capped at the prose reading measure.
 test("the next-turn line starts on the composer's track and is capped at the prose measure — full width", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1360, height: 900 });
-  await routeRoom(page, "flat");
+  await routeRoom(page, "flat", LONG_PROSE, { "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }) });
   await mount(<ChatRoomTrackStory paneWidth={1212} />);
   const line = page.locator(NEXT_TURN_LINE);
   await expect(line).toBeVisible();
@@ -512,8 +525,8 @@ interface EchoGeometry {
 // THAT DIAL FLOOR HAS SINCE BEEN RE-DERIVED (#1204, 2026-09-02), so the paragraph above is the BEFORE and
 // the numbers below are the NOW. At 680px no skin held 65ch — measured on this very stage, flat read 592px
 // of prose (the track less its 40px gutter and the flat inner's two `--spacing-section` insets) and echo
-// 628px, against a 650px floor. The clamp's floor is now `--dimension-shell-content-floor` (46.125rem =
-// 738px), derived from exactly that 650 plus the row's furniture, and at it BOTH skins read 650px: flat by
+// 628px, against a 650px floor. The clamp's floor is now `--dimension-shell-content-floor` (46.625rem =
+// 746px), derived from exactly that 650 plus the row's furniture, and at it BOTH skins read 650px: flat by
 // that arithmetic, echo because its declared `measure-min + art-width + block` box (854px) at last fits
 // inside the column the wider track hands it. The pin is SPLIT by which property owns which half: the
 // CLAMP's own resolution (floor / crossover / above) is `app-shell.ct.tsx`'s dial width matrix, because the
@@ -526,7 +539,7 @@ interface EchoGeometry {
 // `2 × --spacing-block` (24px), which is the ECHO bubble's text-side inset, not flat's. The flat inner is
 // `px-section py-row`, so its insets are `2 × --spacing-section` (48px): measured on this stage at the old
 // 680px track, flat read 592px and the wrong formula claimed 616. It went unnoticed because it made the
-// bound LOOSER by 24px at a track where echo was 12px clear of it; at the re-derived 738px floor, where
+// bound LOOSER by 24px at a track where echo was 12px clear of it; at the re-derived 746px floor, where
 // echo's declared box caps its prose at exactly the same 650px flat gets, the 24px of slop is the whole
 // margin and the pin would have red-ed on a layout that is correct. The formula now names flat's own inset.
 //

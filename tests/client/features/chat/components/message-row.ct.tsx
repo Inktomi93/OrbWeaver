@@ -26,7 +26,7 @@ import {
   VARIANT_PREV_NAME,
 } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
 import { projectViewForMember } from "../../../../../packages/server/src/domain/chat/substrate/member-visibility.ts";
-import { pixelContrast, pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
+import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GroupTranscriptAttributionStory, MessageRowStory, NarratorTranscriptStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, makeMessageView } from "../fixtures.ts";
@@ -438,14 +438,15 @@ test("showInChatAvatars=false hides the avatar image but KEEPS the speaker name"
 // The GROUP arm of the same promise. The switch's own gloss reads "Hide to show only the speaker's name
 // on each message", so with avatars off a multi-speaker room must still name EVERY turn — the single-row
 // pin above cannot see two consecutive turns running together unattributed, which is what a reader in a
-// group room would actually be hurt by. Runs across the three non-immersive modes because the skin table
-// is where a per-mode chrome suppression would land (the skin table owns every per-mode chrome decision).
+// group room would actually be hurt by. Runs across the non-immersive modes that name a speaker (the
+// document page names nobody, as stock does; its own pin is below) because the skin table is where a
+// per-mode chrome suppression would land.
 //
 // HONEST LABEL: this is a FENCE, not a defect proof. It passes against the pre-fix source too — the
 // behaviour was already correct, and side-eye 2026-08-16's "the fallback never renders" was read off a
 // transcript scrolled past the name rows (live receipt in the lane report). It exists so the next
 // avatars-off change cannot quietly take attribution with it.
-for (const chatStyle of ["bubble", "flat", "document"] as const) {
+for (const chatStyle of ["bubble", "flat"] as const) {
   test(`group transcript, avatars off, ${chatStyle}: every row still names its own speaker`, async ({ mount }) => {
     const component = await mount(
       <GroupTranscriptAttributionStory
@@ -616,6 +617,7 @@ test("a user row mirrors it — avatar AFTER the content column (§B.1 own-messa
 const MIRRORED_USER_STYLES: ReadonlySet<string> = new Set(["bubble", "echo", "tide"]);
 for (const chatStyle of THEME_CHAT_STYLES) {
   test(`${chatStyle}: a user row's identity sits ${MIRRORED_USER_STYLES.has(chatStyle) ? "trailing" : "leading"}`, async ({ mount }) => {
+    test.skip(chatStyle === "document", "the document page names nobody, as stock does; its own pins are the document block");
     const component = await mount(
       <MessageRowStory chatStyle={chatStyle} messageRole="user" personaId={ALEX_PERSONA_ID} personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]} width={720} />,
     );
@@ -1213,6 +1215,7 @@ for (const style of ALL_CHAT_STYLES) {
   });
 
   test(`${style} over a bg image: the USER name row is backed too (the row the live defect showed naked)`, async ({ mount }) => {
+    test.skip(style === "document", "the document page names nobody, as stock does; its own pins are the document block");
     const component = await mount(
       <div data-has-bg-image="">
         <MessageRowStory
@@ -1511,11 +1514,15 @@ test.describe("#988 message action rail containment", () => {
         buttons: visibleButtons.map((button) => {
           const rect = button.getBoundingClientRect();
           const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+          // A glyph button's touch target is its `::before` hit area, not its visible 32px box.
+          const area = getComputedStyle(button, "::before");
+          const areaWidth = area.content === "none" ? 0 : Number.parseFloat(area.width) || 0;
+          const areaHeight = area.content === "none" ? 0 : Number.parseFloat(area.height) || 0;
           return {
-            height: rect.height,
+            height: Math.max(rect.height, areaHeight),
             hitOwned: hit !== null && button.contains(hit),
             name: button.getAttribute("aria-label"),
-            width: rect.width,
+            width: Math.max(rect.width, areaWidth),
           };
         }),
         content: {
@@ -1698,6 +1705,7 @@ for (const coarse of [false, true] as const) {
     test.use({ hasTouch: coarse });
     for (const chatStyle of INSIDE_CHAT_STYLES) {
       test(`${chatStyle}: the body follows the header at the row gap and the rail stays clear of it`, async ({ mount, page }) => {
+        test.skip(chatStyle === "document", "the document page names nobody, as stock does; its own pins are the document block");
         await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(coarse);
         const component = await mount(<MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
         const rowPx = SNAPPED_LENGTH_BASE_PX["spacing.row"];
@@ -1787,39 +1795,6 @@ test("#204 over art, metadata gloss steps up to the FULL foreground (the muted b
   await expect
     .poll(async () => parseOklch(await plainStamp.evaluate((el) => getComputedStyle(el).color)))
     .toEqual(parseOklch(await cssVar(plainStamp, "--color-muted-foreground")));
-});
-
-test("#204/#241 the sticky band's ink is the base's derived foreground — the palette its fill now derives from", async ({ mount }) => {
-  const component = await mount(pinnableRow("bubble", alice()));
-  const nameRow = await pinHeader(component);
-  const inkVar = await cssVar(nameRow, "--color-foreground");
-  const readRenderedAtAssertion = async (): Promise<typeof rendered> => await nameRow.evaluate((el) => getComputedStyle(el).color);
-  const rendered = await nameRow.evaluate((el) => getComputedStyle(el).color);
-  await expect.poll(async () => parseOklch(await readRenderedAtAssertion())).toEqual(parseOklch(inkVar));
-});
-
-// ── #241 (owner-ruled off #223): THE BAND IS THE PLATE, AT ALPHA 1 ─────────────────────────────────
-// The band pins a tall turn's speaker name over that turn's own prose — which rides
-// `--color-reading-plate`. It shipped as `bg-card` (base +0.047 against the plate's −0.038), so every
-// message stacked two tones a constant ΔL apart and the owner filed the step as unintentional
-// ("two stacked whites of different opacity per message"). The fill is now `--color-reading-band`: the
-// SAME derived colour, at alpha 1. Measured through the RENDERED fill, not the class, because the class
-// is what a refactor changes and the step is what a reader sees.
-test("#241 the pinned band's fill IS the reading plate's colour at alpha 1 — the ΔL step is gone", async ({ mount }) => {
-  const component = await mount(pinnableRow("bubble", alice()));
-  const nameRow = await pinHeader(component);
-  const [bandL, bandC, bandH, bandAlpha] = parseOklch(await nameRow.evaluate((el) => getComputedStyle(el).backgroundColor));
-  const [plateL, plateC, plateH, plateAlpha] = parseOklch(await cssVar(nameRow, "--color-reading-plate"));
-  expect(bandL).toBeCloseTo(plateL, 2);
-  expect(bandC).toBeCloseTo(plateC, 3);
-  expect(bandH).toBeCloseTo(plateH, 1);
-  // #168 is untouched: the band OCCLUDES. The plate does not — which is what makes the colour match a
-  // real claim rather than the same token twice.
-  expect(bandAlpha).toBe(1);
-  expect(plateAlpha).toBeLessThan(1);
-  // And it is no longer the CARD ramp surface — the tone it stepped away from is still a different colour.
-  const [cardL] = parseOklch(await cssVar(nameRow, "--color-card"));
-  expect(Math.abs(cardL - bandL)).toBeGreaterThan(0.05);
 });
 
 // ── D48 tool records reach the row (the wiring the transcript was silently dropping) ────────────────
@@ -2053,7 +2028,7 @@ test("two rows, one producer, different DECLARED kinds: narrator reads Narrator,
 const PHONE_COLUMN = 320;
 const DESKTOP_COLUMN = 720;
 
-test("at a phone-width column the avatar gutter shrinks and the reading measure grows", async ({ mount }) => {
+test("at a phone-width column the chip keeps its 40px and only the gutter gap tightens", async ({ mount }) => {
   const narrow = await mount(
     <MessageRowStory chatStyle="bubble" characterId={ALICE_ID} messageRole="assistant" participants={[alice()]} width={PHONE_COLUMN} />,
   );
@@ -2081,9 +2056,10 @@ test("at a phone-width column the avatar gutter shrinks and the reading measure 
   });
   // The portrait still renders (a phone does not lose the character) …
   await expect.poll(async () => (await readMeasuredAtAssertion()).avatar).toBeGreaterThan(0);
-  // … at the stepped-down size, and the gutter costs well under a tenth of the row (it was 76 of 320).
-  await expect.poll(async () => (await readMeasuredAtAssertion()).avatar).toBeLessThanOrEqual(24);
-  expect((measured.avatar + measured.gap) / measured.row).toBeLessThan(0.12);
+  // … at the same 40px chip as a desktop (the Glimmer preset's size), and the gutter costs well under a
+  // sixth of the row (it was 76 of 320 before the gap tightened).
+  await expect.poll(async () => (await readMeasuredAtAssertion()).avatar).toBe(40);
+  expect((measured.avatar + measured.gap) / measured.row).toBeLessThan(0.15);
 });
 
 test("at a desktop-width column the portrait keeps its full size — the step-down is a WIDTH answer, not a mode", async ({ mount }) => {
@@ -2159,6 +2135,7 @@ for (const chatStyle of THEME_CHAT_STYLES) {
 // row, so in this flush mount it is already pinned at scroll 0.
 for (const chatStyle of INSIDE_CHAT_STYLES) {
   test(`${chatStyle}: a long reply's header is unbacked at rest and backed once pinned, with no box change`, async ({ mount }) => {
+    test.skip(chatStyle === "document", "the document page names nobody; its pinned chip is the designed-edges suite");
     const component = await mount(
       <MessageRowStory
         chatStyle={chatStyle}
@@ -2349,10 +2326,10 @@ const SWIPE_STRIP = '[data-slot="swipe-strip"]';
 const SWIPE_COUNTER_SLOT = '[data-slot="swipe-strip-counter"]';
 const PAGER_COUNTER_TEXT = "2 / 3";
 const SWIPE_BODY = "The pale light of the second moon slid across the courtyard flagstones, and Alice counted the guards again before she answered.";
-/** The foot's container as the chevrons see it: its outer edges and its reading inset on each side. The hug
- *  and gutter styles pull the chevrons into that inset; echo's inset is its art pane and ripple's leading
- *  edge is its welded portrait, which is why the law is stated against the container's own padding. */
-function readFootContainer(foot: Locator): Promise<{ readonly left: number; readonly right: number; readonly padLeft: number; readonly padRight: number }> {
+/** The foot's container as the chevrons see it: its content box, i.e. its reading inset on each side. Echo's
+ *  inset on the art side is its art pane and hush's leading edge is its stripe, which is why the law is
+ *  stated against the container's own border and padding. */
+function readFootContainer(foot: Locator): Promise<{ readonly contentLeft: number; readonly contentRight: number }> {
   return foot.evaluate((element) => {
     // Skip the strip's own wrapper: the container is the first ancestor that owns a reading inset, or the
     // content column for the one style (tide) whose foot sits under a train with no container.
@@ -2365,8 +2342,23 @@ function readFootContainer(foot: Locator): Promise<{ readonly left: number; read
     }
     const box = parent.getBoundingClientRect();
     const style = getComputedStyle(parent);
-    return { left: box.left, right: box.right, padLeft: Number.parseFloat(style.paddingLeft), padRight: Number.parseFloat(style.paddingRight) };
+    const left = box.left + Number.parseFloat(style.borderLeftWidth) + Number.parseFloat(style.paddingLeft);
+    const right = box.right - Number.parseFloat(style.borderRightWidth) - Number.parseFloat(style.paddingRight);
+    return { contentLeft: left, contentRight: right };
   });
+}
+
+/** The trailing edge of the header bar's last action: where the foot's › must line up. */
+async function headerActionsRight(component: Locator): Promise<number> {
+  return await component.locator(`${NAME_ROW} ${ACTIONS_ROW}`).evaluate((row) => {
+    const buttons = [...row.querySelectorAll("button")].filter((button) => getComputedStyle(button).display !== "none");
+    return buttons.at(-1)?.getBoundingClientRect().right ?? Number.NaN;
+  });
+}
+
+/** A computed background as comparable OKLCH, or the transparent sentinel. */
+function parseOklchOrTransparent(value: string): unknown {
+  return value === TRANSPARENT ? TRANSPARENT : parseOklch(value);
 }
 
 for (const chatStyle of THEME_CHAT_STYLES) {
@@ -2402,17 +2394,20 @@ for (const chatStyle of THEME_CHAT_STYLES) {
       }
       return {
         rendered: true,
-        // ‹ in the container's leading inset and › in its trailing one: past the prose measure, never
-        // outside the container itself.
-        leading: prev.x >= container.left - 0.5 && prev.x <= container.left + container.padLeft + 0.5,
-        trailing: next.x + next.width <= container.right + 0.5 && next.x + next.width >= container.right - container.padRight - 0.5,
+        // ‹ and › sit on the container's reading inset, the same inset the header bar's actions sit on.
+        leading: Math.abs(prev.x - container.contentLeft) < 1,
+        trailing: Math.abs(next.x + next.width - container.contentRight) < 1,
+        matchesHeader: Math.abs(next.x + next.width - (await headerActionsRight(component))) < 1,
         countBesideNext: counter.x > prev.x + prev.width && counter.x + counter.width <= next.x + 0.5,
         // One glyph line, not a card: the foot is as tall as its chevrons.
         oneLine: Math.abs(footBox.height - next.height) < 0.5,
       };
     };
-    await expect.poll(footLaw).toEqual({ rendered: true, leading: true, trailing: true, countBesideNext: true, oneLine: true });
-    await expect(foot).toHaveCSS("background-color", TRANSPARENT);
+    await expect.poll(footLaw).toEqual({ rendered: true, leading: true, trailing: true, matchesHeader: true, countBesideNext: true, oneLine: true });
+    // Echo's foot rides the card's fill across the art pane; every other inside foot sits on its container.
+    const fill = await foot.evaluate((el) => getComputedStyle(el).backgroundColor);
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): the foot law above polled the row to its settled layout; its fill is a static class.
+    expect(parseOklchOrTransparent(fill)).toEqual(chatStyle === "echo" ? parseOklch(await cssVar(foot, "--color-ai-bubble")) : TRANSPARENT);
   });
 }
 
@@ -2541,14 +2536,14 @@ test.describe("#220 coarse name band", () => {
     expect(split.actions).toBeLessThan(split.band / 3);
   });
 
-  test("the collapsed verbs keep a door: the ⋯ menu carries Edit and Fork at a coarse pointer", async ({ mount, page }) => {
+  test("a phone's bar keeps Edit inline beside the ⋯, and the ⋯ still carries Edit and Fork", async ({ mount, page }) => {
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     const component = await mount(
       <MessageRowStory chatStyle="flat" messageRole="assistant" characterId={ALICE_ID} participants={[calamity()]} width={PHONE_BAND_WIDTH} />,
     );
-    // The inline pair stood down — `display:none`, so they leave the a11y tree too, and the menu is the
-    // ONE door (never two announcements of one verb).
-    await expect(component.getByRole("button", { name: MESSAGE_EDIT_NAME })).toBeHidden();
+    // Edit is the one inline verb at a touch pointer; Fork stood down (`display:none`, so it leaves the
+    // a11y tree too) and the menu is its one door.
+    await expect(component.getByRole("button", { name: MESSAGE_EDIT_NAME })).toBeVisible();
     await expect(component.getByRole("button", { name: MESSAGE_FORK_NAME })).toBeHidden();
 
     await component.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME }).click();
@@ -2590,6 +2585,7 @@ const HEADER_INSIDE_STYLES = ["bubble", "flat", "document", "echo", "whisper", "
 
 for (const style of HEADER_INSIDE_STYLES) {
   test(`#288 ${style}: the name row is INSIDE the message container, not a sibling above it`, async ({ mount }) => {
+    test.skip(style === "document", "the document page names nobody, as stock does; its own pins are the document block");
     const component = await mount(<MessageRowStory chatStyle={style} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
     // The header is a descendant of the container the body renders in …
     await expect(component.locator(BUBBLE).first().locator(NAME_ROW)).toHaveCount(1);
@@ -2861,9 +2857,8 @@ test("#1728: the bubble skin KEEPS its edge-anchored identity gutter at a deskto
     />,
   );
   await expect(component.locator(READING_COLUMN)).toBeVisible();
-  // A 32px `avatar-md` chip + its 8px `spacing.row` gap — the term `dimension.shell-content-floor`'s
-  // derivation spends, deliberately left alone by arm B.
-  await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(40);
+  // The 40px `avatar-lg` chip + its 8px `spacing.row` gap.
+  await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(48);
 });
 
 test("#1728: the bubble skin KEEPS its edge-anchored identity gutter at a phone width", async ({ mount }) => {
@@ -2879,8 +2874,8 @@ test("#1728: the bubble skin KEEPS its edge-anchored identity gutter at a phone 
     />,
   );
   await expect(component.locator(READING_COLUMN)).toBeVisible();
-  // The row's own `@max-md` step: a 24px chip + a 6px `spacing.field` gap.
-  await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(30);
+  // The chip keeps its 40px on a phone; the row's own `@max-md` step tightens only the gap, to `spacing.field`.
+  await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(46);
 });
 
 test("#1728: below the crossover the centred skins keep the IN-FLOW gutter", async ({ mount }) => {
@@ -2899,99 +2894,300 @@ test("#1728: below the crossover the centred skins keep the IN-FLOW gutter", asy
     />,
   );
   await expect(component.locator(READING_COLUMN)).toBeVisible();
-  await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(40);
+  await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(48);
   await expect.poll(async () => (await readingColumnInsets(component))[1]).toBe(0);
 });
 
-// ── #2425: THE PINNED BAND PAINTS THE SAME BREATHING UNDER THE NAME IN ALL EIGHT SKINS ─────────────
-// Driven live 2026-09-19 (side-eye `side-eye-F`, `scrollTop 20166`, a carried-art room): #1873 made the
-// inside band's cancellation TOP-ONLY, which left `padding-bottom: 0` — so the opaque fill stopped ~5px
-// under the name's glyph box (the line box's own half-leading) and the prose scrolling underneath was
-// severed flush against the pinned name. Pre-#1873 that fill was ~13px; the untouched `tide` skin still
-// renders ~13px in the same build, which is what makes this a regression rather than a taste call.
-//
-// WHAT IS ASSERTED, AND WHY IT IS THE FRAMEBUFFER. The fix is PAINT (an out-of-flow `::after`), because
-// the layout arm is the one #1873 forbids — a bottom padding re-enters `exceedsViewport`'s own input.
-// Paint is exactly what a class list and `getComputedStyle` cannot see, and a box read would measure the
-// border box and report the extension as absent. So this samples the band's own fill from the shot, then
-// samples the strip that begins BELOW the name's box, and requires the two to be the same colour across
-// the whole skin axis — one quantity, eight skins, which is the P2's equality claim stated as pixels.
-//
-// THE NEGATIVE CONTROL RIDES THE SAME MOUNT: the strip one full --spacing-row PAST the band must NOT be
-// the band's fill, or the sampler would be reporting "the same colour" about the whole column.
-// RED on the pre-fix source for the seven `inside` skins (the below-name strip is the row's own prose /
-// container fill, not the band's), GREEN for `tide` — which is the control the review named.
+// ── THE MESSAGE'S DESIGNED TOP EDGE: the pinned header bar, per chat style ───────────────────────────
+// A long reply's header pins as one compact bar in the row's OWN surface: the cards' role fill, tide's pill,
+// the reading band for the unboxed styles, and a trailing actions chip for the document page, which names
+// nobody. Below the bar its surface fades out, so the line passing under the bar's edge dissolves instead of
+// being cut, and the bar lets go where the message ends. The bar's paint is `RowSkin.pinnedHeader`.
 
-/** A carried per-character base dark enough that its derived reading band is nowhere near the app's. */
-const CARRIED_ROOM_BASE = "oklch(0.2 0.03 260)";
+type ChatStyle = (typeof THEME_CHAT_STYLES)[number];
 
-/** Per-channel equality with 2/255 of slack — screenshot quantisation, never a colour difference. */
-function sameRgb(a: { r: number; g: number; b: number }, b: { r: number; g: number; b: number }): boolean {
-  return Math.abs(a.r - b.r) <= 2 && Math.abs(a.g - b.g) <= 2 && Math.abs(a.b - b.b) <= 2;
+/** The surface each style's pinned bar paints, and the ink paired with it. */
+const PINNED_SURFACE: Record<ChatStyle, { readonly fill: string; readonly ink: string }> = {
+  bubble: { fill: "--color-ai-bubble", ink: "--color-ai-bubble-foreground" },
+  echo: { fill: "--color-ai-bubble", ink: "--color-ai-bubble-foreground" },
+  whisper: { fill: "--color-ai-bubble", ink: "--color-ai-bubble-foreground" },
+  ripple: { fill: "--color-ai-bubble", ink: "--color-ai-bubble-foreground" },
+  tide: { fill: "--color-ai-bubble", ink: "--color-ai-bubble-foreground" },
+  flat: { fill: "--color-reading-band", ink: "--color-reading-plate-foreground" },
+  hush: { fill: "--color-reading-band", ink: "--color-reading-plate-foreground" },
+  document: { fill: "--color-reading-band", ink: "--color-reading-plate-foreground" },
+};
+
+/** How far the bar reaches: across the whole surface it pins in, a chip at the surface's trailing inset
+ *  (document), or within the content column (tide, whose bar is a pill above its train). */
+const PINNED_REACH: Record<ChatStyle, "surface" | "chip" | "column"> = {
+  bubble: "surface",
+  echo: "surface",
+  whisper: "surface",
+  ripple: "surface",
+  flat: "surface",
+  hush: "surface",
+  document: "chip",
+  tide: "column",
+};
+
+interface PinnedBarRead {
+  readonly left: number;
+  readonly right: number;
+  readonly height: number;
+  readonly surfaceLeft: number;
+  readonly surfaceRight: number;
+  readonly surfaceContentRight: number;
+  readonly fade: string;
+  readonly fadeHeight: number;
+  readonly compactPx: number;
 }
 
-for (const chatStyle of THEME_CHAT_STYLES) {
-  test(`#2425 ${chatStyle}: the pinned band paints one --spacing-row of fill below the speaker name`, async ({ mount, page }) => {
-    const component = await mount(pinnableRow(chatStyle, alice()));
-    const nameRow = await pinHeader(component);
-    await expect(nameRow).toHaveCSS("position", "sticky");
-
-    // ONE --spacing-row, read as the band's OWN resolved top padding rather than as a literal 8 or a raw
-    // token lookup. Both spellings spend `pt-row` above the name, so this is the same quantity in both
-    // arms, in px, at whatever the scale is tuned to — and the claim becomes "the fill below the name
-    // equals the fill above it", which is what "the same band" means to a reader.
-    const spacingRow = Number.parseFloat(await nameRow.evaluate((el) => getComputedStyle(el).paddingTop));
-    expect(spacingRow, "the band must spend one --spacing-row of top padding to compare against").toBeGreaterThan(0);
-
-    // Where the name's own box ends, as a FRACTION of the band's box — `pixelSurface` takes its region in
-    // the target's own coordinates, and regions past 1 sample below it, which is where the extension lives.
-    const geometry = await nameRow.evaluate((el: HTMLElement) => {
-      const name = el.querySelector('[data-slot="message-attribution"]');
-      if (name === null) {
-        throw new Error("#2425: the row rendered no attribution cluster to measure against");
-      }
-      const band = el.getBoundingClientRect();
-      return { bandTop: band.top, bandHeight: band.height, nameBottom: name.getBoundingClientRect().bottom };
-    });
-    const fraction = (y: number): number => (y - geometry.bandTop) / geometry.bandHeight;
-
-    // The band's OWN fill, read away from the name's glyphs (the cluster is leading; the action slot is
-    // zero-height and paints nothing at rest).
-    const band = await pixelSurface(page, nameRow, { region: { x0: 0.6, x1: 0.95, y0: 0.05, y1: 0.45 } });
-    // The strip immediately below the name's box — inset by 1px at each end so neither edge samples an
-    // antialiased boundary.
-    const below = await pixelSurface(page, nameRow, {
-      region: { x0: 0.6, x1: 0.95, y0: fraction(geometry.nameBottom + 1), y1: fraction(geometry.nameBottom + spacingRow - 1) },
-    });
-    expect(sameRgb(below.rgb, band.rgb), `below-name strip ${below.describe} must be the band's fill ${band.describe}`).toBe(true);
-
-    // THE PLANTED CONTROL, same mount: past the band's breathing the column is NOT the band.
-    const past = await pixelSurface(page, nameRow, {
-      region: { x0: 0.6, x1: 0.95, y0: fraction(geometry.nameBottom + spacingRow + 2), y1: fraction(geometry.nameBottom + spacingRow + 6) },
-    });
-    expect(sameRgb(past.rgb, band.rgb), `control strip ${past.describe} must NOT be the band's fill ${band.describe}`).toBe(false);
+// The bar against the surface it pins in (its parent's padding box), plus its fade and the compact ceiling:
+// one glyph box plus one row step, a single line of chrome with its breathing.
+function readPinnedBar(bar: Locator): Promise<PinnedBarRead> {
+  return bar.evaluate((el: HTMLElement) => {
+    // The surface is the nearest box: a themed speaker scope wraps the bar in a `display: contents` layer.
+    let parent = el.parentElement;
+    while (parent !== null && getComputedStyle(parent).display === "contents") {
+      parent = parent.parentElement;
+    }
+    if (parent === null) {
+      throw new Error("the pinned bar has no surface");
+    }
+    const box = el.getBoundingClientRect();
+    const surface = parent.getBoundingClientRect();
+    const surfaceStyle = getComputedStyle(parent);
+    const fade = getComputedStyle(el, "::after");
+    const probe = document.createElement("div");
+    probe.style.height = "calc(var(--spacing-glyph-lg) + var(--spacing-row))";
+    document.body.append(probe);
+    const compactPx = probe.getBoundingClientRect().height;
+    probe.remove();
+    const surfaceLeft = surface.left + parent.clientLeft;
+    const surfaceRight = surfaceLeft + parent.clientWidth;
+    return {
+      left: box.left,
+      right: box.right,
+      height: box.height,
+      surfaceLeft,
+      surfaceRight,
+      surfaceContentRight: surfaceRight - Number.parseFloat(surfaceStyle.paddingRight),
+      fade: fade.content === "none" ? "none" : fade.backgroundImage,
+      fadeHeight: fade.content === "none" ? 0 : Number.parseFloat(fade.height),
+      compactPx,
+    };
   });
 }
 
-test("#2425 the OUTSIDE skin's band takes the speaker's palette, exactly like the seven INSIDE skins", async ({ mount }) => {
-  // The other half of the P2 ("tide renders a neutral `oklch(0.12 0.006 60)` fill instead of the
-  // speaker-tinted `oklch(0.112 …)`"). The speaker scope used to wrap the BUBBLE, so `tide` — the one skin
-  // whose header is a sibling ABOVE the box — sat outside it and resolved `--color-reading-band` from the
-  // VIEWER's palette while the prose one line below rode the CARRIED one: #204's "one column, two
-  // palettes" defect at the surface #288's anatomy move left outside the container. The scope is the
-  // content COLUMN's now, so the two agree.
-  const bandFill = async (chatStyle: (typeof THEME_CHAT_STYLES)[number], participant: ParticipantView): Promise<string> => {
-    const component = await mount(pinnableRow(chatStyle, participant));
-    const fill = await (await pinHeader(component)).evaluate((el) => getComputedStyle(el).backgroundColor);
-    await component.unmount();
-    return fill;
-  };
-  const carried: ParticipantView = { ...alice(), themeOverride: { background: CARRIED_ROOM_BASE } };
-  const tide = await bandFill("tide", carried);
-  const hush = await bandFill("hush", carried);
-  expect(parseOklch(tide), `tide ${tide} vs hush ${hush}`).toEqual(parseOklch(hush));
-  // THE PLANTED CONTROL — without the carried base the band is a DIFFERENT colour, so the equality above
-  // is a claim about the carried palette reaching tide rather than about every band being the same tone.
-  const uncarried = await bandFill("tide", alice());
-  expect(parseOklch(tide), `carried ${tide} must differ from uncarried ${uncarried}`).not.toEqual(parseOklch(uncarried));
+function reachHolds(reach: "surface" | "chip" | "column", bar: PinnedBarRead): boolean {
+  if (reach === "surface") {
+    return Math.abs(bar.left - bar.surfaceLeft) < 1 && Math.abs(bar.right - bar.surfaceRight) < 1;
+  }
+  if (reach === "chip") {
+    return Math.abs(bar.right - bar.surfaceContentRight) < 1 && bar.right - bar.left < (bar.surfaceRight - bar.surfaceLeft) / 2;
+  }
+  return bar.left >= bar.surfaceLeft - 1 && bar.right <= bar.surfaceRight + 1;
+}
+
+for (const chatStyle of THEME_CHAT_STYLES) {
+  test(`${chatStyle}: the pinned bar is the row's own surface, one compact line, fading below`, async ({ mount }) => {
+    const component = await mount(pinnableRow(chatStyle, alice()));
+    const bar = await pinHeader(component);
+    const surface = PINNED_SURFACE[chatStyle];
+    await expect
+      .poll(async () => parseOklch(await bar.evaluate((el) => getComputedStyle(el).backgroundColor)))
+      .toEqual(parseOklch(await cssVar(bar, surface.fill)));
+    await expect.poll(async () => parseOklch(await bar.evaluate((el) => getComputedStyle(el).color))).toEqual(parseOklch(await cssVar(bar, surface.ink)));
+    const read = await readPinnedBar(bar);
+    expect({
+      reach: reachHolds(PINNED_REACH[chatStyle], read),
+      compact: read.height <= read.compactPx,
+      // The chip is small enough to sit over the page; every bar that spans its surface fades below.
+      fades: read.fade.startsWith("linear-gradient") && read.fadeHeight > 0,
+    }).toEqual({ reach: true, compact: true, fades: chatStyle !== "document" });
+  });
+
+  test(`${chatStyle}: the pinned bar lets go where the message ends`, async ({ mount }) => {
+    const component = await mount(pinnableRow(chatStyle, alice()));
+    const bar = await pinHeader(component);
+    // The rows that follow in a real transcript, so the message's end can scroll up past the scrollport top.
+    const geometry = await component.evaluate((port: HTMLElement) => {
+      const row = port.querySelector('[data-slot="message-row"]');
+      if (row === null) {
+        throw new Error("no row to scroll past");
+      }
+      const spacer = document.createElement("div");
+      spacer.style.cssText = `height:${String(port.clientHeight * 2)}px;flex-shrink:0`;
+      row.after(spacer);
+      const portTop = port.getBoundingClientRect().top;
+      // Park the message's last pixels just under the scrollport top.
+      port.scrollTop += row.getBoundingClientRect().bottom - portTop - 4;
+      return { portTop, rowBottom: row.getBoundingClientRect().bottom };
+    });
+    const released = await bar.evaluate((el: HTMLElement) => {
+      const parent = el.parentElement as HTMLElement;
+      const surface = parent.getBoundingClientRect();
+      const box = el.getBoundingClientRect();
+      return { barTop: box.top, surfaceBottom: surface.bottom };
+    });
+    // It travelled up with the message end instead of staying pinned over the next message.
+    expect(released.barTop, JSON.stringify({ ...geometry, ...released })).toBeLessThan(geometry.portTop - 1);
+  });
+
+  test(`${chatStyle}: the actions ride the header bar, one actions surface per row, name before actions`, async ({ mount }) => {
+    const component = await mount(
+      <MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} lastRow={true} />,
+    );
+    await expect(component.locator(ACTIONS_ROW)).toHaveCount(1);
+    await expect(component.locator(`${NAME_ROW} ${ACTIONS_ROW}`)).toHaveCount(1);
+    // The last row shows its actions at rest.
+    await expect(component.locator(ACTIONS_ROW)).toHaveCSS("opacity", "1");
+    // Keyboard order is DOM order (nothing here carries a positive tabindex): the speaker, then the actions.
+    const order = await component.locator(NAME_ROW).evaluate((bar) => {
+      const name = bar.querySelector('[data-slot="message-attribution"]');
+      const action = bar.querySelector('[data-slot="message-actions-row"] button');
+      if (action === null) {
+        return "no actions";
+      }
+      if (name === null) {
+        return "actions only";
+      }
+      const all = [...bar.querySelectorAll("*")];
+      return all.indexOf(name) < all.indexOf(action) ? "name, then actions" : "actions, then name";
+    });
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): DOM order is fixed at render, and the actions' settled opacity was awaited above.
+    expect(order).toBe(chatStyle === "document" ? "actions only" : "name, then actions");
+  });
+}
+
+// ── THE STOCK DOCUMENT PAGE ──────────────────────────────────────────────────────────────────────────────
+test.describe("the stock document page", () => {
+  test("names nobody — no avatar, name or timestamp — and the page runs the full column", async ({ mount }) => {
+    const component = await mount(
+      <MessageRowStory
+        chatStyle="document"
+        messageRole="user"
+        personaId={ALEX_PERSONA_ID}
+        personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]}
+        metadataVisibility={meta({ showTimestamps: true })}
+        content={MEASURE_FILLING_BODY}
+        width={1024}
+      />,
+    );
+    await expect(component.locator(AVATAR)).toHaveCount(0);
+    await expect(component.locator(ATTRIBUTION)).toHaveCount(0);
+    await expect(component.locator(TIMESTAMP)).toHaveCount(0);
+    const widths = await component.locator(BUBBLE).evaluate((bubble: HTMLElement) => {
+      const column = bubble.closest('[data-slot="message-content-column"]') as HTMLElement;
+      return { bubble: bubble.getBoundingClientRect().width, column: column.getBoundingClientRect().width };
+    });
+    expect(Math.abs(widths.bubble - widths.column)).toBeLessThan(1);
+  });
+
+  test("an earlier row's bar costs no height and its actions wait for hover or focus, even on a phone", async ({ mount, page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    const component = await mount(<MessageRowStory chatStyle="document" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
+    expect(await nameRowOuterExtent(component.locator(NAME_ROW))).toBeLessThan(1);
+    await expect(component.locator(ACTIONS_ROW)).toHaveCSS("opacity", "0");
+    await component.getByRole("button", { name: MESSAGE_EDIT_NAME }).focus();
+    await expect(component.locator(ACTIONS_ROW)).toHaveCSS("opacity", "1");
+  });
+
+  test("the last row's bar takes its own line above the page, with the actions shown", async ({ mount }) => {
+    const component = await mount(
+      <MessageRowStory chatStyle="document" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} lastRow={true} />,
+    );
+    await expect(component.locator(ACTIONS_ROW)).toHaveCSS("opacity", "1");
+    await expect
+      .poll(() =>
+        component.locator(NAME_ROW).evaluate((bar: HTMLElement) => {
+          const barBottom = bar.getBoundingClientRect().bottom;
+          return (bar.nextElementSibling as HTMLElement).getBoundingClientRect().top >= barBottom - 0.5;
+        }),
+      )
+      .toBe(true);
+  });
 });
+
+test.describe("document actions at a touch pointer", () => {
+  test.use({ hasTouch: true });
+
+  test("an earlier row keeps its actions hidden until a tap focuses the row", async ({ mount, page }) => {
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    const component = await mount(<MessageRowStory chatStyle="document" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
+    await expect(component.locator(ACTIONS_ROW)).toHaveCSS("opacity", "0");
+  });
+});
+
+// ── THE MESSAGE'S DESIGNED BOTTOM EDGE: the swipe foot's two quieter cases ─────────────────────────────
+test("an earlier swiped reply shows its count alone, a quiet foot with no chevrons", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
+  const component = await mount(
+    <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} variantCount={3} />,
+  );
+  const count = component.locator('[data-slot="swipe-count"]');
+  await expect(count).toHaveText("1 / 3");
+  await expect(count.getByRole("button")).toHaveCount(0);
+  await expect(component.locator(SWIPE_STRIP)).toHaveCount(0);
+});
+
+test.describe("a short reply at a touch pointer", () => {
+  test.use({ hasTouch: true });
+
+  test("its swipe foot never sets the bubble's width: the bubble is as wide as its header", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...CHAT_AMBIENT_ROUTES,
+      ...CHAT_ROOM_ROUTES,
+      "chat.listMessageVariants": () => [
+        { variantId: "msgvar_hi_0", idx: 0 },
+        { variantId: "msgvar_hi_1", idx: 1 },
+        { variantId: "msgvar_hi_2", idx: 2 },
+      ],
+    });
+    const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" content="Hi." showSwipes={true} width={390} />);
+    const read = (): Promise<{ readonly content: number; readonly header: number; readonly footNatural: number }> =>
+      component.locator(BUBBLE).evaluate((bubble: HTMLElement) => {
+        const style = getComputedStyle(bubble);
+        const bar = bubble.querySelector('[data-slot="message-name-row"]') as HTMLElement;
+        const barGap = Number.parseFloat(getComputedStyle(bar).columnGap) || 0;
+        const barParts = [...bar.children].filter((child) => getComputedStyle(child).display !== "none");
+        const header = barParts.reduce((sum, child) => sum + child.getBoundingClientRect().width, 0) + barGap * Math.max(0, barParts.length - 1);
+        const foot = bubble.querySelector('[data-slot="swipe-strip"]') as HTMLElement;
+        const footNatural = [...foot.children].reduce((sum, child) => sum + child.getBoundingClientRect().width, 0);
+        return {
+          content: bubble.clientWidth - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight),
+          header,
+          footNatural,
+        };
+      });
+    // The guard that makes this a real claim: the foot's own glyphs are wider than the header's.
+    await expect
+      .poll(async () => {
+        const g = await read();
+        return { footWiderThanHeader: g.footNatural > g.header, bubbleHugsHeader: Math.abs(g.content - g.header) < 1 };
+      })
+      .toEqual({ footWiderThanHeader: true, bubbleHugsHeader: true });
+  });
+});
+
+// ── WIDE CONTENT SCROLLS INSIDE ITS MESSAGE, PER STYLE, AT A PHONE WIDTH ──────────────────────────────
+const WIDE_CODE = `\`\`\`\n${"const aVeryLongIdentifierThatWillNotWrap = 1; ".repeat(8)}\n\`\`\``;
+
+for (const chatStyle of THEME_CHAT_STYLES) {
+  test(`${chatStyle}: a wide code block scrolls inside the message and never widens the row at 390px`, async ({ mount }) => {
+    const component = await mount(
+      <MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} content={WIDE_CODE} width={390} />,
+    );
+    await expect(component.locator("pre").first()).toBeVisible();
+    await expect
+      .poll(() =>
+        component.evaluate((port: HTMLElement) => {
+          const row = port.querySelector('[data-slot="message-row"]') as HTMLElement;
+          const pre = port.querySelector("pre") as HTMLElement;
+          return { rowFits: row.scrollWidth <= port.clientWidth + 1, preScrolls: pre.scrollWidth > pre.clientWidth };
+        }),
+      )
+      .toEqual({ rowFits: true, preScrolls: true });
+  });
+}

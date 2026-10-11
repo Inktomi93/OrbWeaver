@@ -19,10 +19,16 @@ import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, ReactNode } from "react";
 import type { RowAttribution } from "../lib/attribution.ts";
+import type { ActionsReveal } from "../lib/message-actions-reveal.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
+import type { HeaderShape } from "../lib/row-placement.ts";
 import { MessageActionsRow } from "./message-actions-row.tsx";
 import { MessageTimestamp } from "./message-metadata-row.tsx";
 import { NameRowFrame } from "./message-name-row-frame.tsx";
+
+/** The live turn always names its speaker on a line of its own. */
+const GHOST_SHAPE: HeaderShape = { identity: true, ownLine: true };
+const GHOST_UNNAMED_SHAPE: HeaderShape = { identity: false, ownLine: true };
 
 /** Read off the skin table rather than re-declared: the table owns the axis (`no-inline-types`). */
 type HeaderPlacement = RowSkin["headerPlacement"];
@@ -102,21 +108,25 @@ export function renderRowNameRow(args: {
   readonly stickyAttribution: boolean;
   readonly actions: ReactNode;
   readonly placement: HeaderPlacement;
-  readonly bleed: string;
+  /** `RowSkin.pinnedHeader`'s paint for this row's role. */
+  readonly pinnedPaint: string;
   readonly role: MessageRole;
-  /** The row sits mirrored at the trailing edge (`rowMirrored`). */
+  /** The row sits mirrored at the trailing edge (`rowMirrored`): its header packs to that edge too. */
   readonly mirrored: boolean;
+  readonly shape: HeaderShape;
 }): ReactElement {
-  // Mirroring is the OWN-SIDE read: it only exists when the header is packed inside a container edge.
-  const mirrored = args.placement === "inside" && args.mirrored;
+  const mirrored = args.mirrored;
   return (
     <NameRowFrame
-      identity={renderRowIdentity({ attribution: args.attribution, message: args.message, showTimestamp: args.showTimestamp, mirrored })}
+      identity={
+        args.shape.identity ? renderRowIdentity({ attribution: args.attribution, message: args.message, showTimestamp: args.showTimestamp, mirrored }) : null
+      }
       actions={args.actions}
       stickyAttribution={args.stickyAttribution}
       placement={args.placement}
       mirrored={mirrored}
-      bleed={args.bleed}
+      pinnedPaint={args.pinnedPaint}
+      shape={args.shape}
     />
   );
 }
@@ -144,9 +154,25 @@ export function renderGhostNameRow(args: {
   /** #288 — the SAME placement the settled row will use for this chatStyle. A live turn whose header sat
    *  above the bubble and jumped inside it at commit would be a visible one-frame reflow on every reply. */
   readonly placement: HeaderPlacement;
-  readonly bleed: string;
+  readonly pinnedPaint: string;
+  /** `RowSkin.actionsRow.identity`. A style that names nobody still reserves the empty bar line its
+   *  settled last row will carry, so the commit does not shift the reply down a line. */
+  readonly named: boolean;
 }): ReactElement | null {
   const attribution = args.attribution;
+  if (!args.named) {
+    return (
+      <NameRowFrame
+        identity={null}
+        actions={null}
+        stickyAttribution={false}
+        placement={args.placement}
+        mirrored={false}
+        pinnedPaint={args.pinnedPaint}
+        shape={GHOST_UNNAMED_SHAPE}
+      />
+    );
+  }
   if (attribution === undefined || attribution.name === null) {
     return null;
   }
@@ -162,7 +188,8 @@ export function renderGhostNameRow(args: {
       placement={args.placement}
       // The ghost is always the assistant side; there is no own-message mirror to take.
       mirrored={false}
-      bleed={args.bleed}
+      pinnedPaint={args.pinnedPaint}
+      shape={GHOST_SHAPE}
     />
   );
 }
@@ -171,7 +198,7 @@ export function renderRowActions(args: {
   readonly editing: boolean;
   readonly selecting: boolean;
   readonly message: MessageView;
-  readonly messageActions: "expanded" | "hover" | undefined;
+  readonly messageActions: ActionsReveal;
   /** WIREBTN — gates the kebab's host-only "View wire trace…" item (see `MessageActionsRow`). */
   readonly viewerIsHost: boolean | undefined;
   /** Show the generation credit, already gated by the `showModelIcon` appearance toggle upstream. */

@@ -432,7 +432,7 @@ test("UserSettings.appearance reads the §12.1 defaults from an empty blob (no v
   // Sizing + message style
   expect(parsed.appearance.chatWidthPct).toBe(60);
   expect(parsed.appearance.fontScale).toBe(1);
-  expect(parsed.appearance.avatarSize).toBe("md");
+  expect(parsed.appearance.avatarSize).toBe("lg");
   expect(parsed.appearance.avatarShape).toBe("round");
   expect(parsed.appearance.avatarAspect).toBe("square"); // §B.3 avatar versatility
   expect(parsed.appearance.avatarRing).toBe("none");
@@ -461,7 +461,7 @@ test("UserSettings.appearance self-heals per-field: a garbage knob degrades to i
     {
       appearance: {
         chatStyle: "hologram", // not a THEME_CHAT_STYLES member → catch → "bubble"
-        avatarSize: "enormous", // not sm/md/lg → catch → "md"
+        avatarSize: "enormous", // not sm/md/lg → catch → "lg"
         avatarAspect: "landscape", // not square/portrait → catch → "square"
         chatWidthPct: 5000, // over the max → catch → 60
         fontScale: 99, // over the max → catch → 1
@@ -473,7 +473,7 @@ test("UserSettings.appearance self-heals per-field: a garbage knob degrades to i
     USER_SETTINGS_SCHEMA_VERSION,
   );
   expect(parsed.appearance.chatStyle).toBe("bubble");
-  expect(parsed.appearance.avatarSize).toBe("md");
+  expect(parsed.appearance.avatarSize).toBe("lg");
   expect(parsed.appearance.avatarAspect).toBe("square");
   expect(parsed.appearance.chatWidthPct).toBe(60);
   expect(parsed.appearance.fontScale).toBe(1);

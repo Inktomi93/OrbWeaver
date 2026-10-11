@@ -74,6 +74,9 @@ export interface RowActionsMenuProps {
    *  longer disagree. A trigger that needs a fuller explanation puts it in `label` (where it becomes the name
    *  as well as the pixels), never in a divergent twin. @defaultValue false */
   readonly tooltip?: boolean;
+  /** The trigger's ink: `receded` for a demoted-actions door (see below), `inherit` for a trigger that is one
+   *  tool among equals and must match its neighbours (the composer's ☰ beside the ✨). @defaultValue "receded" */
+  readonly ink?: "inherit" | "receded";
   /** The bottom destructive item + its confirm dialog. Omit for a menu with no destructive action. */
   readonly destructive?: RowDestructiveAction;
 }
@@ -118,6 +121,15 @@ const TRIGGER_BUTTON_SIZE = { glyph: "glyph-lg", icon: "icon", inline: "inline",
   "glyph-lg" | "icon" | "icon-sm" | "inline"
 >;
 
+const TRIGGER_INK = { inherit: "", receded: RECEDED_INK } as const satisfies Record<NonNullable<RowActionsMenuProps["ink"]>, string>;
+
+/** The glyph trigger is round like every glyph button it sits among (the composer's tools, a message's
+ *  header actions), so its hover and press tint is a glyph-sized circle; the control steps keep the box. */
+const TRIGGER_BUTTON_SHAPE = { glyph: "pill", icon: "control", inline: "control", sm: "control" } as const satisfies Record<
+  NonNullable<RowActionsMenuProps["triggerSize"]>,
+  "control" | "pill"
+>;
+
 /**
  * The one row/entity actions menu — ghost ⋯ trigger, a popup of `children` items, and an optional
  * destructive item wired to a ConfirmDialog whose open-state this composite owns. Non-destructive
@@ -131,48 +143,34 @@ export function RowActionsMenu({
   triggerSize = "icon",
   reveal = false,
   tooltip = false,
+  ink = "receded",
   destructive,
 }: RowActionsMenuProps): ReactElement {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const destructiveLabel = destructive?.label ?? "Delete";
+  const trigger = (
+    <Button
+      aria-label={label}
+      className={reveal ? `${TRIGGER_INK[ink]} ${ROW_REVEAL}` : TRIGGER_INK[ink]}
+      intent="ghost"
+      size={TRIGGER_BUTTON_SIZE[triggerSize]}
+      shape={TRIGGER_BUTTON_SHAPE[triggerSize]}
+    >
+      <Icon icon={icon} size="sm" />
+    </Button>
+  );
 
   return (
     <>
       <Menu>
         {tooltip ? (
           <Tooltip>
-            <TooltipTrigger
-              render={
-                <MenuTrigger
-                  render={
-                    <Button
-                      aria-label={label}
-                      className={reveal ? `${RECEDED_INK} ${ROW_REVEAL}` : RECEDED_INK}
-                      intent="ghost"
-                      size={TRIGGER_BUTTON_SIZE[triggerSize]}
-                    >
-                      <Icon icon={icon} size="sm" />
-                    </Button>
-                  }
-                />
-              }
-            />
+            <TooltipTrigger render={<MenuTrigger render={trigger} />} />
             {/* The popup text IS the accessible name — the same `label`, never a twin (see the prop's doc). */}
             <TooltipPopup side="top">{label}</TooltipPopup>
           </Tooltip>
         ) : (
-          <MenuTrigger
-            render={
-              <Button
-                aria-label={label}
-                className={reveal ? `${RECEDED_INK} ${ROW_REVEAL}` : RECEDED_INK}
-                intent="ghost"
-                size={TRIGGER_BUTTON_SIZE[triggerSize]}
-              >
-                <Icon icon={icon} size="sm" />
-              </Button>
-            }
-          />
+          <MenuTrigger render={trigger} />
         )}
         <MenuPopup align={align}>
           {children}

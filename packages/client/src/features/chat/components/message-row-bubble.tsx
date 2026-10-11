@@ -46,7 +46,7 @@ export function renderSingleBubble(args: {
         <Stack
           aria-hidden="true"
           data-slot="message-band"
-          className={cn("rounded-t-card", headerBand.initial !== undefined && "items-center justify-start pt-block")}
+          className={cn("rounded-t-card", headerBand.className, headerBand.initial !== undefined && "items-center justify-start pt-block")}
           style={headerBand.style}
         >
           {headerBand.initial === undefined ? null : (

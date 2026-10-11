@@ -34,7 +34,7 @@ import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import { BG_PHOTO_CHROME_PLATE } from "../lib/message-row-backing.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
-import { columnClassFor, gutterRailFor, rowBodyClassFor, rowMirrored } from "../lib/row-placement.ts";
+import { actionsRevealFor, columnClassFor, gutterRailFor, headerShape, rowBodyClassFor, rowMirrored } from "../lib/row-placement.ts";
 import { toolBoundaryDisplayMessage } from "../lib/tool-prose.ts";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageMetadataRow } from "./message-metadata-row.tsx";
@@ -65,6 +65,8 @@ export interface MessageRowProps {
   readonly showInChatAvatars?: boolean | undefined;
   /** True only for the tail assistant message (the swipe-eligible row). */
   readonly showSwipes?: boolean;
+  /** The transcript's last row: a bare skin shows its actions and keeps its minimum size only here. */
+  readonly lastRow?: boolean;
   /** #113 — the virtualizer MEASURED this row as taller than the scrollport, so the reader can be deep
    *  inside the turn with the speaker's name scrolled off. Pins the name row to the top of the scrollport
    *  and gives it a backing chip. Absent/false ⇒ byte-identical to before (no sticky, no chip). */
@@ -138,22 +140,21 @@ const NO_METADATA_VISIBLE: MessageMetadataVisibility = {
 /** THE ROW HAS EXACTLY ONE AVATAR SLOT: the identity GUTTER, a SIBLING of the content column (§B.1). It sits
  *  leading, or trailing for a user row in a skin that mirrors it (`RowSkin.mirrorUser`: bubble, echo, tide).
  *
- *  THE `@container` QUERY SCALES THE SLOT AND NEVER HIDES IT (`ROW_BODY_AT_PHONE_WIDTH`): at a phone-width
- *  column the chip steps down from `avatar-md` 32px to `size-6` 24px and the gap from `row` 8px to `field`
- *  6px, so the gutter is 40px at a desktop and 30px on a phone. Both are ratified: the derivation of
- *  `dimension.shell-content-floor` (tokens.json) spends "a 32px `md` avatar chip + its 8px gap" as a term.
+ *  THE CHIP KEEPS THE READER'S SIZE AT EVERY WIDTH (`avatarSize`, default `lg` 40px, as Moonlit Echoes'
+ *  Glimmer preset); at a phone-width column only the gap tightens, from `row` 8px to `field` 6px.
  *
  *  THE SLOT'S ABSENT ARM COSTS NOTHING: `renderRowAvatar` returns null when `showInChatAvatars` is off or the
  *  row resolved no name, and a null child is no flex item, so `gap` leaves no phantom inset. */
 export function MessageRow({
   message,
   chatStyle,
-  avatarSize = "md",
+  avatarSize = "lg",
   avatarShape = "round",
   avatarAspect = "square",
   avatarRing = "none",
   showInChatAvatars = true,
   showSwipes = false,
+  lastRow = false,
   stickyAttribution = false,
   participants,
   characterNamesById,
@@ -305,8 +306,8 @@ export function MessageRow({
   const weldedAvatar = avatarTreatment === "sticky-portrait" ? avatarNode : null;
   const leadingAvatar = weldedAvatar !== null || mirrored ? null : avatarNode;
   const trailingAvatar = weldedAvatar !== null || !mirrored ? null : avatarNode;
-  // THE GUTTER COSTS LESS ON A PHONE (`ROW_BODY_AT_PHONE_WIDTH`): this row is its own `@container`, and below
-  // its `md` step the chip steps down and the gap tightens; the chip is never hidden.
+  // AT A PHONE WIDTH (`ROW_BODY_AT_PHONE_WIDTH`) this row's own `@container` tightens the gap; the chip keeps
+  // its size and is never hidden.
 
   // §6c/M8 message-footer: absent for a pre-commit draft-greeting row (no `surfaceContributors` passed).
   const footerContributions = resolveMessageFooter(surfaceContributors, message);
@@ -328,15 +329,16 @@ export function MessageRow({
       showTimestamp: metadataVisibility.showTimestamps,
       stickyAttribution,
       placement: skin.headerPlacement,
-      bleed: skin.headerBleed,
+      pinnedPaint: skin.pinnedHeader.paint(role),
       mirrored,
+      shape: headerShape(skin, lastRow),
       // B7 — the picker's segment-target parse keys the SAME character-name set the span renderer uses
       // (`speakerThemesByName`'s keys); the actions row narrator-gates it against `message.kind` itself.
       actions: renderRowActions({
         editing,
         selecting,
         message,
-        messageActions,
+        messageActions: actionsRevealFor(skin, lastRow, messageActions),
         viewerIsHost,
         generationCredit,
         characterNames: [...speakerThemes.keys()],
@@ -391,6 +393,7 @@ export function MessageRow({
                   message,
                   header: header.inside,
                   footer: swipeInside,
+                  lastRow,
                   content,
                   reasoning: renderRowReasoning({ editing, message, renderContext, showLLMReasoningIcon }),
                   trainParagraphs: trainParagraphsFor(displayedMessage, editing, skin.bubbleLayout === "trains"),

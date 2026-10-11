@@ -727,7 +727,7 @@ html[data-shadow] [data-slot="message-bubble"] {
 /* THE ROOM'S TRACK CENTRES ON THE DEVICE-PIXEL GRID (#1362 — docs/law/integer-line-boxes.md Law 3). The track used
  * to carry Tailwind's `mx-auto`, which splits the leftover width in half: an ODD remainder lands the track,
  * and therefore every `backdrop-filter` layer inside it, on a half pixel. Measured on the isolated stage at
- * 1280x800 with all four blur surfaces on — content pane 893px, track 768px (`clamp(46.125rem, 60dvw,
+ * 1280x800 with all four blur surfaces on — content pane 893px, track 768px (`clamp(46.625rem, 60dvw,
  * 100dvw)`), remainder 125, margin 62.5 — `design-audit` reported `left -0.500 device px` on FOUR promoted
  * layers at once: `[data-slot=composer]`, `[data-slot=swipe-strip]` and two `[data-slot=message-bubble]`s,
  * plus the `off-grid-text` those bubbles' glyphs inherit. One cause, one repair site, because all of them
@@ -760,6 +760,20 @@ html[data-shadow] [data-slot="message-bubble"] {
 }
 [data-slot="message-bubble"] p + p {
   margin-top: var(--reading-paragraph-spacing);
+}
+/* Wide content scrolls inside its message, never widens it: a code line wider than the phone pushed the
+ * whole row off screen. `contain: inline-size` takes the block out of its shrink-to-fit bubble's intrinsic
+ * width, so the bubble sizes to its prose and the code scrolls within whatever width that leaves. */
+[data-slot="message-bubble"] pre {
+  contain: inline-size;
+  max-width: 100%;
+  overflow-x: auto;
+}
+/* How far a pinned header bar and the swipe foot reach to the card's side edges: the card's own inset,
+ * which echo widens on its art side to the art pane (an inline override from its decoration). */
+[data-slot="message-bubble"] {
+  --row-reach-left: var(--spacing-block);
+  --row-reach-right: var(--spacing-block);
 }
 /* JUSTIFY SHIPS WITH HYPHENATION, ALWAYS (#852). Justified text without it opens rivers of white down the
  * column — the browser can only stretch word spacing, so a long word that will not fit forces the line

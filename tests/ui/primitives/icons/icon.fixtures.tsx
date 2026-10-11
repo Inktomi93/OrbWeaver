@@ -2,7 +2,27 @@
 // boundary (`icon={X}` would arrive as a callback proxy, not a component), so every composition is
 // pre-bound here and the tests mount the story (the standard CT wrapper pattern).
 import type { FillableIcon, IconProps } from "@orb/ui/icons";
-import { Bookmark, Circle, Crown, Droplet, Flag, Flame, Heart, Icon, Menu, Pause, Play, Settings, Shield, Square, Star, SunMoon, X, Zap } from "@orb/ui/icons";
+import {
+  Bookmark,
+  Circle,
+  Crown,
+  Droplet,
+  FastForward,
+  Flag,
+  Flame,
+  Heart,
+  Icon,
+  Menu,
+  Pause,
+  Play,
+  Settings,
+  Shield,
+  Square,
+  Star,
+  SunMoon,
+  X,
+  Zap,
+} from "@orb/ui/icons";
 import type { ReactElement } from "react";
 
 type IconSize = NonNullable<IconProps["size"]>;
@@ -55,6 +75,7 @@ const FILLABLE: readonly [string, FillableIcon][] = [
   ["Shield", Shield],
   ["Zap", Zap],
   ["Play", Play],
+  ["FastForward", FastForward],
   ["Pause", Pause],
   ["Square", Square],
 ];

@@ -264,7 +264,8 @@ for (const width of [320, 430]) {
 for (const width of [320, 430]) {
   test.describe(`mobile avatar paint at ${width}`, () => {
     test.use({ viewport: { width, height: 780 }, hasTouch: true });
-    for (const chatStyle of THEME_CHAT_STYLES) {
+    // The document page shows no identity art, as stock does, so it has no ring to fit.
+    for (const chatStyle of THEME_CHAT_STYLES.filter((style) => style !== "document")) {
       test(`${chatStyle}: accent rings fit inside the real scrollport for user and character rows`, async ({ mount, page }, testInfo) => {
         const character = castId<CharacterId>("character_ct_edge");
         const persona = castId<PersonaId>("persona_ct_edge");

@@ -27,20 +27,42 @@
 import type { GuidedImpersonatePerson } from "@orb/contracts/preset";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import type { LucideIcon } from "@orb/ui/icons";
+import type { FillableIcon, LucideIcon } from "@orb/ui/icons";
 import { Drama, Icon, Play, Square } from "@orb/ui/icons";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { IMPERSONATE_STOP_LABEL, RESPONSE_SPEAKER_CUE, STEER_CUE_IMPERSONATE, STEER_CUE_RESPONSE, testId } from "#lib";
+import { cn, IMPERSONATE_STOP_LABEL, RESPONSE_SPEAKER_CUE, STEER_CUE_IMPERSONATE, STEER_CUE_RESPONSE, testId } from "#lib";
 import type { filterCharacters } from "../lib/roster.ts";
 
 const ICON_CONTROL_CLASS = "shrink-0 data-disabled:pointer-events-auto";
 
+/** A guided control's glyph. A glyph whose closed paths are its silhouette fills solid when the control
+ *  can steer; one that cannot fill (an open arc, a multi-path mask) takes the bold stroke instead, so the
+ *  steer state is always a SHAPE change, never colour alone. */
+type SteerIcon = { readonly glyph: FillableIcon; readonly fills: true } | { readonly glyph: LucideIcon; readonly fills: false };
+
+const PLAY: SteerIcon = { glyph: Play, fills: true };
+const DRAMA: SteerIcon = { glyph: Drama, fills: false };
+
+// A plain glyph in every state: no disc. A control that will steer the next reply with the typed text
+// takes the accent ink and its filled (or bold) glyph; the rest recede. The accessible name carries the
+// same state ("Guided …", "… with this direction"), so the meaning is never colour-only.
+function steerControlClass(steering: boolean): string {
+  return cn(ICON_CONTROL_CLASS, steering ? "text-primary" : "text-muted-foreground") ?? ICON_CONTROL_CLASS;
+}
+
+function SteerGlyph({ icon, steering }: { readonly icon: SteerIcon; readonly steering: boolean }): ReactElement {
+  if (icon.fills) {
+    return <Icon icon={icon.glyph} size="sm" fill={steering ? "solid" : "none"} />;
+  }
+  return <Icon icon={icon.glyph} size="sm" weight={steering ? "bold" : "regular"} />;
+}
+
 interface GuidedIconButtonProps {
-  readonly icon: LucideIcon;
+  readonly icon: SteerIcon;
   readonly label: string;
   readonly steerCue: string;
   readonly hasText: boolean;
@@ -51,7 +73,7 @@ interface GuidedIconButtonProps {
   readonly refusalStatedBy: string | undefined;
 }
 
-/** A dual-mode guided icon: charges when the composer has text and keeps disabled reasons discoverable. */
+/** A dual-mode guided icon: steers when the composer has text and keeps disabled reasons discoverable. */
 export function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
   const { icon, label, steerCue, hasText, disabled, reason, onFire, buttonTestId, refusalStatedBy } = props;
   const detail = resolveGuidedDetail({ disabled, hasText, steerCue, reason });
@@ -68,7 +90,7 @@ export function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
         render={
           <Button
             type="button"
-            intent={hasText && !disabled ? "primary" : "ghost"}
+            intent="ghost"
             size="glyph-lg"
             disabled={disabled}
             focusableWhenDisabled={true}
@@ -76,9 +98,9 @@ export function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
             data-testid={testId(buttonTestId)}
             onClick={disabled ? undefined : onFire}
             shape="pill"
-            className={ICON_CONTROL_CLASS}
+            className={steerControlClass(hasText && !disabled)}
           >
-            <Icon icon={icon} size="sm" />
+            <SteerGlyph icon={icon} steering={hasText && !disabled} />
           </Button>
         }
       />
@@ -213,13 +235,13 @@ export function ImpersonateGuidedButton({
                 <Button
                   aria-label={name}
                   type="button"
-                  intent={hasText && !disabled ? "primary" : "ghost"}
+                  intent="ghost"
                   size="glyph-lg"
                   focusableWhenDisabled={true}
                   shape="pill"
-                  className={ICON_CONTROL_CLASS}
+                  className={steerControlClass(hasText && !disabled)}
                 >
-                  <Icon icon={Drama} size="sm" />
+                  <SteerGlyph icon={DRAMA} steering={hasText && !disabled} />
                 </Button>
               }
             />
@@ -272,7 +294,7 @@ export function ResponseGuidedButton({
           render={
             <Button
               type="button"
-              intent={hasText ? "primary" : "ghost"}
+              intent="ghost"
               size="glyph-lg"
               disabled={!idle}
               focusableWhenDisabled={disabledReason !== undefined}
@@ -280,9 +302,9 @@ export function ResponseGuidedButton({
               data-testid={testId("composerGuidedResponse")}
               onClick={idle ? (): void => onFire(null) : undefined}
               shape="pill"
-              className={ICON_CONTROL_CLASS}
+              className={steerControlClass(hasText)}
             >
-              <Icon icon={Play} size="sm" />
+              <SteerGlyph icon={PLAY} steering={hasText} />
             </Button>
           }
         />
@@ -307,13 +329,13 @@ export function ResponseGuidedButton({
                 <Button
                   aria-label={name}
                   type="button"
-                  intent={hasText ? "primary" : "ghost"}
+                  intent="ghost"
                   size="glyph-lg"
                   focusableWhenDisabled={disabledReason !== undefined}
                   shape="pill"
-                  className={ICON_CONTROL_CLASS}
+                  className={steerControlClass(hasText)}
                 >
-                  <Icon icon={Play} size="sm" />
+                  <SteerGlyph icon={PLAY} steering={hasText} />
                 </Button>
               }
             />

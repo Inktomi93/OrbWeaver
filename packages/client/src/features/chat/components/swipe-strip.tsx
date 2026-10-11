@@ -75,7 +75,7 @@ export function SwipeFootRow(props: {
   readonly next: ReactNode;
 }): ReactElement {
   return (
-    <Row align="center" justify="between" gap="field" data-slot={props.slot} className={props.foot.row}>
+    <Row align="center" justify="between" gap="glyph" data-slot={props.slot} className={props.foot.row}>
       {props.prev}
       <Row align="center" gap="tight">
         {props.count}
@@ -147,6 +147,7 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
           <Button
             intent="ghost"
             size="glyph-lg"
+            shape="pill"
             className={foot.chevron}
             disabled={!canStepBack}
             loading={busy && canStepBack}
@@ -167,6 +168,7 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
           <Button
             intent="ghost"
             size="glyph-lg"
+            shape="pill"
             className={foot.chevron}
             disabled={waitingForNext}
             loading={busy || waitingForNext}
@@ -184,5 +186,16 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
         </Text>
       ) : null}
     </Stack>
+  );
+}
+
+/** An earlier swiped reply's foot: the `n / m` count alone at the trailing edge, no chevrons. */
+export function SwipeCount({ message, foot }: SwipeStripProps): ReactElement {
+  return (
+    <Row align="center" justify="end" data-slot="swipe-count" className={foot.row}>
+      <Text as="span" voice="datum" data-slot="swipe-strip-counter" className={SWIPE_COUNTER}>
+        {message.selectedVariantIdx + 1} / {Math.max(message.variantCount, 1)}
+      </Text>
+    </Row>
   );
 }

@@ -3726,7 +3726,7 @@ test("#2442 no .orb-chat-track carrier leaves its FLIP corridor — the composer
 // ── #2442 / A1-3: the CLAMPED delta, at the appearance the owner actually runs ───────────────────────
 // `--list-track-docked / 2` is the honest delta only while the docked content column is WIDER than
 // `--width-shell-content` — i.e. while the box really is the fixed-width box #1646's derivation names. At
-// `--font-scale: 1.25` the dial's own floor (46.125rem) resolves 922.5px against an ~850px docked track,
+// `--font-scale: 1.25` the dial's own floor (46.625rem) resolves 932.5px against an ~850px docked track,
 // so the box is WIDTH-CONSTRAINED while docked: its width changes with the track and its left-edge delta
 // is the track MINUS that width change, which the halved track over-applies (measured live: a 37px
 // residual jump of the transcript on every collapse).
@@ -4797,9 +4797,9 @@ test("#242 both docked at 1360: the content track reaches the reading floor, and
   await expect(page.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-mode", "docked");
 
   const [rail = 0, list = 0, content = 0, context = 0] = await shellTracks(page);
-  // THE RULED OUTCOME: the content track meets the floor (40rem = 640px), up from the 569.6px the same
-  // viewport produced before the squeeze — the +70px the CT's reading-line measurement asked for.
-  expect(content).toBeGreaterThanOrEqual(remPx(40) - 1);
+  // THE RULED OUTCOME: the content track meets the floor (40.5rem = 648px: the ruled 40rem plus the 8px the
+  // 40px chip added to the row's gutter), up from the 569.6px the same viewport produced before the squeeze.
+  expect(content).toBeGreaterThanOrEqual(remPx(40.5) - 1);
   expect(rail + list + content + context).toBeCloseTo(SQUEEZE_BINDS.width, 0);
   // …bought out of BOTH panes, neither past its floor. The context floor is the Waystone container step:
   // 3c49a6cce2 widened this pane so a standard desktop REACHES 24rem, and #242 does not spend that.
@@ -5817,7 +5817,7 @@ test("useAppearanceRootEffects lands a representative axis on <html> as a real c
 const UA_ROOT_PX = 16;
 
 test("chatWidthPct stamps a real rendered max-width on a --width-shell-content consumer", async ({ mount, page }) => {
-  const chatWidthPct = 90; // clear of the clamp's 46.125rem floor at any CT viewport ≥ 820px wide (#1204).
+  const chatWidthPct = 90; // clear of the clamp's 46.625rem floor at any CT viewport ≥ 830px wide (#1204).
   await routeTrpc(page, {
     ...SHELL_AMBIENT_ROUTES,
     "settings.getUserSettings": () => ({

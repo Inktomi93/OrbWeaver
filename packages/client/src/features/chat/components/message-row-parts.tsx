@@ -28,7 +28,7 @@ import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { renderSingleBubble } from "./message-row-bubble.tsx";
 import { MessageToolCalls } from "./message-tool-calls.tsx";
 import { ReasoningBlock } from "./reasoning-block.tsx";
-import { SwipeStrip } from "./swipe-strip.tsx";
+import { SwipeCount, SwipeStrip } from "./swipe-strip.tsx";
 
 /** #1728 arm B — a chip in a `1fr` RAIL must hug the centred column's edge or it drifts to the far side of
  *  the margin. Mapped rather than branched, so a new rail member fails tsc here (the house dispatch rule). */
@@ -162,6 +162,8 @@ export function renderRowBubble(args: {
   readonly header: ReactNode;
   /** The swipe foot when this skin seats it INSIDE its container (`SwipeFoot.placement`), else null. */
   readonly footer: ReactNode;
+  /** The transcript's last row, which takes `RowSkin.lastRowInner`. */
+  readonly lastRow: boolean;
   readonly trainParagraphs: readonly string[] | null;
   readonly skin: RowSkin;
   readonly decoration: BubbleDecoration | null;
@@ -178,7 +180,8 @@ export function renderRowBubble(args: {
   readonly editing: boolean;
 }): ReactElement {
   // Hide-from-AI dims the row (still user-visible — the toggle holds it out of assembly only).
-  const bubbleClassName = cn(args.skin.inner(args.role), args.editing && "w-full", args.message.excludedFromPrompt && "opacity-50") ?? "";
+  const bubbleClassName =
+    cn(args.skin.inner(args.role), args.lastRow && args.skin.lastRowInner, args.editing && "w-full", args.message.excludedFromPrompt && "opacity-50") ?? "";
   const body =
     args.trainParagraphs === null ? (
       renderSingleBubble({
@@ -280,6 +283,10 @@ export function renderRowAvatar(args: {
   const railClass = GUTTER_RAIL_CLASS[args.gutterRail];
   const chipClass = cn(args.alignToInsideHeader ? "mt-row" : "", railClass);
   const headerOffset = chipClass === undefined || chipClass === "" ? {} : { className: chipClass };
+  // A bare skin (stock document) shows no identity art at all.
+  if (args.avatarTreatment === "none") {
+    return null;
+  }
   if (args.avatarTreatment === "sticky-portrait") {
     const weldRounding = args.mirrored ? "rounded-l-none rounded-r-card" : "rounded-l-card rounded-r-none";
     return (
@@ -348,7 +355,15 @@ export function renderRowSwipe(args: {
       />
     );
   }
-  return args.showSwipes && args.role === "assistant" ? <SwipeStrip message={args.message} foot={args.foot} /> : null;
+  if (args.role !== "assistant") {
+    return null;
+  }
+  // Every swiped reply shows its count; the chevrons stay on the last one (stock SillyTavern with
+  // `show_swipe_num_all_messages`, as the owner's Moonlit preset sets it).
+  if (!args.showSwipes) {
+    return args.message.variantCount > 1 ? <SwipeCount message={args.message} foot={args.foot} /> : null;
+  }
+  return <SwipeStrip message={args.message} foot={args.foot} />;
 }
 
 /** Resolves the `when`-filtered `message-footer` contributions for one row (§6c/M8) — a bare helper
