@@ -24,6 +24,16 @@ import { observeRouterViewTransitions } from "./router-view-transition.ts";
 // thing an anonymous visitor is here for. The import specifier must stay STATICALLY ANALYSABLE — a
 // computed path would defeat the bundler's chunking and hand the whole feature graph back to the entry.
 
+type CrashReporter = (error: Error, ownerStack: string | null) => void;
+let reportRouteCrash: CrashReporter | null = null;
+
+/** Hand the route tree the app's crash reporter. It is injected because the client singletons it needs may only be
+ *  imported by the composition root, and TanStack's route catch boundary swallows a render crash before the
+ *  app-level boundary above the router can report it. */
+export function bindRouteCrashReporter(report: CrashReporter): void {
+  reportRouteCrash = report;
+}
+
 const homeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
@@ -93,6 +103,9 @@ export const router = createRouter({
   defaultPendingMs: 0,
   // A failed lazy chunk lands here. The browser caches a failed module fetch for the life of the document, so only
   // a reload can retry it.
+  defaultOnCatch: (error, errorInfo): void => {
+    reportRouteCrash?.(error instanceof Error ? error : new Error(String(error)), errorInfo.componentStack ?? null);
+  },
   defaultErrorComponent: (): ReactElement => <RouteError onRetry={(): void => globalThis.location.reload()} />,
   // A free crossfade on the only real navigations (/ <-> /login); no-op without the View Transition API.
   defaultViewTransition: true,
