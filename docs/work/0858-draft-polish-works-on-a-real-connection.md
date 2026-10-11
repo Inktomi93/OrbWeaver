@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-11
 priority: P2
 area: plugin
+lane: wt/agent-aec39868550065a7a
 ---
 
 # Draft Polish works on a real connection
