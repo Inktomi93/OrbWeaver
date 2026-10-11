@@ -4,6 +4,7 @@ status: open
 updated: 2026-10-11
 priority: P1
 area: tests
+plan: test-mirror
 ---
 
 # e2e smoke matrix drives the real app on the owner's container data

@@ -4,6 +4,7 @@ status: open
 updated: 2026-10-11
 priority: P1
 area: tests
+plan: test-mirror
 ---
 
 # Test fixtures call production logic instead of copying it

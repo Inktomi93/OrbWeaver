@@ -4,6 +4,7 @@ status: open
 updated: 2026-10-11
 priority: P1
 area: tooling
+plan: test-mirror
 ---
 
 # Tests mirror directories, prove presence by reach, and gates enforce that tests run the product
