@@ -73,7 +73,7 @@ test("the subtitle dates the viewer's own last turn, not the row's stamp or some
 // the SAME cache entry. Asserted through the rendered h1 (not the new read), so these compile and fail
 // against the old composition.
 
-/** A library of N rooms. At N >= `RECENTS_LIMIT` (8) the responder serves a FULL page — `items.length`
+/** A library of N rooms. At `N >= RECENTS_LIMIT` (8) the responder serves a FULL page — `items.length`
  *  equals the requested limit — which is the exact state the old "and more" hedge fired on. */
 function rooms(count: number): ScopedChatSummaryFixture[] {
   return Array.from({ length: count }, (_unused, index) =>

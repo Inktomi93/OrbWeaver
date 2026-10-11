@@ -299,8 +299,8 @@ export function RpgTakeoverDockedStory(): ReactElement {
 
 /** `<RpgTakeoverHeader>` in isolation (a pure component — no providers/network) at the header's OWN measured
  *  width on a 1440px desktop docked panel (396.8px, rounded). A long narrated date beside a long clock+weather
- *  reading — the exact `d20` seed shape (`14th of Emberfall, 3rd Age` · `night · 21:40 · steady rain on the
- *  shutters`) — is the measured case where the when-line's context half collapses to a few characters. */
+ *  reading — the exact `d20` seed shape (`14th of Emberfall, 3rd Age` ·
+ *  `night · 21:40 · steady rain on the shutters`) — is the measured case where the when-line's context half collapses to a few characters. */
 export function RpgTakeoverHeaderWhenLongStory({
   width = 400,
   calendarDate = "14th of Emberfall, 3rd Age",

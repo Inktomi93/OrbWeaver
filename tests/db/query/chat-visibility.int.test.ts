@@ -118,7 +118,7 @@ async function roomsSeatedIn(db: Db, characterId: CharacterId, userId: UserId = 
 
 /** …and the stamp it prints beside that count.
  *
- *  `sql\`max(…)\``, NOT drizzle's `max()` helper: over a non-column expression the helper attaches a
+ *  The `sql` template's `max(…)`, NOT drizzle's `max()` helper: over a non-column expression the helper attaches a
  *  `.mapWith(String)` decoder and hands back `"9000"`. The production read wraps the whole sub-select in its
  *  own `sql<number | null>` template, which has no mapper and takes the driver's own integer — so spelling it
  *  the helper's way here would pin a decoding path no caller uses. */

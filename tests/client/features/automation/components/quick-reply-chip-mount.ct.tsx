@@ -36,8 +36,8 @@ const MAX_ATTACH_POLLS = 200;
 /** The choice shape the arm surfaces — derived from the wire union, never re-spelled. */
 type QuickReplyChoices = Extract<AutomationBusEvent, { type: "quickReplySurfaced" }>["choices"];
 
-/** One live automation frame carrying the member-visible chips — the wire shape verbatim (`{ channel,
- *  chatId, event }`). Network-stubbed, so the ruleId is authored raw. */
+/** One live automation frame carrying the member-visible chips — the wire shape verbatim
+ *  (`{ channel, chatId, event }`). Network-stubbed, so the ruleId is authored raw. */
 function chipsFrame(choices: QuickReplyChoices): StreamFrame {
   const event: AutomationBusEvent = {
     type: "quickReplySurfaced",

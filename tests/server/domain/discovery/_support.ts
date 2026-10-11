@@ -588,7 +588,7 @@ export async function seedMessage(
   }
 }
 
-/** Append an EXTRA (non-selected) variant to a message — the swipe-hotspot input (a slot with >1 take). */
+/** Append an EXTRA (non-selected) variant to a message — the swipe-hotspot input (a slot with more than one take). */
 export async function seedMessageVariant(
   db: Db,
   overrides: {

@@ -80,8 +80,11 @@ function processChdirCalls(sourceFile: SourceFile): number {
 
 function hasModuleTag(sourceFile: SourceFile, tag: string): boolean {
   const source = sourceFile.getFullText();
+  // Vitest reads the tag from a leading docblock line or a leading `//` line; a `//` tag keeps `tsdoc/syntax` out of it.
+  const lineHeader = /^(?:[ \t]*\/\/[^\n]*\n)+/u.exec(source)?.[0] ?? "";
   const end = source.startsWith("/**") ? source.indexOf("*/") : -1;
-  return end >= 0 && new RegExp(`^\\s*\\*\\s*@module-tag\\s+${tag}\\s*$`, "mu").test(source.slice(0, end));
+  const header = end >= 0 ? source.slice(0, end) : lineHeader;
+  return new RegExp(`^\\s*(?:\\*|//)\\s*@module-tag\\s+${tag}\\s*$`, "mu").test(header);
 }
 
 function directProcessChdirModules(sourceFiles: readonly SourceFile[]): readonly SourceFile[] {

@@ -509,7 +509,7 @@ export function assertArmVerdict(arm: RealCorpusLivenessArm, verdict: RealCorpus
 
 /** Open the ONE liveness runner over `arms`. A policy carries at most one arm: two arms for one id would
  *  share a baseline row and make "which control fired" ambiguous.
- * @param knownArms The same selected authority roster across independently executed arm partitions.
+ * @param knownArms - The same selected authority roster across independently executed arm partitions.
  */
 export function openRealCorpusLiveness(
   repoRoot: string,

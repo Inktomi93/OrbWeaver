@@ -561,8 +561,8 @@ export function MotionFlaggersRatifiedHeightStory(): ReactElement {
   );
 }
 
-/** A deliberately dirty color transition. Under the global reduced-motion floor (`transition-property:
- * none !important`, #257) the colour change emits no transition at all, so the flagger has nothing to
+/** A deliberately dirty color transition. Under the global reduced-motion floor
+ * (`transition-property: none !important`, #257) the colour change emits no transition at all, so the flagger has nothing to
  * judge — which is what the reduced-motion spec asserts. */
 export function MotionFlaggersReducedMotionStory(): ReactElement {
   const [active, setActive] = useState(false);
@@ -1031,8 +1031,8 @@ const REFLOW_WIDTH_SPREAD_PX = 40;
  *  `[input]`). It also publishes the motion snapshot, so one test can prove the shared LoAF ring RECEIVED
  *  the frame it is judging. THREE plants, because `[reflow]` is a two-armed claim: a pure blocking script;
  *  the same block interleaved with write→read style thrash so a script FORCES synchronous layout
- *  (`forcedStyleAndLayoutDuration` > 0); and — the negative arm — a style WRITE with no read back, which
- *  makes the frame run style/layout at its end (`styleAndLayoutStart` > 0) while no script forced
+ *  (`forcedStyleAndLayoutDuration` above 0); and — the negative arm — a style WRITE with no read back, which
+ *  makes the frame run style/layout at its end (`styleAndLayoutStart` above 0) while no script forced
  *  anything. That third shape is what every ordinary rendering frame looks like, and it is what the
  *  `styleAndLayoutStart`-gated `[reflow]` line mis-accused (#432). */
 export function MotionFrameReflowStory(): ReactElement {

@@ -6326,8 +6326,8 @@ for (const side of ["list", "context"] as const) {
 /** THE BAND'S TWO INSET EDGES, READ APART (#1154). This pin used to ask whether the band's `box-shadow`
  *  was `"none"`, which was exact while the ember was the ONLY shadow the band could carry. It no longer is:
  *  the band's bottom separator moved from `border-block-end` to a second inset stop on the same property,
- *  because `height: 3rem` PLUS a border is a 48px border box with a 47px CONTENT box and `align-items:
- *  center` then half-pixels every occupant (docs/law/integer-line-boxes.md Law 4; pinned in
+ *  because `height: 3rem` PLUS a border is a 48px border box with a 47px CONTENT box and
+ *  `align-items: center` then half-pixels every occupant (docs/law/integer-line-boxes.md Law 4; pinned in
  *  tests/client/components/list-pane-header.ct.tsx). THE RULING SURVIVES — ITS INPUT CHANGED: "a floating
  *  context band drops the ember" is unchanged and still asserted; what moved is what `"none"` meant.
  *  So the stops are read by GEOMETRY, which is what distinguishes them on the pixels too — the ember is an

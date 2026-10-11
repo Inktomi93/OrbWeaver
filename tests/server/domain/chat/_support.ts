@@ -91,7 +91,7 @@ export async function seedUser(db: Db, handle: Handle): Promise<UserId> {
 }
 
 /** Insert the `user_connections` row `testConnection()` resolves to (`TEST_CONNECTION_ID`). A committed
- *  variant now carries `connection_id` as real ATTRIBUTION (@orb/inference §5.3b), and that column is an FK
+ *  variant now carries `connection_id` as real ATTRIBUTION (`@orb/inference` §5.3b), and that column is an FK
  *  onto this table — so any suite that drives a turn through the REAL compose bridge (which stamps
  *  `TurnEconomics.connectionId` off the resolved connection) must seed the row or the commit batch fails
  *  `SQLITE_CONSTRAINT_FOREIGNKEY`. A harness whose `runChatTurn` is a bare scripted generator never sets the

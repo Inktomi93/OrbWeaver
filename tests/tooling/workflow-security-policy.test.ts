@@ -74,7 +74,7 @@ test("optional baseline without native SARIF is retired rather than represented 
 
 test("development publication has no dead branch trigger", ({ repoRoot }) => {
   const workflow = z
-    .object({ on: z.object({ ["workflow_dispatch"]: z.null() }).strict() })
+    .object({ on: z.strictObject({ ["workflow_dispatch"]: z.null() }) })
     .parse(parse(readFileSync(join(repoRoot, ".github/workflows/development-image.yml"), "utf8")));
   expect(workflow.on.workflow_dispatch).toBeNull();
 });
@@ -106,7 +106,7 @@ test("security dependency updates configure the default branch without changing 
 test("privileged run approval never checks out candidate code or restores candidate caches", ({ repoRoot }) => {
   const workflow = z
     .object({
-      permissions: z.object({}).strict(),
+      permissions: z.strictObject({}),
       jobs: z.object({
         approve: z.object({
           permissions: z.record(z.string(), z.string()),
