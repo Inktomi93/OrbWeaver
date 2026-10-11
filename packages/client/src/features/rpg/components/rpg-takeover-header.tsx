@@ -32,7 +32,7 @@ import { Badge } from "@orb/ui/badge";
 import { Icon, Lock } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Waystone } from "@orb/ui/meter";
-import { Heading, Text } from "@orb/ui/text";
+import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { RpgFreshnessIndicator } from "./rpg-freshness-indicator.tsx";
 import { RpgSatelliteRow } from "./rpg-satellite-row.tsx";
@@ -101,74 +101,7 @@ function stoneClockOf(clock: RpgClockTime | null): { readonly hour: number; read
   return { hour: clock.hour, minute: clock.minute ?? 0 };
 }
 
-/** THE SEPARATORS A NAME AND ITS ELABORATION ARE JOINED BY, in the order a longest-match wants them. */
-const ECHO_SEPARATORS = [" — ", " – ", " - ", ": ", ", "] as const;
-
-/**
- * The location line WITHOUT the words the heading directly above it just said (#899 N5).
- *
- * MEASURED: the band renders `Example — The Ashen Spire` as its `h2` and, 28px beneath,
- * `The Ashen Spire — the throne hall, a fire built off the draft-line…`. F3's fix put the room's name in
- * the heading; this is its residue — the model writes the place into its own location string, so the two
- * lines stutter.
- *
- * IT IS A DE-DUP, NOT NEW COPY. The heading's own trailing segment is the room's name
- * (`Example — The Ashen Spire` → `The Ashen Spire`); when the location OPENS with that exact segment
- * followed by a
- * separator, the echo and its separator are dropped and what remains is the elaboration the line is for.
- * REFUSES rather than mangling in the three cases where dropping would lie:
- *   · the location IS the name and nothing more (there is no elaboration to promote — the line would go
- *     empty, and an empty when-line is worse than a repeated one);
- *   · the echo is not at the START (a place named mid-sentence is prose, not a stutter);
- *   · the match is not on a whole segment (a room called "The Ash" must not eat "The Ashen Spire").
- * Case-insensitive because the model's casing is its own; the comparison is trimmed for the same reason.
- */
-function withoutHeadingEcho(location: string, heading: string): string {
-  const name = ECHO_SEPARATORS.reduce((tail, candidate) => {
-    const at = tail.lastIndexOf(candidate);
-    return at === -1 ? tail : tail.slice(at + candidate.length);
-  }, heading.trim());
-  if (name === "") {
-    return location;
-  }
-  const lower = location.trim().toLowerCase();
-  const prefix = name.toLowerCase();
-  if (!lower.startsWith(prefix)) {
-    return location;
-  }
-  const rest = location.trim().slice(name.length);
-  const joiner = ECHO_SEPARATORS.find((candidate) => rest.startsWith(candidate));
-  if (joiner === undefined) {
-    return location;
-  }
-  const elaboration = rest.slice(joiner.length).trim();
-  return elaboration === "" ? location : elaboration;
-}
-
-/** THE BAND'S FIRST LINE IS THE ROOM'S NAME, IN THE BAND'S OWN VOICE (#875 F3, side-eye 2026-08-30).
- *
- *  The mock design rules the head band as "one slot, three contents — never a second head … the band owns the
- *  name's budget", and the chat and character bands both render an `h2` at 16px/600 with a two-line clamp.
- *  This band rendered a 13px `label` span carrying the SCENE LOCATION instead, so: a docked game room had
- *  NO heading anywhere on screen (the topbar correctly yields, #846) and `snap --aria` returned one flat
- *  text node a rotor cannot reach; and at 1024 overlay the topbar's "Example — The Ashen Spire" and the
- *  band's "The Ashen Spire — the throne hall, a fire built off the draft-line…" were both on screen,
- *  disagreeing about what the room is called.
- *
- *  The mock design's "Coupled sites" lists the Waystone as *Unchanged*, and it still is: the stone, the dial, the
- *  weather, the cues and the orbs are untouched. What changed is the TEXT COLUMN beside it, which the same
- *  ruling promoted into the slot whose contract is naming the artifact. Deviation recorded there. */
-function RoomName({ title }: { readonly title: string }): ReactElement {
-  return (
-    <Heading level={2} data-slot="rpg-band-room-name" className="line-clamp-2 text-balance" title={title}>
-      {title}
-    </Heading>
-  );
-}
-
 export interface RpgTakeoverHeaderProps {
-  /** The ROOM's name — the band's first line, at the band's own heading voice (#875 F3). */
-  readonly roomTitle: string;
   /** Does the game tab's BODY hold the satellite row right now (#878 F7)? Then the band does not. */
   readonly satellitesInBody: boolean;
   readonly ambient: RpgTrackerView["ambient"];
@@ -228,7 +161,6 @@ function isAmbientUnset(location: string, when: ReturnType<typeof whenParts>): b
  *  The cues and the satellites are built ONCE and placed by the arm, so the two forms cannot drift into two
  *  different bands — only the arrangement forks, which is the same discipline the HUD applies to the pane. */
 export function RpgTakeoverHeader({
-  roomTitle,
   satellitesInBody,
   ambient,
   actors,
@@ -287,7 +219,6 @@ export function RpgTakeoverHeader({
       <Row gap="block" align="center" data-slot="rpg-takeover-header" data-compact={true}>
         {stone}
         <Stack gap="field" className="min-w-0 flex-1">
-          <RoomName title={roomTitle} />
           {/* The absence, in the GLOSS voice — it explains, it is not a datum, and the compressed row is
               exactly where a 13px "No" was buying nothing (the four-voice grammar). */}
           <Text as="span" voice="gloss" className="truncate">
@@ -309,15 +240,12 @@ export function RpgTakeoverHeader({
       <Row gap="block" align="center">
         {stone}
         <Stack gap="field" className="min-w-0 flex-1">
-          <RoomName title={roomTitle} />
           {/* A clock or a date WITHOUT a place: honest about which half is missing. "No ambient set" is the
-              COMPRESSED arm's copy and would be a lie here — the when-line right below it is ambient.
-              THE PLACE IS NOT THE NAME (#875 F3): this line used to be the band's first and only line, at
-              `label`, carrying the SCENE's location where the chat and character bands carry the artifact's
-              name — a whole narrated sentence, hard-ellipsised at 383px. It keeps the WHEN-line's voice
-              directly above the when-line it belongs with, and gets two lines before it clips. */}
+              COMPRESSED arm's copy and would be a lie here — the when-line right below it is ambient. The room's
+              NAME lives in the center header, never in this band; this line is the scene's place, in the
+              WHEN-line's voice, with two lines before it clips. */}
           <Text as="span" voice="gloss" className="line-clamp-2">
-            {withoutHeadingEcho(location, roomTitle) || "No location set"}
+            {location || "No location set"}
           </Text>
           <BandWhen when={when} />
           <Row gap="field" align="center" className="flex-wrap">

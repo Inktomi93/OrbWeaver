@@ -495,7 +495,7 @@ export function CharactersListStory({ selectedCharacterId }: CharactersListPaneS
 }
 
 /** Mirrors the shell's CONTEXT mount: `SectionContextHost` over the section definition — the real context
- *  bracket (the head band, the six-cell foot rail) and the real body, at the docked panel's width by default
+ *  bracket (the header tab strip, the identity band) and the real body, at the docked panel's width by default
  *  (`paneWidth` = the phone sheet's 430 for the coarse arm). The cross-section probes ride along, because a
  *  projection row click is a store write, never a UI echo. */
 function CharactersContextHarness({ paneWidth }: { readonly paneWidth: number }): ReactElement {

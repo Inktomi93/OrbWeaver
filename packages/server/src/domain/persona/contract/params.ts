@@ -81,7 +81,7 @@ export interface ImportPersonaParams extends PersonaActorParams {
 
 /** One persona a profile import is about to write, as the review sees it. `artHash` is the avatar's content
  *  hash (the asset store's own), null for a persona without art. */
-export interface ReviewImportPersona {
+interface ReviewImportPersona {
   readonly name: string;
   readonly description: string;
   readonly metadata: PersonaMetadata | null;

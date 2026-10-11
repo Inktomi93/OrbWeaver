@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-11
 priority: P2
 area: tooling
+lane: wt/agent-a5b7abae5d1d0246f
 ---
 
 # The commit hook catches what the whole-tree structure check refuses

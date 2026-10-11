@@ -33,6 +33,7 @@ import type { Locator, Page } from "@playwright/test";
 import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/modal-slot-ids.ts";
 import type { SectionId } from "../../../../../packages/client/src/state/section-ids.ts";
 import APPEARANCE_PRESET_FILE from "../../../../../tooling/src/_shared/appearance-presets.json" with { type: "json" };
+import { pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { touchDrag } from "../../../../support/browser/weave-drive.ts";
 import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { defineTrpcRoutes, routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
@@ -1998,20 +1999,15 @@ test("#375 Reading derives the context crossover from the resolved pane geometry
   await expect.poll(() => topbarTitle.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 });
 
-// ── #846 / #860: THE TOPBAR YIELDS THE ROOM'S IDENTITY TO THE DOCKED CONTEXT PANE ───────────────────────
+// ── THE DESKTOP TOPBAR KEEPS THE ROOM'S IDENTITY WITH BOTH PANES DOCKED (board 0851) ────────────────────
 //
-// MEASURED on the live stack at 1280×800 with BOTH panes docked: the content column is 568px and the room
-// title rendered 104px of its 220px natural width, showing "Example — …" — the prefix every seeded room
-// shares — on the one row that names the room, in exactly the state where the user has opened the detail
-// panel to configure the room they can no longer identify. The owner ruled the fix by RELOCATION (#860):
-// the room's name lives in the context pane's HEAD BAND, so while that pane is DOCKED the topbar sheds its
-// title + the members chip + the recall chip (their home is on screen 300px away — one identity, one home)
-// and keeps the avatar cluster. A collapsed pane leaves the row as it was: chats default to a collapsed
-// pane, and a nameless room is the injury #846 describes.
+// At 1280×800 with both panes docked the content column is ~568px. The topbar used to shed the title and both
+// chips whenever the context pane was docked, even though the row could shrink: the owner could not tell which
+// room they were in. The wide identity now keeps the participants' title and both chips at every pane state; the
+// chips collapse to their glyphs and the title truncates last. Only the PHONE's narrow screen title still defers
+// to the open pane's band (#896 below).
 //
-// The pins read the RENDERED result through user-visible affordances (`offsetParent` — the yield is
-// `display: none`), so both arms compile and run against the pre-#860 source, where the first REDS: the
-// title and both chips were visible (and the title truncated) at dock+dock.
+// The pins read the RENDERED result through user-visible affordances (`offsetParent`, measured widths).
 
 /** The room this pin seats: a name long enough to have been crushed, and a four-seat roster so the member
  *  chip renders at its real width. */
@@ -2058,13 +2054,12 @@ interface TopbarIdentityReadout {
   readonly title: boolean;
   readonly membersChip: boolean;
   readonly recallChip: boolean;
-  readonly avatars: boolean;
+  /** The member chip's count digit — it collapses away on a narrow column, leaving the glyph. */
+  readonly membersCount: boolean;
   /** The notifications bell — NOT a subject, a PREMISE: the `snap --isolated` stage renders the trail
    *  WITHOUT it (183px vs live main's 225px), so a receipt taken there measures a row the production user
    *  does not have. This pin refuses to read a bell-less row. */
   readonly bell: boolean;
-  /** `clientWidth - scrollWidth` on the visible title, `NaN` when it is not rendered. */
-  readonly titleSlack: number;
 }
 
 /** Seat the notifications BELL in the trail by answering the capability it gates on at the network
@@ -2105,7 +2100,6 @@ async function settledTopbarIdentity(page: Page, shell: Locator, mode: "docked" 
   // BARRIER ON THE RESOLVED IDENTITY — the header renders a title-width skeleton (`aria-busy`) until the
   // room's `getChat` lands; a row read before that measures the shape of an identity, not one.
   await expect(page.locator('.shell-topbar-identity[data-identity="wide"] [aria-busy="true"]')).toHaveCount(0);
-  await expect(page.locator('.shell-topbar-identity[data-identity="wide"] [data-slot="avatar-stack-root"]')).toHaveCount(1);
   // BARRIER ON THE DOCKED BAND OWNING THE TITLE (#1686) — the mode/context-mode attributes above are DOM
   // writes the assertions above already retried to settlement, but the `:has()` shed rule's effect on
   // `offsetParent` is a SEPARATE style/layout recalculation Chromium can perform on a later frame under
@@ -2122,38 +2116,71 @@ async function settledTopbarIdentity(page: Page, shell: Locator, mode: "docked" 
       title: shown(title),
       membersChip: shown(document.querySelector('[aria-label^="Members — "]')),
       recallChip: shown(document.querySelector('[aria-label^="Memory — "]')),
-      avatars: shown(
-        document.querySelector(
-          '.shell-topbar-identity[data-identity="wide"] [data-slot="avatar-stack-root"], .shell-topbar-identity[data-identity="wide"] [data-slot="avatar-root"]',
-        ),
-      ),
+      membersCount: shown(document.querySelector('[aria-label^="Members — "] .shell-chat-chip-count')),
       bell: shown(document.querySelector('[aria-label="Notifications"]')),
-      titleSlack: title === null || !shown(title) ? Number.NaN : title.clientWidth - title.scrollWidth,
     };
   });
 }
 
-test("#846: at 1280 with BOTH panes docked the topbar yields the room's name + chips to the context band — the avatars stay", async ({ mount, page }) => {
+test("0851: at 1280 with BOTH panes docked the topbar keeps the participants title and both chips — chips shrink to glyphs, nothing is hidden", async ({
+  mount,
+  page,
+}) => {
   // The bell brings its own inbox read into the tree — FED ambiently by `SHELL_AMBIENT_ROUTES`, not declared.
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.getChat": () => TOPBAR_IDENTITY_ROOM });
   await seatNotificationBell(page);
   await page.setViewportSize({ width: 1280, height: 800 });
-  // WITH THE BAND: the shed's condition is that the band NAMES the room (`shell.css` keys on it with
-  // `:has()`), so a story whose context pane has no band would assert the yield in a state production
-  // never has — which is exactly what this pin did until #896 put the condition in the selector.
+  // WITH THE BAND: the band is on screen naming the room, which is the state that used to shed the topbar identity.
   const shell = await mount(<AppShellChatTopbarIdentityStory withBand={true} />);
 
-  const readout = await settledTopbarIdentity(page, shell, "docked", true);
+  const readout = await settledTopbarIdentity(page, shell, "docked", false);
   // The premise: the row carries the SAME trailing furniture a real account has.
   expect(readout.bell).toBe(true);
-  // THE DEFECT PIN: nothing of the identity that the band now carries is on this row — no crushed title.
-  expect(readout).toMatchObject({ title: false, membersChip: false, recallChip: false, avatars: true });
+  expect(readout).toMatchObject({ title: true, membersChip: true, recallChip: true });
+  // The column is the narrow one that failed in the report; the digit collapsed so the chip is its glyph.
+  expect(readout.membersCount).toBe(false);
+  const title = page.locator('.shell-topbar-identity[data-identity="wide"] .shell-topbar-title');
+  await expect(title).toHaveText("Aria, Bolt, Cass");
+  // A group room's faces live in the cast row, so the header carries no avatar.
+  await expect(page.locator('.shell-topbar-identity[data-identity="wide"] [data-slot="avatar-root"]')).toHaveCount(0);
+
+  // THE ROOM NAME THE USER SET keeps a real width beside the participants — the floor, never 0px.
+  const subtitle = page.locator(".shell-topbar-subtitle");
+  await expect(subtitle).toHaveText(TOPBAR_IDENTITY_ROOM.title);
+  await expect
+    .poll(() => subtitle.evaluate((element) => element.clientWidth >= Number.parseFloat(getComputedStyle(element).minWidth) - 1 && element.clientWidth > 0))
+    .toBe(true);
+  // The date went first (and the ⌘K chip dropped its word); the chips never paint over text.
+  await expect(page.locator(".shell-topbar-date")).toBeHidden();
+  await expect(page.locator(".shell-topbar-jump-label")).toBeHidden();
+  const groupBox = await page.locator('.shell-topbar-identity[data-identity="wide"] .shell-topbar-title-group').boundingBox();
+  const membersBox = await page.locator('[aria-label^="Members — "]').boundingBox();
+  if (groupBox === null || membersBox === null) {
+    throw new Error("expected the title group and the members chip to be laid out");
+  }
+  expect(groupBox.x + groupBox.width).toBeLessThanOrEqual(membersBox.x + 1);
+
+  // HIT TEST: the title is what a click on it reaches — the rename control, not the chip beside it.
+  const titleBox = await title.boundingBox();
+  if (titleBox === null) {
+    throw new Error("expected the title to be laid out");
+  }
+  await expect
+    .poll(() =>
+      page.evaluate(({ x, y }) => (document.elementFromPoint(x, y)?.closest("button")?.getAttribute("aria-label") ?? "").startsWith("Rename chat"), {
+        x: titleBox.x + titleBox.width / 2,
+        y: titleBox.y + titleBox.height / 2,
+      }),
+    )
+    .toBe(true);
+  await page.mouse.click(titleBox.x + titleBox.width / 2, titleBox.y + titleBox.height / 2);
+  const input = page.getByRole("textbox", { name: "Chat name" });
+  await expect(input).toBeVisible();
+  // The rename field is a usable width at this column (it was 60px), not the room-name stub.
+  await expect.poll(() => input.evaluate((el) => el.clientWidth)).toBeGreaterThanOrEqual(96);
 });
 
-test("#846: with the context pane COLLAPSED the topbar names the room WHOLE, chips and all — the yield buys room, it does not keep it", async ({
-  mount,
-  page,
-}) => {
+test("0851: with the context pane COLLAPSED the topbar still names the participants, chips and all", async ({ mount, page }) => {
   await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.getChat": () => TOPBAR_IDENTITY_ROOM });
   await seatNotificationBell(page);
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -2161,13 +2188,12 @@ test("#846: with the context pane COLLAPSED the topbar names the room WHOLE, chi
 
   const readout = await settledTopbarIdentity(page, shell, "collapsed", false);
   expect(readout.bell).toBe(true);
-  expect(readout).toMatchObject({ title: true, membersChip: true, recallChip: true, avatars: true });
-  await expect(page.locator(".shell-topbar-title:visible")).toHaveText(TOPBAR_IDENTITY_ROOM.title);
-  // …and WHOLE: with the pane closed the column has the room, so no "Example — …".
-  expect(readout.titleSlack).toBeGreaterThanOrEqual(0);
+  expect(readout).toMatchObject({ title: true, membersChip: true, recallChip: true });
+  await expect(page.locator(".shell-topbar-title:visible")).toHaveText("Aria, Bolt, Cass");
 });
 
-// ── #896: THE YIELD REACHES EVERY IDENTITY VARIANT ────────────────────────────────────────────────────
+// ── #896: THE PHONE'S NARROW TITLE YIELDS TO THE OPEN PANE ────────────────────────────────────────────
+// (0851 narrowed the yield to the narrow identity only: the wide desktop identity keeps its title.)
 // The post-fix drive REFUTED F4 at the phone: widening the rule from `docked` to `docked|overlay` fixed the
 // desktop overlay widths and left `[data-identity="wide"]` in the selector, which the 430 shell's `narrow`
 // identity mount cannot match — so the room's name still printed TWICE there (topbar y=13 + the band's
@@ -2181,8 +2207,8 @@ test("#846: with the context pane COLLAPSED the topbar names the room WHOLE, chi
 // yields the title, and a closed one keeps it. The existing #846 pins are blind to this by construction —
 // they read the `wide` mount's own visibility and cannot see a second mount printing the same string.
 const TOPBAR_YIELD_ARMS = [
-  { width: 1280, height: 800, identity: "wide" },
-  { width: 430, height: 740, identity: "narrow" },
+  { width: 1280, height: 800, identity: "wide", titlesWhenOpen: 1 },
+  { width: 430, height: 740, identity: "narrow", titlesWhenOpen: 0 },
 ] as const;
 
 /** Drive the context pane to open/closed by READING its resolved mode, never by assuming which label the
@@ -2205,7 +2231,7 @@ function visibleTopbarTitles(page: Page): Promise<number> {
 }
 
 for (const arm of TOPBAR_YIELD_ARMS) {
-  test(`#896 @${String(arm.width)} (${arm.identity} identity): an OPEN context pane yields the topbar title, a CLOSED one keeps it`, async ({
+  test(`#896 @${String(arm.width)} (${arm.identity} identity): an OPEN context pane ${arm.titlesWhenOpen === 0 ? "yields" : "keeps"} the topbar title, a CLOSED one keeps it`, async ({
     mount,
     page,
   }) => {
@@ -2225,11 +2251,102 @@ for (const arm of TOPBAR_YIELD_ARMS) {
     await setContextPane(page, shell, "collapsed");
     await expect.poll(() => visibleTopbarTitles(page)).toBe(1);
 
-    // OPEN: the band is on screen, so the row yields — at BOTH identities, which is the whole finding.
+    // OPEN: the phone's narrow title yields to the band; the desktop identity keeps its title.
     await setContextPane(page, shell, "open");
-    await expect.poll(() => visibleTopbarTitles(page)).toBe(0);
+    // Barrier on the band the rule keys on: a count read before it paints can match the pre-shed frame.
+    await expect(page.locator('[data-slot="context-bracket-band"] h2')).toBeVisible();
+    await expect.poll(() => visibleTopbarTitles(page)).toBe(arm.titlesWhenOpen);
   });
 }
+
+// ── THE CONTEXT PANE'S HEADER ROW IS ON THE SHARED 48px HORIZON (owner: tabs live in the header) ──────────
+// The pane's one tablist sits in a header row whose bottom edge is the same line as the topbar's divider and
+// the list band's, at the two desktop widths the owner reviews.
+for (const width of [1280, 1920]) {
+  test(`the context pane's header row ends on the topbar's divider at ${String(width)} — one tablist, in that row`, async ({ mount, page }) => {
+    await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.getChat": () => TOPBAR_IDENTITY_ROOM });
+    await seatNotificationBell(page);
+    await page.setViewportSize({ width, height: 900 });
+    const shell = await mount(<AppShellChatTopbarIdentityStory withBand={true} />);
+    // The fake section registry hands the context pane to the shell as a `single` body, so the shell paints
+    // a labelled `.shell-panel-header` over it. Production's tabs pane renders NOTHING into that band
+    // (`SectionContextHeader` returns null) and shell.css collapses the empty band — reproduce that collapse.
+    await page.addStyleTag({ content: '.shell-panel[data-panel-side="context"] .shell-panel-header { display: none; }' });
+    await setContextPane(page, shell, "open");
+
+    const pane = page.locator('.shell-panel[data-panel-side="context"]');
+    const header = pane.locator('[data-slot="context-bracket-header"]');
+    await expect(header).toBeVisible();
+    await expect(pane.getByRole("tablist")).toHaveCount(1);
+    await expect(header.getByRole("tablist")).toHaveCount(1);
+    // No foot rail anywhere in the pane.
+    await expect(pane.locator('[data-slot="context-rail"]')).toHaveCount(0);
+
+    const bottoms = (): Promise<{ readonly topbar: number; readonly list: number; readonly header: number }> =>
+      page.evaluate(() => {
+        const bottomOf = (selector: string): number => document.querySelector(selector)?.getBoundingClientRect().bottom ?? Number.NaN;
+        return {
+          topbar: bottomOf(".shell-topbar"),
+          list: bottomOf('.shell-panel[data-panel-side="list"] .shell-panel-header'),
+          header: bottomOf('[data-slot="context-bracket-header"]'),
+        };
+      });
+    await expect.poll(async () => Math.abs((await bottoms()).header - (await bottoms()).topbar)).toBeLessThanOrEqual(1);
+    await expect.poll(async () => Math.abs((await bottoms()).header - (await bottoms()).list)).toBeLessThanOrEqual(1);
+
+    await expect.poll(async () => ((await header.boundingBox())?.x ?? Number.POSITIVE_INFINITY) < width).toBe(true);
+    // One surface: the header row paints what the list pane's band paints (the pane's own fill), under the
+    // elevation this shell runs, not a second shade.
+    const [listBand, ctxHeader] = await Promise.all([
+      pixelSurface(page, page.locator('.shell-panel[data-panel-side="list"] .shell-panel-header')),
+      pixelSurface(page, header),
+    ]);
+    for (const channel of ["r", "g", "b"] as const) {
+      expect(Math.abs(ctxHeader.rgb[channel] - listBand.rgb[channel]), `header ${ctxHeader.describe} vs list band ${listBand.describe}`).toBeLessThanOrEqual(1);
+    }
+  });
+}
+
+// ── THE ROOM'S STATE CHIPS ON A PHONE: glyph-only beside the screen title, never overprinting it ──────────
+test.describe("the phone chat topbar keeps the members and memory chips (coarse pointer)", () => {
+  test.use({ hasTouch: true });
+  for (const width of [320, 390, 430]) {
+    test(`@${String(width)}: both chips are on the row, inside the viewport, and the title does not run under them`, async ({ mount, page }) => {
+      await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.getChat": () => TOPBAR_IDENTITY_ROOM });
+      await seatNotificationBell(page);
+      await page.setViewportSize({ width, height: 800 });
+      await mount(<AppShellChatTopbarIdentityStory />);
+
+      const members = page.locator('[aria-label^="Members — "]');
+      const memory = page.locator('[aria-label^="Memory — "]');
+      const title = page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title');
+      await expect(members).toBeVisible();
+      await expect(memory).toBeVisible();
+      await expect(title).toBeVisible();
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      const boxes = await Promise.all([members.boundingBox(), memory.boundingBox(), title.boundingBox()]);
+      const [membersBox, memoryBox, titleBox] = boxes;
+      if (membersBox === null || memoryBox === null || titleBox === null) {
+        throw new Error("expected the chips and the title to be laid out");
+      }
+      // Inside the viewport, and glyph-only (the digit is collapsed).
+      expect(membersBox.x + membersBox.width).toBeLessThanOrEqual(width);
+      expect(memoryBox.x + memoryBox.width).toBeLessThanOrEqual(width);
+      await expect(members.locator(".shell-chat-chip-count")).toBeHidden();
+      // The screen title keeps a real share of the row (it was 4 to 9 characters at 390): the chip pair and
+      // the back control are all it yields to.
+      expect(titleBox.width).toBeGreaterThanOrEqual(width * (width <= 320 ? 0.25 : 0.38));
+      // The title ends before the first chip begins, and the chips do not overlap each other.
+      expect(titleBox.x + titleBox.width).toBeLessThanOrEqual(membersBox.x + 1);
+      expect(membersBox.x + membersBox.width).toBeLessThanOrEqual(memoryBox.x + 1);
+      // Touch floor, on BOTH axes: a glyph-only chip's short side is its width.
+      expect(membersBox.height).toBeGreaterThanOrEqual(44);
+      expect(memoryBox.height).toBeGreaterThanOrEqual(44);
+      expect(membersBox.width).toBeGreaterThanOrEqual(44);
+      expect(memoryBox.width).toBeGreaterThanOrEqual(44);
+    });
+  }
+});
 
 test("#375 the context regime follows rendered shell geometry and releases its observer", async ({ mount, page }) => {
   await page.evaluate(() => {
@@ -7318,6 +7435,20 @@ test.describe("a floating CONTEXT pane and focus, on a phone", () => {
     await expect(pane).toHaveAttribute("data-panel-mode", "collapsed");
     await expect(shell.getByRole("button", { name: "Show details" })).toBeFocused();
   });
+});
+
+// A closing pane hands focus back to its toggle only when it was an OVERLAY (`useOverlayFocus` used to restore
+// from overlay alone), so a DOCKED pane's × left focus on <body> once the pane went inert.
+test("closing a DOCKED CONTEXT pane returns focus to the toggle that reopens it, never to <body>", async ({ mount, page }) => {
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.getChat": () => TOPBAR_IDENTITY_ROOM });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const shell = await mount(<AppShellChatTopbarIdentityStory withBand={true} withDismiss={true} />);
+  await shell.getByRole("button", { name: "Show details" }).click();
+  const pane = shell.locator('.shell-panel[data-panel-side="context"]');
+  await expect(pane).toHaveAttribute("data-panel-mode", "docked");
+  await pane.getByRole("button", { name: "Close Chats details" }).click();
+  await expect(pane).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(shell.getByRole("button", { name: "Show details" })).toBeFocused();
 });
 
 test.describe("Home section inset in the real phone shell", () => {

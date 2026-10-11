@@ -109,7 +109,7 @@ test("her chats are a CONTEXT tab, carrying the server-narrowed projection", asy
   await routeAll(page);
   const component = await mount(<CharactersContextStory selectedCharacterId={AVELINE} />);
 
-  const chatsTab = component.getByRole("button", { name: "Chats", exact: true });
+  const chatsTab = component.getByRole("tab", { name: "Chats", exact: true });
   await expect(chatsTab).toBeVisible();
   await chatsTab.click();
   await expect(component.getByText("Winter court")).toBeVisible();
@@ -130,13 +130,13 @@ test('the editor hero\'s "N chats ›" lands on the CONTEXT Chats tab', async ({
   const context = component.getByTestId("context-region");
   // The resting tab is Overview — the overview card, not her chats. (It was named "Field" until #843: the
   // tab's resting body is the overview card with the pick-a-field line as its FOOTER, so "Field" described
-  // the one state it was not in.) A rail CELL since #860 — a button carrying `aria-current`, never a tab.
-  await expect(context.getByRole("button", { name: "Overview", exact: true })).toHaveAttribute("aria-current", "true");
+  // the one state it was not in.) A tab of the pane's header strip, `aria-selected` while it holds the view.
+  await expect(context.getByRole("tab", { name: "Overview", exact: true })).toHaveAttribute("aria-selected", "true");
 
   // The hero prints her census as the link's own name — one chat in this fixture.
   await component.getByTestId("content-region").getByRole("button", { name: "1 chat", exact: true }).click();
 
-  await expect(context.getByRole("button", { name: "Chats", exact: true })).toHaveAttribute("aria-current", "true");
+  await expect(context.getByRole("tab", { name: "Chats", exact: true })).toHaveAttribute("aria-selected", "true");
   await expect(context.getByText("Winter court")).toBeVisible();
 });
 
@@ -150,8 +150,8 @@ test("#841 the CONTEXT roster is the six named tabs, in order", async ({ mount, 
   await routeAll(page);
   const component = await mount(<CharactersContextStory selectedCharacterId={AVELINE} />);
 
-  // The roster is the context bracket's FOOT rail (#860): a toolbar of button cells, never `tab`s.
-  await expect(component.locator('[data-slot="context-rail"] [data-slot="context-cell-caption"]')).toHaveText([
+  // The roster is the pane's ONE header tablist.
+  await expect(component.getByRole("tablist", { name: "Character" }).locator('[data-slot="context-cell-caption"]')).toHaveText([
     "Overview",
     "Chats",
     "Links",
@@ -160,14 +160,14 @@ test("#841 the CONTEXT roster is the six named tabs, in order", async ({ mount, 
     "Trust",
   ]);
   // …and the drawer's name is gone with the drawer.
-  await expect(component.locator('[data-slot="context-rail"]').getByRole("button", { name: "Options", exact: true })).toHaveCount(0);
+  await expect(component.getByRole("tab", { name: "Options", exact: true })).toHaveCount(0);
 });
 
 test("#841 the snapshot log is its own CONTEXT tab, one click from the open character", async ({ mount, page }) => {
   await routeAll(page);
   const component = await mount(<CharactersContextStory selectedCharacterId={AVELINE} />);
 
-  await component.locator('[data-slot="context-rail"]').getByRole("button", { name: "History", exact: true }).click();
+  await component.getByRole("tab", { name: "History", exact: true }).click();
   // The log's own affordance — the thing that used to be 1560px down the Options tab.
   await expect(component.getByRole("button", { name: "Snapshot now" })).toBeVisible();
   // …and its empty state, which the review found good and this change must not disturb.
@@ -178,7 +178,7 @@ test("#841 Trust is its own door too — a security concern reads as one", async
   await routeAll(page);
   const component = await mount(<CharactersContextStory selectedCharacterId={AVELINE} />);
 
-  await component.locator('[data-slot="context-rail"]').getByRole("button", { name: "Trust", exact: true }).click();
+  await component.getByRole("tab", { name: "Trust", exact: true }).click();
   await expect(component.getByRole("combobox", { name: "HTML rendering" })).toBeVisible();
   await expect(component.getByRole("combobox", { name: "External media" })).toBeVisible();
   // …and the LOOK tab is where the colours are, not here — the split is real on both sides.
@@ -233,12 +233,11 @@ test("#843 a card without the shipped marker still reads as Made here", async ({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
-// #860 — THE HEAD BAND. The Characters pane joined the context bracket: the open character's identity sits
-// in the band slot ABOVE the viewport (portrait · name · @handle · chips) and the six-cell roster is the
-// FOOT rail, named for the artifact. Pre-#860 the pane opened on a bare "Detail" `tablist` and no identity
-// at all — the CONTENT hero was the only place her name was printed, so a docked pane read as six anonymous
-// tabs. The pin is the RENDERED band over the RENDERED rail, in that order, and the absence of the strip.
-test("#860 the CONTEXT head band is the open character's identity, over a foot rail named for the artifact", async ({ mount, page }) => {
+// THE IDENTITY BAND. The Characters pane joined the context bracket: the six-tab roster is the pane's ONE
+// header tablist, and the open character's identity (portrait · name · @handle · chips) sits in the band slot
+// UNDER it, above the viewport. The owner moved the roster from the foot to the header: no foot rail, no
+// kicker. The pin is the RENDERED header strip over the RENDERED band, in that order.
+test("the CONTEXT band is the open character's identity, under the header tablist named for the artifact", async ({ mount, page }) => {
   await routeAll(page);
   const component = await mount(<CharactersContextStory selectedCharacterId={AVELINE} />);
 
@@ -252,18 +251,20 @@ test("#860 the CONTEXT head band is the open character's identity, over a foot r
   // No override on this card → NO "Own look" mark: the honest absence, not a marker for a false fact.
   await expect(band.getByRole("button", { name: "Own look" })).toHaveCount(0);
 
-  // The roster is the FOOT rail — one toolbar named "Character", its kicker on top reading the selection —
-  // and it sits BELOW the band in the column. The retired head strip is gone: no tablist anywhere.
-  const rail = component.getByRole("toolbar", { name: "Character" });
-  await expect(rail).toBeVisible();
-  await expect(component.locator('[data-slot="context-rail-kicker"]')).toHaveText(/Character · Overview/);
-  await expect(component.getByRole("tablist")).toHaveCount(0);
+  // The roster is the header strip — one tablist named "Character" — and the band sits BELOW it in the
+  // column. There is no foot rail and no kicker.
+  const strip = component.getByRole("tablist", { name: "Character" });
+  await expect(strip).toBeVisible();
+  await expect(component.getByRole("tablist")).toHaveCount(1);
+  await expect(component.locator('[data-slot="context-rail"]')).toHaveCount(0);
+  await expect(component.locator('[data-slot="context-rail-kicker"]')).toHaveCount(0);
+  await expect(strip.getByRole("tab", { name: "Overview", exact: true })).toHaveAttribute("aria-selected", "true");
   const bandBox = await band.boundingBox();
-  const railBox = await rail.boundingBox();
-  if (bandBox === null || railBox === null) {
-    throw new Error("band and rail must both be laid out");
+  const headerBox = await component.locator('[data-slot="context-bracket-header"]').boundingBox();
+  if (bandBox === null || headerBox === null) {
+    throw new Error("band and header must both be laid out");
   }
-  expect(bandBox.y + bandBox.height).toBeLessThanOrEqual(railBox.y);
+  expect(headerBox.y + headerBox.height).toBeLessThanOrEqual(bandBox.y);
 });
 
 // …and the two-sided control on the mark: a card that DOES carry a look says so, in the band, as the same
@@ -305,27 +306,25 @@ test("#860 a card with its own look carries the Own look mark in the band", asyn
  *  zero, restated at every band by #875 F6). A literal because it is the ruling's own number. */
 const READABLE_FLOOR_PX = 11;
 
-// THE PHONE ARM (#860 — `CharacterMobile.png`, the 430 sheet at a coarse pointer): the same column, every
-// cell at the coarse height floor, and the SIX cells + the actions kebab fit the sheet's width in ONE row
-// with no horizontal scroll. This fence CAN fail: MEASURED at a 384-wide coarse pane (a tablet-docked
-// panel, not the phone) the cells' 44px touch floors overflow the track by 11px (scrollWidth 323 against
-// clientWidth 312) — the rail scrolls there. At 430 the track has ~35px to spare, which is the arm the
-// mock draws and the one this pins.
+// THE PHONE ARM (the 430 sheet at a coarse pointer): the six tabs share the header strip, every tab sits at the
+// touch floor, and the strip scrolls inside the header with no native scrollbar when they do not all fit.
 test.describe("phone", () => {
   test.use({ hasTouch: true });
 
-  test("#860 at 430 coarse the six cells sit at the touch floor and fit the sheet in one row", async ({ mount, page }) => {
+  test("at 430 coarse the six tabs sit at the touch floor on one row, and the strip never shows a native scrollbar", async ({ mount, page }) => {
     await page.setViewportSize({ width: 430, height: 860 });
     await routeAll(page);
     const component = await mount(<CharactersContextStory selectedCharacterId={AVELINE} paneWidth={430} />);
 
-    const rail = component.getByRole("toolbar", { name: "Character" });
-    await expect(rail.getByRole("button")).toHaveCount(6);
-    // The SHORTEST cell clears the floor (so every cell does)…
+    const strip = component.getByRole("tablist", { name: "Character" });
+    await expect(strip.getByRole("tab")).toHaveCount(6);
+    // The SHORTEST tab clears the touch floor (so every tab does)…
     await expect
-      .poll(() => rail.getByRole("button").evaluateAll((nodes) => Math.min(...nodes.map((n) => n.getBoundingClientRect().height))))
-      .toBeGreaterThanOrEqual(52);
-    // …and the track has nothing to scroll: its overflow is zero.
-    await expect.poll(() => rail.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+      .poll(() => strip.getByRole("tab").evaluateAll((nodes) => Math.min(...nodes.map((n) => n.getBoundingClientRect().height))))
+      .toBeGreaterThanOrEqual(44);
+    // …they share one row…
+    await expect.poll(() => strip.getByRole("tab").evaluateAll((nodes) => new Set(nodes.map((n) => Math.round(n.getBoundingClientRect().top))).size)).toBe(1);
+    // …and an overflow scrolls inside the strip, never as a native scrollbar.
+    await expect(strip).toHaveCSS("scrollbar-width", "none");
   });
 });

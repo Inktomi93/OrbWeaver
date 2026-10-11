@@ -10,6 +10,10 @@
 // populated on the first frame and the twin is gone. The read is non-suspense: the strip is decoration, so
 // a cold cache degrades to null rather than blocking the transcript.
 //
+// THE CHARACTERS' NAMES ARE THE TOPBAR TITLE'S, NOT THIS STRIP'S, AT EVERY POINTER. The room header leads with the
+// participants' names, so this row prints only the faces (names stay `sr-only` for assistive tech) — the cast is
+// named once on screen. The human chips below keep their names: the header does not carry them.
+//
 // #511 — ON A PHONE IT IS AN AVATAR STACK: THE NAMES GO `sr-only` AT A COARSE POINTER. Measured on the
 // real room pane at a coarse pointer (chat-character-bar.ct.tsx carries the full matrix): a crowded-but-ordinary
 // roster — two humans still named by their EMAIL plus four card-realistic character names — wrapped this
@@ -118,9 +122,9 @@ function CharacterBarStrip({
           <Avatar size="sm" fallbackDelay={0} hueSeed={member.hueSeed} {...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) })}>
             {initialsFor(member.displayName)}
           </Avatar>
-          {/* `pointer-coarse:sr-only` — the #511 avatar-stack arm (header). The name keeps its place in
-              the accessibility tree; it simply stops spending the row's width on a phone. */}
-          <Text as="span" className={cn(LABEL_TO_SR_ONLY_AT_COARSE, member.disabled && "text-muted-foreground")} voice="label">
+          {/* `sr-only` at every pointer: the topbar title names the cast on screen, and the name keeps its
+              place in the accessibility tree. */}
+          <Text as="span" className={cn("sr-only", member.disabled && "text-muted-foreground")} voice="label">
             {member.displayName}
           </Text>
         </Row>

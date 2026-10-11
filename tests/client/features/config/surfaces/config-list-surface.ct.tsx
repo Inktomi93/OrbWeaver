@@ -406,7 +406,7 @@ test("selecting a member routes CONTENT to its owner's editor and CONTEXT to its
   await workspace.locator(LIST_PANE).getByRole("button", { name: REGEX_BAND }).click();
   await listRow(workspace, "strip ooc").click();
   await expect(workspace.getByRole("textbox", { name: "Name" })).toBeVisible();
-  await workspace.locator('[data-slot="ct-config-context-pane"]').getByRole("button", { name: "Applies" }).click();
+  await workspace.locator('[data-slot="ct-config-context-pane"]').getByRole("tab", { name: "Applies" }).click();
   await expect(workspace.getByText("Runs in every chat")).toBeVisible();
 
   // A BOOK (R2): the book editor mounts in CONTENT and the activation panel fills CONTEXT — the surfaces the
@@ -739,7 +739,7 @@ test("the global-scope switch has exactly ONE home — the CONTEXT panel, never 
   // A MEMBER LANDS ON ABOUT SINCE #926 — the collection's own arm is the APPLIES cell, which the reader now
   // opens rather than arriving on (the old `defaultTab` landed every member on Applies, and for a `none`
   // collection that meant landing on a null state). The arm's content is unchanged; only the landing is.
-  await workspace.locator('[data-slot="ct-config-context-pane"]').getByRole("button", { name: "Applies" }).click();
+  await workspace.locator('[data-slot="ct-config-context-pane"]').getByRole("tab", { name: "Applies" }).click();
   // Barrier on the SETTLED context arm — the panel only exists once the usage read has landed.
   await expect(workspace.getByText("Runs in every chat")).toBeVisible();
 
@@ -768,7 +768,7 @@ test("no control on the Configuration plane is offered from two of its three pan
   // A MEMBER LANDS ON ABOUT SINCE #926 — the collection's own arm is the APPLIES cell, which the reader now
   // opens rather than arriving on (the old `defaultTab` landed every member on Applies, and for a `none`
   // collection that meant landing on a null state). The arm's content is unchanged; only the landing is.
-  await workspace.locator('[data-slot="ct-config-context-pane"]').getByRole("button", { name: "Applies" }).click();
+  await workspace.locator('[data-slot="ct-config-context-pane"]').getByRole("tab", { name: "Applies" }).click();
   await expect(workspace.getByText("Runs in every chat")).toBeVisible();
 
   // ONE round trip: the census is a pure DOM read, and doing it per-locator would be N awaits in a loop.

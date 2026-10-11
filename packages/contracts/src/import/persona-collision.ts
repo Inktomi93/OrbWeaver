@@ -12,12 +12,11 @@ export const DEFAULT_PERSONA_COLLISION_CHOICE = "merge" satisfies PersonaCollisi
 
 const personaCollisionChoiceSchema = z.enum(PERSONA_COLLISION_CHOICES);
 
-/** Folded persona name → the user's choice for that collision. */
-export type PersonaCollisionChoices = Readonly<Record<string, PersonaCollisionChoice>>;
+type ChoiceMap = Readonly<Record<string, PersonaCollisionChoice>>;
 
 // Not `z.record`: it rebuilds the object by assignment, which drops an own `__proto__` key (a persona with
 // that name). The value is validated in place, so JSON-parsed own keys survive untouched.
-export const personaCollisionChoicesSchema = z.custom<PersonaCollisionChoices>(
+export const personaCollisionChoicesSchema = z.custom<ChoiceMap>(
   (value) =>
     typeof value === "object" &&
     value !== null &&
@@ -25,6 +24,9 @@ export const personaCollisionChoicesSchema = z.custom<PersonaCollisionChoices>(
     Object.values(value).every((v) => personaCollisionChoiceSchema.safeParse(v).success),
   "expected a map of persona name to merge or keep-both",
 );
+
+/** Folded persona name → the user's choice for that collision. */
+export type PersonaCollisionChoices = z.output<typeof personaCollisionChoicesSchema>;
 
 /** The tree upload's repeated multipart field; each value is `<choice>:<folded name>`. */
 export const PERSONA_COLLISION_FIELD = "personaCollision";

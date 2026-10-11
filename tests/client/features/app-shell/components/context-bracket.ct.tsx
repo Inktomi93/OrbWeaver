@@ -1,53 +1,52 @@
-// CT: the HEAD-BAND REGION CLAIM through the REAL path (HUD-1 §3.1/§3.2 as re-shaped by the context
-// bracket, #860 — `context-bracket.tsx`). A FAKE claimant proves the seam with zero rpg involvement:
+// CT: the HEAD-BAND REGION CLAIM through the REAL path (`context-bracket.tsx`). A FAKE claimant proves the seam
+// with zero rpg involvement:
 //
-//  - a CLAIMING region takes the pane's HEAD BAND — and ONLY the band: the shell's bracket renders the
-//    rails, the viewport and the ground around it, and the section's own header does NOT render beside it
-//    ("one slot, three contents — never a second head");
+//  - a CLAIMING region takes the pane's identity BAND (under the header row) — and ONLY the band: the bracket
+//    renders the header strip, the state rail and the viewport around it, and the section's own header does NOT
+//    render beside it ("one slot, three contents — never a second head");
 //  - the bracket is handed the FULL resolved tab set (a claim never suppresses resolution) and lands on the
 //    `defaultTab` flag exactly as an unclaimed pane does;
-//  - a rail cell writes the SHARED `contextTab` store — asserted on a probe reading `#state` directly
-//    ([[assert-the-mutation-fired]]);
+//  - a header tab writes the SHARED `contextTab` store — asserted on a probe reading `#state` directly;
 //  - a NON-claiming contributor is ignored — the section's own band renders (the §3.3 regression floor);
 //  - the shell's own band slot renders NOTHING over a tabs pane, claimed or not.
 
 import { contrastRatio } from "@orb/tooling/_shared/wcag";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Locator } from "@playwright/test";
 import { pixelContrast, pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { ContextMetaRailStory, ContextOwnershipStory, ContextRegionClaimStory, ContextRegionHeaderStory, ContextRegionNoClaimStory } from "../_ct-stories.tsx";
 
-test("a claiming region takes the head band: its band renders, the section's own does not, the bracket renders around it", async ({ mount }) => {
+test("a claiming region takes the identity band: its band renders, the section's own does not, the bracket renders around it", async ({ mount }) => {
   const component = await mount(<ContextRegionClaimStory />);
 
   const band = component.locator('[data-slot="context-bracket-band"]');
   await expect(band.getByTestId("fake-band")).toBeVisible();
   await expect(component.getByTestId("section-band")).toHaveCount(0);
-  // The shell rendered its ONE column — no tablist anywhere, one bracket probe handle.
-  await expect(component.getByRole("tablist")).toHaveCount(0);
+  // The shell rendered its ONE column: exactly one tablist (the header strip), one bracket probe handle, and
+  // the game state rail as a toolbar of panel content.
+  await expect(component.getByRole("tablist")).toHaveCount(1);
   await expect(component.locator("[data-context-bracket]")).toHaveCount(1);
   await expect(component.getByRole("toolbar", { name: "Game state" })).toBeVisible();
-  await expect(component.getByRole("toolbar", { name: "Chat" })).toBeVisible();
+  await expect(component.getByRole("tablist", { name: "Chat" })).toBeVisible();
 });
 
 test("the bracket is handed the FULL resolved set and lands on the defaultTab flag", async ({ mount }) => {
   const component = await mount(<ContextRegionClaimStory />);
-  // Every resolved tab crosses — game AND meta, split into their rails.
+  // Every resolved tab crosses — game cells in the state rail, meta tabs in the header strip.
   await expect(component.getByRole("toolbar", { name: "Game state" }).getByRole("button")).toHaveCount(2);
-  await expect(component.getByRole("toolbar", { name: "Chat" }).getByRole("button")).toHaveCount(1);
+  await expect(component.getByRole("tablist", { name: "Chat" }).getByRole("tab")).toHaveCount(2);
   // `members` is the declared-order first, but `fake.status` flags `defaultTab` — the ONE resolver lands there.
   await expect(component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Status" })).toHaveAttribute("aria-current", "true");
   await expect(component.getByTestId("ctx-body-status")).toBeVisible();
 });
 
-test("a rail cell writes the SHARED contextTab store (not a local mirror)", async ({ mount }) => {
+test("a header tab writes the SHARED contextTab store (not a local mirror)", async ({ mount }) => {
   const component = await mount(<ContextRegionClaimStory />);
   await expect(component.getByTestId("ctx-tab-store")).toHaveText("unset");
 
-  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Members", exact: true }).click();
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Members", exact: true }).click();
 
   await expect(component.getByTestId("ctx-tab-store")).toHaveText("members");
-  await expect(component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Members", exact: true })).toHaveAttribute("aria-current", "true");
+  await expect(component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Members", exact: true })).toHaveAttribute("aria-selected", "true");
   await expect(component.getByTestId("ctx-body-members")).toBeVisible();
 });
 
@@ -55,7 +54,7 @@ test("a NON-claiming region contributor is ignored — the section's own band re
   const component = await mount(<ContextRegionNoClaimStory />);
   await expect(component.getByTestId("fake-band")).toHaveCount(0);
   await expect(component.locator('[data-slot="context-bracket-band"]').getByTestId("section-band")).toBeVisible();
-  await expect(component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Members", exact: true })).toBeVisible();
+  await expect(component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Members", exact: true })).toBeVisible();
 });
 
 // ── THE OWNERSHIP AXIS, DECODED OUT OF THE FRAMEBUFFER (#874 F1 · #875 F2, side-eye 2026-08-30) ────────
@@ -96,46 +95,29 @@ function themeAttr(theme: (typeof SHIPPED_THEMES)[number]): Record<string, strin
 }
 
 for (const theme of SHIPPED_THEMES) {
-  test(`${theme}: FENCE — the composited surface order is band == owning rail > receded rail == pane`, async ({ mount, page }) => {
+  test(`${theme}: FENCE — the header row and band wear the pane's own surface; only the owning state rail is raised`, async ({ mount, page }) => {
     const component = await mount(
       <div {...themeAttr(theme)}>
         <ContextOwnershipStory />
       </div>,
     );
-    const [pane, band, owning, receded] = await Promise.all([
+    const [pane, header, band, owning] = await Promise.all([
       pixelSurface(page, component.getByTestId("ctx-pane-surface")),
+      pixelSurface(page, component.locator('[data-slot="context-bracket-header"]')),
       pixelSurface(page, component.locator('[data-slot="context-bracket-band"]')),
       pixelSurface(page, component.locator('[data-slot="context-rail"][data-owns="true"]')),
-      pixelSurface(page, component.locator('[data-slot="context-rail"][data-owns="false"]')),
     ]);
-    const owningStep = contrastRatio(owning.rgb, pane.rgb);
-    const recededStep = contrastRatio(receded.rgb, pane.rgb);
-    // The band and the owning rail are ONE material — the mock's `--raised` on `.band` and `.rail.own`.
-    expect(Math.abs(band.rgb.r - owning.rgb.r), `band ${band.describe} vs owning ${owning.describe}`).toBeLessThanOrEqual(SAME_SURFACE_SLACK);
-    expect(Math.abs(band.rgb.g - owning.rgb.g)).toBeLessThanOrEqual(SAME_SURFACE_SLACK);
-    expect(Math.abs(band.rgb.b - owning.rgb.b)).toBeLessThanOrEqual(SAME_SURFACE_SLACK);
-    // The receded rail IS the pane (the mock draws no `.rail.recede` fill), and the owning one is a step
-    // above both. The step is small by the artboard's own palette — the assertion is the ORDER.
-    expect(recededStep, `receded ${receded.describe} vs pane ${pane.describe}`).toBeLessThan(owningStep);
-    expect(owningStep, `owning ${owning.describe} vs pane ${pane.describe}`).toBeGreaterThan(1);
-  });
-
-  test(`${theme}: the OWNING rail's kicker reads louder than the receded one's, and both clear 4.5:1`, async ({ mount, page }) => {
-    // RED ON THE UNMODIFIED SOURCE in LIGHT (the receded kicker at 3.36:1, under the floor) — a real,
-    // unmeasured failure, because the light theme's `muted-foreground` carries only ~6.8:1 of headroom over
-    // the sidebar and an alpha eats it. In HEARTH the order held pre-fix (see the header note).
-    const component = await mount(
-      <div {...themeAttr(theme)}>
-        <ContextOwnershipStory />
-      </div>,
-    );
-    const kicker = (owns: string): Locator =>
-      component.locator(`[data-slot="context-rail"][data-owns="${owns}"] [data-slot="context-rail-kicker"] span`).first();
-    const [owning, receded] = await Promise.all([pixelContrast(page, kicker("true")), pixelContrast(page, kicker("false"))]);
-
-    expect(receded.ratio, `receded kicker ${receded.describe} vs owning kicker ${owning.describe}`).toBeLessThan(owning.ratio);
-    expect(receded.ratio, `receded kicker ${receded.describe}`).toBeGreaterThanOrEqual(WCAG_TEXT_MIN);
-    expect(owning.ratio, `owning kicker ${owning.describe}`).toBeGreaterThanOrEqual(WCAG_TEXT_MIN);
+    // One shade inside one pane (owner ruling): the header row and the band are the pane, not a raised slab.
+    for (const [name, surface] of [
+      ["header", header],
+      ["band", band],
+    ] as const) {
+      expect(Math.abs(surface.rgb.r - pane.rgb.r), `${name} ${surface.describe} vs pane ${pane.describe}`).toBeLessThanOrEqual(SAME_SURFACE_SLACK);
+      expect(Math.abs(surface.rgb.g - pane.rgb.g)).toBeLessThanOrEqual(SAME_SURFACE_SLACK);
+      expect(Math.abs(surface.rgb.b - pane.rgb.b)).toBeLessThanOrEqual(SAME_SURFACE_SLACK);
+    }
+    // The owning state rail is a step above the pane.
+    expect(contrastRatio(owning.rgb, pane.rgb), `owning ${owning.describe} vs pane ${pane.describe}`).toBeGreaterThan(1);
   });
 
   test(`${theme}: every cell caption clears 4.5:1 — including the LOCKED cell, which is a live control`, async ({ mount, page }) => {
@@ -164,94 +146,64 @@ for (const theme of SHIPPED_THEMES) {
   });
 }
 
-// ── #878 F17: THE RAIL'S TRAIL IS NOT A SEVENTH CELL ───────────────────────────────────────────────────
-test("only the active Game crown fills; inactive host cells do not advertise selection", async ({ mount }) => {
+test("only the active Game crown fills; inactive host tabs do not advertise selection", async ({ mount }) => {
   const component = await mount(<ContextMetaRailStory paneWidth={640} />);
-  const preview = component.getByRole("button", { name: "Preview", exact: true });
-  const game = component.getByRole("button", { name: "Game", exact: true });
-  const activity = component.getByRole("button", { name: "Activity", exact: true });
+  const preview = component.getByRole("tab", { name: "Preview", exact: true });
+  const game = component.getByRole("tab", { name: "Game", exact: true });
+  const activity = component.getByRole("tab", { name: "Activity", exact: true });
   await preview.click();
-  await expect(preview).toHaveAttribute("aria-current", "true");
+  await expect(preview).toHaveAttribute("aria-selected", "true");
   await expect
     .poll(() => activity.evaluate((element) => getComputedStyle(element.querySelector("svg") as Element).color === getComputedStyle(element).color))
     .toBe(true);
   await expect(game.locator("svg")).toHaveAttribute("fill", "none");
   await game.click();
-  await expect(game).toHaveAttribute("aria-current", "true");
+  await expect(game).toHaveAttribute("aria-selected", "true");
   await expect(game.locator("svg")).toHaveAttribute("fill", "currentColor");
   await preview.click();
   await expect(game.locator("svg")).toHaveAttribute("fill", "none");
 });
 
-test("#878 F17: the rail's trail actions are separated from the cell track by a rule", async ({ mount }) => {
-  // The host kebab sat INSIDE the cell row — a 34×34 glyph with no caption, beside captioned cells, in a
-  // rail whose law is "icon + caption always" (#208). It reads as a cell that forgot its word. It is not a
-  // cell (it selects no view) and must not take a caption, so the separation is the fix.
-  const component = await mount(<ContextMetaRailStory paneWidth={640} withTrail={true} />);
-  const foot = component.locator('[data-slot="context-rail"][data-edge="bottom"]');
-  const rule = foot.locator('[data-slot="separator"]');
-  await expect(rule).toHaveCount(1);
-  await expect(rule).toHaveAttribute("aria-hidden", "true");
-  // It sits BETWEEN the cell track and the trail — the geometry is what makes it a separation and not an
-  // ornament parked at one end.
-  const [trackBox, ruleBox, trailBox] = await Promise.all([
-    component.getByRole("toolbar", { name: "Chat" }).boundingBox(),
-    rule.boundingBox(),
-    foot.getByRole("button", { name: "Fake trail" }).boundingBox(),
-  ]);
-  if (trackBox === null || ruleBox === null || trailBox === null) {
-    throw new Error("expected the foot rail's track, rule and trail to be laid out");
-  }
-  expect(ruleBox.x).toBeGreaterThanOrEqual(trackBox.x + trackBox.width);
-  expect(trailBox.x).toBeGreaterThanOrEqual(ruleBox.x + ruleBox.width);
-});
+// ── AN OVERFLOWING STRIP SAYS SO ───────────────────────────────────────────────────────────────────────
+// The tab track degrades to a scroll rather than an ellipsis, and nothing else would tell a reader there is
+// more: a fade plus a chevron on the hiding edge do. Both ends of the width range are driven, because a point
+// measurement never proves a range property.
+const STRIP = '[data-slot="context-tab-strip"]';
+const STRIP_FADE = '[data-slot="context-rail-fade"]';
 
-// ── #875 F7/F8: AN OVERFLOWING RAIL SAYS SO ────────────────────────────────────────────────────────────
-// The fold is count-gated to six cells (right, after #861's ragged 3+2) and the track degrades to a scroll
-// (right by ruling) — and nothing answered the case where the scroll is the ONLY arm and it silently
-// clips. Measured live at 1024×768: `scrollWidth 316` vs `clientWidth 290`, and "Activity" painted as
-// "Acti" cut at the pane's edge with no ellipsis, no scrollbar, no fade. Both ends of the width range are
-// driven here, because a point measurement never proves a range property.
-const RAIL_FADE = '[data-slot="context-rail-fade"]';
-
-test("#875 F7/F8: the meta rail marks the edge it is hiding content behind — and does not when it fits", async ({ mount }) => {
+test("the header strip marks the edge it is hiding tabs behind — and does not when it fits", async ({ mount }) => {
   const narrow = await mount(<ContextMetaRailStory />);
-  const narrowRail = narrow.locator('[data-slot="context-rail"][data-edge="bottom"]');
-  // The five cells cannot fit 291px at their whole captions, so the track overflows at its END.
-  await expect(narrowRail).toHaveAttribute("data-overflow-end", "true");
-  await expect(narrowRail.locator(RAIL_FADE)).toHaveCount(1);
-  // Nothing is hidden at the START yet — the rail has not been scrolled.
-  await expect(narrowRail).toHaveAttribute("data-overflow-start", "false");
+  const narrowStrip = narrow.locator(STRIP);
+  // The five tabs cannot fit 291px at their whole captions, so the track overflows at its END.
+  await expect(narrowStrip).toHaveAttribute("data-overflow-end", "true");
+  await expect(narrowStrip.locator(STRIP_FADE)).toHaveCount(1);
+  // Nothing is hidden at the START yet — the strip has not been scrolled.
+  await expect(narrowStrip).toHaveAttribute("data-overflow-start", "false");
 
-  // …and the fade is NOT permanent chrome: at a width the same five cells fit, both edges stand down.
+  // …and the fade is NOT permanent chrome: at a width the same tabs fit, both edges stand down.
   await narrow.unmount();
-  const wide = await mount(<ContextMetaRailStory paneWidth={640} />);
-  const wideRail = wide.locator('[data-slot="context-rail"][data-edge="bottom"]');
-  await expect(wideRail).toHaveAttribute("data-overflow-end", "false");
-  await expect(wideRail).toHaveAttribute("data-overflow-start", "false");
-  await expect(wideRail.locator(RAIL_FADE)).toHaveCount(0);
+  const wide = await mount(<ContextMetaRailStory paneWidth={800} />);
+  const wideStrip = wide.locator(STRIP);
+  await expect(wideStrip).toHaveAttribute("data-overflow-end", "false");
+  await expect(wideStrip).toHaveAttribute("data-overflow-start", "false");
+  await expect(wideStrip.locator(STRIP_FADE)).toHaveCount(0);
 });
 
-// ── #899 N9: THE OVERFLOW MARK IS READABLE AS A MARK, NOT AS THE PANEL'S EDGE ──────────────────────────
-// The gradient half was correct and unreadable BY CONSTRUCTION: it fades the rail's own fill into
-// transparent, so it can have no contrast against the surface it sits on, and at both firing sites the
-// first read was still a chopped word. The chevron is the part a reader recognises — and the part an
-// instrument can measure, which is exactly why the receipt asks for its contrast against the rail fill.
+// The gradient alone is unreadable by construction (it fades the fill into transparent), so the chevron is the
+// part a reader recognises and an instrument can measure: WCAG 1.4.11 owes it 3:1 against the strip fill.
 for (const theme of SHIPPED_THEMES) {
-  test(`${theme}: the overflow mark carries a CHEVRON whose ink clears the UI-graphic floor against the rail fill`, async ({ mount, page }) => {
+  test(`${theme}: the overflow mark carries a CHEVRON whose ink clears the UI-graphic floor against the strip fill`, async ({ mount, page }) => {
     const component = await mount(
       <div {...themeAttr(theme)}>
         <ContextMetaRailStory />
       </div>,
     );
-    const rail = component.locator('[data-slot="context-rail"][data-edge="bottom"]');
-    await expect(rail).toHaveAttribute("data-overflow-end", "true");
-    const chevron = rail.locator('[data-slot="context-rail-more"]');
+    const strip = component.locator(STRIP);
+    await expect(strip).toHaveAttribute("data-overflow-end", "true");
+    const chevron = strip.locator('[data-slot="context-rail-more"]');
     await expect(chevron).toHaveCount(1);
-    // WCAG 1.4.11 — a non-text graphic that carries meaning owes 3:1 against its adjacent colour, which
-    // here IS the rail fill the fade blends into. Composited, not computed: the mark sits ON the gradient.
     await expect
-      .poll(async () => (await pixelContrast(page, chevron)).ratio, { message: `${theme} overflow chevron vs the rail fill` })
+      .poll(async () => (await pixelContrast(page, chevron)).ratio, { message: `${theme} overflow chevron vs the strip fill` })
       .toBeGreaterThanOrEqual(UI_GRAPHIC_MIN);
   });
 }
@@ -259,7 +211,7 @@ for (const theme of SHIPPED_THEMES) {
 /** WCAG 1.4.11 Non-text Contrast — the floor a meaningful graphic owes its adjacent colour. */
 const UI_GRAPHIC_MIN = 3;
 
-/** The story's cell census (4 game + 2 meta) — stated so a story edit that drops a cell cannot quietly
+/** The story's caption census (4 state-rail cells + 2 header tabs) — stated so a story edit that drops a cell cannot quietly
  *  shrink the caption sweep to a green zero. */
 const CTX_STATE_STORY_CELLS = 6;
 
