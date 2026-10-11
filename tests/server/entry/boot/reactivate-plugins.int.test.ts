@@ -228,7 +228,7 @@ test("a missing bundle asset lands the row errored with one log line; a non-acti
     expect(row?.status).toBe("errored");
     expect(row?.lastError).toContain("stored bundle unreadable");
     expect(lineCount()).toBe(1);
-    expect(errorSpy.mock.calls[0]?.[0]).toMatchObject({ kind: "activation-failed" });
+    expect(errorSpy.mock.calls[0]?.[0]).toMatchObject({ pluginSlug: "card-atlas", kind: "activation-failed" });
 
     // A throw outside activation (the principal cannot be resolved) is logged once, by boot.
     await db.update(plugins).set({ status: "enabled" }).where(eq(plugins.id, installed.id));

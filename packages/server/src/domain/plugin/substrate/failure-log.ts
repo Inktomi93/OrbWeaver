@@ -11,6 +11,7 @@ type PluginFailureKind =
   | "broker-unavailable"
   | "display-deadline"
   | "macro-deadline"
+  | "prompt-deadline"
   | "ui-crash"
   | "auto-disabled";
 

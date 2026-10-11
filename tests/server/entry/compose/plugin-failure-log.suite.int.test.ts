@@ -186,8 +186,8 @@ test("each plugin failure path logs exactly one line naming its plugin, kind and
     expect(since(mark).length).toBe(1);
     await drop(prompt.id);
 
-    // A prompt transform that outruns its deadline: the registry's one SKIPPED warning, then the orphaned
-    // invocation settles and counts the one crash without a late guest-error line.
+    // A prompt transform that outruns its deadline: the plugin's one deadline line (no generic SKIPPED warning),
+    // then the orphaned invocation settles and counts the one crash without a late guest-error line.
     const hung = await bring(
       "prompt-hanger",
       ["chat.transform"],
@@ -196,7 +196,9 @@ test("each plugin failure path logs exactly one line naming its plugin, kind and
     mark = lines.length;
     await services.chat.commitMessage({ principal: caller, chatId: chat.id, content: "to be hung" });
     await settle();
-    expect(since(mark).map((line) => line.message)).toEqual(["chat: prompt transform SKIPPED (deadline/throw/empty render) — draft unchanged"]);
+    expect(since(mark).map((line) => [line.message, line.fields["pluginSlug"], line.fields["kind"]])).toEqual([
+      ["plugin: failure", "prompt-hanger", "prompt-deadline"],
+    ]);
     const hungCrashes = async (): Promise<number> => (await db.select().from(plugins).where(eq(plugins.id, hung.id)))[0]?.consecutiveCrashes ?? 0;
     await expect.poll(hungCrashes, { timeout: 45_000, interval: 500 }).toBe(1);
     expect(since(mark).length).toBe(1);

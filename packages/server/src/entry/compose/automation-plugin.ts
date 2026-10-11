@@ -901,6 +901,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         const id = `plugin:${scope.slug}:${reg.name}:${pluginTransformSeq}`;
         const transform = buildPluginPromptTransform(reg, {
           id,
+          slug: scope.slug,
           order: PLUGIN_TRANSFORM_ORDER_BASE + pluginTransformSeq,
           isInstallerHost: async (chatId) => (await loadPresentRole(db, chatId, scope.installer.userId)) === "host",
           invoke: (handler, argsJson, signal) => invoke(handler, argsJson, null, signal),

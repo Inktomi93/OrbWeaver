@@ -51,6 +51,7 @@ describe("buildPluginPromptTransform — the §6 host-gate + guest re-entry", ()
   test("carries the caller-assigned id/point/order (the plugin band is compose's to assign)", () => {
     const t = buildPluginPromptTransform(reg, {
       id: "plugin:mood:shout:0",
+      slug: "mood",
       order: 1000,
       isInstallerHost: () => Promise.resolve(true),
       invoke: () => Promise.resolve("x"),
@@ -64,6 +65,7 @@ describe("buildPluginPromptTransform — the §6 host-gate + guest re-entry", ()
     let invoked = 0;
     const t = buildPluginPromptTransform(reg, {
       id: "t",
+      slug: "mood",
       order: 1000,
       isInstallerHost: () => Promise.resolve(false),
       invoke: () => {
@@ -80,6 +82,7 @@ describe("buildPluginPromptTransform — the §6 host-gate + guest re-entry", ()
     const seen: string[] = [];
     const t = buildPluginPromptTransform(reg, {
       id: "t",
+      slug: "mood",
       order: 1000,
       isInstallerHost: () => Promise.resolve(true),
       invoke: (handler, argsJson) => {

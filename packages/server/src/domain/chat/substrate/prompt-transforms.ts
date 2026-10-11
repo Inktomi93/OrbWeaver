@@ -33,7 +33,7 @@ export const PROMPT_TRANSFORM_DEADLINE_MS = 250;
  *   `abort`   — the transform DELIBERATELY refused the generation (§5.14); the fold stops and the turn does. */
 type BoundedOutcome =
   | { readonly kind: "ok"; readonly text: string }
-  | { readonly kind: "skip"; readonly threw: boolean }
+  | { readonly kind: "skip"; readonly cause: "throw" | "deadline" | "empty" }
   | { readonly kind: "abort"; readonly reason: string };
 
 /** The registry passes a signal that aborts with {@link DEADLINE_ABORT_REASON} at the deadline. `PromptTransform.apply`
@@ -41,8 +41,8 @@ type BoundedOutcome =
  *  it as a trailing optional parameter, and every other transform ignores the extra argument. */
 type AbortAwareApply = (draft: string, env: PromptTransformEnv, signal: AbortSignal) => Promise<PromptTransformOutcome>;
 
-const SKIP: BoundedOutcome = { kind: "skip", threw: false };
-const THREW: BoundedOutcome = { kind: "skip", threw: true };
+const SKIP: BoundedOutcome = { kind: "skip", cause: "empty" };
+const THREW: BoundedOutcome = { kind: "skip", cause: "throw" };
 
 /** Classify a transform's raw answer. A NON-EMPTY string is the rewritten draft; a `{abort}` object is the
  *  typed refusal, its reason capped here (it is untrusted text — a guest writes it — and it reaches a refusal
@@ -79,7 +79,7 @@ async function applyBounded(transform: PromptTransform, draft: string, env: Prom
     timer = setTimeout(() => {
       // The SKIPPED warning below reports the overrun; the abort tells the transform not to report it again.
       orphan.abort(DEADLINE_ABORT_REASON);
-      resolve(SKIP);
+      resolve({ kind: "skip", cause: "deadline" });
     }, deadlineMs);
   });
   // @orb-waive caught-failure-ownership(catch): D53 — a throw resolves to SKIP exactly like a
@@ -132,8 +132,8 @@ export function createPromptTransformRegistry(
         getLog().info({ chatId, transformId: transform.id, point }, "chat: prompt transform ABORTED the generation");
         return { aborted: true, transformId: transform.id, reason: result.reason };
       }
-      // A throw from a transform that logs its own failures is already on the log with its cause.
-      if (!(result.threw && transform.logsOwnFailures === true)) {
+      // A throw or deadline overrun of a transform that logs its own failures is already on the log with its cause.
+      if (!(transform.logsOwnFailures === true && result.cause !== "empty")) {
         getLog().warn({ chatId, transformId: transform.id, point }, "chat: prompt transform SKIPPED (deadline/throw/empty render) — draft unchanged");
       }
       skipped.push(transform.id);

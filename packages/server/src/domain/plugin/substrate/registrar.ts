@@ -10,6 +10,7 @@ import type { TriggerFact } from "@orb/contracts/automation";
 import type { PromptTransform } from "@orb/contracts/chat";
 import type { PluginHandlerRef, PluginTransformRegistration } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
+import { logPluginFailure } from "./failure-log.ts";
 
 /** Truncate a delivered fact's message content to `maxContentChars` BEFORE it is JSON-marshalled into the guest
  *  realm (the load-bearing field-cap — the sandbox's whole-payload inbound byte cap is only the coarse backstop;
@@ -34,6 +35,7 @@ export function buildPluginPromptTransform(
   reg: PluginTransformRegistration,
   deps: {
     readonly id: string;
+    readonly slug: string;
     readonly order: number;
     readonly isInstallerHost: (chatId: ChatId) => Promise<boolean>;
     readonly invoke: (handler: PluginHandlerRef, argsJson: string, signal?: AbortSignal) => Promise<string>;
@@ -43,12 +45,16 @@ export function buildPluginPromptTransform(
     id: deps.id,
     point: reg.point,
     order: deps.order,
-    // A thrown guest handler is logged by the resident `invoke` with its plugin and cause.
+    // A thrown guest handler is logged by the resident `invoke`, and a deadline overrun by the abort listener below.
     logsOwnFailures: true,
     apply: async (draft, env, signal?: AbortSignal): Promise<string> => {
       if (!(await deps.isInstallerHost(env.chatId))) {
         return draft;
       }
+      // Only the registry's deadline aborts this signal, and it then skips its own generic warning.
+      signal?.addEventListener("abort", () => logPluginFailure(deps.slug, "prompt-deadline", `prompt transform '${reg.name}' exceeded its deadline`), {
+        once: true,
+      });
       return await deps.invoke(reg.handler, JSON.stringify({ draft, env }), signal);
     },
   };

@@ -18,7 +18,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { PluginActivationScope, PluginInvokeHandler, PluginRegistrationHandle } from "../contract/ops.ts";
 import type { ActivateInput, ActivateOutcome, CrashPolicy, PluginContext, PluginProviderLifecycle, PluginRegistry } from "../contract/service.ts";
-import { setStatus } from "../persistence/plugins.ts";
+import { getById, setStatus } from "../persistence/plugins.ts";
 import { buildPluginBridge } from "../substrate/bridge.ts";
 import { invokeFailureKind, logPluginFailure } from "../substrate/failure-log.ts";
 import { consentedNetHosts } from "../substrate/grants.ts";
@@ -166,6 +166,14 @@ async function providerActivationError(
   }
 }
 
+/** The stored bundle could not be read or re-validated, so it holds no slug: the row names the plugin. */
+async function failUnreadableBundle(ctx: PluginContext, input: ActivateInput, error: string): Promise<{ readonly ok: false; readonly error: string }> {
+  const row = await getById(ctx.db, input.caller.userId, input.pluginId);
+  logPluginFailure(row?.slug ?? input.pluginId, "activation-failed", `bundle re-validation failed: ${error}`);
+  await setStatus(ctx.db, input.pluginId, { status: "errored", lastError: `bundle re-validation failed: ${error}`, updatedAt: ctx.now() });
+  return { ok: false, error };
+}
+
 export function createActivate(
   ctx: PluginContext,
   registry: PluginRegistry,
@@ -175,14 +183,7 @@ export function createActivate(
   return async (input: ActivateInput): Promise<ActivateOutcome> => {
     const revalidated = await loadRevalidatedBundle(ctx, input);
     if (!revalidated.ok) {
-      // The slug lives in the bundle that failed to parse, so the id is the only name this line can carry.
-      logPluginFailure(input.pluginId, "activation-failed", `bundle re-validation failed: ${revalidated.error}`);
-      await setStatus(ctx.db, input.pluginId, {
-        status: "errored",
-        lastError: `bundle re-validation failed: ${revalidated.error}`,
-        updatedAt: ctx.now(),
-      });
-      return { ok: false, error: revalidated.error };
+      return await failUnreadableBundle(ctx, input, revalidated.error);
     }
     const { mainJs, slug, displayName, netHosts, matchAutomationEvents, providers } = revalidated.bundle;
     const activationFailed = async (error: string, lastError: string): Promise<{ readonly ok: false; readonly error: string }> => {
