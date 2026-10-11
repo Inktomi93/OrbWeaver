@@ -17,7 +17,7 @@ import { characters } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { migrateSeededCardBackgrounds } from "../../../../../packages/server/src/domain/character/persistence/migrate-seeded-backgrounds.ts";
+import { migrateSeededCardBackgrounds } from "#server/domain/character/persistence/migrate-seeded-backgrounds.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedRawCharacter, seedUser } from "../_support.ts";

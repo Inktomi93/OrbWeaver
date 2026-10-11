@@ -16,8 +16,8 @@ import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
 // Deep-imported: `transport/jobs/` has no barrel — entry wires each driver by path (the sibling
 // `catalog-refresh-scheduler` test's spelling).
-import type { WorkloadScheduleSchedulerDeps } from "../../../../packages/server/src/transport/jobs/workload-schedule-scheduler.ts";
-import { startWorkloadScheduleScheduler } from "../../../../packages/server/src/transport/jobs/workload-schedule-scheduler.ts";
+import type { WorkloadScheduleSchedulerDeps } from "#server/transport/jobs/workload-schedule-scheduler.ts";
+import { startWorkloadScheduleScheduler } from "#server/transport/jobs/workload-schedule-scheduler.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 

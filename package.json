@@ -183,5 +183,17 @@
       "version": "26.10.0",
       "onFail": "download"
     }
+  },
+  "imports": {
+    "#client/*": "./packages/client/src/*",
+    "#contracts/*": "./packages/contracts/src/*",
+    "#db/*": "./packages/db/src/*",
+    "#default-content/*": "./packages/default-content/src/*",
+    "#inference/*": "./packages/inference/src/*",
+    "#kit/*": "./packages/kit/src/*",
+    "#plugin-toolchain/*": "./packages/plugin-toolchain/src/*",
+    "#server/*": "./packages/server/src/*",
+    "#showcase-plugins/*": "./packages/showcase-plugins/src/*",
+    "#ui/*": "./packages/ui/src/*"
   }
 }

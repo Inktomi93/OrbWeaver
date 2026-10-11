@@ -17,7 +17,7 @@ import {
   summarizeBundleCounts,
   summarizeCardImport,
   summaryCaption,
-} from "../../../../../packages/client/src/features/workloads/lib/portability-model.ts";
+} from "#client/features/workloads/lib/portability-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("EXPORTABLE_KINDS excludes `assets` and every offered kind has a label", () => {

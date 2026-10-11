@@ -3,7 +3,7 @@
 // de-dupe, the drop of unknown/blank ids and name-less tags, and the never-throws empty contract.
 
 import { describe } from "vitest";
-import { parseStTags } from "../../../../../packages/server/src/domain/import/substrate/tags.ts";
+import { parseStTags } from "#server/domain/import/substrate/tags.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("parseStTags", () => {

@@ -14,7 +14,7 @@
 // Deep import the module, NOT the `@orb/client/data` barrel: a barrel import drags browser TSX into the
 // dom-less `typecheck:graph` program (the 2026-06-28 dom-lib incident, the `import-bundle.test.ts` note).
 import { describe } from "vitest";
-import { socketNotice } from "../../../../packages/client/src/data/bus/use-orb-socket.ts";
+import { socketNotice } from "#client/data/bus/use-orb-socket.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 /** The verbatim server sentence the cap arrives with — the string this notice exists to STOP showing. */

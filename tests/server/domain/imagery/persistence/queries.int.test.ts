@@ -12,11 +12,7 @@ import { handleKey } from "@orb/kit/handle-key";
 import type { AssetId, CharacterId, Handle, ImageryCallId, ImageryGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import {
-  findReusableGeneration,
-  insertGenerationStatement,
-  readProvenanceByAsset,
-} from "../../../../../packages/server/src/domain/imagery/persistence/queries.ts";
+import { findReusableGeneration, insertGenerationStatement, readProvenanceByAsset } from "#server/domain/imagery/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

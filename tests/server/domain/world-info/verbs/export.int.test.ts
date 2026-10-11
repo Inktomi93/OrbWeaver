@@ -11,7 +11,7 @@ import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { parseWorldBookFile } from "@orb/server/primitives/serde/world-info";
 import { describe } from "vitest";
-import { createExport } from "../../../../../packages/server/src/domain/world-info/verbs/export.ts";
+import { createExport } from "#server/domain/world-info/verbs/export.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

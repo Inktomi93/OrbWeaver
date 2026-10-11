@@ -9,11 +9,11 @@
 // as the request body, and emitted even when the SDK abandons the stream without cancelling it.
 
 import type { Wire } from "@orb/contracts/inference";
-import { resolvedScrubSet } from "../../../../packages/inference/src/backends/http/sanitize.ts";
-import type { WrapFetchArgs } from "../../../../packages/inference/src/backends/v4/fetch.ts";
-import { wrapFetch } from "../../../../packages/inference/src/backends/v4/fetch.ts";
-import type { WireCaptureSink } from "../../../../packages/inference/src/contract/backend.ts";
-import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
+import { resolvedScrubSet } from "#inference/backends/http/sanitize.ts";
+import type { WrapFetchArgs } from "#inference/backends/v4/fetch.ts";
+import { wrapFetch } from "#inference/backends/v4/fetch.ts";
+import type { WireCaptureSink } from "#inference/contract/backend.ts";
+import { ProviderError } from "#inference/contract/errors.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const SECRET = "sk-live-super-secret";

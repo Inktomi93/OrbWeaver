@@ -11,7 +11,7 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { ChatService } from "@orb/server/domain/chat";
 import { createCas } from "@orb/server/infra/storage";
 import { vi } from "vitest";
-import { createApp } from "../../../../packages/server/src/entry/app.ts";
+import { createApp } from "#server/entry/app.ts";
 import { principal } from "../../../server/transport/trpc/_support.ts";
 import { expect, OWNER_USER_ID, test } from "../../../support/fixtures.ts";
 

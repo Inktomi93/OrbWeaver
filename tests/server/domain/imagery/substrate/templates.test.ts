@@ -5,7 +5,7 @@
 import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES, IMAGERY_NEGATIVE_SLOT_ID } from "@orb/contracts/imagery";
 import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
 import { describe } from "vitest";
-import { composeNegative, ensurePrefix } from "../../../../../packages/server/src/domain/imagery/substrate/templates.ts";
+import { composeNegative, ensurePrefix } from "#server/domain/imagery/substrate/templates.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("canonical prompt and caption defaults", () => {

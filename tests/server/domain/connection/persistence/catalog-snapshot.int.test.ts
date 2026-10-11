@@ -6,7 +6,7 @@
 
 import { settings } from "@orb/db";
 import { eq } from "drizzle-orm";
-import { createSnapshotStore } from "../../../../../packages/server/src/domain/connection/persistence/catalog-snapshot.ts";
+import { createSnapshotStore } from "#server/domain/connection/persistence/catalog-snapshot.ts";
 import { createFrozenClock } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

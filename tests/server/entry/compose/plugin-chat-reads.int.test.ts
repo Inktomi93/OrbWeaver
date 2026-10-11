@@ -9,7 +9,7 @@
 import type { Db } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { loadPluginMessages } from "../../../../packages/server/src/entry/compose/plugin-chat-reads.ts";
+import { loadPluginMessages } from "#server/entry/compose/plugin-chat-reads.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { seedChat, seedMessage } from "../../domain/chat/_support.ts";

@@ -27,7 +27,7 @@ import {
   ROOM_ENTITY_HEAL_FILTERS,
   roomEntityHealReads,
   runtimeVariablesRead,
-} from "../../../packages/client/src/data/invalidation-reads.ts";
+} from "#client/data/invalidation-reads.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat_invalidationreads");

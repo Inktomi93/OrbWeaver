@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { vi } from "vitest";
-import { appearanceMatrixContract } from "../../../../packages/client/src/lib/appearance-carrier-manifest.ts";
+import { appearanceMatrixContract } from "#client/lib/appearance-carrier-manifest.ts";
 import type { ThemeEntry } from "../../../../tooling/src/floor/appearance/theme.ts";
 import { APPEARANCE_HIGH_RISK_PRESET_NAMES, scenarioPresetFile } from "../../../../tooling/src/snap/contract/scenario-presets.ts";
 import { parseScenarioSpec, parseSnapArgs } from "../../../../tooling/src/snap/index.ts";

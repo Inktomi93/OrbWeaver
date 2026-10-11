@@ -11,7 +11,7 @@ import type { Db } from "@orb/db";
 import type { Handle, RpgTurnToolCallsId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { recordTurnToolCalls } from "../../../../../../packages/server/src/domain/rpg/persistence/turn-tool-calls.ts";
+import { recordTurnToolCalls } from "#server/domain/rpg/persistence/turn-tool-calls.ts";
 import { freshDb } from "../../../../../support/db.ts";
 import { addVariant, expect, FROZEN_AT, principal, seedLiteGame, seedMessage, test } from "../../_support.ts";
 

@@ -10,8 +10,8 @@
 import type { WeavePoint, WeaveStrand, WovenWeb } from "@orb/ui/web-weave";
 import { buildWeb } from "@orb/ui/web-weave";
 import { describe } from "vitest";
-import type { WeaveGlintSegment } from "../../../../packages/ui/src/art/web-weave/web-weave-glint.ts";
-import { buildGlintIndex, forEachGlintCandidate, glintSegmentLit, glintSweepAngle } from "../../../../packages/ui/src/art/web-weave/web-weave-glint.ts";
+import type { WeaveGlintSegment } from "#ui/art/web-weave/web-weave-glint.ts";
+import { buildGlintIndex, forEachGlintCandidate, glintSegmentLit, glintSweepAngle } from "#ui/art/web-weave/web-weave-glint.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 /** The login backdrop's own host box + hub (the surface #467 was reported on). */

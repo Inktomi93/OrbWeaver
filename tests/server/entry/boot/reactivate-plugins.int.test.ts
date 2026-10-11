@@ -21,7 +21,7 @@ import { logger } from "@orb/server/foundation/observability";
 import { createPluginHost } from "@orb/server/infra/plugin-host";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
-import { reactivatePluginsOnBoot } from "../../../../packages/server/src/entry/boot/reactivate-plugins.ts";
+import { reactivatePluginsOnBoot } from "#server/entry/boot/reactivate-plugins.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";

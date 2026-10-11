@@ -25,8 +25,8 @@ import {
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import { contrastRatio, LARGE_MIN_RATIO, NORMAL_MIN_RATIO, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
-import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
-import { compositedBase } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
+import { clampThemeTokens } from "#ui/content/theme-scope/clamp.ts";
+import { compositedBase } from "#ui/content/theme-scope/color-parse.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 // ── House oklch → sRGB (0–255). Standard OKLab matrices; channels clamped to gamut (neutral/low-chroma

@@ -2,8 +2,8 @@ import type { BlockKey } from "@orb/contracts/search";
 import type { CharacterId, ChatDigestId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { blockKeyStr, formatMemory } from "../../../../../../packages/server/src/domain/chat/memory/recall/format.ts";
-import type { DigestRow } from "../../../../../../packages/server/src/domain/chat/memory/types.ts";
+import { blockKeyStr, formatMemory } from "#server/domain/chat/memory/recall/format.ts";
+import type { DigestRow } from "#server/domain/chat/memory/types.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
 const chatId = castId<ChatId>("chat_f");

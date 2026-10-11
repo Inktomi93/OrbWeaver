@@ -4,7 +4,7 @@
 // in emission order.
 
 import { z } from "zod";
-import { createToolUseService } from "../../../../../packages/server/src/domain/tool-use/index.ts";
+import { createToolUseService } from "#server/domain/tool-use/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { ANY_DRIVER, defOf, execOf, makeHarness } from "../_support.ts";
 

@@ -2,7 +2,7 @@
 // look-alike pair sharing a root is `forked` vs an independent `duplicate`. Guards a cyclic/orphan chain.
 
 import { describe } from "vitest";
-import { forkRoots } from "../../../../../packages/server/src/domain/discovery/substrate/fork-roots.ts";
+import { forkRoots } from "#server/domain/discovery/substrate/fork-roots.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("forkRoots", () => {

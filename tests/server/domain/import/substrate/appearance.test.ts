@@ -4,7 +4,7 @@
 // never-patch-what-ST-did-not-say contract (an absent key must NOT stamp orb's default over a user's choice).
 
 import { describe } from "vitest";
-import { stAppearancePatch } from "../../../../../packages/server/src/domain/import/substrate/appearance.ts";
+import { stAppearancePatch } from "#server/domain/import/substrate/appearance.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const patchOf = (powerUser: Record<string, unknown>): Record<string, unknown> => stAppearancePatch({ power_user: powerUser });

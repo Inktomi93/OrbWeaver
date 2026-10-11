@@ -3,7 +3,7 @@
 // decision are tested here without exporting private calibration measurements.
 
 import { describe } from "vitest";
-import { CORPUS_NEAREST_ONLY_BELOW, isNearestOnly } from "../../../../../packages/client/src/features/discovery/lib/corpus-search-targets.ts";
+import { CORPUS_NEAREST_ONLY_BELOW, isNearestOnly } from "#client/features/discovery/lib/corpus-search-targets.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("isNearestOnly", () => {

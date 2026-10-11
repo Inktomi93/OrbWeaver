@@ -140,7 +140,7 @@ test("the answer does not depend on import order — a warm graph (variants modu
   const cold = { size: cn(...SIZE_VS_COLOR), leading: cn(...LEADING_OVERRIDE) };
   // Evaluating a tv-built variants module is what used to prime the shared merger state (the `tv({…})`
   // call itself writes it). Imported by PATH, not by package subpath, to keep this file React-free.
-  await import("../../../packages/ui/src/primitives/button/variants.ts");
+  await import("#ui/primitives/button/variants.ts");
   expect({ size: cn(...SIZE_VS_COLOR), leading: cn(...LEADING_OVERRIDE) }).toStrictEqual(cold);
 });
 

@@ -2,12 +2,7 @@
 // wrap these; this pins the raw db behavior incl. the LIKE-prefix escaping).
 
 import { describe } from "vitest";
-import {
-  deleteGlobalVariable,
-  listGlobalVariables,
-  selectGlobalVariable,
-  upsertGlobalVariable,
-} from "../../../../../packages/server/src/domain/automation/persistence/queries.ts";
+import { deleteGlobalVariable, listGlobalVariables, selectGlobalVariable, upsertGlobalVariable } from "#server/domain/automation/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FIXED_NOW_MS, seedUser } from "../_support.ts";

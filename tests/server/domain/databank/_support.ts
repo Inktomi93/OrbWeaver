@@ -16,18 +16,18 @@ import type { AssetId, CharacterId, ChatId, ChatParticipantId, DocumentId, Handl
 import { castId } from "@orb/kit/ids";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
-import { can } from "../../../../packages/server/src/domain/admin/index.ts";
-import type { DatabankContext, DatabankIngest, DatabankService } from "../../../../packages/server/src/domain/databank/contract/service.ts";
-import { createDatabankService } from "../../../../packages/server/src/domain/databank/index.ts";
-import { createDatabankIngest } from "../../../../packages/server/src/domain/databank/ingest/index.ts";
-import { createEmbeddingsService } from "../../../../packages/server/src/domain/embeddings/index.ts";
+import { can } from "#server/domain/admin/index.ts";
+import type { DatabankContext, DatabankIngest, DatabankService } from "#server/domain/databank/contract/service.ts";
+import { createDatabankService } from "#server/domain/databank/index.ts";
+import { createDatabankIngest } from "#server/domain/databank/ingest/index.ts";
+import { createEmbeddingsService } from "#server/domain/embeddings/index.ts";
 import {
   createDeleteReachCapture,
   createEmitRoomDatabankChanged,
   createFanDatabankCharacterRooms,
   createFanDatabankDocumentRooms,
   createFanDatabankMemberRooms,
-} from "../../../../packages/server/src/entry/compose/room-reach.ts";
+} from "#server/entry/compose/room-reach.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 import { EMBED_DIM, EMBED_MODEL, makeStoreHarness } from "../embeddings/_support.ts";

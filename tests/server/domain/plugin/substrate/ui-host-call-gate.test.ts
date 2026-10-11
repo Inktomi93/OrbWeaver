@@ -11,7 +11,7 @@ import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { HOST_CALLS_IN_FLIGHT_MAX, HOST_FN_ARGS_MAX_BYTES, HOST_FN_RESULT_CAP_BYTES } from "@orb/server/infra/plugin-host";
 import { describe } from "vitest";
-import { createUiHostCallGate, UI_HOST_CALLS_IN_FLIGHT_MAX } from "../../../../../packages/server/src/domain/plugin/index.ts";
+import { createUiHostCallGate, UI_HOST_CALLS_IN_FLIGHT_MAX } from "#server/domain/plugin/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const PLUGIN_A = castId<PluginId>("plugin_a000000000000000000001");

@@ -1,4 +1,4 @@
-import { fetchOpenRouterCatalog } from "../../../packages/inference/src/catalog/openrouter.ts";
+import { fetchOpenRouterCatalog } from "#inference/catalog/openrouter.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { openRouterCatalogFetch } from "../_openrouter-catalog.ts";
 

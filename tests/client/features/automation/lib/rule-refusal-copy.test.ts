@@ -15,7 +15,7 @@ import {
   ruleUnreadableEnableRefusal,
   ruleUnreadableLine,
   ruleUnreadableRunRefusal,
-} from "../../../../../packages/client/src/features/automation/lib/rule-refusal-copy.ts";
+} from "#client/features/automation/lib/rule-refusal-copy.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("isTransformOnlyRule", () => {

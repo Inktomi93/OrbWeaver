@@ -8,8 +8,8 @@
 import type { VersionedParseOutcome } from "@orb/contracts/versioned-config";
 import { DomainOperationError } from "@orb/kit/errors";
 import { describe } from "vitest";
-import { SETTINGS_OP_CODES } from "../../../packages/server/src/domain/settings/contract/errors.ts";
-import { requireIntactStoredConfig, STORED_CONFIG_UNREADABLE } from "../../../packages/server/src/primitives/stored-config/index.ts";
+import { SETTINGS_OP_CODES } from "#server/domain/settings/contract/errors.ts";
+import { requireIntactStoredConfig, STORED_CONFIG_UNREADABLE } from "#server/primitives/stored-config/index.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 interface Blob {

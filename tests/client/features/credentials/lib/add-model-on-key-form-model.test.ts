@@ -8,7 +8,7 @@ import {
   addModelActionLabel,
   addModelScope,
   validateAddModelOnKey,
-} from "../../../../../packages/client/src/features/credentials/lib/add-model-on-key-form-model.ts";
+} from "#client/features/credentials/lib/add-model-on-key-form-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const KEY_ID = "user_credential_ctaddmodel01";

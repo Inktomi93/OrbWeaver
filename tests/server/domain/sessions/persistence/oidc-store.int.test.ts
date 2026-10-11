@@ -1,8 +1,8 @@
 import type { Db } from "@orb/db";
 import { beforeEach, describe } from "vitest";
-import { createOidcStore } from "../../../../../packages/server/src/domain/sessions/persistence/oidc-store.ts";
-import type { OidcTransaction } from "../../../../../packages/server/src/infra/auth/index.ts";
-import { OIDC_TRANSACTION_TTL_MS } from "../../../../../packages/server/src/infra/auth/index.ts";
+import { createOidcStore } from "#server/domain/sessions/persistence/oidc-store.ts";
+import type { OidcTransaction } from "#server/infra/auth/index.ts";
+import { OIDC_TRANSACTION_TTL_MS } from "#server/infra/auth/index.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

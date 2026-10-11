@@ -13,7 +13,7 @@ import {
   showsApiControl,
   sweepRebindsEmbedder,
   sweepRoleLabels,
-} from "../../../../../packages/client/src/features/credentials/lib/connections-model.ts";
+} from "#client/features/credentials/lib/connections-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const OPENROUTER = "user_connection_model0000001";

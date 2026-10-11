@@ -9,7 +9,7 @@
 import type { ChatHistoryMessage } from "@orb/inference";
 import { AGENT_CONTINUATION_PROMPT_STUB, AGENT_PROMPT_TAIL_JOINER } from "@orb/inference";
 import { describe } from "vitest";
-import { extractTrailingSystemRows, splitAgentHistory } from "../../../../packages/inference/src/backends/agent-sdk/turn-input.ts";
+import { extractTrailingSystemRows, splitAgentHistory } from "#inference/backends/agent-sdk/turn-input.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 function row(role: ChatHistoryMessage["role"], text: string, name?: string): ChatHistoryMessage {

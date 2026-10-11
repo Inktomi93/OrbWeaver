@@ -10,7 +10,7 @@ import {
   announceAvatarAnalysisSkip,
   avatarAnalysisUnservable,
   markAvatarAnalysisUnservable,
-} from "../../../../../packages/server/src/domain/embeddings/substrate/avatar-analysis-availability.ts";
+} from "#server/domain/embeddings/substrate/avatar-analysis-availability.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const VL_MODEL = "Qwen/Qwen3-VL-8B-Instruct";

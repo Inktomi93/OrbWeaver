@@ -32,19 +32,13 @@ import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
-import type { ProviderExecutor, WireCaptureSink } from "../../../packages/inference/src/contract/backend.ts";
-import type {
-  AgentSdkChatRequest,
-  AnthropicChatRequest,
-  ChatRequest,
-  OpenAiCompatChatRequest,
-  WireTool,
-} from "../../../packages/inference/src/contract/chat.ts";
-import { ProviderError } from "../../../packages/inference/src/contract/errors.ts";
-import type { ChatEvent } from "../../../packages/inference/src/contract/events.ts";
-import type { EmbedRequest, StructuredRequest } from "../../../packages/inference/src/contract/roles.ts";
-import { BACKEND_DEFS, buildBackends } from "../../../packages/inference/src/registry/backends.ts";
-import { createProviderExecutor } from "../../../packages/inference/src/roles/executor.ts";
+import type { ProviderExecutor, WireCaptureSink } from "#inference/contract/backend.ts";
+import type { AgentSdkChatRequest, AnthropicChatRequest, ChatRequest, OpenAiCompatChatRequest, WireTool } from "#inference/contract/chat.ts";
+import { ProviderError } from "#inference/contract/errors.ts";
+import type { ChatEvent } from "#inference/contract/events.ts";
+import type { EmbedRequest, StructuredRequest } from "#inference/contract/roles.ts";
+import { BACKEND_DEFS, buildBackends } from "#inference/registry/backends.ts";
+import { createProviderExecutor } from "#inference/roles/executor.ts";
 import { test } from "../../support/fixtures.ts";
 import { fakeApiKeySecret, fakeDeps, fakeResolved } from "../_support.ts";
 import type { RecordedRequest, SseEvent } from "../backends/_hosted-support.ts";

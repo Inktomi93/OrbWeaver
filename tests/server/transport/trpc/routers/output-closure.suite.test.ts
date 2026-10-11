@@ -14,7 +14,7 @@ import { ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import type { SettingsService } from "@orb/server/domain/settings";
 import type { WorkloadService } from "@orb/server/domain/workloads";
 import { z } from "zod";
-import { appRouter } from "../../../../../packages/server/src/transport/trpc/router.ts";
+import { appRouter } from "#server/transport/trpc/router.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 

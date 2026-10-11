@@ -19,11 +19,11 @@ import type { CharacterId, ChatId, Handle, UserId, WorldBookId, WorldEntryId } f
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { beforeEach, describe } from "vitest";
-import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble.ts";
-import { buildAssembleContext } from "../../../../../packages/server/src/domain/chat/assembly/context.ts";
-import { spliceInChatInjections } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
-import { renderMacros } from "../../../../../packages/server/src/domain/chat/assembly/macros.ts";
-import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
+import { assemblePrompt } from "#server/domain/chat/assembly/assemble.ts";
+import { buildAssembleContext } from "#server/domain/chat/assembly/context.ts";
+import { spliceInChatInjections } from "#server/domain/chat/assembly/injections.ts";
+import { renderMacros } from "#server/domain/chat/assembly/macros.ts";
+import type { ChatContext } from "#server/domain/chat/context.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedUser } from "../_support.ts";

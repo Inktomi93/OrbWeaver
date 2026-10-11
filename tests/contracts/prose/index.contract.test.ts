@@ -30,7 +30,7 @@ import {
   resolveProseText,
   USER_PROSE_SLOT_IDS,
 } from "@orb/contracts/prose";
-import baseline from "../../../packages/contracts/src/prose/prose-baseline.json" with { type: "json" };
+import baseline from "#contracts/prose/prose-baseline.json" with { type: "json" };
 import { expect, test } from "../../support/fixtures.ts";
 
 const FIRST_ID: ProseSlotId = "preset.format.impersonateNudge";

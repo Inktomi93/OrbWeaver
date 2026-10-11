@@ -3,7 +3,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
-import { contentHash } from "../../../../../packages/server/src/domain/embeddings/substrate/hash.ts";
+import { contentHash } from "#server/domain/embeddings/substrate/hash.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeStoreHarness, seedAsset, seedUser } from "../_support.ts";

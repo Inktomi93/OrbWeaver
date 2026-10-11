@@ -8,11 +8,8 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import {
-  createCompareAndSetImportedTokenUsage,
-  createListImportedTokenUsageCandidates,
-} from "../../../../../packages/server/src/domain/chat/persistence/token-usage-backfill.ts";
-import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
+import { createCompareAndSetImportedTokenUsage, createListImportedTokenUsageCandidates } from "#server/domain/chat/persistence/token-usage-backfill.ts";
+import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";

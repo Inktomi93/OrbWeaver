@@ -16,7 +16,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { testId } from "../../../../../../packages/client/src/lib/test-ids.ts";
+import { testId } from "#client/lib/test-ids.ts";
 import { makeCachePolicy } from "../../../../../support/factories/resolved-connection.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../../support/node/route-trpc.ts";

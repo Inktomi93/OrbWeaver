@@ -3,7 +3,7 @@
 // byte-identical whether the first turn has run or not.
 
 import { describe } from "vitest";
-import { defaultSnapshotState } from "../../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
+import { defaultSnapshotState } from "#server/domain/rpg/substrate/default-state.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("defaultSnapshotState", () => {

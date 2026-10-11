@@ -2,11 +2,11 @@
 // failure shape whether the planner refused before the call or the provider refused after it. Fixtures are the
 // recorded Anthropic bodies; an unmatched schema-shaped 400 is logged with its body, never guessed at.
 
-import { providerErrorFromHttp, withSchemaRejection } from "../../../../packages/inference/src/backends/http/error-classify.ts";
-import { isIdleTrip, turnAbortSignal } from "../../../../packages/inference/src/backends/http/idle-timeout.ts";
-import type { ProviderLogger } from "../../../../packages/inference/src/backends/http/provider-log.ts";
-import { NO_PROVIDER_SECRETS } from "../../../../packages/inference/src/backends/http/sanitize.ts";
-import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
+import { providerErrorFromHttp, withSchemaRejection } from "#inference/backends/http/error-classify.ts";
+import { isIdleTrip, turnAbortSignal } from "#inference/backends/http/idle-timeout.ts";
+import type { ProviderLogger } from "#inference/backends/http/provider-log.ts";
+import { NO_PROVIDER_SECRETS } from "#inference/backends/http/sanitize.ts";
+import { ProviderError } from "#inference/contract/errors.ts";
 import { ANTHROPIC_STATE_ROUND_400S } from "../../../server/entry/compose/_structured-state-round-recordings.ts";
 import { createManualTimer } from "../../../support/clock.ts";
 import { expect, test } from "../../../support/fixtures.ts";

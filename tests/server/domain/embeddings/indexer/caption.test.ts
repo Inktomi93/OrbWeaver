@@ -6,8 +6,8 @@
 import type { ImageBreakdown } from "@orb/contracts/embeddings";
 import { ProviderError } from "@orb/inference";
 import { beforeEach, describe } from "vitest";
-import { analyzeAvatarImage } from "../../../../../packages/server/src/domain/embeddings/indexer/caption.ts";
-import { __resetAvatarAnalysisAvailability } from "../../../../../packages/server/src/domain/embeddings/substrate/avatar-analysis-availability.ts";
+import { analyzeAvatarImage } from "#server/domain/embeddings/indexer/caption.ts";
+import { __resetAvatarAnalysisAvailability } from "#server/domain/embeddings/substrate/avatar-analysis-availability.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRoleClients, SUMMARIZER_MODEL, TEST_CAPTION } from "../_support.ts";
 

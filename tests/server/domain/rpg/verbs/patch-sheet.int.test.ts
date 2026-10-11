@@ -12,8 +12,8 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { findGameByChat } from "../../../../../packages/server/src/domain/rpg/persistence/games.ts";
-import { findSheet } from "../../../../../packages/server/src/domain/rpg/persistence/sheets.ts";
+import { findGameByChat } from "#server/domain/rpg/persistence/games.ts";
+import { findSheet } from "#server/domain/rpg/persistence/sheets.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, makeRpgService, participantUser, principal, seedChat, seedLiteGame, seedUser, test } from "../_support.ts";
 

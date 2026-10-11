@@ -7,7 +7,7 @@
 // fired on 69% of assistant turns — i.e. the pin was holding the skin OFF for its own subject. Its
 // replacement is the long-message test below, which asserts the opposite property with the same shape.
 
-import { splitIntoTrainParagraphs } from "../../../../../packages/client/src/features/chat/lib/split-paragraphs.ts";
+import { splitIntoTrainParagraphs } from "#client/features/chat/lib/split-paragraphs.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("splits on blank-line breaks, trimming each paragraph", () => {

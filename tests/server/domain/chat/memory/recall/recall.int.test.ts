@@ -5,11 +5,11 @@ import type { CharacterId, ChatId, Handle, MessageId, UserId } from "@orb/kit/id
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { generateDigests } from "../../../../../../packages/server/src/domain/chat/memory/generate/digests.ts";
-import { loadWitnessHorizons } from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
-import { recallMemory } from "../../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
-import type { MemoryLogEntry } from "../../../../../../packages/server/src/domain/chat/memory/types.ts";
-import { createTurnRetrievalWarningEpisode } from "../../../../../../packages/server/src/domain/chat/substrate/turn-retrieval-warning.ts";
+import { generateDigests } from "#server/domain/chat/memory/generate/digests.ts";
+import { loadWitnessHorizons } from "#server/domain/chat/memory/persistence/queries.ts";
+import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
+import type { MemoryLogEntry } from "#server/domain/chat/memory/types.ts";
+import { createTurnRetrievalWarningEpisode } from "#server/domain/chat/substrate/turn-retrieval-warning.ts";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../../_support.ts";

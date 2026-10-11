@@ -10,12 +10,8 @@ import { castId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import { parseChatJsonl } from "@orb/server/primitives/serde/chat";
 import { describe } from "vitest";
-import type { CollectedChat } from "../../../../../packages/server/src/domain/import/contract/views.ts";
-import {
-  buildBulkImportChatInput,
-  buildGroupChatInput,
-  disambiguateChatTitles,
-} from "../../../../../packages/server/src/domain/import/substrate/chat-input.ts";
+import type { CollectedChat } from "#server/domain/import/contract/views.ts";
+import { buildBulkImportChatInput, buildGroupChatInput, disambiguateChatTitles } from "#server/domain/import/substrate/chat-input.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;

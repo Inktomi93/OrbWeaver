@@ -26,12 +26,9 @@ import {
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { themeOverrideSchema } from "@orb/contracts/theme";
 import { describe } from "vitest";
-import type { CharacterThemeFormValues } from "../../../../packages/client/src/features/character/lib/character-theme-form-model.ts";
-import {
-  characterThemeFormFromOverride,
-  overrideFromCharacterThemeForm,
-} from "../../../../packages/client/src/features/character/lib/character-theme-form-model.ts";
-import { projectMessageHandlingForm, toMessageHandlingPatch } from "../../../../packages/client/src/features/chat/lib/chat-behavior-message-handling-model.ts";
+import type { CharacterThemeFormValues } from "#client/features/character/lib/character-theme-form-model.ts";
+import { characterThemeFormFromOverride, overrideFromCharacterThemeForm } from "#client/features/character/lib/character-theme-form-model.ts";
+import { projectMessageHandlingForm, toMessageHandlingPatch } from "#client/features/chat/lib/chat-behavior-message-handling-model.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 // The SERVER SHAPE for a `userSettings` section: the section patch is deep-merged into the settings blob

@@ -10,8 +10,8 @@
 import type { Can, ParticipantRole } from "@orb/contracts/identity";
 import { castId } from "@orb/kit/ids";
 import { z } from "zod";
-import type { PluginToolSpec } from "../../../../../packages/server/src/domain/tool-use/index.ts";
-import { createToolUseService } from "../../../../../packages/server/src/domain/tool-use/index.ts";
+import type { PluginToolSpec } from "#server/domain/tool-use/index.ts";
+import { createToolUseService } from "#server/domain/tool-use/index.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

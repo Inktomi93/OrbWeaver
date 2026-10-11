@@ -29,18 +29,12 @@ import { createAutomationService } from "@orb/server/domain/automation";
 import { createWorldInfoService } from "@orb/server/domain/world-info";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { eq } from "drizzle-orm";
-import { EMPTY_ANALYSIS_STATE } from "../../../../../packages/server/src/domain/automation/contract/analysis.ts";
-import type {
-  ArmDispatch,
-  AutomationOps,
-  AutomationTurnRequest,
-  PendingSuggestion,
-  SuggestionStore,
-} from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
-import { buildAnalysisSystemPrompt, buildAnalysisUserPrompt } from "../../../../../packages/server/src/domain/automation/engine/analysis-arm.ts";
-import { createArmExecutors } from "../../../../../packages/server/src/domain/automation/engine/arm-executors.ts";
-import { advanceSettledWatermark, selectRuleState, upsertRuleState } from "../../../../../packages/server/src/domain/automation/persistence/rule-state.ts";
-import { createSuggestionStore } from "../../../../../packages/server/src/domain/automation/substrate/suggestions.ts";
+import { EMPTY_ANALYSIS_STATE } from "#server/domain/automation/contract/analysis.ts";
+import type { ArmDispatch, AutomationOps, AutomationTurnRequest, PendingSuggestion, SuggestionStore } from "#server/domain/automation/contract/ops.ts";
+import { buildAnalysisSystemPrompt, buildAnalysisUserPrompt } from "#server/domain/automation/engine/analysis-arm.ts";
+import { createArmExecutors } from "#server/domain/automation/engine/arm-executors.ts";
+import { advanceSettledWatermark, selectRuleState, upsertRuleState } from "#server/domain/automation/persistence/rule-state.ts";
+import { createSuggestionStore } from "#server/domain/automation/substrate/suggestions.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedMessage, seedParticipant } from "../../chat/_support.ts";

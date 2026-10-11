@@ -9,9 +9,9 @@ import {
   honoursParallelControl,
   isTurnEstimated,
 } from "@orb/contracts/inference";
-import { embeddingPrompt } from "../../../../../packages/inference/src/backends/wire/embedding-input.ts";
-import { curatedKind, curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
-import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
+import { embeddingPrompt } from "#inference/backends/wire/embedding-input.ts";
+import { curatedKind, curatedRows } from "#inference/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testProviderId } from "../../../../support/inference-identities.ts";
 import { fakeResolved } from "../../../_support.ts";

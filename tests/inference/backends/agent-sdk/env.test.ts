@@ -4,8 +4,8 @@
 // never leak into the child, host env is allowlisted (no `PATH`-adjacent secrets ride), and a preset's
 // escape hatch can never touch a reserved key.
 
-import { buildClaudeSdkEnv, CLAUDE_OAUTH_TOKEN_ENV, RESERVED_CLAUDE_ENV_KEYS } from "../../../../packages/inference/src/backends/agent-sdk/env.ts";
-import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
+import { buildClaudeSdkEnv, CLAUDE_OAUTH_TOKEN_ENV, RESERVED_CLAUDE_ENV_KEYS } from "#inference/backends/agent-sdk/env.ts";
+import { ProviderError } from "#inference/contract/errors.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const HOST = { PATH: "/usr/bin", HOME: "/home/box", ANTHROPIC_API_KEY: "sk-host-leak", AWS_SECRET_ACCESS_KEY: "aws-leak", CLAUDE_CONFIG_DIR: "/root/.claude" };

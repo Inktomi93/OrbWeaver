@@ -55,10 +55,10 @@ import type {
 import { castId } from "@orb/kit/ids";
 import { consolidationHash, createResolveViewerVisibility } from "@orb/server/domain/chat";
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { resolveActiveDocumentIds } from "../../../../packages/server/src/domain/databank/persistence/scope.ts";
-import type { SearchContext, SearchService } from "../../../../packages/server/src/domain/search/index.ts";
-import { createSearchService } from "../../../../packages/server/src/domain/search/index.ts";
-import { generationIdOf, vectorSpaceFingerprint } from "../../../../packages/server/src/primitives/embedding-generation/index.ts";
+import { resolveActiveDocumentIds } from "#server/domain/databank/persistence/scope.ts";
+import type { SearchContext, SearchService } from "#server/domain/search/index.ts";
+import { createSearchService } from "#server/domain/search/index.ts";
+import { generationIdOf, vectorSpaceFingerprint } from "#server/primitives/embedding-generation/index.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";

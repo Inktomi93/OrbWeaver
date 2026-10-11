@@ -6,7 +6,7 @@
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { handoffProvenance } from "../../../../../packages/server/src/domain/character/contract/handoff-copy.ts";
+import { handoffProvenance } from "#server/domain/character/contract/handoff-copy.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("handoffProvenance", () => {

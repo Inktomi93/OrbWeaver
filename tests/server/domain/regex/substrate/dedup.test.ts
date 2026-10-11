@@ -12,7 +12,7 @@ import { regexScriptBehaviorSchema, regexScriptCardSchema, regexScriptSchema } f
 import type { RegexScriptId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { dedupKey, findDuplicate, planCardLift, rowKey, splitScript } from "../../../../../packages/server/src/domain/regex/substrate/dedup.ts";
+import { dedupKey, findDuplicate, planCardLift, rowKey, splitScript } from "#server/domain/regex/substrate/dedup.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const body = (over: Record<string, unknown> = {}): ReturnType<typeof regexScriptBehaviorSchema.parse> =>

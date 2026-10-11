@@ -11,7 +11,7 @@ import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId } from "@
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
+import { CHAT_OP_CODES, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import {
   appendVariantStatements,
   buildCommittedMessageView,
@@ -22,9 +22,9 @@ import {
   MAX_CANON_APPEND_ATTEMPTS,
   selectActiveVariantStatement,
   setVariantContentStatement,
-} from "../../../../../packages/server/src/domain/chat/persistence/canon-write.ts";
-import { loadCanonHistory, loadMaxMessageSeq, loadSlotTarget } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
-import { continuedSignatureMetadata } from "../../../../../packages/server/src/domain/chat/substrate/content-signatures.ts";
+} from "#server/domain/chat/persistence/canon-write.ts";
+import { loadCanonHistory, loadMaxMessageSeq, loadSlotTarget } from "#server/domain/chat/persistence/queries.ts";
+import { continuedSignatureMetadata } from "#server/domain/chat/substrate/content-signatures.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

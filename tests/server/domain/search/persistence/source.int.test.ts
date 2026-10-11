@@ -1,7 +1,7 @@
 import { chatSegments } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { readSourceSpan } from "../../../../../packages/server/src/domain/search/persistence/source.ts";
+import { readSourceSpan } from "#server/domain/search/persistence/source.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedMessage } from "../../chat/_support.ts";

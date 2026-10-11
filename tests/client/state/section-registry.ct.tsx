@@ -6,8 +6,8 @@
 // selection, or reads a query without a provider would blank the topbar of exactly one section.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { CORPUS_MODE_LABELS, CORPUS_MODES } from "../../../packages/client/src/lib/corpus-modes.ts";
-import { SECTION_IDS } from "../../../packages/client/src/state/section-ids.ts";
+import { CORPUS_MODE_LABELS, CORPUS_MODES } from "#client/lib/corpus-modes.ts";
+import { SECTION_IDS } from "#client/state/section-ids.ts";
 import { SectionTitleTotalityProbe } from "./_ct-stories.tsx";
 
 test("every real section resolves a cold title, and Corpus names its active mode", async ({ mount }) => {

@@ -5,12 +5,7 @@
 // deliberately NOT parsed (OR sent no rate-limit header on a 200, `gen-1789884256-ZeulFgkGknjAbAgCKe1S`) — the
 // negative pin below is what keeps "unobserved" from silently becoming "guessed".
 
-import {
-  parseGoDuration,
-  RATE_LIMIT_WARN_UTILIZATION,
-  rateLimitCanaryEvent,
-  rateLimitFromHeaders,
-} from "../../../../packages/inference/src/backends/http/rate-limit-headers.ts";
+import { parseGoDuration, RATE_LIMIT_WARN_UTILIZATION, rateLimitCanaryEvent, rateLimitFromHeaders } from "#inference/backends/http/rate-limit-headers.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const NOW = 1_789_884_000_000;

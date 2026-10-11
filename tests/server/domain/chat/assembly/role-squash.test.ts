@@ -3,7 +3,7 @@
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { squashSameRole } from "../../../../../packages/server/src/domain/chat/assembly/role-squash.ts";
+import { squashSameRole } from "#server/domain/chat/assembly/role-squash.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("squashSameRole", () => {

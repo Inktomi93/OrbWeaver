@@ -4,7 +4,7 @@
 
 import { estimateTokens } from "@orb/kit/tokens";
 import { describe } from "vitest";
-import { recordedTokenCountFromMetadata, resolveImportedTokenUsage } from "../../../../../packages/server/src/domain/import/substrate/token-usage.ts";
+import { recordedTokenCountFromMetadata, resolveImportedTokenUsage } from "#server/domain/import/substrate/token-usage.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("recordedTokenCountFromMetadata", () => {

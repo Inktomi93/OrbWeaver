@@ -17,13 +17,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { StrictMode, use, useEffect, useState } from "react";
-import { RegionAnchor } from "../../../packages/client/src/features/app-shell/anchors/region-anchor.tsx";
+import { RegionAnchor } from "#client/features/app-shell/anchors/region-anchor.tsx";
 // Deep, not `@orb/client/lib`: production readiness stays out of the barrel.
-import type { RouteResolution } from "../../../packages/client/src/lib/app-ready-signal.ts";
-import { installAppReadySignal } from "../../../packages/client/src/lib/app-ready-signal.ts";
-import { AppRoot } from "../../../packages/client/src/routes/app-root.tsx";
-import { RoutePending } from "../../../packages/client/src/routes/route-pending.tsx";
-import { bindRouteCrashReporter, router } from "../../../packages/client/src/routes/router.tsx";
+import type { RouteResolution } from "#client/lib/app-ready-signal.ts";
+import { installAppReadySignal } from "#client/lib/app-ready-signal.ts";
+import { AppRoot } from "#client/routes/app-root.tsx";
+import { RoutePending } from "#client/routes/route-pending.tsx";
+import { bindRouteCrashReporter, router } from "#client/routes/router.tsx";
 import { CtDataProviders, CtRealSectionRegistry } from "../../support/browser/ct-data-providers.tsx";
 
 /** The PRODUCTION router singleton (real route tree, guards, pending component and view transitions) under the

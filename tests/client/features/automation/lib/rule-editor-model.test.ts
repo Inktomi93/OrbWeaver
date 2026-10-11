@@ -1,13 +1,7 @@
 import { AUTOMATION_ACTION_TYPES, automationActionSchema, automationRuleEditableSchema } from "@orb/contracts/automation";
-import { ruleEditorCommitSchema, ruleEditorDraftSchema } from "../../../../../packages/client/src/features/automation/lib/contract/rule-editor.ts";
-import {
-  emptyRuleEditor,
-  keepRowIdentities,
-  newRuleAction,
-  ruleEditable,
-  ruleEditorValues,
-} from "../../../../../packages/client/src/features/automation/lib/rule-editor-model.ts";
-import { ruleToolArgumentGuidance } from "../../../../../packages/client/src/features/automation/lib/rule-tool-arguments.ts";
+import { ruleEditorCommitSchema, ruleEditorDraftSchema } from "#client/features/automation/lib/contract/rule-editor.ts";
+import { emptyRuleEditor, keepRowIdentities, newRuleAction, ruleEditable, ruleEditorValues } from "#client/features/automation/lib/rule-editor-model.ts";
+import { ruleToolArgumentGuidance } from "#client/features/automation/lib/rule-tool-arguments.ts";
 import { ruleActionExamples } from "../../../../support/factories/automation-rule-actions.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

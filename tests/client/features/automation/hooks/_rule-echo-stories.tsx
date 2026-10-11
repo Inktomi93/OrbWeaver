@@ -6,9 +6,9 @@ import type { QueryClient } from "@tanstack/react-query";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { useRuleAutosave } from "../../../../../packages/client/src/features/automation/hooks/use-rule-autosave.ts";
-import { ruleEditorValues } from "../../../../../packages/client/src/features/automation/lib/rule-editor-model.ts";
-import { editableRule } from "../../../../../packages/client/src/features/automation/lib/rule-save-session.ts";
+import { useRuleAutosave } from "#client/features/automation/hooks/use-rule-autosave.ts";
+import { ruleEditorValues } from "#client/features/automation/lib/rule-editor-model.ts";
+import { editableRule } from "#client/features/automation/lib/rule-save-session.ts";
 import { CtDataProviders } from "../../../../support/browser/ct-data-providers.tsx";
 
 interface RuleEchoProps {

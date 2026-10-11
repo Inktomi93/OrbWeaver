@@ -41,7 +41,8 @@ function isRelative(spec: string): boolean {
   return spec === "." || spec === ".." || spec.startsWith("./") || spec.startsWith("../");
 }
 
-function isModulePosition(node: ts.StringLiteralLike): boolean {
+/** True when the literal sits where a module specifier is read: an import, export, `import()`, require, mock or `new URL(…, import.meta.url)`. */
+export function isModulePosition(node: ts.StringLiteralLike): boolean {
   const parent = node.parent;
   if (ts.isImportDeclaration(parent) || ts.isExportDeclaration(parent) || ts.isExternalModuleReference(parent)) {
     return true;

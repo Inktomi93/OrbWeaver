@@ -21,7 +21,7 @@ import {
   setLastError,
   setStatus,
   toPluginView,
-} from "../../../../../packages/server/src/domain/plugin/persistence/plugins.ts";
+} from "#server/domain/plugin/persistence/plugins.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";

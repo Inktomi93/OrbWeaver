@@ -1,10 +1,5 @@
 import { afterEach, beforeEach } from "vitest";
-import {
-  __resetAppearanceBootHint,
-  readAppearanceBootHint,
-  rememberAppearanceBootHint,
-  rememberDataThemeHint,
-} from "../../../packages/client/src/state/appearance-boot-hint.ts";
+import { __resetAppearanceBootHint, readAppearanceBootHint, rememberAppearanceBootHint, rememberDataThemeHint } from "#client/state/appearance-boot-hint.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 beforeEach(__resetAppearanceBootHint);

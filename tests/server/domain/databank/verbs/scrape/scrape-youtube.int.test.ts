@@ -12,7 +12,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createExtractText, EXTRACTOR_VERSION } from "@orb/server/infra/extraction";
 import { eq } from "drizzle-orm";
-import { ScrapeFailedError } from "../../../../../../packages/server/src/domain/databank/contract/errors.ts";
+import { ScrapeFailedError } from "#server/domain/databank/contract/errors.ts";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeDatabankHarness, principalFor, seedUser } from "../../_support.ts";

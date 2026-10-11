@@ -1,5 +1,5 @@
-import { resolvedScrubSet } from "../../../packages/inference/src/backends/http/sanitize.ts";
-import { fetchGoogleModels, listGoogleModels } from "../../../packages/inference/src/catalog/google.ts";
+import { resolvedScrubSet } from "#inference/backends/http/sanitize.ts";
+import { fetchGoogleModels, listGoogleModels } from "#inference/catalog/google.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const KEY = "native-catalog-test-key";

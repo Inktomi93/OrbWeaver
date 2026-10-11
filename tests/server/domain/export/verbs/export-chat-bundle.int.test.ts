@@ -50,12 +50,9 @@ import type { PortableChat } from "@orb/server/primitives/serde/chat-bundle";
 import { parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import {
-  appendGenerationObservation,
-  createGenerationObservationSession,
-} from "../../../../../packages/server/src/domain/chat/persistence/generation-observation.ts";
-import { createExportChatBundle } from "../../../../../packages/server/src/domain/export/verbs/export-chat-bundle.ts";
-import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/index.ts";
+import { appendGenerationObservation, createGenerationObservationSession } from "#server/domain/chat/persistence/generation-observation.ts";
+import { createExportChatBundle } from "#server/domain/export/verbs/export-chat-bundle.ts";
+import { applyStatsDelta } from "#server/domain/stats/index.ts";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

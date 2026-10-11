@@ -11,7 +11,7 @@ import {
   DEFAULT_CHARACTER_CARD_FORM,
   permanentTokenCount,
   totalTokenCount,
-} from "../../../../../packages/client/src/features/character/lib/character-card-form-model.ts";
+} from "#client/features/character/lib/character-card-form-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeCharacterDetail } from "../fixtures.ts";
 

@@ -22,10 +22,10 @@ import type { CharacterId, ChatEventId, ChatId, Handle, PersonaId, RpgGameId, Us
 import { castId } from "@orb/kit/ids";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { insertChatEventStatement } from "../../../../../packages/server/src/domain/chat/persistence/events.ts";
-import { listMemberChats } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
-import { createStartChat } from "../../../../../packages/server/src/domain/chat/verbs/start-chat.ts";
-import { publishChatEvent, subscribeAllChatEvents } from "../../../../../packages/server/src/transport/trpc/chat-events-bus.ts";
+import { insertChatEventStatement } from "#server/domain/chat/persistence/events.ts";
+import { listMemberChats } from "#server/domain/chat/persistence/queries.ts";
+import { createStartChat } from "#server/domain/chat/verbs/start-chat.ts";
+import { publishChatEvent, subscribeAllChatEvents } from "#server/transport/trpc/chat-events-bus.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

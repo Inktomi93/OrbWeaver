@@ -14,9 +14,9 @@ import { castId } from "@orb/kit/ids";
 import type { SecretBox } from "@orb/server/infra/crypto";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { describe, vi } from "vitest";
-import type { CredentialContext } from "../../../../../packages/server/src/domain/credentials/context.ts";
-import { CREDENTIALS_OP_CODES } from "../../../../../packages/server/src/domain/credentials/contract/errors.ts";
-import { createStorageStatus } from "../../../../../packages/server/src/domain/credentials/verbs/storage-status.ts";
+import type { CredentialContext } from "#server/domain/credentials/context.ts";
+import { CREDENTIALS_OP_CODES } from "#server/domain/credentials/contract/errors.ts";
+import { createStorageStatus } from "#server/domain/credentials/verbs/storage-status.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -59,7 +59,7 @@ describe("credentials/storageStatus", () => {
     // have saved fine, or collects a key on one that cannot. `add`'s guard is the same `ctx.box.enabled`.
     const ctx = ctxWithBox(false);
     expect(await createStorageStatus(ctx)()).toEqual({ enabled: false });
-    const { createAdd } = await import("../../../../../packages/server/src/domain/credentials/verbs/add.ts");
+    const { createAdd } = await import("#server/domain/credentials/verbs/add.ts");
     const attempt = (): Promise<unknown> => createAdd(ctx)({ principal: makePrincipal(castId<UserId>("user_probe")), provider: "openrouter", key: "sk-probe" });
     await expect(attempt()).rejects.toBeInstanceOf(DomainOperationError);
     await expect(attempt()).rejects.toMatchObject({ code: CREDENTIALS_OP_CODES.disabled });

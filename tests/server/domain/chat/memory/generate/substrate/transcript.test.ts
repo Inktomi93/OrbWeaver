@@ -3,14 +3,8 @@ import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { describe } from "vitest";
-import {
-  blockHash,
-  blockSpeakerIds,
-  renderTranscript,
-  sliceBlocks,
-  speakerLabel,
-} from "../../../../../../../packages/server/src/domain/chat/memory/generate/substrate/transcript.ts";
-import type { MsgRow } from "../../../../../../../packages/server/src/domain/chat/memory/types.ts";
+import { blockHash, blockSpeakerIds, renderTranscript, sliceBlocks, speakerLabel } from "#server/domain/chat/memory/generate/substrate/transcript.ts";
+import type { MsgRow } from "#server/domain/chat/memory/types.ts";
 import { expect, test } from "../../../../../../support/fixtures.ts";
 
 const aria = castId<CharacterId>("character_aria");

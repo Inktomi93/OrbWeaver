@@ -3,7 +3,7 @@
 // would be a second place the dialect laws have to be obeyed.
 
 import { RULE_PRESET_IDS } from "@orb/contracts/automation";
-import { createListRulePresets } from "../../../../../packages/server/src/domain/automation/verbs/list-rule-presets.ts";
+import { createListRulePresets } from "#server/domain/automation/verbs/list-rule-presets.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const listRulePresets = createListRulePresets();

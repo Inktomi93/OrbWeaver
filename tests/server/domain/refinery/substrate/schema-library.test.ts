@@ -4,7 +4,7 @@
 // (queries.ts), this file's job is just to produce the right typed refusal.
 
 import { describe } from "vitest";
-import { SCHEMA_NAME_TAKEN_REASON, schemaNameTakenError } from "../../../../../packages/server/src/domain/refinery/substrate/schema-library.ts";
+import { SCHEMA_NAME_TAKEN_REASON, schemaNameTakenError } from "#server/domain/refinery/substrate/schema-library.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("schemaNameTakenError", () => {

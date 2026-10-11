@@ -7,6 +7,7 @@
 //   pnpm codemod migrate-macro-blocks [--dry-run] <file...>   # the §12A seed migration (idempotent)
 //   pnpm codemod relocate <plan.json> [--apply]                # move files by plan; re-spell every citation
 //   pnpm codemod deep-imports [--apply]                        # ../../ in packages -> #src/<path> or the module's front door
+//   pnpm codemod test-subpaths [--apply]                       # tests/ -> #<package>/<path> through the root imports map
 //
 // Output overflow: long outputs spill to /tmp with the path banner at head AND tail
 // (`--max-output-lines=N`, parsed here / NEO_CODEMOD_MAX_LINES). Exit: 0 clean · EXIT.misuse on a bad
@@ -14,7 +15,7 @@
 import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { runTool, UsageError } from "../floor/cli/run-tool.ts";
-import { deepImportsOp, migrateMacroBlocksOp, printHelp, printList, printRecipe, printRecipes, relocateOp, searchHelpers } from "./index.ts";
+import { deepImportsOp, migrateMacroBlocksOp, printHelp, printList, printRecipe, printRecipes, relocateOp, searchHelpers, testSubpathsOp } from "./index.ts";
 
 /** The ONE flag this tier owns (the kit's output-spill knob). */
 const MAX_LINES_FLAG = "--max-output-lines=";
@@ -45,6 +46,14 @@ function refuseUnknownFlags(tail: readonly string[], sub: string): void {
   }
 }
 
+/** The verbs with their own flag grammar: each owns its tail verbatim. */
+const OWN_GRAMMAR_OPS: Readonly<Record<string, (argv: readonly string[]) => void>> = {
+  "migrate-macro-blocks": migrateMacroBlocksOp,
+  relocate: relocateOp,
+  "deep-imports": deepImportsOp,
+  "test-subpaths": testSubpathsOp,
+};
+
 function main(): number {
   const args = process.argv.slice(2);
   const maxOutputLines = parseMaxOutputLines(args);
@@ -54,17 +63,9 @@ function main(): number {
   const tail = sub === first ? rest.slice(1) : [];
   const arg = tail[0];
 
-  // The one verb with its own flag grammar — it owns its tail verbatim.
-  if (sub === "migrate-macro-blocks") {
-    migrateMacroBlocksOp(tail);
-    return EXIT.clean;
-  }
-  if (sub === "relocate") {
-    relocateOp(tail);
-    return EXIT.clean;
-  }
-  if (sub === "deep-imports") {
-    deepImportsOp(tail);
+  const ownGrammar = OWN_GRAMMAR_OPS[sub];
+  if (ownGrammar !== undefined) {
+    ownGrammar(tail);
     return EXIT.clean;
   }
   refuseUnknownFlags(tail, sub);

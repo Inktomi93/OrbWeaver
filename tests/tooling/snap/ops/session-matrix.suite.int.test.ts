@@ -26,7 +26,7 @@ import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
 import { listProcesses } from "@orb/tooling/floor/host/platform";
 import { vi } from "vitest";
-import { appearanceMatrixContract } from "../../../../packages/client/src/lib/appearance-carrier-manifest.ts";
+import { appearanceMatrixContract } from "#client/lib/appearance-carrier-manifest.ts";
 import { readSessionRow } from "../../../../tooling/src/snap/lib/session-wire.ts";
 import type { CliResult } from "../../../support/tool-fixtures.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";

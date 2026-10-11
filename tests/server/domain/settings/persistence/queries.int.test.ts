@@ -17,7 +17,7 @@ import type { AssetId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { APP_SETTINGS_KEY } from "../../../../../packages/server/src/domain/settings/contract/keys.ts";
+import { APP_SETTINGS_KEY } from "#server/domain/settings/contract/keys.ts";
 import {
   ensureUserSettings,
   readAppOverrideRaw,
@@ -26,7 +26,7 @@ import {
   upsertGlobalSetting,
   writeAppOverride,
   writeUserConfig,
-} from "../../../../../packages/server/src/domain/settings/persistence/queries.ts";
+} from "#server/domain/settings/persistence/queries.ts";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";

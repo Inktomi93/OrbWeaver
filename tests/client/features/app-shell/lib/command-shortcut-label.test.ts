@@ -1,7 +1,7 @@
 // Unit: the command palette's shortcut hint names the key the person actually has. The accelerator itself
 // accepts either modifier (use-command-shortcut.ts); only the printed glyph depends on the platform.
 
-import { commandShortcutLabel } from "../../../../../packages/client/src/features/app-shell/lib/command-shortcut-label.ts";
+import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const MAC_CHROME = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36";

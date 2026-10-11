@@ -10,8 +10,8 @@ import { installSafeErrorRing } from "@orb/client/lib";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import { useLayoutEffect, useState } from "react";
-import { BugReportButton } from "../../../../../packages/client/src/features/app-shell/components/bug-report-button.tsx";
-import { CustomThemeStyle } from "../../../../../packages/client/src/features/app-shell/components/custom-theme-style.tsx";
+import { BugReportButton } from "#client/features/app-shell/components/bug-report-button.tsx";
+import { CustomThemeStyle } from "#client/features/app-shell/components/custom-theme-style.tsx";
 
 installSafeErrorRing();
 

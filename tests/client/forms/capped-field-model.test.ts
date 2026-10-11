@@ -4,7 +4,7 @@
 // what decides whether a footer renders an empty row.
 
 import { describe } from "vitest";
-import { CAPPED_FIELD_MAX_ROWS, DEFAULT_COUNTER_AT, showsCappedFieldCounter } from "../../../packages/client/src/forms/capped-field-model.ts";
+import { CAPPED_FIELD_MAX_ROWS, DEFAULT_COUNTER_AT, showsCappedFieldCounter } from "#client/forms/capped-field-model.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const MAX = 4000;

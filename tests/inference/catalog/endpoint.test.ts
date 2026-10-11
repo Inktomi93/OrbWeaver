@@ -1,7 +1,7 @@
 import type { ModelInfoApi } from "@orb/contracts/inference";
-import { NO_PROVIDER_SECRETS } from "../../../packages/inference/src/backends/http/sanitize.ts";
-import { fetchEndpointModels, probeListedModel } from "../../../packages/inference/src/catalog/endpoint.ts";
-import type { EndpointModel } from "../../../packages/inference/src/contract/runtime.ts";
+import { NO_PROVIDER_SECRETS } from "#inference/backends/http/sanitize.ts";
+import { fetchEndpointModels, probeListedModel } from "#inference/catalog/endpoint.ts";
+import type { EndpointModel } from "#inference/contract/runtime.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import type { LocalServerArm, TranscriptArm } from "./_local-servers-fetch.ts";
 import { localServerFetch, transcriptFetch } from "./_local-servers-fetch.ts";

@@ -14,7 +14,7 @@ import {
   putAdminProviderRow,
   releasePluginProviderClaims,
   replacePluginProviderRows,
-} from "../../../../../packages/server/src/domain/connection/persistence/provider-rows.ts";
+} from "#server/domain/connection/persistence/provider-rows.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

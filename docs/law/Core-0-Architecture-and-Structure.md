@@ -195,6 +195,10 @@ Why central+mirror over colocation: an agent can drop a colocated test anywhere;
 path-gate means a test **must** land at the computed path or `check` goes red, and the src tree stays
 clean. The fixture doctrine is composed `test.extend` (over `beforeEach`/`freshDb()`).
 
+A test imports a package's source through the root `#<package>/*` imports map
+(`#server/domain/chat/verbs/send.ts`), never a relative climb into `packages/` (`tests-package-subpath`). The map
+lives in the root `package.json`, so product code cannot resolve it and every package keeps its root-only exports.
+
 > **Authority: `Spine-Testing.md`.** This section is the mirror rule + `test-layout` gate only. The full
 > policy — the tree (§2 there), the lanes/projects, `test-presence`, the mock/determinism doctrine, the
 > factory contract, and the homes for the oracle + the esoterica + memory's 6 semantics — lives there.

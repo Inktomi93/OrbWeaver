@@ -17,11 +17,7 @@ import type { AppearanceSettings } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import {
-  appearanceBackgroundSource,
-  resolveChatBackgroundSource,
-  resolveThemeBackgroundUrl,
-} from "../../../../../packages/client/src/features/app-shell/lib/resolve-theme-background.ts";
+import { appearanceBackgroundSource, resolveChatBackgroundSource, resolveThemeBackgroundUrl } from "#client/features/app-shell/lib/resolve-theme-background.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeParticipant } from "../../chat/lib/_support.ts";
 

@@ -2,7 +2,7 @@ import type { BulkImportChatInput, ImportedChatIdentity } from "@orb/contracts/c
 import { generationUsageLegSchema } from "@orb/contracts/inference";
 import type { ChatId, ChatTurnId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import { importedObservationRows } from "../../../../../packages/server/src/domain/chat/substrate/import-observations.ts";
+import { importedObservationRows } from "#server/domain/chat/substrate/import-observations.ts";
 import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

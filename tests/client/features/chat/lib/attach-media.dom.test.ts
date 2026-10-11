@@ -11,7 +11,7 @@ import {
   isAttachableMedia,
   triageAttachFiles,
   unsupportedAttachMessage,
-} from "../../../../../packages/client/src/features/chat/lib/attach-media.ts";
+} from "#client/features/chat/lib/attach-media.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const KIB = 1024;

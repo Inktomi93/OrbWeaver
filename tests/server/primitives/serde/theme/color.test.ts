@@ -5,7 +5,7 @@
 // PUBLISHED reference values (a transposed matrix coefficient produces plausible-looking wrong colours).
 
 import { describe } from "vitest";
-import { compositeOver, oklchLiteral, opaque, parseSrgb, toOklch } from "../../../../../packages/server/src/primitives/serde/theme/color.ts";
+import { compositeOver, oklchLiteral, opaque, parseSrgb, toOklch } from "#server/primitives/serde/theme/color.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The literal for a colour string, or null when it does not parse — the whole pipeline in one call. */

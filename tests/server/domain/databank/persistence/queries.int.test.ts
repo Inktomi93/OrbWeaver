@@ -6,7 +6,7 @@ import { documents } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { findByImportHash, loadAttachments, loadMetaByIds } from "../../../../../packages/server/src/domain/databank/persistence/queries.ts";
+import { findByImportHash, loadAttachments, loadMetaByIds } from "#server/domain/databank/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeDatabankHarness, principalFor, seedChat, seedUser } from "../_support.ts";

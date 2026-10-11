@@ -14,7 +14,7 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, ne } from "drizzle-orm";
 import { describe } from "vitest";
-import { commitAuditedWrite } from "../../../../../packages/server/src/domain/admin/substrate/audited-write.ts";
+import { commitAuditedWrite } from "#server/domain/admin/substrate/audited-write.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { auditActions, liveSessionIds, makeHarness, seedLiveSession, seedUser, withBrokenAudit } from "../_support.ts";

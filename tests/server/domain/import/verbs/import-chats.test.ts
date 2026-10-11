@@ -7,8 +7,8 @@ import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { parseChatJsonl } from "@orb/server/primitives/serde/chat";
 import { describe } from "vitest";
-import type { CollectedChat } from "../../../../../packages/server/src/domain/import/contract/views.ts";
-import { createImportChats } from "../../../../../packages/server/src/domain/import/verbs/import-chats.ts";
+import type { CollectedChat } from "#server/domain/import/contract/views.ts";
+import { createImportChats } from "#server/domain/import/verbs/import-chats.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeProfileHarness } from "../_support.ts";
 

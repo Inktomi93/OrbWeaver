@@ -1,4 +1,4 @@
-import { createAdmission } from "../../../../packages/server/src/infra/plugin-host/admission.ts";
+import { createAdmission } from "#server/infra/plugin-host/admission.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 test("admission refuses above its ceiling and an idempotent release returns exactly one slot", () => {

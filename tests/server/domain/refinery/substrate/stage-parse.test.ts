@@ -3,7 +3,7 @@
 // CONTROL (a clean payload strips nothing — a diff that cannot return empty would flag every run).
 
 import { z } from "zod";
-import { buildStageParse, diffKeyPaths } from "../../../../../packages/server/src/domain/refinery/substrate/stage-parse.ts";
+import { buildStageParse, diffKeyPaths } from "#server/domain/refinery/substrate/stage-parse.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const SCHEMA = z.object({

@@ -13,7 +13,7 @@ import { createAssetsService, createExportGallery, createImportGallery } from "@
 import { buildGallery } from "@orb/server/primitives/serde/gallery";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
-import type { AssetsContext } from "../../../../../packages/server/src/domain/assets/context.ts";
+import type { AssetsContext } from "#server/domain/assets/context.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, pngBytes, principal, seedCharacter, seedUser } from "../_support.ts";

@@ -3,7 +3,7 @@ import type { BlockKey } from "@orb/contracts/search";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { blockKeyStr, collapseByContentHash, collapseSegmentChunks } from "../../../../../packages/server/src/domain/search/substrate/dedupe.ts";
+import { blockKeyStr, collapseByContentHash, collapseSegmentChunks } from "#server/domain/search/substrate/dedupe.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_a");

@@ -6,7 +6,7 @@ import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { createGetMembership } from "../../../../../packages/server/src/domain/chat/verbs/get-membership.ts";
+import { createGetMembership } from "#server/domain/chat/verbs/get-membership.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedChat, seedParticipant, seedUser } from "../_support.ts";

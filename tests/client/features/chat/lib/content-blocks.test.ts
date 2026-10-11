@@ -3,7 +3,7 @@
 
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
-import { toContentBlocks } from "../../../../../packages/client/src/features/chat/lib/content-blocks.ts";
+import { toContentBlocks } from "#client/features/chat/lib/content-blocks.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("plain text projects to a single markdown block", () => {

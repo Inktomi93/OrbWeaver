@@ -25,12 +25,12 @@ import { CONNECTION_OP_CODES, EMBEDDING_FLOOR, effectivePromptCache, modelIdSche
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // Pure `.ts`, safe in a node-side CT spec.
-import { REINDEX_CONFIRM_COPY } from "../../../../../packages/client/src/lib/embedder-rebuild.ts";
-import { cachePolicyContextOf, responseReplaySupportedFor } from "../../../../../packages/inference/src/backends/http/response-cache.ts";
-import { detectModelFamily } from "../../../../../packages/inference/src/capability/families.ts";
-import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
-import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
-import { resolveCachePolicy } from "../../../../../packages/inference/src/funnel/resolve-cache.ts";
+import { REINDEX_CONFIRM_COPY } from "#client/lib/embedder-rebuild.ts";
+import { cachePolicyContextOf, responseReplaySupportedFor } from "#inference/backends/http/response-cache.ts";
+import { detectModelFamily } from "#inference/capability/families.ts";
+import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "#inference/capability/synthesize.ts";
+import { resolveCachePolicy } from "#inference/funnel/resolve-cache.ts";
 import { expectCacheProse } from "../../../../support/browser/cache-prose.ts";
 import { expectDisclosureReady } from "../../../../support/browser/disclosure-ready.ts";
 import { makeCachePolicy, makeResolved, makeResolvedCacheView } from "../../../../support/factories/resolved-connection.ts";

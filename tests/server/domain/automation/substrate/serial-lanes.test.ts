@@ -5,7 +5,7 @@
 // key ever seen — an unbounded Map keyed by chatId is a memory leak on a long-lived server).
 
 import { describe } from "vitest";
-import { activeLaneCount, runInLane } from "../../../../../packages/server/src/domain/automation/substrate/serial-lanes.ts";
+import { activeLaneCount, runInLane } from "#server/domain/automation/substrate/serial-lanes.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A promise a test resolves by hand — the only way to hold a job open across an assertion. */

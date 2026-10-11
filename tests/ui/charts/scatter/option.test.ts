@@ -7,8 +7,8 @@
 // DTCG ramp to live values via `useChartTheme` and passes them in, because ECharts' canvas can't resolve
 // `var()`. This pins the pass-through + palette-by-index contract with a fixture palette.
 
-import type { ChartColors } from "../../../../packages/ui/src/charts/chart/use-chart-theme.ts";
-import { buildScatterOption, pointId } from "../../../../packages/ui/src/charts/scatter/option.ts";
+import type { ChartColors } from "#ui/charts/chart/use-chart-theme.ts";
+import { buildScatterOption, pointId } from "#ui/charts/scatter/option.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 // Sentinel resolved palette — distinct per stop so a mis-indexed series color is caught.

@@ -23,8 +23,8 @@ import {
   serializeScrubbed,
   snapshotServerEvidence,
   writeBugReport,
-} from "../../../../../packages/server/src/foundation/observability/debug/bug-report.ts";
-import { logRing } from "../../../../../packages/server/src/foundation/observability/logger.ts";
+} from "#server/foundation/observability/debug/bug-report.ts";
+import { logRing } from "#server/foundation/observability/logger.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const NOW = 1_760_000_000_000;

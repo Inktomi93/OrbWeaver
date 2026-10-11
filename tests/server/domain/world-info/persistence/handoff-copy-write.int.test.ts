@@ -13,7 +13,7 @@ import { batchMany } from "@orb/db/query";
 import type { CharacterHandle, CharacterId, ChatId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { createCopyHandoffBooks } from "../../../../../packages/server/src/domain/world-info/index.ts";
+import { createCopyHandoffBooks } from "#server/domain/world-info/index.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedChat } from "../../../../support/factories/chat.ts";
 import { seedUser } from "../../../../support/factories/user.ts";

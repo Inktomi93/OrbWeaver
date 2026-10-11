@@ -2,7 +2,7 @@ import type { Db } from "@orb/db";
 import { statsBucketStart } from "@orb/kit/stats-tally";
 import { CALENDAR_BUCKET_MS } from "@orb/kit/time";
 import { beforeEach, describe } from "vitest";
-import { createStatsService } from "../../../../../packages/server/src/domain/stats/service.ts";
+import { createStatsService } from "#server/domain/stats/service.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedDailyStats, seedUser, T0 } from "../_support.ts";

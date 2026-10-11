@@ -5,14 +5,8 @@
 import { MODEL_ROLES_PATH } from "@orb/client/lib";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { NextTurnInputs } from "../../../../../packages/client/src/features/chat/lib/next-turn-line.ts";
-import {
-  lineRefusal,
-  nextTurnLine,
-  nextTurnReadsChatRole,
-  nextTurnStatesRefusal,
-  sendRefusalKey,
-} from "../../../../../packages/client/src/features/chat/lib/next-turn-line.ts";
+import type { NextTurnInputs } from "#client/features/chat/lib/next-turn-line.ts";
+import { lineRefusal, nextTurnLine, nextTurnReadsChatRole, nextTurnStatesRefusal, sendRefusalKey } from "#client/features/chat/lib/next-turn-line.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 

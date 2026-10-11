@@ -77,24 +77,24 @@
 // house precedent is tests/ui/stream/snap.test.ts:15). packages/ui/src stays READ-ONLY to this suite.
 
 import type { DesignAuditRuleId } from "@orb/tooling/ui-audit";
-import { badgeVariants } from "../../packages/ui/src/primitives/badge/variants.ts";
-import { buttonVariants } from "../../packages/ui/src/primitives/button/variants.ts";
-import { cardVariants } from "../../packages/ui/src/primitives/card/variants.ts";
-import { checkboxVariants } from "../../packages/ui/src/primitives/checkbox/variants.ts";
-import { colorFieldVariants } from "../../packages/ui/src/primitives/color-field/variants.ts";
-import { emptyStateVariants } from "../../packages/ui/src/primitives/empty-state/variants.ts";
-import { highlightedTextVariants } from "../../packages/ui/src/primitives/highlighted-text/variants.ts";
-import { inputVariants } from "../../packages/ui/src/primitives/input/variants.ts";
-import { kbdVariants } from "../../packages/ui/src/primitives/kbd/variants.ts";
-import { listRowVariants } from "../../packages/ui/src/primitives/list-row/variants.ts";
-import { pickerCellVariants } from "../../packages/ui/src/primitives/picker-cell/variants.ts";
-import { selectVariants } from "../../packages/ui/src/primitives/select/variants.ts";
-import { sliderVariants } from "../../packages/ui/src/primitives/slider/variants.ts";
-import { statusChipVariants } from "../../packages/ui/src/primitives/status-chip/variants.ts";
-import { switchVariants } from "../../packages/ui/src/primitives/switch/variants.ts";
-import { textVariants } from "../../packages/ui/src/primitives/text/variants.ts";
-import { textareaVariants } from "../../packages/ui/src/primitives/textarea/variants.ts";
-import { toggleVariants } from "../../packages/ui/src/primitives/toggle/variants.ts";
+import { badgeVariants } from "#ui/primitives/badge/variants.ts";
+import { buttonVariants } from "#ui/primitives/button/variants.ts";
+import { cardVariants } from "#ui/primitives/card/variants.ts";
+import { checkboxVariants } from "#ui/primitives/checkbox/variants.ts";
+import { colorFieldVariants } from "#ui/primitives/color-field/variants.ts";
+import { emptyStateVariants } from "#ui/primitives/empty-state/variants.ts";
+import { highlightedTextVariants } from "#ui/primitives/highlighted-text/variants.ts";
+import { inputVariants } from "#ui/primitives/input/variants.ts";
+import { kbdVariants } from "#ui/primitives/kbd/variants.ts";
+import { listRowVariants } from "#ui/primitives/list-row/variants.ts";
+import { pickerCellVariants } from "#ui/primitives/picker-cell/variants.ts";
+import { selectVariants } from "#ui/primitives/select/variants.ts";
+import { sliderVariants } from "#ui/primitives/slider/variants.ts";
+import { statusChipVariants } from "#ui/primitives/status-chip/variants.ts";
+import { switchVariants } from "#ui/primitives/switch/variants.ts";
+import { textVariants } from "#ui/primitives/text/variants.ts";
+import { textareaVariants } from "#ui/primitives/textarea/variants.ts";
+import { toggleVariants } from "#ui/primitives/toggle/variants.ts";
 // Imported beside the re-export below because shapes in THIS file use them (a bare `export … from`
 // re-exports without binding locally — the contract/samples.ts lesson).
 import type { StoryKey, ThemeArm } from "./variant-arm-matrix.keys.ts";

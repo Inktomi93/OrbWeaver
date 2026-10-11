@@ -8,9 +8,9 @@ import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids"
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { insertCharacter } from "../../../../../packages/server/src/domain/character/persistence/card.ts";
-import { readPluginCardData, writePluginCardData } from "../../../../../packages/server/src/domain/character/persistence/plugin-card-data.ts";
-import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
+import { insertCharacter } from "#server/domain/character/persistence/card.ts";
+import { readPluginCardData, writePluginCardData } from "#server/domain/character/persistence/plugin-card-data.ts";
+import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";

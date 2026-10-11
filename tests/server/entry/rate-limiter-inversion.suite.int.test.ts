@@ -24,8 +24,8 @@ import { env } from "@orb/server/foundation/env";
 import type { RateLimitDecision } from "@orb/server/transport/trpc";
 import { like } from "drizzle-orm";
 import { describe } from "vitest";
-import { layer } from "../../../packages/server/src/domain/settings/effective-config/layer.ts";
-import { createRateLimitGate } from "../../../packages/server/src/entry/rate-limit-gate.ts";
+import { layer } from "#server/domain/settings/effective-config/layer.ts";
+import { createRateLimitGate } from "#server/entry/rate-limit-gate.ts";
 import { freshDb } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures.ts";
 

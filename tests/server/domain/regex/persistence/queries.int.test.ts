@@ -7,7 +7,7 @@ import type { Handle, RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 import { describe } from "vitest";
-import { listOwnedScripts, loadOwnedScript, loadOwnedScriptsByIds, toRow } from "../../../../../packages/server/src/domain/regex/persistence/queries.ts";
+import { listOwnedScripts, loadOwnedScript, loadOwnedScriptsByIds, toRow } from "#server/domain/regex/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { behavior, seedScript, seedUser } from "../_support.ts";

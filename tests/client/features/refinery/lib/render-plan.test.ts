@@ -6,9 +6,9 @@
 
 import { REFINERY_STAGE_PAYLOADS, REFINERY_STAGES } from "@orb/contracts/refinery";
 import { projectJsonSchema, RENDER_HINT_KEY } from "@orb/kit/json-schema";
-import { BUILTIN_STAGE_HINTS } from "../../../../../packages/client/src/features/refinery/lib/builtin-hints.ts";
-import type { PlanField } from "../../../../../packages/client/src/features/refinery/lib/render-plan.ts";
-import { buildRenderPlan, dangerBelowOf, formatLabel } from "../../../../../packages/client/src/features/refinery/lib/render-plan.ts";
+import { BUILTIN_STAGE_HINTS } from "#client/features/refinery/lib/builtin-hints.ts";
+import type { PlanField } from "#client/features/refinery/lib/render-plan.ts";
+import { buildRenderPlan, dangerBelowOf, formatLabel } from "#client/features/refinery/lib/render-plan.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const KNOWN_WIDGETS = new Set(["gauge", "stat", "chip-enum", "text", "prose", "boolean", "bullets", "number-list", "rows", "section", "const", "union"]);

@@ -2,7 +2,7 @@
 // carries, and text that reads as nothing names why instead of saving.
 
 import { describe } from "vitest";
-import { fieldText, looksLikeFields, parsePastedObject } from "../../../../../packages/client/src/features/credentials/lib/pasted-fields.ts";
+import { fieldText, looksLikeFields, parsePastedObject } from "#client/features/credentials/lib/pasted-fields.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const VLLM_FIELDS = { ["chat_template_kwargs"]: { ["enable_thinking"]: false }, stop: ["</s>", "<|im_end|>"], ["top_k"]: 40 };

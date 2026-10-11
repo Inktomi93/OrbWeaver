@@ -37,12 +37,12 @@ import {
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
-import { SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
-import { AppearanceLooksSection } from "../../../../packages/client/src/features/config/components/appearance-looks-section.tsx";
-import { createAnchorFlasher } from "../../../../packages/client/src/features/config/lib/config-scroll-spy.ts";
-import { makeConfigSection } from "../../../../packages/client/src/features/config/lib/config-section.tsx";
-import { ConfigContentSurface } from "../../../../packages/client/src/features/config/surfaces/config-content-surface.tsx";
-import { ConfigListSurface } from "../../../../packages/client/src/features/config/surfaces/config-list-surface.tsx";
+import { SectionContextHost } from "#client/features/app-shell/components/section-context-host.tsx";
+import { AppearanceLooksSection } from "#client/features/config/components/appearance-looks-section.tsx";
+import { createAnchorFlasher } from "#client/features/config/lib/config-scroll-spy.ts";
+import { makeConfigSection } from "#client/features/config/lib/config-section.tsx";
+import { ConfigContentSurface } from "#client/features/config/surfaces/config-content-surface.tsx";
+import { ConfigListSurface } from "#client/features/config/surfaces/config-list-surface.tsx";
 import { placeholderConfigGroups, realConfigGroups } from "../../../support/browser/ct-config-groups.ts";
 import { CtDataProviders, CtRealConfigSectionRegistry, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 import { createManualTimer } from "../../../support/clock.ts";

@@ -2,7 +2,7 @@
 // card's leading sentences, else its tags, never the whole card; a blank card leaves the consumer the name alone.
 
 import { describe } from "vitest";
-import { characterLine } from "../../../../../packages/server/src/domain/chat/engine/character-line.ts";
+import { characterLine } from "#server/domain/chat/engine/character-line.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CARD = {

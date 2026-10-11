@@ -5,13 +5,7 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { statsBucketStart, wordCount } from "@orb/kit/stats-tally";
 import { describe } from "vitest";
-import {
-  assistantTurnDelta,
-  canonMessageDelta,
-  chatCreatedDelta,
-  seatChatDelta,
-  userMessageDelta,
-} from "../../../../../packages/server/src/domain/chat/substrate/stats-delta.ts";
+import { assistantTurnDelta, canonMessageDelta, chatCreatedDelta, seatChatDelta, userMessageDelta } from "#server/domain/chat/substrate/stats-delta.ts";
 import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";

@@ -13,7 +13,7 @@ import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { createExportChat } from "../../../../../packages/server/src/domain/export/verbs/export-chat.ts";
+import { createExportChat } from "#server/domain/export/verbs/export-chat.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId } from "../../../../support/inference-identities.ts";

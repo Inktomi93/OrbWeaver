@@ -13,7 +13,7 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import type { CharacterHandle, CharacterId, ChatId, Handle, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
-import type { TagContext } from "../../../../packages/server/src/domain/tag/contract/service.ts";
+import type { TagContext } from "#server/domain/tag/contract/service.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";

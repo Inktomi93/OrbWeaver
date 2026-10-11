@@ -31,9 +31,9 @@ import type { ChatId, PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { PromptReadout } from "../../../../../../packages/client/src/features/preset/components/readout/prompt-readout.tsx";
-import { CapabilityCard, EffectiveProfile } from "../../../../../../packages/client/src/features/preset/components/readout/readout-parts.tsx";
-import { TransformsReadout } from "../../../../../../packages/client/src/features/preset/components/readout/transforms-readout.tsx";
+import { PromptReadout } from "#client/features/preset/components/readout/prompt-readout.tsx";
+import { CapabilityCard, EffectiveProfile } from "#client/features/preset/components/readout/readout-parts.tsx";
+import { TransformsReadout } from "#client/features/preset/components/readout/transforms-readout.tsx";
 import { CtDataProviders } from "../../../../../support/browser/ct-data-providers.tsx";
 import { makeCachePolicy, makeGenerationCapability } from "../../../../../support/factories/resolved-connection.ts";
 

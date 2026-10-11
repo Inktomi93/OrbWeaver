@@ -6,13 +6,7 @@ import type { DiscoverSegment } from "@orb/contracts/search";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import {
-  chatSubtitle,
-  evidenceScent,
-  groupByEvidence,
-  roomNumberingHint,
-  snippetForDisplay,
-} from "../../../../../packages/client/src/features/discovery/lib/corpus-result-text.ts";
+import { chatSubtitle, evidenceScent, groupByEvidence, roomNumberingHint, snippetForDisplay } from "#client/features/discovery/lib/corpus-result-text.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { corpusSceneSource } from "../../../../support/node/corpus-source.ts";
 

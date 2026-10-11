@@ -10,7 +10,7 @@ import type { PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { createJoinerPersonaStatement } from "../../../../../packages/server/src/domain/persona/verbs/joiner-persona-statement.ts";
+import { createJoinerPersonaStatement } from "#server/domain/persona/verbs/joiner-persona-statement.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

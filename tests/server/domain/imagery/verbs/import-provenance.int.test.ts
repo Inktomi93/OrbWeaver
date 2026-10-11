@@ -10,7 +10,7 @@ import { createImageryPortability } from "@orb/server/domain/imagery";
 import { bumpStatsCanonVersion, reconcileStats } from "@orb/server/domain/stats";
 import { buildImageryCall } from "@orb/server/primitives/serde/imagery";
 import { eq } from "drizzle-orm";
-import { readProvenanceByAsset } from "../../../../../packages/server/src/domain/imagery/persistence/queries.ts";
+import { readProvenanceByAsset } from "#server/domain/imagery/persistence/queries.ts";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { seedAsset } from "../../../../support/factories/asset.ts";
 import { seedCharacter } from "../../../../support/factories/character.ts";

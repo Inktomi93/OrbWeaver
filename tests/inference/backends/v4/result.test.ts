@@ -9,9 +9,9 @@
 
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ResultContext } from "../../../../packages/inference/src/backends/v4/result.ts";
-import { measuredCostOf, toChatResult } from "../../../../packages/inference/src/backends/v4/result.ts";
-import type { StreamDrain } from "../../../../packages/inference/src/backends/v4/stream.ts";
+import type { ResultContext } from "#inference/backends/v4/result.ts";
+import { measuredCostOf, toChatResult } from "#inference/backends/v4/result.ts";
+import type { StreamDrain } from "#inference/backends/v4/stream.ts";
 import { makeGenerationCapability } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 

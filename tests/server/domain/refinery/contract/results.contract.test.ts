@@ -1,4 +1,4 @@
-import { applyAsCopyResultSchema, refinerySessionViewSchema } from "../../../../../packages/server/src/domain/refinery/contract/results.ts";
+import { applyAsCopyResultSchema, refinerySessionViewSchema } from "#server/domain/refinery/contract/results.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, seedOwnedCharacter, seedUser } from "../_support.ts";
 

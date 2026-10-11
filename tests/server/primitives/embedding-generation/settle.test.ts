@@ -2,7 +2,7 @@
 // is a fault rather than a spin, and an abort never buys another round.
 
 import { describe } from "vitest";
-import { GenerationSupersededError, runUntilSettled } from "../../../../packages/server/src/primitives/embedding-generation/index.ts";
+import { GenerationSupersededError, runUntilSettled } from "#server/primitives/embedding-generation/index.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER = "user_settle";

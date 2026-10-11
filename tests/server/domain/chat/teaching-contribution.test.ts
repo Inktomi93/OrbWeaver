@@ -12,16 +12,11 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId, mintTypeId } from "@orb/kit/ids";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { describe } from "vitest";
-import { MERGE_SEPARATOR } from "../../../../packages/server/src/domain/chat/assembly/role-squash.ts";
-import { shape } from "../../../../packages/server/src/domain/chat/assembly/shape.ts";
-import type {
-  ChatRpgGatherResult,
-  TeachingContext,
-  TeachingContribution,
-  TeachingKnobs,
-} from "../../../../packages/server/src/domain/chat/contract/context.ts";
-import { convertsToEmptyWireRow } from "../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
-import { createChatTeachingContributions } from "../../../../packages/server/src/domain/chat/teaching-contribution.ts";
+import { MERGE_SEPARATOR } from "#server/domain/chat/assembly/role-squash.ts";
+import { shape } from "#server/domain/chat/assembly/shape.ts";
+import type { ChatRpgGatherResult, TeachingContext, TeachingContribution, TeachingKnobs } from "#server/domain/chat/contract/context.ts";
+import { convertsToEmptyWireRow } from "#server/domain/chat/substrate/wire-history.ts";
+import { createChatTeachingContributions } from "#server/domain/chat/teaching-contribution.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const STATE_BLOCK: ChatInjection = { position: "in_chat", depth: 0, role: "system", content: "[Scene] a tavern" };

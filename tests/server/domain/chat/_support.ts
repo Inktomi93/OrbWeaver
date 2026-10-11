@@ -63,12 +63,12 @@ import {
 } from "@orb/server/domain/stats";
 import { buildAuditStatement } from "@orb/server/foundation/observability";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
-import type { ChatContext } from "../../../../packages/server/src/domain/chat/context.ts";
-import type { ClaimChatOp, SummarizeOp } from "../../../../packages/server/src/domain/chat/contract/context.ts";
-import type { MemoryRecallResult } from "../../../../packages/server/src/domain/chat/contract/memory.ts";
-import type { TurnRequest, TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results.ts";
-import { createChatTeachingContributions } from "../../../../packages/server/src/domain/chat/teaching-contribution.ts";
-import { dropChatDigestKeys, pruneChatDigests, pruneChatSegments } from "../../../../packages/server/src/domain/embeddings/persistence/clear.ts";
+import type { ChatContext } from "#server/domain/chat/context.ts";
+import type { ClaimChatOp, SummarizeOp } from "#server/domain/chat/contract/context.ts";
+import type { MemoryRecallResult } from "#server/domain/chat/contract/memory.ts";
+import type { TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
+import { createChatTeachingContributions } from "#server/domain/chat/teaching-contribution.ts";
+import { dropChatDigestKeys, pruneChatDigests, pruneChatSegments } from "#server/domain/embeddings/persistence/clear.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { makeCapability, makeResolved, TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";

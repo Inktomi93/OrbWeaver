@@ -10,9 +10,9 @@
 // the REAL backend through its injected `query` seam, so nothing under test is mocked.
 
 import type { AgentSdkModel } from "@orb/contracts/inference";
-import { createAgentSdkBackend } from "../../../../packages/inference/src/backends/agent-sdk/index.ts";
-import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
-import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
+import { createAgentSdkBackend } from "#inference/backends/agent-sdk/index.ts";
+import { ProviderError } from "#inference/contract/errors.ts";
+import type { InferenceLog } from "#inference/deps.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { fakeApiKeySecret, newUserId } from "../../_support.ts";
 
