@@ -30,3 +30,9 @@
 // (packages/client/src/styles/globals.css); the class is here rather than the rule, because the rule needs
 // `round()` and a percentage-bearing `calc()` that no utility can spell and a feature may not inline.
 export const CHAT_TRACK = "orb-chat-track w-full max-w-(--width-shell-content)";
+
+/** A transcript ROW BODY at a phone width (owner ruling: about 24px of text margin on a phone). Below the
+ *  row's `md` container step the gutter chip stands down and the body is a flex line, so the column takes
+ *  the whole track; the speaker stays named in the header, and the avatar is still the column's sibling
+ *  (§B.1). The settled row and the streaming ghost share it, or a live turn reflows as it settles. */
+export const ROW_BODY_AT_PHONE_WIDTH = "@max-md:flex @max-md:*:data-[slot=avatar-root]:hidden";

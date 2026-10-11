@@ -69,7 +69,7 @@ export function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
           <Button
             type="button"
             intent={hasText && !disabled ? "primary" : "ghost"}
-            size="icon"
+            size="glyph-lg"
             disabled={disabled}
             focusableWhenDisabled={true}
             aria-label={label}
@@ -157,7 +157,7 @@ export function ImpersonateStopButton({ onStop }: { readonly onStop: () => void 
           <Button
             type="button"
             intent="secondary"
-            size="icon"
+            size="glyph-lg"
             aria-label={IMPERSONATE_STOP_LABEL}
             data-testid={testId("composerGuidedStopImpersonate")}
             onClick={onStop}
@@ -214,7 +214,7 @@ export function ImpersonateGuidedButton({
                   aria-label={name}
                   type="button"
                   intent={hasText && !disabled ? "primary" : "ghost"}
-                  size="icon"
+                  size="glyph-lg"
                   focusableWhenDisabled={true}
                   shape="pill"
                   className={ICON_CONTROL_CLASS}
@@ -273,7 +273,7 @@ export function ResponseGuidedButton({
             <Button
               type="button"
               intent={hasText ? "primary" : "ghost"}
-              size="icon"
+              size="glyph-lg"
               disabled={!idle}
               focusableWhenDisabled={disabledReason !== undefined}
               aria-label={name}
@@ -308,7 +308,7 @@ export function ResponseGuidedButton({
                   aria-label={name}
                   type="button"
                   intent={hasText ? "primary" : "ghost"}
-                  size="icon"
+                  size="glyph-lg"
                   focusableWhenDisabled={disabledReason !== undefined}
                   shape="pill"
                   className={ICON_CONTROL_CLASS}

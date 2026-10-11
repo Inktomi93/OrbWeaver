@@ -17,9 +17,9 @@ import { cn, renderMessageForDisplay } from "#lib";
 import type { RowAttribution } from "../lib/attribution.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { MESSAGE_REASONING_NAME } from "../lib/message-action-names.ts";
-import { BG_PHOTO_PAGER_PLATE } from "../lib/message-row-backing.ts";
 import type { BubbleDecoration, BubbleDecorationArgs, RowSkin } from "../lib/message-row-variants.ts";
 import { avatarPortraitSrcProp, avatarSrcProp } from "../lib/message-row-variants.ts";
+import type { SwipeFoot } from "../lib/pager-chrome.ts";
 import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
 import { GreetingSwipeStrip } from "./greeting-swipe-strip.tsx";
 import { MessageContent } from "./message-content.tsx";
@@ -160,6 +160,8 @@ export function renderRowBubble(args: {
    *  the plain box, whisper's below-the-band stack and ripple's welded-portrait row — so "one container"
    *  is a property of the anatomy rather than of one branch. */
   readonly header: ReactNode;
+  /** The swipe foot when this skin seats it INSIDE its container (`SwipeFoot.placement`), else null. */
+  readonly footer: ReactNode;
   readonly trainParagraphs: readonly string[] | null;
   readonly skin: RowSkin;
   readonly decoration: BubbleDecoration | null;
@@ -180,6 +182,7 @@ export function renderRowBubble(args: {
       renderSingleBubble({
         role: args.role,
         header: args.header,
+        footer: args.footer,
         content:
           args.reasoning === null ? (
             args.content
@@ -315,21 +318,16 @@ export function renderRowAvatar(args: {
 // holds (no user row yet) and the roster's cards. Absent ⇒ the variant strip's own `showSwipes` rule decides,
 // exactly as before.
 //
-// BOTH STRIPS TAKE THE ROW'S PAIRED PAGER BACKING (#221). The slot sits between the metadata row and the
-// message footer, which have carried `BG_PHOTO_CHROME_PLATE` mode-independently since #106 — the strip
-// took nothing, so its chevrons were the one band still floating on the raw photo (measured 1.60:1 live,
-// against WCAG 1.4.11's 3:1 for a UI component). The pager now takes its opaque card/foreground pair because
-// legal custom palette pivots left the new counter below AA on the translucent chrome plate.
-// It is threaded from here, not imported by the strips, for
-// the same reason `MessageMetadataRow` takes it as a prop: the ROW owns its backings and the leaf keeps
-// knowing nothing about the shell's wallpaper flag. Self-gated on `in-data-[has-bg-image]`, so a
-// plain-background room is byte-identical.
+// BOTH STRIPS TAKE THE SKIN'S SWIPE FOOT (`RowSkin.swipeFoot`). The row places the node: inside the
+// container for a single-container skin, where the container's fill backs it, or under tide's train, where
+// the foot carries the opaque pager plate itself (#221's legibility over art).
 export function renderRowSwipe(args: {
   readonly editing: boolean;
   readonly showSwipes: boolean;
   readonly role: MessageView["role"];
   readonly greeting: GreetingBinding | undefined;
   readonly message: MessageView;
+  readonly foot: SwipeFoot;
 }): ReactNode {
   if (args.editing) {
     return null;
@@ -341,11 +339,11 @@ export function renderRowSwipe(args: {
         messageId={args.message.id}
         variants={args.greeting.variants}
         current={args.message.content}
-        backingClass={BG_PHOTO_PAGER_PLATE}
+        foot={args.foot}
       />
     );
   }
-  return args.showSwipes && args.role === "assistant" ? <SwipeStrip message={args.message} backingClass={BG_PHOTO_PAGER_PLATE} /> : null;
+  return args.showSwipes && args.role === "assistant" ? <SwipeStrip message={args.message} foot={args.foot} /> : null;
 }
 
 /** Resolves the `when`-filtered `message-footer` contributions for one row (§6c/M8) — a bare helper

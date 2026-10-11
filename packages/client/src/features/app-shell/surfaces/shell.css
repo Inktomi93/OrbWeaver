@@ -42,8 +42,10 @@
    * grid means there is no scroll container to scroll.
    *
    * Subtracting the measured inset makes the frame fit the space the keyboard leaves, which is what
-   * `resizes-content` would have done: every region inside reflows from the grid as it already does, the
-   * tab bar stays on its own row, and the composer rides up with the content column. ONE declaration,
+   * `resizes-content` would have done: every region inside reflows from the grid as it already does, and the
+   * composer rides up with the content column. Inside a chat room on a phone there is no tab bar to keep:
+   * it stands down on the room screen (`[data-room-screen]`, owner ruling, in the mobile arm below), which
+   * overrides the earlier rule that kept it on its own row above the keyboard. ONE declaration,
    * because the grid is the thing every region's geometry already resolves through.
    *
    * `--orb-keyboard-inset` is written imperatively by `use-keyboard-inset-var.ts` (shell tier) off
@@ -1502,6 +1504,18 @@
   .shell-main {
     grid-column: 1;
     grid-row: 1;
+  }
+  /* THE ROOM SCREEN HAS NO TAB BAR (owner ruling, docs/law/UI-Architecture-and-Layout.md MOBILE). The
+   * rail is not mounted there, so its row goes and the frame pays the bottom inset itself again, as on
+   * every regime without a bar. */
+  .shell-grid[data-room-screen] {
+    padding-block-end: env(safe-area-max-inset-bottom, env(safe-area-inset-bottom));
+    grid-template-rows: minmax(0, 1fr);
+  }
+  /* …and the sheets and scrim opened from the room run to that inset instead of stopping where the bar was. */
+  .shell-grid[data-room-screen] .shell-panel[data-panel-mode],
+  .shell-grid[data-room-screen] .shell-scrim {
+    inset-block-end: env(safe-area-max-inset-bottom, env(safe-area-inset-bottom));
   }
   /* NO FLIP ON A PHONE, FOR EITHER TRACK. The grid is ONE column here and every panel is `position:
    * fixed` over it, so a docking LIST or CONTEXT pane never moves CONTENT — the counter-translate would

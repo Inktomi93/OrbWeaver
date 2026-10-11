@@ -102,6 +102,7 @@ export function renderRowNameRow(args: {
   readonly stickyAttribution: boolean;
   readonly actions: ReactNode;
   readonly placement: HeaderPlacement;
+  readonly bleed: string;
   readonly role: MessageRole;
 }): ReactElement {
   // Mirroring is the OWN-SIDE read: it only exists when the header is packed inside a container edge.
@@ -113,6 +114,7 @@ export function renderRowNameRow(args: {
       stickyAttribution={args.stickyAttribution}
       placement={args.placement}
       mirrored={mirrored}
+      bleed={args.bleed}
     />
   );
 }
@@ -140,6 +142,7 @@ export function renderGhostNameRow(args: {
   /** #288 — the SAME placement the settled row will use for this chatStyle. A live turn whose header sat
    *  above the bubble and jumped inside it at commit would be a visible one-frame reflow on every reply. */
   readonly placement: HeaderPlacement;
+  readonly bleed: string;
 }): ReactElement | null {
   const attribution = args.attribution;
   if (attribution === undefined || attribution.name === null) {
@@ -157,6 +160,7 @@ export function renderGhostNameRow(args: {
       placement={args.placement}
       // The ghost is always the assistant side; there is no own-message mirror to take.
       mirrored={false}
+      bleed={args.bleed}
     />
   );
 }

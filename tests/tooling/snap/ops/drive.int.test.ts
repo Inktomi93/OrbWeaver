@@ -432,6 +432,69 @@ test("--swipe scrolls a touch scroller by dispatched touch events, and refuses w
   expect(parseSnapArgs(["/", "--swipe", "#list=400"]).errors.join("\n")).toContain("--swipe needs a touch-capable context");
 });
 
+// --soft-keyboard: headless Chromium never raises an on-screen keyboard, so a --mobile drive that focused the
+// composer read visualViewport.height === innerHeight and the app's keyboard inset stayed 0 (measured on a
+// staged chat room). The page below records what a visualViewport resize listener sees, the same events
+// `keyboard-inset.ts` subscribes to, so the assertions are about what the app would receive.
+const KEYBOARD_DOCUMENT = `<!doctype html><html lang="en" data-app-ready="settled"><head>
+<meta name="viewport" content="width=device-width, initial-scale=1"></head><body>
+<textarea id="field"></textarea>
+<script>
+  window.__seen = [];
+  visualViewport.addEventListener("resize", function () {
+    window.__seen.push({ inner: innerHeight, visual: visualViewport.height });
+  });
+</script></body></html>`;
+
+test("--soft-keyboard shrinks the visual viewport iOS-style, fires resize, and closes at 0", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const server = createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(KEYBOARD_DOCUMENT);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const base = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await (await browser.newContext(devices[MOBILE_DEVICE])).newPage();
+    await page.goto(base);
+    const fullHeight = Number(await page.evaluate("innerHeight"));
+    const fullVisual = Number(await page.evaluate("visualViewport.height"));
+    // Chromium fires its own resize as the mobile viewport settles after load; only the drive's count.
+    await page.evaluate("window.__seen = []");
+    const args = parseSnapArgs([
+      "/",
+      "--soft-keyboard",
+      "340",
+      "--soft-keyboard",
+      "0",
+      "--mobile",
+      "--base",
+      base,
+      "--no-shot",
+      "--no-deadcss",
+      "--no-failure-evidence",
+    ]);
+    expect(args.errors).toEqual([]);
+    const failures = await driveActions({ page, actions: args.actions });
+    expect(failures.stepFailures).toBe(0);
+    const seen = (await page.evaluate("window.__seen")) as readonly { readonly inner: number; readonly visual: number }[];
+    // Open: the layout viewport keeps its height (WebKit), the visual one loses the keyboard band.
+    // Close: the visual viewport is whole again. Each change reached a resize listener; a listener may
+    // hear one state more than once, as on a real phone, so the distinct readings are what is asserted.
+    const states = seen.filter((reading, index) => index === 0 || reading.visual !== seen[index - 1]?.visual);
+    expect(states).toEqual([
+      { inner: fullHeight, visual: fullVisual - 340 },
+      { inner: fullHeight, visual: fullVisual },
+    ]);
+  } finally {
+    await browser.close();
+    server.closeAllConnections();
+    server.close();
+  }
+  expect(parseSnapArgs(["/", "--soft-keyboard", "340"]).errors.join("\n")).toContain("--soft-keyboard needs a phone context");
+  expect(parseSnapArgs(["/", "--soft-keyboard", "tall", "--mobile"]).errors.join("\n")).toContain("--soft-keyboard expects a keyboard height");
+});
+
 test("explicit cold bootstrap waits on the actual capture document beyond ordinary readiness", { timeout: BROWSER_TIMEOUT_MS }, async () => {
   const browser = await chromium.launch({ headless: true });
   try {

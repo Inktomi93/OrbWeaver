@@ -1,7 +1,14 @@
 import process from "node:process";
 import { setImmediate as nextTurn, setTimeout as sleep } from "node:timers/promises";
 import { EXIT } from "../../../../tooling/src/_shared/exit-contract.ts";
-import { isTerminalSessionCallError, runSessionCallWithinBudget } from "../../../../tooling/src/snap/ops/session-call-watchdog.ts";
+import { STEP_BASE_MS } from "../../../../tooling/src/snap/lib/budgets.ts";
+import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
+import {
+  isTerminalSessionCallError,
+  runSessionCallWithinBudget,
+  sessionCallWatchdogBaseMs,
+  sessionTapeBaseMs,
+} from "../../../../tooling/src/snap/ops/session-call-watchdog.ts";
 import { refuseTerminalSessionRequest } from "../../../../tooling/src/snap/ops/session-daemon-request.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -131,4 +138,16 @@ test.each(["status", "call"] as const)("a terminal session refuses a subsequent 
   expect(events.join("")).toContain("SESSION DEAD");
   expect(events.join("")).toContain(`"exit":${EXIT.toolError}`);
   expect(ended).toBe(true);
+});
+
+test("a live call's watchdog grows with its own tape, so a multi-step phone drive is not killed as a hang", () => {
+  const evalOnly = parseSnapArgs(["--eval", "()=>1"]);
+  const drive = parseSnapArgs(["--tap", "#row", "--pause", "1200", "--tap", "#details", "--pause", "900", "--map", "--mobile"]);
+  expect(drive.errors).toEqual([]);
+  const evalBase = sessionCallWatchdogBaseMs(false, null, sessionTapeBaseMs(evalOnly.actions));
+  const driveBase = sessionCallWatchdogBaseMs(false, null, sessionTapeBaseMs(drive.actions));
+  // A hung eval keeps the bare call ceiling: stopping it is the watchdog's job.
+  expect(evalBase).toBe(sessionCallWatchdogBaseMs(false));
+  // The drive owes each tap a full step timeout plus every pause it asked for, on top of that ceiling.
+  expect(driveBase).toBeGreaterThan(evalBase + 2 * STEP_BASE_MS + 1200 + 900);
 });

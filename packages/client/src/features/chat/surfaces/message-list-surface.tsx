@@ -422,8 +422,9 @@ function ChatThread({
           // pinned the sticky name band 12px below the visible top with a guillotined strip of prose
           // permanently above it (#204). The first/last rows still breathe off the topbar/composer edges.
           blockPaddingToken="block"
-          // Narrow tracks need ring clearance; wider tracks retain the shared reading budget.
-          className="h-full @max-md:px-field"
+          // Narrow tracks keep exactly the row focus ring's clearance (2px outline + 2px offset) and no more:
+          // the phone's transcript margin is the room's own inset (owner ruling, about 24px of text margin).
+          className="h-full @max-md:px-tight"
         />
         <JumpToLatestPill count={jump.count} visible={jump.visible} onJump={jump.onJump} />
       </Stack>

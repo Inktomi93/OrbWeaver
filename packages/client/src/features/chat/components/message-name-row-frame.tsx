@@ -70,6 +70,8 @@ export interface NameRowFrameProps {
   readonly placement: HeaderPlacement;
   /** User identity sits at the trailing edge; its action cluster takes the opposite edge. */
   readonly mirrored: boolean;
+  /** `RowSkin.headerBleed`: how the pinned inside band reaches the container's edges. */
+  readonly bleed: string;
 }
 
 export function NameRowFrame(args: NameRowFrameProps): ReactElement {
@@ -87,6 +89,7 @@ export function NameRowFrame(args: NameRowFrameProps): ReactElement {
       className={cn(
         args.mirrored && "flex-row-reverse",
         headerBacking(args.placement, args.stickyAttribution, pinned),
+        args.placement === "inside" && pinned && args.bleed,
         // THE ACTION RAIL'S ONLY RESERVATION. The rail is centred on this row, so a content height of
         // `control-md - 2 * row` makes it span exactly the container's top inset, this row and the
         // `gap-row` below it: contained in the bubble, clear of the prose, and no empty band between

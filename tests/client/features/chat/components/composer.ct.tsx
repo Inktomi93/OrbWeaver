@@ -51,21 +51,32 @@ for (const width of [1440, 360]) {
       await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
       const component = await mount(<ComposerStory />);
       const message = component.getByRole("textbox", { name: "Message", exact: true });
-      const controls = ["Chat options", "Message tools", "Send message"];
       await expect(message).toBeVisible();
       const input = await message.boundingBox();
       if (input === null) {
         throw new Error("message input has no layout box");
       }
-      for (const name of controls) {
+      const boxOf = async (name: string): Promise<{ x: number; y: number; width: number; height: number }> => {
         const control = component.getByRole("button", { name, exact: true });
         await expect(control).toBeVisible();
         const box = await control.boundingBox();
         if (box === null) {
           throw new Error(`${name} has no layout box`);
         }
-        expect(Math.abs(box.y + box.height / 2 - input.y - input.height / 2), name).toBeLessThan(1);
-      }
+        return box;
+      };
+      const inputMid = input.y + input.height / 2;
+      // SillyTavern's input row (owner ruling): ☰ over ✨ in one narrow column left of the draft, the pair
+      // centred on the row, and Send at the row's centre on the right.
+      const menu = await boxOf("Chat options");
+      const tools = await boxOf("Message tools");
+      const send = await boxOf("Send message");
+      expect(menu.y + menu.height).toBeLessThanOrEqual(tools.y);
+      expect(Math.abs(menu.x + menu.width / 2 - (tools.x + tools.width / 2))).toBeLessThan(1);
+      expect(Math.abs((menu.y + tools.y + tools.height) / 2 - inputMid)).toBeLessThan(1);
+      expect(menu.x + menu.width).toBeLessThan(input.x);
+      expect(Math.abs(send.y + send.height / 2 - inputMid), "Send message").toBeLessThan(1);
+      expect(send.x).toBeGreaterThan(input.x + input.width - 1);
       const you = await component.getByRole("group", { name: "Your message", exact: true }).boundingBox();
       const them = await component.getByRole("group", { name: "Their reply", exact: true }).boundingBox();
       if (you === null || them === null) {
@@ -443,8 +454,9 @@ function expectRowMajorOrder(boxes: readonly ControlBox[]): void {
     }
     const previousCenter = previous.y + previous.height / 2;
     const currentCenter = current.y + current.height / 2;
-    expect(currentCenter, `${current.name} must not paint above ${previous.name}`).toBeGreaterThanOrEqual(previousCenter - 0.5);
-    const followsPrevious = Math.abs(currentCenter - previousCenter) > 0.5 || current.x > previous.x;
+    const besideOnBand = current.x >= previous.x + previous.width - 0.5 && current.y < previous.y + previous.height && previous.y < current.y + current.height;
+    expect(besideOnBand || currentCenter >= previousCenter - 0.5, `${current.name} must not paint above ${previous.name}`).toBe(true);
+    const followsPrevious = besideOnBand || Math.abs(currentCenter - previousCenter) > 0.5 || current.x > previous.x;
     expect(followsPrevious, `${current.name} must follow ${previous.name} on their shared row`).toBe(true);
   }
 }
@@ -468,7 +480,8 @@ async function expectExplicitCoarseRows(component: Locator): Promise<void> {
   }
   expect(yours.y).toBe(theirs.y);
   expect(chat.y).toBeGreaterThanOrEqual(yours.y + yours.height);
-  expect(send.y).toBe(chat.y);
+  // Send shares the input row with the stacked tool column: the two centre on one line.
+  expect(Math.abs(send.y + send.height / 2 - (chat.y + chat.height / 2))).toBeLessThan(1);
   expect(send.x).toBeGreaterThan(chat.x);
   // Whatever the fit produces, the FINAL row reaches the composer's right edge: the terminal Send home is
   // right-anchored on a wrapped line exactly as it is on a full one (the auto margins, not a grid column).
@@ -485,6 +498,30 @@ async function expectNearestActionGroups(component: Locator, actions: readonly A
     ),
   );
   expect(nearestGroups).toEqual(actions.map(({ group }) => group));
+}
+
+/** Every action's FINGER target meets the coarse floor and no two targets overlap. The compact glyph buttons
+ *  carry their target as a centred `::before`; a full control is its own box. */
+async function expectTouchTargets(component: Locator, actionBoxes: readonly ControlBox[]): Promise<void> {
+  const targets: readonly ControlBox[] = await Promise.all(
+    actionBoxes.map(async (action) => ({
+      name: action.name,
+      ...(await component.getByRole("button", { name: action.name, exact: true }).evaluate((button) => {
+        const box = button.getBoundingClientRect();
+        const before = getComputedStyle(button, "::before");
+        const w = Math.max(box.width, Number.parseFloat(before.width) || 0);
+        const h = Math.max(box.height, Number.parseFloat(before.height) || 0);
+        return { x: box.left + box.width / 2 - w / 2, y: box.top + box.height / 2 - h / 2, width: w, height: h };
+      })),
+    })),
+  );
+  for (const target of targets) {
+    expect(Math.min(target.width, target.height), `${target.name} must meet the coarse 44px target floor`).toBeGreaterThanOrEqual(44);
+  }
+  const pairs = targets.flatMap((a, index) => targets.slice(index + 1).map((b) => [a, b] as const));
+  for (const [a, b] of pairs) {
+    expect(overlaps(a, b), `${a.name}'s touch target must not overlap ${b.name}'s`).toBe(false);
+  }
 }
 
 async function expectCoarseComposerLayout(page: Page, component: Locator, actions: readonly ActionSpec[]): Promise<void> {
@@ -505,9 +542,7 @@ async function expectCoarseComposerLayout(page: Page, component: Locator, action
   const viewportWidth = await page.evaluate(() => innerWidth);
 
   const actionBoxes = boxes.filter((box) => box.name !== "Message");
-  for (const action of actionBoxes) {
-    expect(Math.min(action.width, action.height), `${action.name} must meet the coarse 44px target floor`).toBeGreaterThanOrEqual(44);
-  }
+  await expectTouchTargets(component, actionBoxes);
   const centreOwnership = await Promise.all(
     actionBoxes.map(async (action) => ({
       name: action.name,
@@ -1501,18 +1536,22 @@ function measureActionBar(page: Page): Promise<{
     if (bar === null || firstHome === undefined) {
       throw new Error("the composer action bar did not render");
     }
-    const tops = homes.map((el) => Math.round(el.getBoundingClientRect().top));
-    const lastTop = Math.max(...tops);
-    const lastRow = homes.filter((_, index) => tops[index] === lastTop);
+    const rowOf = (el: HTMLElement): Element | null => el.parentElement?.closest('[data-slot="composer-utilities"], [data-slot="composer-input"]') ?? null;
+    const rowSlots = homes.map(rowOf);
+    const lastSlot = rowSlots.at(-1) ?? null;
+    const lastRow = homes.filter((_, index) => rowSlots[index] === lastSlot);
+    // A glyph button's finger target is its centred hit-area pseudo; a full control is its own box.
+    const targetHeight = (el: Element): number =>
+      Math.round(Math.max(el.getBoundingClientRect().height, Number.parseFloat(getComputedStyle(el, "::before").height) || 0));
     return {
       coarse: matchMedia("(pointer: coarse)").matches,
       barWidth: Math.round(bar.getBoundingClientRect().width),
       // The `field` gap the homes already use BETWEEN their own controls — the bar's own floor for "fits".
       homeInnerGap: Math.round(Number.parseFloat(getComputedStyle(firstHome).columnGap)),
-      rows: new Set(tops).size,
+      rows: new Set(rowSlots).size,
       homeWidths: homes.map((el) => Math.round(el.getBoundingClientRect().width)),
       // Every focusable control in the bar — the row saving must not have been bought by crushing targets.
-      controlHeights: [...bar.querySelectorAll("button")].map((el) => Math.round(el.getBoundingClientRect().height)),
+      controlHeights: [...bar.querySelectorAll("button")].map(targetHeight),
       barRight: Math.round(bar.getBoundingClientRect().right),
       lastRowRight: Math.round(Math.max(...lastRow.map((el) => el.getBoundingClientRect().right))),
     };
@@ -1684,10 +1723,12 @@ for (const viewport of [
               throw new Error("Missing guided controls");
             }
             const gap = Number.parseFloat(getComputedStyle(root?.querySelector('[aria-label="Your message"]') as Element).columnGap);
+            const stacked = options.bottom <= tools.top && Math.abs(options.left + options.width / 2 - (tools.left + tools.width / 2)) < 1;
+            const sendOnInputRow = send.top < tools.bottom && options.top < send.bottom;
             return {
-              paired: options.y === tools.y && tools.left - options.right <= gap,
-              narrow: guided.y < options.y && send.y === options.y,
-              wide: guided.y < options.y && send.y === options.y,
+              paired: stacked && tools.top - options.bottom <= gap * 4,
+              narrow: guided.y < options.y && sendOnInputRow,
+              wide: guided.y < options.y && sendOnInputRow,
             };
           });
           return { paired: layout.paired, fit: viewport.touch ? layout.narrow : layout.wide };

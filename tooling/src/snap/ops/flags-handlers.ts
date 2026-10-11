@@ -103,6 +103,15 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
     }
     pushStep(a, { kind: "swipe", selector: head, dy, page });
   },
+  "--soft-keyboard": (a, rest, page) => {
+    const raw = rest.shift() ?? "";
+    const height = Number(raw);
+    if (raw === "" || !Number.isInteger(height) || height < 0) {
+      a.errors.push(`--soft-keyboard expects a keyboard height in whole CSS px (0 closes it), got ${JSON.stringify(raw)}`);
+      return;
+    }
+    pushStep(a, { kind: "soft-keyboard", height, page });
+  },
   // In-page el.click() — bypasses Playwright's actionability checks for
   // stubborn targets (icon divs under overlay stacks).
   "--dom-click": (a, rest, page) => {

@@ -172,6 +172,10 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
     const totals = outcomeTotals(outcomes);
     const browserEnvironment = await readSnapEnvironmentEvidence(session);
     const environmentFailures = snapEnvironmentMismatchCount(browserEnvironment);
+    // The count reaches the RESULT line; without these lines a red environment check named no cause.
+    for (const mismatch of browserEnvironment.flatMap((entry) => entry.mismatches)) {
+      print(`ENVIRONMENT MISMATCH  ${mismatch}`);
+    }
     const watchFailures =
       watchTicks.filter((tick) => tick.shotError !== null).length +
       watchTicks.reduce((count, tick) => count + tick.evals.filter((entry) => entry.failed).length, 0);

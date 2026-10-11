@@ -1948,52 +1948,11 @@ test("two rows, one producer, different DECLARED kinds: narrator reads Narrator,
   await expect(component.getByTestId("narrator-row").locator(THEME_SCOPE).filter({ hasText: "I'll take this one." }).last()).toBeVisible();
 });
 
-// ── THE PHONE'S READING COLUMN (side-eye leg-4 P2) ───────────────────────────────────────────────────
-// "stop treating a phone as a narrow desktop." Measured on a real room at 430px: the avatar gutter took
-// 76px, one paragraph ran 22 CHARACTERS over 12 lines (§2 wants 65–75ch) and the speaker name wrapped to
-// two lines. The row is its own `@container` now, so the gutter shrinks at a phone-width column and the
-// reading measure gets the difference.
-//
-// ⚑ WHAT THIS DOES NOT DO, and why: the review asked for the gutter to FOLD INTO the name row. §B.1 —
-// pinned three tests above — says the avatar is a SIBLING of the content column and NEVER a descendant of
-// the name row. Reversing a recorded anatomy law is the owner's call, not this lane's, so the fork is
-// reported and this is the anatomy-preserving half.
+// ── THE PHONE'S READING COLUMN ──────────────────────────────────────────────────────────────────────
+// At a phone-width column the gutter chip stands down (owner ruling: about 24px of transcript text margin on a
+// phone); the phone pin with the #1728 block below holds that. At a desktop width the portrait is untouched.
 
-const PHONE_COLUMN = 320;
 const DESKTOP_COLUMN = 720;
-
-test("at a phone-width column the avatar gutter shrinks and the reading measure grows", async ({ mount }) => {
-  const narrow = await mount(
-    <MessageRowStory chatStyle="bubble" characterId={ALICE_ID} messageRole="assistant" participants={[alice()]} width={PHONE_COLUMN} />,
-  );
-  // MEASURE THE GUTTER, not the column: in bubble style the column hugs its text (the `w-fit` pin two
-  // screens up), so a column-share assertion would measure the FIXTURE's sentence rather than the row's
-  // composition. The gutter is what this change moves.
-  const readMeasuredAtAssertion = async (): Promise<typeof measured> =>
-    await narrow.locator(CONTENT_COLUMN).evaluate((el: HTMLElement) => {
-      const row = el.closest('[data-slot="message-row-body"]') as HTMLElement;
-      const avatar = row.querySelector('[data-slot="avatar-root"]') as HTMLElement | null;
-      return {
-        gap: Number.parseFloat(getComputedStyle(row).columnGap),
-        row: (row.closest('[data-slot="message-row"]') as HTMLElement).getBoundingClientRect().width,
-        avatar: avatar === null ? 0 : avatar.getBoundingClientRect().width,
-      };
-    });
-  const measured = await narrow.locator(CONTENT_COLUMN).evaluate((el: HTMLElement) => {
-    const row = el.closest('[data-slot="message-row-body"]') as HTMLElement;
-    const avatar = row.querySelector('[data-slot="avatar-root"]') as HTMLElement | null;
-    return {
-      gap: Number.parseFloat(getComputedStyle(row).columnGap),
-      row: (row.closest('[data-slot="message-row"]') as HTMLElement).getBoundingClientRect().width,
-      avatar: avatar === null ? 0 : avatar.getBoundingClientRect().width,
-    };
-  });
-  // The portrait still renders (a phone does not lose the character) …
-  await expect.poll(async () => (await readMeasuredAtAssertion()).avatar).toBeGreaterThan(0);
-  // … at the stepped-down size, and the gutter costs well under a tenth of the row (it was 76 of 320).
-  await expect.poll(async () => (await readMeasuredAtAssertion()).avatar).toBeLessThanOrEqual(24);
-  expect((measured.avatar + measured.gap) / measured.row).toBeLessThan(0.12);
-});
 
 test("at a desktop-width column the portrait keeps its full size — the step-down is a WIDTH answer, not a mode", async ({ mount }) => {
   const wide = await mount(
@@ -2249,101 +2208,135 @@ test("#106 CONTROL: with no background photo the same row is byte-identically ba
   await expect(component.locator(METADATA_ROW)).toHaveCSS("backdrop-filter", "none");
 });
 
-// ── #221: THE SWIPE STRIP over a bg photo — the last naked band under the bubble ───────────────────
-// The metadata row and the message footer take `BG_PHOTO_CHROME_PLATE` mode-independently (#106); the
-// swipe strip sits BETWEEN them and took nothing, so its chevrons floated on the raw wallpaper —
-// measured 1.60:1 live (rescore-chats-2026-08-18), against WCAG 1.4.11's 3:1 for a UI component.
-// The row owns the backing and threads it (`renderRowSwipe`), so a strip knows nothing about the shell's
-// wallpaper flag. The pager takes the opaque card and its paired ink: its counter must stay readable over art.
+// ── THE SWIPE FOOT: the message's own last line, per chat style (owner ruling, SillyTavern's inline swipe) ──
+// ‹ sits at the container's leading edge and the count beside › at its trailing edge, as the message's own
+// foot rather than a separate card under it. Each style decides where that foot lives (`RowSkin.swipeFoot`):
+// inside the container for the seven single-container styles, under the train for tide. The count is the
+// position and nothing else.
 const SWIPE_STRIP = '[data-slot="swipe-strip"]';
+const SWIPE_COUNTER_SLOT = '[data-slot="swipe-strip-counter"]';
+const PAGER_COUNTER_TEXT = "2 / 3";
+const SWIPE_BODY = "The pale light of the second moon slid across the courtyard flagstones, and Alice counted the guards again before she answered.";
+/** The foot's container as the chevrons see it: its outer edges and its reading inset on each side. The hug
+ *  and gutter styles pull the chevrons into that inset; echo's inset is its art pane and ripple's leading
+ *  edge is its welded portrait, which is why the law is stated against the container's own padding. */
+function readFootContainer(foot: Locator): Promise<{ readonly left: number; readonly right: number; readonly padLeft: number; readonly padRight: number }> {
+  return foot.evaluate((element) => {
+    // Skip the strip's own wrapper: the container is the first ancestor that owns a reading inset, or the
+    // content column for the one style (tide) whose foot sits under a train with no container.
+    let parent = element.parentElement;
+    while (parent !== null && Number.parseFloat(getComputedStyle(parent).paddingLeft) === 0 && parent.dataset["slot"] !== "message-content-column") {
+      parent = parent.parentElement;
+    }
+    if (parent === null) {
+      throw new Error("the swipe foot has no container");
+    }
+    const box = parent.getBoundingClientRect();
+    const style = getComputedStyle(parent);
+    return { left: box.left, right: box.right, padLeft: Number.parseFloat(style.paddingLeft), padRight: Number.parseFloat(style.paddingRight) };
+  });
+}
 
-test("the swipe strip over a bg image uses the opaque card and its paired ink (#221)", async ({ mount, page }) => {
+for (const chatStyle of THEME_CHAT_STYLES) {
+  test(`the swipe foot sits at its container's edges and shows only the position (${chatStyle})`, async ({ mount, page }) => {
+    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
+    const component = await mount(
+      <MessageRowStory
+        chatStyle={chatStyle}
+        messageRole="assistant"
+        showSwipes={true}
+        characterId={ALICE_ID}
+        participants={[alice()]}
+        width={720}
+        content={SWIPE_BODY}
+      />,
+    );
+    const foot = component.locator(SWIPE_STRIP);
+    await expect(foot).toHaveCount(1);
+    // THE 0831 RULING: no label beside the count.
+    await expect(foot).toHaveText(PAGER_COUNTER_TEXT);
+    // Placement: the container's own last line, or under the train where there is no single container.
+    const inside = await component.locator(`${BUBBLE} ${SWIPE_STRIP}`).count();
+    expect(inside, "tide alone seats the foot under its train").toBe(chatStyle === "tide" ? 0 : 1);
+    // One settled read of the whole arrangement, retried until the row has laid out.
+    const footLaw = async (): Promise<Record<string, boolean>> => {
+      const container = await readFootContainer(foot);
+      const prev = await foot.getByRole("button", { name: VARIANT_PREV_NAME }).boundingBox();
+      const next = await foot.getByRole("button", { name: VARIANT_NEXT_NAME }).boundingBox();
+      const counter = await foot.locator(SWIPE_COUNTER_SLOT).boundingBox();
+      const footBox = await foot.boundingBox();
+      if (prev === null || next === null || counter === null || footBox === null) {
+        return { rendered: false };
+      }
+      return {
+        rendered: true,
+        // ‹ in the container's leading inset and › in its trailing one: past the prose measure, never
+        // outside the container itself.
+        leading: prev.x >= container.left - 0.5 && prev.x <= container.left + container.padLeft + 0.5,
+        trailing: next.x + next.width <= container.right + 0.5 && next.x + next.width >= container.right - container.padRight - 0.5,
+        countBesideNext: counter.x > prev.x + prev.width && counter.x + counter.width <= next.x + 0.5,
+        // One glyph line, not a card: the foot is as tall as its chevrons.
+        oneLine: Math.abs(footBox.height - next.height) < 0.5,
+      };
+    };
+    await expect.poll(footLaw).toEqual({ rendered: true, leading: true, trailing: true, countBesideNext: true, oneLine: true });
+    await expect(foot).toHaveCSS("background-color", TRANSPARENT);
+  });
+}
+
+test("over a wallpaper the bubble foot rides the bubble's own fill, and its count stays legible", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
   const component = await mount(
     <div data-has-bg-image="">
       <MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} characterId={ALICE_ID} participants={[alice()]} />
     </div>,
   );
-  const strip = component.locator(SWIPE_STRIP);
-  await expect(strip).toHaveCount(1);
-  await expect(strip.getByRole("button", { name: VARIANT_NEXT_NAME })).toBeVisible();
-  const { bg, ink, backdrop } = await strip.evaluate((el) => {
-    const cs = getComputedStyle(el);
-    return { bg: cs.backgroundColor, ink: cs.color, backdrop: cs.backdropFilter };
-  });
-  expect(bg).not.toBe(TRANSPARENT);
-  expect(parseOklch(bg)).toEqual(parseOklch(await cssVar(strip, "--color-card")));
-  expect(parseOklch(bg)[3]).toBe(1);
-  expect(parseOklch(ink)).toEqual(parseOklch(await cssVar(strip, "--color-card-foreground")));
-  expect(backdrop).toBe("none");
-  const counterContrast = await pixelContrast(page, strip.locator('[data-slot="swipe-strip-counter"]'));
+  const foot = component.locator(`${BUBBLE} ${SWIPE_STRIP}`);
+  await expect(foot).toHaveCount(1);
+  await expect(foot).toHaveCSS("background-color", TRANSPARENT);
+  const counterContrast = await pixelContrast(page, foot.locator(SWIPE_COUNTER_SLOT));
   expect(counterContrast.ratio, counterContrast.describe).toBeGreaterThanOrEqual(4.5);
 });
 
-test("without a bg image the swipe strip stays unbacked — don't chip what doesn't need it (#221)", async ({ mount, page }) => {
+test("over a wallpaper tide's foot, which has no container, takes the opaque pager plate (#221)", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
   const component = await mount(
-    <MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} characterId={ALICE_ID} participants={[alice()]} />,
+    <div data-has-bg-image="">
+      <MessageRowStory chatStyle="tide" messageRole="assistant" showSwipes={true} characterId={ALICE_ID} participants={[alice()]} />
+    </div>,
   );
-  const strip = component.locator(SWIPE_STRIP);
-  const { bg, backdrop } = await strip.evaluate((el) => {
-    const cs = getComputedStyle(el);
-    return { bg: cs.backgroundColor, backdrop: cs.backdropFilter };
-  });
-  expect(bg).toBe(TRANSPARENT);
-  expect(backdrop).toBe("none");
+  const foot = component.locator(SWIPE_STRIP);
+  await expect(foot).toHaveCount(1);
+  const card = parseOklch(await cssVar(foot, "--color-card"));
+  await expect.poll(async () => parseOklch(await foot.evaluate((el) => getComputedStyle(el).backgroundColor))).toEqual(card);
+  const counterContrast = await pixelContrast(page, foot.locator(SWIPE_COUNTER_SLOT));
+  expect(counterContrast.ratio, counterContrast.describe).toBeGreaterThanOrEqual(4.5);
 });
 
-// The swipe pager rides the trailing edge aligned with the row actions (#312). Measure its own box rather
-// than a stretching wrapper, and cover both narrow and wide mounts; setting width alone does not prove
-// alignment.
-const TRAILING_EDGE_BODY = "The pale light of the second moon slid across the courtyard flagstones, and Alice counted the guards again before she answered.";
+test.describe("the swipe foot at a coarse pointer", () => {
+  test.use({ hasTouch: true });
 
-for (const width of [360, 720] as const) {
-  test(`the swipe strip packs to the content column's trailing edge, with the row actions (#312, ${width}px)`, async ({ mount, page }) => {
+  // The chevrons are compact glyph boxes, so the finger's floor rides the glyph arm's hit-area pseudo.
+  test("each chevron keeps a touch-floor hit area around its compact glyph", async ({ mount, page }) => {
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
-    const component = await mount(
-      <MessageRowStory
-        chatStyle="bubble"
-        messageRole="assistant"
-        showSwipes={true}
-        characterId={ALICE_ID}
-        participants={[alice()]}
-        width={width}
-        content={TRAILING_EDGE_BODY}
-      />,
-    );
-    const strip = component.locator(SWIPE_STRIP);
-    await expect(strip).toHaveCount(1);
-    // The full pager is present (the story seeds variantCount 3), so the chip is genuinely narrower than
-    // the column — the precondition that makes "left vs trailing" an observable difference at all.
-    await expect(strip.getByRole("button", { name: VARIANT_NEXT_NAME })).toBeVisible();
-
-    const stripBox = await strip.boundingBox();
-    const columnBox = await component.locator(CONTENT_COLUMN).boundingBox();
-    const actionsBox = await component.locator(ACTIONS_ROW).boundingBox();
-    const stripRight = (stripBox?.x ?? 0) + (stripBox?.width ?? 0);
-    const columnRight = (columnBox?.x ?? 0) + (columnBox?.width ?? 0);
-    const actionsRight = (actionsBox?.x ?? 0) + (actionsBox?.width ?? 0);
-
-    // A genuine chip: narrower than the column, so its horizontal position is not forced.
-    expect(stripBox?.width ?? 0).toBeGreaterThan(0);
-    expect(stripBox?.width ?? 0).toBeLessThan((columnBox?.width ?? 0) - 8);
-    // It sits at the TRAILING edge — its right edge is the column's right edge (the mirror of the metadata
-    // row, whose chips hug the column's LEFT edge). This is THE fix: left-by-omission fails here.
-    expect(Math.abs(stripRight - columnRight)).toBeLessThan(2);
-    // …the SAME trailing edge the edit/kebab cluster packs to (the owner's "aligned with the actions"). The
-    // strip reaches at least as far right as the kebab and no further than a bubble's inner padding past it:
-    // the actions live INSIDE the bubble (inset by its right padding) while the strip is a sibling below it
-    // at the column's outer edge, so a few px of overhang is the padding, not a misalignment. A left-hugging
-    // strip (old source) sits hundreds of px LEFT of the kebab and fails the first of these.
-    expect(stripRight).toBeGreaterThanOrEqual(actionsRight - 2);
-    expect(stripRight - actionsRight).toBeLessThan(24);
-    // …and it is genuinely PUSHED right, not full-width or left-hugging: its left edge is well clear of the
-    // column's left edge (a left-by-omission chip fails here — its left edge would BE the column's left).
-    expect((stripBox?.x ?? 0) - (columnBox?.x ?? 0)).toBeGreaterThan(24);
+    const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content="Ok" width={360} />);
+    const next = component.locator(SWIPE_STRIP).getByRole("button", { name: VARIANT_NEXT_NAME });
+    const touchTarget = SNAPPED_LENGTH_BASE_PX["spacing.touch-target"];
+    const hitSide = (): Promise<number> =>
+      next.evaluate((el) => {
+        const before = getComputedStyle(el, "::before");
+        return Math.min(Number.parseFloat(before.width), Number.parseFloat(before.height));
+      });
+    await expect.poll(hitSide).toBeGreaterThanOrEqual(touchTarget - 0.5);
+    // A short reply still contains its foot: neither chevron leaves the bubble.
+    const bubble = await component.locator(BUBBLE).boundingBox();
+    const prev = await component.locator(SWIPE_STRIP).getByRole("button", { name: VARIANT_PREV_NAME }).boundingBox();
+    const nextBox = await next.boundingBox();
+    expect(prev?.x ?? 0).toBeGreaterThanOrEqual((bubble?.x ?? 0) - 0.5);
+    expect((nextBox?.x ?? 0) + (nextBox?.width ?? 0)).toBeLessThanOrEqual((bubble?.x ?? 0) + (bubble?.width ?? 0) + 0.5);
   });
-}
+});
 
 // ── #220: THE MOBILE NAME BAND'S BUDGET — identity first, chrome second ──────────────────────────────
 //
@@ -2662,284 +2655,6 @@ test("#220 at a FINE pointer the inline Edit/Fork pair is untouched", async ({ m
   await expect(component.getByRole("button", { name: MESSAGE_FORK_NAME })).toBeVisible();
 });
 
-// ── #598: THE PAGER MAY NOT WIDEN OR OVERHANG THE BUBBLE IT PAGES ─────────────────────────────────
-//
-// The content column resolves to the max-content of its widest child (the bubble family's row outer is
-// `items-start`, so the row body shrink-wraps — the #245 note on message-row.tsx). #490 grew the swipe chip
-// to 177.5px by naming it "Variant", which is WIDER than a short reply's bubble, so the chip became that
-// widest child: measured on the pre-fix source, a two-word reply rendered bubble 132.00 / strip 177.55 /
-// column 177.55 — a pager hanging 45px past the right edge of the box it pages, at BOTH ends of the width
-// matrix. (The #312 pin above records the same collapse from the other side and worked around it by
-// lengthening its fixture.)
-//
-// Two properties, both asserted per cell, because they fail independently: the chip must not SIZE the column
-// (fixed by the pager track's `container-type: inline-size` — an inline-size container resolves its width
-// without regard to its contents, so it contributes nothing upward and still stretches downward), and it
-// must not EXTEND past the bubble (fixed by the kicker standing down below the width that can hold it — no
-// containment can shrink a 177.5px chip under a 132px bubble). The label assertions run in BOTH directions
-// in the same matrix, so a rule that hid the word everywhere would fail as loudly as one that never hid it.
-const PAGER_LABEL = "Variant";
-/** The counter is reached by its TEXT, never by the `swipe-strip-counter` slot the fix added: a red-first
- *  receipt has to compile AND run against the source that still has the defect, so every locator here is one
- *  the pre-fix DOM also answers. The text survives the compaction (`word-spacing` moves no characters). */
-const PAGER_COUNTER_TEXT = "2 / 3";
-/** Every cell keeps a USABLE pager: both chevrons and the counter, whatever the label does. */
-async function expectPagerUsable(component: Locator): Promise<void> {
-  await expect(component.getByRole("button", { name: VARIANT_PREV_NAME })).toBeVisible();
-  await expect(component.getByRole("button", { name: VARIANT_NEXT_NAME })).toBeVisible();
-  await expect(component.getByText(PAGER_COUNTER_TEXT)).toBeVisible();
-}
-
-/** One read of everything the two pager laws are about.
- *
- *  `labelInFlow` is a WIDTH question, not a visibility one (#608): the kicker stands down to `sr-only`,
- *  which Playwright still calls visible — it is absolutely positioned at 1×1 — so what the assertions want
- *  to know is whether it occupies layout.
- *
- *  `counterLines` is HEIGHT ÷ line-height, and the two probes it replaces are both UN-FAILABLE here —
- *  each was written, run against the pre-fix source, and caught lying (2026-08-24):
- *    · `el.getClientRects().length` counts LINE BOXES only for an inline element. The counter is a flex
- *      ITEM, which CSS blockifies, so a block box is one rect no matter how many lines it holds — it read
- *      1 on the wrapped pre-fix counter.
- *    · a Range over the element's contents returns a rect per TEXT RUN, and `{current} / {total}` is three
- *      of them — it read 3 in every cell, wrapped or not.
- *    · box-width vs `scrollWidth` cannot see it either: the text RE-LAYS OUT into the narrower box, so
- *      scrollWidth follows the box down (30.08 vs 30) instead of reporting the overflow.
- *  Height is what actually moves: the pre-fix coarse cells measured 32.50px against a 16.25px
- *  line-height — the "2 /" over "3" side-eye photographed — and every healthy cell measures 16.25px. */
-async function readPagerGeometry(component: Locator): Promise<{
-  readonly bubble: number;
-  readonly chip: number;
-  readonly chipIntrinsic: number;
-  readonly chipGap: number;
-  readonly column: number;
-  readonly chevron: { readonly w: number; readonly h: number };
-  readonly counterLines: number;
-  readonly counterWidth: number;
-  readonly counterClipped: boolean;
-  readonly labelInFlow: boolean;
-  readonly rightDelta: number;
-  readonly leftDelta: number;
-}> {
-  const bubbleBox = await component.locator(BUBBLE).boundingBox();
-  const chipBox = await component.locator(SWIPE_STRIP).boundingBox();
-  const columnBox = await component.locator(CONTENT_COLUMN).boundingBox();
-  const chevronBox = await component.getByRole("button", { name: VARIANT_PREV_NAME }).boundingBox();
-  const labelBox = await component.getByText(PAGER_LABEL, { exact: true }).boundingBox();
-  const counter = await component.getByText(PAGER_COUNTER_TEXT).evaluate((el) => ({
-    height: el.getBoundingClientRect().height,
-    width: el.getBoundingClientRect().width,
-    lineHeight: Number.parseFloat(getComputedStyle(el).lineHeight),
-    clipped: el.scrollWidth > el.clientWidth + 1,
-  }));
-  // The chip's INTRINSIC width, read from the chip itself rather than pinned as a px literal: the sum of
-  // its IN-FLOW children plus one gap between each pair. `sr-only` children are absolutely positioned, so
-  // they are neither flex items nor gap-bearing (`PAGER_LABEL_QUIET_WHEN_TIGHT`) and must not be counted.
-  // The test is the COMPUTED position, not `offsetParent` (which is null only for fixed/detached boxes,
-  // so it calls an `sr-only` child in-flow and inflates the floor by a pixel and a gap — measured).
-  const intrinsic = await component.locator(SWIPE_STRIP).evaluate((chip: HTMLElement) => {
-    const gap = Number.parseFloat(getComputedStyle(chip).columnGap) || 0;
-    const flowed = [...chip.children].filter((kid) => {
-      const position = getComputedStyle(kid).position;
-      return position !== "absolute" && position !== "fixed";
-    });
-    const sum = flowed.reduce((total, kid) => total + kid.getBoundingClientRect().width, 0);
-    return { gap, width: sum + gap * Math.max(flowed.length - 1, 0) };
-  });
-  return {
-    bubble: bubbleBox?.width ?? 0,
-    chip: chipBox?.width ?? 0,
-    chipIntrinsic: intrinsic.width,
-    chipGap: intrinsic.gap,
-    column: columnBox?.width ?? 0,
-    chevron: { w: chevronBox?.width ?? 0, h: chevronBox?.height ?? 0 },
-    counterLines: Math.round(counter.height / counter.lineHeight),
-    counterWidth: counter.width,
-    counterClipped: counter.clipped,
-    labelInFlow: (labelBox?.width ?? 0) > 1,
-    rightDelta: (chipBox?.x ?? 0) + (chipBox?.width ?? 0) - ((bubbleBox?.x ?? 0) + (bubbleBox?.width ?? 0)),
-    leftDelta: (chipBox?.x ?? 0) - (bubbleBox?.x ?? 0),
-  };
-}
-
-/** The chip's placement, in the two arms it actually has (#312 + #608's rendered receipt).
- *
- *  FITS ⇒ the trailing edges meet: the pager sits under the row's action cluster, which is #312's whole
- *  ruling. OVERFLOWS (a bubble narrower than the touch-floored chip) ⇒ the LEADING edges meet instead, and
- *  that arm is not cosmetic: `align-self: flex-end` overflows towards the START, which put the ‹ chevron at
- *  x = −47px — off the pane, unclickable — while the auto margin in `PAGER_CHIP` sends the same overflow
- *  into the column's own empty room. A pin that only asserted the trailing edge would pass on the version
- *  that loses a control off-screen; it was the SHOT, not the numbers, that caught it. */
-function expectPagerAlignment(g: { readonly rightDelta: number; readonly leftDelta: number }): void {
-  // ONE of the two edges is flush with the bubble's — trailing while the chip fits, leading once it cannot.
-  expect(Math.min(Math.abs(g.rightDelta), Math.abs(g.leftDelta))).toBeLessThanOrEqual(1);
-  // …and the overflow, when there is one, is never towards the pane's edge. THIS is the line that reds on
-  // the `self-end` spelling (measured −47px there).
-  expect(g.leftDelta).toBeGreaterThanOrEqual(-1);
-}
-
-const PAGER_MATRIX = [
-  // A SHORT reply is the defect cell: its bubble is narrower than the full chip, so the label stands down.
-  { label: "short", content: "Hi there", labelShown: false },
-  // One line at roughly the chip's own width — the crossover, where the label comes back.
-  { label: "medium", content: "That is a reasonably sized reply line", labelShown: true },
-  {
-    label: "long",
-    content:
-      "This one runs on for quite a while so that the body wraps across several lines and the bubble reaches the reading measure cap without any doubt about it.",
-    labelShown: true,
-  },
-] as const;
-
-for (const width of [360, 900] as const) {
-  for (const cell of PAGER_MATRIX) {
-    test(`#598 the variant pager neither widens nor overhangs its bubble (${cell.label} body, ${width}px)`, async ({ mount, page }) => {
-      await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
-      const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content={cell.content} width={width} />);
-      await expect(component.locator(SWIPE_STRIP)).toHaveCount(1);
-      await expectPagerUsable(component);
-
-      const g = await readPagerGeometry(component);
-      // (1) THE COLUMN IS THE BUBBLE'S. A chip that still sized the column reads column === chip here.
-      expect(g.bubble).toBeGreaterThan(0);
-      expect(g.column).toBeCloseTo(g.bubble, 1);
-      // (2) NOTHING HANGS OUT. At a fine pointer every cell of this matrix FITS, so the chip is inside the
-      // bubble and the trailing edges meet (#312) — `expectPagerAlignment` states both arms in general.
-      expect(g.chip).toBeLessThanOrEqual(g.bubble + 1);
-      expectPagerAlignment(g);
-      // …and the word occupies LAYOUT exactly where the bubble can hold it — both arms, same matrix.
-      expect(g.labelInFlow).toBe(cell.labelShown);
-      // …and the counter is one line at every width (the coarse arm below is where this one bites).
-      expect(g.counterLines).toBe(1);
-    });
-  }
-}
-
-// THE FLOOR CASE — a two-letter body, so the bubble is as narrow as the row can make it: its width is the
-// name row's action cluster inside `px-block` and nothing else (166.59px here; 149.67px measured with a
-// two-letter speaker name). The compact label-less chip is 99.48px, so the stand-downs leave real headroom
-// rather than a coincidence; if a future action cluster shrinks past the chip, THIS is the pin that goes red.
-test("#598 even the narrowest bubble the row can produce still contains its pager", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
-  const component = await mount(
-    <MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content="Ok" width={360} characterId={ALICE_ID} participants={[alice()]} />,
-  );
-  await expectPagerUsable(component);
-  const g = await readPagerGeometry(component);
-  expect(g.chip).toBeLessThan(g.bubble);
-  expectPagerAlignment(g);
-});
-
-// ── #608: THE SAME PAGER, AT A COARSE POINTER — the chip may not be CRUSHED either ────────────────
-//
-// #598 contained the chip's track, which made the BUBBLE the chip's available width. At a fine pointer that
-// is all upside. At a coarse one it moved the failure rather than removing it, and side-eye measured the
-// result in the room: a `w-fit` chip resolved against a short bubble and its flex children absorbed the
-// deficit — chevrons at 41.41×48 (under the app's own 48px coarse box AND WCAG 2.5.5's 44px floor) with the
-// counter wrapped to "2 /" over "3". Same reading at `--font-scale 1.5`, so not a type-scale accident.
-//
-// The fix is `w-max` (the chip is its content, the CONTAINED track absorbs the overflow — the column is
-// untouched either way, which is what #598's containment bought) plus two width-keyed stand-downs, so the
-// chip is as small as it can HONESTLY be before it is asked to be smaller than its own controls.
-//
-// THE HONEST FLOOR, and why these pins do not assert "chip ≤ bubble" at a coarse pointer (measured, this
-// file's own story): the narrowest bubble the row can produce is NOT the 128.58px the room happened to show
-// — that reading carried a timestamp. With `showTimestamps` off (the default) the bubble's width is the name
-// row's ⋯ cluster inside `px-block`: 89.67px with a two-letter speaker, 72.00px with none. Two 48px targets
-// alone are 96px. NO arrangement of a two-button pager fits that bubble, so the chip stops shrinking at its
-// compact floor (127.48px measured) and hangs past the bubble instead — WCAG 2.5.5 outranks flushness, and a
-// crushed 41px target is the defect this issue was filed for. The assertion is therefore `chip ≤ max(bubble,
-// floor)`: flush wherever flushness is reachable, and the touch floor exactly where it is not.
-//
-// THE FLOOR IS MEASURED, NOT PINNED (#1050, 2026-09-02). This block used to carry `COARSE_CHIP_FLOOR =
-// 127.48` — 2 × 48px chevron + the compact counter + 2 × 4px `gap-tight`, i.e. two device constants and ONE
-// FONT METRIC. `77e07912eb` vendored Geist, the datum-voice counter went 23.48 → 24.00px, the chip went
-// 127.48 → 128.00, and a 0.52px drift red a 0.5px `toBeCloseTo` tolerance with no product code changed
-// (measured both ways in ONE evaluate: with the inherited stack and with the pre-Geist
-// `ui-monospace, SFMono-Regular, monospace` fallback forced, which reproduces 127.484375 exactly).
-// A pin whose expected value is a glyph advance is a pin on the font, so the floor is now READ OFF THE CHIP
-// (`chipIntrinsic` = its in-flow children + their gaps) and the LAW is asserted against device constants
-// only: two full `COARSE_TOUCH_BOX` targets plus the gaps between them, a counter that is neither wrapped
-// nor clipped, and a chip that is exactly its own content — no crush, no stretch. That is strictly stronger
-// than the literal: it fails on a stretched chip too, and it cannot flip on a font change.
-const COARSE_TOUCH_BOX = 48;
-
-test.describe("#608 coarse pager", () => {
-  test.use({ hasTouch: true });
-
-  for (const width of [360, 900] as const) {
-    for (const cell of PAGER_MATRIX) {
-      test(`#608 the pager keeps its touch box and one-line counter (${cell.label} body, ${width}px)`, async ({ mount, page }) => {
-        // The emulation PROVES itself before any geometry is trusted (the #220 precedent) — `hasTouch` is
-        // what flips `(pointer: coarse)` in chromium; `page.emulateMedia` has no pointer feature.
-        await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
-        await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
-        const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content={cell.content} width={width} />);
-        await expectPagerUsable(component);
-
-        const g = await readPagerGeometry(component);
-        // THE DEFECT, both halves: a squeezed target and a wrapped counter.
-        expect(g.chevron.w).toBeCloseTo(COARSE_TOUCH_BOX, 0);
-        expect(g.chevron.h).toBeCloseTo(COARSE_TOUCH_BOX, 0);
-        expect(g.counterLines).toBe(1);
-        // #598's first law still holds at this pointer: the column is the bubble's.
-        expect(g.column).toBeCloseTo(g.bubble, 1);
-        // …and the chip is flush where flushness is reachable, at its own content width where it is not.
-        expect(g.chip).toBeLessThanOrEqual(Math.max(g.bubble, g.chipIntrinsic) + 1);
-        expectPagerAlignment(g);
-      });
-    }
-  }
-
-  // The floor arm, asserted DIRECTLY rather than implied by the inequality above: under a bubble narrower
-  // than the compact chip, the chip stops at its floor with legal targets instead of crushing to fit.
-  test("#608 under a bubble narrower than the chip, the chip holds its touch floor rather than crushing", async ({ mount, page }) => {
-    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
-    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
-    const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content="Ok" width={360} />);
-    await expectPagerUsable(component);
-    const g = await readPagerGeometry(component);
-    // THE LEGAL FLOOR, derived here rather than remembered: two whole touch targets, the counter's OWN
-    // measured width, and the gaps between the chip's three in-flow items. Nothing in it is a font
-    // constant, and nothing in it is read off a box the defect would have shrunk.
-    const legalFloor = 2 * COARSE_TOUCH_BOX + g.counterWidth + 2 * g.chipGap;
-    // THE PREMISE: this bubble cannot hold a legal chip at all, so flushness is unreachable here and the
-    // floor is what decides the width. (Stated against the floor, not against the chip — a crushed chip
-    // would make a chip-relative premise vacuously true.)
-    expect(g.bubble, "the narrowest bubble cannot hold a legal chip").toBeLessThan(legalFloor);
-    // THE DEFECT, both halves, before anything else is trusted: a squeezed target and a wrapped counter.
-    expect(g.chevron.w).toBeCloseTo(COARSE_TOUCH_BOX, 0);
-    expect(g.counterLines).toBe(1);
-    // The counter is not clipped either — the other way a chip can look the right size and lie.
-    expect(g.counterClipped).toBe(false);
-    // …so the chip is AT its floor, and is exactly its own content: neither squeezed by the bubble nor
-    // stretched by the track.
-    expect(g.chip, "the chip holds the legal floor").toBeGreaterThanOrEqual(legalFloor - 0.5);
-    expect(g.chip).toBeCloseTo(g.chipIntrinsic, 0);
-    // The column is STILL the bubble's — the chip overflows the track it cannot fit, and the track is
-    // contained, so nothing about the message's own box moves.
-    expect(g.column).toBeCloseTo(g.bubble, 1);
-  });
-});
-
-// THE KICKER'S STAND-DOWN IS VISUAL ONLY (#608). #490 ruled that the sighted reader must be told what this
-// control is; #598 answered a geometry problem by removing the word from a narrow chip, which quietly took
-// the SCREEN-READER half of that ruling with it (`hidden` is out of the a11y tree). `sr-only` is the repair:
-// the word leaves the FLOW — zero width contribution, and an absolutely-positioned child is not a flex item
-// at all, so its gap goes too — while the accessible name of the band still reads "Variant 2 / 3".
-test("#598/#608 the narrow chip keeps the word in the a11y tree even though it leaves the layout", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
-  const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content="Hi there" width={360} />);
-  await expect(component.locator(SWIPE_STRIP)).toHaveCount(1);
-  const g = await readPagerGeometry(component);
-  expect(g.labelInFlow).toBe(false);
-  await expect(component.locator(SWIPE_STRIP)).toMatchAriaSnapshot(`
-    - button "Previous variant"
-    - text: Variant 2 / 3
-    - button "Next variant"
-  `);
-});
-
 // ── #1728 arm B: WHERE THE READING COLUMN SITS IN ITS ROW (owner ruling 2026-09-05) ─────────────────
 // The defect: the CENTRED skins (`flat`/`hush` via `flatOuter`, and `document`) centred the row BODY —
 // chip plus column as one unit — so the prose sat off-centre by the chip and SLID when a reader toggled
@@ -3019,7 +2734,9 @@ test("#1728: the bubble skin KEEPS its edge-anchored identity gutter at a deskto
   await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(40);
 });
 
-test("#1728: the bubble skin KEEPS its edge-anchored identity gutter at a phone width", async ({ mount }) => {
+// At a phone width the gutter chip stands down and the column runs the row's full width (owner ruling: about
+// 24px of transcript text margin on a phone). The speaker stays named in the header.
+test("at a phone width the identity gutter stands down and the reading column starts at the row's edge", async ({ mount }) => {
   const component = await mount(
     <MessageRowStory
       width={320}
@@ -3032,8 +2749,8 @@ test("#1728: the bubble skin KEEPS its edge-anchored identity gutter at a phone 
     />,
   );
   await expect(component.locator(READING_COLUMN)).toBeVisible();
-  // The row's own `@max-md` step: a 24px chip + a 6px `spacing.field` gap.
-  await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(30);
+  await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(0);
+  await expect(component.locator('[data-slot="avatar-root"]')).toBeHidden();
 });
 
 test("#1728: below the crossover the centred skins keep the IN-FLOW gutter", async ({ mount }) => {

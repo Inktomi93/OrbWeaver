@@ -6537,6 +6537,38 @@ for (const { id, label } of ONE_SHELL_SECTIONS) {
   });
 }
 
+// THE ROOM SCREEN HAS NO TAB BAR (owner ruling, docs/law/UI-Architecture-and-Layout.md MOBILE): inside an
+// open chat the bar stands down and its row goes to the room; back is the header chevron, and the list screen
+// gets the bar again. Another section's pushed detail keeps it, so the rule is the room's, not the push's.
+test("ONE-SHELL @320: an open chat room hides the tab bar and gives its row to the room; back restores it", async ({ mount, page }) => {
+  await page.setViewportSize(MOBILE_NARROW);
+  const shell = await mount(<AppShellMobileRuleStory section="chats" />);
+  const tabBar = page.locator(".shell-rail");
+  const grid = page.locator(".shell-grid");
+  await expect(tabBar).toBeVisible();
+
+  await shell.getByRole("button", { name: "open a member" }).click();
+  await expect(page.getByText("chats content pane")).toBeVisible();
+  await expect(tabBar).toHaveCount(0);
+  await expect(grid).toHaveAttribute("data-room-screen", "true");
+  // The room takes the whole frame: CONTENT runs to the grid's own bottom edge.
+  const gridBox = await grid.boundingBox();
+  const mainBox = await page.locator(".shell-main").boundingBox();
+  expect((mainBox?.y ?? 0) + (mainBox?.height ?? 0)).toBeCloseTo((gridBox?.y ?? 0) + (gridBox?.height ?? 0), 0);
+
+  await shell.getByRole("button", { name: "Back to Chats" }).click();
+  await expect(tabBar).toBeVisible();
+  await expect(grid).not.toHaveAttribute("data-room-screen", /.*/u);
+});
+
+test("ONE-SHELL @320: another section's pushed detail keeps the tab bar", async ({ mount, page }) => {
+  await page.setViewportSize(MOBILE_NARROW);
+  const shell = await mount(<AppShellMobileRuleStory section="characters" />);
+  await shell.getByRole("button", { name: "open a member" }).click();
+  await expect(page.getByText("characters content pane")).toBeVisible();
+  await expect(page.locator(".shell-rail")).toBeVisible();
+});
+
 // The escape hatch, and the reason the lead control is never dead in the no-selection arm: a section's
 // no-selection CONTENT is a real surface for some sections (the corpus + analytics dashboards, the config
 // welcome), so "hide the list" has to still mean it — and bring the roster back.

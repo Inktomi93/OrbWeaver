@@ -67,6 +67,12 @@ mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled
                             tooltip no thumb can open; --tap fires none of those.
   --swipe <selector=dy>   a dispatched touch drag that scrolls a touch scroller dy px (positive = down);
                             needs a touch device like --tap. --wheel is the mouse scroll
+  --soft-keyboard <px>    open an on-screen keyboard px tall from here in the tape (0 closes it): headless
+                            Chromium never shows one, so without it a phone drive never sees the composer
+                            under a keyboard. iOS-shaped: visualViewport shrinks and fires resize while the
+                            layout viewport keeps its height. Pair with --tap on the field, e.g.
+                            --tap 'textarea' --soft-keyboard 340 (roughly an iPhone portrait keyboard with
+                            its suggestion bar). Needs a touch device like --tap
   --fill <selector=value>  --key <selector=Key> | --key <Key>
                             bare --key Tab walks focus (no re-focus); the selector= form re-anchors
   --hover <selector>      --wait-for <selector|text=phrase>    --goto <target>

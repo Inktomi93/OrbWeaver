@@ -5,14 +5,45 @@ import type { Viewport } from "./argv.ts";
 import { ownerPageSession } from "./browser-capture.ts";
 import type { BrowserEnvironmentApplied } from "./browser-environment.ts";
 
-/** Reassert the owner's viewport through a guaranteed non-no-op round trip. */
-export async function reassertOwnerViewport(page: Page, viewport: Viewport): Promise<void> {
+/** Reassert the owner's viewport and screen through a guaranteed non-no-op round trip on the owner session.
+ *
+ *  Not `page.setViewportSize`: it also sets Playwright's emulated SCREEN to the viewport, and Playwright
+ *  re-applies that state around every screenshot, so a phone's 430x932 screen read 430x740 on every
+ *  session call after the first. These are the metrics Playwright's Chromium page sends at context
+ *  creation, so its own state and the page agree. The away step is what makes the repeat non-no-op. */
+export async function reassertOwnerViewport(
+  page: Page,
+  applied: Pick<BrowserEnvironmentApplied, "viewport" | "screen" | "deviceScaleFactor" | "isMobile">,
+): Promise<void> {
   if (page.viewportSize() === null) {
     throw new Error("INSTRUMENT ERROR: reassertOwnerViewport called on a page this connection did not create");
   }
+  const { viewport, screen } = applied;
   const away: Viewport = { ...viewport, width: viewport.width === 1 ? 2 : viewport.width - 1 };
-  await page.setViewportSize(away);
-  await page.setViewportSize(viewport);
+  const cdp = ownerPageSession(page);
+  for (const size of [away, viewport]) {
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      mobile: applied.isMobile,
+      width: size.width,
+      height: size.height,
+      screenWidth: sameSize(viewport, screen) ? size.width : screen.width,
+      screenHeight: sameSize(viewport, screen) ? size.height : screen.height,
+      deviceScaleFactor: applied.deviceScaleFactor,
+      screenOrientation: orientationOf(applied.isMobile, screen.width > screen.height),
+    });
+  }
+}
+
+function sameSize(a: Viewport, b: Viewport): boolean {
+  return a.width === b.width && a.height === b.height;
+}
+
+// Playwright's own mapping: a mobile context reports portrait unless its screen is wider than tall.
+function orientationOf(isMobile: boolean, landscape: boolean): { readonly angle: number; readonly type: "landscapePrimary" | "portraitPrimary" } {
+  if (isMobile && !landscape) {
+    return { angle: 0, type: "portraitPrimary" };
+  }
+  return isMobile ? { angle: 90, type: "landscapePrimary" } : { angle: 0, type: "landscapePrimary" };
 }
 
 /** Reassert the owner's touch emulation through the page's persistent owner session, with the call the

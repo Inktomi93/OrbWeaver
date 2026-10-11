@@ -8,6 +8,7 @@ import { Container } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { HIDE_AT_COARSE } from "#components";
 import { useTRPC } from "#data";
 import { cn } from "#lib";
 import { openConfigTo } from "#state";
@@ -31,6 +32,15 @@ const STATE_INK: Record<NextTurnLine["state"], string | undefined> = {
   checking: undefined,
   unset: "text-warning",
   failed: "text-destructive",
+};
+
+// Owner ruling: on a phone the line that only names the connection and model is height the transcript
+// needs, so it stands down there. A line that states why the room cannot reply stays at every pointer.
+const STATE_PHONE: Record<NextTurnLine["state"], string | undefined> = {
+  named: HIDE_AT_COARSE,
+  checking: HIDE_AT_COARSE,
+  unset: undefined,
+  failed: undefined,
 };
 
 export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextTurnLineProps): ReactElement {
@@ -59,7 +69,7 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
     // stated dark-arm hole for a custom pivot palette (D144(d)), so the line takes an opaque fill: `bg-card`'s
     // AA floor is proven for every ink it paints (`palette-contrast.suite.test.ts`). No `rounded-card`: a text
     // backdrop is not a second elevated surface (UI-Density-Law.md §3/§5.1).
-    <Container className={cn(CHAT_TRACK, "bg-card py-tight")}>
+    <Container className={cn(CHAT_TRACK, "bg-card py-tight", STATE_PHONE[line.state])}>
       <Text
         as="p"
         voice="quiet"

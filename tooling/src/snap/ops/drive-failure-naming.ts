@@ -20,6 +20,7 @@ const STEP_FLAG: Record<Step["kind"], string> = {
   click: "--click",
   tap: "--tap",
   swipe: "--swipe",
+  "soft-keyboard": "--soft-keyboard",
   "motion-click": "--motion",
   jsclick: "--dom-click",
   press: "--force-click",
@@ -55,6 +56,9 @@ function failureReason(message: string): string {
 }
 
 function stepSubject(step: Step): string | null {
+  if (step.kind === "soft-keyboard") {
+    return String(step.height);
+  }
   if (step.kind === "keyboard") {
     return step.key;
   }
@@ -74,6 +78,9 @@ export function navDriveFailure(index: number, action: NavAction, message: strin
 
 // What a step failure names: every arm but the bare-key one is addressed by a selector.
 export function stepLabel(step: Step): string {
+  if (step.kind === "soft-keyboard") {
+    return `soft-keyboard ${String(step.height)}px`;
+  }
   if (step.kind === "keyboard") {
     return `keyboard ${step.key}`;
   }

@@ -189,6 +189,7 @@ import type { PendingAttachment } from "../../../../packages/client/src/features
 import { speakerThemesByName } from "../../../../packages/client/src/features/chat/lib/attribution.ts";
 import { useChatsSelectionTitle } from "../../../../packages/client/src/features/chat/lib/chats-selection-title.ts";
 import type { MemberCharacterRow, MemberPersonRow } from "../../../../packages/client/src/features/chat/lib/member-rows.ts";
+import { SWIPE_FOOT_HUG } from "../../../../packages/client/src/features/chat/lib/pager-chrome.ts";
 import { createWarningSurface } from "../../../../packages/client/src/features/chat/lib/turn-warning-surface.ts";
 import { warningNotice } from "../../../../packages/client/src/features/chat/lib/warning-notice.ts";
 import { enableAppearanceMessageRegistry } from "../../../../packages/client/src/lib/appearance-message-registry.ts";
@@ -1143,7 +1144,7 @@ export interface SwipeStripStoryProps {
 export function SwipeStripStory({ message }: SwipeStripStoryProps = {}): ReactElement {
   return (
     <CtDataProviders>
-      <SwipeStrip message={message ?? makeMessageView({ variantCount: 3, selectedVariantIdx: 1 })} />
+      <SwipeStrip message={message ?? makeMessageView({ variantCount: 3, selectedVariantIdx: 1 })} foot={SWIPE_FOOT_HUG} />
     </CtDataProviders>
   );
 }
@@ -3491,7 +3492,7 @@ export function CompactSummaryPeekStory({ summary }: { readonly summary: string 
 export function GreetingSwipeStripStory({ variants, current }: { readonly variants: readonly string[]; readonly current: string }): ReactElement {
   return (
     <CtDataProviders>
-      <GreetingSwipeStrip chatId={CHAT_ID} messageId={castId<MessageId>("msg_ct_greeting")} variants={variants} current={current} />
+      <GreetingSwipeStrip chatId={CHAT_ID} messageId={castId<MessageId>("msg_ct_greeting")} variants={variants} current={current} foot={SWIPE_FOOT_HUG} />
     </CtDataProviders>
   );
 }

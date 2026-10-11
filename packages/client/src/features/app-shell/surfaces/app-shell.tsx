@@ -13,7 +13,7 @@ import { preload } from "react-dom";
 import { ListPaneHeaderHost } from "#components";
 import { resolveThemeScopeTokens } from "#lib";
 import type { SectionId } from "#state";
-import { closeModal, openModal, setActiveSection, useChromeRegistry, useSectionRegistry } from "#state";
+import { closeModal, openModal, setActiveSection, useActiveChatId, useChromeRegistry, useSectionRegistry } from "#state";
 import { RegionAnchor } from "../anchors/region-anchor.tsx";
 import { CONTEXT_TOGGLE_MARKER } from "../components/context-toggle.tsx";
 import { CustomThemeStyle } from "../components/custom-theme-style.tsx";
@@ -41,6 +41,7 @@ import { useShellLayout } from "../hooks/use-shell-layout.ts";
 import { useShellTrackFlip } from "../hooks/use-shell-track-flip.ts";
 import { useStrayFileDropGuard } from "../hooks/use-stray-file-drop-guard.ts";
 import { appearanceBackgroundSource, resolveThemeBackgroundUrl } from "../lib/resolve-theme-background.ts";
+import { roomScreenShell } from "../lib/room-section.ts";
 
 /** Collapse whichever panels are currently AUTO-OVERLAYS (the scrim's dismiss, shared by its click and the
  *  Escape key). Module-scope + `layout`-taking so it is never an effect dependency (D54: no manual memo). */
@@ -121,6 +122,8 @@ export function AppShell(): ReactElement {
   const primacySentinelRef = useRef<HTMLDivElement>(null);
   useShellContentPrimacyObserver(primacySentinelRef);
   const layout = useShellLayout();
+  // The phone's room screen has no tab bar; back is the header chevron (`roomScreenShell`).
+  const roomScreen = roomScreenShell({ ...layout, activeChatId: useActiveChatId() });
   useCommandShortcut(commandModalId, layout.openModalId);
   const appearance = useAppearance();
   // `dataTheme` comes from the hook, NOT from the row here (#231): while the two chained theme reads are
@@ -297,6 +300,7 @@ export function AppShell(): ReactElement {
             data-list-mode={layout.listMode}
             data-context-mode={layout.contextMode}
             data-focus-mode={layout.focusMode}
+            {...roomScreen.gridAttrs}
             data-elevation={appearance.elevation}
             {...(hasBgImage ? { "data-has-bg-image": true } : {})}
             style={shellVars}
@@ -400,7 +404,7 @@ export function AppShell(): ReactElement {
               {contextPane.body}
             </PanelChrome>
 
-            <RailSlot activeSection={layout.activeSection} show={layout.mobileViewport} />
+            <RailSlot activeSection={layout.activeSection} show={roomScreen.showMobileRail} />
 
             {/* Stays mounted and fades via data-visible so it fades WITH the panel instead of hard-cutting on close. */}
             <button

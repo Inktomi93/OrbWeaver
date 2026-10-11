@@ -76,6 +76,10 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--visitor": { group: "Where", summary: "send relay headers so a loopback stack serves a signed-out visitor, not its owner" },
   "--click": { group: "Reach", summary: "real Playwright click (actionability-checked); flakes on virtualized list rows" },
   "--swipe": { group: "Reach", summary: "selector=dy — a dispatched touch drag that scrolls a touch scroller dy px; needs --mobile like --tap" },
+  "--soft-keyboard": {
+    group: "Reach",
+    summary: "px — open an iOS-shaped on-screen keyboard that shrinks visualViewport by px (0 closes); needs --mobile like --tap",
+  },
   "--tap": { group: "Reach", summary: "a REAL touch tap without mouseover; use --mobile at session boot or another touch device" },
   "--dom-click": { group: "Reach", summary: "in-page el.click(), bypasses actionability — the click for virtualized/composite rows" },
   "--force-click": { group: "Reach", summary: "hover-then-forced pointer click for hover-revealed/overlaid controls" },

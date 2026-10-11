@@ -1,10 +1,9 @@
-// The swipe strip: flanking chevrons + the n / m variant counter, shown on the last assistant message
-// only. It renders as a TRACK (an inline-size container, full column width, no paint) wrapping the CHIP
-// (`data-slot="swipe-strip"`, the w-fit plate everything else measures) — #598's geometry seal: the chip may
-// not size the column its bubble lives in, and the track's own width is what the kicker's stand-down reads. Right chevron: at the tip fires swipe (a fresh generation); stepped back, it fires
-// selectVariant (a pointer move, no new generation), same as the left chevron. Both resolve their
-// target variant id through useVariantHistory, since MessageView carries only the selected variant per
-// slot.
+// The swipe foot: ‹ at the message's leading edge, the `n / m` count and › at its trailing edge, on the
+// last assistant message only. Where it sits and how its chevrons meet the edge is the chat style's
+// (`RowSkin.swipeFoot`, lib/pager-chrome.ts). Right chevron: at the tip fires swipe (a fresh generation);
+// stepped back, it fires selectVariant (a pointer move, no new generation), same as the left chevron. Both
+// resolve their target variant id through useVariantHistory, since MessageView carries only the selected
+// variant per slot.
 //
 // THE SECOND `chat.swipe` DOOR, RATIFIED (#568 — budget `chats::chat.swipe: 2`; the other is the wand's
 // `fireSwipe`/`fireRewrite` in `use-guided-actions.ts`). This is a READER-SIDE control on the message —
@@ -22,14 +21,15 @@ import { Button } from "@orb/ui/button";
 import { ChevronLeft, ChevronRight, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useId } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { cn, turnMutationToast, viewerTimeZone } from "#lib";
+import { turnMutationToast, viewerTimeZone } from "#lib";
 import { useSwipeKeyboardNav } from "../hooks/use-swipe-keyboard-nav.ts";
 import { useVariantHistory } from "../hooks/use-variant-history.ts";
 import { VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME } from "../lib/message-action-names.ts";
-import { PAGER_CHIP, PAGER_CHIP_COMPACT, PAGER_COUNTER, PAGER_LABEL_QUIET_WHEN_TIGHT, PAGER_TRACK } from "../lib/pager-chrome.ts";
+import type { SwipeFoot } from "../lib/pager-chrome.ts";
+import { SWIPE_COUNTER } from "../lib/pager-chrome.ts";
 
 interface SwipeVars {
   readonly chatId: ChatId;
@@ -61,15 +61,31 @@ const useSelectVariantMutation = createEntityMutation<SelectVariantVars, unknown
 
 export interface SwipeStripProps {
   readonly message: MessageView;
-  /** #221 — the wallpaper legibility backing the ROW owns (`BG_PHOTO_CHROME_PLATE`), threaded rather
-   *  than imported here so the one home for the row's backings stays `message-row-backing.ts` and this
-   *  component keeps knowing nothing about the shell's wallpaper flag (the `MessageMetadataRow`
-   *  precedent). Without it the chevrons floated on the raw photo at 1.60:1 — WCAG 1.4.11 needs 3:1 for
-   *  a UI component, and this band is the one chrome row under the bubble that took no chip. */
-  readonly backingClass?: string | undefined;
+  /** The chat style's swipe treatment. */
+  readonly foot: SwipeFoot;
 }
 
-export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactElement {
+/** The foot line both swipe strips share: ‹ alone at the leading edge, the count beside › at the trailing
+ *  edge, as SillyTavern lays its swipe out. The strips own their verbs; this owns only the arrangement. */
+export function SwipeFootRow(props: {
+  readonly foot: SwipeFoot;
+  readonly slot: string;
+  readonly prev: ReactNode;
+  readonly count: ReactNode;
+  readonly next: ReactNode;
+}): ReactElement {
+  return (
+    <Row align="center" justify="between" gap="field" data-slot={props.slot} className={props.foot.row}>
+      {props.prev}
+      <Row align="center" gap="tight">
+        {props.count}
+        {props.next}
+      </Row>
+    </Row>
+  );
+}
+
+export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const swipe = useSwipeMutation({ trpc, invalidation });
@@ -123,88 +139,45 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
   const nextChevronLabel = current < total ? VARIANT_NEXT_NAME : VARIANT_GENERATE_NAME;
 
   return (
-    // THE PAGER MAY NOT SIZE THE BUBBLE'S COLUMN (#598). The content column is a flex child of a row body
-    // that SHRINK-WRAPS (the bubble family's outer carries `items-start`), so the column resolves to the
-    // max-content of its widest child — and since #490 grew this chip from ~123px to 177.5px, the widest
-    // child of a SHORT reply's column was the PAGER, not the bubble. Measured on the row story before this
-    // change: bubble 132.00 · strip 177.55 · column 177.55, i.e. a chip hanging 45px past the right edge of
-    // the box it pages (the #312 pin's own header recorded the same collapse at the two-word default body
-    // and worked around it by lengthening its fixture; this is that finding's fix).
-    //
-    // `container-type: inline-size` (Tailwind's `@container`) is the mechanism, and it does BOTH halves at
-    // once: an inline-size container's width is resolved WITHOUT regard to its contents, so this track
-    // contributes nothing to the column's max-content (the column now sizes to the bubble) while the track
-    // itself still stretches to whatever the column resolved to. The chip inside is then measured against the
-    // BUBBLE's width instead of dictating it — which is what #608 had to answer next: `lib/pager-chrome.ts`
-    // owns the geometry vocabulary both strips share, and its header states the two rules in full.
-    <Stack data-slot="swipe-strip-track" className={PAGER_TRACK}>
-      {/* THE PLATE SIZES TO ITS CONTENT (#228). #221 gave this band the row's wallpaper backing and fixed its
-          contrast (1.60:1 → 8.78:1), but the band is a block-level flex row, so the plate spanned the full
-          message width: a measured 686x50 chip holding one 34x34 button — **3.4% ink coverage**, in the same
-          fill and the same radius as a message bubble. It read as a bubble that failed to load. The mechanism
-          is unchanged (same `backingClass`, same contrast); `w-fit` is the geometry half — a compact chip
-          around the chevron cluster, which is what the plate was always backing.
-
-          TRAILING-EDGE ALIGNED (#312). This chip is a direct child of the content column (a `flex-col`
-          `Stack`), so by omission it sat at the cross-START — the left edge — while every other row action
-          (edit/fork/kebab in the name row) packs to the TRAILING edge. The chip is placed under the actions
-          it belongs with, at the column's right edge, in every skin (the swipe strip is an assistant-only
-          affordance and the name row's actions are `justify-between`/trailing for the assistant side, so the
-          two clusters share one right edge). #312's PLACEMENT survives #598/#608 verbatim; its LEVER moved
-          from `self-end` to the auto margin in `PAGER_CHIP`, which is the same trailing edge plus a defined
-          overflow direction (read that constant — the difference is a chevron that stayed on screen).
-
-          `w-fit` BECAME `w-max` (#608, `PAGER_CHIP`). Once the track contains the column, `w-fit` resolved
-          the chip against the BUBBLE's width, and at a coarse pointer a short bubble made the chip's own
-          flex children absorb the deficit: chevrons at 41.41×48 (under both the app's 48px coarse box and
-          WCAG 2.5.5's 44px) with the counter wrapped to two lines. `w-max` says the plate is its content
-          and nothing else — the contained track absorbs any overflow, and the column is unaffected either
-          way, which is the whole point of rule 1. The chip still hugs (`max-content` IS the hug) — what it
-          no longer does is shrink below the controls it backs. */}
-      <Row gap="field" align="center" data-slot="swipe-strip" className={cn(PAGER_CHIP, PAGER_CHIP_COMPACT, backingClass)}>
-        <Button intent="ghost" size="icon" disabled={!canStepBack} loading={busy && canStepBack} aria-label={VARIANT_PREV_NAME} onClick={goPrev}>
-          <Icon icon={ChevronLeft} size="sm" />
-        </Button>
-        {/* The counter is a VALUE you read — the `datum` voice, whose tabular mono figures stop the count
-            from nudging the chevrons sideways as it ticks (UI-Density-Law.md §2.3).
-            IT IS NAMED FOR THE EYE NOW (#490). `‹ 8 / 8 ›` under a transcript is the universal pagination
-            shape, and it was read as one BY THE REVIEWER, with the source open — "8 / 8" says there are seven
-            earlier pages of conversation. The a11y tree was already correct ("Previous variant" / "Next
-            variant"), which made this the sharper kind of defect: the screen-reader user was told what the
-            control is and the sighted user was not. The fix is the VISIBLE word, in the existing micro voice,
-            never a mechanism change — the counter itself keeps its `datum` tabular figures beside it.
-
-            #490's RULING SURVIVES; ITS INPUT CHANGED (#598). The word is what makes the full chip 177.5px —
-            wider than the bubble under a short reply, which is the defect above. Track containment stops the
-            chip from WIDENING that bubble, but nothing can stop a 177.5px chip from OVERHANGING a 132px one,
-            so the word stands down exactly where it cannot fit: the container query reads the track, whose
-            width IS the bubble's, and below `PAGER_LABEL_QUIET_WHEN_TIGHT`'s threshold the chip falls back to
-            its pre-#490 `‹ n / m ›` (99.48px compact at a fine pointer, 127.48px at a coarse one).
-
-            THE STAND-DOWN IS VISUAL ONLY (#608). #598 spelled it `hidden`, which took #490's OTHER half with
-            it — a `display: none` node is out of the a11y tree, so the screen-reader user stopped being told
-            what the control is at exactly the widths where the sighted one already had. `sr-only` leaves the
-            FLOW without leaving the tree (absolutely positioned ⇒ zero width contribution, and an abspos
-            child is not a flex item, so its gap goes too): the band still reads "Variant 2 / 3", pinned by an
-            ariaSnapshot at a narrow mount. #490's subject holds wherever the surface can hold it. */}
-        <Text as="span" voice="kicker" className={PAGER_LABEL_QUIET_WHEN_TIGHT}>
-          Variant
-        </Text>
-        <Text as="span" voice="datum" data-slot="swipe-strip-counter" className={PAGER_COUNTER}>
-          {current} / {total}
-        </Text>
-        <Button
-          intent="ghost"
-          size="icon"
-          disabled={waitingForNext}
-          loading={busy || waitingForNext}
-          aria-label={nextChevronLabel}
-          aria-describedby={waitingForNext ? historyStatusId : undefined}
-          onClick={goNext}
-        >
-          <Icon icon={ChevronRight} size="sm" />
-        </Button>
-      </Row>
+    <Stack gap="tight">
+      <SwipeFootRow
+        foot={foot}
+        slot="swipe-strip"
+        prev={
+          <Button
+            intent="ghost"
+            size="glyph-lg"
+            className={foot.chevron}
+            disabled={!canStepBack}
+            loading={busy && canStepBack}
+            aria-label={VARIANT_PREV_NAME}
+            onClick={goPrev}
+          >
+            <Icon icon={ChevronLeft} size="sm" />
+          </Button>
+        }
+        count={
+          // A VALUE you read — the `datum` voice, whose tabular figures stop the count nudging the chevron as
+          // it ticks (UI-Density-Law.md §2.3). The position and nothing else: owner ruling, a label is noise.
+          <Text as="span" voice="datum" data-slot="swipe-strip-counter" className={SWIPE_COUNTER}>
+            {current} / {total}
+          </Text>
+        }
+        next={
+          <Button
+            intent="ghost"
+            size="glyph-lg"
+            className={foot.chevron}
+            disabled={waitingForNext}
+            loading={busy || waitingForNext}
+            aria-label={nextChevronLabel}
+            aria-describedby={waitingForNext ? historyStatusId : undefined}
+            onClick={goNext}
+          >
+            <Icon icon={ChevronRight} size="sm" />
+          </Button>
+        }
+      />
       {waitingForNext ? (
         <Text as="span" id={historyStatusId} voice="label" className="text-muted-foreground" role="status">
           Loading variant history…

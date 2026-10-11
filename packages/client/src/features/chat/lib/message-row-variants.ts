@@ -15,6 +15,8 @@ import { cn, messageBubbleClass } from "#lib";
 import type { RowAttribution } from "./attribution.ts";
 import { CHAT_TRACK } from "./chat-track.ts";
 import { BG_PHOTO_READING_PLATE } from "./message-row-backing.ts";
+import type { SwipeFoot } from "./pager-chrome.ts";
+import { SWIPE_FOOT_GUTTER, SWIPE_FOOT_GUTTER_WIDE, SWIPE_FOOT_HUG, SWIPE_FOOT_TRAIN } from "./pager-chrome.ts";
 
 function alignFor(role: MessageRole): string {
   return role === "user" ? "items-end" : "items-start";
@@ -123,6 +125,9 @@ export interface RowSkin {
   readonly bubbleLayout: BubbleLayout;
   /** {@link HeaderPlacement} — where this skin's speaker/timestamp/actions row lives (#288). */
   readonly headerPlacement: HeaderPlacement;
+  readonly swipeFoot: SwipeFoot;
+  /** A pinned inside header's band bleeds to the container's edges (margin and padding cancel). */
+  readonly headerBleed: string;
   /** A SKIN-OWNED override of the content column's width, as an inline style (#212-2). The styles tier caps
    *  that column at the reading measure — a rule about a column that holds PROSE. Echo's column holds prose
    *  AND an art pane, so capping the two together is what squeezed its line to 28 characters: the cap has to
@@ -329,6 +334,8 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "single",
     headerPlacement: "inside",
+    swipeFoot: SWIPE_FOOT_HUG,
+    headerBleed: "-mx-block px-block",
   },
   flat: {
     outer: flatOuter,
@@ -340,6 +347,8 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     // header stops minting a second plate beside the body's, and at rest the header finally shares the
     // body's `px-section` inset instead of hanging off the column's own left edge.
     headerPlacement: "inside",
+    swipeFoot: SWIPE_FOOT_GUTTER_WIDE,
+    headerBleed: "-mx-section px-section",
   },
   document: {
     outer: () => cx(CHAT_TRACK, "items-center"),
@@ -352,6 +361,8 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "single",
     headerPlacement: "inside",
+    swipeFoot: SWIPE_FOOT_GUTTER,
+    headerBleed: "-mx-block px-block",
   },
   echo: {
     outer: echoOuter,
@@ -366,6 +377,8 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     // outside would keep exactly the two-object read #288 exists to kill; the owner's attachment ruling
     // outranks a MINOR ref row. One word here reverts it if the reference ever wins.
     headerPlacement: "inside",
+    swipeFoot: SWIPE_FOOT_HUG,
+    headerBleed: "-mx-block px-block",
   },
   whisper: {
     outer: bubbleOuter,
@@ -379,6 +392,8 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     // text can never sit on art (the §0 reading-surface law the same report credits us for) — the
     // anatomy question #288 asked is "one container or two", and below-the-band answers it as one.
     headerPlacement: "inside",
+    swipeFoot: SWIPE_FOOT_HUG,
+    headerBleed: "-mx-block px-block",
   },
   hush: {
     outer: flatOuter,
@@ -390,6 +405,8 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     // Inside also puts the header to the RIGHT of hush's speaker stripe, which the stripe previously
     // started below — the ST ref's "name row inside the card" for the same reason.
     headerPlacement: "inside",
+    swipeFoot: SWIPE_FOOT_GUTTER_WIDE,
+    headerBleed: "-mx-section px-section",
   },
   ripple: {
     outer: bubbleOuter,
@@ -401,6 +418,8 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     // ripple's reference has it: in the card, right of the portrait (the retired skin-parity-2026-08-18 review:121 —
     // "ours reads as a caption floating above a picture card, ref reads as a titled panel").
     headerPlacement: "inside",
+    swipeFoot: SWIPE_FOOT_HUG,
+    headerBleed: "-mx-block px-block",
   },
   tide: {
     outer: bubbleOuter,
@@ -412,6 +431,8 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     // to be inside, and ST's tide reference also names the speaker above the train. It therefore keeps
     // the sibling row AND the #167 chip — over art there is nothing else to back it.
     headerPlacement: "outside",
+    swipeFoot: SWIPE_FOOT_TRAIN,
+    headerBleed: "",
   },
 };
 

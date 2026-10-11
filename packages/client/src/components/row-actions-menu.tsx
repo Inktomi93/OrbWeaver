@@ -58,8 +58,9 @@ export interface RowActionsMenuProps {
   /** Trigger button size — this composite's OWN vocabulary, resolved to a Button size arm by
    *  `TRIGGER_BUTTON_SIZE` below, never a passthrough. `"inline"` is the HintTrigger-parity box (the
    *  config setting row pairs the ⋯ with the tiny `i` and must not inflate the row); `"sm"` is the
-   *  small SQUARE trigger for a row whose scale is the `sm` control step. @defaultValue "icon" */
-  readonly triggerSize?: "icon" | "inline" | "sm";
+   *  small SQUARE trigger for a row whose scale is the `sm` control step; `"glyph"` is the glyph-button box
+   *  for a compact tool column (the composer's ☰), its touch floor carried by the glyph arm. @defaultValue "icon" */
+  readonly triggerSize?: "glyph" | "icon" | "inline" | "sm";
   /** A3 hover-reveal on the trigger (rest hidden). @defaultValue false — pass true only where the row already hid its cluster. */
   readonly reveal?: boolean;
   /** Render the trigger's `label` as a hover/focus tooltip — a BOOLEAN, never a second string (#869).
@@ -112,9 +113,9 @@ export interface RowActionsMenuProps {
  * through to a text step — the same one-union-plus-mapped-Record discipline the spine asks of every
  * dispatch axis.
  */
-const TRIGGER_BUTTON_SIZE = { icon: "icon", inline: "inline", sm: "icon-sm" } as const satisfies Record<
+const TRIGGER_BUTTON_SIZE = { glyph: "glyph-lg", icon: "icon", inline: "inline", sm: "icon-sm" } as const satisfies Record<
   NonNullable<RowActionsMenuProps["triggerSize"]>,
-  "icon" | "icon-sm" | "inline"
+  "glyph-lg" | "icon" | "icon-sm" | "inline"
 >;
 
 /**

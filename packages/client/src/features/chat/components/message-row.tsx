@@ -29,6 +29,7 @@ import { appearanceMessageRegistryEnabled, registerAppearanceMessageSnapshot } f
 import { AttachmentUrlProvider } from "../hooks/attachment-url-provider.tsx";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution.ts";
+import { ROW_BODY_AT_PHONE_WIDTH } from "../lib/chat-track.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import { BG_PHOTO_CHROME_PLATE } from "../lib/message-row-backing.ts";
@@ -308,18 +309,16 @@ export function MessageRow({
   const weldedAvatar = avatarTreatment === "sticky-portrait" ? avatarNode : null;
   const leadingAvatar = weldedAvatar !== null || role === "user" ? null : avatarNode;
   const trailingAvatar = weldedAvatar !== null || role !== "user" ? null : avatarNode;
-  // THE GUTTER COSTS LESS ON A PHONE (side-eye leg-4 P2 — "stop treating a phone as a narrow desktop").
-  // Measured beside the bubble at 320px: the avatar column took 76px, one paragraph ran 22 CHARACTERS over
-  // 12 lines, and the speaker name wrapped to two lines in an 88px box. This row is its own `@container`
-  // now, so at a phone-width column the portrait steps down and the gap tightens — the reading measure
-  // gets the difference back, and the row's ANATOMY is untouched (§B.1: the avatar is a SIBLING of the
-  // content column, never a descendant of the name row — a law with its own pins, not mine to reverse).
-  // ⚑ The review asked for the gutter to FOLD INTO the name row, which §B.1 forbids; the fork is reported
-  // rather than taken, with this as the anatomy-preserving half.
+  // THE GUTTER IS FREE ON A PHONE (`ROW_BODY_AT_PHONE_WIDTH`): this row is its own `@container`, and below
+  // its `md` step the chip stands down so the reading column runs edge to edge.
 
   // §6c/M8 message-footer: absent for a pre-commit draft-greeting row (no `surfaceContributors` passed).
   const footerContributions = resolveMessageFooter(surfaceContributors, message);
   const generationCredit = resolveGenerationCredit(metadataVisibility);
+  // The swipe foot is built once and placed by the skin: inside its container, or under a train.
+  const swipeFoot = renderRowSwipe({ editing, showSwipes, role, greeting, message, foot: skin.swipeFoot });
+  const swipeInside = skin.swipeFoot.placement === "inside" ? swipeFoot : null;
+  const swipeBelow = skin.swipeFoot.placement === "below" ? swipeFoot : null;
   // #288 — THE HEADER IS BUILT ONCE AND PLACED ONCE. `inside` (seven of the eight skins) hands it to the
   // bubble, which renders it as the container's own header row; `outside` (tide, whose train of pills has
   // no single container to be inside) keeps the pre-#288 sibling above the box. Splitting the node from
@@ -333,6 +332,7 @@ export function MessageRow({
       showTimestamp: metadataVisibility.showTimestamps,
       stickyAttribution,
       placement: skin.headerPlacement,
+      bleed: skin.headerBleed,
       // B7 — the picker's segment-target parse keys the SAME character-name set the span renderer uses
       // (`speakerThemesByName`'s keys); the actions row narrator-gates it against `message.kind` itself.
       actions: renderRowActions({
@@ -370,12 +370,7 @@ export function MessageRow({
             the same in-flow two-track gutter: arm B applies where a margin exists, and where the track IS
             the viewport it cannot, which is a fact of the ruling's input rather than a deviation from it.
             The avatar stays a SIBLING of the column in both arms — §B.1 intact, placement only. */}
-        <Row
-          align="start"
-          className={cn(rowBodyClassFor(skin), "@max-md:gap-field @max-md:*:data-[slot=avatar-root]:size-6")}
-          gap="row"
-          data-slot="message-row-body"
-        >
+        <Row align="start" className={cn(rowBodyClassFor(skin), ROW_BODY_AT_PHONE_WIDTH)} gap="row" data-slot="message-row-body">
           {leadingAvatar}
           {/* #245 — THE ROW HOLDS ITS OWN BOX OPEN WHILE IT IS EDITED. The column is content-sized (the
               row body shrink-wraps inside the track), and its max-content is usually the NAME ROW — whose
@@ -398,6 +393,7 @@ export function MessageRow({
                   role,
                   message,
                   header: header.inside,
+                  footer: swipeInside,
                   content,
                   reasoning: renderRowReasoning({ editing, message, renderContext, showLLMReasoningIcon }),
                   trainParagraphs: trainParagraphsFor(displayedMessage, editing, skin.bubbleLayout === "trains"),
@@ -417,7 +413,7 @@ export function MessageRow({
                 bubble fill in EVERY mode, so their scrim is mode-independent (the skin's `chromeBacking`
                 is not consulted here). Both self-gate on `data-has-bg-image`: no wallpaper, no chip. */}
             {editing ? null : <MessageMetadataRow message={message} visibility={metadataVisibility} backingClass={BG_PHOTO_CHROME_PLATE} />}
-            {renderRowSwipe({ editing, showSwipes, role, greeting, message })}
+            {swipeBelow}
             {/* `empty:hidden` on the footer is LOAD-BEARING, caught on a live drive: a contribution can be
                 REGISTERED and still render nothing (TurnToolCallsDisclosure returns null for a turn with no
                 records), so `footerContributions.length > 0` does not mean anything paints. Before the

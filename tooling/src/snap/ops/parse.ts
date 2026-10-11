@@ -215,7 +215,12 @@ function armValidationPairs(args: Args): ValidationPair[] {
 function tapValidationPairs(args: Args, device: Args["device"]): ValidationPair[] {
   const taps = args.actions.filter((entry) => entry.type === "step" && entry.action.kind === "tap").length;
   const swipes = args.actions.filter((entry) => entry.type === "step" && entry.action.kind === "swipe").length;
+  const keyboards = args.actions.filter((entry) => entry.type === "step" && entry.action.kind === "soft-keyboard").length;
   return [
+    [
+      keyboards > 0 && device === null,
+      "--soft-keyboard needs a phone context: pass --mobile on a one-shot run or at session/scenario boot. A desktop has no on-screen keyboard, so the app's keyboard path never applies there",
+    ],
     [
       swipes > 0 && device === null,
       "--swipe needs a touch-capable context: pass --mobile on a one-shot run or at session/scenario boot. It dispatches touch events, which a desktop context without a touchscreen does not scroll with — use --wheel for a mouse scroll",

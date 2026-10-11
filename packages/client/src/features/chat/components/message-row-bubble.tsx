@@ -30,6 +30,8 @@ export function renderSingleBubble(args: {
    *  `gap="row"` that separates the body's blocks. Null when the skin's `headerPlacement` is `outside`. */
   readonly header: ReactNode;
   readonly content: ReactNode;
+  /** The swipe foot, the container's last line when the skin seats it inside; null otherwise. */
+  readonly footer: ReactNode;
   readonly bubbleClassName: string;
   readonly decoration: BubbleDecoration | null;
   readonly weldedAvatar: ReactElement | null;
@@ -56,6 +58,7 @@ export function renderSingleBubble(args: {
         <Stack gap="row" className="px-block py-row">
           {args.header}
           {args.content}
+          {args.footer}
         </Stack>
       </Stack>
     );
@@ -95,6 +98,7 @@ export function renderSingleBubble(args: {
         )}
         {args.header}
         {args.content}
+        {args.footer}
       </Stack>
     );
   }
@@ -104,6 +108,7 @@ export function renderSingleBubble(args: {
       <Stack gap="row" className="min-w-0 flex-1 px-block py-row">
         {args.header}
         {args.content}
+        {args.footer}
       </Stack>
       {args.role === "user" ? args.weldedAvatar : null}
     </Row>

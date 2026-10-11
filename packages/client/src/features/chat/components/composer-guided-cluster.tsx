@@ -155,10 +155,10 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
       {/* The refusal line below is a SECOND row under the rail, so the two are spaced by a Stack's gap rather
           than a margin (`Container` is a plain block — the house rule is "space via Stack/Grid gap",
           variants.ts). With no refusal the Stack has one child and spends nothing. */}
-      <Stack gap="field" data-slot="composer-guided-cluster">
+      <Stack gap="block" data-slot="composer-guided-cluster">
         <Row align="center" justify="between" gap="field" className="min-w-0 flex-wrap" data-slot="composer-utilities">
           <Row align="center" gap="field" className="min-w-0 flex-1 flex-wrap">
-            <Row aria-label="Your message" className="shrink-0" data-slot="composer-you-actions" gap="field" role="group">
+            <Row aria-label="Your message" className="shrink-0" data-slot="composer-you-actions" gap="block" role="group">
               <ImpersonateGuidedButton
                 disabled={!idle}
                 hasText={hasText}
@@ -170,7 +170,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             </Row>
             {actionContributions}
           </Row>
-          <Row aria-label="Their reply" className="min-w-0 shrink-0" data-slot="composer-them-actions" gap="field" role="group">
+          <Row aria-label="Their reply" className="min-w-0 shrink-0" data-slot="composer-them-actions" gap="block" role="group">
             <GuidedIconButton
               icon={RotateCcw}
               label={hasText ? "Try another reply with this direction" : "Try another reply"}
@@ -204,7 +204,10 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
           </Row>
         </Row>
         <Row align="center" gap="field" className="min-w-0" data-slot="composer-input">
-          <Row aria-label="Chat and message tools" className="shrink-0" gap="field" role="group">
+          {/* SillyTavern's input row: the menu doors stacked in one narrow column, so the draft takes the width.
+              The `block` gaps here, inside both action groups and between the two rows keep the glyph buttons'
+              touch-floor hit areas from overlapping: a glyph-lg box plus `block` is exactly the coarse target. */}
+          <Stack aria-label="Chat and message tools" align="center" className="shrink-0" gap="block" role="group">
             {chatControl}
             <ComposerGuidedUtilityMenu
               hasText={hasText}
@@ -221,7 +224,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
               roomContributions={roomContributions}
               mediaContributions={mediaContributions}
             />
-          </Row>
+          </Stack>
           {messageInput}
           <Row aria-label="Send controls" className="shrink-0" gap="field" role="group">
             {sendControl}

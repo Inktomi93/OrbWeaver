@@ -47,7 +47,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
             <Button
               type="button"
               intent="secondary"
-              size="icon"
+              size="glyph-lg"
               loading={props.stopping}
               disabled={props.stopping}
               aria-label={props.stopping ? "Stopping…" : "Stop generating"}
@@ -75,8 +75,8 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
         render={
           <Button
             type="button"
-            intent="primary"
-            size="icon"
+            intent="ghost"
+            size="glyph-lg"
             data-testid={testId("composerSend")}
             disabled={props.sendDisabled}
             focusableWhenDisabled={props.unavailable}
@@ -84,7 +84,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
             aria-label="Send message"
             onClick={props.onSend}
             shape="pill"
-            className="data-disabled:pointer-events-auto"
+            className="text-primary data-disabled:pointer-events-auto"
           >
             <Icon icon={Send} size="sm" />
           </Button>
