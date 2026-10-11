@@ -2066,341 +2066,6 @@
       "reason": "documented above — on failure returns the raw string verbatim, NEVER blank, a clean display fallback. Ends if the verbatim fallback is removed."
     },
     {
-      "siteId": "tooling/src/floor/appearance/appearance-flags.ts::readPresetFile::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "appearance JSON parse returns null so the caller emits its option-specific refusal; no theme is applied. Ends if parse failure stops being a refusal."
-    },
-    {
-      "siteId": "tooling/src/floor/appearance/appearance.ts::installSettingsShim::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the primary route failure is owned by the awaited fallback route, whose own rejection propagates to the command. Ends if fallback becomes fire-and-forget."
-    },
-    {
-      "siteId": "tooling/src/floor/appearance/appearance.ts::seedAppearanceBootHint::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a malformed optional device hint is replaced by the requested probe axes; the app re-validates the result through appearanceSettingsSchema. Ends if the hint becomes authoritative."
-    },
-    {
-      "siteId": "tooling/src/floor/appearance/appearance.ts::seedAppearanceBootHint::catch::2",
-      "verdict": "deliberate-absorb",
-      "reason": "an opaque-origin bootstrap page has no localStorage; the settings-response shim remains authoritative after navigation. Ends if the boot hint becomes the authoritative appearance source."
-    },
-    {
-      "siteId": "tooling/src/floor/appearance/appearance.ts::themeListUrl::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an unreadable optional theme catalog entry is represented as absent and the caller reports the missing theme. Ends if absence stops reaching the operator."
-    },
-    {
-      "siteId": "tooling/src/floor/appearance/appearance.ts::themeResolver.resolveOnce::e::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the list-themes command emits the read failure through warn before returning no catalog. Ends if the warning stops carrying the failure."
-    },
-    {
-      "siteId": "tooling/src/floor/appearance/appearance.ts::trpcProcedureIndex::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an unreadable optional appearance snapshot is represented as absent and the caller rebuilds from the live page. Ends if this snapshot becomes authoritative."
-    },
-    {
-      "siteId": "tooling/src/floor/artifacts/artifact-pointer.ts::aliasInstant::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "there is no alias to stat — the `state` field, computed from `aliasKind` above, has already told the reader that, so a publish instant of `null` is the consistent answer rather than a swallowed failure. Ends if `publishedAt` becomes readable independently of `state`."
-    },
-    {
-      "siteId": "tooling/src/floor/artifacts/artifact-pointer.ts::aliasKind::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "this IS an existence predicate — the throw is the `absent` answer, one of the three values the caller switches on, and it becomes the operator-visible `absent` pointer state (which `check:show --stage` turns into a refusal naming the command to run). Ends if the caller starts needing WHY the alias is unreadable."
-    },
-    {
-      "siteId": "tooling/src/floor/artifacts/artifact-pointer.ts::dirInstant::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a slot removed by a concurrent publisher's prune between the directory listing and this stat is the expected racing case (the same one ./artifacts.ts `slotMtime` answers with a value), and `null` is the answer its one caller acts on — the slot is dropped from the census, because a slot that is gone has no instant. Ends if a vanished slot must be distinguished from an unreadable one."
-    },
-    {
-      "siteId": "tooling/src/floor/artifacts/artifact-pointer.ts::publishedCountOf::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an absent or unreadable `.published` manifest is the UNKNOWN answer to \"how many aliases did this run publish?\", and `null` is that answer — deliberately distinct from the `0` a run that finished and published nothing writes. Both are returned to the one caller, which acts on the difference. Ends if a caller starts needing to know WHY the manifest was unreadable."
-    },
-    {
-      "siteId": "tooling/src/floor/artifacts/artifact-pointer.ts::readdirAll::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "no `reports/` directory at all — the same honest zero as `readdirSafe`, and the same caller refuses on it (`pointerView` raises NOTHING TO MEASURE, exit 3), so the empty list is never rendered as \"nothing is stale\". Ends if this stops being the only caller."
-    },
-    {
-      "siteId": "tooling/src/floor/artifacts/artifact-pointer.ts::readdirSafe::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "no `reports/runs/` directory means no instrument has ever run on this checkout — an empty instrument list is the truthful census, and the caller turns a resulting empty inventory into an explicit NOTHING TO MEASURE refusal rather than a clean zero. Ends if an unreadable runs directory must be refused here."
-    },
-    {
-      "siteId": "tooling/src/floor/artifacts/artifacts.ts::checkoutName::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a missing `.git` entry means this root is not a checkout at all (a planted fixture tree), which is a legitimate NAME, not a failure — the fallback IS the answer and it is returned to the caller. Ends if a non-checkout root must be refused instead of named."
-    },
-    {
-      "siteId": "tooling/src/floor/artifacts/artifacts.ts::exists::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "this IS an existence predicate — the throw is the negative answer and is returned as `false` to the one caller (publishRunSlot's \"did the run write this artifact?\" check). Ends if the caller starts needing WHY the path is unreadable."
-    },
-    {
-      "siteId": "tooling/src/floor/artifacts/artifacts.ts::finishSlot::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the marker is already gone when a run publishes twice (the supervisor's single-project arm) — the post-condition \"this slot is no longer in flight\" holds either way. Ends if publishing twice must become an error."
-    },
-    {
-      "siteId": "tooling/src/floor/artifacts/artifacts.ts::pointerRunId::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a removed or replaced alias is the NEGATIVE answer to \"does this pointer still resolve into that slot?\" — null is that answer at the one call site (the retention filter). Ends if the caller starts acting on WHY the alias is unreadable."
-    },
-    {
-      "siteId": "tooling/src/floor/artifacts/artifacts.ts::publishedAliases::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an absent or unparseable manifest means \"this slot published nothing a pointer could still resolve into\" — the ONE question the retention reader asks — and the empty list is that answer at its single call site. Ends if a caller starts needing to distinguish \"never published\" from \"manifest lost\"."
-    },
-    {
-      "siteId": "tooling/src/floor/artifacts/artifacts.ts::publishSymlink::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the pre-clean of a leftover temp link from an earlier crashed publish; ENOENT is the normal case, and a real failure surfaces immediately at the symlinkSync below (EEXIST), which is NOT caught. Ends if the symlink call is made tolerant of an existing path."
-    },
-    {
-      "siteId": "tooling/src/floor/artifacts/artifacts.ts::publishSymlink::catch::2",
-      "verdict": "deliberate-absorb",
-      "reason": "nothing at the alias yet (the first publish) or a concurrent publisher removed it — both mean \"no stale REAL file to clear\", and the renameSync below still lands the pointer atomically and DOES throw if it cannot. Ends if the rename stops being the load-bearing step."
-    },
-    {
-      "siteId": "tooling/src/floor/artifacts/artifacts.ts::readMarker::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an absent or unparseable in-flight marker means \"this slot is not in flight\" — the ONLY question this reader asks — and `null` is that answer at every call site (the racing census, the prune filter, the abandoned-run scan). Ends if any caller starts treating null as \"in flight\"."
-    },
-    {
-      "siteId": "tooling/src/floor/artifacts/artifacts.ts::runDirs::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "no runs directory yet means this instrument has never run here — an empty list is the truthful census, and every caller (racing, prune, abandoned) reads it as \"no other slots\". Ends if a missing directory must be created or refused here rather than by openRunSlot."
-    },
-    {
-      "siteId": "tooling/src/floor/artifacts/artifacts.ts::slotMtime::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a slot removed by a CONCURRENT publisher's prune between the listing and this stat is the expected racing case, and `null` is the answer its one caller acts on — the row is dropped, because a slot that is already gone is nothing to prune. Ends if the caller starts needing to distinguish a vanished slot from an unreadable one (a permission error worth reporting)."
-    },
-    {
-      "siteId": "tooling/src/floor/browser/browser-capture.ts::watchProbeContextPages::wire::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the event has no awaiter; setup rejection is retained in pageErrors, which makes Snap's verdict red. Ends if pageErrors stops contributing to the verdict."
-    },
-    {
-      "siteId": "tooling/src/floor/browser/browser-diagnostics.ts::wirePageDiagnostics::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "unsupported experimental Audits becomes an explicit instrument-limit diagnostic; Log capture remains live. Ends if the limit record stops carrying the caught detail."
-    },
-    {
-      "siteId": "tooling/src/floor/browser/browser-network.ts::queueBodyRead::pending::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the original promise remains in controller.pending and networkRecordsForPages awaits it, so rejection still propagates; this continuation only releases retention state on either terminal. Ends if pending stops being awaited or this continuation owns the verdict."
-    },
-    {
-      "siteId": "tooling/src/floor/browser/browser-network.ts::readSelectedRequestBody::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a failed or timed-out CDP request-body read is retained as an explicit unavailableReason and serialized as a HAR omission. Ends if the reason stops reaching the HAR."
-    },
-    {
-      "siteId": "tooling/src/floor/browser/browser-network.ts::readSelectedResponseBody::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a failed or timed-out CDP response-body read is retained as timeout/evicted/failed and serialized as a HAR omission. Ends if the reason stops reaching the HAR."
-    },
-    {
-      "siteId": "tooling/src/floor/browser/browser-request-url.ts::redactedRequestUrl::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an unparsable page-controlled URL becomes the branded explicit omission instead of leaking raw credentials/path/query bytes. Ends if the fallback stops being the only returned value."
-    },
-    {
-      "siteId": "tooling/src/floor/browser/browser.ts::closeProbeSession::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "collected into failures[] which the two checks below rethrow as-is or as an AggregateError — never silently dropped. Ends if the failures array stops being surfaced after this block."
-    },
-    {
-      "siteId": "tooling/src/floor/browser/browser.ts::launchProbeSession::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "closeProbeSessionAfterError is typed Promise<never> — it always rethrows the primary error (wrapped with any cleanup failure), never returns. Ends if that function stops rethrowing unconditionally."
-    },
-    {
-      "siteId": "tooling/src/floor/compiler/compiler-source-filename-overlay.ts::diskEntries::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "native ts.sys.readDirectory treats an unreadable directory as empty. This adapter preserves that behavior; virtual entries are merged separately below."
-    },
-    {
-      "siteId": "tooling/src/floor/compiler/compiler-source-filename-overlay.ts::diskEntries::catch::2",
-      "verdict": "deliberate-absorb",
-      "reason": "native ts.sys directory reads skip dangling or unreadable symlink entries. Ends if this absence becomes an authored-path authorization decision."
-    },
-    {
-      "siteId": "tooling/src/floor/browser/debugging-endpoint.ts::readDebuggingPort::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the file exists only after Chrome binds its ephemeral endpoint; the bounded loop owns the race and throws below when its budget expires. Ends if exhaustion stops throwing."
-    },
-    {
-      "siteId": "tooling/src/floor/devtools/devtools-runtime.ts::prepareDevToolsCascadeRuntime::rm::1",
-      "verdict": "deliberate-absorb",
-      "reason": "initialization cleanup joins the original failure in the AggregateError below. Ends if cleanup errors stop being appended or the aggregate throw is removed."
-    },
-    {
-      "siteId": "tooling/src/floor/devtools/devtools-runtime.ts::prepareDevToolsCascadeRuntime::server.close::1",
-      "verdict": "deliberate-absorb",
-      "reason": "initialization cleanup joins the original failure in the AggregateError below. Ends if cleanup errors stop being appended or the aggregate throw is removed."
-    },
-    {
-      "siteId": "tooling/src/floor/devtools/devtools-runtime.ts::prepareDevToolsCascadeRuntime.close::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "cleanup failures are retained in `failures` and surfaced together as the terminal AggregateError below. Ends if the aggregate throw is removed."
-    },
-    {
-      "siteId": "tooling/src/floor/devtools/devtools-runtime.ts::prepareDevToolsCascadeRuntime.close::error::2",
-      "verdict": "deliberate-absorb",
-      "reason": "cleanup failures are retained in `failures` and surfaced together as the terminal AggregateError below. Ends if the aggregate throw is removed."
-    },
-    {
-      "siteId": "tooling/src/floor/cli/entrypoint.ts::realOrSelf::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a deleted or virtual argv[1] fails to resolve; the caller's own doc says exactly that case is expected, so falling back to the input verbatim is the correct optional-read-as-absent behavior, not a lost failure. Ends if a resolve failure here starts meaning something other than \"no real path\"."
-    },
-    {
-      "siteId": "tooling/src/floor/host/host-slot-records.ts::defaultAlive::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "`kill(pid, 0)` ASKS A QUESTION and throws to answer \"no\" — the throw IS the ESRCH answer, not a lost failure, and the caller acts on the boolean by stealing the slot and saying so out loud. Ends if this ever needs to distinguish EPERM from ESRCH."
-    },
-    {
-      "siteId": "tooling/src/floor/host/host-slot-records.ts::readHolder::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the FAILURE IS THE VERDICT — an unreadable or half-written slot file is DEBRIS, and `null` is how this reader says so to its one caller, which then STEALS the slot and PRINTS that it did. Any other surfacing wedges the box on a torn write. Ends if a caller starts reading `null` as \"someone holds this\"."
-    },
-    {
-      "siteId": "tooling/src/floor/host/host-slot-records.ts::takeAnySlot::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the EEXIST throw IS \"this slot is taken\" — the catch arm reads the holder and either moves to the next slot (live) or STEALS the slot with a printed note (dead). Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing."
-    },
-    {
-      "siteId": "tooling/src/floor/http/http-probe.ts::httpJsonSync::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a body that is not JSON is \"no answer\" to a liveness probe, which every caller reads as \"not up\", never as a verdict about the thing probed. Ends if a caller distinguishes the failure kinds."
-    },
-    {
-      "siteId": "tooling/src/floor/http/http-probe.ts::httpOk::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a refused connection, a timeout and a non-2xx are all \"not answering\" to a liveness probe, which every caller reads as \"not up yet\", never as a verdict about the thing probed. Ends if a caller distinguishes the failure kinds."
-    },
-    {
-      "siteId": "tooling/src/floor/host/load-budget-cgroup.ts::readCgroupFile::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ABSENCE IS THE ANSWER — a cgroup path that does not exist (v1, or a host without the controller) or is unreadable under this uid means exactly \"no ceiling is declared here\", the same verdict `cpu.max` spells `max`. Ends if this reader ever needs to tell \"unbounded\" from \"could not ask\"; the absence then becomes a value and this catch becomes a branch."
-    },
-    {
-      "siteId": "tooling/src/floor/instrument/nav.ts::runNav::page.evaluate::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a best-effort readiness ping before the real bridge call two lines below — any genuine failure (no bridge, mid-navigation) is caught by the surrounding try and returned as ok:false with the message. Ends if this becomes the only readiness signal checked."
-    },
-    {
-      "siteId": "tooling/src/floor/instrument/panel-flags.ts::readPresetFile::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "panel-preset JSON parse returns null so the caller emits its option-specific refusal; no nav action is queued. Ends if parse failure stops being a refusal."
-    },
-    {
-      "siteId": "tooling/src/floor/host/platform-probes.ts::readDirOrEmpty::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a `/proc` that cannot be listed yields no processes, which a sweep reads as \"nothing observed\" and signals nothing. Ends if an empty list ever reads as a verdict."
-    },
-    {
-      "siteId": "tooling/src/floor/host/platform-probes.ts::readFileOrNull::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a `/proc` entry that vanished or is hidden answers null, and every reader here treats null as \"not observed\", never as a verdict. Ends if null ever authorizes a signal."
-    },
-    {
-      "siteId": "tooling/src/floor/host/platform-probes.ts::readLinkOrNull::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an unreadable `/proc/<pid>/cwd` or fd link answers null, which every caller reads as \"unknown\" (no cwd, no socket owner), never as \"not ours\". Ends if null ever authorizes a signal."
-    },
-    {
-      "siteId": "tooling/src/floor/host/platform.ts::win32Processes::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "PowerShell output that is not the JSON asked for is \"nothing observed\" to every caller, and nothing observed signals nothing. Ends if an empty list ever reads as a verdict."
-    },
-    {
-      "siteId": "tooling/src/floor/process/proc.ts::killPidGroup::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a failed taskkill means the tree is already gone or never spawned — the desired end state, same as POSIX ESRCH below."
-    },
-    {
-      "siteId": "tooling/src/floor/process/proc.ts::killPidGroup::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ESRCH is the desired teardown end state; every other signal error is rethrown. Ends if callers require proof that the signal landed."
-    },
-    {
-      "siteId": "tooling/src/floor/process/proc.ts::spawnFullPriorityChild.kill::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ESRCH or an observed child exit makes kill idempotent; every still-live signal failure rethrows. Ends if child exit fields stop being authoritative."
-    },
-    {
-      "siteId": "tooling/src/floor/process/proc.ts::spawnNicedTranscript.finish::settle::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the handler OWNS the failure by putting it in the transcript this door returns (`[proc] teardown failed: …`) and settling the run as a TOOL ERROR (code null) — nothing is dropped, and the promise MUST settle here or the door written to end a hang becomes one. Ends if the handler stops resolving or stops naming the error."
-    },
-    {
-      "siteId": "tooling/src/floor/process/process-priority.ts::lowerChildPriority::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the child racing to exit before this call lands is expected and harmless — the priority hint is advisory, not a correctness requirement, and the caller's own exit/error handlers own the child's real outcome. Ends if a caller starts depending on this call's success."
-    },
-    {
-      "siteId": "tooling/src/floor/appearance/rated-theme-fixture.ts::provisionRatedStageThemes::cleanupError::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the cleanup failure is preserved beside the primary failure in the thrown AggregateError below; the matrix command prints that terminal error and exits toolError. Ends if either failure stops propagating."
-    },
-    {
-      "siteId": "tooling/src/floor/process/run-marker.ts::aliveBySignal::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "`kill(pid, 0)` ASKS a question and throws to answer \"no\" — the throw IS the ESRCH answer, exactly as floor/artifacts/run-retention.ts's pidAlive states it. Ends if this needs to tell EPERM from ESRCH."
-    },
-    {
-      "siteId": "tooling/src/floor/process/run-marker.ts::signalPid::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ESRCH is the DESIRED end state of a teardown signal (the process left between the scan and the signal); every other signal error rethrows. Ends if a caller starts requiring proof that a specific signal landed."
-    },
-    {
-      "siteId": "tooling/src/floor/artifacts/run-retention.ts::pidAlive::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ESRCH from a signal-0 probe IS the answer — the pid is gone — and `false` is that answer at every call site (the racing census, the prune filter, the abandoned-run scan, the session registry's daemon liveness). Ends if this needs to distinguish EPERM (a live pid this user may not signal) from ESRCH."
-    },
-    {
-      "siteId": "tooling/src/floor/artifacts/run-retention.ts::readPrunedRuns::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "no ledger yet means this instrument has pruned nothing here — the empty list is that answer at both call sites (the bounded rewrite, and the reader answering a citation). Ends if a caller must distinguish \"never pruned\" from \"ledger unreadable\"."
-    },
-    {
-      "siteId": "tooling/src/floor/artifacts/run-retention.ts::recordPrunedRuns::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "bookkeeping ABOUT a deletion that already happened — the run's own verdict has been published and must not be lost to a ledger write, and the next publish re-appends its own rows. Ends if a reader starts requiring the ledger to be complete rather than best-effort."
-    },
-    {
-      "siteId": "tooling/src/floor/cli/run-tool.ts::runTool::e::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the exit-contract's own door — UsageError writes ARG ERROR and escalates misuse, anything else routes through crashExit which writes stderr, escalates toolError and hard-exits. Ends if a branch here stops writing stderr or escalating."
-    },
-    {
-      "siteId": "tooling/src/floor/testing/scoped-run-paths.ts::isFed::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an operand the runner would treat as a regex may not BE one; the substring fallback below is the runners' own degradation, and refusing here would refuse a filter the runner itself accepts. Ends if the preflight ever needs to refuse an unparseable pattern outright."
-    },
-    {
-      "siteId": "tooling/src/floor/browser/upload.ts::driveFileUpload::chooserPromise::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the target click already failed and is rethrown below; drain the paired chooser promise so its later timeout cannot become an unhandled secondary failure. Ends if the chooser result is consumed here or the click error stops being rethrown."
-    },
-    {
-      "siteId": "tooling/src/floor/browser/upload.ts::resolveFileInputLocator::evaluate::1",
-      "verdict": "deliberate-absorb",
-      "reason": "this best-effort type probe converts a detached/unreadable target into \"not a direct input\" and deliberately delegates to the descendant/chooser arms below; those interactions surface the actionable target failure. Ends if this catch stops feeding that fallback or a failure can exit clean without either arm running."
-    },
-    {
-      "siteId": "tooling/src/floor/testing/working-tree-guard.ts::hashOf::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the null return IS the owner-visible signal — a path git lists as dirty but that is gone by the time we hash it (deleted, or a rename's old half) means \"no content\", and the setup/teardown diff in diffWorkingTree() treats null distinctly from a missing key. No end condition: this is the permanent meaning of \"dirty path with no bytes\"."
-    },
-    {
       "siteId": "tooling/src/ast/cli.ts::main::e::1",
       "verdict": "deliberate-absorb",
       "reason": "the verb's thrown error is mapped to a typed exit code via mapKnownError, not dropped — the return value is main()'s own contract, propagated to the process exit code. Ends if mapKnownError stops covering a real error class and silently returns clean."
@@ -2509,6 +2174,341 @@
       "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::stopAndRetainTrace::error::2",
       "verdict": "deliberate-absorb",
       "reason": "error-collection cleanup: pushed to failures[] and re-thrown as AggregateError at L148-152; partial-trace evidence is preserved"
+    },
+    {
+      "siteId": "tooling/src/floor/appearance/appearance-flags.ts::readPresetFile::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "appearance JSON parse returns null so the caller emits its option-specific refusal; no theme is applied. Ends if parse failure stops being a refusal."
+    },
+    {
+      "siteId": "tooling/src/floor/appearance/appearance.ts::installSettingsShim::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the primary route failure is owned by the awaited fallback route, whose own rejection propagates to the command. Ends if fallback becomes fire-and-forget."
+    },
+    {
+      "siteId": "tooling/src/floor/appearance/appearance.ts::seedAppearanceBootHint::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a malformed optional device hint is replaced by the requested probe axes; the app re-validates the result through appearanceSettingsSchema. Ends if the hint becomes authoritative."
+    },
+    {
+      "siteId": "tooling/src/floor/appearance/appearance.ts::seedAppearanceBootHint::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "an opaque-origin bootstrap page has no localStorage; the settings-response shim remains authoritative after navigation. Ends if the boot hint becomes the authoritative appearance source."
+    },
+    {
+      "siteId": "tooling/src/floor/appearance/appearance.ts::themeListUrl::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable optional theme catalog entry is represented as absent and the caller reports the missing theme. Ends if absence stops reaching the operator."
+    },
+    {
+      "siteId": "tooling/src/floor/appearance/appearance.ts::themeResolver.resolveOnce::e::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the list-themes command emits the read failure through warn before returning no catalog. Ends if the warning stops carrying the failure."
+    },
+    {
+      "siteId": "tooling/src/floor/appearance/appearance.ts::trpcProcedureIndex::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable optional appearance snapshot is represented as absent and the caller rebuilds from the live page. Ends if this snapshot becomes authoritative."
+    },
+    {
+      "siteId": "tooling/src/floor/appearance/rated-theme-fixture.ts::provisionRatedStageThemes::cleanupError::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the cleanup failure is preserved beside the primary failure in the thrown AggregateError below; the matrix command prints that terminal error and exits toolError. Ends if either failure stops propagating."
+    },
+    {
+      "siteId": "tooling/src/floor/artifacts/artifact-pointer.ts::aliasInstant::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "there is no alias to stat — the `state` field, computed from `aliasKind` above, has already told the reader that, so a publish instant of `null` is the consistent answer rather than a swallowed failure. Ends if `publishedAt` becomes readable independently of `state`."
+    },
+    {
+      "siteId": "tooling/src/floor/artifacts/artifact-pointer.ts::aliasKind::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "this IS an existence predicate — the throw is the `absent` answer, one of the three values the caller switches on, and it becomes the operator-visible `absent` pointer state (which `check:show --stage` turns into a refusal naming the command to run). Ends if the caller starts needing WHY the alias is unreadable."
+    },
+    {
+      "siteId": "tooling/src/floor/artifacts/artifact-pointer.ts::dirInstant::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a slot removed by a concurrent publisher's prune between the directory listing and this stat is the expected racing case (the same one ./artifacts.ts `slotMtime` answers with a value), and `null` is the answer its one caller acts on — the slot is dropped from the census, because a slot that is gone has no instant. Ends if a vanished slot must be distinguished from an unreadable one."
+    },
+    {
+      "siteId": "tooling/src/floor/artifacts/artifact-pointer.ts::publishedCountOf::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an absent or unreadable `.published` manifest is the UNKNOWN answer to \"how many aliases did this run publish?\", and `null` is that answer — deliberately distinct from the `0` a run that finished and published nothing writes. Both are returned to the one caller, which acts on the difference. Ends if a caller starts needing to know WHY the manifest was unreadable."
+    },
+    {
+      "siteId": "tooling/src/floor/artifacts/artifact-pointer.ts::readdirAll::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "no `reports/` directory at all — the same honest zero as `readdirSafe`, and the same caller refuses on it (`pointerView` raises NOTHING TO MEASURE, exit 3), so the empty list is never rendered as \"nothing is stale\". Ends if this stops being the only caller."
+    },
+    {
+      "siteId": "tooling/src/floor/artifacts/artifact-pointer.ts::readdirSafe::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "no `reports/runs/` directory means no instrument has ever run on this checkout — an empty instrument list is the truthful census, and the caller turns a resulting empty inventory into an explicit NOTHING TO MEASURE refusal rather than a clean zero. Ends if an unreadable runs directory must be refused here."
+    },
+    {
+      "siteId": "tooling/src/floor/artifacts/artifacts.ts::checkoutName::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a missing `.git` entry means this root is not a checkout at all (a planted fixture tree), which is a legitimate NAME, not a failure — the fallback IS the answer and it is returned to the caller. Ends if a non-checkout root must be refused instead of named."
+    },
+    {
+      "siteId": "tooling/src/floor/artifacts/artifacts.ts::exists::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "this IS an existence predicate — the throw is the negative answer and is returned as `false` to the one caller (publishRunSlot's \"did the run write this artifact?\" check). Ends if the caller starts needing WHY the path is unreadable."
+    },
+    {
+      "siteId": "tooling/src/floor/artifacts/artifacts.ts::finishSlot::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the marker is already gone when a run publishes twice (the supervisor's single-project arm) — the post-condition \"this slot is no longer in flight\" holds either way. Ends if publishing twice must become an error."
+    },
+    {
+      "siteId": "tooling/src/floor/artifacts/artifacts.ts::pointerRunId::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a removed or replaced alias is the NEGATIVE answer to \"does this pointer still resolve into that slot?\" — null is that answer at the one call site (the retention filter). Ends if the caller starts acting on WHY the alias is unreadable."
+    },
+    {
+      "siteId": "tooling/src/floor/artifacts/artifacts.ts::publishedAliases::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an absent or unparseable manifest means \"this slot published nothing a pointer could still resolve into\" — the ONE question the retention reader asks — and the empty list is that answer at its single call site. Ends if a caller starts needing to distinguish \"never published\" from \"manifest lost\"."
+    },
+    {
+      "siteId": "tooling/src/floor/artifacts/artifacts.ts::publishSymlink::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the pre-clean of a leftover temp link from an earlier crashed publish; ENOENT is the normal case, and a real failure surfaces immediately at the symlinkSync below (EEXIST), which is NOT caught. Ends if the symlink call is made tolerant of an existing path."
+    },
+    {
+      "siteId": "tooling/src/floor/artifacts/artifacts.ts::publishSymlink::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "nothing at the alias yet (the first publish) or a concurrent publisher removed it — both mean \"no stale REAL file to clear\", and the renameSync below still lands the pointer atomically and DOES throw if it cannot. Ends if the rename stops being the load-bearing step."
+    },
+    {
+      "siteId": "tooling/src/floor/artifacts/artifacts.ts::readMarker::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an absent or unparseable in-flight marker means \"this slot is not in flight\" — the ONLY question this reader asks — and `null` is that answer at every call site (the racing census, the prune filter, the abandoned-run scan). Ends if any caller starts treating null as \"in flight\"."
+    },
+    {
+      "siteId": "tooling/src/floor/artifacts/artifacts.ts::runDirs::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "no runs directory yet means this instrument has never run here — an empty list is the truthful census, and every caller (racing, prune, abandoned) reads it as \"no other slots\". Ends if a missing directory must be created or refused here rather than by openRunSlot."
+    },
+    {
+      "siteId": "tooling/src/floor/artifacts/artifacts.ts::slotMtime::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a slot removed by a CONCURRENT publisher's prune between the listing and this stat is the expected racing case, and `null` is the answer its one caller acts on — the row is dropped, because a slot that is already gone is nothing to prune. Ends if the caller starts needing to distinguish a vanished slot from an unreadable one (a permission error worth reporting)."
+    },
+    {
+      "siteId": "tooling/src/floor/artifacts/run-retention.ts::pidAlive::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ESRCH from a signal-0 probe IS the answer — the pid is gone — and `false` is that answer at every call site (the racing census, the prune filter, the abandoned-run scan, the session registry's daemon liveness). Ends if this needs to distinguish EPERM (a live pid this user may not signal) from ESRCH."
+    },
+    {
+      "siteId": "tooling/src/floor/artifacts/run-retention.ts::readPrunedRuns::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "no ledger yet means this instrument has pruned nothing here — the empty list is that answer at both call sites (the bounded rewrite, and the reader answering a citation). Ends if a caller must distinguish \"never pruned\" from \"ledger unreadable\"."
+    },
+    {
+      "siteId": "tooling/src/floor/artifacts/run-retention.ts::recordPrunedRuns::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "bookkeeping ABOUT a deletion that already happened — the run's own verdict has been published and must not be lost to a ledger write, and the next publish re-appends its own rows. Ends if a reader starts requiring the ledger to be complete rather than best-effort."
+    },
+    {
+      "siteId": "tooling/src/floor/browser/browser-capture.ts::watchProbeContextPages::wire::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the event has no awaiter; setup rejection is retained in pageErrors, which makes Snap's verdict red. Ends if pageErrors stops contributing to the verdict."
+    },
+    {
+      "siteId": "tooling/src/floor/browser/browser-diagnostics.ts::wirePageDiagnostics::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "unsupported experimental Audits becomes an explicit instrument-limit diagnostic; Log capture remains live. Ends if the limit record stops carrying the caught detail."
+    },
+    {
+      "siteId": "tooling/src/floor/browser/browser-network.ts::queueBodyRead::pending::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the original promise remains in controller.pending and networkRecordsForPages awaits it, so rejection still propagates; this continuation only releases retention state on either terminal. Ends if pending stops being awaited or this continuation owns the verdict."
+    },
+    {
+      "siteId": "tooling/src/floor/browser/browser-network.ts::readSelectedRequestBody::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed or timed-out CDP request-body read is retained as an explicit unavailableReason and serialized as a HAR omission. Ends if the reason stops reaching the HAR."
+    },
+    {
+      "siteId": "tooling/src/floor/browser/browser-network.ts::readSelectedResponseBody::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed or timed-out CDP response-body read is retained as timeout/evicted/failed and serialized as a HAR omission. Ends if the reason stops reaching the HAR."
+    },
+    {
+      "siteId": "tooling/src/floor/browser/browser-request-url.ts::redactedRequestUrl::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unparsable page-controlled URL becomes the branded explicit omission instead of leaking raw credentials/path/query bytes. Ends if the fallback stops being the only returned value."
+    },
+    {
+      "siteId": "tooling/src/floor/browser/browser.ts::closeProbeSession::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "collected into failures[] which the two checks below rethrow as-is or as an AggregateError — never silently dropped. Ends if the failures array stops being surfaced after this block."
+    },
+    {
+      "siteId": "tooling/src/floor/browser/browser.ts::launchProbeSession::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "closeProbeSessionAfterError is typed Promise<never> — it always rethrows the primary error (wrapped with any cleanup failure), never returns. Ends if that function stops rethrowing unconditionally."
+    },
+    {
+      "siteId": "tooling/src/floor/browser/debugging-endpoint.ts::readDebuggingPort::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the file exists only after Chrome binds its ephemeral endpoint; the bounded loop owns the race and throws below when its budget expires. Ends if exhaustion stops throwing."
+    },
+    {
+      "siteId": "tooling/src/floor/browser/upload.ts::driveFileUpload::chooserPromise::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the target click already failed and is rethrown below; drain the paired chooser promise so its later timeout cannot become an unhandled secondary failure. Ends if the chooser result is consumed here or the click error stops being rethrown."
+    },
+    {
+      "siteId": "tooling/src/floor/browser/upload.ts::resolveFileInputLocator::evaluate::1",
+      "verdict": "deliberate-absorb",
+      "reason": "this best-effort type probe converts a detached/unreadable target into \"not a direct input\" and deliberately delegates to the descendant/chooser arms below; those interactions surface the actionable target failure. Ends if this catch stops feeding that fallback or a failure can exit clean without either arm running."
+    },
+    {
+      "siteId": "tooling/src/floor/cli/entrypoint.ts::realOrSelf::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a deleted or virtual argv[1] fails to resolve; the caller's own doc says exactly that case is expected, so falling back to the input verbatim is the correct optional-read-as-absent behavior, not a lost failure. Ends if a resolve failure here starts meaning something other than \"no real path\"."
+    },
+    {
+      "siteId": "tooling/src/floor/cli/run-tool.ts::runTool::e::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the exit-contract's own door — UsageError writes ARG ERROR and escalates misuse, anything else routes through crashExit which writes stderr, escalates toolError and hard-exits. Ends if a branch here stops writing stderr or escalating."
+    },
+    {
+      "siteId": "tooling/src/floor/compiler/compiler-source-filename-overlay.ts::diskEntries::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "native ts.sys.readDirectory treats an unreadable directory as empty. This adapter preserves that behavior; virtual entries are merged separately below."
+    },
+    {
+      "siteId": "tooling/src/floor/compiler/compiler-source-filename-overlay.ts::diskEntries::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "native ts.sys directory reads skip dangling or unreadable symlink entries. Ends if this absence becomes an authored-path authorization decision."
+    },
+    {
+      "siteId": "tooling/src/floor/devtools/devtools-runtime.ts::prepareDevToolsCascadeRuntime::rm::1",
+      "verdict": "deliberate-absorb",
+      "reason": "initialization cleanup joins the original failure in the AggregateError below. Ends if cleanup errors stop being appended or the aggregate throw is removed."
+    },
+    {
+      "siteId": "tooling/src/floor/devtools/devtools-runtime.ts::prepareDevToolsCascadeRuntime::server.close::1",
+      "verdict": "deliberate-absorb",
+      "reason": "initialization cleanup joins the original failure in the AggregateError below. Ends if cleanup errors stop being appended or the aggregate throw is removed."
+    },
+    {
+      "siteId": "tooling/src/floor/devtools/devtools-runtime.ts::prepareDevToolsCascadeRuntime.close::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "cleanup failures are retained in `failures` and surfaced together as the terminal AggregateError below. Ends if the aggregate throw is removed."
+    },
+    {
+      "siteId": "tooling/src/floor/devtools/devtools-runtime.ts::prepareDevToolsCascadeRuntime.close::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "cleanup failures are retained in `failures` and surfaced together as the terminal AggregateError below. Ends if the aggregate throw is removed."
+    },
+    {
+      "siteId": "tooling/src/floor/host/host-slot-records.ts::defaultAlive::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "`kill(pid, 0)` ASKS A QUESTION and throws to answer \"no\" — the throw IS the ESRCH answer, not a lost failure, and the caller acts on the boolean by stealing the slot and saying so out loud. Ends if this ever needs to distinguish EPERM from ESRCH."
+    },
+    {
+      "siteId": "tooling/src/floor/host/host-slot-records.ts::readHolder::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the FAILURE IS THE VERDICT — an unreadable or half-written slot file is DEBRIS, and `null` is how this reader says so to its one caller, which then STEALS the slot and PRINTS that it did. Any other surfacing wedges the box on a torn write. Ends if a caller starts reading `null` as \"someone holds this\"."
+    },
+    {
+      "siteId": "tooling/src/floor/host/host-slot-records.ts::takeAnySlot::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the EEXIST throw IS \"this slot is taken\" — the catch arm reads the holder and either moves to the next slot (live) or STEALS the slot with a printed note (dead). Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing."
+    },
+    {
+      "siteId": "tooling/src/floor/host/load-budget-cgroup.ts::readCgroupFile::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ABSENCE IS THE ANSWER — a cgroup path that does not exist (v1, or a host without the controller) or is unreadable under this uid means exactly \"no ceiling is declared here\", the same verdict `cpu.max` spells `max`. Ends if this reader ever needs to tell \"unbounded\" from \"could not ask\"; the absence then becomes a value and this catch becomes a branch."
+    },
+    {
+      "siteId": "tooling/src/floor/host/platform-probes.ts::readDirOrEmpty::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a `/proc` that cannot be listed yields no processes, which a sweep reads as \"nothing observed\" and signals nothing. Ends if an empty list ever reads as a verdict."
+    },
+    {
+      "siteId": "tooling/src/floor/host/platform-probes.ts::readFileOrNull::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a `/proc` entry that vanished or is hidden answers null, and every reader here treats null as \"not observed\", never as a verdict. Ends if null ever authorizes a signal."
+    },
+    {
+      "siteId": "tooling/src/floor/host/platform-probes.ts::readLinkOrNull::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable `/proc/<pid>/cwd` or fd link answers null, which every caller reads as \"unknown\" (no cwd, no socket owner), never as \"not ours\". Ends if null ever authorizes a signal."
+    },
+    {
+      "siteId": "tooling/src/floor/host/platform.ts::win32Processes::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "PowerShell output that is not the JSON asked for is \"nothing observed\" to every caller, and nothing observed signals nothing. Ends if an empty list ever reads as a verdict."
+    },
+    {
+      "siteId": "tooling/src/floor/http/http-probe.ts::httpJsonSync::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a body that is not JSON is \"no answer\" to a liveness probe, which every caller reads as \"not up\", never as a verdict about the thing probed. Ends if a caller distinguishes the failure kinds."
+    },
+    {
+      "siteId": "tooling/src/floor/http/http-probe.ts::httpOk::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a refused connection, a timeout and a non-2xx are all \"not answering\" to a liveness probe, which every caller reads as \"not up yet\", never as a verdict about the thing probed. Ends if a caller distinguishes the failure kinds."
+    },
+    {
+      "siteId": "tooling/src/floor/instrument/nav.ts::runNav::page.evaluate::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a best-effort readiness ping before the real bridge call two lines below — any genuine failure (no bridge, mid-navigation) is caught by the surrounding try and returned as ok:false with the message. Ends if this becomes the only readiness signal checked."
+    },
+    {
+      "siteId": "tooling/src/floor/instrument/panel-flags.ts::readPresetFile::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "panel-preset JSON parse returns null so the caller emits its option-specific refusal; no nav action is queued. Ends if parse failure stops being a refusal."
+    },
+    {
+      "siteId": "tooling/src/floor/process/proc.ts::killPidGroup::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed taskkill means the tree is already gone or never spawned — the desired end state, same as POSIX ESRCH below."
+    },
+    {
+      "siteId": "tooling/src/floor/process/proc.ts::killPidGroup::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ESRCH is the desired teardown end state; every other signal error is rethrown. Ends if callers require proof that the signal landed."
+    },
+    {
+      "siteId": "tooling/src/floor/process/proc.ts::spawnFullPriorityChild.kill::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ESRCH or an observed child exit makes kill idempotent; every still-live signal failure rethrows. Ends if child exit fields stop being authoritative."
+    },
+    {
+      "siteId": "tooling/src/floor/process/proc.ts::spawnNicedTranscript.finish::settle::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the handler OWNS the failure by putting it in the transcript this door returns (`[proc] teardown failed: …`) and settling the run as a TOOL ERROR (code null) — nothing is dropped, and the promise MUST settle here or the door written to end a hang becomes one. Ends if the handler stops resolving or stops naming the error."
+    },
+    {
+      "siteId": "tooling/src/floor/process/process-priority.ts::lowerChildPriority::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the child racing to exit before this call lands is expected and harmless — the priority hint is advisory, not a correctness requirement, and the caller's own exit/error handlers own the child's real outcome. Ends if a caller starts depending on this call's success."
+    },
+    {
+      "siteId": "tooling/src/floor/process/run-marker.ts::aliveBySignal::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "`kill(pid, 0)` ASKS a question and throws to answer \"no\" — the throw IS the ESRCH answer, exactly as floor/artifacts/run-retention.ts's pidAlive states it. Ends if this needs to tell EPERM from ESRCH."
+    },
+    {
+      "siteId": "tooling/src/floor/process/run-marker.ts::signalPid::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ESRCH is the DESIRED end state of a teardown signal (the process left between the scan and the signal); every other signal error rethrows. Ends if a caller starts requiring proof that a specific signal landed."
+    },
+    {
+      "siteId": "tooling/src/floor/testing/scoped-run-paths.ts::isFed::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an operand the runner would treat as a regex may not BE one; the substring fallback below is the runners' own degradation, and refusing here would refuse a filter the runner itself accepts. Ends if the preflight ever needs to refuse an unparseable pattern outright."
+    },
+    {
+      "siteId": "tooling/src/floor/testing/working-tree-guard.ts::hashOf::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the null return IS the owner-visible signal — a path git lists as dirty but that is gone by the time we hash it (deleted, or a rename's old half) means \"no content\", and the setup/teardown diff in diffWorkingTree() treats null distinctly from a missing key. No end condition: this is the permanent meaning of \"dirty path with no bytes\"."
     },
     {
       "siteId": "tooling/src/motion-audit/lib/verdicts.ts::scriptAttribution::catch::1",
