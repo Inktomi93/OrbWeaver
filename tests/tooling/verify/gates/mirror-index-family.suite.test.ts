@@ -329,6 +329,63 @@ test("a subset run does not call a waiver stale in a file only a sibling policy 
   expect(result.authority.authorityAlarms).toEqual([]);
 });
 
+// `subset` means narrowed below the declared population. The application run always carries a request (its
+// subject admission) yet is a whole run, so its whole-tree arms must still fire; only a true staged subset
+// switches them off.
+function passApplication(policy: GatePolicy, root: string, overlay: Readonly<Record<string, string>>, applicationPaths: readonly string[]): PolicyPassResult {
+  const project = new Project({ skipAddingFilesFromTsConfig: true });
+  for (const [path, content] of Object.entries(overlay)) {
+    if (path.endsWith(".ts") || path.endsWith(".tsx")) {
+      project.createSourceFile(`${root}/${path}`, content);
+    }
+  }
+  return runPolicyPass({
+    knownPolicies: [policy],
+    policies: [policy],
+    root,
+    project,
+    resourceOptions: { overlay },
+    reviewedGrants: [],
+    failOnWarnings: false,
+    applicationPaths,
+  });
+}
+
+const BLIND_TREE = {
+  "packages/db/src/schema/index.ts": "export const s = 1;\n",
+  "packages/server/src/infra/log.ts": "export const log = () => 1;\n",
+  "tests/server/infra/log.test.ts": "export const t = 1;\n",
+} as const;
+
+test("test-presence: the blindness tripwire fires on a whole run and the application run, not on a staged subset", ({ scratch }) => {
+  const sources = ["packages/db/src/schema/index.ts", "packages/server/src/infra/log.ts"];
+  const whole = pass(testPresence, scratch, BLIND_TREE);
+  const application = passApplication(testPresence, scratch, BLIND_TREE, sources);
+  const staged = passRequesting([testPresence], scratch, BLIND_TREE, { requestedPaths: ["packages/server/src/infra/log.ts"] });
+
+  expect(whole.toolErrors).not.toEqual([]);
+  expect(application.toolErrors.map(({ message }) => message)).toEqual(whole.toolErrors.map(({ message }) => message));
+  expect(staged.toolErrors).toEqual([]);
+});
+
+const WORST_ART_TREE = {
+  "packages/client/src/index.ts": "export const app = 1;\n",
+  "packages/client/src/data/use-thing.ts": "export const useThing = () => 1;\n",
+  "tests/client/data/use-thing.test.ts": "export const t = 1;\n",
+} as const;
+
+test("test-presence-client: the standing-CT absence fires on a whole run and the application run, not on a staged subset", ({ scratch }) => {
+  const sources = ["packages/client/src/index.ts", "packages/client/src/data/use-thing.ts"];
+  const messages = (result: PolicyPassResult): string[] => result.authority.effectiveFindings.map(({ message }) => message ?? "");
+  const whole = pass(testPresenceClient, scratch, WORST_ART_TREE);
+  const application = passApplication(testPresenceClient, scratch, WORST_ART_TREE, sources);
+  const staged = passRequesting([testPresenceClient], scratch, WORST_ART_TREE, { requestedPaths: ["packages/client/src/data/use-thing.ts"] });
+
+  expect(messages(whole)).toEqual([expect.stringContaining("standing DOM-derived worst-legal-art contrast CT")]);
+  expect(messages(application)).toEqual(messages(whole));
+  expect(messages(staged)).toEqual([]);
+});
+
 test("test-presence-client: a staged new client data hook with no mirror test is judged", ({ scratch }) => {
   const hook = "packages/client/src/data/use-thing.ts";
   const tree = { [hook]: "export const useThing = () => 1;\n", "tests/client/data/other.test.ts": "export const t = 1;\n" };

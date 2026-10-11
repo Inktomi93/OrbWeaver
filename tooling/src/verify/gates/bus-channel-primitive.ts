@@ -245,7 +245,7 @@ export const gate = defineGate({
         ...emitterGlobalLookalikeProof(),
         "packages/server/src/transport/trpc/global-emitter.ts": "export const bus = new EventEmitter();\n",
       },
-      why: `THE ORIGIN-KIND FENCE, PINNED: a TRUSTED AMBIENT GLOBAL constructor spelled \`EventEmitter\` (${EMITTER_GLOBAL_HOME}) is admitted by the name prefilter and RESOLVES — to a global origin rather than a module one — so it is the only fixture that reaches \`target.kind !== "module"\`. Node declares no such global; the twin exists so that comparison is enforced rather than asserted. Before it the branch was reached by zero rows, and the row that claimed it planted \`new Map()\`/\`new Set()\`, which the name prefilter rejects before any origin is resolved (wave-8 D5, gate-runtime audit wave 8\`)`,
+      why: `THE ORIGIN-KIND FENCE, PINNED: a TRUSTED AMBIENT GLOBAL constructor spelled \`EventEmitter\` (${EMITTER_GLOBAL_HOME}) is admitted by the name prefilter and RESOLVES — to a global origin rather than a module one — so it is the only fixture that reaches \`target.kind !== "module"\`. Node declares no such global; the twin exists so that comparison is enforced rather than asserted. Before it the branch was reached by zero rows, and the row that claimed it planted \`new Map()\`/\`new Set()\`, which the name prefilter rejects before any origin is resolved (wave-8 D5, \gate-runtime audit wave 8\`)`,
     },
     {
       mode: "types",

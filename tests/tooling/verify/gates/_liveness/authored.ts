@@ -15,6 +15,7 @@ import { gate as noChatTrpcInSurface } from "../../../../../tooling/src/verify/g
 import { gate as noContextReturntype } from "../../../../../tooling/src/verify/gates/no-context-returntype.ts";
 import { gate as noIfIsGroup } from "../../../../../tooling/src/verify/gates/no-if-is-group.ts";
 import { gate as noInlineOptimisticInSurface } from "../../../../../tooling/src/verify/gates/no-inline-optimistic-in-surface.ts";
+import { gate as noInlineUnionAlias } from "../../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
 import { gate as noInlineUnionRedecl } from "../../../../../tooling/src/verify/gates/no-inline-union-redecl.ts";
 import { gate as noStaticStaletime } from "../../../../../tooling/src/verify/gates/no-static-staletime.ts";
 import { gate as noTestFabrication } from "../../../../../tooling/src/verify/gates/no-test-fabrication.ts";
@@ -104,9 +105,17 @@ export const AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "belongs in `features/<x>/hooks/`",
   },
   {
-    policy: noInlineUnionRedecl,
+    policy: noInlineUnionAlias,
     overlays: [add("packages/contracts/src/liveness-mode.ts", "export type LivenessMode = 'a' | 'b' | 'c';\n")],
     messageIncludes: "TYPE ALIAS",
+  },
+  {
+    policy: noInlineUnionRedecl,
+    overlays: [
+      add("packages/contracts/src/liveness-axis-home.ts", "export const LIVENESS_AXIS = ['a', 'b', 'c'] as const;\n"),
+      add("packages/server/src/liveness-axis-respell.ts", "export interface LivenessRespell { mode: 'a' | 'b' | 'c' }\n"),
+    ],
+    messageIncludes: "re-spells the canonical tuple",
   },
   {
     policy: noStaticStaletime,
