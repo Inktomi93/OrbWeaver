@@ -34,7 +34,7 @@ import { UTILITY_RUNNING_ROUTES } from "../../support/node/utility-role.ts";
 import { STREAM_MUTATION_ROUTES } from "../data/bus/fixtures.ts";
 import { CHARACTER_EDITOR_AMBIENT_ROUTES, makeCharacterDetail, makeCharacterSummary } from "../features/character/fixtures.ts";
 import { CHAT_AMBIENT_ROUTES, chatListResponder, makeChatSummary } from "../features/chat/fixtures.ts";
-import { HomePageReadinessStory, HomePageStory, SectionRosterCensusStory } from "./_ct-stories.tsx";
+import { HomePagePendingStory, HomePageReadinessStory, HomePageStory, SectionRosterCensusStory } from "./_ct-stories.tsx";
 
 const ARIA = makeCharacterSummary({ id: "char_home_aria", name: "Aria Nightshade" });
 // Spans BOTH vocabularies — desktop names the frame region, the phone names the screen a tap lands on
@@ -1455,4 +1455,30 @@ test.describe("phone character CONTENT focus and warm retention", () => {
     await retainedNode.dispose();
     await retainedForm.dispose();
   });
+});
+
+// A section read that suspends must hold only its own region. A DOCKED list body mounts in the section-switch
+// commit itself (a collapsed one mounts later, inside a transition), so with no region boundary the cold
+// `refinery.listSessions` read unmounted the whole shell into the router pending glyph.
+test("a slow Refinery list read keeps the shell mounted and only the list region waits", async ({ mount, page }) => {
+  await page.addInitScript(() => {
+    globalThis.localStorage.setItem(
+      "orb:shell",
+      JSON.stringify({ state: { activeSection: "chats", panelOverrides: { refinery: { list: "docked" } } }, version: 2 }),
+    );
+  });
+  await page.reload();
+  const sessions = trpcHold();
+  await routeTrpc(page, { ...SECTION_CENSUS_ROUTES, "refinery.listSessions": sessions });
+  const component = await mount(<HomePagePendingStory />);
+  const rail = component.locator(".shell-rail");
+  await expect(rail).toBeVisible();
+
+  await rail.getByRole("button", { name: "Refinery", exact: true }).click();
+  await sessions.requested;
+
+  await expect(rail).toBeVisible();
+  await expect(page.getByRole("status", { name: "Loading", exact: true })).toHaveCount(0);
+  sessions.release(CENSUS_SESSIONS);
+  await expect(component.getByText("Aria Nightshade").first()).toBeVisible();
 });

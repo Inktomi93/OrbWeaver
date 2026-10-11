@@ -1,4 +1,5 @@
 import { createRoute, createRouter, lazyRouteComponent, notFound, redirect } from "@tanstack/react-router";
+import type { ReactElement } from "react";
 import { redirectIfAuthed, requireAuthed } from "#features/auth";
 import { healCorpusModeFrom, openConfigTo, parseConfigLink, resolveSectionPath, setActiveSection } from "#state";
 // Deep, not `#lib`: app-ready-signal is OUT of the barrel so its production import graph stays explicit.
@@ -6,6 +7,7 @@ import { healCorpusModeFrom, openConfigTo, parseConfigLink, resolveSectionPath, 
 import type { RouteResolution } from "../lib/app-ready-signal.ts";
 import { rootRoute } from "./__root.tsx";
 import { LoginPage } from "./login-page.tsx";
+import { RouteError } from "./route-error.tsx";
 import { RoutePending } from "./route-pending.tsx";
 import { observeRouterViewTransitions } from "./router-view-transition.ts";
 
@@ -21,6 +23,16 @@ import { observeRouterViewTransitions } from "./router-view-transition.ts";
 // unauthenticated client never downloads or parses the authed surface. /login stays eager: it is the one
 // thing an anonymous visitor is here for. The import specifier must stay STATICALLY ANALYSABLE — a
 // computed path would defeat the bundler's chunking and hand the whole feature graph back to the entry.
+
+type CrashReporter = (error: Error, ownerStack: string | null) => void;
+let reportRouteCrash: CrashReporter | null = null;
+
+/** Hand the route tree the app's crash reporter. It is injected because the client singletons it needs may only be
+ *  imported by the composition root, and TanStack's route catch boundary swallows a render crash before the
+ *  app-level boundary above the router can report it. */
+export function bindRouteCrashReporter(report: CrashReporter): void {
+  reportRouteCrash = report;
+}
 
 const homeRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -89,6 +101,12 @@ export const router = createRouter({
   // Paints while beforeLoad's auth gate resolves — without it a slow/hanging fetch shows a blank page.
   defaultPendingComponent: RoutePending,
   defaultPendingMs: 0,
+  // A failed lazy chunk lands here. The browser caches a failed module fetch for the life of the document, so only
+  // a reload can retry it.
+  defaultOnCatch: (error, errorInfo): void => {
+    reportRouteCrash?.(error instanceof Error ? error : new Error(String(error)), errorInfo.componentStack ?? null);
+  },
+  defaultErrorComponent: (): ReactElement => <RouteError onRetry={(): void => globalThis.location.reload()} />,
   // A free crossfade on the only real navigations (/ <-> /login); no-op without the View Transition API.
   defaultViewTransition: true,
 });
