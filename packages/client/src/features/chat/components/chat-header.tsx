@@ -16,7 +16,6 @@ import { blobUrl } from "@orb/contracts/assets";
 import type { ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
-import { AvatarStack } from "@orb/ui/avatar-stack";
 import { Button } from "@orb/ui/button";
 import { Icon, Users } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
@@ -24,13 +23,13 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE } from "#components";
 import { useTRPC } from "#data";
 import type { ChatContextTabId } from "#lib";
 import { authoredChatName, deriveChatTitle } from "#lib";
 import { revealContextPanel } from "#state";
-import { filterCharacters, presentMemberCount } from "../lib/roster.ts";
+import { filterCharacters } from "../lib/roster.ts";
 import { ChatHeaderTitle } from "./chat-header-title.tsx";
-import { ChatPresetChip } from "./chat-preset-chip.tsx";
 import { ChatRecallIndicator } from "./chat-recall-indicator.tsx";
 
 export interface ChatHeaderSurfaceProps {
@@ -46,7 +45,7 @@ interface CommittedIdentity {
   /** The user's own name for the room; null until they set one (a stamped default title counts as none). */
   readonly roomName: string | null;
   readonly createdAt: number;
-  /** The PRESENT people — the number on the roster chip. */
+  /** The PRESENT seats (people and characters) — the number on the roster chip, which is what the Members tab lists. */
   readonly memberCount: number;
   /** Has the room's own read landed? `false` ⇒ there is no identity yet, only the shape of one. */
   readonly resolved: boolean;
@@ -62,15 +61,28 @@ function useCommittedIdentity(chatId: ChatId): CommittedIdentity {
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const participants = chat?.participants ?? [];
   const characters = filterCharacters(participants);
+  const authored = authoredChatName(chat?.title ?? null);
+  const hasCast = characters.length > 0;
   return {
     characters,
-    participantsLabel: deriveChatTitle(
-      null,
-      characters.map((c) => c.displayName),
-    ),
-    roomName: authoredChatName(chat?.title ?? null),
+    // The participants lead; a room with no characters leads with its own name (or the untitled word).
+    participantsLabel: hasCast
+      ? deriveChatTitle(
+          null,
+          characters.map((c) => c.displayName),
+        )
+      : deriveChatTitle(authored, []),
+    roomName:
+      hasCast &&
+      authored?.toLowerCase() !==
+        characters
+          .map((c) => c.displayName)
+          .join(", ")
+          .toLowerCase()
+        ? authored
+        : null,
     createdAt: chat?.createdAt ?? 0,
-    memberCount: presentMemberCount(participants),
+    memberCount: participants.filter((p) => p.leftSeq === null).length,
     resolved: chat !== undefined,
     viewerIsHost: chat?.viewerIsHost === true,
   };
@@ -115,7 +127,6 @@ export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElem
       {/* The memory-recall slot — a STABLE topbar control beside the members chip (#313), reflecting the
           current turn's recall phase (idle / recalling… / retrieved N), never a per-message chip. */}
       <ChatRecallIndicator chatId={chatId} viewerIsHost={viewerIsHost} />
-      <ChatPresetChip />
     </Row>
   );
 }
@@ -131,7 +142,7 @@ function RosterChipButton({ count, onClick }: { readonly count: number; readonly
       shape="pill"
       size="sm"
       aria-label={`Members — ${count}`}
-      className="shell-chat-member-chip whitespace-nowrap"
+      className={`shell-chat-member-chip shrink-0 whitespace-nowrap ${CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE}`}
       onClick={onClick}
     >
       <Icon icon={Users} size="sm" />
@@ -165,27 +176,23 @@ function ChatRosterEntry({ memberCount }: { readonly memberCount: number }): Rea
   return <RosterChipButton count={memberCount} onClick={openMembersTab} />;
 }
 
+/** The lead character's face, for a ONE-character room. A group room's faces live in the cast row under the
+ *  topbar (one home for the cast), so the header carries only the names there. */
 function CharacterAvatars({ characters }: { readonly characters: readonly CharacterParticipant[] }): ReactElement | null {
-  if (characters.length === 0) {
+  const lead = characters[0];
+  if (characters.length !== 1 || lead === undefined) {
     return null;
   }
-  const lead = characters[0];
-  if (characters.length === 1 && lead !== undefined) {
-    return (
-      <Avatar size="sm" fallbackDelay={0} hueSeed={lead.characterId} {...(lead.avatarHash === null ? {} : { src: blobUrl(lead.avatarHash) })}>
-        {initialsFor(lead.displayName)}
-      </Avatar>
-    );
-  }
   return (
-    <AvatarStack
+    <Avatar
       size="sm"
-      items={characters.map((c) => ({
-        name: c.displayName,
-        ...(c.avatarHash === null ? {} : { src: blobUrl(c.avatarHash) }),
-      }))}
-      aria-label={`${characters.length} characters`}
-    />
+      className="shell-chat-header-avatar"
+      fallbackDelay={0}
+      hueSeed={lead.characterId}
+      {...(lead.avatarHash === null ? {} : { src: blobUrl(lead.avatarHash) })}
+    >
+      {initialsFor(lead.displayName)}
+    </Avatar>
   );
 }
 

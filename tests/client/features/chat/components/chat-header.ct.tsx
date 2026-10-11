@@ -8,7 +8,6 @@
 // deleted with the Members tab's size gate (#162, owner-ruled 2026-08-18) — one roster surface, every room.
 
 import type { ParticipantRole } from "@orb/contracts/identity";
-import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
@@ -48,7 +47,7 @@ function character(name: string): ParticipantFixture {
   };
 }
 
-test("a GROUP chat shows the chip counting the PRESENT people, never the characters (Members \u2014 N)", async ({ mount, page }) => {
+test("a GROUP chat shows the chip counting the PRESENT seats the Members tab lists, never a departed one (Members \u2014 N)", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     "chat.getChat": () => ({
@@ -67,10 +66,10 @@ test("a GROUP chat shows the chip counting the PRESENT people, never the charact
 
   const component = await mount(<ChatHeaderStory />);
 
-  // 1 present human; the 2 characters and the departed seat are not members.
-  const chip = component.getByRole("button", { name: "Members — 1" });
+  // The host and the 2 characters are present; the departed seat is not counted.
+  const chip = component.getByRole("button", { name: "Members — 3" });
   await expect(chip).toBeVisible();
-  await expect(chip).toHaveText("1");
+  await expect(chip).toHaveText("3");
 });
 
 // ── THE PLACEHOLDER MAY NOT LIE (#216, side-eye home re-score 2026-08-18) ─────────────────────────
@@ -102,7 +101,7 @@ test("while chat.getChat is unresolved the header shows a skeleton — never 'Un
     viewerIsHost: true,
   });
 
-  await expect(component.getByRole("button", { name: "Members — 1" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Members — 2" })).toBeVisible();
   await expect(component.locator('[data-slot="chat-header-pending"]')).toHaveCount(0);
 });
 
@@ -130,7 +129,7 @@ test.describe("narrow/touch viewport", () => {
     const state = component.getByTestId("shell-state");
     await expect(state).toHaveText("contextTab=none openOverlayPanel=none");
 
-    const chip = component.getByRole("button", { name: "Members — 1" });
+    const chip = component.getByRole("button", { name: "Members — 3" });
     await chip.tap();
 
     // The overlay request now NAMES "context" — the write `resolvePanelMode` needs to reveal the sheet
@@ -157,8 +156,8 @@ test("the members chip counts the PRESENT people and opens the Members tab — i
 
   const component = await mount(<ChatHeaderNarrowStory />);
 
-  // 1 human; the character is not a member.
-  const entry = component.getByRole("button", { name: "Members — 1" });
+  // The host and the character are the two present seats.
+  const entry = component.getByRole("button", { name: "Members — 2" });
   await expect(entry).toBeVisible();
 
   await entry.click();
@@ -177,7 +176,7 @@ test("a NON-host gets the same chip and the same one door (no host-forked topbar
   });
 
   const component = await mount(<ChatHeaderNarrowStory />);
-  await component.getByRole("button", { name: "Members — 1" }).click();
+  await component.getByRole("button", { name: "Members — 2" }).click();
 
   await expect(component.getByTestId("shell-state")).toHaveText("contextTab=members openOverlayPanel=context");
 });
@@ -272,6 +271,30 @@ test("0852: clicking the title renames in place - Enter saves once, even when pr
   await expect(input).toHaveCount(0);
 });
 
+test("0852: after Enter saves, focus returns to the title button (never the body)", async ({ mount, page }) => {
+  await routeTrpc(page, roomRoutes(STAMPED_TITLE));
+  const component = await mount(<ChatHeaderStory />);
+
+  await component.getByRole("button", { name: /^Rename chat/u }).click();
+  await component.getByRole("textbox", { name: "Chat name" }).fill("Rooftop night");
+  await page.keyboard.press("Enter");
+
+  await expect(component.getByRole("textbox", { name: "Chat name" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: /^Rename chat/u })).toBeFocused();
+});
+
+test("0852: after Escape cancels, focus returns to the title button (never the body)", async ({ mount, page }) => {
+  await routeTrpc(page, roomRoutes("Rooftop night"));
+  const component = await mount(<ChatHeaderStory />);
+
+  await component.getByRole("button", { name: /^Rename chat/u }).click();
+  await component.getByRole("textbox", { name: "Chat name" }).fill("Something else");
+  await page.keyboard.press("Escape");
+
+  await expect(component.getByRole("textbox", { name: "Chat name" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: /^Rename chat/u })).toBeFocused();
+});
+
 test("0852: Escape cancels the rename without a write", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, roomRoutes("Rooftop night"));
   const component = await mount(<ChatHeaderStory />);
@@ -308,39 +331,49 @@ test("0852: a non-host sees the title as plain text, not a rename door", async (
   await expect(component.getByRole("button", { name: /^Rename chat/u })).toHaveCount(0);
 });
 
-// ── THE HEADER CARRIES THE ROOM'S CHIPS: members, memory, preset — one type voice, never a scroll ────────
-function presetRoutes(seededPreset: string | null, presets: readonly { id: string; name: string }[]): Parameters<typeof routeTrpc>[1] {
-  return {
-    ...roomRoutes("Rooftop night"),
-    "preset.list": () => presets,
-    "settings.getUserSettings": () => ({
-      userId: "user_ct",
-      schemaVersion: 1,
-      config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: seededPreset } },
-      configUnreadable: null,
-      updatedAt: 0,
-    }),
-  };
-}
-
-test("the preset chip SAYS it could not name the preset instead of vanishing", async ({ mount, page }) => {
-  await routeTrpc(page, presetRoutes("preset_ct_gone", []));
+// ── THE HEADER CARRIES THE ROOM'S STATE CHIPS: members and memory, never a preset or model chip ──────────
+test("the header carries the members and memory chips and NO preset chip; the member count is what the Members tab lists", async ({ mount, page }) => {
+  await routeTrpc(page, roomRoutes("Rooftop night"));
   const component = await mount(<ChatHeaderStory />);
-  const chip = component.locator('[data-slot="chat-preset-chip"]');
-  await expect(chip).toHaveAttribute("data-preset-state", "unnameable");
-  await expect(chip).toHaveText("Preset unavailable");
-});
-
-test("a viewer on the built-in preset is an answer, and a named preset shows its name", async ({ mount, page }) => {
-  await routeTrpc(page, presetRoutes(null, []));
-  const component = await mount(<ChatHeaderStory />);
-  await expect(component.locator('[data-slot="chat-preset-chip"]')).toHaveText("Built-in preset");
-});
-
-test("a named preset shows its name in the header beside the members and memory chips", async ({ mount, page }) => {
-  await routeTrpc(page, presetRoutes("preset_ct_house", [{ id: "preset_ct_house", name: "House style" }]));
-  const component = await mount(<ChatHeaderStory />);
-  await expect(component.locator('[data-slot="chat-preset-chip"]')).toHaveText("House style");
-  await expect(component.getByRole("button", { name: "Members — 1" })).toBeVisible();
+  // One host and one character present: two seats, which is what the Members tab lists.
+  await expect(component.getByRole("button", { name: "Members — 2" })).toBeVisible();
   await expect(component.getByRole("button", { name: /^Memory — / })).toBeVisible();
+  await expect(component.locator('[data-slot="chat-preset-chip"]')).toHaveCount(0);
+});
+
+test("a solo room's header carries the character's face; a group room's faces live in the cast row, not here", async ({ mount, page }) => {
+  await routeTrpc(page, roomRoutes("Rooftop night"));
+  const solo = await mount(<ChatHeaderStory />);
+  await expect(solo.locator('[data-slot="avatar-root"]')).toHaveCount(1);
+  await solo.unmount();
+
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    "chat.getChat": () => ({
+      title: "Council",
+      participants: [human("host"), character("Aria"), character("Bolt")],
+      viewerIsHost: true,
+      createdAt: 1_750_000_000_000,
+    }),
+    "chat.listMessages": () => makeMessagesPage([]),
+  });
+  const group = await mount(<ChatHeaderStory />);
+  await expect(group.locator(".shell-topbar-title")).toHaveText("Aria, Bolt");
+  await expect(group.locator('[data-slot="avatar-root"]')).toHaveCount(0);
+  await expect(group.locator('[data-slot="avatar-stack-root"]')).toHaveCount(0);
+});
+
+test("0852: opening the rename box does not move the chips beside the title", async ({ mount, page }) => {
+  await routeTrpc(page, roomRoutes(STAMPED_TITLE));
+  const component = await mount(<ChatHeaderStory />);
+  const members = component.getByRole("button", { name: /^Members — / });
+  const before = await members.boundingBox();
+  await component.getByRole("button", { name: /^Rename chat/u }).click();
+  await expect(component.getByRole("textbox", { name: "Chat name" })).toBeVisible();
+  await expect
+    .poll(async () => {
+      const after = await members.boundingBox();
+      return before !== null && after !== null && Math.abs(after.x - before.x) <= 2;
+    })
+    .toBe(true);
 });

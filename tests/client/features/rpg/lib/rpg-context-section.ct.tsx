@@ -2891,6 +2891,28 @@ test("only the active Game crown fills; Preview never borrows its state", async 
   await expect.poll(() => fill("Preview")).toBe("none");
 });
 
+test("#102: the HUD's NON-VIEWPORT SPEND is pinned at 383x800 under the header-tab layout — the chrome above the viewport", async ({ mount, page }) => {
+  // The spend is the chrome the pane charges before the viewport: the ember edge, the header row, the band and
+  // the state rail. With the tabs in the header and no foot rail or ground, ALL of it sits above the viewport, so
+  // it is the viewport's top edge measured from the bracket's. (A short body leaves empty pane below the panel;
+  // that is not spend.) No future change may spend more without saying why here.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory width={383} height={800} />);
+  // SETTLED, not in-flight: the band renders behind a QueryBoundary whose fallback collapses it.
+  await expect(component.locator('[data-slot="rpg-band-satellites"]')).toBeVisible();
+  await expect(component.locator('[data-slot="context-rail"]')).toHaveCount(1);
+  await expect.poll(() => component.locator('[data-slot="tabs-panel"]:visible').count(), { intervals: [20, 50, 100, 200] }).toBe(1);
+  // Measured 316.5px of the 800px pane (39.6%) at this width; the old head-and-foot layout spent 390.5px.
+  await expect
+    .poll(() =>
+      component.locator("[data-context-bracket]").evaluate((bracket) => {
+        const panel = bracket.querySelector<HTMLElement>('[data-slot="tabs-panel"]:not([hidden]):not([inert])');
+        return (panel?.getBoundingClientRect().top ?? Number.NaN) - bracket.getBoundingClientRect().top;
+      }),
+    )
+    .toBeLessThanOrEqual(317);
+});
+
 test("#860: the bracket column has NO seam of its own — each slot pays its own padding, and the call site says so", async ({ mount, page }) => {
   // The HUD column used to carry a declared `gap-block` seam (#102 — the 12px the pane was measured
   // against). The context bracket (the mock's anatomy) lays its five slots edge to edge: the band's
@@ -3005,13 +3027,8 @@ test("HUD-1 §7.3: with no ambient set the band COMPRESSES to one row — a smal
   // and it can only be that short because the copy, the cues and the satellites sit BESIDE the stone
   // instead of stacked under it.
   //
-  // THE BUDGET MOVED ONE LINE, DELIBERATELY (#875 F3, 2026-08-30). It used to be "less than the full
-  // form's stone alone (120px)"; the band now carries the ROOM'S NAME as its first line — an `h2` at the
-  // band voice, like the chat and character bands — because with the topbar correctly yielding to a docked
-  // pane (#846) a game room otherwise had NO heading anywhere on screen and `--aria` returned one flat
-  // text node. A name has to live somewhere and the head band's contract is naming the artifact; the other
-  // two bands pay the same line and were never budgeted against it. Measured after: 130.2px. The ceiling
-  // is the F6 number this test exists to hold, not the stone step.
+  // The band no longer prints the room's name (it lives in the center header), so the compressed band sits
+  // comfortably under the F6 number this test exists to hold; the ceiling is that number, not the stone step.
   const compressedBandCeiling = 138;
   expect(headerBox.height).toBeLessThan(compressedBandCeiling);
   // …and the satellites really are in that row: past the stone's right edge, level with it.
@@ -3091,11 +3108,8 @@ test("HUD-1 §7.1: the HUD's chrome stays inside its vertical budget at the 30re
   // MEASURED 2026-08-01 at this reference: region 900 · band 141.75 · rails 116.375 · chrome 258.125 —
   // 28.7% of the pane, and the band is 54.9% of the chrome (it was 68%).
   //
-  // RE-MEASURED 2026-08-30 (#875 F3): 32.9%. The band grew by ONE LINE — the room's NAME, an `h2` at the
-  // band voice, which #875 F3 required because a docked game room had no heading anywhere (the topbar
-  // yields, #846) and the band printed the scene LOCATION where the other two bands print the artifact.
-  // The ceiling moves by that line and no further; it is still a RATIO, still the same reference, and the
-  // band-share clause below (the thing F6 was actually about) is unchanged and still holds.
+  // The ceiling is a RATIO against the same 30rem × 900 reference; the band-share clause below (the thing F6
+  // was actually about) still holds. The room's name no longer costs the band a line.
   const chrome = bandBox.height + railHeight;
   expect(chrome / regionBox.height).toBeLessThanOrEqual(0.34);
   // …and the band is no longer the chrome's dominant tenant: the state it was WORST at (nothing set) is now

@@ -1,4 +1,4 @@
-// THE CONTEXT BRACKET'S NAVIGATION — the pane's ONE tab strip (`ContextTabStrip`, a real `tablist` seated in the
+// THE CONTEXT BRACKET'S NAVIGATION — the pane's ONE tab strip (`ContextHeaderTabs`, a real `tablist` seated in the
 // header row) and, for a game room, the state rail (`ContextRail`, a named toolbar of cells under the header).
 // `context-bracket.tsx` owns the pane's vertical composition; this file owns what a strip and a rail ARE.
 //
@@ -6,14 +6,17 @@
 // Enter/Space selects (manual activation — the panels behind these tabs are query-backed surfaces, and arrows
 // that selected as they moved mounted every panel on the way). The owner reversed the earlier "named toolbar,
 // foot rail" ruling (the strip moved to the header, as ONE tablist per pane). The game state rail is NOT a
-// second tab strip: it stays a `toolbar` whose cells carry `aria-current`, because its selection lives in the
-// same `Tabs` root and a second tablist would announce with zero selected tabs.
-// The viewport panel is `role="region"` named by its tab (the bracket's half of `cellDomId`).
+// second tab strip: it stays a `toolbar` whose cells carry `aria-current`, and it runs in its OWN `Tabs` root
+// so the header's tab map and active-tab indicator only ever see header tabs (Base UI keeps one tab map per
+// root, and a state cell registered into the header's root made the bar follow it).
+// The viewport panels are `role="region"` named by their tab (the bracket's half of `cellDomId`): a region
+// rather than a `tabpanel` because Base UI offloads an inactive `tabpanel`'s children and the bracket keeps a
+// visited panel mounted so a revisit is free.
 
 import { Badge } from "@orb/ui/badge";
 import { ChevronLeft, ChevronRight, Crown, Icon, Lock } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
-import { TabsIndicator, TabsList, TabsTab } from "@orb/ui/tabs";
+import { Tabs, TabsIndicator, TabsList, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, RefObject } from "react";
 import { useRef, useSyncExternalStore } from "react";
@@ -126,11 +129,13 @@ export interface ContextRailProps {
   readonly activeTab: string | null;
   /** Does this rail hold the selection? The owning rail is raised. */
   readonly owns: boolean;
+  /** Commit a cell: the pane's one selection seam. */
+  readonly onSelect: (id: string) => void;
 }
 
 /** The game STATE rail: a named toolbar of equal-column cells under the header strip. Panel content, not a
  *  second tab strip. */
-export function ContextRail({ ariaLabel, tabs, activeTab, owns }: ContextRailProps): ReactElement {
+export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: ContextRailProps): ReactElement {
   const ownership = owns ? "owning" : "receded";
   const trackRef = useRef<HTMLDivElement | null>(null);
   const cellCount = tabs.length;
@@ -145,18 +150,29 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns }: ContextRailPro
       className={`min-w-0 shrink-0 border-border border-b ${RAIL_OWNERSHIP_CLASSES[ownership]}`}
     >
       <Row align="center" gap="row" className="relative min-w-0 px-row pt-field pb-row">
-        <TabsList
-          ref={trackRef}
-          // `toolbar`, not the primitive's `tablist`: the header strip is the pane's one tablist.
-          role="toolbar"
-          activateOnFocus={false}
-          aria-label={ariaLabel}
-          className={`grid min-w-0 w-full ${RAIL_TRACK_CLASSES} grid-flow-col gap-tight ${tabs.length === RAIL_WRAP_CELLS ? CONTEXT_RAIL_WRAP : ""} border-y-0`}
+        {/* Its own root, so the header strip's tab map and indicator never see a state cell. */}
+        <Tabs
+          value={owns ? activeTab : null}
+          onValueChange={(value): void => {
+            if (typeof value === "string") {
+              onSelect(value);
+            }
+          }}
+          className="min-w-0 w-full gap-0"
         >
-          {tabs.map((tab) => (
-            <ContextCell key={tab.id} tab={tab} isActive={tab.id === activeTab} ownership={ownership} />
-          ))}
-        </TabsList>
+          <TabsList
+            ref={trackRef}
+            // `toolbar`, not the primitive's `tablist`: the header strip is the pane's one tablist.
+            role="toolbar"
+            activateOnFocus={false}
+            aria-label={ariaLabel}
+            className={`grid min-w-0 w-full ${RAIL_TRACK_CLASSES} grid-flow-col gap-tight ${tabs.length === RAIL_WRAP_CELLS ? CONTEXT_RAIL_WRAP : ""} border-y-0`}
+          >
+            {tabs.map((tab) => (
+              <ContextCell key={tab.id} tab={tab} isActive={tab.id === activeTab} ownership={ownership} />
+            ))}
+          </TabsList>
+        </Tabs>
         <OverflowMarks overflow={overflow} fill={RAIL_FADE_CLASSES[ownership]} />
       </Row>
     </Stack>
@@ -202,7 +218,7 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
 /** THE PANE'S TAB STRIP — a real tablist in the header row. Overflow scrolls inside the strip (no native
  *  scrollbar; the fade and chevron say there is more). The strip stretches to the row's height so the active
  *  bar rides the header's own divider. */
-export function ContextTabStrip({
+export function ContextHeaderTabs({
   ariaLabel,
   tabs,
   activeTab,
@@ -213,6 +229,11 @@ export function ContextTabStrip({
 }): ReactElement {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const overflow = useTrackOverflow(trackRef, tabs.length);
+  // One tab is not a strip: with nothing to choose between, the header is just its trailing controls (the
+  // lone panel is named by `aria-label` in the bracket).
+  if (tabs.length <= 1) {
+    return <Row data-slot="context-tab-strip" className="min-w-0 flex-1 self-stretch" />;
+  }
   return (
     <Row data-slot="context-tab-strip" data-overflow-start={overflow.start} data-overflow-end={overflow.end} className="relative min-w-0 flex-1 self-stretch">
       <TabsList

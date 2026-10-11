@@ -131,7 +131,7 @@ const ONE_BY_ONE_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC
 // EXACT row names — the row button's accessible name is now the TITLE ALONE (finding #1: subtitle rides
 // aria-describedby, not the name). A loose /regex/ would ALSO match the per-row kebab, whose label is now
 // "Chat actions for <title>" (finding #4), so pin the row by its exact name.
-const ADVENTURE_ROW = "A grand adventure";
+const ADVENTURE_ROW = "Aria Nightshade \u00b7 A grand adventure";
 const UNTITLED_ROW = "Untitled chat";
 
 // ACTION names carry the row's own recency stamp after the title (side-eye P3a — N rows titled "Aveline"
@@ -931,7 +931,8 @@ test("the SCENT line wins the subtitle and stays ONE truncated line; the GAME ma
   // The snippet REPLACES the participants line on a chat with history; the plain row keeps its identity line.
   // Counted over the ROWS: the faces strip prints her caption as well (see the row-scoped note above).
   await expect(component.getByText("The door gives way", { exact: false })).toBeVisible();
-  await expect(component.locator(LIST_ROW_ROOT).getByText("Aria Nightshade", { exact: true })).toHaveCount(1);
+  // The plain row's identity line is its message count now: the title already leads with the participants.
+  await expect(component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" }).locator(SUBTITLE)).toHaveText("4 messages");
   // done ≠ rendered: the long snippet must actually be clipped to one line, not wrap the row open.
   const subtitle = component.locator(LIST_ROW_ROOT, { hasText: "The Ashfell run" }).locator(SUBTITLE);
   await expect
@@ -1196,7 +1197,7 @@ test("FACEFILT: a folded character picked from the roster scopes the pane AND ta
 
   // The pane is scoped to her…
   await expect(component.getByText("Filtered:")).toBeVisible();
-  await expect(component.getByRole("button", { name: `Thread ${ROSTER_SIZE - 1}`, exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: `${rosterName(ROSTER_SIZE - 1)} \u00b7 Thread ${ROSTER_SIZE - 1}`, exact: true })).toBeVisible();
   // …and she is a FACE now, current and inside the row's box — never a filter you can't see or re-tap.
   const face = component.getByRole("button", { name: `Show chats with ${FOLDED_NAME}`, exact: true });
   await expect(face).toHaveAttribute("aria-pressed", "true");
@@ -1404,7 +1405,7 @@ for (const axis of ["character", "search"] as const) {
     await expect(component.getByText(AXIS_UNSCOPED_RE)).toHaveCount(0);
     await expect(scroll).toHaveJSProperty("scrollTop", 0);
     await expect(component.locator('[data-slot="virtual-list-row"]').first()).toHaveAttribute("data-index", "0");
-    await expect(component.getByText("Aria thread 001", { exact: true })).toBeVisible();
+    await expect(component.getByText("Aria Nightshade \u00b7 Aria thread 001", { exact: true })).toBeVisible();
   });
 }
 

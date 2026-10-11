@@ -66,14 +66,14 @@ interface DuplicateDoorPopulationResult {
   readonly accounting: RulePopulationAccounting;
 }
 
-/** A TOOLBAR CELL IS A VIEW SWITCH, NOT A SECOND DOOR (#1705, from #891's side-eye ruling). On home, the
- *  primary `nav`'s "Chats" button NAVIGATES THE APP, while `#context-cell-chats` inside
- *  `toolbar "Character"` REPAINTS THE CONTEXT REGION with this character's chats —
+/** A TOOLBAR OR TAB IS A VIEW SWITCH, NOT A SECOND DOOR (#1705, from #891's side-eye ruling). On home, the
+ *  primary `nav`'s "Chats" button NAVIGATES THE APP, while the "Chats" tab inside the context pane's
+ *  `tablist "Character"` REPAINTS THE CONTEXT REGION with this character's chats —
  *  `docs/law/UI-Architecture-and-Layout.md` §4.1–4.3 assigns those two jobs to two regions,
  *  so they are two verbs that happen to share a noun, not one verb with two homes. The rule's own message
  *  ("one verb wants one home per plane") is the thing that does not apply.
  *
- *  Scoped to `role="toolbar"` deliberately, and no wider: the same rule's five per-character-name findings
+ *  Scoped to `role="toolbar"` and `role="tablist"` deliberately, and no wider: the same rule's five per-character-name findings
  *  on the landing (a list row against the "Recently chatted" shelf) are a RULING (#1662, ruled
  *  DIFFERENTIATE), not a mechanism fence, and must keep firing.
  *

@@ -40,6 +40,15 @@ test("chatSummaryRowView: authored title → names subtitle", () => {
   expect(view.subtitle).toBe("You, JFC");
 });
 
+test("chatSummaryRowView participants-first (the list row): the title leads with the people, then the user's room name", () => {
+  const view = chatSummaryRowView(makeSummary({ title: "The Weave", participantNames: ["You", "JFC"], messageCount: 3 }), "participants-first");
+  // The order the topbar header uses; the identity line never repeats the names the title now leads with.
+  expect(view.title).toBe("You, JFC \u00b7 The Weave");
+  expect(view.subtitle).toBe("3 messages");
+  const bare = chatSummaryRowView(makeSummary({ title: null, participantNames: [], messageCount: 3 }), "participants-first");
+  expect(bare.title).toBe("Untitled chat");
+});
+
 test("chatSummaryRowView: names-derived title → message-count subtitle (never the names twice)", () => {
   const one = chatSummaryRowView(makeSummary({ title: "", participantNames: ["You", "JFC"], messageCount: 1 }));
   expect(one.title).toBe("You, JFC");

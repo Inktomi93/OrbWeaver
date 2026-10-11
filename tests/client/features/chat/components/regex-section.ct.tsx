@@ -262,12 +262,12 @@ test("host: a PREVIOUS host's row can still be DETACHED — the room gate, not t
 
 // ── #1754 — the preset tier's NAME comes off the wire ────────────────────────────────────────────────
 // The section must never name the wrong preset. The only client-side route to a preset name is the
-// VIEWER's active-preset chip (`chat-preset-chip.tsx` → `settings.getUserSettings` + `preset.list`), and
+// VIEWER's active preset (`settings.getUserSettings` + `preset.list`), and
 // on a GM-redirect room that is a DIFFERENT preset from the one this room's turn assembles. So the read
 // carries the label, and these two pin that the rendered heading is the wire's answer and nothing else.
 
 /** The viewer's OWN active preset, seeded as a DECOY: any name that leaks from here into a tier heading is
- *  the exact defect #1754 exists for. `chat-context-band` resolves it from these two reads. */
+ *  the exact defect #1754 exists for. The client resolves the viewer's preset from these two reads. */
 const VIEWER_ACTIVE_PRESET = "Viewer's own preset";
 
 function stubHostWithViewerPreset(page: Page, view: EffectiveRegex): Promise<TrpcRecorder> {

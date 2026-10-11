@@ -33,7 +33,7 @@ test("the bracket is handed the FULL resolved set and lands on the defaultTab fl
   const component = await mount(<ContextRegionClaimStory />);
   // Every resolved tab crosses — game cells in the state rail, meta tabs in the header strip.
   await expect(component.getByRole("toolbar", { name: "Game state" }).getByRole("button")).toHaveCount(2);
-  await expect(component.getByRole("tablist", { name: "Chat" }).getByRole("tab")).toHaveCount(1);
+  await expect(component.getByRole("tablist", { name: "Chat" }).getByRole("tab")).toHaveCount(2);
   // `members` is the declared-order first, but `fake.status` flags `defaultTab` — the ONE resolver lands there.
   await expect(component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Status" })).toHaveAttribute("aria-current", "true");
   await expect(component.getByTestId("ctx-body-status")).toBeVisible();

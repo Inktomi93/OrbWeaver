@@ -59,7 +59,7 @@ export interface TopbarIconButtonProps {
   readonly expanded?: boolean;
   readonly onClick: () => void;
   /** A shell MARKER class for this button, so `shell.css` can reason about ONE topbar control by name
-   *  (the `.shell-chat-member-chip` / `.shell-chat-recall-chip` precedent). Deliberately not `className`:
+   *  (the `.shell-chat-member-chip` precedent). Deliberately not `className`:
    *  this is a handle for the shell's own rules, never a styling hatch for a caller. */
   readonly marker?: string;
 }

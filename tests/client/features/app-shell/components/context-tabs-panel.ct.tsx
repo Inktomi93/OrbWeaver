@@ -189,6 +189,59 @@ test("a game tab lands in the state rail UNDER the header strip; the pane still 
   await expect(component.locator('[aria-selected="true"]')).toHaveCount(1);
 });
 
+test("the header's active bar belongs to header tabs only: no bar while a state cell holds the view, a bar under the selected header tab", async ({
+  mount,
+}) => {
+  const component = await mount(<ContextTabStatesStory />);
+  const indicator = component.locator('[data-slot="context-tab-strip"] [data-slot="tabs-indicator"]');
+
+  // A state-rail cell holds the view: the header strip has no selected tab, so it paints no bar.
+  await expect(stateCell(component, "Status")).toHaveAttribute("aria-current", "true");
+  await expect(indicator).toBeHidden();
+
+  // A header tab holds it: the bar sits under THAT tab.
+  await tab(component, "Settings").click();
+  await expect(tab(component, "Settings")).toHaveAttribute("aria-selected", "true");
+  await expect(indicator).toBeVisible();
+  await expect
+    .poll(async () => {
+      const [bar, current] = await Promise.all([indicator.boundingBox(), tab(component, "Settings").boundingBox()]);
+      return bar !== null && current !== null && bar.x >= current.x - 1 && bar.x + bar.width <= current.x + current.width + 1;
+    })
+    .toBe(true);
+
+  // Back to a state cell: the bar leaves.
+  await stateCell(component, "Scene").click();
+  await expect(stateCell(component, "Scene")).toHaveAttribute("aria-current", "true");
+  await expect(indicator).toBeHidden();
+});
+
+test("one view is not a strip: a single resolved tab leaves just the header with its close ×, and the panel names itself", async ({ mount }) => {
+  const component = await mount(<ContextTabStripStory width={291} singleTab={true} withDismiss={true} />);
+  await expect(component.getByRole("tablist")).toHaveCount(0);
+  await expect(component.getByRole("tab")).toHaveCount(0);
+  await expect(component.locator('[data-slot="context-bracket-header"]').getByRole("button", { name: "Close Chats details" })).toBeVisible();
+  await expect(component.getByRole("region", { name: "Members" })).toBeVisible();
+});
+
+test("End on the strip scrolls to the true end: the end fade stands down and never covers the last tab", async ({ mount, page }) => {
+  const component = await mount(<ContextMetaRailStory />);
+  const list = strip(component);
+  await expect(component.locator('[data-slot="context-tab-strip"]')).toHaveAttribute("data-overflow-end", "true");
+  await tab(component, "Members").focus();
+  await page.keyboard.press("End");
+  await expect(tab(component, "Activity")).toBeFocused();
+  // The scroll leaves a gutter beside the focused tab and the track stops at its end: no fade left to cover it.
+  await expect(component.locator('[data-slot="context-tab-strip"]')).toHaveAttribute("data-overflow-end", "false");
+  await expect(component.locator('[data-slot="context-tab-strip"] [data-edge="end"]')).toHaveCount(0);
+  await expect
+    .poll(async () => {
+      const [tabBox, listBox] = await Promise.all([tab(component, "Activity").boundingBox(), list.boundingBox()]);
+      return tabBox !== null && listBox !== null && tabBox.x + tabBox.width <= listBox.x + listBox.width + 1;
+    })
+    .toBe(true);
+});
+
 test("defaultTab (§4.1): a fresh panel lands on the flagged tab, not the declared-order first", async ({ mount }) => {
   const component = await mount(<ContextDefaultTabStory />);
   await expect(stateCell(component, "Status")).toHaveAttribute("aria-current", "true");

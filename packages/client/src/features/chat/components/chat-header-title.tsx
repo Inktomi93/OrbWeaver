@@ -6,7 +6,7 @@ import { Button } from "@orb/ui/button";
 import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
@@ -23,22 +23,45 @@ export interface ChatHeaderTitleProps {
   readonly canRename: boolean;
 }
 
-/** The title is its own full value on hover (the ellipsis is the layout's floor, the tooltip is the way back). */
+/** The participants, leading. Its full value is the tooltip (the ellipsis is the layout's floor). */
+function ParticipantsText({ label }: { readonly label: string }): ReactElement {
+  return (
+    <Text voice="promoted" className="shell-topbar-title min-w-0 truncate" title={label}>
+      {label}
+    </Text>
+  );
+}
+
+/** The creation date: quiet metadata, the first thing to drop when the row is tight (shell.css). */
+function DateText({ createdAt }: { readonly createdAt: number }): ReactElement {
+  return (
+    <Text as="span" voice="quiet" className="shell-topbar-date shrink-0 whitespace-nowrap">
+      {timeLib.formatDate(createdAt)}
+    </Text>
+  );
+}
+
 function TitleText({ label, roomName, createdAt }: Pick<ChatHeaderTitleProps, "label" | "roomName" | "createdAt">): ReactElement {
   return (
     <>
-      <Text voice="promoted" className="shell-topbar-title min-w-0 truncate" title={label}>
-        {label}
-      </Text>
+      <ParticipantsText label={label} />
       {roomName === null ? null : (
         <Text as="span" voice="quiet" className="shell-topbar-subtitle min-w-0 truncate" title={roomName}>
           {roomName}
         </Text>
       )}
-      <Text as="span" voice="quiet" className="shell-topbar-date shrink-0 whitespace-nowrap">
-        {timeLib.formatDate(createdAt)}
-      </Text>
+      <DateText createdAt={createdAt} />
     </>
+  );
+}
+
+/** The one box that owns the title's floor and clips its own overflow, so the title can never spill onto the
+ *  chips beside it (the floor lives on the box, never on the text inside it). */
+function TitleGroup({ children, width }: { readonly children: ReactNode; readonly width?: number }): ReactElement {
+  return (
+    <Row gap="row" align="baseline" className="shell-topbar-title-group min-w-0" {...(width === undefined ? {} : { style: { width } })}>
+      {children}
+    </Row>
   );
 }
 
@@ -48,15 +71,24 @@ export function ChatHeaderTitle({ chatId, label, roomName, createdAt, canRename 
   const updateTitle = useUpdateChatTitle({ trpc, invalidation });
   // `null` = not editing. Kept as the live text so a failed save leaves the user's words in the box.
   const [draft, setDraft] = useState<string | null>(null);
+  // The title's width when the editor opened: the editing group keeps it, so the chips beside the title stay put.
+  const [editWidth, setEditWidth] = useState<number | undefined>(undefined);
   // A second Enter can land before the pending flag has re-rendered; the ref closes that window.
   const inFlight = useRef(false);
+  // Set when the editor closes by Enter/Escape, so the title button that replaces the unmounted input takes
+  // the focus the input held (a blur-cancel means the user went elsewhere: no restore).
+  const restoreFocus = useRef(false);
+  const finish = (): void => {
+    restoreFocus.current = true;
+    setDraft(null);
+  };
 
   if (draft === null) {
     if (!canRename) {
       return (
-        <Row gap="row" align="baseline" className="min-w-0">
+        <TitleGroup>
           <TitleText label={label} roomName={roomName} createdAt={createdAt} />
-        </Row>
+        </TitleGroup>
       );
     }
     return (
@@ -64,9 +96,18 @@ export function ChatHeaderTitle({ chatId, label, roomName, createdAt, canRename 
         type="button"
         intent="ghost"
         size="sm"
-        aria-label={`Rename chat — ${label}`}
-        className="min-w-0 shrink justify-start"
-        onClick={(): void => setDraft(roomName ?? "")}
+        aria-label={`Rename chat — ${label}${roomName === null ? "" : `, ${roomName}`}`}
+        className="shell-topbar-title-group min-w-0 shrink justify-start"
+        ref={(node: HTMLButtonElement | null): void => {
+          if (node !== null && restoreFocus.current) {
+            restoreFocus.current = false;
+            node.focus();
+          }
+        }}
+        onClick={(event): void => {
+          setEditWidth(event.currentTarget.getBoundingClientRect().width);
+          setDraft(roomName ?? "");
+        }}
       >
         <TitleText label={label} roomName={roomName} createdAt={createdAt} />
       </Button>
@@ -79,14 +120,14 @@ export function ChatHeaderTitle({ chatId, label, roomName, createdAt, canRename 
     }
     const next = draft.trim();
     if (next === (roomName ?? "")) {
-      setDraft(null);
+      finish();
       return;
     }
     inFlight.current = true;
     updateTitle.mutate(
       { chatId, title: next === "" ? null : next },
       {
-        onSuccess: (): void => setDraft(null),
+        onSuccess: finish,
         onSettled: (): void => {
           inFlight.current = false;
         },
@@ -94,32 +135,39 @@ export function ChatHeaderTitle({ chatId, label, roomName, createdAt, canRename 
     );
   };
 
+  // The participants and the date keep their places while the name's slot becomes the field, so the chips
+  // beside the title do not move as the editor opens.
   return (
-    <Input
-      aria-label="Chat name"
-      placeholder="Name this chat"
-      value={draft}
-      readOnly={updateTitle.isPending}
-      onValueChange={setDraft}
-      ref={(node: HTMLInputElement | null): void => node?.focus()}
-      onFocus={(event): void => event.currentTarget.select()}
-      onBlur={(): void => {
-        if (!inFlight.current) {
-          setDraft(null);
-        }
-      }}
-      onKeyDown={(event): void => {
-        if (event.nativeEvent.isComposing) {
-          return;
-        }
-        if (event.key === "Enter") {
-          event.preventDefault();
-          save();
-        } else if (event.key === "Escape") {
-          event.preventDefault();
-          setDraft(null);
-        }
-      }}
-    />
+    <TitleGroup {...(editWidth === undefined ? {} : { width: editWidth })}>
+      <ParticipantsText label={label} />
+      <Input
+        aria-label="Chat name"
+        placeholder="Name this chat"
+        className="shell-topbar-rename min-w-0"
+        value={draft}
+        readOnly={updateTitle.isPending}
+        onValueChange={setDraft}
+        ref={(node: HTMLInputElement | null): void => node?.focus()}
+        onFocus={(event): void => event.currentTarget.select()}
+        onBlur={(): void => {
+          if (!inFlight.current) {
+            setDraft(null);
+          }
+        }}
+        onKeyDown={(event): void => {
+          if (event.nativeEvent.isComposing) {
+            return;
+          }
+          if (event.key === "Enter") {
+            event.preventDefault();
+            save();
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            finish();
+          }
+        }}
+      />
+      <DateText createdAt={createdAt} />
+    </TitleGroup>
   );
 }

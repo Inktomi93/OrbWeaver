@@ -23,7 +23,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ContextRegionView } from "#lib";
 import { GAME_STRIP_LABEL } from "#lib";
 import { cellDomId } from "../lib/context-cell-id.ts";
-import { ContextRail, ContextTabStrip } from "./context-rail.tsx";
+import { ContextHeaderTabs, ContextRail } from "./context-rail.tsx";
 
 export interface ContextBracketProps {
   /** The resolved tabs + the ONE selection seam + the host's view-level actions. */
@@ -99,8 +99,8 @@ export function ContextBracket({ view, band, empty, railLabel, dismissLabel, onD
       // primitive's own `gap-block` base, which #146 made a deterministic merge.
       className="flex h-full min-h-0 flex-col gap-0 border-t-2 border-primary/55"
     >
-      <Row data-slot="context-bracket-header" align="center" className="shell-context-header shrink-0 bg-sidebar">
-        <ContextTabStrip ariaLabel={railLabel} tabs={metaTabs} activeTab={view.activeTab} />
+      <Row data-slot="context-bracket-header" align="center" className="shell-context-header shrink-0">
+        <ContextHeaderTabs ariaLabel={railLabel} tabs={metaTabs} activeTab={view.activeTab} />
         {view.actions === undefined ? null : (
           <Row align="center" className="shrink-0 pe-field">
             {view.actions}
@@ -121,11 +121,13 @@ export function ContextBracket({ view, band, empty, railLabel, dismissLabel, onD
         ) : null}
       </Row>
       {hasBand ? (
-        <Stack data-slot="context-bracket-band" gap="row" className="relative shrink-0 bg-sidebar px-block py-row">
+        <Stack data-slot="context-bracket-band" gap="row" className="relative shrink-0 px-block py-row">
           {band}
         </Stack>
       ) : null}
-      {gameTabs.length > 0 ? <ContextRail ariaLabel={GAME_STRIP_LABEL} tabs={gameTabs} activeTab={view.activeTab} owns={activeStrip === "game"} /> : null}
+      {gameTabs.length > 0 ? (
+        <ContextRail ariaLabel={GAME_STRIP_LABEL} tabs={gameTabs} activeTab={view.activeTab} owns={activeStrip === "game"} onSelect={view.selectTab} />
+      ) : null}
       {/* One viewport, ALL tabs — a meta body opens in the same scroll region as a state body (owner decision 4);
           nothing about a body changes when the bracket draws the frame around it. The padding is the bracket's
           own now (the shell's panel-body padding is dropped under it), so a body keeps its breathing room while
@@ -143,10 +145,11 @@ export function ContextBracket({ view, band, empty, railLabel, dismissLabel, onD
         <TabsPanel
           key={tab.id}
           value={tab.id}
-          // `region`, not the primitive's `tabpanel` — see the ARIA-model note in context-rail.tsx: with the
-          // rails announcing as toolbars there is no tab in the document for a tabpanel to belong to.
+          // `region`, not the primitive's `tabpanel`: Base UI offloads an inactive `tabpanel`'s children, and this
+          // bracket keeps a visited panel mounted so a revisit is free (see the ARIA-model note in context-rail.tsx).
           role="region"
-          aria-labelledby={cellDomId(tab.id)}
+          // The tab names its panel; with one meta tab there is no strip to name it, so the panel names itself.
+          {...(tab.strip === "meta" && metaTabs.length <= 1 ? { "aria-label": tab.label } : { "aria-labelledby": cellDomId(tab.id) })}
           className={`relative min-h-0 flex-initial overflow-y-auto overscroll-contain px-row py-row ${tab.opaque ? "bg-sidebar" : ""}`}
         >
           {visited.has(tab.id) ? tab.node : null}

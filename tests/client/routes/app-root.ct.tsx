@@ -1028,7 +1028,7 @@ test("desktop: Corpus holds Explore, Insights and Labels in one workspace, with 
   await modes.getByRole("radio", { name: "Tags" }).click();
   await expect(list.getByRole("textbox", { name: "Filter tags" })).toBeVisible();
   await expect(main.getByRole("heading", { name: "Tags", level: 2 })).toBeVisible();
-  await expect(context.getByRole("tab", { name: "Usage", exact: true })).toBeVisible();
+  await expect(context.getByRole("region", { name: "Usage", exact: true })).toBeVisible();
   await expect(context.getByRole("tab", { name: "Models", exact: true })).toHaveCount(0);
 });
 

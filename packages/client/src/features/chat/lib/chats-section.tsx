@@ -159,16 +159,16 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
       // The room's identity (participants, name, chips) lives in the center header, open pane or closed; the
       // pane draws only its own content, so this slot is empty unless a region claims it (the rpg Waystone).
       header: () => null,
-      // The FOOT rail's name — the artifact noun, printed as its kicker ("CHAT · MEMBERS") and carried as
-      // its a11y group name. "Chat", not "Game": the crown host console is a TAB named "Game" in this rail.
+      // The header tablist's accessible name — the artifact noun. "Chat", not "Game": the crown host console is
+      // a TAB named "Game" in this strip.
       railLabel: "Chat",
-      // No rail-trail actions today: the add-member door lives in the character bar + the Members tab, both of
+      // No header actions today: the add-member door lives in the character bar + the Members tab, both of
       // which the room already renders. (It used to hold the DRAFT add-member popover — a rowless room's
       // only way to add characters; the seat verb (`domain/chat/verbs/participants.ts`) serves that now.)
       contributors: contextTabs,
-      // The HEAD-BAND CLAIM arm (HUD-1 §3.2 as re-shaped by #860): chat consumes it BLIND — a claiming
+      // The identity-BAND CLAIM arm (HUD-1 §3.2): chat consumes it BLIND — a claiming
       // contributor (the rpg Waystone on an engaged game chat) supplies the band in place of `header`
-      // above; the rails, viewport and ground are the shell's bracket either way.
+      // above; the header row, state rail and viewport are the shell's bracket either way.
       regions: contextRegions,
       // The no-selection ARM (side-eye F-12) — this pane shared one voiceless
       // "Select something to see its details here." with two other sections.

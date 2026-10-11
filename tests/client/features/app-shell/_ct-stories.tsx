@@ -56,6 +56,7 @@ import { CustomThemeStyle } from "../../../../packages/client/src/features/app-s
 import { Rail } from "../../../../packages/client/src/features/app-shell/components/rail.tsx";
 import { SectionContent } from "../../../../packages/client/src/features/app-shell/components/section-content.tsx";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
+import { useShellLayout } from "../../../../packages/client/src/features/app-shell/hooks/use-shell-layout.ts";
 // The chats topbar identity passenger, reached the same way the Rail leaf is (a story may reach a feature
 // internal the front door does not re-export). Same absolute file the app resolves, so the React/provider
 // context is the one `CtDataProviders` mounts — the `tests/client/features/chat` stories reach it this way.
@@ -201,7 +202,11 @@ const TOPBAR_IDENTITY_ROOM_TITLE = "the room's name, as the band prints it";
  *  `ContextBracket`, never a hand-written `data-slot`; only the heading is the story's, which is
  *  production's own shape (a section hands the bracket a `header`, and chat's renders an `h2`).
  *  A FUNCTION, not a const: its fixtures are declared further down this module. */
-function bracketContextPane(): ReactElement {
+function bracketContextPane(withDismiss: boolean): ReactElement {
+  return withDismiss ? <DismissableBracketPane /> : <BracketPane />;
+}
+
+function BracketPane({ onDismiss }: { readonly onDismiss?: () => void }): ReactElement {
   return (
     <ContextTabsPanel
       tabs={CTX_STRIP_TABS}
@@ -211,11 +216,24 @@ function bracketContextPane(): ReactElement {
           {TOPBAR_IDENTITY_ROOM_TITLE}
         </Heading>
       }
+      {...(onDismiss === undefined ? {} : { dismissLabel: "Close Chats details", onDismiss })}
     />
   );
 }
 
-export function AppShellChatTopbarIdentityStory({ withBand = false }: { readonly withBand?: boolean } = {}): ReactElement {
+/** The bracket with the shell's own close wiring (`layout.collapsePanel("context")`), as a tabs section hands it. */
+function DismissableBracketPane(): ReactElement {
+  const layout = useShellLayout();
+  return <BracketPane onDismiss={(): void => layout.collapsePanel("context")} />;
+}
+
+export function AppShellChatTopbarIdentityStory({
+  withBand = false,
+  withDismiss = false,
+}: {
+  readonly withBand?: boolean;
+  readonly withDismiss?: boolean;
+} = {}): ReactElement {
   useEffect(() => {
     selectChat(TOPBAR_IDENTITY_CHAT_ID);
   }, []);
@@ -226,7 +244,7 @@ export function AppShellChatTopbarIdentityStory({ withBand = false }: { readonly
           chats: {
             list: <p>chats list pane</p>,
             content: <p>chats content pane</p>,
-            context: withBand ? bracketContextPane() : <p>chats context pane</p>,
+            context: withBand ? bracketContextPane(withDismiss) : <p>chats context pane</p>,
             header: <ChatHeaderSurface chatId={TOPBAR_IDENTITY_CHAT_ID} />,
           },
         }}
@@ -1079,6 +1097,8 @@ export interface ContextTabStripStoryProps {
   readonly withDismiss?: boolean;
   /** Mark the Settings tab as a setup view that sits on an opaque panel surface. @defaultValue false */
   readonly opaqueSettings?: boolean;
+  /** Resolve only the first tab — a pane with one view has no strip. @defaultValue false */
+  readonly singleTab?: boolean;
 }
 
 export function ContextTabStripStory({
@@ -1089,9 +1109,12 @@ export function ContextTabStripStory({
   withBand = false,
   withDismiss = false,
   opaqueSettings = false,
+  singleTab = false,
 }: ContextTabStripStoryProps): ReactElement {
   const [dismissed, setDismissed] = useState(0);
-  const tabs: ResolvedContextTab[] = CTX_STRIP_TABS.map((tab) => (opaqueSettings && tab.id === "settings" ? { ...tab, opaque: true } : tab));
+  const tabs: ResolvedContextTab[] = CTX_STRIP_TABS.slice(0, singleTab ? 1 : undefined).map((tab) =>
+    opaqueSettings && tab.id === "settings" ? { ...tab, opaque: true } : tab,
+  );
   if (showTrackers) {
     tabs.push(CTX_TRACKERS_TAB);
   }
@@ -1150,6 +1173,7 @@ export function ContextTabStatesStory({ width = 291, height = 560 }: { readonly 
 // shape that regresses without the flag — a fresh panel (no stored contextTab) would land on `members`.
 const CTX_DEFAULT_TAB_TABS: readonly ResolvedContextTab[] = [
   resolvedTab({ id: "members", label: "Members", icon: Users, node: <div data-testid="ctx-body-members">members</div>, strip: "meta" }),
+  resolvedTab({ id: "settings", label: "Settings", icon: Settings, node: <div data-testid="ctx-body-settings">settings</div>, strip: "meta" }),
   resolvedTab({ id: "rpg.status", label: "Status", icon: Gauge, node: <div data-testid="ctx-body-status">status</div>, strip: "game", defaultTab: true }),
   resolvedTab({ id: "rpg.scene", label: "Scene", icon: Drama, node: <div data-testid="ctx-body-scene">scene</div>, strip: "game" }),
 ];
@@ -1215,7 +1239,7 @@ const CTX_META_RAIL_TABS: readonly ResolvedContextTab[] = [
  *  ([[ct-viewport-under-48rem-hits-mobile-shell-arm]]) — the pin drives both ends of it. */
 export function ContextMetaRailStory({ paneWidth = 291, withTrail = false }: { readonly paneWidth?: number; readonly withTrail?: boolean }): ReactElement {
   return (
-    <div style={{ width: paneWidth, height: 480 }} data-testid="ctx-strip-container">
+    <div className="bg-sidebar" style={{ width: paneWidth, height: 480 }} data-testid="ctx-strip-container">
       <ContextTabsPanel
         tabs={CTX_META_RAIL_TABS}
         railLabel="Chat"
@@ -1271,6 +1295,7 @@ export function CustomThemeStyleStory({ css }: { readonly css: string }): ReactE
 
 const REGION_TABS: readonly ContextTabDef<void>[] = [
   { id: "members", label: "Members", strip: "meta", body: (): ReactNode => <div data-testid="ctx-body-members">members</div> },
+  { id: "settings", label: "Settings", strip: "meta", body: (): ReactNode => <div data-testid="ctx-body-settings">settings</div> },
   {
     id: "fake.status",
     label: "Status",

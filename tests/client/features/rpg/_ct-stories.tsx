@@ -311,7 +311,6 @@ export function RpgTakeoverHeaderWhenLongStory({
   return (
     <div style={{ width }}>
       <RpgTakeoverHeader
-        roomTitle="The Gilded Ember"
         satellitesInBody={true}
         ambient={{
           location: "The Gilded Ember tavern, lower Ashfall",

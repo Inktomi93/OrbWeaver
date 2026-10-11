@@ -5,8 +5,9 @@
 //
 // The pair splits the two CONTEXT regions: `SectionContextHost` renders the BODY; `SectionContextHeader`
 // renders the shell's `.shell-panel-header` BAND. Since the context bracket (#860) a `tabs` context owns
-// its WHOLE column inside the body — its head band is the bracket's own slot, fed by the resolve's `header`
-// (the section's identity, or a claiming region's band) — so `SectionContextHeader` renders NOTHING for a
+// its WHOLE column inside the body — its header row (tabs, actions, ×) and its optional identity band are the
+// bracket's own, the band fed by the resolve's `header` (the section's identity, or a claiming region's
+// band) — so `SectionContextHeader` renders NOTHING for a
 // tabs pane in every mode and shell.css collapses the empty band (the HUD-1 `:empty` rule, now universal;
 // the D66 A1 shared horizon holds for the LIST band and for a `single`/`none` context). One resolve, ONE
 // consumer for a tabs pane.
@@ -41,7 +42,7 @@ const CONTEXT_HEADER_DEFAULT = (
 
 export interface SectionContextHostProps {
   readonly definition: SectionDefinition;
-  /** The floating pane's own way out (overlay mode only) — the bracket seats it in its head band. */
+  /** The pane's own way out — the bracket seats it as the trailing × of its header row. */
   readonly dismissLabel?: string;
   readonly onDismiss?: () => void;
 }
@@ -72,7 +73,7 @@ export function SectionContextHost({ definition, dismissLabel, onDismiss }: Sect
       <ResolvedTabsHost
         empty={contextEmpty(context)}
         useResolved={context.useResolved}
-        // The FOOT rail's fallback name is the section's own rail label — the honest group name for a pane
+        // The header tablist's fallback name is the section's own rail label — the honest group name for a pane
         // that is about the section itself (Corpus, Analytics); a section about ONE artifact overrides it
         // at the mint (`railLabel: "Chat"`).
         railFallback={definition.rail.label}
@@ -85,7 +86,7 @@ export function SectionContextHost({ definition, dismissLabel, onDismiss }: Sect
 
 /** The shell's CONTEXT-panel BAND (the `.shell-panel-header` slot). A `single` context may supply an
  *  identity directly; a header-less `single` and a `none` context fall back to the neutral "Details" label.
- *  A `tabs` context renders NOTHING here — its head band is the bracket's own (see the file header). */
+ *  A `tabs` context renders NOTHING here — its header row is the bracket's own (see the file header). */
 export function SectionContextHeader({ definition }: Pick<SectionContextHostProps, "definition">): ReactNode {
   const { context } = definition;
   if (context.kind === "single") {

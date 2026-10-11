@@ -197,10 +197,6 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     coveredBy: "chat-header",
     why: "chat-header.ct drives the participant-first title, the user-set name, the in-place rename (Enter, Escape, double submit, failed save) and the non-host plain-text arm.",
   },
-  "chat-preset-chip": {
-    coveredBy: "chat-header",
-    why: "chat-header.ct drives the chip's named, built-in and unnameable states beside the roster and memory chips.",
-  },
 
   // chat-summary-row has a dedicated logic test (the row's derivation), not a CT — named here so the
   // ledger stays exhaustive.

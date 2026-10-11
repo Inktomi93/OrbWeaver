@@ -162,7 +162,7 @@ test("CONTEXT is never navigation — with a group open the pane teaches the sec
   // BARRIER on a SETTLED state that exists in both worlds, so the absence sweep below can never pass
   // vacuously against a pane that has not painted: the teacher bracket is up and the group's body has
   // mounted its rows.
-  await expect(pane.getByRole("tab", { name: "About" })).toBeVisible();
+  await expect(pane.getByRole("region", { name: "About" })).toBeVisible();
   await expect(workspace.locator('[data-setting="chat-style"]')).toBeVisible();
 
   // Not one LIST row has a twin in here (UI-Architecture-and-Layout.md §4.2: "CONTEXT … Never navigation
@@ -218,7 +218,7 @@ test("a settings state offers NO Applies cell, and About is the landing", async 
     .click();
 
   const pane = workspace.locator(CONTEXT_PANE);
-  await expect(pane.getByRole("tab", { name: "About" })).toHaveAttribute("aria-selected", "true");
+  await expect(pane.getByRole("region", { name: "About" })).toBeVisible();
   // `overriddenBy` is declared by ZERO of the 107 live teach declarations, so the cell's only content was
   // its own null state — a permanent cell teaching nothing (#926's census, #864's furniture ban).
   await expect(pane.getByRole("tab", { name: "Applies" })).toHaveCount(0);
@@ -257,7 +257,7 @@ test("focusing a knob row teaches THAT setting — head and About swap, and the 
     .getByRole("button", { name: /Appearance/ })
     .click();
   const pane = workspace.locator(CONTEXT_PANE);
-  await expect(pane.getByRole("tab", { name: "About" })).toBeVisible();
+  await expect(pane.getByRole("region", { name: "About" })).toBeVisible();
 
   // Focus the Chat-display row through the real SettingRow seam (a click inside the row publishes
   // focus). A PLAIN section's row on purpose — the folded sections' rows are behind the collapsed
@@ -315,7 +315,7 @@ test("the foot tab KEEPS across a subject change — a reader on Applies stays o
   const pane = workspace.locator(CONTEXT_PANE);
   // A MEMBER LANDS ON ABOUT (#926): the old `defaultTab` opened every member on Applies, which for a `none`
   // collection is a null state — the pane's landing was its emptiest arm.
-  await expect(pane.getByRole("tab", { name: "About" })).toHaveAttribute("aria-selected", "true");
+  await expect(pane.getByRole("region", { name: "About" })).toBeVisible();
   await pane.getByRole("tab", { name: "Applies" }).click();
   await expect(pane.getByRole("tab", { name: "Applies" })).toHaveAttribute("aria-selected", "true");
 

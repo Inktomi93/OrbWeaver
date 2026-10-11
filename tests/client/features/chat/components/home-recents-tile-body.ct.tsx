@@ -485,7 +485,7 @@ test("a game row's marker is INSIDE the row's description, never an orphan besid
   // It lives on the TITLE LINE, in the content column — not in the trailing cluster.
   await expect(marker.locator('xpath=ancestor::*[@data-slot="list-row-markers"]')).toHaveCount(1);
   // …and the row's own accessible description carries it, which is the whole point of the slot.
-  await expect(home.getByRole("button", { name: "The Ashfell run", exact: true })).toHaveAccessibleDescription(GAME_MARKER_DATUM);
+  await expect(home.getByRole("button", { name: "Wren \u00b7 The Ashfell run", exact: true })).toHaveAccessibleDescription(GAME_MARKER_DATUM);
   // The orphan position doesn't even exist on this tile — it renders no row controls at all.
   await expect(home.locator('[data-slot="list-row-actions"]')).toHaveCount(0);
 });

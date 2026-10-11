@@ -258,3 +258,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D309 | [Keep mutation measurement outside GitHub-hosted CI](0309-hosted-mutation-execution.md) | active |
 | D310 | [Ollama chat and the connection test ride the native route](0310-ollama-chat-and-the-connection-test-ride-the-native-route.md) | active |
 | D311 | [The user's own request body wins every collision outside the denylist](0311-the-users-own-body-wins-every-collision-outside-the-denylist.md) | active |
+| D313 | [The context pane's tabs live in its header row, as the pane's one tablist: no foot rail, no kicker, no band title](0313-the-context-panes-tabs-live-in-its-header-row.md) | active |

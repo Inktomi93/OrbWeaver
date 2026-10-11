@@ -1122,14 +1122,14 @@
 }
 /* A BRACKETED (tabs) context pane, floating: the group is genuinely childless (`SectionContextHeader`
  * returns nothing for a tabs context), so the band collapses exactly as the docked `:empty` rule collapses
- * it — the bracket owns its top edge AND its own way out (the dismiss rides INSIDE its head band, #860 —
- * side-eye 2026-08-06 P2 survives: the close sits where the thing it closes is). Without this the shell's
+ * it — the bracket owns its top edge AND its own way out (the dismiss rides at the trailing end of its header
+ * row — side-eye 2026-08-06 P2 survives: the close sits where the thing it closes is). Without this the shell's
  * own dismiss would keep the band non-empty and paint the chrome row the bracket exists to remove. */
 .shell-panel[data-panel-side="context"] .shell-panel-header:has(> .shell-panel-header-group:empty) {
   display: none;
 }
 /* THE BRACKET'S EMBER EDGE IS NOT HERE (owner ruling 2026-08-30: shell.css is GEOMETRY — no colour). A tabs
- * pane's head band lives inside the body now (the context bracket), and the 2px content↔context binding
+ * pane's header row lives inside the body now (the context bracket), and the 2px content↔context binding
  * (north-star §4 N4 / P4) is painted by the bracket ROOT itself from the theme's own primary token
  * (`border-primary/55`, `context-bracket.tsx`) — exactly as the rpg HUD's band painted it since HUD-1. */
 
@@ -1227,14 +1227,15 @@
   display: none;
 }
 
-/* The active chat's identity title in the topbar LEAD. It's the row's sole shrinker (min-w-0), so a
- * hard floor stops it collapsing to 0px when the avatar + member chip + trail claim the row — it always
- * shows a few chars + ellipsis rather than vanishing (the "graceful ellipsis, never 0 chars" floor). */
-.shell-topbar-title {
+/* The screen title of the NARROW identity: a hard floor stops it collapsing to 0px when the chrome around it
+ * claims the row — it always shows a few chars + ellipsis rather than vanishing. (The chat's WIDE identity
+ * floors its title on the title GROUP instead, below: a floor on the text inside a box that is allowed to
+ * shrink spills the text over its neighbours.) */
+.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title {
   min-width: var(--dimension-shell-title-floor);
 }
 
-/* THE PHONE'S SCREEN TITLE YIELDS TO THE OPEN PANE'S BAND. While the context pane is on screen and its head band
+/* THE PHONE'S SCREEN TITLE YIELDS TO THE OPEN PANE'S BAND. While the context pane is on screen and its identity band
  * names the artifact (a heading in the band), the narrow identity's title would print the same string a few
  * pixels above it, so it steps aside. This is keyed on the band carrying a heading rather than on a width: a
  * pane whose band has no heading never takes the row's name away.
@@ -1249,22 +1250,39 @@
   display: none;
 }
 
-/* SHRINK PRIORITY on the desktop identity, matched off .shell-main: the room's own name gives way first (it is
- * the most optional text), then the date drops out and the chips fall back to glyph-only (their accessible
- * names already carry the count), and the participants' title is the last thing to truncate. */
-.shell-topbar-identity .shell-topbar-subtitle,
-.shell-topbar-identity .shell-chat-preset-chip {
+/* SHRINK ORDER of the desktop chat identity, matched off .shell-main. The title GROUP owns the floor and clips
+ * its own overflow, so the title can never paint over the chips beside it; the chips are `shrink-0`, so only
+ * text gives. Inside the group the participants lead and the user's room name keeps a real floor of its own
+ * (a name the user chose is never drawn at 0px); the name yields to the participants first. Below 56rem of
+ * content column the creation date goes, the avatar goes (a group's faces live in the cast row), and the chips
+ * collapse to their glyphs (their accessible names already carry the count). */
+.shell-topbar-title-group {
+  min-width: var(--dimension-shell-title-floor);
+  overflow: hidden;
+}
+.shell-topbar-title-group:has(.shell-topbar-subtitle) {
+  min-width: calc(var(--dimension-shell-title-floor) * 2);
+}
+.shell-topbar-identity .shell-topbar-subtitle {
   flex-shrink: 8;
+  min-width: var(--dimension-shell-title-floor);
+}
+.shell-topbar-rename {
+  flex: 1 1 0;
+  min-width: var(--dimension-shell-title-floor);
 }
 @container shell-main (max-width: 56rem) {
   .shell-topbar-identity .shell-topbar-date,
+  .shell-topbar-identity .shell-chat-header-avatar,
   .shell-topbar-identity .shell-chat-chip-count {
     display: none;
   }
 }
 
 /* THE CONTEXT PANE'S HEADER ROW sits on the shared 48px horizon: the bracket's 2px ember edge sits above it,
- * so the row is that much shorter and its bottom hairline lands on the topbar's and list band's divider. */
+ * so the row is that much shorter and its bottom hairline lands on the topbar's and list band's divider. It
+ * and the identity band paint NOTHING of their own: the pane (`.shell-panel`) paints one surface under every
+ * elevation mode, and a header with its own fill is a second shade inside one pane. */
 .shell-context-header {
   height: calc(var(--dimension-chrome-row) - var(--dimension-shell-accent-edge));
   box-shadow: inset 0 calc(var(--border-width-control) * -1) 0 var(--color-sidebar-border);
@@ -1272,13 +1290,20 @@
 /* The tab strip scrolls inside its row; the fade and chevron say there is more, so no native scrollbar. */
 .shell-context-tab-strip {
   scrollbar-width: none;
+  /* A focused tab scrolls into view clear of the fade (the fade is one gutter wide), so the end chevron never
+   * covers the last tab or clips its ring; at the very end the track simply stops. */
+  scroll-padding-inline: var(--spacing-gutter);
+}
+/* The fade blends into whatever the pane paints: the ramp elevation lifts the panes to the raised step. */
+.shell-grid[data-elevation="ramp"] [data-slot="context-tab-strip"] [data-slot="context-rail-fade"] {
+  --tw-gradient-from: var(--color-surface-raised);
 }
 .shell-context-tab-strip::-webkit-scrollbar {
   display: none;
 }
 
 /* …AND THE CONTENT COLUMN'S OWN IDENTITY ECHO GOES WITH IT (#875 F5, side-eye 2026-08-30). The same
- * decision one region over: while the CONTEXT pane's head band is on screen it is the artifact's identity,
+ * decision one region over: while the CONTEXT pane's identity band is on screen it is the artifact's identity,
  * so the character hero's read-only echoes of it — the `@handle`, the Own-look trigger, the "N chats ›"
  * door — stand down. Measured at 1280 dock+dock: each of those rendered twice ~500px apart and
  * `design-audit` fired `duplicate-action-door` twice, on both the desktop and the mobile arm. The marker is
@@ -1293,8 +1318,8 @@
 /* Progressive-disclosure shed on a narrow content column (@container, matched off .shell-main). At the
  * mobile column width the identity + trail can't share the row without starving the title, so three
  * low-value items step aside to give the title real room (not just its 6ch floor):
- *  · the chat identity's avatars, title and preset chip (the screen title names the room; the members and
- *    memory chips stay, glyph-only);
+ *  · the chat identity's avatar and title group (the screen title names the room; the members and memory
+ *    chips stay, glyph-only), and the screen title drops to the title step so it keeps more of the row;
  *  · the ⌘K chip's "jump" TEXT label (~87px) — redundant on a phone with no ⌘K key. The chip itself
  *    stays (icon-only) so the command menu is still reachable; only its word label sheds. */
 @container shell-main (max-width: 30rem) {
@@ -1319,16 +1344,21 @@
   .shell-topbar-identity[data-identity="wide"] {
     display: none;
   }
-  /* The chat identity is the exception: its avatars, title and preset step aside but the room's state chips
+  /* The chat identity is the exception: its avatar and title group step aside but the room's state chips
    * (members, memory — glyph-only at this width) ride after the screen title. */
   .shell-topbar-identity[data-identity="wide"]:has(.shell-chat-member-chip) {
     display: flex;
     flex: none;
     order: 1;
   }
-  .shell-topbar-identity[data-identity="wide"] .shell-chat-header-lead,
-  .shell-topbar-identity[data-identity="wide"] .shell-chat-preset-chip {
+  .shell-topbar-identity[data-identity="wide"] .shell-chat-header-lead {
     display: none;
+  }
+  /* A chat's screen title is the participants, which are long: it takes the title step instead of the display
+   * step so more of the names fit beside the two chips. */
+  .shell-topbar-lead:has(.shell-chat-member-chip) .shell-topbar-identity[data-identity="narrow"] .shell-topbar-title {
+    font-size: var(--text-title);
+    line-height: var(--leading-title);
   }
   .shell-topbar-identity[data-identity="narrow"] {
     display: flex;
@@ -1650,21 +1680,18 @@
     padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
   }
   /* THE OPEN CONTEXT SHEET IS THE WHOLE SCREEN, TAB BAR INCLUDED (#875 F9, side-eye 2026-08-30). The
-   * block's shared inset stops every sheet above the rail, so at 430 coarse the pane's own foot rail (five
-   * icon-over-caption cells, 56px, y≈591-684) sat DIRECTLY on top of the shell's section bar (four
-   * icon-over-caption cells, y≈684-740): two strips of the same species, touching, ~150px of a 740px
-   * screen, with nothing to tell "tabs of this pane" from "sections of the app". The mock's phone artboards
-   * do not draw the app bar, so the collision could not be seen at design time.
-   * The sheet takes the bar's row instead of stacking on it — ONE foot strip on screen at a time. It is
+   * block's shared inset stops every sheet above the rail. The mock's phone artboards do not draw the app
+   * bar, and an open sheet is the whole screen: it takes the bar's row instead of stacking on it, so the pane
+   * owns the screen while it is open. It is
    * safe because this pane already owns the screen while it is open (the shell's own `--z-overlay` rung
    * over an `inert` frame — MEASURED at 390x844, #1794: with the sheet open, `elementFromPoint` at the tab
    * bar's row answers the SHEET, and the rung it needs is only "above the shell's other children", never
    * "above the portal's floats"; the ⌘K palette still covers this sheet, through the portal) and
-   * it carries its OWN way out inside the band's top-right corner (fork 3 of the build design), so the
+   * it carries its OWN way out (the × at the trailing end of its header row), so the
    * section bar is one dismiss away, never trapped behind. `collapsed` is NOT matched: an off-screen
    * drawer must keep the bar's row free, and it is the state the bar navigates from.
-   * The safe-area inset moves onto the panel with the row it took, so the foot rail still clears the home
-   * indicator. */
+   * The safe-area inset moves onto the panel with the row it took, so the pane's content still clears the
+   * home indicator. */
   .shell-panel[data-panel-side="context"][data-panel-mode="overlay"] {
     inset-block-end: 0;
     padding-block-end: env(safe-area-max-inset-bottom, env(safe-area-inset-bottom));

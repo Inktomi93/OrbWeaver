@@ -33,6 +33,7 @@ import type { Locator, Page } from "@playwright/test";
 import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/modal-slot-ids.ts";
 import type { SectionId } from "../../../../../packages/client/src/state/section-ids.ts";
 import APPEARANCE_PRESET_FILE from "../../../../../tooling/src/_shared/appearance-presets.json" with { type: "json" };
+import { pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { touchDrag } from "../../../../support/browser/weave-drive.ts";
 import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { defineTrpcRoutes, routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
@@ -2055,7 +2056,6 @@ interface TopbarIdentityReadout {
   readonly recallChip: boolean;
   /** The member chip's count digit — it collapses away on a narrow column, leaving the glyph. */
   readonly membersCount: boolean;
-  readonly avatars: boolean;
   /** The notifications bell — NOT a subject, a PREMISE: the `snap --isolated` stage renders the trail
    *  WITHOUT it (183px vs live main's 225px), so a receipt taken there measures a row the production user
    *  does not have. This pin refuses to read a bell-less row. */
@@ -2100,7 +2100,6 @@ async function settledTopbarIdentity(page: Page, shell: Locator, mode: "docked" 
   // BARRIER ON THE RESOLVED IDENTITY — the header renders a title-width skeleton (`aria-busy`) until the
   // room's `getChat` lands; a row read before that measures the shape of an identity, not one.
   await expect(page.locator('.shell-topbar-identity[data-identity="wide"] [aria-busy="true"]')).toHaveCount(0);
-  await expect(page.locator('.shell-topbar-identity[data-identity="wide"] [data-slot="avatar-stack-root"]')).toHaveCount(1);
   // BARRIER ON THE DOCKED BAND OWNING THE TITLE (#1686) — the mode/context-mode attributes above are DOM
   // writes the assertions above already retried to settlement, but the `:has()` shed rule's effect on
   // `offsetParent` is a SEPARATE style/layout recalculation Chromium can perform on a later frame under
@@ -2118,11 +2117,6 @@ async function settledTopbarIdentity(page: Page, shell: Locator, mode: "docked" 
       membersChip: shown(document.querySelector('[aria-label^="Members — "]')),
       recallChip: shown(document.querySelector('[aria-label^="Memory — "]')),
       membersCount: shown(document.querySelector('[aria-label^="Members — "] .shell-chat-chip-count')),
-      avatars: shown(
-        document.querySelector(
-          '.shell-topbar-identity[data-identity="wide"] [data-slot="avatar-stack-root"], .shell-topbar-identity[data-identity="wide"] [data-slot="avatar-root"]',
-        ),
-      ),
       bell: shown(document.querySelector('[aria-label="Notifications"]')),
     };
   });
@@ -2142,17 +2136,44 @@ test("0851: at 1280 with BOTH panes docked the topbar keeps the participants tit
   const readout = await settledTopbarIdentity(page, shell, "docked", false);
   // The premise: the row carries the SAME trailing furniture a real account has.
   expect(readout.bell).toBe(true);
-  expect(readout).toMatchObject({ title: true, membersChip: true, recallChip: true, avatars: true });
+  expect(readout).toMatchObject({ title: true, membersChip: true, recallChip: true });
   // The column is the narrow one that failed in the report; the digit collapsed so the chip is its glyph.
   expect(readout.membersCount).toBe(false);
   const title = page.locator('.shell-topbar-identity[data-identity="wide"] .shell-topbar-title');
   await expect(title).toHaveText("Aria, Bolt, Cass");
-  // The column cannot hold the whole string beside the trail, so the title truncates — but it keeps a real box
-  // (the floor), and the optional room name has already given way to it.
-  const titleBox = await title.boundingBox();
-  expect(titleBox?.width ?? 0).toBeGreaterThan(0);
+  // A group room's faces live in the cast row, so the header carries no avatar.
+  await expect(page.locator('.shell-topbar-identity[data-identity="wide"] [data-slot="avatar-root"]')).toHaveCount(0);
+
+  // THE ROOM NAME THE USER SET keeps a real width beside the participants — the floor, never 0px.
   const subtitle = page.locator(".shell-topbar-subtitle");
-  await expect.poll(() => subtitle.evaluate((element) => element.clientWidth)).toBe(0);
+  await expect(subtitle).toHaveText(TOPBAR_IDENTITY_ROOM.title);
+  await expect
+    .poll(() => subtitle.evaluate((element) => element.clientWidth >= Number.parseFloat(getComputedStyle(element).minWidth) - 1 && element.clientWidth > 0))
+    .toBe(true);
+  // The date went first; the chips never paint over text.
+  await expect(page.locator(".shell-topbar-date")).toBeHidden();
+  const groupBox = await page.locator('.shell-topbar-identity[data-identity="wide"] .shell-topbar-title-group').boundingBox();
+  const membersBox = await page.locator('[aria-label^="Members — "]').boundingBox();
+  if (groupBox === null || membersBox === null) {
+    throw new Error("expected the title group and the members chip to be laid out");
+  }
+  expect(groupBox.x + groupBox.width).toBeLessThanOrEqual(membersBox.x + 1);
+
+  // HIT TEST: the title is what a click on it reaches — the rename control, not the chip beside it.
+  const titleBox = await title.boundingBox();
+  if (titleBox === null) {
+    throw new Error("expected the title to be laid out");
+  }
+  await expect
+    .poll(() =>
+      page.evaluate(({ x, y }) => (document.elementFromPoint(x, y)?.closest("button")?.getAttribute("aria-label") ?? "").startsWith("Rename chat"), {
+        x: titleBox.x + titleBox.width / 2,
+        y: titleBox.y + titleBox.height / 2,
+      }),
+    )
+    .toBe(true);
+  await page.mouse.click(titleBox.x + titleBox.width / 2, titleBox.y + titleBox.height / 2);
+  await expect(page.getByRole("textbox", { name: "Chat name" })).toBeVisible();
 });
 
 test("0851: with the context pane COLLAPSED the topbar still names the participants, chips and all", async ({ mount, page }) => {
@@ -2163,7 +2184,7 @@ test("0851: with the context pane COLLAPSED the topbar still names the participa
 
   const readout = await settledTopbarIdentity(page, shell, "collapsed", false);
   expect(readout.bell).toBe(true);
-  expect(readout).toMatchObject({ title: true, membersChip: true, recallChip: true, avatars: true });
+  expect(readout).toMatchObject({ title: true, membersChip: true, recallChip: true });
   await expect(page.locator(".shell-topbar-title:visible")).toHaveText("Aria, Bolt, Cass");
 });
 
@@ -2268,6 +2289,17 @@ for (const width of [1280, 1920]) {
       });
     await expect.poll(async () => Math.abs((await bottoms()).header - (await bottoms()).topbar)).toBeLessThanOrEqual(1);
     await expect.poll(async () => Math.abs((await bottoms()).header - (await bottoms()).list)).toBeLessThanOrEqual(1);
+
+    await expect.poll(async () => ((await header.boundingBox())?.x ?? Number.POSITIVE_INFINITY) < width).toBe(true);
+    // One surface: the header row paints what the list pane's band paints (the pane's own fill), under the
+    // elevation this shell runs, not a second shade.
+    const [listBand, ctxHeader] = await Promise.all([
+      pixelSurface(page, page.locator('.shell-panel[data-panel-side="list"] .shell-panel-header')),
+      pixelSurface(page, header),
+    ]);
+    for (const channel of ["r", "g", "b"] as const) {
+      expect(Math.abs(ctxHeader.rgb[channel] - listBand.rgb[channel]), `header ${ctxHeader.describe} vs list band ${listBand.describe}`).toBeLessThanOrEqual(1);
+    }
   });
 }
 
@@ -2297,12 +2329,17 @@ test.describe("the phone chat topbar keeps the members and memory chips (coarse 
       expect(membersBox.x + membersBox.width).toBeLessThanOrEqual(width);
       expect(memoryBox.x + memoryBox.width).toBeLessThanOrEqual(width);
       await expect(members.locator(".shell-chat-chip-count")).toBeHidden();
+      // The screen title keeps a real share of the row (it was 4 to 9 characters at 390): the chip pair and
+      // the back control are all it yields to.
+      expect(titleBox.width).toBeGreaterThanOrEqual(width * (width <= 320 ? 0.25 : 0.38));
       // The title ends before the first chip begins, and the chips do not overlap each other.
       expect(titleBox.x + titleBox.width).toBeLessThanOrEqual(membersBox.x + 1);
       expect(membersBox.x + membersBox.width).toBeLessThanOrEqual(memoryBox.x + 1);
-      // Touch floor.
+      // Touch floor, on BOTH axes: a glyph-only chip's short side is its width.
       expect(membersBox.height).toBeGreaterThanOrEqual(44);
       expect(memoryBox.height).toBeGreaterThanOrEqual(44);
+      expect(membersBox.width).toBeGreaterThanOrEqual(44);
+      expect(memoryBox.width).toBeGreaterThanOrEqual(44);
     });
   }
 });
@@ -7394,6 +7431,20 @@ test.describe("a floating CONTEXT pane and focus, on a phone", () => {
     await expect(pane).toHaveAttribute("data-panel-mode", "collapsed");
     await expect(shell.getByRole("button", { name: "Show details" })).toBeFocused();
   });
+});
+
+// A closing pane hands focus back to its toggle only when it was an OVERLAY (`useOverlayFocus` used to restore
+// from overlay alone), so a DOCKED pane's × left focus on <body> once the pane went inert.
+test("closing a DOCKED CONTEXT pane returns focus to the toggle that reopens it, never to <body>", async ({ mount, page }) => {
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.getChat": () => TOPBAR_IDENTITY_ROOM });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const shell = await mount(<AppShellChatTopbarIdentityStory withBand={true} withDismiss={true} />);
+  await shell.getByRole("button", { name: "Show details" }).click();
+  const pane = shell.locator('.shell-panel[data-panel-side="context"]');
+  await expect(pane).toHaveAttribute("data-panel-mode", "docked");
+  await pane.getByRole("button", { name: "Close Chats details" }).click();
+  await expect(pane).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(shell.getByRole("button", { name: "Show details" })).toBeFocused();
 });
 
 test.describe("Home section inset in the real phone shell", () => {

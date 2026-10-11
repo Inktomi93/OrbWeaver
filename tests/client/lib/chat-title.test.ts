@@ -8,7 +8,7 @@
 // Pins the side-eye P1-2 fix: stored titles are EMPTY STRINGS until renamed (not just null), so the fallback
 // must TRIM — `?? "Untitled chat"` was defeated by "" and rendered blank rows/options everywhere.
 
-import { authoredChatName, deriveChatTitle, UNTITLED_CHAT_TITLE } from "@orb/client/lib";
+import { authoredChatName, chatRoomTitle, deriveChatTitle, UNTITLED_CHAT_TITLE } from "@orb/client/lib";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("deriveChatTitle: an authored title wins, trimmed", () => {
@@ -53,4 +53,16 @@ test("authoredChatName: only a name the user chose survives; look-alikes that ar
   // A date followed by more words, or a hyphen instead of the em dash, is a deliberate title.
   expect(authoredChatName("Hikari — Oct 3, 2026 trip notes")).toBe("Hikari — Oct 3, 2026 trip notes");
   expect(authoredChatName("Hikari - Oct 3, 2026")).toBe("Hikari - Oct 3, 2026");
+});
+
+// The one order every surface that names a room by its people uses: participants first, then the user's name.
+test("chatRoomTitle: participants lead, the user's own room name follows, a stamp or blank is no name", () => {
+  expect(chatRoomTitle("Rooftop night", ["Hikari", "Pamela"])).toBe("Hikari, Pamela \u00b7 Rooftop night");
+  expect(chatRoomTitle("Hikari \u2014 Oct 3, 2026 (5)", ["Hikari"])).toBe("Hikari");
+  expect(chatRoomTitle(null, ["Hikari"])).toBe("Hikari");
+  expect(chatRoomTitle("", [])).toBe(UNTITLED_CHAT_TITLE);
+  // A name that only repeats the people is not printed twice.
+  expect(chatRoomTitle("Hikari", ["Hikari"])).toBe("Hikari");
+  // A room with no characters leads with its name alone.
+  expect(chatRoomTitle("Rooftop night", [])).toBe("Rooftop night");
 });

@@ -326,7 +326,7 @@ test("a MEMBER with no characters and no People arm still has no Members tab (no
 
   const component = await mount(<ChatContextPanelStory />);
 
-  await expect(cell(component, "This chat")).toBeVisible();
+  await expect(component.getByRole("region", { name: "This chat" })).toBeVisible();
   await expect(cell(component, "Members")).toHaveCount(0);
 });
 
@@ -584,7 +584,7 @@ test("member loses the Preview tab and the overrides are read-only", async ({ mo
 
   const component = await mount(<ChatContextPanelStory />);
 
-  await expect(cell(component, "This chat")).toBeVisible();
+  await expect(component.getByRole("region", { name: "This chat" })).toBeVisible();
   // Injections is now a SECTION inside "This chat", not its own tab.
   await expect(cell(component, "Injections")).toHaveCount(0);
   await expect(component.getByRole("heading", { name: "Injections", level: 3 })).toBeVisible();
@@ -618,7 +618,7 @@ test("migrated tabs obey the server host field, NOT the first-seat proxy (member
   const component = await mount(<ChatContextPanelStory />);
 
   // Preview is host-only → hidden despite the host-first roster that would trip the proxy.
-  await expect(cell(component, "This chat")).toBeVisible();
+  await expect(component.getByRole("region", { name: "This chat" })).toBeVisible();
   await expect(cell(component, "Preview")).toHaveCount(0);
   // The Group-behavior SECTION obeys the server host field too — a member behind a host seat sees none.
   await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toHaveCount(0);
@@ -918,7 +918,7 @@ test("B11: a MEMBER does NOT see the Activity tab (host-only, the fire log is th
 
   const component = await mount(<RoomActivityTabStory />);
 
-  await expect(cell(component, "This chat")).toBeVisible();
+  await expect(component.getByRole("region", { name: "This chat" })).toBeVisible();
   await expect(cell(component, "Activity")).toHaveCount(0);
 });
 

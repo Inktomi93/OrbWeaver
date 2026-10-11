@@ -77,7 +77,6 @@ export function RpgHeaderBand({ chatId }: RpgHeaderBandProps): ReactElement | nu
   // levels; the band carries the waystone + orbs + coin, its text lines the datum).
   return (
     <RpgTakeoverHeader
-      roomTitle={state.roomTitle}
       // #878 F7 — at a large type scale the satellite row is the TAB BODY's, not the band's.
       satellitesInBody={state.satellitesInBody}
       ambient={state.tracker.ambient}

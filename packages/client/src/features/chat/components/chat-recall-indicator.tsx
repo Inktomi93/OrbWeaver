@@ -125,11 +125,10 @@ function RecallIndicatorBody({ chatId, viewerIsHost, memory }: ChatRecallIndicat
             shape="pill"
             size="sm"
             aria-label={recallLabel(recall)}
-            // ITS OWN MARKER, not the roster chip's: the phone column sheds it (shell.css) on its own terms.
             // The coarse INLINE touch floor (#875 F6): at rest this chip is glyph-only, so its `sm` height
             // floor left it 40px wide against the 44px short side — the fragment's note carries the
             // measurement.
-            className={`shell-chat-recall-chip whitespace-nowrap ${CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE}`}
+            className={`shrink-0 whitespace-nowrap ${CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE}`}
             data-recall-phase={phase}
           >
             {/* The pulse is the ONLY motion, and only when recalling AND motion is allowed — a quiet breath,

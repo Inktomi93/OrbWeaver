@@ -171,13 +171,14 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     return null;
   };
   // A TOOLBAR CELL'S HOME (#1705). The RULING and its rationale live on checkDuplicateDoorPopulations
-  // (lib/checks-quality.ts); this publishes only the fact. The nearest \`role="toolbar"\` ancestor decides —
-  // toolbars do not nest here — under the same "a set needs SIBLINGS" guard doorListHome carries: one lone
-  // control under a toolbar role is not a switcher and must not get a free pass.
+  // (lib/checks-quality.ts); this publishes only the fact. The nearest \`role="toolbar"\` or \`role="tablist"\`
+  // ancestor decides — they do not nest here — under the same "a set needs SIBLINGS" guard doorListHome
+  // carries: one lone control under such a role is not a switcher and must not get a free pass.
   var doorToolbarHome = function (el) {
     var levels = 0;
     for (var anc = el; anc && anc !== document.body && levels < LIST_ANCESTOR_MAX; anc = anc.parentElement, levels += 1) {
-      if (String(anc.getAttribute("role") || "").trim().toLowerCase() !== "toolbar") continue;
+      var ancRole = String(anc.getAttribute("role") || "").trim().toLowerCase();
+      if (ancRole !== "toolbar" && ancRole !== "tablist") continue;
       var cells = 0;
       for (var tc = 0; tc < anc.children.length; tc += 1) {
         if (anc.children[tc].matches(INTERACTIVE_SELECTOR) || anc.children[tc].querySelector(INTERACTIVE_SELECTOR) !== null) cells += 1;
