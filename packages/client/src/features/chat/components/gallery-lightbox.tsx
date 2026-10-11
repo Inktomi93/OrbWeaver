@@ -35,6 +35,9 @@ interface GalleryLightboxProps {
   readonly onSettled: (open: boolean) => void;
 }
 
+// What the dialog spends outside the frame: its gutters, title, actions and the gaps between them.
+const FRAME_CHROME = "14rem";
+
 // The image's own width over height, read once it has loaded; the frame is square until then.
 function useImageAspect(hash: string | null): number {
   const [loaded, setLoaded] = useState<{ readonly hash: string; readonly aspect: number } | null>(null);
@@ -70,15 +73,15 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
       }}
       onOpenChangeComplete={onSettled}
     >
-      <DialogPopup size="xl" initialFocus={closeRef} finalFocus={finalFocus}>
+      <DialogPopup size="xlFit" initialFocus={closeRef} finalFocus={finalFocus}>
         {image === null ? null : (
-          <Stack gap="block" className="min-h-0 flex-1">
+          <Stack gap="block" className="min-h-0">
             <DialogTitle>{image.name}</DialogTitle>
-            {/* The frame is the largest box of the image's own aspect that fits the area: sized by height when
-                height limits it (no grey bars), by width otherwise. The area is a size container so the frame can
-                read both its extents. */}
-            <Stack align="center" justify="center" className="relative min-h-0 flex-1" style={{ containerType: "size" }}>
-              <Stack style={{ aspectRatio: aspect, width: `min(100cqw, calc(100cqh * ${String(aspect)}))` }}>
+            {/* The frame is the largest box of the image's own aspect that fits: as wide as the dialog, no taller
+                than the viewport leaves after the title and actions. Sized by height when height limits it (no grey
+                bars), and the dialog hugs it instead of filling the viewport. */}
+            <Stack align="center" className="relative" style={{ containerType: "inline-size" }}>
+              <Stack style={{ aspectRatio: aspect, width: `min(100cqw, calc((100dvh - ${FRAME_CHROME}) * ${String(aspect)}))` }}>
                 <CrossfadeImage src={blobUrl(image.hash)} alt={image.name} aspectRatio={aspect} fit="contain" className="size-full" />
               </Stack>
             </Stack>

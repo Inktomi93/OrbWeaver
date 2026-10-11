@@ -157,8 +157,8 @@ function readEchoArtGeometry(bubble: Locator): Promise<{ reservationMatches: boo
     const portrait = art !== null && getComputedStyle(art).backgroundImage.includes("?v=portrait");
     const pad = Number.parseFloat(style.paddingRight);
     return {
-      // The art pane is reserved only where there is art; with none the card is a plain card.
-      reservationMatches: portrait ? Math.abs(pad - pane) < 0.05 : pad < pane,
+      // The art pane is reserved wherever there is a tile (an image or the speaker's fallback); with none the card is plain.
+      reservationMatches: art !== null ? Math.abs(pad - pane) < 0.05 : pad < pane,
       portrait,
       tileMatches: art === null || Math.abs(art.getBoundingClientRect().width - pad) < 0.5,
     };
@@ -274,8 +274,8 @@ for (const width of [320, 430]) {
         const character = castId<CharacterId>("character_ct_edge");
         const persona = castId<PersonaId>("persona_ct_edge");
         const identities: ChatIdentity[] = [
-          { kind: "character", id: character, name: "Mira", avatarHash: null },
-          { kind: "persona", id: persona, name: "Traveler", description: "", avatarHash: null },
+          { kind: "character", id: character, name: "Mira", avatarHash: "ab".repeat(32) },
+          { kind: "persona", id: persona, name: "Traveler", description: "", avatarHash: "ab".repeat(32) },
         ];
         await routeTrpc(page, {
           ...CHAT_AMBIENT_ROUTES,
@@ -296,6 +296,7 @@ for (const width of [320, 430]) {
               identities,
             ),
         });
+        await page.route("**/api/blob/**", (route) => route.fulfill({ contentType: "image/svg+xml", body: LANDSCAPE_SVG }));
         await routeOrbSocket(page, { frames: [], awaitAttaches: 1 });
         const component = await mount(<MessageListSurfaceStory />);
         const avatars = component.locator('[data-slot="avatar-root"]');
@@ -375,10 +376,10 @@ const LANDSCAPE_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="600" height="400" fill="#486"/></svg>';
 
 /** A room with one character row and one persona row, both carrying art, in `chatStyle`. */
-async function routeArtRoom(page: Page, chatStyle: (typeof THEME_CHAT_STYLES)[number], blobSvg?: string): Promise<void> {
+async function routeArtRoom(page: Page, chatStyle: (typeof THEME_CHAT_STYLES)[number], blobSvg?: string, withAvatar = true): Promise<void> {
   const character = castId<CharacterId>("character_ct_view");
   const persona = castId<PersonaId>("persona_ct_view");
-  const avatarHash = "ab".repeat(32);
+  const avatarHash = withAvatar ? "ab".repeat(32) : null;
   const identities: ChatIdentity[] = [
     { kind: "character", id: character, name: "Mira", avatarHash },
     { kind: "persona", id: persona, name: "Traveler", description: "", avatarHash },
@@ -412,6 +413,80 @@ async function routeArtRoom(page: Page, chatStyle: (typeof THEME_CHAT_STYLES)[nu
   );
   await routeOrbSocket(page, { frames: [], awaitAttaches: 1 });
 }
+
+for (const viewport of [
+  { label: "phone", size: { width: 390, height: 780 }, touch: true },
+  { label: "desktop", size: { width: 1280, height: 800 }, touch: false },
+]) {
+  test.describe(`a speaker with no avatar image fills the art slot with their fallback, ${viewport.label}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch });
+
+    test("ripple: the welded portrait is the fallback itself, in a 2:3 box", async ({ mount, page }) => {
+      await routeArtRoom(page, "ripple", undefined, false);
+      const component = await mount(<MessageListSurfaceStory />);
+      const portraits = component.locator('[data-slot="avatar-root"]');
+      await expect(portraits).toHaveCount(2);
+      await expect(component.locator('[data-slot="avatar-fallback"]')).toHaveText(["T", "M"]);
+      await expect
+        .poll(() =>
+          portraits.evaluateAll((all) => all.map((el) => Math.round((el.getBoundingClientRect().height / el.getBoundingClientRect().width) * 10) / 10)),
+        )
+        .toEqual([1.5, 1.5]);
+    });
+
+    for (const art of [
+      { chatStyle: "echo", slot: '[data-slot="message-echo-art"]', masked: true },
+      { chatStyle: "whisper", slot: '[data-slot="message-band"]', masked: false },
+    ] as const) {
+      test(`${art.chatStyle}: the fallback takes the art's box and keeps its fade, with no chip beside it`, async ({ mount, page }) => {
+        await routeArtRoom(page, art.chatStyle, undefined, false);
+        const component = await mount(<MessageListSurfaceStory />);
+        const tiles = component.locator(art.slot);
+        await expect(tiles).toHaveCount(2);
+        // The fallback's initial rides the art slot, and no letter chip repeats it beside the art.
+        await expect(component.locator('[data-slot="avatar-root"]')).toHaveCount(0);
+        await expect(tiles.locator("xpath=..").getByText(/^[MT]$/u)).toHaveCount(2);
+        await expect
+          .poll(() =>
+            tiles.evaluateAll((all) =>
+              all.map((el) => {
+                const style = getComputedStyle(el);
+                const box = el.getBoundingClientRect();
+                return {
+                  filled: style.backgroundColor !== "rgba(0, 0, 0, 0)",
+                  masked: style.maskImage !== "none",
+                  gradient: style.backgroundImage.includes("linear-gradient"),
+                  sized: box.width > 0 && box.height > 0,
+                };
+              }),
+            ),
+          )
+          // Echo fades through its mask; whisper's band fades through its gradient layer.
+          .toEqual(Array.from({ length: 2 }, () => ({ filled: true, masked: art.masked, gradient: !art.masked, sized: true })));
+      });
+    }
+  });
+}
+
+test.describe("the art viewer on a phone", () => {
+  test.use({ viewport: { width: 390, height: 780 }, hasTouch: true });
+
+  test("the dialog hugs a landscape image instead of filling the screen", async ({ mount, page }) => {
+    await routeArtRoom(page, "flat", LANDSCAPE_SVG);
+    const component = await mount(<MessageListSurfaceStory />);
+    await component.getByRole("button", { name: viewImageActionName("Mira"), exact: true }).tap();
+    const dialog = page.getByRole("dialog");
+    const frame = dialog.locator('[data-slot="crossfade-image"]');
+    await expect(frame).toBeVisible();
+    await expect
+      .poll(async () => {
+        const box = await dialog.boundingBox();
+        return box === null ? Number.POSITIVE_INFINITY : box.height;
+      })
+      .toBeLessThan(560);
+    await expect.poll(async () => Math.round((((await frame.boundingBox())?.width ?? 0) / ((await frame.boundingBox())?.height ?? 1)) * 100) / 100).toBe(1.5);
+  });
+});
 
 test.describe("the art viewer and its controls, desktop", () => {
   test.use({ viewport: { width: 1280, height: 800 } });

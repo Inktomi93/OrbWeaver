@@ -7,7 +7,9 @@
 import type { VariantKind } from "@orb/contracts/assets";
 import { blobBannerUrl, blobPortraitUrl, blobUrl } from "@orb/contracts/assets";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
+import { initialsFor } from "@orb/kit/initials";
 import type { MessageRole } from "@orb/kit/message-role";
+import { avatarFallbackHueColor } from "@orb/ui/avatar";
 import type { CSSProperties } from "react";
 import { cn, messageBubbleClass } from "#lib";
 import type { RowAttribution } from "./attribution.ts";
@@ -88,6 +90,10 @@ type ColumnPlacement = "anchored" | "gutterCentred";
 export interface BubbleDecorationArgs {
   readonly kind: RowAttribution["kind"];
   readonly avatarHash: string | null;
+  /** The speaker's name and fallback-hue seed: with no image, the art slot is filled with the same hue and
+   *  initial the avatar chip falls back to, so chip and art agree. */
+  readonly name: string | null;
+  readonly hueSeed: string;
   /** Static illustration consumers resolve their own art; absent keeps the owned-blob path. */
   readonly imageUrlFor?: (variant: VariantKind, width?: number) => string;
   /** THE `appearance.showInChatAvatars` TOGGLE, threaded to the decorators (#212-6). It used to reach only
@@ -105,11 +111,11 @@ export interface BubbleDecoration {
   readonly style?: CSSProperties;
   /** Whisper's header-art band, rendered as a real block-level child above the bubble text (never a
    *  background layer, which would let text sit on bright art). */
-  readonly headerBand?: { readonly style: CSSProperties; readonly className: string } | undefined;
+  readonly headerBand?: { readonly style: CSSProperties; readonly className: string; readonly fallback?: string } | undefined;
   /** Echo's art pane: a positioned tile on the side the art sits (the role mirror, #212-3), cover-cropped
    *  and faded by its own mask. A tile and not a background layer so a phone can give it Moonlit's fixed
    *  mobile height while it stays cropped to its pane. */
-  readonly art?: { readonly style: CSSProperties; readonly side: "left" | "right" } | undefined;
+  readonly art?: { readonly style: CSSProperties; readonly side: "left" | "right"; readonly fallback?: string } | undefined;
 }
 
 export interface RowSkin {
@@ -188,8 +194,7 @@ function hushDecoration(): BubbleDecoration {
   return { style: STRIPE_LEFT };
 }
 
-// Art asks for device pixels, never the CSS box: a CSS-sized ask is soft on every dense display. The server
-// snaps the ask up its portrait ladder. 3x is the ceiling phones ship and where the ladder tops out.
+// Art asks for device pixels, never the CSS box (a CSS-sized ask is soft on dense displays); 3x is where the ladder tops out.
 const MAX_ART_PIXEL_RATIO = 3;
 // biome-ignore lint/style/noMagicNumbers: CSS px of `--immersive-echo-art-width` (12rem) and `--immersive-ripple-portrait-width` (11.25rem); the request is sized from them.
 const ECHO_PORTRAIT_CSS_WIDTH = 192;
@@ -236,10 +241,8 @@ function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | null {
   }
   const requestWidth = artRequestWidth(ECHO_PORTRAIT_CSS_WIDTH);
   const portraitUrl = args.imageUrlFor?.("portrait", requestWidth) ?? (args.avatarHash === null ? null : blobPortraitUrl(args.avatarHash, requestWidth));
-  // No portrait image: a clean card. A giant letter tile beside the row's own letter chip said nothing.
-  if (portraitUrl === null) {
-    return null;
-  }
+  // No portrait image: the speaker's fallback fills the same tile, and the row drops its letter chip so the
+  // letter is not shown twice (`avatarTreatmentFor`).
   const side = echoArtSide(args.kind);
   // The art side's inset is the pane, and the header bar and swipe foot reach across it (`--row-reach-*`).
   const inset: CSSProperties = side === "left" ? { paddingLeft: ECHO_ART_WIDTH } : { paddingRight: ECHO_ART_WIDTH };
@@ -250,11 +253,12 @@ function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | null {
       side,
       style: {
         width: ECHO_ART_WIDTH,
-        backgroundImage: `url("${portraitUrl}")`,
+        ...(portraitUrl === null ? { backgroundColor: avatarFallbackHueColor(args.hueSeed) } : { backgroundImage: `url("${portraitUrl}")` }),
         // Moonlit's feather: the art dissolves into the card toward the text and at its foot.
         maskImage: `linear-gradient(to ${toward}, black 70%, transparent), linear-gradient(to bottom, black 60%, transparent)`,
         maskComposite: "intersect",
       },
+      ...(portraitUrl === null ? { fallback: initialsFor(args.name ?? "") } : {}),
     },
   };
 }
@@ -262,6 +266,8 @@ function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | null {
 const WHISPER_BANNER_REQUEST_WIDTH = 800;
 // Moonlit Echoes' Glimmer preset: the banner is half the card, centred; a phone widens it to 55%.
 const WHISPER_BAND_WIDTH = "mx-auto w-1/2 @max-md:w-11/20";
+
+const WHISPER_FEATHER = "linear-gradient(to bottom, transparent, var(--color-ai-bubble) var(--immersive-whisper-feather))";
 
 const WHISPER_STRIPE: CSSProperties = {
   borderTopWidth: "var(--immersive-stripe-width)",
@@ -282,9 +288,23 @@ function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
   const bannerUrl =
     args.imageUrlFor?.("banner", WHISPER_BANNER_REQUEST_WIDTH) ??
     (args.avatarHash === null ? null : blobBannerUrl(args.avatarHash, WHISPER_BANNER_REQUEST_WIDTH));
-  // No banner image: the stripe alone. A tinted strip with a small letter was a placeholder, not identity.
+  // No banner image: the speaker's fallback fills the band, under the same feather, and the row drops its
+  // letter chip so the letter is not shown twice (`avatarTreatmentFor`).
   if (bannerUrl === null) {
-    return { style: WHISPER_STRIPE };
+    return {
+      style: WHISPER_STRIPE,
+      headerBand: {
+        className: WHISPER_BAND_WIDTH,
+        style: {
+          aspectRatio: "var(--aspect-banner)",
+          backgroundColor: avatarFallbackHueColor(args.hueSeed),
+          backgroundImage: WHISPER_FEATHER,
+          backgroundSize: "100% 100%",
+          backgroundRepeat: "no-repeat",
+        },
+        fallback: initialsFor(args.name ?? ""),
+      },
+    };
   }
   return {
     style: WHISPER_STRIPE,
@@ -292,7 +312,7 @@ function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
       className: WHISPER_BAND_WIDTH,
       style: {
         aspectRatio: "var(--aspect-banner)",
-        backgroundImage: `linear-gradient(to bottom, transparent, var(--color-ai-bubble) var(--immersive-whisper-feather)), url("${bannerUrl}")`,
+        backgroundImage: `${WHISPER_FEATHER}, url("${bannerUrl}")`,
         backgroundSize: "100% 100%, cover",
         backgroundPosition: "0 0, top center",
         backgroundRepeat: "no-repeat, no-repeat",

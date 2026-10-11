@@ -53,7 +53,22 @@ function whisperBand(headerBand: NonNullable<BubbleDecoration["headerBand"]>, vi
       className={cn("relative rounded-t-card", view !== null && "hover:opacity-80", headerBand.className)}
       style={headerBand.style}
     >
+      {fallbackLetter(headerBand.fallback)}
       {view === null ? null : artViewButton(view)}
+    </Stack>
+  );
+}
+
+// The initial a speaker's fallback art carries, in the avatar fallback's own ink; the art is decorative, so it is hidden.
+function fallbackLetter(initials: string | undefined): ReactElement | null {
+  return initials === undefined ? null : (
+    <Stack
+      align="center"
+      aria-hidden="true"
+      className="absolute inset-0 font-medium text-primary-foreground text-title leading-title uppercase"
+      justify="center"
+    >
+      {initials}
     </Stack>
   );
 }
@@ -79,6 +94,7 @@ function echoArtTile(art: NonNullable<BubbleDecoration["art"]>, view: ArtView | 
         className={cn("absolute inset-0 bg-center bg-cover bg-no-repeat", view !== null && "group-hover/art:opacity-80", rounding)}
         style={paint}
       />
+      {fallbackLetter(art.fallback)}
       {view === null ? null : artViewButton(view, rounding)}
     </Stack>
   );

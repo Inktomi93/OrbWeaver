@@ -46,9 +46,10 @@ import { useArtViewer } from "../hooks/art-viewer-context.tsx";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream.ts";
 import type { RowAttribution } from "../lib/attribution.ts";
+import { avatarTreatmentFor } from "../lib/avatar-treatment.ts";
 import { ROW_BODY_AT_PHONE_WIDTH } from "../lib/chat-track.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
-import { avatarTreatmentFor, columnClassFor, gutterRailFor, rowBodyClassFor } from "../lib/row-placement.ts";
+import { columnClassFor, gutterRailFor, rowBodyClassFor } from "../lib/row-placement.ts";
 import { CardBlock } from "./card-block.tsx";
 import { renderRowAvatar } from "./message-row-avatar.tsx";
 import { placeRowHeader, renderGhostNameRow } from "./message-row-header.tsx";
@@ -231,13 +232,15 @@ export function GhostMessageRow({
 
   const kind = attribution?.kind ?? null;
   const decorationAvatarHash = attribution === undefined ? null : attribution.avatarHash;
-  const avatarTreatment = avatarTreatmentFor(skin, kind, decorationAvatarHash);
   const decoration =
     skin.bubbleDecoration?.({
       kind,
       avatarHash: decorationAvatarHash,
+      name: attribution?.name ?? null,
+      hueSeed: attribution?.hueSeed ?? "",
       showInChatAvatars,
     }) ?? null;
+  const avatarTreatment = avatarTreatmentFor(skin, kind, decoration);
   const avatarNode =
     attribution === undefined
       ? null

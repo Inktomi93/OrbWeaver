@@ -45,6 +45,20 @@ test("P0: the lightbox action buttons stay on-screen at 1280×800", async ({ mou
   await expect.poll(() => buttonBottom(page, "Close")).toBeLessThan(800);
 });
 
+test("the lightbox actions share one row without wrapping at 390", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 390, height: 780 });
+  await routeTrpc(page, { "assets.listGallery": () => [ITEM] });
+
+  await mount(<CharacterGalleryDialogStory />);
+  await openLightbox(page);
+
+  const remove = page.getByRole("button", { name: "Remove from gallery" });
+  const close = page.getByRole("button", { name: "Close" });
+  await expect.poll(async () => Math.abs(((await remove.boundingBox())?.y ?? 0) - ((await close.boundingBox())?.y ?? 99))).toBeLessThan(1);
+  await expect.poll(async () => ((await remove.boundingBox())?.height ?? 99) < 60).toBe(true);
+  await expect.poll(async () => ((await close.boundingBox())?.x ?? 0) + ((await close.boundingBox())?.width ?? 0)).toBeLessThanOrEqual(390);
+});
+
 test("P0: the lightbox action buttons stay on-screen at the tighter 1366×768", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
   await routeTrpc(page, { "assets.listGallery": () => [ITEM] });

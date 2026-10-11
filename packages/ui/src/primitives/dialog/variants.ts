@@ -41,6 +41,8 @@ export const dialogVariants = tv({
       lg: { viewport: "p-gutter", popup: "max-w-(--width-dialog-lg)" },
       // The large shell modal: fills most of the screen but stays a centered card, capped at xl width.
       xl: { viewport: "p-gutter", popup: "h-full max-w-(--width-dialog-xl)" },
+      // The xl width with a height that hugs its content (a lightbox sized by the image it holds).
+      xlFit: { viewport: "p-gutter", popup: "max-w-(--width-dialog-xl)" },
       full: { viewport: "p-0", popup: "h-full w-full max-w-none rounded-none border-0" },
     },
     // Where the popup sits on the block axis. `top` pins its top edge at the viewport gutter, so a dialog whose

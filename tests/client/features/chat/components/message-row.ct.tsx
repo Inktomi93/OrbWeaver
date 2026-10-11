@@ -621,7 +621,13 @@ for (const chatStyle of THEME_CHAT_STYLES) {
   test(`${chatStyle}: a user row's identity sits ${MIRRORED_USER_STYLES.has(chatStyle) ? "trailing" : "leading"}`, async ({ mount }) => {
     test.skip(chatStyle === "document", "the document page names nobody, as stock does; its own pins are the document block");
     const component = await mount(
-      <MessageRowStory chatStyle={chatStyle} messageRole="user" personaId={ALEX_PERSONA_ID} personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]} width={720} />,
+      <MessageRowStory
+        chatStyle={chatStyle}
+        messageRole="user"
+        personaId={ALEX_PERSONA_ID}
+        personas={[{ id: ALEX_PERSONA_ID, name: "Alex", avatarHash: "hash_alex" }]}
+        width={720}
+      />,
     );
     const avatar = component.locator(AVATAR).first();
     await expect(avatar).toBeVisible();
@@ -670,7 +676,7 @@ for (const chatStyle of ["bubble", "echo", "tide"] as const) {
           chatStyle={chatStyle}
           messageRole="user"
           personaId={ALEX_PERSONA_ID}
-          personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]}
+          personas={[{ id: ALEX_PERSONA_ID, name: "Alex", avatarHash: "hash_alex" }]}
           width={360}
           content={content}
         />,
@@ -1049,12 +1055,15 @@ test("bubble: a different no-avatar character resolves a DISTINCT hue (per-entit
   await expectInBand(fallback);
 });
 
-test("whisper (no avatar): no banner, only the speaker stripe", async ({ mount }) => {
+test("whisper (no avatar): the band is the speaker's fallback, under the speaker stripe", async ({ mount }) => {
   const component = await mount(
     <MessageRowStory chatStyle="whisper" messageRole="assistant" content={LONG_BODY} characterId={ALICE_ID} participants={[alice()]} />,
   );
   await expect(component.locator(BUBBLE)).toBeVisible();
-  await expect(component.locator(BAND)).toHaveCount(0);
+  await expect(component.locator(BAND)).toHaveCount(1);
+  await expect(component.locator(BAND)).toHaveText("A");
+  // The art slot is the fallback, so no chip repeats it beside the band.
+  await expect(component.locator(AVATAR)).toHaveCount(0);
   await expect(component.locator(BUBBLE)).not.toHaveCSS("border-top-width", "0px");
 });
 
@@ -3337,7 +3346,7 @@ for (const chatStyle of ["flat", "hush", "document"] as const) {
 }
 
 // ── IDENTITY ART ONLY WHERE THERE IS ART ──────────────────────────────────────────────────────────────
-test("ripple without portrait art keeps the chip, so a short row is not padded to a portrait's height", async ({ mount }) => {
+test("ripple without portrait art welds the speaker's fallback as its 2:3 portrait", async ({ mount }) => {
   const component = await mount(
     <MessageRowStory
       chatStyle="ripple"
@@ -3349,19 +3358,18 @@ test("ripple without portrait art keeps the chip, so a short row is not padded t
     />,
   );
   await expect(component.locator(ROW)).toBeVisible();
-  // The chip, not the 2:3 portrait: square, and the row hugs one line of text.
+  await expect(component.locator(`${AVATAR} ${FALLBACK}`)).toHaveText("A");
   await expect
     .poll(() =>
       component
         .locator(AVATAR)
         .first()
-        .evaluate((el) => Math.round(el.getBoundingClientRect().height)),
+        .evaluate((el) => Math.round((el.getBoundingClientRect().height / el.getBoundingClientRect().width) * 10) / 10),
     )
-    .toBeLessThanOrEqual(48);
-  await expect.poll(() => component.locator(ROW).evaluate((el) => el.getBoundingClientRect().height)).toBeLessThan(100);
+    .toBe(1.5);
 });
 
-test("echo without portrait art paints no art pane and no letter tile", async ({ mount }) => {
+test("echo without portrait art fills the art pane with the speaker's fallback and drops the chip", async ({ mount }) => {
   const component = await mount(
     <MessageRowStory
       chatStyle="echo"
@@ -3372,8 +3380,9 @@ test("echo without portrait art paints no art pane and no letter tile", async ({
     />,
   );
   await expect(component.locator(BUBBLE)).toBeVisible();
-  await expect(component.locator('[data-slot="message-echo-art"]')).toHaveCount(0);
-  await expect(component.locator(BUBBLE)).not.toHaveCSS("padding-right", /^1[0-9]{2}/);
+  await expect(component.locator('[data-slot="message-echo-art"]')).toHaveCount(1);
+  await expect(component.locator('[data-slot="message-echo-art"]').locator("xpath=..").getByText("A", { exact: true })).toHaveCount(1);
+  await expect(component.locator(AVATAR)).toHaveCount(0);
 });
 
 test("echo's art on a phone is Moonlit's fixed mobile height in its pane, not a corner thumbnail", async ({ mount }) => {

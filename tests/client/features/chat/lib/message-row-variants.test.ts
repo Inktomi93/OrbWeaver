@@ -16,14 +16,16 @@
 // for both roles (owner ruling, as Moonlit paints both), and identity art paints only where there IS art.
 
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
+import { avatarFallbackHueColor } from "@orb/ui/avatar";
 import { afterEach, vi } from "vitest";
+import { avatarTreatmentFor } from "../../../../../packages/client/src/features/chat/lib/avatar-treatment.ts";
 import type { BubbleDecorationArgs } from "../../../../../packages/client/src/features/chat/lib/message-row-variants.ts";
 import { avatarPortraitSrcProp, MESSAGE_ROW_SKINS } from "../../../../../packages/client/src/features/chat/lib/message-row-variants.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A `bubbleDecoration` argument builder; a case overrides what it asserts. */
 function decoArgs(kind: BubbleDecorationArgs["kind"], avatarHash: string | null, extra?: Partial<BubbleDecorationArgs>): BubbleDecorationArgs {
-  return { kind, avatarHash, showInChatAvatars: true, ...extra };
+  return { kind, avatarHash, name: "Mira", hueSeed: "seed_mira", showInChatAvatars: true, ...extra };
 }
 
 afterEach(() => {
@@ -141,12 +143,29 @@ test("the avatars-off reader gets NO identity art in any immersive skin (owner r
   expect(MESSAGE_ROW_SKINS.hush.bubbleDecoration?.(decoArgs("character", null, off))?.style?.borderLeftColor).toBe("var(--color-speaker)");
 });
 
-test("without art, echo paints a clean card and whisper its stripe alone: no letter tiles", () => {
-  expect(MESSAGE_ROW_SKINS.echo.bubbleDecoration?.(decoArgs("character", null))).toBeNull();
-  expect(MESSAGE_ROW_SKINS.echo.bubbleDecoration?.(decoArgs("persona", null))).toBeNull();
+test("without art, echo's tile and whisper's band carry the speaker's fallback, and the chip steps aside", () => {
+  const hue = avatarFallbackHueColor("seed_mira");
+  for (const kind of ["character", "persona"] as const) {
+    const echo = MESSAGE_ROW_SKINS.echo.bubbleDecoration?.(decoArgs(kind, null));
+    // The same hue fill and initial the chip would show, under echo's own feather mask.
+    expect(echo?.art?.style.backgroundColor, kind).toBe(hue);
+    expect(echo?.art?.style.backgroundImage, kind).toBeUndefined();
+    expect(echo?.art?.style.maskImage, kind).toContain("linear-gradient");
+    expect(echo?.art?.fallback, kind).toBe("M");
+    expect(avatarTreatmentFor(MESSAGE_ROW_SKINS.echo, kind, echo ?? null), kind).toBe("none");
+  }
   const whisper = MESSAGE_ROW_SKINS.whisper.bubbleDecoration?.(decoArgs("character", null));
   expect(whisper?.style?.borderTopColor).toBe("var(--color-speaker)");
-  expect(whisper?.headerBand).toBeUndefined();
+  expect(whisper?.headerBand?.style.backgroundColor).toBe(hue);
+  expect(whisper?.headerBand?.style.aspectRatio).toBe("var(--aspect-banner)");
+  expect(whisper?.headerBand?.fallback).toBe("M");
+  expect(avatarTreatmentFor(MESSAGE_ROW_SKINS.whisper, "character", whisper ?? null)).toBe("none");
+  // Real art keeps the chip beside it; ripple shows its fallback in the portrait whether or not an image exists.
+  const painted = MESSAGE_ROW_SKINS.echo.bubbleDecoration?.(decoArgs("character", "x"));
+  expect(avatarTreatmentFor(MESSAGE_ROW_SKINS.echo, "character", painted ?? null)).toBe("icon-left");
+  expect(avatarTreatmentFor(MESSAGE_ROW_SKINS.ripple, "character", null)).toBe("sticky-portrait");
+  // Avatars off: no identity art at all, fallback included.
+  expect(MESSAGE_ROW_SKINS.echo.bubbleDecoration?.(decoArgs("character", null, { showInChatAvatars: false }))).toBeNull();
 });
 
 test("whisper's stripe always paints (speaker-color chrome); the header band is a real child for both roles", () => {
