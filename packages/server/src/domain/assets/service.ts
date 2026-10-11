@@ -26,10 +26,11 @@ import { createResolveVariant } from "./verbs/resolve-variant.ts";
 import { createStore } from "./verbs/store.ts";
 
 export function createAssetsService(ctx: AssetsContext): AssetsService {
+  const getMetadata = createGetMetadata(ctx);
   return {
     store: createStore(ctx),
-    getMetadata: createGetMetadata(ctx),
-    resolveVariant: createResolveVariant(ctx),
+    getMetadata,
+    resolveVariant: createResolveVariant(ctx, { getMetadata }),
     loadAssetBytes: createLoadAssetBytes(ctx),
     readOwnedAssetBytes: createReadOwnedAssetBytes(ctx),
     assetCasRefById: createAssetCasRefById(ctx),

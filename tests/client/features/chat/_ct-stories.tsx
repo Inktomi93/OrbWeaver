@@ -63,6 +63,7 @@ import {
   CommandPaletteSourceRegistryProvider,
   cancelEditingMessage,
   chatDeletedFromList,
+  chatSectionSelection,
   chatStream,
   committedChat,
   enterSelectionMode,
@@ -75,6 +76,7 @@ import {
   requestComposerFocus,
   SlashCommandRegistryProvider,
   selectChat,
+  selectChatFromList,
   setMobileViewport,
   setNarrowViewport,
   startEditingMessage,
@@ -145,6 +147,7 @@ import { ChatHeaderSurface } from "#client/features/chat/components/chat-header.
 import { ChatImportDialog } from "#client/features/chat/components/chat-import-dialog.tsx";
 import { ChatOptionsMenu } from "#client/features/chat/components/chat-options-menu.tsx";
 import { ChatRecallIndicator } from "#client/features/chat/components/chat-recall-indicator.tsx";
+import { ChatSummaryRow } from "#client/features/chat/components/chat-summary-row.tsx";
 import { ChatsTopbarHeader } from "#client/features/chat/components/chats-topbar-header.tsx";
 import { ChoiceSendProvider } from "#client/features/chat/components/choice-send-provider.tsx";
 import { CommittedMembersTab } from "#client/features/chat/components/committed-members-tab.tsx";
@@ -197,7 +200,7 @@ import type { SlashArgOffer } from "#client/lib/contribution-contracts.ts";
 import { CtAppDataProviders, CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
-import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures.ts";
+import { CHAT_ID, COMPOSER_CHAT_ID, makeChatSummary, makeMessageView } from "./fixtures.ts";
 
 // The door's empty chat-surface registry (§6c/M8) — stories that don't test the seam itself pass this,
 // mirroring main.tsx's zero-contribution assembly (no visual change over today's layout).
@@ -1640,6 +1643,61 @@ export function ChatListSurfaceStory({ activeChatId = null, width = 320, mobile 
   return (
     <CtDataProviders>
       <ChatListInner activeChatId={activeChatId} width={width} />
+    </CtDataProviders>
+  );
+}
+
+/** The Chats list wired to the real selection door, plus the phone Back's act (`chatSectionSelection.clear`). */
+export function ChatListReturnStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ChatListReturnBody />
+    </CtDataProviders>
+  );
+}
+
+function ChatListReturnBody(): ReactElement {
+  // On a phone the list pane is inert while a room is open.
+  const roomOpen = useActiveChatId() !== null;
+  return (
+    <>
+      <div style={{ height: 480, width: 320 }} inert={roomOpen}>
+        <ChatListAnchor>
+          <ChatListSurface onNewChat={(): void => undefined} onSelect={selectChatFromList} />
+        </ChatListAnchor>
+      </div>
+      <div>
+        <button onClick={(): void => chatSectionSelection.clear()} type="button">
+          leave the room
+        </button>
+      </div>
+    </>
+  );
+}
+
+/** The returned-row focus claim: one row for chat A that can be made inert (a collapsed sheet), a field to
+ *  hold focus elsewhere, and a button that mounts a second row for A later. */
+export function ReturnedRowClaimStory(): ReactElement {
+  const [inert, setInert] = useState(false);
+  const [second, setSecond] = useState(false);
+  const chat = { ...makeChatSummary({ title: "Room A" }), id: castId<ChatId>("chat_claim_a") };
+  return (
+    <CtDataProviders>
+      <div inert={inert}>
+        <ChatSummaryRow chat={chat} onSelect={selectChat} />
+      </div>
+      <button onClick={(): void => setInert(true)} type="button">
+        make inert
+      </button>
+      <button onClick={(): void => chatSectionSelection.clear()} type="button">
+        leave the room
+      </button>
+      <input aria-label="elsewhere" />
+      {/* mousedown is default-prevented so the click leaves focus where the test put it */}
+      <button onClick={(): void => setSecond(true)} onMouseDown={(event): void => event.preventDefault()} type="button">
+        mount second list
+      </button>
+      {second ? <ChatSummaryRow chat={chat} onSelect={selectChat} /> : null}
     </CtDataProviders>
   );
 }

@@ -13,7 +13,7 @@
 
 import { createGatedStore } from "./create-gated-store.ts";
 import type { SectionSelection } from "./section-registry.ts";
-import { setOpenOverlayPanel } from "./shell-store.ts";
+import { setOpenOverlayPanel, withContentSwap } from "./shell-store.ts";
 
 /** A MIXED-KIND selection: which collection the member belongs to, and which member (review F-7). Both
  *  halves are opaque strings — the kind axis is host-opaque by design (no closed tuple to gate), and the
@@ -47,20 +47,25 @@ interface KindedSelectionState {
 /** Mint one kinded selection store (the file header carries the why). */
 export function createKindedSelectionStore(name: string): KindedDrillStore {
   const useSelectionStore = createGatedStore<KindedSelectionState>(name, (): KindedSelectionState => ({ selection: null }));
-  const write = (kind: string, memberId: string): void => useSelectionStore.setState({ selection: { kind, memberId } }, false, `${name}/select`);
+  // Content writes ride the shell's content-swap door (the drill-store twin), the slide-over release inside it.
+  const write = (kind: string, memberId: string, releaseOverlay: boolean): void =>
+    withContentSwap(() => {
+      useSelectionStore.setState({ selection: { kind, memberId } }, false, `${name}/select`);
+      if (releaseOverlay) {
+        setOpenOverlayPanel(null);
+      }
+    });
   // The ONE clear — see `clear`'s contract (the drill-store twin).
-  const clearSelection = (): void => {
-    useSelectionStore.setState({ selection: null }, false, `${name}/clear`);
-    setOpenOverlayPanel(null);
-  };
+  const clearSelection = (): void =>
+    withContentSwap(() => {
+      useSelectionStore.setState({ selection: null }, false, `${name}/clear`);
+      setOpenOverlayPanel(null);
+    });
   return {
     useSelection: (): KindedSelection | null => useSelectionStore((s) => s.selection),
-    select: write,
+    select: (kind: string, memberId: string): void => write(kind, memberId, false),
     clear: clearSelection,
-    selectFromList: (kind: string, memberId: string): void => {
-      write(kind, memberId);
-      setOpenOverlayPanel(null);
-    },
+    selectFromList: (kind: string, memberId: string): void => write(kind, memberId, true),
     selection: {
       subscribe: (onStoreChange: () => void): (() => void) => useSelectionStore.subscribe(onStoreChange),
       hasSelection: (): boolean => useSelectionStore.getState().selection !== null,

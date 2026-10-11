@@ -425,18 +425,18 @@ module.exports = {
     {
       name: "client-data-direction",
       comment:
-        "client data/ (Query + tRPC + the bus + the factories) may reach state/ (the bus reducer drives the stream store) + lib/, never forms/features/routes — the data layer serves surfaces, it doesn't know them.",
+        "client data/ (Query + tRPC + the bus + the factories) may reach state/ (the bus reducer drives the stream store) + lib/, never forms/components/features/routes — the data layer serves surfaces, it doesn't know them.",
       severity: "error",
       from: { path: `${CLIENT}data/` },
-      to: { path: `${CLIENT}(forms|features|routes)/` },
+      to: { path: `${CLIENT}(forms|components|features|routes)/` },
     },
     {
       name: "client-forms-direction",
       comment:
-        "client forms/ (the editor factories + bound fields) may reach state/ (draft mirrors) + lib/, never data/features/routes. A factory takes `save` INJECTED — the feature binds the mutation at composition; a forms→data import would hard-couple every editor to the Query layer. Type-only exempt.",
+        "client forms/ (the editor factories + bound fields) may reach state/ (draft mirrors) + lib/, never data/components/features/routes. A factory takes `save` INJECTED — the feature binds the mutation at composition; a forms→data import would hard-couple every editor to the Query layer. Type-only exempt.",
       severity: "error",
       from: { path: `${CLIENT}forms/` },
-      to: { path: `${CLIENT}(data|features|routes)/`, dependencyTypesNot: ["type-only"] },
+      to: { path: `${CLIENT}(data|components|features|routes)/`, dependencyTypesNot: ["type-only"] },
     },
     {
       name: "client-features-below-routes",

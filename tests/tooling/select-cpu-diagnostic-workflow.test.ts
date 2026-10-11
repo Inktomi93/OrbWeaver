@@ -20,7 +20,7 @@ const stepSchema = z.object({
 });
 const workflowSchema = z.object({
   on: z.object({ ["workflow_dispatch"]: z.object({ inputs: z.record(z.string(), z.json()) }) }),
-  permissions: z.object({ contents: z.literal("read") }).strict(),
+  permissions: z.strictObject({ contents: z.literal("read") }),
   env: z.record(z.string(), z.string()).optional(),
   concurrency: z.object({ group: z.string() }),
   ["run-name"]: z.string(),

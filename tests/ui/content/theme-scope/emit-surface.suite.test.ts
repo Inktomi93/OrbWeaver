@@ -9,7 +9,7 @@ import { expect, test } from "../../../support/fixtures.ts";
 
 const LEADING_DASHES_RE = /^--/u;
 
-/** `--color-user-bubble-foreground` -> `color.user-bubble-foreground` (the TOKENS map's key shape). */
+/** `--color-user-bubble-foreground` → `color.user-bubble-foreground` (the TOKENS map's key shape). */
 function cssVarToTokenPath(cssVar: string): string {
   const stripped = cssVar.replace(LEADING_DASHES_RE, "");
   const dashIndex = stripped.indexOf("-");

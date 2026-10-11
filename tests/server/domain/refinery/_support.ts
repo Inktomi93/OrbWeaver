@@ -22,7 +22,7 @@ import type { RefineryContext, RefineryService, RefineryWorkloadDeps } from "@or
 import { createRefineryService } from "@orb/server/domain/refinery";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { FAKE_SUMMARIZE_MODEL, makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
-import { makeHarness as makeCharacterHarness, principal } from "../character/_support.ts";
+import { makeHarness, principal } from "../character/_support.ts";
 
 export { principal, seedUser } from "../character/_support.ts";
 
@@ -65,7 +65,7 @@ export interface RefineryHarnessOptions {
 }
 
 export function makeRefineryHarness(db: Db, options: RefineryHarnessOptions = {}): RefineryHarness {
-  const charHarness = makeCharacterHarness(db);
+  const charHarness = makeHarness(db);
   const character = createCharacterService(charHarness.ctx);
   const clock = createFrozenClock(FROZEN_AT_MS);
   const replies: string[] = [];

@@ -69,6 +69,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import { TrailingArrow } from "#components";
+import { useReturnedRow } from "../hooks/use-returned-row.ts";
 import { characterCredit, chatSummaryRowView } from "../lib/chat-summary-row.ts";
 
 type HearthChat = Parameters<typeof chatSummaryRowView>[0];
@@ -98,6 +99,7 @@ export function HomeHearthRoom({
   readonly artSrc?: string | undefined;
 }): ReactElement {
   const { title, subtitle } = chatSummaryRowView(chat);
+  const { marked, bodyRef } = useReturnedRow(chat.id);
   const titleId = useId();
   const scentId = useId();
   const creditId = useId();
@@ -121,8 +123,12 @@ export function HomeHearthRoom({
       // from the platform. The accessible name and the `aria-describedby` pair are UNCHANGED — that is the
       // ruling this must not disturb (the name is the VERB, side-eye 2026-08-16 F5).
       as="button"
-      className={`group ${GLOW}`}
+      // Back from this room leaves the glow at its hover strength: the same "this one" the pointer gives it.
+      aria-current={marked ? "true" : undefined}
+      className={`group ${GLOW} data-returned:before:opacity-100`}
       data-home-hearth={chat.id}
+      data-returned={marked ? "" : undefined}
+      ref={bodyRef}
       // THE ELEVATED ISLAND (rail sweep P2-11). The hero is the ONE thing home wants a cold eye to land
       // on, and it was a form-tier box with a banned accent stripe doing the shouting. `elevated` is the
       // primitive's own floating-island opt-in — `--radius-card` + `--shadow-overlay` — which is a

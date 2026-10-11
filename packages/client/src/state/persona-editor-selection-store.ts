@@ -9,9 +9,10 @@ const selection = createDrillSelectionStore<PersonaId>("persona-editor-selection
 export function selectPersonaEditor(personaId: PersonaId | null): void {
   dropPersonaEditorFocusExcept(personaId);
   if (personaId === null) {
-    selection.clear();
+    // An accordion toggle in a list, not a list-to-content switch: no content crossfade.
+    selection.clearInPlace();
   } else {
-    selection.select(personaId);
+    selection.select(personaId, { swap: false });
   }
 }
 

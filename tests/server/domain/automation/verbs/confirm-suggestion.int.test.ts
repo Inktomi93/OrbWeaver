@@ -53,8 +53,8 @@ function capturingOps(base: AutomationOps): { ops: AutomationOps; turns: Automat
 }
 
 /** #1553's capturing bundle — BOTH `requestTurn` (the confirmed arm) and `applyVariableOps` (the
- *  continuation's `set_variable` arms) recorded, so a mixed `[set_variable, trigger_turn(confirmFirst),
- *  set_variable]` rule's confirm proves ALL THREE arms ran, in order, and the two `set_variable`s ran at the
+ *  continuation's `set_variable` arms) recorded, so a mixed
+ *  `[set_variable, trigger_turn(confirmFirst), set_variable]` rule's confirm proves ALL THREE arms ran, in order, and the two `set_variable`s ran at the
  *  right TIMES (the first at fire time, the second only after the confirm). */
 function capturingContinuationOps(base: AutomationOps): { ops: AutomationOps; turns: AutomationTurnRequest[]; varWrites: string[] } {
   const turns: AutomationTurnRequest[] = [];

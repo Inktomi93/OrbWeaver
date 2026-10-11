@@ -150,13 +150,16 @@ test("the release workflow runs on the stable branch and publishes, from the tag
 test("development publication selects an exact source commit and cannot overwrite stable image tags", ({ repoRoot }) => {
   const workflow = z
     .object({
-      on: z.object({ ["workflow_dispatch"]: z.null() }).strict(),
-      permissions: z.object({}).strict(),
+      on: z.strictObject({ ["workflow_dispatch"]: z.null() }),
+      permissions: z.strictObject({}),
       jobs: z.object({
         image: z.object({
-          permissions: z
-            .object({ contents: z.literal("read"), packages: z.literal("write"), ["id-token"]: z.literal("write"), attestations: z.literal("write") })
-            .strict(),
+          permissions: z.strictObject({
+            contents: z.literal("read"),
+            packages: z.literal("write"),
+            ["id-token"]: z.literal("write"),
+            attestations: z.literal("write"),
+          }),
           env: z.record(z.string(), z.string()),
           steps: z.array(
             z.object({
@@ -215,7 +218,7 @@ for (const [workflowName, cacheTag, publishName, proofName] of [
   test(`${workflowName} exports intermediate build cache without publishing an unverified runtime image`, ({ repoRoot }) => {
     const workflow = z
       .object({
-        on: z.object({ push: z.object({ branches: z.array(z.string()) }).optional(), ["workflow_dispatch"]: z.null().optional() }).strict(),
+        on: z.strictObject({ push: z.object({ branches: z.array(z.string()) }).optional(), ["workflow_dispatch"]: z.null().optional() }),
         jobs: z.object({
           image: z.object({
             permissions: z.object({ packages: z.literal("write") }),

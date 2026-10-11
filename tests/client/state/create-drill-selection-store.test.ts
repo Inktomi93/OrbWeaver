@@ -8,7 +8,7 @@
 import { createDrillSelectionStore } from "@orb/client/state";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe } from "vitest";
+import { afterEach, describe, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
 const DUPLICATE_NAME_RE = /duplicate store name/u;
@@ -70,5 +70,46 @@ describe("createDrillSelectionStore — one door back", () => {
     // The OTHER half of one-door — that `clear` also RELEASES the slide-over request — needs a rendered
     // read of the shell store (its only read API is a hook), so it is pinned in
     // tests/client/state/section-list-projection.ct.tsx.
+  });
+});
+
+// ── EVERY SECTION'S ITEM SWITCH MOVES THE SAME WAY ─────────────────────────────────────────────────────
+// Chats, characters and corpus swapped content through the shell's content-swap door; the factory's own
+// writes were plain `setState`, so Refinery, Presets, Databank, Plugin pages and the rest hard-cut. The
+// factory is the one door for all of them, so its content writes ride the same view transition.
+
+describe("createDrillSelectionStore — content writes ride the shell's content swap", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test("select, selectFromList and clear each raise one view transition and write inside it", async () => {
+    const callbacks: Array<() => void | Promise<void>> = [];
+    const start = vi.fn((callback: () => void | Promise<void>) => {
+      callbacks.push(callback);
+      return { ready: Promise.resolve(), finished: Promise.resolve(), updateCallbackDone: Promise.resolve() };
+    });
+    vi.stubGlobal("matchMedia", () => ({ matches: false }));
+    vi.stubGlobal("document", { querySelector: () => null, startViewTransition: start });
+    const drill = createDrillSelectionStore<CharacterId>("t-drill-swap");
+
+    drill.select(PROBE);
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(drill.getPrimaryId()).toBeNull();
+    await callbacks[0]?.();
+    expect(drill.getPrimaryId()).toBe(PROBE);
+
+    await Promise.resolve();
+    drill.clear();
+    expect(start).toHaveBeenCalledTimes(2);
+    expect(drill.getPrimaryId()).toBe(PROBE);
+    await callbacks[1]?.();
+    expect(drill.getPrimaryId()).toBeNull();
+
+    await Promise.resolve();
+    drill.selectFromList(PROBE);
+    expect(start).toHaveBeenCalledTimes(3);
+    await callbacks[2]?.();
+    expect(drill.getPrimaryId()).toBe(PROBE);
   });
 });

@@ -28,6 +28,7 @@ import {
   ChromeRegistryProvider,
   dockListPanel,
   NO_SELECTION_TITLE,
+  resumeChat,
   selectCharacter,
   selectChat,
   selectCollectionMember,
@@ -417,6 +418,35 @@ export function AppShellMobileRuleStory({ section }: { readonly section: Section
   );
 }
 
+/** The phone's room Back, end to end over the REAL chats selection seam: a chats section with a list, a room
+ *  and a details pane, landing on `section`. "resume from here" is the Home tiles' act (`resumeChat`), which
+ *  records the section it was fired from. */
+export function AppShellPhoneBackStory({ section }: { readonly section: SectionId }): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtFakeSectionRegistry
+        sections={{
+          chats: {
+            list: <p>chats list pane</p>,
+            content: <p>chats content pane</p>,
+            context: <p>chats context pane</p>,
+            selectionTitle: useChatsStoryTitle,
+          },
+        }}
+      >
+        <LandOn section={section} />
+        <button type="button" onClick={(): void => resumeChat(mintTypeId(ID_PREFIX.chat))}>
+          resume from here
+        </button>
+        <button type="button" onClick={(): void => openMemberIn("chats")}>
+          open a member
+        </button>
+        <AppShell />
+      </CtFakeSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
 /** `AppShellStory` + a `--width-shell-content`-capped probe in the chats CONTENT slot (the SAME
  *  `max-w-(--width-shell-content)` utility `chat-landing-surface.tsx`/`composer.tsx` use — real
  *  production wiring, not a re-implementation of the clamp formula) — for asserting the §11.1
@@ -443,8 +473,8 @@ export function AppShellWidthProbeStory(): ReactElement {
 }
 
 /** `AppShellStory` + the ROOM'S OWN TRACK carriers in the chats CONTENT slot: a transcript row and the
- *  composer, both wearing the production `CHAT_TRACK` string (`.orb-chat-track w-full
- *  max-w-(--width-shell-content)`, #213). The shell's centred-child FLIP counter (#1646, re-keyed to the
+ *  composer, both wearing the production `CHAT_TRACK` string
+ *  (`.orb-chat-track w-full max-w-(--width-shell-content)`, #213). The shell's centred-child FLIP counter (#1646, re-keyed to the
  *  marker family by #2442) is a CSS rule on that marker, so two boxes that resolve their horizontal
  *  placement exactly the way production's six carriers do is the whole fixture it needs — this file cannot
  *  route a real transcript (see app-shell.ct.tsx's #1677 header) and does not have to: the counter's
@@ -1083,6 +1113,8 @@ const CTX_TRACKERS_TAB: ResolvedContextTab = resolvedTab({ id: "trackers", label
 const CTX_ICONLESS_TAB: ResolvedContextTab = resolvedTab({ id: "iconless", label: "Iconless", node: <div>iconless</div> });
 
 export interface ContextTabStripStoryProps {
+  /** The pane's own name for a single-tab header; absent ⇒ the rail label. */
+  readonly paneLabel?: string;
   /** The container width (px) the rail's tracks resolve against. */
   readonly width: number;
   /** The container HEIGHT (px) — the pane the column fills. @defaultValue 480 */
@@ -1110,6 +1142,7 @@ export function ContextTabStripStory({
   withDismiss = false,
   opaqueSettings = false,
   singleTab = false,
+  paneLabel,
 }: ContextTabStripStoryProps): ReactElement {
   const [dismissed, setDismissed] = useState(0);
   const tabs: ResolvedContextTab[] = CTX_STRIP_TABS.slice(0, singleTab ? 1 : undefined).map((tab) =>
@@ -1126,6 +1159,7 @@ export function ContextTabStripStory({
       <ContextTabsPanel
         tabs={tabs}
         railLabel="Chat"
+        {...(paneLabel === undefined ? {} : { paneLabel })}
         {...(withBand ? { header: <p data-testid="ctx-band-content">Example — Midnight Run</p> } : {})}
         {...(withDismiss ? { dismissLabel: "Close Chats details", onDismiss: (): void => setDismissed((n) => n + 1) } : {})}
       />

@@ -725,7 +725,7 @@ export const gate = defineGate({
   family: "zod-output-twin-parity",
   authority: "reviewed-grant",
   severity: "error",
-  population: "@product",
+  population: { in: ["@product", "@tests"] },
   analysis: "types",
   execution: "entire-population",
   facts: [],
@@ -933,6 +933,15 @@ export const gate = defineGate({
       expect: { count: 1, token: "wire", messageIncludes: "schema-only-export:publicSchemas.wire" },
       why: "a property access to a concrete static schema declaration remains export-reachable through an aggregate alias",
     },
+    {
+      mode: "types",
+      files: proofFiles({
+        "tests/support/schemas.ts": 'import * as z from "zod";\nexport const wire = z.object({ value: z.string() });\n',
+      }),
+      expect: { count: 1, token: "wire", messageIncludes: "no semantic output owner" },
+      grant: { subject: "tests/support/schemas.ts", operation: "schema-only-export:wire" },
+      why: "THE TEST-PATH ARM: an exported schema with no output owner under `tests/**` is judged like a product export, so a test helper cannot mint a wire shape production does not own",
+    },
   ],
   mustPass: [
     {
@@ -999,6 +1008,14 @@ export const gate = defineGate({
           'import * as z from "zod";\nexport const settingsSchema = z.object({ fontScale: z.number() });\nexport type Settings = z.output<typeof settingsSchema>;\nconst defaults: Settings = settingsSchema.parse({});\nexport const publicDefaults = { fontScale: defaults.fontScale };\n',
       }),
       why: "an ordinary property-access value in an exported aggregate stays a value even when its mapped output property resolves back to the schema-bearing shape declaration",
+    },
+    {
+      mode: "types",
+      files: proofFiles({
+        "tests/support/schemas.ts":
+          'import * as z from "zod";\ntype PublicWire = { value: string };\nexport const wire: z.ZodType<PublicWire> = z.object({ value: z.string() });\n',
+      }),
+      why: "the pass control of the test-path arm: an explicit concrete ZodType<T> pair under `tests/**` is owned, so the arm flags the unowned schema and not the directory",
     },
   ],
   mustRefuse: [

@@ -14,7 +14,7 @@
 
 // The helper copy is asserted from its ONE home, never re-typed here — a re-spelled literal is how a copy
 // change goes green against a string nobody ships.
-import { IMPERSONATE_STOP_LABEL, MODEL_ROLES_PATH_TEXT, IMAGE_GEN_SPENDS_NOW as SPENDS_RIGHT_AWAY, sendUnavailableReason } from "@orb/client/lib";
+import { IMAGE_GEN_SPENDS_NOW, IMPERSONATE_STOP_LABEL, MODEL_ROLES_PATH_TEXT, sendUnavailableReason } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -935,7 +935,7 @@ test("#623: the fast door names its spend on hover instead of firing one silentl
   await component.getByRole("button", UTILITY_TRIGGER).click();
 
   // An ENABLED row's `title` is the REGENERATE_PLAIN_HELPER idiom (a helper, not a disabled reason).
-  await expect(page.getByRole("menuitem", { name: "Generate image from text" })).toHaveAttribute("title", SPENDS_RIGHT_AWAY);
+  await expect(page.getByRole("menuitem", { name: "Generate image from text" })).toHaveAttribute("title", IMAGE_GEN_SPENDS_NOW);
 });
 
 test("#623: the Imagine door opens the /imagine surface seeded with whatever is typed", async ({ mount, page }) => {

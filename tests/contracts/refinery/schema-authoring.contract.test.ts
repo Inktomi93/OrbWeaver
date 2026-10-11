@@ -1,3 +1,4 @@
+import { z } from "zod";
 // contracts/refinery/schema-authoring — the SF0 document belt (lift + refinery tightenings + the
 // well-known core) and the render-hint vocabulary. The belt's REFUSALS are the contract: each arm is
 // pinned with a planted violation (a green that cannot fail ratifies nothing), and the healing read-side
@@ -21,7 +22,7 @@ test("a belt-legal score document parses; each tightening arm refuses with its o
   const refusalOf = (schema: Record<string, unknown>, stage: (typeof REFINERY_SCHEMA_STAGES)[number] = "score"): string => {
     const result = refinerySchemaDocumentSchema.safeParse({ name: "x", description: "", stage, schema });
     expect(result.success).toBe(false);
-    return result.success ? "" : (result.error.issues[0]?.message ?? "");
+    return result.success ? "" : z.prettifyError(result.error);
   };
 
   // pattern — refused HERE even though kit's lift accepts it (the refinery ReDoS tightening).

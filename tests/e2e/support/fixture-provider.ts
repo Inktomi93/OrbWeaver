@@ -25,8 +25,8 @@ export const FIXTURE_POST_SPAN_PROSE = " He spits into the dust.";
  *  leaked. Assert on THIS instead.
  *
  *  QUOTE-FREE, DELIBERATELY. Specs compare against `JSON.stringify(frames)` — the serialized payload a
- *  devtools viewer reads — and that escapes `"` to `\"`. A comparand carrying a raw quote (`well himself"
- *  reason=`) can NEVER appear in it, so the `not.toContain` arm is vacuously green and the `toContain`
+ *  devtools viewer reads — and that escapes `"` to `\"`. A comparand carrying a raw quote
+ *  (`well himself" reason=`) can NEVER appear in it, so the `not.toContain` arm is vacuously green and the `toContain`
  *  differential arm fails against a payload that visibly holds the bytes. Both happened on the first run of
  *  live-hidden-span-resume; the differential is what surfaced it. Keep every wire comparand quote-free. */
 export const FIXTURE_LIE_TAIL = "well himself";

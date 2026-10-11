@@ -124,8 +124,8 @@ function makeActorClient(baseUrl: string, headers: Readonly<Record<string, strin
 
 // ── OWNER (single-user + the local/forward-header HOST) ─────────────────────────────────────────────────
 
-/** The ambient OWNER actor — the un-credentialed 127.0.0.1 fallback seam resolves the box owner (`via:
- *  "fallback"`), so no cookie and no CSRF header are needed even for mutations. This is the HOST in every
+/** The ambient OWNER actor — the un-credentialed 127.0.0.1 fallback seam resolves the box owner
+ *  (`via: "fallback"`), so no cookie and no CSRF header are needed even for mutations. This is the HOST in every
  *  mode (single-user's only principal; the local/forward-header room host). `baseUrl` is the spec's
  *  per-project Playwright `baseURL` (the vite origin). */
 export function ownerActor(baseUrl: string): ActorClient {

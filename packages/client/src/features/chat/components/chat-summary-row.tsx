@@ -26,6 +26,7 @@ import { ListRow } from "@orb/ui/list-row";
 import type { ReactElement, ReactNode } from "react";
 import { ROW_ACTION_INLINE, ROW_REVEAL_SWAP_COARSE_KEEP, RowToggleAction } from "#components";
 import { cn, timeLib } from "#lib";
+import { useReturnedRow } from "../hooks/use-returned-row.ts";
 import type { ChatRowPortrait } from "../lib/chat-summary-row.ts";
 import { chatRowActionName, chatSummaryRowView } from "../lib/chat-summary-row.ts";
 
@@ -184,6 +185,7 @@ export function ChatSummaryRow({
   titleStep = "default",
 }: ChatSummaryRowProps): ReactElement {
   const { title, subtitle, when } = chatSummaryRowView(chat);
+  const { marked, bodyRef } = useReturnedRow(chat.id);
   const rowName = actionName ?? chatRowActionName(title, timeLib.formatRelativeCompact(when));
   const markers = rowMarkers({ chat, interactive: onToggleStar !== undefined });
   // The trailing cluster is now CONTROLS ONLY (the markers moved to the title line), so every one of its
@@ -234,8 +236,9 @@ export function ChatSummaryRow({
         : {})}
       clickable={true}
       leading={<RowLeading chatId={chat.id} portraits={portraits} title={title} />}
+      bodyRef={bodyRef}
       onClick={(): void => onSelect(chat.id)}
-      selected={selected}
+      selected={selected ? true : marked}
       subtitle={subtitle}
       // Functional snippet prose owes the label step (#500/tiers.css). Imported titles can share a leading
       // name/date while the snippet distinguishes the conversations. Keep title hierarchy through

@@ -114,7 +114,7 @@ async function serveOriginal(deps: BlobDeps, principal: Principal, hash: string)
   }
   // meta.ownerId is set when the asset belongs to a co-participant (roster-avatar exception); on the
   // normal path it is absent and the caller IS the owner.
-  const casOwnerId = (meta.ownerId as UserId | undefined) ?? principal.userId;
+  const casOwnerId = meta.ownerId ?? principal.userId;
   // @orb-waive caught-failure-ownership(catch): a LEAK-FREE COLLAPSE, stated in this function's own JSDoc — a torn CAS entry and a foreign/missing blob must return the identical 404, or the response distinguishes "exists but unreadable" from "not yours" and becomes an existence oracle. The ownership gate above already ran. Ends if torn-blob repair gains an operator surface that can be told apart from a miss.
   try {
     const bytes = await deps.cas.read(casOwnerId, hash);
@@ -134,8 +134,8 @@ function parseVariantKind(raw: string | undefined): VariantKind | undefined {
   return parsed.success ? parsed.data : undefined;
 }
 
-/** Serve a resized-webp variant. An off-ladder width, malformed `?v=`, non-hash, or unowned blob all
- *  resolve to `undefined` → 404. A CAS-valid-but-undecodable original (belt-passed magic bytes, corrupt
+/** Serve a resized-webp variant. An off-ladder width, malformed `?v=`, non-hash, or a blob `getMetadata`
+ *  refuses all resolve to `undefined` → 404. A CAS-valid-but-undecodable original (belt-passed magic bytes, corrupt
  *  body — sharp/libvips throws) degrades to the unresized original instead of a raw 500: the bytes ARE
  *  servable, just not resizable, matching the "serve what we can" spirit of the torn-blob 404 below rather
  *  than surfacing an internal decode fault to the caller. */

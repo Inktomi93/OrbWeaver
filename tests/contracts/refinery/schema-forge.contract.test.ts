@@ -1,3 +1,4 @@
+import { z } from "zod";
 // contracts/refinery/schema-forge — the forge's WIRE GRAMMAR + its transpiler (task #36, the owner's
 // structured-output veto). The contract these pin is the MIRROR OBLIGATION: everything the grammar can
 // produce passes the save belt, one-directionally. That is not a property you can eyeball off two files,
@@ -35,7 +36,7 @@ function design(fields: readonly Row[], over: Partial<ForgeDesignEnvelope> = {})
 function beltOf(d: ForgeDesignEnvelope, stage: RefinerySchemaStage = "score"): { ok: boolean; message: string } {
   const { schema } = transpileForgeDesign(d, stage);
   const parsed = refinerySchemaDocumentSchema.safeParse({ name: d.name, description: d.description, stage, schema });
-  return { ok: parsed.success, message: parsed.success ? "" : (parsed.error.issues[0]?.message ?? "") };
+  return { ok: parsed.success, message: parsed.success ? "" : z.prettifyError(parsed.error) };
 }
 
 test("every leaf construct the grammar can emit transpiles into a document the save belt accepts", () => {
@@ -198,7 +199,7 @@ test("an inverted minimum/maximum is REFUSED by the grammar, not transpiled", ()
   const inverted = design([row({ path: "pace", type: "number", minimum: 10, maximum: 5 })]);
   const parsed = forgeDesignEnvelopeSchema.safeParse(inverted);
   expect(parsed.success).toBe(false);
-  expect(parsed.error?.issues[0]?.message).toContain("minimum must be less than or equal to maximum");
+  expect(parsed.success ? "" : z.prettifyError(parsed.error)).toContain("minimum must be less than or equal to maximum");
 });
 
 test("the bounds a design MAY carry are unchanged — equal bounds and one-sided bounds still pass", () => {

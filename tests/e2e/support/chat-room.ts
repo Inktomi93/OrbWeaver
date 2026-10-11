@@ -137,7 +137,7 @@ function chatsRailButton(page: Page): Locator {
  *  reached via the Primary rail. Every list-driven helper below routes through here rather than reading a
  *  list off `/` that no longer exists. Waits for the `aria-label="Chats list"` list OR the "No chats yet"
  *  empty-state to settle BEFORE the caller counts rows — reading the count while the suspense query is in
- *  flight races a false 0. globalSetup guarantees >=1 chat, so the list branch is the normal path. */
+ *  flight races a false 0. globalSetup guarantees at least one chat, so the list branch is the normal path. */
 export async function gotoChatsList(page: Page): Promise<void> {
   await page.goto("/");
   await waitForAppReady(page);
