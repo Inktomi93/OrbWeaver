@@ -3,48 +3,12 @@
 // DISJOINT, and every claimed namespace's remaining keys are claimed or CITED. The last test is the REAL
 // door's registry against the REAL contract defaults — the pre-image of the boot-time throw.
 
-import { appearanceBackgroundSection, appearanceEffectsSection, appearanceReadingSection, appearanceSizingSection } from "@orb/client/features/app-shell";
-import { automationBudgetSection, automationLibraryRulesSection } from "@orb/client/features/automation";
-import { librarySettingsSection } from "@orb/client/features/character";
-import {
-  appearanceAvatarsSection,
-  appearanceMessageDetailsSection,
-  appearanceMessageStyleSection,
-  chatAttachmentQualitySection,
-  chatMessageHandlingSection,
-  chatStreamingSection,
-  databankSettingsSection,
-  imageryTemplatesSection,
-  memorySettingsSection,
-  proseSettingsSection,
-} from "@orb/client/features/chat";
-import { connectionsKeysSection, connectionsListSection, connectionsRolesSection } from "@orb/client/features/credentials";
-import { personaListSection, personaNotificationsSection, personaThisChatSection } from "@orb/client/features/persona";
-import { pluginDistributeSection, pluginsInstalledSection, pluginsInstallSection } from "@orb/client/features/plugin";
-import {
-  adminCatalogSection,
-  adminEmbeddingsSection,
-  adminUsersSection,
-  mediaTrustSection,
-  memoryTuningSection,
-  multiUserSection,
-  operationsSection,
-  rateLimitsSection,
-  systemTuningSection,
-} from "@orb/client/features/user-admin";
-import {
-  backupExportSection,
-  backupImportSection,
-  workloadsJobsSection,
-  workloadsSchedulesSection,
-  workloadsTuningSection,
-} from "@orb/client/features/workloads";
-import { worldInfoSettingsSection } from "@orb/client/features/world-info";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigSectionContribution } from "@orb/client/state";
 import { assertSettingsKeyPartition, assertTeachHonesty, UNCLAIMED_SETTINGS_KEYS } from "@orb/client/state";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { describe } from "vitest";
+import { configSections } from "#client/compose/config-sections.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 /** A section contribution stub — `body` returns a marker string so the resolve output is inspectable. */
@@ -228,68 +192,19 @@ describe("assertSettingsKeyPartition", () => {
   });
 });
 
-// The DOOR's own assertions, run against the REAL contributions + the REAL contract defaults. main.tsx
+// The DOOR's own assertions, run against the REAL contributions + the REAL contract defaults. The door
 // calls them at module init, so a violation is a white-screen at boot — these tests are the pre-image of
-// that crash, and they fail HERE (with the offending key/leaf named) instead of in the browser. ONE
-// mirror list serves both (`test-presence-mirror-not-suite`: the mirror is the accepted live-door lens).
-function realDoorSections(): ReturnType<typeof createContributorRegistry<ConfigSectionContribution>> {
-  return createContributorRegistry<ConfigSectionContribution>("config-sections", [
-    // The §6.8 conversions — persona claims `persona.showNotifications`, connections claims `routing.roleDefaults`.
-    personaNotificationsSection,
-    personaListSection,
-    personaThisChatSection,
-    backupExportSection,
-    backupImportSection,
-    connectionsListSection,
-    connectionsRolesSection,
-    connectionsKeysSection,
-    automationLibraryRulesSection,
-    automationBudgetSection,
-    pluginsInstalledSection,
-    pluginsInstallSection,
-    pluginDistributeSection,
-    chatMessageHandlingSection,
-    chatStreamingSection,
-    memorySettingsSection,
-    chatAttachmentQualitySection,
-    worldInfoSettingsSection,
-    databankSettingsSection,
-    imageryTemplatesSection,
-    proseSettingsSection,
-    mediaTrustSection,
-    multiUserSection,
-    operationsSection,
-    adminUsersSection,
-    adminCatalogSection,
-    adminEmbeddingsSection,
-    memoryTuningSection,
-    rateLimitsSection,
-    systemTuningSection,
-    workloadsJobsSection,
-    workloadsSchedulesSection,
-    workloadsTuningSection,
-    appearanceMessageStyleSection,
-    appearanceAvatarsSection,
-    appearanceSizingSection,
-    appearanceMessageDetailsSection,
-    appearanceBackgroundSection,
-    appearanceReadingSection,
-    appearanceEffectsSection,
-    librarySettingsSection,
-  ]);
-}
-
+// that crash, and they fail HERE (with the offending key/leaf named) instead of in the browser.
 test("the real door's settings-section claims partition cleanly against DEFAULT_USER_SETTINGS", () => {
-  expect(() => assertSettingsKeyPartition(realDoorSections(), DEFAULT_USER_SETTINGS)).not.toThrow();
+  expect(() => assertSettingsKeyPartition(configSections, DEFAULT_USER_SETTINGS)).not.toThrow();
 });
 
 // R-TEACH's DERIVED-POPULATION arm (#866 S3): iterate the REAL registry's
 // leaves — never a hand list — and prove every one resolves an honest teach or a stated opt-out. The
 // planted per-arm RED fixtures live in `config-teach.test.ts`; this is the sweep over the population.
 test("every declared leaf of the real door carries an honest teach or a stated opt-out", () => {
-  const registry = realDoorSections();
-  expect(() => assertTeachHonesty(registry)).not.toThrow();
-  const leaves = registry.list().flatMap((c) => (c.nav.settings ?? []).map((leaf) => ({ at: `${c.anchor}/${c.nav.id}`, leaf })));
+  expect(() => assertTeachHonesty(configSections)).not.toThrow();
+  const leaves = configSections.list().flatMap((c) => (c.nav.settings ?? []).map((leaf) => ({ at: `${c.anchor}/${c.nav.id}`, leaf })));
   // The population floor: a refactor that silently empties the leaf set must be loud, not a vacuous pass.
   expect(leaves.length).toBeGreaterThan(50);
 });

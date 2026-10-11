@@ -15,16 +15,16 @@ export const TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: ctConfigMirrorParity,
-    // The CT mirror's settings registry drops its whole contributor list, so every production section is
-    // missing from the test composition — the multiset difference the policy exists to report.
+    // The CT door hand-lists an empty settings registry, so every production section is missing from the test
+    // composition — the membership difference the policy exists to report.
     overlays: [
       {
         kind: "neutralise",
-        path: "tests/support/browser/ct-data-providers.tsx",
-        source: 'const realSettingsSections = createContributorRegistry("config-sections", []);\n',
+        path: "tests/support/browser/ct-door.ts",
+        source: 'export const configSections = createContributorRegistry("config-sections", []);\n',
       },
     ],
-    messageIncludes: "Section differences:",
+    messageIncludes: "config sections differences:",
   },
   {
     policy: testsPackageSubpath,

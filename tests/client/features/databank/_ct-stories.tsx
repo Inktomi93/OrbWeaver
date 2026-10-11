@@ -20,7 +20,7 @@ import { useDatabankListHeader } from "#client/features/databank/hooks/use-datab
 import { databankDocumentsTile } from "#client/features/databank/lib/home-documents-tile.tsx";
 import { DatabankDetailSurface } from "#client/features/databank/surfaces/databank-detail-surface.tsx";
 import { DatabankLibrarySurface } from "#client/features/databank/surfaces/databank-library-surface.tsx";
-import { HomeSurface, makeSectionJumpTile } from "#client/features/home/index.ts";
+import { HomeSurface } from "#client/features/home/index.ts";
 import { createContributorRegistry } from "#client/lib/index.ts";
 import type { HomeTileContribution } from "#client/state/index.ts";
 import {
@@ -36,6 +36,7 @@ import {
   useSelectedDocumentId,
 } from "#client/state/index.ts";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
+import { homeTiles } from "../../../support/browser/ct-door.ts";
 import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/browser/measure-content-column.ts";
 
 /** The LIST pane at its REAL production width — the 320px panel floor the §6.1 width math is stated at, so
@@ -241,16 +242,15 @@ function DatabankHomeProbe(): ReactElement {
 }
 
 function DatabankHomeTile({ width, withJumpGrid = false }: { readonly width: number; readonly withJumpGrid?: boolean }): ReactElement {
-  // The door's own assembly shape: the jump tile is built FROM its siblings, so the claim the databank tile
-  // makes (`sectionId`) is resolved exactly as production resolves it.
-  const siblings = [databankDocumentsTile];
-  const tiles = withJumpGrid ? [...siblings, makeSectionJumpTile(siblings)] : siblings;
+  // The jump arm mounts the door's own tile registry, so the claim the databank tile makes (`sectionId`) is
+  // resolved against the real siblings exactly as production resolves it.
+  const tiles = withJumpGrid ? homeTiles : createContributorRegistry<HomeTileContribution>("home-tiles", [databankDocumentsTile]);
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
         <DatabankHomeProbe />
         <div style={{ width }}>
-          <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", tiles)} />
+          <HomeSurface onNewChat={(): void => undefined} tiles={tiles} />
         </div>
       </CtRealSectionRegistry>
     </CtDataProviders>

@@ -123,6 +123,10 @@ const SHELL_AMBIENT_ROUTES = defineTrpcRoutes({
   // Feeding this makes the janitor's real reconcile path run, which is the whole point — it fixes nothing in
   // production because nothing there was broken.
   "chat.reapTemporaryChats": { reaped: 0 },
+  // The door's plugin chrome widget reads the caller's plugin commands, and the door's automation and roster
+  // surfaces read the rule-preset library. EMPTY is the honest default for a fresh viewer.
+  "plugin.listCommands": [],
+  "automation.listRulePresets": [],
   // THE HERO-ROOM WARM (#1205, the same CASCADE shape the `reapTemporaryChats` row above describes). Home's
   // hearth tile WARMS the room its one focal action opens — `usePrefetchRoom` issues `chat.getChat` on the
   // tile's MOUNT, a human reaction time ahead of the Resume click (#1126) — and the chats-list rows warm the

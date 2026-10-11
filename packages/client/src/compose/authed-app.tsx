@@ -17,75 +17,30 @@
 // lands here instead of in `main.tsx`.
 
 import type { ReactElement } from "react";
-import { bugReportChrome, contextToggleChrome, youModal } from "#features/app-shell";
+import { youModal } from "#features/app-shell";
 import { reauthModal } from "#features/auth";
-import {
-  automationActivityTab,
-  automationClockMeterSurface,
-  automationGroup,
-  automationNeedleMeterSurface,
-  automationQuickReplySource,
-  automationRulesSection,
-  automationSuggestionSource,
-} from "#features/automation";
-import { characterCreateChrome, characterSlashCommands, makeCharactersSection } from "#features/character";
-import {
-  ChatsWithCharacterPane,
-  chatMessageReactionsSurface,
-  chatSlashCommands,
-  commandModal,
-  makeChatControlsContribution,
-  makeChatsSection,
-  newChatModal,
-} from "#features/chat";
-import { appearanceGroup, bindConfigPaletteGroups, chatBehaviorGroup, configPaletteSource, makeConfigSection } from "#features/config";
+import { automationActivityTab, automationGroup } from "#features/automation";
+import { makeCharactersSection } from "#features/character";
+import { ChatsWithCharacterPane, commandModal, makeChatsSection, newChatModal } from "#features/chat";
+import { appearanceGroup, bindConfigPaletteGroups, chatBehaviorGroup, makeConfigSection } from "#features/config";
 import { connectionsGroup } from "#features/credentials";
 import { addDocumentModal, databankSection } from "#features/databank";
-import { corpusModePaletteSource, makeCorpusSection } from "#features/discovery";
+import { makeCorpusSection } from "#features/discovery";
 import { makeHomeSection } from "#features/home";
-import { imageDetailModal, imageEditModal, imagerySlashCommands, imagineModal } from "#features/imagery";
-import { notificationsChrome } from "#features/notifications";
-import { personaChrome, personasGroup } from "#features/persona";
-import {
-  extensionsSection,
-  pluginChatFlankSurface,
-  pluginChatSettingsSection,
-  pluginCommandArgsModal,
-  pluginCommandPaletteSource,
-  pluginCommandsChrome,
-  pluginComposerActionSurface,
-  pluginComposerMediaSurface,
-  pluginDialogModal,
-  pluginMessageFooterSurface,
-  pluginSlashCommands,
-  pluginSnippetConsoleSection,
-  pluginsGroup,
-  pluginToolRenderer,
-} from "#features/plugin";
+import { imageDetailModal, imageEditModal, imagineModal } from "#features/imagery";
+import { personasGroup } from "#features/persona";
+import { extensionsSection, pluginCommandArgsModal, pluginDialogModal, pluginsGroup } from "#features/plugin";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { regexGroup } from "#features/regex";
 import { rosterGroup, savedRostersModal } from "#features/roster-preset";
-import { makeRpgContextTabs, makeRpgHudRegion, rpgDiceComposerMediaSurface, rpgDiceToolRenderer, rpgTurnToolCallsSurface } from "#features/rpg";
-import { insightsContextTabs, insightsCorpusMode } from "#features/stats";
-import { labelsContextTabs, labelsCorpusMode } from "#features/tag";
+import { makeRpgContextTabs, makeRpgHudRegion } from "#features/rpg";
+import { insightsCorpusMode } from "#features/stats";
+import { labelsCorpusMode } from "#features/tag";
 import { aboutGroup, adminGroup } from "#features/user-admin";
 import { backupGroup, workloadsGroup } from "#features/workloads";
 import { worldInfoGroup } from "#features/world-info";
-import type {
-  CharacterDetailContribution,
-  ChatContextState,
-  ChatControlSource,
-  ChatSettingsSectionContribution,
-  ChatSurfaceContribution,
-  CommandPaletteSource,
-  ContextRegionDef,
-  ContextTabDef,
-  CorpusContextState,
-  MessageToolsRenderer,
-  SlashCommandContribution,
-  ToolRenderer,
-} from "#lib";
+import type { CharacterDetailContribution, ChatContextState, ContextRegionDef, ContextTabDef, MessageToolsRenderer } from "#lib";
 import { createContributorRegistry, createRegistry } from "#lib";
 import {
   assembleChrome,
@@ -105,6 +60,15 @@ import { queryClient, trpcProxy } from "./app-singletons.ts";
 // The config-SECTION assembly, in its own `compose/` sibling (§7 + `client-compose-door-only`): still ONE
 // assembly, still door-owned — it moved for `component-size`, like `home-tiles.ts`. See that file's header.
 import { configSections } from "./config-sections.ts";
+import {
+  chatSettingsSections,
+  chatSurfaceContributors,
+  chromeWidgets,
+  commandPaletteSources,
+  corpusContextTabs,
+  slashCommands,
+  toolRenderers,
+} from "./contributors.ts";
 // The home-tile registry, assembled in its own `compose/` sibling (§7 + `client-compose-door-only`): still ONE
 // assembly, still door-owned — it moved for `component-size`, not for architecture. See that file's header.
 import { homeTiles } from "./home-tiles.ts";
@@ -115,28 +79,13 @@ import { homeTiles } from "./home-tiles.ts";
 // the registry, which chat merges at `defineContextTabs`'s `contributors` arm. rpg never imports chat; the
 // `when`/`strip:"game"` gating (a cache-first getChat.rpg read) drives the §4.2 bracket.
 // (B2's host-only "Rules" TAB used to ride here too. It was RETIRED at #616 — the owner ruled the surface
-// belongs as a SECTION inside "This chat", and it now grafts through `chatSettingsSections` below.)
+// belongs as a SECTION inside "This chat", and it now grafts through `chatSettingsSections` in `contributors.ts`.)
 const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", [
   ...makeRpgContextTabs({ trpc: trpcProxy, queryClient }),
   // B11 — the room ACTIVITY tab (host-only), automation's second CONTEXT-strip graft: a ready def (no injected
   // read channel — its body reads through `useTRPC`), sibling of Members/"This chat"/Preview. automation owns
   // it because `client-features-no-cross` forbids chat from importing the fire-outcome copy it renders.
   automationActivityTab,
-]);
-
-// The "This chat" tab's SECTION seam (§6c — the THIRTEENTH contributor family, minted at #616 on the
-// owner's ruling that the Rules surface belongs INSIDE the per-chat-configuration tab rather than beside
-// it as a 5th host tab). automation's Rules is its first tenant: a ready def, not a factory (it needs no
-// injected read channel — the body reads through `useTRPC` at render). `CommittedSettingsTab` renders each
-// contribution in its own `<Section kicker>` at the end of the host-ops band, importing nothing from
-// automation; zero contributors leaves the tab byte-identical to a build without the seam.
-const chatSettingsSections = createContributorRegistry<ChatSettingsSectionContribution>("chat-settings-sections", [
-  automationRulesSection,
-  pluginSnippetConsoleSection,
-  // U2 (#679, seam 7): the ONE plugin-panel section — it fans per-plugin INSIDE its body off `listSurfaces`,
-  // so this array never grows when a person installs a plugin. Its body renders `null` for a person with no
-  // `chat-settings-section` surfaces and the host's grafted `<Section>` collapses with it (no empty heading).
-  pluginChatSettingsSection,
 ]);
 
 // The chat-context REGION-CLAIM seam (§6c / HUD-1 §3.2): the rpg HUD claims the WHOLE CONTEXT pane on an
@@ -146,107 +95,16 @@ const chatContextRegions = createContributorRegistry<ContextRegionDef<ChatContex
   makeRpgHudRegion({ trpc: trpcProxy, queryClient }),
 ]);
 
-// The chat-surface contributor seam (§6c/M8). Its FIRST tenant is rpg's per-row "what this turn did"
-// disclosure (TOOLCALLS-INVISIBLE, arm A): on the `folded` path the model emits its state writes alongside
-// its prose and D112 keeps that traffic server-internal, so without this the majority of what a turn DID was
-// invisible to the person who played it. rpg raises it; chat mounts it blind at `message-footer`; neither
-// imports the other. Its SECOND is the S1 control mount below.
-//
-// The S1 CONTROL-SOURCE seam — the TWELFTH contributor family:
-// transient interactive controls near the transcript (rule chips and confirm cards). A feature
-// appends a source here without importing chat, and chat renders it blind through the one band.
-//
-// ITS TENANTS: automation's S4 suggest/confirm CARDS (A4) and B3's member-visible quick-reply CHIPS — two
-// sources, one band, each publishing its own control KIND (card / chip) so the stacking law has one owner per
-// kind. The zero-source acceptance property the seam shipped with still holds and is still what the CTs pin —
-// with an empty array the mount below `when`-filters itself out and the room is byte-identical to a build with
-// no control seam — but the array is no longer empty, so the honest statement of the property is now "a room
-// with no live control renders no band chrome", which each source delivers by publishing nothing until its
-// own bus event arrives.
-const chatControlSources = createContributorRegistry<ChatControlSource>("chat-controls", [automationSuggestionSource, automationQuickReplySource]);
-
-const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [
-  rpgTurnToolCallsSurface,
-  // B6 — the reaction pill row. Chat's own tenant on its own anchor, and deliberately so: the anchor mounts
-  // once per COMMITTED row, which is what makes "reactions only exist on canon" structural rather than a
-  // predicate. Silent (and layout-neutral, the footer band being `empty:hidden`) on every row nobody has
-  // reacted to, which is most rows in most rooms.
-  chatMessageReactionsSurface,
-  // The ONE above-composer control mount, consuming the registry above.
-  makeChatControlsContribution(chatControlSources),
-  // …and the seam's THIRD tenant + first `thread-flank` one (#16): automation's needle meter, rendering the
-  // tension score its preset publishes into the room's chat variables. Silent — and therefore invisible in
-  // the layout, the flank stack being `empty:hidden` — in every room that carries no score.
-  automationNeedleMeterSurface,
-  // B9 (#7): the clock's fill meter, a second `thread-flank` tenant. It reads the `clockFires` preset's
-  // published fill + threshold from the same member-visible vars plane and is silent (layout-neutral) in every
-  // room that carries no clock.
-  automationClockMeterSurface,
-  // U2 (#679, seam 7): the ONE plugin `chat-flank` tenant, and LAST in the column on purpose — the house's own
-  // widgets keep the top of the flank and third-party panels read below them. A fixed first-party member that
-  // fans per-plugin INSIDE its body off `plugin.listSurfaces` (the one-assembly law: the door never grows per
-  // plugin). It carries no `when` — "does this person have a chat-flank surface?" is DATA the seam's sync
-  // predicate cannot see — so it mounts in every room and renders null where it does not apply.
-  pluginChatFlankSurface,
-  pluginComposerActionSurface,
-  // D269: RPG's ruleset-gated dice actions join the existing Message tools menu, away from the persistent band.
-  rpgDiceComposerMediaSurface,
-  pluginComposerMediaSurface,
-  // U6 (#679, §5.4): the ONE plugin `message-footer` tenant — the per-ROW decoration strip, LAST so the
-  pluginMessageFooterSurface, // house's own per-row disclosures read above third-party decoration.
-]);
-
-// The per-tool renderer seam (§6c). Its FIRST tenant is the plugin plane's card
-// renderer, and it claims a NAMESPACE rather than a name: a plugin tool's wire name is `plugin_<slug'>_<name>`,
-// so which names exist depends on who installed what and could never be listed here. ONE member claims
-// `plugin_*` and fans per-plugin inside its own body off `plugin.listSurfaces` — the door does not grow per
-// plugin (G8). A tool with no claiming renderer still renders the generic @orb/ui `ToolCallBlock`, and so does
-// a `plugin_*` tool whose owner registered no card: the fallback is the null state for a tool call, because a
-// call is canon and the transcript owes the reader a record of it.
-// B8's SECOND tenant: rpg's in-thread dice renderer, an EXACT `roll_dice`
-// claim (`match: "name"`, which wins over the plugin plane's `plugin_*` prefix claim above). A `roll_dice`
-// call with no well-formed roll — and any tool with no claiming renderer — still renders the generic
-// `ToolCallBlock`, so the seam's zero-registrant fallback is untouched.
-const toolRenderers = createContributorRegistry<ToolRenderer>("tool-renderers", [pluginToolRenderer, rpgDiceToolRenderer]);
-
 // The WHOLE-MESSAGE tool-renderer seam (§6c): the per-message override that renders ALL of a message's tool
 // records together so a contributor can AGGREGATE across them (the per-tool registry above cannot see across
 // records). Delivered via a context provider; the FIRST renderer to claim a message owns its whole tool block,
 // else chat falls back to the per-record path. Empty ⇒ byte-identical.
 const messageToolsRenderers = createContributorRegistry<MessageToolsRenderer>("message-tools-renderer", []);
 
-// The ONE slash-command assembly (§6c/G8): the single source of truth BOTH command surfaces read — the chat
-// composer dispatches `/<id> …` against it and the command palette lists it. The two entries here are the
-// palette's former hardcoded "Create" rows, now owned by their own features; a grafted feature (automation,
-// a plugin surface) appends its commands the same way, without importing chat. Delivered via a context
-// provider, so a build/CT with no Provider has zero commands and every send is a plain send.
-const slashCommands = createContributorRegistry<SlashCommandContribution>("slash-commands", [
-  ...chatSlashCommands,
-  ...characterSlashCommands,
-  ...imagerySlashCommands,
-  // U5 (#679, §4.5): the ONE `/plugin <slug> <cmd> …` dispatcher — it fans per-plugin INSIDE its mount, so no
-  // plugin claims a top-level token and the door never grows per install.
-  ...pluginSlashCommands,
-]);
-
-// U8 (#679, §4.5/§5 row 9): the DYNAMIC palette sources — first-party contributors that fan RUNTIME-derived
-// rows (a plugin's registered commands, read per-caller) into first-class command-palette rows. Like every
-// contributor family, the door does not grow when a person installs a plugin (the per-plugin fan lives inside
-// the source's `useRows` off the caller's own `plugin.listCommands`). The Corpus modes ride here too (D271).
-const commandPaletteSources = createContributorRegistry<CommandPaletteSource>("command-palette-sources", [
-  pluginCommandPaletteSource,
-  configPaletteSource,
-  corpusModePaletteSource,
-]);
-
 // The character-detail contributor seam (§6c): EMPTY but typed — the door → factory → editor-body anchor
 // path is compiled and exercised with zero contributions; the agents feature appends its card-evolution
 // review section later (crew 07-client-ui §4.2), grafting into the editor WITHOUT importing character.
 const characterDetailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
-
-// The Corpus workbench's contributed modes (D271): stats is Insights and tag is Labels, assembled here so
-// discovery imports neither. Their CONTEXT tabs join Explore's own, each gated on the active mode.
-const corpusContextTabs = createContributorRegistry<ContextTabDef<CorpusContextState>>("corpus-context", [...insightsContextTabs, ...labelsContextTabs]);
 
 // The ONE config-group assembly: total over CONFIG_GROUP_IDS by
 // tsc — a missing group is a compile error, and `config-group-completeness` carries the walls tsc cannot
@@ -341,7 +199,7 @@ const chrome = createContributorRegistry(
     // `characterCreateChrome` (#1669) is the first SECTION-scoped trail entry: the Characters pane's primary,
     // on a phone only, where the LIST band that used to carry it is shed. Its `useVisible` states the three
     // conditions; the zone is shell-global, the affordance is not.
-    widgets: [notificationsChrome, pluginCommandsChrome, characterCreateChrome, contextToggleChrome, personaChrome, bugReportChrome],
+    widgets: chromeWidgets,
   }),
 );
 

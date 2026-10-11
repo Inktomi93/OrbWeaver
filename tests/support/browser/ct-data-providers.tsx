@@ -16,81 +16,21 @@
 // page across tests, the per-mount reset belongs HERE.
 
 import { createAppQueryClient, createTrpcClient, TRPCProvider, useSettingsViewerView } from "@orb/client/data";
-import {
-  appearanceBackgroundSection,
-  appearanceEffectsSection,
-  appearanceReadingSection,
-  appearanceSizingSection,
-  contextToggleChrome,
-  youModal,
-} from "@orb/client/features/app-shell";
+import { contextToggleChrome, youModal } from "@orb/client/features/app-shell";
 import { reauthModal } from "@orb/client/features/auth";
-import { automationBudgetSection, automationLibraryRulesSection } from "@orb/client/features/automation";
-import { characterCreateChrome, librarySettingsSection, makeCharactersSection } from "@orb/client/features/character";
-import {
-  appearanceAvatarsSection,
-  appearanceMessageDetailsSection,
-  appearanceMessageStyleSection,
-  ChatsWithCharacterPane,
-  chatAttachmentQualitySection,
-  chatMessageHandlingSection,
-  chatQuickPicksTile,
-  chatRecentsTile,
-  chatStreamingSection,
-  chatTempChatTile,
-  commandModal,
-  databankSettingsSection,
-  imageryTemplatesSection,
-  makeChatsSection,
-  memorySettingsSection,
-  newChatModal,
-  proseSettingsSection,
-} from "@orb/client/features/chat";
-import { appearanceLooksSection, makeConfigSection } from "@orb/client/features/config";
-import { connectionsKeysSection, connectionsListSection, connectionsRolesSection } from "@orb/client/features/credentials";
-import { addDocumentModal, databankDocumentsTile, databankSection } from "@orb/client/features/databank";
+import { makeCharactersSection } from "@orb/client/features/character";
+import { ChatsWithCharacterPane, commandModal, makeChatsSection, newChatModal } from "@orb/client/features/chat";
+import { bindConfigPaletteGroups, makeConfigSection } from "@orb/client/features/config";
+import { addDocumentModal, databankSection } from "@orb/client/features/databank";
 import { makeCorpusSection } from "@orb/client/features/discovery";
-import { makeHomeSection, makeSectionJumpTile } from "@orb/client/features/home";
+import { makeHomeSection } from "@orb/client/features/home";
 import { imageDetailModal, imageEditModal, imagineModal } from "@orb/client/features/imagery";
-import { notificationsChrome } from "@orb/client/features/notifications";
-import { personaChrome, personaListSection, personaNotificationsSection, personaThisChatSection } from "@orb/client/features/persona";
-import {
-  extensionsSection,
-  pluginCommandArgsModal,
-  pluginDialogModal,
-  pluginDistributeSection,
-  pluginsInstalledSection,
-  pluginsInstallSection,
-  pluginToolRenderer,
-} from "@orb/client/features/plugin";
+import { extensionsSection, pluginCommandArgsModal, pluginDialogModal } from "@orb/client/features/plugin";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
 import { savedRostersModal } from "@orb/client/features/roster-preset";
-import { insightsContextTabs, insightsCorpusMode } from "@orb/client/features/stats";
-import { labelsContextTabs, labelsCorpusMode } from "@orb/client/features/tag";
-import {
-  aboutSection,
-  aboutUpdatesSection,
-  adminApprovalsSection,
-  adminCatalogSection,
-  adminEmbeddingsSection,
-  adminLinkSsoSection,
-  adminUsersSection,
-  mediaTrustSection,
-  memoryTuningSection,
-  multiUserSection,
-  operationsSection,
-  rateLimitsSection,
-  systemTuningSection,
-} from "@orb/client/features/user-admin";
-import {
-  backupExportSection,
-  backupImportSection,
-  workloadsJobsSection,
-  workloadsSchedulesSection,
-  workloadsTuningSection,
-} from "@orb/client/features/workloads";
-import { worldInfoSettingsSection } from "@orb/client/features/world-info";
+import { insightsCorpusMode } from "@orb/client/features/stats";
+import { labelsCorpusMode } from "@orb/client/features/tag";
 import type {
   CharacterDetailContribution,
   ChatContextState,
@@ -99,9 +39,7 @@ import type {
   ContextRegionDef,
   ContextTabDef,
   ContributorRegistry,
-  CorpusContextState,
   ListPaneHeaderView,
-  ToolRenderer,
 } from "@orb/client/lib";
 import { bindSessionDocumentHost, createContributorRegistry, createRegistry, defineContextTabs } from "@orb/client/lib";
 import type {
@@ -109,7 +47,6 @@ import type {
   ChromeRegistry,
   ConfigGroupId,
   ConfigSectionContribution,
-  HomeTileContribution,
   ModalDefinition,
   ModalRegistry,
   ModalSlotId,
@@ -133,6 +70,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment } from "react";
 import { placeholderConfigGroups, realConfigGroups } from "./ct-config-groups.ts";
+import { chatSurfaceContributors, chromeWidgets, configSections, corpusContextTabs, homeTiles, toolRenderers } from "./ct-door.ts";
+
+// The door binds the ⌘K Settings palette source to its group registry once; the CT door does the same, so the
+// door's palette sources render the rows production renders.
+bindConfigPaletteGroups(realConfigGroups);
 
 // Client CTs run outside main.tsx, so this support composition root supplies the same browser document
 // capabilities before any story can mount data/session consumers.
@@ -205,34 +147,14 @@ export function CtAppDataProviders({ children }: { readonly children: ReactNode 
 
 const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", []);
 const chatContextRegions = createContributorRegistry<ContextRegionDef<ChatContextState>>("chat-context-regions", []);
-const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", []);
 const characterDetailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
-// The per-tool renderer seam, MIRRORING the real door (#679 U3): its one member claims the `plugin_` tool
-// namespace and fans per-plugin inside its body. Every non-`plugin_` tool record still falls back to
-// `ToolCallBlock`, and so does a `plugin_*` one whose owner registered no card — so a CT that stubs no plugin
-// routes sees exactly the generic block it always did.
-const chatToolRenderers = createContributorRegistry<ToolRenderer>("tool-renderers", [pluginToolRenderer]);
 // The "This chat" SECTION seam (#616), empty here: a shell CT proves the tab's OWN sections, and the
 // automation graft is proved by its own CT, which wires this registry itself.
 const chatSettingsSections = createContributorRegistry<ChatSettingsSectionContribution>("chat-settings-sections", []);
-// The Corpus workbench's contributed modes, mirroring the door (D271): Insights from stats, Labels from tag.
-const corpusContextTabs = createContributorRegistry<ContextTabDef<CorpusContextState>>("corpus-context", [...insightsContextTabs, ...labelsContextTabs]);
-
-// The home-tile seam, assembled as at the real door (home's own jump grid + whatever features raise) —
-// so a shell CT that lands on `home` renders the REAL tile grid, not a stand-in.
-const HOME_TILE_CONTRIBUTIONS: readonly HomeTileContribution[] = [chatRecentsTile, chatQuickPicksTile, chatTempChatTile, databankDocumentsTile];
-
-const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [
-  ...HOME_TILE_CONTRIBUTIONS,
-  // LAST, and built FROM the list above: its rows are the section registry minus home minus every section
-  // a tile beside it already subsumes (`sectionId`).
-  makeSectionJumpTile(HOME_TILE_CONTRIBUTIONS),
-]);
-
 /** The REAL config-section registry alone — for a story that mounts the config host's LIST/CONTENT panes
  *  directly (they read the section registry from context; the group registry rides in by prop). */
 export function CtRealConfigSectionRegistry({ children }: { readonly children: ReactNode }): ReactElement {
-  return <ConfigSectionRegistryProvider value={realSettingsSections}>{children}</ConfigSectionRegistryProvider>;
+  return <ConfigSectionRegistryProvider value={configSections}>{children}</ConfigSectionRegistryProvider>;
 }
 
 const REAL: Record<SectionId, SectionDefinition> = {
@@ -241,7 +163,7 @@ const REAL: Record<SectionId, SectionDefinition> = {
     contextTabs: chatContextContributors,
     contextRegions: chatContextRegions,
     surfaces: chatSurfaceContributors,
-    toolRenderers: chatToolRenderers,
+    toolRenderers,
     settingsSections: chatSettingsSections,
   }),
   characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),
@@ -278,78 +200,9 @@ const REAL_MODALS: Record<ModalSlotId, ModalDefinition> = {
 const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefinition>("modals", MODAL_SLOT_IDS, REAL_MODALS);
 
 // ── Config-section-registry CT provider ───────────────────────────────────────────────────────────
-// Mirror the door (`compose/config-sections.ts`): ONE config-section registry for every anchor (SET-SEAMS
-// §5.2), read by the config host's LIST (rows + search) and CONTENT (render), so a shell CT renders the
-// contributed sections exactly as production does — every non-collection group is a skimmer over these
-// so an omission here renders an incomplete group in every CT. ORDER is part of the mirror too: the host
-// renders each anchor in registry order, so a reordered entry here moves the section on screen in every CT.
-// `ct-config-mirror-parity` compares the two lists as multisets and does not see order; the per-group
-// order CTs (`chat-behavior-group.ct.tsx` and its siblings) do.
-const realSettingsSections: ContributorRegistry<ConfigSectionContribution> = createContributorRegistry<ConfigSectionContribution>("config-sections", [
-  // personas · backup · connections · automation ← the §6.8 conversions, in the door's order.
-  personaNotificationsSection,
-  personaListSection,
-  personaThisChatSection,
-  backupExportSection,
-  backupImportSection,
-  connectionsListSection,
-  connectionsRolesSection,
-  connectionsKeysSection,
-  automationLibraryRulesSection,
-  automationBudgetSection,
-  // chat-behavior ← the DECOMPOSED pane (SET-SEAMS stage 2) leading, then the already-contributed sections.
-  chatMessageHandlingSection,
-  chatStreamingSection,
-  memorySettingsSection,
-  chatAttachmentQualitySection,
-  worldInfoSettingsSection,
-  databankSettingsSection,
-  imageryTemplatesSection,
-  proseSettingsSection,
-  // admin ← the former SYSTEM pane's five sections lead (SET-SEAMS stage 4 / §10 Q2), then the DECOMPOSED
-  // admin pane (stage 3) in the door's render order, then the AppSettings admin-tier sections.
-  // `systemTuningSection` used to be omitted here; with the pane a pure skimmer the registry IS the pane, so
-  // an omission would render an incomplete admin pane in every CT.
-  mediaTrustSection,
-  multiUserSection,
-  operationsSection,
-  adminUsersSection,
-  // A2/B5 — Approvals and Link-SSO follow Users at the door; they were MISSING here until 2026-09-20 and
-  // the admin pane rendered three sections short in every shell CT (exactly the omission the note above
-  // warns about, realised).
-  adminApprovalsSection,
-  adminLinkSsoSection,
-  adminCatalogSection,
-  adminEmbeddingsSection,
-  memoryTuningSection,
-  rateLimitsSection,
-  systemTuningSection,
-  // about ← the version (every member), then the admin's update check.
-  aboutSection,
-  aboutUpdatesSection,
-  // workloads ← the DECOMPOSED pane (SET-SEAMS stage 3), in the door's render order.
-  workloadsJobsSection,
-  workloadsSchedulesSection,
-  workloadsTuningSection,
-  // appearance ← the DECOMPOSED pane (SET-SEAMS stage 1), in the door's render order.
-  // LOOKS leads (#866 S4 — the theme fold into Appearance).
-  appearanceLooksSection,
-  appearanceMessageStyleSection,
-  appearanceAvatarsSection,
-  appearanceSizingSection,
-  appearanceMessageDetailsSection,
-  appearanceBackgroundSection,
-  appearanceReadingSection,
-  appearanceEffectsSection,
-  librarySettingsSection,
-  // plugins ← Installed · Add-a-plugin (ungated, D147), then the admin-gated "Distribute to everyone"
-  // section (D147 clause (d)), last in the door's order. The distribute section's own `when` is what the
-  // shell CT's admin/plain-user pair exercises, so it MUST be here: an omission would make the gate
-  // untestable and read as "the section never renders" in every CT.
-  pluginsInstalledSection,
-  pluginsInstallSection,
-  pluginDistributeSection,
-]);
+// The door's ONE config-section registry (`compose/config-sections.ts`, re-exported by `ct-door.ts`): every
+// non-collection group is a skimmer over it, so a shell CT renders the contributed sections in the order
+// production does.
 
 /** A group's body EXACTLY as the config host renders it (config-content-surface.tsx `GroupBody`): the
  *  contributions at `anchor`, `when`-filtered by the ONE viewer projection, in registry order, in the host's
@@ -394,10 +247,7 @@ const realChromeRegistry: ChromeRegistry = createContributorRegistry(
   assembleChrome({
     sections: realRegistry.list(),
     modals: realModalRegistry.list(),
-    // `characterCreateChrome` (#1669) is the door's SECTION-scoped trail entry — the Characters pane's
-    // primary, on a phone, where the LIST band that used to carry it is shed. It has to be here or the
-    // real-registry shell CTs measure a phone topbar the product does not ship.
-    widgets: [notificationsChrome, characterCreateChrome, contextToggleChrome, personaChrome],
+    widgets: chromeWidgets,
   }),
 );
 
@@ -449,7 +299,7 @@ export function CtRealSectionRegistry({ children }: { readonly children: ReactNo
     <SectionRegistryProvider value={realRegistry}>
       <ModalRegistryProvider value={realModalRegistry}>
         <ChromeRegistryProvider value={realChromeRegistry}>
-          <ConfigSectionRegistryProvider value={realSettingsSections}>{children}</ConfigSectionRegistryProvider>
+          <ConfigSectionRegistryProvider value={configSections}>{children}</ConfigSectionRegistryProvider>
         </ChromeRegistryProvider>
       </ModalRegistryProvider>
     </SectionRegistryProvider>
@@ -470,7 +320,7 @@ export function CtPlaceholderGroupRegistry({ children }: { readonly children: Re
     <SectionRegistryProvider value={placeholderSectionRegistry}>
       <ModalRegistryProvider value={realModalRegistry}>
         <ChromeRegistryProvider value={realChromeRegistry}>
-          <ConfigSectionRegistryProvider value={realSettingsSections}>{children}</ConfigSectionRegistryProvider>
+          <ConfigSectionRegistryProvider value={configSections}>{children}</ConfigSectionRegistryProvider>
         </ChromeRegistryProvider>
       </ModalRegistryProvider>
     </SectionRegistryProvider>
@@ -511,7 +361,7 @@ export function CtChatContributorSectionRegistry({
       contextTabs: contextContributors ?? chatContextContributors,
       contextRegions: contextRegions ?? chatContextRegions,
       surfaces: surfaceContributors ?? chatSurfaceContributors,
-      toolRenderers: chatToolRenderers,
+      toolRenderers,
       settingsSections: chatSettingsSections,
     }),
   });
@@ -519,7 +369,7 @@ export function CtChatContributorSectionRegistry({
     <SectionRegistryProvider value={registry}>
       <ModalRegistryProvider value={realModalRegistry}>
         <ChromeRegistryProvider value={realChromeRegistry}>
-          <ConfigSectionRegistryProvider value={realSettingsSections}>{children}</ConfigSectionRegistryProvider>
+          <ConfigSectionRegistryProvider value={configSections}>{children}</ConfigSectionRegistryProvider>
         </ChromeRegistryProvider>
       </ModalRegistryProvider>
     </SectionRegistryProvider>
@@ -545,7 +395,7 @@ export function CtCharacterContributorSectionRegistry({
     <SectionRegistryProvider value={registry}>
       <ModalRegistryProvider value={realModalRegistry}>
         <ChromeRegistryProvider value={realChromeRegistry}>
-          <ConfigSectionRegistryProvider value={realSettingsSections}>{children}</ConfigSectionRegistryProvider>
+          <ConfigSectionRegistryProvider value={configSections}>{children}</ConfigSectionRegistryProvider>
         </ChromeRegistryProvider>
       </ModalRegistryProvider>
     </SectionRegistryProvider>
@@ -662,7 +512,7 @@ export function CtFakeSectionRegistry({
     <SectionRegistryProvider value={registry}>
       <ModalRegistryProvider value={realModalRegistry}>
         <ChromeRegistryProvider value={realChromeRegistry}>
-          <ConfigSectionRegistryProvider value={realSettingsSections}>{children}</ConfigSectionRegistryProvider>
+          <ConfigSectionRegistryProvider value={configSections}>{children}</ConfigSectionRegistryProvider>
         </ChromeRegistryProvider>
       </ModalRegistryProvider>
     </SectionRegistryProvider>

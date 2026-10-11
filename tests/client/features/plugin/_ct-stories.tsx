@@ -23,7 +23,6 @@ import {
   pluginMessageFooterSurface,
   pluginsInstalledSection,
   pluginsInstallSection,
-  pluginToolRenderer,
   SnippetConsole,
 } from "@orb/client/features/plugin";
 import type { ChatSettingsSectionContribution, ChatSurfaceContribution, CommandPaletteSource, ToolRenderer } from "@orb/client/lib";
@@ -82,6 +81,7 @@ import {
   CtDataProviders,
   CtRealSectionRegistry,
 } from "../../../support/browser/ct-data-providers.tsx";
+import { toolRenderers } from "../../../support/browser/ct-door.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CHAT_ID } from "../chat/fixtures.ts";
 
@@ -376,17 +376,13 @@ export function PluginMessageFooterRoomStory({ registered = true }: { readonly r
 }
 
 // ── U3: the TOOL-CARD story (seam 7 — closes A2-F5) ──────────────────────────────────
-// The subject is chat's own `MessageToolCalls` over the REAL door member (`pluginToolRenderer`), never a test
+// The subject is chat's own `MessageToolCalls` over the door's tool renderers (`ct-door.ts`), never a test
 // double: what is pinned is the production path a person gets — a persisted `ToolCallRecord` → the `plugin_`
 // namespace claim → `plugin.listSurfaces` → the labelled shell, or the generic block when no card claims it.
 
 /** A transcript column at a realistic reading width. */
 const TRANSCRIPT_WIDTH = 640;
 
-/** The tool-renderer registry AS THE DOOR ASSEMBLES IT — one member, claiming the `plugin_` namespace. */
-const realToolRenderers: ReturnType<typeof createContributorRegistry<ToolRenderer>> = createContributorRegistry<ToolRenderer>("tool-renderers", [
-  pluginToolRenderer,
-]);
 /** The BASELINE arm: a build with NO plugin contribution — the generic-block rendering every byte-identity
  *  pin below compares against. */
 const noToolRenderers: ReturnType<typeof createContributorRegistry<ToolRenderer>> = createContributorRegistry<ToolRenderer>("tool-renderers", []);
@@ -412,7 +408,7 @@ export function PluginToolCardStory({
   return (
     <CtDataProviders>
       <div style={{ width: TRANSCRIPT_WIDTH }}>
-        <MessageToolCalls records={records} renderers={registered ? realToolRenderers : noToolRenderers} />
+        <MessageToolCalls records={records} renderers={registered ? toolRenderers : noToolRenderers} />
       </div>
     </CtDataProviders>
   );
