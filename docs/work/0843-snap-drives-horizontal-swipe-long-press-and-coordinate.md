@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-11
 priority: P3
 area: tooling
+lane: wt/agent-af9464fa4f5709f45
 ---
 
 # Snap drives horizontal swipe, long-press and coordinate taps
