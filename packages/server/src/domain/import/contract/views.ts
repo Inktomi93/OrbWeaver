@@ -3,6 +3,7 @@
 // Card-path types stay in contract/params.ts + contract/results.ts.
 
 import type { ChatMetadata } from "@orb/contracts/chat";
+import type { PersonaMetadata } from "@orb/contracts/persona";
 import type { PresetFile, StDroppedField } from "@orb/contracts/preset";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
@@ -17,6 +18,21 @@ export interface ParsedPersona {
   readonly avatarFile: string;
   readonly isDefault: boolean;
   readonly metadata: Record<string, unknown> | null;
+}
+
+/** A persona a profile upload would write, with the content hash of its avatar bytes — what the pre-commit
+ *  review compares against the owner's personas. */
+export interface IncomingPersona {
+  readonly name: string;
+  readonly description: string;
+  readonly metadata: PersonaMetadata | null;
+  readonly artHash: string | null;
+}
+
+/** One uploaded file: its path in the picked folder and its bytes. */
+export interface UploadedFile {
+  readonly relPath: string;
+  readonly bytes: Uint8Array;
 }
 
 export interface ParsedPersonas {
@@ -472,6 +488,9 @@ export interface ImportReport {
    *  reports its repairs here. NOT part of `changed`: a heal writes no new canon. Zero on every fresh
    *  import, and zero on a re-run of an already-attributed corpus. */
   readonly chatsPersonaHealed: number;
+  /** Folded names of the personas this run linked to an owned persona of the same name (the merge choice).
+   *  Scanned, not changed. */
+  readonly personasMergedKeys: readonly string[];
   /** Every real conversation the solo, group and orphan waves WROTE — the scope of the client's memory-build
    *  offer. Empty on a dry run. Not rendered into the written report. */
   readonly memoryChatIds: readonly ChatId[];

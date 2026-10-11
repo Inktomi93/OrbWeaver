@@ -175,6 +175,32 @@ describe("the client's tRPC wiring", () => {
     expect(JSON.parse(request.body ?? "null")).toEqual(input);
   });
 
+  test("an HTML answer to a batch call reports its HTTP status, not a JSON parse failure", async () => {
+    vi.stubGlobal("fetch", () => Promise.resolve(new Response("<!doctype html><title>app</title>", { status: 200, headers: { "content-type": "text/html" } })));
+    const failure = await createTrpcClient("http://localhost/api/trpc")
+      .settings.getUserSettings.query()
+      .catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).toContain("HTTP 200");
+    expect((failure as Error).message).toContain("text/html");
+    expect((failure as Error).message).not.toContain("Unexpected token");
+  });
+
+  test("CONTROL: a JSON error answer still reaches tRPC's own error decoding", async () => {
+    vi.stubGlobal("fetch", () =>
+      Promise.resolve(
+        new Response(JSON.stringify([{ error: { message: "nope", code: -32_001, data: { code: "UNAUTHORIZED", httpStatus: 401 } } }]), {
+          status: 401,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+    const failure = await createTrpcClient("http://localhost/api/trpc")
+      .settings.getUserSettings.query()
+      .catch((error: unknown) => error);
+    expect((failure as { data?: { code?: string } }).data?.code).toBe("UNAUTHORIZED");
+  });
+
   test("CONTROL: a query with input rides plain JSON POST with the input in the body", async () => {
     const client = createTrpcClient("http://localhost/api/trpc");
     await client.settings.getGlobalSetting.query({ key: "leg-t" }).catch(() => undefined);

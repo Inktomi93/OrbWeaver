@@ -749,10 +749,7 @@ html[data-shadow] [data-slot="message-bubble"] {
   max-width: calc(var(--reading-measure) * var(--reading-body-scale, 1));
   /* The centred skins' fixed column width (row-placement.ts): the measure, or the row less its two
    * identity rails when the row is narrower than both. `cqi` resolves against the row's own container. */
-  --reading-column-centred: min(
-    calc(var(--reading-measure) * var(--reading-body-scale, 1)),
-    calc(100cqi - 2 * (var(--spacing-avatar-lg) + var(--spacing-row)))
-  );
+  --centred-column-width: min(calc(var(--reading-measure) * var(--reading-body-scale, 1)), calc(100cqi - 2 * (var(--spacing-avatar-lg) + var(--spacing-row))));
 }
 
 /* THE ROOM'S TRACK CENTRES ON THE DEVICE-PIXEL GRID (#1362 — docs/law/integer-line-boxes.md Law 3). The track used

@@ -33,7 +33,7 @@ import type { Db } from "@orb/db";
 import { errorMessage } from "@orb/kit/error-message";
 import type { PluginId, UserId } from "@orb/kit/ids";
 import type { PluginService } from "#domain/plugin";
-import { listEnabledAcrossOwners } from "#domain/plugin";
+import { listEnabledAcrossOwners, PluginCrashedError } from "#domain/plugin";
 import { getLog } from "#foundation/observability";
 
 export interface ReactivatePluginsDeps {
@@ -70,12 +70,13 @@ async function restoreOne(
     }
     await deps.setEnabled({ caller: await principal, pluginId: row.pluginId, enabled: true });
     return true;
+    // @orb-waive caught-failure-ownership(err): a refused activation (`PluginCrashedError`) was already logged by `activate` with its plugin and cause, and every other throw is logged in this catch; the `failed` count is the summary. Ends if `activate` stops logging a refusal.
   } catch (err: unknown) {
-    // OWNED HERE, not marshalled up as a string: by the time this rejection arrives `activate` has already
-    // written the row `errored` with its `lastError` (the durable record), and this is the operator's copy —
-    // one line per plugin that died, naming it, because a boot with three failures should read as three
-    // failures rather than as a number in a summary. The counts below are the summary, not the report.
-    getLog().error({ pluginId: row.pluginId, ownerId: row.ownerId, err: errorMessage(err) }, "boot/reactivate-plugins: a plugin failed to start");
+    // A refused activation (`PluginCrashedError`) was already logged by `activate` with its plugin and cause, and
+    // the row is `errored`; anything else threw outside activation's own arms and is logged here, once.
+    if (!(err instanceof PluginCrashedError)) {
+      getLog().error({ pluginId: row.pluginId, ownerId: row.ownerId, err: errorMessage(err) }, "boot/reactivate-plugins: a plugin failed to start");
+    }
     return false;
   }
 }

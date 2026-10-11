@@ -24,7 +24,7 @@
 // resting content. Two things then broke it: the 2026-08-30 delta pass measured `Links` and `Options`
 // rendering as a section INSIDE this tab *and* as their own tabs, simultaneously visible in one 384px pane
 // (two homes for one concept, the exact IA defect the card was built to avoid), and the context-panel
-// program moved every tab onto a persistent foot rail — so the tab they previewed is now one thumb-tap
+// program moved every tab onto one persistent tab strip — so the tab they previewed is now one thumb-tap
 // away, and a preview of a control that is always on screen is chrome, not a glance.
 //
 // COST, NOW: one read — `character.get` (which carries `tags`) plus the `chat.listChats` page-of-one. The

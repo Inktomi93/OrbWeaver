@@ -30,6 +30,11 @@ import { stagedOwnerRoot } from "./substrate/staging.ts";
 import { createBackfillTokenUsage } from "./verbs/backfill-token-usage.ts";
 
 // Planner statistics are derived maintenance: a failed refresh must not reject committed import data.
+/** The result's merged persona keys, present only when a persona was merged. */
+function mergedField(mergedKeys: readonly string[] | undefined): { readonly mergedKeys?: readonly string[] } {
+  return mergedKeys !== undefined && mergedKeys.length > 0 ? { mergedKeys } : {};
+}
+
 async function refreshPlannerAfterImport(refresh: ImportWorkloadDeps["refreshPlannerStats"], ownerId: UserId, report: ReportProgress): Promise<void> {
   try {
     await refresh({ ownerId });
@@ -223,7 +228,13 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
         const profileRoot = params.stagedDir !== undefined ? await resolveStagedPath(ownerRoot, params.stagedDir) : deps.stProfileDir;
         let result: Awaited<ReturnType<ImportWorkloadDeps["runProfileDirImport"]>>;
         try {
-          result = await deps.runProfileDirImport({ profileRoot, ownerId: targetOwnerId, dryRun, signal });
+          result = await deps.runProfileDirImport({
+            profileRoot,
+            ownerId: targetOwnerId,
+            dryRun,
+            signal,
+            personaCollisions: params.personaCollisions,
+          });
         } finally {
           // A folder-upload staging tree is owned by this run; remove it (success OR error) through the
           // contained-rm belt. The configured default profile dir is persistent and is NEVER removed here.
@@ -245,6 +256,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           changed: result.changed,
           dryRun,
           failed: result.failed,
+          ...mergedField(result.mergedKeys),
           ...(result.reportPath !== undefined ? { reportPath: result.reportPath } : {}),
           ...(dryRun ? {} : { memoryScope: result.memoryScope }),
         };

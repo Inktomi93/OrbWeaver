@@ -14,6 +14,7 @@ import { createGet } from "./verbs/get.ts";
 import { createImport } from "./verbs/import.ts";
 import { createList } from "./verbs/list.ts";
 import { createRemove } from "./verbs/remove.ts";
+import { createReviewImport } from "./verbs/review-import.ts";
 import { createSetActive } from "./verbs/set-active.ts";
 import { createUpdate } from "./verbs/update.ts";
 
@@ -33,5 +34,6 @@ export function createPersonaService(ctx: PersonaContext): PersonaService {
     duplicate: createDuplicate(ctx),
     export: createExport(ctx),
     import: createImport(ctx),
+    reviewImport: createReviewImport(ctx),
   };
 }

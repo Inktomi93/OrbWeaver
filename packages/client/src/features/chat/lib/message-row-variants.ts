@@ -234,10 +234,11 @@ function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | null {
   const inset: CSSProperties = side === "left" ? { paddingLeft: ECHO_ART_WIDTH } : { paddingRight: ECHO_ART_WIDTH };
   const toward = side === "left" ? "right" : "left";
   return {
-    style: { ...ECHO_MAX_WIDTH_STYLE, ...inset, [`--row-reach-${side}`]: ECHO_ART_WIDTH, "--echo-art-width": ECHO_ART_WIDTH } as CSSProperties,
+    style: { ...ECHO_MAX_WIDTH_STYLE, ...inset, [`--row-reach-${side}`]: ECHO_ART_WIDTH } as CSSProperties,
     art: {
       side,
       style: {
+        width: ECHO_ART_WIDTH,
         backgroundImage: `url("${portraitUrl}")`,
         // Moonlit's feather: the art dissolves into the card toward the text and at its foot.
         maskImage: `linear-gradient(to ${toward}, black 70%, transparent), linear-gradient(to bottom, black 60%, transparent)`,

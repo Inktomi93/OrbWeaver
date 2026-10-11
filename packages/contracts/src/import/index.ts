@@ -4,6 +4,18 @@
 
 export type { CardImportResult, FailedCard, ImportedCard } from "./card-result.ts";
 export { cardImportResultSchema } from "./card-result.ts";
+export type { PersonaCollision, PersonaCollisionChoice, PersonaCollisionChoices, PersonaCollisionReview, PersonaDifference } from "./persona-collision.ts";
+export {
+  DEFAULT_PERSONA_COLLISION_CHOICE,
+  decodePersonaCollisionChoices,
+  encodePersonaCollisionChoices,
+  PERSONA_COLLISION_CHOICES,
+  PERSONA_COLLISION_FIELD,
+  PERSONA_DIFFERENCES,
+  personaCollisionChoiceFor,
+  personaCollisionChoicesSchema,
+  personaCollisionReviewSchema,
+} from "./persona-collision.ts";
 
 /** The ST per-profile credentials file. Never uploaded, never staged, never imported. */
 export const ST_SECRETS_FILE = "secrets.json";

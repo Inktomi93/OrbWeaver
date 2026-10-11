@@ -187,7 +187,7 @@ test("exactly ONE row wears the solid pin, however many rows CLAIM default in th
   await expect(page.getByText("Nova", { exact: true })).toBeVisible();
 
   await expect(page.getByText(DEFAULT_CLAIMING_TITLE)).toHaveCount(2);
-  await expect(page.getByRole("img", { name: "Pinned — your default persona" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /is pinned as your default$/, pressed: true })).toHaveCount(1);
   await expect(page.getByRole("button", { name: /^Pin .* as your default$/ })).toHaveCount(2);
   await expect(page.locator("svg.lucide-crown")).toHaveCount(0);
 });
@@ -306,4 +306,22 @@ test("flipping the swap switch OFF is honored on the wire", async ({ mount, page
   await expect
     .poll(() => trpc.lastInput("persona.createFromCharacter"), { intervals: [20, 50, 100] })
     .toMatchObject({ characterId: CHAR_ID, swapMacros: false });
+});
+
+test.describe("coarse pointer", () => {
+  test.use({ hasTouch: true });
+
+  test("no faint pin on a phone row: Set as default and Clear default live in the row's menu", async ({ mount, page }) => {
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    await stub(page);
+    await mount(<PersonaListStory width={320} />);
+    await expect(page.getByText("Nova", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Pin .* as your default$/ })).toHaveCount(0);
+    await expect(page.getByRole("img", { name: "Pinned — your default persona" })).toBeVisible();
+    await page.getByRole("button", { name: "Actions for Nova", exact: true }).click();
+    await expect(page.getByRole("menuitem", { name: "Clear default", exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: QUALIFIED_TRAVELER }).first().click();
+    await expect(page.getByRole("menuitem", { name: "Set as default", exact: true })).toBeVisible();
+  });
 });

@@ -3,6 +3,7 @@ import { Radio } from "@base-ui/react/radio";
 import type { RadioGroupProps as BaseRadioGroupProps } from "@base-ui/react/radio-group";
 import { RadioGroup as BaseRadioGroup } from "@base-ui/react/radio-group";
 import type { ReactElement, ReactNode } from "react";
+import { useState } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
 import { Check, Icon, Lock } from "#primitives/icons";
@@ -26,8 +27,38 @@ export interface RadioGroupItemProps extends RadioRootProps {
   children?: ReactNode;
 }
 
-export function RadioGroup({ className, ...rest }: RadioGroupProps): ReactElement {
-  return <BaseRadioGroup className={cn(slots.root(), className)} data-slot="radio-group-root" {...rest} />;
+// Base UI parks the group's tab stop on the item the user last interacted with and never re-reads it when a
+// controlled `value` changes from OUTSIDE (a "set all" button), so Tab would land on the unchecked radio.
+// `anchor` is the value the tab stop is seated on: the value at mount or remount, or the user's last pick. An
+// outside change to a different value, decided while focus is not inside the group, remounts the group, which
+// seats the tab stop on the checked item. Focus is read at decision time, so no flag can go stale.
+export function RadioGroup({ className, value, onValueChange, ...rest }: RadioGroupProps): ReactElement {
+  const [root, setRoot] = useState<HTMLDivElement | null>(null);
+  const [mountKey, setMountKey] = useState(0);
+  const [seenValue, setSeenValue] = useState(value);
+  const [anchor, setAnchor] = useState(value);
+  if (seenValue !== value) {
+    setSeenValue(value);
+    // Reads the document's focus during render on purpose: it is the only source that cannot go stale.
+    if (value !== anchor && !(root?.contains(document.activeElement) ?? false)) {
+      setMountKey(mountKey + 1);
+      setAnchor(value);
+    }
+  }
+  return (
+    <BaseRadioGroup
+      key={mountKey}
+      ref={setRoot}
+      className={cn(slots.root(), className)}
+      data-slot="radio-group-root"
+      value={value}
+      onValueChange={(next, details): void => {
+        setAnchor(next);
+        onValueChange?.(next, details);
+      }}
+      {...rest}
+    />
+  );
 }
 
 // `readOnly` renders distinctly from `disabled`: the circle keeps its normal token colors and a Lock

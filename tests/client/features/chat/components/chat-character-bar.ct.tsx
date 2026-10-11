@@ -93,8 +93,10 @@ test("a 2+ roster renders a chip per character", async ({ mount, page }) => {
 
   await expect(component.getByTestId("chat-character-bar")).toBeVisible();
   await expect(component.getByRole("group", { name: "Characters" })).toBeVisible();
-  await expect(component.getByText("Aria")).toBeVisible();
-  await expect(component.getByText("Bryn")).toBeVisible();
+  // A chip per character: the names are announced (`sr-only`) while the topbar title paints them.
+  await expect(component.locator('[data-slot="character-chip"]')).toHaveCount(2);
+  await expect(component.getByText("Aria")).toBeAttached();
+  await expect(component.getByText("Bryn")).toBeAttached();
 });
 
 test("a muted member's chip is marked (dimmed)", async ({ mount, page }) => {
@@ -318,24 +320,26 @@ for (const width of [430, 390, 320]) {
   });
 }
 
-// THE FINE-POINTER ARM IS UNCHANGED — the desktop strip still reads as names, because the trade above is
-// paid for by a phone's scarce height and a desktop pane has neither the scarcity nor the tab bar.
-test.describe("#511 the desktop strip keeps its names", () => {
+// THE DESKTOP STRIP IS FACES, TOO: the room header leads with the participants' names, so the cast row does not
+// print them a second time — they stay in the accessibility tree.
+test.describe("the desktop strip keeps faces and announces names", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test("at a fine pointer the names are painted, not merely announced", async ({ mount, page }) => {
+  test("at a fine pointer the names are announced, not painted twice", async ({ mount, page }) => {
     await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHARACTER_ROUTE, "chat.getChat": () => ({ participants: CROWDED_ROSTER }) });
     const component = await mount(<ChatCharacterBarStory />);
     await expect(component.getByTestId("chat-character-bar")).toBeVisible();
-    // Settled snapshot: the same context-fixed media match as the coarse arm — no `hasTouch`, decided before
-    // the page opened, and it is the discriminator for this whole describe.
     await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
 
-    await expect(component.getByText("Aria of the Ninth Gate")).toBeVisible();
-    const measured = await measureStrip(page);
-    // The ink is REAL here — every name spends width, which is the desktop strip's whole design.
-    for (const ink of measured.nameInkWidths) {
-      expect(ink).toBeGreaterThan(measured.avatarWidth);
+    await expect(component.getByText("Aria of the Ninth Gate")).toBeAttached();
+    // Every CHARACTER chip's name is clipped to a 1px box (the human chips keep their names: the header does not
+    // carry them).
+    const characterInk = await component
+      .locator('[data-slot="character-chip"] [data-slot="text"]')
+      .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().width)));
+    expect(characterInk.length).toBeGreaterThan(1);
+    for (const ink of characterInk) {
+      expect(ink).toBeLessThanOrEqual(1);
     }
   });
 });

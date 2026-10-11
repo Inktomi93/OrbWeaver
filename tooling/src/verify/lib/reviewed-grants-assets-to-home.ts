@@ -18,9 +18,6 @@ const STRUCTURAL_LENGTH_GRANT_SUBJECTS = {
   "11": "@supports (backdrop-filter: blur(1px)) {",
   "12": "@container shell-main (max-width: 30rem) {",
   "13": "@media (max-width: 48rem) {",
-  "14": "packages/client/src/features/chat/lib/pager-chrome.ts :: @max-[12rem]/pager:sr-only",
-  "15": "packages/client/src/features/chat/lib/pager-chrome.ts :: @max-[13rem]/pager:gap-tight",
-  "16": "packages/client/src/features/chat/lib/pager-chrome.ts :: @max-[13rem]/pager:[word-spacing:-1ch]",
   "17": "packages/client/src/features/character/components/character-create-actions.tsx :: @max-[19rem]:hidden",
   "18": "packages/client/src/features/character/components/character-create-actions.tsx :: @[19rem]:hidden",
   "19": "packages/ui/src/markdown/markdown.tsx :: max-h-[60cqh]",
@@ -32,6 +29,8 @@ const STRUCTURAL_LENGTH_GRANT_SUBJECTS = {
   "26": "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(22rem,100%),1fr))]",
   "27": ".shell-grid { --shell-content-track: calc(100dvw - env(safe-area-inset-left) - env(safe-area-inset-right) - var(--rail-w) - var(--list-track) - var(--context-track)) }",
   "28": ".shell-grid { --shell-centre-flip-from: calc( ( max(0px, var(--shell-content-track) + var(--shell-track-shrink) - var(--width-shell-content)) - max(0px, var(--shell-content-track) - var(--width-shell-content)) ) / 2 ) }",
+  "29": "@container shell-main (max-width: 56rem) {",
+  "30": "@container shell-main (max-width: 72rem) {",
 } as const;
 
 export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [

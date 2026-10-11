@@ -311,6 +311,7 @@ export function MessageActionsRow({
       <RowActionsMenu
         label={MESSAGE_ACTIONS_MENU_NAME}
         triggerSize="glyph"
+        shape="pill"
         destructive={{
           title: "Delete this message?",
           description: "This can't be undone.",

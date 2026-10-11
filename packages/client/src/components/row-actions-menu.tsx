@@ -61,6 +61,12 @@ export interface RowActionsMenuProps {
    *  small SQUARE trigger for a row whose scale is the `sm` control step; `"glyph"` is the glyph-button box
    *  for a compact tool column (the composer's ☰), its touch floor carried by the glyph arm. @defaultValue "icon" */
   readonly triggerSize?: "glyph" | "icon" | "inline" | "sm";
+  /** The trigger's outline: `control` (default) or `pill`, for a trigger standing among pill or glyph
+   *  neighbours (the composer's controls, a message's header actions) so its hover paint matches them.
+   *  @defaultValue "control" */
+  readonly shape?: "control" | "pill";
+  /** Roving focus: `-1` takes the trigger out of the tab order while its row is not the list's one tab stop. */
+  readonly triggerTabIndex?: -1;
   /** A3 hover-reveal on the trigger (rest hidden). @defaultValue false — pass true only where the row already hid its cluster. */
   readonly reveal?: boolean;
   /** Render the trigger's `label` as a hover/focus tooltip — a BOOLEAN, never a second string (#869).
@@ -123,12 +129,36 @@ const TRIGGER_BUTTON_SIZE = { glyph: "glyph-lg", icon: "icon", inline: "inline",
 
 const TRIGGER_INK = { inherit: "", receded: RECEDED_INK } as const satisfies Record<NonNullable<RowActionsMenuProps["ink"]>, string>;
 
-/** The glyph trigger is round like every glyph button it sits among (the composer's tools, a message's
- *  header actions), so its hover and press tint is a glyph-sized circle; the control steps keep the box. */
-const TRIGGER_BUTTON_SHAPE = { glyph: "pill", icon: "control", inline: "control", sm: "control" } as const satisfies Record<
-  NonNullable<RowActionsMenuProps["triggerSize"]>,
-  "control" | "pill"
->;
+function actionsTrigger({
+  label,
+  icon,
+  size,
+  shape,
+  ink,
+  reveal,
+  tabIndex,
+}: {
+  readonly label: string;
+  readonly icon: LucideIcon;
+  readonly size: NonNullable<RowActionsMenuProps["triggerSize"]>;
+  readonly shape: NonNullable<RowActionsMenuProps["shape"]>;
+  readonly ink: NonNullable<RowActionsMenuProps["ink"]>;
+  readonly reveal: boolean;
+  readonly tabIndex: -1 | undefined;
+}): ReactElement {
+  return (
+    <Button
+      aria-label={label}
+      className={reveal ? `${TRIGGER_INK[ink]} ${ROW_REVEAL}` : TRIGGER_INK[ink]}
+      intent="ghost"
+      shape={shape}
+      size={TRIGGER_BUTTON_SIZE[size]}
+      {...(tabIndex === undefined ? {} : { tabIndex })}
+    >
+      <Icon icon={icon} size="sm" />
+    </Button>
+  );
+}
 
 /**
  * The one row/entity actions menu — ghost ⋯ trigger, a popup of `children` items, and an optional
@@ -141,6 +171,8 @@ export function RowActionsMenu({
   icon = MoreHorizontal,
   align = "end",
   triggerSize = "icon",
+  shape = "control",
+  triggerTabIndex,
   reveal = false,
   tooltip = false,
   ink = "receded",
@@ -148,17 +180,7 @@ export function RowActionsMenu({
 }: RowActionsMenuProps): ReactElement {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const destructiveLabel = destructive?.label ?? "Delete";
-  const trigger = (
-    <Button
-      aria-label={label}
-      className={reveal ? `${TRIGGER_INK[ink]} ${ROW_REVEAL}` : TRIGGER_INK[ink]}
-      intent="ghost"
-      size={TRIGGER_BUTTON_SIZE[triggerSize]}
-      shape={TRIGGER_BUTTON_SHAPE[triggerSize]}
-    >
-      <Icon icon={icon} size="sm" />
-    </Button>
-  );
+  const trigger = actionsTrigger({ icon, label, reveal, shape, ink, size: triggerSize, tabIndex: triggerTabIndex });
 
   return (
     <>

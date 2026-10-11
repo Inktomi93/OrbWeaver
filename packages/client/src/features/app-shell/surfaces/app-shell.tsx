@@ -12,7 +12,7 @@ import { useEffect, useRef } from "react";
 import { preload } from "react-dom";
 import { ListPaneHeaderHost } from "#components";
 import { resolveThemeScopeTokens } from "#lib";
-import type { SectionId } from "#state";
+import type { PanelMode, SectionId } from "#state";
 import { closeModal, openModal, setActiveSection, useActiveChatId, useChromeRegistry, useSectionRegistry } from "#state";
 import { RegionAnchor } from "../anchors/region-anchor.tsx";
 import { CONTEXT_TOGGLE_MARKER } from "../components/context-toggle.tsx";
@@ -55,16 +55,18 @@ function dismissOverlays(layout: ShellLayout): void {
 }
 
 function useOverlayFocus(
-  overlay: boolean,
+  mode: PanelMode,
   pane: RefObject<HTMLElement | null>,
   frame: { readonly grid: RefObject<HTMLElement | null>; readonly scrim: RefObject<HTMLElement | null> },
   toggleMarker: string,
 ): void {
   const { grid, scrim } = frame;
-  const wasOverlayRef = useRef(overlay);
+  const overlay = mode === "overlay";
+  const open = mode !== "collapsed";
+  const wasOpenRef = useRef(open);
   useEffect(() => {
-    const wasOverlay = wasOverlayRef.current;
-    wasOverlayRef.current = overlay;
+    const wasOpen = wasOpenRef.current;
+    wasOpenRef.current = open;
     if (overlay) {
       const active = document.activeElement;
       if (active === null || active === document.body || grid.current?.contains(active) === true) {
@@ -72,7 +74,9 @@ function useOverlayFocus(
       }
       return;
     }
-    if (!wasOverlay) {
+    // A pane that CLOSED (overlay or docked) hands focus back to its toggle when the focus it held would
+    // otherwise drop to <body> as the pane goes inert; a close from the toggle itself already left it there.
+    if (!wasOpen || open) {
       return;
     }
     const timer = setTimeout(() => {
@@ -83,17 +87,13 @@ function useOverlayFocus(
       }
     });
     return (): void => clearTimeout(timer);
-  }, [overlay, pane, grid, scrim, toggleMarker]);
+  }, [overlay, open, pane, grid, scrim, toggleMarker]);
 }
 
-/** A FLOATING context pane's own way out, handed to the bracket to seat inside its head band (side-eye
- *  2026-08-06 P2 — the close sits where the thing it closes is; a phone cannot reach the scrim under a 100dvw
- *  sheet). Docked/collapsed panes carry none: the topbar toggle is the ONE detail-panel control there. The
- *  label is the same one `PanelChrome` would print, so a reader hears one name for one control. */
+/** The context pane's own way out, handed to the bracket to seat as the header row's trailing ×. It closes the
+ *  pane in every mode: docked, or a floating sheet a phone cannot reach the scrim under. The label is the same
+ *  one `PanelChrome` would print, so a reader hears one name for one control. */
 function contextDismiss(layout: ShellLayout): Pick<SectionContextHostProps, "dismissLabel" | "onDismiss"> {
-  if (layout.contextMode !== "overlay") {
-    return {};
-  }
   return { dismissLabel: `Close ${layout.activeSectionLabel} details`, onDismiss: (): void => layout.collapsePanel("context") };
 }
 
@@ -235,8 +235,8 @@ export function AppShell(): ReactElement {
   const contextPaneRef = useRef<HTMLElement>(null);
   const scrimRef = useRef<HTMLButtonElement>(null);
   const overlayFrame = { grid: gridRef, scrim: scrimRef };
-  useOverlayFocus(layout.contextMode === "overlay", contextPaneRef, overlayFrame, CONTEXT_TOGGLE_MARKER);
-  useOverlayFocus(layout.listMode === "overlay", listPaneRef, overlayFrame, LIST_TOGGLE_MARKER);
+  useOverlayFocus(layout.contextMode, contextPaneRef, overlayFrame, CONTEXT_TOGGLE_MARKER);
+  useOverlayFocus(layout.listMode, listPaneRef, overlayFrame, LIST_TOGGLE_MARKER);
 
   // A section jump made from a transient control (a You-sheet row) unmounts the control that held focus, and
   // the store-driven sheet unmount restores nothing, so focus would drop to <body>. Land it on the new

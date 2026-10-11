@@ -4,33 +4,6 @@ import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 export const REVIEWED_GRANTS_DENSITY_TIER_B: readonly ReviewedGateGrant[] = [
   {
-    id: "density-tier:persona-account-foot-size",
-    policyId: "density-tier",
-    subject: "packages/client/src/features/persona/components/persona-account-foot.tsx",
-    operation: "text-axis:size",
-    why: 'the switcher foot\'s two rows: the account handle line is proportional body-step text at `weight="semibold"` (not mono), and no closed voice sets body-step semibold — `promoted` is the title step reserved for one item among siblings; the `size="label" tone="muted"` mode note is a label+muted pair with no exact voice, explicitly in the density-pass judgment-call set (spec §2.3).',
-    endsWhen:
-      "§2.3 gains a body-step semibold voice for the account handle line, and a label-step + muted-tone voice for the mode note — both halves of this row have to end for the row to end.",
-  },
-  {
-    id: "density-tier:persona-account-foot-tone",
-    policyId: "density-tier",
-    subject: "packages/client/src/features/persona/components/persona-account-foot.tsx",
-    operation: "text-axis:tone",
-    why: 'the switcher foot\'s two rows: the account handle line is proportional body-step text at `weight="semibold"` (not mono), and no closed voice sets body-step semibold — `promoted` is the title step reserved for one item among siblings; the `size="label" tone="muted"` mode note is a label+muted pair with no exact voice, explicitly in the density-pass judgment-call set (spec §2.3).',
-    endsWhen:
-      "§2.3 gains a body-step semibold voice for the account handle line, and a label-step + muted-tone voice for the mode note — both halves of this row have to end for the row to end.",
-  },
-  {
-    id: "density-tier:persona-account-foot-weight",
-    policyId: "density-tier",
-    subject: "packages/client/src/features/persona/components/persona-account-foot.tsx",
-    operation: "text-axis:weight",
-    why: 'the switcher foot\'s two rows: the account handle line is proportional body-step text at `weight="semibold"` (not mono), and no closed voice sets body-step semibold — `promoted` is the title step reserved for one item among siblings; the `size="label" tone="muted"` mode note is a label+muted pair with no exact voice, explicitly in the density-pass judgment-call set (spec §2.3).',
-    endsWhen:
-      "§2.3 gains a body-step semibold voice for the account handle line, and a label-step + muted-tone voice for the mode note — both halves of this row have to end for the row to end.",
-  },
-  {
     id: "density-tier:persona-editor-size",
     policyId: "density-tier",
     subject: "packages/client/src/features/persona/components/persona-editor.tsx",
@@ -55,14 +28,6 @@ export const REVIEWED_GRANTS_DENSITY_TIER_B: readonly ReviewedGateGrant[] = [
     endsWhen: "§2.3 gains a DIRECTORY-ENTRY voice one step under `promoted` — the character-facet-row precedent's end condition, which this row cites.",
   },
   {
-    id: "density-tier:persona-switch-list-weight",
-    policyId: "density-tier",
-    subject: "packages/client/src/features/persona/components/persona-switch-list.tsx",
-    operation: "text-axis:weight",
-    why: "RATIFIED raw axes (#582, the character-facet-row precedent): a switch row's own NAME is a directory entry, one step under `promoted` — body step at medium, deliberately (the persona-row-name-column ruling, same list one mount over).",
-    endsWhen: "§2.3 gains a DIRECTORY-ENTRY voice one step under `promoted` — the persona-row-name-column ruling's end condition, one mount over.",
-  },
-  {
     id: "density-tier:persona-this-chat-section-size",
     policyId: "density-tier",
     subject: "packages/client/src/features/persona/components/persona-this-chat-section.tsx",
@@ -77,14 +42,6 @@ export const REVIEWED_GRANTS_DENSITY_TIER_B: readonly ReviewedGateGrant[] = [
     operation: "text-axis:tone",
     why: 'the "Playing as" section label and the anchor persona\'s `size="label" tone="muted"` line are explicitly named in the density burn-down\'s recorded judgment-not-forced set (persona-this-chat-section) — label(+muted) pairs are real tone decisions, not vocabulary gaps.',
     endsWhen: "§2.3 gains a label-step + muted-tone voice, retiring the judgment-not-forced class these lines belong to.",
-  },
-  {
-    id: "density-tier:persona-panel-surface-weight",
-    policyId: "density-tier",
-    subject: "packages/client/src/features/persona/surfaces/persona-panel-surface.tsx",
-    operation: "text-axis:weight",
-    why: "the who-head's identity line (`weight=\"semibold\"`) is the switcher's ONE promoted datum — the persona you are playing as — semibold at body step, the same class as the account handle line in persona-account-foot.tsx (spec §2.3's promoted definition reserves the `promoted` voice for a shelf item among siblings, which a head strip is not).",
-    endsWhen: "§2.3's `promoted` definition widens past a shelf item among siblings, or the who-head stops promoting exactly one identity datum.",
   },
   {
     id: "density-tier:macro-browser-size",

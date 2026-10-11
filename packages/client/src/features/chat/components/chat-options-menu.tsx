@@ -241,6 +241,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters }
         icon={MenuIcon}
         label="Chat options"
         triggerSize="glyph"
+        shape="pill"
         ink="inherit"
         // The hover/focus explanation is the LABEL, not a twin of it (#869): the popup used to read "Manage
         // this chat" over an accessible name of "Chat options", and on an icon-only trigger the popup IS the

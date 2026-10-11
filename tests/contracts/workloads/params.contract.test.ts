@@ -29,6 +29,11 @@ describe("workload params schemas", () => {
     expect(() => indexWorkloadParams.parse({ source: "corpus" })).toThrow();
   });
 
+  test("import-st keeps a persona collision choice for a name like __proto__ as an own key", () => {
+    const parsed = importStWorkloadParams.parse(JSON.parse('{"personaCollisions":{"__proto__":"keep-both"}}'));
+    expect(Object.entries(parsed.personaCollisions ?? {})).toEqual([["__proto__", "keep-both"]]);
+  });
+
   test("the maintenance shape accepts an optional dryRun", () => {
     expect(maintenanceWorkloadParams.parse({})).toEqual({});
     expect(maintenanceWorkloadParams.parse({ dryRun: true })).toEqual({ dryRun: true });

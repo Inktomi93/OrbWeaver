@@ -426,6 +426,12 @@ export async function planTreeImport(
   return { batches: packer.finish(), skipped: classified.skipped, files: counted.size, bytes };
 }
 
+/** Every file the plan's uploads carry, once each (settings.json and the avatars repeat across batches). The
+ *  persona review reads this, not the raw pick, so it sees the same art the import will write. */
+export function plannedFiles(plan: TreeImportPlan): readonly File[] {
+  return [...new Set(plan.batches.flat())];
+}
+
 /** The reasons the plan skipped files, grouped with a count each — the preflight's and the summary's lines. */
 export function skippedByReason(skipped: readonly SkippedTreeFile[]): readonly { readonly reason: string; readonly files: number }[] {
   const counts = new Map<string, number>();

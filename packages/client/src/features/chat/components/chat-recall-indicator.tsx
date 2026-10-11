@@ -37,9 +37,6 @@ export interface ChatRecallIndicatorProps {
   /** The viewer holds the room HOST role (`ChatDetail.viewerIsHost`) — gates the popover's full recall detail
    *  (the `previewAssembly` read is `requireHost` server-side; a member sees the count summary only). */
   readonly viewerIsHost: boolean;
-  /** Print the state as a WORD beside the glyph instead of a bare digit (#878 F11) — the BAND mount, which
-   *  has the width the topbar row does not. @defaultValue false */
-  readonly wordy?: boolean;
 }
 
 /** The accessible name for each recall state — the state lives in the NAME (the visible count is `aria-hidden`),
@@ -104,7 +101,7 @@ function HostRecallIndicator(props: ChatRecallIndicatorProps): ReactElement {
   );
 }
 
-function RecallIndicatorBody({ chatId, viewerIsHost, wordy = false, memory }: ChatRecallIndicatorProps & { readonly memory: MemoryDoor }): ReactElement {
+function RecallIndicatorBody({ chatId, viewerIsHost, memory }: ChatRecallIndicatorProps & { readonly memory: MemoryDoor }): ReactElement {
   const recall = useRecallState(chatId);
   const count = recall?.phase === "recalled" ? recall.count : null;
   const phase: RecallState["phase"] | "idle" = recall === null ? "idle" : recall.phase;
@@ -128,37 +125,18 @@ function RecallIndicatorBody({ chatId, viewerIsHost, wordy = false, memory }: Ch
             shape="pill"
             size="sm"
             aria-label={recallLabel(recall)}
-            // ITS OWN SHED MARKER, not the roster chip's (#846, 2026-08-30). This control wore
-            // `.shell-chat-member-chip` — a class named for a DIFFERENT chip — so its topbar budget was
-            // inherited by accident and could not be reasoned about separately. It sheds at the same steps the
-            // roster chip does (the 30rem phone column, and while the context pane whose band carries this
-            // same indicator is docked), but the two now say so for their own reasons.
             // The coarse INLINE touch floor (#875 F6): at rest this chip is glyph-only, so its `sm` height
             // floor left it 40px wide against the 44px short side — the fragment's note carries the
             // measurement.
-            className={`shell-chat-recall-chip whitespace-nowrap ${CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE}`}
+            className={`shrink-0 whitespace-nowrap ${CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE}`}
             data-recall-phase={phase}
           >
             {/* The pulse is the ONLY motion, and only when recalling AND motion is allowed — a quiet breath,
                 never a spin (owner ruling). Under prefers-reduced-motion it is a static labeled icon. */}
             <Icon icon={BrainCircuit} size="sm" className={iconClass(recall)} />
-            {/* THE WORD, IN THE MOUNT THAT HAS ROOM FOR IT (#878 F11). The mock draws `● Memory idle`; the
-                band shipped a bare squiggle whose accessible name was correct and whose VISIBLE name did
-                not exist — Sam served, Jordan not, the reverse of the usual failure. The visible text is
-                the accessible name ITSELF, so WCAG 2.5.3 Label-in-Name holds by construction rather than
-                by two strings someone has to keep in sync, and the count digit below is redundant in this
-                arm (the label already carries it). `wordy` is the `RosterChipButton` precedent, and for the
-                same reason: the topbar row cannot spend the width, the band can. */}
-            {wordy ? (
-              <Text as="span" voice="interactiveKicker" className="text-inherit" aria-hidden={true}>
-                {recallLabel(recall)}
-              </Text>
-            ) : null}
-            {wordy || count === null ? null : (
-              // `datum`, not `gloss` (#875 F6): this digit is the visible label of a button, and `gloss` is
-              // the 10.5px micro step — under the 11px readable floor. `datum` is the VALUE voice at the
-              // 13px label step, which is what this digit is.
-              <Text as="span" voice="datum" aria-hidden={true}>
+            {count === null ? null : (
+              // The count is the visible label step, the same type as the roster chip's digit (never a mono value).
+              <Text as="span" voice="label" className="shell-chat-chip-count text-inherit" aria-hidden={true}>
                 {count}
               </Text>
             )}

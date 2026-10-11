@@ -171,24 +171,6 @@ export const REVIEWED_GRANTS_DENSITY_TIER_A: readonly ReviewedGateGrant[] = [
     endsWhen: "§2.3 gains a label-step + muted-tone voice, retiring the judgment-not-forced class the invite dialog's mode line belongs to.",
   },
   {
-    id: "density-tier:chat-header-size",
-    policyId: "density-tier",
-    subject: "packages/client/src/features/chat/components/chat-header.tsx",
-    operation: "text-axis:size",
-    why: 'the `size="title" weight="semibold"` title is the chat header\'s PAGE title — promoted-is-reserved (explicitly named alongside shell-topbar.tsx): `promoted` is for one item in a shelf, not a page/topbar title. The member-count chip is a button and takes `voice="label"`, so it carries no raw axes and is not part of this grant.',
-    endsWhen:
-      "§2.3 gains a page/chrome TITLE voice, or the `promoted` definition stops being scoped to one item among siblings — the same end condition shell-topbar.tsx carries.",
-  },
-  {
-    id: "density-tier:chat-header-weight",
-    policyId: "density-tier",
-    subject: "packages/client/src/features/chat/components/chat-header.tsx",
-    operation: "text-axis:weight",
-    why: 'the `size="title" weight="semibold"` title is the chat header\'s PAGE title — promoted-is-reserved (explicitly named alongside shell-topbar.tsx): `promoted` is for one item in a shelf, not a page/topbar title. The member-count chip is a button and takes `voice="label"`, so it carries no raw axes and is not part of this grant.',
-    endsWhen:
-      "§2.3 gains a page/chrome TITLE voice, or the `promoted` definition stops being scoped to one item among siblings — the same end condition shell-topbar.tsx carries.",
-  },
-  {
     id: "density-tier:home-temp-chat-tile-body-size",
     policyId: "density-tier",
     subject: "packages/client/src/features/chat/components/home-temp-chat-tile-body.tsx",

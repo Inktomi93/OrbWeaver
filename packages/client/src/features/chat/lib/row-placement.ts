@@ -46,7 +46,7 @@ export function columnClassFor(skin: RowSkin, mirrored = false): string {
 // The centred skins' column is ONE width for every row: the reading measure, less the two identity rails
 // where the row is too narrow for it. A content-sized column made short rows narrow centred plates and
 // slid the chip beside them from row to row.
-const CENTRED_COLUMN = "col-start-2 min-w-0 flex-1 @4xl:w-(--reading-column-centred)";
+const CENTRED_COLUMN = "col-start-2 min-w-0 flex-1 @4xl:w-(--centred-column-width)";
 
 // A train's column hugs its widest pill, so the speaker row above it and the pager under it share the
 // train's edges; the phone cap moves from each pill to the column for the same reason.

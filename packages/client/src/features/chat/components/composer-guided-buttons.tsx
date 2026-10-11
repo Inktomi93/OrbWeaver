@@ -34,7 +34,7 @@ import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { cn, IMPERSONATE_STOP_LABEL, RESPONSE_SPEAKER_CUE, STEER_CUE_IMPERSONATE, STEER_CUE_RESPONSE, testId } from "#lib";
+import { IMPERSONATE_STOP_LABEL, RESPONSE_SPEAKER_CUE, STEER_CUE_IMPERSONATE, STEER_CUE_RESPONSE, testId } from "#lib";
 import type { filterCharacters } from "../lib/roster.ts";
 
 const ICON_CONTROL_CLASS = "shrink-0 data-disabled:pointer-events-auto";
@@ -50,9 +50,8 @@ const DRAMA: SteerIcon = { glyph: Drama, fills: false };
 // A plain glyph in every state: no disc. A control that will steer the next reply with the typed text
 // takes the accent ink and its filled (or bold) glyph; the rest recede. The accessible name carries the
 // same state ("Guided …", "… with this direction"), so the meaning is never colour-only.
-function steerControlClass(steering: boolean): string {
-  return cn(ICON_CONTROL_CLASS, steering ? "text-primary" : "text-muted-foreground") ?? ICON_CONTROL_CLASS;
-}
+const STEERING_CONTROL_CLASS = `${ICON_CONTROL_CLASS} text-primary`;
+const RESTING_CONTROL_CLASS = `${ICON_CONTROL_CLASS} text-muted-foreground`;
 
 function SteerGlyph({ icon, steering }: { readonly icon: SteerIcon; readonly steering: boolean }): ReactElement {
   if (icon.fills) {
@@ -98,7 +97,7 @@ export function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
             data-testid={testId(buttonTestId)}
             onClick={disabled ? undefined : onFire}
             shape="pill"
-            className={steerControlClass(hasText && !disabled)}
+            className={hasText && !disabled ? STEERING_CONTROL_CLASS : RESTING_CONTROL_CLASS}
           >
             <SteerGlyph icon={icon} steering={hasText && !disabled} />
           </Button>
@@ -239,7 +238,7 @@ export function ImpersonateGuidedButton({
                   size="glyph-lg"
                   focusableWhenDisabled={true}
                   shape="pill"
-                  className={steerControlClass(hasText && !disabled)}
+                  className={hasText && !disabled ? STEERING_CONTROL_CLASS : RESTING_CONTROL_CLASS}
                 >
                   <SteerGlyph icon={DRAMA} steering={hasText && !disabled} />
                 </Button>
@@ -302,7 +301,7 @@ export function ResponseGuidedButton({
               data-testid={testId("composerGuidedResponse")}
               onClick={idle ? (): void => onFire(null) : undefined}
               shape="pill"
-              className={steerControlClass(hasText)}
+              className={hasText ? STEERING_CONTROL_CLASS : RESTING_CONTROL_CLASS}
             >
               <SteerGlyph icon={PLAY} steering={hasText} />
             </Button>
@@ -333,7 +332,7 @@ export function ResponseGuidedButton({
                   size="glyph-lg"
                   focusableWhenDisabled={disabledReason !== undefined}
                   shape="pill"
-                  className={steerControlClass(hasText)}
+                  className={hasText ? STEERING_CONTROL_CLASS : RESTING_CONTROL_CLASS}
                 >
                   <SteerGlyph icon={PLAY} steering={hasText} />
                 </Button>

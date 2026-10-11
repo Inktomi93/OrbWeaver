@@ -15,7 +15,7 @@
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useSettingsViewerView } from "#data";
 import { useFocusOnMount } from "#lib";
 import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry } from "#state";
@@ -59,7 +59,11 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
   // not the fix — the TARGET is. Focus goes to the ACTIVE GROUP'S BAND: a real control with the house ring,
   // already a tab stop, inside the LIST (the 2026-08-19 "the map owns the section's arrival focus" ruling,
   // preserved), and what it announces is exactly where the reader is.
-  useFocusOnMount(bandRef);
+  // A deep link that already put focus inside the CONTENT pane owns the landing (the persona Edit door focuses
+  // its editor there, and a lazily-loaded LIST can mount after it): decided once at arrival, so the band
+  // stands down instead of taking focus back.
+  const [focusLandedInContent] = useState(() => (globalThis.document.activeElement?.closest('[data-slot="config-content"]') ?? null) !== null);
+  useFocusOnMount(bandRef, !focusLandedInContent);
   // The ONE `when` projection (non-suspense — gating must never block a pane from painting), shared by the
   // group filter, the section filter and (S2) the search index.
   const viewer = useSettingsViewerView();

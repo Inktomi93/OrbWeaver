@@ -8,7 +8,7 @@
 // the dom-less node typecheck:graph program (the 2026-06-28 dom-lib incident).
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { afterEach, vi } from "vitest";
-import { importTree, relativePathOf } from "../../../packages/client/src/data/import-tree.ts";
+import { importTree, relativePathOf, reviewTreePersonas } from "../../../packages/client/src/data/import-tree.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 afterEach(() => {
@@ -76,4 +76,55 @@ test("importTree drops a secrets.json part whatever the caller passed", async ()
 
   const names = form?.getAll("file").map((f) => (f as File).name) ?? [];
   expect(names).toEqual(["default-user/characters/Aria.png", "default-user/settings.json"]);
+});
+
+// ── the persona review ─────────────────────────────────────────────────────────────────────────────
+test("importTree carries each persona collision choice as its own multipart value", async () => {
+  let form: FormData | undefined;
+  vi.stubGlobal("fetch", (_url: string, init: RequestInit) => {
+    form = init.body as FormData;
+    return Promise.resolve(new Response(JSON.stringify({ workloadId: "workload_ct_3" }), { status: 202 }));
+  });
+
+  await importTree([pickedFile("default-user/settings.json")], { nate: "keep-both", eve: "merge" });
+
+  expect(form?.getAll("personaCollision")).toEqual(["keep-both:nate", "merge:eve"]);
+});
+
+test("reviewTreePersonas posts ONLY settings.json and User Avatars parts, and returns the server's collisions", async () => {
+  let captured: { url: string; init: RequestInit } | undefined;
+  const collision = { key: "nate", name: "Nate", existingDescription: "a", incomingDescription: "b", differs: ["description"], keepBothName: "Nate 2" };
+  vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
+    captured = { url, init };
+    return Promise.resolve(new Response(JSON.stringify({ collisions: [collision] }), { status: 200 }));
+  });
+
+  const collisions = await reviewTreePersonas([
+    pickedFile("default-user/settings.json"),
+    pickedFile("default-user/User Avatars/nate.png"),
+    pickedFile("default-user/characters/Aria.png"),
+    pickedFile("default-user/chats/Aria/2024.jsonl"),
+  ]);
+
+  expect(captured?.url).toBe("/api/import/tree/review");
+  expect((captured?.init.headers as Record<string, string>)[CSRF_HEADER]).toBe("1");
+  expect((captured?.init.body as FormData).getAll("file").map((f) => (f as File).name)).toEqual([
+    "default-user/settings.json",
+    "default-user/User Avatars/nate.png",
+  ]);
+  expect(collisions).toEqual([collision]);
+});
+
+test("reviewTreePersonas makes no request for a folder without a settings.json", async () => {
+  const fetchSpy = vi.fn();
+  vi.stubGlobal("fetch", fetchSpy);
+
+  expect(await reviewTreePersonas([pickedFile("backup/characters/Aria.png"), pickedFile("backup/User Avatars/x.png")])).toEqual([]);
+  expect(fetchSpy).not.toHaveBeenCalled();
+});
+
+test("a failed review throws instead of letting the import proceed unasked", async () => {
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response("nope", { status: 500, statusText: "Server Error" })));
+
+  await expect(reviewTreePersonas([pickedFile("default-user/settings.json")])).rejects.toThrow("reviewTreePersonas");
 });

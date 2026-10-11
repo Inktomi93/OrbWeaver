@@ -8,7 +8,7 @@ import { relativePathOf } from "../../../packages/client/src/data/import-tree.ts
 // Deep import the PURE module (NOT the "@orb/client/data" barrel): a barrel import drags browser TSX into
 // the dom-less node typecheck:graph program.
 import type { TreeImportCaps } from "../../../packages/client/src/data/import-tree-plan.ts";
-import { OVER_FILE_CAP_REASON, planTreeImport } from "../../../packages/client/src/data/import-tree-plan.ts";
+import { OVER_FILE_CAP_REASON, plannedFiles, planTreeImport } from "../../../packages/client/src/data/import-tree-plan.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 /** A File whose read-only `webkitRelativePath` is set (as a directory-picked browser File carries it). */
@@ -19,6 +19,22 @@ function pickedFile(relPath: string, bytes = "x"): File {
 }
 
 const CAPS: TreeImportCaps = { totalBytes: 10_000, fileBytes: 4000, files: 50_000 };
+
+test("plannedFiles is what the uploads carry: a plan-skipped avatar is not in it, a repeated file is once", async () => {
+  const files = [
+    pickedFile("p/settings.json", "{}"),
+    pickedFile("p/User Avatars/small.png", "x"),
+    pickedFile("p/User Avatars/huge.png", "x".repeat(CAPS.fileBytes + 1)),
+    pickedFile("p/characters/Aria.png", "x"),
+  ];
+  const plan = await planTreeImport(files, { ...CAPS, totalBytes: 3 }, (f) => f.text());
+
+  const planned = plannedFiles(plan).map(relativePathOf);
+
+  expect(planned).not.toContain("p/User Avatars/huge.png");
+  expect(planned).toContain("p/User Avatars/small.png");
+  expect(new Set(planned).size).toBe(planned.length);
+});
 
 /** A synthetic ST profile: the planes the importer reads, the planes it only reports, and secrets.json. */
 function syntheticProfile(): File[] {

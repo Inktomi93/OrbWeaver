@@ -99,7 +99,7 @@ function routeAll(page: Page, chats: readonly ScopedChatSummaryFixture[]): Retur
 
 /** Every arm starts by opening the Chats tab — the pane rests on Field (the overview card). */
 async function openChatsTab(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Chats", exact: true }).click();
+  await page.getByRole("tab", { name: "Chats", exact: true }).click();
 }
 
 test("the rows are exactly her projection, in server order", async ({ mount, page }) => {

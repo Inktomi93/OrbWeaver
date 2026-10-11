@@ -66,11 +66,13 @@ import {
   securityHeaders,
   serializeSessionCookie,
 } from "./http/index.ts";
+import { isApiPath } from "./http/spa.ts";
 import type { ImportAssetPort, ImportCharacterPort, ImportWorldInfoPort } from "./import/index.ts";
 
 const MS_PER_SECOND = 1000;
 const TRPC_ENDPOINT = "/api/trpc";
 const TRPC_MOUNT = "/api/trpc/*";
+const NOT_FOUND = 404;
 const PAYLOAD_TOO_LARGE = 413;
 const UNSUPPORTED_MEDIA_TYPE = 415;
 const BYTES_PER_KIB = 1024;
@@ -254,6 +256,8 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   // Hono's onError is the only hook for a handler that throws without returning a Response; without this
   // the request-root span would seal as "ok" and the error would bypass pino/`/api/_debug`.
   app.onError(observabilityErrorHandler);
+  // An API client parses JSON; a bare text 404 on an /api miss reads as a parse failure there. Non-API misses keep Hono's default.
+  app.notFound((c) => (isApiPath(c.req.path) ? c.json({ error: "Not found" }, NOT_FOUND) : c.text("404 Not Found", NOT_FOUND)));
   app.use("*", timing({ totalDescription: "Response preparation" }));
 
   // Security headers cover every response — including the allowlist 403 below. The CSP's
@@ -429,7 +433,12 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   registerExport(app, { export: deps.exportService, registry: deps.portability });
   registerImportBundle(app, { workloads: deps.services.workloads, stagingDir: env.IMPORT_STAGING_DIR });
   registerImportChat(app, { registry: deps.portability, now: deps.now, settleImportMemory: deps.settleImportMemory });
-  registerImportTree(app, { workloads: deps.services.workloads, registry: deps.portability, stagingDir: env.IMPORT_STAGING_DIR });
+  registerImportTree(app, {
+    workloads: deps.services.workloads,
+    persona: deps.services.persona,
+    registry: deps.portability,
+    stagingDir: env.IMPORT_STAGING_DIR,
+  });
   registerAuthRoutes(plain, {
     sessions: deps.sessions,
     // W7a — ending a session ends the streams it opened. The registry is transport's; the EDGE composes here,

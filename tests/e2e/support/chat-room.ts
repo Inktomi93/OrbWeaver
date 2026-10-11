@@ -8,7 +8,9 @@
 //
 // SELECTOR STRATEGY (orb has no neo-style chat testids — verified against the live client source):
 //   • chat LIST rows are native <button>s (@orb/ui/list-row clickable), accessible name = the chat title.
-//   • the topbar chat identity (chat-header.tsx) renders the title as a <Text size="title"> SPAN, not a
+//   • the topbar chat identity (chat-header.tsx) renders the participants as the title and a user-set room
+//     name as a SECONDARY span that truncates to nothing on a narrow column — a renamed title is asserted with
+//     `.first()` against the list row's copy, never the header's alone; it is a SPAN, not a
 //     heading — there is no <h1> and no heading role in orb (neo's `locator("h1")` does not port). Title
 //     persistence is asserted on a UNIQUE minted title (timestamped), so `getByText(newTitle)` being
 //     visible is unambiguous proof regardless of the list-vs-header duplication.
@@ -336,31 +338,27 @@ export async function openDetailPanel(page: Page): Promise<void> {
   if ((await show.count()) > 0) {
     await show.first().click();
   }
-  // The panel is the context BRACKET in every room (#860): the "Chat" meta rail
-  // — a TOOLBAR of buttons carrying `aria-current` (#112) — pinned to the pane's foot, plus the "Game state"
-  // rail above the viewport on a game chat. The "Chat" rail is what means "the panel is open" for a plain
-  // chat and a game chat alike.
-  const strip = page.getByRole("toolbar", { name: "Chat" });
+  // The panel is the context BRACKET in every room: the "Chat" header TABLIST of real tabs (the pane's one tab
+  // strip), plus the "Game state" toolbar under it on a game chat. The "Chat" tablist is what means "the panel
+  // is open" for a plain chat and a game chat alike.
+  const strip = page.getByRole("tablist", { name: "Chat" });
   await expect(strip.first()).toBeVisible({ timeout: 15_000 });
 }
 
 /** Select one CONTEXT tab by its visible label (Members / This chat / Status / …). Assumes the detail
  *  panel is already open (`openDetailPanel`).
  *
- *  ONE affordance in every room (#860): a rail cell is a BUTTON carrying `aria-current` (#112), inside a
- *  toolbar named "Chat" or "Game state". Exact-name matched, so the lookup cannot widen onto some other
- *  control that merely contains the label; scoped to the rails so a body button named like a tab (the
- *  band's "Members — N" chip is `exact`-safe already) can never be seated as the cell.
+ *  A meta tab is a `tab` in the header tablist named "Chat"; a game state cell is a BUTTON carrying
+ *  `aria-current` in the toolbar named "Game state". Exact-name matched, so the lookup cannot widen onto some
+ *  other control that merely contains the label.
  *
- *  The `.or()` wraps the FULL PATH (toolbar→button), not just the toolbar (#2251): chaining
- *  `.getByRole("button", …)` on a two-toolbar `.or()` union hangs when the first-matched toolbar
- *  does not contain the target button — Playwright's `.or()` resolves to the first match, so the
- *  chained lookup searches only that branch. Distributing the button lookup into each arm ensures the
- *  locator resolves in GAME rooms (two rails) and plain chats (one rail) alike. */
+ *  The `.or()` wraps the FULL PATH of each arm (container→control), not just the container (#2251): chaining
+ *  a lookup onto an `.or()` union searches only the first-matched branch.
+ */
 export async function openContextTab(page: Page, label: string): Promise<void> {
   const tab = page
-    .getByRole("toolbar", { name: "Chat" })
-    .getByRole("button", { name: label, exact: true })
+    .getByRole("tablist", { name: "Chat" })
+    .getByRole("tab", { name: label, exact: true })
     .or(page.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: label, exact: true }));
   await expect(tab).toBeVisible({ timeout: 15_000 });
   await tab.click();

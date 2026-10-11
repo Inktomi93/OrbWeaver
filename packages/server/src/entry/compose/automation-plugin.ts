@@ -901,9 +901,10 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         const id = `plugin:${scope.slug}:${reg.name}:${pluginTransformSeq}`;
         const transform = buildPluginPromptTransform(reg, {
           id,
+          slug: scope.slug,
           order: PLUGIN_TRANSFORM_ORDER_BASE + pluginTransformSeq,
           isInstallerHost: async (chatId) => (await loadPresentRole(db, chatId, scope.installer.userId)) === "host",
-          invoke: (handler, argsJson) => invoke(handler, argsJson, null),
+          invoke: (handler, argsJson, signal) => invoke(handler, argsJson, null, signal),
         });
         pluginTransformSeq += 1;
         chatCompose.promptTransforms.register(transform);
@@ -937,18 +938,16 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
             const argsJson = JSON.stringify(capFactContent(fact, PLUGIN_MESSAGE_CONTENT_CAP));
             // The event handler runs IN the fact's chat scope. `canWrite` = the installer is HOST; a chat-less
             // domain fact ⇒ no scope (`null`). The per-delivery host read + guest invokes are fire-and-forget.
-            superviseDetached(`plugin-event:${randomUUID()}`, "plugin.event.deliver", { eventType: fact.type }, async () => {
+            superviseDetached(`plugin-event:${randomUUID()}`, "plugin.event.deliver", { eventType: fact.type, pluginSlug: scope.slug }, async () => {
               let eventChat: InvocationChat | null = null;
               if (fact.chatId !== null) {
                 const factChatId = castId<ChatId>(fact.chatId);
                 const role = await loadPresentRole(db, factChatId, scope.installer.userId);
                 eventChat = { chatId: factChatId, canWrite: role === "host", automationDepth };
               }
-              const outcomes = await Promise.allSettled(refs.map((handler) => invoke(handler, argsJson, eventChat)));
-              const failures = outcomes.flatMap((outcome) => (outcome.status === "rejected" ? [outcome.reason] : []));
-              if (failures.length > 0) {
-                throw new AggregateError(failures, "plugin event delivery failed");
-              }
+              // A rejected handler is already logged with its plugin and cause by the resident `invoke`, so it is
+              // not rethrown here (that would log the same failure twice).
+              await Promise.allSettled(refs.map((handler) => invoke(handler, argsJson, eventChat)));
             });
           },
         });

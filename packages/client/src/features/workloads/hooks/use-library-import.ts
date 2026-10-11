@@ -12,15 +12,29 @@
 // `cancel()` returns to the resting dropzone having touched nothing. The staged files are held in state
 // deliberately: re-deriving them from the input after a confirm is impossible (a `FileList` does not
 // survive the re-render that clears the picker). A folder pick stages its PLAN beside the files, so the
-// preflight can say what will be left out and how many uploads the folder takes.
+// preflight can say what will be left out and how many uploads the folder takes. It also stages the persona
+// REVIEW: the same-name, different-content personas the profile carries, each with a Merge / Keep both choice
+// (Merge preselected). The choices ride every upload of the folder, so the whole run honors them.
 //
 // The `.zip` subscription itself lives in <BundleWorkloadTracker>, mounted only while running; this hook
 // owns the state transitions and hands the tracker its terminal/progress callbacks via `track`.
 
+import type { PersonaCollision, PersonaCollisionChoice, PersonaCollisionChoices } from "@orb/contracts/import";
+import { DEFAULT_PERSONA_COLLISION_CHOICE } from "@orb/contracts/import";
 import type { WorkloadId } from "@orb/kit/ids";
 import { useRef, useState } from "react";
 import type { TreeImportCaps, TreeImportPlan } from "#data";
-import { importBundle, importCharacters, importTree, planTreeImport, relativePathOf, useInvalidation, useUploadCaps } from "#data";
+import {
+  importBundle,
+  importCharacters,
+  importTree,
+  plannedFiles,
+  planTreeImport,
+  relativePathOf,
+  reviewTreePersonas,
+  useInvalidation,
+  useUploadCaps,
+} from "#data";
 import { notify } from "#lib";
 import type { BundleCounts, ImportSummary } from "../lib/portability-model.ts";
 import { planNotes, sumBundleCounts, summarizeBundleCounts, summarizeCardImport, summaryCaption } from "../lib/portability-model.ts";
@@ -37,8 +51,16 @@ interface BatchProgress {
 
 type LibraryImportState =
   | { readonly status: "idle" }
-  /** PICKED, NOT SENT — the preflight arm. `plan` is present for a folder pick (`folder: true`). */
-  | { readonly status: "staged"; readonly files: readonly File[]; readonly folder: boolean; readonly plan: TreeImportPlan | null }
+  /** PICKED, NOT SENT — the preflight arm. `plan` is present for a folder pick (`folder: true`). `choices`
+   *  holds one answer per entry of `collisions`, keyed by the persona's folded name. */
+  | {
+      readonly status: "staged";
+      readonly files: readonly File[];
+      readonly folder: boolean;
+      readonly plan: TreeImportPlan | null;
+      readonly collisions: readonly PersonaCollision[];
+      readonly choices: PersonaCollisionChoices;
+    }
   | { readonly status: "uploading"; readonly filename: string }
   | {
       readonly status: "running";
@@ -64,6 +86,10 @@ export interface LibraryImport {
   readonly stageFiles: (files: readonly File[]) => void;
   /** STAGE a picked FOLDER (each file carries its `webkitRelativePath`) and plan its uploads — no request. */
   readonly stageFolder: (files: readonly File[]) => void;
+  /** Answer one persona collision of the staged folder. */
+  readonly chooseCollision: (key: string, choice: PersonaCollisionChoice) => void;
+  /** Give every collision of the staged folder the same answer (Merge all / Keep all). */
+  readonly chooseAllCollisions: (choice: PersonaCollisionChoice) => void;
   /** Send the staged selection — the ONE caller of the upload seams. */
   readonly confirm: () => void;
   /** Drop the staged selection, having sent nothing. */
@@ -88,6 +114,7 @@ function treeCaps(caps: ReturnType<typeof useUploadCaps>): TreeImportCaps {
 interface FolderRun {
   readonly epoch: number;
   readonly plan: TreeImportPlan;
+  readonly choices: PersonaCollisionChoices;
   index: number;
   done: BundleCounts;
 }
@@ -125,7 +152,7 @@ export function useLibraryImport(): LibraryImport {
 
   const stageFiles = (files: readonly File[]): void => {
     if (files.length > 0) {
-      setState({ status: "staged", files: [...files], folder: false, plan: null });
+      setState({ status: "staged", files: [...files], folder: false, plan: null, collisions: [], choices: {} });
     }
   };
   const stageFolder = (files: readonly File[]): void => {
@@ -137,9 +164,11 @@ export function useLibraryImport(): LibraryImport {
     // @orb-waive caught-failure-ownership(planTreeImport): the .catch below calls fail(), which sets an
     // error state and toasts — a rendered failure surface. Ends if fail() stops writing that state.
     planTreeImport(files, treeCaps(caps))
-      .then((plan) => {
+      .then(async (plan) => {
+        const collisions = await reviewTreePersonas(plannedFiles(plan));
         if (epoch === requestEpoch.current) {
-          setState({ status: "staged", files: [...files], folder: true, plan });
+          const choices = Object.fromEntries(collisions.map((c): [string, PersonaCollisionChoice] => [c.key, DEFAULT_PERSONA_COLLISION_CHOICE]));
+          setState({ status: "staged", files: [...files], folder: true, plan, collisions, choices });
         }
       })
       .catch((error: unknown) => fail(epoch, errorMessage(error)));
@@ -186,7 +215,7 @@ export function useLibraryImport(): LibraryImport {
     setState({ status: "uploading", filename: relativePathOf(first) });
     // @orb-waive caught-failure-ownership(importTree): the .catch below calls fail(), which sets
     // an error state and toasts — a rendered failure surface. Ends if fail() stops writing that state.
-    importTree(batch)
+    importTree(batch, run.choices)
       .then(({ workloadId }) => {
         if (run.epoch === requestEpoch.current) {
           setState({
@@ -201,13 +230,13 @@ export function useLibraryImport(): LibraryImport {
       .catch((error: unknown) => fail(run.epoch, errorMessage(error)));
   };
 
-  const importFolder = (plan: TreeImportPlan): void => {
+  const importFolder = (plan: TreeImportPlan, choices: PersonaCollisionChoices): void => {
     const epoch = ++requestEpoch.current;
     if (plan.batches.length === 0) {
-      finish(epoch, { imported: 0, skipped: 0, failed: 0, outcomes: [], notes: planNotes(plan), memoryScope: null });
+      finish(epoch, { imported: 0, skipped: 0, merged: 0, failed: 0, outcomes: [], notes: planNotes(plan), memoryScope: null });
       return;
     }
-    const run: FolderRun = { epoch, plan, index: 0, done: { imported: 0, skipped: 0, failed: 0, notes: [], memoryScope: null } };
+    const run: FolderRun = { epoch, plan, choices, index: 0, done: { imported: 0, skipped: 0, mergedKeys: [], failed: 0, notes: [], memoryScope: null } };
     folderRun.current = run;
     sendBatch(run);
   };
@@ -245,10 +274,20 @@ export function useLibraryImport(): LibraryImport {
       return;
     }
     if (state.folder && state.plan !== null) {
-      importFolder(state.plan);
+      importFolder(state.plan, state.choices);
       return;
     }
     importFiles(state.files);
+  };
+
+  const chooseCollision = (key: string, choice: PersonaCollisionChoice): void => {
+    setState((prev) => (prev.status === "staged" ? { ...prev, choices: { ...prev.choices, [key]: choice } } : prev));
+  };
+
+  const chooseAllCollisions = (choice: PersonaCollisionChoice): void => {
+    setState((prev) =>
+      prev.status === "staged" ? { ...prev, choices: Object.fromEntries(prev.collisions.map((c): [string, PersonaCollisionChoice] => [c.key, choice])) } : prev,
+    );
   };
 
   const reset = (): void => {
@@ -256,7 +295,7 @@ export function useLibraryImport(): LibraryImport {
     folderRun.current = null;
     setState({ status: "idle" });
   };
-  return { state, stageFiles, stageFolder, confirm, cancel, reset, track };
+  return { state, stageFiles, stageFolder, chooseCollision, chooseAllCollisions, confirm, cancel, reset, track };
 }
 
 function errorMessage(error: unknown): string {

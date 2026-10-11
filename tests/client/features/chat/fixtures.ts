@@ -151,9 +151,8 @@ export const CHAT_AMBIENT_ROUTES: TrpcRoutes<
     configUnreadable: null,
     updatedAt: FROZEN_AT,
   },
-  // The context band's PRESET chip (#860) resolves the viewer's active preset by name against the library
-  // (`chat-context-band.tsx`); the defaults above seed `null` (the built-in), so an EMPTY library is the
-  // honest companion — the chip prints "Built-in preset" and the read pipeline runs for real.
+  // The viewer's active preset resolves by name against the library; the defaults above seed `null` (the
+  // built-in), so an EMPTY library is the honest companion and the read pipeline runs for real.
   "preset.list": [],
   // The two display-tier reads `useDisplayScripts` composes. EMPTY is the honest default (the host broadcast
   // toggle is off by default and a fresh viewer owns no scripts) — but empty ARRAYS run `displaySlice` and the

@@ -6,26 +6,34 @@
 import { blobUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
-import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel } from "@orb/ui/collapsible";
 import { FileTrigger } from "@orb/ui/file-trigger";
 import type { LucideIcon } from "@orb/ui/icons";
-import { ChevronDown, ChevronRight, Copy, Download, Heart, Icon, Pencil } from "@orb/ui/icons";
+import { ChevronDown, ChevronRight, Copy, Download, Heart, Icon, Pencil, Pin } from "@orb/ui/icons";
 import { Layer, Row, Stack } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog, FINE_INERT_UNTIL_HOVER, ROW_ACTION_INLINE, ROW_ACTION_OVERFLOW, ROW_REVEAL, ROW_REVEAL_SWAP, RowActionsMenu } from "#components";
+import {
+  ConfirmDialog,
+  FINE_INERT_UNTIL_HOVER,
+  ROW_ACTION_INLINE,
+  ROW_ACTION_OVERFLOW,
+  ROW_REVEAL,
+  ROW_REVEAL_SWAP_COARSE_KEEP,
+  RowActionsMenu,
+} from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC, useTRPCClient, useUploadAsset, useUploadCaps } from "#data";
 import { cn, downloadTextFile, notify, oversizeUploadMessage, rowActionSubject, rowActionsName } from "#lib";
 import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations.ts";
-import { PersonaEditor } from "./persona-editor.tsx";
+import { PersonaEditorRegion } from "./persona-editor.tsx";
 import { PersonaPin } from "./persona-pin.tsx";
 import { PersonaRowNameColumn } from "./persona-row-name-column.tsx";
+import { PersonaStateMarkers } from "./persona-state-markers.tsx";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 
@@ -37,10 +45,14 @@ export interface PersonaPanelRowProps {
    *  `rowActionSubject(name, qualifier)`, so one row can never announce its subject two different ways. */
   readonly qualifier?: string;
   readonly isCurrent: boolean;
+  /** This persona is the open room's card persona (`{{user}}` in the card). */
+  readonly isCardPin: boolean;
+  readonly seatBindsPresets: boolean;
   readonly isDefault: boolean;
   readonly expanded: boolean;
   readonly onSetCurrent: () => void;
   readonly onSetDefault: () => void;
+  readonly onClearDefault: () => void;
   readonly onToggleExpand: () => void;
   /** Reaches `ConfirmDialog.onConfirm` below, which AWAITS a returned promise (#1563b, widened #1632): the
    *  confirm holds open busy, closes on resolve, stays open with the reason on rejection. `() => void`
@@ -53,10 +65,13 @@ export function PersonaPanelRow({
   persona,
   qualifier,
   isCurrent,
+  isCardPin,
+  seatBindsPresets,
   isDefault,
   expanded,
   onSetCurrent,
   onSetDefault,
+  onClearDefault,
   onToggleExpand,
   onDelete,
 }: PersonaPanelRowProps): ReactElement {
@@ -193,19 +208,12 @@ export function PersonaPanelRow({
             width; it does not make that width elastic. So the cluster reserves what it needs and the NAME is
             the row's single shrinker. */}
         <Layer className="relative shrink-0" data-slot="persona-row-markers">
-          <Row align="center" className={cn("pointer-events-none", ROW_REVEAL_SWAP) ?? ""} gap="field" justify="end">
-            {/* THE ROW IS THE ONE HOME FOR "PLAYING AS" (side-eye 2026-08-03 P2) — the band above the list
-                used to render the current persona a second time, with a different anatomy, 40px away. Words,
-                not just the selected tint + `aria-current`: a colour is not a statement. */}
-            {/* THE PILL (#866 S4, the Personas board): "playing as" on the current row, "pinned · {{user}}"
-                on the default row — words at rest on a fine pointer, exactly where the old kicker lived.
-                ONE pill max: on a row that is BOTH (your only persona), current wins — "pinned" is already
-                the solid pin's statement one cell over, and two pills re-buy the width collapse this row's
-                fences exist to prevent. The cell keeps plain `ROW_REVEAL_SWAP`: the coarse drop is
-                DELIBERATE (a narrow row cannot afford pills), and at coarse the states survive as the
-                stretched button's state-aware NAME + `aria-current` (current) and the always-in-flow PIN
-                (default). */}
-            <RowPill isCurrent={isCurrent} isDefault={isDefault} />
+          <Row align="center" className={cn("pointer-events-none", ROW_REVEAL_SWAP_COARSE_KEEP) ?? ""} gap="field" justify="end">
+            {/* THE STATE MARKERS (the switcher's own set): a check on who is playing, a card on the room's card
+                persona — glyphs, not pills, so no state is said twice beside the pin one cell over. They are small
+                enough to stay at a coarse pointer too (`ROW_REVEAL_SWAP_COARSE_KEEP`: they step aside for the
+                actions on hover only), so a phone row states the card persona as well as the playing one. */}
+            <PersonaStateMarkers isCardPin={isCardPin} isCurrent={isCurrent} name={persona.name} seatBindsPresets={seatBindsPresets} />
           </Row>
 
           {/* INERT AT REST, and that is a CONSEQUENCE of sharing the cell (`ROW_REVEAL`'s own carve-out: an
@@ -253,7 +261,10 @@ export function PersonaPanelRow({
                   onToggleExpand();
                 }
               }}
+              isDefault={isDefault}
+              onClearDefault={onClearDefault}
               onExport={onExport}
+              onSetDefault={onSetDefault}
               onToggleFavorite={onToggleFavorite}
               starred={persona.starred}
               subject={subject}
@@ -267,7 +278,7 @@ export function PersonaPanelRow({
             and the chevron — the board draws pin before ⋯, but the markers⇄actions pair share ONE Layer
             cell by the 2026-08-06 P1 ruling and the pin can ride inside neither half (deviation recorded
             in the design doc). */}
-        <PersonaPin className="relative shrink-0" isDefault={isDefault} onPin={onSetDefault} subject={subject} />
+        <PersonaPin className="relative shrink-0" isDefault={isDefault} onPin={onSetDefault} onUnpin={onClearDefault} subject={subject} />
 
         <IconAction
           className="relative shrink-0"
@@ -288,9 +299,7 @@ export function PersonaPanelRow({
 
       <Collapsible onOpenChange={onToggleExpand} open={expanded}>
         <CollapsiblePanel>
-          <Stack className="rounded-base border border-border p-block" gap="section">
-            <PersonaEditor persona={persona} onRequestDelete={(): void => setDeleteOpen(true)} />
-          </Stack>
+          <PersonaEditorRegion persona={persona} subject={subject} onRequestDelete={(): void => setDeleteOpen(true)} />
         </CollapsiblePanel>
       </Collapsible>
     </Stack>
@@ -318,6 +327,9 @@ function PersonaRowMenu({
   onEdit,
   onExport,
   onToggleFavorite,
+  onSetDefault,
+  onClearDefault,
+  isDefault,
   starred,
   subject,
 }: {
@@ -334,14 +346,17 @@ function PersonaRowMenu({
   readonly onDuplicate: () => void;
   readonly onExport: () => Promise<void>;
   readonly onToggleFavorite: () => void;
+  readonly onSetDefault: () => void;
+  readonly onClearDefault: () => void;
+  readonly isDefault: boolean;
   readonly starred: boolean;
   /** The row's announced identity (`rowActionSubject`) — what the TRIGGER's accessible name embeds, so two
    *  same-named rows can't hand one list two controls called "Actions for Traveler" (#443/#458). */
   readonly subject: string;
 }): ReactElement {
-  // Set-as-default LEFT this menu with #866 S4 (pin-not-crown): the pin is an always-in-flow row control
-  // at BOTH pointer classes, so a coarse-overflow twin here would be the double-telling the collapse
-  // rule exists to prevent. The Favorite twin stays — its inline heart still stands down at coarse.
+  // Set / Clear default stand down into this menu at a coarse pointer, where the row's pin toggle is hidden
+  // (the default row keeps a quiet marker as its state); at a fine pointer the pin is the verb, so the item
+  // is overflow-only — exactly one of the pair is in layout, the Favorite rule.
   return (
     <RowActionsMenu
       destructive={{
@@ -354,6 +369,10 @@ function PersonaRowMenu({
       <MenuItem className={ROW_ACTION_OVERFLOW} onClick={onToggleFavorite}>
         <Icon icon={Heart} size="sm" />
         {starred ? "Unfavorite" : "Favorite"}
+      </MenuItem>
+      <MenuItem className={ROW_ACTION_OVERFLOW} onClick={isDefault ? onClearDefault : onSetDefault}>
+        <Icon icon={Pin} size="sm" />
+        {isDefault ? "Clear default" : "Set as default"}
       </MenuItem>
       <MenuItem onClick={onEdit}>
         <Icon icon={Pencil} size="sm" />
@@ -373,27 +392,6 @@ function PersonaRowMenu({
       </MenuItem>
     </RowActionsMenu>
   );
-}
-
-/** The title-line pill — ONE max (current wins; see the markers-cell comment). Plain text to a reader:
- *  the STATES are already announced by `aria-current` + the state-aware select name (current) and the
- *  named pin (default); the pill is the fine-pointer rest-glance telling. */
-function RowPill({ isCurrent, isDefault }: { readonly isCurrent: boolean; readonly isDefault: boolean }): ReactElement | null {
-  if (isCurrent) {
-    return (
-      <Badge className="min-w-0 truncate" intent="primary" tone="soft">
-        playing as
-      </Badge>
-    );
-  }
-  if (isDefault) {
-    return (
-      <Badge className="min-w-0 truncate" tone="soft">
-        pinned · {"{{user}}"}
-      </Badge>
-    );
-  }
-  return null;
 }
 
 /** The stretched select target's accessible name — STATE-AWARE (side-eye 2026-08-07 P3a).

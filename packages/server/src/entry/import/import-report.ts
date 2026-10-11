@@ -165,6 +165,7 @@ function formatImportReport(report: ImportReport, generatedAt: number): string {
     `- Group rooms imported: ${report.groupsImported} (${report.groupChatsImported} group transcript(s))`,
     // The dedup-skip HEAL. Rendered even at zero: a re-run over an already-imported corpus writes no new
     // canon, so this is the ONLY line that can tell an operator the re-run did anything at all.
+    `- Personas merged into an existing persona of the same name: ${report.personasMergedKeys.length}`,
     `- Existing rooms given their user persona (re-run repair): ${report.chatsPersonaHealed}`,
     "",
     section(

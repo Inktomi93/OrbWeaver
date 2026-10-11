@@ -4,7 +4,7 @@
 // principal.userId (never a users read — no-direct-users-read gate).
 
 import type { Principal } from "@orb/contracts/identity";
-import type { CreatePersonaInput, UpdatePersonaInput } from "@orb/contracts/persona";
+import type { CreatePersonaInput, PersonaMetadata, UpdatePersonaInput } from "@orb/contracts/persona";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 
 export type { CreatePersonaInput, UpdatePersonaInput } from "@orb/contracts/persona";
@@ -77,4 +77,18 @@ export interface ExportPersonaParams extends PersonaActorParams {
  *  (personaBackupSchema) excludes it. */
 export interface ImportPersonaParams extends PersonaActorParams {
   readonly bytes: Uint8Array;
+}
+
+/** One persona a profile import is about to write, as the review sees it. `artHash` is the avatar's content
+ *  hash (the asset store's own), null for a persona without art. */
+interface ReviewImportPersona {
+  readonly name: string;
+  readonly description: string;
+  readonly metadata: PersonaMetadata | null;
+  readonly artHash: string | null;
+}
+
+/** The pre-commit read of a profile import: which incoming personas would collide with an owned one. */
+export interface ReviewPersonaImportParams extends PersonaActorParams {
+  readonly incoming: readonly ReviewImportPersona[];
 }

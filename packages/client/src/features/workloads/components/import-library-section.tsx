@@ -13,14 +13,16 @@
 //     card is skipped and two "Eleni" cards stay two characters.
 //   · the world-book, theme and preset imports — equal content is reused; a same-named DIFFERENT row keeps
 //     its row and the file lands under a numbered name. Nothing is edited in place.
-//   · `import-personas.ts` — an equal persona is reused; a DIFFERENT persona under a taken name lands beside
-//     it under a numbered name.
+//   · `import-personas.ts` — an equal persona is reused; a DIFFERENT persona under a taken name in a
+//     SillyTavern folder is listed here as a COLLISION, and the reader chooses per persona: merge into the
+//     existing one (preselected) or keep both. A backup's personas land beside it under a numbered name.
 //   · `import-user-settings.ts` — a backup's share-safe settings namespaces deep-MERGE into the owner's.
 // Nothing in any wave deletes, and seed rows (`ownerId IS NULL`) are structurally unreachable — so "adds,
 // never deletes; a backup's settings merge into yours" is the whole true statement. A folder pick also shows
 // its PLAN (`planNotes`): what the browser leaves out before uploading (and why), and how many uploads the
 // folder takes.
 
+import type { PersonaCollision, PersonaCollisionChoice, PersonaCollisionChoices } from "@orb/contracts/import";
 import { Button } from "@orb/ui/button";
 import { FileDropzone, FolderPicker } from "@orb/ui/file-dropzone";
 import { Row, Stack } from "@orb/ui/layout";
@@ -35,14 +37,19 @@ import { useLibraryImport } from "../hooks/use-library-import.ts";
 import { planNotes } from "../lib/portability-model.ts";
 import { BundleWorkloadTracker } from "./bundle-workload-tracker.tsx";
 import { ImportReportSummary } from "./import-report-summary.tsx";
+import { PersonaCollisionReview } from "./persona-collision-review.tsx";
 
 /** What an import DOES to a library that already has things in it — the sentence the reader needs BEFORE
  *  the request, not in the report afterwards. One home: the preflight is the only place it is spoken. */
 const IMPORT_CONSEQUENCE = [
   "Importing ADDS to your library — nothing you already have is deleted. Settings in an Orbweaver backup merge into yours.",
   "Anything already in your library — the same card, world book, theme or preset — is skipped, so running the same import twice is not a duplicate.",
-  "A world book, theme, preset or persona that shares a name with a DIFFERENT one of yours is imported under a numbered name. Two different cards that share a name stay two characters.",
+  "A world book, theme or preset that shares a name with a DIFFERENT one of yours is imported under a numbered name, and so is a persona restored from an Orbweaver backup. Two different cards that share a name stay two characters.",
 ] as const;
+
+/** Said only when the folder's personas are listed above, so a zip or card import never points at a list that
+ *  is not there. */
+const PERSONA_QUESTION_NOTE = "A persona in this SillyTavern folder that shares a name with one of yours asks you instead, above.";
 
 /** What was picked, in words — the folder arm counts the files the plan will send, the file arm names the
  *  single file it is about to send. */
@@ -60,11 +67,19 @@ function stagedTitle(files: readonly File[], plan: TreeImportPlan | null): strin
 function ImportPreflight({
   files,
   plan,
+  collisions,
+  choices,
+  onChoose,
+  onChooseAll,
   onConfirm,
   onCancel,
 }: {
   readonly files: readonly File[];
   readonly plan: TreeImportPlan | null;
+  readonly collisions: readonly PersonaCollision[];
+  readonly choices: PersonaCollisionChoices;
+  readonly onChoose: (key: string, choice: PersonaCollisionChoice) => void;
+  readonly onChooseAll: (choice: PersonaCollisionChoice) => void;
   readonly onConfirm: () => void;
   readonly onCancel: () => void;
 }): ReactElement {
@@ -73,8 +88,9 @@ function ImportPreflight({
     // A named GROUP, not an alert: nothing has happened yet and nothing is being interrupted.
     <Stack aria-label={title} className="rounded-control border border-input p-field" data-slot="import-preflight" gap="field" role="group">
       <Text voice="label">{title}</Text>
+      <PersonaCollisionReview collisions={collisions} choices={choices} onChoose={onChoose} onChooseAll={onChooseAll} />
       <Stack gap="tight">
-        {IMPORT_CONSEQUENCE.map((line) => (
+        {[...IMPORT_CONSEQUENCE, ...(collisions.length > 0 ? [PERSONA_QUESTION_NOTE] : [])].map((line) => (
           <Text key={line} voice="reading">
             {line}
           </Text>
@@ -105,7 +121,7 @@ export function ImportLibrarySection(): ReactElement {
   // file is rejected inline, not after a wasted round-trip. The folder picker carries NO cap of its own: the
   // plan decides per file against the served folder caps and says why a file stays behind.
   const importMaxBytes = useUploadCaps().importTotal;
-  const { state, stageFiles, stageFolder, confirm, cancel, reset, track } = useLibraryImport();
+  const { state, stageFiles, stageFolder, chooseCollision, chooseAllCollisions, confirm, cancel, reset, track } = useLibraryImport();
   const staged = state.status === "staged" ? state : null;
   const busy = state.status === "uploading" || state.status === "running";
   const done = state.status === "done";
@@ -138,7 +154,18 @@ export function ImportLibrarySection(): ReactElement {
         </FolderPicker>
         <Text voice="gloss">An unzipped Orbweaver backup or a SillyTavern profile folder. Your API keys (secrets.json) never leave this browser.</Text>
       </Row>
-      {staged === null ? null : <ImportPreflight files={staged.files} plan={staged.plan} onCancel={cancel} onConfirm={confirm} />}
+      {staged === null ? null : (
+        <ImportPreflight
+          files={staged.files}
+          plan={staged.plan}
+          collisions={staged.collisions}
+          choices={staged.choices}
+          onChoose={chooseCollision}
+          onChooseAll={chooseAllCollisions}
+          onCancel={cancel}
+          onConfirm={confirm}
+        />
+      )}
       {state.status === "running" ? (
         <>
           <BundleWorkloadTracker workloadId={state.workloadId} onProgress={track.onProgress} onSucceeded={track.onSucceeded} onFailed={track.onFailed} />

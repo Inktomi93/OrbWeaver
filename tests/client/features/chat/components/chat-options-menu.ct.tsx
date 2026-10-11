@@ -104,6 +104,20 @@ test("#869: the ⋯ trigger's tooltip speaks its accessible name, verbatim", asy
   await expect(page.locator('[data-slot="tooltip-popup"][data-open]', { hasText: /Manage this chat/u })).toHaveCount(0);
 });
 
+test("the ⋯ trigger is a pill, like its row neighbours", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES });
+  const component = await mount(<ChatOptionsMenuStory withCharacters={true} />);
+  const trigger = component.getByRole("button", { name: "Chat options", exact: true });
+  await expect
+    .poll(() =>
+      trigger.evaluate((el: HTMLElement) => {
+        const radius = Number.parseFloat(getComputedStyle(el).borderTopLeftRadius);
+        return radius >= el.getBoundingClientRect().height / 2;
+      }),
+    )
+    .toBe(true);
+});
+
 test("#869: every item in the ⋯ menu carries a glyph", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_ROOM_ROUTES });
   const component = await mount(<ChatOptionsMenuStory withCharacters={true} />);

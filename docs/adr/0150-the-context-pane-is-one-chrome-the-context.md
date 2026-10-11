@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
-updated: 2026-09-23
+status: superseded
+updated: 2026-10-11
+superseded-by: docs/adr/0313-the-context-panes-tabs-live-in-its-header-row.md
 ---
 
 # the CONTEXT pane is ONE chrome, the CONTEXT BRACKET, in every room and every tabs section: HEAD band → optional STATE rail → VIEWPORT → GROUND → META rail pinned to the pane's foot — rendered by the shell, never by a section or a claimant

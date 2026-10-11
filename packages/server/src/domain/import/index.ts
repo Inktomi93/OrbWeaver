@@ -49,6 +49,8 @@ export type {
   ImportThemeNote,
   ImportUnresolvedPinnedPersona,
   ImportWorldNote,
+  IncomingPersona,
+  UploadedFile,
 } from "./contract/views.ts";
 export type { BackfillTokenUsage, ImportTokenUsageBackfillDeps, ImportWorkloadDeps, SettleImportMemory } from "./contract/workloads.ts";
 export { collectBundlesFromDir } from "./loader/collect.ts";
@@ -56,6 +58,7 @@ export { createImportService } from "./service.ts";
 export { findImportedCharacter, importFileHash, parseCardJson, parseCardPng, parsedCardImportHash, parsedCardTextHash } from "./substrate/card.ts";
 export { buildGroupChatInput } from "./substrate/chat-input.ts";
 export { parseStGroupFile } from "./substrate/group.ts";
+export { incomingPersonasOf } from "./substrate/persona-review.ts";
 export {
   parseStPresetFile,
   parseStSettingsPreset,

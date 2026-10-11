@@ -62,7 +62,7 @@ export function renderSingleBubble(args: {
             // The pane's width, a portrait's height (Moonlit's fixed mobile height on a phone), never past the
             // card's own foot; cover-cropped from its centre.
             className={cn(
-              "pointer-events-none absolute top-0 aspect-(--aspect-portrait) max-h-full w-(--echo-art-width) bg-center bg-cover bg-no-repeat @max-md:aspect-auto @max-md:h-(--immersive-echo-art-height-phone)",
+              "pointer-events-none absolute top-0 aspect-(--aspect-portrait) max-h-full bg-center bg-cover bg-no-repeat @max-md:aspect-auto @max-md:h-(--immersive-echo-art-height-phone)",
               art.side === "left" ? "left-0 rounded-tl-card" : "right-0 rounded-tr-card",
             )}
             style={art.style}

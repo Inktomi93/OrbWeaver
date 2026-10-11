@@ -8,8 +8,10 @@
 
 import type { TriggerFact } from "@orb/contracts/automation";
 import type { PromptTransform } from "@orb/contracts/chat";
+import { DEADLINE_ABORT_REASON } from "@orb/contracts/chat";
 import type { PluginHandlerRef, PluginTransformRegistration } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
+import { logPluginFailure } from "./failure-log.ts";
 
 /** Truncate a delivered fact's message content to `maxContentChars` BEFORE it is JSON-marshalled into the guest
  *  realm (the load-bearing field-cap — the sandbox's whole-payload inbound byte cap is only the coarse backstop;
@@ -34,20 +36,37 @@ export function buildPluginPromptTransform(
   reg: PluginTransformRegistration,
   deps: {
     readonly id: string;
+    readonly slug: string;
     readonly order: number;
     readonly isInstallerHost: (chatId: ChatId) => Promise<boolean>;
-    readonly invoke: (handler: PluginHandlerRef, argsJson: string) => Promise<string>;
+    readonly invoke: (handler: PluginHandlerRef, argsJson: string, signal?: AbortSignal) => Promise<string>;
   },
 ): PromptTransform {
   return {
     id: deps.id,
     point: reg.point,
     order: deps.order,
-    apply: async (draft, env): Promise<string> => {
+    // A thrown guest handler is logged by the resident `invoke`, and a deadline overrun by the abort listener below.
+    logsOwnFailures: true,
+    apply: async (draft, env, signal?: AbortSignal): Promise<string> => {
+      // The registry skips its own generic warning for a deadline overrun, so this is the one line for it. The
+      // listener goes on BEFORE the host read: the deadline can fire during that await.
+      let reported = false;
+      const reportDeadline = (): void => {
+        if (!reported && signal?.reason === DEADLINE_ABORT_REASON) {
+          reported = true;
+          logPluginFailure(deps.slug, "prompt-deadline", `prompt transform '${reg.name}' exceeded its deadline`);
+        }
+      };
+      signal?.addEventListener("abort", reportDeadline, { once: true });
       if (!(await deps.isInstallerHost(env.chatId))) {
         return draft;
       }
-      return await deps.invoke(reg.handler, JSON.stringify({ draft, env }));
+      if (signal?.aborted === true) {
+        reportDeadline();
+        return draft;
+      }
+      return await deps.invoke(reg.handler, JSON.stringify({ draft, env }), signal);
     },
   };
 }
