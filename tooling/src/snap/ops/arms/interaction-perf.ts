@@ -108,6 +108,9 @@ function label(action: SnapAction): string | null {
   if (step.kind === "soft-keyboard") {
     return `soft-keyboard ${String(step.height)}px`;
   }
+  if (step.kind === "tap-at") {
+    return `tap-at ${String(step.x)},${String(step.y)}`;
+  }
   if (step.kind === "keyboard") {
     return `keyboard ${step.key}`;
   }
