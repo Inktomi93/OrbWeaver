@@ -2,7 +2,7 @@
 // tooling cap. These remain explicit row checks, not a generic assertion layer or copied subject policy.
 
 import { parseCssColorToSrgb } from "@orb/kit/safe-color";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { AppearanceInvariantCheck } from "../contract/appearance-invariants.ts";
 import type { AppearanceCheckContext } from "./appearance-invariant-check-context.ts";
 import type { AppearanceDomSnapshot, AppearanceElementFacts } from "./appearance-invariant-dom.ts";

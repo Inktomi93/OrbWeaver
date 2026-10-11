@@ -8,7 +8,7 @@ import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { PluginNotFoundError, recordPluginFetchedAsset } from "@orb/server/domain/plugin";
 import { eq } from "drizzle-orm";
-import { upsertKvUnderCap } from "../../../../../packages/server/src/domain/plugin/persistence/plugin-kv.ts";
+import { upsertKvUnderCap } from "#server/domain/plugin/persistence/plugin-kv.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { magicBytes } from "../../../../support/magic-bytes.ts";

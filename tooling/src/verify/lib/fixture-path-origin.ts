@@ -3,7 +3,7 @@
 import { isAbsolute, posix, win32 } from "node:path";
 import type { CallExpression, Identifier, Node as MorphNode, ParameterDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference, referenceResolutionServices, resolveModuleMemberOrigin, resolveStableExpression } from "../../_shared/reference-fact.ts";
+import { readMemberReference, referenceResolutionServices, resolveModuleMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
 import type { FixtureAuthoredStringFact, FixtureAuthoredValueUnreadable, FixturePathOrigin, FixturePathOriginReader } from "../contract/fixture-path-origin.ts";
 import { createFixtureAuthoredRecordReader } from "./fixture-path-authored-record.ts";
 import { createFixturePathCallGraph } from "./fixture-path-call-graph.ts";

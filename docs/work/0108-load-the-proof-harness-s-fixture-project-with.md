@@ -10,7 +10,7 @@ area: verify
 
 ## What
 
-A `mode: "types"` policy-conformance fixture project (`policy-conformance.ts#runResourceExample`, `new Project({ skipAddingFilesFromTsConfig: true })`) never loads `platform.d.ts` or `@total-typescript/ts-reset`'s ambient augmentations, even though `tsconfig.base.json`'s `include` pulls both into every real compiler world (docs/law/Spine-TypeScript-and-Patterns.md Sec.9-10, tooling/src/\_shared/project-worlds.ts, type-config-intent.ts). Any types-analysis policy whose verdict depends on an ambient global's full declaration set (item 0107's `Map`/`Set`/`WeakMap`/`WeakSet` case is one instance) can diverge between its fixture proofs and the real tree. Derive the fixture's ambient set from the same world facts the real programs read, instead of a fixture always starting bare.
+A `mode: "types"` policy-conformance fixture project (`policy-conformance.ts#runResourceExample`, `new Project({ skipAddingFilesFromTsConfig: true })`) never loads `platform.d.ts` or `@total-typescript/ts-reset`'s ambient augmentations, even though `tsconfig.base.json`'s `include` pulls both into every real compiler world (docs/law/Spine-TypeScript-and-Patterns.md Sec.9-10, tooling/src/\floor/compiler/project-worlds.ts, type-config-intent.ts). Any types-analysis policy whose verdict depends on an ambient global's full declaration set (item 0107's `Map`/`Set`/`WeakMap`/`WeakSet` case is one instance) can diverge between its fixture proofs and the real tree. Derive the fixture's ambient set from the same world facts the real programs read, instead of a fixture always starting bare.
 
 ## Why
 

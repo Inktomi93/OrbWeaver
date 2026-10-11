@@ -30,7 +30,7 @@
 //   • only the OUTERMOST escaper is reported — a broken row is one line, not one per icon and label.
 //
 // WHY A FUNCTION AND NOT A SCRIPT STRING. The fleet's init scripts ship as raw strings because the
-// tooling tsconfig is DOM-less (`_shared/browser.ts` header), and the in-page CENSUSES that need no
+// tooling tsconfig is DOM-less (`floor/browser/browser.ts` header), and the in-page CENSUSES that need no
 // arguments are self-contained script strings (ops/contrast.ts). Neither shape fits here: measured
 // against playwright 1.5x, the STRING form of `evaluate` receives neither the matched element nor the
 // arg — it returns `undefined` silently — so a string sweep would have to re-resolve the selector
@@ -38,7 +38,7 @@
 // the element the assertion actually matched, and the DOM-less program is answered the way this very
 // file already answered it before: by declaring the structural surface the body touches.
 import type { Locator } from "@playwright/test";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { OverflowProbe } from "../contract/overflow.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");

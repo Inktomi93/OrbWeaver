@@ -33,7 +33,7 @@ import { messages } from "@orb/db";
 import type { ChatId, ChatTurnId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { findSnapshotByVariant, resolveSnapshotHead } from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { findSnapshotByVariant, resolveSnapshotHead } from "#server/domain/rpg/persistence/snapshots.ts";
 import { freshDb } from "../../../support/db.ts";
 import {
   actorWithWallet,

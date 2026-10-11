@@ -5,8 +5,8 @@
 // resource owns the complete source/test denominator and refuses missing, empty, or unreadable corpora.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
-import { resolveExportedDeclarations } from "../../_shared/reference-fact.ts";
-import { TEST_KIND_DEFINITIONS } from "../../_shared/test-kinds.ts";
+import { resolveExportedDeclarations } from "../../floor/code-facts/reference-fact.ts";
+import { TEST_KIND_DEFINITIONS } from "../../floor/testing/test-kinds.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { MirrorIndex } from "../contract/resource-mirror.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";

@@ -27,7 +27,7 @@ import type {
 } from "#domain/automation";
 import { loadTurnOrigin } from "#domain/chat";
 import type { EmitNotification } from "#domain/notifications";
-import { subscribeAllChatEvents } from "../../transport/trpc/index.ts";
+import { subscribeAllChatEvents } from "#transport/trpc";
 import type { DomainEventBus } from "./event-bus.ts";
 
 const LIMIT_ONE = 1;

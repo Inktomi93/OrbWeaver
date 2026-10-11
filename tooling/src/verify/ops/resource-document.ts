@@ -7,7 +7,7 @@
 // and HTML anchors are deliberately NOT claimed: no consumer cites through them, and a census that counted
 // them would be larger than the thing it describes. Nothing here judges — a heading's presence is a fact,
 // whether a cite RESOLVES is the consuming policy's ruling.
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ResourceLoad, ResourceReader } from "../contract/resource.ts";
 import type {
   DocumentFacts,

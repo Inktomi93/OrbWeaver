@@ -1,6 +1,6 @@
 // One settlement door for every UI-audit population receipt (#987). A counter row is evidence only when
 // its arithmetic closes exactly; partial evidence is a NO VERDICT, never a clean result.
-import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
+import type { EvidenceGap } from "@orb/tooling/floor/verdict/evidence";
 import type { PopulationAccounting, RulePopulationAccounting } from "../contract/findings.ts";
 import { PRESENTATION_WITHHELD_REASONS, WITHHELD_REASONS } from "../contract/findings.ts";
 import type { RelationalCensusAccountingInput } from "../contract/samples-populations.ts";

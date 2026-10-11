@@ -1,7 +1,7 @@
 // Trace the actual persisted producer through Drizzle reads, callable bodies, immutable aliases,
 // selected object/array projections and proved schema normalizers. An annotated Row alone is identity.
-import { resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
-import { lexicalReferenceSymbol } from "@orb/tooling/_shared/reference-fact-alias";
+import { resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
+import { lexicalReferenceSymbol } from "@orb/tooling/floor/code-facts/reference-fact-alias";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { JsonColumnOrigin, JsonColumnOriginContext } from "../contract/json-column-origin.ts";

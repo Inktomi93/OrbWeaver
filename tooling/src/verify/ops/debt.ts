@@ -10,7 +10,7 @@
  * documented tool false positive made PERMANENT is RATIFIED, and printing it inside the burnable listing is
  * what made this whole apparatus read as "a glut of backlog" (owner). Each section therefore prints BURNABLE
  * DEBT first — the rows a board row may claim — and lists the ratified rows separately underneath, with the
- * ruling and its cited sites. The class lives in the row itself (`_shared/ratchet-rows.ts`), never here.
+ * ruling and its cited sites. The class lives in the row itself (`floor/verdict/ratchet-rows.ts`), never here.
  *
  * IT IS A LENS, NOT A GATE — no exit 1, ever. It reads and reports; the gates judge.
  *
@@ -40,14 +40,14 @@
  *     A row whose first-appearance commit cannot be resolved prints `age n/a`, never a guess.
  */
 import { existsSync, readFileSync } from "node:fs";
-import { print, reportsPath, reportsRelPath } from "@orb/tooling/_shared/artifacts";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { runGit } from "@orb/tooling/_shared/git";
-import { warn } from "@orb/tooling/_shared/log";
-import type { RatchetRow } from "@orb/tooling/_shared/ratchet-rows";
-import { classOf, discoverBaselineFiles, formatSplit, readRatchetLedger } from "@orb/tooling/_shared/ratchet-rows";
-import { UsageError } from "@orb/tooling/_shared/run-tool";
+import { print, reportsPath, reportsRelPath } from "@orb/tooling/floor/artifacts/artifacts";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { warn } from "@orb/tooling/floor/cli/log";
+import { UsageError } from "@orb/tooling/floor/cli/run-tool";
+import { runGit } from "@orb/tooling/floor/git/git";
+import type { RatchetRow } from "@orb/tooling/floor/verdict/ratchet-rows";
+import { classOf, discoverBaselineFiles, formatSplit, readRatchetLedger } from "@orb/tooling/floor/verdict/ratchet-rows";
 import type { LiveAdmission } from "../contract/debt.ts";
 import { STRUCTURE_REPORT_NAME } from "../contract/structure-report.ts";
 import { BASELINE_REL as CT_UNFED_BASELINE_REL } from "./ct-unfed-ratchet.ts";

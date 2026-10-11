@@ -8,11 +8,11 @@ import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
 import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-// The card identity hash's ONE home — `@orb/server/kit` is the server-only-PURE bottom tier
+// The card identity hash's ONE home — `@orb/server/primitives` is the server-only-PURE bottom tier
 // (`.dependency-cruiser.cjs`: node:* + db + contracts + kit, reaching up to nothing), so importing it
 // downward from a factory pulls `node:crypto` and two contracts, never a domain graph. D9 names this
 // subpath family canonical and 19 of them are already imported across `tests/server/**`.
-import { cardContentHash } from "@orb/server/kit/serde/card";
+import { cardContentHash } from "@orb/server/primitives/serde/card";
 import { FROZEN_AT_MS } from "../clock.ts";
 import { createSeededIds } from "../ids.ts";
 import { seedUser } from "./user.ts";

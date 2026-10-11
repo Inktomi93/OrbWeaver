@@ -1,7 +1,7 @@
 // The tree coordinates agent-sync reads and writes, plus the Claude→Codex role/model map. Pure
-// constants + one pure filename derivation; every path anchors on the ONE repo root (_shared/artifacts).
+// constants + one pure filename derivation; every path anchors on the ONE repo root (floor/artifacts/artifacts).
 import { join } from "node:path";
-import { REPO_ROOT } from "../../_shared/artifacts.ts";
+import { REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
 import type { AgentPaths, ModelFamily } from "../contract/types.ts";
 
 /** Resolve the mirror inside the supplied checkout, including isolated test fixtures. */

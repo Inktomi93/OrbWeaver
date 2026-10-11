@@ -28,7 +28,7 @@ import type { ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { GenerationType, GuidedImpersonatePerson, UserIntent, UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { PRESET_FORMAT_SLOT_IDS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
-import { batchMany, isConstraintViolation } from "@orb/db/kit";
+import { batchMany, isConstraintViolation } from "@orb/db/query";
 import type { BindingActor, Resolved, WireTool } from "@orb/inference";
 import { resolveSideGenSampling } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
@@ -2252,7 +2252,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
  *  The reason is deliberately dropped rather than propagated (`AbortSignal.any` would carry it): this signal
  *  reaches a provider request, and the transport classifier decides `aborted` vs retryable-`server` by regex
  *  over the error's name+message, so a foreign abort reason can turn a deliberate cancellation into a re-run.
- *  The law's one home is `infra/providers/backends/kit/abort-flatten.ts` (sealed to domain — this is the same
+ *  The law's one home is `infra/providers/backends/http/abort-flatten.ts` (sealed to domain — this is the same
  *  fold spelled locally, as `domain/rpg/flush-barrier.ts` does). An ALREADY-aborted source aborts
  *  synchronously, so a call entered post-cancel never reaches the wire. */
 function foldCancellation(controller: AbortController, sources: readonly (AbortSignal | undefined)[]): () => void {
@@ -2350,7 +2350,7 @@ function createDeltaBridge(): DeltaBridge {
  *  They fold into ONE controller by RE-ABORTING it with no argument rather than `AbortSignal.any` — this
  *  signal is threaded onto a provider request, and `.any` propagates the source's `reason`, which the
  *  transport classifier reads as a retryable fault ("timeout"/"connection") and RE-RUNS. That law's home is
- *  `infra/providers/backends/kit/abort-flatten.ts`; `domain/rpg/flush-barrier.ts` folds the same way for the
+ *  `infra/providers/backends/http/abort-flatten.ts`; `domain/rpg/flush-barrier.ts` folds the same way for the
  *  same reason (providers is sealed to domain, so the fold is spelled, not imported). */
 function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService["impersonateStream"] {
   return async function* ({ principal, chatId, personaId, intent, guided, signal, timeZone }: ImpersonateStreamParams): AsyncGenerator<ImpersonateStreamDelta> {

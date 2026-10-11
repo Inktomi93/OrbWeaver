@@ -27,8 +27,8 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import { useFocusOnSwap } from "#lib";
-import { isTemplatedMarker, sectionGlyphIcon, sectionKind, triggersPillLabel } from "../../lib/assembly-model.ts";
-import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "../../lib/format-count.ts";
+import { isTemplatedMarker, sectionGlyphIcon, sectionKind, triggersPillLabel } from "#src/features/preset/lib/assembly-model.ts";
+import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "#src/features/preset/lib/format-count.ts";
 import { estimateSectionTokens } from "./estimate-tokens.ts";
 import { MARKER_COPY } from "./marker-copy.ts";
 

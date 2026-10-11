@@ -5,7 +5,7 @@
 // an item. All-or-nothing, then the indexes regenerate. Git keeps what was deleted.
 import { readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { ADR_KIND, DOC_TOOL_TREES, PLAN_KIND } from "../contract/vocab.ts";
 import { splitDocument } from "../lib/frontmatter-write.ts";
 import { DESIGN_FILE, isGeneratedPath, planSlugOf } from "../lib/indexes.ts";

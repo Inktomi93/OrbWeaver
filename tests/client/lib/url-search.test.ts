@@ -1,4 +1,4 @@
-import { withoutUrlSearchParam } from "../../../packages/client/src/lib/url-search.ts";
+import { withoutUrlSearchParam } from "#client/lib/url-search.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("malformed unrelated keys cannot block removal of encoded and duplicated handoff keys", () => {

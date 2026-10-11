@@ -2,7 +2,7 @@
 // — ONE home for the questions all three must answer IDENTICALLY: what does this drizzle statement PREDICATE
 // on (`.where` for a read/write, the `onConflictDoUpdate` config for an upsert), and (for `owner-scoped-reads`)
 // whether a POST-FETCH filter relates the fetched row's owner to the caller's. Re-spelled per gate they would
-// drift on exactly the question they exist to enforce (`tooling/src/_shared/schema-read.ts` is the same call
+// drift on exactly the question they exist to enforce (`tooling/src/floor/code-facts/schema-read.ts` is the same call
 // for what a `sqliteTable(...)` DECLARES). The (a)-class table set they cross this with is derived by
 // `gates/table-scoping-class.ts`. Homed here rather than in the gate file because these readers walk BOUNDED
 // node subtrees (`getDescendantsOfKind` on a function body / statement / expression, never a `SourceFile`) —

@@ -1,7 +1,7 @@
 // The `--theme` readiness gate's shape (#1227). Its own contract module because the argv-heavy Args door
 // (./types.ts) sits close to the tooling-size cap, and because this is the one thing the gate DECIDES:
 // whether the stamp is predictable at all. The mechanism and both arms' reasons live in ops/theme-stamp.ts.
-import type { EvidenceGap } from "../../_shared/evidence.ts";
+import type { EvidenceGap } from "../../floor/verdict/evidence.ts";
 
 /** What a run may assert about `<html data-theme>`: a value to WAIT for, or a named reason the stamp is
  *  not this instrument's to predict (a custom theme paints through <ThemeScope> and stamps nothing). */

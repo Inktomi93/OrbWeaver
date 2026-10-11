@@ -2,7 +2,7 @@
 import { copyFileSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 

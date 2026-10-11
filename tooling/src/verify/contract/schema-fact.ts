@@ -1,6 +1,6 @@
 // Closed Drizzle schema facts. Missing, empty, and unresolved are verdicts, never `undefined`.
 import type { CallExpression, Node, SourceFile, Type, TypeChecker, VariableDeclaration } from "ts-morph";
-import type { ReferenceFact } from "../../_shared/reference-fact-contract.ts";
+import type { ReferenceFact } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { GatePolicyContext } from "./policy.ts";
 
 /** @public knip type-face false positive — the one-home vocabulary tuple behind the exported `SchemaFactStatus` union —

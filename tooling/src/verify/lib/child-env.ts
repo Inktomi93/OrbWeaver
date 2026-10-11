@@ -13,7 +13,7 @@
 // the whole fix, and it lives here rather than inline so the claim has a name and a pin
 // (`tests/tooling/verify/ops/run.int.test.ts`, which plants `FORCE_COLOR` in the parent as its control).
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 
 refuseDirectInvocation(import.meta.url, "pnpm verify");
 

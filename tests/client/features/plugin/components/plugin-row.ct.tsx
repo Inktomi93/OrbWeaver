@@ -6,7 +6,7 @@
 // fixture's raw error) is.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { NO_IMAGE_MODEL_NOTE } from "../../../../../packages/client/src/features/plugin/lib/plugin-copy.ts";
+import { NO_IMAGE_MODEL_NOTE } from "#client/features/plugin/lib/plugin-copy.ts";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { PluginsSurfaceStory } from "../_ct-stories.tsx";

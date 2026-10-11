@@ -31,7 +31,7 @@
 //
 // FAMILY: a declared SINGLETON (`family` equals the id). The identity work is entirely borrowed — the cast
 // axis is `lib/project-home-origin.ts` `readsAmbientGlobalPath` (shared with `no-raw-intl-time`), the origin
-// readers are `_shared/reference-fact.ts` `resolveGlobalMemberOrigin`/`resolveModuleMemberOrigin`, the two-answer
+// readers are `floor/code-facts/reference-fact.ts` `resolveGlobalMemberOrigin`/`resolveModuleMemberOrigin`, the two-answer
 // refusal is `lib/origin-verdict.ts` `classifyOriginRefusal`, and the dedupe is
 // `lib/reviewed-grant-findings.ts` — so there is no gate-owned reader to share and no sibling arm to split
 // off. One api, one law, one population; a family string would only name itself.
@@ -59,7 +59,7 @@
 // fixture, and saying so is cheaper than a row that pretends.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import { resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { readsAmbientGlobalPath } from "../lib/project-home-origin.ts";
@@ -127,7 +127,7 @@ function classify(node: MorphNode): MediaVerdict {
   // wrong one. It claimed `window`/`self`/a bare `matchMedia(q)` were DOM-lib declarations the program does
   // not load and therefore landed on the fail-closed UNREADABLE finding. MEASURED 2026-09-11 and FALSE in
   // both runtimes: the live structure pass builds `new Project({ skipAddingFilesFromTsConfig: true })`
-  // (`lib/pass.ts` `projectCtx` -> `_shared/ts-workspace.ts` `getWorkspace`) and the conformance runtime
+  // (`lib/pass.ts` `projectCtx` -> `floor/compiler/ts-workspace.ts` `getWorkspace`) and the conformance runtime
   // builds its virtual project the same way (`ops/policy-conformance.ts`), so both run under ts-morph's
   // DEFAULT compiler options — hence the DEFAULT lib, which INCLUDES DOM. All four root spellings resolve
   // through `resolveGlobalMemberOrigin` and carry the PRECISE message; `mustFlag[5]`/`mustFlag[6]` now pin

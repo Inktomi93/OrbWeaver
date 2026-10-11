@@ -5,7 +5,7 @@
 
 // Deep-imports src (browser package; @orb/ui is not node-resolvable), like dialogue.test.ts.
 import { describe } from "vitest";
-import { createRevealPlugin } from "../../../packages/ui/src/markdown/reveal-plugin.ts";
+import { createRevealPlugin } from "#ui/markdown/reveal-plugin.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 interface Node {

@@ -77,8 +77,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { BROWSER_PACKAGES, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS } from "@orb/tooling/_shared/project-worlds";
-import { TEST_KIND_DEFINITIONS } from "@orb/tooling/_shared/test-kinds";
+import { BROWSER_PACKAGES, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS } from "@orb/tooling/floor/compiler/project-worlds";
+import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
 import betterTailwindcss from "eslint-plugin-better-tailwindcss";
@@ -497,7 +497,7 @@ export default tseslint.config(
     // the CT_SURFACE blocks (syntactic parser, no program) — .ct.tsx/_ct-stories parse without type info,
     // so these skip test files, which is correct. (`await-thenable` was adopted once the db-layer seam was
     // fixed: the 3 standalone-run sites returning `BatchStmt` — which erases the drizzle builder's
-    // thenability — now return `AwaitableBatchStmt<T>` (`@orb/db/kit`: `BatchStmt & PromiseLike<T>`), so the
+    // thenability — now return `AwaitableBatchStmt<T>` (`@orb/db/query`: `BatchStmt & PromiseLike<T>`), so the
     // bare `await` is type-honest; `BatchStmt` stays the erased multi-table batch-INPUT type.)
     files: [...SHIPPED_SRC, ...TSDOC_SURFACE],
     plugins: { "@typescript-eslint": tseslint.plugin },
@@ -575,7 +575,7 @@ export default tseslint.config(
     // `@scripts` is a named population root in the gate runtime's own vocabulary.
     //
     // IT IS A SEPARATE BLOCK RATHER THAN A WIDER `NODE_TOOL_SURFACE_GLOBS`, deliberately: that constant is
-    // the ESLint spelling of `isNodeToolSource`/`NODE_TOOL_RE` in `_shared/project-worlds.ts`, which is a
+    // the ESLint spelling of `isNodeToolSource`/`NODE_TOOL_RE` in `floor/compiler/project-worlds.ts`, which is a
     // statement about COMPILER routing ("root, package-root, and direct scripts/ tools"). Widening the
     // glob alone would silently desync the two halves of one identity; widening both would change compiler
     // routing to close a lint hole. The surface this block names is a lint surface and says so.

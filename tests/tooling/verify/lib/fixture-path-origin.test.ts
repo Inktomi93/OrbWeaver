@@ -1,5 +1,5 @@
 import { Node, Project, SyntaxKind } from "ts-morph";
-import { collectByKinds } from "../../../../tooling/src/_shared/ts-workspace.ts";
+import { collectByKinds } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { FixturePathOrigin } from "../../../../tooling/src/verify/contract/fixture-path-origin.ts";
 import { createFixturePathOriginReader } from "../../../../tooling/src/verify/lib/fixture-path-origin.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";

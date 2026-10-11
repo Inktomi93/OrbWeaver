@@ -5,8 +5,8 @@
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { CredentialsNotFoundError } from "../../../../../packages/server/src/domain/credentials/contract/errors.ts";
-import { requireOwned } from "../../../../../packages/server/src/domain/credentials/substrate/credential-not-found.ts";
+import { CredentialsNotFoundError } from "#server/domain/credentials/contract/errors.ts";
+import { requireOwned } from "#server/domain/credentials/substrate/credential-not-found.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CREDENTIAL_ID = castId<UserCredentialId>("credential_x");

@@ -9,7 +9,7 @@
 
 import { SEARCH_EMPTY_QUERY, SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "@orb/server/domain/search";
 import { describe } from "vitest";
-import { withRetrievalDegrade } from "../../../../packages/server/src/entry/compose/retrieval-degrade.ts";
+import { withRetrievalDegrade } from "#server/entry/compose/retrieval-degrade.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const HITS: readonly string[] = ["a", "b"];

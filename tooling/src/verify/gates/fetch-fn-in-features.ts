@@ -17,17 +17,17 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `fetch-fn-in-features` descriptor at 9d8b96146c08572d427924e073005e4913b07638, the parent of the conversion
 // `2ee31c5d22` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,196 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// 7,196 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 1,000 and final `population` admits 1,000. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/features/app-shell/anchors/__cbbhr_in_region-anchor.tsx` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 //
-// FAMILY: a declared SINGLETON under its own id. `_shared/reference-fact.ts` (`resolveGlobalMemberOrigin`,
+// FAMILY: a declared SINGLETON under its own id. `floor/code-facts/reference-fact.ts` (`resolveGlobalMemberOrigin`,
 // `resolveModuleMemberOrigin`) and `lib/origin-verdict.ts#classifyOriginRefusal` are corpus-wide identity primitives;
 // no sibling judges ambient `fetch` egress in features.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import { resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 

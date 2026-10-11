@@ -7,8 +7,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SnappedTokenPath } from "@orb/ui/tokens";
 import { SEED_THEME_VALUE_SETS, SNAPPED_LENGTH_BASE_PX, TOKEN_POLARITY_ARMS, TOKENS } from "@orb/ui/tokens";
-import { gridVariants } from "../../../packages/ui/src/layout/variants.ts";
-import { AVATAR_HUE_STEPS } from "../../../packages/ui/src/primitives/avatar/hue.ts";
+import { gridVariants } from "#ui/layout/variants.ts";
+import { AVATAR_HUE_STEPS } from "#ui/primitives/avatar/hue.ts";
 import { generateArtifacts, renderGeneratedCss } from "../../../packages/ui/tokens.build.ts";
 import { expect, test } from "../../support/fixtures.ts";
 

@@ -8,8 +8,8 @@ import { dirname, join, resolve, sep } from "node:path";
 import process, { env } from "node:process";
 import { fileURLToPath } from "node:url";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { pnpmInvocation } from "@orb/tooling/_shared/platform";
-import { killPidGroup } from "@orb/tooling/_shared/proc";
+import { pnpmInvocation } from "@orb/tooling/floor/host/platform";
+import { killPidGroup } from "@orb/tooling/floor/process/proc";
 import type { ProviderRequestReceipt, ScriptedProvider } from "./scripted-provider.ts";
 import { startScriptedProvider } from "./scripted-provider.ts";
 

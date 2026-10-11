@@ -10,7 +10,7 @@ import type { PluginCapability, PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_ORIGINS, PLUGIN_STATUSES, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { assets, pluginAssets, pluginKv, plugins, users } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";

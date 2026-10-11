@@ -6,8 +6,8 @@
 // never a hand-typed unrelated hex/oklch, AND that `highlight()` actually resolves real per-token colors
 // end-to-end through a real shiki highlighter (not the reconstructed-shape trap of asserting only the
 // plugin's declared themes).
-import { MARKDOWN_SHIKI_PLUGIN } from "../../../packages/ui/src/markdown/shiki-plugin.ts";
-import { SEED_THEME_VALUE_SETS, TOKEN_POLARITY_ARMS, TOKENS } from "../../../packages/ui/src/tokens/index.ts";
+import { MARKDOWN_SHIKI_PLUGIN } from "#ui/markdown/shiki-plugin.ts";
+import { SEED_THEME_VALUE_SETS, TOKEN_POLARITY_ARMS, TOKENS } from "#ui/tokens/index.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 // Types are DERIVED off the plugin's own public signatures (streamdown's `ThemeInput`/`HighlightOptions`/

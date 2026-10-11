@@ -12,7 +12,7 @@ import { expect, test } from "../../../../support/fixtures.ts";
 import { FIXED_NOW_MS, MSG_COMMITTED, principal, ruleFixture, SET_VAR, seedUser } from "../_support.ts";
 
 const REORDER_NOW = FIXED_NOW_MS + 1000;
-const rulePersistence = await import("../../../../../packages/server/src/domain/automation/persistence/rules.ts");
+const rulePersistence = await import("#server/domain/automation/persistence/rules.ts");
 
 test("global totality refuses duplicate, partial, foreign, nonexistent and empty orders without writes or events", async () => {
   const fx = await ruleFixture();

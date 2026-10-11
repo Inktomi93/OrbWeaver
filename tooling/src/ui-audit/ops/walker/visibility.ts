@@ -1,6 +1,6 @@
 // Shared rendered/operable predicates, composed inside WALKER_PRIMITIVES for every census and backdrop probe.
 // Inactivity alone does not hide paint; an off-frame retained box must also leave its subject wholly off-frame.
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 

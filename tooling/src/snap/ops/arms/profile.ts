@@ -3,13 +3,13 @@
 // React DevTools UI/backend and never calls the injected renderer's mutation methods.
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
-import type { EvidenceWindowId } from "../../../_shared/artifact-scope.ts";
-import { aggregateScope, evidenceWindowId } from "../../../_shared/artifact-scope.ts";
-import type { ResultPair } from "../../../_shared/artifacts.ts";
-import type { ProbeSession } from "../../../_shared/browser-contract.ts";
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import { printEvidenceGaps } from "../../../_shared/evidence.ts";
-import { EXIT } from "../../../_shared/exit-contract.ts";
+import type { EvidenceWindowId } from "../../../floor/artifacts/artifact-scope.ts";
+import { aggregateScope, evidenceWindowId } from "../../../floor/artifacts/artifact-scope.ts";
+import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
+import type { ProbeSession } from "../../../floor/browser/browser-contract.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../../floor/cli/exit-contract.ts";
+import { printEvidenceGaps } from "../../../floor/verdict/evidence.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmRunInstance } from "../../contract/arms.ts";
 import type { ReactCommitEvidence, ReactCommitPayload, ReactFiberEvidence, ReactProfilePageEvidence } from "../../contract/react-profile.ts";
 import { reactProfilePagePayloadSchema } from "../../contract/react-profile.ts";

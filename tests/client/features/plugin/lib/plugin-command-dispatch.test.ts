@@ -8,7 +8,7 @@ import {
   parsePluginArgContext,
   parsePluginCommand,
   pluginCommandArgOffers,
-} from "../../../../../packages/client/src/features/plugin/lib/plugin-command-dispatch.ts";
+} from "#client/features/plugin/lib/plugin-command-dispatch.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const SPECS: readonly PluginCommandArgSpec[] = [

@@ -4,11 +4,11 @@
 import type { EmbeddingBatchObservation } from "@orb/contracts/embeddings";
 import { providerIdSchema } from "@orb/contracts/inference";
 import { createInferenceRuntime } from "@orb/inference";
-import { runOpenAiCompatEmbed } from "../../../../packages/inference/src/backends/openai-compat/embed.ts";
-import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
-import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
-import type { Resolved } from "../../../../packages/inference/src/contract/resolved.ts";
-import type { InferenceLog } from "../../../../packages/inference/src/contract/runtime.ts";
+import { runOpenAiCompatEmbed } from "#inference/backends/openai-compat/embed.ts";
+import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "#inference/capability/synthesize.ts";
+import type { Resolved } from "#inference/contract/resolved.ts";
+import type { InferenceLog } from "#inference/contract/runtime.ts";
 import { principal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { fakeApiKeySecret, fakeConnection, fakeDeps, fakeResolved, memoryStores, newUserId } from "../../_support.ts";

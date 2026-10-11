@@ -1,6 +1,6 @@
 // The cache-check grammar: a flag bag, every value joined with `=`. No flags runs every route and case on a
 // stage at HEAD; `--dirty` stages the working tree, which is how a planted regression is run.
-import { UsageError } from "../../_shared/run-tool.ts";
+import { UsageError } from "../../floor/cli/run-tool.ts";
 import type { CacheCase, CacheCheckOptions, CacheRoute } from "../contract/types.ts";
 import { CACHE_CASES, CACHE_ROUTES } from "../contract/types.ts";
 import { DEFAULT_ROUTES } from "./routes.ts";

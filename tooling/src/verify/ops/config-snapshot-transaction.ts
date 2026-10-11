@@ -2,7 +2,7 @@
 // only; installed dependencies remain in the owning worktree and workspace package links point back here.
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ConfigSnapshotTransaction } from "../contract/config-snapshot.ts";
 import type { ResourceFileSnapshot, ResourceReaderOptions } from "../contract/resource.ts";
 import { PACKAGE_RESOURCE_PATHS } from "../contract/resource-config.ts";

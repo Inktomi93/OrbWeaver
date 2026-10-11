@@ -20,7 +20,7 @@
 // are fields of the typed `world_entries.metadata` JSON blob (`EntryMetadata` from `@orb/contracts/world-info`,
 // which composes the `@orb/kit/world-info` + `@orb/kit/injection` tuples DOWN). The kit resolvers
 // (`resolveEntryScope`/`resolveEntryInjection`/`resolveEntryPosition`) read them at context-build time; the
-// blob is read at the `@orb/db/kit` parse-seam, never trusted raw. The ONLY enum COLUMN in this slice is the
+// blob is read at the `@orb/db/query` parse-seam, never trusted raw. The ONLY enum COLUMN in this slice is the
 // per-character-attachment `role` (WORLD_BOOK_ROLES) on `character_books` (a book itself has NO role).
 //
 // Timestamps are plain `integer("x_at")` epoch-MS NUMBERS, born at insert via `(unixepoch() * 1000)`.
@@ -33,7 +33,7 @@ import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId 
 import { sql } from "drizzle-orm";
 // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
 import { check, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { checkList } from "../kit/check-list.ts";
+import { checkList } from "../query/check-list.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
 import { personas } from "./persona.ts";
@@ -106,7 +106,7 @@ export const worldEntries = sqliteTable(
     // Opt-out of the per-turn WI token budget — must-have lore that should never be silently dropped.
     ignoreBudget: integer("ignore_budget", { mode: "boolean" }).notNull().default(false),
     // The typed per-entry blob (`EntryMetadata`): { scopeMode?, position?, inject? {depth, role?} } + any
-    // preserved unknown ST keys. NOT columns — read at the `@orb/db/kit` seam / the `@orb/kit/world-info`
+    // preserved unknown ST keys. NOT columns — read at the `@orb/db/query` seam / the `@orb/kit/world-info`
     // resolvers, never trusted raw.
     metadata: text("metadata", { mode: "json" }).$type<EntryMetadata>(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),

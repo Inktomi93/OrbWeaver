@@ -1,4 +1,4 @@
-import { characterListLens } from "../../../../../packages/server/src/domain/character/substrate/list-lens.ts";
+import { characterListLens } from "#server/domain/character/substrate/list-lens.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("scope normalization retains explicit booleans and removes empty search/tag axes", () => {

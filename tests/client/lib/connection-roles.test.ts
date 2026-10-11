@@ -25,15 +25,9 @@ import {
   roleRequirementGaps,
   roleRequirementVerdicts,
   roleStatus,
-} from "../../../packages/client/src/lib/connection-roles.ts";
-import type { ReindexPreview } from "../../../packages/client/src/lib/embedder-rebuild.ts";
-import {
-  embedderRebuildState,
-  embedRefusalOf,
-  REINDEX_CONFIRM_COPY,
-  reindexConfirmDescription,
-  reindexNeedsConfirm,
-} from "../../../packages/client/src/lib/embedder-rebuild.ts";
+} from "#client/lib/connection-roles.ts";
+import type { ReindexPreview } from "#client/lib/embedder-rebuild.ts";
+import { embedderRebuildState, embedRefusalOf, REINDEX_CONFIRM_COPY, reindexConfirmDescription, reindexNeedsConfirm } from "#client/lib/embedder-rebuild.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const OPENROUTER = "user_connection_model0000001";

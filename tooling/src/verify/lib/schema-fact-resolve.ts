@@ -3,8 +3,8 @@
 // column or an external one, and a table's extras callback to its indexes. Every refusal is a
 // `SchemaRefusal` the fact converts into a structured `unresolved` status. Split out of `schema-fact.ts` at
 // the size cap (2026-09-18); one-way — this module imports nothing from it.
-import { readMemberReference, resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
-import type { ReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
+import { readMemberReference, resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
+import type { ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type {

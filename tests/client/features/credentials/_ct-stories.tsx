@@ -1,4 +1,4 @@
-import { ConnectionsListSection } from "../../../../packages/client/src/features/credentials/components/connections-list-section.tsx";
+import { ConnectionsListSection } from "#client/features/credentials/components/connections-list-section.tsx";
 // credentials feature CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
 // The story reaches a feature internal the front door doesn't re-export (the settings _ct-stories.tsx
 // precedent) — CredentialKeyRow is mounted by the keys section itself, not exported standalone. The whole
@@ -20,8 +20,8 @@ import { castId } from "@orb/kit/ids";
 import { useMutationState, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { ConnectionEditor } from "../../../../packages/client/src/features/credentials/components/connection-editor.tsx";
-import { CredentialKeyRow } from "../../../../packages/client/src/features/credentials/components/credential-key-row.tsx";
+import { ConnectionEditor } from "#client/features/credentials/components/connection-editor.tsx";
+import { CredentialKeyRow } from "#client/features/credentials/components/credential-key-row.tsx";
 import { CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 
 /** The Connections group's three contributed sections, assembled as at the door. */

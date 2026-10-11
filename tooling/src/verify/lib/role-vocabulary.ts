@@ -19,7 +19,7 @@
 //
 // A pure reader over nodes the dispatcher delivered: no walk, no Project, no cache, no filesystem.
 
-import { readMemberReference, readStaticString } from "@orb/tooling/_shared/reference-fact";
+import { readMemberReference, readStaticString } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { RoleAxisVerdict } from "../contract/role-vocabulary.ts";

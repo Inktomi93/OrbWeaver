@@ -9,7 +9,7 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 // the dom-less root typecheck:graph program (a dom-lib landmine by construction — the 2026-06-28 incident).
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { afterEach, vi } from "vitest";
-import { importCharacters } from "../../../packages/client/src/data/import-characters.ts";
+import { importCharacters } from "#client/data/import-characters.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 afterEach(() => {

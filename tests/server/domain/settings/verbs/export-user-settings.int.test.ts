@@ -4,7 +4,7 @@
 
 import type { PortableParse } from "@orb/contracts/portability";
 import { createExportUserSettings, createSettingsContext } from "@orb/server/domain/settings";
-import { parseUserSettingsBackup } from "@orb/server/kit/serde/user-settings";
+import { parseUserSettingsBackup } from "@orb/server/primitives/serde/user-settings";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

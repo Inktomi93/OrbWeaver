@@ -8,13 +8,7 @@ import { castId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
-import {
-  emptyDryRunEnv,
-  evaluatePredicate,
-  renderArmPreview,
-  ruleClock,
-  synthFact,
-} from "../../../../../packages/server/src/domain/automation/substrate/dry-run.ts";
+import { emptyDryRunEnv, evaluatePredicate, renderArmPreview, ruleClock, synthFact } from "#server/domain/automation/substrate/dry-run.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const BASE_ENV: AutomationCelEnv = {

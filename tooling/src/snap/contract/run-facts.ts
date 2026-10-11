@@ -1,11 +1,11 @@
 // Machine-readable Snap facts. RESULT pairs are a byte-stable terminal transcript, never this schema's
 // input. Zod is the one trust-boundary grammar; every public TypeScript fact type is inferred from it.
 import { z } from "zod";
-import type { InstrumentCurrentScope } from "../../_shared/artifact-scope.ts";
-import { artifactRefSchema, factBatchIdSchema, instrumentCurrentScopeSchema } from "../../_shared/artifact-scope.ts";
-import type { DiagnosticRetentionSummary } from "../../_shared/browser-evidence-ring.ts";
-import { browserEvidenceRetentionBatchSchema, diagnosticRetentionSummary } from "../../_shared/browser-evidence-ring.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
+import type { InstrumentCurrentScope } from "../../floor/artifacts/artifact-scope.ts";
+import { artifactRefSchema, factBatchIdSchema, instrumentCurrentScopeSchema } from "../../floor/artifacts/artifact-scope.ts";
+import type { DiagnosticRetentionSummary } from "../../floor/browser/browser-evidence-ring.ts";
+import { browserEvidenceRetentionBatchSchema, diagnosticRetentionSummary } from "../../floor/browser/browser-evidence-ring.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { DESIGN_AUDIT_SEVERITIES } from "../../ui-audit/index.ts";
 import type { Arm } from "./arm-vocabulary.ts";
 import { snapRatePostureSchema } from "./rate-posture.ts";

@@ -1,8 +1,8 @@
 // One strict reconciler for #953's literal client-owned rows. It does not discover subjects or invent
 // expectations: it rejects any receipt that is not an exact accounting/judgment of the live contract.
 
-import type { RuntimeAppearanceHistoricalCascade, RuntimeAppearanceHistoricalRow } from "../../_shared/appearance-matrix.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { RuntimeAppearanceHistoricalCascade, RuntimeAppearanceHistoricalRow } from "../../floor/appearance/appearance-matrix.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type {
   AppearanceCascadeExpectation,
   AppearanceInvariantEvaluation,

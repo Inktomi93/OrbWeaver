@@ -5,8 +5,8 @@
 import { join } from "node:path";
 import process from "node:process";
 import { vi } from "vitest";
-import type { ListeningPortsRead, PortOwner } from "../../../../tooling/src/_shared/platform.ts";
-import { DEV_PORTS, stageBandPorts } from "../../../../tooling/src/_shared/ports.ts";
+import type { ListeningPortsRead, PortOwner } from "../../../../tooling/src/floor/host/platform.ts";
+import { DEV_PORTS, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { StageBandView, StageStopDeps } from "../../../../tooling/src/snap/contract/stage.ts";
 import { reapStrandedBand, stopStage, tearDownRowlessBand } from "../../../../tooling/src/snap/ops/stage-teardown.ts";
 import { STACK_CLI_REL, stackPorts } from "../../../../tooling/src/stack/index.ts";

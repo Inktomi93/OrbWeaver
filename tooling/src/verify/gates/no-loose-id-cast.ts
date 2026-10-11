@@ -30,7 +30,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `no-loose-id-cast` descriptor at d59c504cd27d0a185f3bf1ef1b9c6bd10e88e4c8, the parent of the conversion `52b33fc581`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,132 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 4,324
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 4,324
 // and final `population` admits 3,350. legacy − final = 987 — `tooling/src/**` (986), which the legacy SUBTRACTING
 // `scanRoot` admitted and `@packages` does not, plus the showcase file; the recorded narrowing. final − legacy = 13
 // production server files the legacy substring subtraction WRONGLY excluded — `domain/regex/verbs/scripts/*` (10,

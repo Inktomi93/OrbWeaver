@@ -1,8 +1,8 @@
 // Restore historical rows only. There is no canonical chat/connection restore map in the bundle core,
 // so their source ids remain explicit historical attribution instead of becoming live foreign pointers.
 
-import { IMAGERY_SCHEMA_KIND, parseImageryCall } from "#kit/serde/imagery";
-import { portableParseError } from "#kit/serde/lib";
+import { IMAGERY_SCHEMA_KIND, parseImageryCall } from "#primitives/serde/imagery";
+import { portableParseError } from "#primitives/serde/lib";
 import type { ImageryPortabilityContext, ImageryPortabilityService } from "../contract/portability.ts";
 import { writeImportedImageryCall } from "../persistence/portability-write.ts";
 

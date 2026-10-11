@@ -26,7 +26,7 @@ import {
   createImportGlobalScripts,
   createImportPresetScripts,
   createImportRegexScript,
-} from "../../../../../packages/server/src/domain/regex/persistence/portability-write.ts";
+} from "#server/domain/regex/persistence/portability-write.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { behavior, makeHarness, principal, seedCharacter, seedPreset, seedScript, seedUser } from "../_support.ts";

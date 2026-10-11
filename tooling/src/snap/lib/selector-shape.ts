@@ -6,7 +6,7 @@
 // rendered". A side-eye run filed that as a rendering defect, then the SAME run's `--eval` read the
 // tooltip text back — the instrument printed a clean not-found for a query shape it does not support.
 // (The suspected cause was a portal/top-layer blind spot. It is NOT: `text=` finds the app's portalled
-// Base UI tooltip on the first try — proven live and pinned in tests/tooling/_shared/browser.int.test.ts.)
+// Base UI tooltip on the first try — proven live and pinned in tests/tooling/floor/browser/browser.int.test.ts.)
 //
 // So: a bare-identifier component that is not a real element name is a query shape snap REFUSES at
 // parse time (exit 3, before a browser boots) with the `text=` spelling the caller meant. The predicate
@@ -14,8 +14,9 @@
 // anything carrying CSS syntax (`.x`, `#x`, `[x]`, `:x`) and never on a custom element (hyphenated, per
 // the spec) — so `nav a`, `ul li` and every real selector pass untouched. A table short by one element
 // name would be a FALSE refusal, which is worse than the lie, so the table is the whole element census.
-import { splitLastEq, splitSelectorEq } from "../../_shared/argv.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { splitLastEq, splitSelectorEq } from "../../floor/instrument/argv.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 

@@ -14,7 +14,7 @@ import {
   TIER_A_UNTRUSTED_ELEMENTS,
   UNTRUSTED_ALLOWED_PREFIXES,
   untrustedUrlTransform,
-} from "../../../packages/ui/src/markdown/policy.ts";
+} from "#ui/markdown/policy.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 // Streamdown's UrlTransform is called with (url, key, node); `untrustedUrlTransform` reads ONLY the url,

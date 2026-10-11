@@ -1520,27 +1520,27 @@
       "durationMs": 46
     },
     {
-      "file": "tests/db/kit/batch.int.test.ts",
+      "file": "tests/db/query/batch.int.test.ts",
       "durationMs": 65
     },
     {
-      "file": "tests/db/kit/chat-visibility.int.test.ts",
+      "file": "tests/db/query/chat-visibility.int.test.ts",
       "durationMs": 305
     },
     {
-      "file": "tests/db/kit/check-list.test.ts",
+      "file": "tests/db/query/check-list.test.ts",
       "durationMs": 2
     },
     {
-      "file": "tests/db/kit/db-errors.int.test.ts",
+      "file": "tests/db/query/db-errors.int.test.ts",
       "durationMs": 185
     },
     {
-      "file": "tests/db/kit/insert-chunk.test.ts",
+      "file": "tests/db/query/insert-chunk.test.ts",
       "durationMs": 2
     },
     {
-      "file": "tests/db/kit/like.test.ts",
+      "file": "tests/db/query/like.test.ts",
       "durationMs": 2
     },
     {
@@ -1732,31 +1732,31 @@
       "durationMs": 313
     },
     {
-      "file": "tests/inference/backends/kit/applied-effort.test.ts",
+      "file": "tests/inference/backends/wire/applied-effort.test.ts",
       "durationMs": 2
     },
     {
-      "file": "tests/inference/backends/kit/cache-control.test.ts",
+      "file": "tests/inference/backends/wire/cache-control.test.ts",
       "durationMs": 24
     },
     {
-      "file": "tests/inference/backends/kit/error-classify.test.ts",
+      "file": "tests/inference/backends/http/error-classify.test.ts",
       "durationMs": 11
     },
     {
-      "file": "tests/inference/backends/kit/fetch-json.test.ts",
+      "file": "tests/inference/backends/http/fetch-json.test.ts",
       "durationMs": 30
     },
     {
-      "file": "tests/inference/backends/kit/provider-metadata.test.ts",
+      "file": "tests/inference/backends/wire/provider-metadata.test.ts",
       "durationMs": 11
     },
     {
-      "file": "tests/inference/backends/kit/rate-limit-headers.test.ts",
+      "file": "tests/inference/backends/http/rate-limit-headers.test.ts",
       "durationMs": 4
     },
     {
-      "file": "tests/inference/backends/kit/response-cache.test.ts",
+      "file": "tests/inference/backends/http/response-cache.test.ts",
       "durationMs": 29
     },
     {
@@ -7328,91 +7328,91 @@
       "durationMs": 961
     },
     {
-      "file": "tests/server/kit/abort.test.ts",
+      "file": "tests/server/primitives/abort.test.ts",
       "durationMs": 1
     },
     {
-      "file": "tests/server/kit/embedding-generation.test.ts",
+      "file": "tests/server/primitives/embedding-generation.test.ts",
       "durationMs": 4
     },
     {
-      "file": "tests/server/kit/embedding-generation/settle.test.ts",
+      "file": "tests/server/primitives/embedding-generation/settle.test.ts",
       "durationMs": 5
     },
     {
-      "file": "tests/server/kit/post-process.test.ts",
+      "file": "tests/server/primitives/post-process.test.ts",
       "durationMs": 3
     },
     {
-      "file": "tests/server/kit/reasoning.test.ts",
+      "file": "tests/server/primitives/reasoning.test.ts",
       "durationMs": 4
     },
     {
-      "file": "tests/server/kit/regex.test.ts",
+      "file": "tests/server/primitives/regex.test.ts",
       "durationMs": 349
     },
     {
-      "file": "tests/server/kit/serde/card/index.test.ts",
+      "file": "tests/server/primitives/serde/card/index.test.ts",
       "durationMs": 28
     },
     {
-      "file": "tests/server/kit/serde/chat-bundle/index.test.ts",
+      "file": "tests/server/primitives/serde/chat-bundle/index.test.ts",
       "durationMs": 57
     },
     {
-      "file": "tests/server/kit/serde/chat/index.test.ts",
+      "file": "tests/server/primitives/serde/chat/index.test.ts",
       "durationMs": 22
     },
     {
-      "file": "tests/server/kit/serde/databank/index.test.ts",
+      "file": "tests/server/primitives/serde/databank/index.test.ts",
       "durationMs": 10
     },
     {
-      "file": "tests/server/kit/serde/gallery/index.test.ts",
+      "file": "tests/server/primitives/serde/gallery/index.test.ts",
       "durationMs": 8
     },
     {
-      "file": "tests/server/kit/serde/imagery/index.test.ts",
+      "file": "tests/server/primitives/serde/imagery/index.test.ts",
       "durationMs": 35
     },
     {
-      "file": "tests/server/kit/serde/lib/index.test.ts",
+      "file": "tests/server/primitives/serde/lib/index.test.ts",
       "durationMs": 10
     },
     {
-      "file": "tests/server/kit/serde/persona/index.test.ts",
+      "file": "tests/server/primitives/serde/persona/index.test.ts",
       "durationMs": 15
     },
     {
-      "file": "tests/server/kit/serde/regex/index.test.ts",
+      "file": "tests/server/primitives/serde/regex/index.test.ts",
       "durationMs": 10
     },
     {
-      "file": "tests/server/kit/serde/tag/index.test.ts",
+      "file": "tests/server/primitives/serde/tag/index.test.ts",
       "durationMs": 8
     },
     {
-      "file": "tests/server/kit/serde/theme/color.test.ts",
+      "file": "tests/server/primitives/serde/theme/color.test.ts",
       "durationMs": 4
     },
     {
-      "file": "tests/server/kit/serde/theme/index.test.ts",
+      "file": "tests/server/primitives/serde/theme/index.test.ts",
       "durationMs": 16
     },
     {
-      "file": "tests/server/kit/serde/theme/st.test.ts",
+      "file": "tests/server/primitives/serde/theme/st.test.ts",
       "durationMs": 12
     },
     {
-      "file": "tests/server/kit/serde/user-settings/index.test.ts",
+      "file": "tests/server/primitives/serde/user-settings/index.test.ts",
       "durationMs": 7
     },
     {
-      "file": "tests/server/kit/serde/world-info/index.test.ts",
+      "file": "tests/server/primitives/serde/world-info/index.test.ts",
       "durationMs": 12
     },
     {
-      "file": "tests/server/kit/stored-config.test.ts",
+      "file": "tests/server/primitives/stored-config.test.ts",
       "durationMs": 2
     },
     {

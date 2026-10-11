@@ -5,14 +5,14 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { basename, join } from "node:path";
 import process from "node:process";
-import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/_shared/browser";
-import { createPageCapture, wireProbePage } from "@orb/tooling/_shared/browser-capture";
-import type { BrowserDiagnostic, OrbConsoleCompleteness } from "@orb/tooling/_shared/browser-diagnostics";
-import { collectOrbConsoleDiagnostics, wirePageDiagnostics } from "@orb/tooling/_shared/browser-diagnostics";
-import { BoundedEvidenceRing, browserEvidenceRetentionBatchSchema } from "@orb/tooling/_shared/browser-evidence-ring";
-import { resolveProbeMedia } from "@orb/tooling/_shared/browser-media";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
+import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/floor/browser/browser";
+import { createPageCapture, wireProbePage } from "@orb/tooling/floor/browser/browser-capture";
+import type { BrowserDiagnostic, OrbConsoleCompleteness } from "@orb/tooling/floor/browser/browser-diagnostics";
+import { collectOrbConsoleDiagnostics, wirePageDiagnostics } from "@orb/tooling/floor/browser/browser-diagnostics";
+import { BoundedEvidenceRing, browserEvidenceRetentionBatchSchema } from "@orb/tooling/floor/browser/browser-evidence-ring";
+import { resolveProbeMedia } from "@orb/tooling/floor/browser/browser-media";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
 import { chromium } from "@playwright/test";
 import { vi } from "vitest";
 import { parseDiagnosticQuery, queryDiagnostics } from "../../../../tooling/src/snap/ops/diagnostics.ts";
@@ -227,7 +227,7 @@ test("the full orb console ring retains subtypes, windows, reset, and explicit c
   }
 });
 
-// The env key `_shared/browser.ts`'s protocol-level CDP fault injector reads (#1093). Spelled here rather
+// The env key `floor/browser/browser.ts`'s protocol-level CDP fault injector reads (#1093). Spelled here rather
 // than imported so this pin exercises the PROTOCOL the seam publishes, exactly as an operator would —
 // mirrors tests/tooling/ui-audit/ops/hover.int.test.ts's identical convention.
 const CDP_FAULT_ENV = "ORB_PROBE_TEST_CDP_FAULT";
@@ -235,7 +235,7 @@ const CDP_FAULT_ENV = "ORB_PROBE_TEST_CDP_FAULT";
 /** Run `body` with the seam's fault injector armed for `fault`, restoring whatever the env carried
  *  before (never assume it was unset — a sibling arm in the same run may have left it). */
 async function withCdpFault<T>(fault: string, body: () => Promise<T>): Promise<T> {
-  // biome-ignore lint/style/noProcessEnv: the seam's fault gate IS process.env-shaped (`_shared/browser.ts` reads it fresh per `newContext`) — this is the seam's own knob, not app config; restored below.
+  // biome-ignore lint/style/noProcessEnv: the seam's fault gate IS process.env-shaped (`floor/browser/browser.ts` reads it fresh per `newContext`) — this is the seam's own knob, not app config; restored below.
   const prior = process.env[CDP_FAULT_ENV];
   // biome-ignore lint/style/noProcessEnv: see above — arming the fault is the mechanism.
   process.env[CDP_FAULT_ENV] = fault;
@@ -254,7 +254,7 @@ async function withCdpFault<T>(fault: string, body: () => Promise<T>): Promise<T
 
 test("controlled CDP failures stay loud: Audits degrades explicitly while Log stays live, and Log setup rejects", async () => {
   // ROUTED THROUGH THE SHARED SEAM (#1812): a local `rejectCommand` Proxy re-spelled the exact fault
-  // `_shared/browser.ts` already injects at the protocol level. `launchProbeSession` installs that
+  // `floor/browser/browser.ts` already injects at the protocol level. `launchProbeSession` installs that
   // injector on its context (`installCdpFaultInjector`); every `context.newCDPSession(...)` taken AFTER
   // launch returns the same seam-faulted session `ops/hover.ts`'s CLI-level fixtures rely on — so this
   // suite now proves the same seam via its in-process door instead of carrying a second one.

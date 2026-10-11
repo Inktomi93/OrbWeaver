@@ -6,7 +6,7 @@
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { resolveNotificationRecipients } from "../../../../../packages/server/src/domain/automation/substrate/notification-recipients.ts";
+import { resolveNotificationRecipients } from "#server/domain/automation/substrate/notification-recipients.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedParticipant } from "../../chat/_support.ts";
 import { ruleFixture, seedUser } from "../_support.ts";

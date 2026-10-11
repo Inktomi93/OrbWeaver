@@ -26,9 +26,9 @@
 // assignments, so they exist only after their lines have EXECUTED, the same hoists-undefined ordering
 // rule that file's header states.
 //
-// Raw JS in a template literal (no backticks / dollar-brace — see _shared/browser.ts for why a string,
+// Raw JS in a template literal (no backticks / dollar-brace — see floor/browser/browser.ts for why a string,
 // not a function). Provenance + attribution: ops/walker.ts.
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 

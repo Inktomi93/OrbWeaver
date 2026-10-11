@@ -1,8 +1,8 @@
 // Pure R7 prepaint/hydration reconciler. The browser recorder owns chronology; this function refuses a
 // fake root theme, an intermediate default, a late swap, overflow, or an absent pre-ready sample.
 
-import type { AppearancePrepaintEvidence } from "../../_shared/appearance-prepaint.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { AppearancePrepaintEvidence } from "../../floor/appearance/appearance-prepaint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --matrix");
 

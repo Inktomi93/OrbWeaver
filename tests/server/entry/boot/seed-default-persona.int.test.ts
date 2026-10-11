@@ -16,7 +16,7 @@ import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { createPersonaService } from "@orb/server/domain/persona";
 import { describe, onTestFinished } from "vitest";
-import { createDefaultPersonaSeeder } from "../../../../packages/server/src/entry/boot/seed-default-persona.ts";
+import { createDefaultPersonaSeeder } from "#server/entry/boot/seed-default-persona.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { makeHarness as makeAssetsHarness } from "../../domain/assets/_support.ts";

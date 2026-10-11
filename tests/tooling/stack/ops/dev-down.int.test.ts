@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { z } from "zod";
-import { killPidGroup } from "../../../../tooling/src/_shared/proc.ts";
+import { killPidGroup } from "../../../../tooling/src/floor/process/proc.ts";
 import { doDevDown, stackContext } from "../../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";

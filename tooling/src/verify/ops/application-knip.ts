@@ -4,8 +4,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync,
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { Node, SyntaxKind } from "ts-morph";
 import { z } from "zod";
 import ordinaryConfig from "../../../../knip.ts";

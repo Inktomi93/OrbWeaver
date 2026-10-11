@@ -3,7 +3,7 @@
 
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { EmbeddingCallId, EmbeddingInvocationId } from "@orb/kit/ids";
 
 export interface EmbeddingAccountingContext {

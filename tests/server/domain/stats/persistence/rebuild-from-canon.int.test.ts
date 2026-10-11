@@ -4,17 +4,17 @@
 
 import type { Db } from "@orb/db";
 import { characterStats, chatParticipants, dailyStats, modelStats, ownerStats } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { CharacterId, ChatId, ChatParticipantId, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { statsBucketStart } from "@orb/kit/stats-tally";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { insertCanonMessageStatements, reattributeMessagesStatement } from "../../../../../packages/server/src/domain/chat/persistence/canon-write.ts";
-import { assistantTurnDelta } from "../../../../../packages/server/src/domain/chat/substrate/stats-delta.ts";
-import { reconcileStats } from "../../../../../packages/server/src/domain/stats/persistence/rebuild-from-canon.ts";
-import { applyStatsDelta, bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
+import { insertCanonMessageStatements, reattributeMessagesStatement } from "#server/domain/chat/persistence/canon-write.ts";
+import { assistantTurnDelta } from "#server/domain/chat/substrate/stats-delta.ts";
+import { reconcileStats } from "#server/domain/stats/persistence/rebuild-from-canon.ts";
+import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { createFrozenClock } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

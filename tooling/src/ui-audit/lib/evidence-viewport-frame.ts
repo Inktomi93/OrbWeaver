@@ -30,7 +30,7 @@
 // describe a compressed layout exactly as a mock does, and `snap --expect-no-overflow` already classes
 // that state as a defect. Fencing to `file://` would give mocks honest refusals and the app confidently
 // wrong answers — backwards, since the app is where a wrong verdict costs more.
-import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
+import type { EvidenceGap } from "@orb/tooling/floor/verdict/evidence";
 import type { RawSamples } from "../contract/samples.ts";
 import type { DocumentFrameCarrier } from "../contract/samples-evidence.ts";
 

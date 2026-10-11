@@ -7,7 +7,7 @@
 // WHY the precedence is worth pinning: the bug this module was fixed for was an override
 // (SNAP_FIXTURE_SERVER_URL) that existed but reached NEITHER the health probe nor the browser's base URL.
 // One resolve feeding both halves is the fix; these cases are its lens.
-import { DEV_PORTS, FIXTURE_PORTS } from "../../../../tooling/src/_shared/ports.ts";
+import { DEV_PORTS, FIXTURE_PORTS } from "../../../../tooling/src/floor/host/ports.ts";
 import type { PortOwnerAuthProbe } from "../../../../tooling/src/snap/contract/fixture.ts";
 import {
   defaultFixtureUsers,

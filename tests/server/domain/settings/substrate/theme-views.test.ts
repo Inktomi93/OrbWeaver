@@ -18,9 +18,9 @@ import type { themes } from "@orb/db";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { THEME_HEARTH_ID } from "../../../../../packages/server/src/domain/settings/constants.ts";
-import { SEED_THEMES } from "../../../../../packages/server/src/domain/settings/seed-themes.ts";
-import { toThemeView } from "../../../../../packages/server/src/domain/settings/substrate/theme-views.ts";
+import { THEME_HEARTH_ID } from "#server/domain/settings/constants.ts";
+import { SEED_THEMES } from "#server/domain/settings/seed-themes.ts";
+import { toThemeView } from "#server/domain/settings/substrate/theme-views.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const FROZEN_AT = 1_750_000_000_000;

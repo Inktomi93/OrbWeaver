@@ -2,7 +2,7 @@
 // Real libSQL :memory: via freshDb (FK PRAGMA ON). Covers: world_books insert→select round-trip (ownerId
 // KEEP — D23, role default, createdAt epoch-ms number); world_entries round-trip (NO ownerId — owned via
 // book, the always-on defaults, keys nullable-list); the world_entries.metadata JSON round-trip
-// ({scopeMode, position, inject{depth,role}}) read via the @orb/kit/world-info resolvers AND the @orb/db/kit
+// ({scopeMode, position, inject{depth,role}}) read via the @orb/kit/world-info resolvers AND the @orb/db/query
 // seam (confirming the three knobs live in JSON, NOT columns); the role enum test-mirror + CHECK on both
 // world_books and character_books; each scope junction's FK + CASCADE (delete a book → entries + all four
 // junctions vanish; delete the scope target → that target's junction rows vanish); and that character_books
@@ -12,7 +12,7 @@ import type { EntryMetadata } from "@orb/contracts/world-info";
 import { WORLD_BOOK_ROLES } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, characters, chatBooks, chats, globalBooks, personaBooks, personas, users, worldBooks, worldEntries } from "@orb/db";
-import { isConstraintViolation, parseRecord, parseStringArrayColumn } from "@orb/db/kit";
+import { isConstraintViolation, parseRecord, parseStringArrayColumn } from "@orb/db/query";
 import type { CharacterHandle, CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { resolveEntryInjection, resolveEntryPosition, resolveEntryScope } from "@orb/kit/world-info";
@@ -136,7 +136,7 @@ test("world_entries.metadata round-trips {scopeMode, position, inject} via the k
   const row = (await db.select().from(worldEntries).where(eq(worldEntries.id, entryId)))[0];
   // The typed read (drizzle hands back the parsed object as-is).
   expect(row?.metadata).toEqual(metadata);
-  // The @orb/db/kit read-seam parser round-trips the blob as a Record (the §8.4 parse-at-the-DB-seam model).
+  // The @orb/db/query read-seam parser round-trips the blob as a Record (the §8.4 parse-at-the-DB-seam model).
   expect(parseRecord(row?.metadata)).toEqual(metadata);
   // The @orb/kit/world-info resolvers read each knob OUT of the JSON blob (the real consumer path).
   expect(resolveEntryScope(row?.metadata, false)).toBe("keyword");

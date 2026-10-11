@@ -1,9 +1,7 @@
-import type { TestTag } from "@orb/tooling/_shared/test-tags";
+import type { TestTag } from "@orb/tooling/floor/testing/test-tags";
 
 declare module "vitest" {
   interface TestTags {
     orbweaver: TestTag;
   }
 }
-
-export {};

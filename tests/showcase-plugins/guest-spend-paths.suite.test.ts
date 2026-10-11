@@ -8,7 +8,7 @@ import type { AssetId, ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { packPluginDirectory } from "@orb/plugin-toolchain";
 import { AMBIENT_STUBS, HOST_FN_DEADLINE_MS, PLUGIN_QUIET_PROMPT_MAX_CHARS } from "@orb/server/infra/plugin-host";
-import { budget } from "@orb/tooling/_shared/load-budget";
+import { budget } from "@orb/tooling/floor/host/load-budget";
 import { unzipSync } from "fflate";
 import { createSeededIds } from "../support/ids.ts";
 import { expect, test } from "../support/tool-fixtures.ts";

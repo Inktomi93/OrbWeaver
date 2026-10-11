@@ -14,7 +14,7 @@ import type { Capability, Task } from "@orb/contracts/inference";
 import type { ResolveArgs, ResolveOutcome } from "@orb/inference";
 import type { ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { settleEmbedSpace, VECTOR_TASKS, vectorSpacesOf } from "../../../../../packages/server/src/domain/connection/substrate/embed-space.ts";
+import { settleEmbedSpace, VECTOR_TASKS, vectorSpacesOf } from "#server/domain/connection/substrate/embed-space.ts";
 import { principal } from "../../../../support/factories/principal.ts";
 import { makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

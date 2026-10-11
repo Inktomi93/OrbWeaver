@@ -6,7 +6,7 @@ import type { AssetId, CharacterHandle, ChatId, Handle, UserId } from "@orb/kit/
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { describe, onTestFinished } from "vitest";
-import { createLoadChatAssetRefs, createLoadCoParticipantOwner } from "../../../../packages/server/src/entry/compose/co-participant-assets.ts";
+import { createLoadChatAssetRefs, createLoadCoParticipantOwner } from "#server/entry/compose/co-participant-assets.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import {

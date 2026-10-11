@@ -6,7 +6,7 @@
 // card that binds a field must still render something rather than blow up the transcript row it lives in.
 
 import type { ToolCallRecord } from "@orb/contracts/chat";
-import { toolCardResultLine, toolCardState } from "../../../../../packages/client/src/features/plugin/lib/plugin-tool-card-state.ts";
+import { toolCardResultLine, toolCardState } from "#client/features/plugin/lib/plugin-tool-card-state.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function record(over: Partial<ToolCallRecord> = {}): ToolCallRecord {

@@ -7,7 +7,7 @@ import { castId } from "@orb/kit/ids";
 import { startAutomationWatcher } from "@orb/server/domain/automation";
 import { createDomainEventBus } from "@orb/server/entry/compose";
 import { vi } from "vitest";
-import { createAutomationWatcherEnv } from "../../../../packages/server/src/entry/compose/automation-watcher.ts";
+import { createAutomationWatcherEnv } from "#server/entry/compose/automation-watcher.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 test("stop detaches the domain-event handler from the composed watcher", async () => {

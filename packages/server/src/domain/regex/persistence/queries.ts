@@ -16,7 +16,7 @@ import type { RegexAttachmentRef, RegexScriptBehavior, RegexScriptRow } from "@o
 import { regexScriptBehaviorSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { characterRegexScripts, characters, chatRegexScripts, globalRegexScripts, presetRegexScripts, presets, regexScripts } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import type { ScriptRecord } from "../contract/rows.ts";
@@ -89,7 +89,7 @@ export async function setScriptsEnabledBulk(
  *  `patch`. Per-row because the bodies differ (each keeps its own find/replace + any authored depth), so it is
  *  a BATCH of owner-scoped updates, not one `.set()`. Reads happen in the VERB (before this call), never here:
  *  the batch is pure writes, so it takes the write lock at its first statement and rides `busy_timeout` (the
- *  `db/kit/batch` DEFERRED note — do not batch a SELECT ahead of writes). Stamps `updatedAt` for the same reason
+ *  `db/query/batch` DEFERRED note — do not batch a SELECT ahead of writes). Stamps `updatedAt` for the same reason
  *  the single verb does: a bulk placement change IS an edit. Returns the count actually written — a row another
  *  device deleted between the verb's read and this write matches no WHERE and drops silently. */
 export async function setScriptsBehaviorBulk(

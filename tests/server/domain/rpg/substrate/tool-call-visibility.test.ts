@@ -7,7 +7,7 @@ import type { RpgRecordedToolCall, RpgStateRoundTool } from "@orb/contracts/rpg"
 import { patchChangesToToolCalls, RPG_STATE_ROUND_FAILED_SUMMARY, recordToolCalls } from "@orb/contracts/rpg";
 import { stripHiddenSpans } from "@orb/kit/content";
 import { describe } from "vitest";
-import { projectFailureForViewer, projectToolCallsForViewer } from "../../../../../packages/server/src/domain/rpg/substrate/tool-call-visibility.ts";
+import { projectFailureForViewer, projectToolCallsForViewer } from "#server/domain/rpg/substrate/tool-call-visibility.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const TRUTH = "the throne room is a trap";

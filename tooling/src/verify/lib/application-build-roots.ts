@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
 import process from "node:process";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { z } from "zod";
 import type { PolicyRepositoryInventory } from "../contract/policy-scope.ts";
 import { assertPolicyRepoPath } from "./policy-repo-inventory.ts";

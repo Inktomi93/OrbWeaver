@@ -2,8 +2,8 @@
 // launcher make is typed here; the imperative half (spawn, signal, poll, probe) lives in ops/.
 import type { NetworkInterfaceInfo } from "node:os";
 import type { AuthMode } from "@orb/contracts/identity";
-import type { PortPair } from "../../_shared/ports.ts";
-import type { FullPriorityChild } from "../../_shared/proc-contract.ts";
+import type { PortPair } from "../../floor/host/ports.ts";
+import type { FullPriorityChild } from "../../floor/process/proc-contract.ts";
 
 // ── The spawner census ───────────────────────────────────────────────────────────────────────────────
 

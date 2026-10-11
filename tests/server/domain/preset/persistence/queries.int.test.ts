@@ -20,7 +20,7 @@ import {
   reseedSystemDefault,
   selectSystemDefault,
   updatePresetRow,
-} from "../../../../../packages/server/src/domain/preset/persistence/queries.ts";
+} from "#server/domain/preset/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, seedPreset, seedUser } from "../_support.ts";

@@ -1,6 +1,6 @@
 // Invocation-local semantic identities returned by the shared bus fact reader.
 import type { Node } from "ts-morph";
-import type { ReferenceUnresolvedReason } from "../../_shared/reference-fact-contract.ts";
+import type { ReferenceUnresolvedReason } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { GatePolicyContext } from "./policy.ts";
 
 /** @public knip type-face false positive — the one-home vocabulary tuple behind the exported `BusFactStatus` union — the

@@ -1,0 +1,131 @@
+// Mirror test for @orb/server/primitives/serde/tag — the ONE standalone tag-library serde. Pins BOTH directions: the
+// build envelope (schemaKind/schemaVersion + deterministic key order), the parse resilience (foreign/absent
+// schemaKind → null, non-JSON → null, a malformed row dropped not fatal, axis coercion), and the
+// build -> parse -> build ROUND-TRIP identity (the structural drift guard against the two halves diverging).
+
+import type { PortableParse } from "@orb/contracts/portability";
+import type { CanonicalTag, TagLibrary } from "@orb/server/primitives/serde/tag";
+import { buildTagLibrary, parseTagLibrary, TAG_LIBRARY_SCHEMA_KIND, TAG_LIBRARY_SCHEMA_VERSION } from "@orb/server/primitives/serde/tag";
+import { describe } from "vitest";
+import { expect, test } from "../../../../support/fixtures.ts";
+
+/** The parse outcome's value — the spine returns a typed refusal reason, never null. */
+function refusalOf<T>(result: PortableParse<T>): string {
+  if (result.ok) {
+    throw new Error("expected the file to be refused, but it parsed");
+  }
+  return result.reason;
+}
+
+function must<T>(result: PortableParse<T>): T {
+  if (!result.ok) {
+    throw new Error(`portable parse refused: ${result.reason}`);
+  }
+  return result.value;
+}
+
+function ctag(over: Partial<CanonicalTag> = {}): CanonicalTag {
+  return {
+    name: "fantasy",
+    color: null,
+    color2: null,
+    source: null,
+    folderType: "NONE",
+    sortOrder: null,
+    isHiddenOnCard: false,
+    ...over,
+  };
+}
+
+function decode(bytes: Uint8Array): Record<string, unknown> {
+  return JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
+}
+
+describe("buildTagLibrary", () => {
+  test("wraps the tags in the {schemaKind, schemaVersion} envelope", () => {
+    const lib: TagLibrary = {
+      tags: [ctag({ name: "sci-fi", color: "#123456", source: "manual", sortOrder: 0 })],
+    };
+    const wire = decode(buildTagLibrary(lib));
+    expect(wire["schemaKind"]).toBe(TAG_LIBRARY_SCHEMA_KIND);
+    expect(wire["schemaVersion"]).toBe(TAG_LIBRARY_SCHEMA_VERSION);
+    const rows = wire["tags"] as Record<string, unknown>[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual({
+      name: "sci-fi",
+      color: "#123456",
+      color2: null,
+      source: "manual",
+      folderType: "NONE",
+      sortOrder: 0,
+      isHiddenOnCard: false,
+    });
+  });
+});
+
+describe("parseTagLibrary", () => {
+  test("null for non-JSON bytes", () => {
+    expect(parseTagLibrary(new TextEncoder().encode("{not json")).ok, "a refused file must not parse").toBe(false);
+    expect(refusalOf(parseTagLibrary(new TextEncoder().encode("{not json")))).toBe("not-json");
+    expect(parseTagLibrary(new Uint8Array()).ok, "a refused file must not parse").toBe(false);
+    expect(refusalOf(parseTagLibrary(new Uint8Array()))).toBe("not-json");
+  });
+
+  test("null for a foreign / absent schemaKind (a different portable file)", () => {
+    const foreign = new TextEncoder().encode(JSON.stringify({ schemaKind: "orb.persona", schemaVersion: 1, tags: [] }));
+    expect(parseTagLibrary(foreign).ok, "a refused file must not parse").toBe(false);
+    expect(refusalOf(parseTagLibrary(foreign))).toBe("foreign-kind");
+    const noKind = new TextEncoder().encode(JSON.stringify({ tags: [] }));
+    expect(parseTagLibrary(noKind).ok, "a refused file must not parse").toBe(false);
+    expect(refusalOf(parseTagLibrary(noKind))).toBe("foreign-kind");
+  });
+
+  test("a malformed tag row is dropped, not fatal (blank name / non-object)", () => {
+    const bytes = new TextEncoder().encode(
+      JSON.stringify({
+        schemaKind: TAG_LIBRARY_SCHEMA_KIND,
+        schemaVersion: 1,
+        tags: [{ name: "keep" }, { name: "   " }, 42, { color: "#fff" }],
+      }),
+    );
+    const lib = must(parseTagLibrary(bytes));
+    expect(lib.tags).toHaveLength(1);
+    expect(lib.tags[0]?.name).toBe("keep");
+  });
+
+  test("coerces a bad axis to its safe default rather than dropping the row", () => {
+    const bytes = new TextEncoder().encode(
+      JSON.stringify({
+        schemaKind: TAG_LIBRARY_SCHEMA_KIND,
+        schemaVersion: 1,
+        tags: [{ name: "weird", source: "bogus", folderType: "NOPE", isHiddenOnCard: "yes" }],
+      }),
+    );
+    const row = must(parseTagLibrary(bytes)).tags[0];
+    expect(row).toMatchObject({
+      name: "weird",
+      source: null,
+      folderType: "NONE",
+      isHiddenOnCard: false,
+    });
+  });
+});
+
+describe("build -> parse -> build identity", () => {
+  test("the serialized bytes are the stable fixed point (all axes populated)", () => {
+    const source: TagLibrary = {
+      tags: [
+        ctag({ name: "noir", color: "#0a0a0a", color2: "#f5f5f5", source: "card", sortOrder: 2 }),
+        ctag({ name: "OPEN folder", folderType: "OPEN", isHiddenOnCard: true }),
+        ctag({ name: "plain" }),
+      ],
+    };
+    const bytes1 = buildTagLibrary(source);
+    const reparsed = must(parseTagLibrary(bytes1));
+    if (reparsed === null) {
+      throw new Error("reparse failed");
+    }
+    const bytes2 = buildTagLibrary(reparsed);
+    expect(new TextDecoder().decode(bytes2)).toBe(new TextDecoder().decode(bytes1));
+  });
+});

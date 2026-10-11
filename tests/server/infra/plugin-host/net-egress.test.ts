@@ -1,9 +1,9 @@
 import type { PluginInvocationLiveness } from "@orb/contracts/plugin";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { vi } from "vitest";
-import { __setEgressResolverForTest } from "../../../../packages/server/src/infra/network/egress.ts";
-import type { PluginEgressBridge } from "../../../../packages/server/src/infra/plugin-host/net-egress.ts";
-import { createPluginNetEgress } from "../../../../packages/server/src/infra/plugin-host/net-egress.ts";
+import { __setEgressResolverForTest } from "#server/infra/network/egress.ts";
+import type { PluginEgressBridge } from "#server/infra/plugin-host/net-egress.ts";
+import { createPluginNetEgress } from "#server/infra/plugin-host/net-egress.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { pngBytes } from "../../domain/embeddings/_support.ts";
 

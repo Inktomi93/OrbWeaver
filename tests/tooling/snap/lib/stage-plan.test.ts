@@ -12,7 +12,7 @@
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DEV_PORTS, STAGE_BAND_COUNT, stageBandPorts } from "../../../../tooling/src/_shared/ports.ts";
+import { DEV_PORTS, STAGE_BAND_COUNT, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import { stageDecision } from "../../../../tooling/src/snap/lib/stage-bands.ts";
 import {
@@ -65,7 +65,7 @@ test("shortSha truncates to SHORT_SHA_LEN and trims surrounding whitespace", () 
 
 test("band 0 is the pair the single-band era used, and no band collides with the DEV pair", () => {
   // The hand-picked 8888/5273 of the one-band era is now band 0 of the registry — the numbers did not
-  // move, the TABLE did (#1276). The full disjointness proof is tests/tooling/_shared/ports.test.ts.
+  // move, the TABLE did (#1276). The full disjointness proof is tests/tooling/floor/host/ports.test.ts.
   expect(stageBandPorts(0)).toEqual({ server: 8888, vite: 5273 });
   expect(stageBandPorts(1)).toEqual({ server: 8898, vite: 5283 });
   for (let band = 0; band < STAGE_BAND_COUNT; band += 1) {

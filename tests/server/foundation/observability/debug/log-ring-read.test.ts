@@ -6,13 +6,7 @@
 // regression in it would blind both at once.
 
 import { describe } from "vitest";
-import {
-  ERROR_LEVEL,
-  levelValue,
-  parseLogRingLine,
-  ringLineLevel,
-  ringLineTime,
-} from "../../../../../packages/server/src/foundation/observability/debug/log-ring-read.ts";
+import { ERROR_LEVEL, levelValue, parseLogRingLine, ringLineLevel, ringLineTime } from "#server/foundation/observability/debug/log-ring-read.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("ringLineLevel", () => {

@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { expect, test } from "../support/tool-fixtures.ts";
 
 function runLauncher(

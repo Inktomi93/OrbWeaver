@@ -4,6 +4,7 @@ status: open
 updated: 2026-10-11
 priority: P2
 area: tests
+plan: test-mirror
 ---
 
 # DB tests seed through the shared factories

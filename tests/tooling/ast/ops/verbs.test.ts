@@ -7,8 +7,6 @@ import process from "node:process";
 import type { CompilerOptions } from "ts-morph";
 import { ModuleKind, ModuleResolutionKind, Project } from "ts-morph";
 import { describe } from "vitest";
-import { installOutputSink } from "../../../../tooling/src/_shared/log.ts";
-import { getWorkspace, searchGlobs } from "../../../../tooling/src/_shared/ts-workspace.ts";
 import type { Hit } from "../../../../tooling/src/ast/index.ts";
 import {
   AstToolError,
@@ -24,6 +22,8 @@ import {
   WIDE_SYNTACTIC_VERBS,
 } from "../../../../tooling/src/ast/index.ts";
 import { emit } from "../../../../tooling/src/ast/lib/emit.ts";
+import { installOutputSink } from "../../../../tooling/src/floor/cli/log.ts";
+import { getWorkspace, searchGlobs } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";

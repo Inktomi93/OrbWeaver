@@ -109,11 +109,11 @@ The consuming loop is `tooling/src/snap/lib/run-report-query.ts:53` and `:137`. 
 
 ### P2 — `--upload` cannot drive the real folder-picker trigger its implementation claims to cover
 
-`tooling/src/_shared/upload.ts:42` — upload resolution recognizes only a selected file input or a descendant file input, yet the production folder-picker button and its hidden `webkitdirectory` input are siblings.
+`tooling/src/floor/browser/upload.ts:42` — upload resolution recognizes only a selected file input or a descendant file input, yet the production folder-picker button and its hidden `webkitdirectory` input are siblings.
 
 Failure scenario: selecting the visible `Import a folder…` button in `ImportLibrarySection` leaves the locator on the button; `drive.ts:150` calls Playwright `setInputFiles` on that button and fails instead of triggering the chooser and supplying the directory tree. This is the concrete Orb Backup/Restore target the flag is expected to operate.
 
-Evidence: `packages/client/src/features/workloads/components/import-library-section.tsx:103` renders `FileDropzone` and a sibling `FolderPicker` at `:115`; `packages/ui/src/primitives/file-dropzone/folder-picker.tsx:20` renders the hidden directory input outside the button; the resolver searches only the selected node and its descendants (`tooling/src/_shared/upload.ts:42`–`:71`). The same source comment claims every `FolderPicker` is reachable, which this DOM shape directly refutes.
+Evidence: `packages/client/src/features/workloads/components/import-library-section.tsx:103` renders `FileDropzone` and a sibling `FolderPicker` at `:115`; `packages/ui/src/primitives/file-dropzone/folder-picker.tsx:20` renders the hidden directory input outside the button; the resolver searches only the selected node and its descendants (`tooling/src/floor/browser/upload.ts:42`–`:71`). The same source comment claims every `FolderPicker` is reachable, which this DOM shape directly refutes.
 
 Verdict: **KEEP** and widen `--upload <trigger-or-input-selector>=<path[,path...]>` to support either a real input or a chooser-trigger element via Playwright's `filechooser` event. Do not add synonymous `--choose-files`, `--pick-files`, `--upload-directory`, or `--native-dialog` flags.
 
@@ -156,7 +156,7 @@ Evidence: `pnpm snap --help` exited 0 and emitted 266 lines. A per-token search 
 - Help: `owned` means a direct description/grammar; `incidental` means only prose or another option mentions the spelling; `internal` is intentionally hidden; `broken` means documented behavior diverges.
 - Verdicts use the requested vocabulary. “DELETE-REFUSE combination” does not mean delete the useful flag; it means reject it outside its owner.
 
-The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-classes.ts`, `flags-handlers.ts`, `flags-stage.ts`, `flags-session.ts`, and all executable arm declarations registered by `tooling/src/snap/ops/arms/registry.ts`, not from help prose. Parsing grammar is centralized in `tooling/src/_shared/argv.ts:147`. Behavior owners were cross-checked against the consumers listed below.
+The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-classes.ts`, `flags-handlers.ts`, `flags-stage.ts`, `flags-session.ts`, and all executable arm declarations registered by `tooling/src/snap/ops/arms/registry.ts`, not from help prose. Parsing grammar is centralized in `tooling/src/floor/instrument/argv.ts:147`. Behavior owners were cross-checked against the consumers listed below.
 
 | Flag | Grammar / repetition | Lifecycle and actual owner/behavior | Scenario / matrix | Overlap | Help | Verdict |
 | - | - | - | - | - | - | - |

@@ -5,7 +5,7 @@
 // One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the segments IN
 // ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the pre-split monolith.
 // It must run AFTER census-collision.ts, which declares `relationalAccounting` and `paintLayerOf`.
-// Raw JS in a template literal (no backticks / dollar-brace — see _shared/browser.ts for why a string,
+// Raw JS in a template literal (no backticks / dollar-brace — see floor/browser/browser.ts for why a string,
 // not a function). Provenance + attribution: ops/walker.ts.
 //
 // WHY THESE TWO ARMS, AND WHY THIS ONE IS NOT A HYPOTHETICAL. Arm (iii) — an `inline` element carrying
@@ -36,7 +36,7 @@
 // alone. The leak is a property of ONE LINE FRAGMENT, so this census measures `getClientRects()` — one
 // rect per fragment — and judges the tallest surviving fragment. A padded inline highlight sits at ~1x
 // line-height per fragment however many lines it wraps to; only a leak clears the bar.
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 

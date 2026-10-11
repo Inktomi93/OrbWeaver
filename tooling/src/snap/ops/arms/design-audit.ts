@@ -24,13 +24,13 @@
 //     inheriting Snap's `steps-failed=1` exit-1 shape.
 //   • otherwise `--fail-on <P0..P3>` decides: exit 1 at that severity or worse, else clean.
 import { writeFile } from "node:fs/promises";
-import { artifactFile } from "../../../_shared/artifact-out.ts";
-import { aggregateScope } from "../../../_shared/artifact-scope.ts";
-import type { ResultPair } from "../../../_shared/artifacts.ts";
-import type { ProbeSession } from "../../../_shared/browser-contract.ts";
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import type { EvidenceGap, VerdictDenominator } from "../../../_shared/evidence.ts";
-import { EXIT } from "../../../_shared/exit-contract.ts";
+import { artifactFile } from "../../../floor/artifacts/artifact-out.ts";
+import { aggregateScope } from "../../../floor/artifacts/artifact-scope.ts";
+import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
+import type { ProbeSession } from "../../../floor/browser/browser-contract.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../../floor/cli/exit-contract.ts";
+import type { EvidenceGap, VerdictDenominator } from "../../../floor/verdict/evidence.ts";
 import type { DesignAuditSeverity } from "../../../ui-audit/index.ts";
 import { isAtOrAboveSeverity, isValidSeverity } from "../../../ui-audit/index.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmRunInstance, ArmSharedContext } from "../../contract/arms.ts";

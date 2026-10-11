@@ -2,7 +2,7 @@
 // recursive string reader and complete helper arguments; this module owns the record grammar only.
 import type { BindingElement, CallExpression, Identifier, Node as MorphNode, ObjectLiteralExpression, ParameterDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference, referenceResolutionServices, resolveGlobalMemberOrigin, resolveStableExpression } from "../../_shared/reference-fact.ts";
+import { readMemberReference, referenceResolutionServices, resolveGlobalMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
 import type { FixtureAuthoredStringFact, FixtureAuthoredValueUnreadable } from "../contract/fixture-path-origin.ts";
 
 export interface FixtureAuthoredRecordReader {

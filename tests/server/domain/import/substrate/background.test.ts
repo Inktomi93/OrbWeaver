@@ -3,7 +3,7 @@
 // than guessed), and the display name strips the extension with a fallback for an empty stem.
 
 import { describe } from "vitest";
-import { stBackgroundMime, stBackgroundName } from "../../../../../packages/server/src/domain/import/substrate/background.ts";
+import { stBackgroundMime, stBackgroundName } from "#server/domain/import/substrate/background.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("stBackgroundMime", () => {

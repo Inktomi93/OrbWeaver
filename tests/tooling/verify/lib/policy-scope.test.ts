@@ -3,7 +3,7 @@
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import rootPackage from "../../../../package.json" with { type: "json" };
 import type { PolicyScopeRequest } from "../../../../tooling/src/verify/contract/policy-scope.ts";
 import { POLICY_SCOPE_KINDS } from "../../../../tooling/src/verify/contract/policy-scope.ts";

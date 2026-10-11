@@ -14,16 +14,10 @@ import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
-import { buildWirePlan } from "../../../../../packages/inference/src/backends/v4/prompt.ts";
-import { historyTurnTokens } from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
-import { shapeTurn } from "../../../../../packages/server/src/domain/chat/substrate/assembly-access.ts";
-import {
-  buildWireHistory,
-  convertsToEmptyWireRow,
-  dropEmptyWireRows,
-  shapeConvertFit,
-  wireCostRows,
-} from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
+import { buildWirePlan } from "#inference/backends/v4/prompt.ts";
+import { historyTurnTokens } from "#server/domain/chat/assembly/history-budget.ts";
+import { shapeTurn } from "#server/domain/chat/substrate/assembly-access.ts";
+import { buildWireHistory, convertsToEmptyWireRow, dropEmptyWireRows, shapeConvertFit, wireCostRows } from "#server/domain/chat/substrate/wire-history.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 type ShapedRow = Parameters<typeof buildWireHistory>[1][number];

@@ -4,7 +4,7 @@
 // tsc is unsound); depcruise = file. A stage a scope can't honestly run is DEFERRED, never silently skipped.
 // The program algebra lives in ./program-routing.ts and the CT view in ./ct-view.ts (five-slot split, P6).
 
-import { BROWSER_PACKAGES, isNodeToolSource, isWorldHelperPath } from "@orb/tooling/_shared/project-worlds";
+import { BROWSER_PACKAGES, isNodeToolSource, isWorldHelperPath } from "@orb/tooling/floor/compiler/project-worlds";
 import type { PolicySemanticPath } from "../contract/policy-scope.ts";
 import type { ChangedPathClassification, CtView, Selection, SelectionRequest } from "../contract/selection.ts";
 import { ctView } from "./ct-view.ts";

@@ -4,7 +4,7 @@
 // (--isolated/--ref/--fresh/--dirty/--stage-auth) and the three admin modes that print and exit
 // (--stage-status/--stage-down/--stage-sweep, mutually exclusive — enforced in ops/parse.ts).
 
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { STAGE_AUTH_MODES } from "../contract/stage.ts";
 import type { Args } from "../contract/types.ts";
 

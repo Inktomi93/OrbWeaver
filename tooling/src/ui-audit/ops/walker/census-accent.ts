@@ -37,9 +37,9 @@
 // One IIFE, concatenated IN ORDER by ops/walker.ts: this segment reads `accentBorders`-adjacent core
 // vocabulary (`allEls`, `isVisible`, `describe`, `capPush`, `parseRgb`, `SELECTION_RAIL_SEL`,
 // `PICKER_ART_SEL`, `BORDER_SAFE_TAGS`), so it must sit after WALKER_CORE and WALKER_RESOLVE. Raw JS in
-// a template literal (no backticks / dollar-brace — see _shared/browser.ts for why a string, not a
+// a template literal (no backticks / dollar-brace — see floor/browser/browser.ts for why a string, not a
 // function). Provenance + attribution: ops/walker.ts.
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 

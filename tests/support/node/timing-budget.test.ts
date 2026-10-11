@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import { NATIVE_TIMING_CASE_ANNOTATION, TIMING_MEASUREMENT_ANNOTATION, timingCapability } from "../../../tooling/src/_shared/timing-capability.ts";
+import { NATIVE_TIMING_CASE_ANNOTATION, TIMING_MEASUREMENT_ANNOTATION, timingCapability } from "../../../tooling/src/floor/host/timing-capability.ts";
 import { expect, test } from "../fixtures.ts";
 import { assertTimingBudget } from "./timing-budget.ts";
 

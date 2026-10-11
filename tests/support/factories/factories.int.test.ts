@@ -7,7 +7,7 @@
 import { assets, characters, chatParticipants, chats, messages, messageVariants, users } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { cardContentHash } from "@orb/server/kit/serde/card";
+import { cardContentHash } from "@orb/server/primitives/serde/card";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { FROZEN_AT_MS } from "../clock.ts";

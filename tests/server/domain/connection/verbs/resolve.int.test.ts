@@ -9,7 +9,7 @@ import { CONNECTION_OP_CODES, requireGenerationCapability, SHIPPED_PROMPT_CACHE 
 import { NoConnectionError } from "@orb/inference";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { hasStructuredWriter, hasToolWriter } from "../../../../../packages/server/src/domain/rpg/substrate/readonly-axis.ts";
+import { hasStructuredWriter, hasToolWriter } from "#server/domain/rpg/substrate/readonly-axis.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../_support.ts";

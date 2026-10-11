@@ -7,7 +7,7 @@
 import { DEFAULT_USER_SETTINGS, parseUserSettings, USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import { themeOverrideSchema } from "@orb/contracts/theme";
 import { settings, themes, userSettings, users } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";

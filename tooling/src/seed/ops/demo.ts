@@ -59,11 +59,11 @@ import {
 } from "@orb/server/entry/boot";
 import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
-import { print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { ExitCode } from "../../_shared/exit-contract.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { warn } from "../../_shared/log.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { ExitCode } from "../../floor/cli/exit-contract.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { warn } from "../../floor/cli/log.ts";
 import type { Db, RunFullSeedDeps, RunFullSeedResult, SeedDemoDeps } from "../contract/types.ts";
 import { fakeLocalLightCache } from "../lib/fake-local-light.ts";
 import {

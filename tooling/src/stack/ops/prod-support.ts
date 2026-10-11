@@ -4,9 +4,9 @@
 import { randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { REPO_ROOT } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { runNicedSync } from "../../_shared/proc.ts";
+import { REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { runNicedSync } from "../../floor/process/proc.ts";
 import type { DistVerdict } from "../contract/types.ts";
 import { newestSourceEntries } from "../lib/source-scan.ts";
 import { CLIENT_DIST_INDEX_REL } from "../lib/spawn-plan.ts";

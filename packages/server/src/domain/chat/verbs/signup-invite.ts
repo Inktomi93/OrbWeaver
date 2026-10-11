@@ -7,8 +7,8 @@
 
 import type { InvitePreview } from "@orb/contracts/chat";
 import type { JoinerPersona } from "@orb/contracts/persona";
-import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
-import { isConstraintViolation } from "@orb/db/kit";
+import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
+import { isConstraintViolation } from "@orb/db/query";
 import type { ChatId, ChatInviteId, Handle, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";

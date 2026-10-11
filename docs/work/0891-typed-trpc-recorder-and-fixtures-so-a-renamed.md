@@ -4,6 +4,7 @@ status: open
 updated: 2026-10-11
 priority: P1
 area: tests
+plan: test-mirror
 ---
 
 # Typed tRPC recorder and fixtures so a renamed field turns tests red

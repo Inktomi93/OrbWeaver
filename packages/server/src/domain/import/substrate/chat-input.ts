@@ -13,8 +13,8 @@ import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { msToWallClock } from "@orb/kit/time";
-import type { ParsedChat, ParsedChatMessage, ParsedNotePlacement, ParsedScriptInject } from "#kit/serde/chat";
-import { ST_DEFAULT_WALL_CLOCK_ZONE } from "#kit/serde/chat";
+import type { ParsedChat, ParsedChatMessage, ParsedNotePlacement, ParsedScriptInject } from "#primitives/serde/chat";
+import { ST_DEFAULT_WALL_CLOCK_ZONE } from "#primitives/serde/chat";
 import type { CollectedChat, GroupChatInputDeps, ImportUnresolvedPinnedPersona } from "../contract/views.ts";
 import { resolveImportedTokenUsage } from "./token-usage.ts";
 

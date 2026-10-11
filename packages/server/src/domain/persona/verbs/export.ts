@@ -1,10 +1,10 @@
 // verb: export — read an owned persona as ONE portable file. Resolves the owned row to PersonaDetail, then
-// hands the fields to `#kit/serde/persona`, which deliberately excludes avatarAssetId (a binary asset
+// hands the fields to `#primitives/serde/persona`, which deliberately excludes avatarAssetId (a binary asset
 // reference can't travel in a JSON backup). ONE producer for both doors: the bundle descriptor streams this
 // file and the single-entity export door serves the same bytes. import.ts is the round-trip twin.
 
 import { slugifyHandle } from "@orb/kit/slug";
-import { buildPersonaBackup } from "#kit/serde/persona";
+import { buildPersonaBackup } from "#primitives/serde/persona";
 import type { PersonaContext } from "../context.ts";
 import { PersonaNotFoundError } from "../contract/errors.ts";
 import type { ExportPersonaParams } from "../contract/params.ts";

@@ -7,14 +7,8 @@ import { speakerKey } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type { ArbiterCandidate, TranscriptLine } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
-import {
-  addressedGroups,
-  humanPlayerNames,
-  resolveMentions,
-  resolveNameMentions,
-  selectSpeakers,
-} from "../../../../../packages/server/src/domain/chat/engine/select-speakers.ts";
+import type { ArbiterCandidate, TranscriptLine } from "#server/domain/chat/contract/arbitration.ts";
+import { addressedGroups, humanPlayerNames, resolveMentions, resolveNameMentions, selectSpeakers } from "#server/domain/chat/engine/select-speakers.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A seeded Park-Miller (MINSTD) LCG — the INJECTED PRNG stand-in (D46; no `Math.random`, no bitwise). */

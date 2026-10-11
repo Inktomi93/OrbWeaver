@@ -11,7 +11,7 @@
 //     one error class across all seven roles — orbweaver's ChatError descendant). Pins the class AND its
 //     stable `kind` discriminant, replacing message-regex assertions that rot on rewording.
 //   • toExitWith(code) — the tooling exit contract (0 clean · 1 violations · 2 tool-broke · 3 misuse,
-//     @orb/tooling/_shared/exit-contract) over a runCli result: names BOTH codes by contract name and
+//     @orb/tooling/floor/cli/exit-contract) over a runCli result: names BOTH codes by contract name and
 //     prints stdout/stderr tails on mismatch — a bare `expect(res.code).toBe(0)` failure prints `1 ≠ 0`
 //     and nothing else, which is why the class exists (docs/law/Core-Tooling-Law.md §5.2).
 //
@@ -76,7 +76,7 @@ function toPromise(received: Promise<unknown> | (() => unknown)): Promise<unknow
 }
 
 /** The runCli outcome shape (structural — the one home is `SpawnNicedResult`,
- *  `@orb/tooling/_shared/proc`; duck-typed here so this module stays runtime-light). */
+ *  `@orb/tooling/floor/process/proc`; duck-typed here so this module stays runtime-light). */
 interface CliResultLike {
   readonly code: number | null;
   readonly stdout: string;
@@ -93,7 +93,7 @@ function tail(label: string, s: string): string {
 expect.extend({
   async toExitWith(received: CliResultLike, code: number): Promise<MatcherResult> {
     // Dynamic on purpose (the runtime-light law) — module-cached after the first use.
-    const { describeExit } = await import("@orb/tooling/_shared/exit-contract");
+    const { describeExit } = await import("@orb/tooling/floor/cli/exit-contract");
     const pass = received.code === code;
     return {
       pass,

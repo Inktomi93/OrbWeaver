@@ -13,7 +13,7 @@
 // <main> landmark so the only P1-severity finding in play is the planted one.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { vi } from "vitest";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../../_load-budget.ts";

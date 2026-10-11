@@ -31,8 +31,8 @@
 // `tooling-front-door` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
 // `8de18d2f5f` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,445 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,105 and final `population` admits 1,105.
-// legacy − final = ∅. final − legacy = ∅. Controls: inside `tooling/src/_shared/__cbbhr_in_appearance-flags.ts`
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,105 and final `population` admits 1,105.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside `tooling/src/floor/appearance/__cbbhr_in_appearance-flags.ts`
 // (virtual) admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by
 // both.
 import { Node, SyntaxKind } from "ts-morph";

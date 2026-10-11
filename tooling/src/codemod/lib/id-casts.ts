@@ -2,7 +2,7 @@
 
 import type { CallExpression, Diagnostic, DiagnosticMessageChain, PropertyAssignment } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { SemanticWorkspace } from "../../_shared/ts-workspace.ts";
+import type { SemanticWorkspace } from "../../floor/compiler/ts-workspace.ts";
 import type { CastByDiagnosticOptions, CastIdComparisonsOptions, CastIdLiteralsOptions, CodemodContext, Plan } from "../contract/types.ts";
 import { addNamedImport } from "./imports.ts";
 import { assertPathString, composePlans, isTestFile } from "./plans.ts";

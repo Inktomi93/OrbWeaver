@@ -8,7 +8,7 @@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expectTypeOf } from "vitest";
 import type { z } from "zod";
-import type { AnalysisPayload, AnalysisRoutes, AnalysisState } from "../../../../../packages/server/src/domain/automation/contract/analysis.ts";
+import type { AnalysisPayload, AnalysisRoutes, AnalysisState } from "#server/domain/automation/contract/analysis.ts";
 import {
   ANALYSIS_ARC_MAX,
   ANALYSIS_RETIRED_CAP,
@@ -19,7 +19,7 @@ import {
   mergeAnalysisState,
   parseAnalysisState,
   projectAnalysisWireSchema,
-} from "../../../../../packages/server/src/domain/automation/contract/analysis.ts";
+} from "#server/domain/automation/contract/analysis.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A payload with only the always-present plot half (the route-gated fields absent). */

@@ -1,8 +1,8 @@
 // Stored-array remaps retain field provenance only through installed array methods and pure callbacks.
 // Caller snapshots, opaque callbacks and member writes do not acquire provenance from the base array.
-import { resolveGlobalMemberOrigin, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
-import { lexicalReferenceSymbol } from "@orb/tooling/_shared/reference-fact-alias";
-import { resolveCallableOrigin } from "@orb/tooling/_shared/reference-fact-call";
+import { resolveGlobalMemberOrigin, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
+import { lexicalReferenceSymbol } from "@orb/tooling/floor/code-facts/reference-fact-alias";
+import { resolveCallableOrigin } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type { Node as MorphNode, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { JsonColumnMergeProof, JsonColumnOriginContext, JsonColumnTarget } from "../contract/json-column-origin.ts";

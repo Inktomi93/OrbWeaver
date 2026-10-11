@@ -35,7 +35,7 @@ import { describe, vi } from "vitest";
 // `tokens.test.ts` precedent). The alphabet pins below are worthless against a hand-`castId`'d string:
 // `castId` is type-only and carries no runtime guarantee, so what they must exercise is what production
 // actually writes into a cookie.
-import { mintSessionToken } from "../../../../packages/server/src/domain/sessions/tokens/tokens.ts";
+import { mintSessionToken } from "#server/domain/sessions/tokens/tokens.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;

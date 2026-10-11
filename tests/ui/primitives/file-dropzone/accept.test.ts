@@ -6,7 +6,7 @@
 // Imported by source path, not through the barrel: this is the primitive's internal decision, not part of
 // `@orb/ui`'s public surface (the same shape `macro-textarea-logic.test.ts` uses).
 import { DOC_UPLOAD_ACCEPT, docUploadMime } from "@orb/contracts/extraction";
-import { matchesAccept } from "../../../../packages/ui/src/primitives/file-dropzone/accept.ts";
+import { matchesAccept } from "#ui/primitives/file-dropzone/accept.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const CARD_ACCEPT = ".png,.json,image/png,application/json";

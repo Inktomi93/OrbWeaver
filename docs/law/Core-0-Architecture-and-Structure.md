@@ -21,11 +21,15 @@ boundaries are physics, not policy.
    a package cannot import what isn't in its declared deps — the layer cake is enforced by the module
    resolver, the earliest possible tier. dependency-cruiser is a *backstop*, not the primary boundary.
 2. **`#` intra-package, packages cross-package, zero `paths` aliases.** Native Node subpath imports
-   (`#kit`, `#domain`, …) inside a package; workspace package names across packages. **No tsconfig
+   (`#domain`, `#primitives`, …) inside a package; workspace package names across packages. **No tsconfig
    `paths`** anywhere (that was neo-tavern's `@/` shadcn tax). One resolution model, all native.
+   Another module is entered only through its front door, `#<module>`. `#src/<path>` names a file in the
+   importer's own module and never crosses into another one. A parent-relative import climbs at most one
+   directory (`package-deep-import`, `package-subpath-crossing`).
 3. **Name by role; no `_` junk drawers.** Folders are named for what they are (`foundation`, `infra`,
-   `kit`, `contract`). `kit` = pure primitives ONLY. There is **no `_shared` services drawer** —
-   cross-feature *services* are their own feature; cross-feature *primitives* are `kit`.
+   `primitives`, `contract`, `query`, `http`). Only the `@orb/kit` package is called `kit`; a package-local
+   helper folder is named by its role. There is **no `_shared` services drawer** — cross-feature *services*
+   are their own feature; cross-feature *primitives* are `@orb/kit`.
 4. **Tests are one central tree mirroring `src` 1:1.** Not colocated. The test path is a mechanical
    prefix-swap of the src path; kind is a filename suffix. More work, but agent-enforceable and the
    src tree stays clean.
@@ -65,8 +69,9 @@ the raw libs, so an app→raw-primitive import fails to resolve (physics). Full 
 `UI-Primitives-and-Reuse.md` + `UI-Architecture-and-Layout.md`.
 
 **Every importable module is a DIRECTORY with `index.ts`** (front-door = folder; internal files stay flat
-and relative-imported). `kit`/`contracts`/`db`/`server`/`client` share ONE resolution map —
-`exports: { ".": "./src/index.ts", "./*": "./src/*/index.ts" }`, `imports: { "#*": "./src/*/index.ts" }` —
+and are imported by a one-level relative path or by `#src/<path>`). `kit`/`contracts`/`db`/`server`/`client`
+share ONE resolution map — `exports: { ".": "./src/index.ts", "./*": "./src/*/index.ts" }`,
+`imports: { "#*": "./src/*/index.ts", "#src/*": "./src/*" }` —
 that works at any depth and never needs editing: a module grows from one file to many with no change to
 its import path or the map. (`ui` is the deliberate exception: an explicit per-primitive `exports` map —
 the sealed surface is the export list itself; consumers import `@orb/ui/<primitive>` only.)
@@ -79,7 +84,7 @@ flat/dir layout would force per-package exception lists. Uniform folders = one r
 **`kit` holds the pure ENGINES (not just tiny utils):** the **macro engine** (`kit/macro` — AST/parse +
 resolve a template against a `MacroContext`) and the **regex engine** (`kit/regex` — compile + apply +
 the macro-substitute hook; depends on `kit/macro`; the `node:vm` ReDoS watchdog is node-only, so it lives
-in `@orb/server/kit/regex` and is INJECTED — D53). They are pure,
+in `@orb/server/primitives/regex` and is INJECTED — D53). They are pure,
 zero-dep, cross-boundary transform engines with **multiple consumers — server assembly AND client
 render AND each other** — so they must NOT live in `chat`. Critical distinction, **engine vs data**:
 the engine is `kit`; the *data* it runs on comes from domains — the `MacroContext` *values*
@@ -116,7 +121,7 @@ packages/server/src/
 │   └── <feature>/
 ├── infra/            external adapters (I/O) — providers / auth / storage / crypto / network
 ├── foundation/       read DOWN into by all; never reaches up — env · config · observability
-└── kit/              server-only PURE primitives (zero I/O, zero domain)
+└── primitives/       server-only PURE primitives (zero I/O, zero domain, no state, no env)
 ```
 
 ---
@@ -190,6 +195,10 @@ Why central+mirror over colocation: an agent can drop a colocated test anywhere;
 path-gate means a test **must** land at the computed path or `check` goes red, and the src tree stays
 clean. The fixture doctrine is composed `test.extend` (over `beforeEach`/`freshDb()`).
 
+A test imports a package's source through the root `#<package>/*` imports map
+(`#server/domain/chat/verbs/send.ts`), never a relative climb into `packages/` (`tests-package-subpath`). The map
+lives in the root `package.json`, so product code cannot resolve it and every package keeps its root-only exports.
+
 > **Authority: `Spine-Testing.md`.** This section is the mirror rule + `test-layout` gate only. The full
 > policy — the tree (§2 there), the lanes/projects, `test-presence`, the mock/determinism doctrine, the
 > factory contract, and the homes for the oracle + the esoterica + memory's 6 semantics — lives there.
@@ -232,6 +241,7 @@ The rot mode is a concept with no single home. Each of these has exactly one, up
 | **Every union dispatch is a mapped-type Record or `assertNever` — a new member fails `tsc`** | `tsc` itself — compile-time by construction, no gate file (house label: `exhaustive-dispatch`; §7.5 spine) |
 | **`persistence/` is queries only — no `fetch`/`http`/`node:*` I/O** | `persistence-no-io` |
 | **`persistence/` holds no module-scope `Map`/`Set` (in-memory state lives in a named subsystem)** | `persistence-no-in-memory-state` |
+| **A parent-relative import climbs at most one directory; another module is entered through its front door** | `package-deep-import` · `package-subpath-crossing` |
 
 When these hold, **the structure is the documentation**: a new feature is "copy the template,"
 finding anything is a path derivation, and "where does this go?" has exactly one answer.
@@ -277,16 +287,16 @@ know all):
 
 ```
 tooling/src/<tool>/
-├── cli.ts        argv parse + dispatch ONLY (cap 200 lines; enters through _shared/run-tool.ts)
+├── cli.ts        argv parse + dispatch ONLY (cap 200 lines; enters through floor/cli/run-tool.ts)
 ├── index.ts      programmatic API — tests import THIS; cli.ts consumes it
 ├── contract/     result shapes, config schemas, typed exit data
 ├── ops/          one file per command family / capability
 └── lib/          tool-internal pure helpers
 ```
 
-Two sanctioned departures: **`_shared/`** is the ONE plumbing floor (flat modules — the browser bootstrap,
-the ts-morph workspace loader, the artifact filer, the argv idioms, the exit contract, the process door),
-the plan's explicit exception to §1 principle 3's no-`_shared` rule, and it reaches UP to no tool
+Two sanctioned departures: **`floor/`** is the ONE plumbing floor, role-subfoldered and never a flat drawer
+(`browser/` holds the browser bootstrap, `compiler/` the ts-morph workspace loader, `artifacts/` the artifact
+filer, `cli/` the exit contract, `process/` the process door, and so on), and it reaches UP to no tool
 (`tooling-shared-floor`); **`gates/`** is a SIXTH slot inside `verify/` only — the fs-discovered gate
 corpus is neither a command family nor tool-internal helpers, and it is cap-exempt. A bash-fronted tool
 (`stack/`) carries its `.sh` entrypoints at the tool root under a typed exemption row, and its node half is
@@ -305,10 +315,10 @@ did not change when the fleet moved.
 | a cross-tool import enters through the sibling's front door (`#<tool>`), never its `ops`/`lib`/`contract` | `tooling-front-door` (shape) + `tooling-internal-direction` + `tooling-cli-via-index` (resolved edges) |
 | no file >450 lines; no `cli.ts` >200 (`verify/gates/**` cap-exempt) | `tooling-size` |
 | ONE home per plumbing capability: the ts-morph project, the browser launch, the artifact dir, `process.exit`, the `cli.ts` `runTool` entry, the `node:child_process` door, the un-niced spawn census | `tooling-project-home` · `tooling-browser-door` · `tooling-artifact-path-home` · `tooling-artifact-run-slot` · `tooling-process-exit-home` · `tooling-cli-entry` · `tooling-child-process-door` (the `tooling-shared-plumbing` split, `Core-Tooling-Law.md` §4.4) |
-| every instrument whose output is a VERDICT about the app owns a planted-defect proof AND a planted-absence proof | `tooling-instrument-proof` (keyed off `_shared/instruments.ts`) |
+| every instrument whose output is a VERDICT about the app owns a planted-defect proof AND a planted-absence proof | `tooling-instrument-proof` (keyed off `floor/instrument/instruments.ts`) |
 | `packages/** ⇏ tooling/**`; provider families stay sealed | `packages-no-tooling` · `tooling-no-provider-families` |
 
-**Two fleet-wide doors, both in `_shared/`.** `exit-contract.ts` owns `EXIT = { clean: 0, violations: 1,
+**Two fleet-wide doors, both in `floor/cli/`.** `exit-contract.ts` owns `EXIT = { clean: 0, violations: 1,
 toolError: 2, misuse: 3 }` and `run-tool.ts` is the exit-honesty runner every `cli.ts` enters through:
 crash ≠ verdict (an uncaught throw becomes a hard `toolError`, never a silent 1), verdicts set
 `process.exitCode` so stdout drains, and a verdict never downgrades. `proc.ts` is the ONE

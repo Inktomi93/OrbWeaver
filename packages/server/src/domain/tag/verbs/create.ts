@@ -4,7 +4,7 @@
 // DomainConflictError.
 
 import { tags } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
 import { normalizeTagName } from "@orb/kit/tag";
 import type { CreateTagParams } from "../contract/params.ts";

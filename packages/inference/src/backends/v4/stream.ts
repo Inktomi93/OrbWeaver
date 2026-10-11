@@ -19,9 +19,8 @@ import type {
 import type { TextSignature } from "@orb/contracts/chat";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
-import type { ReasoningContentPart, ToolCallInput } from "../../contract/chat.ts";
-import { ProviderError } from "../../contract/errors.ts";
-import type { GeneratedImage } from "../../contract/roles.ts";
+import type { GeneratedImage, ReasoningContentPart, ToolCallInput } from "#contract";
+import { ProviderError } from "#contract";
 
 const BASE64 = "base64";
 const IMAGE_PREFIX = "image/";

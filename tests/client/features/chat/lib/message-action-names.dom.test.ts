@@ -19,7 +19,7 @@ import {
   VARIANT_GENERATE_NAME,
   VARIANT_NEXT_NAME,
   VARIANT_PREV_NAME,
-} from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
+} from "#client/features/chat/lib/message-action-names.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("the row action cluster's names", () => {

@@ -4,7 +4,7 @@
 // while a malformed script joins `unmapped` rather than aborting the whole preset.
 
 import { describe } from "vitest";
-import { parseStPresetFile, parseStSettingsPreset, stPresetFromJson, stPresetName } from "../../../../../packages/server/src/domain/import/substrate/preset.ts";
+import { parseStPresetFile, parseStSettingsPreset, stPresetFromJson, stPresetName } from "#server/domain/import/substrate/preset.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function stPresetJson(over: Record<string, unknown> = {}): unknown {

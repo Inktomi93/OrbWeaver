@@ -37,7 +37,7 @@
 // into the per-finding MESSAGE, where it is more useful than it was in a position nobody could type.
 //
 // ── POPULATION PORT: byte-identical, measured ──────────────────────────────────────────────────────────
-// Legacy scanned the harness corpus (`_shared/ts-workspace.ts#harnessGlobs`: `packages/*/src/**`,
+// Legacy scanned the harness corpus (`floor/compiler/ts-workspace.ts#harnessGlobs`: `packages/*/src/**`,
 // `tests/**`, `tooling/src/**`, `scripts/**`) minus its own `scanRoot` subtraction of
 // `tooling/src/verify/gates/`. `@authored` + `notUnder: ["tooling/src/verify/gates/**"]` is
 // that set: driven over the 7,475 tracked `.ts`/`.tsx` paths, legacy admits 7,165 and this population
@@ -92,7 +92,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `no-inline-union-redecl` descriptor at ce85507a5cc5641607254d9e93a7829d07a42a30, the parent of the conversion
 // `f323ab51e6` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,480 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// 7,480 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 7,175 and final `population` admits 7,175. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `tooling/src/verify/gates/_proof/__cbbhr_out_client-vendors.ts` (virtual) rejected by both.

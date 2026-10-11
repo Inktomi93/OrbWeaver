@@ -19,8 +19,8 @@ import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { Sandbox } from "@orb/server/infra/plugin-host";
 import { and, eq, inArray } from "drizzle-orm";
 import { zipSync } from "fflate";
-import type { PluginHostOps } from "../../../../packages/server/src/domain/plugin/contract/ops.ts";
-import type { PluginLogView as DomainPluginLogView } from "../../../../packages/server/src/domain/plugin/contract/results.ts";
+import type { PluginHostOps } from "#server/domain/plugin/contract/ops.ts";
+import type { PluginLogView as DomainPluginLogView } from "#server/domain/plugin/contract/results.ts";
 import type {
   CreateInstanceInput,
   CreateInstanceOutcome,
@@ -29,7 +29,7 @@ import type {
   PluginHostPort,
   PluginProviderLifecycle,
   PluginService,
-} from "../../../../packages/server/src/domain/plugin/contract/service.ts";
+} from "#server/domain/plugin/contract/service.ts";
 import {
   createNotifyFloor,
   createPluginRateFloor,
@@ -42,7 +42,7 @@ import {
   PLUGIN_EGRESS_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
   PLUGIN_SEARCH_QUERY_PER_HOUR,
-} from "../../../../packages/server/src/domain/plugin/index.ts";
+} from "#server/domain/plugin/index.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 

@@ -6,9 +6,9 @@
 
 import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { CanonicalGalleryItem } from "#kit/serde/gallery";
-import { GALLERY_SCHEMA_KIND, parseGallery } from "#kit/serde/gallery";
-import { portableParseError } from "#kit/serde/lib";
+import type { CanonicalGalleryItem } from "#primitives/serde/gallery";
+import { GALLERY_SCHEMA_KIND, parseGallery } from "#primitives/serde/gallery";
+import { portableParseError } from "#primitives/serde/lib";
 import type { AssetsContext } from "../context.ts";
 import type { GalleryImportOutcome, GalleryPortableFile } from "../contract/results.ts";
 import { importGalleryItem, ownedAssetForGallery } from "../persistence/queries.ts";

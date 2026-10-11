@@ -5,7 +5,7 @@
 // to "the feature is not built". Both empty arms therefore NAME the directory and say how a report gets made
 // — the standing named-empty rule (`empty-population-vs-broken-probe`), applied to a reader.
 
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { BugReportListing, BugReportSummary } from "../contract/index.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm bug:reports");

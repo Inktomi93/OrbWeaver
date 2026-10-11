@@ -30,7 +30,7 @@
 
 import type { Db } from "@orb/db";
 import { assets, characters } from "@orb/db";
-import { batchMany, batchStmt } from "@orb/db/kit";
+import { batchMany, batchStmt } from "@orb/db/query";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, sql } from "drizzle-orm";
@@ -45,7 +45,7 @@ import type { CharacterAvatarLinkContext, LinkCharacterAvatars } from "../contra
  *  caller-supplied id list has strictly less standing to skip it, not more.
  *
  *  AS A SUBQUERY IN THE WRITE, not a read-then-write: `db.batch` takes SQLite's write lock at its first
- *  statement, so a predicate evaluated inside the UPDATE is atomic with it, and `@orb/db/kit::batchMany`
+ *  statement, so a predicate evaluated inside the UPDATE is atomic with it, and `@orb/db/query::batchMany`
  *  bans a SELECT ahead of the writes anyway. Shape precedent: `persistence/card.ts::ownedBackgroundExists`.
  *  A refused row updates ZERO rows, so it does not even take the `updatedAt` stamp — the honest degrade the
  *  workload already reports at the run level (it counts what it asked for, not what the belt allowed). */

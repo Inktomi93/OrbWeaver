@@ -1,6 +1,6 @@
-import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/_shared/test-tags";
-import { semanticWorkspaceOf } from "@orb/tooling/_shared/ts-workspace";
 import { collectSchemaTables, loadProject } from "@orb/tooling/ast";
+import { semanticWorkspaceOf } from "@orb/tooling/floor/compiler/ts-workspace";
+import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
 import { Node, SyntaxKind } from "ts-morph";
 import { beforeAll } from "vitest";
 import { resolveDynamicImportTarget } from "../../../../tooling/src/ast/lib/resolve.ts";

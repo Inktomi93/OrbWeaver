@@ -5,9 +5,9 @@
 
 import process from "node:process";
 import type { SourceFile } from "ts-morph";
-import { warn } from "../../_shared/log.ts";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
-import { harnessGlobs, searchGlobs } from "../../_shared/ts-workspace.ts";
+import { warn } from "../../floor/cli/log.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
+import { harnessGlobs, searchGlobs } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, ScanMeta, ScanSpec, ScanStatus, ScopeMatch, SkipReason, SkipRule } from "../contract/types.ts";
 import { REPO_ROOT, TEST_FILE_RE } from "./root.ts";
 

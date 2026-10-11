@@ -3,11 +3,11 @@
 // the nonzero sibling proves this is denominator-derived, not a blanket requests refusal.
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { aggregateScope, factBatchId } from "@orb/tooling/_shared/artifact-scope";
-import { printVerdictReceipt } from "@orb/tooling/_shared/evidence";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
-import { installOutputSink } from "@orb/tooling/_shared/log";
+import { aggregateScope, factBatchId } from "@orb/tooling/floor/artifacts/artifact-scope";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { installOutputSink } from "@orb/tooling/floor/cli/log";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
+import { printVerdictReceipt } from "@orb/tooling/floor/verdict/evidence";
 import { snapArmFact } from "../../../../tooling/src/snap/contract/run-facts.ts";
 import type { SnapRunIndex } from "../../../../tooling/src/snap/contract/run-index.ts";
 import { parseSnapReportArgs } from "../../../../tooling/src/snap/lib/run-report-query.ts";

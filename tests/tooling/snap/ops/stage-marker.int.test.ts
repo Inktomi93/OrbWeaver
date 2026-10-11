@@ -20,11 +20,11 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFile
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { REPO_ROOT } from "@orb/tooling/_shared/artifacts";
-import { spawnNiced } from "@orb/tooling/_shared/proc";
+import { REPO_ROOT } from "@orb/tooling/floor/artifacts/artifacts";
+import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { vi } from "vitest";
-import type { PortOwner } from "../../../../tooling/src/_shared/platform.ts";
-import { stageBandPorts } from "../../../../tooling/src/_shared/ports.ts";
+import type { PortOwner } from "../../../../tooling/src/floor/host/platform.ts";
+import { stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { StageBandsFile, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import { BANDS_REL, LEGACY_ACTIVE_REL, STAGE_ROOT_REL } from "../../../../tooling/src/snap/lib/stage-plan.ts";
 import { stageBindingAlive } from "../../../../tooling/src/snap/ops/stage-census.ts";
@@ -114,7 +114,7 @@ async function runChild(child: {
 
 const MARKER_SRC = join(REPO_ROOT, "tooling/src/snap/ops/stage-marker.ts");
 const BANDS_SRC = join(REPO_ROOT, "tooling/src/snap/lib/stage-bands.ts");
-const PORTS_SRC = join(REPO_ROOT, "tooling/src/_shared/ports.ts");
+const PORTS_SRC = join(REPO_ROOT, "tooling/src/floor/host/ports.ts");
 const REGISTRY_SRC = join(REPO_ROOT, "tooling/src/snap/ops/session-registry.ts");
 
 // ── the table's shape ─────────────────────────────────────────────────────────────────────────────────

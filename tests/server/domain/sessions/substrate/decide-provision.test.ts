@@ -2,8 +2,8 @@ import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import type { ProvisionCandidate } from "../../../../../packages/server/src/domain/sessions/contract/results.ts";
-import { decideProvision } from "../../../../../packages/server/src/domain/sessions/substrate/decide-provision.ts";
+import type { ProvisionCandidate } from "#server/domain/sessions/contract/results.ts";
+import { decideProvision } from "#server/domain/sessions/substrate/decide-provision.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 // The pure provision decision (D259). The precedence cases the verb suite drives through a db are pinned

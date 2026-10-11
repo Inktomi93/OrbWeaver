@@ -10,7 +10,7 @@ import type { EmbedPassResult } from "@orb/contracts/embeddings";
 import type { ReportProgress, WorkloadParamsByKind, WorkloadRunContext } from "@orb/contracts/workloads";
 import { indexWorkloadParams, REBUILD_ADMISSION_KEY_SUFFIX } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "#domain/workloads";
-import { runUntilSettled } from "#kit/embedding-generation";
+import { runUntilSettled } from "#primitives/embedding-generation";
 import type { EmbeddingsWorkloadDeps } from "./contract/service.ts";
 
 /**

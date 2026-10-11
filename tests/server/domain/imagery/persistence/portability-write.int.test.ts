@@ -2,7 +2,7 @@ import { assets, imageryGenerations, imageryImportCalls } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { bumpStatsCanonVersion } from "@orb/server/domain/stats";
 import { eq } from "drizzle-orm";
-import { writeImportedImageryCall } from "../../../../../packages/server/src/domain/imagery/persistence/portability-write.ts";
+import { writeImportedImageryCall } from "#server/domain/imagery/persistence/portability-write.ts";
 import { seedAsset } from "../../../../support/factories/asset.ts";
 import { makeImageryCall } from "../../../../support/factories/imagery-call.ts";
 import { seedUser } from "../../../../support/factories/user.ts";

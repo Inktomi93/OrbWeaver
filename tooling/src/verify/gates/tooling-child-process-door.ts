@@ -1,6 +1,6 @@
 // Policy: tooling-child-process-door (docs/law/Core-Tooling-Law.md §4.4, arms F + F2 of the
 // retired `tooling-shared-plumbing`) — every tooling spawn rides the TOOLING_PRIORITY (10, every OS) homelab floor through the ONE
-// subprocess home, `_shared/proc.ts`: a `node:child_process` import anywhere else under `tooling/src/**` is a
+// subprocess home, `floor/process/proc.ts`: a `node:child_process` import anywhere else under `tooling/src/**` is a
 // raw spawn that bypasses the floor (arm F), and a call to one of the home's FULL-PRIORITY doors
 // (`spawnFullPrioritySync`, `spawnFullPriorityChild` — the un-niced exceptions for a process a human waits
 // on or that IS the workload) is legal only for a reviewed caller (arm F2). Comment posture: comment-SAFE
@@ -16,7 +16,7 @@
 //
 // IDENTITY FOR THE DOORS, SPECIFIER FOR THE IMPORT: the import arm matches the module specifier exactly
 // (`node:child_process` and the bare `child_process` spelling, mustFlag[1] — an import has no other identity).
-// The full-priority doors are judged by DECLARATION against the LOCATED `_shared/proc.ts` home through
+// The full-priority doors are judged by DECLARATION against the LOCATED `floor/process/proc.ts` home through
 // `lib/project-home-origin.ts`, so a local function that merely shares a door's name is NOT the door
 // (mustPass[0] — the legacy text comparison red it, and the un-niced spawn such a function would need is
 // caught by the import arm, mustFlag[6]) and an aliased import is (mustFlag[3]); a callee the readers cannot
@@ -38,18 +38,18 @@
 // `tooling-shared-plumbing` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
 // `bbdccb2d5c` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,464 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,617 and final `population` admits 1,120.
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,617 and final `population` admits 1,120.
 // legacy − final = 497 — `tests/tooling/**` (482) and `tests/e2e/support/**` (15): arms F/F2 fenced to `tooling/src`
-// inside `visit`. final − legacy = ∅. Controls: inside `tooling/src/_shared/__cbbhr_in_appearance-flags.ts` (virtual)
+// inside `visit`. final − legacy = ∅. Controls: inside `tooling/src/floor/appearance/__cbbhr_in_appearance-flags.ts` (virtual)
 // admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../_shared/reference-fact.ts";
+import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-home-origin.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 
-const PROC_HOME = { path: "tooling/src/_shared/proc.ts", names: ["spawnFullPrioritySync", "spawnFullPriorityChild"] } as const;
+const PROC_HOME = { path: "tooling/src/floor/process/proc.ts", names: ["spawnFullPrioritySync", "spawnFullPriorityChild"] } as const;
 const PROC_RECEIPT = "child-process home: proc";
 /** node's two spellings of the subprocess module. */
 const CHILD_PROCESS_DOORS: ReadonlySet<string> = new Set(["node:child_process", "child_process"]);
@@ -57,11 +57,11 @@ const IMPORT_OPERATION = "child-process-import";
 const SPAWN_OPERATION = "full-priority-spawn";
 
 const MESSAGE =
-  "a subprocess outside the ONE home — every tooling spawn rides the TOOLING_PRIORITY (10, every OS) homelab floor through _shared/proc.ts (`spawnNiced`/`runNicedSync`/`spawnNicedChild`): a direct `node:child_process` import bypasses the floor, and a call to a FULL-PRIORITY door (`spawnFullPrioritySync`/`spawnFullPriorityChild`, the un-niced exceptions for a process a human waits on or that IS the workload) is licensed per caller by an exact reviewed grant, never ambient (docs/law/Core-Tooling-Law.md §4.4).";
+  "a subprocess outside the ONE home — every tooling spawn rides the TOOLING_PRIORITY (10, every OS) homelab floor through floor/process/proc.ts (`spawnNiced`/`runNicedSync`/`spawnNicedChild`): a direct `node:child_process` import bypasses the floor, and a call to a FULL-PRIORITY door (`spawnFullPrioritySync`/`spawnFullPriorityChild`, the un-niced exceptions for a process a human waits on or that IS the workload) is licensed per caller by an exact reviewed grant, never ambient (docs/law/Core-Tooling-Law.md §4.4).";
 const UNREADABLE =
   "a call spelled like a full-priority spawn door whose callee the shared readers cannot place, so whether it is proc.ts's un-niced door CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
 const FIX =
-  "spawn through `spawnNiced`/`runNicedSync`/`spawnNicedChild` from _shared/proc.ts; a process that genuinely must not be niced (a boot a human waits on, a server that IS the workload) takes an exact reviewed grant `(file, full-priority-spawn)` in lib/reviewed-grants.ts stating why nice is wrong there and what ends it.";
+  "spawn through `spawnNiced`/`runNicedSync`/`spawnNicedChild` from floor/process/proc.ts; a process that genuinely must not be niced (a boot a human waits on, a server that IS the workload) takes an exact reviewed grant `(file, full-priority-spawn)` in lib/reviewed-grants.ts stating why nice is wrong there and what ends it.";
 
 /** The callee's spelled name, so only a call that LOOKS like a door is carried to the identity readers. */
 function calleeName(expression: Node): string | undefined {
@@ -159,7 +159,7 @@ export const gate = defineGate({
       files: {
         [PROC_HOME.path]: procStub(),
         "tooling/src/seed/ops/hot.ts":
-          'import { spawnFullPrioritySync } from "../../_shared/proc.ts";\nexport const x = (): void => spawnFullPrioritySync("x", []);\n',
+          'import { spawnFullPrioritySync } from "../../floor/process/proc.ts";\nexport const x = (): void => spawnFullPrioritySync("x", []);\n',
       },
       expect: { count: 1, token: "spawnFullPrioritySync", messageIncludes: "operation: full-priority-spawn" },
       why: "an un-censused full-priority spawn through the real door — the exception is licensed by an exact grant row, never ambient (arm F2)",
@@ -169,7 +169,7 @@ export const gate = defineGate({
       files: {
         [PROC_HOME.path]: procStub(),
         "tooling/src/seed/ops/warm.ts":
-          'import { spawnFullPriorityChild as detach } from "../../_shared/proc.ts";\nexport const x = (): void => detach("x", []);\n',
+          'import { spawnFullPriorityChild as detach } from "../../floor/process/proc.ts";\nexport const x = (): void => detach("x", []);\n',
       },
       expect: { count: 1, token: "detach", messageIncludes: "operation: full-priority-spawn" },
       why: "the DETACHED door through an IMPORT ALIAS — the callee resolves to the home's export whatever it was spelled as, and a second door must not be a second loophole (arm F2 matches the door SET). The legacy text comparison passed this call",
@@ -177,7 +177,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: { [PROC_HOME.path]: `import { spawn } from "node:child_process";\n${procStub()}export const s = spawn;\n` },
-      expect: { count: 1, messageIncludes: "Subject: tooling/src/_shared/proc.ts, operation: child-process-import" },
+      expect: { count: 1, messageIncludes: "Subject: tooling/src/floor/process/proc.ts, operation: child-process-import" },
       why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the home's own child_process import reds like any other and is licensed by its exact grant row (`tooling-child-process-door:proc`); the home's door DEFINITIONS are not calls and its body is skipped for the door arm by derivation",
     },
     {
@@ -215,7 +215,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         [PROC_HOME.path]: procStub(),
-        "tooling/src/seed/ops/niced.ts": 'import { spawnNiced } from "../../_shared/proc.ts";\nexport const x = spawnNiced("x", []);\n',
+        "tooling/src/seed/ops/niced.ts": 'import { spawnNiced } from "../../floor/process/proc.ts";\nexport const x = spawnNiced("x", []);\n',
       },
       why: "the sanctioned shape — a spawn through the home's NICED door needs no permission; the name prefilter never carries it to the identity readers",
     },
@@ -224,7 +224,7 @@ export const gate = defineGate({
       files: {
         [PROC_HOME.path]: procStub(),
         "tooling/src/seed/ops/prose.ts":
-          '// import { spawn } from "node:child_process" is banned here; use spawnNiced from _shared/proc.ts.\nexport const doc = true;\n',
+          '// import { spawn } from "node:child_process" is banned here; use spawnNiced from floor/process/proc.ts.\nexport const doc = true;\n',
       },
       why: "comment posture: comment-SAFE. The policy subscribes to node kinds, so a header naming the banned import is not an import",
     },
@@ -238,7 +238,7 @@ export const gate = defineGate({
       files: {
         [PROC_HOME.path]: procStub(),
         "tooling/src/seed/ops/written.ts":
-          'import { spawnFullPrioritySync } from "../../_shared/proc.ts";\nlet door = spawnFullPrioritySync;\ndoor = spawnFullPrioritySync;\nexport const x = (): void => door("x", []);\n',
+          'import { spawnFullPrioritySync } from "../../floor/process/proc.ts";\nlet door = spawnFullPrioritySync;\ndoor = spawnFullPrioritySync;\nexport const x = (): void => door("x", []);\n',
       },
       why: "DECLARED LIMIT OF THE PREFILTER, recorded rather than hidden: a WRITTEN binding under a name that is not a door's is never carried to the identity readers, so it is neither reported nor fail-closed here — the unreadable arm needs the door's own spelling (mustFlag[5]). Widening the prefilter to every callee would report every unplaceable call in the tree",
     },

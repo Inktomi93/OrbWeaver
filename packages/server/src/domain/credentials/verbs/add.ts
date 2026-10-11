@@ -3,7 +3,7 @@
 // provider is checked against the registry before sealing: its id is half the AAD.
 
 import type { Db } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import { DomainOperationError } from "@orb/kit/errors";
 import { nextFreeLabel } from "@orb/kit/strings";
 import type { CredentialContext } from "../context.ts";

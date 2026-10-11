@@ -28,8 +28,8 @@
 //   eslint                   → cli.ts eslint  (whole-tree native compiler-owner process isolation)
 //   lint:eslint (scoped)     → cli.ts eslint-scoped <paths…>  (the same isolation over a verify selection)
 import process from "node:process";
-import { EXIT } from "../_shared/exit-contract.ts";
-import { runTool, UsageError } from "../_shared/run-tool.ts";
+import { EXIT } from "../floor/cli/exit-contract.ts";
+import { runTool, UsageError } from "../floor/cli/run-tool.ts";
 import type { VerifyVerb } from "./index.ts";
 import {
   parse,

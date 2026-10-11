@@ -2,8 +2,8 @@
 // hands back, which is the same one a MessageRow's effect cleanup calls — so the registry needs no
 // test-only reset export and the suite proves the production cleanup path while it is at it (#1847).
 import { describe } from "vitest";
-import type { AppearanceMessageCarrierSnapshot } from "../../../packages/client/src/lib/appearance-message-registry.ts";
-import { readAppearanceMessageSnapshots, registerAppearanceMessageSnapshot } from "../../../packages/client/src/lib/appearance-message-registry.ts";
+import type { AppearanceMessageCarrierSnapshot } from "#client/lib/appearance-message-registry.ts";
+import { readAppearanceMessageSnapshots, registerAppearanceMessageSnapshot } from "#client/lib/appearance-message-registry.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const SNAPSHOT_A: AppearanceMessageCarrierSnapshot = {

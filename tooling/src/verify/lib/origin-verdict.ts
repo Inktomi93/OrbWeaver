@@ -12,8 +12,8 @@
 // `fetch` / `forwardRef` lookalike) or a silent green (every unreadable door). One home so the twelve
 // canonical-origin policies cannot drift apart on the answer.
 
-import { readMemberReference } from "@orb/tooling/_shared/reference-fact";
-import type { ReferenceUnresolvedReason } from "@orb/tooling/_shared/reference-fact-contract";
+import { readMemberReference } from "@orb/tooling/floor/code-facts/reference-fact";
+import type { ReferenceUnresolvedReason } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, VariableDeclarationKind } from "ts-morph";
 import type { OriginRefusalVerdict } from "../contract/origin-verdict.ts";

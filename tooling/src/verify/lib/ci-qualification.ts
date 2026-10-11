@@ -2,9 +2,9 @@
 // Publication admits a version baseline, not old tests; unrelated weekly proof never grants or vetoes authority.
 
 import process from "node:process";
-import { execGit, GIT_READ_PREFIX, runGit } from "@orb/tooling/_shared/git";
-import { budget } from "@orb/tooling/_shared/load-budget";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { execGit, GIT_READ_PREFIX, runGit } from "@orb/tooling/floor/git/git";
+import { budget } from "@orb/tooling/floor/host/load-budget";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { z } from "zod";
 import type { CiQualificationConfig, QUALIFICATION_AUTHORITIES, QualificationDecision, QualificationMeasurement } from "../contract/qualification.ts";
 import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../contract/selection.ts";

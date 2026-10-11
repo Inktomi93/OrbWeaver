@@ -1,11 +1,5 @@
 import { afterEach, vi } from "vitest";
-import {
-  clearJoinParam,
-  consumeInboundJoinToken,
-  peekInboundJoinToken,
-  readJoinToken,
-  stashInboundJoinToken,
-} from "../../../packages/client/src/data/join-token.ts";
+import { clearJoinParam, consumeInboundJoinToken, peekInboundJoinToken, readJoinToken, stashInboundJoinToken } from "#client/data/join-token.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { stubTabStorage } from "../../support/tab-storage.ts";
 

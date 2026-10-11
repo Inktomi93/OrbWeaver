@@ -91,8 +91,10 @@ test("namespaceImportSpecifier resolves an `import * as` binding syntactically, 
 });
 
 test("namedImportLocalNames carries an alias, and ignores a non-matching specifier", () => {
-  const sf = sourceOf('import { printResult as print } from "../_shared/artifacts.ts";\nimport { printResult } from "./elsewhere.ts";\nexport const a = 1;\n');
-  expect([...namedImportLocalNames(sf, "printResult", (s) => s.endsWith("_shared/artifacts.ts"))]).toEqual(["print"]);
+  const sf = sourceOf(
+    'import { printResult as print } from "../floor/artifacts/artifacts.ts";\nimport { printResult } from "./elsewhere.ts";\nexport const a = 1;\n',
+  );
+  expect([...namedImportLocalNames(sf, "printResult", (s) => s.endsWith("floor/artifacts/artifacts.ts"))]).toEqual(["print"]);
 });
 
 test("moduleMemberReference: a NAMED import and a NAMESPACE member read are the same reference, in every spelling", () => {

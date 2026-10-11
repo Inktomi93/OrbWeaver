@@ -31,7 +31,7 @@
 // SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the refuted text kept above: "the whole legacy harness fileset:
 // `packages/*/src/**/*.{ts,tsx}` plus `tests/**/*.{ts,tsx}` (`lib/harness.ts` at `2ee31c5d22^`)" and "WIDENS by
 // `tooling/src` and `scripts/`" are REFUTED. `lib/harness.ts` at that tree is the BASELINE WRITERS' project; the live
-// legacy pass (`lib/pass.ts:434`, `getWorkspace({ root })`) loaded `_shared/ts-workspace.ts#harnessGlobs`, which
+// legacy pass (`lib/pass.ts:434`, `getWorkspace({ root })`) loaded `floor/compiler/ts-workspace.ts#harnessGlobs`, which
 // already carried `tooling/src` and `scripts/`. Measured for each of the three members over the harness candidates at
 // `2ee31c5d22^`: legacy − final = {`packages/showcase-plugins/src/index.ts`}, final − legacy = ∅. The port is a
 // one-file NARROWING in ONE direction; the zero-React-import measurement above stays true and is now simply not
@@ -41,8 +41,8 @@
 // The other two members — `no-effect-on-shared-selection` and `registry-context-via-mint` — each had a real
 // legacy `scanRoot`, so each states its own port in its own header rather than sharing this one.
 
-import { resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
-import type { ModuleMemberOrigin, ReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
+import { resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
+import type { ModuleMemberOrigin, ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { ImportSpecifier, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { ReactExportFinding, ReactOriginVerdict } from "../contract/origin-verdict.ts";

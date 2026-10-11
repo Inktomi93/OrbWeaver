@@ -32,7 +32,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
-import { execGit } from "@orb/tooling/_shared/git";
+import { execGit } from "@orb/tooling/floor/git/git";
 import { SessionCache } from "../../packages/inference/src/backends/agent-sdk/session/store.ts";
 import { extractTrailingSystemRows, splitAgentHistory } from "../../packages/inference/src/backends/agent-sdk/turn-input.ts";
 import { BEFORE_HISTORY_DEPTH } from "../../packages/server/src/domain/chat/assembly/injections.ts";

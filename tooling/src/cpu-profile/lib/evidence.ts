@@ -1,10 +1,10 @@
-// ZERO HYGIENE (#409) — perf-meter's half of the fleet rule in _shared/evidence.ts (read that first).
+// ZERO HYGIENE (#409) — perf-meter's half of the fleet rule in floor/verdict/evidence.ts (read that first).
 //
 // This tool is a METER, not a gate: its verdict surface is the per-step table and `breach-steps`, and
 // the exit reddens only when the interaction itself broke. That makes it MORE exposed to the zero lie,
 // not less — `breach-steps=0 worst-longtask=0ms` over a run that bucketed nothing is indistinguishable
 // from a run that metered a fast app. Both gaps below therefore refuse the report entirely.
-import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
+import type { EvidenceGap } from "@orb/tooling/floor/verdict/evidence";
 import { z } from "zod";
 import type { MeterData } from "../contract/types.ts";
 

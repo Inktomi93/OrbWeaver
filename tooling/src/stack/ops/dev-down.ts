@@ -2,14 +2,14 @@
 // or on a recorded child still being this checkout's; a port holder is stopped only when its command line
 // names this checkout. Anything else is refused by pid, never guessed at.
 import process from "node:process";
-import { print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { ExitCode } from "../../_shared/exit-contract.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import type { ListeningPortsRead } from "../../_shared/platform.ts";
-import { listeningPids, processGroupId, processInfo } from "../../_shared/platform.ts";
-import { killPidGroup } from "../../_shared/proc.ts";
-import { escalateStop, settle, TERM_GRACE_BASE_MS } from "../../_shared/stop-escalation.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { ExitCode } from "../../floor/cli/exit-contract.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import type { ListeningPortsRead } from "../../floor/host/platform.ts";
+import { listeningPids, processGroupId, processInfo } from "../../floor/host/platform.ts";
+import { killPidGroup } from "../../floor/process/proc.ts";
+import { escalateStop, settle, TERM_GRACE_BASE_MS } from "../../floor/process/stop-escalation.ts";
 import type { HolderUnknown, LeaderProbes, LeaderRecord, LeaderState, StackContext } from "../contract/types.ts";
 import { leaderVerdict, readLeaderRecord, recordAuthorizesSignal, removeLeaderRecord } from "../lib/leader-record.ts";
 import { pidIsAlive } from "../lib/spawn-lock.ts";

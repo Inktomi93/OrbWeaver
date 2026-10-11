@@ -14,7 +14,7 @@ import { writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import type { ModelInfoApi } from "@orb/contracts/inference";
-import { NO_PROVIDER_SECRETS } from "../../../packages/inference/src/backends/kit/sanitize.ts";
+import { NO_PROVIDER_SECRETS } from "../../../packages/inference/src/backends/http/sanitize.ts";
 import { fetchEndpointModels } from "../../../packages/inference/src/catalog/endpoint.ts";
 import type { EndpointModel } from "../../../packages/inference/src/contract/runtime.ts";
 import { DIR, http, jsonl, RED_SQUARE_PNG_DATA_URI, waitFor, writeRaw } from "./_kit.ts";

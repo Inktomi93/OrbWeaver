@@ -6,9 +6,9 @@ import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
-import { killPidGroup } from "@orb/tooling/_shared/proc";
-import { admitTs7Run, TS7_POOL_NAME, TS7_SLOT_BUSY_EXIT, ts7SlotLabel } from "@orb/tooling/_shared/ts7-admission";
+import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
+import { admitTs7Run, TS7_POOL_NAME, TS7_SLOT_BUSY_EXIT, ts7SlotLabel } from "@orb/tooling/floor/host/ts7-admission";
+import { killPidGroup } from "@orb/tooling/floor/process/proc";
 
 const INCREMENTAL_OPTION = "--incremental";
 const INCREMENTAL_SHORT_OPTION = "-i";

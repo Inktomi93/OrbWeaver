@@ -12,13 +12,9 @@ import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import type { WorldInfoImportContext } from "../../../../../packages/server/src/domain/world-info/contract/import.ts";
-import {
-  createAttachOwnedBooksByName,
-  createBulkImportLorebook,
-  createImportStandaloneLorebook,
-} from "../../../../../packages/server/src/domain/world-info/persistence/import-write.ts";
-import { listCharacterBooks } from "../../../../../packages/server/src/domain/world-info/persistence/queries.ts";
+import type { WorldInfoImportContext } from "#server/domain/world-info/contract/import.ts";
+import { createAttachOwnedBooksByName, createBulkImportLorebook, createImportStandaloneLorebook } from "#server/domain/world-info/persistence/import-write.ts";
+import { listCharacterBooks } from "#server/domain/world-info/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedCharacter, seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

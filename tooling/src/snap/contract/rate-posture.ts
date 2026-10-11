@@ -1,9 +1,9 @@
 // One immutable host/browser posture per Snap run. The contract is a leaf shared by the fact envelope,
 // arm contexts, and the sampler; only the sampler reads the host or browser.
 import { z } from "zod";
-import type { BrowserAccelerationEvidence } from "../../_shared/browser-acceleration.ts";
-import type { TimingCapability } from "../../_shared/timing-capability.ts";
-import { TIMING_EVIDENCE_POLICIES, TIMING_HARDWARE_CLASSES } from "../../_shared/timing-capability.ts";
+import type { BrowserAccelerationEvidence } from "../../floor/browser/browser-acceleration.ts";
+import type { TimingCapability } from "../../floor/host/timing-capability.ts";
+import { TIMING_EVIDENCE_POLICIES, TIMING_HARDWARE_CLASSES } from "../../floor/host/timing-capability.ts";
 
 export const snapRatePostureIdSchema = z
   .string()

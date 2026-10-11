@@ -19,7 +19,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { MESSAGE_ACTIONS_MENU_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
+import { MESSAGE_ACTIONS_MENU_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { MessageRowStory } from "../_ct-stories.tsx";

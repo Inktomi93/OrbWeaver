@@ -3,14 +3,8 @@
 
 import { samplingCapabilitySchema } from "@orb/contracts/inference";
 import { EFFECTIVE_KNOBS, EFFECTIVE_PROVENANCES } from "@orb/server/domain/preset";
-import {
-  honoredKnobLabels,
-  knobGhost,
-  knobLabel,
-  mirostatSkipped,
-  provenanceSuffix,
-} from "../../../../../packages/client/src/features/preset/lib/effective-knobs.ts";
-import { SAMPLING_FLAG_LABELS, SAMPLING_KNOBS } from "../../../../../packages/client/src/features/preset/lib/sampling-knob-catalog.ts";
+import { honoredKnobLabels, knobGhost, knobLabel, mirostatSkipped, provenanceSuffix } from "#client/features/preset/lib/effective-knobs.ts";
+import { SAMPLING_FLAG_LABELS, SAMPLING_KNOBS } from "#client/features/preset/lib/sampling-knob-catalog.ts";
 import { makeCachePolicy } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

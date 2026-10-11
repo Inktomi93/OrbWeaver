@@ -22,7 +22,7 @@
 
 import type { Db } from "@orb/db";
 import { sessionEntries } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { SessionEntryWriter } from "@orb/inference";
 import type { ChatId, UserConnectionId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";

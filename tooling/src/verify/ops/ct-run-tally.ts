@@ -21,7 +21,7 @@
 // `passed`, so a run's four numbers always sum to its test count no matter how many attempts or workers
 // produced them. Retries burned = attempts - 1 (a test fails attempts 0..n-1 and passes attempt n).
 import { relative } from "node:path";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import type { CtFailedTest, CtFlakyTest, CtOutcome, CtRunFacts, CtRunTally, CtSuiteFacts } from "../contract/ct-run.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm test:ct (the CT reporter imports this judge; it has no CLI of its own)");

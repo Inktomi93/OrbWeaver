@@ -21,8 +21,8 @@ function aliceKey(): string {
   return `orb:u/${ALICE}/rule-creations`;
 }
 
-type StoreModule = typeof import("../../../packages/client/src/state/rule-creation-store.ts");
-type DurableLocalModule = typeof import("../../../packages/client/src/state/durable-local.ts");
+type StoreModule = typeof import("#client/state/rule-creation-store.ts");
+type DurableLocalModule = typeof import("#client/state/durable-local.ts");
 
 async function freshState(
   seed: Record<string, string> = {},
@@ -41,8 +41,8 @@ async function freshState(
   // zustand's default persist storage reads `window.localStorage`; the durable-local hints read the global.
   vi.stubGlobal("localStorage", storage);
   vi.stubGlobal("window", { localStorage: storage });
-  const store = await import("../../../packages/client/src/state/rule-creation-store.ts");
-  const { bindDurableLocalToUser } = await import("../../../packages/client/src/state/durable-local.ts");
+  const store = await import("#client/state/rule-creation-store.ts");
+  const { bindDurableLocalToUser } = await import("#client/state/durable-local.ts");
   return { state: { ...store, bindDurableLocalToUser }, map };
 }
 
@@ -68,7 +68,7 @@ describe("rule-creation store", () => {
 
   test("the matching namespace cannot create drafts until its real rehydration finishes", async () => {
     const { state, map } = await freshState();
-    const { activeDurableLocalUserId } = await import("../../../packages/client/src/state/durable-local.ts");
+    const { activeDurableLocalUserId } = await import("#client/state/durable-local.ts");
     const binding = state.bindDurableLocalToUser(ALICE);
     try {
       // The queued bind has selected its namespace but is still awaiting the real store rehydration.

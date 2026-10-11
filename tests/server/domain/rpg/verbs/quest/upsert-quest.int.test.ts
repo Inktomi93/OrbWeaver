@@ -5,7 +5,7 @@ import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { resolveSnapshotForTurn } from "../../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { resolveSnapshotForTurn } from "#server/domain/rpg/persistence/snapshots.ts";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, principal, seedLiteGame, test } from "../../_support.ts";
 

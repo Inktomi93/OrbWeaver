@@ -3,8 +3,8 @@
 import { createHash } from "node:crypto";
 import type { TokenContractTexts } from "@orb/ui/token-contract";
 import { readTokenRemovalBaseline } from "@orb/ui/token-contract";
-import type { DevToolsClosureFile } from "../../_shared/devtools-assets.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { DevToolsClosureFile } from "../../floor/devtools/devtools-assets.ts";
 import type { ResourceLoad, ResourceReader } from "../contract/resource.ts";
 import type { DevToolsClosure, TokenContractResource } from "../contract/resource-artifact.ts";
 import {

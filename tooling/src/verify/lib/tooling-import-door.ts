@@ -13,7 +13,7 @@ export const TOOLING_PREFIX = "tooling/src/";
 /** `tooling/src/<tool>/cli.ts` — exactly four path segments (Core-Tooling-Law §2.5, the five-slot template). */
 const CLI_DEPTH = 4;
 
-/** The tooling dir (`snap`, `_shared`, …) a repo-relative tooling path belongs to. */
+/** The tooling dir (`snap`, `floor`, …) a repo-relative tooling path belongs to. */
 export function toolOf(rel: string): string {
   return rel.slice(TOOLING_PREFIX.length).split("/")[0] ?? "";
 }
@@ -26,7 +26,7 @@ export function isToolCli(rel: string): boolean {
 
 /** The repo-relative path a RELATIVE specifier lands on when imported from `rel`, or `null` when the
  *  specifier is not this reader's subject — a `#<tool>` imports-map entry (front-door by construction;
- *  `#_shared` resolves to nothing and node reports that loudly) or an npm / `node:` / `@orb/*` specifier
+ *  `#floor/...` resolves to nothing and node reports that loudly) or an npm / `node:` / `@orb/*` specifier
  *  (the resolver and the cruiser own those edges). */
 export function resolveRelativeImport(rel: string, specifier: string): string | null {
   if (!specifier.startsWith(".")) {

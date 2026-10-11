@@ -4,6 +4,7 @@ status: open
 updated: 2026-10-11
 priority: P1
 area: tests
+plan: test-mirror
 ---
 
 # CT real-registry door mirrors the production door exactly, and a gate keeps it so

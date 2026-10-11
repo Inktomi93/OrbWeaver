@@ -19,7 +19,7 @@ import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "../../../p
 import { createImageAdapter } from "../../../packages/server/src/infra/image/index.ts";
 import { freshDb } from "../../../tests/support/db.ts";
 import { seedUser } from "../../../tests/support/factories/user.ts";
-import { execGit } from "../../../tooling/src/_shared/git.ts";
+import { execGit } from "../../../tooling/src/floor/git/git.ts";
 import { readEnvKey } from "../openrouter/_kit.ts";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));

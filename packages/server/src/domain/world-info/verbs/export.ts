@@ -4,7 +4,7 @@
 
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import { slugifyHandle } from "@orb/kit/slug";
-import { buildWorldBookFile } from "#kit/serde/world-info";
+import { buildWorldBookFile } from "#primitives/serde/world-info";
 import type { ExportedWorldBook, ExportWorldBook, WorldInfoExportContext } from "../contract/export.ts";
 import { listBookEntries, loadOwnedBook } from "../persistence/queries.ts";
 

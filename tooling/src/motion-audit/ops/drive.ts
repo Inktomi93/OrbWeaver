@@ -1,11 +1,11 @@
 // Reach + measured-click preparation + the __orb snapshot reads. Reach actions run BEFORE the trace
 // and the in-page evidence is reset after the last one — the numbers describe the interaction being
 // measured, not the trip to it. All __orb evaluates are raw strings (DOM-less tsconfig — see
-// _shared/browser.ts).
+// floor/browser/browser.ts).
 import { errorMessage } from "@orb/kit/error-message";
-import { print } from "@orb/tooling/_shared/artifacts";
+import { print } from "@orb/tooling/floor/artifacts/artifacts";
 import type { Page } from "@playwright/test";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { AnimationRecord, MeasuredClick, MotionFlagRecord, MotionSnapshot } from "../contract/types.ts";
 import { STEP_TIMEOUT_MS } from "../lib/budgets.ts";
 import { animationRecords, bridgePresence, flagRecords, motionSnapshot } from "./page-validate.ts";

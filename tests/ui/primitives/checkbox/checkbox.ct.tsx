@@ -1,7 +1,7 @@
 // CT: the checkbox seal — real role="checkbox" semantics (the styled span carries the role, a
 // hidden input rides beside it). Pointer + keyboard toggle aria-checked; checked wears the primary
 // token; indeterminate reports aria-checked="mixed".
-import { contrastRatio } from "@orb/tooling/_shared/wcag";
+import { contrastRatio } from "@orb/tooling/floor/instrument/wcag";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Field } from "@orb/ui/field";
 import { TOKENS } from "@orb/ui/tokens";

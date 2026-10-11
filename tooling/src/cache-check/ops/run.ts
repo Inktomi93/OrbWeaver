@@ -1,10 +1,10 @@
 // The run: boot the stage, then for each route bind one probe connection as the chat connection, run every
 // selected case on it, print one line per case, and restore the binding and remove every probe row.
 import { cacheMinTokensOf } from "@orb/contracts/inference";
-import { print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { printVerdict } from "../../_shared/evidence.ts";
-import { warn } from "../../_shared/log.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { warn } from "../../floor/cli/log.ts";
+import { printVerdict } from "../../floor/verdict/evidence.ts";
 import type { RoomRun } from "../contract/plan.ts";
 import type { CacheCase, CacheRoute, CaseOutcome, EnvFile, OrbApi, RouteRefusal, RouteSpec } from "../contract/types.ts";
 import { parseCacheCheckArgs } from "../lib/argv.ts";

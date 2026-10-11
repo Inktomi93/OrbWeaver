@@ -4,7 +4,7 @@
 // "every greeting", not "none".
 
 import { describe } from "vitest";
-import { manualTargetsOf, manualTextOf } from "../../../../../packages/client/src/features/refinery/lib/manual-targets.ts";
+import { manualTargetsOf, manualTextOf } from "#client/features/refinery/lib/manual-targets.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CARD = {

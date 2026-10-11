@@ -15,11 +15,11 @@
 //    present role reads the stripped bytes, through the same walk the member→host fork runs.
 
 import type { RpgJournalEntryView } from "@orb/contracts/rpg";
-import type { ListJournalParams } from "../../contract/params.ts";
-import type { RpgContext, RpgService } from "../../contract/service.ts";
-import { resolveMember } from "../../guard.ts";
-import { listActiveJournal } from "../../persistence/journal.ts";
-import { stripHiddenForViewer } from "../../substrate/hidden-spans.ts";
+import type { ListJournalParams } from "#src/domain/rpg/contract/params.ts";
+import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
+import { resolveMember } from "#src/domain/rpg/guard.ts";
+import { listActiveJournal } from "#src/domain/rpg/persistence/journal.ts";
+import { stripHiddenForViewer } from "#src/domain/rpg/substrate/hidden-spans.ts";
 
 const DEFAULT_JOURNAL_LIMIT = 50;
 /** The floor a viewer whose visibility could not be resolved reads at — unreachable behind `resolveMember`,

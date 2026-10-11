@@ -7,13 +7,8 @@
 
 import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, ConfigModifiedMap, ConfigSubcategory } from "@orb/client/state";
 import { Settings } from "@orb/ui/icons";
-import type { ConfigSearchEntry } from "../../../../../packages/client/src/features/config/lib/config-search.ts";
-import {
-  buildConfigSearchEntries,
-  filterConfigEntries,
-  isConfigEntryModified,
-  shelfCompletions,
-} from "../../../../../packages/client/src/features/config/lib/config-search.ts";
+import type { ConfigSearchEntry } from "#client/features/config/lib/config-search.ts";
+import { buildConfigSearchEntries, filterConfigEntries, isConfigEntryModified, shelfCompletions } from "#client/features/config/lib/config-search.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function group(id: ConfigGroupId, shelf: ConfigGroupDefinition["shelf"], label: string): ConfigGroupDefinition {

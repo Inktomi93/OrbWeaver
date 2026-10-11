@@ -10,7 +10,7 @@
 import { STATS_LIST_MAX_LIMIT } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characterStats, characters, dailyStats, modelStats, ownerStats } from "@orb/db";
-import { escapeLikeTerm } from "@orb/db/kit";
+import { escapeLikeTerm } from "@orb/db/query";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";

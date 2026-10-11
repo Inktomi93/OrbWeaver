@@ -2,8 +2,8 @@
 // one dispatch table the way ops/flags-stage.ts is: one ops/ file per command family. `--session <name>`
 // drives (boots on first use); the four admin modes print and exit (mutually exclusive — enforced in
 // ops/parse.ts); `--session-ttl` is a boot property; `--session-daemon <name>` is the DAEMON'S OWN entry,
-// spawned by the client through _shared/proc.ts and never typed by an operator (the help says so).
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+// spawned by the client through floor/process/proc.ts and never typed by an operator (the help says so).
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> <route>");

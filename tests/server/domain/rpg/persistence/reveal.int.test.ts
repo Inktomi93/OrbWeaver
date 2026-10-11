@@ -9,8 +9,8 @@ import type { Db } from "@orb/db";
 import { messages } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { listSelectedAssistantBodies } from "../../../../../packages/server/src/domain/rpg/persistence/reveal.ts";
-import { buildRevealView } from "../../../../../packages/server/src/domain/rpg/substrate/reveal.ts";
+import { listSelectedAssistantBodies } from "#server/domain/rpg/persistence/reveal.ts";
+import { buildRevealView } from "#server/domain/rpg/substrate/reveal.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { addVariant, expect, seedChat, seedMessage, test } from "../_support.ts";
 

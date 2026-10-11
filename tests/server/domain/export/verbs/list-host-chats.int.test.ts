@@ -11,7 +11,7 @@ import { chatParticipants, chats } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { createListHostChats } from "../../../../../packages/server/src/domain/export/verbs/list-host-chats.ts";
+import { createListHostChats } from "#server/domain/export/verbs/list-host-chats.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedCharacter, seedUser } from "../_support.ts";

@@ -6,7 +6,7 @@
 // adds exactly one distinction of its own: text that arrived but is not JSON. That is `unresolved` with the
 // parser's own message, never `missing`, because "the config is not there" and "the config is broken" send a
 // reader to two different places.
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ResourceLoad, ResourceReader } from "../contract/resource.ts";
 import type { JsonResourceFacts, JsonResourceId, JsonValue } from "../contract/resource-json.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";

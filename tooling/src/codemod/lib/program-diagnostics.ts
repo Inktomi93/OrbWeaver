@@ -1,10 +1,10 @@
 // The post-transform diagnostic guard: compiler-world routing + an in-memory transformed-source host.
 import { resolve } from "node:path";
-import { warn } from "@orb/tooling/_shared/log";
-import { predictedProgram, requiresExclusiveRoot } from "@orb/tooling/_shared/project-worlds";
+import { warn } from "@orb/tooling/floor/cli/log";
+import { predictedProgram, requiresExclusiveRoot } from "@orb/tooling/floor/compiler/project-worlds";
 import type { Project, SourceFile } from "ts-morph";
 import ts from "typescript";
-import type { CompilerProgram } from "../../_shared/compiler-programs.ts";
+import type { CompilerProgram } from "../../floor/compiler/compiler-programs.ts";
 import type { FileSnapshot, ProgramDiagnosticBaseline } from "../contract/types.ts";
 import { CodemodError } from "./errors.ts";
 import { physicalPathIdentity, repoRelative } from "./plans.ts";

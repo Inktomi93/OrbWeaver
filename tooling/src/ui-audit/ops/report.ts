@@ -1,6 +1,6 @@
 // Console reporting: the findings table, the pixel-refusal block, the nav verdict.
-import { print } from "@orb/tooling/_shared/artifacts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { print } from "@orb/tooling/floor/artifacts/artifacts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { Finding, PopulationAccounting, Severity } from "../contract/findings.ts";
 import { PRESENTATION_WITHHELD_REASONS } from "../contract/findings.ts";
 import type { CensusReachInput, ObscuredScanInput } from "../contract/samples.ts";

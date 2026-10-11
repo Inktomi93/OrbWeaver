@@ -1,7 +1,8 @@
 // The argv parser: every verb's shape, the list-taking forms, and misuse refused as UsageError so the cli
 // exits 3, never 1 or 2.
-import { UsageError } from "../../../../tooling/src/_shared/run-tool.ts";
+
 import { parseDocCommand, USAGE } from "../../../../tooling/src/doc/index.ts";
+import { UsageError } from "../../../../tooling/src/floor/cli/run-tool.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("the minting verbs", () => {

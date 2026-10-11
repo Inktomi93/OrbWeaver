@@ -4,6 +4,7 @@ status: open
 updated: 2026-10-11
 priority: P2
 area: tooling
+plan: test-mirror
 ---
 
 # Side-eye reviews run on the owner's container data with any auth mode

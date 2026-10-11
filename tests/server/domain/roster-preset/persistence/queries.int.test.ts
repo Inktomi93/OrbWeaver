@@ -19,8 +19,8 @@ import {
   loadOwnedPresetRow,
   ownedPresetNameTaken,
   updatePresetWithMembers,
-} from "../../../../../packages/server/src/domain/roster-preset/persistence/queries.ts";
-import { groupMemberViews } from "../../../../../packages/server/src/domain/roster-preset/substrate/members.ts";
+} from "#server/domain/roster-preset/persistence/queries.ts";
+import { groupMemberViews } from "#server/domain/roster-preset/substrate/members.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedCharacter } from "../../../../support/factories/character.ts";
 import { seedPersona } from "../../../../support/factories/persona.ts";

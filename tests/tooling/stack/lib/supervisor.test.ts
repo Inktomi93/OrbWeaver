@@ -4,8 +4,8 @@
 // answers. The effects are injected, so the loop is driven without spawning a server or a browser.
 import { parseEnv } from "node:util";
 import { RESTART_EXIT_CODE, START_SUPERVISOR, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { FORWARDED_SIGNALS } from "@orb/tooling/_shared/proc-signals";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { FORWARDED_SIGNALS } from "@orb/tooling/floor/process/proc-signals";
 import type { ProdSpawnPlan, StartBrowser, StartInvocation, StartSpawn, StartSupervisorDeps } from "../../../../tooling/src/stack/index.ts";
 import { OPEN_BROWSER_KEY, startBrowser, startLaunch, superviseStart } from "../../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -196,7 +196,7 @@ test("one handler per signal across two respawns, and it reaches the current chi
 });
 
 // On Windows the console delivers the Ctrl-C to the server itself, and a forwarded kill would be TerminateProcess
-// (tooling/src/_shared/proc.ts forwardSignalsTo). The supervisor still records the stop, so a restart code the
+// (tooling/src/floor/process/proc.ts forwardSignalsTo). The supervisor still records the stop, so a restart code the
 // server exits with after it is never respawned.
 test("on win32 a Ctrl-C sends the child nothing and still stops the loop", async () => {
   const run = harness(

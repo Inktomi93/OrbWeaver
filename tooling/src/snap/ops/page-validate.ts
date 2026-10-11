@@ -1,6 +1,6 @@
 // snap's PAGE→NODE seam validators (#1004) — every in-page read settled at the boundary instead of cast.
 //
-// The primitives and the argument live in `_shared/page-validate.ts`; this file declares WHAT each of
+// The primitives and the argument live in `floor/browser/page-validate.ts`; this file declares WHAT each of
 // snap's page scripts must have returned. One file rather than a validator per ops module because three
 // of the hosts (`contrast.ts` 433, `materialize-devtools.ts` 422, `appearance-invariant-runtime.ts` 434)
 // sit within twenty lines of the 450-line tooling cap, and because collecting them makes the shared
@@ -21,8 +21,8 @@
 //   • devtools proof     — the attach proof for the whole DevTools materialisation.
 //   • reset/animation    — the appearance-invariant row's own preconditions; each already has an
 //                          `instrumentError` arm for a FALSE answer, and none had one for a wrong SHAPE.
-import { pageArray, pageBoolean, pageCount, pageNumber, pageNumberInRange, pageObject, pageString } from "@orb/tooling/_shared/page-validate";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { pageArray, pageBoolean, pageCount, pageNumber, pageNumberInRange, pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ContrastFacts } from "../contract/contrast.ts";
 import type { DeadCssEvidence } from "../contract/dead-css.ts";
 import type { MapAtlasEvidence, MapNavCapabilities, MapShellEvidence, MapShellRegion, RawMapBridgeEvidence, RawMapEntry } from "../contract/map.ts";

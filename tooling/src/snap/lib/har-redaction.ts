@@ -1,5 +1,5 @@
 import { isUtf8 } from "node:buffer";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type {
   DiskSafeBody,
   DiskSafeCookie,

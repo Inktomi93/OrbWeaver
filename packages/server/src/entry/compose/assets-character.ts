@@ -41,7 +41,7 @@ import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import type { ImageAdapter } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
-import { publishUserEvent } from "../../transport/trpc/index.ts";
+import { publishUserEvent } from "#transport/trpc";
 import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "../boot/index.ts";
 import { createDefaultPersonaSeeder } from "../boot/index.ts";
 import { createLoadChatAssetRefs, createLoadCoParticipantOwner } from "./co-participant-assets.ts";

@@ -34,8 +34,8 @@ import { createConnectionPorts, createConnectionService } from "@orb/server/doma
 import { createRecordUsage } from "@orb/server/domain/embeddings";
 import { applyStatsDelta } from "@orb/server/domain/stats";
 import type { AuditEntry } from "@orb/server/foundation/observability";
-import type { EmbeddingsService } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
-import { countOwnedVectors } from "../../../../packages/server/src/domain/embeddings/persistence/owned-vector-counts.ts";
+import type { EmbeddingsService } from "#server/domain/embeddings/contract/service.ts";
+import { countOwnedVectors } from "#server/domain/embeddings/persistence/owned-vector-counts.ts";
 import { fakeModelCache } from "../../../inference/_support.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal } from "../../../support/factories/principal.ts";

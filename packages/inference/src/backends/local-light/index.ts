@@ -3,8 +3,8 @@
 // dispatcher's typed refusal). The prefetch handle rides beside the backend for the composition root.
 
 import type { ModelId } from "@orb/kit/ids";
-import type { ProviderBackend } from "../../contract/backend.ts";
-import type { InferenceDeps } from "../../deps.ts";
+import type { ProviderBackend } from "#contract";
+import type { InferenceDeps } from "#src/deps.ts";
 import type { LocalLightModelCache } from "./model-cache.ts";
 import { localLightEmbedSpaceTag, resolveEmbedDtype } from "./model-cache.ts";
 import type { LocalLightPrefetchHandle } from "./prefetch.ts";
@@ -13,8 +13,8 @@ import { createScheduledCache } from "./scheduled-cache.ts";
 import { createLocalLightEmbed, createLocalLightImageEmbed, createLocalLightRerank } from "./tasks.ts";
 import { createWorkerModelCache } from "./worker-cache.ts";
 
-export type { LocalLightModelSlot } from "../../contract/runtime.ts";
-export { LOCAL_LIGHT_MODEL_SLOTS } from "../../contract/runtime.ts";
+export type { LocalLightModelSlot } from "#contract";
+export { LOCAL_LIGHT_MODEL_SLOTS } from "#contract";
 export type { LocalLightModelCache } from "./model-cache.ts";
 export type { LocalLightPrefetchHandle, LocalLightPrefetchRecord, LocalLightPrefetchTarget } from "./prefetch.ts";
 export { DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL } from "./tasks.ts";

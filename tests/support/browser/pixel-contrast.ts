@@ -11,7 +11,7 @@
 //
 // IT IS NOT A SECOND ALGORITHM. The ring geometry (`ringBackdrop`), the WCAG kernel (`contrastRatio`) and
 // the dim composite (`compositeForeground` / `FOREGROUND_OPACITY_EPS` / `MEASURABLE_OPACITY_MIN`) are
-// imported from the ONE home the probe instruments share (`@orb/tooling/_shared`), for the reason that
+// imported from the ONE home the probe instruments share (`@orb/tooling/floor`), for the reason that
 // module's own header states: two instruments must not disagree about what is behind a glyph. The only
 // thing here is the screenshot→raw-pixels plumbing snap keeps private to its own op.
 //
@@ -21,9 +21,9 @@
 // 100/100. A tool caught printing a false clean is fixed in the era it is found; the planted control is
 // the locked-cell arm of `context-bracket.ct.tsx`, which is RED on the pre-#874 source and green after.
 
-import { ringBackdrop } from "@orb/tooling/_shared/pixel-backdrop";
-import type { Rgb } from "@orb/tooling/_shared/wcag";
-import { compositeForeground, contrastRatio, FOREGROUND_OPACITY_EPS, MEASURABLE_OPACITY_MIN, relativeLuminance } from "@orb/tooling/_shared/wcag";
+import { ringBackdrop } from "@orb/tooling/floor/instrument/pixel-backdrop";
+import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
+import { compositeForeground, contrastRatio, FOREGROUND_OPACITY_EPS, MEASURABLE_OPACITY_MIN, relativeLuminance } from "@orb/tooling/floor/instrument/wcag";
 import type { Locator, Page } from "@playwright/test";
 import sharp from "sharp";
 

@@ -63,9 +63,9 @@ import {
   sessionCookieFor,
 } from "#infra/auth";
 import { addressThrottleKey, clientIp, peerIp } from "#infra/network";
-import type { RateLimiter } from "../../transport/rate-limit.ts";
-import { createRateLimiter } from "../../transport/rate-limit.ts";
-import { publishUserEvent } from "../../transport/trpc/index.ts";
+import type { RateLimiter } from "#src/transport/rate-limit.ts";
+import { createRateLimiter } from "#src/transport/rate-limit.ts";
+import { publishUserEvent } from "#transport/trpc";
 import { readSessionCookie } from "../auth/index.ts";
 
 const UNAUTHORIZED = 401;

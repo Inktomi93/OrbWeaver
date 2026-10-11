@@ -5,7 +5,7 @@
 // mock and that is the class this row must not join.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
+import { testId } from "#client/lib/test-ids.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import {
   CredentialKeyRowStory,

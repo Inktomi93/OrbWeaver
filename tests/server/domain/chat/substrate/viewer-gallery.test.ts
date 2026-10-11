@@ -5,7 +5,7 @@
 import type { ParticipantKind } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { resolveViewerOwnedCharacterIds, viewerGalleryCharacterIdOf } from "../../../../../packages/server/src/domain/chat/substrate/viewer-gallery.ts";
+import { resolveViewerOwnedCharacterIds, viewerGalleryCharacterIdOf } from "#server/domain/chat/substrate/viewer-gallery.ts";
 import { makeCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

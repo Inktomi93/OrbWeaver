@@ -7,7 +7,7 @@
 // the daily refresh re-warmed it, so a restarted process silently lost every advertised capability.
 
 import { z } from "zod";
-import { scrubbedReason } from "../backends/kit/model-listing.ts";
+import { scrubbedReason } from "../backends/wire/model-listing.ts";
 import type { ProviderScrubSet } from "../contract/errors.ts";
 import type { MirrorWarm } from "../contract/runtime.ts";
 import type { SnapshotStore, SpanAttrs } from "../deps.ts";

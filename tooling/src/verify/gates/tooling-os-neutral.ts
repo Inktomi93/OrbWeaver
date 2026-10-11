@@ -1,7 +1,7 @@
 // Gate: tooling-os-neutral — tooling/, scripts/ and tests/support/ run on Linux, macOS and Windows, so an OS-specific
 // program, path, env key or line ending outside the platform module is a defect. Cases: contract/os-neutral.ts.
 // Spawns are judged by the door they reach (`node:child_process`, the proc.ts doors), argv tables by shape. EXEMPT:
-// `_shared/platform.ts` and its leaf `platform-probes.ts`, one module in two flat files because the load budget sits
+// `floor/host/platform.ts` and its leaf `platform-probes.ts`, one module in two flat files because the load budget sits
 // under the process doors. The git door's own spawn is the door, not an exemption.
 // DECLARED LIMITS: a command, env key or separator passed as a parameter; a literal spelled across modules; a regex.
 // FAMILY: `tooling-os-neutral` — this source policy and `test-executable-mode` share the canonical case/message
@@ -31,10 +31,10 @@ import { classifyProjectHomeOrigin, locateProjectHome, readPackageExportOrigin }
 import { readMemberAccess, readStringConstant } from "../lib/symbol-reference.ts";
 
 /** The platform module: the spawns and openers, and the leaf that holds the `/proc` and `/sys` reads. */
-const PLATFORM_HOME: ReadonlySet<string> = new Set(["tooling/src/_shared/platform.ts", "tooling/src/_shared/platform-probes.ts"]);
-const GIT_HOME = "tooling/src/_shared/git.ts";
+const PLATFORM_HOME: ReadonlySet<string> = new Set(["tooling/src/floor/host/platform.ts", "tooling/src/floor/host/platform-probes.ts"]);
+const GIT_HOME = "tooling/src/floor/git/git.ts";
 const PROC_HOME = {
-  path: "tooling/src/_shared/proc.ts",
+  path: "tooling/src/floor/process/proc.ts",
   names: [
     "runNicedSync",
     "execNicedSync",
@@ -59,9 +59,9 @@ const WHITESPACE_RE = /\s+/u;
 type Door = "shell" | "raw" | "proc" | null;
 
 const MESSAGE =
-  "an OS-specific program, path, env key or line ending in contributor tooling — tooling/, scripts/ and tests/support/ run on Linux, macOS and Windows, and only the platform module (`tooling/src/_shared/platform.ts` and its leaf `platform-probes.ts`) may branch on the OS (docs/law/Core-Tooling-Law.md §2.4).";
+  "an OS-specific program, path, env key or line ending in contributor tooling — tooling/, scripts/ and tests/support/ run on Linux, macOS and Windows, and only the platform module (`tooling/src/floor/host/platform.ts` and its leaf `platform-probes.ts`) may branch on the OS (docs/law/Core-Tooling-Law.md §2.4).";
 const FIX =
-  "route the OS-specific read through a `_shared/platform.ts` door, take the temp dir from `os.tmpdir()`, spawn pnpm with `pnpmInvocation` or a proc.ts door, set `USERPROFILE` beside `HOME` and `TEMP` and `TMP` beside `TMPDIR`, split file text on `/\\r?\\n/u`, and run git through `runGit`/`execGit` in _shared/git.ts.";
+  "route the OS-specific read through a `floor/host/platform.ts` door, take the temp dir from `os.tmpdir()`, spawn pnpm with `pnpmInvocation` or a proc.ts door, set `USERPROFILE` beside `HOME` and `TEMP` and `TMP` beside `TMPDIR`, split file text on `/\\r?\\n/u`, and run git through `runGit`/`execGit` in floor/git/git.ts.";
 
 /** The string values of an argv array literal; a non-literal element is `undefined`. */
 function argvOf(node: Node | undefined): readonly (string | undefined)[] {
@@ -235,7 +235,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: withProc({
-        "tooling/src/seed/ops/ps.ts": 'import { runNicedSync } from "../../_shared/proc.ts";\nexport const x = runNicedSync("ps", ["-o", "pid="]);\n',
+        "tooling/src/seed/ops/ps.ts": 'import { runNicedSync } from "../../floor/process/proc.ts";\nexport const x = runNicedSync("ps", ["-o", "pid="]);\n',
       }),
       expect: { count: 1, token: '"ps"', messageIncludes: "a Linux-only program in an argv" },
       why: "the founding shape — a Linux-only program handed to a proc.ts door by literal; the door is resolved by declaration, not by the spelled name",
@@ -319,16 +319,16 @@ export const gate = defineGate({
       files: withProc({
         "scripts/probe.ts":
           'import { execFileSync } from "node:child_process";\nexport const head = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" });\n',
-        "tooling/src/seed/ops/log.ts": 'import { runNicedSync } from "../../_shared/proc.ts";\nexport const x = runNicedSync("git", ["log"]);\n',
+        "tooling/src/seed/ops/log.ts": 'import { runNicedSync } from "../../floor/process/proc.ts";\nexport const x = runNicedSync("git", ["log"]);\n',
       }),
       expect: { count: 2, token: '"git"', messageIncludes: "a git spawn outside the git door" },
-      why: "git spawned through node's door and through a proc.ts door outside `_shared/git.ts`: neither drops the `GIT_*` namespace a hook exports",
+      why: "git spawned through node's door and through a proc.ts door outside `floor/git/git.ts`: neither drops the `GIT_*` namespace a hook exports",
     },
     {
       mode: "types",
       files: withProc({
-        "tooling/src/_shared/platform.ts": 'export const root = "/proc";\n',
-        "tooling/src/_shared/platform-parse.ts": 'export const stat = "/proc/self/stat";\n',
+        "tooling/src/floor/host/platform.ts": 'export const root = "/proc";\n',
+        "tooling/src/floor/host/platform-parse.ts": 'export const stat = "/proc/self/stat";\n',
       }),
       expect: { count: 1, token: '"/proc/self/stat"', messageIncludes: "a `/proc` or `/sys` path" },
       why: "the exemption names two files exactly: a sibling that merely shares the platform module's name prefix reports like any other module",
@@ -338,24 +338,24 @@ export const gate = defineGate({
     {
       mode: "types",
       files: withProc({
-        "tooling/src/_shared/platform.ts":
+        "tooling/src/floor/host/platform.ts":
           'import { runNicedSync } from "./proc.ts";\nexport const listening = runNicedSync("ss", ["-tlnp"]);\nexport const root = "/proc";\n',
-        "tooling/src/_shared/platform-probes.ts": 'export const cgroup = "/sys/fs/cgroup";\n',
+        "tooling/src/floor/host/platform-probes.ts": 'export const cgroup = "/sys/fs/cgroup";\n',
       }),
       why: "THE ONE EXEMPTION: the platform module and its leaf are where OS-specific programs and paths live; cutting the exemption reds both files",
     },
     {
       mode: "types",
       files: withProc({
-        "tooling/src/_shared/git.ts":
+        "tooling/src/floor/git/git.ts":
           'import { runNicedSync } from "./proc.ts";\nexport const runGit = (args: string[]): unknown => runNicedSync("git", args);\n',
       }),
-      why: "the git door's own spawn IS the door: `runGit` in `_shared/git.ts` is where a git child's environment is cleaned",
+      why: "the git door's own spawn IS the door: `runGit` in `floor/git/git.ts` is where a git child's environment is cleaned",
     },
     {
       mode: "types",
       files: withProc({
-        "tooling/src/seed/ops/install.ts": 'import { runNicedSync } from "../../_shared/proc.ts";\nexport const r = runNicedSync("pnpm", ["install"]);\n',
+        "tooling/src/seed/ops/install.ts": 'import { runNicedSync } from "../../floor/process/proc.ts";\nexport const r = runNicedSync("pnpm", ["install"]);\n',
         "scripts/shelled.ts": [
           'import { exec, spawnSync } from "node:child_process";',
           'export const a = spawnSync("pnpm", ["install"], { shell: true });',

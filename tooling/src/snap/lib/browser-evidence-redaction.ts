@@ -1,10 +1,10 @@
 // The browser-evidence disk door. Diagnostics deliberately retain their correlation and provenance
 // fields while every page-controlled string/object crosses the same URL, credential, and size policy.
 
-import type { CapturedConsole, CapturedRequest } from "../../_shared/browser-capture.ts";
-import type { BrowserPageError } from "../../_shared/browser-contract.ts";
-import type { BrowserDiagnostic } from "../../_shared/browser-diagnostics.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { CapturedConsole, CapturedRequest } from "../../floor/browser/browser-capture.ts";
+import type { BrowserPageError } from "../../floor/browser/browser-contract.ts";
+import type { BrowserDiagnostic } from "../../floor/browser/browser-diagnostics.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type {
   DiskSafeBrowserDiagnostic,
   DiskSafeBrowserDiagnostics,

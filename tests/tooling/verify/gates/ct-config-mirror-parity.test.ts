@@ -2,8 +2,8 @@
 // through the production proof dispatcher and separately proves filesystem discovery sees the policy. Its
 // real-corpus liveness arm is DATA in `_liveness/tests.ts`, run by the one liveness runner.
 
-import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/_shared/test-tags";
-import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
+import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
+import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { gate } from "../../../../tooling/src/verify/gates/ct-config-mirror-parity.ts";
 import { loadGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";

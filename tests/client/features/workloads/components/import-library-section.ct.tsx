@@ -18,7 +18,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { PersonaCollision } from "@orb/contracts/import";
-import { driveFileDrop, driveFileUpload } from "@orb/tooling/_shared/upload";
+import { driveFileDrop, driveFileUpload } from "@orb/tooling/floor/browser/upload";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { dropFiles } from "../../../../support/browser/drop-files.ts";

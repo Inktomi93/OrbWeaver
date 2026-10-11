@@ -17,7 +17,7 @@ import {
   selectRuleRow,
   selectRuleRowsByIds,
   toRuleView,
-} from "../../../../../packages/server/src/domain/automation/persistence/rules.ts";
+} from "#server/domain/automation/persistence/rules.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FIXED_NOW_MS, seedHostChat, seedUser } from "../_support.ts";

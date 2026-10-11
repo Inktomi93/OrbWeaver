@@ -15,12 +15,12 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `membership-enforcer` descriptor at de9a84d2560cc0c2ae9642f4f98144315cbaab53, the parent of the conversion
 // `76196db5d4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,183 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// 7,183 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 138 and final `population` admits 138. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/chat/__cbbhr_in_active-turns.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../_shared/reference-fact.ts";
+import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SealedHome } from "../lib/sealed-origin.ts";
 import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
@@ -34,7 +34,7 @@ const EQUALITY_OPS = new Set([
 ]);
 
 /** `fetchOwned` and `OwnedTable` are declared once, in the db package's kit. */
-const OWNED_HELPER_HOME: SealedHome = { pathInfix: "/packages/db/src/kit/", exportedNames: new Set(["fetchOwned", "OwnedTable"]) };
+const OWNED_HELPER_HOME: SealedHome = { pathInfix: "/packages/db/src/query/", exportedNames: new Set(["fetchOwned", "OwnedTable"]) };
 
 const MESSAGE =
   "the chat scope is MEMBERSHIP-scoped, not owner-scoped (D18: chats.ownerId is DROPPED; authority = " +
@@ -163,8 +163,9 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/db/src/kit/fetch-owned.ts": "export function fetchOwned(id: string): string {\n  return id;\n}\n",
-        "packages/server/src/domain/chat/verbs/y.ts": 'import { fetchOwned } from "../../../../../db/src/kit/fetch-owned.ts";\nexport const f = fetchOwned;\n',
+        "packages/db/src/query/fetch-owned.ts": "export function fetchOwned(id: string): string {\n  return id;\n}\n",
+        "packages/server/src/domain/chat/verbs/y.ts":
+          'import { fetchOwned } from "../../../../../db/src/query/fetch-owned.ts";\nexport const f = fetchOwned;\n',
       },
       expect: { count: 1, token: "fetchOwned" },
       why: "a `fetchOwned` import in domain/chat — the D18 category error, since chats are not single-owned",
@@ -172,9 +173,9 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/db/src/kit/fetch-owned.ts": "export function fetchOwned(id: string): string {\n  return id;\n}\n",
+        "packages/db/src/query/fetch-owned.ts": "export function fetchOwned(id: string): string {\n  return id;\n}\n",
         "packages/server/src/transport/trpc/routers/chat.ts":
-          'import { fetchOwned as loadMine } from "../../../../../db/src/kit/fetch-owned.ts";\nexport const f = loadMine;\n',
+          'import { fetchOwned as loadMine } from "../../../../../db/src/query/fetch-owned.ts";\nexport const f = loadMine;\n',
       },
       expect: { count: 1, token: "fetchOwned" },
       why: "AN ALIAS of the single-owned helper, in the chat ROUTER half of the scope — the seal is the declaration home, so renaming the binding is not an escape",
@@ -204,8 +205,8 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/db/src/kit/fetch-owned.ts": "export function fetchOwned(id: string): string {\n  return id;\n}\n",
-        "packages/server/src/domain/billing/z.ts": 'import { fetchOwned } from "../../../../db/src/kit/fetch-owned.ts";\nexport const f = fetchOwned;\n',
+        "packages/db/src/query/fetch-owned.ts": "export function fetchOwned(id: string): string {\n  return id;\n}\n",
+        "packages/server/src/domain/billing/z.ts": 'import { fetchOwned } from "../../../../db/src/query/fetch-owned.ts";\nexport const f = fetchOwned;\n',
         "packages/server/src/domain/chat/verbs/quiet.ts": "export const quiet = 1;\n",
       },
       why: "the same helper import OUTSIDE the chat scope — a genuinely single-owned domain is exactly who it is for, and the population excludes it",

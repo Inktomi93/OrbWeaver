@@ -1,17 +1,17 @@
 // The single-run pass: launch, drive+capture every page, the watch series, report, baseline/diff,
 // the manifest, and the RESULT line. One browser run, many pieces of evidence.
 
-import { artifactKey } from "../../_shared/artifact-naming.ts";
-import { artifactFile } from "../../_shared/artifact-out.ts";
-import { aggregateScope, factBatchId } from "../../_shared/artifact-scope.ts";
-import { print } from "../../_shared/artifacts.ts";
-import { closeProbeSessionAfterError } from "../../_shared/browser.ts";
-import { browserEvidenceRetention } from "../../_shared/browser-capture.ts";
-import type { ProbeSession } from "../../_shared/browser-contract.ts";
-import { summarizeOrbConsoleCompleteness } from "../../_shared/browser-diagnostics.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { printVerdictReceipt } from "../../_shared/evidence.ts";
-import { loadSuspectSummary } from "../../_shared/load-budget.ts";
+import { artifactKey } from "../../floor/artifacts/artifact-naming.ts";
+import { artifactFile } from "../../floor/artifacts/artifact-out.ts";
+import { aggregateScope, factBatchId } from "../../floor/artifacts/artifact-scope.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { closeProbeSessionAfterError } from "../../floor/browser/browser.ts";
+import { browserEvidenceRetention } from "../../floor/browser/browser-capture.ts";
+import type { ProbeSession } from "../../floor/browser/browser-contract.ts";
+import { summarizeOrbConsoleCompleteness } from "../../floor/browser/browser-diagnostics.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { loadSuspectSummary } from "../../floor/host/load-budget.ts";
+import { printVerdictReceipt } from "../../floor/verdict/evidence.ts";
 import type { AppearanceInvariantResult } from "../contract/appearance-invariants.ts";
 import type { ArmPairInput, ArmRunContext } from "../contract/arms.ts";
 import type { EvidenceWindow, SessionRunHooks, SessionRunTarget, SnapDetailedPlan, SnapDetailedResult } from "../contract/run.ts";
@@ -366,7 +366,7 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
     registerSnapResultPairs(terminal.pairs);
     return {
       // TWO ways this run can turn out not to be a verdict about the app at all (the zero-hygiene law,
-      // _shared/evidence.ts): a REFUSED Lighthouse audit, and a requested THEME whose stamp never landed
+      // floor/verdict/evidence.ts): a REFUSED Lighthouse audit, and a requested THEME whose stamp never landed
       // (#1227). Either exits 2 regardless of what else the run found.
       code: finalCode,
       receipt: {

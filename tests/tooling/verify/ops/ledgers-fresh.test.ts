@@ -13,7 +13,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { CaughtFailureJudgment, CaughtFailurePopulation } from "@orb/tooling/verify";
 import {
   BASELINE_HELP,

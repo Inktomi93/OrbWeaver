@@ -4,7 +4,7 @@
 // tool patch on a locked path is dropped.
 
 import { describe } from "vitest";
-import { applyLockedPatch, applyLockedPatchTracked, rebasePatchOntoHead } from "../../../../../packages/server/src/domain/rpg/substrate/merge.ts";
+import { applyLockedPatch, applyLockedPatchTracked, rebasePatchOntoHead } from "#server/domain/rpg/substrate/merge.ts";
 import { actorWithWallet, expect, quest, questId, test } from "../_support.ts";
 
 describe("the [merge-clear] contract", () => {

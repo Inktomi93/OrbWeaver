@@ -17,7 +17,7 @@ import {
   characterActionItemsForScope,
   characterActionLabel,
   characterActionsForScope,
-} from "../../../../../packages/client/src/features/character/lib/character-actions.ts";
+} from "#client/features/character/lib/character-actions.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The vocabulary, spelled out — the exact accessible names each surface is allowed to render. */

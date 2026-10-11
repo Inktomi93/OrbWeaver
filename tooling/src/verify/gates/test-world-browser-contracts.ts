@@ -16,7 +16,7 @@
 // renaming it to `.dom.*`, not waiving the finding).
 //
 // SHAPE NOTE: `isNodeTestContractRoot` (world-aware: `tests/` and world `node`/`iso`, excluding CT/e2e/
-// story/browser-suffixed files) is a table-driven classifier (`_shared/test-kinds.ts`), not a path glob the
+// story/browser-suffixed files) is a table-driven classifier (`floor/testing/test-kinds.ts`), not a path glob the
 // population algebra's `named`/`ext`/`under` can re-derive without duplicating that canonical table by
 // hand. `population` therefore stays coarse (`@tests`, loadable extensions) and the exact admission check
 // runs INSIDE the shared per-node walk by calling the same shared function the population algebra cannot
@@ -30,7 +30,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `test-world-browser-contracts` descriptor at 1692e75291431f4ef5246b641b8927f2ae4d6876, the parent of the conversion
 // `608deaffcb` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,360 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// 7,360 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 2,176 and final `population` admits 2,869. legacy − final = ∅. final − legacy = 693 `tests/**` sources the
 // legacy `scanRoot` (`isNodeTestContractRoot`) rejected — CT/e2e/story/browser-world files; the coarse `@tests`
 // population now admits them and the same shared classifier skips them inside the walk. Controls: inside

@@ -3,9 +3,10 @@
 // pure verdict vocabularies lib/session-plan.ts derives. Shapes only — the readers that validate a line
 // off the wire (`readSessionRequest` / `readSessionRow`) live beside the other pure derivations in
 // lib/session-plan.ts, so the daemon and the client parse ONE grammar.
-import type { Viewport } from "../../_shared/argv.ts";
-import type { ProbeAttachOptions } from "../../_shared/browser-contract.ts";
-import type { OrbConsoleCompletenessSummary } from "../../_shared/browser-diagnostics.ts";
+
+import type { ProbeAttachOptions } from "../../floor/browser/browser-contract.ts";
+import type { OrbConsoleCompletenessSummary } from "../../floor/browser/browser-diagnostics.ts";
+import type { Viewport } from "../../floor/instrument/argv.ts";
 import type { SnapRunFactBatch } from "./run-facts.ts";
 
 export const SESSION_PROTOCOL_VERSION = 1;

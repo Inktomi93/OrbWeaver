@@ -4,9 +4,9 @@ import { assets, embedGenerationTargets, imageAnalyses, imageEmbeddings } from "
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq, sql } from "drizzle-orm";
-import { readImageAnalysis, saveImageAnalysis } from "../../../../../packages/server/src/domain/embeddings/persistence/image-analysis.ts";
-import { upsertImageEmbedding } from "../../../../../packages/server/src/domain/embeddings/persistence/queries.ts";
-import { contentHash } from "../../../../../packages/server/src/domain/embeddings/substrate/hash.ts";
+import { readImageAnalysis, saveImageAnalysis } from "#server/domain/embeddings/persistence/image-analysis.ts";
+import { upsertImageEmbedding } from "#server/domain/embeddings/persistence/queries.ts";
+import { contentHash } from "#server/domain/embeddings/substrate/hash.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { fakeVector, makeStoreHarness, seedAsset, seedUser } from "../_support.ts";

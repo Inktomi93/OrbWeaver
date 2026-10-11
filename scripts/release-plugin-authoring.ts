@@ -8,9 +8,9 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { pnpmInvocation } from "@orb/tooling/_shared/platform";
-import { spawnNiced } from "@orb/tooling/_shared/proc";
-import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
+import { pnpmInvocation } from "@orb/tooling/floor/host/platform";
+import { spawnNiced } from "@orb/tooling/floor/process/proc";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 
 const REPO_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const PACKAGES = [

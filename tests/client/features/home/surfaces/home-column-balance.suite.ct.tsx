@@ -69,7 +69,7 @@ const SEEDED_ROSTERS: readonly RosterPresetSummary[] = SEED_MANIFEST.flatMap((it
 const RAIL_PX = 56;
 const WIDTHS = [1280, 1440, 1536, 1920, 2560] as const;
 
-/** The appearance points, named as `tooling/src/_shared/appearance-presets.json` names them. Only the two axes
+/** The appearance points, named as `tooling/src/floor/appearance/appearance-presets.json` names them. Only the two axes
  *  that move Home's geometry are set: `fontScale` rescales every rem from the root, `density` swaps the spacing tokens. */
 const ARMS = [
   { name: "defaults", fontScale: 1, density: "comfortable" },

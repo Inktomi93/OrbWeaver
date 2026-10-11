@@ -2,7 +2,7 @@
 // path its body cites changed after the doc's `updated` date. The paths are the body's own backticked
 // citations, so nothing is committed for this beyond the date every doc already carries. A warning
 // tier only — it never enters `pnpm check`.
-import { backtickedRepoPaths } from "../../_shared/prose-rules.ts";
+import { backtickedRepoPaths } from "../../floor/prose/prose-rules.ts";
 import type { DescribedDoc, GovernedDoc } from "../contract/types.ts";
 import { splitDocument } from "./frontmatter-write.ts";
 

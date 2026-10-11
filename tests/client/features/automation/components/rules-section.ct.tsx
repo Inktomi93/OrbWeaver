@@ -20,7 +20,7 @@ import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { ROLE_STATUS_LABELS } from "../../../../../packages/client/src/lib/connection-roles.ts";
+import { ROLE_STATUS_LABELS } from "#client/lib/connection-roles.ts";
 import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { makeResolvedView } from "../../../../support/factories/resolved-connection.ts";
 import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";

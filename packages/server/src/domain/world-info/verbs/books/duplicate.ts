@@ -6,12 +6,12 @@
 // the source's. Attachments are NOT copied — the duplicate is a fresh editable copy, unattached at every scope.
 
 import { worldBooks, worldEntries } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
-import type { WorldInfoContext } from "../../context.ts";
-import { WorldInfoNotFoundError } from "../../contract/errors.ts";
-import type { DuplicateBookParams } from "../../contract/params.ts";
-import type { WorldInfoService } from "../../contract/service.ts";
-import { listBookEntries, loadOwnedBook } from "../../persistence/queries.ts";
+import { batchMany } from "@orb/db/query";
+import type { WorldInfoContext } from "#src/domain/world-info/context.ts";
+import { WorldInfoNotFoundError } from "#src/domain/world-info/contract/errors.ts";
+import type { DuplicateBookParams } from "#src/domain/world-info/contract/params.ts";
+import type { WorldInfoService } from "#src/domain/world-info/contract/service.ts";
+import { listBookEntries, loadOwnedBook } from "#src/domain/world-info/persistence/queries.ts";
 
 export function createDuplicate(ctx: WorldInfoContext): WorldInfoService["duplicateBook"] {
   return async ({ principal, bookId }: DuplicateBookParams) => {

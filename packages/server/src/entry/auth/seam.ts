@@ -42,7 +42,7 @@ import type { SessionsService, UserPrincipalFields } from "#domain/sessions";
 import { ownerHandles } from "#domain/sessions";
 import type { AllowedHostsReader, AuthConfig, ForwardJwtVerifier, IdentityResolution, OidcTransactionStore, RelayedFallbackNotice } from "#infra/auth";
 import { authConfigFromEnv, hasCsrfHeader, readRequestCookie, resolve, selectSignedForwardJwt, sessionCookieFor } from "#infra/auth";
-import { publishUserEvent } from "../../transport/trpc/index.ts";
+import { publishUserEvent } from "#transport/trpc";
 
 /** The boot-time deps the seam binds once. `config` is the test/override seam — production parses
  *  `authConfigFromEnv()` once at construction. `verifyForwardJwt`/`oidcStore` are the ports the SSO paths

@@ -1,5 +1,5 @@
 import process from "node:process";
-import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
+import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { GateOwnerResult, ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/macro-resolution-health.ts";

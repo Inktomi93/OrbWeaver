@@ -31,12 +31,12 @@ vi.stubEnv("LOCAL_LIGHT_PREFETCH", "off");
 // The test reads the security line back from the log ring, which records only at or above LOG_LEVEL.
 vi.stubEnv("LOG_LEVEL", "warn");
 
-const { createLifecycle } = await import("../../../packages/server/src/entry/lifecycle.ts").catch((error: unknown) => {
+const { createLifecycle } = await import("#server/entry/lifecycle.ts").catch((error: unknown) => {
   rmSync(TEMP_DIR, { force: true, recursive: true });
   throw error;
 });
-const { logRing } = await import("../../../packages/server/src/foundation/observability/index.ts");
-const { bindPostureInput, settingInstruction } = await import("../../../packages/server/src/foundation/env/index.ts");
+const { logRing } = await import("#server/foundation/observability/index.ts");
+const { bindPostureInput, settingInstruction } = await import("#server/foundation/env/index.ts");
 // The install shape the booted server itself detected.
 const inContainer = bindPostureInput().inContainer;
 

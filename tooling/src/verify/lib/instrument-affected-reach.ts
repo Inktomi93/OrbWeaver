@@ -22,7 +22,7 @@
 import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, join, relative as relativePath, sep } from "node:path";
 import { ts } from "ts-morph";
-import { classifyTestFilename, runtimeForTestFamily } from "../../_shared/test-kinds.ts";
+import { classifyTestFilename, runtimeForTestFamily } from "../../floor/testing/test-kinds.ts";
 import type { InstrumentAffectedPolicyReach } from "../contract/instrument-affected.ts";
 
 const GATE_TESTS_DIR = "tests/tooling/verify/gates";

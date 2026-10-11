@@ -32,7 +32,7 @@
 
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { StreamDataFrame } from "@orb/contracts/stream";
-import { subscribeAutomation } from "../../automation-bus.ts";
+import { subscribeAutomation } from "#src/transport/trpc/automation-bus.ts";
 import type { RoomSourceDef } from "../room-source.ts";
 
 /** The one MEMBER-visible automation-bus event — the transient quick-reply chips. Every OTHER event

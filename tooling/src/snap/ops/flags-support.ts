@@ -1,6 +1,6 @@
 // Shared constants + the queue-pusher/selector helpers ops/flags.ts's dispatch table is built from —
 // split out when that table crossed the tooling line cap (docs/law/Core-Tooling-Law.md §4.3).
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { Args, NavAction, PagedExpr, Step } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -17,7 +17,7 @@ export function watchIntervalMs(args: Pick<Args, "watchEveryMs">): number {
   return args.watchEveryMs === 0 ? MS_PER_SECOND : args.watchEveryMs;
 }
 
-// --mobile: a Playwright device descriptor name (registry lookup in _shared/browser.ts). Real touch +
+// --mobile: a Playwright device descriptor name (registry lookup in floor/browser/browser.ts). Real touch +
 // pointer:coarse + mobile UA + DPR3, so the app's coarse-pointer progressive-disclosure and bottom-tab
 // rail both render — a bare narrow viewport misses them. `scale:"css"` in SHOT_BASE keeps the DPR3 shot
 // at 1 image px / CSS px (not 3×), so the PNG cost stays sane.
@@ -44,7 +44,7 @@ export function pushEval(args: Args, action: PagedExpr): void {
   args.actions.push({ type: "eval", action });
 }
 // A `@<idx>` suffix on a flag (`--click@1`, `--eval@0`, `--aria@2`) selects a --pages tab — parsed by
-// splitPageSuffix (_shared/argv.ts, unit-tested there).
+// splitPageSuffix (floor/instrument/argv.ts, unit-tested there).
 
 // Optional inline selector: consume the next token ONLY if it's not a flag (--…) and not a
 // route (/…). Selectors start with [ . # or a tag name. Shared by --aria/--text/--map's

@@ -6,7 +6,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { MEMORY_EXISTING_CHATS_NOTE, MEMORY_IMPORTED_CHATS_NOTE } from "../../../../../packages/client/src/features/chat/lib/memory-settings-section-nav.ts";
+import { MEMORY_EXISTING_CHATS_NOTE, MEMORY_IMPORTED_CHATS_NOTE } from "#client/features/chat/lib/memory-settings-section-nav.ts";
 import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { UTILITY_ROW, utilityBindings } from "../../../../support/node/utility-role.ts";

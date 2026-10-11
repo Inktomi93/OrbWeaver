@@ -13,10 +13,10 @@
 import { existsSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { UsageError } from "@orb/tooling/_shared/run-tool";
-import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { UsageError } from "@orb/tooling/floor/cli/run-tool";
+import { getWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { Node } from "ts-morph";
 import { descriptorValue, finalDescriptorOf, policyProductionDependencies } from "../lib/policy-descriptor-read.ts";
 import { staticText } from "../lib/policy-static-text.ts";

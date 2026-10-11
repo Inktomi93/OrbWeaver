@@ -30,9 +30,9 @@ import type { AuthConfig } from "@orb/server/infra/auth";
 import { sessionCookieFor } from "@orb/server/infra/auth";
 import { Hono } from "hono";
 import { describe } from "vitest";
-import { layer } from "../../../packages/server/src/domain/settings/effective-config/layer.ts";
-import type { AppDeps } from "../../../packages/server/src/entry/app.ts";
-import { createApp } from "../../../packages/server/src/entry/app.ts";
+import { layer } from "#server/domain/settings/effective-config/layer.ts";
+import type { AppDeps } from "#server/entry/app.ts";
+import { createApp } from "#server/entry/app.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const FROZEN_NOW = 1_750_000_000_000;

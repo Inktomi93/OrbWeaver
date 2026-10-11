@@ -8,11 +8,11 @@
 // never retry-looped; a malformed/absent-article response (no extract) collapses the same way. Stamps: origin
 // 'wiki', sourceUrl = the requested article URL, name = the article title from the API (fallback: the URL title).
 
-import { ScrapeFailedError } from "../../contract/errors.ts";
-import type { ScrapeWikiParams } from "../../contract/params.ts";
-import type { UploadResult } from "../../contract/results.ts";
-import type { DatabankContext, DatabankService } from "../../contract/service.ts";
-import { finalizeScrape } from "../../substrate/scrape-canon.ts";
+import { ScrapeFailedError } from "#src/domain/databank/contract/errors.ts";
+import type { ScrapeWikiParams } from "#src/domain/databank/contract/params.ts";
+import type { UploadResult } from "#src/domain/databank/contract/results.ts";
+import type { DatabankContext, DatabankService } from "#src/domain/databank/contract/service.ts";
+import { finalizeScrape } from "#src/domain/databank/substrate/scrape-canon.ts";
 
 const PLAIN_MIME = "text/plain";
 /** The `/wiki/<Article_Title>` article-path capture. */

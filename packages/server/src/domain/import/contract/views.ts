@@ -8,8 +8,8 @@ import type { PresetFile, StDroppedField } from "@orb/contracts/preset";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
-import type { ParsedChat } from "#kit/serde/chat";
-import type { ParsedStTheme } from "#kit/serde/theme";
+import type { ParsedChat } from "#primitives/serde/chat";
+import type { ParsedStTheme } from "#primitives/serde/theme";
 
 /** name is the key an imported chat's user_name maps against (case-insensitively) to attribute messages. */
 export interface ParsedPersona {

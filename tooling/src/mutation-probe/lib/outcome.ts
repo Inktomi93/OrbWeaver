@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { z } from "zod";
-import { EXIT } from "../../_shared/exit-contract.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
 import type { SuiteEvidence, SuiteReportRequest, SuiteVerdict } from "../contract/types.ts";
 
 const ASSERTION_STATUSES = ["passed", "failed", "skipped", "todo"] as const;

@@ -5,10 +5,10 @@
 // after its tap, so the wire capture holds the native body and the native reply while the SDK reads OpenAI chunks.
 
 import type { EffortLevel } from "@orb/contracts/inference";
-import { ProviderError } from "../../contract/errors.ts";
-import type { ResolvedWarning } from "../../contract/resolve.ts";
-import { serverRootOf } from "../kit/fetch-json.ts";
-import { encodeSseData, SSE_DONE_LINE } from "../kit/sse.ts";
+import type { ResolvedWarning } from "#contract";
+import { ProviderError } from "#contract";
+import { serverRootOf } from "../http/fetch-json.ts";
+import { encodeSseData, SSE_DONE_LINE } from "../http/sse.ts";
 
 const CHAT_COMPLETIONS_SUFFIX = "/chat/completions";
 const NATIVE_CHAT_PATH = "/api/chat";

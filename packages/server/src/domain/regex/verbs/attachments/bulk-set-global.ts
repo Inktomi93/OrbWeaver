@@ -11,10 +11,10 @@
 // `onConflictDoNothing` leaves exactly where they were.
 
 import type { RegexScriptId, UserId } from "@orb/kit/ids";
-import type { RegexContext } from "../../context.ts";
-import type { BulkSetScriptsGlobalParams } from "../../contract/params.ts";
-import type { RegexService } from "../../contract/service.ts";
-import { attachGlobalBulk, detachGlobalBulk, listGlobalScripts, loadOwnedScriptsByIds } from "../../persistence/queries.ts";
+import type { RegexContext } from "#src/domain/regex/context.ts";
+import type { BulkSetScriptsGlobalParams } from "#src/domain/regex/contract/params.ts";
+import type { RegexService } from "#src/domain/regex/contract/service.ts";
+import { attachGlobalBulk, detachGlobalBulk, listGlobalScripts, loadOwnedScriptsByIds } from "#src/domain/regex/persistence/queries.ts";
 
 export function createBulkSetGlobal(ctx: RegexContext): RegexService["bulkSetScriptsGlobal"] {
   return async ({ principal, scriptIds, global }: BulkSetScriptsGlobalParams) => {

@@ -12,10 +12,10 @@ import { castId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
-import { assemblePrompt, assemblePromptWithSlices, previewSection } from "../../../../../packages/server/src/domain/chat/assembly/assemble.ts";
-import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
-import { shapeContextForSpeaker, speakerCue, voiceContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card.ts";
-import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros.ts";
+import { assemblePrompt, assemblePromptWithSlices, previewSection } from "#server/domain/chat/assembly/assemble.ts";
+import { BEFORE_HISTORY_DEPTH } from "#server/domain/chat/assembly/injections.ts";
+import { shapeContextForSpeaker, speakerCue, voiceContextForSpeaker } from "#server/domain/chat/assembly/speaker-card.ts";
+import { buildTurnUserMacros } from "#server/domain/chat/assembly/user-macros.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 let sectionSeq = 0;

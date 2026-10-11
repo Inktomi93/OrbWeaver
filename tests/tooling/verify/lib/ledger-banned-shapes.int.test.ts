@@ -15,8 +15,8 @@
 // files came back "No files were processed in the specified paths".
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { CONTRACT_BANNED_SHAPES, SCHEMA_BANNED_SHAPES } from "@orb/tooling/verify";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";

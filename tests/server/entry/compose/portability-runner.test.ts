@@ -38,12 +38,8 @@ import type { StartWorkloadParams, WorkloadService } from "@orb/server/domain/wo
 import { WORKLOAD_NOT_ADMISSIBLE } from "@orb/server/domain/workloads";
 import { subscribeUserEvents } from "@orb/server/transport/trpc";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import type { PortabilityRunnerComposeDeps } from "../../../../packages/server/src/entry/compose/portability-runner.ts";
-import {
-  buildPortabilityRunner,
-  createEnqueueImportIndex,
-  createSettleImportMemory,
-} from "../../../../packages/server/src/entry/compose/portability-runner.ts";
+import type { PortabilityRunnerComposeDeps } from "#server/entry/compose/portability-runner.ts";
+import { buildPortabilityRunner, createEnqueueImportIndex, createSettleImportMemory } from "#server/entry/compose/portability-runner.ts";
 import { freshDb } from "../../../support/db.ts";
 import { principal } from "../../../support/factories/principal.ts";
 import { seedUser } from "../../../support/factories/user.ts";

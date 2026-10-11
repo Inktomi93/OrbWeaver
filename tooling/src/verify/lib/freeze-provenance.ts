@@ -17,7 +17,7 @@
 // `no-write-chain` is a call with no Drizzle write verb in it at all (`map.set(…)`) — the boundary that
 // stops the fail-closed posture from redding every `.set()`.
 
-import { resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
+import { resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { readDrizzleWriteTable } from "./drizzle-write-target.ts";
 

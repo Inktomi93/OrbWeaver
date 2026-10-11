@@ -104,7 +104,7 @@
 // example. The result is in the landing commit message.
 import type { ArrowFunction, CallExpression, FunctionExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveCallableDeclaration } from "../../_shared/reference-fact-call.ts";
+import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readMemberAccess } from "../lib/symbol-reference.ts";

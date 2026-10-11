@@ -19,8 +19,8 @@
 // A BARE ZERO IS NEVER CLEAN. Zero tables, no `assets` table, or zero asset-FK columns means the reader
 // stopped seeing its subject — each is exit 2 (tool error), never a ✓.
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { is } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { getTableConfig, SQLiteTable } from "drizzle-orm/sqlite-core";

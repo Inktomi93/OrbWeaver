@@ -1,4 +1,4 @@
-import { responseCacheControlSchema, responseCacheSettingsSchema } from "../../../packages/contracts/src/preset/response-cache.ts";
+import { responseCacheControlSchema, responseCacheSettingsSchema } from "#contracts/preset/response-cache.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("response replay controls reject invalid retention without accepting a partial setting", () => {

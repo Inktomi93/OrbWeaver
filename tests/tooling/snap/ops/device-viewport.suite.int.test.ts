@@ -12,8 +12,8 @@
 // "worked" by making every viewport coarse.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { BOX_LOAD_ENV } from "@orb/tooling/_shared/load-budget";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { BOX_LOAD_ENV } from "@orb/tooling/floor/host/load-budget";
 import { beforeEach, vi } from "vitest";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";

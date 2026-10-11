@@ -26,11 +26,7 @@ import { copyActionName } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import {
-  ADD_DIALOG_COPY,
-  CLAUDE_SETUP_TOKEN_COMMAND,
-  CLAUDE_SETUP_TOKEN_COPY_SUBJECT,
-} from "../../../../../packages/client/src/features/credentials/lib/add-connection-form-model.ts";
+import { ADD_DIALOG_COPY, CLAUDE_SETUP_TOKEN_COMMAND, CLAUDE_SETUP_TOKEN_COPY_SUBJECT } from "#client/features/credentials/lib/add-connection-form-model.ts";
 import type { TrpcResponder } from "../../../../support/node/route-trpc.ts";
 import { trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../../config/_ct-stories.tsx";

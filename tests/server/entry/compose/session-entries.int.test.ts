@@ -16,7 +16,7 @@ import type { ChatId, UserConnectionId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { tableCounts } from "@orb/server/foundation/observability/debug";
 import { and, eq } from "drizzle-orm";
-import { createSessionEntryWriter } from "../../../../packages/server/src/entry/compose/session-entries.ts";
+import { createSessionEntryWriter } from "#server/entry/compose/session-entries.ts";
 import { freshDb } from "../../../support/db.ts";
 import { seedUser } from "../../../support/factories/user.ts";
 import { expect, test } from "../../../support/fixtures.ts";

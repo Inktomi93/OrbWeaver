@@ -8,8 +8,8 @@ import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PluginContext } from "@orb/server/domain/plugin";
 import { describe, vi } from "vitest";
-import { createDeactivate } from "../../../../../packages/server/src/domain/plugin/activation/deactivate.ts";
-import type { PluginRegistry } from "../../../../../packages/server/src/domain/plugin/contract/service.ts";
+import { createDeactivate } from "#server/domain/plugin/activation/deactivate.ts";
+import type { PluginRegistry } from "#server/domain/plugin/contract/service.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const PLUGIN_ID = castId<PluginId>("plugin_x");

@@ -3,8 +3,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 // Pure `.ts`, safe in a node-side CT spec; the feature's front door is a barrel that would pull `.tsx` in.
-import type { ReindexPreview } from "../../../../../packages/client/src/lib/embedder-rebuild.ts";
-import { REINDEX_CONFIRM_COPY, reindexConfirmDescription } from "../../../../../packages/client/src/lib/embedder-rebuild.ts";
+import type { ReindexPreview } from "#client/lib/embedder-rebuild.ts";
+import { REINDEX_CONFIRM_COPY, reindexConfirmDescription } from "#client/lib/embedder-rebuild.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { connectionRow, openRowMenu, stubConnectionsPane } from "../_connection-fixtures.ts";
 import { ConnectionsAuthoringStory, ConnectionsListReadStory } from "../_ct-stories.tsx";

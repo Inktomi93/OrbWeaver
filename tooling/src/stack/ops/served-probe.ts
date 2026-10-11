@@ -18,12 +18,12 @@
 
 import { readFileSync } from "node:fs";
 import { relative } from "node:path";
-import { budget } from "@orb/tooling/_shared/load-budget";
-import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { ExitCode } from "../../_shared/exit-contract.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { DEV_PORTS } from "../../_shared/ports.ts";
+import { budget } from "@orb/tooling/floor/host/load-budget";
+import { print, REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { ExitCode } from "../../floor/cli/exit-contract.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { DEV_PORTS } from "../../floor/host/ports.ts";
 import type { ServedVerdict } from "../contract/types.ts";
 import { newestSourceEntries } from "../lib/source-scan.ts";
 import { viteUrl } from "../lib/stack-plan.ts";

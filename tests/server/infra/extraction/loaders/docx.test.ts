@@ -3,7 +3,7 @@
 // decoded, and the failure modes (a non-zip / a zip missing `word/document.xml`). The fixture zips REAL OOXML.
 
 import { zipSync } from "fflate";
-import { loadDocx } from "../../../../../packages/server/src/infra/extraction/loaders/docx.ts";
+import { loadDocx } from "#server/infra/extraction/loaders/docx.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { buildDocx } from "../_fixtures.ts";
 

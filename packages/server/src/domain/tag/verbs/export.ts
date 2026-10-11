@@ -1,13 +1,13 @@
 // verb: export — read the owner's whole tag namespace as portable tag-library JSON bytes (the standalone
 // tag-library backup; the uniform export/import portability template, §1 part 2). Owner-scoped: reads ONLY
 // `tags` rows where `ownerId = ownerId` (the ordered `listOwnedTags`), projects each to the id-less/owner-less
-// `CanonicalTag`, and hands the set to `#kit/serde/tag`'s `buildTagLibrary`. PURE read + serde — no db write,
+// `CanonicalTag`, and hands the set to `#primitives/serde/tag`'s `buildTagLibrary`. PURE read + serde — no db write,
 // no audit (a read leaves no trace). `import.ts` is the round-trip twin: `export` bytes → `import` re-creates
 // the same tag namespace under the importing owner (fresh ids, deduped by name).
 
 import type { UserId } from "@orb/kit/ids";
-import type { CanonicalTag } from "#kit/serde/tag";
-import { buildTagLibrary } from "#kit/serde/tag";
+import type { CanonicalTag } from "#primitives/serde/tag";
+import { buildTagLibrary } from "#primitives/serde/tag";
 import type { TagContext } from "../contract/service.ts";
 import { listOwnedTags } from "../persistence/queries.ts";
 

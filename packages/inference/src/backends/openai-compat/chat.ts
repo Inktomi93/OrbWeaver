@@ -13,31 +13,31 @@ import type { EffortLevel } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
 import type { JsonValue } from "@orb/kit/json";
 import { z } from "zod";
-import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest } from "../../contract/chat.ts";
-import { ProviderError } from "../../contract/errors.ts";
-import type { RateLimitSnapshot } from "../../contract/events.ts";
-import type { ResolvedChatKnobs, ResolvedWarning } from "../../contract/resolve.ts";
-import type { Resolved } from "../../contract/resolved.ts";
-import type { AddSpanEvent } from "../../contract/runtime.ts";
-import type { InferenceLog } from "../../deps.ts";
-import { resolveCachePolicy } from "../../funnel/resolve-cache.ts";
-import { resolveChat, templateThinkingFor } from "../../funnel/resolve-chat.ts";
-import type { StructuredPlan } from "../../structured/plan.ts";
-import { requireStructuredPlan } from "../../structured/plan.ts";
-import { structuredChatResult } from "../../structured/reply.ts";
-import { effortWordOf } from "../kit/applied-effort.ts";
-import type { ExplicitCachePlan, OpenRouterRouting } from "../kit/cache-control.ts";
-import { automaticCachePlan, effectiveProviderRouting, explicitCachePlan, isAnthropicModel, placeExplicitCacheMarkers } from "../kit/cache-control.ts";
-import { extractHttpErrorDiagnostic, providerErrorFromHttp, withSchemaRejection } from "../kit/error-classify.ts";
-import { observeChatResult } from "../kit/generation-observation.ts";
-import { turnAbortSignal } from "../kit/idle-timeout.ts";
-import type { ProviderLogger } from "../kit/provider-log.ts";
-import { providerLogger } from "../kit/provider-log.ts";
-import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../kit/rate-limit-headers.ts";
-import { cachePolicyContextOf, effectiveDialectOf, responseCacheOf } from "../kit/response-cache.ts";
-import { runWithPreCommitRetry } from "../kit/retry.ts";
-import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../kit/sanitize.ts";
-import { emitTurnSpanEvents } from "../kit/turn-span.ts";
+import type {
+  AddSpanEvent,
+  ChatHistoryMessage,
+  ChatResult,
+  OpenAiCompatChatRequest,
+  RateLimitSnapshot,
+  Resolved,
+  ResolvedChatKnobs,
+  ResolvedWarning,
+} from "#contract";
+import { ProviderError } from "#contract";
+import { resolveCachePolicy, resolveChat, templateThinkingFor } from "#funnel";
+import type { InferenceLog } from "#src/deps.ts";
+import type { StructuredPlan } from "#structured";
+import { requireStructuredPlan, structuredChatResult } from "#structured";
+import { extractHttpErrorDiagnostic, providerErrorFromHttp, withSchemaRejection } from "../http/error-classify.ts";
+import { observeChatResult } from "../http/generation-observation.ts";
+import { turnAbortSignal } from "../http/idle-timeout.ts";
+import type { ProviderLogger } from "../http/provider-log.ts";
+import { providerLogger } from "../http/provider-log.ts";
+import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../http/rate-limit-headers.ts";
+import { cachePolicyContextOf, effectiveDialectOf, responseCacheOf } from "../http/response-cache.ts";
+import { runWithPreCommitRetry } from "../http/retry.ts";
+import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../http/sanitize.ts";
+import { emitTurnSpanEvents } from "../http/turn-span.ts";
 import { plannedOptions, standardSampling } from "../v4/options.ts";
 import type { WirePlan } from "../v4/prompt.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
@@ -45,6 +45,9 @@ import type { ResultContext } from "../v4/result.ts";
 import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
 import type { StreamDrain } from "../v4/stream.ts";
 import { drainStream } from "../v4/stream.ts";
+import { effortWordOf } from "../wire/applied-effort.ts";
+import type { ExplicitCachePlan, OpenRouterRouting } from "../wire/cache-control.ts";
+import { automaticCachePlan, effectiveProviderRouting, explicitCachePlan, isAnthropicModel, placeExplicitCacheMarkers } from "../wire/cache-control.ts";
 import type { ModelCall, TransportDeps } from "./model.ts";
 import { languageModelFor, providerOptionsKey } from "./model.ts";
 import { compatibleReasoning, isMandatoryReasoningRejection, openRouterReasoning, sendsOpenRouterReasoning } from "./reasoning.ts";

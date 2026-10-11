@@ -11,7 +11,7 @@ import {
   listAnalysisWindow,
   loadCallerRole,
   loadPresentHumanMemberIds,
-} from "../../../../../packages/server/src/domain/automation/persistence/canon-reads.ts";
+} from "#server/domain/automation/persistence/canon-reads.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedMessage, seedParticipant } from "../../chat/_support.ts";

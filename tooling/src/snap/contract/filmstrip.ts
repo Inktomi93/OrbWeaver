@@ -1,4 +1,4 @@
-import type { InstrumentArtifactLimitReceipt } from "../../_shared/artifact-out.ts";
+import type { InstrumentArtifactLimitReceipt } from "../../floor/artifacts/artifact-out.ts";
 
 export interface FilmstripLimits {
   readonly frames: number;

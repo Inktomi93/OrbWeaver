@@ -1,5 +1,5 @@
 // Filmstrip retention is pixel-byte bounded; action brackets outrank intermediate sampling inside those bounds.
-import type { InstrumentArtifactLimitReceipt } from "../../_shared/artifact-out.ts";
+import type { InstrumentArtifactLimitReceipt } from "../../floor/artifacts/artifact-out.ts";
 import type { FilmstripActionMarker, FilmstripCaptureReceipt, FilmstripFrame, FilmstripLimits } from "../contract/filmstrip.ts";
 
 interface RetainedAction extends FilmstripActionMarker {

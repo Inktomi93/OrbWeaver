@@ -13,7 +13,7 @@ import {
 } from "@orb/kit/allowed-hosts";
 import type { EnvEdit } from "@orb/kit/env-file";
 import { DELETE_ENV_LINE } from "@orb/kit/env-file";
-import { DEV_PORTS, MAX_TCP_PORT } from "../../_shared/ports.ts";
+import { DEV_PORTS, MAX_TCP_PORT } from "../../floor/host/ports.ts";
 import type { AnswerParse, SetupAnswers, SetupAudience, SetupDecision, SetupLogin, SetupMachine, SetupUrl, SetupValues } from "../contract/types.ts";
 
 export const PORT_KEY = "PORT";

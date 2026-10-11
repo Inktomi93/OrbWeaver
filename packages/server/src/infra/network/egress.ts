@@ -4,8 +4,8 @@ import { effectiveHttpPort, parseTcpPort } from "@orb/kit/http-endpoint";
 import { parseIp } from "@orb/kit/ip";
 import { Agent, buildConnector, getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import { env, parseTrustedPrivateRanges } from "#foundation/env";
-import { getLog, securityEvent } from "../../foundation/observability/logger.ts";
-import { superviseDetached } from "../../foundation/observability/tracing.ts";
+import { getLog, securityEvent } from "#src/foundation/observability/logger.ts";
+import { superviseDetached } from "#src/foundation/observability/tracing.ts";
 import { DEFAULT_TRUSTED_RANGES, isInRanges } from "./ip-ranges.ts";
 
 // SSRF egress firewall via undici.setGlobalDispatcher (swapping http.globalAgent doesn't work — Node's

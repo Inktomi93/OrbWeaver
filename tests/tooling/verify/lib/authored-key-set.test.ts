@@ -2,7 +2,7 @@
 // with a reason rather than with an empty set. A resolved empty set and an `unresolved` fact are different
 // answers, and a consumer that fails closed depends on the difference.
 
-import type { ReferenceFact, ReferenceUnresolvedReason } from "@orb/tooling/_shared/reference-fact-contract";
+import type { ReferenceFact, ReferenceUnresolvedReason } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { CallExpression, Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import { readAuthoredKeySet, readCallReturns } from "../../../../tooling/src/verify/lib/authored-key-set.ts";

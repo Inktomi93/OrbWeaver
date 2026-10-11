@@ -14,9 +14,9 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import type { MacroAST, MacroBlockNode, MacroRegistry } from "@orb/kit/macro";
 import { createDefaultRegistry, parseMacros } from "@orb/kit/macro";
-import { print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { UsageError } from "../../_shared/run-tool.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { UsageError } from "../../floor/cli/run-tool.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm codemod <verb>");
 

@@ -13,7 +13,7 @@
 import type { ChatId, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { createPluginSurfaceStateStore, PLUGIN_SURFACE_STATE_MAX_KEYS } from "../../../../../packages/server/src/domain/plugin/index.ts";
+import { createPluginSurfaceStateStore, PLUGIN_SURFACE_STATE_MAX_KEYS } from "#server/domain/plugin/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const PLUGIN_A = castId<PluginId>("plugin_a000000000000000000001");

@@ -13,8 +13,8 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { aggregateScope, artifactRef } from "@orb/tooling/_shared/artifact-scope";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { aggregateScope, artifactRef } from "@orb/tooling/floor/artifacts/artifact-scope";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import type { DiskSafeBrowserDiagnostic } from "../../../../tooling/src/snap/contract/browser-evidence-redaction.ts";
 import type { SnapRunIndex } from "../../../../tooling/src/snap/contract/run-index.ts";
 import { collectSnapFindings } from "../../../../tooling/src/snap/lib/run-findings.ts";

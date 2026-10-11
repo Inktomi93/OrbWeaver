@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { spawnNiced } from "@orb/tooling/_shared/proc";
+import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { expect, test } from "../support/tool-fixtures.ts";
 
 for (const scenario of [

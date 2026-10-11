@@ -2,7 +2,7 @@
 // with I1; the request-passing rides I2 (doc 05 FORK 2), so this pins the shape the runner will read.
 
 import { describe } from "vitest";
-import { defaultSizeFor, SIZE_PRESETS } from "../../../../../packages/server/src/domain/imagery/substrate/size.ts";
+import { defaultSizeFor, SIZE_PRESETS } from "#server/domain/imagery/substrate/size.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("SIZE_PRESETS", () => {

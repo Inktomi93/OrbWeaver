@@ -17,7 +17,7 @@ import {
   readPersonaUsage,
   readTimeseries,
   readWrapped,
-} from "../../../../../packages/server/src/domain/stats/persistence/rollups.ts";
+} from "#server/domain/stats/persistence/rollups.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import {

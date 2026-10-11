@@ -30,12 +30,12 @@ import { rpgSnapshots } from "@orb/db";
 import type { ChatId, ChatTurnId, MessageVariantId, RpgGameId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { buildTrackerView } from "../../../../packages/server/src/domain/rpg/chat-ops/tracker-view.ts";
-import type { RpgContext, RpgGameRow } from "../../../../packages/server/src/domain/rpg/contract/service.ts";
-import { snapshotRowToState } from "../../../../packages/server/src/domain/rpg/contract/service.ts";
-import { findGameByChat } from "../../../../packages/server/src/domain/rpg/persistence/games.ts";
-import { findSnapshotByVariant, writeStagedSnapshot } from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
-import { createRpgStagingStore } from "../../../../packages/server/src/domain/rpg/staging.ts";
+import { buildTrackerView } from "#server/domain/rpg/chat-ops/tracker-view.ts";
+import type { RpgContext, RpgGameRow } from "#server/domain/rpg/contract/service.ts";
+import { snapshotRowToState } from "#server/domain/rpg/contract/service.ts";
+import { findGameByChat } from "#server/domain/rpg/persistence/games.ts";
+import { findSnapshotByVariant, writeStagedSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
+import { createRpgStagingStore } from "#server/domain/rpg/staging.ts";
 import { freshDb } from "../../../support/db.ts";
 import { emptyState, expect, seedLiteGame, seedMessage, target, test } from "./_support.ts";
 

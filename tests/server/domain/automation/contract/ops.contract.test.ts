@@ -10,8 +10,8 @@
 // UNION are the same set, which is what makes the `never` pin mean anything.
 
 import { describe } from "vitest";
-import type { DomainRowKind } from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
-import { DOMAIN_ROW_KINDS } from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
+import type { DomainRowKind } from "#server/domain/automation/contract/ops.ts";
+import { DOMAIN_ROW_KINDS } from "#server/domain/automation/contract/ops.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 // The compile-time backstop (the workloads KIND_SEEN pattern): a tuple edit the runtime `toEqual` below

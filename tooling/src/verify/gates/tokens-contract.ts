@@ -178,12 +178,14 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: fixtureFiles(invalidDimensionFixture()),
-      // 41, not 1, and the count is the CLAIM: one non-DTCG unit fails the official Format schema at every
+      // 42, not 1, and the count is the CLAIM: one non-DTCG unit fails the official Format schema at every
       // `anyOf`/`oneOf` branch the dimension type participates in, and ajv reports each. The legacy row
       // carried no `count` at all, which is the §4.1 gap this closes — a row asserting only `{token}` passes
       // when the gate flags the WRONG node or forty extra ones. The measurement is exact and it MOVES: an
-      // ajv upgrade that changes the cascade shape reds this row, which is the point.
-      expect: { count: 41, token: "format.schema", messageIncludes: "spacing/tight" },
+      // ajv upgrade that changes the cascade shape reds this row, which is the point. It also moves with the
+      // `spacing` group's size: the branch that reads `spacing` as a token rather than a group reports one
+      // "must NOT have additional properties" per sibling token, so adding `spacing.glyph-gap` took it from 41.
+      expect: { count: 42, token: "format.schema", messageIncludes: "spacing/tight" },
       why: "a planted non-DTCG dimension unit is rejected by the official Format schema, once per schema branch that admits a dimension",
     },
     {

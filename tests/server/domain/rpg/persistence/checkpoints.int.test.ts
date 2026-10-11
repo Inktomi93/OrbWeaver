@@ -4,13 +4,13 @@
 
 import type { Db } from "@orb/db";
 import { rpgSnapshots } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import type { RpgCheckpointId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { findCheckpoint, insertCheckpoint, listCheckpoints } from "../../../../../packages/server/src/domain/rpg/persistence/checkpoints.ts";
-import { buildRestoredSnapshotStatement, insertSnapshot } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { findCheckpoint, insertCheckpoint, listCheckpoints } from "#server/domain/rpg/persistence/checkpoints.ts";
+import { buildRestoredSnapshotStatement, insertSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, FROZEN_AT, seedChat, seedGame, seedMessage, snapshotId, test } from "../_support.ts";
 

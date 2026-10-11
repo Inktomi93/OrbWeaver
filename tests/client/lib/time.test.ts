@@ -3,7 +3,7 @@
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { hostTimeZone } from "@orb/kit/time";
-import { spawnNiced } from "@orb/tooling/_shared/proc";
+import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { z } from "zod";
 import { expect, test } from "../../support/fixtures.ts";
 

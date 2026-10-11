@@ -7,7 +7,7 @@ import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createImageryPortability } from "@orb/server/domain/imagery";
 import { bumpStatsCanonVersion, reconcileStats } from "@orb/server/domain/stats";
-import { buildImageryCall, parseImageryCall } from "@orb/server/kit/serde/imagery";
+import { buildImageryCall, parseImageryCall } from "@orb/server/primitives/serde/imagery";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
 import { seedAsset } from "../../../../support/factories/asset.ts";

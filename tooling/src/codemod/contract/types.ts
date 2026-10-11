@@ -1,8 +1,8 @@
 // The kit's exported shapes — plans, options, results (no-inline-types: tool types live in
 // contract/). Split from codemod-kit.ts §2/§4/§5 + the per-helper option interfaces (P4 of #393).
 import type { ImportSpecifier, JsxOpeningElement, JsxSelfClosingElement, Project, SourceFile } from "ts-morph";
-import type { CompilerProgram } from "../../_shared/compiler-programs.ts";
-import type { SemanticWorkspace } from "../../_shared/ts-workspace.ts";
+import type { CompilerProgram } from "../../floor/compiler/compiler-programs.ts";
+import type { SemanticWorkspace } from "../../floor/compiler/ts-workspace.ts";
 
 export interface RetypeIdAnnotationsOptions {
   /** Declaration names to retype, e.g. `["chatId", "parentChatId", "newChatId"]`. */

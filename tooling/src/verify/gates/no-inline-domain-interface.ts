@@ -26,7 +26,7 @@
 // `no-inline-types` descriptor at f4b6d0cbae5e9351b180b7079da5339b02820284, the parent of the conversion `493fdbedae`;
 // this module did not exist there, so it is measured against the module it was carved from, `no-inline-types` (blob
 // read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,263 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 7,263
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 7,263
 // and final `population` admits 971. legacy − final = 6,292 — every harness source outside
 // `packages/server/src/domain/**` minus `contract/` dirs and `contract.ts`/test names: the legacy `scanRoot` was
 // `() => true` and the interface arm returned early off `isDomainFeature`. final − legacy = ∅. Controls: inside

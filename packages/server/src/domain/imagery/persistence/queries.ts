@@ -9,7 +9,7 @@ import type { GenerationUsage, ProviderId } from "@orb/contracts/inference";
 import { costDetailsSchema, responseCacheSchema, tokenDetailsSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { assets, imageryGenerations } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { AssetId, CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { and, desc, eq } from "drizzle-orm";
 import type { GenerationProvenance, ReuseRow } from "../contract/results.ts";

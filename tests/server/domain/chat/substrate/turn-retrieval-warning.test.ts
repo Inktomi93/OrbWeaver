@@ -6,7 +6,7 @@
 // turn's assembly, not of the memory subsystem.)
 
 import { describe } from "vitest";
-import { createTurnRetrievalWarningEpisode } from "../../../../../packages/server/src/domain/chat/substrate/turn-retrieval-warning.ts";
+import { createTurnRetrievalWarningEpisode } from "#server/domain/chat/substrate/turn-retrieval-warning.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("createTurnRetrievalWarningEpisode", () => {

@@ -9,14 +9,14 @@
 // attach could leave two primaries or a crash between them zero. Do NOT split it.
 
 import { characterBooks } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import { and, eq, ne } from "drizzle-orm";
-import type { WorldInfoContext } from "../../context.ts";
-import { WorldInfoNotFoundError } from "../../contract/errors.ts";
-import type { AttachToCharacterParams } from "../../contract/params.ts";
-import type { WorldInfoService } from "../../contract/service.ts";
-import { ensureCharacterOwned } from "../../persistence/ownership.ts";
-import { loadOwnedBook } from "../../persistence/queries.ts";
+import type { WorldInfoContext } from "#src/domain/world-info/context.ts";
+import { WorldInfoNotFoundError } from "#src/domain/world-info/contract/errors.ts";
+import type { AttachToCharacterParams } from "#src/domain/world-info/contract/params.ts";
+import type { WorldInfoService } from "#src/domain/world-info/contract/service.ts";
+import { ensureCharacterOwned } from "#src/domain/world-info/persistence/ownership.ts";
+import { loadOwnedBook } from "#src/domain/world-info/persistence/queries.ts";
 
 const PRIMARY_ROLE = "primary";
 

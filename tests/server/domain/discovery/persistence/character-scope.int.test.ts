@@ -4,7 +4,7 @@
 
 import { characters } from "@orb/db";
 import { describe } from "vitest";
-import { ownedRealCharacters } from "../../../../../packages/server/src/domain/discovery/persistence/character-scope.ts";
+import { ownedRealCharacters } from "#server/domain/discovery/persistence/character-scope.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedUser } from "../_support.ts";

@@ -6,10 +6,10 @@
 import type { RpgQuest } from "@orb/contracts/rpg";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { RpgQuestId } from "@orb/kit/ids";
-import type { UpsertQuestParams } from "../../contract/params.ts";
-import type { RpgContext, RpgService } from "../../contract/service.ts";
-import { resolveHost } from "../../guard.ts";
-import { writeHandState } from "../../snapshot-edit.ts";
+import type { UpsertQuestParams } from "#src/domain/rpg/contract/params.ts";
+import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
+import { resolveHost } from "#src/domain/rpg/guard.ts";
+import { writeHandState } from "#src/domain/rpg/snapshot-edit.ts";
 
 export function createUpsertQuest(ctx: RpgContext): Pick<RpgService, "upsertQuest"> {
   async function upsertQuest(params: UpsertQuestParams): Promise<RpgQuestId> {

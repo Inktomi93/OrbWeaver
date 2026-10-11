@@ -1,7 +1,7 @@
 // Contrast + text-over-art + gray-on-color + the ON/OFF weight ORDERING — WCAG 2.x math over resolved
 // backdrops. Pure; every threshold cited. Provenance/attribution: lib/collect.ts header.
 
-import type { InactiveKind, Rgb } from "@orb/tooling/_shared/wcag";
+import type { InactiveKind, Rgb } from "@orb/tooling/floor/instrument/wcag";
 import {
   compositeForeground,
   contrastRatio,
@@ -15,7 +15,7 @@ import {
   relativeLuminance,
   remainsOperable,
   rgbChroma,
-} from "@orb/tooling/_shared/wcag";
+} from "@orb/tooling/floor/instrument/wcag";
 import type { Finding, PopulationAccounting, RulePopulationAccounting } from "../contract/findings.ts";
 import type { DesignAuditRuleId } from "../contract/rules.ts";
 import type { Backdrop, ContrastInput, QuietStateInput } from "../contract/samples.ts";

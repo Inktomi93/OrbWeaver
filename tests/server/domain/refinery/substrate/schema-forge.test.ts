@@ -4,7 +4,7 @@
 // `failed` arm rather than a silently-empty draft.
 
 import type { SchemaForgeResult } from "@orb/server/domain/refinery";
-import { resolveForgeCall, runForgeTurn } from "../../../../../packages/server/src/domain/refinery/substrate/schema-forge.ts";
+import { resolveForgeCall, runForgeTurn } from "#server/domain/refinery/substrate/schema-forge.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, seedUser } from "../_support.ts";

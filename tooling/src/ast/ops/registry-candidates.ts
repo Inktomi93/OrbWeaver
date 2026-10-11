@@ -1,9 +1,9 @@
 // registry-candidates: informational discovery lens for convention-maintained open sets (#1189).
 import type { Node as MorphNode, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin, resolveStableExpression } from "../../_shared/reference-fact.ts";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Hit } from "../contract/types.ts";
 import { hitOf } from "../lib/emit.ts";
 import { isTestPath } from "../lib/root.ts";

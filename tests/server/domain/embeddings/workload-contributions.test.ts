@@ -7,8 +7,8 @@ import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import type { EmbeddingsWorkloadDeps } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
-import { createEmbeddingsWorkloadContributions } from "../../../../packages/server/src/domain/embeddings/workload-contributions.ts";
+import type { EmbeddingsWorkloadDeps } from "#server/domain/embeddings/contract/service.ts";
+import { createEmbeddingsWorkloadContributions } from "#server/domain/embeddings/workload-contributions.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ID = castId<UserId>("user_owner");

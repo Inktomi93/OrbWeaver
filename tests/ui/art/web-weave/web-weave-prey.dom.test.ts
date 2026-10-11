@@ -10,10 +10,10 @@
 
 import { buildWeb } from "@orb/ui/web-weave";
 import { describe } from "vitest";
-import type { SpiderPose } from "../../../../packages/ui/src/art/web-weave/web-weave-character.ts";
-import { WEAVE_CHARACTER_PRESETS } from "../../../../packages/ui/src/art/web-weave/web-weave-character.ts";
-import type { PreyState } from "../../../../packages/ui/src/art/web-weave/web-weave-prey.ts";
-import { createPreyState, disturbPrey, preyPose } from "../../../../packages/ui/src/art/web-weave/web-weave-prey.ts";
+import type { SpiderPose } from "#ui/art/web-weave/web-weave-character.ts";
+import { WEAVE_CHARACTER_PRESETS } from "#ui/art/web-weave/web-weave-character.ts";
+import type { PreyState } from "#ui/art/web-weave/web-weave-prey.ts";
+import { createPreyState, disturbPrey, preyPose } from "#ui/art/web-weave/web-weave-prey.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const BOX = { width: 1280, height: 800, hub: { x: 0.5, y: 0.42 }, seed: 7 } as const;

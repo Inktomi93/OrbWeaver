@@ -14,14 +14,14 @@ import type { ReactElement } from "react";
 import { StrictMode, useEffect, useState } from "react";
 // The form + the per-mode dispatcher are feature INTERNALS the front door doesn't re-export — the
 // settings _ct-stories.tsx precedent for reaching one directly.
-import type { AuthConfig } from "../../../../packages/client/src/data/auth-config.ts";
+import type { AuthConfig } from "#client/data/auth-config.ts";
 // The shell's modal HOST — the seam a story that renders `reauthModal.body()` directly never exercises.
-import { ModalHost } from "../../../../packages/client/src/features/app-shell/components/modal-host.tsx";
-import { LoginFirstRunForm } from "../../../../packages/client/src/features/auth/components/login-first-run-form.tsx";
-import { LoginLocalForm } from "../../../../packages/client/src/features/auth/components/login-local-form.tsx";
-import { reauthModal } from "../../../../packages/client/src/features/auth/lib/reauth-modal.tsx";
-import { LoginBody } from "../../../../packages/client/src/features/auth/surfaces/login-surface.tsx";
-import { LoginPage } from "../../../../packages/client/src/routes/login-page.tsx";
+import { ModalHost } from "#client/features/app-shell/components/modal-host.tsx";
+import { LoginFirstRunForm } from "#client/features/auth/components/login-first-run-form.tsx";
+import { LoginLocalForm } from "#client/features/auth/components/login-local-form.tsx";
+import { reauthModal } from "#client/features/auth/lib/reauth-modal.tsx";
+import { LoginBody } from "#client/features/auth/surfaces/login-surface.tsx";
+import { LoginPage } from "#client/routes/login-page.tsx";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 
 /** The per-mode login arm (LoginBody) — mounted router-free with a stub `onDone`, so the CT can prove

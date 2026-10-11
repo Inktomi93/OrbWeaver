@@ -11,12 +11,12 @@ import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import { BundleWorkloadTracker } from "../../../../packages/client/src/features/workloads/components/bundle-workload-tracker.tsx";
-import { SchedulesSection } from "../../../../packages/client/src/features/workloads/components/schedules-section.tsx";
-import { WorkloadsJobsSection } from "../../../../packages/client/src/features/workloads/components/workloads-jobs-section.tsx";
-import { WorkloadsTuningSection } from "../../../../packages/client/src/features/workloads/components/workloads-tuning-section.tsx";
-import type { LibraryImport } from "../../../../packages/client/src/features/workloads/hooks/use-library-import.ts";
-import { useLibraryImport } from "../../../../packages/client/src/features/workloads/hooks/use-library-import.ts";
+import { BundleWorkloadTracker } from "#client/features/workloads/components/bundle-workload-tracker.tsx";
+import { SchedulesSection } from "#client/features/workloads/components/schedules-section.tsx";
+import { WorkloadsJobsSection } from "#client/features/workloads/components/workloads-jobs-section.tsx";
+import { WorkloadsTuningSection } from "#client/features/workloads/components/workloads-tuning-section.tsx";
+import type { LibraryImport } from "#client/features/workloads/hooks/use-library-import.ts";
+import { useLibraryImport } from "#client/features/workloads/hooks/use-library-import.ts";
 import { CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { ConfigHostStory } from "../config/_ct-stories.tsx";
 

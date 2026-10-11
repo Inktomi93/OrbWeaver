@@ -12,7 +12,7 @@ Not recorded in the ledger row.
 
 ## Decision
 
-`content-hash` = `@orb/server/kit/content-hash` (node-only-pure; NOT `@orb/kit`).
+`content-hash` = `@orb/server/primitives/content-hash` (node-only-pure; NOT `@orb/kit`).
 
 ## Consequences
 

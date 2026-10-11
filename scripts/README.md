@@ -16,7 +16,7 @@
   `tooling/src/`. The configured Biome relaxations do not remove compiler ownership or the typed
   ESLint checks on direct TypeScript launchers.
 - **This zone MAY import `@orb/tooling`.** Plumbing reuse beats respelling: a probe imports
-  `@orb/tooling/_shared/browser` rather than re-minting a Playwright bootstrap. The one-way glass is
+  `@orb/tooling/floor/browser/browser` rather than re-minting a Playwright bootstrap. The one-way glass is
   `packages/** ⇏ tooling/**` (the `packages-no-tooling` cruiser stanza), never `scripts/ ⇏ tooling/`.
 - **Research implementations do not become standing verification tools in place.** Promote them
   into `tooling/src/<tool>/` under the five-slot template and delete the original. Native process

@@ -23,21 +23,21 @@ import {
   messageVariants,
   statsCanonVersions,
 } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatEventId, ChatId, ChatParticipantId, DocumentId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { deleteAssetRowIfUnreferenced } from "../../../../../packages/server/src/domain/assets/persistence/asset-refs.ts";
-import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus.ts";
-import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
-import { getToolRecurseLimit } from "../../../../../packages/server/src/domain/chat/contract/metadata.ts";
-import { createParticipants, setParticipantActivePersona } from "../../../../../packages/server/src/domain/chat/verbs/participants.ts";
-import { applyStatsDelta, bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
-import { publishChatEvent, subscribeAllChatEvents } from "../../../../../packages/server/src/transport/trpc/chat-events-bus.ts";
+import { deleteAssetRowIfUnreferenced } from "#server/domain/assets/persistence/asset-refs.ts";
+import { createChatBus } from "#server/domain/chat/bus.ts";
+import { ChatNotFoundError, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
+import { getToolRecurseLimit } from "#server/domain/chat/contract/metadata.ts";
+import { createParticipants, setParticipantActivePersona } from "#server/domain/chat/verbs/participants.ts";
+import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
+import { publishChatEvent, subscribeAllChatEvents } from "#server/transport/trpc/chat-events-bus.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

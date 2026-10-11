@@ -10,11 +10,11 @@ import type { PersonaCollisionChoice } from "@orb/contracts/import";
 import { personaCollisionChoiceFor } from "@orb/contracts/import";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
 import { personas } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, batchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, batchStmt } from "@orb/db/query";
 import type { AssetId, PersonaId } from "@orb/kit/ids";
-import type { PersonaCandidate, PersonaIdentity } from "#kit/serde/persona";
-import { findDuplicatePersona, findNameCollision, foldPersonaName, mintPersonaName, personaPlacementOf } from "#kit/serde/persona";
+import type { PersonaCandidate, PersonaIdentity } from "#primitives/serde/persona";
+import { findDuplicatePersona, findNameCollision, foldPersonaName, mintPersonaName, personaPlacementOf } from "#primitives/serde/persona";
 import type { BulkImportPersonas, PersonaImportContext } from "../contract/import.ts";
 import { loadOwnedAssetHashes, loadOwnedPersonaCandidates } from "./queries.ts";
 

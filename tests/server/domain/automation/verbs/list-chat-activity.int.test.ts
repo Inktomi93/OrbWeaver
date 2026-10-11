@@ -6,7 +6,7 @@
 import type { Db } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId, ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { insertFire } from "../../../../../packages/server/src/domain/automation/persistence/fires.ts";
+import { insertFire } from "#server/domain/automation/persistence/fires.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedParticipant } from "../../chat/_support.ts";
 import { MSG_COMMITTED, principal, ruleFixture, SET_VAR, seedHostChat, seedUser } from "../_support.ts";

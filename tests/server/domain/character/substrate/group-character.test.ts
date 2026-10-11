@@ -6,7 +6,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { buildGroupCard, groupHandle, isReservedGroupHandle } from "../../../../../packages/server/src/domain/character/substrate/group-character.ts";
+import { buildGroupCard, groupHandle, isReservedGroupHandle } from "#server/domain/character/substrate/group-character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("groupHandle / isReservedGroupHandle", () => {

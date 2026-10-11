@@ -2,9 +2,9 @@
 
 import { resolve } from "node:path";
 import { performance } from "node:perf_hooks";
-import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
+import { getWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { Project, SourceFile } from "ts-morph";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ConfigSnapshot, ConfigSnapshotRunner } from "../contract/config-snapshot.ts";
 import type { OrdinaryWaiverCarrierRefusal, OrdinaryWaiverCarriers, OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
 import type { ResourceFact, ResourceLoad, ResourceReceipt, TrackedFileModeOverlay } from "../contract/resource.ts";

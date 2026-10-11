@@ -13,7 +13,7 @@ import type {
   SourceFile,
 } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { PendingGuardCensus, PendingGuardClassification, PendingGuardReceipt } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm review:mirror");

@@ -3,16 +3,16 @@
 
 import type { Db } from "@orb/db";
 import { messages, rpgCheckpoints, rpgSnapshots } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { ChatId, Handle, MessageId, MessageVariantId, RpgCheckpointId, RpgSnapshotId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RpgContext } from "@orb/server/domain/rpg";
 import { createRpgService } from "@orb/server/domain/rpg";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import type { PostNarratorMessage } from "../../../../../../packages/server/src/domain/chat/contract/context.ts";
-import { createPostNarratorMessage } from "../../../../../../packages/server/src/domain/chat/verbs/post-narrator-message.ts";
-import { resolveSnapshotForTurn } from "../../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import type { PostNarratorMessage } from "#server/domain/chat/contract/context.ts";
+import { createPostNarratorMessage } from "#server/domain/chat/verbs/post-narrator-message.ts";
+import { resolveSnapshotForTurn } from "#server/domain/rpg/persistence/snapshots.ts";
 import { freshDb } from "../../../../../support/db.ts";
 import { makeChatContext, noClaim, seedCharacter, seedParticipant, seedUser } from "../../../chat/_support.ts";
 import type { RpgHarness } from "../../_support.ts";

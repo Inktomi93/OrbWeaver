@@ -17,8 +17,8 @@
 // `tooling-root-config-import` reviewed grant. Tracked membership comes from the git index, the same
 // source the policy resources use (`ops/resource-tracked.ts`); an unreadable index is exit 2.
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { config as knipConfig } from "../../../../knip.ts";
 import type { DeadKnipNegation, KnipNegation, KnipNegativeOutcome, KnipPatternConfig } from "../contract/knip-negative-liveness.ts";
 import { KNIP_PATTERN_KEYS } from "../contract/knip-negative-liveness.ts";

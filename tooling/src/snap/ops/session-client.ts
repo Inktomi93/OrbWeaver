@@ -1,5 +1,5 @@
 // The session CLIENT. `--session <name> …` boots the
-// daemon on first use through the ONE detached full-priority door (_shared/proc.ts `spawnFullPriorityChild`:
+// daemon on first use through the ONE detached full-priority door (floor/process/proc.ts `spawnFullPriorityChild`:
 // own process group, its stdio a LOG FILE beside the socket — a detached child that outlives its launcher must never
 // hold a pipe to it), then forwards every call's raw argv over the repo-keyed unix socket and prints the
 // daemon's event stream VERBATIM, so the RESULT line stays last on THIS stdout. The client owns the per-call
@@ -12,13 +12,13 @@ import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { errorMessage } from "@orb/kit/error-message";
-import { activeRunSlot } from "../../_shared/artifact-out.ts";
-import { abandonedRuns, print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { ctHostSlotPool, hostSlotQueued } from "../../_shared/host-slots.ts";
-import { warn } from "../../_shared/log.ts";
-import { spawnFullPriorityChild } from "../../_shared/proc.ts";
+import { activeRunSlot } from "../../floor/artifacts/artifact-out.ts";
+import { abandonedRuns, print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { warn } from "../../floor/cli/log.ts";
+import { ctHostSlotPool, hostSlotQueued } from "../../floor/host/host-slots.ts";
+import { spawnFullPriorityChild } from "../../floor/process/proc.ts";
 import type { SessionEvent, SessionRequest, SessionRequestKind, SessionRow } from "../contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";

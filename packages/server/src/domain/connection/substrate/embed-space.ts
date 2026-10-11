@@ -10,7 +10,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { EmbedTargetRefusal, RoutableTask } from "@orb/contracts/inference";
 import { embedDtypeOf, embedSpaceOf, servesImageVectors } from "@orb/contracts/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
-import { connectionFingerprint } from "#kit/embedding-generation";
+import { connectionFingerprint } from "#primitives/embedding-generation";
 import { EmbedAuthError, EmbedUnreachableError, EmbedWidthUnmakeableError } from "../contract/errors.ts";
 import type { EmbedSpace, EmbedSpaces } from "../contract/results.ts";
 import type { ConnectionContext } from "../contract/service.ts";

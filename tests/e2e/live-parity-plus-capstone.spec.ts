@@ -27,7 +27,7 @@ import type { CharacterHandle, CharacterId, ChatId, MessageId } from "@orb/kit/i
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { revealActionName } from "../../packages/ui/src/lib/action-names.ts";
+import { revealActionName } from "#ui/lib/action-names.ts";
 import { openContextTab, openNewestChat } from "./support/chat-room.ts";
 import {
   createLiteGame,

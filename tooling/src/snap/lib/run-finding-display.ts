@@ -8,7 +8,7 @@
 // resolution `resolveSnapRunIndex` already accepts (and disambiguates across worktrees), and the artifact
 // is named relative to the slot the `RUN` line one row above just printed.
 import { dirname } from "node:path";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { SnapCompositeFinding, SnapRunIndex } from "../contract/run-index.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --report <index>");

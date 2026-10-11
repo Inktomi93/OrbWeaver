@@ -12,7 +12,7 @@
 // thing the owner asked for. `replaced: true` reports it either way.
 //
 // CENTRAL DEDUP (owner ruling — "one source of books"): when the character has no primary yet, the embedded
-// book is CONTENT-matched against the owner's existing library BEFORE minting (`#kit/serde/world-info`'s
+// book is CONTENT-matched against the owner's existing library BEFORE minting (`#primitives/serde/world-info`'s
 // `findDuplicateBook`, the regex `planCardLift` shape). A match LINKS this character to the existing
 // world_books row (a fresh primary character_books attach); no book is duplicated. Only a genuinely new
 // book mints a fresh row + entries, under the next free name when the owner already holds a different book
@@ -33,14 +33,14 @@ import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/con
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, characters, worldBooks, worldEntries } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, batchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, batchStmt } from "@orb/db/query";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
 import { nextFreeLabel } from "@orb/kit/strings";
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
-import type { DedupBook, DedupCandidateBook, DedupLoreEntry } from "#kit/serde/world-info";
-import { findDuplicateBook } from "#kit/serde/world-info";
+import type { DedupBook, DedupCandidateBook, DedupLoreEntry } from "#primitives/serde/world-info";
+import { findDuplicateBook } from "#primitives/serde/world-info";
 import type { AttachOwnedBooksByName, BulkImportLorebook, HasPrimaryBook, ImportStandaloneLorebook, WorldInfoImportContext } from "../contract/import.ts";
 
 /** The FK would fail-closed anyway, but the explicit check gives a typed DomainNotFoundError. */

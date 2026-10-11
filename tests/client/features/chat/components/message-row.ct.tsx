@@ -16,7 +16,7 @@ import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import type { ReactElement } from "react";
-import type { MessageMetadataVisibility } from "../../../../../packages/client/src/features/chat/components/message-metadata-row.tsx";
+import type { MessageMetadataVisibility } from "#client/features/chat/components/message-metadata-row.tsx";
 import {
   MESSAGE_ACTIONS_MENU_NAME,
   MESSAGE_EDIT_NAME,
@@ -25,8 +25,8 @@ import {
   VARIANT_GENERATE_NAME,
   VARIANT_NEXT_NAME,
   VARIANT_PREV_NAME,
-} from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
-import { projectViewForMember } from "../../../../../packages/server/src/domain/chat/substrate/member-visibility.ts";
+} from "#client/features/chat/lib/message-action-names.ts";
+import { projectViewForMember } from "#server/domain/chat/substrate/member-visibility.ts";
 import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GroupTranscriptAttributionStory, MessageRowStory, NarratorTranscriptStory } from "../_ct-stories.tsx";

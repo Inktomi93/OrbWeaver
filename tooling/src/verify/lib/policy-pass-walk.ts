@@ -1,6 +1,6 @@
 // Create + visit dispatch: builds each run's PolicyContext/FactContext, indexes its declared visitors by
 // SyntaxKind, and drives the single per-file AST walk (visitFile then the kind-indexed visitors).
-import { collectByKinds } from "@orb/tooling/_shared/ts-workspace";
+import { collectByKinds } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { SourceFile, SyntaxKind, TypeChecker } from "ts-morph";
 import type { PolicyFactValueRegistry, PolicyToolError } from "../contract/policy-pass.ts";
 import { POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";

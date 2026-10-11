@@ -7,8 +7,8 @@ import type { DomainEvent } from "@orb/contracts/events";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import type { AutomationWatcherEnv } from "../../../../../packages/server/src/domain/automation/contract/service.ts";
-import { startAutomationWatcher } from "../../../../../packages/server/src/domain/automation/watcher/start-automation-watcher.ts";
+import type { AutomationWatcherEnv } from "#server/domain/automation/contract/service.ts";
+import { startAutomationWatcher } from "#server/domain/automation/watcher/start-automation-watcher.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function fakeEnv(): {

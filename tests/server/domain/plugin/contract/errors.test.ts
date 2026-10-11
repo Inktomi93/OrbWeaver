@@ -1,5 +1,5 @@
 import { DomainNotFoundError } from "@orb/kit/errors";
-import { asPluginActionError, PluginActionFailedError } from "../../../../../packages/server/src/domain/plugin/contract/errors.ts";
+import { asPluginActionError, PluginActionFailedError } from "#server/domain/plugin/contract/errors.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("host refusals retain their identity while guest failures become the action refusal", () => {

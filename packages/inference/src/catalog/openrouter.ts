@@ -11,8 +11,8 @@
 
 import type { ModelCatalogEntry, ModelKind } from "@orb/contracts/inference";
 import { z } from "zod";
-import { fetchJson } from "../backends/kit/fetch-json.ts";
-import { NO_PROVIDER_SECRETS } from "../backends/kit/sanitize.ts";
+import { fetchJson } from "../backends/http/fetch-json.ts";
+import { NO_PROVIDER_SECRETS } from "../backends/http/sanitize.ts";
 
 const rowSchema = z
   .object({

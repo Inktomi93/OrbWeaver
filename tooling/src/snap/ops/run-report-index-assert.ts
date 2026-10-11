@@ -2,9 +2,9 @@
 // group (identity, process, provenance, verdict, diagnostics, findings) validated strictly so a
 // malformed index refuses loudly instead of feeding a downstream reader `undefined`.
 import { basename, dirname, isAbsolute, resolve } from "node:path";
-import { evidenceWindowIdSchema, instrumentEvidenceScopeSchema } from "../../_shared/artifact-scope.ts";
-import { DIAGNOSTIC_LEVELS } from "../../_shared/browser-diagnostics.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { evidenceWindowIdSchema, instrumentEvidenceScopeSchema } from "../../floor/artifacts/artifact-scope.ts";
+import { DIAGNOSTIC_LEVELS } from "../../floor/browser/browser-diagnostics.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { SNAP_ARM_STATES } from "../contract/run-facts.ts";
 import type { SnapRunIndex } from "../contract/run-index.ts";
 import { checkoutLocation, isRecord, validGitFailures } from "../lib/run-report-identity.ts";

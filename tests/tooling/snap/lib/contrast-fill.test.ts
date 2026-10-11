@@ -5,7 +5,7 @@
 // this file exists because the REFUSALS are geometry, and geometry is cheaper (and far more precise) to
 // plant as bytes than to arrange as a page: an interior thinner than its own anti-aliased edge, and an
 // interior made only of anti-aliasing, are both one buffer here and a fight in a browser.
-import { contrastRatio } from "../../../../tooling/src/_shared/wcag.ts";
+import { contrastRatio } from "../../../../tooling/src/floor/instrument/wcag.ts";
 import type { ContrastFillReading, ContrastFillRegion, ContrastPixelImage } from "../../../../tooling/src/snap/contract/contrast.ts";
 import { readFillChannels } from "../../../../tooling/src/snap/lib/contrast-fill.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";

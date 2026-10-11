@@ -7,8 +7,8 @@
 import { createServer } from "node:http";
 import { join } from "node:path";
 import process from "node:process";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
 import { vi } from "vitest";
 import type { CliResult } from "../../../support/tool-fixtures.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";

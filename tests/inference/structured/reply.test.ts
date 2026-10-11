@@ -3,9 +3,9 @@
 
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ChatResult } from "../../../packages/inference/src/contract/chat.ts";
-import type { PlannedResponseFormat, StructuredPlan } from "../../../packages/inference/src/structured/plan.ts";
-import { normalizeStructuredValue, structuredChatResult } from "../../../packages/inference/src/structured/reply.ts";
+import type { ChatResult } from "#inference/contract/chat.ts";
+import type { PlannedResponseFormat, StructuredPlan } from "#inference/structured/plan.ts";
+import { normalizeStructuredValue, structuredChatResult } from "#inference/structured/reply.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 /** A format with no pinned values, so only the reshaped paths act. */

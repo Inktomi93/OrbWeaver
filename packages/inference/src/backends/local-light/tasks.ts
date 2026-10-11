@@ -10,8 +10,8 @@ import type { EmbedResult, ImageEmbedResult, RerankResult } from "@orb/contracts
 import type { ImageEmbedInput, ImageInput, RerankQuery } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
 import { clampToTokenBudget } from "@orb/kit/tokens";
-import { ProviderError } from "../../contract/errors.ts";
-import type { EmbedRequest, ImageEmbedRequest, RerankRequest } from "../../contract/roles.ts";
+import type { EmbedRequest, ImageEmbedRequest, RerankRequest } from "#contract";
+import { ProviderError } from "#contract";
 import type { LocalLightModelCache } from "./model-cache.ts";
 import { abortableWait, normalizeVector, throwIfAborted } from "./model-cache.ts";
 

@@ -13,7 +13,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { classifyMembership, compareRoutingParity, findTripleSlashLibLeaks, runTestsTypeMembership } from "@orb/tooling/verify";
 import { ts } from "ts-morph";
 import { vi } from "vitest";
@@ -394,7 +394,7 @@ test("broken, empty and malformed native closure observations are tool errors", 
   const source = join(scratch, "packages/kit/src/value.ts");
   const list = `if (process.argv.includes("--listFilesOnly")) process.stdout.write(${JSON.stringify(`${source}\n`)}); else `;
   // The root reader uses the canonical launcher; route only its native observation to the planted process.
-  const proc = await import("@orb/tooling/_shared/proc");
+  const proc = await import("@orb/tooling/floor/process/proc");
   const runNative = proc.runNicedSync;
   const native = vi
     .spyOn(proc, "runNicedSync")

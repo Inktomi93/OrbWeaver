@@ -18,8 +18,8 @@
 // left the repository", and printing where it landed turns a liveness finding into a disclosure.
 import { lstatSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { ignoredBuildOutputClassifier } from "../../_shared/prose-references.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { ignoredBuildOutputClassifier } from "../../floor/prose/prose-references.ts";
 import type { ResourceLoad } from "../contract/resource.ts";
 import type { AuthoredPathIdentity, AuthoredPathIndex, AuthoredPathSelectorForm } from "../contract/resource-path.ts";
 

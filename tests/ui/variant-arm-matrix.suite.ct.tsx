@@ -18,8 +18,8 @@
 // wrapper-polarity liveness read (a data-theme typo silently falls through to :root — #875 F2).
 // A REAL arm failing is a product finding: report it with the receipt; do not tune the kernel.
 
-import type { InactiveKind, Rgb } from "@orb/tooling/_shared/wcag";
-import { compositeForeground, INACTIVE_KIND_EXPR, relativeLuminance } from "@orb/tooling/_shared/wcag";
+import type { InactiveKind, Rgb } from "@orb/tooling/floor/instrument/wcag";
+import { compositeForeground, INACTIVE_KIND_EXPR, relativeLuminance } from "@orb/tooling/floor/instrument/wcag";
 import type { ContrastInput, Finding, TextStyleInput } from "@orb/tooling/ui-audit";
 import { checkContrast, checkControlAspect, checkGrayOnColor, checkTextStyle, isAtOrAboveSeverity } from "@orb/tooling/ui-audit";
 import { expect, test } from "@playwright/experimental-ct-react";

@@ -14,8 +14,8 @@ import {
   userConnections,
   users,
 } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, batchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, batchStmt } from "@orb/db/query";
 import type { ChatResult } from "@orb/inference";
 import { GenerationObservationPersistenceError } from "@orb/inference";
 import type { CharacterId, ChatTurnId, HandleKey, UserId } from "@orb/kit/ids";
@@ -23,19 +23,16 @@ import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
 import { statsBucketStart } from "@orb/kit/stats-tally";
 import { eq, inArray, sql } from "drizzle-orm";
 import { vi } from "vitest";
-import { runOpenAiCompatChatTurn } from "../../../../../packages/inference/src/backends/openai-compat/chat.ts";
-import { runSideGen } from "../../../../../packages/inference/src/roles/side-gen.ts";
-import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns.ts";
-import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
-import type { GenerationObservationParent } from "../../../../../packages/server/src/domain/chat/contract/generation-observation.ts";
-import { smartArbitrate } from "../../../../../packages/server/src/domain/chat/engine/smart-arbitrate.ts";
-import {
-  appendGenerationObservation,
-  createGenerationObservationSession,
-} from "../../../../../packages/server/src/domain/chat/persistence/generation-observation.ts";
-import { createChatLifecycle } from "../../../../../packages/server/src/domain/chat/verbs/chat-lifecycle.ts";
-import { createClaimChat } from "../../../../../packages/server/src/domain/chat/verbs/claim-chat.ts";
-import { applyStatsDelta, bumpStatsCanonVersion, reconcileStats } from "../../../../../packages/server/src/domain/stats/index.ts";
+import { runOpenAiCompatChatTurn } from "#inference/backends/openai-compat/chat.ts";
+import { runSideGen } from "#inference/roles/side-gen.ts";
+import { createActiveTurns } from "#server/domain/chat/active-turns.ts";
+import { CHAT_OP_CODES, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
+import type { GenerationObservationParent } from "#server/domain/chat/contract/generation-observation.ts";
+import { smartArbitrate } from "#server/domain/chat/engine/smart-arbitrate.ts";
+import { appendGenerationObservation, createGenerationObservationSession } from "#server/domain/chat/persistence/generation-observation.ts";
+import { createChatLifecycle } from "#server/domain/chat/verbs/chat-lifecycle.ts";
+import { createClaimChat } from "#server/domain/chat/verbs/claim-chat.ts";
+import { applyStatsDelta, bumpStatsCanonVersion, reconcileStats } from "#server/domain/stats/index.ts";
 import { memoryTokenLexicon } from "../../../../inference/_support.ts";
 import type { RecordedRequest } from "../../../../inference/backends/_hosted-support.ts";
 import { openAiTextStream, scriptedSseFetch } from "../../../../inference/backends/_hosted-support.ts";

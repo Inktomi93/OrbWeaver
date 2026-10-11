@@ -2,7 +2,7 @@
 // assertable without a database. DETERMINISM is the whole point: every line is numbered (`[#0000] …`) so a
 // reviewer can assert ORDERING and offset math against the rendered list, and a re-run with the same args
 // produces the SAME bytes, which the import-hash oracle then skips instead of duplicating.
-import { UsageError } from "../../_shared/run-tool.ts";
+import { UsageError } from "../../floor/cli/run-tool.ts";
 import type { ChatArgs, DemoArgs } from "../contract/types.ts";
 
 const DEFAULT_MESSAGES = 120;

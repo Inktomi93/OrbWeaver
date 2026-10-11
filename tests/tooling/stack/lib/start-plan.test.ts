@@ -1,6 +1,6 @@
 // Every DECISION `pnpm start` makes (tooling/src/stack/lib/start-plan.ts, through the tool front door):
 // the build decision, the single-user AUTH_FALLBACK fill, the spawn-plan reuse and the banner. The
-// platform-parameterised pnpm resolution is the platform module's, proven in tests/tooling/_shared/.
+// platform-parameterised pnpm resolution is the platform module's, proven in tests/tooling/floor/host/.
 //
 // WHY THIS IS THE PROOF AND NOT A LIVE DRIVE: booting the real thing binds the operator's :8788 (the same
 // refusal `tests/tooling/stack/index.test.ts` records for `stack up prod`), and the answers that matter
@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { parseEnv } from "node:util";
 import { SETUP_COMMAND } from "@orb/contracts/identity";
 import { ENV_FROM_FILE_KEY } from "@orb/kit/env-file";
-import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "@orb/tooling/_shared/server-entry";
+import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "@orb/tooling/floor/process/server-entry";
 import {
   decideStartBuild,
   effectiveAuthMode,

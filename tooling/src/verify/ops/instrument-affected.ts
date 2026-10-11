@@ -3,14 +3,14 @@
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { emitLine, warn } from "@orb/tooling/_shared/log";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
-import { UsageError } from "@orb/tooling/_shared/run-tool";
-import { classifyTestFilename, looksLikeTestFilename, runtimeForTestFamily, SEMANTIC_CORPUS_RESOURCE } from "@orb/tooling/_shared/test-kinds";
-import { resolveMirrors } from "@orb/tooling/_shared/test-mirror";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { emitLine, warn } from "@orb/tooling/floor/cli/log";
+import { UsageError } from "@orb/tooling/floor/cli/run-tool";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
+import { classifyTestFilename, looksLikeTestFilename, runtimeForTestFamily, SEMANTIC_CORPUS_RESOURCE } from "@orb/tooling/floor/testing/test-kinds";
+import { resolveMirrors } from "@orb/tooling/floor/testing/test-mirror";
 import type {
   InstrumentAffectedLivenessScope,
   InstrumentAffectedPolicyReach,

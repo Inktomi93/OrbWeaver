@@ -3,7 +3,7 @@
 // ratified `--shadow-cta-glow` token, and what did a forced state ADD over the rest snapshot — read by the
 // static census (ops/walker/census-glow.ts) and by the forced-state pass (ops/hover.ts).
 // Raw JS in a template literal (no backticks / dollar-brace — see
-// _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
+// floor/browser/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 //
 // IT IS A SIBLING OF state-paint.ts, NOT AN ARM OF IT (#2494, docs/law/Core-Tooling-Law.md
 // §4.3). It lived inside
@@ -18,7 +18,7 @@
 // `splitTopLevelArgs`, `describe`, `resolveBackdrop` and `SANCTIONED_GLOW_SEL` — so it must be composed
 // into a program that also carries WALKER_CORE/WALKER_RESOLVE/WALKER_TARGET_IDENTITY, which is exactly
 // where both compositions place it (immediately after WALKER_STATE_PAINT).
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 

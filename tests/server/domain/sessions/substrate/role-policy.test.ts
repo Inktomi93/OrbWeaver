@@ -8,7 +8,7 @@ import {
   isOwnerSeedHandle,
   ownerHandles,
   reDeriveRoleOnLogin,
-} from "../../../../../packages/server/src/domain/sessions/substrate/role-policy.ts";
+} from "#server/domain/sessions/substrate/role-policy.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 // The group→role governance matrix (D17; owner-confirmed). The vars are read at CALL time from process.env

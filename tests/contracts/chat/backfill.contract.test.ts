@@ -5,7 +5,7 @@ import {
   memoryBackfillWorkloadParams,
   mergeImportWindows,
   storedImportWindowSchema,
-} from "../../../packages/contracts/src/chat/backfill.ts";
+} from "#contracts/chat/backfill.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("input import windows refuse reversed, fractional and negative boundaries; stored windows retain shape", () => {

@@ -5,7 +5,7 @@ import type { AddressInfo, Socket } from "node:net";
 import { connect } from "node:net";
 import { setTimeout as sleep } from "node:timers/promises";
 import { afterEach, describe, vi } from "vitest";
-import { drainHttpServer, HTTP_SERVER_TIMEOUTS, serveHttpServer } from "../../../packages/server/src/entry/lifecycle.ts";
+import { drainHttpServer, HTTP_SERVER_TIMEOUTS, serveHttpServer } from "#server/entry/lifecycle.ts";
 import { createManualTimer } from "../../support/clock.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -273,7 +273,7 @@ describe("drainHttpServer — the bounded drain (DRAIN-UNBOUNDED)", () => {
 
 describe("workload worker shutdown ownership", () => {
   test("aborts the worker, then holds shutdown until the owned loop settles", async () => {
-    const lifecycleModule = await import("../../../packages/server/src/entry/lifecycle.ts");
+    const lifecycleModule = await import("#server/entry/lifecycle.ts");
     const drainWorkloadsWorker = Reflect.get(lifecycleModule, "drainWorkloadsWorker");
     expect(drainWorkloadsWorker).toBeTypeOf("function");
     const workerSettled = Promise.withResolvers<void>();

@@ -1,7 +1,7 @@
 // Strict native verify grammar: application execution partitions never narrow the authored file scope.
 // Incompatible tier, scope and partition requests refuse before execution.
 import { parseArgs } from "node:util";
-import { resolveOperand, unresolvedOperands, unresolvedRefusal } from "@orb/tooling/_shared/scoped-run-paths";
+import { resolveOperand, unresolvedOperands, unresolvedRefusal } from "@orb/tooling/floor/testing/scoped-run-paths";
 import type { ApplicationPartition } from "../contract/application-partitions.ts";
 import { APPLICATION_PARTITIONS, APPLICATION_SHARD_COUNTS } from "../contract/application-partitions.ts";
 import type { Selection, SelectionRequest } from "../contract/selection.ts";
@@ -126,7 +126,7 @@ const WHOLE_SCOPE = { none: true } as const;
 type ScopeResult = SelectionRequest | typeof WHOLE_SCOPE | { readonly error: string };
 
 /** The --file branch: ≥1 positional path, all under the repo + existing (the check:file muscle memory).
- *  The existence rule is the SHARED one (`_shared/scoped-run-paths.ts`, #1192) — `"claim"` because every
+ *  The existence rule is the SHARED one (`floor/testing/scoped-run-paths.ts`, #1192) — `"claim"` because every
  *  `--file` positional is documented as a literal path, so a metacharacter does not excuse it. */
 function fileRequest(positionals: readonly string[]): SelectionRequest | { readonly error: string } {
   if (positionals.length === 0) {

@@ -6,8 +6,8 @@
 import type { NotificationEvent, NotificationType } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import { notifications } from "@orb/db";
-import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { NotificationId } from "@orb/kit/ids";
 import { and, asc, desc, eq, gt, isNull, lt, sql } from "drizzle-orm";
 

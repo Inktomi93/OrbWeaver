@@ -4,16 +4,12 @@
 // these methods by the table test. Nothing here knows a provider id — the row's `features`, `extras` and
 // `transport` are the whole configuration.
 
-import type { ProviderBackend } from "../../contract/backend.ts";
-import type { ChatRequest, ChatResult, OpenAiCompatChatRequest } from "../../contract/chat.ts";
-import { ProviderError } from "../../contract/errors.ts";
-import type { Resolved } from "../../contract/resolved.ts";
-import type { StructuredRequest, SummarizeRequest } from "../../contract/roles.ts";
-import type { AddSpanEvent } from "../../contract/runtime.ts";
-import type { InferenceDeps } from "../../deps.ts";
-import { runSideGen } from "../../roles/side-gen.ts";
-import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
-import { createImageNormalizer, passthroughImageNormalizer } from "../kit/image-normalize.ts";
+import type { AddSpanEvent, ChatRequest, ChatResult, OpenAiCompatChatRequest, ProviderBackend, Resolved, StructuredRequest, SummarizeRequest } from "#contract";
+import { ProviderError } from "#contract";
+import { runSideGen } from "#roles";
+import type { InferenceDeps } from "#src/deps.ts";
+import type { NormalizeImageBytes } from "../wire/image-normalize.ts";
+import { createImageNormalizer, passthroughImageNormalizer } from "../wire/image-normalize.ts";
 import { runOpenAiCompatChatTurn } from "./chat.ts";
 import { inspectOpenAiCompatEndpoint, listOpenAiCompatModels, openRouterCredits, openRouterGenerationCost, probeOpenAiCompat } from "./diagnostics.ts";
 import { runOpenAiCompatEmbed } from "./embed.ts";

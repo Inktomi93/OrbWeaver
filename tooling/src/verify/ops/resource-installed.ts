@@ -14,7 +14,7 @@
 import { readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ResourceLoad } from "../contract/resource.ts";
 import type { InstalledPackageFacts, InstalledPackageId, InstalledPackageRequest, InstalledPackageTextOverlay } from "../contract/resource-installed.ts";
 import { INSTALLED_PACKAGE_DEFINITIONS } from "../contract/resource-installed.ts";

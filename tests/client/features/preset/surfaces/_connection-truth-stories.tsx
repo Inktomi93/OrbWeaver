@@ -3,7 +3,7 @@ import { setPresetEditorView, setPresetReadoutTarget } from "@orb/client/state";
 import type { PresetId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
-import { CapabilityPanel } from "../../../../../packages/client/src/features/preset/components/readout/capability-panel.tsx";
+import { CapabilityPanel } from "#client/features/preset/components/readout/capability-panel.tsx";
 import { CtDataProviders } from "../../../../support/browser/ct-data-providers.tsx";
 
 export function PresetConnectionTruthStory({ presetId }: { readonly presetId: PresetId }): ReactElement {

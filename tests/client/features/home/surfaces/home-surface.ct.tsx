@@ -1593,7 +1593,7 @@ test("#1145 the teaching paragraphs take the PROSE measure, and it reads inside 
 // reader who scales the type keeps the same LINE, not the same width — `--font-scale` re-sizes the root
 // and the paragraph's `ch` re-resolves with it. This is the arm that would catch someone "fixing" the
 // token into a px or rem literal: a px cap would hold its width and the law-character count would balloon
-// with the type. `reading` is the shipped preset's own fontScale (tooling/src/_shared/appearance-presets.json
+// with the type. `reading` is the shipped preset's own fontScale (tooling/src/floor/appearance/appearance-presets.json
 // -> presets.reading.fontScale = 1.25); `compact` is a DENSITY arm, spacing-only by construction
 // (tiers.css re-points four spacing vars and no type step), so its law count must not move either.
 /** The tolerance the `ch` unit itself carries, MEASURED: Chromium resolves `ch` from an INTEGER-rounded

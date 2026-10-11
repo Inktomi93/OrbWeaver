@@ -14,7 +14,7 @@ export const TOOLING_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: toolingOsNeutral,
     // A hardcoded `/tmp` beside the live tooling tree: the whole population plus one probe module must
     // report exactly that probe, at its literal.
-    overlays: [{ kind: "add", path: "tooling/src/_shared/os-neutral-liveness-probe.ts", source: 'export const scratch = "/tmp/orb-liveness";\n' }],
+    overlays: [{ kind: "add", path: "tooling/src/floor/host/os-neutral-liveness-probe.ts", source: 'export const scratch = "/tmp/orb-liveness";\n' }],
     messageIncludes: "a hardcoded `/tmp` path",
   },
   {

@@ -7,7 +7,7 @@
 // `metadata` is the typed persona blob (`PersonaMetadata` from `@orb/contracts/persona`): the placement
 // fields (`descriptionPosition` deriving `@orb/kit/persona`'s `PERSONA_DESCRIPTION_POSITIONS`, the at-depth
 // `inject` directive) plus the non-lossy `createFromCharacter` provenance (`sourceCharacterId`/`swapMacros`).
-// It is a JSON column read through the `@orb/db/kit` parse-seam (lenient `.catch`), never trusted raw.
+// It is a JSON column read through the `@orb/db/query` parse-seam (lenient `.catch`), never trusted raw.
 
 import type { PersonaMetadata } from "@orb/contracts/persona";
 import type { AssetId, PersonaId, UserId } from "@orb/kit/ids";
@@ -37,7 +37,7 @@ export const personas = sqliteTable(
     avatarAssetId: text("avatar_asset_id")
       .$type<AssetId>()
       .references(() => assets.id, { onDelete: "set null" }),
-    // Typed JSON blob (PersonaMetadata) — parsed at the read seam (@orb/db/kit), never trusted raw.
+    // Typed JSON blob (PersonaMetadata) — parsed at the read seam (@orb/db/query), never trusted raw.
     metadata: text("metadata", { mode: "json" }).$type<PersonaMetadata>(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),

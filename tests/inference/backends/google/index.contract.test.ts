@@ -1,12 +1,12 @@
 import type { EmbeddingBatchObservation } from "@orb/contracts/embeddings";
 import type { Task } from "@orb/contracts/inference";
 import { z } from "zod";
-import { createGoogleBackend } from "../../../../packages/inference/src/backends/google/index.ts";
-import { googleTokenDetailsOf, googleTokenUsageOf } from "../../../../packages/inference/src/backends/google/usage.ts";
-import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
-import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
-import type { ChatResult, GoogleChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
-import type { Resolved } from "../../../../packages/inference/src/contract/resolved.ts";
+import { createGoogleBackend } from "#inference/backends/google/index.ts";
+import { googleTokenDetailsOf, googleTokenUsageOf } from "#inference/backends/google/usage.ts";
+import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "#inference/capability/synthesize.ts";
+import type { ChatResult, GoogleChatRequest } from "#inference/contract/chat.ts";
+import type { Resolved } from "#inference/contract/resolved.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { testProviderId } from "../../../support/inference-identities.ts";
 import { wireSchema } from "../../../support/wire-ready.ts";

@@ -1,12 +1,10 @@
 import type { JSONObject, LanguageModelV4CallOptions } from "@ai-sdk/provider";
 import type { GenerationCapability } from "@orb/contracts/inference";
-import type { GoogleChatRequest } from "../../contract/chat.ts";
-import { ProviderError } from "../../contract/errors.ts";
-import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "../../contract/resolve.ts";
-import type { Resolved } from "../../contract/resolved.ts";
-import { resolveCachePolicy } from "../../funnel/resolve-cache.ts";
-import type { StructuredAsk } from "../../structured/plan.ts";
-import { cachePolicyContextOf } from "../kit/response-cache.ts";
+import type { GoogleChatRequest, Resolved, ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "#contract";
+import { ProviderError } from "#contract";
+import { resolveCachePolicy } from "#funnel";
+import type { StructuredAsk } from "#structured";
+import { cachePolicyContextOf } from "../http/response-cache.ts";
 import { standardSampling } from "../v4/options.ts";
 import { GOOGLE_KEY } from "./model.ts";
 

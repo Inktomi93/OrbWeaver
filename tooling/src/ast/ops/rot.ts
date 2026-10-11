@@ -1,6 +1,6 @@
 // rot: the five rot collectors over ONE package, ONE load + ONE liveness build.
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, Hit, Liveness } from "../contract/types.ts";
 import { emit, narrate } from "../lib/emit.ts";
 import { corpusPredicate, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";

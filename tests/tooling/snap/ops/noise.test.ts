@@ -7,7 +7,7 @@
 // attach's own. The comment now says that; these arms pin the boundary it describes, so the two cannot
 // drift apart again silently. The last arm is the one that matters for blinding: a genuinely missing
 // sibling fails with a DIFFERENT text and stays a failure.
-import type { CapturedConsole, CapturedRequest } from "@orb/tooling/_shared/browser";
+import type { CapturedConsole, CapturedRequest } from "@orb/tooling/floor/browser/browser";
 import {
   isDevToolsFrontendNoise,
   isFileOriginNoise,
