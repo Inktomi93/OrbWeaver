@@ -1501,7 +1501,9 @@
  * snaps to the destination's box and each snapshot is painted 1:1 from the pane's top-left, clipped to it:
  * every section pair fades the same way, and the chrome's own FLIP/transform motion is not duplicated here. */
 ::view-transition-group(orb-section-content) {
-  animation: none;
+  /* The name only: the `animation` shorthand also resets `animation-fill-mode`, which the images inherit, and the
+   * outgoing snapshot then snaps back to opacity 1 when its shorter fade ends. */
+  animation-name: none;
 }
 ::view-transition-old(orb-section-content),
 ::view-transition-new(orb-section-content) {
@@ -1509,6 +1511,8 @@
   height: 100%;
   object-fit: none;
   object-position: 0 0;
+  /* Held at the end value: the old snapshot's shorter fade must stay faded until the new one finishes. */
+  animation-fill-mode: both;
 }
 .shell-region-fill {
   flex: 1 1 auto;

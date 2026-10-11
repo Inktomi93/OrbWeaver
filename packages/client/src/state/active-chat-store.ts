@@ -245,10 +245,12 @@ function leaveRoom(): void {
   if (origin !== null) {
     setActiveSection(origin);
   }
-  if (isCommitted(handle)) {
-    markChatReturned(handle.id);
-  }
   goToLanding();
+  if (isCommitted(handle)) {
+    // Inside the same swap as the landing: the row is inert until its list is the screen again, so the claim
+    // must reach it in the commit that un-inerts it.
+    withContentSwap(() => markChatReturned(handle.id));
+  }
 }
 
 /** The section-registry SEAM (`SectionSelection`) — what the SHELL reads for the mobile ONE-SHELL rule.

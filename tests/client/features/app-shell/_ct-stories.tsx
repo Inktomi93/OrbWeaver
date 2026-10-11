@@ -1113,6 +1113,8 @@ const CTX_TRACKERS_TAB: ResolvedContextTab = resolvedTab({ id: "trackers", label
 const CTX_ICONLESS_TAB: ResolvedContextTab = resolvedTab({ id: "iconless", label: "Iconless", node: <div>iconless</div> });
 
 export interface ContextTabStripStoryProps {
+  /** The pane's own name for a single-tab header; absent ⇒ the rail label. */
+  readonly paneLabel?: string;
   /** The container width (px) the rail's tracks resolve against. */
   readonly width: number;
   /** The container HEIGHT (px) — the pane the column fills. @defaultValue 480 */
@@ -1140,6 +1142,7 @@ export function ContextTabStripStory({
   withDismiss = false,
   opaqueSettings = false,
   singleTab = false,
+  paneLabel,
 }: ContextTabStripStoryProps): ReactElement {
   const [dismissed, setDismissed] = useState(0);
   const tabs: ResolvedContextTab[] = CTX_STRIP_TABS.slice(0, singleTab ? 1 : undefined).map((tab) =>
@@ -1156,6 +1159,7 @@ export function ContextTabStripStory({
       <ContextTabsPanel
         tabs={tabs}
         railLabel="Chat"
+        {...(paneLabel === undefined ? {} : { paneLabel })}
         {...(withBand ? { header: <p data-testid="ctx-band-content">Example — Midnight Run</p> } : {})}
         {...(withDismiss ? { dismissLabel: "Close Chats details", onDismiss: (): void => setDismissed((n) => n + 1) } : {})}
       />

@@ -227,6 +227,12 @@ test("one view is not a strip: a single resolved tab leaves a header that NAMES 
   await expect(component.getByRole("region", { name: "Members" })).toBeVisible();
 });
 
+// A section whose rail label is also its topbar title would print that word again in the pane header.
+test("a single-tab header prints the pane's own name when the host supplies one", async ({ mount }) => {
+  const component = await mount(<ContextTabStripStory width={291} singleTab={true} paneLabel="Chats details" />);
+  await expect(component.locator('[data-slot="context-bracket-header"] [data-slot="context-header-title"]')).toHaveText("Chats details");
+});
+
 test("End on the strip scrolls to the true end: the end fade stands down and never covers the last tab", async ({ mount, page }) => {
   const component = await mount(<ContextMetaRailStory />);
   const list = strip(component);

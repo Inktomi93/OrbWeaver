@@ -81,9 +81,20 @@ export interface ShellLayout {
    *  only ever overlay or collapsed. Phones are excluded: their sheets are laid out by the phone arm. */
   readonly listIsSheet: boolean;
   readonly contextIsSheet: boolean;
+  /** Back would only close the open details sheet (the room stays): its name must say so. */
+  readonly backClosesSheet: boolean;
   /** The rail label of the section {@link backToList} returns to when the open member was resumed from another
    *  section (a room opened from Home); `null` when Back returns to the active section's own list. */
   readonly backTargetLabel: string | null;
+}
+
+/** Back undoes the last step: an open details sheet closes first; the member pops on the next press. */
+function backAction(sheetOpen: boolean, closeSheet: () => void, popMember: () => void): () => void {
+  return sheetOpen ? closeSheet : popMember;
+}
+
+function closesSheet(back: (() => void) | null, contextMode: PanelMode): boolean {
+  return back !== null && contextMode === "overlay";
 }
 
 export function useShellLayout(): ShellLayout {
@@ -266,17 +277,12 @@ export function useShellLayout(): ShellLayout {
   // Back undoes the last step: a details sheet over the member closes first, the member pops on the next press.
   const backToList =
     isMobile && listAvailable && selection !== undefined && memberOpen
-      ? (): void => {
-          if (contextMode === "overlay") {
-            collapsePanel("context");
-            return;
-          }
-          selection.clear();
-        }
+      ? backAction(contextMode === "overlay", () => collapsePanel("context"), selection.clear)
       : null;
 
   return {
     backToList,
+    backClosesSheet: closesSheet(backToList, contextMode),
     listIsSheet: !isMobile && isOverlayRegime("list"),
     contextIsSheet: !isMobile && isOverlayRegime("context"),
     backTargetLabel: backTarget === null ? null : registry.get(backTarget).rail.label,

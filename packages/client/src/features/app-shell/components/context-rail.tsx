@@ -220,10 +220,13 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
  *  bar rides the header's own divider. */
 export function ContextHeaderTabs({
   ariaLabel,
+  paneLabel,
   tabs,
   activeTab,
 }: {
   readonly ariaLabel: string;
+  /** What a single-tab header prints: the pane's own name, where the tablist's name is the section's. */
+  readonly paneLabel?: string | undefined;
   readonly tabs: readonly ResolvedContextTab[];
   readonly activeTab: string | null;
 }): ReactElement {
@@ -235,7 +238,7 @@ export function ContextHeaderTabs({
     return (
       <Row data-slot="context-tab-strip" align="center" className="min-w-0 flex-1 self-stretch px-block">
         <Text as="span" voice="label" data-slot="context-header-title" className="min-w-0 truncate">
-          {ariaLabel}
+          {paneLabel ?? ariaLabel}
         </Text>
       </Row>
     );

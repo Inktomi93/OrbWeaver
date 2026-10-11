@@ -355,7 +355,7 @@ export function AppShell(): ReactElement {
                     onToggleList={(): void => layout.togglePanel("list")}
                     // The section resolves mode vocabulary without teaching the shell its feature state.
                     onBack={layout.backToList}
-                    backLabel={`Back to ${layout.backTargetLabel ?? contentLabel ?? layout.activeSectionLabel}`}
+                    backLabel={layout.backClosesSheet ? "Close details" : `Back to ${layout.backTargetLabel ?? contentLabel ?? layout.activeSectionLabel}`}
                   />
                 )}
               </SectionTopbarTitle>

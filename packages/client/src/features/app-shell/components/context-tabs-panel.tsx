@@ -24,12 +24,14 @@ export interface ContextTabsPanelProps {
   readonly empty?: ReactNode;
   /** The tab strip's accessible name — the artifact noun ("Chat"), or the section's own label. */
   readonly railLabel: string;
+  /** The pane's own name for a single-tab header (`<section> details`); absent ⇒ the rail label. */
+  readonly paneLabel?: string;
   /** The floating pane's own way out (overlay mode only). */
   readonly dismissLabel?: string;
   readonly onDismiss?: () => void;
 }
 
-export function ContextTabsPanel({ tabs, actions, header, empty, railLabel, dismissLabel, onDismiss }: ContextTabsPanelProps): ReactElement | null {
+export function ContextTabsPanel({ tabs, actions, header, empty, railLabel, paneLabel, dismissLabel, onDismiss }: ContextTabsPanelProps): ReactElement | null {
   // The ONE selection resolver (HUD-1 §3.4) — stored → `defaultTab` → declared-first.
   const { activeTab, selectTab } = useContextTabSelection(tabs);
   return (
@@ -38,6 +40,7 @@ export function ContextTabsPanel({ tabs, actions, header, empty, railLabel, dism
       band={header}
       empty={empty}
       railLabel={railLabel}
+      {...(paneLabel === undefined ? {} : { paneLabel })}
       {...(dismissLabel === undefined ? {} : { dismissLabel })}
       {...(onDismiss === undefined ? {} : { onDismiss })}
     />

@@ -28,6 +28,7 @@ import { isDocumentHidden, observeViewTransition } from "./view-transition-settl
 type VtUpdate = () => void | Promise<void>;
 type VtStartArgument = VtUpdate | { readonly update: VtUpdate; readonly types?: readonly string[] };
 interface VtDocument {
+  readonly documentElement?: unknown;
   readonly querySelector?: (selector: string) => unknown;
   readonly visibilityState?: string;
   startViewTransition?: (update: VtStartArgument) =>
@@ -67,8 +68,16 @@ interface TaskTransition {
 
 let taskTransition: TaskTransition | null = null;
 let activeTransition: TaskTransition | null = null;
-/** True while a transition's update callback runs its updates: a swap raised from inside one is part of it. */
-let applyingUpdates = false;
+/** True from a transition's update callback starting until its destination hold ends: a swap raised in that
+ *  window (inside the callback, or from an effect that runs during the hold) is part of the transition. */
+let holdingTransition = false;
+
+/** Test seam: forget any in-flight transition so one test's hold cannot make the next one's swaps join it. */
+export function __resetViewTransition(): void {
+  taskTransition = null;
+  activeTransition = null;
+  holdingTransition = false;
+}
 
 function surfaceDeferredFailure(error: unknown): never {
   throw error;
@@ -106,26 +115,47 @@ export function runAfterViewTransition(effect: () => void): void {
  *  pane. A collapsed pane is off screen, so its loading state is not part of what the user sees arrive. */
 const DESTINATION_PENDING =
   '.shell-content [data-slot="skeleton"], .shell-panel[data-panel-side="list"]:not([data-panel-mode="collapsed"]) [data-slot="skeleton"]';
-/** How long the old frame may be held for the destination's first real paint. */
+/** How long the old frame may be held for the destination's first real paint, in elapsed time. */
 const DESTINATION_DEADLINE_MS = 150;
 const DESTINATION_POLL_MS = 16;
+/** With no DOM change at all in this long, the swap committed nothing new and there is nothing to wait for. */
+const DESTINATION_QUIET_MS = 48;
+interface VtMutationObserver {
+  readonly observe: (target: unknown, options: { readonly childList: true; readonly subtree: true }) => void;
+  readonly disconnect: () => void;
+}
+interface VtMutationObserverConstructor {
+  new (callback: () => void): VtMutationObserver;
+}
 
-/** Resolve once the destination shows no skeleton, or at the deadline. Returned from the update callback,
- *  it keeps the old frame up until then, so the crossfade lands on content and the skeleton never paints
- *  as a second, unanimated step. */
+/** Resolve once the swap has COMMITTED and the destination shows no skeleton, or at the deadline. Returned from
+ *  the update callback, it keeps the old frame up until then, so the crossfade lands on content and the skeleton
+ *  never paints as a second, unanimated step. A clean DOM before the commit is not readiness (the old page has
+ *  no skeleton), so a DOM mutation, or a quiet interval with none, must come first. */
 function destinationSettled(): Promise<void> {
   const g = globalThis as VtGlobals;
+  const Observer = Reflect.get(globalThis, "MutationObserver") as VtMutationObserverConstructor | undefined;
+  const root = g.document?.documentElement;
   return new Promise((resolve) => {
-    let waited = 0;
+    const started = performance.now();
+    let committed = Observer === undefined || root === undefined;
+    const observer =
+      committed || Observer === undefined
+        ? null
+        : new Observer(() => {
+            committed = true;
+          });
+    observer?.observe(root, { childList: true, subtree: true });
     const check = (): void => {
-      if (waited >= DESTINATION_DEADLINE_MS || (g.document?.querySelector?.(DESTINATION_PENDING) ?? null) === null) {
+      const elapsed = performance.now() - started;
+      const clear = (g.document?.querySelector?.(DESTINATION_PENDING) ?? null) === null;
+      if (elapsed >= DESTINATION_DEADLINE_MS || (clear && (committed || elapsed >= DESTINATION_QUIET_MS))) {
+        observer?.disconnect();
         resolve();
         return;
       }
-      waited += DESTINATION_POLL_MS;
       setTimeout(check, DESTINATION_POLL_MS);
     };
-    // One macrotask first: the swap's React commit must land before the destination can be read.
     setTimeout(check, 0);
   });
 }
@@ -169,7 +199,7 @@ export function withViewTransition(update: () => void): void {
     update();
     return;
   }
-  if (applyingUpdates) {
+  if (holdingTransition) {
     update();
     return;
   }
@@ -187,15 +217,18 @@ export function withViewTransition(update: () => void): void {
   });
   const transition = start.call(g.document, () => {
     current.acceptingUpdates = false;
-    applyingUpdates = true;
+    holdingTransition = true;
     try {
       for (const run of current.updates) {
         run();
       }
-    } finally {
-      applyingUpdates = false;
+    } catch (error) {
+      holdingTransition = false;
+      throw error;
     }
-    return destinationSettled();
+    return destinationSettled().finally(() => {
+      holdingTransition = false;
+    });
   });
   current.finished = transition?.finished;
   if (current.finished !== undefined) {

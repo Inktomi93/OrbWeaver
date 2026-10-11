@@ -1651,15 +1651,27 @@ export function ChatListSurfaceStory({ activeChatId = null, width = 320, mobile 
 export function ChatListReturnStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ height: 480, width: 320 }}>
+      <ChatListReturnBody />
+    </CtDataProviders>
+  );
+}
+
+function ChatListReturnBody(): ReactElement {
+  // On a phone the list pane is inert while a room is open.
+  const roomOpen = useActiveChatId() !== null;
+  return (
+    <>
+      <div style={{ height: 480, width: 320 }} inert={roomOpen}>
         <ChatListAnchor>
           <ChatListSurface onNewChat={(): void => undefined} onSelect={selectChatFromList} />
         </ChatListAnchor>
+      </div>
+      <div>
         <button onClick={(): void => chatSectionSelection.clear()} type="button">
           leave the room
         </button>
       </div>
-    </CtDataProviders>
+    </>
   );
 }
 

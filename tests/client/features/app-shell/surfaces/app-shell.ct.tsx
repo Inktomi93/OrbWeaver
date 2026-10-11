@@ -6620,7 +6620,8 @@ for (const viewport of [MOBILE_NARROW, MOBILE]) {
     await shell.getByRole("button", { name: "Show details" }).click();
     await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
 
-    await shell.getByRole("button", { name: "Back to Chats" }).click();
+    // With the sheet open the chevron only closes it, and says so.
+    await shell.getByRole("button", { name: "Close details" }).click();
     await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
     await expect(grid).toHaveAttribute("data-room-screen", "true");
 
@@ -6691,8 +6692,24 @@ test("0866: a content swap crossfades without morphing the group or scaling the 
       groupMorphs: pseudos.some((pseudo) => pseudo.startsWith("::view-transition-group(orb-section-content)")),
       imageFit: image.objectFit,
       imageAnchor: image.objectPosition,
+      oldReappears: false,
     };
-    await transition.finished;
+    // The outgoing page fades out and must STAY out until the incoming one finishes: sample its opacity every
+    // frame to the end of the transition, and flag any return after it was gone.
+    const old = getComputedStyle(document.documentElement, "::view-transition-old(orb-section-content)");
+    let finished = false;
+    const done = (): void => {
+      finished = true;
+    };
+    transition.finished.then(done, done);
+    const opacities: number[] = [];
+    while (!finished) {
+      // Once the transition ends its pseudo-elements are gone and read as the default opacity 1.
+      opacities.push(document.documentElement.matches(":active-view-transition") ? Number.parseFloat(old.opacity) : 0);
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+    const fadedAt = opacities.findIndex((opacity) => opacity < 0.05);
+    result.oldReappears = fadedAt >= 0 && opacities.slice(fadedAt).some((opacity) => opacity > 0.5);
     return result;
   });
   // @orb-waive ct-no-oneshot-live-read-assert(expect): read inside the transition's own `ready` barrier, then settled
@@ -6701,6 +6718,8 @@ test("0866: a content swap crossfades without morphing the group or scaling the 
   expect(probe.imageFit).toBe("none");
   // @orb-waive ct-no-oneshot-live-read-assert(expect): same settled read
   expect(probe.imageAnchor).toBe("0px 0px");
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): sampled to the transition's end, then settled
+  expect(probe.oldReappears).toBe(false);
 });
 
 // 0866 F5: at an overlay width the closing sheet only slides. Its box kept the full-height inset while it exited
