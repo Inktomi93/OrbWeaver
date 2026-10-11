@@ -184,7 +184,7 @@ function nativeThink(call: ModelCall): NativeThink {
   };
 }
 
-/** A row whose folded `features.nativeChat` is `ollama` (D296): the same SDK and the same body shaping, with
+/** A row whose folded `features.nativeChat` is `ollama` (D310): the same SDK and the same body shaping, with
  *  the request translated to `/api/chat` in `shapeBody` (so the capture holds the native body) and the reply
  *  translated back underneath `wrapFetch`. */
 function ollamaNativeProvider(call: ModelCall): ReturnType<typeof createOpenAICompatible> {

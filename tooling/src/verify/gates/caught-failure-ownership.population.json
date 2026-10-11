@@ -886,7 +886,7 @@
       "reason": "every batch caller owns a promise rejected below; no failure is lost. Ends if batch promises stop being the caller's result."
     },
     {
-      "siteId": "packages/inference/src/backends/openai-compat/diagnostics.ts::inspectOpenAiCompatEndpoint::readBodyPreview::1",
+      "siteId": "packages/inference/src/backends/openai-compat/diagnostics.ts::inspectionOf::readBodyPreview::1",
       "verdict": "deliberate-absorb",
       "reason": "a preview read failure degrades to an explicit empty preview while status and headers remain inspectable. Precedent: the gate mustPass fixture tooling/src/probe/unproven-outcome.ts proves the same degraded inspection result. Ends if preview bytes become authoritative."
     },

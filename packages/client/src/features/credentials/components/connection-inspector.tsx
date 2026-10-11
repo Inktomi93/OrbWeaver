@@ -38,15 +38,21 @@ export function ConnectionInspector({ connectionId, trpc, invalidation }: Connec
   );
 }
 
+function verdictOf({ response, error }: EndpointInspection): string {
+  if (response === null) {
+    return `The request never got an answer — ${error ?? "no reason was given"}.`;
+  }
+  const answered = `The server answered ${String(response.status)} ${response.statusText}`;
+  return error === undefined ? `${answered}.` : `${answered}, and a chat turn could not use the reply — ${error}.`;
+}
+
 function InspectionResult({ inspection }: { readonly inspection: EndpointInspection }): ReactElement {
   const { request, response } = inspection;
   const headerLines = Object.entries(request.headers).map(([name, value]) => `${name}: ${value}`);
   return (
     <Stack data-ok={inspection.ok} data-slot="connection-inspection" gap="tight">
       <Text className={inspection.ok ? "text-success" : "text-warning"} data-slot="connection-inspection-verdict" voice="gloss">
-        {response === null
-          ? `The request never got an answer — ${inspection.error ?? "no reason was given"}.`
-          : `The server answered ${String(response.status)} ${response.statusText}.`}
+        {verdictOf(inspection)}
       </Text>
       <Text voice="label">Request</Text>
       <Text as="div" className="whitespace-pre-wrap break-all" voice="datum">

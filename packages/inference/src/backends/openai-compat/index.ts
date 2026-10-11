@@ -138,7 +138,7 @@ export function createOpenAiCompatBackend(deps: OpenAiCompatBackendDeps): OpenAi
       probe: (req) => probeOpenAiCompat(req, diagnostics),
       accountCredits: (req) => openRouterCredits(req, diagnostics),
       generationCost: (req) => openRouterGenerationCost(req, diagnostics),
-      inspect: (req) => inspectOpenAiCompatEndpoint(req, diagnostics),
+      inspect: (req) => inspectOpenAiCompatEndpoint(req, { fetch: deps.fetch, app: deps.app }),
       listModels: (req) => listOpenAiCompatModels(req, diagnostics),
     },
   };

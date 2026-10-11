@@ -186,7 +186,7 @@ function endpointEntryFor(
 }
 
 /** The window the server runs where the row's chat route sends none (`nativeChat: none` turns a native route that sends
- *  one off, D296): the one its reader states, or its default floor, which stays an estimate. A floor is only a lower
+ *  one off, D310): the one its reader states, or its default floor, which stays an estimate. A floor is only a lower
  *  bound on what the server runs, so a window the user declared beats it; a stated window beats the declaration. */
 function servedWindowOf(features: EndpointFeatures, entry: EndpointModel | undefined, windowDeclared: boolean): ServedWindow | undefined {
   if (features.nativeChat !== "none" || entry === undefined) {

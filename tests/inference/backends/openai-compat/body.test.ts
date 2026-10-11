@@ -1,5 +1,5 @@
 // backends/openai-compat/body — the outbound-body shaper's rules in the order `body.ts`'s header lists them (§8.1,
-// D143(b)/D156): the user's extras and includeBody/excludeBody merge first, and every later rule leaves a key
+// D311): the user's extras and includeBody/excludeBody merge first, and every later rule leaves a key
 // they settled as the user set it.
 
 import type { EndpointFeatures } from "@orb/contracts/inference";

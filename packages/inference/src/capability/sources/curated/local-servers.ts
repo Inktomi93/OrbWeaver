@@ -161,7 +161,7 @@ export const localServerRows = [
     },
   },
   {
-    // The native `/api/chat` route (D296): its `options` map takes these and logs and ignores any other key; it
+    // The native `/api/chat` route (D310): its `options` map takes these and logs and ignores any other key; it
     // has no logit bias, Mirostat, DRY or XTC field.
     match: { model: ANY_MODEL, provider: "ollama" },
     generation: {

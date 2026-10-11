@@ -854,6 +854,18 @@ test("a test request that never got an answer says why and shows no response", a
   await expect(component.locator('[data-slot="connection-inspection-response"]')).toHaveCount(0);
 });
 
+test("a test request whose answer chat cannot read shows the answer and the reason", async ({ mount, page }) => {
+  await stubEditor(page, { inspectEndpoint: { ...INSPECTED, ok: false, error: "Invalid JSON response" } });
+  const component = await mount(<ConnectionEditorStory />);
+  await openDiagnostics(page);
+
+  await component.getByRole("button", { name: "Send a test request" }).click();
+  const inspection = component.locator('[data-slot="connection-inspection"]');
+  await expect(inspection).toHaveAttribute("data-ok", "false");
+  await expect(component.locator('[data-slot="connection-inspection-verdict"]')).toContainText("Invalid JSON response");
+  await expect(component.locator('[data-slot="connection-inspection-response"]')).toContainText("pong");
+});
+
 // ── what must not render ───────────────────────────────────────────────────────────────────────────────
 
 test("no api control, no prefetch status, no per-room override — each absent by DATA", async ({ mount, page }) => {

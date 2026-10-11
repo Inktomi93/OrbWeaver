@@ -318,7 +318,7 @@ const openRouterWebSearchSchema = z.object({
  *  plugins. Order is the precedence, and compression leads on purpose — it is the one plugin whose value
  *  this layer decides (off `params.providerContextCompression`), so a user entry re-declaring
  *  `context-compression` must not silently take the turn's decision away. Such an entry is dropped with the
- *  belt's own `custom_parameters_ignored` code: MODELLED WINS (D143(b)/D156), exactly as on the body. */
+ *  belt's own `custom_parameters_ignored` code: a hosted row's allowlist never takes a modelled knob (D311). */
 function mergePlugins(compression: JSONObject, extras: Resolved["extras"], warnings: ResolvedWarning[]): readonly JSONObject[] {
   const declared = extras?.["plugins"];
   if (declared === undefined) {

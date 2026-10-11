@@ -245,7 +245,7 @@ function anthropicOptions(
   const parallel = req.params.advanced?.parallelToolCalls;
   const anthropic: JSONObject = {
     // C2: the allowlisted `extras` slice FIRST, so nothing a connection declares can displace a modelled
-    // knob below it (D143(b)/D156 — modelled wins; the allowlist itself excludes every modelled key).
+    // knob below it (D311: a row with no custom body keeps an allowlist that excludes every modelled key).
     ...anthropicExtras(req.connection, warnings),
     ...(model.automaticCache === null ? {} : { cacheControl: { ...model.automaticCache.directive } }),
     sendReasoning: true,
