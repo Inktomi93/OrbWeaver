@@ -27,7 +27,7 @@ export const dialogVariants = tv({
     description: "mt-field text-body leading-body text-muted-foreground",
     // The action row: the LAST child of a DIALOG_SCROLL_CLASS region, never of the popup itself. The popup's padding
     // surrounds that region, so `sticky bottom-0` lands the buttons exactly one popup inset above the popup edge.
-    footer: "sticky bottom-0 z-10 flex shrink-0 flex-wrap items-center justify-end gap-field bg-popover pt-field",
+    footer: "sticky bottom-0 z-(--z-raised) flex shrink-0 flex-wrap items-center justify-end gap-field bg-popover pt-field",
   },
   variants: {
     size: {
