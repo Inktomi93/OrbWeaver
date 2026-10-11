@@ -10,7 +10,7 @@ import { DatabaseSync } from "node:sqlite";
 import { afterEach } from "vitest";
 import { parseSnapArgs } from "../../../../tooling/src/snap/index.ts";
 import { stagePaths } from "../../../../tooling/src/snap/lib/stage-plan.ts";
-import { cloneStageDb } from "../../../../tooling/src/snap/ops/stage-source.ts";
+import { clonedStageWarning, cloneStageDb } from "../../../../tooling/src/snap/ops/stage-source.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
@@ -71,6 +71,10 @@ test("a clone keeps the owner row and its owned rows, drops secret-bound rows, a
     } finally {
       clone.close();
     }
+    // A reused stage serving this clone must say so; a dev-db copy and a stage with no db must not.
+    expect(clonedStageWarning({ dbProvenance: provenance })).toContain(path);
+    expect(clonedStageWarning({ dbProvenance: { copiedFrom: "/dev/db", copiedAt: "t", devDbMtimeAtCopy: "t" } })).toBeNull();
+    expect(clonedStageWarning({ dbProvenance: null })).toBeNull();
     expect(provenance.copiedFrom).toBe(path);
     expect({ main: sha256(path), wal: sha256(`${path}-wal`), mtime: statSync(path).mtimeMs }).toEqual(before);
   } finally {

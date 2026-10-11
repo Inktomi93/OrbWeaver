@@ -149,7 +149,8 @@ Sessions:
                           the container db. The source is only read. The owner row keeps its id and the
                           stage's boot renames it onto the stage's owner handle; saved provider keys,
                           sessions, password hashes and pending invites are dropped from the clone.
-                          Implies --isolated and --fresh; no --stage-auth local.
+                          Implies --isolated and --fresh; no --stage-auth local. A later plain
+                          --isolated run on the same commit reuses the clone and prints a WARNING.
   --isolated | --dirty    warm isolated stage from HEAD or working tree
   --ref <sha|branch|tag>  pin the isolated stage to a commit instead of HEAD (survives a merge train)
   --fresh                 force a full re-stage even when the stage is warm (implies --isolated)

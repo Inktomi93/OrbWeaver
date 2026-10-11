@@ -98,7 +98,15 @@ import { armStageKeeper } from "./stage-keeper.ts";
 import { clearRow, markerRoot, readBands, touchRow, writeRow } from "./stage-marker.ts";
 import { holderProcessRunning, stageBandPortPid, stageDirs } from "./stage-probe.ts";
 import { recordStageReap } from "./stage-reap-log.ts";
-import { assertStageSourceSupportsIsolation, pnpmInstall, prepareStageSource, removeStageDir, seedStageData, syncDirtyTree } from "./stage-source.ts";
+import {
+  assertStageSourceSupportsIsolation,
+  pnpmInstall,
+  prepareStageSource,
+  printClonedStageWarning,
+  removeStageDir,
+  seedStageData,
+  syncDirtyTree,
+} from "./stage-source.ts";
 import { stopStage } from "./stage-teardown.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -116,8 +124,8 @@ function devInheritedEnv(root: string): Record<string, string> {
   return stageInheritedEnv(readFileSync(p, "utf8"));
 }
 
-/** A local stage's empty data root takes the fixture identity; a cloned db carries no row bound to the dev
- *  keys (`cloneStageDb` drops them), so it inherits nothing and mints its own. */
+/** A local stage's empty data root takes the fixture identity; a cloned db inherits no dev env, so the stack
+ *  cli's fixed dev keys apply and `cloneStageDb` drops the rows sealed under the source box's keys. */
 function stageIdentityEnv(root: string, ports: StagePorts, auth: StageAuthMode, clonedDb: boolean): Record<string, string> {
   if (auth === "local") {
     return fixtureIdentityEnv(ports.server);
@@ -241,6 +249,7 @@ function reuseWarmStage(homes: { readonly root: string; readonly home: string },
     return resynced;
   }
   print(`[snap-stage] reusing warm stage ${shortSha(row.sha)} on band ${row.band} → ${stageRowBaseUrl(row)}`);
+  printClonedStageWarning(row);
   touchRow(home, row.band, nowIso);
   return { ...row, lastUsedAt: nowIso };
 }
@@ -379,6 +388,7 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
     print(
       `[snap-stage] reusing ${allocation.row.checkout}'s warm stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (same commit) → ${stageRowBaseUrl(allocation.row)}`,
     );
+    printClonedStageWarning(allocation.row);
     // OUR use keeps THEIR stage alive: the heartbeat measures the band's use, not one checkout's (#324).
     touchRow(home, allocation.band, nowIso);
     return { row: { ...allocation.row, lastUsedAt: nowIso }, booted: false };

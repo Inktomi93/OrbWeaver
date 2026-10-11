@@ -122,9 +122,10 @@ export function seedStageData(root: string, paths: StagePaths, stageDb?: string)
   return provenance;
 }
 
-/** Rows sealed or peppered under the SOURCE box's boot secrets. The stage mints its own keyfiles, and the boot
- *  refuses to generate one over a row that depends on it (`entry/boot/boot-secrets.ts`), so a clone keeps none
- *  of them: saved provider keys, sign-in sessions, the owner's password hash and redeemable invite links. */
+/** Rows sealed or peppered under the SOURCE box's boot secrets. The stage boots under the stack cli's fixed dev
+ *  keys, so a foreign `user_credentials` row fails the boot decrypt check and `/healthz` answers 503
+ *  `credentials_key_mismatch`; that delete is the required one. The sessions, password hashes and pending
+ *  invites could never be used under the dev pepper, so dropping them is cleanup. */
 const SECRET_BOUND_ROWS = [
   "DELETE FROM user_credentials",
   "DELETE FROM sessions",
@@ -162,7 +163,24 @@ export function cloneStageDb(sourceDb: string, paths: StagePaths): StageDbProven
   } finally {
     clone.close();
   }
-  return { copiedFrom: source, copiedAt: new Date().toISOString(), devDbMtimeAtCopy: statSync(source).mtime.toISOString() };
+  return { copiedFrom: source, cloned: true, copiedAt: new Date().toISOString(), devDbMtimeAtCopy: statSync(source).mtime.toISOString() };
+}
+
+/** The loud line for a reused stage whose db is a `--stage-db` clone, or null for any other stage. A plain
+ *  `--isolated` run on the same sha, or a sibling checkout's, otherwise reuses the clone without a word. */
+export function clonedStageWarning(row: Pick<StageRow, "dbProvenance">): string | null {
+  const provenance = row.dbProvenance;
+  if (provenance?.cloned !== true) {
+    return null;
+  }
+  return `[snap-stage] WARNING this stage serves a CLONE of ${provenance.copiedFrom} (--stage-db, ${provenance.copiedAt}), not the dev db; rebuild with --fresh for a dev-db stage`;
+}
+
+export function printClonedStageWarning(row: Pick<StageRow, "dbProvenance">): void {
+  const warning = clonedStageWarning(row);
+  if (warning !== null) {
+    print(warning);
+  }
 }
 
 function copyStageDb(devDb: string, stageDb: string): StageDbProvenance | null {

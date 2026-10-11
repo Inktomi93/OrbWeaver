@@ -64,6 +64,8 @@ export interface StagePaths {
  *  db it was copied from?" without a second probe. Null when the checkout had no dev db to copy. */
 export interface StageDbProvenance {
   readonly copiedFrom: string;
+  /** True when `--stage-db` cloned a foreign db; absent for the dev-db copy. */
+  readonly cloned?: true;
   readonly copiedAt: string;
   /** The dev db's mtime AT THE MOMENT OF THE COPY — a later dev-db mtime means the stage's data is behind. */
   readonly devDbMtimeAtCopy: string;
