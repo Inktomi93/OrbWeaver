@@ -224,9 +224,11 @@ function observingFetch(inner: typeof fetch, observed: Observed): typeof fetch {
 
 /**
  * The "Send a test request" probe, one 1-token chat call through the same model factory and route a chat turn
- * uses (D310): the row's `nativeChat` route, its `extras`, its include/exclude pair and every
- * body rule. `ok` means that call came back as a reply the chat path reads. The request is shown as sent, and the
- * response as the server sent it, scrubbed before it is display-eligible.
+ * uses (D310). On an own-server row it takes the `nativeChat` route and the openai-compat body shaper: `extras`,
+ * the include/exclude pair and the row's feature rules. It does not exercise dialect placement (the openrouter
+ * extras `openRouterShape` places in `chat.ts`) or turn-derived shaping (preset samplers, reasoning, prefill,
+ * tools, structured output, cache markers). `ok` means the call came back as a reply the chat path reads. The
+ * request is shown as sent, and the response as the server sent it, scrubbed before it is display-eligible.
  */
 export async function inspectOpenAiCompatEndpoint(req: InspectRequest, deps: InspectDeps): Promise<EndpointInspection> {
   const { connection } = req;
