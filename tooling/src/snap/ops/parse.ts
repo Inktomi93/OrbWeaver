@@ -216,6 +216,10 @@ function armValidationPairs(args: Args): ValidationPair[] {
 function tapValidationPairs(args: Args, device: Args["device"]): ValidationPair[] {
   const taps = args.actions.filter((entry) => entry.type === "step" && entry.action.kind === "tap").length;
   const swipes = args.actions.filter((entry) => entry.type === "step" && entry.action.kind === "swipe").length;
+  const touchOnly = (flag: string, kind: string): ValidationPair => [
+    device === null && args.actions.some((entry) => entry.type === "step" && entry.action.kind === kind),
+    `${flag} needs a touch-capable context: pass --mobile on a one-shot run or at session/scenario boot. It dispatches touch events, which a desktop context without a touchscreen cannot receive`,
+  ];
   const keyboards = args.actions.filter((entry) => entry.type === "step" && entry.action.kind === "soft-keyboard").length;
   return [
     [
@@ -226,6 +230,9 @@ function tapValidationPairs(args: Args, device: Args["device"]): ValidationPair[
       swipes > 0 && device === null,
       "--swipe needs a touch-capable context: pass --mobile on a one-shot run or at session/scenario boot. It dispatches touch events, which a desktop context without a touchscreen does not scroll with — use --wheel for a mouse scroll",
     ],
+    touchOnly("--swipe-x", "swipe-x"),
+    touchOnly("--long-press", "long-press"),
+    touchOnly("--tap-at", "tap-at"),
     [
       taps > 0 && device === null,
       "--tap needs a touch-capable context: pass --mobile on a one-shot run or at session/scenario boot (the iPhone 14 Pro Max descriptor carries hasTouch + pointer:coarse). A desktop context has no touchscreen, so every tap would throw. --click is NOT the fallback — it is a mouse dispatch even under --mobile, which is the difference this verb exists to measure",
