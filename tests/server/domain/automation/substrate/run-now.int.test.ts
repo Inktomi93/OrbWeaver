@@ -3,6 +3,7 @@
 // fact (no real event), and a `transform_draft` rule (which registers into the pipeline and never dispatches
 // a terminal) resolves to `null` rather than a fabricated fire.
 
+// @orb-waive-file no-loose-id-cast([{ not: "an arm" }]): baselined when the gate widened; burn-down item 906.
 import { automationFires, automationRules } from "@orb/db";
 import type { AutomationRuleId, MessageId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
@@ -141,6 +142,7 @@ describe("dispatchRuleNow", () => {
 describe("#1565 Run now and the bus door queue on ONE lane", () => {
   function deferred(): { readonly promise: Promise<void>; readonly resolve: () => void } {
     let resolve!: () => void;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const promise = new Promise<void>((done) => {
       resolve = done;
     });
@@ -182,8 +184,10 @@ describe("#1565 Run now and the bus door queue on ONE lane", () => {
 
     // The bus event enters first and parks inside its arm; the host presses Run now while it is parked.
     const bus = svc.handleEvent({ type: "messageCommitted", chatId: base.chatId, messageId });
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 0));
     const manual = dispatchRuleNow(ctx, rule, base.chatId, base.host);
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 0));
     gate.resolve();
     await Promise.all([bus, manual]);

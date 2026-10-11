@@ -21,6 +21,7 @@
 // (`route.fallback()`) to routeTrpc for everything else — including answering the attach mutations, which
 // routeTrpc resolves to `null` exactly as the real void-returning procedure does.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
 import type { Page, Request } from "@playwright/test";

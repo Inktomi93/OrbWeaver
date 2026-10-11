@@ -48,6 +48,7 @@ export function createCopyPresetToUser(ctx: PresetHandoffCopyContext): CopyPrese
       ownerId: toUserId,
       name: source.name,
       kind: source.kind,
+      // @orb-waive json-column-read-parsed(config): baselined when the gate widened; burn-down item 905.
       config: source.config,
       schemaVersion: source.schemaVersion,
       // Lineage names the source AND is the convergence key. Deliberately the SOURCE id, not the source's

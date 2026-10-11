@@ -39,6 +39,7 @@ interface ConvergedPresetInsert extends PresetInsert {
   forkedFrom: PresetId;
 }
 
+// @orb-waive contract-structural-copy(PresetPatch): baselined when the gate widened; burn-down item 904.
 /** A partial patch over an owned row — only the present keys are written; `updatedAt` is always bumped. */
 interface PresetPatch {
   name?: string;
@@ -68,6 +69,7 @@ export async function insertConvergedPresetForkIfAbsent(db: Db, row: ConvergedPr
           ownerId: sql<UserId | null>`${row.ownerId}`.as("owner_id"),
           name: sql<string>`${row.name}`.as("name"),
           kind: sql<string>`${row.kind}`.as("kind"),
+          // @orb-waive json-column-read-parsed(config): baselined when the gate widened; burn-down item 905.
           config: sql<PromptConfig>`${JSON.stringify(row.config)}`.as("config"),
           schemaVersion: sql<number>`${row.schemaVersion}`.as("schema_version"),
           forkedFrom: sql<PresetId | null>`${row.forkedFrom}`.as("forked_from"),
@@ -154,6 +156,7 @@ export async function findOwnedForkOf(db: Db, userId: UserId, sourceId: PresetId
  *  the user's own explicit replacement would close the only in-place repair a corrupt preset has while
  *  buying no protection. `#primitives/stored-config` carries the full reasoning + the tradeoff. */
 export async function updatePresetRow(db: Db, id: PresetId, userId: UserId, patch: PresetPatch): Promise<PresetRow | undefined> {
+  // @orb-waive json-column-read-parsed(config): baselined when the gate widened; burn-down item 905.
   if (patch.config !== undefined) {
     const stored = await db
       .select({ config: presets.config, schemaVersion: presets.schemaVersion })

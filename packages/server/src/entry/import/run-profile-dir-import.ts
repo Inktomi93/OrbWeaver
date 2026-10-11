@@ -90,6 +90,7 @@ function stWallClockZone(deps: ProfileDirImportDeps): string {
  *  bound TRUE at the composition root: a background's mime is only extension-derived here, so the bytes are
  *  verified against the claim before they enter the CAS. */
 type ImportBackgroundStore = (params: {
+  // @orb-waive contract-structural-copy(principal): baselined when the gate widened; burn-down item 904.
   readonly principal: Principal;
   readonly bytes: Uint8Array;
   readonly mime: string;
@@ -567,6 +568,7 @@ async function importCollectedWorlds(
 /** Assemble the import report from the merged collect results + the run's counts + the per-card skips. The
  *  two structure planes (`unhandled`/`unhandledSettings`) are deduped — a multi-profile upload lists the same
  *  section names per user dir. */
+// @orb-waive contract-structural-copy(WaveOutcomes): baselined when the gate widened; burn-down item 904.
 /** The preset + group waves' accounting, threaded into the report. Zero-valued (and empty) on a dryRun and on
  *  a profile carrying neither plane, which is byte-identically the pre-epic report. */
 interface WaveOutcomes {

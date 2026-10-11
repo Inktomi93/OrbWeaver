@@ -2,6 +2,7 @@
 // on the contract's routable tasks (a new task is a compile error AND a pin here), the readouts speak in the
 // persisted read's words, and the `Needs:` rail and the background repair judge what the resolver judges.
 
+// @orb-waive-file platform-spellings(tasks): baselined when the gate widened; burn-down item 906.
 import type { Capability } from "@orb/contracts/inference";
 import {
   CONNECTION_OP_CODES,

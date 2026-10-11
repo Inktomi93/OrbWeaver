@@ -5,6 +5,7 @@
 // Internal (non-front-door) files are imported by RELATIVE path — the package `./*` map only resolves a
 // module's directory front door, not a flat file.
 
+// @orb-waive-file no-loose-id-cast(overrides.metadata): baselined when the gate widened; burn-down item 906.
 import { personas } from "@orb/db";
 import type { AssetId, CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";

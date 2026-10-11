@@ -193,6 +193,7 @@ test("connectOnce never respawns a broker once the app tears it down with nothin
   await __terminateManagedPluginBrokerForTest();
   // A clean teardown with no in-flight command must leave the broker gone — no straggling reconnect chase
   // should spawn a replacement process nobody asked for.
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   await new Promise((resolve) => setTimeout(resolve, 100));
   expect(__hasManagedPluginBrokerForTest()).toBe(false);
 });
@@ -240,6 +241,7 @@ test("broker exit during an async invoke fails the call and marks the resident c
   let reached = (): void => {
     throw new Error("test: bridge call arrived before gate initialization");
   };
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const called = new Promise<void>((resolve) => {
     reached = resolve;
   });
@@ -273,6 +275,7 @@ test("broker exit during an async invoke fails the call and marks the resident c
 test("disposing a pinned logical plugin cancels its Worker and rejects late callback reuse", { timeout: LONG }, async () => {
   let reached = (): void => undefined;
   let release = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const called = new Promise<void>((resolve) => {
     reached = resolve;
   });
@@ -994,10 +997,12 @@ test.each(["disable", "upgrade", "uninstall"] as const)("%s during a deferred co
     },
   };
   let loaderStarted!: () => void;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const started = new Promise<void>((resolve) => {
     loaderStarted = resolve;
   });
   let releaseLoader!: () => void;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const loaderGate = new Promise<void>((resolve) => {
     releaseLoader = resolve;
   });

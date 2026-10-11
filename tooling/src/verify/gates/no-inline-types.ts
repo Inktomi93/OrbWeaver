@@ -81,7 +81,7 @@ export const gate = defineGate({
   // reproduced: inside these three roots they matched exactly one directory, `domain/regex/verbs/scripts/`,
   // by the same string accident the deleted `/tools/` clause was (#408). A domain subsystem is domain code.
   population: {
-    in: ["@client", "@server", "@inference", "@tooling"],
+    in: ["@client", "@server", "@inference", "@tooling", "@tests"],
     notUnder: [
       "packages/client/src/data/**",
       "packages/client/src/forms/**",
@@ -90,8 +90,10 @@ export const gate = defineGate({
       "packages/server/src/primitives/**",
       "tooling/src/floor/**",
       "**/contract/**",
+      // The test type home: shared helpers and fixture modules hold the test-only shapes suites import.
+      "tests/support/**",
     ],
-    notNamed: ["contract.ts", "*.test.ts", "*.test.tsx"],
+    notNamed: ["contract.ts", "fixtures.ts", "*.fixtures.ts", "*.fixtures.tsx", "*-fixtures.ts", "*-fixtures.tsx", "_support.ts"],
   },
   analysis: "types",
   execution: "selected-files",
@@ -171,6 +173,15 @@ export const gate = defineGate({
       files: { "packages/server/src/domain/regex/verbs/scripts/create.ts": "export type Foo = string;\n" },
       expect: { count: 1, token: "Foo" },
       why: "THE #408 STRING ACCIDENT, closed on the same reasoning as the deleted `/tools/` clause: the legacy `/scripts/` type-home clause matched exactly ONE directory inside the judged roots — the regex SCRIPT library's verbs — and exempted a domain subsystem by pure substring luck. The repo's own `scripts/` tree is out of the population by root, so nothing is lost by not reproducing it",
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/server/domain/x/verb.test.ts": "export type Seen = string;\n",
+        "tests/client/features/x/_ct-stories.tsx": "export type StoryRow = { readonly id: string };\n",
+      },
+      expect: { count: 2 },
+      why: "TESTS ARE JUDGED: a suite or a CT story exporting a shape is outside the test type home; the shape belongs in a fixture or support module, or is derived from its contract",
     },
   ],
   mustPass: [
@@ -264,11 +275,23 @@ export const gate = defineGate({
       files: {
         "packages/server/src/domain/x/anchor.ts": "const local = 1;\nexport const use = (): number => local;\n",
         "packages/server/src/domain/x/contract.ts": "export type Foo = string;\n",
-        "packages/server/src/domain/x/unit.test.ts": "export type Bar = string;\n",
-        "packages/client/src/features/x/view.test.tsx": "export type Baz = string;\n",
         "packages/client/src/features/x/anchor.tsx": "export const Anchor = (): null => null;\n",
       },
-      why: "THE `notNamed` CLAUSE, all three spellings at once: a FILE named `contract.ts` is the single-file form of a `contract/` directory, and a `.test.ts`/`.test.tsx` fixture may declare a shape deliberately (a test is allowed to spell the thing it is testing against). Each entry is falsified separately — dropping `contract.ts`, `*.test.ts` or `*.test.tsx` reds this row on its own file. The `.tsx` anchor is here so the row measures tsx admission rather than inheriting the `.ts` verdict",
+      why: "THE `contract.ts` SPELLING: a FILE named `contract.ts` is the single-file form of a `contract/` directory. Dropping that entry reds this row. The `.tsx` anchor is here so the row measures tsx admission rather than inheriting the `.ts` verdict",
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/client/features/x/view.ct.tsx": "export const anchor = 1;\n",
+        "tests/support/node/rows.ts": "export type A = string;\n",
+        "tests/client/features/x/fixtures.ts": "export type B = string;\n",
+        "tests/client/features/x/panel.fixtures.ts": "export type C = string;\n",
+        "tests/client/components/picker.fixtures.tsx": "export type D = string;\n",
+        "tests/client/features/x/_connection-fixtures.ts": "export type E = string;\n",
+        "tests/client/features/x/_gallery-fixtures.tsx": "export type F = string;\n",
+        "tests/server/domain/x/_support.ts": "export type G = string;\n",
+      },
+      why: "THE TEST TYPE HOME: `tests/support/**` and the fixture and support module spellings hold the test-only shapes suites import. Each clause is falsified separately — dropping any one reds this row on its own file",
     },
     {
       mode: "types",

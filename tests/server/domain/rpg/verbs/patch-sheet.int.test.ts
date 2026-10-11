@@ -6,6 +6,7 @@
 // decides whose ROW, never which FIELDS, so a member self-granting a meter on their own `user` sheet was
 // reachable until 2026-08-07 (the host-only invariant was client-side only).
 
+// @orb-waive-file no-loose-id-cast({ maxHp: 30 }): baselined when the gate widened; burn-down item 906.
 import { RPG_PROFILE_D20, RPG_PROFILE_FREEFORM } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";

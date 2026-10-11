@@ -404,8 +404,10 @@ describe("updateConfig — knobs + profile mutability", () => {
       Array.from({ length: n }, (_, i) =>
         rpgTrackerDefSchema.parse({ key: `t${i}`, label: `T${i}`, shape: "meter", write: "delta", subject: "actor", appliesTo: "party" }),
       );
+    // @orb-waive no-loose-id-cast(many): baselined when the gate widened; burn-down item 906.
     await h.service.updateConfig({ principal: host, chatId, patch: { trackers: many(RPG_CONFIG_MAX_TRACKERS) as never } });
     expect((await findGameByChat(db, chatId))?.config.trackers.length).toBe(RPG_CONFIG_MAX_TRACKERS);
+    // @orb-waive no-loose-id-cast(many): baselined when the gate widened; burn-down item 906.
     await expect(h.service.updateConfig({ principal: host, chatId, patch: { trackers: many(RPG_CONFIG_MAX_TRACKERS + 1) as never } })).rejects.toThrow(
       /exceeds the cap/i,
     );

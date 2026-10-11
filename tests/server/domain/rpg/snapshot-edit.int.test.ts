@@ -7,6 +7,7 @@
 // stale turn's patches were rebased onto whatever was head at execution time instead of being refused as
 // superseded. The pin holds the section open, advances the beat inside that window, and asserts the refusal.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import type { ChatId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
 import { describe } from "vitest";

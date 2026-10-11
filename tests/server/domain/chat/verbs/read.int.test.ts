@@ -4,6 +4,13 @@
 // prompt WITHOUT persisting or running a turn, the stream-ring reads return the resumable slice, and a
 // non-participant is default-denied (leak-free NOT_FOUND). Reached through the BUNDLE `createRead(ctx, deps)`.
 
+// @orb-waive-file no-loose-id-cast(Snapshot): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast({ roll: 9 }): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast({ static: 42 }): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file platform-spellings(await): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file platform-spellings(expected): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file platform-spellings(hers): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file platform-spellings(shown): baselined when the gate widened; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatListCursor, ContextFitAnswer, ContextFitPreview, MemberCardVisibility, MessageView } from "@orb/contracts/chat";
 import { characterRegexTierKey, SHAPE_BREAKPOINT_DECISIONS } from "@orb/contracts/chat";
@@ -769,6 +776,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
     // EXACTLY once each: a tie-blind keyset returns the same page forever or jumps a whole tied run.
     expect(walked.length).toBe(seeded.length);
     expect(new Set(walked).size).toBe(seeded.length);
+    // @orb-waive platform-spellings(walked): baselined when the gate widened; burn-down item 906.
     expect([...walked].sort()).toEqual([...seeded].sort());
   });
 
@@ -802,6 +810,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
 
     expect(walked).toHaveLength(expected.length);
     expect(new Set(walked).size).toBe(expected.length);
+    // @orb-waive platform-spellings(walked): baselined when the gate widened; burn-down item 906.
     expect([...walked].sort()).toEqual([...expected].sort());
     expect(walked).not.toContain(atBoundary[0]);
     expect(walked).not.toContain(above[0]);

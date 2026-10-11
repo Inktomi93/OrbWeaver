@@ -1,5 +1,6 @@
 // CDP network events are normalized once at the typed handler boundary; retained records and HAR never
 // reinterpret raw protocol objects with Reflect.
+// @orb-waive-file no-loose-id-cast(value): baselined when the gate widened; burn-down item 906.
 import type { CDPSession, Page } from "@playwright/test";
 import { networkRecordsForPages, selectNetworkBodies, wirePageNetwork } from "../../../../tooling/src/floor/browser/browser-network.ts";
 import { buildNetworkHar } from "../../../../tooling/src/snap/lib/network-har.ts";

@@ -6,6 +6,7 @@
 // `skipToken` gate — so the server-bound procedure is NEVER called (the `no-fake-disabled-id`
 // invariant, verified here at the network-recorder level, not just by type).
 
+// @orb-waive-file no-loose-id-cast(CHAT_ID): baselined when the gate widened; burn-down item 906.
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";

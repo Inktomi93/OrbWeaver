@@ -14,11 +14,15 @@ type ConnectionRow = typeof userConnections.$inferSelect;
 type ConnectionInsert = typeof userConnections.$inferInsert;
 
 function toConnectionRow(row: ConnectionRow): UserConnection {
+  // @orb-waive json-column-read-parsed(features): baselined when the gate widened; burn-down item 905.
+  // @orb-waive json-column-read-parsed(declared): baselined when the gate widened; burn-down item 905.
   const summarize = row.declared?.features?.concurrency?.summarize;
   const declared =
     summarize !== undefined && summarize > SUMMARIZE_CONCURRENCY_MAX
       ? {
+          // @orb-waive json-column-read-parsed(declared): baselined when the gate widened; burn-down item 905.
           ...row.declared,
+          // @orb-waive json-column-read-parsed(features): baselined when the gate widened; burn-down item 905.
           features: { ...row.declared?.features, concurrency: { ...row.declared?.features?.concurrency, summarize: SUMMARIZE_CONCURRENCY_MAX } },
         }
       : row.declared;
@@ -33,9 +37,11 @@ function toConnectionRow(row: ConnectionRow): UserConnection {
     api: row.api,
     declared,
     extras: row.extras,
+    // @orb-waive json-column-read-parsed(transport): baselined when the gate widened; burn-down item 905.
     transport: row.transport,
     modelCheck: row.modelCheck,
     allowBackground: row.allowBackground,
+    // @orb-waive json-column-read-parsed(promptCache): baselined when the gate widened; burn-down item 905.
     promptCache: row.promptCache,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

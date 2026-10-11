@@ -46,6 +46,7 @@ import { CHARACTER_ACTIONS, characterActionItemsForScope, characterActionLabel, 
  *  here until this row wires it. */
 type RowActionId = (typeof CHARACTER_ACTION_SCOPE_IDS)["row"][number];
 
+// @orb-waive contract-structural-copy(CharacterCardItem): baselined when the gate widened; burn-down item 904.
 export interface CharacterCardItem {
   readonly id: string;
   readonly name: string;

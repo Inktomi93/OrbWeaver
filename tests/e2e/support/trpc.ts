@@ -14,6 +14,7 @@
 // straight from the server as ground truth, and some drive a turn via chat.send with an explicit
 // `intent` the UI composer can't inject (the context-cutoff spec's small `maxContextTokens` ceiling).
 
+// @orb-waive-file no-inline-types(ActorRefInput): baselined when the gate widened; burn-down item 906.
 import process from "node:process";
 import type { ContextLimitKind } from "@orb/contracts/chat";
 import type { ResponseCacheSettings } from "@orb/contracts/preset";

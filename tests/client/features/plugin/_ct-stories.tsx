@@ -9,6 +9,7 @@
 // and the declared list comes from a client-side manifest read of the uploaded bytes — a story that passed
 // the capability list in as a prop would prove nothing about the path that actually produces it.
 
+// @orb-waive-file testid-typed-only-stories("ct-extensions-content"): baselined when the gate widened; burn-down item 906.
 import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation, usePluginDisplayText, useTRPC } from "@orb/client/data";
 import { CommandPaletteSurface } from "@orb/client/features/chat";

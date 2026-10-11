@@ -3,6 +3,7 @@
 // re-upload of identical bytes dedups (duplicate/skipped, extraction NOT re-run); an empty extraction surfaces
 // the `empty-extraction` warning as DATA (not a throw).
 
+// @orb-waive-file no-vanity-alias(makeHarness): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import { documents } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

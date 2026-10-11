@@ -273,7 +273,8 @@ const DECLARATION_BOUNDARY_KINDS: ReadonlySet<ts.SyntaxKind> = new Set([
   SyntaxKind.VariableDeclaration,
 ]);
 
-function isBoundary(node: ts.Node): boolean {
+/** A node a marker's carrier walk stops at. A policy reads it to report one finding per waivable region. */
+export function isBoundary(node: ts.Node): boolean {
   return ts.isStatement(node) || ts.isJsxExpression(node) || DECLARATION_BOUNDARY_KINDS.has(node.kind);
 }
 

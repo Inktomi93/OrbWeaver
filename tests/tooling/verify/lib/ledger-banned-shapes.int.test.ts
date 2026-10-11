@@ -13,6 +13,9 @@
 // real tree would red any concurrent whole-tree biome pass, and `**/__probe*` is gitignored so biome
 // (useIgnoreFile) never sees a probe planted there — measured on this tree 2026-09-05: four planted probe
 // files came back "No files were processed in the specified paths".
+// @orb-waive-file platform-spellings(EXPECTED_GROUP): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file platform-spellings(Object): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file platform-spellings(row): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";

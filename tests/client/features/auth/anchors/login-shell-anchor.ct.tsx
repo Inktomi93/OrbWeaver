@@ -8,6 +8,7 @@
 // The auth config is stubbed at the network (`page.route`) — the backdrop reads it through the real
 // query layer.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { WeavePoint } from "@orb/ui/web-weave";
 import { buildWeb } from "@orb/ui/web-weave";

@@ -24,11 +24,14 @@ function toProviderDef(row: ProviderRow): ProviderDef {
     ...(row.dialect === null ? {} : { dialect: row.dialect }),
     auth: row.auth,
     ...(row.baseUrl === null ? {} : { baseUrl: row.baseUrl }),
+    // @orb-waive json-column-read-parsed(apis): baselined when the gate widened; burn-down item 905.
     apis: row.apis,
+    // @orb-waive json-column-read-parsed(serves): baselined when the gate widened; burn-down item 905.
     ...(row.serves === null ? {} : { serves: row.serves }),
     catalog: row.catalog,
     metered: row.metered,
     ...(row.docsUrl === null ? {} : { docsUrl: row.docsUrl }),
+    // @orb-waive json-column-read-parsed(features): baselined when the gate widened; burn-down item 905.
     ...(row.features === null ? {} : { features: row.features }),
   });
 }
@@ -48,11 +51,14 @@ function valuesOf(args: {
     dialect: row.dialect ?? null,
     auth: row.auth,
     baseUrl: row.baseUrl ?? null,
+    // @orb-waive json-column-read-parsed(apis): baselined when the gate widened; burn-down item 905.
     apis: row.apis,
+    // @orb-waive json-column-read-parsed(serves): baselined when the gate widened; burn-down item 905.
     serves: row.serves ?? null,
     catalog: row.catalog,
     metered: row.metered,
     docsUrl: row.docsUrl ?? null,
+    // @orb-waive json-column-read-parsed(features): baselined when the gate widened; burn-down item 905.
     features: row.features ?? null,
     definitionHash: hash,
     originKind: origin,

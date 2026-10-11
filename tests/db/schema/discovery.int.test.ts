@@ -9,6 +9,7 @@
 // `@orb/contracts/discovery` (D34 one-home) and this test pins `duplicate_chat_pairs.relation.enumValues`
 // to that imported tuple. `relation` lives ONLY on the chat table (characters have no fork lineage, D28).
 
+// @orb-waive-file no-loose-id-cast("nope"): baselined when the gate widened; burn-down item 906.
 import { RELATIONS } from "@orb/contracts/discovery";
 import type { Db } from "@orb/db";
 import {

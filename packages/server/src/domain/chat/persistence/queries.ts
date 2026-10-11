@@ -203,6 +203,7 @@ function toMessageView(
     ...view,
     hasContinuation: row.hasContinuation === 1,
     outputCapReached: providerMetadata?.provider === "claude-sub" && providerMetadata.outputCapReached === true,
+    // @orb-waive json-column-read-parsed(toolCalls): baselined when the gate widened; burn-down item 905.
     toolCalls: activeToolCalls(row.toolCalls, metadata, row.content),
   };
 }
@@ -981,6 +982,7 @@ export async function loadSlotTarget(db: Db, chatId: ChatId, messageId: MessageI
   // so a swipe/continue of it draws fresh rather than throwing (the `variableDelta` degrade precedent).
   const parsedDraws = userMacroDrawsSchema.safeParse(row.macroDraws);
   const metadata = parseVariantMetadata(row.metadata);
+  // @orb-waive json-column-read-parsed(toolCalls): baselined when the gate widened; burn-down item 905.
   const toolCalls = activeToolCalls(row.toolCalls, metadata, row.content);
   return { ...row, toolCalls, metadata, macroDraws: parsedDraws.success ? parsedDraws.data : null };
 }

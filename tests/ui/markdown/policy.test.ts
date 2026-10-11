@@ -6,6 +6,8 @@
 // host-allowlist, and the img-drop that separates TRUSTED_A from TRUSTED_A_UNTRUSTED. Deep-imports src
 // (browser package; @orb/ui is not node-resolvable) like shiki-theme.test.ts.
 
+// @orb-waive-file no-loose-id-cast({ type: "element", tagName, properties, children: [] }): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast({ type: "element", tagName: "a" }): baselined when the gate widened; burn-down item 906.
 import { describe } from "vitest";
 import {
   ownOriginMediaOnly,

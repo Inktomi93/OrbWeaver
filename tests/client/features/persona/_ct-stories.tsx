@@ -5,6 +5,9 @@
 // "set current" (no nesting, no stopPropagation crutch). The row instantiates `useUpdatePersona`, so it
 // mounts under `CtDataProviders` (the trpc client) — the overlay tests trigger no network call.
 
+// @orb-waive-file testid-typed-only-stories("fired"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("notified"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("personas-notifications-tail"): baselined when the gate widened; burn-down item 906.
 import { QueryBoundary } from "@orb/client/components";
 import { PersonaPanelRow, personaChrome } from "@orb/client/features/persona";
 import type { NotifyInput, NotifyNotice } from "@orb/client/lib";

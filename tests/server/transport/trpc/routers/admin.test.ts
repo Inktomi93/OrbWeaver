@@ -3,6 +3,8 @@
 // producer that starts returning an extra column fails the call instead of shipping it. The verbs' own gates are
 // their unit tests.
 
+// @orb-waive-file no-loose-id-cast(edge): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast(long): baselined when the gate widened; burn-down item 906.
 import type { UserRole } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";

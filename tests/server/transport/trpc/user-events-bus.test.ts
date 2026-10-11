@@ -11,6 +11,7 @@
 // UNWRAPPED control in the same run, because that control IS the defect: N per-item emits deliver N events,
 // which is what churned the visible library for the length of an ST import (staleness design §2.5).
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

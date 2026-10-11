@@ -27,6 +27,7 @@ import type { Trpc } from "./trpc.ts";
 import { useTRPC } from "./trpc.ts";
 import { useInvalidation } from "./use-invalidation.ts";
 
+// @orb-waive contract-structural-copy(StartChatVars): baselined when the gate widened; burn-down item 904.
 /** The wire vars — the CREATION-INTENT fields only. Mutable arrays match the wire schema's inferred type
  *  under exactOptionalPropertyTypes (the `characterIds` precedent). */
 interface StartChatVars {
@@ -49,6 +50,7 @@ const useStartChatMutation = createEntityMutation<StartChatVars, StartChatResult
   errorToast: "Couldn't start the chat.",
 });
 
+// @orb-waive no-inline-wire-interface(UseStartChatResult): baselined when the gate widened; burn-down item 904.
 export interface UseStartChatResult {
   /** Create the room and enter it. Resolves to the new chat id; rejects only if the caller wants to know —
    *  the failure is already toasted by the mutation's own `errorToast`. */

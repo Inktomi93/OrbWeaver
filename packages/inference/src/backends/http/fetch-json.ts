@@ -49,6 +49,7 @@ export interface FetchJsonArgs {
   readonly label: string;
 }
 
+// @orb-waive no-inline-wire-interface(FetchJsonResult): baselined when the gate widened; burn-down item 904.
 export interface FetchJsonResult {
   readonly status: number;
   readonly headers: Headers;

@@ -1,3 +1,14 @@
+// @orb-waive-file testid-typed-only-stories("active-chat-inspection"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("active-section"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("carry-log"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-bare-swap"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-go-chats"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-go-corpus"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-navigate-then-open"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ct-open-room"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("list-override"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("new-chat-intent"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("room-invite-request"): baselined when the gate widened; burn-down item 906.
 import { stampAppearanceBootHint } from "#client/compose/stamp-appearance-boot-hint.ts";
 import { getCorpusMode, healCorpusModeFrom, subscribeCorpusMode, writeCorpusMode } from "#client/state/corpus-mode-store.ts";
 // Story module for the state-tier CTs (Spine-Testing §7 — CT mounts ONLY from a non-test module).

@@ -23,6 +23,7 @@
 // `tests/client/routes/app-root.ct.tsx`; a defect in title composition must be pinned THERE. Do not restate
 // that file's pins here — a duplicate over a fake registry proves the fake, not the product.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { BlurSurface } from "@orb/contracts/settings";
 import { appearanceSettingsSchema, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";

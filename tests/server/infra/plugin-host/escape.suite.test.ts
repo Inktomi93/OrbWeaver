@@ -408,6 +408,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
     process.on("unhandledRejection", onUnhandled);
     try {
       await fn();
+      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
       await new Promise((resolve) => setTimeout(resolve, 0));
     } finally {
       process.off("unhandledRejection", onUnhandled);
@@ -418,6 +419,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
   test("the 33rd concurrent host call is rejected (≤32 in-flight cap) and the 32 pending drain cleanly at dispose", { timeout: LONG }, async () => {
     const host = makeHost();
     let release!: (v: Record<string, string>) => void;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const gate = new Promise<Record<string, string>>((r) => {
       release = r;
     });
@@ -503,6 +505,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
         // late release lands) before settling — so the burst is fired at the worst possible moment for the count.
         listMessages: async () => {
           releaseStragglers();
+          // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
           await new Promise((r) => setTimeout(r, 50));
           return [];
         },
@@ -810,6 +813,7 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
     const host = makeHost();
     const wrote: string[] = [];
     let release!: (value: string | null) => void;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const gate = new Promise<string | null>((resolve) => {
       release = resolve;
     });
@@ -857,6 +861,7 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
     const host = makeHost();
     const wrote: string[] = [];
     let release!: (value: string | null) => void;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const gate = new Promise<string | null>((resolve) => {
       release = resolve;
     });
@@ -942,6 +947,7 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
     expect(readsAtRefusal).toBeGreaterThanOrEqual(PLUGIN_AUTHORITY_TAIL_CALLS_MAX + 1);
     expect(readsAtRefusal - readsAtReturn).toBeLessThanOrEqual(PLUGIN_AUTHORITY_TAIL_CALLS_MAX);
     // The chain is dead, not slowed: no further host call lands after the refusal.
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise((resolve) => setTimeout(resolve, 200));
     expect(reads).toBe(readsAtRefusal);
     host.dispose(outcome.instance);

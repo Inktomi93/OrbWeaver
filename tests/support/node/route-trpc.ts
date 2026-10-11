@@ -422,9 +422,11 @@ export function trpcHold(): TrpcHoldMarker {
   // — definite assignment, not a throwaway no-op initialiser that could silently swallow a release.
   let onRequest!: () => void;
   let release!: (data: unknown) => void;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const requested = new Promise<void>((resolve) => {
     onRequest = resolve;
   });
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const released = new Promise<unknown>((resolve) => {
     release = resolve;
   });

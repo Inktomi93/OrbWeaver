@@ -28,6 +28,7 @@ import { MembersPanel } from "./members-panel.tsx";
 export interface CommittedMembersTabProps {
   readonly chatId: ChatId;
   readonly chat: {
+    // @orb-waive contract-structural-copy(participants): baselined when the gate widened; burn-down item 904.
     readonly participants: readonly ParticipantView[];
     /** The room's member-gated CHAT IDENTITY producer (`ChatDetail.identities`) — how a human seat's
      *  `activePersonaId` becomes the name and portrait the row renders (see `toPersonRows`). */

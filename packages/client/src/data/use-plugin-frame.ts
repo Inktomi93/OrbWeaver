@@ -21,6 +21,7 @@ import { PLUGIN_FRAME_ROUTE, pluginFrameMintResponseSchema } from "@orb/contract
 import type { PluginId } from "@orb/kit/ids";
 import { useEffect, useState } from "react";
 
+// @orb-waive no-inline-wire-interface(PluginFrameRequest): baselined when the gate widened; burn-down item 904.
 /** What a caller knows about ONE frame surface. Everything here is either an id the caller already holds or a
  *  theme value the server re-clamps. */
 export interface PluginFrameRequest {

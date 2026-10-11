@@ -91,6 +91,7 @@ export function createCompareAndSetImportedTokenUsage(db: Db, bumpCanonVersion: 
             eq(messageVariants.id, candidate.variantId),
             eq(messageVariants.tokenProvenance, "unrecorded"),
             eq(messageVariants.content, candidate.content),
+            // @orb-waive json-column-read-parsed(metadata): baselined when the gate widened; burn-down item 905.
             candidate.metadata === null ? isNull(messageVariants.metadata) : eq(messageVariants.metadata, candidate.metadata),
             candidate.tokensIn === null ? isNull(messageVariants.tokensIn) : eq(messageVariants.tokensIn, candidate.tokensIn),
             candidate.tokensOut === null ? isNull(messageVariants.tokensOut) : eq(messageVariants.tokensOut, candidate.tokensOut),

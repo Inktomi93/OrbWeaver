@@ -12,6 +12,7 @@
 // The rest pins the multiplex claim itself: N rooms cost ONE connect, and a frame for a room nobody joined
 // is dropped (the registry's own rule, and what the real server would never send anyway).
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

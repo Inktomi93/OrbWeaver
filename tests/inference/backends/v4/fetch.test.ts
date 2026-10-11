@@ -8,6 +8,7 @@
 // on the SAME capture entry as the request that produced them — off unless asked, scrubbed on the same terms
 // as the request body, and emitted even when the SDK abandons the stream without cancelling it.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { Wire } from "@orb/contracts/inference";
 import { resolvedScrubSet } from "#inference/backends/http/sanitize.ts";
 import type { WrapFetchArgs } from "#inference/backends/v4/fetch.ts";

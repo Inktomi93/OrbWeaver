@@ -11,9 +11,9 @@
 // arms never resolve an origin at all — the subject IS the AUTHORED alias syntax and a same-file/whole-
 // population NAME census, not a resolved identity. No shared `lib/` reader applies.
 // POPULATION PORT. Legacy `scanRoot` was `p.startsWith("packages/") && p.includes("/src/")` minus
-// `TEST_FILE` — i.e. EVERY workspace package's `src/`, tests excluded. The final population is the declared
-// `@product`; the `TEST_FILE` suffix exclusion is not expressible in the population algebra
-// (a content suffix, not a path prefix) and stays a code-level filter, ported verbatim.
+// a test-file suffix — i.e. EVERY workspace package's `src/`, tests excluded. The final population is
+// `@product` plus `@tests`, with no suffix filter: a test file is judged like any other authored module, and
+// its pre-existing renames carry baselined waivers.
 // THE ROOT MEMBERSHIP IS NOT RE-TYPED HERE. It was, as "the exact seven `packages/<pkg>/src/` roots", beside
 // an UNDATED claim of byte-identity — and both rotted the moment a package landed: `packages/inference/src/`
 // (`9a6061b487`) and `packages/default-content/src/` joined the tree, the legacy regex would have matched
@@ -62,7 +62,6 @@ import { defineGate } from "../contract/policy.ts";
 const DOC = "docs/law/Spine-TypeScript-and-Patterns.md";
 const MIN_PRODUCERS = 2;
 const DB_SCHEMA_DIR = "packages/db/src/schema/";
-const TEST_FILE = /\.(?:test|test-d|spec)\.[cm]?tsx?$/;
 
 /** A workspace-internal specifier — the package cake (`@orb/*`), a contracts subpath (`#…`), or relative
  *  (`.`/`..`). Everything else is a vendor package (renames of which are always legal). */
@@ -139,17 +138,10 @@ function exportedDeclarationNames(sf: SourceFile): string[] {
   return names;
 }
 
-function inScope(rel: string): boolean {
-  return !TEST_FILE.test(rel);
-}
-
 /** Cross-population producer count of every exported declaration name, for rule (b)'s ≥2-producer test. */
-function computeProducerCount(files: readonly SourceFile[], relOf: (sf: SourceFile) => string): Map<string, number> {
+function computeProducerCount(files: readonly SourceFile[]): Map<string, number> {
   const producerCount = new Map<string, number>();
   for (const sourceFile of files) {
-    if (!inScope(relOf(sourceFile))) {
-      continue;
-    }
     for (const name of new Set(exportedDeclarationNames(sourceFile))) {
       producerCount.set(name, (producerCount.get(name) ?? 0) + 1);
     }
@@ -232,9 +224,6 @@ function reportRenameExports(candidates: readonly ExportCandidate[], producerCou
 function reportDoubleAliases(files: readonly SourceFile[], relOf: (sf: SourceFile) => string, report: Report): void {
   for (const sourceFile of files) {
     const rel = relOf(sourceFile);
-    if (!inScope(rel)) {
-      continue;
-    }
     for (const [target, nameNodes] of doubleAliasGroups(rel, sourceFile.getTypeAliases())) {
       if (nameNodes.length < MIN_PRODUCERS) {
         continue;
@@ -273,9 +262,6 @@ export const gate = defineGate({
           kinds: [SyntaxKind.Identifier],
           visit: (node, sourceFile) => {
             const rel = ctx.relativePath(sourceFile);
-            if (!inScope(rel)) {
-              return;
-            }
             const freq = freqByFile.get(rel) ?? new Map<string, number>();
             const text = node.getText();
             freq.set(text, (freq.get(text) ?? 0) + 1);
@@ -289,9 +275,6 @@ export const gate = defineGate({
               return;
             }
             const rel = ctx.relativePath(sourceFile);
-            if (!inScope(rel)) {
-              return;
-            }
             const aliasNode = node.getAliasNode();
             const decl = node.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
             if (aliasNode === undefined || decl === undefined) {
@@ -325,7 +308,7 @@ export const gate = defineGate({
       ],
       evaluate: () => {
         const relOf = (sf: SourceFile): string => ctx.relativePath(sf);
-        const producerCount = computeProducerCount(ctx.files, relOf);
+        const producerCount = computeProducerCount(ctx.files);
         reportRenameImports(importCandidates, freqByFile, report);
         reportRenameExports(exportCandidates, producerCount, report);
         reportDoubleAliases(ctx.files, relOf, report);
@@ -358,6 +341,12 @@ export const gate = defineGate({
       files: { "tests/client/features/x/x.ct.tsx": 'import { Foo as Bar } from "@orb/kit/x";\nexport const use = Bar;\n' },
       expect: { count: 1, token: "Foo" },
       why: "THE TEST-PATH ARM: a cosmetic workspace rename-import in a `tests/**` file that is not a `.test.ts` is judged like product code (rule a)",
+    },
+    {
+      mode: "source",
+      files: { "tests/server/domain/x/x.test.ts": 'import { Foo as Bar } from "@orb/kit/x";\nexport const use = Bar;\n' },
+      expect: { count: 1, token: "Foo" },
+      why: "a `.test.ts` file is judged too: the suffix filter that once exempted test files is gone, so the same rename flags in a suite",
     },
   ],
   mustPass: [
@@ -424,11 +413,6 @@ export const gate = defineGate({
       mode: "source",
       files: { "packages/contracts/src/x.ts": "export type VariablesResult = ChatVariables;\n" },
       why: "a single bare type alias — the verb-vocabulary doctrine keeps one-off aliases legal (rule c needs 2+)",
-    },
-    {
-      mode: "source",
-      files: { "packages/server/src/domain/x/x.test.ts": 'import { Foo as Bar } from "@orb/kit/x";\nexport const use = Bar;\n' },
-      why: "THE POPULATION FENCE, pinned: a `.test.ts` file inside `@server` is admitted to the population but excluded by the `TEST_FILE`-suffix content filter — the same rename that would flag in a prod file is invisible here. Deleting the `inScope` filter leaves every other row green; this is the row that dies without it",
     },
     {
       mode: "source",

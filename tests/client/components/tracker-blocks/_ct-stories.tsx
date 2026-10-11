@@ -8,6 +8,7 @@
 // then exercise the ordinary commit path and pass against the bug. Suppressing the mousedown default keeps
 // focus in the field, so the value genuinely changes underneath a live edit, which is the whole scenario.
 
+// @orb-waive-file testid-typed-only-stories("tracker-value-committed"): baselined when the gate widened; burn-down item 906.
 import { TrackerValue } from "@orb/client/components";
 import type { ReactElement } from "react";
 import { useState } from "react";

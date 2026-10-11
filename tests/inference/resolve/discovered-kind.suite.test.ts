@@ -1,6 +1,7 @@
 // What a local server says about a model reaches every reader: the model's kind is discovered before the resolver and
 // the capability reader choose a task from it, and each model on a shared server gets its own per-model probe.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { createInferenceRuntime } from "@orb/inference";
 import { principal } from "../../support/factories/principal.ts";
 import { expect, test } from "../../support/fixtures.ts";

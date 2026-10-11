@@ -72,11 +72,9 @@ function unwrapParentheses(expression: Node): Node {
  *  the cast's operand is parenthesized (`("" as const) as unknown`); it does not generally unwrap casts,
  *  because the ordinary double-cast coordinate is deliberately the full `value as unknown` expression.
  *
- *  DECLARED LIMIT: this does not make every operand nameable, and it must not pretend to. An unwrapped
- *  expression whose own text still begins with `(` — a zero-arg arrow `() => x`, a parenthesized call
- *  receiver — has no leading paren-free slice either, and such a finding still refuses LOUDLY at the door.
- *  That is the correct outcome (a finding nobody can name is the defect #2107 exists to surface), and the
- *  fallback below deliberately hands the raw text back so the door refuses rather than silently dropping it. */
+ *  This does not make every operand nameable: an unwrapped expression whose own text still begins with `(`
+ *  — an arrow `() => x`, a parenthesized call receiver — has no leading paren-free slice. The visitor then
+ *  names the finding by the cast's target type, so it stays waivable instead of refusing the whole policy. */
 function castAnchor(expression: Node): Node {
   let current = unwrapParentheses(expression);
   // Preserve the ordinary double-cast coordinate (`value as unknown`). Descend through an inner cast
@@ -96,7 +94,7 @@ export const gate = defineGate({
   family: "id-brand-flow",
   authority: "ordinary",
   severity: "error",
-  population: "@product",
+  population: ["@product", "@tests"],
   analysis: "types",
   execution: "selected-files",
   facts: [],
@@ -117,20 +115,25 @@ export const gate = defineGate({
           }
           const expression = node.getExpression();
           const anchor = castAnchor(expression);
-          const raw = anchor.getText().trim();
-          // `?? raw` is the REFUSAL path, not a fallback that hides one: an operand with no anchorable head
-          // hands the raw text to the door, which refuses it loudly (#2107). Dropping the finding here would
-          // trade a visible tool error for a silent blind spot.
-          const token = waivableCoordinate(raw) ?? raw;
-          if (node.getTypeNode()?.isKind(SyntaxKind.NeverKeyword) === true) {
-            ctx.report.node(anchor, { token, offset: 0 });
+          const target = node.getTypeNode();
+          const operandToken = waivableCoordinate(anchor.getText().trim());
+          // An operand with no nameable head (`(a) => a`, a multi-line literal opening with a paren) is named by
+          // the cast's TARGET type instead, so the finding stays waivable rather than refusing the whole policy.
+          const report = (): void => {
+            if (operandToken !== undefined) {
+              ctx.report.node(anchor, { token: operandToken, offset: 0 });
+            } else if (target !== undefined) {
+              ctx.report.node(target, { token: target.getText(), offset: 0 });
+            }
+          };
+          if (target?.isKind(SyntaxKind.NeverKeyword) === true) {
+            report();
             return;
           }
           const semanticExpression = unwrapParentheses(expression);
           const inner = Node.isAsExpression(semanticExpression) && semanticExpression.getTypeNode()?.isKind(SyntaxKind.UnknownKeyword) === true;
-          const target = node.getTypeNode();
           if (inner && target !== undefined && canonicalIdBrand(ctx.checker().getTypeAtLocation(target), target, ctx.checker()) !== null) {
-            ctx.report.node(anchor, { token, offset: 0 });
+            report();
           }
         },
       },
@@ -142,6 +145,12 @@ export const gate = defineGate({
       files: { "packages/server/src/x.ts": "export const x = value as never;\n" },
       expect: { count: 1, token: "value" },
       why: "as never disables every assignability check",
+    },
+    {
+      mode: "types",
+      files: { "tests/server/domain/x/verb.test.ts": "export const handler = ((a: number) => a) as never;\nexport const y = value as never;\n" },
+      expect: { count: 2 },
+      why: "tests are judged, and an operand with no nameable head (an arrow opening with its parameter list) is named by the target type `never` instead of refusing the whole policy as an unwaivable position",
     },
     {
       mode: "types",
@@ -224,8 +233,8 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: { "packages/server/src/clean.ts": "export const clean = true;\n", "tests/server/x.test.ts": "export const x = value as never;\n" },
-      why: "tests are outside this policy population",
+      files: { "packages/server/src/clean.ts": "export const clean = true;\n", "scripts/x.ts": "export const x = value as never;\n" },
+      why: "scripts are outside this policy population; tests are inside it (the `as never` test row in mustFlag)",
     },
     {
       mode: "types",
@@ -261,14 +270,6 @@ export const gate = defineGate({
           'import type { UserId } from "../../kit/src/ids/index";\n// @orb-waive no-loose-id-cast(value): the proof reason; ends when the wrapped value stops flagging.\nexport const x = ((value) as unknown) as UserId;\n',
       },
       why: "The nested-parenthesis spelling binds only its exact value coordinate, proving coordinate selection stays distinct from the normalized inner cast used for detection.",
-    },
-  ],
-  mustRefuse: [
-    {
-      mode: "types",
-      files: { "packages/server/src/x.ts": "declare const value: string;\nexport const x = (() => value) as never;\n" },
-      expect: { messageIncludes: "cannot be named by an @orb-waive marker" },
-      why: "The bounded anchor repair does not pretend every paren-leading operand is nameable. After the authored parentheses are removed, a zero-argument arrow still begins with `(` and the report door must refuse it loudly rather than drop an unwaivable finding.",
     },
   ],
 });

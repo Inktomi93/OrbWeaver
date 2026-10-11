@@ -6,6 +6,22 @@
 // Zustand-draft closure. The observation convention throughout: a SEPARATE sibling reads the same draft
 // slot through the REACTIVE `useDraft` hook and serializes it into a testid `<output>` — reactive so an
 // edit re-renders the observed DOM, sibling so a buggy self-re-render loop can't spin.
+// @orb-waive-file testid-typed-only-stories("array-live"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("array-spy"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("autosave-status-retries"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("completion-calls"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("completion-draft"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("completion-state"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("promote-story-is-dirty"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("read-only-draft"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("read-only-state"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("saved-flush-draft"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("saved-mirror-draft"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("saved-restore-draft"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("saved-restore-is-default"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("seamless-draft"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("seamless-state"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("status-state"): baselined when the gate widened; burn-down item 906.
 import { hashServerBaseline } from "@orb/client/forms";
 import type { AutosaveSession, AutosaveStatusProps } from "@orb/client/forms/editor";
 import { AutosaveStatus, createAutosaveEntityForm, createSavedEntityForm } from "@orb/client/forms/editor";

@@ -1,3 +1,4 @@
+// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { Project } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate as verifyRegistryParity } from "../../../../tooling/src/verify/gates/verify-registry-parity.ts";

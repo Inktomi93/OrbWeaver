@@ -1,3 +1,4 @@
+// @orb-waive-file no-vanity-alias(test): baselined when the gate widened; burn-down item 906.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseDocument } from "yaml";

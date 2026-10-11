@@ -2,6 +2,16 @@
 // mounts from a non-test module) DELIBERATELY separate from `_ct-stories.tsx`, so these stories pull
 // in ONLY the pill + its hook + the message-list seal, never the whole chat surface graph.
 
+// @orb-waive-file testid-typed-only-stories("arrive"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("at-tail"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ctl-inc"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ctl-toggle"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("ctl-zero"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("dist"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("jumps"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("read-dist"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("toggle-live"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("toggle-pin"): baselined when the gate widened; burn-down item 906.
 import type { MessageListHandle } from "@orb/ui/message-list";
 import { MessageList } from "@orb/ui/message-list";
 import type { ReactElement } from "react";

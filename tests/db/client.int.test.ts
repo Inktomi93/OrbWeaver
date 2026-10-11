@@ -5,6 +5,7 @@
 // test exercises a UNIQUE violation; the foreign-key arm of isConstraintViolation is exercised by the
 // Wave-1 slices that land real FKs.
 
+// @orb-waive-file platform-spellings(expected): baselined when the gate widened; burn-down item 906.
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

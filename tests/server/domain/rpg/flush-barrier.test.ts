@@ -9,6 +9,7 @@
 // classifier and could turn a cancel into a RETRY), and the fact that a cancelled round still holds the barrier
 // until it unwinds.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createRpgFlushBarrier } from "@orb/server/domain/rpg";

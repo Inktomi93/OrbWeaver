@@ -1,3 +1,4 @@
+// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { TokenRemovalBaseline } from "@orb/ui/token-contract";

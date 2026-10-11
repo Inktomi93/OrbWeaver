@@ -251,6 +251,12 @@ function proof(row: PlatformProofInput): GatePolicyProof {
 const PLATFORM_MUST_FLAG: readonly GatePolicyProof[] = [
   {
     mode: "types",
+    files: { "tests/support/node/escape.ts": "export function escapeRegExp(value: string): string { return value; }" },
+    expect: { count: 1 },
+    why: "tests are judged: a test helper re-minting a Node 26 platform spelling drifts the same way product code does",
+  },
+  {
+    mode: "types",
     files: { "packages/showcase-plugins/src/index.ts": "export function escapeRegExp(value: string): string { return value; }" },
     expect: { count: 1 },
     why: "showcase retains the predecessor packages population; a clean current file does not exempt future re-mints",
@@ -539,7 +545,7 @@ export const gate = defineGate({
   family: "platform-spellings",
   authority: "ordinary",
   severity: "error",
-  population: "@product",
+  population: ["@product", "@tests"],
   analysis: "types",
   execution: "selected-files",
   facts: [],

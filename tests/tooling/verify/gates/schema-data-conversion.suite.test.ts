@@ -1,3 +1,4 @@
+// @orb-waive-file no-vanity-alias(gate): baselined when the gate widened; burn-down item 906.
 import { gate as wireVocabulary } from "../../../../tooling/src/verify/gates/wire-schema-vocab-one-home.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";

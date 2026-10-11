@@ -1,3 +1,4 @@
+// @orb-waive-file no-vanity-alias(config): baselined when the gate widened; burn-down item 906.
 import { basename } from "node:path";
 import process from "node:process";
 import { config as knipConfig } from "../../knip.ts";

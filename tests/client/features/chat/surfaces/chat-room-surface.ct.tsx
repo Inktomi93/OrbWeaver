@@ -194,6 +194,7 @@ test("a committed send adds NO invalidation of its own — the list refetch is b
   await page.route("**/api/trpc/**", async (route) => {
     const req = route.request();
     if (req.method() === "POST" && req.url().includes("chat.send")) {
+      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
       await new Promise((resolve) => setTimeout(resolve, 150));
     }
     await route.fallback();
@@ -232,6 +233,7 @@ test("a committed send adds NO invalidation of its own — the list refetch is b
 // suspended composer never mounted until settle; either way a regression drops the text).
 test("#13: typing while listMessages is in flight survives the room settle — no composer remount eats keystrokes", async ({ mount, page }) => {
   let releaseList: (() => void) | undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const listHeld = new Promise<void>((resolve) => {
     releaseList = resolve;
   });

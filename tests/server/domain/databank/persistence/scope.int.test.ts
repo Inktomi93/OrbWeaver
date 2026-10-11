@@ -8,6 +8,8 @@
 //   (d) a LEFT member's (leftSeq non-null) global docs stop crediting the room.
 // A `{ownerId}` scope stays the whole personal bank (junctions only scope chat retrieval, not a personal search).
 
+// @orb-waive-file no-loose-id-cast(42 as unknown): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast({ databankVisibility: { hidden: "not-an-array" } } as unknown): baselined when the gate widened; burn-down item 906.
 import { characterDocuments, characters, chatDocuments, chatParticipants, chats, documents, globalDocuments } from "@orb/db";
 import type { ChatId, DocumentId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

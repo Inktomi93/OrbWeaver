@@ -549,9 +549,11 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     let reachedResolve: (() => void) | undefined;
     let releaseResolve: (() => void) | undefined;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const reached = new Promise<void>((resolve) => {
       reachedResolve = resolve;
     });
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const release = new Promise<void>((resolve) => {
       releaseResolve = resolve;
     });
@@ -1332,6 +1334,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
 
     let arrivals = 0;
     let release!: () => void;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const bothLoaded = new Promise<void>((resolve) => {
       release = resolve;
     });

@@ -22,6 +22,9 @@
 // source with only the `started_at` column added, not a build error. The `reapHusk` arms could not be
 // expressed against the old surface (the verb did not exist) and are post-implementation coverage.
 
+// @orb-waive-file no-loose-id-cast({ name: "Aria", greetings: [] }): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast({ name: "Aria", greetings: [{ text: "Hello there friend." }] }): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast({ name: "Aria", greetings: [{ text: "Hi." }] }): baselined when the gate widened; burn-down item 906.
 import type { ChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";

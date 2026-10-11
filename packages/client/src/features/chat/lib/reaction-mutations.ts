@@ -16,6 +16,7 @@ import type { ReactionEmoji } from "@orb/contracts/chat";
 import type { ChatId, MessageVariantId } from "@orb/kit/ids";
 import { createEntityMutation } from "#data";
 
+// @orb-waive contract-structural-copy(ToggleReactionVars): baselined when the gate widened; burn-down item 904.
 export interface ToggleReactionVars {
   readonly chatId: ChatId;
   readonly variantId: MessageVariantId;

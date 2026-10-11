@@ -41,6 +41,7 @@ export interface LocalTimeline {
  *  placing a bucket by its start instant is exact. Buckets arrive ascending, so days come out ascending. */
 export function localTimeline(
   buckets: readonly {
+    // @orb-waive contract-structural-copy(bucketStart): baselined when the gate widened; burn-down item 904.
     readonly bucketStart: number;
     readonly chatsCreated: number;
     readonly userTurns: number;
@@ -71,6 +72,7 @@ function addBucketToDay(
   prior: LocalDay | undefined,
   day: string,
   bucket: {
+    // @orb-waive contract-structural-copy(bucketStart): baselined when the gate widened; burn-down item 904.
     readonly bucketStart: number;
     readonly assistantTurns: number;
     readonly tokensOut: number | null;
@@ -162,6 +164,7 @@ const MOMENTUM_LIMIT = 10;
  *  between the two most recent months with replies. Anchored to the data's months, not to wall-clock now,
  *  so a quiet current month does not read as everything falling. */
 export function localMomentum(
+  // @orb-waive contract-structural-copy(characterId): baselined when the gate widened; burn-down item 904.
   buckets: readonly { readonly characterId: CharacterId; readonly name: string; readonly bucketStart: number; readonly replies: number }[],
   position: (epochMs: number) => CalendarPosition,
 ): LocalMomentum {

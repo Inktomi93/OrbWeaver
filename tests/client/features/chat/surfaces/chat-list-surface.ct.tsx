@@ -21,6 +21,7 @@
 // real. `chat.getChat` ONLY — the owner refused warming `chat.listMessages` too (the measured trade is in
 // `use-prefetch-room.ts`); the map's `listMessages` row rides along because the two are one feed.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { expectInstrumentTierLive } from "../../../../support/browser/tier-liveness.ts";

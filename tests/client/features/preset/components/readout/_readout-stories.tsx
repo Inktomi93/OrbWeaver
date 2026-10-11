@@ -12,6 +12,10 @@
 // PROMPT pair (D121-G), where the same binding decides whether the rack's bars carry the bound chat's REAL
 // materialized costs or the chat-free `~—` floor.
 
+// @orb-waive-file testid-typed-only-stories("hosted-id-panel"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("pending-panel"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("retry-count"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("settled-panel"): baselined when the gate widened; burn-down item 906.
 import { PresetReadout } from "@orb/client/features/preset";
 import {
   __resetPresetSelection,

@@ -32,6 +32,7 @@ function healRetiredExtractionMode(config: unknown): unknown {
 
 /** Re-validate the `config` JSON blob through its contract schema (parse-on-read). */
 function parseGameRow(row: RpgGameRow): RpgGameRow {
+  // @orb-waive json-column-read-parsed(config): baselined when the gate widened; burn-down item 905.
   const parsed = rpgGameConfigSchema.safeParse(healRetiredExtractionMode(row.config));
   if (!parsed.success) {
     throw new RpgStateCorruptError("rpg_games", row.id, `config: ${parsed.error.message}`);

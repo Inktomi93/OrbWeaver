@@ -23,6 +23,7 @@ import { defineJsonObjectSerde } from "#primitives/serde/lib";
 export const PERSONA_SCHEMA_KIND = "orb.persona";
 export const PERSONA_SCHEMA_VERSION = 1;
 
+// @orb-waive contract-structural-copy(PersonaBackup): baselined when the gate widened; burn-down item 904.
 /** The canonical persona-backup value: the portable fields with concrete (non-optional) types. Excludes
  *  avatarAssetId (a binary asset reference can't ride a JSON backup). */
 export interface PersonaBackup {

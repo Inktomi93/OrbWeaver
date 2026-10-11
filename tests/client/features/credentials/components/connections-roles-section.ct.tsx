@@ -246,6 +246,7 @@ const STORED_REBUILD: ReindexPreview = { reindex: true, stored: { cards: 12, mem
  *  the route, then `fallback()`s into the stub once released. */
 async function gateTheWrite(page: Page): Promise<() => void> {
   let release = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const held = new Promise<void>((resolve) => {
     release = resolve;
   });
@@ -706,6 +707,7 @@ test("a pick whose embedder the server is still checking says so on its row unti
 test("a pick says it is checking from the moment the server is asked what it would rebuild", async ({ mount, page }) => {
   await stubPane(page, { reindexPreview: STORED_REBUILD });
   let releasePreview = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const previewHeld = new Promise<void>((resolve) => {
     releasePreview = resolve;
   });

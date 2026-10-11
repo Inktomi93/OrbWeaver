@@ -14,6 +14,7 @@
 // it runs FIRST (LIFO). `route` is never `abort`ed here. Every assertion barriers on a SETTLED rendered state
 // (the chip visible, the send recorded, the composer's value) — never a draft-state read.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";

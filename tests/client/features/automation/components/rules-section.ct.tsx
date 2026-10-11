@@ -12,6 +12,7 @@
 // own copy. Every one of them was RED against the pre-fix source (measured 2026-08-24, cb-rules-section).
 // The mount is 384px — the narrowest REAL host (the docked CONTEXT pane), never a roomy story width.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";

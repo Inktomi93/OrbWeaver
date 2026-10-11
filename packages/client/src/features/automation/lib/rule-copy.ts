@@ -403,6 +403,7 @@ export function runOutcomeNotice(name: string, outcome: AutomationRunOutcome): {
   }
 }
 
+// @orb-waive no-inline-wire-interface(FireOutcomeView): baselined when the gate widened; burn-down item 904.
 /** One fire outcome as a badge label + tone. */
 export interface FireOutcomeView {
   readonly label: string;

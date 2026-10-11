@@ -9,6 +9,7 @@
 // The SSRF belt ITSELF is proven in tests/server/infra/network/egress.test.ts; databank asserts only the
 // pass-through (the DB7 checkpoint, doc 08 §1).
 
+// @orb-waive-file no-vanity-alias(makeHarness): baselined when the gate widened; burn-down item 906.
 import { documents } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

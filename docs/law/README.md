@@ -21,6 +21,7 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 | [`@orb/tooling` — tooling-tree law](Core-Tooling-Law.md) | active |
 | [Core tooling: census hazards and the move playbook](core-tooling-move-playbook.md) | active |
 | [Docs and work items](docs-and-work.md) | active |
+| [Enforcement antipattern catalog](enforcement-antipatterns.md) | active |
 | [Gate-runtime read first](gate-runtime-read-first.md) | active |
 | [Gate-runtime standardization law](gate-runtime-standardization.md) | active |
 | [Integer line boxes — the crispness doctrine (Law 1: the crisp type scale; Laws 2-4: §9-§12)](integer-line-boxes.md) | active |

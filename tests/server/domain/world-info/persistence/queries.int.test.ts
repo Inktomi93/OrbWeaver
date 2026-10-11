@@ -11,6 +11,7 @@
 // Internal (non-front-door) files are imported by RELATIVE path — the package `./*` map only resolves a
 // module's directory front door, not a flat file.
 
+// @orb-waive-file no-loose-id-cast(overrides.metadata): baselined when the gate widened; burn-down item 906.
 import type { EntryView } from "@orb/contracts/world-info";
 import { worldBooks, worldEntries } from "@orb/db";
 import type { Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";

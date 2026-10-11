@@ -1,3 +1,4 @@
+// @orb-waive-file platform-spellings(expectedRows): baselined when the gate widened; burn-down item 906.
 import { readFileSync } from "node:fs";
 import { vi } from "vitest";
 import { appearanceMatrixContract } from "#client/lib/appearance-carrier-manifest.ts";

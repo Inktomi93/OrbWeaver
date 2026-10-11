@@ -55,6 +55,7 @@ interface FailedChat {
   readonly error: string;
 }
 
+// @orb-waive no-inline-wire-interface(ChatImportResult): baselined when the gate widened; burn-down item 904.
 /** The `POST /api/import/chat` response body: the REAL per-file outcome (the client summary derives from it). */
 export interface ChatImportResult {
   readonly imported: readonly ImportedChat[];

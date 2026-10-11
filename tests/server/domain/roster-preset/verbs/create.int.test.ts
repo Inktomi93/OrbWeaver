@@ -3,6 +3,8 @@
 // typed conflict, position normalization (sparse wire positions → dense 0..n-1), the groupConfig
 // parse-at-write, and the `rosterPresetsChanged` user-bus emit.
 
+// @orb-waive-file no-loose-id-cast({ output: "narrator", bogusKnob: true }): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast({ ruleset: "gurps" }): baselined when the gate widened; burn-down item 906.
 import { rosterPresetMembers, rosterPresets } from "@orb/db";
 import type { PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

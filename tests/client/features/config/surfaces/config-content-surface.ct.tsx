@@ -10,6 +10,7 @@
 // and the 430px push-detail arm → the app-shell's one-shell rule owns pane geometry now (app-shell.ct.tsx;
 // `ConfigMobileListStory` pins the LIST-is-the-screen half).
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";

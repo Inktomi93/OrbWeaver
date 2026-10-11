@@ -489,6 +489,7 @@ test("renders canon, then streams a turn and swaps the ghost for the canonical r
   // rendered ("Ping?" visible ⇒ the first fetch is done) makes the invalidate always land on an
   // idle query, so the refetch always fires for real.
   let releaseStream: (() => void) | undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const canonSettled = new Promise<void>((resolve) => {
     releaseStream = resolve;
   });
@@ -774,6 +775,7 @@ test("a chatOpened at a non-advancing cursor seq STILL invalidates on RE-attach 
   // always land on an idle query, so the refetch always fires for real. Registered last ⇒ runs FIRST per
   // request (Playwright routes are LIFO) and falls through unchanged for non-stream traffic.
   let releaseStream: (() => void) | undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const mountSettled = new Promise<void>((resolve) => {
     releaseStream = resolve;
   });
@@ -834,6 +836,7 @@ test("a chatOpened on the room's FIRST attach refetches NOTHING — the open's o
   // stream until canon has rendered guarantees `getChat` is IDLE when `chatOpened` arrives — i.e. the exact
   // condition under which the old seam DID spend a second round trip.
   let releaseStream: (() => void) | undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const mountSettled = new Promise<void>((resolve) => {
     releaseStream = resolve;
   });
@@ -1842,6 +1845,7 @@ test("a capability warning overlay preserves a stable streaming transcript", asy
     );
   await page.evaluate(
     async () =>
+      // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
       await new Promise<void>((resolve) => {
         // One settle window for the reflow the resize legitimately causes.
         setTimeout(resolve, 400);

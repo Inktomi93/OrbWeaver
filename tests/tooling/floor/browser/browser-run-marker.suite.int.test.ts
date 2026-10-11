@@ -141,6 +141,7 @@ async function spawnLeakChromium(name: string, marker: string | null): Promise<n
     throw new Error("leak chromium did not report a pid");
   }
   // Let execve settle so /proc/<pid>/cmdline reflects the launched argv before it is read.
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   await new Promise((resolve) => setTimeout(resolve, scaledBudget(300)));
   return pid;
 }
@@ -248,6 +249,7 @@ async function spawnLeasedChromium(name: string, marker: string, lease: string):
     throw new Error("leased leak chromium did not report a pid");
   }
   // Let execve settle so /proc/<pid>/cmdline reflects the launched argv before it is read.
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   await new Promise((resolve) => setTimeout(resolve, scaledBudget(300)));
   return pid;
 }

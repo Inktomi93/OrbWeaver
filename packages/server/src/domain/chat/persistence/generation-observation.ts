@@ -298,6 +298,7 @@ async function attachGenerationObservations(ctx: ChatContext, parent: Generation
   const next = {
     ...variant,
     ...usage,
+    // @orb-waive json-column-read-parsed(responseCache): baselined when the gate widened; burn-down item 905.
     responseCache: usage.responseCache ?? null,
     tokenProvenance: usage.tokensIn === null && usage.tokensOut === null ? ("unrecorded" as const) : ("measured" as const),
     metadata: { ...metadata, usageLegs },

@@ -114,6 +114,7 @@ export interface SearchDiscoveryComposeDeps {
   readonly isMemoryEnabled: (ownerId: UserId) => Promise<boolean>;
 }
 
+// @orb-waive no-inline-wire-interface(SearchDiscoveryComposeResult): baselined when the gate widened; burn-down item 904.
 /** The cluster compose product. `enqueueEmbedReindex` is returned so the keystone can bind it onto its
  *  late-bound embed-space-change holder (the trigger). */
 export interface SearchDiscoveryComposeResult {

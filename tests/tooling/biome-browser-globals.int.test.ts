@@ -11,6 +11,7 @@
 // under packages/*/src on the real tree would red any concurrent whole-tree biome/knip/tsc pass, and
 // `**/__probe*` is gitignored so biome (useIgnoreFile) never sees a probe planted there. The zero on the
 // local-binding body rides the SAME invocation as the nine-global body: a bare zero is never a verdict.
+// @orb-waive-file platform-spellings(DENIED_GLOBALS): baselined when the gate widened; burn-down item 906.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";

@@ -5,6 +5,7 @@
 // resolves (`resolveGroupBucketCharacterId`) equals the key RECALL reads (`findSyntheticGroupCharacter`), and
 // that the fabricated handle FK-throws (the original silent killer).
 
+// @orb-waive-file no-loose-id-cast({): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import { chatDigests, embedGenerations, userConnections } from "@orb/db";
 import type { CharacterId, EmbedGenerationId, Handle, UserConnectionId } from "@orb/kit/ids";

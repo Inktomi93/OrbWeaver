@@ -12,6 +12,7 @@
 // routeOrbSocket so it runs FIRST (LIFO). Every assertion barriers on a SETTLED rendered state — the card
 // visible, the panel's own visibility — never on a state that exists only mid-flight.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";

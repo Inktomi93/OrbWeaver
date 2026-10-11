@@ -56,6 +56,7 @@ export interface AdminComposeDeps {
   readonly serverRestart: ServerRestartPort;
 }
 
+// @orb-waive no-inline-wire-interface(AdminComposeResult): baselined when the gate widened; burn-down item 904.
 /** The admin compose product: the admin service + the two singletons built here (the ONE tool-use registry and
  *  the export service). */
 export interface AdminComposeResult {

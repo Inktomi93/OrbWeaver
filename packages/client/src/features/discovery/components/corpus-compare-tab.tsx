@@ -207,6 +207,7 @@ function DeepNarrative({
   readonly isPending: boolean;
   readonly error: unknown | null;
   readonly narrative: {
+    // @orb-waive contract-structural-copy(summary): baselined when the gate widened; burn-down item 904.
     readonly summary: string;
     readonly overlap: string;
     readonly distinction: string;

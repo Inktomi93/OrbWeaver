@@ -3,6 +3,7 @@
 // suite is about exactly two things: that a stranger is refused leak-free, and that the map projects only the
 // BUNDLE half of `plugin_assets` (a runtime `net.fetchAsset` cover is not a named resolution target).
 
+// @orb-waive-file no-loose-id-cast(shipped?.assetId): baselined when the gate widened; burn-down item 906.
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { PluginNotFoundError, recordPluginFetchedAsset } from "@orb/server/domain/plugin";

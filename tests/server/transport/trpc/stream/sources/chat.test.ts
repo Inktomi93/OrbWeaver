@@ -14,6 +14,7 @@
 // guaranteed by the scrub state being allocated INSIDE the pump — weaker-looking, therefore tested: one
 // principal, one socket, two chats, ONE deception-active.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
 import type { ChatId, SocketId, UserId } from "@orb/kit/ids";

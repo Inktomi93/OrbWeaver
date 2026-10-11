@@ -9,6 +9,7 @@
 //
 // The bell button is addressed by ROLE + accessible name (its aria-label carries the unread count) —
 // deliberate: the name IS the a11y contract (see the component header for why no testid rides it).
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { notificationEventSchema } from "@orb/contracts/notifications";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { PluginId } from "@orb/kit/ids";

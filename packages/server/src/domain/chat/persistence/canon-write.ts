@@ -172,6 +172,7 @@ interface InsertCanonMessageParams extends CanonSlotAttribution {
   readonly variant: CanonVariantInput;
 }
 
+// @orb-waive contract-structural-copy(VariantEconomics): baselined when the gate widened; burn-down item 904.
 /** The economics fields shared by the `message_variants` insert AND the `MessageView` read-model — one
  *  home so the committed view can't drift from the persisted row. */
 interface VariantEconomics {
@@ -294,23 +295,32 @@ function variantColumns(args: {
     idx: args.idx,
     ...variantEconomics(args.variant),
     servedModel: args.variant.servedModel ?? null,
+    // @orb-waive json-column-read-parsed(tokenDetails): baselined when the gate widened; burn-down item 905.
     tokenDetails: args.variant.tokenDetails ?? null,
+    // @orb-waive json-column-read-parsed(responseCache): baselined when the gate widened; burn-down item 905.
     responseCache: args.variant.responseCache ?? null,
+    // @orb-waive json-column-read-parsed(metadata): baselined when the gate widened; burn-down item 905.
     metadata: args.variant.metadata ?? null,
     maxOutputTokens: args.variant.maxOutputTokens ?? null,
     reasoningEffort: args.variant.reasoningEffort ?? null,
     reasoningTokens: args.variant.reasoningTokens ?? null,
+    // @orb-waive json-column-read-parsed(costDetails): baselined when the gate widened; burn-down item 905.
     costDetails: args.variant.costDetails ?? null,
+    // @orb-waive json-column-read-parsed(reasoningParts): baselined when the gate widened; burn-down item 905.
     reasoningParts: reasoningPartsColumn(args.variant.reasoningParts),
     cue: args.variant.cue?.text ?? null,
     cueRole: args.variant.cue?.role ?? null,
+    // @orb-waive json-column-read-parsed(params): baselined when the gate widened; burn-down item 905.
     params: args.variant.params ?? null,
+    // @orb-waive json-column-read-parsed(promptSnapshot): baselined when the gate widened; burn-down item 905.
     promptSnapshot: args.variant.promptSnapshot ?? null,
     variableDelta: args.variant.variableDelta ?? null,
+    // @orb-waive json-column-read-parsed(toolCalls): baselined when the gate widened; burn-down item 905.
     toolCalls: args.variant.toolCalls ?? null,
     macroDraws: args.variant.macroDraws ?? null,
     // Raw + freeze provenance — null unless a persist-time transform actually changed bytes / a volatile
     // macro actually froze (the columns' own contract; see schema/chat.ts).
+    // @orb-waive json-column-read-parsed(macroFreezes): baselined when the gate widened; burn-down item 905.
     ...freezeProvenanceColumns(args.variant.content, args.variant.rawContent, args.variant.macroFreezes),
     createdAt: args.now,
   };
@@ -900,6 +910,7 @@ export function buildCommittedMessageView(params: InsertCanonMessageParams): Mes
     ...variantEconomics(params.variant),
     // The freshly-committed view's tool exchanges — the read seam's `[]`-default (never null) for the
     // client's tool read surface; a non-tool turn commits an empty array (D48).
+    // @orb-waive json-column-read-parsed(toolCalls): baselined when the gate widened; burn-down item 905.
     toolCalls: params.variant.toolCalls ?? [],
   };
 }

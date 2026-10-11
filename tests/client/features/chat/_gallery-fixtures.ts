@@ -1,6 +1,7 @@
 // Shared network stubs and rows for the gallery CTs (the dialog, its add-picker and its upload zone). Every
 // suite mounts `CharacterGalleryDialogStory`, whose character is `character_ct_gallery` named "Aria".
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import type { Page } from "@playwright/test";
 import type { TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 

@@ -41,6 +41,7 @@ test("a slow auth read on a signed-out /join landing reaches the invite form, no
   const meReads: string[] = [];
   await page.route("**/api/auth/me", async (route) => {
     meReads.push(route.request().url());
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise<void>((resolve) => {
       setTimeout(resolve, SLOW_ME_MS);
     });
@@ -79,6 +80,7 @@ test("overlapping navigations during a slow guard settle on the latest login loc
   let reads = 0;
   await page.route("**/api/auth/me", async (route) => {
     reads += 1;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     await new Promise<void>((resolve) => setTimeout(resolve, SLOW_ME_MS));
     await route.fulfill({ status: 200, json: { authenticated: false, handle: null, role: null } });
   });

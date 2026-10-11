@@ -7,6 +7,7 @@
 // hand-built, i.e. here; the cross-invocation half of that invariant is the escape suite's (it needs a Sandbox).
 // The full end-to-end runtime lives in port.test.ts; this is the module's own-seam mirror.
 
+// @orb-waive-file platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

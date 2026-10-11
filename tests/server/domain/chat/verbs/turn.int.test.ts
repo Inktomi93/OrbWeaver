@@ -1,3 +1,4 @@
+// @orb-waive-file no-loose-id-cast(stmts): baselined when the gate widened; burn-down item 906.
 import type { ChatContentPart, ChatReasoningPart } from "@orb/contracts/chat";
 // verbs/turn — the turn-running front doors (.int: real libSQL for the lock + the D26 canon persist + a REAL
 // engine via `createTurnEngine`). Proves the wiring: identity triple → connection → ONE assemble ctx →
@@ -1323,6 +1324,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
     const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
     let generations = 0;
     let arbiterEntered: () => void = () => undefined;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const arrived = new Promise<void>((resolve) => {
       arbiterEntered = resolve;
     });
@@ -1546,6 +1548,7 @@ describe("send — auto-mode AI→AI chain", () => {
     // next chain arbitration exactly like a non-responsive box — settling only when the turn signal fires.
     let calls = 0;
     let hungEntered: () => void = () => undefined;
+    // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
     const arrived = new Promise<void>((resolve) => {
       hungEntered = resolve;
     });
@@ -4398,6 +4401,7 @@ test("the post-turn rpg round opens its OWN request trace (it outlives the reque
   // The round is fire-and-forget, so the test needs a handle on its completion: the stub resolves this once
   // its (deliberately async) work is done, which is also when the round's span ends and its bucket seals.
   let roundDone = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const rounded = new Promise<void>((resolve) => {
     roundDone = resolve;
   });
@@ -4455,6 +4459,7 @@ test("the send-path rpg user-commit opens its OWN request trace (it outlives the
   await seedParticipant(db, { chatId, key: "c", characterId: charA });
 
   let commitDone = (): void => undefined;
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   const committed = new Promise<void>((resolve) => {
     commitDone = resolve;
   });

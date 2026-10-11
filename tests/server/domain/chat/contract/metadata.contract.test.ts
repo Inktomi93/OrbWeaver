@@ -5,6 +5,7 @@
 // default-applying accessors. Plus a few
 // compile-time shape pins for representative param/result/view types.
 
+// @orb-waive-file no-loose-id-cast("alex"): baselined when the gate widened; burn-down item 906.
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";

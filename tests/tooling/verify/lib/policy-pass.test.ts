@@ -1,3 +1,7 @@
+// @orb-waive-file no-loose-id-cast(details): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast({): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast({ kind: "bogus", source: "bogus-kind", resources: 1 }): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast({ root: otherRoot }): baselined when the gate widened; burn-down item 906.
 import { symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";

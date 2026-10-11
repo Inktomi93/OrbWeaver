@@ -17,6 +17,7 @@
 // SUCCEED. A refusal test that would also pass with the belt deleted proves nothing; the paired success is
 // what makes each `expect(...).rejects` a statement about the belt rather than about the fixture.
 
+// @orb-waive-file no-loose-id-cast({ name: "Aria", greetings: greetings.map): baselined when the gate widened; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";

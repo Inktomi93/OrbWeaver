@@ -4,6 +4,7 @@
 // cascade on delete; the emitted bus event; and the runOnEdit regex re-apply on `editMessage`. The
 // verbs are reached through the BUNDLE `createEdit(ctx, {emit, resolveForeignInputs})`.
 
+// @orb-waive-file no-loose-id-cast({ name: "Aria", avatarAssetId: null, regexScripts: [] }): baselined when the gate widened; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";

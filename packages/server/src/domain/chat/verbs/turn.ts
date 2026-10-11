@@ -1600,6 +1600,7 @@ async function commitUserTurn(
   ctx: ChatContext,
   deps: TurnDeps,
   args: {
+    // @orb-waive contract-structural-copy(principal): baselined when the gate widened; burn-down item 904.
     readonly principal: SendParams["principal"];
     readonly chatId: ChatId;
     readonly content: string;

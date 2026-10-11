@@ -60,6 +60,7 @@ test("the bar-end value label is drawn INSIDE the canvas, not clipped by a fixed
   const canvas = component.locator("canvas");
   await expect(canvas).toBeVisible();
   await expect.poll(async () => (await canvas.boundingBox())?.width ?? 0, { intervals: [50, 100, CANVAS_SETTLE_MS] }).toBeGreaterThan(0);
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   await new Promise((resolve) => setTimeout(resolve, CANVAS_SETTLE_MS));
 
   const band = await readCanvasBandInk(canvas, 0.2, 0.33);
@@ -71,6 +72,7 @@ test("a long category name is truncated to a budget instead of eating the plot (
   const component = await mount(<ClippedValueLabelStory />);
   const canvas = component.locator("canvas");
   await expect(canvas).toBeVisible();
+  // @orb-waive platform-spellings(Promise): baselined when the gate widened; burn-down item 906.
   await new Promise((resolve) => setTimeout(resolve, CANVAS_SETTLE_MS));
 
   const band = await readCanvasBandInk(canvas, 0.2, 0.33);

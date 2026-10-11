@@ -5,6 +5,9 @@
 // exercised in isolation, in fall-through order, and with the two arms INTERLEAVED (the case that did not
 // exist before D124 and is the whole risk surface of the reshape).
 
+// @orb-waive-file no-loose-id-cast("not-an-array"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast(`message_${opts.chatId}_${opts.seq}`): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file no-loose-id-cast(opts.chatId): baselined when the gate widened; burn-down item 906.
 import type { Db } from "@orb/db";
 import { messages, rpgSnapshots } from "@orb/db";
 import type { ChatId, MessageVariantId } from "@orb/kit/ids";
@@ -45,6 +48,7 @@ async function seedSnapshot(opts: {
 }): Promise<void> {
   await insertSnapshot(db, {
     id: snapshotId(opts.key),
+    // @orb-waive no-loose-id-cast(opts.gameId): baselined when the gate widened; burn-down item 906.
     gameId: opts.gameId as never,
     messageId: `message_${opts.chatId}_${opts.seq}` as never,
     variantId: opts.variantId,
@@ -397,6 +401,7 @@ async function seedHandRow(opts: { gameId: string; chatId: ChatId; key: string; 
     db,
     { ...emptyState(), location: opts.location },
     null,
+    // @orb-waive no-loose-id-cast(opts.gameId): baselined when the gate widened; burn-down item 906.
     handTarget({ gameId: opts.gameId as never, chatId: opts.chatId as never, key: opts.key, now: opts.now ?? FROZEN_AT }),
   );
 }
