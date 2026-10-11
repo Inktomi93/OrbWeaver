@@ -34,6 +34,7 @@ import { CommittedSettingsTab } from "../components/settings-context-tab.tsx";
 import { useChatContextState } from "../hooks/use-chat-context-state.ts";
 import { useChatListHeader } from "../hooks/use-chat-list-header.tsx";
 import { ChatListSurface } from "../surfaces/chat-list-surface.tsx";
+import { CHAT_CONTEXT_TAB_LABELS } from "./chat-context-tab-labels.ts";
 import { CHATS_SECTION_LABEL } from "./chats-section-label.ts";
 import { useChatsSelectionTitle } from "./chats-selection-title.ts";
 import { membersTabJustified, resolveIsGroupChat } from "./roster.ts";
@@ -71,7 +72,7 @@ export function chatContextTabs(
   return [
     {
       id: "members",
-      label: "Members",
+      label: CHAT_CONTEXT_TAB_LABELS.members,
       icon: Users,
       when: (s) => membersTabJustified(s.participants, s.multiHumanCapable, s.isHost),
       body: (s) => <CommittedMembersTab {...toMembersTabProps(s)} />,
@@ -83,7 +84,7 @@ export function chatContextTabs(
     // the permission-omit, now per-section so the strip drops slots without dropping controls.
     {
       id: "settings",
-      label: "This chat",
+      label: CHAT_CONTEXT_TAB_LABELS.settings,
       icon: SlidersHorizontal,
       body: (s) => (
         <CommittedSettingsTab
@@ -98,7 +99,7 @@ export function chatContextTabs(
     },
     {
       id: "preview",
-      label: "Preview",
+      label: CHAT_CONTEXT_TAB_LABELS.preview,
       icon: Eye,
       // HOST-ONLY (HUD-1 §4): `when` already omits it for a member; `crown` is how a CLAIMANT paints that
       // fact — the crown-gold glyph that reads "host-only" without spending a word on it.

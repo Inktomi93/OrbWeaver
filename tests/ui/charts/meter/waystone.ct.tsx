@@ -9,6 +9,8 @@
 //   • a state change TRANSITIONS instead of swapping (the hand's rotate + the sky crossfade are wired);
 //   • reduced motion REMOVES every animation while every layer still paints (static but still distinct).
 // One mount per test (mount() is once-per-test; a state change uses update()).
+
+import { UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { Waystone } from "@orb/ui/meter";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
@@ -315,9 +317,7 @@ for (const { label, base } of [
         </div>
       </ThemeScope>,
     );
-    await expect
-      .poll(() => component.getByTestId("panel").evaluate(partVsSurface, WAYSTONE_TRACK), { intervals: [20, 50, 100] })
-      .toBeGreaterThan(DIAL_TRACK_FLOOR);
+    await expect.poll(() => partVsSurface(component.getByTestId("panel"), WAYSTONE_TRACK), { intervals: [20, 50, 100] }).toBeGreaterThan(DIAL_TRACK_FLOOR);
   });
 }
 
@@ -366,7 +366,7 @@ for (const { name, background } of [
     await panel.locator(moonSelector).evaluate((el) => {
       (el as SVGElement).style.color = getComputedStyle(el).fill;
     });
-    await expect.poll(() => panel.evaluate(partVsSurface, moonSelector)).toBeGreaterThanOrEqual(3);
+    await expect.poll(() => partVsSurface(panel, moonSelector)).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
     await expect(panel.locator('[data-slot="waystone-horizon"]')).toHaveCSS("fill", TOKENS["color.sky-night"].value);
     await expect
       .poll(() =>

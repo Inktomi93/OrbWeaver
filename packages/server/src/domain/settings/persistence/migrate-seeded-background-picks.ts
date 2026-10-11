@@ -69,7 +69,6 @@ export async function migrateSeededBackgroundPicks(db: Db, ownerId: UserId | nul
   for (const pick of await selectSeededPicks(db, ownerId)) {
     const plate = pick.slug.length === 0 ? null : await resolve(pick.slug);
     const current = await readUserSettings(db, pick.userId);
-    // @orb-waive json-column-read-parsed(config): baselined when the gate widened; burn-down item 905.
     await writeUserConfig(db, pick.userId, repointedConfig(current.config, plate), at);
     rewritten++;
   }

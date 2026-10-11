@@ -281,7 +281,7 @@ test("jumping to a month resets loaded pages and lands its newest old row withou
   await expect
     .poll(async () => {
       await page.mouse.wheel(0, EVICTION_SCROLL_STEP_PX);
-      return trpc.inputs("chat.listChats").filter((input) => (input as { cursor?: unknown } | undefined)?.cursor !== undefined).length;
+      return trpc.inputs("chat.listChats").filter((input) => input?.cursor !== undefined).length;
     }, evictionPoll())
     .toBeGreaterThan(0);
 
@@ -291,9 +291,7 @@ test("jumping to a month resets loaded pages and lands its newest old row withou
 
   await expect(component.getByText("June 2020 anchor")).toBeVisible();
   await expect(component.getByText(RECENT_ROW_RE)).toHaveCount(0);
-  await expect
-    .poll(() => trpc.inputs("chat.listChats").some((input) => (input as { beforeRecencyAt?: number } | undefined)?.beforeRecencyAt === Date.UTC(2020, 6, 1)))
-    .toBe(true);
+  await expect.poll(() => trpc.inputs("chat.listChats").some((input) => input?.beforeRecencyAt === Date.UTC(2020, 6, 1))).toBe(true);
 
   const clear = component.getByRole("button", { name: "Clear the month" });
   await expect
@@ -1457,9 +1455,7 @@ test("#385 a December jump rolls the exclusive bound into the following January 
   await openMonthFilter(component);
   await component.getByLabel("Show chats up to").fill("2020-12");
 
-  await expect
-    .poll(() => trpc.inputs("chat.listChats").some((input) => (input as { beforeRecencyAt?: number } | undefined)?.beforeRecencyAt === Date.UTC(2021, 0, 1)))
-    .toBe(true);
+  await expect.poll(() => trpc.inputs("chat.listChats").some((input) => input?.beforeRecencyAt === Date.UTC(2021, 0, 1))).toBe(true);
   await expect(component.getByText("No chats found by December 2020.")).toBeVisible();
 });
 

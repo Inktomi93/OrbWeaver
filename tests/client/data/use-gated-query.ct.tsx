@@ -17,8 +17,8 @@ const CHAT_ID = castId<ChatId>("chat_gatedquerytest01");
 
 test("a real id flows the query end-to-end (queryOptions fires, resolves, renders)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "chat.getChat": (input: unknown) => ({
-      title: `room for ${(input as { chatId: ChatId }).chatId}`,
+    "chat.getChat": (input) => ({
+      title: `room for ${input.chatId}`,
     }),
   });
 

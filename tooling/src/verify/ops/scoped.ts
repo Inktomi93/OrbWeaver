@@ -28,6 +28,7 @@ import { renderPolicyPass } from "../lib/render.ts";
 import { gitChangedPaths } from "../lib/repo-paths.ts";
 import { reviewedGrantsFor } from "../lib/reviewed-grants.ts";
 import { policyReport, policyRows } from "../lib/structure-report.ts";
+import { WAIVER_BUDGET } from "../lib/waiver-budget.ts";
 
 refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts scoped --scope <folder-glob>");
 
@@ -244,6 +245,7 @@ function runScopedPolicyPass(policies: readonly GatePolicy[], base: ProjectConte
     project: base.project,
     requestedPaths: files.map((sf) => repoRel(base.root, sf.getFilePath())),
     reviewedGrants: reviewedGrantsFor(policies),
+    waiverBudget: WAIVER_BUDGET,
     failOnWarnings,
   });
   // biome-ignore lint/style/noProcessEnv: ORB_GATE_FIXTURES is the check-gates suite's opt-out knob for its own child runs — harness plumbing, not app config.

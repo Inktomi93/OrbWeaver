@@ -41,9 +41,8 @@ import { gate as scrubberFactoryHome } from "../../../../../tooling/src/verify/g
 import { gate as staleDraftDecisionHealth } from "../../../../../tooling/src/verify/gates/stale-draft-decision-health.ts";
 import { gate as structuredPlanOneHome } from "../../../../../tooling/src/verify/gates/structured-plan-one-home.ts";
 import { gate as testFactoryContract } from "../../../../../tooling/src/verify/gates/test-factory-contract.ts";
-import { gate as testPresence } from "../../../../../tooling/src/verify/gates/test-presence.ts";
 import { gate as testPresenceClient } from "../../../../../tooling/src/verify/gates/test-presence-client.ts";
-import { gate as testPresenceInference } from "../../../../../tooling/src/verify/gates/test-presence-inference.ts";
+import { gate as testReach } from "../../../../../tooling/src/verify/gates/test-reach.ts";
 import { gate as testidLiveness } from "../../../../../tooling/src/verify/gates/testid-liveness.ts";
 import { gate as toolingClockBudget } from "../../../../../tooling/src/verify/gates/tooling-clock-budget.ts";
 import { gate as toolingInstrumentProof } from "../../../../../tooling/src/verify/gates/tooling-instrument-proof.ts";
@@ -237,17 +236,9 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "client data/forms/state primitive has no test",
   },
   {
-    policy: testPresenceInference,
-    overlays: planted(
-      "packages/inference/src/extensions/liveness-normalize.ts",
-      "export function livenessNormalize(value: string): string {\n  return value.trim();\n}\n",
-    ),
-    messageIncludes: "has no supported test topology",
-  },
-  {
-    policy: testPresence,
+    policy: testReach,
     overlays: [add(`${DOMAIN}/persistence/liveness-record.ts`, "export const livenessRecord = () => 1;\n")],
-    messageIncludes: "persistence file has no .int.test",
+    messageIncludes: "persistence module is reached by no integration test",
   },
   {
     policy: testidLiveness,

@@ -6,6 +6,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { WorldInfoSettingsSectionStory } from "../_ct-stories.tsx";
@@ -18,19 +19,11 @@ const SETTINGS_VIEW: TrpcWireOutput<"settings.getUserSettings"> = {
   configUnreadable: null,
 };
 
-const UPDATE_PROC = "settings.updateUserSettingsSection";
-
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "settings.getUserSettings": () => SETTINGS_VIEW,
-    [UPDATE_PROC]: () => SETTINGS_VIEW,
+    [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW,
   });
-}
-
-/** The most recent worldInfo-section patch body. */
-function lastPatch(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  const input = trpc.lastInput(UPDATE_PROC) as { section?: string; patch?: Record<string, unknown> } | undefined;
-  return input?.section === "worldInfo" ? input.patch : undefined;
 }
 
 test("mounts with the persisted defaults rendered (scanDepth 6, tokenBudget 1024)", async ({ mount, page }) => {
@@ -51,8 +44,8 @@ test("stepping scan depth fires updateUserSettingsSection('worldInfo') with the 
   await page.getByRole("button", { name: "Increase" }).first().click();
   await expect(page.getByRole("textbox", { name: "Scan depth" })).toHaveValue("7");
   // The autosave form submits the whole section — the moved field AND the untouched one, field-for-field.
-  await expect.poll(() => lastPatch(trpc)?.["scanDepth"], { intervals: [20, 50, 100] }).toBe(7);
-  expect(lastPatch(trpc)?.["tokenBudget"]).toBe(1024);
+  await expect.poll(() => lastSettingsPatch(trpc, "worldInfo")?.["scanDepth"], { intervals: [20, 50, 100] }).toBe(7);
+  expect(lastSettingsPatch(trpc, "worldInfo")?.["tokenBudget"]).toBe(1024);
 });
 
 test("stepping token budget fires the worldInfo patch with the new tokenBudget", async ({ mount, page }) => {
@@ -60,5 +53,5 @@ test("stepping token budget fires the worldInfo patch with the new tokenBudget",
   await mount(<WorldInfoSettingsSectionStory />);
   await page.getByRole("textbox", { name: "Token budget" }).focus();
   await page.getByRole("button", { name: "Increase" }).nth(1).click();
-  await expect.poll(() => lastPatch(trpc)?.["tokenBudget"], { intervals: [20, 50, 100] }).toBe(1025);
+  await expect.poll(() => lastSettingsPatch(trpc, "worldInfo")?.["tokenBudget"], { intervals: [20, 50, 100] }).toBe(1025);
 });

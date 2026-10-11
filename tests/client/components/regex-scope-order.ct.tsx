@@ -204,7 +204,7 @@ test("past the large-group threshold the grips give way to explicit move actions
 
   await page.getByRole("button", { name: "Move script 0 down" }).click();
   await expect
-    .poll(() => (trpc.lastInput(APPLY_PROC) as { readonly orderedScriptIds: readonly string[] } | undefined)?.orderedScriptIds?.slice(0, 2), {
+    .poll(() => trpc.lastInput(APPLY_PROC)?.orderedScriptIds?.slice(0, 2), {
       intervals: [100, 250, 500],
     })
     .toEqual([many[1]?.id, many[0]?.id]);

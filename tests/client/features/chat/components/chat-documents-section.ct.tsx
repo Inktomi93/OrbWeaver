@@ -18,7 +18,6 @@
 import { rowActionsName } from "@orb/client/lib";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { DocumentId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcInput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
@@ -103,7 +102,7 @@ test("host: hiding a VISIBLE row writes the whole excluded set — the already-h
   // THE PAYLOAD, not the reaction: the write REPLACES the stored set, so the already-hidden character doc
   // must ride along or hiding one document silently un-hides another.
   await expect
-    .poll(() => (trpc.lastInput(SET_VISIBILITY) as { visibility?: { hidden?: string[] } } | undefined)?.visibility?.hidden, {
+    .poll(() => trpc.lastInput(SET_VISIBILITY)?.visibility?.hidden, {
       intervals: [20, 50, 100],
     })
     .toEqual([HIDDEN_CHAR_DOC.id, CHAT_DOC.id]);
@@ -121,7 +120,7 @@ test("host: showing a HIDDEN row removes only it — and the row's pressed state
   await toggle.click();
 
   await expect
-    .poll(() => (trpc.lastInput(SET_VISIBILITY) as { visibility?: { hidden?: string[] } } | undefined)?.visibility?.hidden, {
+    .poll(() => trpc.lastInput(SET_VISIBILITY)?.visibility?.hidden, {
       intervals: [20, 50, 100],
     })
     .toEqual([]);
@@ -149,7 +148,7 @@ test("host: Detach renders ONLY for a 'This chat' row — a member's Everywhere 
 
   await component.getByRole("button", { name: rowActionsName(CHAT_DOC.name) }).click();
   await page.getByRole("menuitem", { name: "Detach from this chat" }).click();
-  await expect.poll(() => (trpc.lastInput(DETACH) as { documentId?: DocumentId } | undefined)?.documentId, { intervals: [20, 50, 100] }).toBe(CHAT_DOC.id);
+  await expect.poll(() => trpc.lastInput(DETACH)?.documentId, { intervals: [20, 50, 100] }).toBe(CHAT_DOC.id);
 });
 
 test("member: the rows render and NONE of the controls do (permission-OMIT, one surface)", async ({ mount, page }) => {
@@ -177,9 +176,7 @@ test("host: the picker offers the bank MINUS the active union, and attaching clo
   await expect(dialog.getByRole("button", { name: `Add ${HIDDEN_CHAR_DOC.name} to this chat` })).toHaveCount(0);
 
   await dialog.getByRole("button", { name: "Add Unattached notes to this chat" }).click();
-  await expect
-    .poll(() => (trpc.lastInput(ATTACH) as { documentId?: DocumentId } | undefined)?.documentId, { intervals: [20, 50, 100] })
-    .toBe("document_00000000000000000004");
+  await expect.poll(() => trpc.lastInput(ATTACH)?.documentId, { intervals: [20, 50, 100] }).toBe("document_00000000000000000004");
   await expect(dialog).toHaveCount(0);
 });
 
@@ -366,7 +363,7 @@ test("two visibility toggles in ONE browser task compose — the second write ca
   // [HIDDEN_CHAR_DOC, GLOBAL_DOC] is the defect: the second write reverting the first. The ORDER is
   // `nextHiddenSet`'s documented one — the RENDERED row order, newly-hidden id appended — not click order.
   await expect
-    .poll(() => (trpc.lastInput(SET_VISIBILITY) as { visibility?: { hidden?: string[] } } | undefined)?.visibility?.hidden, {
+    .poll(() => trpc.lastInput(SET_VISIBILITY)?.visibility?.hidden, {
       intervals: [20, 50, 100],
     })
     .toEqual([CHAT_DOC.id, HIDDEN_CHAR_DOC.id, GLOBAL_DOC.id]);

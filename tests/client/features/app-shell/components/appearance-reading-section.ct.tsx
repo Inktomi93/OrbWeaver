@@ -7,21 +7,16 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
 import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AppearanceReadingSectionStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_reading", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
-const UPDATE_PROC = "settings.updateUserSettingsSection";
 const OWNED_KEYS = ["justifyBodyText", "readingBodyScale", "readingLetterSpacing", "readingLineHeight", "readingNameScale", "readingParagraphSpacing"];
 
 function stub(page: Page): Promise<TrpcRecorder> {
-  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => SETTINGS_VIEW });
-}
-
-function lastPatch(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  const input = trpc.lastInput(UPDATE_PROC) as { section?: string; patch?: Record<string, unknown> } | undefined;
-  return input?.section === "appearance" ? input.patch : undefined;
+  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
 }
 
 test("mounts with the persisted reading defaults rendered", async ({ mount, page }) => {
@@ -37,8 +32,8 @@ test("moving line height patches readingLineHeight with ONLY the six reading key
   const slider = page.getByRole("slider", { name: "Line height" });
 
   await slider.press("Home");
-  await expect.poll(() => lastPatch(trpc)?.["readingLineHeight"], { intervals: [20, 50, 100] }).toBeDefined();
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["readingLineHeight"], { intervals: [20, 50, 100] }).toBeDefined();
+  expect(Object.keys(lastSettingsPatch(trpc, "appearance") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 });
 
 test("the justify switch patches justifyBodyText, still key-minimal", async ({ mount, page }) => {
@@ -46,6 +41,6 @@ test("the justify switch patches justifyBodyText, still key-minimal", async ({ m
   await mount(<AppearanceReadingSectionStory />);
   await page.getByRole("switch", { name: "Justify message text" }).click();
 
-  await expect.poll(() => lastPatch(trpc)?.["justifyBodyText"], { intervals: [20, 50, 100] }).toBe(true);
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["justifyBodyText"], { intervals: [20, 50, 100] }).toBe(true);
+  expect(Object.keys(lastSettingsPatch(trpc, "appearance") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 });

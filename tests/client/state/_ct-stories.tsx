@@ -22,7 +22,7 @@ import { getCorpusMode, healCorpusModeFrom, subscribeCorpusMode, writeCorpusMode
 
 import type { ContributorRegistry } from "@orb/client/lib";
 import { CORPUS_MODES, createContributorRegistry } from "@orb/client/lib";
-import type { ConfigSectionContribution, SectionDefinition } from "@orb/client/state";
+import type { ChromeEntry, ConfigSectionContribution, SectionDefinition } from "@orb/client/state";
 import {
   __dismissPresetSectionForTest,
   __migrateActiveChatForTest,
@@ -40,6 +40,7 @@ import {
   __resetTagFilter,
   activeChatId,
   announceStatus,
+  assembleChrome,
   COMPOSER_DRAFT_CAP,
   ConfigSectionRegistryProvider,
   chatDeletedFromList,
@@ -249,6 +250,7 @@ import type { ReactElement } from "react";
 import { Fragment, useEffect, useState, useSyncExternalStore } from "react";
 import { ModalHost } from "#client/features/app-shell/components/modal-host.tsx";
 import { CtDataProviders, CtFakeSectionRegistry, CtRealSectionRegistry } from "../../support/browser/ct-data-providers.tsx";
+import { chromeWidgets } from "../../support/browser/ct-door.ts";
 
 // ── section-list-projection: the #state answers to "is my LIST docked / is it the mobile SCREEN?" ──────
 // Mounted over the REAL config selection seam (`CtFakeSectionRegistry` passes `REAL[id].selection` through
@@ -1118,18 +1120,21 @@ export function ChromeRegistryProbe(): ReactElement {
   );
 }
 
-function ChromeRegistryReader(): ReactElement {
-  const registry = useChromeRegistry();
-  // The registry now also carries the derived rail.nav/rail.end entries; this probe asserts the
-  // topbar.trail widgets (the consumed zone), so it filters to that zone.
-  const ids = registry
-    .list()
+function trailIds(entries: readonly ChromeEntry[]): string {
+  // The registry also carries the derived rail.nav/rail.end entries; the probe judges the consumed zone.
+  return entries
     .filter((e) => e.zone === "topbar.trail")
     .map((e) => e.id)
     .join(",");
+}
+
+function ChromeRegistryReader(): ReactElement {
+  const delivered = trailIds(useChromeRegistry().list());
+  // The expectation is the production assembly over the door's own widget list, never a typed roster.
+  const door = trailIds(assembleChrome({ sections: useSectionRegistry().list(), modals: useModalRegistry().list(), widgets: chromeWidgets }));
   return (
     <div>
-      <output>{`ids=${ids}`}</output>
+      <output>{`match=${String(delivered === door)}|ids=${delivered}`}</output>
     </div>
   );
 }

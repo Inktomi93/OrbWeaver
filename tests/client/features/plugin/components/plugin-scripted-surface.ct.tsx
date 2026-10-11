@@ -428,7 +428,7 @@ async function drivesHangToCollapse(
   await expect.poll(() => crashes, { timeout: HUNG_COLLAPSE_TIMEOUT_MS }).toBeGreaterThan(0);
   // The poll above settled on `crashes > 0`, so the recorder provably HOLDS this call: the two reads below are
   // of a FINISHED record, not of a race.
-  const reported = recorder.lastInput("plugin.reportUiCrash") as { pluginId: PluginId; surfaceId: string; reason: string };
+  const reported = recorder.requireLastInput("plugin.reportUiCrash");
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the `crashes > 0` poll above proves the call was recorded before this read.
   expect(reported.pluginId).toBe(SCRIPTED_ID);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): same settled poll — the record exists and is final.

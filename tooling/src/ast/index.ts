@@ -3,6 +3,7 @@
 // collectors are exported so the ratchet judges the SAME candidate sets the verbs print (one
 // definition of "orphan"/"swallowed"/…, never a parallel one).
 export type {
+  AntipatternVerdict,
   ApiClass,
   ApiSurfaceEntry,
   ChainAudit,
@@ -48,7 +49,7 @@ export { isPublicTagged, publicMarkerOf } from "./lib/public-markers.ts";
 export { ownExports } from "./lib/scope.ts";
 export { USAGE } from "./lib/usage.ts";
 export { collectViewFieldCandidates, isViewServerOnly, viewFieldsOf, viewGapHit } from "./lib/view-fields.ts";
-export { ANTIPATTERN_CLASSES, ANTIPATTERNS_VERB, parseAntipatternScope, runAntipatterns } from "./ops/antipatterns.ts";
+export { ANTIPATTERN_CLASSES, ANTIPATTERNS_VERB, judgeAntipatternPass, parseAntipatternScope, runAntipatterns } from "./ops/antipatterns.ts";
 export { collectApiSurface } from "./ops/apisurface.ts";
 export { collectChainAudit, collectChainCandidates } from "./ops/chains.ts";
 export { deadEvidenceFor } from "./ops/dead.ts";

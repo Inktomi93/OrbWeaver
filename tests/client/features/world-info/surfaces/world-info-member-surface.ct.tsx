@@ -101,7 +101,7 @@ test("drag-reorders an entry and persists the new order via applyEntryOrder", as
   // The completed drag persists the new id order — Alpha now trails; Bravo, Charlie shift up.
   await expect.poll(() => trpc.count("worldInfo.applyEntryOrder"), { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(1);
   await expect
-    .poll(() => (trpc.lastInput("worldInfo.applyEntryOrder") as { orderedEntryIds?: string[] } | undefined)?.orderedEntryIds, {
+    .poll(() => trpc.lastInput("worldInfo.applyEntryOrder")?.orderedEntryIds, {
       intervals: [20, 50, 100, 200],
     })
     .toEqual([BRAVO, CHARLIE, ALPHA]);

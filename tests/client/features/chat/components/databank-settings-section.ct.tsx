@@ -7,6 +7,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
 import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { DatabankSettingsSectionStory } from "../_ct-stories.tsx";
@@ -19,19 +20,11 @@ const SETTINGS_VIEW = {
   updatedAt: 0,
 };
 
-const UPDATE_PROC = "settings.updateUserSettingsSection";
-
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "settings.getUserSettings": () => SETTINGS_VIEW,
-    [UPDATE_PROC]: () => SETTINGS_VIEW,
+    [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW,
   });
-}
-
-/** The most recent databank-section patch body. */
-function lastPatch(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  const input = trpc.lastInput(UPDATE_PROC) as { section?: string; patch?: Record<string, unknown> } | undefined;
-  return input?.section === "databank" ? input.patch : undefined;
 }
 
 test("mounts with the persisted databank defaults (k 5, minScore 0.25, rerank off, budget 4096)", async ({ mount, page }) => {
@@ -51,15 +44,19 @@ test("stepping k fires updateUserSettingsSection('databank') with the re-nested 
   await page.getByRole("button", { name: "Increase" }).first().click();
   await expect(page.getByRole("textbox", { name: "Documents retrieved" })).toHaveValue("6");
   // The autosave form submits the whole section — the retrieval leaf carries k (moved) + minScore/rerank.
-  await expect.poll(() => (lastPatch(trpc)?.["retrieval"] as Record<string, unknown> | undefined)?.["k"], { intervals: [20, 50, 100] }).toBe(6);
-  expect((lastPatch(trpc)?.["retrieval"] as Record<string, unknown>)?.["minScore"]).toBe(0.25);
+  await expect
+    .poll(() => (lastSettingsPatch(trpc, "databank")?.["retrieval"] as Record<string, unknown> | undefined)?.["k"], { intervals: [20, 50, 100] })
+    .toBe(6);
+  expect((lastSettingsPatch(trpc, "databank")?.["retrieval"] as Record<string, unknown>)?.["minScore"]).toBe(0.25);
 });
 
 test("toggling rerank fires the databank patch with rerank=true", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<DatabankSettingsSectionStory />);
   await page.getByRole("switch", { name: "Rerank results" }).click();
-  await expect.poll(() => (lastPatch(trpc)?.["retrieval"] as Record<string, unknown> | undefined)?.["rerank"], { intervals: [20, 50, 100] }).toBe(true);
+  await expect
+    .poll(() => (lastSettingsPatch(trpc, "databank")?.["retrieval"] as Record<string, unknown> | undefined)?.["rerank"], { intervals: [20, 50, 100] })
+    .toBe(true);
 });
 
 test("stepping the token budget fires the databank patch with slotTokenBudget", async ({ mount, page }) => {
@@ -67,5 +64,5 @@ test("stepping the token budget fires the databank patch with slotTokenBudget", 
   await mount(<DatabankSettingsSectionStory />);
   await page.getByRole("textbox", { name: "Databank token budget" }).focus();
   await page.getByRole("button", { name: "Increase" }).last().click();
-  await expect.poll(() => lastPatch(trpc)?.["slotTokenBudget"], { intervals: [20, 50, 100] }).toBe(4097);
+  await expect.poll(() => lastSettingsPatch(trpc, "databank")?.["slotTokenBudget"], { intervals: [20, 50, 100] }).toBe(4097);
 });

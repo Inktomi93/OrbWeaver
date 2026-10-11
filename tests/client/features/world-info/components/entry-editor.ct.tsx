@@ -16,8 +16,8 @@ import { EntryEditorInertStory, EntryEditorStory, EntryEditorSwitchStory } from 
 
 test("renders every field, commits a keyword chip, and autosaves the full input", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "worldInfo.updateEntry": (input: unknown) => {
-      const { entryId } = input as { entryId: string };
+    "worldInfo.updateEntry": (input) => {
+      const { entryId } = input;
       return {
         id: entryId,
         worldBookId: "world_book_ctstory0001",
@@ -51,159 +51,15 @@ test("renders every field, commits a keyword chip, and autosaves the full input"
 
   // Autosave → updateEntry fires with the FULL input (every field + the added chip + the preserved key).
   await expect.poll(() => trpc.count("worldInfo.updateEntry"), { intervals: [100, 200, 300, 500] }).toBeGreaterThanOrEqual(1);
-  await expect
-    .poll(
-      async () =>
-        (
-          trpc.lastInput("worldInfo.updateEntry") as {
-            entryId: string;
-            input: {
-              title: string;
-              content: string;
-              keys: string[];
-              enabled: boolean;
-              priority: number;
-              ignoreBudget: boolean;
-              metadata: Record<string, unknown>;
-            };
-          }
-        ).entryId,
-    )
-    .toBe("world_entry_ctstory0001");
-  await expect
-    .poll(
-      async () =>
-        (
-          trpc.lastInput("worldInfo.updateEntry") as {
-            entryId: string;
-            input: {
-              title: string;
-              content: string;
-              keys: string[];
-              enabled: boolean;
-              priority: number;
-              ignoreBudget: boolean;
-              metadata: Record<string, unknown>;
-            };
-          }
-        ).input.title,
-    )
-    .toBe("Eldoria");
-  await expect
-    .poll(
-      async () =>
-        (
-          trpc.lastInput("worldInfo.updateEntry") as {
-            entryId: string;
-            input: {
-              title: string;
-              content: string;
-              keys: string[];
-              enabled: boolean;
-              priority: number;
-              ignoreBudget: boolean;
-              metadata: Record<string, unknown>;
-            };
-          }
-        ).input.keys,
-    )
-    .toEqual(["eldoria", "capital", "walls"]);
-  await expect
-    .poll(
-      async () =>
-        (
-          trpc.lastInput("worldInfo.updateEntry") as {
-            entryId: string;
-            input: {
-              title: string;
-              content: string;
-              keys: string[];
-              enabled: boolean;
-              priority: number;
-              ignoreBudget: boolean;
-              metadata: Record<string, unknown>;
-            };
-          }
-        ).input.enabled,
-    )
-    .toBe(true);
-  await expect
-    .poll(
-      async () =>
-        (
-          trpc.lastInput("worldInfo.updateEntry") as {
-            entryId: string;
-            input: {
-              title: string;
-              content: string;
-              keys: string[];
-              enabled: boolean;
-              priority: number;
-              ignoreBudget: boolean;
-              metadata: Record<string, unknown>;
-            };
-          }
-        ).input.priority,
-    )
-    .toBe(5);
-  await expect
-    .poll(
-      async () =>
-        (
-          trpc.lastInput("worldInfo.updateEntry") as {
-            entryId: string;
-            input: {
-              title: string;
-              content: string;
-              keys: string[];
-              enabled: boolean;
-              priority: number;
-              ignoreBudget: boolean;
-              metadata: Record<string, unknown>;
-            };
-          }
-        ).input.metadata["scopeMode"],
-    )
-    .toBe("keyword");
-  await expect
-    .poll(
-      async () =>
-        (
-          trpc.lastInput("worldInfo.updateEntry") as {
-            entryId: string;
-            input: {
-              title: string;
-              content: string;
-              keys: string[];
-              enabled: boolean;
-              priority: number;
-              ignoreBudget: boolean;
-              metadata: Record<string, unknown>;
-            };
-          }
-        ).input.metadata["position"],
-    )
-    .toBe("after");
+  await expect.poll(async () => trpc.requireLastInput("worldInfo.updateEntry").entryId).toBe("world_entry_ctstory0001");
+  await expect.poll(async () => trpc.requireLastInput("worldInfo.updateEntry").input.title).toBe("Eldoria");
+  await expect.poll(async () => trpc.requireLastInput("worldInfo.updateEntry").input.keys).toEqual(["eldoria", "capital", "walls"]);
+  await expect.poll(async () => trpc.requireLastInput("worldInfo.updateEntry").input.enabled).toBe(true);
+  await expect.poll(async () => trpc.requireLastInput("worldInfo.updateEntry").input.priority).toBe(5);
+  await expect.poll(async () => trpc.requireLastInput("worldInfo.updateEntry").input.metadata?.["scopeMode"]).toBe("keyword");
+  await expect.poll(async () => trpc.requireLastInput("worldInfo.updateEntry").input.metadata?.["position"]).toBe("after");
   // The unknown ST-imported metadata key rides through untouched (the save mapper preserves it).
-  await expect
-    .poll(
-      async () =>
-        (
-          trpc.lastInput("worldInfo.updateEntry") as {
-            entryId: string;
-            input: {
-              title: string;
-              content: string;
-              keys: string[];
-              enabled: boolean;
-              priority: number;
-              ignoreBudget: boolean;
-              metadata: Record<string, unknown>;
-            };
-          }
-        ).input.metadata["extra"],
-    )
-    .toBe("keep-me");
+  await expect.poll(async () => trpc.requireLastInput("worldInfo.updateEntry").input.metadata?.["extra"]).toBe("keep-me");
 });
 
 test("delete: the icon trigger opens an uncontrolled confirm with no description, and confirming removes the entry", async ({ mount, page }) => {
@@ -222,7 +78,7 @@ test("delete: the icon trigger opens an uncontrolled confirm with no description
 
   await dialog.getByRole("button", { name: "Delete" }).click();
   await expect.poll(() => trpc.count("worldInfo.removeEntry"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  await expect.poll(() => (trpc.lastInput("worldInfo.removeEntry") as { entryId: string }).entryId).toBe("world_entry_ctstory0001");
+  await expect.poll(() => trpc.requireLastInput("worldInfo.removeEntry").entryId).toBe("world_entry_ctstory0001");
 });
 
 // F1 SWITCH pin (D78) — the book surface swaps the `entry` prop on ONE mounted
@@ -233,8 +89,8 @@ test("delete: the icon trigger opens an uncontrolled confirm with no description
 // untouched content ("B-content"), never A's frozen "A-content" (which a leaked A instance would re-save).
 test("SWITCH pin — switching entries autosaves the new entry, never the previous entry's frozen fields", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "worldInfo.updateEntry": (input: unknown) => {
-      const { entryId } = input as { entryId: string };
+    "worldInfo.updateEntry": (input) => {
+      const { entryId } = input;
       return {
         id: entryId,
         worldBookId: "world_book_ctstory0001",
@@ -255,9 +111,7 @@ test("SWITCH pin — switching entries autosaves the new entry, never the previo
   // Entry A is live — dirty it via Title so A's FormApi is non-default; the debounced autosave carries A's
   // whole row (incl. content="A-content").
   await page.getByRole("textbox", { name: "Title" }).fill("A edited");
-  await expect
-    .poll(() => (trpc.lastInput("worldInfo.updateEntry") as { entryId: string } | undefined)?.entryId, { intervals: [100, 200, 300, 500] })
-    .toBe("world_entry_ctswitch0a");
+  await expect.poll(() => trpc.lastInput("worldInfo.updateEntry")?.entryId, { intervals: [100, 200, 300, 500] }).toBe("world_entry_ctswitch0a");
 
   // Switch to entry B (same mount, new `entry` prop). Edit B's Title; the autosave must be for B, carrying
   // B's OWN content — a leaked A instance would autosave entryId A with content="A-content".
@@ -265,18 +119,10 @@ test("SWITCH pin — switching entries autosaves the new entry, never the previo
   await expect(page.getByRole("textbox", { name: "Content" })).toHaveValue("B-content");
   await page.getByRole("textbox", { name: "Title" }).fill("B edited");
 
-  await expect
-    .poll(() => (trpc.lastInput("worldInfo.updateEntry") as { entryId: string } | undefined)?.entryId, { intervals: [100, 200, 300, 500] })
-    .toBe("world_entry_ctswitch0b");
-  await expect
-    .poll(async () => (trpc.lastInput("worldInfo.updateEntry") as { entryId: string; input: { title: string; content: string } }).input.title)
-    .toBe("B edited");
-  await expect
-    .poll(async () => (trpc.lastInput("worldInfo.updateEntry") as { entryId: string; input: { title: string; content: string } }).input.content)
-    .toBe("B-content");
-  await expect
-    .poll(async () => (trpc.lastInput("worldInfo.updateEntry") as { entryId: string; input: { title: string; content: string } }).input.content)
-    .not.toBe("A-content");
+  await expect.poll(() => trpc.lastInput("worldInfo.updateEntry")?.entryId, { intervals: [100, 200, 300, 500] }).toBe("world_entry_ctswitch0b");
+  await expect.poll(async () => trpc.requireLastInput("worldInfo.updateEntry").input.title).toBe("B edited");
+  await expect.poll(async () => trpc.requireLastInput("worldInfo.updateEntry").input.content).toBe("B-content");
+  await expect.poll(async () => trpc.requireLastInput("worldInfo.updateEntry").input.content).not.toBe("A-content");
 });
 
 // ── #1501 · THE EDITOR CLOSES WHEN THE ENTRY IS GONE, NOT WHEN THE DELETE IS SENT ────────────────

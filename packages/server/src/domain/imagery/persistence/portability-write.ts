@@ -175,11 +175,8 @@ function outputStatement(
         cacheReadTokens: sql`${execution.usage.cacheReadTokens}`.as("cache_read_tokens"),
         cacheWriteTokens: sql`${execution.usage.cacheWriteTokens}`.as("cache_write_tokens"),
         costProvenance: sql`${execution.usage.costProvenance}`.as("cost_provenance"),
-        // @orb-waive json-column-read-parsed(costDetails): baselined when the gate widened; burn-down item 905.
         costDetails: sql`${execution.usage.costDetails === null ? null : JSON.stringify(execution.usage.costDetails)}`.as("cost_details"),
-        // @orb-waive json-column-read-parsed(tokenDetails): baselined when the gate widened; burn-down item 905.
         tokenDetails: sql`${execution.usage.tokenDetails === null ? null : JSON.stringify(execution.usage.tokenDetails)}`.as("token_details"),
-        // @orb-waive json-column-read-parsed(responseCache): baselined when the gate widened; burn-down item 905.
         responseCache: sql`${execution.usage.responseCache === undefined ? null : JSON.stringify(execution.usage.responseCache)}`.as("response_cache"),
         edited: sql`${execution.edited ? 1 : 0}`.as("edited"),
         createdAt: sql`${execution.createdAt}`.as("created_at"),

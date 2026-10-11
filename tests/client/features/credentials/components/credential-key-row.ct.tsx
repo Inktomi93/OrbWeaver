@@ -41,7 +41,7 @@ test("remove is confirm-gated on a revoked row: cancel fires nothing, confirm fi
   await page.getByRole("button", { name: 'Remove the OpenRouter "prod key" key' }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Remove" }).click();
   await expect.poll(() => trpc.count("credentials.remove"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  await expect.poll(() => (trpc.lastInput("credentials.remove") as { credentialId: string }).credentialId).toBe("user_credential_ctstory0003");
+  await expect.poll(() => trpc.requireLastInput("credentials.remove").credentialId).toBe("user_credential_ctstory0003");
 });
 
 // The pin is that the prompt names the row by its OWN id — a replacement that minted a second row would leave
@@ -94,8 +94,8 @@ test("revoke is confirm-gated: cancel fires nothing, confirm fires credentials.m
   await page.getByTestId(testId("credentialMarkRevoked")).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Revoke" }).click();
   await expect.poll(() => trpc.count("credentials.markRevokedByUser"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the matching count was polled to its target above, so lastInput is the settled last call.
-  expect((trpc.lastInput("credentials.markRevokedByUser") as { credentialId: string }).credentialId).toBe("user_credential_ctstory0001");
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the matching count was polled to its target above, so the recorded input is the settled last call.
+  expect(trpc.requireLastInput("credentials.markRevokedByUser").credentialId).toBe("user_credential_ctstory0001");
 });
 
 // THE HEALTH PROBE LEFT THIS ROW (`@orb/inference` cut-over, 2026-09-20). "Saved keys" is the read-only
@@ -179,6 +179,6 @@ test("a revoked row's clear-revoked fires credentials.clearRevoked directly", as
 
   await page.getByTestId(testId("credentialClearRevoked")).click();
   await expect.poll(() => trpc.count("credentials.clearRevoked"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the matching count was polled to its target above, so lastInput is the settled last call.
-  expect((trpc.lastInput("credentials.clearRevoked") as { credentialId: string }).credentialId).toBe("user_credential_ctstory0003");
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the matching count was polled to its target above, so the recorded input is the settled last call.
+  expect(trpc.requireLastInput("credentials.clearRevoked").credentialId).toBe("user_credential_ctstory0003");
 });

@@ -28,6 +28,8 @@ import type { BlurSurface } from "@orb/contracts/settings";
 import { appearanceSettingsSchema, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
+import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
+import { contrastRatio, NORMAL_MIN_RATIO, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -39,6 +41,7 @@ import { pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { touchDrag } from "../../../../support/browser/weave-drive.ts";
 import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { defineTrpcRoutes, routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
+import { SIGNED_IN_OWNER_ME, stubAuthMe } from "../../../../support/node/stub-auth-me.ts";
 import { makeCharacterDetail, makeCharacterSummary } from "../../character/fixtures.ts";
 import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
 import { GrainDoublePaintFixture, OverArtGlassCensusFixture, ShellCascadeFixture } from "../_cascade-fixtures.tsx";
@@ -124,6 +127,10 @@ const SHELL_AMBIENT_ROUTES = defineTrpcRoutes({
   // Feeding this makes the janitor's real reconcile path run, which is the whole point — it fixes nothing in
   // production because nothing there was broken.
   "chat.reapTemporaryChats": { reaped: 0 },
+  // The door's plugin chrome widget reads the caller's plugin commands, and the door's automation and roster
+  // surfaces read the rule-preset library. EMPTY is the honest default for a fresh viewer.
+  "plugin.listCommands": [],
+  "automation.listRulePresets": [],
   // THE HERO-ROOM WARM (#1205, the same CASCADE shape the `reapTemporaryChats` row above describes). Home's
   // hearth tile WARMS the room its one focal action opens — `usePrefetchRoom` issues `chat.getChat` on the
   // tile's MOUNT, a human reaction time ahead of the Resume click (#1126) — and the chats-list rows warm the
@@ -1659,9 +1666,7 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
       body: JSON.stringify({ mode: "local", requiresLogin: true, localEnabled: true, oidcEnabled: false, discreetLogin: false, defaultHandle: "owner" }),
     }),
   );
-  await page.route("**/api/auth/me", (route) =>
-    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ authenticated: true, handle: "owner", role: "owner" }) }),
-  );
+  await stubAuthMe(page, SIGNED_IN_OWNER_ME);
   const shell = await mount(<AppShellStory />);
   await shell.getByRole("button", { name: "You", exact: true }).click();
 
@@ -5385,12 +5390,6 @@ function bgColorOf(target: Locator | GlassBox): Promise<string> {
   return host.evaluate((el, p: string | null) => getComputedStyle(el, p).backgroundColor, pseudo);
 }
 
-interface Rgb {
-  readonly r: number;
-  readonly g: number;
-  readonly b: number;
-}
-
 /** One FRAMEBUFFER pixel at page coordinates, decoded in-browser (no image dependency in the runner) —
  *  the same technique message-list-surface.ct.tsx uses. Computed style cannot answer the question this
  *  block asks: a border's contrast is what LANDS, i.e. the border composited over whatever the glass let
@@ -5414,24 +5413,6 @@ async function samplePixel(page: Page, x: number, y: number): Promise<Rgb> {
     return { b: data[2] ?? 0, g: data[1] ?? 0, r: data[0] ?? 0 };
   }, dataUrl);
 }
-
-/** WCAG 2.1 relative luminance + contrast ratio, on framebuffer RGB (already composited, so no alpha). */
-function contrastRatio(a: Rgb, b: Rgb): number {
-  const luminance = ({ r, g, b: blue }: Rgb): number => {
-    const channel = (c: number): number => {
-      const s = c / 255;
-      // WCAG's 0.03928 knee, written with a separator only because biome's numeric-literal rule wants one.
-      return s <= 0.039_28 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-    };
-    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(blue);
-  };
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
-  return (hi + 0.05) / (lo + 0.05);
-}
-
-/** WCAG 1.4.11 non-text contrast: a UI boundary must clear 3:1 to count as visible. The whole point of
- *  this block is that the panel's TEXT was already 8.66:1 while its EDGE measured 1.16:1. */
-const NON_TEXT_FLOOR = 3;
 
 /**
  * Measures the list panel's inline-end seam off the framebuffer: the ratio between the border's own
@@ -5541,7 +5522,7 @@ for (const theme of ["dark", "light"] as const) {
     const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} dataTheme={theme === "light" ? "light" : null} omitMainRegion={true} />);
     const panel = shell.getByTestId("panel-probe");
     await expect.poll(() => borderInlineEndWidthOf(panel), { intervals: [20, 50, 100] }).toBe("2px");
-    await expect.poll(() => listPanelEdgeRatio(page, panel), { intervals: [50, 100, 200] }).toBeGreaterThanOrEqual(NON_TEXT_FLOOR);
+    await expect.poll(() => listPanelEdgeRatio(page, panel), { intervals: [50, 100, 200] }).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
   });
 
   test(`under contrast: no-preference that same seam is the hairline it always was (${theme})`, async ({ mount, page }) => {
@@ -5552,7 +5533,7 @@ for (const theme of ["dark", "light"] as const) {
     // The control that keeps the pin above honest: the raise is the PREFERENCE's doing, not the theme's.
     // A hairline below the non-text floor is the deliberate resting state — this block is what closes it.
     const ratio = await listPanelEdgeRatio(page, panel);
-    expect(ratio, "the shipped hairline is BELOW the non-text floor — closing that is what this block is for").toBeLessThan(NON_TEXT_FLOOR);
+    expect(ratio, "the shipped hairline is BELOW the non-text floor — closing that is what this block is for").toBeLessThan(UI_COMPONENT_MIN_RATIO);
     // …and strictly above 1, which is this test's own positive control: a screenshot that sampled the
     // wrong element (or a covered panel) returns the identical pixel twice and would otherwise sail
     // through the assertion above.
@@ -5568,7 +5549,7 @@ test("the contrast edge does NOT depend on the glass toggle — blur off, the se
   const shell = await mount(<ShellCascadeFixture omitMainRegion={true} />);
   const panel = shell.getByTestId("panel-probe");
   await expect.poll(() => borderInlineEndWidthOf(panel), { intervals: [20, 50, 100] }).toBe("2px");
-  await expect.poll(() => listPanelEdgeRatio(page, panel), { intervals: [50, 100, 200] }).toBeGreaterThanOrEqual(NON_TEXT_FLOOR);
+  await expect.poll(() => listPanelEdgeRatio(page, panel), { intervals: [50, 100, 200] }).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
   // Still per-side with the glass off, i.e. the currentColor stripe cannot come back through this door.
   await expect
     .poll(() => borderWidthsOf(panel), { intervals: [20, 50, 100] })
@@ -7308,7 +7289,7 @@ test("#237: the LIGHT pane's SECONDARY ink clears AA against what LANDS over wor
     description: `${ratio.toFixed(2)}:1 · pane kicker ink rgb(${ink.r},${ink.g},${ink.b}) vs LANDED rgb(${landed.r},${landed.g},${landed.b}) over black art`,
     type: "pane-contrast",
   });
-  await expect.poll(async () => await readRatioAtAssertion()).toBeGreaterThanOrEqual(4.5);
+  await expect.poll(async () => await readRatioAtAssertion()).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
 });
 
 // ── #623: THE MODAL SLOTS NEVER ADOPTED D144'S OVER-ART FLOOR ──────────────────────────────────────
@@ -7328,8 +7309,6 @@ test("#237: the LIGHT pane's SECONDARY ink clears AA against what LANDS over wor
 // THE FIXTURE HAD TO BE FIXED FIRST. Its dialog probes used to sit inside `.shell-grid`; production portals a
 // popup to a SIBLING `[data-slot="portal-root"]`, so a grid-scoped selector would have measured green here
 // and shipped nothing at all. See `_cascade-fixtures.tsx`.
-const AA_NORMAL = 4.5;
-
 /** The ink a probe would paint at `varName`, decoded through a canvas so an `oklch()` token becomes RGB — a
  *  regex over the computed string cannot do it, because the value passes through VERBATIM as `oklch(...)`. */
 function tokenInk(probe: Locator, varName: string): Promise<Rgb> {
@@ -7375,7 +7354,7 @@ test("#623: over worst-case art a LIGHT palette's DIALOG POPUP clears AA on its 
     description: `dialog ${dialog.ratio.toFixed(2)}:1 · muted ink rgb(${dialog.ink.r},${dialog.ink.g},${dialog.ink.b}) vs LANDED rgb(${dialog.landed.r},${dialog.landed.g},${dialog.landed.b})`,
     type: "over-art-contrast",
   });
-  expect(dialog.ratio).toBeGreaterThanOrEqual(AA_NORMAL);
+  expect(dialog.ratio).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
 });
 
 test("#623: the DARK arm's dialog popup does not move a pixel (D144(d) — the sacred rooms stand)", async ({ mount, page }) => {
@@ -7469,11 +7448,11 @@ test("#623 census: EVERY glass surface over worst-case art clears AA on the LIGH
     measured.push({ label: row.label, ...(await landedMutedContrast(page, light.getByTestId(row.probe))) });
   }
   test.info().annotations.push({
-    description: `${measured.map((m) => `${m.label} ${m.ratio.toFixed(2)}:1`).join(" · ")} — AA floor ${AA_NORMAL}`,
+    description: `${measured.map((m) => `${m.label} ${m.ratio.toFixed(2)}:1`).join(" · ")} — AA floor ${NORMAL_MIN_RATIO}`,
     type: "over-art-census",
   });
   for (const m of measured) {
-    expect(m.ratio, `${m.label} over black art`).toBeGreaterThanOrEqual(AA_NORMAL);
+    expect(m.ratio, `${m.label} over black art`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
   }
 });
 

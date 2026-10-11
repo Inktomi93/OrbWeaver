@@ -120,7 +120,6 @@ async function classifyRefusedCardWrite(db: Db, ownerId: UserId, assetId: AssetI
 export async function insertCharacter(db: Db, values: CharacterInsert, bumpCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>): Promise<void> {
   try {
     await db.batch(
-      // @orb-waive json-column-read-parsed(backgroundOverride): baselined when the gate widened; burn-down item 905.
       batchMany(guardedInsertStatements(db, values, [carriedBackgroundExists(db, backgroundAssetId(values.backgroundOverride))], bumpCanonVersion)),
     );
   } catch (err) {
@@ -132,7 +131,6 @@ export async function insertCharacter(db: Db, values: CharacterInsert, bumpCanon
  *  a not-null from the id guard when the carried background is gone, a unique from the per-owner handle
  *  index. Anything else is returned unchanged for the caller to rethrow. */
 function classifyInsertFailure(err: unknown, values: CharacterInsert): unknown {
-  // @orb-waive json-column-read-parsed(backgroundOverride): baselined when the gate widened; burn-down item 905.
   if (backgroundAssetId(values.backgroundOverride) !== undefined && isConstraintViolation(err)?.kind === "not-null") {
     const unavailable = new CharacterOperationError(CHARACTER_BACKGROUND_UNAVAILABLE, "The background asset is no longer available.");
     unavailable.cause = err;
@@ -181,7 +179,6 @@ export async function insertCharacterClaimingProvenance(
     const statements = guardedInsertStatements(
       db,
       values,
-      // @orb-waive json-column-read-parsed(backgroundOverride): baselined when the gate widened; burn-down item 905.
       [carriedBackgroundExists(db, backgroundAssetId(values.backgroundOverride)), unclaimed],
       accounting.bumpStatsCanonVersion,
     );
@@ -245,7 +242,6 @@ export async function writeCardInPlace(
   edits: CharacterEdits,
 ): Promise<"written" | "missing" | "background-unavailable" | "stale"> {
   const { characterId, ownerId, expectedBasis } = target;
-  // @orb-waive json-column-read-parsed(backgroundOverride): baselined when the gate widened; burn-down item 905.
   const assetId = backgroundAssetId(edits.backgroundOverride);
   try {
     const updated = await db
@@ -304,7 +300,6 @@ export async function restoreCardInPlace(
   preRestore: SnapshotInsert,
 ): Promise<"written" | "missing" | "background-unavailable"> {
   const { characterId, ownerId } = target;
-  // @orb-waive json-column-read-parsed(backgroundOverride): baselined when the gate widened; burn-down item 905.
   const assetId = backgroundAssetId(edits.backgroundOverride);
   const statements: BatchStmt[] = [
     db

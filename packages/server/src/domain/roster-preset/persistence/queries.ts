@@ -198,7 +198,6 @@ export function viewOf(row: PresetRow, members: readonly RosterPresetMemberView[
     name: row.name,
     description: row.description,
     anchorPersonaId: row.anchorPersonaId,
-    // @orb-waive json-column-read-parsed(groupConfig): baselined when the gate widened; burn-down item 905.
     groupConfig: row.groupConfig === null ? null : groupConfigInputSchema.parse(row.groupConfig),
     // @orb-waive json-column-read-parsed(gameTemplate): baselined when the gate widened; burn-down item 905.
     game: row.gameTemplate ?? null,
@@ -218,7 +217,6 @@ export function summaryOf(row: PresetRow, members: readonly RosterPresetMemberVi
     characterCount: members.length,
     members,
     anchorPersonaId: row.anchorPersonaId,
-    // @orb-waive json-column-read-parsed(groupConfig): baselined when the gate widened; burn-down item 905.
     hasGroupConfig: row.groupConfig !== null,
     // @orb-waive json-column-read-parsed(gameTemplate): baselined when the gate widened; burn-down item 905.
     game: row.gameTemplate ?? null,

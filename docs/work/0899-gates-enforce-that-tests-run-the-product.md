@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-11
 priority: P1
 area: tooling
-lane: wt/agent-afd7721dddc0bd175
 plan: test-mirror
 ---
 
@@ -25,3 +24,5 @@ Core-0 section 5 and Spine-Testing sections 2 and 5 state the directory mirror a
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+First half merged ad36014aa8 (lane wt/agent-afd7721dddc0bd175, swept 2026-10-11). Open: the second half, the Spine-Testing section 10 gates; the mock-through-barrel reach limit moved to 914.

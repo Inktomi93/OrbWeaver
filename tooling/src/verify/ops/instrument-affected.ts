@@ -294,8 +294,8 @@ function qualifySelection(
     return runSpecs(root, ["tests/tooling"], selection.livenessScope, { component, shard });
   }
   if (selection.unreachedSources.length > 0) {
-    // A CHANGED INSTRUMENT THAT REACHES NO SPEC IS A FINDING, NOT A PASS. `test-presence` owns the
-    // obligation; this stage would otherwise print a clean zero over the exact blindness #1967 is about.
+    // A CHANGED INSTRUMENT THAT REACHES NO SPEC IS A FINDING, NOT A PASS. `test-reach` demands no tooling
+    // test, so this stage would otherwise print a clean zero over the exact blindness #1967 is about.
     warn(
       `instrument-affected: ${String(selection.unreachedSources.length)} changed instrument/test input(s) reach NO spec under tests/tooling — ` +
         `${selection.unreachedSources.join(", ")}. A changed instrument with no test that reaches it is unrecertified, not clean (tooling/src/verify/gates/GATE-AUTHORING.md §8).`,

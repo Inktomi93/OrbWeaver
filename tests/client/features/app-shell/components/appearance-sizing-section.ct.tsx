@@ -6,25 +6,22 @@
 // asserted against the section's OWN exported MIN/MAX constants, never hardcoded numbers.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
+import { contrastRatio, relativeLuminance } from "@orb/tooling/floor/instrument/wcag";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN, FONT_SCALE_MAX, FONT_SCALE_MIN } from "#client/features/app-shell/lib/appearance-bounds.ts";
+import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
 import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AppearanceSizingSectionStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_sizing", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
-const UPDATE_PROC = "settings.updateUserSettingsSection";
 const OWNED_KEYS = ["chatWidthPct", "density", "elevation", "fontScale", "reducedMotion"];
 
 function stub(page: Page): Promise<TrpcRecorder> {
-  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => SETTINGS_VIEW });
-}
-
-function lastPatch(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  const input = trpc.lastInput(UPDATE_PROC) as { section?: string; patch?: Record<string, unknown> } | undefined;
-  return input?.section === "appearance" ? input.patch : undefined;
+  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
 }
 
 test("renders the sizing sliders AND the absorbed density/elevation/motion controls under one heading", async ({ mount, page }) => {
@@ -56,12 +53,12 @@ test("chatWidthPct clamps at its own MIN/MAX and patches key-minimally", async (
 
   await slider.press("Home");
   await expect(slider).toHaveAttribute("aria-valuenow", String(CHAT_WIDTH_MIN));
-  await expect.poll(() => lastPatch(trpc)?.["chatWidthPct"], { intervals: [20, 50, 100] }).toBe(CHAT_WIDTH_MIN);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["chatWidthPct"], { intervals: [20, 50, 100] }).toBe(CHAT_WIDTH_MIN);
 
   await slider.press("End");
   await expect(slider).toHaveAttribute("aria-valuenow", String(CHAT_WIDTH_MAX));
-  await expect.poll(() => lastPatch(trpc)?.["chatWidthPct"], { intervals: [20, 50, 100] }).toBe(CHAT_WIDTH_MAX);
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["chatWidthPct"], { intervals: [20, 50, 100] }).toBe(CHAT_WIDTH_MAX);
+  expect(Object.keys(lastSettingsPatch(trpc, "appearance") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 });
 
 test("fontScale clamps at its own MIN/MAX and patches fontScale", async ({ mount, page }) => {
@@ -71,11 +68,11 @@ test("fontScale clamps at its own MIN/MAX and patches fontScale", async ({ mount
 
   await slider.press("Home");
   await expect(slider).toHaveAttribute("aria-valuenow", String(FONT_SCALE_MIN));
-  await expect.poll(() => lastPatch(trpc)?.["fontScale"], { intervals: [20, 50, 100] }).toBe(FONT_SCALE_MIN);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["fontScale"], { intervals: [20, 50, 100] }).toBe(FONT_SCALE_MIN);
 
   await slider.press("End");
   await expect(slider).toHaveAttribute("aria-valuenow", String(FONT_SCALE_MAX));
-  await expect.poll(() => lastPatch(trpc)?.["fontScale"], { intervals: [20, 50, 100] }).toBe(FONT_SCALE_MAX);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["fontScale"], { intervals: [20, 50, 100] }).toBe(FONT_SCALE_MAX);
 });
 
 test("BOTH density options show their OWN spacing art, and picking one patches density key-minimally", async ({ mount, page }) => {
@@ -104,8 +101,8 @@ test("BOTH density options show their OWN spacing art, and picking one patches d
   await expect.poll(() => previews.nth(1).evaluate((el: HTMLElement) => getComputedStyle(el).rowGap)).toBe("6px"); // compact row = the canonical field step
 
   await page.getByRole("radiogroup", { name: "Density" }).getByRole("radio", { name: "Compact" }).click();
-  await expect.poll(() => lastPatch(trpc)?.["density"], { intervals: [20, 50, 100] }).toBe("compact");
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["density"], { intervals: [20, 50, 100] }).toBe("compact");
+  expect(Object.keys(lastSettingsPatch(trpc, "appearance") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
   await expect(page.getByRole("radio", { name: "Compact" })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("radio", { name: "Comfortable" })).toHaveAttribute("aria-checked", "false");
 });
@@ -131,8 +128,8 @@ test("an elevation CELL patches elevation, key-minimally — and the three diagr
   const cards = page.getByRole("radiogroup", { name: "Surface elevation" });
   await cards.getByRole("radio", { name: "Layered" }).click();
 
-  await expect.poll(() => lastPatch(trpc)?.["elevation"], { intervals: [20, 50, 100] }).toBe("ramp");
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["elevation"], { intervals: [20, 50, 100] }).toBe("ramp");
+  expect(Object.keys(lastSettingsPatch(trpc, "appearance") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 
   // #1099 G4 — THE PIN THAT CHANGED, AND WHY. This arm used to assert that Layered's middle cell computes
   // exactly `--color-surface-raised`, i.e. that the diagram painted the shell's REAL three ramp tones. The
@@ -149,8 +146,8 @@ test("an elevation CELL patches elevation, key-minimally — and the three diagr
   // 1.0 — a false verdict shaped like a real one (this arm's own first draft did exactly that; the planted
   // floor caught it). The canvas also does the ALPHA compositing for free, which is the point here: the
   // ladder is `foreground` at rising alpha over the art ground.
-  const contrastLadder = async (name: string): Promise<readonly number[]> =>
-    await cards.getByRole("radio", { name }).evaluate((cell): readonly number[] => {
+  const contrastLadder = async (name: string): Promise<readonly Rgb[]> =>
+    await cards.getByRole("radio", { name }).evaluate((cell): readonly Rgb[] => {
       const canvas = document.createElement("canvas");
       canvas.width = 1;
       canvas.height = 1;
@@ -159,34 +156,33 @@ test("an elevation CELL patches elevation, key-minimally — and the three diagr
         return [];
       }
       const ground = getComputedStyle(cell.querySelector('[data-slot="picker-cell-art"]') ?? cell).backgroundColor;
-      const luminance = (color: string): number => {
+      const paintedOverGround = (color: string): Rgb => {
         context.clearRect(0, 0, 1, 1);
         context.fillStyle = ground;
         context.fillRect(0, 0, 1, 1);
         context.fillStyle = color;
         context.fillRect(0, 0, 1, 1);
-        const [red = 0, green = 0, blue = 0] = context.getImageData(0, 0, 1, 1).data;
-        const channel = (value: number): number => {
-          const srgb = value / 255;
-          return srgb <= 0.039_28 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
-        };
-        return 0.2126 * channel(red) + 0.7152 * channel(green) + 0.0722 * channel(blue);
+        const [r = 0, g = 0, b = 0] = context.getImageData(0, 0, 1, 1).data;
+        return { r, g, b };
       };
       // The LADDER is the diagram's own three cells (art aperture → layout stack → plate → cells), named
       // structurally. A "every non-transparent descendant" sweep counts the art ground twice — the aperture
       // and the plate both paint `bg-background` — which opens the sorted list with a 1.00:1 pair.
       const steps = [...cell.querySelectorAll('[data-slot="picker-cell-art"] > * > * > *')];
-      return steps.map((node) => luminance(getComputedStyle(node).backgroundColor));
+      return steps.map((node) => paintedOverGround(getComputedStyle(node).backgroundColor));
     });
 
   const layered = await contrastLadder("Layered");
   // The positive control: an EMPTY ladder would satisfy every "all steps differ" claim vacuously, and an
   // empty ladder is literally the defect this arm exists for (`Layered` painted NOTHING for a whole era).
   expect(layered).toHaveLength(3);
-  const sorted = [...layered].sort((a, b) => a - b);
+  const sorted = [...layered].sort((a, b) => relativeLuminance(a) - relativeLuminance(b));
   for (let index = 1; index < sorted.length; index += 1) {
-    const ratio = ((sorted[index] ?? 0) + 0.05) / ((sorted[index - 1] ?? 0) + 0.05);
-    expect(ratio).toBeGreaterThanOrEqual(RatioFloor);
+    const [lighter, darker] = [sorted[index], sorted[index - 1]];
+    if (lighter === undefined || darker === undefined) {
+      throw new Error("the Layered ladder lost a step while sorting");
+    }
+    expect(contrastRatio(lighter, darker)).toBeGreaterThanOrEqual(RatioFloor);
   }
 
   // …and the three options do not draw the same picture: shape + shadow differ, not only the tone.

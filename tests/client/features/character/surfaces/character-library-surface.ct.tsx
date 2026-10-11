@@ -100,7 +100,7 @@ const THREE_ROW_TOTAL = 3;
 /** A two-page keyset series: page 1 = [ARIA, BOLT] + a cursor; page 2 = [CASSIUS], exhausted. Both pages
  *  carry the SAME census — every page of one keyset run counts the same scope. */
 function twoPageResponder(input: Parameters<CharacterListResponder>[0]): TrpcFixtureOutput<"character.list"> {
-  const cursor = (input as { cursor?: unknown } | undefined)?.cursor;
+  const cursor = input?.cursor;
   return cursor === undefined
     ? { items: [ARIA, BOLT], nextCursor: PAGE_1_CURSOR, totalCount: THREE_ROW_TOTAL }
     : { items: [CASSIUS], nextCursor: null, totalCount: THREE_ROW_TOTAL };
@@ -133,7 +133,7 @@ test("the search box asks the SERVER — a match beyond the loaded page is found
   await component.getByPlaceholder("Search characters…").fill("zephyr");
 
   // The term went over the wire…
-  await expect.poll(() => (trpc.lastInput("character.list") as { search?: string } | undefined)?.search, { intervals: [50, 100, 200] }).toBe("zephyr");
+  await expect.poll(() => trpc.lastInput("character.list")?.search, { intervals: [50, 100, 200] }).toBe("zephyr");
   // …and the row it matched is on screen even though it was never in the loaded window.
   await expect(row(component, "Zephyrine")).toBeVisible();
   await expect(component.getByText("Filler 0")).toHaveCount(0);
@@ -296,7 +296,7 @@ test("§4.5 the Favorites filter chip narrows the SERVER read to starred rows", 
   await expect(row(component, "Cassius")).toHaveCount(0);
   await expect(row(component, "Starla")).toBeVisible();
   // The narrowing is a REQUEST, not an array pass — which is what makes it reach past the loaded window.
-  await expect.poll(() => (trpc.lastInput("character.list") as { starred?: boolean } | undefined)?.starred, { intervals: [50, 100] }).toBe(true);
+  await expect.poll(() => trpc.lastInput("character.list")?.starred, { intervals: [50, 100] }).toBe(true);
 });
 
 test("§4.3 the Group toggle switches to categorized view (an Uncategorized bucket)", async ({ mount, page }) => {
@@ -724,7 +724,7 @@ test("⑪ the user's library.pageSize threads into the character.list request li
   });
   await mount(<CharacterLibrarySurfaceStory />);
   await expect(page.getByText("Aria Nightshade")).toBeVisible();
-  await expect.poll(() => (trpc.lastInput("character.list") as { limit?: number } | undefined)?.limit, { intervals: [20, 50, 100] }).toBe(42);
+  await expect.poll(() => trpc.lastInput("character.list")?.limit, { intervals: [20, 50, 100] }).toBe(42);
 });
 
 test("⑪ with no stored pageSize, the request falls to the schema default (30)", async ({ mount, page }) => {
@@ -735,7 +735,7 @@ test("⑪ with no stored pageSize, the request falls to the schema default (30)"
   });
   await mount(<CharacterLibrarySurfaceStory />);
   await expect(page.getByText("Aria Nightshade")).toBeVisible();
-  await expect.poll(() => (trpc.lastInput("character.list") as { limit?: number } | undefined)?.limit, { intervals: [20, 50, 100] }).toBe(30);
+  await expect.poll(() => trpc.lastInput("character.list")?.limit, { intervals: [20, 50, 100] }).toBe(30);
 });
 
 // ── The card-import DROP path (the owner-reported P1) ──────────────────────────────────────────────
@@ -1978,7 +1978,7 @@ test("#518 the census has ONE visible home — the band answers the lens, the pa
     ...LIBRARY_AMBIENT_ROUTES,
     "character.list": characterListResponder([ARIA, BOLT, CASSIUS]),
     // The lens narrows the census: a searched count is the one matching row.
-    "character.count": (input) => ((input as { search?: string } | undefined)?.search === undefined ? THREE_ROW_TOTAL : 1),
+    "character.count": (input) => (input?.search === undefined ? THREE_ROW_TOTAL : 1),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => [],
   });

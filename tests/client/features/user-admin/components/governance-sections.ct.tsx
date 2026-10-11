@@ -15,6 +15,7 @@ import type { ShareStatus, SignInModeView } from "@orb/contracts/identity";
 import { copyActionName } from "@orb/ui/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { JSHandle, Locator, Page } from "@playwright/test";
+import { lastAppSettingsPartial } from "../../../../support/node/last-settings-patch.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GovernanceSectionsStory } from "../_ct-stories.tsx";
@@ -56,10 +57,6 @@ function stub(page: Page, viewer: TrpcWireOutput<"sessions.me">, options: StubOp
   });
 }
 
-function lastPartial(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  return (trpc.lastInput(UPDATE_PROC) as { partial?: Record<string, unknown> } | undefined)?.partial;
-}
-
 test("the section stamps its own admin anchor", async ({ mount, page }) => {
   await stub(page, OWNER);
   await mount(<GovernanceSectionsStory />);
@@ -87,7 +84,7 @@ test("the owner may drive it, and a toggle patches EXACTLY its own key", async (
   const seating = page.getByRole("switch", { name: "Allow multiple humans (local mode)" });
   await expect(seating).toBeEnabled();
   await seating.click();
-  await expect.poll(() => lastPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ localMultiUser: true });
+  await expect.poll(() => lastAppSettingsPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ localMultiUser: true });
 });
 
 test("the owner saves the complete private-endpoint list as one sparse override", async ({ mount, page }) => {
@@ -101,7 +98,7 @@ test("the owner saves the complete private-endpoint list as one sparse override"
   await allowlist.fill("  ollama.lan:11434\n10.0.0.0/8\n10.0.0.0/8:443\n\n[::1]:8703  ");
   await page.getByRole("button", { name: "Save" }).click();
   await expect
-    .poll(() => lastPartial(trpc), { intervals: [20, 50, 100] })
+    .poll(() => lastAppSettingsPartial(trpc), { intervals: [20, 50, 100] })
     .toStrictEqual({
       privateEndpointAllowlist: ["ollama.lan:11434", "10.0.0.0/8", "10.0.0.0/8:443", "[::1]:8703"],
     });
@@ -113,7 +110,7 @@ test("the owner can save an explicitly empty private-endpoint list without reset
 
   await page.getByRole("textbox", { name: "Allowed private endpoints" }).fill("");
   await page.getByRole("button", { name: "Save" }).click();
-  await expect.poll(() => lastPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ privateEndpointAllowlist: [] });
+  await expect.poll(() => lastAppSettingsPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ privateEndpointAllowlist: [] });
 });
 
 // Multi-user's Reset is viewer-shaped: an owner clears all three keys, a delegated admin only the one they may
@@ -127,7 +124,7 @@ test("Multi-user's Reset clears only the keys the viewer may clear — owner", a
 
   await page.locator("#config-anchor-admin-multi-user").getByRole("button", { name: "Reset to defaults" }).click();
   await expect
-    .poll(() => lastPartial(trpc), { intervals: [20, 50, 100] })
+    .poll(() => lastAppSettingsPartial(trpc), { intervals: [20, 50, 100] })
     .toStrictEqual({
       localMultiUser: null,
       discreetLogin: null,
@@ -143,7 +140,7 @@ test("Multi-user's Reset clears only the keys the viewer may clear — delegated
   await mount(<GovernanceSectionsStory />);
 
   await page.locator("#config-anchor-admin-multi-user").getByRole("button", { name: "Reset to defaults" }).click();
-  await expect.poll(() => lastPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ discreetLogin: null });
+  await expect.poll(() => lastAppSettingsPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ discreetLogin: null });
 });
 
 // The read-only sharing panel beside the seating switch: letting other devices sign in is an env change

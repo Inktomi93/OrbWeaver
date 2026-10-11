@@ -228,11 +228,11 @@ fixture maintains an expected declaration count. Canonical validation is require
 token history: inability to derive is exit 2; a successful derivation whose committed file is missing or differs
 from the derived bytes is exit 1.
 
-The only sanctioned non-derivable cardinality guard is `depcruise-grant-liveness-health.BACKREF_BUDGET`. It covers the
+One sanctioned non-derivable cardinality guard is `depcruise-grant-liveness-health.BACKREF_BUDGET`. It covers the
 `$1` backreference dependency-cruiser rules whose bound member set exists only at cruise time and cannot be
 derived by a static reader. This named exception guards silent growth of an unreviewable population; it is not a
-generic ratchet license. A new numeric exception requires an owner ruling and proof that no source-derived equality is
-possible.
+generic ratchet license. A new numeric exception requires an owner ruling naming it, and a reason a source-derived
+equality cannot hold the same property.
 
 The constant is the number's one home; a prose copy of a machine's answer rots the moment the answer changes (§7), so
 this paragraph names no count. The budget lives in `depcruise-grant-liveness-health`, not in the `reviewed-grant`
@@ -241,6 +241,10 @@ central row could name, and this budget has none and must not acquire one: a gra
 door to move the number without touching it, the precise failure this exception exists to prevent. Reporting it
 therefore requires `hard` authority, and one policy carries one authority, so the budget lives in the sibling health
 policy under the same family rather than in the reviewed-grant policy it counts against.
+
+The second sanctioned cardinality guard is the waiver budget, by owner ruling (`docs/plans/test-mirror/design.md`, "Burn down the waivers"). Each final policy's waived plus granted finding count must equal its row in `tooling/src/verify/lib/waiver-budget.ts`; a policy with no row has a budget of zero. The count is derivable, but the allowance is a decision that no source fact records, and the ruling is that excused findings only fall. `lib/waiver-ratchet.ts` judges every owner that completed over its whole population and raises a `waiver-budget` authority alarm when the count rises or falls. A rise means a new finding was excused: fix it instead. A fall means the budget must drop to the new count in the same change. Only the structure and scoped command runners pass the budget, so fixture and conformance passes judge no ratchet.
+
+The budget guards the COUNT only. Swapping one grant or marker for another at the same count passes it, and so does a change that adds an excuse and raises its budget row together. Review guards those two: every diff to `lib/waiver-budget.ts`, to a `lib/reviewed-grants*.ts` table or to an `@orb-waive` marker is read as a change to what the gates excuse.
 
 ## 6. Proof law
 

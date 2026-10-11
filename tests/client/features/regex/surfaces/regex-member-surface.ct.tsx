@@ -69,7 +69,7 @@ test("editing a field autosaves through updateScript with the tier flags DERIVED
   const editor = await mount(<RegexMemberStory />);
   await editor.getByRole("textbox", { name: "Name" }).fill("strip ooc lines");
   await expect
-    .poll(() => (trpc.lastInput("regex.updateScript") as { readonly input?: { readonly name?: string } } | undefined)?.input?.name, {
+    .poll(() => trpc.lastInput("regex.updateScript")?.input?.name, {
       intervals: [50, 100, 250, 500],
       timeout: 5000,
     })
@@ -78,7 +78,7 @@ test("editing a field autosaves through updateScript with the tier flags DERIVED
   // save (never authored), so the pair can never contradict the chips. This fixture's placement is
   // AI_OUTPUT only — `withDerivedTierFlags`' output-only arm — and the assertion is that the SAVE carries
   // that derivation rather than the row's stored flags.
-  const input = trpc.lastInput("regex.updateScript") as { readonly input: { readonly markdownOnly: boolean; readonly promptOnly: boolean } };
+  const input = trpc.requireLastInput("regex.updateScript");
   expect({ markdownOnly: input.input.markdownOnly, promptOnly: input.input.promptOnly }).toEqual(deriveRegexTierFlags(["AI_OUTPUT"]));
 });
 
@@ -94,7 +94,7 @@ const DEPTH_TO = "To (messages back)";
 
 /** The `historyDepth` the last autosave carried (undefined = the key was absent, which is the point). */
 function savedDepth(trpc: TrpcRecorder): unknown {
-  const call = trpc.lastInput("regex.updateScript") as { readonly input?: Record<string, unknown> } | undefined;
+  const call = trpc.lastInput("regex.updateScript");
   return call?.input?.["historyDepth"];
 }
 

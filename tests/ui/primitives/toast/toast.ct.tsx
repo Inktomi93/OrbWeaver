@@ -1,3 +1,5 @@
+import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
+import { contrastRatio, NORMAL_MIN_RATIO, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -44,9 +46,9 @@ async function boxOf(locator: Locator): Promise<{ x: number; y: number; width: n
  *  back in the authored colour space, not sRGB, so they are painted into a 1×1 canvas and sampled
  *  rather than string-parsed — the browser is the only honest converter, and a regex over a colour
  *  notation is how a contrast probe starts lying. */
-function contrastRatio(page: Page, foreground: string, background: string): Promise<number> {
-  return page.evaluate(
-    ([front, back]: readonly [string, string]) => {
+async function cssContrast(page: Page, foreground: string, background: string): Promise<number> {
+  const [front, back] = await page.evaluate(
+    ([frontCss, backCss]: readonly [string, string]) => {
       const canvas = document.createElement("canvas");
       canvas.width = 1;
       canvas.height = 1;
@@ -54,25 +56,20 @@ function contrastRatio(page: Page, foreground: string, background: string): Prom
       if (context === null) {
         throw new Error("toast CT: no 2d context for the contrast probe");
       }
-      const luminance = (color: string): number => {
+      const rgb = (color: string): Rgb => {
         context.clearRect(0, 0, 1, 1);
         context.fillStyle = color;
         context.fillRect(0, 0, 1, 1);
         // Defaults are syntax, not a branch: a 1×1 RGBA read always yields four entries — they exist
         // only because `noUncheckedIndexedAccess` types the buffer read as possibly-undefined.
         const [r = 0, g = 0, b = 0] = context.getImageData(0, 0, 1, 1).data;
-        const channel = (value: number): number => {
-          const srgb = value / 255;
-          return srgb <= 0.039_28 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
-        };
-        return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+        return { r, g, b };
       };
-      const a = luminance(front);
-      const b = luminance(back);
-      return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+      return [rgb(frontCss), rgb(backCss)] as const;
     },
     [foreground, background] as const,
   );
+  return contrastRatio(front, back);
 }
 
 /** A toast SLIDES in. Geometry read on the same tick as the mount is the enter transition's first frame,
@@ -352,13 +349,13 @@ test("the action button's fill clears the 3:1 non-text contrast floor against th
   const fill = await action.evaluate((element: Element) => getComputedStyle(element).backgroundColor);
   const surface = await toast.evaluate((element: Element) => getComputedStyle(element).backgroundColor);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
-  expect(await contrastRatio(page, fill, surface)).toBeGreaterThanOrEqual(3);
+  expect(await cssContrast(page, fill, surface)).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
 
   // …and its LABEL stays readable on that new fill (4.5:1 text floor) — a boundary fix that blinds the
   // text is not a fix.
   const label = await action.evaluate((element: Element) => getComputedStyle(element).color);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
-  expect(await contrastRatio(page, label, fill)).toBeGreaterThanOrEqual(4.5);
+  expect(await cssContrast(page, label, fill)).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
 });
 
 // NEW P3. Moving the stack top-right put it under the notifications popover: measured z-60 toast vs z-65

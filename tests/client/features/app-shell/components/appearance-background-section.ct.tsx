@@ -21,6 +21,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { BACKGROUND_BLUR_MAX, BACKGROUND_BLUR_MIN, BACKGROUND_DIM_MAX, BACKGROUND_DIM_MIN } from "#client/features/app-shell/lib/appearance-bounds.ts";
 import { DEFAULT_DEBOUNCE_MS } from "#client/forms/entity-form-base.ts";
+import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
 import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { AppearanceBackgroundSectionStory } from "../_ct-stories.tsx";
@@ -44,7 +45,6 @@ const SETTINGS_VIEW = {
   configUnreadable: null,
   updatedAt: 0,
 };
-const UPDATE_PROC = "settings.updateUserSettingsSection";
 // F-P0-2 — the URL arm of the `asset` background kind. The verb MATERIALIZES the pasted address server-side
 // and hands back a ready library entry; nothing external is ever persisted (BG-C).
 const EXTERNAL_PROC = "settings.addExternalBackground";
@@ -77,14 +77,9 @@ const OWNED_KEYS = [
 function stub(page: Page, external: TrpcResponder<typeof EXTERNAL_PROC> = () => MATERIALIZED_ENTRY): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "settings.getUserSettings": () => SETTINGS_VIEW,
-    [UPDATE_PROC]: () => SETTINGS_VIEW,
+    [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW,
     [EXTERNAL_PROC]: external,
   });
-}
-
-function lastPatch(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  const input = trpc.lastInput(UPDATE_PROC) as { section?: string; patch?: Record<string, unknown> } | undefined;
-  return input?.section === "appearance" ? input.patch : undefined;
 }
 
 /** The picker itself. Tiles are `role="gridcell"` named by their `alt` (MediaGrid puts the accessible name
@@ -138,7 +133,7 @@ test("fit/dim/blur are GATED until a tile is picked, then clamp at their own MIN
   await expect(blur).toHaveAttribute("aria-valuenow", String(BACKGROUND_BLUR_MAX));
 
   await expect
-    .poll(() => lastPatch(trpc), { intervals: [20, 50, 100] })
+    .poll(() => lastSettingsPatch(trpc, "appearance"), { intervals: [20, 50, 100] })
     .toMatchObject({
       backgroundImageKind: "asset",
       // The tapped TILE's own asset, not a value chosen in a control — this is the derivation R-BG replaced
@@ -152,7 +147,7 @@ test("fit/dim/blur are GATED until a tile is picked, then clamp at their own MIN
       backgroundBlur: BACKGROUND_BLUR_MAX,
     });
   // P1 — the eight background keys, never the whole appearance blob (which would clobber a sibling section).
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  expect(Object.keys(lastSettingsPatch(trpc, "appearance") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 });
 
 // F-P0-2 — the "add a background from a URL" affordance. It is NOT a background KIND: `external` can never
@@ -179,7 +174,7 @@ test("the add door's URL arm fires addExternalBackground and the returned entry 
   // …and the returned entry lands through the section's own autosave: appended to the library (BG-D) AND
   // selected as the live background (id + hash + mime — the three fields the resolver reads).
   await expect
-    .poll(() => lastPatch(trpc), { intervals: [20, 50, 100] })
+    .poll(() => lastSettingsPatch(trpc, "appearance"), { intervals: [20, 50, 100] })
     .toMatchObject({
       backgroundImageKind: "asset",
       backgroundLibrary: [SEEDED_PLATE_ENTRY, MATERIALIZED_ENTRY],
@@ -210,7 +205,7 @@ test("a refused URL surfaces the verb's own leak-free reason inline, writes noth
   await expect(page.getByText("That URL isn't an image we can use as a background.")).toBeVisible();
 
   // THE WRITE ASSERTION GOT STRONGER, not weaker (#1207). Under the retired combobox this read
-  // `lastPatch(trpc)?.backgroundLibrary === []` — but that patch only existed because PICKING "Upload" in
+  // `lastSettingsPatch(trpc, "appearance")?.backgroundLibrary === []` — but that patch only existed because PICKING "Upload" in
   // the kind combobox was itself a form edit that autosaved. With the picker gone, opening the add door
   // edits nothing, so the honest claim is the absolute one: a refusal produces NO appearance write AT ALL.
   // Barriered on the rendered refusal above, then held across an idle window derived from the form's own
@@ -223,7 +218,7 @@ test("a refused URL surfaces the verb's own leak-free reason inline, writes noth
       }),
     DEFAULT_DEBOUNCE_MS * 3,
   );
-  expect(trpc.count(UPDATE_PROC), "a refused URL must not write the appearance section at all").toBe(0);
+  expect(trpc.count(UPDATE_USER_SETTINGS_SECTION), "a refused URL must not write the appearance section at all").toBe(0);
   // …and it never reaches the PICKER either: no phantom tile, and "None" is still the live one. A refusal
   // that wrote nothing but painted a tile would read to the user as a background they now own.
   await expect(grid(page).getByRole("gridcell")).toHaveCount(tilesBefore);
@@ -325,7 +320,7 @@ test("an upload appends a library entry with its mime and lands as the SELECTED 
   // The library row carries the mime + the file-derived name (extension stripped — the URL arm's twin), and
   // the same add ALSO selects it (id + hash + mime), so the upload paints immediately.
   await expect
-    .poll(() => lastPatch(trpc), { intervals: [20, 50, 100] })
+    .poll(() => lastSettingsPatch(trpc, "appearance"), { intervals: [20, 50, 100] })
     .toMatchObject({
       // APPENDED after the seeded plate the library already carries — an upload joins the one list, it does
       // not replace it (the plates are ordinary library rows since `kind:"seeded"` retired).

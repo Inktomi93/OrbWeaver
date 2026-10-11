@@ -1,5 +1,5 @@
 // Policy: test-presence-client (docs/law/Spine-Testing.md §5) — the `@orb/client` + non-primitive `@orb/ui`
-// reach `test-presence` lacks. §5's rule is that a test is required where an untested change silently
+// surfaces `test-reach` does not demand. §5's rule is that a test is required where an untested change silently
 // breaks behavior DOWNSTREAM, not blanket per-file coverage, so the policy has three clauses:
 //   A. a client `data/` `forms/` `forms/editor/` `state/` DIRECT child with a callable export needs a
 //      per-file mirror test (each is composed independently by every feature);
@@ -18,8 +18,8 @@
 // clause A) and REFUSES LOUDLY when a mirror exists that it could not read.
 //
 // FAMILY `mirror-index` — the SHARED SUBJECT READER is `ops/resource-mirror.ts` `loadMirrorIndex` via the
-// `mirrorIndex` host door. Siblings: `test-layout` (the test corpus' own homes) and `test-presence`
-// (server/contracts). `contract/resource-mirror.ts:17-18` publishes `testsByDirectory` because THIS policy
+// `mirrorIndex` host door. Siblings: `test-layout` (the test corpus' own homes) and `test-reach`
+// (server, contracts and inference presence by reach). `contract/resource-mirror.ts:17-18` publishes `testsByDirectory` because THIS policy
 // "needs the LISTING of one mirror directory" — the kind was designed around clause B.
 //
 // POPULATION PORT — legacy at (pruned from public history) (the parent of the conversion commit 7a0a2375aa), a `GateDescriptor` with

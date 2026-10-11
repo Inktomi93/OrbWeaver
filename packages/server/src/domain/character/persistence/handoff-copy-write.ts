@@ -151,7 +151,6 @@ export function createCopyHandoffCards(ctx: CharacterHandoffCopyContext): CopyHa
             // source on "Inherit default" stays inheriting, so its copy follows the deployment default like
             // every other card the nominee owns; only an explicit opt-in is held back.
             interactiveHtml: null,
-            // @orb-waive json-column-read-parsed(themeOverride): baselined when the gate widened; burn-down item 905.
             themeOverride: source.themeOverride,
             // …but the BACKGROUND is re-owned, not carried by id (step 3 / #1426).
             backgroundOverride,

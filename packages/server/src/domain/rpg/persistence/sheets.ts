@@ -68,7 +68,6 @@ export async function upsertSheet(
   const existing = await findSheet(db, input.gameId, actor);
   if (existing) {
     await db.update(rpgSheets).set({ sheet: input.sheet, updatedAt: input.now }).where(eq(rpgSheets.id, existing.id));
-    // @orb-waive json-column-read-parsed(sheet): baselined when the gate widened; burn-down item 905.
     return { ...existing, sheet: input.sheet, updatedAt: input.now };
   }
   const rows = await db

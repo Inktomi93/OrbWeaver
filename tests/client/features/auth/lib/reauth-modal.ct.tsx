@@ -9,6 +9,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { SIGNED_IN_OWNER_ME, SIGNED_OUT_ME, stubAuthMe } from "../../../../support/node/stub-auth-me.ts";
 import { ReauthDismissalStory, ReauthLadderStory } from "../_ct-stories.tsx";
 
 /** `/api/auth/me` answers DEAD until the login POST lands, then ALIVE — the real sequence the ladder walks. */
@@ -30,13 +31,7 @@ async function stubLocalAuth(page: Page): Promise<() => number> {
       }),
     }),
   );
-  await page.route("**/api/auth/me", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ authenticated: alive, handle: alive ? "owner" : null, role: alive ? "owner" : null }),
-    }),
-  );
+  await stubAuthMe(page, () => (alive ? SIGNED_IN_OWNER_ME : SIGNED_OUT_ME));
   await page.route("**/api/auth/login", (route) => {
     logins += 1;
     alive = true;

@@ -1,5 +1,6 @@
 import { DEFAULT_USER_SETTINGS, USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AttachmentQualityStory } from "../_attachment-quality-stories.tsx";
 
@@ -10,10 +11,8 @@ const SETTINGS_VIEW = {
   configUnreadable: null,
   updatedAt: 0,
 };
-const UPDATE_PROC = "settings.updateUserSettingsSection";
-
 test("defaults and cost/fidelity hint are visible at narrow width", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => SETTINGS_VIEW });
+  await routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
   await mount(<AttachmentQualityStory />);
   await expect(page.getByRole("heading", { name: "Attachments", exact: true })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Image detail", exact: true })).toContainText("Auto");
@@ -24,7 +23,7 @@ test("defaults and cost/fidelity hint are visible at narrow width", async ({ mou
 });
 
 test("each image/video option autosaves only attachment quality and renders the selected value", async ({ mount, page }) => {
-  const recorder = await routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => SETTINGS_VIEW });
+  const recorder = await routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
   await mount(<AttachmentQualityStory />);
   for (const [label, value] of [
     ["Low", "low"],
@@ -35,7 +34,7 @@ test("each image/video option autosaves only attachment quality and renders the 
     await page.getByRole("option", { name: label, exact: true }).click();
     await expect(page.getByRole("combobox", { name: "Image detail", exact: true })).toContainText(label);
     await expect
-      .poll(() => recorder.lastInput(UPDATE_PROC))
+      .poll(() => recorder.lastInput(UPDATE_USER_SETTINGS_SECTION))
       .toEqual({ section: "chat", patch: { attachmentQuality: { imageDetail: value, videoMaxResolution: "720" } } });
   }
   for (const [label, value] of [
@@ -48,14 +47,14 @@ test("each image/video option autosaves only attachment quality and renders the 
     await page.getByRole("option", { name: label, exact: true }).click();
     await expect(page.getByRole("combobox", { name: "Video maximum resolution", exact: true })).toContainText(label);
     await expect
-      .poll(() => recorder.lastInput(UPDATE_PROC))
+      .poll(() => recorder.lastInput(UPDATE_USER_SETTINGS_SECTION))
       .toEqual({ section: "chat", patch: { attachmentQuality: { imageDetail: "auto", videoMaxResolution: value } } });
   }
 });
 
 for (const width of [280, 320, 480, 760, 1000]) {
   test(`attachment fields remain paired and contained in a ${width}px host`, async ({ mount, page }) => {
-    await routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => SETTINGS_VIEW });
+    await routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
     await mount(<AttachmentQualityStory width={width} />);
     const image = page.getByRole("combobox", { name: "Image detail", exact: true });
     const video = page.getByRole("combobox", { name: "Video maximum resolution", exact: true });
@@ -110,7 +109,7 @@ for (const width of [280, 320, 480, 760, 1000]) {
 test.describe("coarse attachment choices", () => {
   test.use({ hasTouch: true });
   test("280px host keeps full touch targets and names both opened lists", async ({ mount, page }) => {
-    await routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => SETTINGS_VIEW });
+    await routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
     await mount(<AttachmentQualityStory width={280} />);
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     for (const name of ["Image detail", "Video maximum resolution"]) {

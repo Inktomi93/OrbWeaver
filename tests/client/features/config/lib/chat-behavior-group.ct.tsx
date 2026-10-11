@@ -13,14 +13,13 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { findSettingsColumnViolation, readSettingsPaneGeometry } from "../../../../support/browser/settings-geometry.ts";
+import { UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
 import type { TrpcRecorder, TrpcResponder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { UTILITY_RUNNING_ROUTES } from "../../../../support/node/utility-role.ts";
 import { ChatBehaviorGroupStory, ConfigHostStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_chat_behavior_pane", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
-const UPDATE_PROC = "settings.updateUserSettingsSection";
-
 /** The pane's eight sections, in the door's declared order (main.tsx) — which IS the render order. */
 const ANCHOR_ORDER = [
   "config-anchor-chat-behavior-message-handling",
@@ -37,7 +36,7 @@ const ANCHOR_ORDER = [
  *  `navLabel` shows THAT here ("Chat & message handling" stays the heading). */
 const NAV_LABELS = ["Message handling", "Streaming", "Memory", "Attachments", "World info", "Databank", "Image prompts", "Prose"];
 
-function stub(page: Page, update: TrpcResponder<typeof UPDATE_PROC> = () => SETTINGS_VIEW): Promise<TrpcRecorder> {
+function stub(page: Page, update: TrpcResponder<typeof UPDATE_USER_SETTINGS_SECTION> = () => SETTINGS_VIEW): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     // The config LIST paints every shelf, so the four collection bands read their rosters for the counts —
     // fed empty (the honest fresh-library arm) rather than left to routeTrpc's inert null.
@@ -52,15 +51,15 @@ function stub(page: Page, update: TrpcResponder<typeof UPDATE_PROC> = () => SETT
     "rosterPreset.count": 0,
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "sessions.me": () => ({ userId: SETTINGS_VIEW.userId, handle: "ct_chat_behavior", globalRole: "user" }),
-    [UPDATE_PROC]: update,
+    [UPDATE_USER_SETTINGS_SECTION]: update,
   });
 }
 
 /** Every `chat` section-patch recorded so far. */
 function patches(trpc: TrpcRecorder): Record<string, unknown>[] {
   return trpc
-    .inputs(UPDATE_PROC)
-    .map((input) => input as { section?: string; patch?: Record<string, unknown> })
+    .inputs(UPDATE_USER_SETTINGS_SECTION)
+    .map((input) => input)
     .filter((input) => input.section === "chat")
     .map((input) => input.patch ?? {});
 }

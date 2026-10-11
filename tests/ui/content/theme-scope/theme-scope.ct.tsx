@@ -1,3 +1,5 @@
+import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
+import { contrastRatio, LARGE_MIN_RATIO, NORMAL_MIN_RATIO, relativeLuminance, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { Button } from "@orb/ui/button";
 import { Dialog, DialogPopup, DialogTrigger } from "@orb/ui/dialog";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
@@ -7,7 +9,9 @@ import { Select } from "@orb/ui/select";
 import { Textarea } from "@orb/ui/textarea";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 import type { CSSProperties } from "react";
+import { partVsSurface } from "../../../support/browser/part-vs-surface.ts";
 import { pixelContrast } from "../../../support/browser/pixel-contrast.ts";
 import { ThemedFloatScope } from "./float-theming.fixtures.tsx";
 
@@ -39,7 +43,37 @@ test("a hostile accent value is DROPPED (no injected custom property)", async ({
 // STRING. This proves the browser RESOLVES those strings to real colors that clear WCAG AA — the exact
 // light-theme case (background 0.98) that made the static accent-foreground / primary-foreground
 // illegible before #16 derived them. Colors are normalized through a 1×1 canvas (the browser converts
-// whatever it computed — rgb/oklch — to pixels), then WCAG-contrasted in-page.
+// whatever it computed — rgb/oklch — to pixels), then WCAG-contrasted node-side by the shared engine.
+
+/** Two named style values of `el` — a CSS property (`color`) or a custom property (`--color-card`) — resolved
+ *  to sRGB bytes through a 1x1 canvas. Passed directly to `evaluate`: nothing outside this body exists in the page. */
+const resolvedPair = (el: Element, names: readonly [string, string]): readonly [Rgb, Rgb] => {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1;
+  canvas.height = 1;
+  const ctx = canvas.getContext("2d");
+  if (ctx === null) {
+    throw new Error("no 2d context");
+  }
+  const style = getComputedStyle(el);
+  const toRgb = (name: string): Rgb => {
+    ctx.clearRect(0, 0, 1, 1);
+    ctx.fillStyle = style.getPropertyValue(name).trim();
+    ctx.fillRect(0, 0, 1, 1);
+    const [r = 0, g = 0, b = 0] = ctx.getImageData(0, 0, 1, 1).data;
+    return { r, g, b };
+  };
+  return [toRgb(names[0]), toRgb(names[1])];
+};
+
+/** The glyph ink against the element's own fill. */
+const INK_ON_FILL = ["color", "background-color"] as const;
+
+async function pairContrast(target: Locator, names: readonly [string, string]): Promise<number> {
+  const [first, second] = await target.evaluate(resolvedPair, names);
+  return contrastRatio(first, second);
+}
+
 test("derived accent-/primary-foreground RESOLVE to AA-legible colors under a light theme", async ({ mount }) => {
   const cmp = await mount(
     <ThemeScope tokens={{ background: "oklch(0.98 0.004 75)", accent: "oklch(0.55 0.16 50)" }}>
@@ -57,37 +91,11 @@ test("derived accent-/primary-foreground RESOLVE to AA-legible colors under a li
       </span>
     </ThemeScope>,
   );
-  const ratioOf = (testId: string): Promise<number> =>
-    cmp.getByTestId(testId).evaluate((el) => {
-      const toRgb = (color: string): [number, number, number] => {
-        const canvas = document.createElement("canvas");
-        canvas.width = 1;
-        canvas.height = 1;
-        const ctx = canvas.getContext("2d");
-        if (ctx === null) {
-          throw new Error("no 2d context");
-        }
-        ctx.fillStyle = color;
-        ctx.fillRect(0, 0, 1, 1);
-        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-        return [r ?? 0, g ?? 0, b ?? 0];
-      };
-      const lum = (rgb: [number, number, number]): number => {
-        const [r, g, b] = rgb.map((v) => {
-          const c = v / 255;
-          return c <= 0.039_28 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-        }) as [number, number, number];
-        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-      };
-      const style = getComputedStyle(el);
-      const la = lum(toRgb(style.color));
-      const lb = lum(toRgb(style.backgroundColor));
-      return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
-    });
+  const ratioOf = (testId: string): Promise<number> => pairContrast(cmp.getByTestId(testId), INK_ON_FILL);
   // accent-foreground on the derived accent surface = body text ⇒ AA 4.5:1; the solid primary button
   // label ⇒ the 3:1 UI/large-text floor. Both would FAIL if the fg had stayed the static dark default.
-  expect(await ratioOf("accent")).toBeGreaterThanOrEqual(4.5);
-  expect(await ratioOf("primary")).toBeGreaterThanOrEqual(3);
+  expect(await ratioOf("accent")).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+  expect(await ratioOf("primary")).toBeGreaterThanOrEqual(LARGE_MIN_RATIO);
 });
 
 for (const theme of [
@@ -119,7 +127,7 @@ for (const theme of [
       const action = cmp.getByRole("button", { name: label });
       await expect(action).toBeVisible();
       const receipt = await pixelContrast(page, action);
-      expect(receipt.ratio, `${label} @ ${theme.label}: ${receipt.describe}`).toBeGreaterThanOrEqual(4.5);
+      expect(receipt.ratio, `${label} @ ${theme.label}: ${receipt.describe}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
     }
   });
 }
@@ -300,34 +308,7 @@ const ST_DARK_INK = "oklch(0.72 0.16 174)"; // the measured ST ink; all three vo
 const LIGHT_SEED_BASE = "oklch(0.98 0.004 75)"; // SEED_THEME_VALUE_SETS.light --color-background
 const DARK_SEED_BASE = "oklch(0.158 0.006 60)"; // the base @theme (Hearth) surface
 
-// Framebuffer-honest contrast: the browser normalizes whatever it computed (rgb/oklch/relative-color)
-// through a 1x1 canvas, then WCAG in-page — the same instrument the derived-foreground test above uses.
-const renderedContrast = (el: Element): number => {
-  const toRgb = (color: string): [number, number, number] => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 1;
-    canvas.height = 1;
-    const ctx = canvas.getContext("2d");
-    if (ctx === null) {
-      throw new Error("no 2d context");
-    }
-    ctx.fillStyle = color;
-    ctx.fillRect(0, 0, 1, 1);
-    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-    return [r ?? 0, g ?? 0, b ?? 0];
-  };
-  const lum = (rgb: [number, number, number]): number => {
-    const [r, g, b] = rgb.map((v) => {
-      const c = v / 255;
-      return c <= 0.039_28 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-    }) as [number, number, number];
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  };
-  const style = getComputedStyle(el);
-  const la = lum(toRgb(style.color));
-  const lb = lum(toRgb(style.backgroundColor));
-  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
-};
+// Framebuffer-honest contrast: the same canvas-resolved `pairContrast` the derived-foreground test above uses.
 
 test("an INK-ONLY scope under a LIGHT ambient renders its three voices at AA — the #236 washout", async ({ mount }) => {
   const cmp = await mount(
@@ -348,7 +329,7 @@ test("an INK-ONLY scope under a LIGHT ambient renders its three voices at AA —
   // Pre-#236 every one of these measured 2.11:1 — pale teal ghosts on warm white.
   await Promise.all(
     ["speaker", "dialogue", "narration"].map((voice) =>
-      expect.poll(() => cmp.getByTestId(voice).evaluate(renderedContrast), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(4.5),
+      expect.poll(() => pairContrast(cmp.getByTestId(voice), INK_ON_FILL), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO),
     ),
   );
 });
@@ -368,7 +349,7 @@ test("the ambient chain re-bases at a CARRIED palette: an ink-only scope inside 
       </ThemeScope>
     </ThemeScope>,
   );
-  await expect.poll(() => cmp.getByTestId("in-room").evaluate(renderedContrast), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(4.5);
+  await expect.poll(() => pairContrast(cmp.getByTestId("in-room"), INK_ON_FILL), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
 });
 
 // ── #243: THE ELEVATION INGREDIENTS UNDER A CUSTOM LIGHT THEME (rendered — done ≠ emitted) ─────────
@@ -379,8 +360,8 @@ test("the ambient chain re-bases at a CARRIED palette: an ink-only scope inside 
 // canvas and the composite is compared to the base itself.
 const RING_PROBE_BASE = "oklch(0.98 0.004 75)";
 
-/** The ring custom property, PAINTED over `base` in a 1x1 canvas → [composite luminance, base luminance]. */
-const paintedRingVsBase = (el: Element, base: string): readonly [number, number] => {
+/** The ring custom property, PAINTED over `base` in a 1x1 canvas → [composite, base] as sRGB bytes. */
+const paintedRingVsBase = (el: Element, base: string): readonly [Rgb, Rgb] => {
   const ring = getComputedStyle(el).getPropertyValue("--color-shadow-hairline").trim();
   const canvas = document.createElement("canvas");
   canvas.width = 1;
@@ -389,23 +370,19 @@ const paintedRingVsBase = (el: Element, base: string): readonly [number, number]
   if (ctx === null) {
     throw new Error("no 2d context");
   }
-  const lumOfPixel = (): number => {
-    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-    const [lr, lg, lb] = [r ?? 0, g ?? 0, b ?? 0].map((v) => {
-      const c = v / 255;
-      return c <= 0.039_28 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-    }) as [number, number, number];
-    return 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
+  const pixel = (): Rgb => {
+    const [r = 0, g = 0, b = 0] = ctx.getImageData(0, 0, 1, 1).data;
+    return { r, g, b };
   };
   ctx.fillStyle = base;
   ctx.fillRect(0, 0, 1, 1);
-  const baseLum = lumOfPixel();
+  const basePixel = pixel();
   if (ring === "") {
     throw new Error("no --color-shadow-hairline in scope");
   }
   ctx.fillStyle = ring; // translucent — the canvas composites it over the base already painted
   ctx.fillRect(0, 0, 1, 1);
-  return [lumOfPixel(), baseLum];
+  return [pixel(), basePixel];
 };
 
 test("#243 a CUSTOM light theme paints a DARK elevation ring — not the base theme's white ghost", async ({ mount }) => {
@@ -416,8 +393,8 @@ test("#243 a CUSTOM light theme paints a DARK elevation ring — not the base th
   );
   const [composite, base] = await cmp.getByTestId("ring-probe").evaluate(paintedRingVsBase, RING_PROBE_BASE);
   // Pre-#243 the inherited white ring composited to the base's own luminance (1.00:1, invisible).
-  expect(composite).toBeLessThan(base);
-  expect((base + 0.05) / (composite + 0.05)).toBeGreaterThan(1.2);
+  expect(relativeLuminance(composite)).toBeLessThan(relativeLuminance(base));
+  expect(contrastRatio(composite, base)).toBeGreaterThan(1.2);
 });
 
 test("#243 a CUSTOM dark theme's elevation ring stays light-from-above (the dark arm does not move)", async ({ mount }) => {
@@ -427,7 +404,7 @@ test("#243 a CUSTOM dark theme's elevation ring stays light-from-above (the dark
     </ThemeScope>,
   );
   const [composite, base] = await cmp.getByTestId("ring-probe-dark").evaluate(paintedRingVsBase, DARK_SEED_BASE);
-  expect(composite).toBeGreaterThan(base);
+  expect(relativeLuminance(composite)).toBeGreaterThan(relativeLuminance(base));
 });
 
 // ── #682: THE MUTED-ON-CARD GRAPHIC UNDER A NEAR-WHITE CARRIED PALETTE (rendered) ──────────────────
@@ -445,38 +422,8 @@ const NEAR_WHITE_BASE = "oklch(0.98 0.004 75)";
  *  colour straight through a canvas measures it over TRANSPARENT BLACK, which on a white card reports a
  *  near-black stroke and a spectacular fake ratio. Painting card-then-stroke is what the reader sees, and it
  *  is byte-identical for an opaque token, so the older `muted` numbers this file cites still hold. */
-const arcPartVsCard = (panel: Element, slot: string): number => {
-  const part = panel.querySelector(`[data-slot="meter-track"] ${slot}`);
-  if (part === null) {
-    throw new Error(`no arc meter ${slot} in the panel`);
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = 1;
-  canvas.height = 1;
-  const ctx = canvas.getContext("2d");
-  if (ctx === null) {
-    throw new Error("no 2d context");
-  }
-  const lumOfPixel = (): number => {
-    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-    const [lr, lg, lb] = [r ?? 0, g ?? 0, b ?? 0].map((v) => {
-      const c = v / 255;
-      return c <= 0.039_28 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-    }) as [number, number, number];
-    return 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
-  };
-  const card = getComputedStyle(panel).backgroundColor;
-  ctx.fillStyle = card;
-  ctx.fillRect(0, 0, 1, 1);
-  const cardLum = lumOfPixel();
-  ctx.fillStyle = getComputedStyle(part).color;
-  ctx.fillRect(0, 0, 1, 1);
-  const partLum = lumOfPixel();
-  return (Math.max(partLum, cardLum) + 0.05) / (Math.min(partLum, cardLum) + 0.05);
-};
+const arcPartVsCard = (panel: Locator, slot: string): Promise<number> => partVsSurface(panel, `[data-slot="meter-track"] ${slot}`);
 
-// The two arcs, as selectors rather than wrapper functions: `evaluate` serializes ONLY the function it is
-// handed, so a helper that closed over `arcPartVsCard` would arrive in the page as a ReferenceError.
 /** The EMPTY track ring — the circle that is not the fill. */
 const TRACK_ARC = "circle:not([data-slot])";
 /** The VALUE arc — the part that carries the reading. */
@@ -495,35 +442,6 @@ const FILL_ARC = 'circle[data-slot="fill"]';
 // paints the EMPTY track at 11.5:1 beside a 2.58:1 value arc.
 const MUTED_STEP_DARK = 1.1315;
 
-/** Two custom properties, WCAG-contrasted on framebuffer pixels — the DERIVATION pair, no component. */
-const tokenPairContrast = (el: Element, names: readonly [string, string]): number => {
-  const toRgb = (color: string): [number, number, number] => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 1;
-    canvas.height = 1;
-    const ctx = canvas.getContext("2d");
-    if (ctx === null) {
-      throw new Error("no 2d context");
-    }
-    ctx.fillStyle = color;
-    ctx.fillRect(0, 0, 1, 1);
-    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-    return [r ?? 0, g ?? 0, b ?? 0];
-  };
-  const lum = (rgb: [number, number, number]): number => {
-    const [r, g, b] = rgb.map((v) => {
-      const c = v / 255;
-      return c <= 0.039_28 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-    }) as [number, number, number];
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  };
-  const style = getComputedStyle(el);
-  const [first, second] = names;
-  const la = lum(toRgb(style.getPropertyValue(first).trim()));
-  const lb = lum(toRgb(style.getPropertyValue(second).trim()));
-  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
-};
-
 test("#682 the DARK arm's muted/card derivation does not move (the polarity that was never broken)", async ({ mount }) => {
   const cmp = await mount(
     <ThemeScope tokens={{ background: DARK_SEED_BASE }}>
@@ -533,9 +451,7 @@ test("#682 the DARK arm's muted/card derivation does not move (the polarity that
   // Hearth's derived pair as this browser RESOLVES it (1.1315; node's own oklch math says 1.1356 — the
   // gap is 8-bit channel quantization, not a disagreement). A fence, not a defect proof: it passes
   // pre-fix too, and its job is to red if the dark arm ever moves a digit.
-  await expect
-    .poll(async () => await cmp.getByTestId("ramp-probe").evaluate(tokenPairContrast, ["--color-muted", "--color-card"] as const))
-    .toBeCloseTo(MUTED_STEP_DARK, 3);
+  await expect.poll(async () => await pairContrast(cmp.getByTestId("ramp-probe"), ["--color-muted", "--color-card"] as const)).toBeCloseTo(MUTED_STEP_DARK, 3);
 });
 
 // The RENDERED track floor, both polarities. `toBeGreaterThan(MUTED_STEP_DARK * 1.15)` is spelled against
@@ -558,7 +474,7 @@ for (const { label, base, testId } of TRACK_ARMS) {
     );
     // Pre-#682 the near-white arm measured 1.0000:1 (an arc that is not there); after #682 both arms sat at
     // the honest ~1.14 ramp step, which is what #685 found still too faint for a 6-unit stroke.
-    await expect.poll(() => cmp.getByTestId(testId).evaluate(arcPartVsCard, TRACK_ARC), { intervals: [20, 50, 100] }).toBeGreaterThan(TRACK_FLOOR);
+    await expect.poll(() => arcPartVsCard(cmp.getByTestId(testId), TRACK_ARC), { intervals: [20, 50, 100] }).toBeGreaterThan(TRACK_FLOOR);
   });
 
   test(`#685 the track never outshouts the FILL under ${label} — the value keeps the loudest voice`, async ({ mount }) => {
@@ -573,8 +489,8 @@ for (const { label, base, testId } of TRACK_ARMS) {
       </ThemeScope>,
     );
     const panel = cmp.getByTestId(testId);
-    const track = await panel.evaluate(arcPartVsCard, TRACK_ARC);
-    const fill = await panel.evaluate(arcPartVsCard, FILL_ARC);
+    const track = await arcPartVsCard(panel, TRACK_ARC);
+    const fill = await arcPartVsCard(panel, FILL_ARC);
     expect(fill, `fill ${String(fill)} must stay louder than track ${String(track)}`).toBeGreaterThan(track);
   });
 }
@@ -594,8 +510,6 @@ for (const { label, base, testId } of TRACK_ARMS) {
 // Measured on FRAMEBUFFER pixels through the same composited kernel as the track rows (`arcPartVsCard`
 // paints card-then-part, so an alpha-carrying token is measured over its real backing, not over
 // transparent black).
-/** WCAG 1.4.11's floor for a non-text graphical object — what the VALUE arc owes the card it is drawn on. */
-const GRAPHIC_CONTRAST = 3;
 /** Hearth's accent — what a carried room inherits when the app theme is the base palette. */
 const AMBIENT_DARK_ACCENT = "oklch(0.72 0.175 52)";
 
@@ -610,7 +524,7 @@ for (const { label, base, testId } of TRACK_ARMS) {
     );
     // Pre-#692 the near-white arm measured 2.58:1 here (the dark arm's 6.83 was never the defect, and the
     // clamp leaves it byte-identical — this row is that arm's fence).
-    await expect.poll(() => cmp.getByTestId(testId).evaluate(arcPartVsCard, FILL_ARC), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(GRAPHIC_CONTRAST);
+    await expect.poll(() => arcPartVsCard(cmp.getByTestId(testId), FILL_ARC), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
   });
 
   test(`#692 the corrected fill still outshouts the track under ${label} — the #685 invariant survives`, async ({ mount }) => {
@@ -623,8 +537,8 @@ for (const { label, base, testId } of TRACK_ARMS) {
       </ThemeScope>,
     );
     const panel = cmp.getByTestId(testId);
-    const track = await panel.evaluate(arcPartVsCard, TRACK_ARC);
-    const fill = await panel.evaluate(arcPartVsCard, FILL_ARC);
+    const track = await arcPartVsCard(panel, TRACK_ARC);
+    const fill = await arcPartVsCard(panel, FILL_ARC);
     expect(fill, `fill ${String(fill)} must stay louder than track ${String(track)}`).toBeGreaterThan(track);
   });
 }
@@ -687,11 +601,11 @@ test("#2424 a scope that paints a DARK surface under a LIGHT root repaints inher
   );
   // The INHERITING text node — the general form of the defect.
   const prose = await pixelContrast(page, cmp.getByTestId("inheriting-prose"));
-  expect(prose.ratio, `inherited prose ink: ${prose.describe}`).toBeGreaterThanOrEqual(4.5);
+  expect(prose.ratio, `inherited prose ink: ${prose.describe}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
   // The TYPED control — the element the live drive measured at 1.13:1. A textarea's value is not a child
   // text node, so nothing but the inherited `color` ever reached it.
   const typed = await pixelContrast(page, cmp.getByTestId("typed"));
-  expect(typed.ratio, `typed composer ink: ${typed.describe}`).toBeGreaterThanOrEqual(4.5);
+  expect(typed.ratio, `typed composer ink: ${typed.describe}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
 });
 
 test("#2424 CONTROL: an INK-ONLY scope emits no `color` — the ambient cascade is byte-identical", async ({ mount }) => {

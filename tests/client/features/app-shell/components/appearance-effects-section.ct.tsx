@@ -7,24 +7,19 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { readProseMeasure } from "../../../../support/browser/prose-measure.ts";
+import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
 import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AppearanceEffectsSectionStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_effects", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
-const UPDATE_PROC = "settings.updateUserSettingsSection";
 const OWNED_KEYS = ["blurStrength", "blurSurfaces", "enableThemeColorization", "shadowEffects", "surfaceTexture"];
 const FROSTED_GLASS_GLOSS_RE = /Backdrop blur plus a translucent fill/;
 /** The same gloss addressed as an OPENING — what the shared prose reader matches on. */
 const FROSTED_GLASS_GLOSS_OPENING = "Backdrop blur plus a translucent fill";
 
 function stub(page: Page): Promise<TrpcRecorder> {
-  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => SETTINGS_VIEW });
-}
-
-function lastPatch(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  const input = trpc.lastInput(UPDATE_PROC) as { section?: string; patch?: Record<string, unknown> } | undefined;
-  return input?.section === "appearance" ? input.patch : undefined;
+  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
 }
 
 test("Effects renders switch rows; toggling a surface patches blurSurfaces key-minimally", async ({ mount, page }) => {
@@ -38,14 +33,14 @@ test("Effects renders switch rows; toggling a surface patches blurSurfaces key-m
 
   // Blur ships ON for panels/composer/modals (owner ruling 2026-08-02) — the click REMOVES panels.
   await panels.click();
-  await expect.poll(() => lastPatch(trpc)?.["blurSurfaces"], { intervals: [20, 50, 100] }).not.toContain("panels");
-  expect(lastPatch(trpc)?.["blurSurfaces"]).toContain("composer");
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["blurSurfaces"], { intervals: [20, 50, 100] }).not.toContain("panels");
+  expect(lastSettingsPatch(trpc, "appearance")?.["blurSurfaces"]).toContain("composer");
+  expect(Object.keys(lastSettingsPatch(trpc, "appearance") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 
   // And the OFF→ON direction on a surface the default excludes.
   const messages = page.getByRole("switch", { name: "Messages" });
   await messages.click();
-  await expect.poll(() => lastPatch(trpc)?.["blurSurfaces"], { intervals: [20, 50, 100] }).toContain("messages");
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["blurSurfaces"], { intervals: [20, 50, 100] }).toContain("messages");
 });
 
 test("the surface-texture select patches surfaceTexture, still key-minimal", async ({ mount, page }) => {
@@ -54,8 +49,8 @@ test("the surface-texture select patches surfaceTexture, still key-minimal", asy
   await page.getByRole("combobox", { name: "Surface texture" }).click();
   await page.getByRole("option", { name: "Film grain" }).click();
 
-  await expect.poll(() => lastPatch(trpc)?.["surfaceTexture"], { intervals: [20, 50, 100] }).toBe("grain");
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["surfaceTexture"], { intervals: [20, 50, 100] }).toBe("grain");
+  expect(Object.keys(lastSettingsPatch(trpc, "appearance") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 });
 
 test("the Frosted glass explanation holds a deliberate prose measure on a wide settings column", async ({ mount, page }) => {

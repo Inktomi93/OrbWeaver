@@ -11,6 +11,7 @@
 // library, not the page that happened to arrive first).
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcInput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { WorldInfoContextStory } from "../_ct-stories.tsx";
 
@@ -45,8 +46,8 @@ const LIBRARY = [
   { id: ASTRID_ID, name: "Astrid", avatarHash: null },
   { id: "character_bbbbbbbbbbbbbbbbbbbbbbbbbb", name: "Bramble", avatarHash: null },
 ];
-function searchedLibrary(input: unknown): { items: typeof LIBRARY; nextCursor: null } {
-  const search = (input as { search?: string } | undefined)?.search ?? "";
+function searchedLibrary(input: TrpcInput<"character.list">): { items: typeof LIBRARY; nextCursor: null } {
+  const search = input?.search ?? "";
   return { items: search === "" ? LIBRARY : LIBRARY.filter((c) => c.name.toLowerCase().includes(search.toLowerCase())), nextCursor: null };
 }
 

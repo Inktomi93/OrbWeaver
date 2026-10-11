@@ -21,7 +21,7 @@ import { expectCircle } from "../../../../support/browser/expect-circle.ts";
 import { readPhantomScrollers } from "../../../../support/browser/scroll-containing-block.ts";
 import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
-import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcInput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import type { ScopedChatSummaryFixture } from "../../chat/fixtures.ts";
@@ -65,11 +65,6 @@ const GREETINGS_CARD = makeCharacterDetail({
   handle: castId<CharacterHandle>("aria"),
   greetings: [{ text: "First hello." }, { text: "Second hello." }],
 });
-
-/** The shape the editor sends to `character.update`: the changed-keys diff under `input`. */
-interface UpdateCall {
-  readonly input?: { readonly name?: string; readonly greetings?: readonly { readonly text: string; readonly groupOnly?: boolean }[] };
-}
 
 /** The library this editor's character lives in. `CharacterDetailContributorStory` mounts the REAL
  *  `characters` section, whose CONTENT pane is a designed landing at rest (#864) — it reads
@@ -219,13 +214,13 @@ test("DRAFT-TRUST: the same INHERIT card previews UNTRUSTED on a strict floor (t
 });
 
 test("§6.5/§7 the header carries the token split + AutosaveStatus, and editing debounce-persists a diff", async ({ mount, page }) => {
-  let updateInput: UpdateCall | null = null;
+  let updateInput: TrpcInput<"character.update"> | null = null;
   await routeTrpc(page, {
     ...CHARACTER_EDITOR_AMBIENT_ROUTES,
     "character.get": () => CARD,
     "chat.listChats": chatListResponder([]),
-    "character.update": (input: unknown) => {
-      updateInput = input as UpdateCall;
+    "character.update": (input) => {
+      updateInput = input;
       return CARD;
     },
   });
@@ -275,13 +270,13 @@ test("#81 P0 — the header reads Saving… the instant the name is edited, neve
 });
 
 test("§7/D78 — adding an opening persists the structural push via the store driver, then its content autosaves", async ({ mount, page }) => {
-  let updateInput: UpdateCall | null = null;
+  let updateInput: TrpcInput<"character.update"> | null = null;
   await routeTrpc(page, {
     ...CHARACTER_EDITOR_AMBIENT_ROUTES,
     "character.get": () => CARD, // one greeting
     "chat.listChats": chatListResponder([]),
-    "character.update": (input: unknown) => {
-      updateInput = input as UpdateCall;
+    "character.update": (input) => {
+      updateInput = input;
       return CARD;
     },
   });
@@ -297,13 +292,13 @@ test("§7/D78 — adding an opening persists the structural push via the store d
 });
 
 test("§7/D78 — removing an alternate persists the structural removal to the server via the store driver", async ({ mount, page }) => {
-  let updateInput: UpdateCall | null = null;
+  let updateInput: TrpcInput<"character.update"> | null = null;
   await routeTrpc(page, {
     ...CHARACTER_EDITOR_AMBIENT_ROUTES,
     "character.get": () => GREETINGS_CARD, // two greetings
     "chat.listChats": chatListResponder([]),
-    "character.update": (input: unknown) => {
-      updateInput = input as UpdateCall;
+    "character.update": (input) => {
+      updateInput = input;
       return GREETINGS_CARD;
     },
   });
@@ -378,7 +373,7 @@ test("§6.2 removing a tag chip fires bulkRemoveCardTag by name — an immediate
       cardUpdated = true;
       return tagged;
     },
-    "character.bulkRemoveCardTag": (input: unknown) => {
+    "character.bulkRemoveCardTag": (input) => {
       removedInput = input;
       return { applied: ["char_ct_1"], failed: [] };
     },

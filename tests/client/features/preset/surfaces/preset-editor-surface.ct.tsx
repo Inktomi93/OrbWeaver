@@ -26,6 +26,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { NORMAL_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { SCROLL_FADE_X_CLASS } from "@orb/ui/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -147,14 +148,8 @@ const PRESET_A_DETAIL = presetDetail(PRESET_A, "Preset A", "fast");
 const PRESET_B_DETAIL = presetDetail(PRESET_B, "Preset B", "deep");
 const STARTER_DETAIL = presetDetail(PRESET_A, "Preset A", undefined);
 
-/** The value the editor sends to `preset.update` — `config.params.quality` is the dial the pins read. */
-interface UpdateCall {
-  readonly id?: string;
-  readonly config?: { readonly params?: { readonly quality?: string; readonly maxOutputTokens?: number } };
-}
-
-function updatesAgainst(trpc: TrpcRecorder, presetId: PresetId): UpdateCall[] {
-  return (trpc.inputs("preset.update") as UpdateCall[]).filter((call) => call.id === presetId);
+function updatesAgainst(trpc: TrpcRecorder, presetId: PresetId): PresetUpdateInput[] {
+  return trpc.inputs("preset.update").filter((call) => call.id === presetId);
 }
 
 // ── The capability-freshness pin (owner dogfood: "connected a model, the editor still said connect one
@@ -413,7 +408,7 @@ test("#81 P0 — the header reads Saving… the instant a knob is edited, never 
 test("SWITCH pin — A(dirty)→B shows B's real config and never persists A's values into B", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
-    "preset.get": (input: unknown) => ((input as { id?: string }).id === PRESET_B ? PRESET_B_DETAIL : PRESET_A_DETAIL),
+    "preset.get": (input) => (input.id === PRESET_B ? PRESET_B_DETAIL : PRESET_A_DETAIL),
     "preset.list": () => [PRESET_A_DETAIL, PRESET_B_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.update": () => PRESET_A_DETAIL,
@@ -526,14 +521,14 @@ test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the 
   let minted = false;
   const trpc = await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
-    "preset.get": (input: unknown) => ((input as { id?: string }).id === BUILT_IN ? BUILT_IN_DETAIL : forkDetail()),
+    "preset.get": (input) => (input.id === BUILT_IN ? BUILT_IN_DETAIL : forkDetail()),
     "preset.list": () => (minted ? [BUILT_IN_DETAIL, { ...forkDetail(), forkedFrom: BUILT_IN }] : [BUILT_IN_DETAIL]).map(presetSummary),
     "settings.getUserSettings": () => ({
       ...SETTINGS_VIEW,
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: activeId } },
     }),
-    "settings.updateUserSettingsSection": (input: unknown) => {
-      activeId = (input as { patch: { defaultPresetId: string | null } }).patch.defaultPresetId;
+    "settings.updateUserSettingsSection": (input) => {
+      activeId = input.patch["defaultPresetId"] as string | null;
       return SETTINGS_VIEW;
     },
     "connection.resolveChatCapability": () => CAPABILITY,
@@ -656,18 +651,18 @@ test("P2-A the silent fork ANNOUNCES — naming the copy, the untouched source, 
   });
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
-    "preset.get": (input: unknown) => ((input as { id?: string }).id === BUILT_IN ? BUILT_IN_DETAIL : forkDetail()),
+    "preset.get": (input) => (input.id === BUILT_IN ? BUILT_IN_DETAIL : forkDetail()),
     "preset.list": () => (minted ? [BUILT_IN_DETAIL, { ...forkDetail(), forkedFrom: BUILT_IN }] : [BUILT_IN_DETAIL]).map(presetSummary),
     "settings.getUserSettings": () => ({
       ...SETTINGS_VIEW,
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: activeId } },
     }),
-    "settings.updateUserSettingsSection": (input: unknown) => {
-      activeId = (input as { patch: { defaultPresetId: string | null } }).patch.defaultPresetId;
+    "settings.updateUserSettingsSection": (input) => {
+      activeId = input.patch["defaultPresetId"] as string | null;
       return SETTINGS_VIEW;
     },
-    "preset.update": (input: unknown) => {
-      forkConfig = (input as { config: PromptConfig }).config;
+    "preset.update": (input) => {
+      forkConfig = promptConfigSchema.parse(input.config);
       minted = true;
       return forkDetail();
     },
@@ -700,12 +695,6 @@ const LINEAGE_RE = /forked from Default/;
 const NAMES_THE_FORK_RE = /You already have one: Default \(edited\)/;
 const SETTLE_MS = 500;
 
-interface ForkUpdateCall {
-  readonly id?: string;
-  readonly fork?: { readonly mode?: string; readonly name?: string };
-  readonly config?: { readonly params?: { readonly quality?: string } };
-}
-
 /** The owner's library: the built-in plus ONE existing fork of it — the precondition for the choice. The
  *  fake server mirrors the verb: a `new` intent MINTS a row, an absent/`converge` one lands on the existing
  *  fork (recorded either way, so a test can prove which arm actually ran). */
@@ -721,14 +710,14 @@ function routeForkChoice(page: Page, updateOverride?: PresetUpdateResponder): Pr
   };
   return routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
-    "preset.get": (input: unknown) => rows.find((row) => row.id === (input as { id?: string }).id) ?? BUILT_IN_DETAIL,
+    "preset.get": (input) => rows.find((row) => row.id === input.id) ?? BUILT_IN_DETAIL,
     "preset.list": () => rows.map(presetSummary),
     "settings.getUserSettings": () => ({
       ...SETTINGS_VIEW,
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: activeId } },
     }),
-    "settings.updateUserSettingsSection": (input: unknown) => {
-      activeId = (input as { patch: { defaultPresetId: string | null } }).patch.defaultPresetId;
+    "settings.updateUserSettingsSection": (input) => {
+      activeId = input.patch["defaultPresetId"] as string | null;
       return SETTINGS_VIEW;
     },
     "connection.resolveChatCapability": () => CAPABILITY,
@@ -736,19 +725,21 @@ function routeForkChoice(page: Page, updateOverride?: PresetUpdateResponder): Pr
       if (updateOverride !== undefined) {
         return updateOverride(input);
       }
-      const call = input as ForkUpdateCall & { config: PromptConfig };
+      const call = input;
+      // The server parses the write body before it stores it; the fake does the same, through the real schema.
+      const config = promptConfigSchema.parse(call.config);
       if (call.id === BUILT_IN && call.fork?.mode === "new") {
         const minted = {
-          ...presetDetail(FORK_TWO, call.fork.name ?? "", undefined),
+          ...presetDetail(FORK_TWO, call.fork.name, undefined),
           forkedFrom: BUILT_IN,
-          config: call.config,
-          schemaVersion: call.config.schemaVersion,
+          config,
+          schemaVersion: config.schemaVersion,
         };
         rows.push(minted);
         return minted;
       }
       // Both the plain patch of a fork and the (unwanted here) silent convergence land through one seam.
-      return patch(call.id === BUILT_IN ? FORK_ONE : (call.id ?? FORK_ONE), call.config);
+      return patch(call.id === BUILT_IN ? FORK_ONE : (call.id ?? FORK_ONE), config);
     },
   });
 }
@@ -795,7 +786,7 @@ test("FORK-CHOICE keep-editing — the edit lands on the EXISTING fork, the edit
   // THE PIN (mutation count): the built-in is never written to, so the server never COWs — the library still
   // holds exactly the ONE fork it started with, no second copy minted behind the owner's back.
   expect(updatesAgainst(trpc, BUILT_IN).length).toBe(0);
-  await expect.poll(async () => (trpc.inputs("preset.update") as ForkUpdateCall[]).every((call) => call.id === FORK_ONE)).toBe(true);
+  await expect.poll(async () => trpc.inputs("preset.update").every((call) => call.id === FORK_ONE)).toBe(true);
   await expect(component.getByText(LINEAGE_RE)).toHaveCount(1);
 });
 
@@ -836,13 +827,13 @@ test("FORK-CHOICE new fork — the suggested name is pre-filled, the mint carrie
   // THE PIN: the write goes against the BUILT-IN carrying the explicit `new` intent + the name — the arm that
   // mints a sibling instead of converging on the fork the owner already had.
   await expect
-    .poll(() => (trpc.inputs("preset.update") as ForkUpdateCall[]).at(-1)?.fork, { intervals: [100, 200, 300, 500] })
+    .poll(() => trpc.inputs("preset.update").at(-1)?.fork, { intervals: [100, 200, 300, 500] })
     .toEqual({
       mode: "new",
       name: "Deep run",
     });
   expect(updatesAgainst(trpc, FORK_ONE).length).toBe(0);
-  await expect.poll(async () => (trpc.inputs("preset.update") as ForkUpdateCall[]).at(-1)?.config?.params?.quality).toBe("balanced");
+  await expect.poll(async () => trpc.inputs("preset.update").at(-1)?.config?.params?.quality).toBe("balanced");
 
   // The editor retargets onto the NEW fork, and the library now shows two rows both scented "forked from
   // Default" — the lineage that makes a library of forks navigable at all.
@@ -1015,9 +1006,13 @@ test("PROSE CAP — an ALREADY-over-cap stored override shows its real text and 
   await field.fill("y".repeat(3000));
   await expect(component.getByRole("alert")).toHaveCount(0);
   await expect
-    .poll(() => (trpc.inputs("preset.update") as ProseUpdateCall[]).at(-1)?.config?.prose?.[CONTINUATION_SLOT]?.text?.length, {
-      intervals: [100, 200, 300, 500],
-    })
+    .poll(
+      () => {
+        const sent = trpc.inputs("preset.update").at(-1)?.config;
+        return sent === undefined ? undefined : promptConfigSchema.parse(sent).prose[CONTINUATION_SLOT]?.text.length;
+      },
+      { intervals: [100, 200, 300, 500] },
+    )
     .toBe(3000);
 });
 
@@ -1211,11 +1206,6 @@ test("GUIDED-PROMPT CAP — the steer field wears the shared injection-template 
     .toBeLessThan((page.viewportSize()?.height ?? 0) / 2);
 });
 
-/** The framing override as it rides `preset.update` — the payload the cap exists to keep parseable. */
-interface ProseUpdateCall {
-  readonly config?: { readonly prose?: Record<string, { readonly text?: string } | undefined> };
-}
-
 // ── G7: HEADER TRUTH (redesign §10 G7 / §16 row 3 echo b) ────────────────────────────────────────
 // Two facts change UNDER an open editor and are otherwise only legible in another pane: whether this preset
 // is the ACTIVE one (the fork-once retarget moves it mid-edit), and which model the deck's effective column
@@ -1228,10 +1218,6 @@ function settingsWithActive(activeId: string | null): TrpcFixtureOutput<"setting
     ...SETTINGS_VIEW,
     config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: activeId } },
   };
-}
-
-interface SeedsPatchCall {
-  readonly patch?: { readonly defaultPresetId?: string | null };
 }
 
 test("G7 a NOT-active preset's header offers Activate — the same setDefault seeds patch the LIST row fires", async ({ mount, page }) => {
@@ -1253,9 +1239,7 @@ test("G7 a NOT-active preset's header offers Activate — the same setDefault se
   // both used to be `Activate <name> for generation`, in two different roles).
   await expect(component.getByRole("radio", { name: "Activate Preset A for generation" })).toHaveCount(0);
   await component.getByRole("button", { name: "Use this preset for generation" }).click();
-  await expect
-    .poll(() => (trpc.inputs("settings.updateUserSettingsSection") as SeedsPatchCall[]).map((call) => call.patch?.defaultPresetId))
-    .toEqual([PRESET_A]);
+  await expect.poll(() => trpc.inputs("settings.updateUserSettingsSection").map((call) => call.patch["defaultPresetId"])).toEqual([PRESET_A]);
 });
 
 test("P2 TRANSFORMS speaks ONE field layout — DELIVERY docks its controls like COLLAPSING, not full-width", async ({ mount, page }) => {
@@ -1591,7 +1575,7 @@ test("a drill in preset A does not leak into preset B — the section ids are th
   // "Main" editor — a preset the user had just opened for the first time, already drilled.
   await routeTrpc(page, {
     ...PRESET_EDITOR_AMBIENT_ROUTES,
-    "preset.get": (input: unknown) => ((input as { id?: string }).id === PRESET_B ? PRESET_B_DETAIL : PRESET_A_DETAIL),
+    "preset.get": (input) => (input.id === PRESET_B ? PRESET_B_DETAIL : PRESET_A_DETAIL),
     "preset.list": () => [PRESET_A_DETAIL, PRESET_B_DETAIL].map(presetSummary),
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
@@ -1699,12 +1683,6 @@ test("no absolutely-positioned box escapes the preset editor's scroller (the con
 // config too could clobber the autosave, and a rename that wrote nothing would be a dialog that lies.
 // The dialog renders in a PORTAL, so it is located on `page`, not the mounted component.
 
-interface RenameCall {
-  readonly id?: string;
-  readonly name?: string;
-  readonly config?: unknown;
-}
-
 const RENAME_DOOR = "Rename preset";
 
 test("#483 the editor header renames the open preset — one name-only update against its own id", async ({ mount, page }) => {
@@ -1731,9 +1709,7 @@ test("#483 the editor header renames the open preset — one name-only update ag
   await field.fill("Renamed in the editor");
   await page.getByRole("button", { name: "Save", exact: true }).click();
 
-  await expect
-    .poll(() => (trpc.inputs("preset.update") as RenameCall[]).filter((call) => call.name !== undefined))
-    .toEqual([{ id: PRESET_A, name: "Renamed in the editor" }]);
+  await expect.poll(() => trpc.inputs("preset.update").filter((call) => call.name !== undefined)).toEqual([{ id: PRESET_A, name: "Renamed in the editor" }]);
 });
 
 // ── #1140 · THE VIEW STRIP'S EDGE FADE DISSOLVED LIVE TABS (the INLINE twin of #1128) ───────────────
@@ -1766,8 +1742,6 @@ test("#483 the editor header renames the open preset — one name-only update ag
 // (a 1280 viewport with both panels docked — the P1-1 measurement above), and 450 is past the strip's own
 // overflow, where the recipe must paint no band at all and every row reads `clear`.
 const STRIP_FADE_PANES = [320, 360, 390, 450] as const;
-/** WCAG 1.4.3 normal text — the tabs are 13px/500, so the 3:1 large-text relaxation does not apply. */
-const STRIP_FADE_INK_FLOOR = 4.5;
 /** A light scope by DERIVATION, never a hand-listed palette — `background` grows the whole ramp. */
 const STRIP_LIGHT_SCOPE_BACKGROUND = "oklch(0.98 0.004 75)";
 /** Below this a clip is sub-pixel noise, not a slice of a tab anyone reads. */
@@ -1973,7 +1947,8 @@ for (const polarity of ["dark", "light"] as const) {
         );
         failures.push(
           ...readings
-            .filter((reading) => reading.ratio < STRIP_FADE_INK_FLOOR)
+            // The tabs are 13px/500, so the 3:1 large-text relaxation does not apply.
+            .filter((reading) => reading.ratio < NORMAL_MIN_RATIO)
             .map((reading) => `${String(pane)}px ${polarity} ${edge}: "${reading.label}" ${reading.ratio.toFixed(2)}:1 — ${reading.describe}`),
         );
       }

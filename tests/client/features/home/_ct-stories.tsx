@@ -5,10 +5,8 @@
 
 // @orb-waive-file testid-typed-only-stories("also-open-box"): baselined when the gate widened; burn-down item 906.
 import { SkeletonRows } from "@orb/client/data";
-import { chatAlsoOpenTile, chatMastheadTile, chatQuickPicksTile, chatRecentsTile, chatTempChatTile } from "@orb/client/features/chat";
-import { databankDocumentsTile } from "@orb/client/features/databank";
+import { chatAlsoOpenTile, chatQuickPicksTile } from "@orb/client/features/chat";
 import { HomeSurface, makeSectionJumpTile } from "@orb/client/features/home";
-import { rosterPresetHomeTile } from "@orb/client/features/roster-preset";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { HomeTileContribution, HomeTileRegion } from "@orb/client/state";
 import { __readSurfaceBoxForTest, rememberHomeRegion, rememberSurfaceBox, useActiveSection } from "@orb/client/state";
@@ -18,6 +16,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { use, useState } from "react";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
+import { homeTiles } from "../../../support/browser/ct-door.ts";
 import { FIRST_BOOT_SKELETON_ROWS, RESERVED_TILE_PX } from "./_reserve-box.ts";
 
 /** Deliberately declared OUT of `order` — the grid must re-sort them (order asc, then id). They declare
@@ -265,8 +264,8 @@ export function HomeTileFirstBootStory(): ReactElement {
 // device that has not (measured live: `[data-home-grid]` 948px → 869px on a cold profile, CLS 0.0606,
 // behind the boot veil).
 //
-// This story is the missing instrument: the REAL registry from the door (`compose/authed-app.tsx`), in
-// door order, at a production-like content width, over the REAL data layer — so a CT can hold every read
+// This story is the missing instrument: the REAL registry from the door (`ct-door.ts`), in
+// door order, jump tile included (its `sectionId` claims change which rows it renders and so its height), at a production-like content width, over the REAL data layer — so a CT can hold every read
 // with `trpcHold`, measure the reserved grid, release, and measure the settled one. The frame's own
 // mechanism is already pinned above with fakes; this pins the DECLARATIONS.
 
@@ -274,18 +273,6 @@ export function HomeTileFirstBootStory(): ReactElement {
  *  default desktop shell). The `lead` split and the face shelf's `auto-fill` track count both answer to
  *  THIS number, so a reservation pin at any other width pins a layout the app does not ship. */
 const HOME_CONTENT_PX = 1224;
-
-/** The door's array, verbatim (`compose/authed-app.tsx`) — including the jump tile built FROM it, because
- *  `sectionId` claims change which rows that tile renders and therefore its height. */
-const SHIPPED_TILES: readonly HomeTileContribution[] = [
-  chatMastheadTile,
-  chatRecentsTile,
-  chatAlsoOpenTile,
-  chatQuickPicksTile,
-  rosterPresetHomeTile,
-  chatTempChatTile,
-  databankDocumentsTile,
-];
 
 // ── The COLUMN-BALANCE instrument (#226) ─────────────────────────────────────────────────────────────
 // The void between the hearth's foot and the shelf's foot CHANGES SIDES with width (hearth short at
@@ -305,10 +292,7 @@ export function HomeBalanceStory(): ReactElement {
     <CtDataProviders>
       <CtRealSectionRegistry>
         <div className="shell-grid" data-home-pane={true} style={{ display: "block", blockSize: "auto", overflow: "visible", inlineSize: "100%" }}>
-          <HomeSurface
-            onNewChat={(): void => undefined}
-            tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [...SHIPPED_TILES, makeSectionJumpTile(SHIPPED_TILES)])}
-          />
+          <HomeSurface onNewChat={(): void => undefined} tiles={homeTiles} />
         </div>
       </CtRealSectionRegistry>
     </CtDataProviders>
@@ -391,10 +375,7 @@ export function HomeFoldStory(): ReactElement {
           data-home-fold-pane={true}
           style={{ background: "var(--color-background)", display: "grid", inlineSize: FOLD_PANE_PX.inline, blockSize: FOLD_PANE_PX.block }}
         >
-          <HomeSurface
-            onNewChat={(): void => undefined}
-            tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [...SHIPPED_TILES, makeSectionJumpTile(SHIPPED_TILES)])}
-          />
+          <HomeSurface onNewChat={(): void => undefined} tiles={homeTiles} />
         </div>
       </CtRealSectionRegistry>
     </CtDataProviders>
@@ -452,10 +433,7 @@ export function HomeShippedFirstBootStory({ inlineSize = HOME_CONTENT_PX }: { re
     <CtDataProviders>
       <CtRealSectionRegistry>
         <div style={{ inlineSize }}>
-          <HomeSurface
-            onNewChat={(): void => undefined}
-            tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [...SHIPPED_TILES, makeSectionJumpTile(SHIPPED_TILES)])}
-          />
+          <HomeSurface onNewChat={(): void => undefined} tiles={homeTiles} />
         </div>
       </CtRealSectionRegistry>
     </CtDataProviders>

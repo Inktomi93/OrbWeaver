@@ -24,8 +24,8 @@ const PAGE_2 = {
 
 test("onEndApproach fetches the next page and appends its rows (the guarded tail-fetch)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "notifications.list": (input: unknown) => {
-      const cursor = (input as { cursor?: number } | undefined)?.cursor;
+    "notifications.list": (input) => {
+      const cursor = input?.cursor;
       return cursor === undefined ? PAGE_1 : PAGE_2;
     },
   });

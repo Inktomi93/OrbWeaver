@@ -99,7 +99,6 @@ async function resolveHandoffScriptCopyPlan(db: Db, fromOwnerId: UserId, toOwner
       // writer replaces the placeholder with the id it mints for this same group.
       const group = mints.length;
       mints.push(candidate);
-      // @orb-waive json-column-read-parsed(behavior): baselined when the gate widened; burn-down item 905.
       recipientRows.push({ id: script.id, name: candidate.name, enabled: candidate.enabled, updatedAt: 0, ...candidate.behavior });
       attachments.push({ sourceId: script.id, position, target: { kind: "mint", group } });
       continue;

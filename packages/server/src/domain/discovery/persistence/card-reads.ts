@@ -116,7 +116,6 @@ function composeCardText(card: {
   add("Description", card.description);
   add("Personality", card.personality);
   add("Scenario", card.scenario);
-  // @orb-waive json-column-read-parsed(greetings): baselined when the gate widened; burn-down item 905.
   add("Greeting", card.greetings[0]?.text ?? null);
   add("Example dialogue", card.exampleMessages);
   return { text: parts.join("\n\n"), contentParts };

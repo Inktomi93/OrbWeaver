@@ -19,6 +19,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ChatId, ModelId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { contrastRatio, NORMAL_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { ROLE_STATUS_LABELS } from "#client/lib/connection-roles.ts";
@@ -1132,17 +1133,16 @@ test.describe("#655: coarse pointer — the fire-log door meets the touch floor"
 
 const WIDTHS = [384, 430, 1024] as const;
 const THEMES = ["dark", "light"] as const;
-/** WCAG AA for the body/gloss steps this row uses. The shipped surface measured far above it. */
-const CONTRAST_AA = 4.5;
 /** The share of the row the NAME COLUMN must own — the reviewer's "`>=55%` at 384px", made a range property. */
 const NAME_COLUMN_SHARE = 0.55;
 const TRANSPARENT_BG = "rgba(0, 0, 0, 0)";
 
-/** WCAG contrast between two CSS colours, computed IN THE PAGE by painting each into a 2d canvas (the
- *  framebuffer resolves `oklch()` to sRGB; nothing here parses a colour string). */
-function contrastBetween(page: Page, foreground: string, background: string): Promise<number> {
-  return page.evaluate(
-    ([fg, bg]: readonly [string, string]) => {
+/** WCAG contrast between two CSS colours. The page paints each into a 2d canvas (the framebuffer resolves
+ *  `oklch()` to sRGB; nothing here parses a colour string) and hands back raw bytes; the ratio is the
+ *  shared engine's, computed node-side. */
+async function contrastBetween(page: Page, foreground: string, background: string): Promise<number> {
+  const [fg, bg] = await page.evaluate(
+    ([fgCss, bgCss]: readonly [string, string]) => {
       const canvas = document.createElement("canvas");
       canvas.width = 1;
       canvas.height = 1;
@@ -1150,22 +1150,18 @@ function contrastBetween(page: Page, foreground: string, background: string): Pr
       if (context === null) {
         throw new Error("contrastBetween: no 2d context");
       }
-      const channel = (value: number): number => {
-        const v = value / 255;
-        return v <= 0.039_28 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-      };
-      const luminance = (colour: string): number => {
+      const rgb = (colour: string): { r: number; g: number; b: number } => {
         context.clearRect(0, 0, 1, 1);
         context.fillStyle = colour;
         context.fillRect(0, 0, 1, 1);
         const [r = 0, g = 0, b = 0] = context.getImageData(0, 0, 1, 1).data;
-        return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+        return { r, g, b };
       };
-      const [light, dark] = [luminance(fg), luminance(bg)].sort((a, b) => b - a);
-      return ((light ?? 0) + 0.05) / ((dark ?? 0) + 0.05);
+      return [rgb(fgCss), rgb(bgCss)] as const;
     },
     [foreground, background] as const,
   );
+  return contrastRatio(fg, bg);
 }
 
 for (const theme of THEMES) {
@@ -1227,7 +1223,7 @@ for (const theme of THEMES) {
         }, TRANSPARENT_BG);
       await expect
         .poll(async () => await contrastBetween(page, (await readGlossAtAssertion())[0], (await readGlossAtAssertion())[1]))
-        .toBeGreaterThanOrEqual(CONTRAST_AA);
+        .toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
 
       // The rendered receipt of the #886 CLOSED face, taken before anything is opened.
       await component.screenshot({ path: ctSnapPath(`cb-rules-${theme}-${width}`) });

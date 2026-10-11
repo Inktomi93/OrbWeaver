@@ -349,6 +349,9 @@ function writeAllFixtures(): void {
   // door through one apparently legal hop. The lazy-route composition split added this separate wall.
   fx("packages/client/src/compose/__dc_t.ts", VAL);
   fx("packages/client/src/features/__dc_cfeat/compose-door.ts", `import "../../compose/__dc_t.ts";\n`);
+  // The browser-CT support world is the one reviewed test importer of the door; a node test helper is not.
+  fx("tests/support/browser/__dc/compose-door.ts", `import "../../../../packages/client/src/compose/__dc_t.ts";\n`);
+  fx("tests/support/node/__dc/compose-door.ts", `import "../../../../packages/client/src/compose/__dc_t.ts";\n`);
 
   // ── @orb/tooling (the tool fleet ABOVE the cake — Core-Tooling-Law.md §4.6) ──
   fx("tooling/src/__dc_tb/ops/y.ts", VAL);
@@ -443,6 +446,11 @@ afterAll(() => {
 
 test("derives a non-trivial set of active rules from the config (the list isn't silently empty)", () => {
   expect(ACTIVE_RULES.length).toBeGreaterThan(20);
+});
+
+test("the compose door is open to the browser-CT support world only: a feature and a node test helper still fail", () => {
+  const importers = allViolations.filter((violation) => violation.rule.name === "client-compose-door-only").map((violation) => violation.from);
+  expect(importers.toSorted()).toEqual(["packages/client/src/features/__dc_cfeat/compose-door.ts", "tests/support/node/__dc/compose-door.ts"]);
 });
 
 test("data and forms reaching up into components fire their direction rules", () => {

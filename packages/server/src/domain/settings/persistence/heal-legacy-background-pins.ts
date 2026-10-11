@@ -86,7 +86,6 @@ export async function healLegacyBackgroundPins(db: Db): Promise<number> {
     // the boot wrapper (`entry/boot/heal-legacy-background-pins.ts`) already logs the count this heal DID
     // rewrite. Ends if this heal starts reporting skipped rows as a metric (then it belongs in that log).
     try {
-      // @orb-waive json-column-read-parsed(config): baselined when the gate widened; burn-down item 905.
       if (await healOneUserBackgroundPins(db, row.userId, row.config, row.schemaVersion)) {
         healed++;
       }

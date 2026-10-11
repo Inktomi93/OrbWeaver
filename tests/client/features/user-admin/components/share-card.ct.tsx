@@ -98,8 +98,9 @@ async function stubShare(page: Page, stub: ShareStub): Promise<ShareServer> {
   const starts = [...(stub.starts ?? [])];
   const trpc = await routeTrpc(page, {
     "settings.getAppSettingsWithOverrides": () => appSettingsView(resolved),
-    "settings.updateAppSettings": (input: unknown) => {
-      resolved = { ...resolved, ...(input as { partial: Partial<EffectiveAppSettings> }).partial };
+    "settings.updateAppSettings": (input) => {
+      // The wire is JSON, which never carries `undefined`; the contract's input type only allows it.
+      resolved = { ...resolved, ...(input.partial as Partial<EffectiveAppSettings>) };
       return effectiveAppSettings(resolved);
     },
     "sessions.me": () => stub.viewer ?? OWNER,
@@ -114,8 +115,8 @@ async function stubShare(page: Page, stub: ShareStub): Promise<ShareServer> {
       return current;
     },
     // The IP certificate: a home-network address is the server's coded refusal, anything else starts an order.
-    "share.enableIpCertificate": (input: unknown) => {
-      const setting = input as IpCertificateSetting;
+    "share.enableIpCertificate": (input) => {
+      const setting = input;
       if (setting.address.startsWith("192.168.")) {
         return trpcError({ code: "BAD_REQUEST", reason: "ip_certificate_not_public", message: `${setting.address} is not a public internet address.` });
       }
@@ -195,9 +196,7 @@ test("the seating fix names the one setting that is off, writes only it, and han
   await expect(precondition(card, "seating").getByRole("button", { name: "Turn both on" })).toHaveCount(0);
   await precondition(card, "seating").getByRole("button", { name: "Turn on Discreet login" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Turn on Discreet login" }).click();
-  await expect
-    .poll(() => (trpc.lastInput("settings.updateAppSettings") as { partial?: unknown } | undefined)?.partial, { intervals: [20, 50, 100] })
-    .toStrictEqual({ discreetLogin: true });
+  await expect.poll(() => trpc.lastInput("settings.updateAppSettings")?.partial, { intervals: [20, 50, 100] }).toStrictEqual({ discreetLogin: true });
   await expect(precondition(card, "seating")).toHaveAttribute("data-verdict", "met");
   await expect(card.getByRole("button", { name: "Start sharing" })).toBeFocused();
 });

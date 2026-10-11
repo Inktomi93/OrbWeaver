@@ -1,7 +1,7 @@
 // Exact population, phase, owner, and authority receipts emitted by the final policy dispatcher.
 import type { Project } from "ts-morph";
 import type { GateFact } from "./fact.ts";
-import type { GateAuthorityBatchResult, GateOwnerCompletion, RawGateFinding, ReviewedGateGrant } from "./gate-authority.ts";
+import type { GateAuthorityBatchResult, GateOwnerCompletion, RawGateFinding, ReviewedGateGrant, WaiverBudget } from "./gate-authority.ts";
 import type { OrdinaryWaiverCarrierRefusal } from "./ordinary-waiver-source.ts";
 import type { GatePolicy } from "./policy.ts";
 import type { ResourceHostOptions } from "./resource-host.ts";
@@ -186,6 +186,8 @@ export interface PolicyPassInput {
   /** Fixture overlays/parser injection cannot override this invocation's root or reuse a prior host. */
   readonly resourceOptions?: Omit<ResourceHostOptions, "root">;
   readonly reviewedGrants: readonly ReviewedGateGrant[];
+  /** The committed waiver ratchet; only the structure and scoped command runners pass it. */
+  readonly waiverBudget?: WaiverBudget;
   readonly failOnWarnings: boolean;
 }
 

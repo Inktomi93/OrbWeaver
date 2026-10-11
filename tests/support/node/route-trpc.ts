@@ -474,10 +474,15 @@ function decodeInputs(req: Request, url: URL, isBatch: boolean): Record<string, 
 }
 
 export interface TrpcRecorder {
-  /** Decoded inputs recorded per procedure, in call order. */
-  readonly inputs: (proc: string) => unknown[];
+  /** Decoded inputs recorded per procedure, in call order, typed by the procedure's AppRouter input. */
+  readonly inputs: <P extends TrpcProcedurePath>(proc: P) => TrpcInput<P>[];
   /** The most recent decoded input for a procedure (or undefined). */
-  readonly lastInput: (proc: string) => unknown;
+  readonly lastInput: <P extends TrpcProcedurePath>(proc: P) => TrpcInput<P> | undefined;
+  /** {@link TrpcRecorder.lastInput} for a call the test already knows happened: throws when none was recorded.
+   *  Playwright's `expect.poll` does NOT retry a throwing callback, so use it only after the call is known to have
+   *  landed (a settled count poll, a web-first barrier): inside a poll it fails the test on the first attempt if the
+   *  call is still in flight. */
+  readonly requireLastInput: <P extends TrpcProcedurePath>(proc: P) => TrpcInput<P>;
   /** How many times a procedure was called. */
   readonly count: (proc: string) => number;
   /**
@@ -571,8 +576,17 @@ export async function routeTrpc<const TRoutes extends object>(
   });
 
   return {
-    inputs: (proc): unknown[] => calls.get(proc) ?? [],
-    lastInput: (proc): unknown => (calls.get(proc) ?? []).at(-1),
+    // The wire decode is untyped JSON; the procedure path is the only handle on its shape, so the cast
+    // lives here once instead of at every call site.
+    inputs: <P extends TrpcProcedurePath>(proc: P): TrpcInput<P>[] => (calls.get(proc) ?? []) as TrpcInput<P>[],
+    lastInput: <P extends TrpcProcedurePath>(proc: P): TrpcInput<P> | undefined => (calls.get(proc) ?? []).at(-1) as TrpcInput<P> | undefined,
+    requireLastInput: <P extends TrpcProcedurePath>(proc: P): TrpcInput<P> => {
+      const recorded = calls.get(proc) ?? [];
+      if (recorded.length === 0) {
+        throw new Error(`routeTrpc: ${proc} has not been called`);
+      }
+      return recorded.at(-1) as TrpcInput<P>;
+    },
     count: (proc): number => (calls.get(proc) ?? []).length,
     unstubbed: (): string[] => [...unstubbed],
   };

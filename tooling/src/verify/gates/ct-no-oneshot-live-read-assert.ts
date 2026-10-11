@@ -10,7 +10,7 @@
 //   • a live-DOM read — `await <locator>.evaluate/textContent/innerText/getAttribute/inputValue/boundingBox/
 //     count/allTextContents/…(...)`, `await page.evaluate(...)`, or a `document.activeElement` snapshot
 //     (inline, or captured into a local then asserted);
-//   • a CT tRPC recorder read — `trpc.count/inputs/lastInput(...)` (tests/support/node/route-trpc.ts): the
+//   • a CT tRPC recorder read — `trpc.count/inputs/lastInput/requireLastInput(...)` (tests/support/node/route-trpc.ts): the
 //     recorder GROWS as calls land, so a bare read races the in-flight call.
 //
 // FIX: a web-first auto-retrying assertion — `expect(<locator>).toBeFocused()/toBeVisible()/toHaveText(...)/
@@ -94,7 +94,7 @@ const DOM_READ_METHODS: ReadonlySet<string> = new Set([
 
 // The CT tRPC recorder (tests/support/node/route-trpc.ts) — a spy whose call log GROWS as requests land, so a
 // bare synchronous read races an in-flight call.
-const RECORDER_READ_METHODS: ReadonlySet<string> = new Set(["count", "inputs", "lastInput"]);
+const RECORDER_READ_METHODS: ReadonlySet<string> = new Set(["count", "inputs", "lastInput", "requireLastInput"]);
 
 // Playwright's web-first, auto-RETRYING locator matchers — the sanctioned target of a live-DOM assertion.
 // An `expect(locator).<one of these>` is exactly the fix, so a matcher in this set is never flagged. Any
@@ -134,7 +134,7 @@ const RETRYING_MATCHERS: ReadonlySet<string> = new Set([
 const MESSAGE =
   "a non-retrying `expect()` reads MUTABLE ASYNC state in a component test — a live-DOM read (`await <locator>." +
   "evaluate/textContent/getAttribute/boundingBox/count(...)`, `page.evaluate(...)`, a `document.activeElement` " +
-  "snapshot) or a tRPC recorder read (`trpc.count/inputs/lastInput(...)`). A single read samples mid-transition " +
+  "snapshot) or a tRPC recorder read (`trpc.count/inputs/lastInput/requireLastInput(...)`). A single read samples mid-transition " +
   "(focus/animation/ResizeObserver/an unrecorded call) and flakes by timing luck (the DEF-14 class, 2026-07-20). Use " +
   "a web-first auto-retrying assertion — `expect(<locator>).toBeFocused()/toBeVisible()/toHaveText(...)/" +
   "toBeInViewport()` — or wrap the read: `await expect.poll(() => <read>).toBe(...)`. Provably settled at " +
@@ -170,7 +170,7 @@ function isAwaitedDomRead(arg: TsNode): boolean {
   return method !== undefined && DOM_READ_METHODS.has(method);
 }
 
-/** True when this exact expression is `<x>.count/inputs/lastInput(...)`. */
+/** True when this exact expression is `<x>.count/inputs/lastInput/requireLastInput(...)`. */
 function isRecorderRead(arg: TsNode): boolean {
   const inner = unwrap(arg);
   if (!Node.isCallExpression(inner)) {
@@ -311,6 +311,15 @@ export const gate = defineGate({
   // `count` + `line` are the only real discriminators and every row below carries both. Each `count` was
   // re-derived by running the row, not read off the fixture by eye.
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        "tests/client/data/r.ct.tsx":
+          'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", () => {\n  expect(trpc.requireLastInput("tag.createTag").name).toBe("a");\n});\n',
+      },
+      expect: { count: 1, line: 3 },
+      why: "requireLastInput is a recorder read like lastInput: a bare one-shot `expect(trpc.requireLastInput(...).f)` throws or races before the call lands",
+    },
     {
       mode: "types",
       files: {

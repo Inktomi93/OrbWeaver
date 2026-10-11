@@ -350,13 +350,10 @@ function importedUsageColumns(
     cacheReadTokens: usage?.cacheReadTokens ?? null,
     cacheWriteTokens: usage?.cacheWriteTokens ?? null,
     costUsd: usage?.costUsd ?? null,
-    // @orb-waive json-column-read-parsed(costDetails): baselined when the gate widened; burn-down item 905.
     costDetails: usage?.costDetails ?? null,
     costProvenance: usage?.costProvenance ?? "unrecorded",
     servedModel: usage?.servedModel ?? null,
-    // @orb-waive json-column-read-parsed(tokenDetails): baselined when the gate widened; burn-down item 905.
     tokenDetails: usage?.tokenDetails ?? null,
-    // @orb-waive json-column-read-parsed(responseCache): baselined when the gate widened; burn-down item 905.
     responseCache: usage?.responseCache ?? null,
   };
 }

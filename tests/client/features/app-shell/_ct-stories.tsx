@@ -58,6 +58,7 @@
 // @orb-waive-file testid-typed-only-stories("width-probe"): baselined when the gate widened; burn-down item 906.
 import { useTRPC } from "@orb/client/data";
 import { AppShell, YouSheet } from "@orb/client/features/app-shell";
+import { chatContextTabs } from "@orb/client/features/chat";
 import type { ContextRegionDef, ContextTabDef, ContributorRegistry, ResolvedContextTab } from "@orb/client/lib";
 import { createContributorRegistry, defineContextRegion, defineContextTabs, notify, VOID_STATE } from "@orb/client/lib";
 import type { ChromeEntry, ModalDefinition, SectionDefinition, SectionId } from "@orb/client/state";
@@ -78,7 +79,7 @@ import {
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { FileDropzone } from "@orb/ui/file-dropzone";
-import { Command, Crown, Drama, Eye, Flag, FlaskConical, Gauge, Icon, MessagesSquare, Settings, Users } from "@orb/ui/icons";
+import { Command, Crown, Drama, Flag, FlaskConical, Gauge, Icon, MessagesSquare } from "@orb/ui/icons";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Heading } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
@@ -115,6 +116,7 @@ import {
   CtRealSectionRegistry,
   CtStandInChromeRegistry,
 } from "../../../support/browser/ct-data-providers.tsx";
+import { chatSettingsSections } from "../../../support/browser/ct-door.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CT_META_RAIL_CROWNED_IDS } from "./_crowned-tabs.ts";
 
@@ -1140,12 +1142,16 @@ function resolvedTab(partial: Partial<ResolvedContextTab> & Pick<ResolvedContext
   return { strip: "meta", crown: false, opaque: false, badge: null, disabledReason: null, defaultTab: false, ...partial };
 }
 
-const CTX_STRIP_TABS: readonly ResolvedContextTab[] = [
-  resolvedTab({ id: "members", label: "Members", icon: Users, node: <div data-testid="ctx-body-members">members</div> }),
-  resolvedTab({ id: "settings", label: "Settings", icon: Settings, node: <div>settings</div> }),
-  resolvedTab({ id: "preview", label: "Preview", icon: Eye, node: <div>preview</div> }),
-  resolvedTab({ id: "injections", label: "Injections", icon: FlaskConical, node: <div>injections</div> }),
-];
+/** Chat's own context tabs, as the product declares them (`chatContextTabs`), resolved to the shell's view shape. */
+const CTX_STRIP_TABS: readonly ResolvedContextTab[] = chatContextTabs(chatSettingsSections).map((def) =>
+  resolvedTab({
+    id: def.id,
+    label: def.label,
+    ...(def.icon === undefined ? {} : { icon: def.icon }),
+    crown: def.crown ?? false,
+    node: <div data-testid={`ctx-body-${def.id}`}>{def.id}</div>,
+  }),
+);
 const CTX_TRACKERS_TAB: ResolvedContextTab = resolvedTab({ id: "trackers", label: "Trackers", icon: MessagesSquare, node: <div>trackers</div> });
 // A contributor that set NO icon — must keep its word label at every container width (can't compress).
 const CTX_ICONLESS_TAB: ResolvedContextTab = resolvedTab({ id: "iconless", label: "Iconless", node: <div>iconless</div> });
@@ -1227,8 +1233,7 @@ const CTX_TAB_STATE_TABS: readonly ResolvedContextTab[] = [
     strip: "game",
     disabledReason: "Maps unlock with the map arc (MA-3)",
   }),
-  resolvedTab({ id: "members", label: "Members", icon: Users, node: <div data-testid="ctx-body-members">members</div>, strip: "meta" }),
-  resolvedTab({ id: "settings", label: "Settings", icon: Settings, node: <div data-testid="ctx-body-settings">settings</div>, strip: "meta" }),
+  ...CTX_STRIP_TABS.slice(0, 2),
 ];
 
 /** The bracket at a fixed size — TWO rails over a mixed-`strip` set, badges + a locked cell. */
@@ -1244,8 +1249,7 @@ export function ContextTabStatesStory({ width = 291, height = 560 }: { readonly 
 // the rpg contributor game tabs), and `rpg.status` carries the §4.1 `defaultTab` flag. This is exactly the
 // shape that regresses without the flag — a fresh panel (no stored contextTab) would land on `members`.
 const CTX_DEFAULT_TAB_TABS: readonly ResolvedContextTab[] = [
-  resolvedTab({ id: "members", label: "Members", icon: Users, node: <div data-testid="ctx-body-members">members</div>, strip: "meta" }),
-  resolvedTab({ id: "settings", label: "Settings", icon: Settings, node: <div data-testid="ctx-body-settings">settings</div>, strip: "meta" }),
+  ...CTX_STRIP_TABS.slice(0, 2),
   resolvedTab({ id: "rpg.status", label: "Status", icon: Gauge, node: <div data-testid="ctx-body-status">status</div>, strip: "game", defaultTab: true }),
   resolvedTab({ id: "rpg.scene", label: "Scene", icon: Drama, node: <div data-testid="ctx-body-scene">scene</div>, strip: "game" }),
 ];
@@ -1298,9 +1302,7 @@ function isCrowned(id: string): boolean {
  *  Activity cell also takes its REAL id here: the door mints it as `automation.activity`, and `activity`
  *  was a fourth hand-typed datum with nothing checking it. */
 const CTX_META_RAIL_TABS: readonly ResolvedContextTab[] = [
-  resolvedTab({ id: "members", label: "Members", icon: Users, node: <div>members</div> }),
-  resolvedTab({ id: "settings", label: "This chat", icon: Settings, node: <div>this chat</div> }),
-  resolvedTab({ id: "preview", label: "Preview", icon: Eye, node: <div>preview</div>, crown: isCrowned("preview") }),
+  ...CTX_STRIP_TABS,
   resolvedTab({ id: "rpg.game", label: "Game", icon: Crown, node: <div>game</div>, crown: isCrowned("rpg.game") }),
   resolvedTab({ id: "automation.activity", label: "Activity", icon: FlaskConical, node: <div>activity</div>, crown: isCrowned("automation.activity") }),
 ];

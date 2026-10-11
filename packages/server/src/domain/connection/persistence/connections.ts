@@ -14,7 +14,6 @@ type ConnectionRow = typeof userConnections.$inferSelect;
 type ConnectionInsert = typeof userConnections.$inferInsert;
 
 function toConnectionRow(row: ConnectionRow): UserConnection {
-  // @orb-waive json-column-read-parsed(features): baselined when the gate widened; burn-down item 905.
   // @orb-waive json-column-read-parsed(declared): baselined when the gate widened; burn-down item 905.
   const summarize = row.declared?.features?.concurrency?.summarize;
   const declared =
@@ -22,7 +21,6 @@ function toConnectionRow(row: ConnectionRow): UserConnection {
       ? {
           // @orb-waive json-column-read-parsed(declared): baselined when the gate widened; burn-down item 905.
           ...row.declared,
-          // @orb-waive json-column-read-parsed(features): baselined when the gate widened; burn-down item 905.
           features: { ...row.declared?.features, concurrency: { ...row.declared?.features?.concurrency, summarize: SUMMARIZE_CONCURRENCY_MAX } },
         }
       : row.declared;

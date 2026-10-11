@@ -100,18 +100,13 @@ function parseSnapshotRow(row: RpgSnapshotRow): RpgSnapshotRow {
   const { id } = row;
   return {
     ...row,
-    // @orb-waive json-column-read-parsed(clock): baselined when the gate widened; burn-down item 905.
     clock: row.clock === null ? null : field(rpgClockTimeSchema, row.clock, id, "clock"),
-    // @orb-waive json-column-read-parsed(weather): baselined when the gate widened; burn-down item 905.
     weather: row.weather === null ? null : field(rpgWeatherSchema, row.weather, id, "weather"),
     presentCharacters: field(presentCharactersSchema, row.presentCharacters ?? [], id, "presentCharacters"),
     recentEvents: field(recentEventsSchema, row.recentEvents ?? [], id, "recentEvents"),
-    // @orb-waive json-column-read-parsed(actorState): baselined when the gate widened; burn-down item 905.
     actorState: field(actorStateSchema, row.actorState ?? [], id, "actorState"),
     trackerValues: field(rpgTrackerValuesSchema, row.trackerValues ?? {}, id, "trackerValues"),
-    // @orb-waive json-column-read-parsed(quests): baselined when the gate widened; burn-down item 905.
     quests: field(questsSchema, row.quests ?? [], id, "quests"),
-    // @orb-waive json-column-read-parsed(plot): baselined when the gate widened; burn-down item 905.
     plot: row.plot === null ? null : field(rpgPlotSchema, row.plot, id, "plot"),
     fieldLocks: row.fieldLocks === null ? null : field(rpgFieldLocksSchema, row.fieldLocks, id, "fieldLocks"),
   };
@@ -511,20 +506,15 @@ function snapshotInsertFrom(
     id: base.id,
     gameId: base.gameId,
     ...row.arm,
-    // @orb-waive json-column-read-parsed(clock): baselined when the gate widened; burn-down item 905.
     clock: state.clock,
     calendarDate: state.calendarDate,
     location: state.location,
-    // @orb-waive json-column-read-parsed(weather): baselined when the gate widened; burn-down item 905.
     weather: state.weather,
     presentCharacters: state.presentCharacters,
     recentEvents: state.recentEvents,
-    // @orb-waive json-column-read-parsed(actorState): baselined when the gate widened; burn-down item 905.
     actorState: state.actorState,
     trackerValues: state.trackerValues,
-    // @orb-waive json-column-read-parsed(quests): baselined when the gate widened; burn-down item 905.
     quests: state.quests,
-    // @orb-waive json-column-read-parsed(plot): baselined when the gate widened; burn-down item 905.
     plot: state.plot,
     fieldLocks: row.fieldLocks,
     committed: row.committed,

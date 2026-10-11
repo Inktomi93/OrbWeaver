@@ -1,17 +1,13 @@
-// The FAMILY test for the `mirror-index` family — `test-layout`, `test-presence`,
-// `test-presence-inference` and `test-presence-client`. The original three were converted from legacy
-// `GateDescriptor`s at `7a0a2375aa` (#2061/#2062). The legacy
-// tree is that conversion's PARENT, `(pruned from public history)` — the sha the three modules' own header lines cite (#2136:
-// this line read "the child of (pruned from public history)", which is a different commit, `(pruned from public history)`).
-// The four share ONE subject reader: `ops/resource-mirror.ts` `loadMirrorIndex`, reached through the
-// `mirrorIndex` host door. This lane is what WIRED that kind — it shipped frozen with zero gate consumers.
+// The FAMILY test for the `mirror-index` family — `test-layout`, `test-reach` and `test-presence-client`. The three
+// share ONE subject reader: `ops/resource-mirror.ts` `loadMirrorIndex`, reached through the `mirrorIndex` host door.
 //
 // WHAT LIVES HERE AND WHAT DOES NOT (guide §6.6). The declared `mustFlag`/`mustPass` rows run on the static
 // tier through `check:policy-conformance`, so they are NOT re-asserted here beyond the one-line receipt.
 // What a proof row structurally CANNOT express is the §4.5 REFUSAL and RECEIPT set: `toolFailure` precedes
 // the arm verdict, so an arm whose correct outcome is a refusal is neither `mustFlag` nor `mustPass`. Those
 // are `runPolicyPass` pins — one per declared resource per reachable status, plus the complete-run receipt
-// pair. All three policies are `hard`, so no §4.2 identity arm is owed (a hard finding has no waiver door).
+// pair. `test-reach` is `reviewed-grant`; its grant identity and its staleness once a module is reached are pinned
+// below. The other two are `hard`, so no identity arm is owed for them.
 //
 // WHY THE REFUSAL PINS ARE THE POINT OF THE WHOLE CONVERSION. Every legacy arm answered its mirror question
 // with `existsSync`, which cannot tell "the test tree has no member here" from "the test tree is not there
@@ -33,26 +29,23 @@
 import { mkdirSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Project } from "ts-morph";
+import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate as unionAlias } from "../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
 import { gate as testLayout } from "../../../../tooling/src/verify/gates/test-layout.ts";
-import { gate as testPresence } from "../../../../tooling/src/verify/gates/test-presence.ts";
 import { gate as testPresenceClient } from "../../../../tooling/src/verify/gates/test-presence-client.ts";
-import { gate as testPresenceInference } from "../../../../tooling/src/verify/gates/test-presence-inference.ts";
+import { gate as testReach } from "../../../../tooling/src/verify/gates/test-reach.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-const policies = [testLayout, testPresence, testPresenceInference, testPresenceClient] as const;
+const policies = [testLayout, testReach, testPresenceClient] as const;
 
-// The #2346 TEMPORARY WARNING POSTURE IS CLOSED OUT (owner ruling 2026-09-19, #2377): all mirror
-// policies are hard/error again and NONE carries a `workItem`. This row is the closeout's pin — a
-// reintroduced `severity: "warning"` on either presence policy fails here, not only in the conformance
-// corpus. The warning-era promotion arms below survive as the proof that an ERROR blocks with and without
-// `--fail-on-warnings`, which is the property the restoration bought.
-test("every mirror policy is a hard error with no temporary work item", () => {
+// Every mirror policy blocks: none is a warning and none carries a `workItem`. `test-reach` is the one with an
+// exception door, the reviewed-grant table that holds the modules no test reached when presence became reach.
+test("every mirror policy is an error with no temporary work item", () => {
   expect(
     policies.map((policy) => ({
       id: policy.id,
@@ -62,8 +55,7 @@ test("every mirror policy is a hard error with no temporary work item", () => {
     })),
   ).toEqual([
     { id: "test-layout", authority: "hard", severity: "error", workItem: null },
-    { id: "test-presence", authority: "hard", severity: "error", workItem: null },
-    { id: "test-presence-inference", authority: "hard", severity: "error", workItem: null },
+    { id: "test-reach", authority: "reviewed-grant", severity: "error", workItem: null },
     { id: "test-presence-client", authority: "hard", severity: "error", workItem: null },
   ]);
 });
@@ -80,12 +72,21 @@ function pass(policy: GatePolicy, root: string, overlay: Readonly<Record<string,
   return passRequesting([policy], root, overlay, { failOnWarnings });
 }
 
+function passGranted(
+  policy: GatePolicy,
+  root: string,
+  overlay: Readonly<Record<string, string>>,
+  reviewedGrants: readonly ReviewedGateGrant[],
+): PolicyPassResult {
+  return passRequesting([policy], root, overlay, { reviewedGrants });
+}
+
 /** `pass` narrowed to a request, the shape a staged commit hands the dispatcher. */
 function passRequesting(
   selected: readonly GatePolicy[],
   root: string,
   overlay: Readonly<Record<string, string>>,
-  request: { readonly failOnWarnings?: boolean; readonly requestedPaths?: readonly string[] },
+  request: { readonly failOnWarnings?: boolean; readonly requestedPaths?: readonly string[]; readonly reviewedGrants?: readonly ReviewedGateGrant[] },
 ): PolicyPassResult {
   const project = new Project({ skipAddingFilesFromTsConfig: true });
   for (const [path, content] of Object.entries(overlay)) {
@@ -99,7 +100,7 @@ function passRequesting(
     root,
     project,
     resourceOptions: { overlay },
-    reviewedGrants: [],
+    reviewedGrants: request.reviewedGrants ?? [],
     failOnWarnings: request.failOnWarnings ?? false,
     ...(request.requestedPaths === undefined ? {} : { requestedPaths: request.requestedPaths }),
   });
@@ -176,7 +177,7 @@ test("test-layout: a complete mirror population reaches a verdict and files one 
 // The staged-commit door: `verify --static --changed staged` hands the policy ONLY the paths the commit
 // touches. A new test with no source mirror must still be judged there, not deferred to the whole-tree run.
 test("test-layout: a staged new test with no source mirror is judged, not deferred", ({ scratch }) => {
-  const orphan = "tests/ui/primitives/orphan.ct.tsx";
+  const orphan = "tests/ui/ghost/orphan.ct.tsx";
   const result = passRequesting([testLayout], scratch, { ...LAYOUT_TREE, [orphan]: "export const x = 1;\n" }, { requestedPaths: [orphan] });
 
   expect(result.toolErrors).toEqual([]);
@@ -195,7 +196,7 @@ test("test-layout: a staged mirrored test is clean even when an untouched test e
       ...LAYOUT_TREE,
       [mirrored]: "export const x = 1;\n",
       "packages/ui/src/primitives/other.tsx": "export const other = 1;\n",
-      "tests/ui/primitives/old-orphan.ct.tsx": "export const x = 1;\n",
+      "tests/ui/ghost/old-orphan.ct.tsx": "export const x = 1;\n",
     },
     { requestedPaths: [mirrored] },
   );
@@ -265,65 +266,73 @@ test("test-layout: a SYMLINK under tooling/src refuses `unresolved` on the SECON
   expect(result.toolErrors[0]?.message).toContain("authored resource traverses a symbolic link: tooling/src/snapx/linked.ts");
 });
 
-/** `test-presence`'s one declaration. A complete corpus reaches a verdict and files ONE resource receipt;
- *  removing either bounded space of the SAME family flips it into a named population-phase refusal. */
-const PRESENCE_TREE = {
-  "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat = () => 1;\n",
-  "tests/server/domain/chat/verbs/start-chat.test.ts": "export const t = 1;\n",
+/** `test-reach`'s population is the presence-gated sources plus `tests/`; its two declarations are the package
+ *  and tooling mirror spaces, which `@subject` paths are checked against. */
+const TOOL_SPACE = {
+  "tooling/src/snapx/cli.ts": "export {};\n",
+  "tests/tooling/snapx/cli.test.ts": "export const x = 1;\n",
 } as const;
+const VERB = "packages/server/src/domain/chat/verbs/start-chat.ts";
+const VERB_SOURCE = "export const createStartChat = (): number => 1;\n";
+const REACHING_TEST =
+  'import { createStartChat } from "../../../../../packages/server/src/domain/chat/verbs/start-chat.ts";\nexport const made = createStartChat();\n';
+const REACH_TREE = { ...TOOL_SPACE, [VERB]: VERB_SOURCE, "tests/server/domain/chat/verbs/starting.test.ts": REACHING_TEST } as const;
+const UNREACHED_TREE = { ...TOOL_SPACE, [VERB]: VERB_SOURCE, "tests/server/domain/chat/verbs/start-chat.test.ts": "export const t = 1;\n" } as const;
+const VERB_GRANT: ReviewedGateGrant = {
+  id: `test-reach:${VERB}`,
+  policyId: "test-reach",
+  subject: VERB,
+  operation: "unreached:verb",
+  why: "fixture",
+  endsWhen: "fixture",
+};
 
-const MISSING_SERVER_TEST_TREE = {
-  "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat = () => 1;\n",
-  "tests/server/domain/chat/verbs/other.test.ts": "export const t = 1;\n",
-} as const;
+test("test-reach: an unreached verb blocks with and without promotion", ({ scratch }) => {
+  const unpromoted = pass(testReach, scratch, UNREACHED_TREE);
+  const promoted = pass(testReach, scratch, UNREACHED_TREE, true);
 
-test("test-presence: a missing server test is an unsuppressible error that blocks WITHOUT promotion", ({ scratch }) => {
-  const unpromoted = pass(testPresence, scratch, MISSING_SERVER_TEST_TREE);
-  const promoted = pass(testPresence, scratch, MISSING_SERVER_TEST_TREE, true);
-
-  expect(unpromoted.policies[0]?.findings).toHaveLength(1);
-  expect(unpromoted.authority.effectiveFindings).toMatchObject([{ policyId: "test-presence", severity: "error" }]);
-  expect(unpromoted.authority.waivedFindings).toEqual([]);
-  expect(unpromoted.authority.authorityAlarms).toEqual([]);
+  expect(unpromoted.authority.effectiveFindings).toMatchObject([{ policyId: "test-reach", file: VERB, severity: "error" }]);
   expect(unpromoted.authority.verdict).toEqual({ errors: 1, warnings: 0, blocking: 1, failOnWarnings: false });
-  expect(promoted.authority.effectiveFindings).toEqual(unpromoted.authority.effectiveFindings);
   expect(promoted.authority.verdict).toEqual({ errors: 1, warnings: 0, blocking: 1, failOnWarnings: true });
 });
 
-// The staged-commit door for the presence policies: a new logic-bearing source with no mirror test is judged
-// on its own request, and an orphan the commit did not touch is not re-blamed on it.
-test("test-presence: a staged new source with no mirror test is judged, an untouched orphan is not", ({ scratch }) => {
-  const orphan = "packages/server/src/domain/chat/verbs/new-verb.ts";
-  const untouched = "packages/server/src/domain/chat/verbs/old-orphan.ts";
-  const tree = { ...MISSING_SERVER_TEST_TREE, [orphan]: "export const createNewVerb = () => 1;\n", [untouched]: "export const createOld = () => 1;\n" };
+// The baseline's whole contract: one exact row excuses one unreached module, and the same row reds the moment a test
+// reaches that module, so the table can only shrink.
+test("test-reach: a grant excuses exactly its unreached module and goes stale once a test reaches it", ({ scratch }) => {
+  const excused = passGranted(testReach, scratch, UNREACHED_TREE, [VERB_GRANT]);
+  expect(excused.authority.effectiveFindings).toEqual([]);
+  expect(excused.authority.grantedFindings.map(({ grantId }) => grantId)).toEqual([VERB_GRANT.id]);
+  expect(excused.authority.authorityAlarms).toEqual([]);
 
-  const flagged = passRequesting([testPresence], scratch, tree, { requestedPaths: [orphan] });
-  expect(flagged.toolErrors).toEqual([]);
-  expect(flagged.authority.effectiveFindings).toMatchObject([{ policyId: "test-presence" }]);
-  expect(flagged.authority.effectiveFindings).toHaveLength(1);
-
-  const clean = passRequesting(
-    [testPresence],
-    scratch,
-    { ...tree, "tests/server/domain/chat/verbs/new-verb.test.ts": "export const t = 1;\n" },
-    { requestedPaths: [orphan] },
-  );
-  expect(clean.toolErrors).toEqual([]);
-  expect(clean.authority.effectiveFindings).toEqual([]);
+  const reached = passGranted(testReach, scratch, { ...UNREACHED_TREE, ...REACH_TREE }, [VERB_GRANT]);
+  expect(reached.authority.effectiveFindings).toEqual([]);
+  expect(reached.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: VERB_GRANT.id }]);
 });
 
-// test-presence reselects every server source when a mirror member is requested. Another policy's waiver in
-// one of those files is outside THAT policy's request and must not be called stale by a subset run.
+// Reach is a whole-graph relation, so a staged run defers the policy and the whole run owns the verdict.
+test("test-reach: a staged run defers to the whole run, which judges a new unreached verb", ({ scratch }) => {
+  const added = "packages/server/src/domain/chat/verbs/new-verb.ts";
+  const tree = { ...REACH_TREE, [added]: "export const createNewVerb = (): number => 1;\n" };
+
+  const staged = passRequesting([testReach], scratch, tree, { requestedPaths: [added] });
+  expect(staged.toolErrors).toEqual([]);
+  expect(staged.policies.map(({ owner }) => owner.status)).toEqual(["not-applicable"]);
+
+  const whole = pass(testReach, scratch, tree);
+  expect(whole.authority.effectiveFindings).toMatchObject([{ policyId: "test-reach", file: added }]);
+});
+
+// A run narrowed to one path must not call another policy's waiver stale in a file it never judged.
 test("a subset run does not call a waiver stale in a file only a sibling policy reselected", ({ scratch }) => {
-  const orphan = "packages/server/src/domain/chat/verbs/new-verb.ts";
+  const added = "packages/server/src/domain/chat/verbs/new-verb.ts";
   const tree = {
-    ...MISSING_SERVER_TEST_TREE,
-    [orphan]: "export const createNewVerb = () => 1;\n",
+    ...REACH_TREE,
+    [added]: "export const createNewVerb = () => 1;\n",
     "packages/server/src/domain/chat/verbs/waived.ts":
       "// @orb-waive no-inline-union-alias(Mode): fixture stand-in; ends with the fixture.\nexport type Mode = 'a' | 'b';\n",
   };
 
-  const result = passRequesting([unionAlias, testPresence], scratch, tree, { requestedPaths: [orphan] });
+  const result = passRequesting([unionAlias, testReach], scratch, tree, { requestedPaths: [added] });
 
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.authorityAlarms).toEqual([]);
@@ -352,20 +361,109 @@ function passApplication(policy: GatePolicy, root: string, overlay: Readonly<Rec
 }
 
 const BLIND_TREE = {
+  ...TOOL_SPACE,
   "packages/db/src/schema/index.ts": "export const s = 1;\n",
   "packages/server/src/infra/log.ts": "export const log = () => 1;\n",
-  "tests/server/infra/log.test.ts": "export const t = 1;\n",
+  "tests/server/infra/log.test.ts": 'import { log } from "../../../packages/server/src/infra/log.ts";\nexport const t = log();\n',
 } as const;
 
-test("test-presence: the blindness tripwire fires on a whole run and the application run, not on a staged subset", ({ scratch }) => {
-  const sources = ["packages/db/src/schema/index.ts", "packages/server/src/infra/log.ts"];
-  const whole = pass(testPresence, scratch, BLIND_TREE);
-  const application = passApplication(testPresence, scratch, BLIND_TREE, sources);
-  const staged = passRequesting([testPresence], scratch, BLIND_TREE, { requestedPaths: ["packages/server/src/infra/log.ts"] });
+test("test-reach: the blindness tripwire fires on a whole run and the application run, not on a staged subset", ({ scratch }) => {
+  const sources = ["packages/db/src/schema/index.ts", "packages/server/src/infra/log.ts", "tests/server/infra/log.test.ts"];
+  const whole = pass(testReach, scratch, BLIND_TREE);
+  const application = passApplication(testReach, scratch, BLIND_TREE, sources);
+  const staged = passRequesting([testReach], scratch, BLIND_TREE, { requestedPaths: ["packages/server/src/infra/log.ts"] });
 
-  expect(whole.toolErrors).not.toEqual([]);
+  expect(whole.toolErrors.map(({ message }) => message)).toEqual([expect.stringContaining("the domain scan matched ZERO files")]);
   expect(application.toolErrors.map(({ message }) => message)).toEqual(whole.toolErrors.map(({ message }) => message));
   expect(staged.toolErrors).toEqual([]);
+});
+
+const PCA = "packages/server/src/domain/discovery/substrate/pca.ts";
+const PCA_SOURCE = "export const projectPca = (rows: number[][]) => rows.map((row) => row[0] ?? 0);\n";
+const PCA_TEST = 'import { projectPca } from "../../../../../packages/server/src/domain/discovery/substrate/pca.ts";\nexport const t = projectPca([]);\n';
+const HEALTH = "packages/server/src/entry/http/health.ts";
+const HEALTH_SOURCE = "export function health(): number {\n  const status = 200;\n  return status;\n}\n";
+const HEALTH_TEST = 'import { health } from "../../../../packages/server/src/entry/http/health.ts";\nexport const t = health();\n';
+
+test("test-reach: each blindness diagnosis discards a prior potential finding from raw and effective results", ({ scratch }) => {
+  const anchor = { ...TOOL_SPACE, "packages/db/src/schema/index.ts": "export const schema = 1;\n" };
+  const cases = [
+    {
+      message: "the entry/transport scan matched ZERO files",
+      missingFile: VERB,
+      refusing: { ...anchor, [VERB]: VERB_SOURCE, [PCA]: PCA_SOURCE, "tests/server/domain/discovery/substrate/pca.test.ts": PCA_TEST },
+      seeing: { [HEALTH]: HEALTH_SOURCE, "tests/server/entry/http/health.test.ts": HEALTH_TEST },
+    },
+    {
+      message: "the domain scan matched ZERO files",
+      missingFile: "packages/server/src/entry/http/frame-handle-store.ts",
+      refusing: {
+        ...anchor,
+        "packages/server/src/entry/http/frame-handle-store.ts": "export function take(): number {\n  const hit = 1;\n  return hit;\n}\n",
+        [HEALTH]: HEALTH_SOURCE,
+        "tests/server/entry/http/health.test.ts": HEALTH_TEST,
+      },
+      seeing: { [PCA]: PCA_SOURCE, "tests/server/domain/discovery/substrate/pca.test.ts": PCA_TEST },
+    },
+  ] as const;
+  for (const { message, missingFile, refusing, seeing } of cases) {
+    expect(refusalShape(pass(testReach, scratch, refusing))).toEqual(evaluateRefusal("test-reach", message));
+
+    const sighted = pass(testReach, scratch, { ...refusing, ...seeing });
+    expect(sighted.toolErrors).toEqual([]);
+    expect(sighted.authority.withheldPolicyIds).toEqual([]);
+    expect(sighted.policies.flatMap(({ findings }) => findings)).toMatchObject([{ file: missingFile }]);
+  }
+});
+
+// The third diagnosis: every demanded module present and every test present, yet not one import resolved. That is
+// a resolver failure, and reporting every module unreached would read as debt rather than as a broken instrument.
+test("test-reach: a corpus whose tests resolve no reference refuses instead of accusing every module", ({ scratch }) => {
+  const tree = {
+    ...TOOL_SPACE,
+    "packages/db/src/schema/index.ts": "export const schema = 1;\n",
+    [PCA]: PCA_SOURCE,
+    [HEALTH]: HEALTH_SOURCE,
+    "tests/server/domain/discovery/substrate/pca.test.ts": 'import { projectPca } from "#server/missing/pca.ts";\nexport const t = projectPca;\n',
+  };
+  expect(refusalShape(pass(testReach, scratch, tree))).toEqual(evaluateRefusal("test-reach", "resolved ZERO references"));
+
+  const resolving = pass(testReach, scratch, { ...tree, "tests/server/domain/discovery/substrate/pca.test.ts": PCA_TEST });
+  expect(resolving.toolErrors).toEqual([]);
+  expect(resolving.authority.effectiveFindings).toMatchObject([{ file: HEALTH }]);
+});
+
+test("test-reach: a complete population files its census and one receipt per declaration", ({ scratch }) => {
+  const result = pass(testReach, scratch, REACH_TREE);
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(result.policies.map(({ receipts }) => receipts.map(({ source, unresolved }) => `${source}=${String(unresolved)}`).toSorted())).toEqual([
+    ["mirror-index:package-test=0", "mirror-index:tooling-test=0", "test-reach [demanded=1,unreached=0,tests=2,references=1]=0"],
+  ]);
+});
+
+test("test-reach: an absent test tree REFUSES rather than accusing every source file of being untested", ({ scratch }) => {
+  const result = pass(testReach, scratch, { [VERB]: VERB_SOURCE, "tooling/src/snapx/cli.ts": "export {};\n" });
+
+  expect(refusalShape(result)).toEqual(populationRefusal("test-reach", "resource declaration mirror-index:package-test is missing"));
+});
+
+/** `empty` on the package family needs a `tests/` tree that EXISTS and is empty, which no overlay can build. The
+ *  green twin differs by the one planted member, so nothing else about the substrate explains the flip. */
+test("test-reach: a tests/ tree that EXISTS and is empty refuses `empty` rather than accusing the corpus", ({ scratch }) => {
+  mkdirSync(join(scratch, "tests"), { recursive: true });
+  const result = pass(testReach, scratch, { [VERB]: VERB_SOURCE });
+
+  expect(refusalShape(result)).toEqual(populationRefusal("test-reach", "resource declaration mirror-index:package-test is empty"));
+});
+
+test("test-reach: the SAME substrate with planted test members reaches a verdict — the empty refusal's green twin", ({ scratch }) => {
+  plant(scratch, { "tests/server/domain/chat/verbs/starting.test.ts": REACHING_TEST, ...TOOL_SPACE });
+  const result = pass(testReach, scratch, { [VERB]: VERB_SOURCE });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.policies.map(({ id, owner }) => [id, owner.status])).toEqual([["test-reach", "success"]]);
 });
 
 const WORST_ART_TREE = {
@@ -393,116 +491,6 @@ test("test-presence-client: a staged new client data hook with no mirror test is
   const flagged = passRequesting([testPresenceClient], scratch, tree, { requestedPaths: [hook] });
   expect(flagged.toolErrors).toEqual([]);
   expect(flagged.authority.effectiveFindings).toMatchObject([{ policyId: "test-presence-client" }]);
-});
-
-test("test-presence: a marker cannot suppress the hard finding", ({ scratch }) => {
-  const attempted = pass(testPresence, scratch, {
-    ...MISSING_SERVER_TEST_TREE,
-    "packages/server/src/domain/chat/verbs/start-chat.ts":
-      "// @orb-waive test-presence(export): hard finding must reject this marker.\nexport const createStartChat = () => 1;\n",
-  });
-
-  expect(attempted.authority.effectiveFindings).toHaveLength(1);
-  expect(attempted.authority.waivedFindings).toEqual([]);
-  expect(attempted.authority.authorityAlarms.map(({ message }) => message)).toContainEqual(
-    expect.stringContaining("targets non-ordinary policy test-presence"),
-  );
-});
-
-test("test-presence: each blindness diagnosis discards a prior potential finding from raw and effective results", ({ scratch }) => {
-  const cases = [
-    {
-      message: "the entry/transport scan matched ZERO files",
-      missingFile: "packages/server/src/domain/chat/verbs/start-chat.ts",
-      refusing: {
-        "packages/db/src/schema/index.ts": "export const schema = 1;\n",
-        "packages/server/src/domain/chat/verbs/start-chat.ts": "export function createStartChat(): number {\n  const id = 1;\n  return id;\n}\n",
-        "packages/server/src/domain/discovery/substrate/pca.ts": "export const projectPca = (rows: number[][]) => rows.map((row) => row[0] ?? 0);\n",
-        "tests/server/domain/discovery/substrate/pca.test.ts": "export const t = 1;\n",
-        "tests/server/domain/chat/verbs/other.test.ts": "export const t = 1;\n",
-      },
-      seeing: {
-        "packages/server/src/entry/http/health.ts": "export function health(): number {\n  const status = 200;\n  return status;\n}\n",
-        "tests/server/entry/http/health.test.ts": "export const t = 1;\n",
-      },
-    },
-    {
-      message: "the domain scan matched ZERO files",
-      missingFile: "packages/server/src/entry/http/frame-handle-store.ts",
-      refusing: {
-        "packages/db/src/schema/index.ts": "export const schema = 1;\n",
-        "packages/server/src/entry/http/frame-handle-store.ts": "export function take(): number {\n  const hit = 1;\n  return hit;\n}\n",
-        "tests/server/entry/http/other.test.ts": "export const t = 1;\n",
-      },
-      seeing: {
-        "packages/server/src/domain/discovery/substrate/pca.ts": "export const projectPca = (rows: number[][]) => rows.map((row) => row[0] ?? 0);\n",
-        "tests/server/domain/discovery/substrate/pca.test.ts": "export const t = 1;\n",
-      },
-    },
-  ] as const;
-  for (const { message, missingFile, refusing, seeing } of cases) {
-    expect(refusalShape(pass(testPresence, scratch, refusing))).toEqual(evaluateRefusal("test-presence", message));
-
-    const sighted = pass(testPresence, scratch, { ...refusing, ...seeing });
-    expect(sighted.toolErrors).toEqual([]);
-    expect(sighted.authority.withheldPolicyIds).toEqual([]);
-    expect(sighted.policies.flatMap(({ findings }) => findings)).toMatchObject([{ file: missingFile }]);
-    expect(sighted.authority.effectiveFindings).toMatchObject([{ file: missingFile, severity: "error" }]);
-  }
-});
-
-test("test-presence: a complete mirror population reaches a verdict and files its one receipt", ({ scratch }) => {
-  const result = pass(testPresence, scratch, PRESENCE_TREE);
-
-  expect(result.toolErrors).toEqual([]);
-  expect(result.authority.effectiveFindings).toEqual([]);
-  expect(result.policies.map(({ receipts }) => receipts.map(({ source, unresolved }) => [source, unresolved]))).toEqual([[["mirror-index:package-test", 0]]]);
-});
-
-/** THE CAPABILITY THE CONVERSION BUYS, as its own two-sided pin. Under `existsSync` the run below produced
- *  a FINDING ("this verb has no test"), because an absent `tests/` tree and a `tests/` tree with no member
- *  at that path were the same answer. It is now a REFUSAL: no finding, and a message naming the corpus it
- *  could not read. */
-test("test-presence: an absent test tree REFUSES rather than accusing every source file of being untested", ({ scratch }) => {
-  const { "tests/server/domain/chat/verbs/start-chat.test.ts": _test, ...rest } = PRESENCE_TREE;
-  const result = pass(testPresence, scratch, rest);
-
-  expect(refusalShape(result)).toEqual(populationRefusal("test-presence", "resource declaration mirror-index:package-test is missing"));
-  expect(result.toolErrors[0]?.message).toContain("mirror family package-test");
-});
-
-/** `empty` on the PACKAGE family, the status its `tooling-test` twin above pins and this one did not
- *  (#2130). The two are not the same shape: `tooling-test`'s empty arm is reached by a `tests/` tree that
- *  HAS members but none under its narrower `tests/tooling` root, while `package-test`'s test root IS the
- *  tree, so the only way in is a test tree that EXISTS and is empty — a state no overlay can build, and
- *  exactly the tree a wiped `tests/` leaves behind. Under `existsSync` this was indistinguishable from a
- *  complete corpus and would have accused every source file on the tree.
- *
- *  THE SUBSTRATE IS MIXED ON PURPOSE, AND THE GREEN TWIN BELOW IS WHY (#2279). The first landing of this
- *  pin planted the SOURCE on disk and passed an EMPTY overlay, which left the ts-morph project with no
- *  files — so the healthy arrangement of that same substrate does not go green, it tool-errors
- *  `candidate corpus is empty`, a DIFFERENT failure this pin's `messageIncludes` happens to exclude. The
- *  pin then proved "the refusal fires", never "the same substrate can pass", which is half of §4.5. The
- *  source now arrives through the OVERLAY in both arms and the only difference between them is the one
- *  line that gives the disk-planted test space a member: nothing else about the arrangement can explain
- *  the flip. */
-const { "tests/server/domain/chat/verbs/start-chat.test.ts": PRESENCE_MIRROR, ...PRESENCE_SOURCE_ONLY } = PRESENCE_TREE;
-
-test("test-presence: a tests/ tree that EXISTS and is empty refuses `empty` rather than accusing the corpus", ({ scratch }) => {
-  mkdirSync(join(scratch, "tests"), { recursive: true });
-  const result = pass(testPresence, scratch, PRESENCE_SOURCE_ONLY);
-
-  expect(refusalShape(result)).toEqual(populationRefusal("test-presence", "resource declaration mirror-index:package-test is empty"));
-  expect(result.toolErrors[0]?.message).toContain("resource tree has no members: tests");
-});
-
-test("test-presence: the SAME substrate with ONE member in the planted test space reaches a verdict — the empty refusal's green twin", ({ scratch }) => {
-  plant(scratch, { "tests/server/domain/chat/verbs/start-chat.test.ts": PRESENCE_MIRROR });
-  const result = pass(testPresence, scratch, PRESENCE_SOURCE_ONLY);
-
-  expect(result.toolErrors).toEqual([]);
-  expect(result.authority.effectiveFindings).toEqual([]);
-  expect(result.policies.map(({ id, owner }) => [id, owner.status])).toEqual([["test-presence", "success"]]);
 });
 
 /** `test-presence-client`'s TWO declarations, including the `authored-text` DEMAND door — which owns no
@@ -603,7 +591,7 @@ test("state store mirrors are NOT all .ct.tsx — the false premise that made cl
  *  violations across 4 gates") RENAMED the whole class onto the registered `.suite.test.ts` /
  *  `.suite.repo.int.test.ts` kinds — this file is one of the renamed members — and `mirror: "suite"` is the
  *  declared cross-cutting-property exemption both mirror arms honour (`test-layout.ts` §4.7 tooling arm and
- *  the package arm; the exemption's own proof row is `test-layout` `mustPass[6]`). The two NAMED exceptions
+ *  the package arm; the exemption's own proof row is `test-layout` `mustPass[7]`). The two NAMED exceptions
  *  the park carried went the same way: a since-retired catalog-scope suite (its whole module tree is gone) and
  *  `tests/tooling/verify/lib/bus-fact-relay.suite.test.ts` both carried `.suite.` while they existed.
  *
@@ -618,8 +606,8 @@ test("state store mirrors are NOT all .ct.tsx — the false premise that made cl
  *  class and are vacuous or inverted without one. The four `PARKED CLASS:` discriminating arms judged the
  *  CLASS PREDICATE, not the gate, so they retire with the predicate — and the gate behaviours they happened
  *  to exercise are each already owned by a declared proof row that runs on the static tier: a package mirror
- *  miss is `mustFlag[2]`, a tooling mirror miss under a live tool dir is `mustFlag[5]`, a wrong-home native
- *  `.spec.ts` is `mustFlag[4]`, and the suite exemption is `mustPass[6]`. No successor real-tree pin is added
+ *  miss is `mustFlag[2]`, a tooling mirror miss under a live tool dir is `mustFlag[6]`, a wrong-home native
+ *  `.spec.ts` is `mustFlag[4]`, and the suite exemption is `mustPass[7]`. No successor real-tree pin is added
  *  here: a new violation of either arm is caught by `check:structure --check test-layout` on the STATIC bar,
  *  which every `pnpm check` runs, whereas `tests/tooling/**` is `--full`-only (#1842) — a vitest copy of it
  *  would be the weaker of the two instruments, not an extra one. */
