@@ -10,6 +10,8 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { SEED_MANIFEST } from "@orb/default-content";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
+import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
+import { NORMAL_MIN_RATIO, relativeLuminance } from "@orb/tooling/floor/instrument/wcag";
 import { Clock } from "@orb/ui/icons";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -1280,8 +1282,6 @@ const FADE_CELLS = [
 const FADE_PANE_INSET = { inline: FOLD_RAIL_PX, block: 48 };
 /** A light scope by DERIVATION, never a hand-listed palette — `background` grows the whole ramp. */
 const LIGHT_SCOPE_BACKGROUND = "oklch(0.98 0.004 75)";
-/** WCAG 1.4.3 normal text. The CTAs are 13px/500, so the large-text 3:1 relaxation does not apply. */
-const FADE_INK_FLOOR = 4.5;
 /** DIAGNOSTIC ONLY (it labels a printed row, it gates no assertion): the deepest block-axis band this
  *  recipe has ever resolved — the pre-fix `--fade-edge-stop` 10% of a 752px scroller. A control whose box
  *  reaches within this of the cut is reported `IN BAND` so the table says WHICH rows the fade could touch. */
@@ -1350,7 +1350,7 @@ for (const polarity of ["dark", "light"] as const) {
     // ARM wearing a label — it would retire the demanding half of this matrix and read as coverage. The
     // engine resolves both tokens (oklch authored; a regex here would return nothing — memory
     // `oklch-kills-rgb-regex-probes`), and the arm asserts which of the pair is the lighter one.
-    const polarityLuminance = await page.evaluate(() => {
+    const polarityTokens = await page.evaluate(() => {
       const scroller = document.querySelector(".scroll-fade-y");
       if (scroller === null) {
         return null;
@@ -1363,21 +1363,18 @@ for (const polarity of ["dark", "light"] as const) {
         return null;
       }
       const style = getComputedStyle(scroller);
-      const read = (token: string): number => {
+      const read = (token: string): Rgb => {
         context.fillStyle = style.getPropertyValue(token).trim();
         context.fillRect(0, 0, 1, 1);
-        const [r, g, b] = context.getImageData(0, 0, 1, 1).data;
-        const channel = (value: number): number => {
-          const unit = value / 255;
-          return unit <= 0.040_45 ? unit / 12.92 : ((unit + 0.055) / 1.055) ** 2.4;
-        };
-        return 0.2126 * channel(r ?? 0) + 0.7152 * channel(g ?? 0) + 0.0722 * channel(b ?? 0);
+        const [r = 0, g = 0, b = 0] = context.getImageData(0, 0, 1, 1).data;
+        return { r, g, b };
       };
       return { background: read("--color-background"), foreground: read("--color-foreground") };
     });
-    if (polarityLuminance === null) {
+    if (polarityTokens === null) {
       throw new Error("#1128: could not resolve the surface's own polarity tokens");
     }
+    const polarityLuminance = { background: relativeLuminance(polarityTokens.background), foreground: relativeLuminance(polarityTokens.foreground) };
     const inverted = polarityLuminance.background > polarityLuminance.foreground;
     expect(inverted, `${polarity} arm resolved bg L=${polarityLuminance.background.toFixed(3)} fg L=${polarityLuminance.foreground.toFixed(3)}`).toBe(
       polarity === "light",
@@ -1405,7 +1402,8 @@ for (const polarity of ["dark", "light"] as const) {
         rows.push(
           `${String(cell.width)}x${String(cell.height)}\t${polarity}\t${reading.cta}\t${reading.ratio.toFixed(2)}:1\t${reading.inBand ? "IN BAND" : "clear"}\t${reading.describe}`,
         );
-        if (reading.ratio < FADE_INK_FLOOR) {
+        // The CTAs are 13px/500, so the large-text 3:1 relaxation does not apply.
+        if (reading.ratio < NORMAL_MIN_RATIO) {
           failures.push(`${String(cell.width)}x${String(cell.height)} ${polarity}: "${reading.cta}" ${reading.ratio.toFixed(2)}:1 — ${reading.describe}`);
         }
       }

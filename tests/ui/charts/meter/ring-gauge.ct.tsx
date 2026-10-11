@@ -63,7 +63,7 @@ for (const { label, base } of PANEL_ARMS) {
         </div>
       </ThemeScope>,
     );
-    await expect.poll(() => component.getByTestId("panel").evaluate(partVsSurface, RING_TRACK), { intervals: [20, 50, 100] }).toBeGreaterThan(TRACK_FLOOR);
+    await expect.poll(() => partVsSurface(component.getByTestId("panel"), RING_TRACK), { intervals: [20, 50, 100] }).toBeGreaterThan(TRACK_FLOOR);
   });
 
   test(`#693 the ring gauge's VALUE arc still outshouts its track under ${label}`, async ({ mount }) => {
@@ -77,8 +77,8 @@ for (const { label, base } of PANEL_ARMS) {
       </ThemeScope>,
     );
     const panel = component.getByTestId("panel");
-    const track = await panel.evaluate(partVsSurface, RING_TRACK);
-    const fill = await panel.evaluate(partVsSurface, RING_FILL);
+    const track = await partVsSurface(panel, RING_TRACK);
+    const fill = await partVsSurface(panel, RING_FILL);
     expect(fill, `fill ${String(fill)} must stay louder than track ${String(track)}`).toBeGreaterThan(track);
   });
 }

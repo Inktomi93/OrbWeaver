@@ -6,6 +6,8 @@
 // mode diff / reduced-motion) in the second half of this file. The end-to-end torn-`<speaker>`
 // hold-back (a consumer-level concern — `holdTornSpeaker` runs in the ghost row, not the seal) stays
 // in tests/client/features/chat/components/ghost-message-row.ct.tsx.
+import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
+import { contrastRatio, NORMAL_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { Markdown } from "@orb/ui/markdown";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
@@ -192,21 +194,17 @@ test("trusted: a fenced code block is REAL Shiki-highlighted, not inert (D44 §1
 // the dark ground (1.19:1), and the reverse at 1.07:1. Each token's contrast against the block's own ground is
 // read from the rendered colours.
 async function minimumTokenContrast(component: import("@playwright/experimental-ct-react").MountResult): Promise<number> {
-  return await component.evaluate((root) => {
+  const pairs = await component.evaluate((root): { token: Rgb; ground: Rgb }[] => {
     const canvas = document.createElement("canvas").getContext("2d");
     if (canvas === null) {
       throw new Error("no canvas");
     }
-    const rgb = (css: string): readonly [number, number, number] => {
+    const rgb = (css: string): Rgb => {
       canvas.clearRect(0, 0, 1, 1);
       canvas.fillStyle = css;
       canvas.fillRect(0, 0, 1, 1);
       const [r = 0, g = 0, b = 0] = canvas.getImageData(0, 0, 1, 1).data;
-      return [r, g, b];
-    };
-    const luminance = ([r, g, b]: readonly [number, number, number]): number => {
-      const lin = (c: number): number => (c / 255 <= 0.040_45 ? c / 255 / 12.92 : ((c / 255 + 0.055) / 1.055) ** 2.4);
-      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+      return { r, g, b };
     };
     // The ground is what actually paints behind a token: its nearest ancestor with an opaque background.
     const groundOf = (el: Element): string => {
@@ -222,17 +220,10 @@ async function minimumTokenContrast(component: import("@playwright/experimental-
       return getComputedStyle(document.body).backgroundColor;
     };
     const tokens = [...root.querySelectorAll('pre code span[style*="--sdm-c"]')].filter((span) => (span.textContent ?? "").trim() !== "");
-    if (tokens.length === 0) {
-      return 0;
-    }
-    return Math.min(
-      ...tokens.map((span) => {
-        const tokenLum = luminance(rgb(getComputedStyle(span).color));
-        const groundLum = luminance(rgb(groundOf(span)));
-        return (Math.max(tokenLum, groundLum) + 0.05) / (Math.min(tokenLum, groundLum) + 0.05);
-      }),
-    );
+    return tokens.map((span) => ({ token: rgb(getComputedStyle(span).color), ground: rgb(groundOf(span)) }));
   });
+  // No highlighted token yet reads 0 so the poll keeps waiting rather than passing on an empty set.
+  return pairs.length === 0 ? 0 : Math.min(...pairs.map(({ token, ground }) => contrastRatio(token, ground)));
 }
 
 const THEMED_CODE = "```ts\nconst tideHeightCm: number = measure(42); // reading\n```";
@@ -253,7 +244,7 @@ for (const { theme, device } of [
     );
     // Streamdown paints the fence as plain inherited text until the grammar loads; measure the highlighted tokens.
     await expect(cmp.locator('pre code span[style*="--shiki-dark"]').first()).toBeVisible();
-    await expect.poll(() => minimumTokenContrast(cmp), { timeout: 5000 }).toBeGreaterThanOrEqual(4.5);
+    await expect.poll(() => minimumTokenContrast(cmp), { timeout: 5000 }).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
   });
 }
 

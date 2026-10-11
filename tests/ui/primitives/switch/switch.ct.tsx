@@ -1,7 +1,8 @@
 // CT: the switch seal — real role="switch" semantics: pointer + keyboard toggle aria-checked,
 // checked state lands as the primary token track. (Base UI renders the styled span + a hidden
 // form input as siblings, so the role locator is the element under test, not the mount handle.)
-import { contrastRatio } from "@orb/tooling/floor/instrument/wcag";
+import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
+import { contrastRatio, relativeLuminance, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { Field } from "@orb/ui/field";
 import { Switch } from "@orb/ui/switch";
 import { TOKENS } from "@orb/ui/tokens";
@@ -459,8 +460,8 @@ test("tone=quiet: checked spends no ember AND is LUMINANCE-SEPARATED from unchec
   // (`bg-input` is a 12% overlay; the checked track a 55% one) and both resolve in oklch, so parsing
   // `backgroundColor` numerically would be reading L/C/H as if they were R/G/B — a number that moves with
   // the HUE. A 1×1 canvas composites the real color over the real backdrop and hands back sRGB.
-  const luminance = async (control: typeof on): Promise<number> =>
-    await control.evaluate((el) => {
+  const composited = async (control: typeof on): Promise<Rgb> =>
+    await control.evaluate((el): Rgb => {
       const canvas = document.createElement("canvas");
       canvas.width = 1;
       canvas.height = 1;
@@ -474,15 +475,11 @@ test("tone=quiet: checked spends no ember AND is LUMINANCE-SEPARATED from unchec
       ctx.fillStyle = getComputedStyle(el).backgroundColor;
       ctx.fillRect(0, 0, 1, 1);
       const [r = 0, g = 0, b = 0] = ctx.getImageData(0, 0, 1, 1).data;
-      const channel = (value: number): number => {
-        const srgb = value / 255;
-        return srgb <= 0.039_28 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
-      };
-      return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+      return { r, g, b };
     });
 
-  const [onLuminance, offLuminance] = await Promise.all([luminance(on), luminance(off)]);
-  expect(Math.abs(onLuminance - offLuminance)).toBeGreaterThan(MIN_LUMINANCE_SEPARATION);
+  const [onRgb, offRgb] = await Promise.all([composited(on), composited(off)]);
+  expect(Math.abs(relativeLuminance(onRgb) - relativeLuminance(offRgb))).toBeGreaterThan(MIN_LUMINANCE_SEPARATION);
 });
 
 test("tone=quiet: still toggles and the thumb still travels — state is position, not color", async ({ mount, page }) => {
@@ -597,7 +594,7 @@ test("the OFF state is measurably QUIETER than the ON state, on both tones and e
         pane.rgb,
       ),
       `[${theme}] the ON accent track must be a real painted fill, or this pin is vacuous`,
-    ).toBeGreaterThan(3);
+    ).toBeGreaterThan(UI_COMPONENT_MIN_RATIO);
 
     expect(accentOff.value, `[${theme}] tone=accent — ${accentOff.describe} || ${accentOn.describe}`).toBeLessThan(accentOn.value);
     expect(quietOff.value, `[${theme}] tone=quiet — ${quietOff.describe} || ${quietOn.describe}`).toBeLessThan(quietOn.value);
@@ -632,7 +629,9 @@ test("the knob is surrounded by TRACK on every side, and clears 3:1 against it �
         contrastRatio(above.rgb, track.rgb),
         `[${theme}/${state}] the strip ABOVE the knob (${above.describe}) must be the same surface as the track beside it (${track.describe}) — if it is the pane, a fill probe measures the knob against the page`,
       ).toBeLessThan(SAME_SURFACE_MAX_RATIO);
-      expect(contrastRatio(knob.rgb, track.rgb), `[${theme}/${state}] knob ${knob.describe} on track ${track.describe}`).toBeGreaterThanOrEqual(3);
+      expect(contrastRatio(knob.rgb, track.rgb), `[${theme}/${state}] knob ${knob.describe} on track ${track.describe}`).toBeGreaterThanOrEqual(
+        UI_COMPONENT_MIN_RATIO,
+      );
     }
   }
 });

@@ -12,9 +12,12 @@ import { BACKGROUND_DIM_MIN } from "@orb/contracts/settings/appearance";
 import type { RampDeltas } from "@orb/kit/theme-derivation";
 import {
   AA_NORMAL_DERIVATION_RATIO,
+  compositeSrgb,
   derivedForegroundLightness,
+  oklchToSrgb,
   READING_BAND_ALPHA,
   rampDeltas,
+  rampSurface,
   readingBandSurface,
   readingPlateAlpha,
   readingPlateForeground,
@@ -51,34 +54,9 @@ function parseOklch(value: string): Oklch {
   };
 }
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
-function gammaEncode(linear: number): number {
-  const c = clamp01(linear);
-  return (c <= 0.003_130_8 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055) * 255;
-}
-function oklchToRgb({ l, c, h }: Pick<Oklch, "l" | "c" | "h">): Rgb {
-  const hr = (h * Math.PI) / 180;
-  const a = c * Math.cos(hr);
-  const b = c * Math.sin(hr);
-  const l_ = (l + 0.396_337_777_4 * a + 0.215_803_757_3 * b) ** 3;
-  const m_ = (l - 0.105_561_345_8 * a - 0.063_854_172_8 * b) ** 3;
-  const s_ = (l - 0.089_484_177_5 * a - 1.291_485_548 * b) ** 3;
-  return {
-    r: gammaEncode(4.076_741_662_1 * l_ - 3.307_711_591_3 * m_ + 0.230_969_929_2 * s_),
-    g: gammaEncode(-1.268_438_004_6 * l_ + 2.609_757_401_1 * m_ - 0.341_319_396_5 * s_),
-    b: gammaEncode(-0.004_196_086_3 * l_ - 0.703_418_614_7 * m_ + 1.707_614_701 * s_),
-  };
-}
 /** Composite a translucent fg (its own alpha) over an opaque backdrop — the field-fill case. */
-function compositeOver(fg: Oklch, backdrop: Rgb): Rgb {
-  const f = oklchToRgb(fg);
-  const a = fg.alpha;
-  return {
-    r: f.r * a + backdrop.r * (1 - a),
-    g: f.g * a + backdrop.g * (1 - a),
-    b: f.b * a + backdrop.b * (1 - a),
-  };
-}
-const rgbOf = (path: keyof typeof TOKENS): Rgb => oklchToRgb(parseOklch(TOKENS[path].value));
+const compositeOver = (fg: Oklch, backdrop: Rgb): Rgb => compositeSrgb(oklchToSrgb(fg), fg.alpha, backdrop);
+const rgbOf = (path: keyof typeof TOKENS): Rgb => oklchToSrgb(parseOklch(TOKENS[path].value));
 
 // ── Per-seed-palette intent-token sweep (W2). The 9 semantic-intent tokens are POLARITY-AWARE
 // `light-dark(<light-arm>, <dark-arm>)` values (light arm FIRST per CSS syntax) — one static token, two
@@ -110,7 +88,7 @@ const PALETTES: readonly Palette[] = [
  *  light-dark() arm picked by the palette's color-scheme (a plain oklch passes through resolveArm). */
 function resolveTokenRgb(path: keyof typeof TOKENS, palette: Palette): Rgb {
   const raw = palette.vars[TOKENS[path].cssVar] ?? TOKENS[path].value;
-  return oklchToRgb(parseOklch(resolveArm(raw, palette.colorScheme)));
+  return oklchToSrgb(parseOklch(resolveArm(raw, palette.colorScheme)));
 }
 
 // Text-role intents (rendered AS `text-*`): destructive/success/warning + info. highlight is a text-mark
@@ -129,16 +107,11 @@ const INTENT_PILL_PAIRS = [
 
 // ── The clamp.ts derivation, measured from its emitted product. ─────────────────────────────────────
 const D = THEME_DERIVATION;
-/** A derived surface = the base with its L shifted by a ramp delta (chroma/hue kept, L clamped). */
-const rampSurface = (base: Oklch, deltaL: number): Oklch => ({
-  ...base,
-  l: clamp01(base.l + deltaL),
-});
 /** The ramp deltas for a base — CALLED, not mirrored (#682), because a second copy of the polarity
  *  selection would be the implementation pasted into its own test. */
 const rampOf = (base: Oklch): RampDeltas => rampDeltas(base);
 /** The contrast foreground for `surface` (chroma 0, base hue). */
-const foregroundRgb = (surface: Oklch): Rgb => oklchToRgb({ l: derivedForegroundLightness(surface), c: 0, h: surface.h });
+const foregroundRgb = (surface: Oklch): Rgb => oklchToSrgb({ l: derivedForegroundLightness(surface), c: 0, h: surface.h });
 
 // Representative bases for the prose/chrome guarantees below. The chart ramp has its own exhaustive
 // accepted-base sweep because categorical fills can be driven to either side of a mid-tone surface even
@@ -413,8 +386,8 @@ function chartPairDistances(colors: readonly Oklch[]): readonly [oklab: number, 
       const ah = (a.h * Math.PI) / 180;
       const bh = (b.h * Math.PI) / 180;
       oklab = Math.min(oklab, Math.hypot(a.l - b.l, a.c * Math.cos(ah) - b.c * Math.cos(bh), a.c * Math.sin(ah) - b.c * Math.sin(bh)));
-      const ap = quantizeRgb(oklchToRgb(a));
-      const bp = quantizeRgb(oklchToRgb(b));
+      const ap = quantizeRgb(oklchToSrgb(a));
+      const bp = quantizeRgb(oklchToSrgb(b));
       pixel = Math.min(pixel, Math.hypot(ap.r - bp.r, ap.g - bp.g, ap.b - bp.b));
     }
   }
@@ -453,7 +426,7 @@ test(
           });
           for (const [index, fill] of colors.entries()) {
             for (const panel of panels) {
-              expect(worstContrast(oklchToRgb(fill), oklchToRgb(panel)), `${CUSTOM_CHART_VARS[index]} on custom host @ ${baseStr}`).toBeGreaterThanOrEqual(
+              expect(worstContrast(oklchToSrgb(fill), oklchToSrgb(panel)), `${CUSTOM_CHART_VARS[index]} on custom host @ ${baseStr}`).toBeGreaterThanOrEqual(
                 UI_COMPONENT_MIN_RATIO,
               );
             }
@@ -508,7 +481,7 @@ test("#939 every accepted spelling/alpha/gamut class is total and clears every a
       });
       for (const [index, fill] of colors.entries()) {
         for (const panel of panels) {
-          expect(worstContrast(oklchToRgb(fill), oklchToRgb(panel)), `${CUSTOM_CHART_VARS[index]} on ${spelling}/${ambientName}`).toBeGreaterThanOrEqual(
+          expect(worstContrast(oklchToSrgb(fill), oklchToSrgb(panel)), `${CUSTOM_CHART_VARS[index]} on ${spelling}/${ambientName}`).toBeGreaterThanOrEqual(
             UI_COMPONENT_MIN_RATIO,
           );
         }
@@ -552,8 +525,8 @@ test.each(["light", "dark"] as const)("#939 chart colors stay mutually distingui
         minimumOklabDistance,
         Math.hypot(a.l - b.l, a.c * Math.cos(ah) - b.c * Math.cos(bh), a.c * Math.sin(ah) - b.c * Math.sin(bh)),
       );
-      const ap = quantizeRgb(oklchToRgb(a));
-      const bp = quantizeRgb(oklchToRgb(b));
+      const ap = quantizeRgb(oklchToSrgb(a));
+      const bp = quantizeRgb(oklchToSrgb(b));
       minimumPixelDistance = Math.min(minimumPixelDistance, Math.hypot(ap.r - bp.r, ap.g - bp.g, ap.b - bp.b));
     }
   }
@@ -568,7 +541,7 @@ function emittedForegroundRgb(vars: Readonly<Record<string, string>>, cssVar: st
   if (match === null) {
     throw new Error(`not an emitted neutral foreground: ${cssVar} = ${String(emitted)}`);
   }
-  return oklchToRgb({ l: Number(match[1]), c: 0, h: base.h });
+  return oklchToSrgb({ l: Number(match[1]), c: 0, h: base.h });
 }
 
 test("clamp DERIVED neutral chrome clears AA on every realistic light + dark base", () => {
@@ -587,7 +560,7 @@ test("clamp DERIVED neutral chrome clears AA on every realistic light + dark bas
     const { vars } = clampThemeTokens({ background: baseStr });
     const foreground = emittedForegroundRgb(vars, "--color-foreground", base);
     for (const [name, surface] of Object.entries({ background: surfaces.background, raised: surfaces.raised, card: surfaces.card })) {
-      expect(contrastRatio(foreground, oklchToRgb(surface)), `derived foreground on ${name} @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+      expect(contrastRatio(foreground, oklchToSrgb(surface)), `derived foreground on ${name} @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
     }
     for (const [cssVar, name, surface] of [
       ["--color-card-foreground", "card", surfaces.card],
@@ -596,7 +569,7 @@ test("clamp DERIVED neutral chrome clears AA on every realistic light + dark bas
       ["--color-secondary-foreground", "secondary", surfaces.secondary],
       ["--color-sidebar-accent-foreground", "sidebar-accent", surfaces["sidebar-accent"]],
     ] as const) {
-      expect(contrastRatio(emittedForegroundRgb(vars, cssVar, base), oklchToRgb(surface)), `${cssVar} on ${name} @ ${baseStr}`).toBeGreaterThanOrEqual(
+      expect(contrastRatio(emittedForegroundRgb(vars, cssVar, base), oklchToSrgb(surface)), `${cssVar} on ${name} @ ${baseStr}`).toBeGreaterThanOrEqual(
         NORMAL_MIN_RATIO,
       );
     }
@@ -609,17 +582,17 @@ test("clamp DERIVED neutral chrome clears AA on every realistic light + dark bas
       ["popover", surfaces.popover],
       ["background", base],
     ] as const) {
-      const ratio = contrastRatio(muted, compositeOver(inputFill, oklchToRgb(surface)));
+      const ratio = contrastRatio(muted, compositeOver(inputFill, oklchToSrgb(surface)));
       expect(ratio, `derived muted-foreground on input over ${name} @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
     }
     const mutedSurface = rampSurface(base, ramp.muted);
-    expect(contrastRatio(muted, oklchToRgb(mutedSurface)), `derived muted-foreground on muted @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    expect(contrastRatio(muted, oklchToSrgb(mutedSurface)), `derived muted-foreground on muted @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
     // …and on the CARD ramp surface, which the seed table already floors (`bodyPairs`) but the derived
     // sweep did not: #674 gave the S1 control band the composer's opaque `bg-card`, and the ink an
     // `intent="outline"` chip paints on it is exactly this token. Without this row the band's contrast
     // guarantee held on the three seeds and was merely BRACKETED (card sits between `background` and
     // `muted` in L) on a user's own palette.
-    expect(contrastRatio(muted, oklchToRgb(surfaces.card)), `derived muted-foreground on card @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    expect(contrastRatio(muted, oklchToSrgb(surfaces.card)), `derived muted-foreground on card @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
   }
 });
 
@@ -632,7 +605,7 @@ test("clamp DERIVED accent (hover/selected) surface + its foreground clear AA on
     const accentDl = rampOf(base).accent;
     const accent = rampSurface(base, accentDl);
     const accentFg = emittedForegroundRgb(clampThemeTokens({ background: baseStr }).vars, "--color-accent-foreground", base);
-    const ratio = contrastRatio(accentFg, oklchToRgb(accent));
+    const ratio = contrastRatio(accentFg, oklchToSrgb(accent));
     expect(ratio, `derived accent-foreground on accent @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
   }
 });
@@ -654,7 +627,7 @@ test("clamp DERIVED primary-foreground clears AA on every realistic picked accen
   for (const accentStr of ACCENTS) {
     const accent = parseOklch(accentStr);
     const primaryFg = foregroundRgb(accent);
-    const ratio = contrastRatio(primaryFg, oklchToRgb(accent));
+    const ratio = contrastRatio(primaryFg, oklchToSrgb(accent));
     expect(ratio, `derived primary-foreground on accent ${accentStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
   }
 });
@@ -726,8 +699,8 @@ test.each(PALETTES.map((p) => [p.name, p] as const))("#241 %s: the reading-band 
 test("#241 the band's paired reading-plate ink clears AA on the band, every realistic base", () => {
   for (const baseStr of REALISTIC_BASES) {
     const base = parseOklch(baseStr);
-    const ink = oklchToRgb(readingPlateForeground(base));
-    const ratio = contrastRatio(ink, oklchToRgb(readingBandSurface(base)));
+    const ink = oklchToSrgb(readingPlateForeground(base));
+    const ratio = contrastRatio(ink, oklchToSrgb(readingBandSurface(base)));
     expect(ratio, `reading-plate foreground on the band @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
   }
 });
@@ -735,7 +708,7 @@ test("#241 the band's paired reading-plate ink clears AA on the band, every real
 test("#204 the plate alpha FLOORS AA for the paired reading ink over worst-case art on every realistic base", () => {
   for (const baseStr of REALISTIC_BASES) {
     const base = parseOklch(baseStr);
-    const fg = oklchToRgb(readingPlateForeground(base));
+    const fg = oklchToSrgb(readingPlateForeground(base));
     const plate = derivedPlate(base);
     for (const [artName, art] of WORST_ART) {
       const ratio = contrastRatio(fg, compositeOver(plate, art));
@@ -860,7 +833,7 @@ function resolvedIngredientOver(emitted: string | undefined, base: Oklch): Rgb {
     throw new Error(`not an emitted relative-colour ingredient: ${String(emitted)}`);
   }
   const ingredient: Oklch = { l: Number(m[1]), c: Number(m[2]), h: base.h, alpha: Number(m[3]) };
-  return compositeOver(ingredient, oklchToRgb(base));
+  return compositeOver(ingredient, oklchToSrgb(base));
 }
 
 /** The five ingredient token paths, paired with the derivation role each must equal. */
@@ -885,8 +858,8 @@ test.each(PALETTES.map((p) => [p.name, p] as const))("#243 %s: the five elevatio
     // chroma 0: the dark arm is pure white/black, so its shipped literals spell hue 0 while the
     // derivation carries the palette's — identical pixels, and the reason the dark rooms cannot move.
     // Where the arm HAS chroma (the light arm's warm hairline/ambient) this pins the hue to the palette's.
-    const shippedRgb = oklchToRgb(shipped);
-    const wantRgb = oklchToRgb(want);
+    const shippedRgb = oklchToSrgb(shipped);
+    const wantRgb = oklchToSrgb(want);
     expect([shippedRgb.r, shippedRgb.g, shippedRgb.b], `${path} renders the derivation's colour @ ${palette.name}`).toEqual([
       expect.closeTo(wantRgb.r, 3),
       expect.closeTo(wantRgb.g, 3),
@@ -899,7 +872,7 @@ test("#243 the derived hairline ring falls on the CORRECT side of the base — l
   for (const baseStr of REALISTIC_BASES) {
     const base = parseOklch(baseStr);
     const ring = resolvedIngredientOver(clampThemeTokens({ background: baseStr }).vars[SHADOW_HAIRLINE_VAR], base);
-    const baseRgb = oklchToRgb(base);
+    const baseRgb = oklchToSrgb(base);
     // Luminance, not a channel: the ring must READ as edge light on a dark surface and as a hairline
     // border on a light one. The pre-#243 inherited dark recipe is a WHITE ring on a light base — the
     // 1.29:1 ghost #232 measured — so this assertion is the defect, stated directionally.
@@ -917,7 +890,7 @@ test("#243 the derived ingredients BEAT the inherited dark recipe on the two pro
   const inheritedAmbientFar = parseOklch(TOKENS["color.shadow-ambient-far"].value);
   for (const baseStr of LIGHT_BASES) {
     const base = parseOklch(baseStr);
-    const baseRgb = oklchToRgb(base);
+    const baseRgb = oklchToSrgb(base);
     const { vars } = clampThemeTokens({ background: baseStr });
     const inheritedRing = compositeOver(inheritedHairline, baseRgb);
     const derivedRing = resolvedIngredientOver(vars[SHADOW_HAIRLINE_VAR], base);
@@ -978,8 +951,8 @@ function derivedCardMutedRatio(baseStr: string): number {
   const base = parseOklch(baseStr);
   const { vars } = clampThemeTokens({ background: baseStr });
   return contrastRatio(
-    oklchToRgb({ ...base, l: emittedRampL(vars, "--color-card", base) }),
-    oklchToRgb({ ...base, l: emittedRampL(vars, "--color-muted", base) }),
+    oklchToSrgb({ ...base, l: emittedRampL(vars, "--color-card", base) }),
+    oklchToSrgb({ ...base, l: emittedRampL(vars, "--color-muted", base) }),
   );
 }
 
