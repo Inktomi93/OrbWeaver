@@ -28,6 +28,7 @@ import { isDocumentHidden, observeViewTransition } from "./view-transition-settl
 type VtUpdate = () => void | Promise<void>;
 type VtStartArgument = VtUpdate | { readonly update: VtUpdate; readonly types?: readonly string[] };
 interface VtDocument {
+  readonly documentElement?: unknown;
   readonly querySelector?: (selector: string) => unknown;
   readonly visibilityState?: string;
   startViewTransition?: (update: VtStartArgument) =>
@@ -67,6 +68,16 @@ interface TaskTransition {
 
 let taskTransition: TaskTransition | null = null;
 let activeTransition: TaskTransition | null = null;
+/** True from a transition's update callback starting until its destination hold ends: a swap raised in that
+ *  window (inside the callback, or from an effect that runs during the hold) is part of the transition. */
+let holdingTransition = false;
+
+/** Test seam: forget any in-flight transition so one test's hold cannot make the next one's swaps join it. */
+export function __resetViewTransition(): void {
+  taskTransition = null;
+  activeTransition = null;
+  holdingTransition = false;
+}
 
 function surfaceDeferredFailure(error: unknown): never {
   throw error;
@@ -100,6 +111,55 @@ export function runAfterViewTransition(effect: () => void): void {
   runWhenTransitionsSettle(current, effect);
 }
 
+/** Skeleton rows in the two regions a swap changes: the content pane (the captured region) and an open list
+ *  pane. A collapsed pane is off screen, so its loading state is not part of what the user sees arrive. */
+const DESTINATION_PENDING =
+  '.shell-content [data-slot="skeleton"], .shell-panel[data-panel-side="list"]:not([data-panel-mode="collapsed"]) [data-slot="skeleton"]';
+/** How long the old frame may be held for the destination's first real paint, in elapsed time. */
+const DESTINATION_DEADLINE_MS = 150;
+const DESTINATION_POLL_MS = 16;
+/** With no DOM change at all in this long, the swap committed nothing new and there is nothing to wait for. */
+const DESTINATION_QUIET_MS = 48;
+interface VtMutationObserver {
+  readonly observe: (target: unknown, options: { readonly childList: true; readonly subtree: true }) => void;
+  readonly disconnect: () => void;
+}
+interface VtMutationObserverConstructor {
+  new (callback: () => void): VtMutationObserver;
+}
+
+/** Resolve once the swap has COMMITTED and the destination shows no skeleton, or at the deadline. Returned from
+ *  the update callback, it keeps the old frame up until then, so the crossfade lands on content and the skeleton
+ *  never paints as a second, unanimated step. A clean DOM before the commit is not readiness (the old page has
+ *  no skeleton), so a DOM mutation, or a quiet interval with none, must come first. */
+function destinationSettled(): Promise<void> {
+  const g = globalThis as VtGlobals;
+  const Observer = Reflect.get(globalThis, "MutationObserver") as VtMutationObserverConstructor | undefined;
+  const root = g.document?.documentElement;
+  return new Promise((resolve) => {
+    const started = performance.now();
+    let committed = Observer === undefined || root === undefined;
+    const observer =
+      committed || Observer === undefined
+        ? null
+        : new Observer(() => {
+            committed = true;
+          });
+    observer?.observe(root, { childList: true, subtree: true });
+    const check = (): void => {
+      const elapsed = performance.now() - started;
+      const clear = (g.document?.querySelector?.(DESTINATION_PENDING) ?? null) === null;
+      if (elapsed >= DESTINATION_DEADLINE_MS || (clear && (committed || elapsed >= DESTINATION_QUIET_MS))) {
+        observer?.disconnect();
+        resolve();
+        return;
+      }
+      setTimeout(check, DESTINATION_POLL_MS);
+    };
+    setTimeout(check, 0);
+  });
+}
+
 /**
  * Run a view-state update inside a View Transition when the platform supports it (and the user
  * hasn't asked for reduced motion) — otherwise apply the update directly. Fire-and-forget: the
@@ -119,6 +179,11 @@ export function runAfterViewTransition(effect: () => void): void {
  * Ordering is unchanged (the updates run in the order they were raised) and every caller keeps the exact
  * fire-and-forget signature it had.
  *
+ * THE OLD FRAME HOLDS FOR THE DESTINATION'S FIRST REAL PAINT: the browser snapshots whatever React committed
+ * first, so a destination that suspends would be captured as skeleton rows and its content would then appear
+ * without any transition. The update callback therefore resolves only after the content and an open list pane
+ * show no skeleton (`destinationSettled`), within a deadline.
+ *
  * A SUPERSEDED transition (a second one starting before the first settles — e.g. the draft→committed
  * promotion swapping the active chat while the context panel re-renders) rejects the visual settlement
  * (`ready`/`finished`) with `AbortError: Transition was skipped`. That is BENIGN — the update callback
@@ -131,6 +196,10 @@ export function withViewTransition(update: () => void): void {
   const start = g.document?.startViewTransition;
   if (start === undefined || motionIsReduced() || isDocumentHidden(g.document)) {
     taskTransition = null;
+    update();
+    return;
+  }
+  if (holdingTransition) {
     update();
     return;
   }
@@ -148,9 +217,18 @@ export function withViewTransition(update: () => void): void {
   });
   const transition = start.call(g.document, () => {
     current.acceptingUpdates = false;
-    for (const run of current.updates) {
-      run();
+    holdingTransition = true;
+    try {
+      for (const run of current.updates) {
+        run();
+      }
+    } catch (error) {
+      holdingTransition = false;
+      throw error;
     }
+    return destinationSettled().finally(() => {
+      holdingTransition = false;
+    });
   });
   current.finished = transition?.finished;
   if (current.finished !== undefined) {

@@ -119,7 +119,8 @@ export function usePresetAutosave({ presetId, server, activePresetId }: PresetAu
     if (inheritsActivePick) {
       setDefault.mutate({ section: "seeds", patch: { defaultPresetId: to } });
     }
-    selectPreset(to);
+    // The editor session continues on the copy: no content swap.
+    selectPreset(to, { swap: false });
     // …and carry an OPEN section drill onto the copy. THIS is the one entityId swap where the drill must
     // SURVIVE (the author is mid-sentence in a section the fork holds byte-identically), which is why the
     // drill store is scoped by preset and re-stamped explicitly here rather than reset on every swap: from

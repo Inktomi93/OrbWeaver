@@ -61,6 +61,15 @@ export function useSectionHasSelection(section: SectionId): boolean {
   return useSyncExternalStore(selection?.subscribe ?? NO_SELECTION_SUBSCRIBE, selection?.hasSelection ?? NO_SELECTION_SNAPSHOT);
 }
 
+const NO_BACK_TARGET = (): SectionId | null => null;
+
+/** The section the active section's Back returns to when its open member came from another section (a room
+ *  resumed from Home), else `null`. Same subscribe/snapshot seam as {@link useSectionHasSelection}. */
+export function useSectionBackTarget(section: SectionId): SectionId | null {
+  const selection = useSectionRegistry().get(section).selection;
+  return useSyncExternalStore(selection?.subscribe ?? NO_SELECTION_SUBSCRIBE, selection?.backTarget ?? NO_BACK_TARGET);
+}
+
 /** A section's resolved LIST panel MODE — the narrow #state projection a section body reads instead of
  *  `useShellLayout` (client-features-no-cross bars a feature from importing the app-shell hook, so this tier
  *  is the ONLY legal way for a feature to ask). It is the shell SIGNAL half of the layout: the same

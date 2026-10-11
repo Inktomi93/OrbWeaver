@@ -8,7 +8,7 @@
 
 import { createGatedStore } from "./create-gated-store.ts";
 import type { SectionSelection } from "./section-registry.ts";
-import { setOpenOverlayPanel } from "./shell-store.ts";
+import { setOpenOverlayPanel, withContentSwap } from "./shell-store.ts";
 
 interface DrillSelectionState<P, S extends string> {
   /** The drilled primary entity — `null` = the section's overview/welcome home. */
@@ -24,8 +24,10 @@ export interface PrimaryDrillStore<P> {
   readonly usePrimaryId: () => P | null;
   /** Imperative owner check for async completions that must not publish into a later selection session. */
   readonly getPrimaryId: () => P | null;
-  /** Drill into `id` (a LIST-row / result click) — CONTENT swaps to it; any sub-drill is cleared. */
-  readonly select: (id: P) => void;
+  /** Drill into `id` (a LIST-row / result click) — CONTENT swaps to it; any sub-drill is cleared. `swap: false`
+   *  points the drill at `id` with no content swap, for a retarget onto the same editing session under a new
+   *  id (a copy-on-write fork), where a crossfade would flash the editor the author is typing in. */
+  readonly select: (id: P, options?: { readonly swap?: boolean }) => void;
   /** Clear the drill (back to the overview/welcome home) — both primary and secondary, AND release any
    *  open LIST slide-over. ONE DOOR BACK (side-eye P2): the shell's mobile back affordance and a surface's
    *  own in-content "Back" both end here, so they cannot land the user in two different states — the
@@ -33,6 +35,8 @@ export interface PrimaryDrillStore<P> {
    *  without the release while the shell's door called both. Viewport-unaware: the release is a no-op
    *  wherever no slide-over is open. */
   readonly clear: () => void;
+  /** {@link clear} with no content swap, for a toggle that is not a list-to-content switch. */
+  readonly clearInPlace: () => void;
   /** `select(id)` AND close any open LIST slide-over (viewport-unaware; a no-op when the LIST is docked). */
   readonly selectFromList: (id: P) => void;
   /** The section-registry SEAM over this store (`SectionSelection`) — how the SHELL asks "is anything open
@@ -58,22 +62,32 @@ export function createDrillSelectionStore<P>(name: string): PrimaryDrillStore<P>
 export function createDrillSelectionStore<P, S extends string>(name: string, options: { readonly secondary: true }): DrillSelectionStore<P, S>;
 export function createDrillSelectionStore<P, S extends string>(name: string, _options?: { readonly secondary: true }): DrillSelectionStore<P, S> {
   const useSelectionStore = createGatedStore<DrillSelectionState<P, S>>(name, (): DrillSelectionState<P, S> => ({ primaryId: null, secondaryId: null }));
+  // Every write that changes what CONTENT shows goes through the shell's content-swap door, so each drill
+  // section's item switch crossfades the way chats, characters and corpus do. The slide-over release rides
+  // the same callback: released first, the sheet would already be closed in the transition's old snapshot.
   // The ONE clear (see `clear`'s contract): drop the drill AND release the slide-over request, so every
   // "back" in the app — the shell's topbar door, a surface's own in-content Back, a delete's cleanup —
   // lands in exactly one state.
-  const clearSelection = (): void => {
+  const clearNow = (): void => {
     useSelectionStore.setState({ primaryId: null, secondaryId: null }, false, `${name}/clear`);
     setOpenOverlayPanel(null);
   };
+  const clearSelection = (): void => withContentSwap(clearNow);
+  const selectPrimary = (id: P, releaseOverlay: boolean): void =>
+    withContentSwap(() => {
+      useSelectionStore.setState({ primaryId: id, secondaryId: null }, false, `${name}/select`);
+      if (releaseOverlay) {
+        setOpenOverlayPanel(null);
+      }
+    });
   return {
     usePrimaryId: (): P | null => useSelectionStore((s) => s.primaryId),
     getPrimaryId: (): P | null => useSelectionStore.getState().primaryId,
-    select: (id: P): void => useSelectionStore.setState({ primaryId: id, secondaryId: null }, false, `${name}/select`),
+    select: (id: P, options?: { readonly swap?: boolean }): void =>
+      options?.swap === false ? useSelectionStore.setState({ primaryId: id, secondaryId: null }, false, `${name}/select-in-place`) : selectPrimary(id, false),
     clear: clearSelection,
-    selectFromList: (id: P): void => {
-      useSelectionStore.setState({ primaryId: id, secondaryId: null }, false, `${name}/select`);
-      setOpenOverlayPanel(null);
-    },
+    clearInPlace: clearNow,
+    selectFromList: (id: P): void => selectPrimary(id, true),
     useSecondaryId: (): S | null => useSelectionStore((s) => s.secondaryId),
     selectSecondary: (id: S): void => useSelectionStore.setState({ secondaryId: id }, false, `${name}/select-secondary`),
     clearSecondary: (): void => useSelectionStore.setState({ secondaryId: null }, false, `${name}/clear-secondary`),

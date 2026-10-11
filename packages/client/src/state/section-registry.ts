@@ -80,6 +80,9 @@ export interface SectionSelection {
   readonly hasSelection: () => boolean;
   /** Clear it — what the shell's mobile BACK affordance fires: CONTENT pops, the LIST is the screen again. */
   readonly clear: () => void;
+  /** The section `clear` returns to when the member was opened from another section, read on the same
+   *  subscription as {@link hasSelection}. Absent or `null` ⇒ the section's own list. */
+  readonly backTarget?: () => SectionId | null;
   /** Where a phone lands with nothing selected, read on the same subscription as {@link hasSelection}.
    *  Absent ⇒ `"list"`. A `"content"` landing is a declared policy (D271), never a fabricated selection. */
   readonly phoneLanding?: () => PhoneLanding;

@@ -8,7 +8,7 @@
 // arms and their costs: folding the subtitle into the name (verbose announcements at every call site) and
 // moving the subtitle out of the button (the hit target shrinks to the title line). Do not "fix" the axe
 // rule here without reopening #512's ruling.
-import type { MouseEventHandler, ReactElement, ReactNode } from "react";
+import type { MouseEventHandler, ReactElement, ReactNode, Ref } from "react";
 import { useId } from "react";
 import type { Slots } from "./parts.tsx";
 import { ListRowContent } from "./parts.tsx";
@@ -170,6 +170,8 @@ export interface ListRowProps {
    */
   titleStep?: "default" | "promoted";
   onClick?: MouseEventHandler<HTMLButtonElement>;
+  /** The clickable body's `<button>`, for a caller that moves focus to the row. Unused by a non-clickable row. */
+  bodyRef?: Ref<HTMLButtonElement>;
   className?: string;
 }
 
@@ -191,6 +193,7 @@ function ListRowBody({
   expanded,
   disabled,
   onClick,
+  bodyRef,
   ariaLabel,
   ariaDescribedBy,
   children,
@@ -201,6 +204,7 @@ function ListRowBody({
   expanded: boolean | undefined;
   disabled: boolean;
   onClick: MouseEventHandler<HTMLButtonElement> | undefined;
+  bodyRef: Ref<HTMLButtonElement> | undefined;
   /** The row's accessible name — the `title` plus a caller-supplied `titleQualifier` when the list's titles
    *  collide (set only on the clickable button body). */
   ariaLabel: string;
@@ -234,6 +238,7 @@ function ListRowBody({
       data-selected={selected ? "" : undefined}
       data-slot="list-row-body"
       onClick={disabled ? undefined : onClick}
+      ref={bodyRef}
       tabIndex={disabled ? -1 : 0}
       type="button"
     >
@@ -269,6 +274,7 @@ export function ListRow({
   density = "default",
   titleStep = "default",
   onClick,
+  bodyRef,
   className,
 }: ListRowProps): ReactElement {
   const slots = listRowVariants({
@@ -300,6 +306,7 @@ export function ListRow({
         disabled={disabled}
         expanded={expanded}
         onClick={onClick}
+        bodyRef={bodyRef}
         selected={selected}
         slots={slots}
       >

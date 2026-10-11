@@ -27,7 +27,7 @@ import { expectInstrumentTierLive } from "../../../../support/browser/tier-liven
 import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
 import type { TrpcInput, TrpcResponder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { ChatListBandAndSurfaceStory, ChatListHeaderStory, ChatListSurfaceStory } from "../_ct-stories.tsx";
+import { ChatListBandAndSurfaceStory, ChatListHeaderStory, ChatListReturnStory, ChatListSurfaceStory, ReturnedRowClaimStory } from "../_ct-stories.tsx";
 import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary, makeSeatPortrait } from "../fixtures.ts";
 
 const RAW_MONTH_COPY = /2020-06/u;
@@ -163,6 +163,43 @@ test("selecting a row fires onSelect with that chat's id", async ({ mount, page 
   await component.getByText("A grand adventure").click();
 
   await expect(page.getByTestId("selected")).toHaveText("chat_adventure");
+});
+
+// 0863: Back from a room hands focus to the row it was opened from and marks it, after the list returns.
+test("leaving a room puts focus and the current mark on the row it was opened from", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
+
+  const component = await mount(<ChatListReturnStory />);
+  const row = component.locator(LIST_ROW_ROOT).filter({ hasText: "A grand adventure" }).locator('[data-slot="list-row-body"]');
+  const other = component.locator(LIST_ROW_ROOT).filter({ hasText: "Untitled chat" }).locator('[data-slot="list-row-body"]');
+  await row.click();
+  await expect(row).toHaveAttribute("aria-current", "true");
+
+  await component.getByRole("button", { name: "leave the room" }).click();
+  await expect(row).toBeFocused();
+  await expect(row).toHaveAttribute("aria-current", "true");
+  await expect(other).not.toHaveAttribute("aria-current", "true");
+
+  // Opening another room moves the mark with it; leaving that one marks only that row.
+  await other.click();
+  await expect(row).not.toHaveAttribute("aria-current", "true");
+  await component.getByRole("button", { name: "leave the room" }).click();
+  await expect(other).toBeFocused();
+  await expect(row).not.toHaveAttribute("aria-current", "true");
+});
+
+// The claim is spent by the first row that mounts for the room, even one that cannot take focus (an inert sheet),
+// so a row mounting later never pulls focus from wherever the user has gone.
+test("a row mounting after Back does not steal focus once an inert row has spent the claim", async ({ mount }) => {
+  const story = await mount(<ReturnedRowClaimStory />);
+  await story.getByRole("button", { name: /Room A/u }).click();
+  await story.getByRole("button", { name: "make inert" }).click();
+  await story.getByRole("button", { name: "leave the room" }).click();
+  const elsewhere = story.getByRole("textbox", { name: "elsewhere" });
+  await elsewhere.focus();
+  await story.getByRole("button", { name: "mount second list" }).click();
+  await expect(story.getByRole("button", { name: /Room A/u })).toHaveCount(2);
+  await expect(elsewhere).toBeFocused();
 });
 
 test("the empty-state New button fires onNewChat (the J2 picker trigger)", async ({ mount, page }) => {
