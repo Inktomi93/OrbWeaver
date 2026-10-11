@@ -42,7 +42,7 @@ import type { VariantWireView } from "@orb/contracts/chat";
 import type { ChatId, MessageVariantId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 // @orb-waive dialog-via-composite(Dialog): this host-only wire inspector is read-only content with one Close; ends if a content-viewer dialog composite owns it.
-import { Dialog, DialogClose, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { DIALOG_SCROLL_CLASS, Dialog, DialogClose, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, ScrollText } from "@orb/ui/icons";
 import { Section, Stack } from "@orb/ui/layout";
@@ -211,7 +211,7 @@ export function VariantWireViewer({ chatId, variantId, open, onOpenChange }: Var
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPopup size="lg" data-testid={testId("variantWireViewer")}>
-        <Stack gap="block" className="min-h-0">
+        <Stack gap="block" className={`${DIALOG_SCROLL_CLASS} flex-1`}>
           <DialogTitle>What this reply sent</DialogTitle>
           <WireDialogBody isError={wire.isError} error={wire.error} data={wire.data} onRetry={(): void => void wire.refetch().catch(globalThis.reportError)} />
           <DialogFooter>

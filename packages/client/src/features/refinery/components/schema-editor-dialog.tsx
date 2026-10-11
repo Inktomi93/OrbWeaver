@@ -381,16 +381,16 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
         ) : (
           <Text voice="gloss">{previewEmptyTextOf(schemaText)}</Text>
         )}
+        <Field label="Name">
+          <Textarea
+            defaultValue={editing === null ? "" : editing.name}
+            onInput={(e): void => setNameFilled(e.currentTarget.value.trim().length > 0)}
+            ref={nameRef}
+            rows={1}
+          />
+        </Field>
         <DialogFooter>
           {editing === null ? null : <DeleteSchemaAction onDeleted={(): void => onOpenChange(false)} schema={editing} />}
-          <Field label="Name">
-            <Textarea
-              defaultValue={editing === null ? "" : editing.name}
-              onInput={(e): void => setNameFilled(e.currentTarget.value.trim().length > 0)}
-              ref={nameRef}
-              rows={1}
-            />
-          </Field>
           {/* THE VISIBLE WAY OUT (#81 P1). Escape and the backdrop were the only exits this dialog had, and
               both are invisible: a reader looking at the longest authoring surface in the app could not
               SEE how to leave it without saving. It rides `requestClose`, so Cancel and Escape are one

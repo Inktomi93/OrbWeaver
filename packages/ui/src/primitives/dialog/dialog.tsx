@@ -81,7 +81,8 @@ export interface DialogFooterProps extends Omit<ComponentProps<"div">, "classNam
 
 /**
  * The dialog's action row: stays in view at the bottom of the popup while the body scrolls. Render it as the
- * LAST child of the popup's content; every dialog's Cancel/Confirm/Done row composes this rather than a Row.
+ * LAST child of a `DIALOG_SCROLL_CLASS` region (never of the popup itself, which must not scroll); every
+ * dialog's Cancel/Confirm/Done row composes this rather than a Row.
  */
 export function DialogFooter(props: DialogFooterProps): ReactElement {
   const { className, ...rest } = props;

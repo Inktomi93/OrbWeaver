@@ -258,37 +258,50 @@ test("popup content taller than the viewport scrolls instead of clipping", async
 test.describe("DialogFooter on a 430x740 phone", () => {
   test.use({ viewport: { width: 430, height: 740 } });
 
-  test("stays inside the viewport with the popup's own bottom inset while the body scrolls", async ({ mount, page }) => {
+  test("sits one popup inset above the popup edge with no body showing beneath it", async ({ mount, page }) => {
     await mount(
       <Dialog defaultOpen={true}>
         <DialogPopup>
-          <DialogTitle>Tall</DialogTitle>
-          <div style={{ height: "3000px", flexShrink: 0 }}>Tall content</div>
-          <DialogFooter>
-            <DialogClose>Done</DialogClose>
-          </DialogFooter>
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflowY: "auto" }}>
+            <DialogTitle>Tall</DialogTitle>
+            <div style={{ height: "3000px", flexShrink: 0 }}>Tall content</div>
+            <DialogFooter>
+              <DialogClose>Done</DialogClose>
+            </DialogFooter>
+          </div>
         </DialogPopup>
       </Dialog>,
     );
     const popup = page.locator('[data-slot="dialog-popup"]');
     const footer = page.locator('[data-slot="dialog-footer"]');
-    await expect.poll(async () => await popup.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
-    await expect(page.getByRole("button", { name: "Done" })).toBeInViewport({ ratio: 1 });
+    const done = page.getByRole("button", { name: "Done" });
+    await expect
+      .poll(async () => await footer.evaluate((el) => el.parentElement !== null && el.parentElement.scrollHeight > el.parentElement.clientHeight))
+      .toBe(true);
+    await expect(done).toBeInViewport({ ratio: 1 });
+    // The button's distance from the popup edge is exactly the popup's padding plus border: the footer adds none.
     await expect
       .poll(async () => {
-        const [popupBox, footerBox, inset] = await Promise.all([
+        const [popupBox, doneBox, inset] = await Promise.all([
           popup.boundingBox(),
-          footer.boundingBox(),
+          done.boundingBox(),
           popup.evaluate((el) => {
             const style = getComputedStyle(el);
             return Number.parseFloat(style.paddingBottom) + Number.parseFloat(style.borderBottomWidth);
           }),
         ]);
-        return popupBox === null || footerBox === null ? Number.NaN : Math.abs(popupBox.y + popupBox.height - inset - (footerBox.y + footerBox.height));
+        return popupBox === null || doneBox === null ? Number.NaN : Math.abs(popupBox.y + popupBox.height - inset - (doneBox.y + doneBox.height));
       })
       .toBeLessThanOrEqual(1);
-    // Scrolled to the very end the footer lands in the same place.
-    await popup.evaluate((el) => el.scrollTo({ top: el.scrollHeight }));
-    await expect(page.getByRole("button", { name: "Done" })).toBeInViewport({ ratio: 1 });
+    // Two pixels below the footer is the popup's own padding, not a strip of body text.
+    await expect
+      .poll(async () => {
+        const box = await footer.boundingBox();
+        if (box === null) {
+          return "no footer";
+        }
+        return page.evaluate(([x, y]) => document.elementFromPoint(x ?? 0, y ?? 0)?.getAttribute("data-slot"), [box.x + box.width / 2, box.y + box.height + 2]);
+      })
+      .toBe("dialog-popup");
   });
 });
