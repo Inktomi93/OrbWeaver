@@ -27,6 +27,7 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { PluginScriptedSurfaceStory } from "../_ct-stories.tsx";
 
 type PluginListRow = TrpcWireOutput<"plugin.list">[number];
@@ -296,6 +297,7 @@ const HEAP_GROWTH_GUEST = `
 
 test("THE U4 DONE-CRITERION — a scripted surface filters a list with ZERO network on keystroke", async ({ mount, page }) => {
   const recorder: TrpcRecorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(SCRIPTED_ID, "Scripted Demo")],
     "plugin.listSurfaces": () => [scriptedSurface(SCRIPTED_ID, "browser")],
     "plugin.getLog": () => [],
@@ -338,6 +340,7 @@ test("THE U4 DONE-CRITERION — a scripted surface filters a list with ZERO netw
 
 test("a ready-empty optional settings surface has no attribution chrome while its scripted sibling renders", async ({ mount, page }) => {
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": [enabledRow(SCRIPTED_ID, "Scripted Demo")],
     "plugin.listSurfaces": [scriptedSurface(SCRIPTED_ID, "browser"), { ...scriptedSurface(SCRIPTED_ID, "sentinel"), title: "Live sibling" }],
     "plugin.getLog": [],
@@ -355,6 +358,7 @@ test("a ready-empty optional settings surface has no attribution chrome while it
 
 test("a failed optional settings surface has no error or attribution chrome and leaves first-party siblings intact", async ({ mount, page }) => {
   const recorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": [enabledRow(SCRIPTED_ID, "Scripted Demo")],
     "plugin.listSurfaces": [
       scriptedSurface(SCRIPTED_ID, "browser"),
@@ -393,6 +397,7 @@ async function drivesHangToCollapse(
   const { mount, page } = fixture;
   let crashes = 0;
   const recorder: TrpcRecorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(SCRIPTED_ID, "Wedging Demo")],
     "plugin.listSurfaces": () => [scriptedSurface(SCRIPTED_ID, "browser")],
     "plugin.getLog": () => [],
@@ -460,6 +465,7 @@ test("THE F2 GAP — a BOOT-TIME fire-and-forget whose continuation loops is bou
   // `pump()` itself; the loop is preempted and the worker frees.
   let crashes = 0;
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(SCRIPTED_ID, "Boot-loop Demo")],
     "plugin.listSurfaces": () => [scriptedSurface(SCRIPTED_ID, "browser")],
     "plugin.getLog": () => [],
@@ -496,6 +502,7 @@ test("THE F2 GAP — a BOOT-TIME fire-and-forget whose continuation loops is bou
 
 test("a guest whose heap grows past its initial WASM memory never detaches the buffer the engine reads through", async ({ mount, page }) => {
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(SCRIPTED_ID, "Heap Growth Demo")],
     "plugin.listSurfaces": () => [scriptedSurface(SCRIPTED_ID, "browser")],
     "plugin.getLog": () => [],
@@ -540,6 +547,7 @@ const REFUSE_GUEST_MEMORY = `WebAssembly.Memory = function refuseMemory() { thro
 test("a browser that cannot reserve the guest's memory reports a host condition and never strikes the plugin", async ({ mount, page }) => {
   let crashes = 0;
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(SCRIPTED_ID, "Memory Refusal Demo")],
     "plugin.listSurfaces": () => [scriptedSurface(SCRIPTED_ID, "browser")],
     "plugin.getLog": () => [],
@@ -568,6 +576,7 @@ test("a browser that cannot reserve the guest's memory reports a host condition 
 
 test("the publish guard refuses a re-render loop — an identical republish is a no-op, and the surface stays alive", async ({ mount, page }) => {
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(SCRIPTED_ID, "Republishing Demo")],
     "plugin.listSurfaces": () => [scriptedSurface(SCRIPTED_ID, "browser")],
     "plugin.getLog": () => [],
@@ -594,6 +603,7 @@ test("THE F3 PIN — the client guest global object is an EXACT allow-list (a ne
   // the assertion is the CLOSED SET, the only shape that goes red the day a quickjs-ng bump adds `crypto` /
   // `Temporal` / `Atomics` / a timer — the exact blind spot by which `performance` shipped live on the server.
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(SCRIPTED_ID, "Realm Probe Demo")],
     "plugin.listSurfaces": () => [scriptedSurface(SCRIPTED_ID, "browser")],
     "plugin.getLog": () => [],

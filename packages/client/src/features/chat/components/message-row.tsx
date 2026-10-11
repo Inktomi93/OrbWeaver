@@ -13,7 +13,7 @@ import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { Fragment, useEffect } from "react";
+import { Fragment, useEffect, useState } from "react";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { cn, resolveRowRenderPolicy } from "#lib";
 import { appearanceMessageRegistryEnabled, registerAppearanceMessageSnapshot } from "#src/lib/appearance-message-registry.ts";
@@ -25,22 +25,24 @@ import {
   useMessageEditReservedInlineSize,
   useSelectionActive,
 } from "#state";
+import { useArtViewer } from "../hooks/art-viewer-context.tsx";
 import { AttachmentUrlProvider } from "../hooks/attachment-url-provider.tsx";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution.ts";
+import { avatarTreatmentFor } from "../lib/avatar-treatment.ts";
 import { ROW_BODY_AT_PHONE_WIDTH } from "../lib/chat-track.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import { BG_PHOTO_CHROME_PLATE } from "../lib/message-row-backing.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
-import { actionsRevealFor, avatarTreatmentFor, columnClassFor, gutterRailFor, headerShape, rowBodyClassFor, rowMirrored } from "../lib/row-placement.ts";
+import { actionsRevealFor, columnClassFor, gutterRailFor, headerShape, rowBodyClassFor, rowMirrored } from "../lib/row-placement.ts";
 import { toolBoundaryDisplayMessage } from "../lib/tool-prose.ts";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageMetadataRow } from "./message-metadata-row.tsx";
+import { artViewFor, renderRowAvatar } from "./message-row-avatar.tsx";
 import { renderContextBoundaryDivider } from "./message-row-divider.tsx";
 import { placeRowHeader, renderRowActions, renderRowNameRow } from "./message-row-header.tsx";
 import {
-  renderRowAvatar,
   renderRowBubble,
   renderRowReasoning,
   renderRowSwipe,
@@ -180,6 +182,7 @@ export function MessageRow({
   toolRenderers,
 }: MessageRowProps): ReactElement {
   const enterClasses = useEnterMotion(enterMotion);
+  const viewArt = useArtViewer();
   useEffect(() => {
     if (!appearanceMessageRegistryEnabled()) {
       return;
@@ -274,13 +277,17 @@ export function MessageRow({
     narratorVoiced: isNarratorVoiced(message.kind),
   });
 
-  const avatarTreatment = avatarTreatmentFor(skin, attribution.kind, attribution.avatarHash);
   const decoration =
     skin.bubbleDecoration?.({
       kind: attribution.kind,
       avatarHash: attribution.avatarHash,
+      name: attribution.name,
+      hueSeed: attribution.hueSeed,
+      role,
       showInChatAvatars,
     }) ?? null;
+  const [artFailed, setArtFailed] = useState(false);
+  const avatarTreatment = avatarTreatmentFor(skin, attribution.kind, decoration, artFailed);
   // #1728 arm B. `Grid` and `Row` are both `div`s taking `className`/`gap`/`data-*` and each ignores the
   // other's variant prop, so ONE element spelling serves both arms and the body's markup is not written
   // twice; the two placement facts are single-homed beside the skin table that decides them.
@@ -299,6 +306,7 @@ export function MessageRow({
     alignToInsideHeader: skin.headerPlacement === "inside",
     gutterRail,
     mirrored,
+    viewArt,
   });
   const weldedAvatar = avatarTreatment === "sticky-portrait" ? avatarNode : null;
   const leadingAvatar = weldedAvatar !== null || mirrored ? null : avatarNode;
@@ -404,6 +412,8 @@ export function MessageRow({
                   speakerThemes,
                   narratorVoiced: isNarratorVoiced(message.kind),
                   editing,
+                  artView: artViewFor(viewArt, attribution),
+                  onArtFailed: setArtFailed,
                 })}
               </>,
             )}

@@ -637,3 +637,12 @@ export const messageViewSchema = z.strictObject({
   connectionId: typeIdSchema(ID_PREFIX.userConnection).nullable(),
   toolCalls: z.array(toolCallRecordOutputSchema).readonly(),
 }) satisfies z.ZodType<MessageView>;
+
+/** Is this row a seeded greeting: a character-voiced assistant row no model produced. The engine stamps
+ *  `genStartedAt` on every generation it commits and the greeting seeder never does, so a generated reply is
+ *  never a greeting. The one predicate the greeting strip and `setSeededGreeting` both read. */
+export function isSeededGreetingRow<T extends Pick<MessageView, "role" | "characterId" | "genStartedAt">>(
+  view: T,
+): view is T & { readonly characterId: NonNullable<T["characterId"]> } {
+  return view.role === "assistant" && view.characterId !== null && view.genStartedAt === null;
+}

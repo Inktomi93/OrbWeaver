@@ -45,6 +45,45 @@ test("P0: the lightbox action buttons stay on-screen at 1280×800", async ({ mou
   await expect.poll(() => buttonBottom(page, "Close")).toBeLessThan(800);
 });
 
+test("the lightbox title row holds its title and Close inside the dialog at 390", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 390, height: 780 });
+  await routeTrpc(page, { "assets.listGallery": () => [ITEM] });
+
+  await mount(<CharacterGalleryDialogStory />);
+  await openLightbox(page);
+
+  const dialog = page.getByRole("dialog").last();
+  const close = dialog.getByRole("button", { name: "Close" });
+  // The title takes the row's width beside Close instead of wrapping in a sliver.
+  await expect.poll(async () => (await dialog.getByRole("heading").boundingBox())?.width ?? 0).toBeGreaterThan(150);
+  await expect
+    .poll(
+      async () =>
+        ((await close.boundingBox())?.x ?? 0) + ((await close.boundingBox())?.width ?? 0) <=
+        ((await dialog.boundingBox())?.x ?? 0) + ((await dialog.boundingBox())?.width ?? 0),
+    )
+    .toBe(true);
+  await expect(dialog.getByRole("button", { name: "Remove from gallery" })).toBeVisible();
+});
+
+test("the gallery header keeps Close inside the dialog at 360 while the title wraps", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 360, height: 780 });
+  await routeTrpc(page, { "assets.listGallery": () => [ITEM] });
+
+  await mount(<CharacterGalleryDialogStory />);
+  await expect(page.getByRole("gridcell", { name: GALLERY_CELL }).first()).toBeVisible();
+
+  const dialog = page.getByRole("dialog").first();
+  const close = dialog.getByRole("button", { name: "Close" }).first();
+  await expect
+    .poll(
+      async () =>
+        ((await close.boundingBox())?.x ?? 0) + ((await close.boundingBox())?.width ?? 0) <=
+        ((await dialog.boundingBox())?.x ?? 0) + ((await dialog.boundingBox())?.width ?? 0),
+    )
+    .toBe(true);
+});
+
 test("P0: the lightbox action buttons stay on-screen at the tighter 1366×768", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
   await routeTrpc(page, { "assets.listGallery": () => [ITEM] });

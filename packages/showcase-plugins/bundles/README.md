@@ -10,7 +10,7 @@ in the [plugin-authoring design](../../../docs/plans/plugin-authoring/design.md)
 research-familiar/     event reactor      watches the room, reaches the network, files lore + databank clips
 oracle-deck/           tool provider      gives the model tools — plus the whole UI plane in one file:
                                           tool card, page, dialog, typed-arg commands, toasts, a macro,
-                                          a pubsub announcement, the table mark
+                                          a pubsub announcement
 affinity-tracker/      quiet thinker      asks the model privately, keeps private state, notifies;
                                           authors a scripted (browser-side) surface in ui.ts
 draft-polish/          text pipeline      one capability, two seams: prompt transform + display transform

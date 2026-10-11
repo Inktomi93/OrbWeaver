@@ -53,13 +53,13 @@ test("Previous steps back", async ({ mount, page }) => {
   await expect.poll(() => (trpc.lastInput(STEP) as { readonly greetingIndex?: number } | undefined)?.greetingIndex, { intervals: [20, 50, 100] }).toBe(0);
 });
 
-test("at the FIRST alternate there is nowhere back to go — Previous is disabled, Next is live", async ({ mount, page }) => {
+test("at the FIRST alternate Previous wraps to the last, as the reply pager does — Next is live", async ({ mount, page }) => {
   await routeTrpc(page, { [STEP]: GREETING_RESULT });
 
   const component = await mount(<GreetingSwipeStripStory variants={ALTERNATES} current={ALT_0} />);
 
   await expect(component.getByText("1 / 3")).toBeVisible();
-  await expect(component.getByRole("button", { name: "Previous greeting" })).toBeDisabled();
+  await expect(component.getByRole("button", { name: "Previous greeting" })).toBeEnabled();
   await expect(component.getByRole("button", { name: "Next greeting" })).toBeEnabled();
 });
 

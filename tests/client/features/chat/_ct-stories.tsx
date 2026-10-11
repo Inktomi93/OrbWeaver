@@ -6,6 +6,8 @@
 // stubbed network); pure-render stories rely on the beforeMount toast/tooltip chrome.
 
 // @orb-waive-file testid-typed-only-stories("abort"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("parity-ghost"): baselined when the gate widened; burn-down item 906.
+// @orb-waive-file testid-typed-only-stories("parity-settled"): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file testid-typed-only-stories("actions-host"): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file testid-typed-only-stories("anchor-prose"): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file testid-typed-only-stories("anchor-row"): baselined when the gate widened; burn-down item 906.
@@ -983,7 +985,11 @@ function GhostRowInner(): ReactElement {
   return (
     <div>
       <div data-testid="phase">{phase}</div>
-      {isLiveTurnPhase(phase) ? <GhostMessageRow chatId={CHAT_ID} chatStyle="bubble" streaming={phase === "streaming"} /> : null}
+      {isLiveTurnPhase(phase) ? (
+        <CtDataProviders>
+          <GhostMessageRow chatId={CHAT_ID} chatStyle="bubble" streaming={phase === "streaming"} />
+        </CtDataProviders>
+      ) : null}
     </div>
   );
 }
@@ -1166,27 +1172,39 @@ export interface GhostRowScriptedStoryProps {
    *  exceeds the viewport and the sticky pin can be measured against a scroll rather than asserted from a
    *  computed style alone. Absent ⇒ the unbounded mount every other scripted CT uses. */
   readonly scrollportHeight?: number;
+  /** The chat style the live row paints in; absent ⇒ bubble. */
+  readonly chatStyle?: ThemeChatStyle;
 }
 
 /** The ghost row driven by an explicit, test-controlled SCRIPT of raw text chunks (rather than the
  *  fixed "Hi " token `GhostRowStory` uses). Live-gated exactly like the production surface, so an ABORT
  *  unmounts the row (and anything it had mounted) rather than leaving it idling. */
-export function GhostRowScriptedStory({ chunks, speakerName, cardTier, stickyAttribution, scrollportHeight }: GhostRowScriptedStoryProps): ReactElement {
+export function GhostRowScriptedStory({
+  chunks,
+  speakerName,
+  cardTier,
+  stickyAttribution,
+  scrollportHeight,
+  chatStyle = "bubble",
+}: GhostRowScriptedStoryProps): ReactElement {
   const [next, setNext] = useState(0);
   const phase = useTurnPhase(SCRIPTED_CHAT_ID);
   const attribution =
     speakerName === undefined
       ? undefined
       : { name: speakerName, kind: "character" as const, avatarAssetId: null, avatarHash: null, hueSeed: speakerName, tokens: null };
+  // The ghost's hidden action footprint reads the data layer, as it does in the app.
   const ghost = isLiveTurnPhase(phase) ? (
-    <GhostMessageRow
-      chatId={SCRIPTED_CHAT_ID}
-      chatStyle="bubble"
-      streaming={phase === "streaming"}
-      {...(attribution === undefined ? {} : { attribution })}
-      {...(cardTier === undefined ? {} : { cardTier })}
-      {...(stickyAttribution === undefined ? {} : { stickyAttribution })}
-    />
+    <CtDataProviders>
+      <GhostMessageRow
+        chatId={SCRIPTED_CHAT_ID}
+        chatStyle={chatStyle}
+        streaming={phase === "streaming"}
+        {...(attribution === undefined ? {} : { attribution })}
+        {...(cardTier === undefined ? {} : { cardTier })}
+        {...(stickyAttribution === undefined ? {} : { stickyAttribution })}
+      />
+    </CtDataProviders>
   ) : null;
   return (
     <div style={{ width: 360 }}>
@@ -1228,6 +1246,45 @@ export function GhostRowScriptedStory({ chunks, speakerName, cardTier, stickyAtt
           {ghost}
         </div>
       )}
+    </div>
+  );
+}
+
+const PARITY_CHAT_ID = castId<ChatId>("chat_ct_row_parity");
+const PARITY_CHARACTER = castId<CharacterId>("character_ct_row_parity");
+
+/** The same short reply from the same no-image speaker, once as the streaming ghost and once as the settled row,
+ *  in two equal-width columns: the geometry-parity CT compares their art slots and bubbles box for box. */
+export function RowParityStory({ chatStyle }: { readonly chatStyle: ThemeChatStyle }): ReactElement {
+  const phase = useTurnPhase(PARITY_CHAT_ID);
+  useEffect(() => {
+    chatStream.beginTurn(PARITY_CHAT_ID, { intent: "send", speakerCharacterId: null, targetMessageId: null });
+    chatStream.appendDelta({ chatId: PARITY_CHAT_ID, kind: "text", text: "Hi." });
+  }, []);
+  return (
+    <div>
+      <div data-testid="parity-ghost" style={{ width: 360 }}>
+        {isLiveTurnPhase(phase) ? (
+          <CtDataProviders>
+            <GhostMessageRow
+              chatId={PARITY_CHAT_ID}
+              chatStyle={chatStyle}
+              streaming={phase === "streaming"}
+              attribution={{ name: "Alice", kind: "character", avatarAssetId: null, avatarHash: null, hueSeed: "Alice", tokens: null }}
+            />
+          </CtDataProviders>
+        ) : null}
+      </div>
+      <div data-testid="parity-settled">
+        <MessageRowStory
+          chatStyle={chatStyle}
+          messageRole="assistant"
+          characterId={PARITY_CHARACTER}
+          characters={[{ id: PARITY_CHARACTER, name: "Alice", avatarHash: null }]}
+          content="Hi."
+          width={360}
+        />
+      </div>
     </div>
   );
 }

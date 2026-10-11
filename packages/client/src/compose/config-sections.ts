@@ -28,7 +28,7 @@ import {
 } from "#features/chat";
 import { appearanceLooksSection } from "#features/config";
 import { connectionsKeysSection, connectionsListSection, connectionsRolesSection } from "#features/credentials";
-import { personaListSection, personaNotificationsSection, personaThisChatSection } from "#features/persona";
+import { personaListSection, personaNotificationsSection } from "#features/persona";
 import { pluginDistributeSection, pluginsInstalledSection, pluginsInstallSection } from "#features/plugin";
 import {
   aboutSection,
@@ -52,12 +52,10 @@ import type { ConfigSectionContribution } from "#state";
 import { assertSettingsKeyPartition, assertTeachHonesty } from "#state";
 
 export const configSections = createContributorRegistry<ConfigSectionContribution>("config-sections", [
-  // personas ← the persona surface's FRAME as three sections: the notify
-  // switch, the roster (the same component the rail popover and the You sheet render — the editor is its
-  // search leaf), the this-chat picker (the pinned row is its leaf). Owner-sacred editing model untouched.
-  personaNotificationsSection,
+  // personas ← the MANAGE surface as two sections: the list (the editor and the persona concepts are its
+  // search leaves), then the notify switch. Playing a persona is the switcher's job, not a section here.
   personaListSection,
-  personaThisChatSection,
+  personaNotificationsSection,
   // backup ← the two halves of the portability system, export ahead of import (§6.8).
   backupExportSection,
   backupImportSection,

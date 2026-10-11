@@ -7,11 +7,11 @@
 //    row's name-embedding controls then announce IDENTICAL accessible names; the qualifier is resolved
 //    with the WHOLE list in hand, and it is SPENT (collision-only), never sprayed.
 //
-// 2) THE S4 LIST RESTRUCTURE: pin-not-crown (exactly ONE named pin marker however many rows CLAIM
-//    default in user prose), the ⋯ = Edit · Duplicate · Export · Delete inventory, and the band's third
-//    door (From character → `persona.createFromCharacter`, the picker IS the create).
+// 2) THE MANAGE SURFACE (item 885): a row click expands the editor and writes nothing; exactly ONE pressed
+//    crown however many rows CLAIM default in user prose; Duplicate/Export/Delete in the editor footer, and a
+//    deleted default names where the crown went; the band's From-character door.
 
-import { renameActionName, rowActionsName } from "@orb/client/lib";
+import { rowActionsName } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -30,7 +30,6 @@ const TRAVELER_NEW = "persona_traveler_new";
 const DEFAULT_CLAIMING_TITLE = "Your default persona";
 
 const ACTIONS_LABEL = /^Actions for /;
-const SWITCH_LABEL = /^Switch to /;
 const QUALIFIED_TRAVELER = /^Actions for "Traveler" · .+/;
 
 // THREE rows, two of them same-named — the shape the collision actually needs (see the old surface CT's
@@ -80,7 +79,9 @@ const PERSONAS: TrpcWireOutput<"persona.list"> = [
  *  editor, which mounts the lorebook cluster and the Connected-characters section. */
 function stub(
   page: Page,
-  extra: Partial<TrpcRoutes<"settings.updateUserSettingsSection" | "persona.duplicate" | "character.list" | "persona.createFromCharacter">> = {},
+  extra: Partial<
+    TrpcRoutes<"settings.updateUserSettingsSection" | "persona.duplicate" | "persona.remove" | "character.list" | "persona.createFromCharacter">
+  > = {},
 ): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "persona.list": () => PERSONAS,
@@ -158,41 +159,40 @@ test("two same-named personas get DISTINCT kebab names — the row's actions ann
   expect(actions.filter((label) => QUALIFIED_TRAVELER.test(label))).toHaveLength(2);
 });
 
-test("two same-named personas get DISTINCT switch-target names — the stretched select button too", async ({ mount, page }) => {
+test("two same-named personas get DISTINCT row-body names — the stretched expand button too", async ({ mount, page }) => {
   await stub(page);
   await mount(<PersonaListStory />);
   await expect(page.getByText("Nova", { exact: true })).toBeVisible();
 
-  const switches = await labels(page, SWITCH_LABEL);
-  expect(switches).toHaveLength(2); // Nova is current, so its row carries the current arm instead
-  expect(new Set(switches).size).toBe(2);
+  const bodies = await page.locator('[data-slot="persona-row-expand"]').evaluateAll((els) => els.map((el) => el.getAttribute("aria-label") ?? ""));
+  expect(bodies).toHaveLength(3);
+  expect(new Set(bodies).size).toBe(3);
 });
 
 test("a row whose name does NOT collide keeps its bare name — no qualifier is spent", async ({ mount, page }) => {
   await stub(page);
   await mount(<PersonaListStory />);
 
-  await expect(page.getByRole("button", { name: rowActionsName("Nova"), exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Nova — current persona", exact: true })).toBeVisible();
+  // The ⋯ is coarse-only, so at a fine pointer it is out of the a11y tree; its name is still the bare one.
+  await expect(page.locator(`button[aria-label="${rowActionsName("Nova")}"]`)).toBeAttached();
+  await expect(page.getByRole("button", { name: "Nova", exact: true })).toBeVisible();
 });
 
-// ── Pin-not-crown at the LIST level (#866 S4; the crown fence's successor) ──────────────────────────
+// ── The crown at the LIST level ─────────────────────────────────────────────────────────────────────
 // N rows may CLAIM default in user-editable prose; only the row `seeds.defaultPersonaId` names wears the
-// SOLID pin marker, and every other row offers the faint click-to-pin VERB instead. The crown is gone
-// from the whole tree — the glyph class is the negative control.
+// pressed crown, and every other row offers the faint make-default verb instead.
 
-test("exactly ONE row wears the solid pin, however many rows CLAIM default in their subtitle prose — and no crown exists", async ({ mount, page }) => {
+test("exactly ONE row wears the pressed crown, however many rows CLAIM default in their subtitle prose", async ({ mount, page }) => {
   await stub(page);
   await mount(<PersonaListStory />);
   await expect(page.getByText("Nova", { exact: true })).toBeVisible();
 
-  await expect(page.getByText(DEFAULT_CLAIMING_TITLE)).toHaveCount(2);
-  await expect(page.getByRole("button", { name: /is pinned as your default$/, pressed: true })).toHaveCount(1);
-  await expect(page.getByRole("button", { name: /^Pin .* as your default$/ })).toHaveCount(2);
-  await expect(page.locator("svg.lucide-crown")).toHaveCount(0);
+  await expect(page.getByText(DEFAULT_CLAIMING_TITLE, { exact: true })).toHaveCount(2);
+  await expect(page.getByRole("button", { name: /is your default — press to clear$/u, pressed: true })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /^Make .* your default$/u })).toHaveCount(2);
 });
 
-test("clicking a faint pin writes seeds.defaultPersonaId for THAT row's persona", async ({ mount, page }) => {
+test("clicking a faint crown writes seeds.defaultPersonaId for THAT row's persona", async ({ mount, page }) => {
   const trpc = await stub(page, {
     "settings.updateUserSettingsSection": () => ({
       userId: "user_ct",
@@ -205,57 +205,40 @@ test("clicking a faint pin writes seeds.defaultPersonaId for THAT row's persona"
   await mount(<PersonaListStory />);
   await expect(page.getByText("Nova", { exact: true })).toBeVisible();
 
-  const pins = await labels(page, /^Pin "Traveler" · .+ as your default$/);
-  expect(pins).toHaveLength(2); // the qualifier reaches the pin too — it embeds the row SUBJECT
-  await page.getByRole("button", { name: pins[0] ?? "", exact: true }).dispatchEvent("click");
+  const crowns = await labels(page, /^Make "Traveler" · .+ your default$/u);
+  expect(crowns).toHaveLength(2); // the qualifier reaches the crown too — it embeds the row SUBJECT
+  await page.getByRole("button", { name: crowns[0] ?? "", exact: true }).dispatchEvent("click");
   await expect
     .poll(() => trpc.lastInput("settings.updateUserSettingsSection"), { intervals: [20, 50, 100] })
-    .toMatchObject({ section: "seeds", patch: { defaultPersonaId: TRAVELER_OLD } });
+    .toEqual({ section: "seeds", patch: { defaultPersonaId: TRAVELER_OLD } });
 });
 
-// ── The ⋯ inventory (#866 S4): Edit · Duplicate · Export · Delete ───────────────────────────────────
+// ── A row click is not a switch ─────────────────────────────────────────────────────────────────────
 
-test("expanding and collapsing another persona leaves the playing-as persona unchanged", async ({ mount, page }) => {
-  await stub(page);
+test("clicking a row opens its editor and writes nothing", async ({ mount, page }) => {
+  const trpc = await stub(page);
   await mount(<PersonaListStory />);
-  const playing = page.getByRole("button", { name: "Nova — current persona", exact: true });
-  await expect(playing).toHaveAttribute("aria-current", "true");
-  await page
-    .getByRole("button", { name: /^Show details for /u })
-    .nth(1)
-    .click();
-  const close = page.getByRole("button", { name: /^Hide details for /u });
-  await expect(close).toHaveCount(1);
-  await expect(playing).toHaveAttribute("aria-current", "true");
-  await close.click();
-  await expect(page.getByRole("button", { name: /^Hide details for /u })).toHaveCount(0);
-  await expect(playing).toHaveAttribute("aria-current", "true");
+  await page.getByRole("button", { name: "Nova", exact: true }).click();
+  await expect(page.getByRole("group", { name: "Edit Nova", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Nova", exact: true })).toHaveAttribute("aria-expanded", "true");
+  expect(trpc.count("persona.setActivePersona") + trpc.count("settings.updateUserSettingsSection")).toBe(0);
 });
 
-test("the row ⋯ carries Edit · Duplicate · Export · Delete; Edit expands the editor; Duplicate fires the verb", async ({ mount, page }) => {
+test("the editor footer's Duplicate fires the verb", async ({ mount, page }) => {
   const trpc = await stub(page, { "persona.duplicate": () => PERSONAS[0] });
   await mount(<PersonaListStory />);
-  await expect(page.getByText("Nova", { exact: true })).toBeVisible();
-
-  // The fine-pointer kebab is hover-revealed; hovering the row's rename control is the real user path.
-  await page.getByRole("button", { name: renameActionName("Nova"), exact: true }).hover();
-  await page.getByRole("button", { name: rowActionsName("Nova"), exact: true }).click();
-  const menu = page.getByRole("menu");
-  await expect(menu).toBeVisible();
-  for (const item of ["Edit", "Duplicate", "Export", "Delete"]) {
-    await expect(menu.getByRole("menuitem", { name: item, exact: true })).toBeVisible();
-  }
-  // Set-as-default LEFT the menu — the pin owns the verb at every pointer class now.
-  await expect(menu.getByRole("menuitem", { name: "Set as default" })).toHaveCount(0);
-
-  await menu.getByRole("menuitem", { name: "Duplicate", exact: true }).click();
+  await page.getByRole("button", { name: "Nova", exact: true }).click();
+  await page.locator('[data-slot="persona-editor-footer"]').getByRole("button", { name: "Duplicate", exact: true }).click();
   await expect.poll(() => trpc.count("persona.duplicate"), { intervals: [20, 50, 100] }).toBe(1);
+});
 
-  await page.getByRole("button", { name: renameActionName("Nova"), exact: true }).hover();
-  await page.getByRole("button", { name: rowActionsName("Nova"), exact: true }).click();
-  await page.getByRole("menu").getByRole("menuitem", { name: "Edit", exact: true }).click();
-  // Edit IS the expansion (the editing model's home is unchanged) — the row's disclosure flips open.
-  await expect(page.getByRole("button", { name: "Hide details for Nova", exact: true })).toBeVisible();
+test("deleting the default says where the crown went", async ({ mount, page }) => {
+  await stub(page, { "persona.remove": () => ({ deleted: true, newDefaultPersonaId: TRAVELER_NEW }) });
+  await mount(<PersonaListStory />);
+  await page.getByRole("button", { name: "Nova", exact: true }).click();
+  await page.locator('[data-slot="persona-editor-footer"]').getByRole("button", { name: "Delete", exact: true }).click();
+  await page.getByRole("alertdialog", { name: "Delete this persona?" }).getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByTestId("notified")).toHaveText("Traveler is now your default.");
 });
 
 // ── The band's third door: From character (#866 S4) ─────────────────────────────────────────────────
@@ -311,13 +294,13 @@ test("flipping the swap switch OFF is honored on the wire", async ({ mount, page
 test.describe("coarse pointer", () => {
   test.use({ hasTouch: true });
 
-  test("no faint pin on a phone row: Set as default and Clear default live in the row's menu", async ({ mount, page }) => {
+  test("no faint crown on a phone row: Set as default and Clear default live in the row's menu", async ({ mount, page }) => {
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     await stub(page);
     await mount(<PersonaListStory width={320} />);
     await expect(page.getByText("Nova", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Pin .* as your default$/ })).toHaveCount(0);
-    await expect(page.getByRole("img", { name: "Pinned — your default persona" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Make .* your default$/u })).toHaveCount(0);
+    await expect(page.getByRole("img", { name: "Your default persona" })).toBeVisible();
     await page.getByRole("button", { name: "Actions for Nova", exact: true }).click();
     await expect(page.getByRole("menuitem", { name: "Clear default", exact: true })).toBeVisible();
     await page.keyboard.press("Escape");

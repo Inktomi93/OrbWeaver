@@ -74,6 +74,7 @@ export interface ImageAdapter {
 
 const DEFAULT_FORMAT: ImageFormat = "webp";
 const DEFAULT_QUALITY = 80;
+const TURNED_ORIENTATION = 5;
 
 function encode(pipeline: Sharp, format: ImageFormat, quality: number): Sharp {
   switch (format) {
@@ -90,6 +91,17 @@ function encode(pipeline: Sharp, format: ImageFormat, quality: number): Sharp {
   }
 }
 
+// The crop box scaled down (never up) until it fits inside the oriented source, aspect kept.
+async function fitBoxToSource(bytes: Uint8Array, width: number, height: number): Promise<{ readonly width: number; readonly height: number }> {
+  const meta = await sharp(bytes).metadata();
+  // EXIF orientations 5-8 turn the image a quarter, which swaps the dimensions `.rotate()` will produce.
+  const turned = (meta.orientation ?? 1) >= TURNED_ORIENTATION;
+  const sourceWidth = turned ? meta.height : meta.width;
+  const sourceHeight = turned ? meta.width : meta.height;
+  const scale = Math.min(1, sourceWidth / width, sourceHeight / height);
+  return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
+}
+
 export function createImageAdapter(): ImageAdapter {
   return {
     async frameCount(bytes): Promise<number> {
@@ -103,12 +115,14 @@ export function createImageAdapter(): ImageAdapter {
       let pipeline = sharp(bytes).rotate();
       if (opts?.width !== undefined && opts.height !== undefined) {
         // The fixed-box crop path (portrait variant): fit/position only apply together with both dims.
+        // Never enlarge, but keep the crop: a box bigger than the source shrinks to fit it at the same aspect.
+        // (`withoutEnlargement` alone returns the uncropped source when either side is too small.)
+        const box = await fitBoxToSource(bytes, opts.width, opts.height);
         pipeline = pipeline.resize({
-          width: opts.width,
-          height: opts.height,
+          width: box.width,
+          height: box.height,
           fit: opts.fit ?? "cover",
           position: opts.position ?? "attention",
-          withoutEnlargement: true,
         });
       } else if (opts?.width !== undefined) {
         pipeline = pipeline.resize({ width: opts.width, withoutEnlargement: true });

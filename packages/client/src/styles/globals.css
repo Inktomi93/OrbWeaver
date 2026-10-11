@@ -856,6 +856,9 @@ html[data-keyboard-up] [data-slot="composer-guided-refusal"] {
 [data-slot="message-bubble"] {
   --row-reach-left: var(--spacing-block);
   --row-reach-right: var(--spacing-block);
+  /* The swipe foot keeps the card inset on both sides, so its group ends at the card's corner even across echo's art pane. */
+  --row-foot-inset-left: var(--spacing-block);
+  --row-foot-inset-right: var(--spacing-block);
 }
 /* JUSTIFY SHIPS WITH HYPHENATION, ALWAYS (#852). Justified text without it opens rivers of white down the
  * column — the browser can only stretch word spacing, so a long word that will not fit forces the line

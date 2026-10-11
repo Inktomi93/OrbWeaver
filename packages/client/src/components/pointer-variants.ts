@@ -144,8 +144,8 @@ export const CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF = "pointer-fine:@max-xs:data-acti
  *  32px, under a content-sized two-line cell). CT: tests/client/features/app-shell/components/context-tabs-panel.ct.tsx. */
 export const CONTEXT_CELL_FLOOR_AT_COARSE = "pointer-coarse:min-h-control-lg";
 
-/** The persona PIN's faint reveal (#866 S4, pin-not-crown — `persona-pin.tsx`, both its mounts): the
- *  click-to-pin verb is secondary chrome, rest-invisible at a fine pointer and revealed FAINT on the
+/** The faint reveal of a row toggle that is secondary chrome (the persona crown, card pin and favorite
+ *  heart, the switcher's Edit door): rest-invisible at a fine pointer and revealed FAINT on the
  *  row's hover/focus-visible; at coarse (no hover exists) it is ALWAYS faint — an invisible control would
  *  be an unreachable one, and the row budgets its touch box for it. Opacity only (the `ROW_REVEAL` law —
  *  display/visibility swaps under a hover key are hit-test oscillators), keyed on the row's `group` like

@@ -14,7 +14,7 @@
 import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { CharacterId, MessageId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { CharacterId, MessageId, MessageVariantId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -990,6 +990,37 @@ test("a room PAST its first user turn offers no greeting step — the window is 
   const component = await mount(<ChatRoomGreetingWindowStory />);
 
   await expect(component.locator(BUBBLE).first()).toContainText(ALT_0);
+  await expect(component.getByRole("button", { name: "Next greeting" })).toHaveCount(0);
+});
+
+test("a GENERATED reply in a room with no user turn shows its swipe group, never the greeting pager", async ({ mount, page }) => {
+  // Nothing about the window or the speaker separates this row from a seeded greeting except that a model
+  // wrote it. Binding the greeting strip here put "Next greeting" on a reply and overwrote it unconfirmed.
+  const Generated = "A reply the model wrote.";
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...greetingWindowRoutes(0),
+    "chat.listMessages": () =>
+      makeMessagesPage([
+        makeMessageView({
+          id: GREETING_ID,
+          role: "assistant",
+          characterId: GREETING_CHARACTER,
+          content: Generated,
+          seq: 1,
+          variantCount: 2,
+          genStartedAt: 1000,
+          genFinishedAt: 2000,
+        }),
+      ]),
+    "chat.listMessageVariants": () => [0, 1].map((idx) => ({ idx, variantId: castId<MessageVariantId>(`mv_room_generated_${idx}`) })),
+  });
+
+  const component = await mount(<ChatRoomGreetingWindowStory />);
+
+  await expect(component.locator(BUBBLE).first()).toContainText(Generated);
+  await expect(component.locator('[data-slot="swipe-strip"]')).toHaveCount(1);
+  await expect(component.locator('[data-slot="greeting-swipe-strip"]')).toHaveCount(0);
   await expect(component.getByRole("button", { name: "Next greeting" })).toHaveCount(0);
 });
 

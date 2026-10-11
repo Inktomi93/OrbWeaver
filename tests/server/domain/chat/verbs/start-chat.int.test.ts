@@ -550,8 +550,8 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
     expect(row?.anchorPersonaId).toBe(explicit);
   });
 
-  // Pointer #2 (FINAL-Persona §A.3): the seed chain is `explicit ?? connected ?? current ?? default`.
-  test("the Current persona (#2) beats the Default seed (#1) when no explicit/connected anchor", async () => {
+  // The seed chain is `explicit ?? connected ?? default ?? last played` (item 885: the default decides new chats).
+  test("the Default seed beats the last-played persona when no explicit/connected anchor", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const current = await seedPersona(host, "persona_current");
@@ -566,7 +566,23 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
     const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
 
     const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
-    expect(row?.anchorPersonaId).toBe(current);
+    expect(row?.anchorPersonaId).toBe(fallback);
+  });
+
+  test("no default: the last-played persona is the floor that seeds the room", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const aria = await seedCharacter(db, host, "aria");
+    const current = await seedPersona(host, "persona_current");
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardWith("Aria", "hi")),
+      resolveCurrentPersona: () => Promise.resolve(current),
+    });
+
+    const { startChat } = createStartChat(ctx, makeDeps());
+    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
+
+    expect(chat.anchorPersonaId).toBe(current);
+    expect(chat.participants.find((p) => p.role === "host")?.activePersonaId).toBe(current);
   });
 
   test("the connected persona (character-lock hop) beats the Current persona (#2)", async () => {

@@ -20,7 +20,7 @@
 // {@link presentAndEnabledHumanUserIdsOf} is the fix: the ONE async narrowing every consumer that can reach
 // an injected `ctx.resolveUserEnabled` now calls, instead of re-deriving the enabled filter per call site.
 
-import type { ParticipantKind } from "@orb/contracts/chat";
+import type { AnchorState, ParticipantKind } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";
 import type { HumanSeatPersona } from "../contract/foreign.ts";
@@ -65,6 +65,31 @@ export async function presentAndEnabledHumanUserIdsOf(
   const present = presentHumanUserIdsOf(participants);
   const enabled = await Promise.all(present.map((userId) => ctx.resolveUserEnabled(userId)));
   return present.filter((_userId, i) => isBackingUserEnabled("human", enabled[i] ?? false));
+}
+
+/** Is `personaId` owned by a present, enabled human in this room? The gate `setChatAnchorPersona` permits a
+ *  pin on, and the line between a `live` and a `held` pin. */
+export async function ownedByConsentingHuman(
+  ctx: Pick<ChatContext, "resolveUserEnabled" | "verifyPersonaOwned">,
+  participants: readonly HumanSeat[],
+  personaId: PersonaId,
+): Promise<boolean> {
+  const consentSet = await presentAndEnabledHumanUserIdsOf(ctx, participants);
+  const owned = await Promise.all(consentSet.map((ownerId) => ctx.verifyPersonaOwned({ ownerId, personaId })));
+  return owned.some(Boolean);
+}
+
+/** How the room's pin stands for `ChatDetail.anchorState`. A pin nobody present and enabled owns is `held`:
+ *  the card still means that persona (item 885). */
+export async function resolveAnchorState(
+  ctx: Pick<ChatContext, "resolveUserEnabled" | "verifyPersonaOwned">,
+  participants: readonly HumanSeat[],
+  anchorPersonaId: PersonaId | null,
+): Promise<AnchorState> {
+  if (anchorPersonaId === null) {
+    return "none";
+  }
+  return (await ownedByConsentingHuman(ctx, participants, anchorPersonaId)) ? "live" : "held";
 }
 
 /** Does the room seat more than one present human? The multi-human names rule (`assembly/names`) reads this,

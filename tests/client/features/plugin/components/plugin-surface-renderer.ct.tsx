@@ -19,6 +19,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { malformedOrForwardTrpcWire, routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { PluginsSurfaceStory } from "../_ct-stories.tsx";
 
 type PluginListRow = TrpcWireOutput<"plugin.list">[number];
@@ -94,6 +95,7 @@ test("THE U1 DONE-CRITERIA — the affinity-tracker panel renders, its button ro
   // post-invoke invalidate's repaint, not an optimistic flash (there is none).
   let refreshed = false;
   const recorder: TrpcRecorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Affinity Tracker")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "affinity_summary", AFFINITY_SPEC)],
     "plugin.getSurfaceState": () => (refreshed ? AFFINITY_STATE : null),
@@ -135,6 +137,7 @@ test("the image owner-scope gate — a foreign assetId renders the placeholder, 
     ],
   };
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Image Plugin")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "gallery", spec)],
     "plugin.getSurfaceState": () => null,
@@ -173,6 +176,7 @@ test("#820 the BUNDLE arm — a shipped path paints, and one the plugin never sh
     ],
   };
   const recorder: TrpcRecorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Sprite Plugin")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "sprites", spec)],
     "plugin.getSurfaceState": () => null,
@@ -198,6 +202,7 @@ test("#820 the BUNDLE arm — a shipped path paints, and one the plugin never sh
 test("#820 a spec with NO bundle path never asks for the map — the extra read is gated on the spec", async ({ mount, page }) => {
   const ownedId = mintTypeId(ID_PREFIX.asset);
   const recorder: TrpcRecorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Plain Plugin")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "plain", { kind: "image", assetId: ownedId, alt: "a declared id" })],
     "plugin.getSurfaceState": () => null,
@@ -216,6 +221,7 @@ test("#820 a spec with NO bundle path never asks for the map — the extra read 
 
 test("a spec that fails client-side validation renders a safe fallback, never a crash", async ({ mount, page }) => {
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Broken Plugin")],
     // Deliberately impossible server wire: `iframe` is outside the closed node union. This escape is the
     // subject of the test — the client must re-validate a malformed/forward payload and render its fallback.
@@ -252,6 +258,7 @@ test("renderer coverage — a spec mixing container, display, and form kinds ren
     ],
   };
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Kitchen Sink")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "sink", spec)],
     "plugin.getSurfaceState": () => null,
@@ -272,6 +279,7 @@ test("a badge whose text is wider than its surface wraps inside the surface inst
   const text = "draws are committed and the reveal verifies every card that was dealt at this table, however long the session runs";
   const spec: NonNullable<PluginSurfaceRow["spec"]> = { kind: "stack", children: [{ kind: "badge", text, intent: "neutral" }] };
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Long Badge")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "long-badge", spec)],
     "plugin.getSurfaceState": () => null,
@@ -319,6 +327,7 @@ test("#798: a card-atlas-style detail stage shows its cover — the BOUND hero (
     ],
   };
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
     // The plugin published the fetched cover's assetId into state (what `net.fetchAsset` would have returned).
@@ -363,6 +372,7 @@ test("F2: a masterDetail DETAIL stage renders its column at the house --reading-
     ],
   };
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
     "plugin.getSurfaceState": () => null,
@@ -415,6 +425,7 @@ test("F4: an empty grid renders the house EmptyState carrying the plugin's own t
     empty: "Search to begin — the atlas covers Character Tavern and RisuRealm.",
   };
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
     "plugin.getSurfaceState": () => ({ tiles: [] }),
@@ -447,6 +458,7 @@ test("#799: a grid's bound `loading` renders the shape-matched skeleton, and it 
     loading: { $state: "busy" },
   };
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
     "plugin.getSurfaceState": () => ({ busy: true, tiles: [{ id: "r0", title: "Aria" }] }),
@@ -475,6 +487,7 @@ test("#799: the SAME grid spec with `busy: false` shows its tiles — the loadin
     loading: { $state: "busy" },
   };
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
     "plugin.getSurfaceState": () => ({ busy: false, tiles: [{ id: "r0", title: "Aria" }] }),
@@ -497,6 +510,7 @@ test("a button's bound `disabled` follows published state — disabled while the
     ],
   };
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
     "plugin.getSurfaceState": () => ({ noSearch: true }),
@@ -522,6 +536,7 @@ test("0698: a grid still loading once the plugin's continuation window has passe
     loading: { $state: "busy" },
   };
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
     "plugin.getSurfaceState": () => ({ busy: true, tiles: [] }),
@@ -555,6 +570,7 @@ test("#799: an `icon` node renders the NAMED house glyph — labelled ones are n
     ],
   };
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
     "plugin.getSurfaceState": () => null,
@@ -581,6 +597,7 @@ test("#799: a CONSENT glyph is unspellable — an off-tuple icon name is refused
   // failing test. `lock` exists in the house seal and is deliberately absent from the plugin tuple, so a spec
   // naming it fails client-side validation and the whole surface renders the safe fallback.
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Impostor")],
     "plugin.listSurfaces": malformedOrForwardTrpcWire([
       {
@@ -629,6 +646,7 @@ test("#799: a `tabs` node renders the house one-of-N strip and a pick round-trip
     ],
   };
   const recorder: TrpcRecorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
     "plugin.getSurfaceState": () => (picked ? { status: "Now browsing RisuRealm." } : null),
@@ -671,6 +689,7 @@ test("hub v1.2: a bound grid tile carrying `tags` renders its chip row — the f
   // the MediaTileGrid chip row. A tile without tags renders no row at all (the second tile).
   const spec: NonNullable<PluginSurfaceRow["spec"]> = { kind: "grid", tilesFrom: { $state: "tiles" }, tileAction: "open_result" };
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
     "plugin.getSurfaceState": () => ({
@@ -700,6 +719,7 @@ test("hub v1.3: a BOUND select (`optionsFrom`) renders its options from publishe
     children: [{ kind: "select", name: "sort", label: "Sort", optionsFrom: { $state: "sortOptions" }, value: "relevance", actionId: "search" }],
   };
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
     "plugin.getSurfaceState": () => ({
@@ -725,6 +745,7 @@ test("hub v1.3: a BOUND select (`optionsFrom`) renders its options from publishe
 test("hub v1.3: a BOUND keyValue (`rowsFrom`) renders its rows from published state — a per-hub stat sheet is data", async ({ mount, page }) => {
   const spec: NonNullable<PluginSurfaceRow["spec"]> = { kind: "keyValue", rowsFrom: { $state: "detail.stats" } };
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
     "plugin.getSurfaceState": () => ({
@@ -751,6 +772,7 @@ test("hub v1.3: a BOUND keyValue (`rowsFrom`) renders its rows from published st
 test("hub v1.3: a LIVE toggle (`actionId`) fires its action on flip with the fresh value riding as an extra", async ({ mount, page }) => {
   const spec: NonNullable<PluginSurfaceRow["spec"]> = { kind: "toggle", name: "sfw", label: "SFW only", value: false, actionId: "search" };
   const recorder: TrpcRecorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
     "plugin.getSurfaceState": () => null,
@@ -778,6 +800,7 @@ test("a text field's hint is drawn once, as its placeholder", async ({ mount, pa
     children: [{ kind: "textField", name: "tags", label: "Tags", placeholder: "comma, separated" }],
   };
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Affinity Tracker")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "affinity_summary", spec)],
     "plugin.getSurfaceState": () => null,
@@ -795,6 +818,7 @@ test("a plugin toggle sits beside its label at page width instead of docking to 
   await page.setViewportSize({ width: 1400, height: 900 });
   const spec: NonNullable<PluginSurfaceRow["spec"]> = { kind: "toggle", name: "sfw", label: "SFW only", value: false };
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
     "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
     "plugin.getSurfaceState": () => null,

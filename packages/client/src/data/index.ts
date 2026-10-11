@@ -68,6 +68,7 @@ export { createInvalidation } from "./invalidation.ts";
 export { applyCanonView } from "./invalidation-carrier.ts";
 export { connectionWriteReads } from "./invalidation-reads.ts";
 export { consumeInboundJoinToken, peekInboundJoinToken, stashInboundJoinToken } from "./join-token.ts";
+export { notifyNewRoomPersona } from "./new-room-persona-notice.ts";
 export { peekQueryData } from "./peek-query.ts";
 export type { AppMeta } from "./query-client.ts";
 export { createAppQueryClient, retryUnlessBadRequest, trpcErrorCode } from "./query-client.ts";

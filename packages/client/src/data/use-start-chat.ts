@@ -23,6 +23,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { NewChatIntent } from "#state";
 import { enterCreatedChat, setActiveSection } from "#state";
 import { createEntityMutation } from "./create-entity-mutation.ts";
+import { notifyNewRoomPersona } from "./new-room-persona-notice.ts";
 import type { Trpc } from "./trpc.ts";
 import { useTRPC } from "./trpc.ts";
 import { useInvalidation } from "./use-invalidation.ts";
@@ -83,6 +84,10 @@ export function useStartChat(): UseStartChatResult {
         messages: result.opening?.messages ?? [],
         identities: result.chat.identities,
       });
+      // A roster start named its persona; every other launch says so when the default did not decide.
+      if (intent.anchorPersonaId === undefined || intent.anchorPersonaId === null) {
+        notifyNewRoomPersona(queryClient, trpc, result.chat);
+      }
       enterCreatedChat(chatId);
       setActiveSection("chats");
       // A confirming response must not re-render the cold room in the middle of its native crossfade.

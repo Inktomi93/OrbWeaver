@@ -1,9 +1,6 @@
-// Story module for the persona-panel-row CT (Spine-Testing §7 — CT mounts ONLY from a non-test module).
-// Drives the side-eye item-13 rework: the "set current" target is a stretched real `<Button>` pinned under
-// the row's controls (NOT a hand-rolled role="button" div), and the avatar/name/action controls are
-// disjoint SIBLINGS layered above it — so a CT can prove clicking a control fires ONLY its own action, not
-// "set current" (no nesting, no stopPropagation crutch). The row instantiates `useUpdatePersona`, so it
-// mounts under `CtDataProviders` (the trpc client) — the overlay tests trigger no network call.
+// Story module for the persona CTs (Spine-Testing §7 — CT mounts ONLY from a non-test module): the switcher
+// through its registered chrome entry, the Settings list and row, the editor, the first-run gate and the
+// notifications section. Rows instantiate entity mutations, so every story mounts under `CtDataProviders`.
 
 // @orb-waive-file testid-typed-only-stories("fired"): baselined when the gate widened; burn-down item 906.
 // @orb-waive-file testid-typed-only-stories("notified"): baselined when the gate widened; burn-down item 906.
@@ -24,7 +21,6 @@ import { FirstRunPersonaDialog } from "#client/features/persona/anchors/first-ru
 import { PersonaEditor } from "#client/features/persona/components/persona-editor.tsx";
 import { PersonaList } from "#client/features/persona/components/persona-list.tsx";
 import { PersonaNotificationsSection } from "#client/features/persona/components/persona-notifications-section.tsx";
-import { PersonaThisChatSection } from "#client/features/persona/components/persona-this-chat-section.tsx";
 import { realConfigGroups } from "../../../support/browser/ct-config-groups.ts";
 import { CtDataProviders, CtRealConfigSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 
@@ -65,36 +61,6 @@ export function PersonaEditorMacroStory(): ReactElement {
   );
 }
 
-// The CT's active-chat id — the `.ct.tsx` stubs `chat.getChat` for this same id (a plain module-const, not
-// an export: a story module exports components ONLY — useComponentExportOnlyModules).
-const THIS_CHAT_ID = castId<ChatId>("chat_persona_ct");
-
-/** `<PersonaThisChatSection>` with an active chat seeded (⑥b — HONOR persona.showNotifications). The section
- *  suspends on persona.list + getUserSettings + gates on getChat, all stubbed per-test; the seeded chat makes
- *  `useActiveChatId` non-null so the section renders. Wrapped in the production QueryBoundary (the persona
- *  panel's own boundary in-app) so the suspense reads have a boundary. */
-export function PersonaThisChatStory(): ReactElement {
-  // `notify` no-ops in the CT harness (bindNotify is main.tsx-only), so bind it here to a DOM sink — the CT
-  // observes the gated `notify.info` via the marker rather than the (unbound) toast surface.
-  const [notified, setNotified] = useState<string>("");
-  useState(() => {
-    selectChat(THIS_CHAT_ID);
-    const sink = (notice: NotifyInput): void => setNotified(toNotice(notice).title);
-    bindNotify({ error: sink, info: sink, success: sink, warn: sink });
-    return null;
-  });
-  return (
-    <CtDataProviders>
-      <div style={{ width: 360, padding: 16 }}>
-        <QueryBoundary fallback={<p>Loading…</p>} renderError={(): ReactElement => <p>error</p>}>
-          <PersonaThisChatSection />
-        </QueryBoundary>
-        <p data-testid="notified">{notified}</p>
-      </div>
-    </CtDataProviders>
-  );
-}
-
 /** The DENSE row at the rail-foot panel's REAL width (side-eye 2026-08-06 P1). Every marker lit — current +
  *  default + favorited — which is the state the shipped seed persona is in, and the state that made the row
  *  reserve BOTH the marker strip and the action strip and truncate "Traveler" to "Tra…".
@@ -103,7 +69,7 @@ export function PersonaThisChatStory(): ReactElement {
  *  defect is invisible at the 320px default story width for the same reason the theme-band clip was invisible
  *  at the content-sized mount — a shortfall this narrow only shows once the box is the real one. The width is
  *  SET on the container (the mount root is content-sized and would simply grow). */
-export function PersonaPanelRowDenseStory({ width = 358, cardPin = false }: { readonly width?: number; readonly cardPin?: boolean } = {}): ReactElement {
+export function PersonaPanelRowDenseStory({ width = 358 }: { readonly width?: number } = {}): ReactElement {
   return (
     <CtDataProviders>
       {/* A FIXED-width container (the narrowest-mount rule): a content-sized mount root agrees with the
@@ -111,12 +77,8 @@ export function PersonaPanelRowDenseStory({ width = 358, cardPin = false }: { re
       <div style={{ width }}>
         <PersonaPanelRow
           expanded={false}
-          isCardPin={cardPin}
-          isCurrent={true}
-          seatBindsPresets={true}
           isDefault={true}
           onDelete={(): void => undefined}
-          onSetCurrent={(): void => undefined}
           onClearDefault={(): void => undefined}
           onSetDefault={(): void => undefined}
           onToggleExpand={(): void => undefined}
@@ -247,6 +209,13 @@ function ColdConfigPanes(): ReactElement | null {
  *  out of the popover and the sheet). 360px stands in for the narrowest real content-pane column (a 430px
  *  phone minus the pane padding); the #443/#458/#463 collision pins run against this mount now. */
 export function PersonaListStory({ width = 360 }: { readonly width?: number } = {}): ReactElement {
+  // `notify` no-ops in the CT harness, so the story binds it to a DOM sink the CT reads.
+  const [notified, setNotified] = useState<string>("");
+  useState(() => {
+    const sink = (notice: NotifyInput): void => setNotified(toNotice(notice).title);
+    bindNotify({ error: sink, info: sink, success: sink, warn: sink });
+    return null;
+  });
   return (
     <CtDataProviders>
       <div style={{ width }}>
@@ -254,6 +223,7 @@ export function PersonaListStory({ width = 360 }: { readonly width?: number } = 
           <PersonaList />
         </QueryBoundary>
       </div>
+      <p data-testid="notified">{notified}</p>
     </CtDataProviders>
   );
 }
@@ -268,12 +238,8 @@ export function PersonaPanelRowStory(): ReactElement {
       <div style={{ width: 320 }}>
         <PersonaPanelRow
           expanded={expanded}
-          isCardPin={false}
-          isCurrent={false}
-          seatBindsPresets={true}
           isDefault={false}
           onDelete={(): void => setFired("delete")}
-          onSetCurrent={(): void => setFired("current")}
           onClearDefault={(): void => setFired("clear")}
           onSetDefault={(): void => setFired("default")}
           onToggleExpand={(): void => {

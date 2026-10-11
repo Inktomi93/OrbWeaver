@@ -14,6 +14,11 @@ export {
   Anchor,
   Archive,
   ArrowLeft,
+  // The panel edge control's pair per edge: a bar is the panel's edge, the arrow says where the panel goes.
+  ArrowLeftFromLine,
+  ArrowLeftToLine,
+  ArrowRightFromLine,
+  ArrowRightToLine,
   Award,
   Backpack,
   Ban,

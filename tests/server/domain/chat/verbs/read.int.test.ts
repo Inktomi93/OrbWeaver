@@ -1164,6 +1164,34 @@ describe("read — single reads", () => {
     expect(detail.viewerActivePersonaId).toBe(personaId);
   });
 
+  test("getChat's anchorState: live while the pin's owner is present (even on another seat persona), held once they leave or are disabled", async () => {
+    const host = await seedUser(db, castId<Handle>("pin_host"));
+    const member = await seedUser(db, castId<Handle>("pin_member"));
+    const pinned = await seedPersona(db, member, "mara");
+    const other = await seedPersona(db, member, "other");
+    const chatId = await seedRoom("pinroom", host);
+    await seedParticipant(db, { chatId, key: "pin_m", userId: member, role: "member", activePersonaId: other });
+    await db.update(chatsTable).set({ anchorPersonaId: pinned }).where(eq(chatsTable.id, chatId));
+    const read = (enabled: boolean): ReturnType<typeof createRead> =>
+      createRead(makeChatContext(db, { resolveUserEnabled: (userId) => Promise.resolve(enabled || userId !== member) }), makeDeps());
+
+    const live = await read(true).getChat({ principal: principal(host), chatId });
+    expect(live.anchorState).toBe("live");
+    expect((await read(false).getChat({ principal: principal(host), chatId })).anchorState).toBe("held");
+
+    await db
+      .update(chatParticipants)
+      .set({ leftSeq: 0 })
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, member)));
+    const held = await read(true).getChat({ principal: principal(host), chatId });
+    expect(held.anchorState).toBe("held");
+    // The pin's name still renders: the pointer is an identity source of its own.
+    expect(held.identities.some((e) => e.kind === "persona" && e.id === pinned)).toBe(true);
+
+    await db.update(chatsTable).set({ anchorPersonaId: null }).where(eq(chatsTable.id, chatId));
+    expect((await read(true).getChat({ principal: principal(host), chatId })).anchorState).toBe("none");
+  });
+
   test("getChat's viewerIsHost is false for a present MEMBER (not the host)", async () => {
     const host = await seedUser(db, castId<Handle>("host2"));
     const member = await seedUser(db, castId<Handle>("member2"));

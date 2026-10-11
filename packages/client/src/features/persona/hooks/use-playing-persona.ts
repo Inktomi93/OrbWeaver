@@ -1,33 +1,28 @@
-// "Who is playing" for every persona surface — the switcher's chip, head and rows (both lenses) and the
-// Settings list — read from ONE place, and the one verb that changes it. With a room open the answer is the
-// viewer's SEAT; with none it is the global pointer. A switch inside a room always moves the seat; the
-// "Everywhere" scope (and any switch with no room) also writes the global pointer.
+// "Who is playing" for the persona switcher (both lenses), read from ONE place, and the verbs that change the
+// three persona pointers: a switch moves the room seat and the last-played pointer, the crown moves only the
+// default, and the card pin moves only the room's anchor. None of them writes another's pointer.
 
 import type { PersonaId } from "@orb/kit/ids";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { peekQueryData, useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { useActiveChatId } from "#state";
-import { resolveCurrentPersona, resolvePlayingPersona } from "../lib/persona-current.ts";
-import { useSetChatActivePersona } from "./use-chat-persona.ts";
+import { resolveNewChatPersona, resolvePlayingPersona } from "../lib/persona-current.ts";
+import { useSetChatActivePersona, useSetChatAnchorPersona } from "./use-chat-persona.ts";
 import { useSetPersonaSeed } from "./use-persona-identity.ts";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
 
-/** How far the next switch reaches. Inside a room it always moves the seat; `everywhere` also moves the
- *  global pointer. Never stored. */
-type SwitchScope = "everywhere" | "chat";
-
 export interface PlayingPersonaState {
   readonly personas: readonly PersonaListItem[];
   readonly seeds: { readonly currentPersonaId: string | null; readonly defaultPersonaId: string | null };
   readonly notifyOnChange: boolean;
-  /** The global pointer's persona (what a new chat starts as when nothing connects). */
-  readonly current: PersonaListItem | null;
-  /** The persona playing now: the room seat when a room is open, else `current`. */
+  /** Who a new chat starts you as, and which pointer decided it (the no-room head). */
+  readonly newChat: ReturnType<typeof resolveNewChatPersona<PersonaListItem>>;
+  /** The persona playing now: the room seat when a room is open, else who a new chat starts you as. */
   readonly playing: PersonaListItem | null;
   /** The open room's detail, or `null` while none is open (or it has not loaded). */
   readonly chat: ChatDetail | null;
@@ -49,66 +44,70 @@ export function usePlayingPersona(): PlayingPersonaState {
     personas,
     seeds,
     notifyOnChange: settings.config.persona.showNotifications,
-    current: resolveCurrentPersona(personas, seeds),
+    newChat: resolveNewChatPersona(personas, seeds),
     playing: resolvePlayingPersona(personas, seeds, chat === null ? null : { seatId: chat.viewerActivePersonaId }),
     chat,
-    seatBindsPresets: chat === null || (chat.anchorPersonaId === null ? chat.viewerIsHost : personas.some((p) => p.id === chat.anchorPersonaId)),
+    seatBindsPresets:
+      chat === null || (chat.anchorPersonaId === null || chat.anchorState !== "live" ? chat.viewerIsHost : personas.some((p) => p.id === chat.anchorPersonaId)),
   };
 }
 
-/** The default pin's two verbs, shared by the switcher and the Settings list. Clearing is a quiet edit of a
- *  stored preference, so it says so and offers Undo. */
-export function useDefaultPin(state: PlayingPersonaState): { readonly pin: (personaId: PersonaId) => void; readonly clear: () => void } {
+/** The crown's two verbs, shared by the switcher and the Settings list. Writes only the default. */
+export function useDefaultPersona(notifyOnChange: boolean): { readonly set: (persona: PersonaListItem) => void; readonly clear: () => void } {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const queryClient = useQueryClient();
   const setSeed = useSetPersonaSeed({ trpc, invalidation });
-  // The persona being cleared, as a branded id (the stored pointer is a lenient plain string).
-  const previousId = state.personas.find((persona) => persona.id === state.seeds.defaultPersonaId)?.id;
-  // Undo reads the default AS IT IS NOW, not as it was when the notice was raised: a pin made since is newer
-  // than the one being restored and must not be overwritten by a stale Undo.
-  const defaultNow = (): string | null => peekQueryData(queryClient, trpc.settings.getUserSettings.queryKey())?.config.seeds.defaultPersonaId ?? null;
-  const pin = (personaId: PersonaId): void => {
-    setSeed.mutate({ section: "seeds", patch: { defaultPersonaId: personaId } });
+  const say = (message: string): void => {
+    if (notifyOnChange) {
+      notify.info(message);
+    }
   };
-  const clear = (): void => {
-    setSeed.mutate(
-      { section: "seeds", patch: { defaultPersonaId: null } },
+  return {
+    set: (persona): void => {
+      setSeed.mutate({ section: "seeds", patch: { defaultPersonaId: persona.id } }, { onSuccess: (): void => say(`${persona.name} is now your default.`) });
+    },
+    clear: (): void => {
+      setSeed.mutate({ section: "seeds", patch: { defaultPersonaId: null } }, { onSuccess: (): void => say("Default persona cleared.") });
+    },
+  };
+}
+
+/** The card pin's verb (host only; the server refuses anyone else). `null` unpins. Writes only the anchor. */
+export function useCardPin(state: PlayingPersonaState): (persona: { readonly id: PersonaId; readonly name: string } | null) => void {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const setAnchor = useSetChatAnchorPersona({ trpc, invalidation });
+  const { chat, notifyOnChange } = state;
+  return (persona): void => {
+    if (chat === null) {
+      return;
+    }
+    setAnchor.mutate(
+      { chatId: chat.id, personaId: persona?.id ?? null },
       {
         onSuccess: (): void => {
-          notify.info({
-            title: "Default persona cleared",
-            ...(previousId === undefined
-              ? {}
-              : {
-                  action: {
-                    label: "Undo",
-                    onClick: (): void => {
-                      if (defaultNow() === null) {
-                        pin(previousId);
-                      } else {
-                        notify.info("You've picked a new default since — nothing to undo.");
-                      }
-                    },
-                  },
-                }),
-          });
+          if (notifyOnChange) {
+            notify.info(persona === null ? "Card unpinned." : `Card pinned to ${persona.name}.`);
+          }
         },
       },
     );
   };
-  return { pin, clear };
 }
 
-/** The ONE switch verb. A no-op write (already the seat / already the pointer) is skipped. */
-export function useSwitchPersona(state: PlayingPersonaState, scope: SwitchScope): (persona: PersonaListItem) => void {
+/** The ONE switch verb, live only with a room open: moves the seat and records the persona as last played.
+ *  A no-op write (already the seat / already last played) is skipped. */
+export function useSwitchPersona(state: PlayingPersonaState): (persona: PersonaListItem) => void {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setSeed = useSetPersonaSeed({ trpc, invalidation });
   const setActive = useSetChatActivePersona({ trpc, invalidation });
-  const { chat, current, notifyOnChange } = state;
+  const { chat, seeds, notifyOnChange } = state;
   return (persona): void => {
-    if (chat !== null && persona.id !== chat.viewerActivePersonaId) {
+    if (chat === null) {
+      return;
+    }
+    if (persona.id !== chat.viewerActivePersonaId) {
       setActive.mutate(
         { chatId: chat.id, personaId: persona.id },
         {
@@ -120,7 +119,7 @@ export function useSwitchPersona(state: PlayingPersonaState, scope: SwitchScope)
         },
       );
     }
-    if ((chat === null || scope === "everywhere") && persona.id !== current?.id) {
+    if (persona.id !== seeds.currentPersonaId) {
       setSeed.mutate({ section: "seeds", patch: { currentPersonaId: persona.id } });
     }
   };

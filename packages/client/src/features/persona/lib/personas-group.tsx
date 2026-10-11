@@ -1,9 +1,5 @@
-// The Personas config group (client-architecture-lockdown.md §8) — the
-// persona surface RELOCATED into the unified Configuration workspace as a `sections` SKIMMER on the user
-// shelf. Owned by features/persona (the M6.2 de-god move). PERSONA IS OWNER-SACRED: the surface moves and
-// its FRAME conforms to the registry (three contributed sections — `persona-*-section.tsx` beside this
-// file — with the editor and the pinned row as their search leaves, §6.8.2); its editing model, verbs and
-// copy do not change here (S4 owns the rail slot).
+// The Personas config group — the MANAGE surface for personas, a `sections` skimmer on the user shelf. Its
+// sections are contributed beside this file (`persona-*-section.tsx`); playing a persona lives in the switcher.
 
 import { Drama } from "@orb/ui/icons";
 import { useQuery } from "@tanstack/react-query";
@@ -24,7 +20,8 @@ export const personasGroup: ConfigGroupDefinition = {
   shelf: "user",
   label: "Personas",
   icon: Drama,
-  description: "Your personas — create, edit, import and export — plus the persona-change notification.",
+  description:
+    "Your personas: who you are in the story. Make and edit them here, mark one as your default with the crown, and choose whether the app tells you when a chat changes who you're playing. Switching happens in the persona switcher behind your avatar.",
   order: 10,
   useSearchRows: usePersonaSearchRows,
   body: { kind: "sections" },

@@ -55,6 +55,11 @@ export function chatWithActionName(subject: string): string {
   return `Chat with ${subject}`;
 }
 
+/** The accessible name of a speaker's art in the transcript, which opens it full size — `View <subject>'s image`. */
+export function viewImageActionName(subject: string): string {
+  return `View ${subject}'s image`;
+}
+
 /** The accessible name of a row's inline DUPLICATE door — `Duplicate <subject>` (`library-row.tsx`). */
 export function duplicateActionName(subject: string): string {
   return `Duplicate ${subject}`;

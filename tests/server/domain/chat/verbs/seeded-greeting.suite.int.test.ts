@@ -27,7 +27,7 @@ import type { CharacterId, ChatId, Handle, MessageId, UserId } from "@orb/kit/id
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { ChatNotFoundError, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
+import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import { createEdit } from "#server/domain/chat/verbs/edit.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -225,6 +225,28 @@ describe("the target — only a character-voiced greeting has alternates", () =>
     await expect(edit().setSeededGreeting({ principal: principal(room.host), chatId: room.chatId, messageId, greetingIndex: 1 })).rejects.toThrow(
       ChatOperationError,
     );
+  });
+
+  test("a GENERATED character reply in a room with no user turn is refused, and keeps its bytes", async () => {
+    const room = await seedRoom("p");
+    const Generated = "A reply the model wrote.";
+    // Same shape as the seeded greeting — assistant + characterId, window open — except a model produced it.
+    const { messageId } = await seedMessage(db, room.chatId, 2, {
+      role: "assistant",
+      characterId: room.characterId,
+      content: Generated,
+      genStartedAt: 1000,
+      genFinishedAt: 2000,
+    });
+
+    await expect(edit().setSeededGreeting({ principal: principal(room.host), chatId: room.chatId, messageId, greetingIndex: 1 })).rejects.toMatchObject({
+      code: CHAT_OP_CODES.notGreetingRow,
+    });
+    expect(await contentOf(messageId)).toBe(Generated);
+    expect(emitted).toStrictEqual([]);
+    // Planted control: the seeded greeting beside it steps under the same host, card and window.
+    await edit().setSeededGreeting({ principal: principal(room.host), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 1 });
+    expect(await contentOf(room.greetingId)).toBe(ALT_1);
   });
 
   test("a slot from ANOTHER chat is the leak-free NOT_FOUND (the chat-scoping belt)", async () => {

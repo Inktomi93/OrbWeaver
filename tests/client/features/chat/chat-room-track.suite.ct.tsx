@@ -113,8 +113,12 @@ function seat(): ParticipantView {
 }
 
 type ChatStyle = TrpcWireOutput<"settings.getUserSettings">["config"]["appearance"]["chatStyle"];
-function routeRoom(page: Page, chatStyle: ChatStyle, content: string = LONG_PROSE, extra: TrpcRoutes = {}): Promise<unknown> {
-  return routeTrpc(page, {
+// A tiny real image: the cast carries an avatar hash, and art whose image fails to load is treated as no image.
+const TRACK_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
+
+async function routeRoom(page: Page, chatStyle: ChatStyle, content: string = LONG_PROSE, extra: TrpcRoutes = {}): Promise<unknown> {
+  await page.route("**/api/blob/**", (route) => route.fulfill({ status: 200, contentType: "image/png", body: TRACK_PNG }));
+  return await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     "settings.getUserSettings": () => ({
