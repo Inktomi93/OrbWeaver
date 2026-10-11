@@ -302,16 +302,10 @@ export function repointCharacterSeatStatement(db: Db, participantId: ChatPartici
  *  the nominee → `host`, and clears the chat's pending nomination (nominee AND offer together — an executed
  *  offer must never be re-executable, and a cleared nominee with a live offer would be a consent with nobody
  *  attached to it). Order is load-bearing: demote → promote → clear. The caller must verify the caller IS
- *  the pending nominee before calling.
- *
- *  `clearAnchorPersona` rides the SAME `chats` UPDATE as the nomination clear (one statement, not two): the
- *  D51 `{{user}}` anchor is resolved under the HOST's principal, so an anchor the incoming host cannot read is
- *  a dead pin — the POV falls through to the speaker's active persona while `ChatDetail` keeps serving an
- *  unreadable id (and `exportChat` still reads its NAME). The verb decides readability (stickler F2); this
- *  layer only writes the null it is told to. */
+ *  the pending nominee before calling. The anchor persona is untouched: a pin holds through a handoff. */
 export function acceptHostHandoffSwapStatements(
   db: Db,
-  params: { readonly chatId: ChatId; readonly nomineeUserId: UserId; readonly now: number; readonly clearAnchorPersona: boolean },
+  params: { readonly chatId: ChatId; readonly nomineeUserId: UserId; readonly now: number },
 ): BatchStmt[] {
   return [
     db
@@ -328,7 +322,6 @@ export function acceptHostHandoffSwapStatements(
         pendingHostUserId: null,
         pendingHandoffOffer: null,
         updatedAt: params.now,
-        ...(params.clearAnchorPersona ? { anchorPersonaId: null } : {}),
       })
       .where(eq(chats.id, params.chatId)),
   ];

@@ -16,11 +16,12 @@ import { Button } from "@orb/ui/button";
 import { DIALOG_SCROLL_CLASS, Dialog, DialogDescription, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
+import { useQueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { Trpc } from "#data";
-import { useInvalidation, useTRPC } from "#data";
+import { notifyNewRoomPersona, useInvalidation, useTRPC } from "#data";
 import { DEAD_INVITE_SENTENCE, inviteRoomSentence, testId } from "#lib";
 import { selectChat, setActiveSection } from "#state";
 import { usePreviewInvite, useRedeemInvite } from "../hooks/use-invite-mutations.ts";
@@ -39,6 +40,7 @@ export interface JoinInviteDialogProps {
 /** The preview→confirm `/join` landing dialog. */
 export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): ReactElement {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const invalidation = useInvalidation();
   const preview = usePreviewInvite({ trpc, invalidation });
   const redeem = useRedeemInvite({ trpc, invalidation });
@@ -72,6 +74,7 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
     redeem.mutateAsync({ token }).then(
       ({ chat }) => {
         onDone();
+        notifyNewRoomPersona(queryClient, trpc, chat);
         // The sanctioned cross-feature navigation seam (§5.1): land in the joined room.
         setActiveSection("chats");
         selectChat(chat.id);

@@ -5,7 +5,7 @@
 // `viewerActivePersonaId`) derive from the roster ⋈ `viewerUserId`; `viewerOwnedCharacterIds` needs an
 // ownership read, so the verb resolves it (`substrate/viewer-gallery.ts`), and the gallery subject derives here.
 
-import type { ChatIdentity, ChatMetadata, ParticipantView } from "@orb/contracts/chat";
+import type { AnchorState, ChatIdentity, ChatMetadata, ParticipantView } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatDetail } from "../contract/views.ts";
@@ -42,6 +42,8 @@ interface ToChatDetailInput {
   readonly viewerHistoryFloorSeq: number;
   /** `resolveViewerOwnedCharacterIds` over the same roster. REQUIRED for the same reason as the floor. */
   readonly viewerOwnedCharacterIds: readonly CharacterId[];
+  /** `resolveAnchorState` over the same roster (`substrate/participants-humans.ts`). */
+  readonly anchorState: AnchorState;
 }
 
 /** Map a loaded chat row + its resolved roster + chat-identity producer → `ChatDetail`.
@@ -50,7 +52,15 @@ interface ToChatDetailInput {
  *  model-written prose covering canon from seq 1 through `compactedAtSeq`, so ANY clamped viewer
  *  (`viewerHistoryFloorSeq > 0`) would be reading a distillation of the transcript their floor withholds.
  *  Both fields drop together — a `compactedAtSeq` with no summary is a divider anchored to nothing. */
-export function toChatDetail({ chat, participants, identities, viewerUserId, viewerHistoryFloorSeq, viewerOwnedCharacterIds }: ToChatDetailInput): ChatDetail {
+export function toChatDetail({
+  chat,
+  participants,
+  identities,
+  viewerUserId,
+  viewerHistoryFloorSeq,
+  viewerOwnedCharacterIds,
+  anchorState,
+}: ToChatDetailInput): ChatDetail {
   const viewer = participants.find((p) => p.userId === viewerUserId);
   const checkpointVisible = viewerHistoryFloorSeq <= NO_HISTORY_FLOOR;
   return {
@@ -62,6 +72,7 @@ export function toChatDetail({ chat, participants, identities, viewerUserId, vie
     parentChatId: chat.parentChatId,
     forkedAt: chat.forkedAt,
     anchorPersonaId: chat.anchorPersonaId,
+    anchorState,
     participants,
     viewerActivePersonaId: viewer?.activePersonaId ?? null,
     // A role-derived PAYLOAD field, not a gate — DERIVED from its class home (`member-visibility.ts`, the

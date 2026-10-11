@@ -174,7 +174,13 @@ import {
   viewerReadsHidden,
 } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
-import { humanSeatPersonasOf, memberPersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
+import {
+  humanSeatPersonasOf,
+  memberPersonaIdsOf,
+  presentAndEnabledHumanUserIdsOf,
+  resolveAnchorState,
+  seatsMultipleHumans,
+} from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
@@ -828,7 +834,8 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
   return async ({ principal, chatId }: GetChatParams): Promise<ChatDetail> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const participants = await deps.loadParticipantViews(chatId);
-    const identities = await loadChatIdentityProducer(ctx.db, { participants });
+    const anchorPersonaId = membership.chat.anchorPersonaId;
+    const identities = await loadChatIdentityProducer(ctx.db, { participants, anchorPersonaId });
     return toChatDetail({
       chat: membership.chat,
       participants,
@@ -836,6 +843,7 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
       viewerUserId: principal.userId,
       viewerOwnedCharacterIds: await resolveViewerOwnedCharacterIds(ctx.getCard, participants, principal.userId),
       viewerHistoryFloorSeq: membership.historyFloorSeq,
+      anchorState: await resolveAnchorState(ctx, participants, anchorPersonaId),
     });
   };
 }
@@ -1079,7 +1087,7 @@ function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["list
     const reasoningHostOnly = readsHidden ? false : await resolveReasoningHostOnly(ctx, chatId);
     const messages = readsHidden ? chronological : chronological.map((v) => projectViewForMember(v, reasoningHostOnly));
     const participants = await deps.loadParticipantViews(chatId);
-    const identities = await loadChatIdentityProducer(ctx.db, { participants, messages });
+    const identities = await loadChatIdentityProducer(ctx.db, { participants, messages, anchorPersonaId: membership.chat.anchorPersonaId });
     return { messages, identities };
   };
 }
