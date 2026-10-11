@@ -30,6 +30,7 @@ import type { Dirent } from "node:fs";
 import { readdir as readdirFs, readFile as readFileFs, stat as statFs } from "node:fs/promises";
 import { join } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
+import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { ASSET_UPLOAD_MAX_BYTES, IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
@@ -150,6 +151,8 @@ export interface ProfileDirImportDeps {
   readonly stWallClockZone?: string;
   readonly dryRun: boolean;
   readonly signal: AbortSignal;
+  /** The review's per-collision persona choices; an unlisted collision merges. */
+  readonly personaCollisions?: PersonaCollisionChoices | undefined;
 }
 
 /** Apply the direct-tree byte belts at the read boundary. `stat` rejects before the allocation, while the
@@ -596,6 +599,8 @@ interface WaveOutcomes {
   /** ALREADY-IMPORTED rooms this run back-filled persona attribution onto, summed across the solo, group and
    *  orphan waves (the dedup-skip HEAL — `BulkImportChatsResult.chatsPersonaHealed`). */
   readonly chatsPersonaHealed: number;
+  /** Personas the persona wave linked to an owned persona of the same name (the merge choice). */
+  readonly personasMergedKeys: readonly string[];
   /** Every wave's written real conversations, in run order: solo bundles, group rooms, orphans. */
   readonly memoryChatIds: readonly ChatId[];
   /** The GLOBAL regex wave (found counts ride `collected`; these are the write-time outcomes). */
@@ -636,6 +641,7 @@ const NO_WAVES: WaveOutcomes = {
   seatedDisabledMembers: [],
   unresolvedPinnedPersonas: [],
   chatsPersonaHealed: 0,
+  personasMergedKeys: [],
   memoryChatIds: [],
   globalRegexScriptsLifted: 0,
   globalRegexScriptsReused: 0,
@@ -1050,6 +1056,7 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
   const service = createImportService(contextFor(deps, store));
 
   let changed = 0;
+  let personasMergedKeys: readonly string[] = [];
 
   // Personas FIRST — populates personaByUserName so the chat importers can attribute their user_names.
   const personaInputs: ImportPersonaInput[] = [];
@@ -1060,8 +1067,9 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
     personaInputs.push(await toPersonaInput(store, deps.principal, p));
   }
   if (personaInputs.length > 0) {
-    const personaResult = await service.importPersonas({ personas: personaInputs });
+    const personaResult = await service.importPersonas({ personas: personaInputs, collisions: deps.personaCollisions });
     changed += personaResult.personasCreated;
+    personasMergedKeys = personaResult.mergedKeys;
   }
 
   // Standalone ST worlds BEFORE characters — imported as UNATTACHED owner library books (additive by content).
@@ -1172,6 +1180,7 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
       // Every wave's dedup-skip HEALS, summed: this is the number the operator reads to see an existing
       // corpus gain the persona attribution its first import could not resolve.
       chatsPersonaHealed: bundleResult.chatsPersonaHealed + groupResult.chatsPersonaHealed + orphanResult.chatsPersonaHealed,
+      personasMergedKeys,
       memoryChatIds: [...bundleResult.memoryChatIds, ...groupResult.memoryChatIds, ...orphanResult.memoryChatIds],
       globalRegexScriptsLifted,
       globalRegexScriptsReused,

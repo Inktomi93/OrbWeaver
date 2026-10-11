@@ -5,6 +5,7 @@ import { RadioGroup, RadioGroupItem } from "@orb/ui/radio-group";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
+import { ExternallyControlledRadioGroup } from "./radio-group.fixtures.tsx";
 
 const NON_EMPTY = /.+/u;
 
@@ -38,6 +39,31 @@ test("arrow keys move the selection", async ({ mount, page }) => {
   await expect(ai).toHaveAttribute("aria-checked", "true");
   await ai.press("ArrowDown");
   await expect(page.getByRole("radio", { name: "A human GM" })).toHaveAttribute("aria-checked", "true");
+});
+
+test("after the value is set from outside, Tab from the button lands on the CHECKED radio", async ({ mount, page }) => {
+  await mount(<ExternallyControlledRadioGroup />);
+  await page.getByRole("button", { name: "Keep all" }).click();
+  await expect(page.getByRole("radio", { name: "Keep both" })).toHaveAttribute("aria-checked", "true");
+
+  // The tab stop is seated on the checked radio (the group settles it a beat after the value changes).
+  await expect(page.getByRole("radio", { name: "Keep both" })).toHaveAttribute("tabindex", "0");
+  await page.keyboard.press("Tab");
+
+  await expect(page.getByRole("radio", { name: "Keep both" })).toBeFocused();
+});
+
+test("after a user pick, an outside change away and back still seats the tab stop on the checked radio", async ({ mount, page }) => {
+  await mount(<ExternallyControlledRadioGroup />);
+  await page.getByRole("radio", { name: "Keep both" }).click();
+  await page.getByRole("button", { name: "Merge all" }).click();
+  await expect(page.getByRole("radio", { name: "Merge" })).toHaveAttribute("tabindex", "0");
+
+  await page.getByRole("button", { name: "Keep all" }).click();
+  await expect(page.getByRole("radio", { name: "Keep both" })).toHaveAttribute("tabindex", "0");
+  await page.keyboard.press("Tab");
+
+  await expect(page.getByRole("radio", { name: "Keep both" })).toBeFocused();
 });
 
 test("onValueChange reports the picked value", async ({ mount, page }) => {

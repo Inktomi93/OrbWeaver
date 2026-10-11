@@ -4,6 +4,7 @@
 
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
+import type { PersonaCollision } from "@orb/contracts/import";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
@@ -21,6 +22,7 @@ import type {
   ListConnectedParams,
   ListPersonasParams,
   RemovePersonaParams,
+  ReviewPersonaImportParams,
   SetActivePersonaParams,
   UpdatePersonaParams,
 } from "./params.ts";
@@ -101,4 +103,7 @@ export interface PersonaService {
    *  merged in place. Never throws for a malformed file — the refusal is a typed outcome the calling door
    *  renders. Never carries an avatar (re-attaching one after restore is a separate, explicit action). */
   readonly import: (params: ImportPersonaParams) => Promise<PersonaImportOutcome>;
+  /** Read-only: the incoming personas that share a folded name with an owned persona but differ in content,
+   *  one per name. The profile-import review lists these and asks per collision. */
+  readonly reviewImport: (params: ReviewPersonaImportParams) => Promise<readonly PersonaCollision[]>;
 }

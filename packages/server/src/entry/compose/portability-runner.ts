@@ -225,7 +225,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     // it is one gesture. Semantics + the misuse note: `transport/trpc/user-events-bus.ts`. #23's
     // `emitLibraryChanged` deliberately stays OUTSIDE these scopes — it fires after the runner returns, from
     // the workload contribution's settle step, and it is the belt that covers a run which wrote canon.
-    runProfileDirImport: async ({ profileRoot, ownerId, dryRun, signal }) =>
+    runProfileDirImport: async ({ profileRoot, ownerId, dryRun, signal, personaCollisions }) =>
       await withQuietBulkFanout(async () => {
         const principal = await deps.resolveOwnerPrincipal(ownerId);
         const from = now();
@@ -258,6 +258,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
           now,
           dryRun,
           signal,
+          personaCollisions,
         });
         // A real run writes the "what landed / what didn't" report to disk; a dry run writes nothing.
         const reportPath = dryRun ? undefined : await writeImportReport(report, now(), deps.importReportsDir);
@@ -265,6 +266,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
           scanned: report.scanned,
           changed: report.changed,
           failed: report.skippedCards.length,
+          mergedKeys: report.personasMergedKeys,
           memoryScope: await settleImportMemory({ ownerId, from, memoryChatIds: report.memoryChatIds }),
           ...(reportPath !== undefined ? { reportPath } : {}),
         };

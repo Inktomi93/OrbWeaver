@@ -45,4 +45,13 @@ describe("importPersonas (Option B mapping)", () => {
     expect(h.profile.personaByUserName.get("alex")).toBe(result.defaultPersonaId);
     expect(h.profile.personaByUserName.has("eve")).toBe(true);
   });
+
+  test("the run's per-collision choices reach the persona op untouched", async () => {
+    const h = makeProfileHarness(OWNER);
+    const choices = { alex: "keep-both", eve: "merge" } as const;
+
+    await createImportPersonas(h.ctx)({ personas: [persona("Alex")], collisions: choices });
+
+    expect(h.personaCalls[0]?.collisions).toEqual(choices);
+  });
 });

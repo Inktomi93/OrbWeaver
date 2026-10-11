@@ -203,6 +203,22 @@ describe("import-st — the run's own logic", () => {
     expect(await contributions[0].run(ctx, { dryRun: true }, vi.fn(), sig())).not.toHaveProperty("memoryScope");
   });
 
+  test("merged personas ride the result as their own keys, and are absent when none merged", async () => {
+    const { stagingRoot } = await makeStaging();
+    const merging = build(stagingRoot, {
+      runProfileDirImport: vi.fn(async () => ({ scanned: 3, changed: 1, failed: 0, mergedKeys: ["a", "b"], memoryScope: null })),
+    });
+    expect((await merging.contributions[0].run(ctx, {}, vi.fn(), sig())).mergedKeys).toEqual(["a", "b"]);
+    expect(await build(stagingRoot).contributions[0].run(ctx, {}, vi.fn(), sig())).not.toHaveProperty("mergedKeys");
+  });
+
+  test("the upload's persona-collision choices reach the profile driver", async () => {
+    const { stagingRoot } = await makeStaging();
+    const { deps, contributions } = build(stagingRoot);
+    await contributions[0].run(ctx, { personaCollisions: { nate: "keep-both" } }, vi.fn(), sig());
+    expect(vi.mocked(deps.runProfileDirImport).mock.calls[0]?.[0]?.personaCollisions).toEqual({ nate: "keep-both" });
+  });
+
   test("a real run that changed NOTHING neither reconciles nor fans a refresh", async () => {
     const { stagingRoot } = await makeStaging();
     const { deps, contributions } = build(stagingRoot, { runProfileDirImport: vi.fn(async () => ({ scanned: 3, changed: 0, failed: 0, memoryScope: null })) });

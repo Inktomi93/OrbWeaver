@@ -6,6 +6,7 @@
 // portability descriptors take — one slice, built once, shared by both consumers.
 
 import type { CompareAndSetImportedTokenUsage, ImportWindow, ListImportedTokenUsageCandidates } from "@orb/contracts/chat";
+import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BundleImportWorkloadResult, ImportTokenUsageBackfillResult, ReportProgress } from "@orb/contracts/workloads";
 import type { ChatId, UserId } from "@orb/kit/ids";
 
@@ -29,6 +30,8 @@ interface ImportPassCounts {
   readonly changed: number;
   /** Cards skipped by per-card isolation (a single card's defect never aborts the batch). */
   readonly failed: number;
+  /** Folded names of personas merged into an owned persona of the same name (not a skip, not new canon). */
+  readonly mergedKeys?: readonly string[];
   /** Path to the written import report (what landed / what didn't). Absent on a dry run (nothing written). */
   readonly reportPath?: string;
   /** The span in which the run wrote real conversations (null = none): the client's memory-build offer scope. */
@@ -50,7 +53,13 @@ export interface ImportWorkloadDeps extends ImportTokenUsageBackfillDeps {
   /** The ST profile directory `import-st` reads when the row carries no `stagedDir` override. */
   readonly stProfileDir: string;
   /** The ST profile-directory bulk loop (personas first, then per-bundle character + chats). */
-  readonly runProfileDirImport: (args: { profileRoot: string; ownerId: UserId; dryRun: boolean; signal: AbortSignal }) => Promise<ImportPassCounts>;
+  readonly runProfileDirImport: (args: {
+    profileRoot: string;
+    ownerId: UserId;
+    dryRun: boolean;
+    signal: AbortSignal;
+    personaCollisions: PersonaCollisionChoices | undefined;
+  }) => Promise<ImportPassCounts>;
   /** The single-archive portability import (its own extract belts + caps). */
   readonly runBundleImport: (args: { archive: Uint8Array; ownerId: UserId; stagingRoot: string; signal: AbortSignal }) => Promise<BundleImportWorkloadResult>;
   /** The folder-upload variant: a staged directory tree walked through the SAME entity routing. */

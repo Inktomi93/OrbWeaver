@@ -1,10 +1,11 @@
 // verb: import — restore an owned persona from ONE portable FILE, the export.ts round-trip twin. THE one
 // import path: the single-entity door and the bundle descriptor both land here, so the refusal copy and the
-// collision rule have exactly one home. ADDITIVE (owner ruling): an owned persona with equal content —
-// folded name, description, title, placement, art (`findDuplicatePersona`, beside the persona serde) — is
-// reused untouched; the same name with different content lands as a second persona under the next free
-// name; nothing is merged in place. The backup shape never carries avatarAssetId, so there is no
-// asset-ownership guard to run here. NEVER throws for a malformed file.
+// collision rule have exactly one home. An owned persona with equal content — folded name, description,
+// title, placement, art (`findDuplicatePersona`, beside the persona serde) — is reused untouched; the same
+// name with different content lands as a second persona under the next free name. This door has no review
+// step to ask on; the profile import (`persistence/import-write.ts`) asks per collision instead. The backup
+// shape never carries avatarAssetId, so there is no asset-ownership guard to run here. NEVER throws for a
+// malformed file.
 
 import { personas } from "@orb/db";
 import { nextFreeName } from "@orb/kit/strings";

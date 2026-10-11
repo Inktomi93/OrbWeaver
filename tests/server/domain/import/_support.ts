@@ -10,6 +10,7 @@
 
 import type { AttachedBookRef, CreateCharacterInput } from "@orb/contracts/character";
 import type { BulkImportChatInput } from "@orb/contracts/chat";
+import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonaInput } from "@orb/contracts/persona";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId, WorldBookId } from "@orb/kit/ids";
@@ -224,6 +225,7 @@ interface BulkChatsCall {
 interface BulkPersonasCall {
   readonly ownerId: UserId;
   readonly personas: readonly BulkImportPersonaInput[];
+  readonly collisions?: PersonaCollisionChoices | undefined;
 }
 
 export interface ProfileHarness {
@@ -299,6 +301,8 @@ export function makeProfileHarness(ownerId: UserId): ProfileHarness {
       return Promise.resolve({
         personasCreated: created,
         personasSkipped: args.personas.length - created,
+        personasMerged: 0,
+        mergedKeys: [],
         defaultPersonaId,
         idByName,
       });

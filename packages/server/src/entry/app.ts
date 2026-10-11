@@ -429,7 +429,12 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   registerExport(app, { export: deps.exportService, registry: deps.portability });
   registerImportBundle(app, { workloads: deps.services.workloads, stagingDir: env.IMPORT_STAGING_DIR });
   registerImportChat(app, { registry: deps.portability, now: deps.now, settleImportMemory: deps.settleImportMemory });
-  registerImportTree(app, { workloads: deps.services.workloads, registry: deps.portability, stagingDir: env.IMPORT_STAGING_DIR });
+  registerImportTree(app, {
+    workloads: deps.services.workloads,
+    persona: deps.services.persona,
+    registry: deps.portability,
+    stagingDir: env.IMPORT_STAGING_DIR,
+  });
   registerAuthRoutes(plain, {
     sessions: deps.sessions,
     // W7a — ending a session ends the streams it opened. The registry is transport's; the EDGE composes here,

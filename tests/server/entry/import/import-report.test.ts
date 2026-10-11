@@ -74,6 +74,7 @@ const EMPTY: ImportReport = {
   unhandledSettings: [],
   unresolvedPinnedPersonas: [],
   chatsPersonaHealed: 0,
+  personasMergedKeys: [],
   memoryChatIds: [],
   globalRegexScriptsFound: 0,
   globalRegexScriptsLifted: 0,

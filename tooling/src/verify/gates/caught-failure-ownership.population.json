@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 704,
+    "sites": 705,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 704,
+      "deliberate-absorb": 705,
       "unproven": 0
     },
     "byGrammar": {
       "default": 160,
-      "empty": 357,
+      "empty": 358,
       "promise": 187
     }
   },
@@ -1674,6 +1674,11 @@
       "siteId": "packages/server/src/entry/http/import-tree.ts::registerImportTree::err::1",
       "verdict": "deliberate-absorb",
       "reason": "propagated — the HTTP entry boundary's own error mapper (`errorResponse`) answers the caller with the failure as a response; the inner catch (staging cleanup) rethrows unconditionally. Never a silent swallow. Ends if this route stops being the terminal HTTP handler."
+    },
+    {
+      "siteId": "packages/server/src/entry/http/import-tree.ts::registerPersonaReview::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "propagated — `errorResponse` answers the caller with the failure as a response; nothing is swallowed. Ends if this route stops being the terminal HTTP handler."
     },
     {
       "siteId": "packages/server/src/entry/http/plugin-frame.ts::registerPluginFrame::catch::1",

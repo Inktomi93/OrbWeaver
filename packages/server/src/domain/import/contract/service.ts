@@ -3,6 +3,7 @@
 
 import type { AttachedBookRef, CreateCharacterInput } from "@orb/contracts/character";
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
+import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
 import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
@@ -101,8 +102,13 @@ type BulkImportChatsOp = (args: {
   readonly chats: readonly BulkImportChatInput[];
 }) => Promise<BulkImportChatsResult>;
 
-/** Persona-owned bulk-import write op (dedup-by-name); returned idByName feeds chat attribution. */
-type BulkImportPersonasOp = (args: { readonly ownerId: UserId; readonly personas: readonly BulkImportPersonaInput[] }) => Promise<BulkImportPersonasResult>;
+/** Persona-owned bulk-import write op (content dedup, then the per-collision choice); returned idByName feeds
+ *  chat attribution. */
+type BulkImportPersonasOp = (args: {
+  readonly ownerId: UserId;
+  readonly personas: readonly BulkImportPersonaInput[];
+  readonly collisions?: PersonaCollisionChoices | undefined;
+}) => Promise<BulkImportPersonasResult>;
 
 /** Persona-owned by-NAME lookup (R6). `personaByUserName` below is the PROFILE run's in-memory map, built by
  *  the persona wave in the same process; a BUNDLE gets one fresh `ImportContext` per file, so a chat that
@@ -208,7 +214,10 @@ export interface ImportService {
    *  character). Requires ctx.profile. Never throws for a malformed file. */
   readonly importChatBundle: (input: ImportChatFileInput) => Promise<ImportChatFileOutcome>;
   /** Imports a profile's personas; must run before the chat importers (populates personaByUserName). */
-  readonly importPersonas: (input: { readonly personas: readonly ImportPersonaInput[] }) => Promise<ImportPersonasResult>;
+  readonly importPersonas: (input: {
+    readonly personas: readonly ImportPersonaInput[];
+    readonly collisions?: PersonaCollisionChoices | undefined;
+  }) => Promise<ImportPersonasResult>;
   /** Imports a profile's ST presets (already mapped to the orb-native file by the collector) through the
    *  preset domain's own idempotent import op. Per-preset isolation. Requires ctx.profile. */
   readonly importPresets: (input: { readonly presets: readonly CollectedPreset[] }) => Promise<ImportPresetsResult>;

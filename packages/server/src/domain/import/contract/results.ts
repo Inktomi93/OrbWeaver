@@ -131,6 +131,8 @@ export interface ImportGroupsResult {
 export interface ImportPersonasResult {
   readonly personasCreated: number;
   readonly personasSkipped: number;
+  readonly personasMerged: number;
+  readonly mergedKeys: readonly string[];
   readonly defaultPersonaId: PersonaId | null;
 }
 

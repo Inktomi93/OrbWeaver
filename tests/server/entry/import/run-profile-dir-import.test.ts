@@ -277,6 +277,8 @@ function fakes(): Fakes {
     return Promise.resolve({
       personasCreated: created,
       personasSkipped: args.personas.length - created,
+      personasMerged: 0,
+      mergedKeys: [],
       defaultPersonaId: null,
       idByName,
     });

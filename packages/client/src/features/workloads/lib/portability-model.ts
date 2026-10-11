@@ -58,6 +58,8 @@ interface ImportOutcomeView {
 export interface ImportSummary {
   readonly imported: number;
   readonly skipped: number;
+  /** Personas the reader chose to merge into one they already own: neither new canon nor a skip. */
+  readonly merged: number;
   readonly failed: number;
   readonly outcomes: readonly ImportOutcomeView[];
   readonly notes: readonly string[];
@@ -71,6 +73,9 @@ export interface ImportSummary {
 export interface BundleCounts {
   readonly imported: number;
   readonly skipped: number;
+  /** Folded names of the personas merged into one the reader owns. Keys, so the uploads of a split folder
+   *  (which each re-merge the same persona) union instead of adding. */
+  readonly mergedKeys: readonly string[];
   readonly failed: number;
   readonly notes: readonly string[];
   readonly memoryScope: ImportWindow | null;
@@ -94,10 +99,12 @@ export function asBundleCounts(result: unknown): BundleCounts {
   const memoryScope = importWindowSchema.safeParse(record["memoryScope"]);
   const failed = count(record["failed"]);
   const imported = record["imported"] === undefined ? count(record["changed"]) : count(record["imported"]);
-  const skipped = record["skipped"] === undefined ? Math.max(0, count(record["scanned"]) - imported - failed) : count(record["skipped"]);
+  const mergedKeys = Array.isArray(record["mergedKeys"]) ? record["mergedKeys"].filter((key): key is string => typeof key === "string") : [];
+  const skipped = record["skipped"] === undefined ? Math.max(0, count(record["scanned"]) - imported - failed - mergedKeys.length) : count(record["skipped"]);
   return {
     imported,
     skipped,
+    mergedKeys,
     failed,
     notes: Array.isArray(notes) ? notes.filter((note): note is string => typeof note === "string") : [],
     memoryScope: memoryScope.success ? memoryScope.data : null,
@@ -109,6 +116,7 @@ export function sumBundleCounts(a: BundleCounts, b: BundleCounts): BundleCounts 
   return {
     imported: a.imported + b.imported,
     skipped: a.skipped + b.skipped,
+    mergedKeys: [...new Set([...a.mergedKeys, ...b.mergedKeys])],
     failed: a.failed + b.failed,
     notes: [...a.notes, ...b.notes],
     memoryScope: mergeScopes(a.memoryScope, b.memoryScope),
@@ -128,8 +136,8 @@ export function planNotes(plan: TreeImportPlan): string[] {
 }
 
 /** Normalize a finished bundle workload's counts into the summary view (no per-file outcomes). */
-export function summarizeBundleCounts(counts: BundleCounts): ImportSummary {
-  return { ...counts, outcomes: [] };
+export function summarizeBundleCounts({ mergedKeys, ...counts }: BundleCounts): ImportSummary {
+  return { ...counts, merged: mergedKeys.length, outcomes: [] };
 }
 
 const UNNAMED_CARD = "Unnamed card";
@@ -141,6 +149,7 @@ export function summarizeCardImport(result: CardImportResult): ImportSummary {
   return {
     imported: created.length,
     skipped: deduped.length,
+    merged: 0,
     failed: result.failed.length,
     notes: [],
     // A bare card writes no chat, so it offers no memory build.
@@ -170,6 +179,9 @@ export function summarizeCardImport(result: CardImportResult): ImportSummary {
 /** A one-line "3 imported · 1 skipped · 1 failed" toast/summary caption (only non-zero tallies shown). */
 export function summaryCaption(summary: ImportSummary): string {
   const parts = [`${summary.imported} imported`];
+  if (summary.merged > 0) {
+    parts.push(`${summary.merged} merged into existing`);
+  }
   if (summary.skipped > 0) {
     parts.push(`${summary.skipped} skipped`);
   }

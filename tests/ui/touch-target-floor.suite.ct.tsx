@@ -155,6 +155,30 @@ test("RadioGroupItem hit area reaches the floor via its ::before pseudo", async 
   await expect.poll(() => shortSide(radio), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
 });
 
+/** The vertical span a control's centered `::before` hit area covers (px, page coordinates). */
+async function hitSpan(locator: Locator): Promise<{ top: number; bottom: number }> {
+  return await locator.evaluate((el: Element) => {
+    const rect = el.getBoundingClientRect();
+    const before = getComputedStyle(el, "::before");
+    const height = Math.max(rect.height, Number.parseFloat(before.height) || 0);
+    const centre = rect.top + rect.height / 2;
+    return { top: centre - height / 2, bottom: centre + height / 2 };
+  });
+}
+
+test("RadioGroupItem hit areas in a vertical group do not overlap (a low tap on one never selects the next)", async ({ mount, page }) => {
+  await mount(
+    <RadioGroup aria-label="Persona collision">
+      <RadioGroupItem value="merge">Merge into your existing persona</RadioGroupItem>
+      <RadioGroupItem value="keep">Keep both</RadioGroupItem>
+    </RadioGroup>,
+  );
+  const first = page.getByRole("radio", { name: "Merge into your existing persona" });
+  const second = page.getByRole("radio", { name: "Keep both" });
+
+  await expect.poll(async () => (await hitSpan(second)).top - (await hitSpan(first)).bottom, { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(0);
+});
+
 test("NumberField steppers are full touch-target squares", async ({ mount, page }) => {
   await mount(<NumberField aria-label="Weight" defaultValue={5} />);
   const inc = page.getByRole("button", { name: "Increase" });

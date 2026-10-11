@@ -258,3 +258,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D309 | [Keep mutation measurement outside GitHub-hosted CI](0309-hosted-mutation-execution.md) | active |
 | D310 | [Ollama chat and the connection test ride the native route](0310-ollama-chat-and-the-connection-test-ride-the-native-route.md) | active |
 | D311 | [The user's own request body wins every collision outside the denylist](0311-the-users-own-body-wins-every-collision-outside-the-denylist.md) | active |
+| D312 | [A profile import asks per same-name persona collision](0312-profile-import-asks-per-persona-collision.md) | active |
