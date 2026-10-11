@@ -35,6 +35,8 @@ export interface PrimaryDrillStore<P> {
    *  without the release while the shell's door called both. Viewport-unaware: the release is a no-op
    *  wherever no slide-over is open. */
   readonly clear: () => void;
+  /** {@link clear} with no content swap, for a toggle that is not a list-to-content switch. */
+  readonly clearInPlace: () => void;
   /** `select(id)` AND close any open LIST slide-over (viewport-unaware; a no-op when the LIST is docked). */
   readonly selectFromList: (id: P) => void;
   /** The section-registry SEAM over this store (`SectionSelection`) — how the SHELL asks "is anything open
@@ -66,11 +68,11 @@ export function createDrillSelectionStore<P, S extends string>(name: string, _op
   // The ONE clear (see `clear`'s contract): drop the drill AND release the slide-over request, so every
   // "back" in the app — the shell's topbar door, a surface's own in-content Back, a delete's cleanup —
   // lands in exactly one state.
-  const clearSelection = (): void =>
-    withContentSwap(() => {
-      useSelectionStore.setState({ primaryId: null, secondaryId: null }, false, `${name}/clear`);
-      setOpenOverlayPanel(null);
-    });
+  const clearNow = (): void => {
+    useSelectionStore.setState({ primaryId: null, secondaryId: null }, false, `${name}/clear`);
+    setOpenOverlayPanel(null);
+  };
+  const clearSelection = (): void => withContentSwap(clearNow);
   const selectPrimary = (id: P, releaseOverlay: boolean): void =>
     withContentSwap(() => {
       useSelectionStore.setState({ primaryId: id, secondaryId: null }, false, `${name}/select`);
@@ -84,6 +86,7 @@ export function createDrillSelectionStore<P, S extends string>(name: string, _op
     select: (id: P, options?: { readonly swap?: boolean }): void =>
       options?.swap === false ? useSelectionStore.setState({ primaryId: id, secondaryId: null }, false, `${name}/select-in-place`) : selectPrimary(id, false),
     clear: clearSelection,
+    clearInPlace: clearNow,
     selectFromList: (id: P): void => selectPrimary(id, true),
     useSecondaryId: (): S | null => useSelectionStore((s) => s.secondaryId),
     selectSecondary: (id: S): void => useSelectionStore.setState({ secondaryId: id }, false, `${name}/select-secondary`),

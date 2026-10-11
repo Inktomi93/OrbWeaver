@@ -294,7 +294,7 @@ function TemplateListRow({
             clickable={true}
             // SELECT ≠ DRILL (§16 row 23, the rack's own grammar): the body click SELECTS, so the readout's
             // resolved preview echoes THIS template; the chevron above is the way into the editor.
-            onClick={(): void => selectPresetTemplate(def.id)}
+            onClick={(): void => selectPresetTemplate(def.id, { swap: false })}
             selected={selected}
             // THE P0 (side-eye F-01): the fires gloss is the row's SUBTITLE on the title line, so the
             // NAME keeps a width floor and the GLOSS is what truncates. It rode `meta` — a `shrink-0`

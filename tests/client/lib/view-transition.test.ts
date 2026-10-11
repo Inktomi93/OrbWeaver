@@ -228,3 +228,29 @@ describe("withViewTransition", () => {
     expect(surfaced).toEqual([failure]);
   });
 });
+
+// A swap raised from inside a transition's own update callback is part of that transition: a second one would
+// run its write after the outer callback finished and overwrite what the outer swap just set.
+describe("withViewTransition — nested swaps", () => {
+  test("a swap raised inside the update callback runs at once and starts no second transition", async () => {
+    const callbacks: Array<() => void | Promise<void>> = [];
+    const start = vi.fn((callback: () => void | Promise<void>) => {
+      callbacks.push(callback);
+      return { ready: Promise.resolve(), finished: Promise.resolve(), updateCallbackDone: Promise.resolve() };
+    });
+    vi.stubGlobal("matchMedia", () => ({ matches: false }));
+    vi.stubGlobal("document", { querySelector: () => null, startViewTransition: start });
+    const order: string[] = [];
+
+    withViewTransition(() => {
+      order.push("outer");
+      withViewTransition(() => order.push("inner"));
+      order.push("outer-end");
+    });
+    await callbacks[0]?.();
+
+    expect(start).toHaveBeenCalledOnce();
+    expect(order).toEqual(["outer", "inner", "outer-end"]);
+    vi.unstubAllGlobals();
+  });
+});

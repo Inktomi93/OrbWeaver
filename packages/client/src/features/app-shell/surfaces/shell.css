@@ -1486,7 +1486,10 @@
   view-transition-name: orb-section-content;
 }
 
-::view-transition-old(orb-section-content),
+::view-transition-old(orb-section-content) {
+  animation-duration: var(--motion-fast);
+  animation-timing-function: ease-out;
+}
 ::view-transition-new(orb-section-content) {
   animation-duration: var(--motion-base);
   animation-timing-function: var(--ease-out-expo);

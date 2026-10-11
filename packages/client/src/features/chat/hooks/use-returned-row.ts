@@ -10,7 +10,8 @@ export function useReturnedRow(chatId: ChatId): { readonly marked: boolean; read
   const ref = useRef<HTMLButtonElement>(null);
   const focusPending = returned?.focusPending === true;
   useEffect(() => {
-    if (focusPending && ref.current !== null) {
+    // A row inside an inert pane (a collapsed sheet) cannot take focus; leave the focus unspent for a row that can.
+    if (focusPending && ref.current !== null && ref.current.closest("[inert]") === null) {
       // The list restores its own scroll position; the row is already where the user left it.
       ref.current.focus({ preventScroll: true });
       consumeReturnFocus();

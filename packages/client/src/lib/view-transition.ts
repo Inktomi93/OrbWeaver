@@ -67,6 +67,8 @@ interface TaskTransition {
 
 let taskTransition: TaskTransition | null = null;
 let activeTransition: TaskTransition | null = null;
+/** True while a transition's update callback runs its updates: a swap raised from inside one is part of it. */
+let applyingUpdates = false;
 
 function surfaceDeferredFailure(error: unknown): never {
   throw error;
@@ -167,6 +169,10 @@ export function withViewTransition(update: () => void): void {
     update();
     return;
   }
+  if (applyingUpdates) {
+    update();
+    return;
+  }
   if (taskTransition?.acceptingUpdates === true) {
     taskTransition.updates.push(update);
     return;
@@ -181,8 +187,13 @@ export function withViewTransition(update: () => void): void {
   });
   const transition = start.call(g.document, () => {
     current.acceptingUpdates = false;
-    for (const run of current.updates) {
-      run();
+    applyingUpdates = true;
+    try {
+      for (const run of current.updates) {
+        run();
+      }
+    } finally {
+      applyingUpdates = false;
     }
     return destinationSettled();
   });
