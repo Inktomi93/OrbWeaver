@@ -33,6 +33,20 @@ test("the 'Load more characters' button is GONE — the tail has no button affor
   await expect(component.getByText("Showing 100 of 130")).toBeVisible();
 });
 
+// UI-Density-Law §2.1: an avatar beside a name is a circle, in the picker as everywhere else.
+test("a picker row's avatar is a circle", async ({ mount, page }) => {
+  await routeTrpc(page, { "character.list": characterListResponder(LIBRARY) });
+
+  const component = await mount(<CharacterPickerHarness />);
+  await expect(component.getByText("Page1 0")).toBeVisible();
+  const { radius, width } = await component
+    .locator('[data-slot="avatar-root"]')
+    .first()
+    .evaluate((el) => ({ radius: Number.parseFloat(getComputedStyle(el).borderTopLeftRadius), width: el.getBoundingClientRect().width }));
+  expect(width, "the avatar box must have measured, or the radius comparison is vacuous").toBeGreaterThan(0);
+  expect(radius).toBeGreaterThanOrEqual(width / 2);
+});
+
 test("keyboard roving to the last loaded row loads the next page — no scroll required (#334)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { "character.list": characterListResponder(LIBRARY) });
 

@@ -33,6 +33,17 @@ test("renders the name and falls back to initials with no avatar", async ({ moun
   await expect(component.getByText("AN")).toBeVisible();
 });
 
+// UI-Density-Law §2.1: an avatar beside a name is a circle, here as in the chat rows and the members list.
+test("the row's avatar is a circle", async ({ mount }) => {
+  const component = await mount(<CharacterCardTileStory name="Aria Nightshade" />);
+  const { radius, width } = await component.locator('[data-slot="avatar-root"]').evaluate((el) => ({
+    radius: Number.parseFloat(getComputedStyle(el).borderTopLeftRadius),
+    width: el.getBoundingClientRect().width,
+  }));
+  expect(width, "the avatar box must have measured, or the radius comparison is vacuous").toBeGreaterThan(0);
+  expect(radius).toBeGreaterThanOrEqual(width / 2);
+});
+
 test("subtitle ladder: the elevatorPitch wins over the tag line and handle", async ({ mount }) => {
   const component = await mount(
     <CharacterCardTileStory elevatorPitch="A wandering cartographer." tags={[{ id: "tag_rpg", name: "rpg", isHiddenOnCard: false }]} />,

@@ -7,6 +7,7 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
+import { CountText } from "#components";
 import { CORPUS_MODE_LABELS, LABELS_BLURB, LABELS_EMPTY, useFocusOnMount, useFocusOnSwap } from "#lib";
 import { useMobileViewport, useSectionListMode } from "#state";
 import { LabelsSuggestions } from "../components/labels-suggestions.tsx";
@@ -60,9 +61,7 @@ function LibraryBody({ summary }: { readonly summary: ReturnType<typeof useTagLi
             <Text as="span" voice="kicker">
               {fact.label}
             </Text>
-            <Text as="span" voice="datum">
-              {fact.value}
-            </Text>
+            <CountText>{fact.value}</CountText>
             {fact.open === undefined ? null : (
               <Button className="ms-auto" intent="ghost" onClick={fact.open.run} size="sm" type="button">
                 {fact.open.label}

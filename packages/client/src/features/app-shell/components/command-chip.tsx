@@ -15,23 +15,26 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactNode } from "react";
 import type { ModalSlotId } from "#state";
 import { openModal } from "#state";
+import { commandShortcutLabel } from "../lib/command-shortcut-label.ts";
 
 /** The ⌘K chip — DESKTOP-SHAPED (side-eye P1's budget): a phone has no ⌘K key, and at 320px this chip plus
  *  its divider was ~60px of a row that had none to give. Nothing is lost: the You sheet carries the same
  *  command modal as a named row (you-sheet.tsx), which is where every other overflow affordance lives. */
 export function CommandChip({ modalId }: { readonly modalId: ModalSlotId }): ReactNode {
+  const shortcut = commandShortcutLabel(navigator.userAgent);
   return (
     <>
       <Tooltip>
         <TooltipTrigger
           render={
             <Button
-              intent="secondary"
+              // Ghost like every other control in the trail: the keycap is the chip's only box.
+              intent="ghost"
               size="sm"
               // The DURABLE focus return for this modal (#890). ModalHost reads it when a keyboard-opened
               // palette captured nobody, which is what replaced the old pre-focus race (modal-host.tsx).
               data-modal-trigger={modalId}
-              // WCAG 2.5.3 Label in Name (UI-Primitives-and-Reuse §13.10): the button READS "⌘K jump", so
+              // WCAG 2.5.3 Label in Name (UI-Primitives-and-Reuse §13.10): the button READS "<key hint> jump" (⌘K on Apple platforms, Ctrl+K elsewhere), so
               // "jump" must be in the name — "Command menu" alone made the one word on the button
               // unspeakable. Both vocabularies are carried, so `getByRole("button", { name: /command
               // menu/ })` still resolves it.
@@ -39,13 +42,13 @@ export function CommandChip({ modalId }: { readonly modalId: ModalSlotId }): Rea
               // THE VISIBLE TEXT IS NOW THE NAME'S PREFIX, VERBATIM (axe `label-content-name-mismatch`,
               // Lighthouse 2026-08-18). "Jump to… — the command menu" carried the WORD but not the STRING:
               // 2.5.3 is satisfied only when the whole visible label is contained in the name, and this
-              // button's visible label is the chip AND the word ("⌘K jump"). A voice-control user reading
+              // button's visible label is the chip AND the word ("<key hint> jump"). A voice-control user reading
               // the chip out loud gets a match either way now, and the trailing clause still says what
               // activating it does.
-              aria-label="⌘K jump — the command menu"
+              aria-label={`${shortcut} jump — the command menu`}
               onClick={(): void => openModal(modalId)}
             >
-              <Kbd>⌘K</Kbd>
+              <Kbd>{shortcut}</Kbd>
               {/* THE SEPARATING TEXT NODE (side-eye rail-home P3-3, 2026-08-22) — and it is not cosmetic.
                   axe's `label-content-name-mismatch` reads the VISIBLE LABEL by concatenating the button's
                   own text nodes, which is `textContent`, not `innerText`: with the chip and the word as two

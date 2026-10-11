@@ -18,6 +18,7 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { expectCircle } from "../../../../support/browser/expect-circle.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { chatListResponder, makeChatSummary, makeSeatPortrait } from "../../chat/fixtures.ts";
 import { CharactersContextStory, CharactersListStory, CharactersScreenStory } from "../_ct-stories.tsx";
@@ -244,6 +245,7 @@ test("the CONTEXT band is the open character's identity, under the header tablis
   const band = component.locator('[data-slot="character-context-band"]');
   await expect(band.getByRole("heading", { level: 2, name: "Aveline" })).toBeVisible();
   await expect(band.getByText("@aveline", { exact: true })).toBeVisible();
+  await expectCircle(band.locator('[data-slot="avatar-root"]'));
   // The chips: the census (one chat in this fixture — the same page-of-one the hero's link spends) and the
   // token estimate (the editor's own estimator, so the two can never disagree).
   await expect(band.getByText("1 chat", { exact: true })).toBeVisible();

@@ -650,3 +650,36 @@ test("LEG 3 — meta refresh is unchanged by the grant: still refused, and it ne
   await settleNavigation(page);
   expect(probe.hits).toEqual([]);
 });
+
+// A card or plugin frame that outgrows its box scrolls inside itself, and that scrollbar must be the app's
+// thin themed one, not the platform's wide light bar (it read as a stray native control inside the dark
+// flank). The bar's colour comes from the frame's own two theme tokens, so a re-themed app re-tints it.
+test("a frame's own scrollbar is the app's thin themed one", async ({ mount, page }) => {
+  await page.route(ROUTED_URL, async (route) => {
+    await route.fulfill({
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "static") },
+      body: buildCardFrameDocument({
+        html: '<div style="height:3000px">tall</div>',
+        css: undefined,
+        themeTokens: { "--sandbox-bg": "#101014", "--sandbox-fg": "#f5f5f5" },
+        styleTokens: undefined,
+        fontFamily: undefined,
+      }),
+    });
+  });
+  const cmp = await mount(<SandboxFrame html="<p>x</p>" title="tall card" src={ROUTED_URL} />);
+  const frame = await (await cmp.elementHandle())?.contentFrame();
+  if (frame === null || frame === undefined) {
+    throw new Error("routed iframe has no content frame — the navigation never completed");
+  }
+  await expect(frame.locator("div")).toHaveText("tall");
+  const readBar = (): Promise<{ readonly width: string; readonly color: string }> =>
+    frame.evaluate(() => {
+      const style = getComputedStyle(document.documentElement);
+      return { width: style.scrollbarWidth, color: style.scrollbarColor };
+    });
+  await expect.poll(async () => (await readBar()).width).toBe("thin");
+  // The thumb is tinted from the frame's foreground token, not left to the platform.
+  await expect.poll(async () => (await readBar()).color).not.toBe("auto");
+});

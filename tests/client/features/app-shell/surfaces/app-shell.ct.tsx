@@ -33,6 +33,7 @@ import type { Locator, Page } from "@playwright/test";
 import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/modal-slot-ids.ts";
 import type { SectionId } from "../../../../../packages/client/src/state/section-ids.ts";
 import APPEARANCE_PRESET_FILE from "../../../../../tooling/src/_shared/appearance-presets.json" with { type: "json" };
+import { COMMAND_CHIP_NAME } from "../../../../support/browser/command-chip-name.ts";
 import { pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { touchDrag } from "../../../../support/browser/weave-drive.ts";
 import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
@@ -1949,7 +1950,7 @@ async function readingPrimacyViolationAt(page: Page, width: number): Promise<Pri
   const primacyFails = mode === "docked" && content + 0.5 < (list + context) / 2;
 
   const contentTitle = page.locator(".shell-content").getByText("Presets", { exact: true }).first();
-  const commandButton = page.getByRole("button", { name: "⌘K jump — the command menu" });
+  const commandButton = page.getByRole("button", { name: COMMAND_CHIP_NAME });
   await expect(contentTitle).toBeVisible();
   await expect.poll(() => contentTitle.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await expect.poll(() => commandButton.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
@@ -2176,9 +2177,9 @@ test("0851: at 1280 with BOTH panes docked the topbar keeps the participants tit
   await expect
     .poll(() => subtitle.evaluate((element) => element.clientWidth >= Number.parseFloat(getComputedStyle(element).minWidth) - 1 && element.clientWidth > 0))
     .toBe(true);
-  // The date went first (and the ⌘K chip dropped its word); the chips never paint over text.
+  // The date went first; the ⌘K chip keeps its word, so it still reads as a control; the chips never paint over text.
   await expect(page.locator(".shell-topbar-date")).toBeHidden();
-  await expect(page.locator(".shell-topbar-jump-label")).toBeHidden();
+  await expect(page.locator(".shell-topbar-jump-label")).toBeVisible();
   const groupBox = await page.locator('.shell-topbar-identity[data-identity="wide"] .shell-topbar-title-group').boundingBox();
   const membersBox = await page.locator('[aria-label^="Members — "]').boundingBox();
   if (groupBox === null || membersBox === null) {
@@ -6048,8 +6049,30 @@ test("#188 the ⌘K chip's accessible name CONTAINS its visible label verbatim (
   const readConcatenatedAtAssertion = async (): Promise<typeof concatenated> =>
     (await chip.evaluate((el) => el.textContent ?? "")).replaceAll(/\s+/gu, " ").trim();
   const concatenated = (await chip.evaluate((el) => el.textContent ?? "")).replaceAll(/\s+/gu, " ").trim();
-  await expect.poll(async () => await readConcatenatedAtAssertion()).toBe("⌘K jump");
-  await expect(chip).toHaveAccessibleName(new RegExp(`^${concatenated.replaceAll("⌘", "\\u2318")}`, "u"));
+  await expect.poll(async () => await readConcatenatedAtAssertion()).toMatch(/^(?:⌘K|Ctrl\+K) jump$/u);
+  await expect(chip).toHaveAccessibleName(new RegExp(`^${RegExp.escape(concatenated)}`, "u"));
+});
+
+// The key hint names the key the person has: Ctrl+K off Apple platforms, ⌘K on them. The accelerator takes
+// either modifier, so the hint is the only thing that moves.
+test("the palette chip prints Ctrl+K off Apple platforms", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await mount(<AppShellStory />);
+  const chip = page.locator('header.shell-topbar [data-slot="button"]').filter({ hasText: "jump" }).first();
+  await expect(chip.locator("kbd")).toHaveText("Ctrl+K");
+  await expect(chip).toHaveAccessibleName("Ctrl+K jump — the command menu");
+});
+
+test.describe("on a Mac", () => {
+  test.use({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36" });
+
+  test("the palette chip prints ⌘K", async ({ mount, page }) => {
+    await page.setViewportSize(WIDE);
+    await mount(<AppShellStory />);
+    const chip = page.locator('header.shell-topbar [data-slot="button"]').filter({ hasText: "jump" }).first();
+    await expect(chip.locator("kbd")).toHaveText("⌘K");
+    await expect(chip).toHaveAccessibleName("⌘K jump — the command menu");
+  });
 });
 
 // STRAY-FILE-DROP GUARD. A file dropped outside any dropzone navigates the tab to that file — the app is
@@ -6766,7 +6789,7 @@ test.describe("the mobile topbar at 320px, coarse pointer", () => {
   test("P1: the desktop-shaped trail affordances shed on a phone and the command modal keeps a home in the You sheet", async ({ mount, page }) => {
     const shell = await mount(<AppShellMobileRuleStory section="chats" />);
     // ⌘K is gone from the phone row (the budget) …
-    await expect(page.getByRole("button", { name: "⌘K jump — the command menu" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: COMMAND_CHIP_NAME })).toHaveCount(0);
     // … and the command modal is still REACHABLE, as a named row in the You sheet.
     await shell.getByRole("button", { name: "You", exact: true }).click();
     await expect(page.getByRole("button", { name: "Jump to…" })).toBeVisible();
@@ -7426,20 +7449,20 @@ test("#1789 the ⌘K chip is the topbar.trail MODAL entry's presentation — wit
   // Barrier on the SETTLED zone: its widget painted, so the chip's absence is a verdict about the
   // projection rather than a read taken before the trail rendered anything at all.
   await expect(page.locator(".shell-topbar-trail").getByTestId("fake-trail-widget")).toBeVisible();
-  await expect(page.getByRole("button", { name: "⌘K jump — the command menu" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: COMMAND_CHIP_NAME })).toHaveCount(0);
 });
 
 test("#1789 …and with the entry present its POSITION is the registry's sort, not the lens's JSX order", async ({ mount, page }) => {
   await page.setViewportSize(WIDE);
   await mount(<AppShellTrailProjectionStory widgetOrder={-20} />);
   const trail = page.locator(".shell-topbar-trail");
-  await expect(trail.getByRole("button", { name: "⌘K jump — the command menu" })).toBeVisible();
+  await expect(trail.getByRole("button", { name: COMMAND_CHIP_NAME })).toBeVisible();
 
   // The widget declares an EARLIER order than the derived modal entry, so it renders first. Hardcoded
   // ahead of the zone (as the bespoke chip was), the chip cannot yield that slot to anything.
   await expect
     .poll(() => trail.locator("button").evaluateAll((elements) => elements.map((el) => el.getAttribute("data-testid") ?? el.getAttribute("aria-label") ?? "")))
-    .toEqual(["fake-trail-widget", "⌘K jump — the command menu"]);
+    .toEqual(["fake-trail-widget", expect.stringMatching(COMMAND_CHIP_NAME)]);
 });
 
 // A FENCE, not a defect proof (the bespoke chip was hardcoded first, so this passed before the fix): the
@@ -7449,10 +7472,10 @@ test("#1789 @fence the production trail still LEADS with the ⌘K chip, ahead of
   await page.setViewportSize(WIDE);
   await mount(<AppShellStory />);
   const trail = page.locator(".shell-topbar-trail");
-  await expect(trail.getByRole("button", { name: "⌘K jump — the command menu" })).toBeVisible();
+  await expect(trail.getByRole("button", { name: COMMAND_CHIP_NAME })).toBeVisible();
 
   const names = await trail.locator("button").evaluateAll((elements) => elements.map((el) => el.getAttribute("aria-label") ?? ""));
-  expect(names[0]).toBe("⌘K jump — the command menu");
+  expect(names[0]).toMatch(COMMAND_CHIP_NAME);
   expect(names.length).toBeGreaterThan(1);
 });
 

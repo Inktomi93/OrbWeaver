@@ -165,7 +165,7 @@ export function CharacterCardTile({
       // (side-eye P2-5). The library's 40px pitched its rows ~12px taller than the chats list of the same
       // entities. 40px survives where it means HIERARCHY: the projection's identity HEADER.
       leading={
-        <Avatar hueSeed={character.id} shape="square" size="md" {...avatarSrc}>
+        <Avatar hueSeed={character.id} size="md" {...avatarSrc}>
           {initialsFor(character.name)}
         </Avatar>
       }

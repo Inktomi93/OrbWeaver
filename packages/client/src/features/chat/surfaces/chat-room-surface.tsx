@@ -192,9 +192,12 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                   stacked under the thread, a tall tenant (an opened plugin frame) would otherwise take the
                   whole column and leave the transcript a zero box, the #680 silent arm reached from the
                   other side. The transcript always keeps at least half the room. */}
+                  {/* The column's own top gap (`pt-block`) keeps a card off the topbar's divider while the column
+                  still starts on the row's top edge, where the transcript does. Stacked, the row's `gap` already
+                  separates the column from the thread. */}
                   <Stack
                     gap="block"
-                    className="empty:hidden max-w-(--width-sidebar-sm) relative @max-lg:max-h-1/2 @max-lg:max-w-none @max-lg:overflow-y-auto"
+                    className="empty:hidden max-w-(--width-sidebar-sm) relative pt-block @max-lg:max-h-1/2 @max-lg:max-w-none @max-lg:overflow-y-auto @max-lg:pt-0"
                     data-slot="chat-thread-flank"
                   >
                     {flankContributions.map((c) => (
