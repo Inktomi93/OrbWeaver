@@ -571,3 +571,18 @@ test("#1745 the ghost's avatar keeps the settled row's 40px chip at a narrow wid
     )
     .toBe(6);
 });
+
+// The streaming row paints the art slot the settled row will: a speaker with no avatar image gets their fallback in
+// echo's tile or whisper's band while the turn streams, with no chip beside it, so commit does not reflow.
+for (const art of [
+  { chatStyle: "echo", slot: '[data-slot="message-echo-art"]' },
+  { chatStyle: "whisper", slot: '[data-slot="message-band"]' },
+] as const) {
+  test(`${art.chatStyle}: a streaming turn with no avatar image paints the speaker's fallback in the art slot`, async ({ mount }) => {
+    const component = await mount(<GhostRowScriptedStory chatStyle={art.chatStyle} chunks={["The lantern gutters. "]} speakerName="Marguerite" />);
+    await driveScript(component, 1);
+    await expect(component.locator(art.slot)).toHaveCount(1);
+    await expect(component.locator(art.slot).locator("xpath=..").getByText("M", { exact: true })).toHaveCount(1);
+    await expect(component.locator('[data-slot="avatar-root"]')).toHaveCount(0);
+  });
+}

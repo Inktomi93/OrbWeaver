@@ -1083,12 +1083,21 @@ export interface GhostRowScriptedStoryProps {
    *  exceeds the viewport and the sticky pin can be measured against a scroll rather than asserted from a
    *  computed style alone. Absent ⇒ the unbounded mount every other scripted CT uses. */
   readonly scrollportHeight?: number;
+  /** The chat style the live row paints in; absent ⇒ bubble. */
+  readonly chatStyle?: ThemeChatStyle;
 }
 
 /** The ghost row driven by an explicit, test-controlled SCRIPT of raw text chunks (rather than the
  *  fixed "Hi " token `GhostRowStory` uses). Live-gated exactly like the production surface, so an ABORT
  *  unmounts the row (and anything it had mounted) rather than leaving it idling. */
-export function GhostRowScriptedStory({ chunks, speakerName, cardTier, stickyAttribution, scrollportHeight }: GhostRowScriptedStoryProps): ReactElement {
+export function GhostRowScriptedStory({
+  chunks,
+  speakerName,
+  cardTier,
+  stickyAttribution,
+  scrollportHeight,
+  chatStyle = "bubble",
+}: GhostRowScriptedStoryProps): ReactElement {
   const [next, setNext] = useState(0);
   const phase = useTurnPhase(SCRIPTED_CHAT_ID);
   const attribution =
@@ -1098,7 +1107,7 @@ export function GhostRowScriptedStory({ chunks, speakerName, cardTier, stickyAtt
   const ghost = isLiveTurnPhase(phase) ? (
     <GhostMessageRow
       chatId={SCRIPTED_CHAT_ID}
-      chatStyle="bubble"
+      chatStyle={chatStyle}
       streaming={phase === "streaming"}
       {...(attribution === undefined ? {} : { attribution })}
       {...(cardTier === undefined ? {} : { cardTier })}

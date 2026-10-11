@@ -8,10 +8,12 @@ import { Button } from "@orb/ui/button";
 import type { ReactElement } from "react";
 import { cn, viewImageActionName } from "#lib";
 import type { ArtViewer } from "../hooks/art-viewer-context.tsx";
+import type { BubbleDecorationArgs } from "../lib/art-decorations.ts";
 import type { RowAttribution } from "../lib/attribution.ts";
-import type { BubbleDecorationArgs, RowSkin } from "../lib/message-row-variants.ts";
+import type { RowSkin } from "../lib/message-row-variants.ts";
 import { avatarPortraitSrcProp, avatarSrcProp } from "../lib/message-row-variants.ts";
-import type { ArtView } from "./message-row-bubble.tsx";
+import type { ArtView } from "./art-slot.tsx";
+import { FallbackLetter } from "./art-slot.tsx";
 
 /** #1728 arm B — a chip in a `1fr` RAIL must hug the centred column's edge or it drifts to the far side of
  *  the margin. Mapped rather than branched, so a new rail member fails tsc here (the house dispatch rule). */
@@ -88,8 +90,8 @@ export function renderRowAvatar(args: {
 }
 
 /** The tap target for echo's tile or whisper's band: the speaker's own art, opened in the transcript's viewer. */
-export function artViewFor(viewArt: ArtViewer | null, attribution: RowAttribution): ArtView | null {
-  if (attribution.name === null) {
+export function artViewFor(viewArt: ArtViewer | null, attribution: RowAttribution | undefined): ArtView | null {
+  if (attribution?.name === null || attribution === undefined) {
     return null;
   }
   const target = viewTargetFor(viewArt, attribution.avatarHash, attribution.name);
@@ -148,7 +150,7 @@ function stickyPortrait(args: Parameters<typeof renderRowAvatar>[0], target: Vie
       }
       {...(args.imageUrlFor === undefined ? avatarPortraitSrcProp(args.attribution.avatarHash) : { src: args.imageUrlFor("portrait") })}
     >
-      {initialsFor(args.attribution.name ?? "")}
+      <FallbackLetter className="absolute inset-0" initials={initialsFor(args.attribution.name ?? "")} />
     </Avatar>
   );
   return viewable(target, cn("sticky top-0 shrink-0", weldRounding) ?? "", portrait);

@@ -10,8 +10,8 @@ import { CrossfadeImage } from "@orb/ui/crossfade-image";
 import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Icon, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
-import type { ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
+import type { ReactElement, RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
 
 /** The one image the lightbox shows. `name` is the grid cell's own name, so both say the same thing. */
@@ -35,12 +35,12 @@ interface GalleryLightboxProps {
   readonly onSettled: (open: boolean) => void;
 }
 
-// What the dialog spends outside the frame: its gutters, title, actions and the gaps between them.
-const FRAME_CHROME = "14rem";
+// Until the dialog has been measured, assume this much height outside the frame (title, actions, padding, gutters).
+const FALLBACK_CHROME_PX = 224;
 
-// The image's own width over height, read once it has loaded; the frame is square until then.
-function useImageAspect(hash: string | null): number {
-  const [loaded, setLoaded] = useState<{ readonly hash: string; readonly aspect: number } | null>(null);
+// The image's own size, read once it has loaded; the frame is a square of unknown natural width until then.
+function useImageSize(hash: string | null): { readonly aspect: number; readonly naturalWidth: number | null } {
+  const [loaded, setLoaded] = useState<{ readonly hash: string; readonly width: number; readonly height: number } | null>(null);
   useEffect(() => {
     if (hash === null) {
       return;
@@ -48,7 +48,7 @@ function useImageAspect(hash: string | null): number {
     const probe = new Image();
     probe.onload = (): void => {
       if (probe.naturalWidth > 0 && probe.naturalHeight > 0) {
-        setLoaded({ hash, aspect: probe.naturalWidth / probe.naturalHeight });
+        setLoaded({ hash, width: probe.naturalWidth, height: probe.naturalHeight });
       }
     };
     probe.src = blobUrl(hash);
@@ -56,13 +56,42 @@ function useImageAspect(hash: string | null): number {
       probe.onload = null;
     };
   }, [hash]);
-  return loaded !== null && loaded.hash === hash ? loaded.aspect : 1;
+  return loaded !== null && loaded.hash === hash ? { aspect: loaded.width / loaded.height, naturalWidth: loaded.width } : { aspect: 1, naturalWidth: null };
+}
+
+// The height the dialog spends outside the frame, measured: the popup's height minus the frame's, plus the
+// viewport gutters above and below it. The frame takes whatever the viewport leaves after that.
+function useChromeHeight(content: RefObject<HTMLDivElement | null>, frame: RefObject<HTMLDivElement | null>, open: boolean): number {
+  const [chrome, setChrome] = useState(FALLBACK_CHROME_PX);
+  useLayoutEffect(() => {
+    const popup = content.current?.parentElement;
+    if (!open || popup === null || popup === undefined) {
+      return;
+    }
+    const measure = (): void => {
+      const frameHeight = frame.current?.getBoundingClientRect().height ?? 0;
+      const viewport = getComputedStyle(popup.parentElement ?? popup);
+      const gutters = Number.parseFloat(viewport.paddingTop) + Number.parseFloat(viewport.paddingBottom);
+      const next = Math.round(popup.getBoundingClientRect().height - frameHeight + gutters);
+      setChrome((previous) => (next > 0 && next !== previous ? next : previous));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(popup);
+    return (): void => observer.disconnect();
+  }, [content, frame, open]);
+  return chrome;
 }
 
 export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled }: GalleryLightboxProps): ReactElement {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const aspect = useImageAspect(image === null ? null : image.hash);
+  const { aspect, naturalWidth } = useImageSize(image === null ? null : image.hash);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  const chrome = useChromeHeight(contentRef, frameRef, image !== null);
+  // The largest box of the image's aspect that fits the height left after the chrome, and never past the image's own size.
+  const frameWidth = `min(${naturalWidth === null ? "100vw" : `${String(naturalWidth)}px`}, calc((100dvh - ${String(chrome)}px) * ${String(aspect)}))`;
   return (
     <Dialog
       open={image !== null}
@@ -75,13 +104,12 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
     >
       <DialogPopup size="xlFit" initialFocus={closeRef} finalFocus={finalFocus}>
         {image === null ? null : (
-          <Stack gap="block" className="min-h-0">
+          <Stack gap="block" className="min-h-0" ref={contentRef}>
             <DialogTitle>{image.name}</DialogTitle>
-            {/* The frame is the largest box of the image's own aspect that fits: as wide as the dialog, no taller
-                than the viewport leaves after the title and actions. Sized by height when height limits it (no grey
-                bars), and the dialog hugs it instead of filling the viewport. */}
-            <Stack align="center" className="relative" style={{ containerType: "inline-size" }}>
-              <Stack style={{ aspectRatio: aspect, width: `min(100cqw, calc((100dvh - ${FRAME_CHROME}) * ${String(aspect)}))` }}>
+            {/* The dialog hugs the frame: sized by height when height limits it (no grey bars), by the dialog's own
+                width otherwise, and never upscaled past the image. */}
+            <Stack align="center" className="relative">
+              <Stack ref={frameRef} style={{ aspectRatio: aspect, width: frameWidth, maxWidth: "100%" }}>
                 <CrossfadeImage src={blobUrl(image.hash)} alt={image.name} aspectRatio={aspect} fit="contain" className="size-full" />
               </Stack>
             </Stack>

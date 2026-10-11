@@ -1,4 +1,4 @@
-// The swipe foot: ‹ at the message's leading edge, the `n / m` count and › at its trailing edge, on the
+// The swipe foot: ‹ `n / m` › grouped at the message's trailing corner, on the
 // last assistant message only. Where it sits and how its chevrons meet the edge is the chat style's
 // (`RowSkin.swipeFoot`, lib/pager-chrome.ts). Right chevron: at the tip fires swipe (a fresh generation);
 // stepped back, it fires selectVariant (a pointer move, no new generation), same as the left chevron. Both
@@ -70,12 +70,14 @@ export interface SwipeStripProps {
 export function SwipeFootRow(props: {
   readonly foot: SwipeFoot;
   readonly slot: string;
+  /** The position in words ("Reply 2 of 3"), naming the group for a screen reader. */
+  readonly label: string;
   readonly prev: ReactNode;
   readonly count: ReactNode;
   readonly next: ReactNode;
 }): ReactElement {
   return (
-    <Row align="center" justify="end" gap="tight" data-slot={props.slot} className={props.foot.row}>
+    <Row align="center" justify="end" gap="tight" data-slot={props.slot} className={props.foot.row} role="group" aria-label={props.label}>
       {props.prev}
       {props.count}
       {props.next}
@@ -141,6 +143,7 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
       <SwipeFootRow
         foot={foot}
         slot="swipe-strip"
+        label={variantCountName(current, total)}
         prev={
           <Button
             intent="ghost"
@@ -158,7 +161,7 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
         count={
           // A VALUE you read — the `datum` voice, whose tabular figures stop the count nudging the chevron as
           // it ticks (UI-Density-Law.md §2.3). The position and nothing else: owner ruling, a label is noise.
-          <Text as="span" voice="datum" data-slot="swipe-strip-counter" className={SWIPE_COUNTER}>
+          <Text as="span" voice="datum" aria-hidden="true" data-slot="swipe-strip-counter" className={SWIPE_COUNTER}>
             {current} / {total}
           </Text>
         }

@@ -18,14 +18,14 @@
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { avatarFallbackHueColor } from "@orb/ui/avatar";
 import { afterEach, vi } from "vitest";
+import type { BubbleDecorationArgs } from "../../../../../packages/client/src/features/chat/lib/art-decorations.ts";
 import { avatarTreatmentFor } from "../../../../../packages/client/src/features/chat/lib/avatar-treatment.ts";
-import type { BubbleDecorationArgs } from "../../../../../packages/client/src/features/chat/lib/message-row-variants.ts";
 import { avatarPortraitSrcProp, MESSAGE_ROW_SKINS } from "../../../../../packages/client/src/features/chat/lib/message-row-variants.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A `bubbleDecoration` argument builder; a case overrides what it asserts. */
 function decoArgs(kind: BubbleDecorationArgs["kind"], avatarHash: string | null, extra?: Partial<BubbleDecorationArgs>): BubbleDecorationArgs {
-  return { kind, avatarHash, name: "Mira", hueSeed: "seed_mira", showInChatAvatars: true, ...extra };
+  return { kind, avatarHash, name: "Mira", hueSeed: "seed_mira", role: "assistant", showInChatAvatars: true, ...extra };
 }
 
 afterEach(() => {
@@ -114,7 +114,7 @@ test("echo's art pane sits OUTSIDE the prose measure, as its own tile on the rol
   const painted = echo.bubbleDecoration?.(decoArgs("character", "abababab"));
   // The sharp `portrait` variant (not the raw original) — the reading-surface fix — on the art tile, never
   // as a layer on the bubble's own box.
-  expect(painted?.art?.style.backgroundImage).toContain("/api/blob/abababab?v=portrait&w=");
+  expect(painted?.art?.image?.urlAt(192)).toContain("/api/blob/abababab?v=portrait&w=");
   expect(painted?.style?.backgroundImage).toBeUndefined();
   // THE MEASURE FIX (#212-2): the bubble grows by the art pane's FIXED width, so the prose keeps the
   // band's floor. One skin-owned value caps both the bubble and its containing column.
@@ -175,7 +175,7 @@ test("whisper's stripe always paints (speaker-color chrome); the header band is 
     expect(decoration?.style?.borderTopColor, kind).toBe("var(--color-speaker)");
     // The art lives on the band, a real block child, never a layer on the bubble's own box (the squish fix).
     expect(decoration?.style?.backgroundImage, kind).toBeUndefined();
-    expect(decoration?.headerBand?.style.backgroundImage, kind).toContain("/api/blob/x?v=banner&w=");
+    expect(decoration?.headerBand?.image?.urlAt(400), kind).toContain("/api/blob/x?v=banner&w=");
     // An aspect-ratio box, so its height derives from width and always matches the server's 3:1 crop.
     expect(decoration?.headerBand?.style.aspectRatio, kind).toBe("var(--aspect-banner)");
   }
@@ -189,22 +189,32 @@ test("owned renderer artwork uses the same geometry and respects identity-art ad
     return art;
   };
   const args = decoArgs("character", null, { imageUrlFor });
+  // The slot asks for its art at the width it renders: 192 CSS px for echo's pane, 400 for a whisper band.
   const echo = MESSAGE_ROW_SKINS.echo.bubbleDecoration?.(args);
   const whisper = MESSAGE_ROW_SKINS.whisper.bubbleDecoration?.(args);
-  expect(echo?.art?.style.backgroundImage).toContain(art);
+  expect(echo?.art?.image?.urlAt(192)).toBe(art);
   expect(echo?.style?.maxWidth).toBe(MESSAGE_ROW_SKINS.echo.columnStyle?.maxWidth);
   expect(echo?.style?.paddingRight).toBe("min(var(--immersive-echo-art-width), 25cqi)");
-  expect(whisper?.headerBand?.style.backgroundImage).toContain(art);
+  expect(whisper?.headerBand?.image?.urlAt(400)).toBe(art);
   expect(whisper?.headerBand?.style.aspectRatio).toBe("var(--aspect-banner)");
   expect(requests).toEqual([
     ["portrait", 192],
-    ["banner", 800],
+    ["banner", 400],
   ]);
   expect(MESSAGE_ROW_SKINS.echo.bubbleDecoration?.({ ...args, kind: null })).toBeNull();
   expect(MESSAGE_ROW_SKINS.echo.bubbleDecoration?.({ ...args, showInChatAvatars: false })).toBeNull();
   expect(MESSAGE_ROW_SKINS.whisper.bubbleDecoration?.({ ...args, kind: null })?.headerBand).toBeUndefined();
   expect(MESSAGE_ROW_SKINS.whisper.bubbleDecoration?.({ ...args, showInChatAvatars: false })?.headerBand).toBeUndefined();
   expect(requests).toHaveLength(2);
+});
+
+test("whisper's band fades into the row's own bubble colour", () => {
+  const fade = (role: "user" | "assistant", hash: string | null): string | undefined =>
+    MESSAGE_ROW_SKINS.whisper.bubbleDecoration?.(decoArgs("persona", hash, { role }))?.headerBand?.feather;
+  expect(fade("user", "x")).toContain("--color-user-bubble");
+  expect(fade("assistant", "x")).toContain("--color-ai-bubble");
+  // With no image the fallback keeps its solid top, where the initial sits.
+  expect(fade("user", null)).toContain("transparent 55%");
 });
 
 test("hush's stripe paints for every kind (chrome, not portrait art — not hide-user-portrait's concern)", () => {
@@ -218,7 +228,7 @@ test("hush's stripe paints for every kind (chrome, not portrait art — not hide
 // snaps each ask up to the portrait ladder (200, 400, 600, 864).
 test("echo and ripple portraits request their CSS box times the pixel ratio", () => {
   const echoWidth = (): string | undefined => {
-    const url = MESSAGE_ROW_SKINS.echo.bubbleDecoration?.(decoArgs("character", "x"))?.art?.style.backgroundImage;
+    const url = MESSAGE_ROW_SKINS.echo.bubbleDecoration?.(decoArgs("character", "x"))?.art?.image?.urlAt(192);
     return url?.match(/w=(\d+)/u)?.[1];
   };
   const rippleWidth = (): string | undefined => avatarPortraitSrcProp("x").src?.match(/w=(\d+)/u)?.[1];

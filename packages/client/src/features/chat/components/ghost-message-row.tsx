@@ -51,7 +51,8 @@ import { ROW_BODY_AT_PHONE_WIDTH } from "../lib/chat-track.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { columnClassFor, gutterRailFor, rowBodyClassFor } from "../lib/row-placement.ts";
 import { CardBlock } from "./card-block.tsx";
-import { renderRowAvatar } from "./message-row-avatar.tsx";
+import { artViewFor, renderRowAvatar } from "./message-row-avatar.tsx";
+import { renderSingleBubble } from "./message-row-bubble.tsx";
 import { placeRowHeader, renderGhostNameRow } from "./message-row-header.tsx";
 import { themedColumnContent } from "./message-row-parts.tsx";
 import { ReasoningBlock } from "./reasoning-block.tsx";
@@ -142,6 +143,36 @@ function GhostBubbleBody({
         {segments.map((segment, index) => ghostSegment(segment, index, { isTail: index === segments.length - 1, streaming, colorQuotes, cardTier }))}
       </Stack>
     </div>
+  );
+}
+
+/** The ghost bubble's body: the live reasoning trace, when there is one, over the streamed text. */
+function GhostBubbleContent(props: {
+  readonly reasoning: string;
+  readonly thinking: boolean;
+  readonly showLLMReasoningIcon: boolean;
+  readonly smoothStream: boolean;
+  readonly smoothStreamCps: number;
+  readonly reasoningAutoCollapse: boolean;
+  readonly held: string;
+  readonly streaming: boolean;
+  readonly colorQuotedSpeech: boolean;
+  readonly cardTier: CardTrust;
+}): ReactElement {
+  return (
+    <>
+      {props.reasoning.length > 0 ? (
+        <ReasoningBlock
+          reasoning={props.reasoning}
+          thinking={props.thinking}
+          showIcon={props.showLLMReasoningIcon}
+          smoothStream={props.smoothStream}
+          smoothStreamCps={props.smoothStreamCps}
+          autoCollapse={props.reasoningAutoCollapse}
+        />
+      ) : null}
+      <GhostBubbleBody held={props.held} streaming={props.streaming} colorQuotes={props.colorQuotedSpeech} cardTier={props.cardTier} />
+    </>
   );
 }
 
@@ -238,6 +269,7 @@ export function GhostMessageRow({
       avatarHash: decorationAvatarHash,
       name: attribution?.name ?? null,
       hueSeed: attribution?.hueSeed ?? "",
+      role: "assistant",
       showInChatAvatars,
     }) ?? null;
   const avatarTreatment = avatarTreatmentFor(skin, kind, decoration);
@@ -277,24 +309,33 @@ export function GhostMessageRow({
     }),
     skin.headerPlacement,
   );
-  const bubble = (
-    // w-full so the shimmer/streaming-markdown children have a sized parent (the assistant skin is
-    // otherwise shrink-to-fit).
-    <Stack gap="row" data-slot="message-bubble" className={cn(skin.inner("assistant"), "w-full")} style={decoration?.style}>
-      {header.inside}
-      {reasoning.length > 0 ? (
-        <ReasoningBlock
-          reasoning={reasoning}
-          thinking={thinking}
-          showIcon={showLLMReasoningIcon}
-          smoothStream={smoothStream}
-          smoothStreamCps={smoothStreamCps}
-          autoCollapse={reasoningAutoCollapse}
-        />
-      ) : null}
-      <GhostBubbleBody held={held} streaming={streaming} colorQuotes={colorQuotedSpeech} cardTier={cardTier} />
-    </Stack>
-  );
+  // The settled row's own bubble shape, so the art slot (echo's tile, whisper's band) streams in the place it will
+  // settle in. `w-full` so the shimmer/streaming-markdown children have a sized parent (the assistant skin is
+  // otherwise shrink-to-fit).
+  const bubble = renderSingleBubble({
+    role: "assistant",
+    header: header.inside,
+    content: (
+      <GhostBubbleContent
+        reasoning={reasoning}
+        thinking={thinking}
+        showLLMReasoningIcon={showLLMReasoningIcon}
+        smoothStream={smoothStream}
+        smoothStreamCps={smoothStreamCps}
+        reasoningAutoCollapse={reasoningAutoCollapse}
+        held={held}
+        streaming={streaming}
+        colorQuotedSpeech={colorQuotedSpeech}
+        cardTier={cardTier}
+      />
+    ),
+    footer: null,
+    bubbleClassName: cn(skin.inner("assistant"), "w-full") ?? "",
+    decoration,
+    weldedAvatar: null,
+    mirrored: false,
+    artView: artViewFor(viewArt, attribution),
+  });
   // #2425 — ONE scope over the column's header AND bubble, the settled row's shape exactly
   // (`themedColumnContent`): an `outside` header (tide's) is a SIBLING above the box, so a bubble-only
   // scope left its band and its plate resolving from the VIEWER's palette beside carried-palette prose.

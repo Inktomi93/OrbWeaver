@@ -283,6 +283,7 @@ export function MessageRow({
       avatarHash: attribution.avatarHash,
       name: attribution.name,
       hueSeed: attribution.hueSeed,
+      role,
       showInChatAvatars,
     }) ?? null;
   const avatarTreatment = avatarTreatmentFor(skin, attribution.kind, decoration);

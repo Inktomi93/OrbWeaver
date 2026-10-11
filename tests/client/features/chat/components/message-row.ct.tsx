@@ -2353,6 +2353,10 @@ for (const chatStyle of THEME_CHAT_STYLES) {
       const next = await foot.getByRole("button", { name: VARIANT_NEXT_NAME }).boundingBox();
       const counter = await foot.locator(SWIPE_COUNTER_SLOT).boundingBox();
       const footBox = await foot.boundingBox();
+      const cardCorner = await component
+        .locator(BUBBLE)
+        .first()
+        .evaluate((el) => el.getBoundingClientRect().right - Number.parseFloat(getComputedStyle(el).paddingLeft));
       if (prev === null || next === null || counter === null || footBox === null) {
         return { rendered: false };
       }
@@ -2368,8 +2372,10 @@ for (const chatStyle of THEME_CHAT_STYLES) {
         // ‹ n / m › are one group: the arrows hug the count, and › ends on the container's reading inset, the
         // same inset the header bar's actions end on.
         grouped: counter.x - (prev.x + prev.width) < prev.width && next.x - (counter.x + counter.width) < next.width,
-        trailing: Math.abs(next.x + next.width - container.contentRight) < 1,
-        matchesHeader: Math.abs(next.x + next.width - (await headerActionsRight(component))) < 1,
+        // › ends on the container's reading inset, the same inset the header bar's actions end on. Echo's group
+        // ends instead at the card's own corner, one card inset in from the art side's edge.
+        trailing: Math.abs(next.x + next.width - (chatStyle === "echo" ? cardCorner : container.contentRight)) < 1,
+        matchesHeader: chatStyle === "echo" || Math.abs(next.x + next.width - (await headerActionsRight(component))) < 1,
         countBesideNext: counter.x > prev.x + prev.width && counter.x + counter.width <= next.x + 0.5,
         // One glyph line, not a card: the foot is as tall as its chevrons.
         oneLine: Math.abs(footBox.height - next.height) < 0.5,
@@ -2384,6 +2390,40 @@ for (const chatStyle of THEME_CHAT_STYLES) {
     expect(parseOklchOrTransparent(fill)).toEqual(chatStyle === "echo" ? parseOklch(await cssVar(foot, "--color-ai-bubble")) : TRANSPARENT);
   });
 }
+
+// The foot is the card's bottom-right CORNER: beside ripple's tall portrait a one-line reply still has its
+// swipe group at the card's foot, not floating under the text.
+test("ripple: a one-line reply's swipe group sits at the card's bottom corner beside the tall portrait", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="ripple"
+      messageRole="assistant"
+      showSwipes={true}
+      lastRow={true}
+      characterId={ALICE_ID}
+      participants={[aliceWithAvatar()]}
+      width={720}
+      content="Short."
+    />,
+  );
+  const foot = component.locator(SWIPE_STRIP);
+  await expect(foot).toHaveCount(1);
+  await expect
+    .poll(async () => {
+      const card = await component.locator(BUBBLE).boundingBox();
+      const group = await foot.locator("xpath=..").boundingBox();
+      const pad = await foot.evaluate((el) => {
+        let node: Element | null = el.parentElement;
+        while (node !== null && Number.parseFloat(getComputedStyle(node).paddingBottom) === 0) {
+          node = node.parentElement;
+        }
+        return node === null ? 0 : Number.parseFloat(getComputedStyle(node).paddingBottom);
+      });
+      return card === null || group === null ? Number.NaN : Math.round(card.y + card.height - pad - (group.y + group.height));
+    })
+    .toBeLessThanOrEqual(1);
+});
 
 test("over a wallpaper the bubble foot rides the bubble's own fill, and its count stays legible", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });

@@ -372,6 +372,7 @@ test.describe("a newly opened chat lands at the bottom", () => {
   }
 });
 
+const TALL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1200" viewBox="0 0 800 1200"><rect width="800" height="1200" fill="#648"/></svg>';
 const LANDSCAPE_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="600" height="400" fill="#486"/></svg>';
 
@@ -432,6 +433,10 @@ for (const viewport of [
           portraits.evaluateAll((all) => all.map((el) => Math.round((el.getBoundingClientRect().height / el.getBoundingClientRect().width) * 10) / 10)),
         )
         .toEqual([1.5, 1.5]);
+      // The initial scales with the portrait instead of staying a chip-sized glyph.
+      await expect
+        .poll(() => component.getByText(/^[MT]$/u).evaluateAll((all) => all.map((el) => Number.parseFloat(getComputedStyle(el).fontSize) > 12)))
+        .toEqual([true, true]);
     });
 
     for (const art of [
@@ -463,10 +468,30 @@ for (const viewport of [
           )
           // Echo fades through its mask; whisper's band fades through its gradient layer.
           .toEqual(Array.from({ length: 2 }, () => ({ filled: true, masked: art.masked, gradient: !art.masked, sized: true })));
+        // The initial scales with its slot, and stays readable on the hue fill.
+        const letters = component.getByText(/^[MT]$/u);
+        await expect.poll(() => letters.evaluateAll((all) => all.map((el) => Number.parseFloat(getComputedStyle(el).fontSize) > 12))).toEqual([true, true]);
+        const contrast = await pixelContrast(page, letters.last());
+        expect(contrast.ratio, contrast.describe).toBeGreaterThanOrEqual(4.5);
       });
     }
   });
 }
+
+test.describe("the art viewer in phone landscape", () => {
+  test.use({ viewport: { width: 844, height: 390 }, hasTouch: true });
+
+  test("the dialog is sized to its frame, not a thumbnail in a wide card", async ({ mount, page }) => {
+    await routeArtRoom(page, "flat", LANDSCAPE_SVG);
+    const component = await mount(<MessageListSurfaceStory />);
+    await component.getByRole("button", { name: viewImageActionName("Mira"), exact: true }).tap();
+    const dialog = page.getByRole("dialog");
+    const frame = dialog.locator('[data-slot="crossfade-image"]');
+    await expect(frame).toBeVisible();
+    await expect.poll(async () => ((await dialog.boundingBox())?.width ?? 0) - ((await frame.boundingBox())?.width ?? 0)).toBeLessThan(120);
+    await expect.poll(async () => (await dialog.boundingBox())?.height ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(390);
+  });
+});
 
 test.describe("the art viewer on a phone", () => {
   test.use({ viewport: { width: 390, height: 780 }, hasTouch: true });
@@ -506,8 +531,35 @@ test.describe("the art viewer and its controls, desktop", () => {
       .toBe(1.5);
   });
 
+  test("a landscape image is never upscaled past its own size and the dialog hugs the frame", async ({ mount, page }) => {
+    await routeArtRoom(page, "flat", LANDSCAPE_SVG);
+    const component = await mount(<MessageListSurfaceStory />);
+    await component.getByRole("button", { name: viewImageActionName("Mira"), exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    const frame = dialog.locator('[data-slot="crossfade-image"]');
+    await expect(frame).toBeVisible();
+    await expect.poll(async () => (await frame.boundingBox())?.width ?? 0).toBeLessThanOrEqual(600.5);
+    await expect.poll(async () => ((await dialog.boundingBox())?.width ?? 0) - ((await frame.boundingBox())?.width ?? 0)).toBeLessThan(120);
+  });
+
+  for (const chatStyle of ["echo", "whisper"] as const) {
+    test(`${chatStyle}: an image that fails to load falls back to the speaker's hue and initial`, async ({ mount, page }) => {
+      await routeArtRoom(page, chatStyle);
+      await page.route("**/api/blob/**", (route) => route.abort("failed"));
+      const component = await mount(<MessageListSurfaceStory />);
+      const slot = chatStyle === "echo" ? '[data-slot="message-echo-art"]' : '[data-slot="message-band"]';
+      await expect(component.locator(slot)).toHaveCount(2);
+      await expect(
+        component
+          .locator(slot)
+          .locator("xpath=..")
+          .getByText(/^[MT]$/u),
+      ).toHaveCount(2);
+    });
+  }
+
   test("a portrait image shows taller than the old square cap and the dialog stays on screen", async ({ mount, page }) => {
-    await routeArtRoom(page, "flat");
+    await routeArtRoom(page, "flat", TALL_SVG);
     const component = await mount(<MessageListSurfaceStory />);
     await component.getByRole("button", { name: viewImageActionName("Mira"), exact: true }).click();
     const dialog = page.getByRole("dialog");

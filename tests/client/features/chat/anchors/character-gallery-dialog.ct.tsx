@@ -54,6 +54,8 @@ test("the lightbox actions share one row without wrapping at 390", async ({ moun
 
   const remove = page.getByRole("button", { name: "Remove from gallery" });
   const close = page.getByRole("button", { name: "Close" });
+  // The title takes the row's width instead of wrapping in a sliver.
+  await expect.poll(async () => (await page.getByRole("dialog").last().getByRole("heading").last().boundingBox())?.width ?? 0).toBeGreaterThan(200);
   await expect.poll(async () => Math.abs(((await remove.boundingBox())?.y ?? 0) - ((await close.boundingBox())?.y ?? 99))).toBeLessThan(1);
   await expect.poll(async () => ((await remove.boundingBox())?.height ?? 99) < 60).toBe(true);
   await expect.poll(async () => ((await close.boundingBox())?.x ?? 0) + ((await close.boundingBox())?.width ?? 0)).toBeLessThanOrEqual(390);
