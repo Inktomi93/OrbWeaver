@@ -2116,6 +2116,8 @@ async function publishBrowse(status: string, sourceKey?: SourceKey, loading = fa
     stage: "browse",
     status,
     loading: loading === true,
+    // The pager's buttons are disabled until a search has produced a session to page.
+    noSearch: session === null,
     sortOptions: SOURCES[menuKey].sortOptions,
     pageLabel: session === null || session.totalPages <= 1 ? "" : `Page ${session.page} of ${session.totalPages}`,
     tiles: rows.map((result, i) => {
@@ -2289,9 +2291,9 @@ function registerAtlasPage(sfwOn: boolean): void {
                 kind: "row",
                 gap: "field",
                 children: [
-                  { kind: "button", actionId: "prev_page", label: "Previous", variant: "outline" },
+                  { kind: "button", actionId: "prev_page", label: "Previous", variant: "outline", disabled: { $state: "noSearch" } },
                   { kind: "text", voice: "gloss", value: { $state: "pageLabel" } },
-                  { kind: "button", actionId: "next_page", label: "Next", variant: "outline" },
+                  { kind: "button", actionId: "next_page", label: "Next", variant: "outline", disabled: { $state: "noSearch" } },
                 ],
               },
             ],

@@ -23,12 +23,15 @@ import { clearPluginCommandArgs, closeModal, usePluginCommandArgsSubject } from 
 import { usePluginCommandRunner, usePluginCommands } from "../hooks/use-plugin-commands.ts";
 import { humanizeId, pluginCommandActionLabel, pluginCommandAttribution } from "../lib/plugin-command-copy.ts";
 
-/** The initial string bag: booleans default to `"false"` (an unchecked toggle IS a value, not an omission);
- *  everything else starts empty (a required one blocks submit until filled, an optional one is dropped). */
+/** The initial string bag: a declared `default` opens preselected; otherwise booleans start `"false"` (an
+ *  unchecked toggle IS a value, not an omission) and everything else starts empty (a required one blocks submit
+ *  until filled, an optional one is dropped). */
 function initialValues(specs: readonly PluginCommandArgSpec[]): Record<string, string> {
   const seed: Record<string, string> = {};
   for (const spec of specs) {
-    if (spec.type === "boolean") {
+    if (spec.default !== undefined) {
+      seed[spec.name] = String(spec.default);
+    } else if (spec.type === "boolean") {
       seed[spec.name] = "false";
     }
   }

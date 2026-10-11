@@ -360,6 +360,21 @@ describe("attachMembrane — the in-flight slot is charged to the IMPL, not to t
   });
 });
 
+describe("attachMembrane — the host-call deadline rejects with a NAMED error", () => {
+  test("a host call that outlives the deadline reaches the guest as e.name === 'PluginHostDeadlineError'", { timeout: 30_000 }, async () => {
+    const neverSettles = new Promise<Record<string, string>>(() => undefined);
+    const { bridge } = fakeBridge();
+    const runtime = makeRuntime(["chat.read"], false, { ...bridge, chat: { ...bridge.chat, getVariables: () => neverSettles } });
+    await withRuntime(runtime, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        `(async () => { try { await host.chat.getVariables(${JSON.stringify(TOKEN)}); return 'NO-THROW' } catch (e) { return e.name + ':' + e.hostFunction } })()`,
+      );
+      expect(out).toBe("PluginHostDeadlineError:getVariables");
+    });
+  });
+});
+
 describe("attachMembrane — outbound result cap", () => {
   test("a normal result crosses, while an oversized result is refused before entering the guest", async () => {
     const base = fakeBridge().bridge;

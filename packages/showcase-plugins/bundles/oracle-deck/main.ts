@@ -89,7 +89,9 @@ const SPREAD_CARDS = 3;
 const HASH_MODULUS = 2_147_483_647; // 2^31 - 1, a Mersenne prime — the modulus for both the hash and the PRNG.
 const HASH_MULTIPLIER = 31; // The classic polynomial-rolling-hash multiplier.
 const LEHMER_MULTIPLIER = 48_271; // MINSTD. `48271 * (2^31 - 2)` stays under 2^53, so float math is exact.
-const COMMITMENT_DIGITS = 10;
+const HEX_RADIX = 16;
+const COMMITMENT_HEX_DIGITS = 8; // `HASH_MODULUS` is below 16^8, so eight hex digits hold any hash.
+const COMMITMENT_GROUP_DIGITS = 4;
 
 /** A polynomial rolling hash over a string → an integer in `[0, HASH_MODULUS)`. Used for BOTH the commitment
  *  and the PRNG seed, so a verifier needs exactly this one five-line function to check a reveal. */
@@ -129,9 +131,12 @@ function shuffleFor(seed: string): string[] {
   return cards;
 }
 
-/** The public commitment for a secret seed — printed BEFORE any card is dealt, checkable AFTER the reveal. */
+/** The public commitment for a secret seed — printed BEFORE any card is dealt, checkable AFTER the reveal. It is
+ *  the hash in upper-case hex, zero-padded and split in two groups (`7F3A-C91B`): a check value a person can
+ *  read aloud and compare, where the bare integer read as a stray number. */
 function commitmentFor(seed: string): string {
-  return String(hashOf(`commit:${seed}`)).padStart(COMMITMENT_DIGITS, "0");
+  const hex = hashOf(`commit:${seed}`).toString(HEX_RADIX).toUpperCase().padStart(COMMITMENT_HEX_DIGITS, "0");
+  return `${hex.slice(0, COMMITMENT_GROUP_DIGITS)}-${hex.slice(COMMITMENT_GROUP_DIGITS)}`;
 }
 
 /** Parse one stored session record. A malformed value (hand-edited, or written by an older version of this

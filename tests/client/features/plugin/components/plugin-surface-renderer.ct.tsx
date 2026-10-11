@@ -462,6 +462,29 @@ test("#799: the SAME grid spec with `busy: false` shows its tiles — the loadin
   await expect(page.locator('[data-slot="media-tile-grid-skeleton"]')).toHaveCount(0);
 });
 
+test("a button's bound `disabled` follows published state — disabled while the path is true, enabled when it flips", async ({ mount, page }) => {
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = {
+    kind: "row",
+    children: [
+      { kind: "button", actionId: "prev_page", label: "Previous", variant: "outline", disabled: { $state: "noSearch" } },
+      { kind: "button", actionId: "next_page", label: "Next", variant: "outline", disabled: { $state: "somethingElse" } },
+    ],
+  };
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
+    "plugin.getSurfaceState": () => ({ noSearch: true }),
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+
+  await expect(page.getByRole("button", { name: "Previous" })).toBeDisabled();
+  // A bound path the plugin never published reads as enabled, so a typo can never lock the control.
+  await expect(page.getByRole("button", { name: "Next" })).toBeEnabled();
+});
+
 test("0698: a grid still loading once the plugin's continuation window has passed stops skeletoning and says so", async ({ mount, page }) => {
   // Past the window the host has revoked the authority of whatever set `loading`, so no publish can clear it.
   await page.clock.install();

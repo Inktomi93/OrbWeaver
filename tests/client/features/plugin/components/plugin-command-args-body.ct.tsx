@@ -109,3 +109,41 @@ test("a held invocation keeps the modal pending, and a rejected invocation prese
   await run.click();
   await expect(component.getByText("No command selected.", { exact: true })).toBeVisible();
 });
+
+const DEFAULTED_ARGS = [
+  { name: "style", type: "enum", enumValues: ["ink", "oil"], default: "oil" },
+  { name: "loud", type: "boolean", default: true },
+  { name: "count", type: "number", default: 3 },
+] as const;
+
+test("a declared default opens preselected and is what the run dispatches", async ({ mount, page }) => {
+  let captured: { values: unknown } | null = null;
+  await routeTrpc(page, {
+    "chat.listChats": () => ({ items: [], nextCursor: null }),
+    "plugin.listCommands": () => [
+      {
+        pluginId: ARGS_PLUGIN_ID,
+        slug: "oracle-deck",
+        pluginName: "Oracle Deck",
+        name: "cast",
+        describe: "Cast a spell",
+        args: DEFAULTED_ARGS,
+        group: null,
+        placements: [],
+      },
+    ],
+    "plugin.invokeUiCommand": (input: unknown) => {
+      captured = { values: (input as { values: unknown }).values };
+      return { toasts: [] };
+    },
+  });
+
+  const component = await mount(<PluginCommandArgsStory args={DEFAULTED_ARGS} />);
+
+  await expect(component.getByRole("combobox", { name: "style" })).toHaveText("Oil");
+  await expect(component.getByRole("switch", { name: "Loud" })).toBeChecked();
+  await component.getByRole("button", { name: "Run cast" }).click();
+
+  await expect.poll(() => captured).not.toBeNull();
+  expect(captured).toEqual({ values: { style: "oil", loud: true, count: 3 } });
+});

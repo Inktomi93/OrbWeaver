@@ -40,6 +40,19 @@ export class PluginSuggestedError extends Error {
   }
 }
 
+/** A host call outlived the host's real-time bound. The call is NOT cancelled when the host stops waiting for
+ *  it (a started turn or a paint keeps running), so a guest reads this name as "no answer yet", never as a
+ *  refusal. `name` crosses the QuickJS boundary intact, so a guest matches `e.name === "PluginHostDeadlineError"`. */
+export class PluginHostDeadlineError extends Error {
+  /** The host function that outlived the bound, the bare property name, e.g. `getVariables`. */
+  readonly hostFunction: string;
+  constructor(hostFunction: string, deadlineMs: number) {
+    super(`${hostFunction} exceeded ${deadlineMs}ms host bound`);
+    this.name = "PluginHostDeadlineError";
+    this.hostFunction = hostFunction;
+  }
+}
+
 /** Thrown by `orb.host(requestedMajor)` when the host does not serve that major — at ACTIVATION, loudly,
  *  so a V2-compiled plugin never half-runs on V1 (and, when V2 ships without a V1 adapter, symmetrically). */
 export class HostVersionError extends Error {
