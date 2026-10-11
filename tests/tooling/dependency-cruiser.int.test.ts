@@ -371,6 +371,9 @@ function writeAllFixtures(): void {
   fx("packages/client/src/lib/__dc_up_components.ts", `import "../components/__dc_t/i.ts";\n`);
   // client-state-below-components (G5): a store reaching UP into components/.
   fx("packages/client/src/state/__dc_up_components.ts", `import "../components/__dc_t/i.ts";\n`);
+  // client-data-direction and client-forms-direction: the data and forms layers sit below components/.
+  fx("packages/client/src/data/__dc_up_components.ts", `import "../components/__dc_t/i.ts";\n`);
+  fx("packages/client/src/forms/__dc_up_components.ts", `import { t } from "../components/__dc_t/i.ts";\nexport const u = t;\n`);
   // plugin-ui-guest-worker-no-react: the guest Worker reaches the `#lib` barrel (and the React module behind it)
   // only through a realm hop; the plain wire leaf it imports directly is the negative control.
   fx("packages/client/src/lib/__dc_component.tsx", VAL);
@@ -440,6 +443,12 @@ afterAll(() => {
 
 test("derives a non-trivial set of active rules from the config (the list isn't silently empty)", () => {
   expect(ACTIVE_RULES.length).toBeGreaterThan(20);
+});
+
+test("data and forms reaching up into components fire their direction rules", () => {
+  const from = (rule: string): readonly string[] => allViolations.filter((violation) => violation.rule.name === rule).map((violation) => violation.from);
+  expect(from("client-data-direction")).toContain("packages/client/src/data/__dc_up_components.ts");
+  expect(from("client-forms-direction")).toContain("packages/client/src/forms/__dc_up_components.ts");
 });
 
 test("the not-to-test selector covers every registered authored test kind and rejects unsupported extensions", () => {
