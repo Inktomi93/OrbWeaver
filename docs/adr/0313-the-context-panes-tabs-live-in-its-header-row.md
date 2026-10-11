@@ -2,6 +2,7 @@
 kind: adr
 status: active
 updated: 2026-10-11
+supersedes: docs/adr/0150-the-context-pane-is-one-chrome-the-context.md
 ---
 
 # The context pane's tabs live in its header row, as the pane's one tablist: no foot rail, no kicker, no band title
