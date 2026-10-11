@@ -19,8 +19,8 @@
       "manifest.json": "748bc269c6fbf3ae1e7219e6a197088f16b22ca85ab5a39b6f473fafa2fc5b0d"
     },
     "oracle-deck": {
-      "main.js": "66c8d1e5eb575f3dca469180b8978062bf23ead61cc78959e58dadb46279c01e",
-      "manifest.json": "ba1747c9b66c6b390aa7aea10bda19eae1eb89e6875f3c14fc090b115a305f09"
+      "main.js": "ad1c06787c2672bb3f004b4b57a0a30d80d3d681d45e6081d6a1d60685b3bf0e",
+      "manifest.json": "0702a12d240478e44f577ad3424745c4806ca2a1ed8c944a46642cdad67d8841"
     },
     "pocket-arcade": {
       "main.js": "308145d7d49566ced583113bf6497ba9445326c4565c16dab4c07964a6c0da25",
@@ -36,8 +36,8 @@
       "manifest.json": "77f1ffa13e9607ddc0888f6aa332be91810e366d776e40990c3ef527148aa02b"
     },
     "story-clocks": {
-      "main.js": "c5c10f9ee974b14e0eb360cba65c2970c7d3280a24750612b9ae5fcc2189da55",
-      "manifest.json": "2f9ceb8015bb16f4a93c127afc671146e71d8d262ddb3b13d8c42457e7b3e0ef"
+      "main.js": "3d7247ebf05b6cacaa3ddbcfedaa823dabc6d8aa7173ef7ce4a4e7db2fa24e21",
+      "manifest.json": "56de1c34ead109d78ec4578b429e3405da5545fd30bda608da0947144f339561"
     }
   }
 }

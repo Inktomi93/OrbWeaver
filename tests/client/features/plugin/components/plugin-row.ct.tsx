@@ -9,6 +9,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { NO_IMAGE_MODEL_NOTE } from "#client/features/plugin/lib/plugin-copy.ts";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { PluginsSurfaceStory } from "../_ct-stories.tsx";
 
 type PluginRow = TrpcWireOutput<"plugin.list">[number];
@@ -45,6 +46,7 @@ function waitingRow(slug: string, name: string, overrides: Partial<PluginRow> = 
 
 async function stub(page: Parameters<typeof routeTrpc>[0], rows: readonly PluginRow[], bindings: readonly BindingView[] = []): Promise<void> {
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [...rows],
     "plugin.getLog": () => [],
     "plugin.listSurfaces": () => [],
@@ -191,6 +193,7 @@ test.describe("a spend permission whose model role resolves to nothing", () => {
   test("stays quiet when the plugin's own model resolves, even with the installer's role unset", async ({ mount, page }) => {
     // The plugin-scoped read is the fold's own answer: its binding first, the installer's after.
     const recorder = await routeTrpc(page, {
+      "settings.getUserSettings": () => userSettingsView(),
       "plugin.list": () => [painter],
       "plugin.getLog": () => [],
       "plugin.listSurfaces": () => [],

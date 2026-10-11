@@ -1,7 +1,10 @@
-// The point-in-time (non-reactive) coarse-pointer read — the ONE sanctioned `(pointer: coarse)` media
-// query on the tree (#1182). Mirrors `reduced-motion-now.ts`'s shape (SSR/absent-safe, no subscription,
-// no hook) rather than `use-prefers-reduced-motion.ts`'s live-updating one: nothing on the tree needs a
-// pointer-type flip to re-render mid-session, only an imperative "is this a touch device right now" read.
+import { useSyncExternalStore } from "react";
+
+// The ONE sanctioned `(pointer: coarse)` media query on the tree (#1182), in both spellings: the point-in-time
+// `coarsePointerNow()` (SSR/absent-safe, no subscription — an imperative "is this a touch device right now"
+// read, the shape of `reduced-motion-now.ts`) and the subscribed `useCoarsePointer()` (the shape of
+// `use-prefers-reduced-motion.ts`) for two surfaces that must agree on one answer and re-render together when
+// the pointer type flips.
 //
 // Before this file, the only place that answered "is this a touch device" was
 // `navigator.maxTouchPoints > 0` (`bug-report-capture.ts`), which is an adjacent signal honestly named
@@ -14,6 +17,8 @@
 // same posture as `reduced-motion-now.ts`'s header explains in full.
 interface CoarsePointerQuery {
   readonly matches: boolean;
+  readonly addEventListener?: (type: "change", listener: () => void) => void;
+  readonly removeEventListener?: (type: "change", listener: () => void) => void;
 }
 
 /** `true` when the primary pointer is coarse (touch, stylus without hover) per `(pointer: coarse)`,
@@ -21,4 +26,23 @@ interface CoarsePointerQuery {
 export function coarsePointerNow(): boolean {
   const globals = globalThis as { matchMedia?: (query: string) => CoarsePointerQuery };
   return typeof globals.matchMedia === "function" && globals.matchMedia("(pointer: coarse)").matches;
+}
+
+const coarsePointerQuery: CoarsePointerQuery | null = ((): CoarsePointerQuery | null => {
+  const globals = globalThis as { matchMedia?: (query: string) => CoarsePointerQuery };
+  return typeof globals.matchMedia === "function" ? globals.matchMedia("(pointer: coarse)") : null;
+})();
+
+function subscribeCoarsePointer(onChange: () => void): () => void {
+  coarsePointerQuery?.addEventListener?.("change", onChange);
+  return (): void => coarsePointerQuery?.removeEventListener?.("change", onChange);
+}
+
+function getCoarsePointerSnapshot(): boolean {
+  return coarsePointerQuery === null ? false : coarsePointerQuery.matches;
+}
+
+/** Whether the primary pointer is coarse, kept in sync via `useSyncExternalStore`. */
+export function useCoarsePointer(): boolean {
+  return useSyncExternalStore(subscribeCoarsePointer, getCoarsePointerSnapshot);
 }

@@ -780,6 +780,42 @@
   translate: var(--shell-list-band-flip-from) 0;
 }
 
+/* ── THE ROOM'S FLANK TRACK: THE SAME FLIP, ONE TRACK INSIDE THE ROOM ─────────────────────────────────────
+ * When the room's plugin column joins or leaves its row (`use-flank-track-flip.ts` stamps `in`/`out`), the
+ * thread resizes in one frame by the column, the row gap, less the corner the thread reserves for the column's
+ * edge control while the column is out (`pe-control-lg`). The centred rows are the third alignment class above:
+ * each moves by half the change of its containing block while the reading cap is not binding, so the counter is
+ * the same capped arithmetic as `--shell-centre-flip-from`. `100cqi` on a row is its nearest container, the
+ * message list's own (the thread's width); the scroller's gutter is the residual, and it cancels except where the
+ * cap binds on exactly one side of the toggle. The composer is outside the row and does not move, so it is not
+ * countered. Same `--shell-motion`/`--shell-ease`, and the same one-frame settle under reduced motion. */
+.shell-main [data-slot="chat-room-flank-row"] {
+  --flank-flip-dir: 0;
+  --flank-track-delta: calc(var(--width-sidebar-sm) + var(--spacing-block) - var(--spacing-control-lg));
+  /* @orb-waive css-length-tokens(--flank-centre-flip-from): the zero floor of a centring delta is structural arithmetic, the same expression as --shell-centre-flip-from. */
+  --flank-centre-flip-from: calc(
+    (max(0px, 100cqi + var(--flank-flip-dir) * var(--flank-track-delta) - var(--width-shell-content)) - max(0px, 100cqi - var(--width-shell-content))) /
+    2
+  );
+}
+.shell-main [data-slot="chat-room-flank-row"]:is([data-flank-flip="in"], [data-flank-settle="in"]) {
+  --flank-flip-dir: 1;
+}
+.shell-main [data-slot="chat-room-flank-row"]:is([data-flank-flip="out"], [data-flank-settle="out"]) {
+  --flank-flip-dir: -1;
+}
+@keyframes room-flank-centre-flip {
+  from {
+    translate: var(--flank-centre-flip-from) 0;
+  }
+}
+.shell-main [data-slot="chat-room-flank-row"][data-flank-flip] .orb-chat-track {
+  animation: room-flank-centre-flip var(--shell-motion) var(--shell-ease);
+}
+.shell-main [data-slot="chat-room-flank-row"][data-flank-settle] .orb-chat-track {
+  translate: var(--flank-centre-flip-from) 0;
+}
+
 /* Rail — ONE component, ONE flat DOM list. This is the desktop icon column; the @media below reflows the
  * SAME DOM into the mobile bottom tab bar (no twin blocks). The flex-column layout lives on .shell-rail
  * itself now (the old .shell-rail-desktop wrapper is gone). */

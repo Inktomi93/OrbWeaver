@@ -16,6 +16,7 @@ import { peekQueryData, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import type { ComposerDraftSnapshot } from "#state";
 import { activeChatId, openPluginCommandArgs, readComposerDraftSnapshot, replaceComposerDraft, useActiveChatId, useComposerDraftRevision } from "#state";
+import { sharedPluginNames } from "../lib/plugin-command-copy.ts";
 import { useInvokeUiCommand } from "../lib/plugin-mutations.ts";
 import { applyPluginUiOutcome } from "../lib/plugin-ui-outcome.ts";
 
@@ -75,6 +76,11 @@ export function usePluginCommands(includeComposerDraft = false): readonly Plugin
         (a.group ?? "").localeCompare(b.group ?? "") ||
         a.name.localeCompare(b.name),
     );
+}
+
+/** The display names more than one installed plugin carries, across every command the caller can run. */
+export function useSharedPluginNames(): ReadonlySet<string> {
+  return sharedPluginNames(usePluginCommands(true));
 }
 
 /** The top-bar launcher's commands: only the ones with no placement. A placed command lives at its placement

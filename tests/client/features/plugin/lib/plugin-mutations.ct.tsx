@@ -6,6 +6,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { PluginDisplayLifecycleStory, PluginOptOutStory, PluginTerminalInvalidationStory } from "../_ct-stories.tsx";
 
 type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
@@ -57,6 +58,7 @@ test("toggle and same-name re-grant refresh an already-rendered display transfor
     updatedAt: 1_750_000_000_000,
   } satisfies TrpcWireOutput<"plugin.setGrant">;
   const recorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [row],
     "plugin.listDisplayTransforms": () => (active ? [{ pluginId: PLUGIN_ID, name: "typeset" }] : []),
     "plugin.transformForDisplay": () => ({ text: active ? `Annotation ${version}` : "Original transcript bytes" }),
@@ -105,6 +107,7 @@ test("the documented Draft Polish switch removes Polish and restores displayed b
     updatedAt: 1,
   } satisfies TrpcWireOutput<"plugin.list">[number];
   const recorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [{ ...row, status: enabled ? "enabled" : "disabled" }],
     "plugin.listSurfaces": [],
     "plugin.getLog": [],
@@ -133,7 +136,7 @@ test("the documented Draft Polish switch removes Polish and restores displayed b
   });
   await mount(<PluginOptOutStory />);
   const transcript = page.getByRole("status", { name: "Transcript row", exact: true });
-  const polish = page.getByRole("button", { name: "Draft Polish (draft-polish) · Commands · Run Polish", exact: true });
+  const polish = page.getByRole("button", { name: "Draft Polish · Run Polish", exact: true });
   await expect(polish).toBeVisible();
   await expect(transcript).toHaveText("Viewer-only typography");
   const card = page.getByRole("group", { name: "Draft Polish plugin", exact: true });
@@ -158,6 +161,7 @@ for (const transition of ["uninstall", "withdraw", "auto-disable"] as const) {
       return null;
     };
     const recorder = await routeTrpc(page, {
+      "settings.getUserSettings": () => userSettingsView(),
       ...catalogs,
       // The renderer's own state read (`PluginSurfaceRenderer` reads `getSurfaceState` for every surface it
       // draws); `null` is the Tier-S default — the spec alone renders, with no published state.
@@ -173,7 +177,7 @@ for (const transition of ["uninstall", "withdraw", "auto-disable"] as const) {
 
     await expect(component.getByRole("group", { name: "Resident plugin — Resident settings" })).toBeVisible();
     await component.getByRole("button", { name: "Plugin commands" }).click();
-    await expect(page.getByRole("menuitem", { name: "Resident plugin (resident-plugin) · Tools · Run inspect · Inspect the resident plugin" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Resident plugin · Tools · Run inspect · Inspect the resident plugin" })).toBeVisible();
     await page.keyboard.press("Escape");
 
     await component.getByRole("button", { name: `Run ${transition}`, exact: true }).click();

@@ -19,6 +19,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { ExtensionsCensusStory, ExtensionsPageStory, ExtensionsSectionStory, ExtensionsSwitcherStory } from "../_ct-stories.tsx";
 
 type PluginListRow = TrpcWireOutput<"plugin.list">[number];
@@ -77,13 +78,15 @@ const CHIPS_SPEC: NonNullable<PluginSurfaceRow["spec"]> = {
   children: [{ kind: "text", value: "Scene chips live here.", voice: "body" }],
 };
 
-const TWO_PAGES: TrpcRoutes<"plugin.list" | "plugin.listSurfaces" | "plugin.getSurfaceState"> = {
+const TWO_PAGES: TrpcRoutes<"settings.getUserSettings" | "plugin.list" | "plugin.listSurfaces" | "plugin.getSurfaceState"> = {
+  "settings.getUserSettings": () => userSettingsView(),
   "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck"), pluginRow(CHIPS_ID, "scene-chips", "Scene Chips")],
   "plugin.listSurfaces": () => [pageRow(ORACLE_ID, "deck_page", "The Deck", DECK_SPEC), pageRow(CHIPS_ID, "chips_page", "Chips", CHIPS_SPEC)],
   "plugin.getSurfaceState": () => ({ status: "Session open · 2 dealt" }),
 };
 
-const NO_PAGES: TrpcRoutes<"plugin.list" | "plugin.listSurfaces"> = {
+const NO_PAGES: TrpcRoutes<"settings.getUserSettings" | "plugin.list" | "plugin.listSurfaces"> = {
+  "settings.getUserSettings": () => userSettingsView(),
   // INSTALLED AND ENABLED but registering no `page` surface — the common case for everyone who has a plugin at
   // all, and the arm where a rail entry that only ever showed a full list would teach nothing.
   "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck")],
@@ -91,13 +94,15 @@ const NO_PAGES: TrpcRoutes<"plugin.list" | "plugin.listSurfaces"> = {
 };
 
 /** NOTHING INSTALLED — the only account for which "install a plugin" is true guidance. */
-const NONE_INSTALLED: TrpcRoutes<"plugin.list" | "plugin.listSurfaces"> = {
+const NONE_INSTALLED: TrpcRoutes<"settings.getUserSettings" | "plugin.list" | "plugin.listSurfaces"> = {
+  "settings.getUserSettings": () => userSettingsView(),
   "plugin.list": () => [],
   "plugin.listSurfaces": () => [],
 };
 
 /** THE FRESH BOOT (#924): two installed rows, neither allowed to do anything, both asking. */
-const AWAITING_CONSENT: TrpcRoutes<"plugin.list" | "plugin.listSurfaces"> = {
+const AWAITING_CONSENT: TrpcRoutes<"settings.getUserSettings" | "plugin.list" | "plugin.listSurfaces"> = {
+  "settings.getUserSettings": () => userSettingsView(),
   "plugin.list": () => [
     pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck", SEEDED_AWAITING_CONSENT),
     pluginRow(CHIPS_ID, "scene-chips", "Scene Chips", SEEDED_AWAITING_CONSENT),
@@ -109,7 +114,8 @@ const AWAITING_CONSENT: TrpcRoutes<"plugin.list" | "plugin.listSurfaces"> = {
  *  `errored` and it registers nothing. The second row is `disabled` on purpose — without the fifth arm this
  *  exact shape satisfies `all-off`'s "nothing is enabled" predicate and the pane blames the reader for a
  *  failure that was ours. */
-const SOME_ERRORED: TrpcRoutes<"plugin.list" | "plugin.listSurfaces"> = {
+const SOME_ERRORED: TrpcRoutes<"settings.getUserSettings" | "plugin.list" | "plugin.listSurfaces"> = {
+  "settings.getUserSettings": () => userSettingsView(),
   "plugin.list": () => [
     pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck", { status: "errored", lastError: "registration failed: unsupported JSON Schema construct" }),
     pluginRow(CHIPS_ID, "scene-chips", "Scene Chips", { status: "disabled" }),
@@ -118,7 +124,8 @@ const SOME_ERRORED: TrpcRoutes<"plugin.list" | "plugin.listSurfaces"> = {
 };
 
 /** GRANTED, BUT SWITCHED OFF — nothing is asking and nothing is running, so nothing registers. */
-const ALL_OFF: TrpcRoutes<"plugin.list" | "plugin.listSurfaces"> = {
+const ALL_OFF: TrpcRoutes<"settings.getUserSettings" | "plugin.list" | "plugin.listSurfaces"> = {
+  "settings.getUserSettings": () => userSettingsView(),
   "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck", { status: "disabled" })],
   "plugin.listSurfaces": () => [],
 };
@@ -187,6 +194,7 @@ test.describe("the page switcher", () => {
     // attribution is already the title, and "Card Atlas" over a "Card Atlas" subtitle (spoken twice by AT)
     // is noise, not disambiguation.
     await routeTrpc(page, {
+      "settings.getUserSettings": () => userSettingsView(),
       "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck")],
       "plugin.listSurfaces": () => [pageRow(ORACLE_ID, "deck_page", "Oracle Deck", DECK_SPEC)],
     });
@@ -259,6 +267,7 @@ test.describe("the teaching empty names WHICH emptiness", () => {
     let approved = false;
     const waitingChips = pluginRow(CHIPS_ID, "scene-chips", "Scene Chips", SEEDED_AWAITING_CONSENT);
     const recorder = await routeTrpc(page, {
+      "settings.getUserSettings": () => userSettingsView(),
       "plugin.list": () => [
         pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck", SEEDED_AWAITING_CONSENT),
         approved ? pluginRow(CHIPS_ID, "scene-chips", "Scene Chips") : waitingChips,
@@ -287,6 +296,7 @@ test.describe("the teaching empty names WHICH emptiness", () => {
   test("approving a plugin that brings a page selects and opens that page", async ({ mount, page }) => {
     let approved = false;
     await routeTrpc(page, {
+      "settings.getUserSettings": () => userSettingsView(),
       "plugin.list": () => [
         approved ? pluginRow(CHIPS_ID, "scene-chips", "Scene Chips") : pluginRow(CHIPS_ID, "scene-chips", "Scene Chips", SEEDED_AWAITING_CONSENT),
       ],
@@ -312,6 +322,7 @@ test.describe("the teaching empty names WHICH emptiness", () => {
 
   test("the waiting group lists plugins by name, whatever order the server sent them in", async ({ mount, page }) => {
     await routeTrpc(page, {
+      "settings.getUserSettings": () => userSettingsView(),
       "plugin.list": () => [
         pluginRow(CHIPS_ID, "zeta-chips", "Zeta Chips", SEEDED_AWAITING_CONSENT),
         pluginRow(ORACLE_ID, "alpha-deck", "Alpha Deck", SEEDED_AWAITING_CONSENT),
@@ -343,6 +354,7 @@ test.describe("the teaching empty names WHICH emptiness", () => {
 
   test("waiting plugins stay listed once some pages exist", async ({ mount, page }) => {
     await routeTrpc(page, {
+      "settings.getUserSettings": () => userSettingsView(),
       "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck"), pluginRow(CHIPS_ID, "scene-chips", "Scene Chips", SEEDED_AWAITING_CONSENT)],
       "plugin.listSurfaces": () => [pageRow(ORACLE_ID, "deck_page", "The Deck", DECK_SPEC)],
     });
@@ -445,6 +457,7 @@ test.describe("the page-scale shell", () => {
     // nothing: the band's job is the plugin's NAME, which still renders — only the redundant echo goes,
     // and the kicker still names the class.
     await routeTrpc(page, {
+      "settings.getUserSettings": () => userSettingsView(),
       "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck")],
       "plugin.listSurfaces": () => [pageRow(ORACLE_ID, "deck_page", "Oracle Deck", DECK_SPEC)],
       "plugin.getSurfaceState": () => ({ status: "Session open · 2 dealt" }),

@@ -22,6 +22,7 @@ export {
   pluginChatSettingsSection,
   pluginComposerActionSurface,
   pluginComposerMediaSurface,
+  pluginComposerPanelsSurface,
   pluginMessageFooterSurface,
 } from "./lib/chat-anchors.tsx";
 // The U5 set (seam 16): the tenth rail SECTION (the platform's full-page

@@ -23,13 +23,22 @@ import type { ReactElement } from "react";
 import type { ChatSettingsSectionContribution, ChatSurfaceContribution } from "#lib";
 import { PluginAnchoredSurfaces } from "../components/plugin-anchored-surfaces.tsx";
 import { PluginComposerActions, PluginComposerMediaItems } from "../components/plugin-composer-placements.tsx";
+import { PluginChatFlank, PluginPanelsMenuItem } from "../components/plugin-flank-sheet.tsx";
 import { PluginMessageFooterSurfaces } from "../components/plugin-message-footer-surfaces.tsx";
 
-/** The `chat-flank` anchor: plugin surfaces mounted beside the transcript, in the room's flank column. */
+/** The `chat-flank` anchor: plugin surfaces mounted beside the transcript, in the room's flank column. A touch
+ *  device holds them in a sheet instead; one component picks the host, so exactly one of them holds the frames. */
 export const pluginChatFlankSurface: ChatSurfaceContribution = {
   id: "pluginChatFlank",
   anchor: "thread-flank",
-  body: ({ chatId }): ReactElement | null => <PluginAnchoredSurfaces anchor="chat-flank" {...(chatId === null ? {} : { chatId })} />,
+  body: ({ chatId }): ReactElement | null => <PluginChatFlank {...(chatId === null ? {} : { chatId })} />,
+};
+
+/** The touch device's door to that sheet: a `composer-room` item that leads Message tools. */
+export const pluginComposerPanelsSurface: ChatSurfaceContribution = {
+  id: "pluginComposerPanels",
+  anchor: "composer-room",
+  body: ({ chatId }): ReactElement | null => (chatId === null ? null : <PluginPanelsMenuItem chatId={chatId} />),
 };
 
 /** The `chat-settings-section` anchor: plugin panels inside the "This chat" tab's HOST-ONLY band. Host-gated by
@@ -71,7 +80,7 @@ export const pluginComposerMediaSurface: ChatSurfaceContribution = {
 export const pluginChatSettingsSection: ChatSettingsSectionContribution = {
   id: "pluginChatSurfaces",
   anchor: "host-controls",
-  kicker: "Plugin panels",
+  kicker: "Plugin controls",
   defaultOpen: true,
   body: ({ chatId }): ReactElement | null => <PluginAnchoredSurfaces anchor="chat-settings-section" chatId={chatId} />,
 };

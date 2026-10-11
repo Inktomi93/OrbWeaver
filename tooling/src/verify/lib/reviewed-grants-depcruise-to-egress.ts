@@ -152,7 +152,7 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     why: "the whole-blob user write and reset door coexist with the cross-user json_set theme heal; the residual is the separately ruled race, not a client-image straddle.",
     endsWhen: "the migration/heal is retired, the writer provenance changes, or all writers adopt one write shape.",
   },
-  // THE SIX D107 KNOB ROWS (#1584, #2283). They replace `knob-wire-coverage`'s two gate-local
+  // THE D107 KNOB ROWS (#1584, #2283). They replace `knob-wire-coverage`'s two gate-local
   // `ExemptionTable`s — `DOORWAY` (one sanctioned, indefinitely-dormant rebuild seam) and `DEFERRED` (five
   // tracked-debt rows) — whose two-sided STALE/ORPHAN arms are now the central `stale-reviewed-grant`
   // alarm: a row consumed zero times after a complete owner run is an error whether the member GAINED its
@@ -166,14 +166,6 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     operation: "unread-config-field",
     why: "D107 triage — the resolved env-floor skip list (env floor ⊕ admin override) is read by no import behavior outside the resolver itself, so editing it governs nothing today. Tracked debt, not a sanctioned doorway.",
     endsWhen: "domain/import consumes getEffectiveConfig().importSkipCharacters — central liveness then reports this row stale. Tracker: #2283.",
-  },
-  {
-    id: "knob-wire-coverage:section-profile",
-    policyId: "knob-wire-coverage",
-    subject: "USER_SETTINGS_SECTIONS.profile",
-    operation: "unwritten-settings-section",
-    why: "D107 — the settings-wiring remediation program: profile.avatarAssetId is live-read but the section has ZERO section-patch writers, so the user's own avatar is unsettable. Tracked debt, not a sanctioned doorway.",
-    endsWhen: 'a client or compose-seed writer patches section:"profile" — central liveness then reports this row stale. Tracker: #2283.',
   },
   {
     id: "knob-wire-coverage:section-group-defaults",

@@ -138,6 +138,8 @@ export {
 } from "./embedder-rebuild.ts";
 export type { AppErrorBoundaryProps } from "./error-boundary.tsx";
 export { AppErrorBoundary } from "./error-boundary.tsx";
+export type { FlankHost } from "./flank-placement.ts";
+export { publishFlankHost, publishInlineFlankFit, setFlankSheetOpen, useFlankHost, useFlankSheetOpen, useInlineFlankFits } from "./flank-placement.ts";
 export type { SendRefusalKey } from "./injection-copy.ts";
 export {
   ADD_CONNECTION_PATH,
