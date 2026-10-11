@@ -114,13 +114,8 @@ test("share-link mode mints and shows the raw /join link ONCE with the copy affo
 
   await expect.poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   // An untargeted mint: no invitedHandle on the wire.
-  const readInputAtAssertion = async (): Promise<typeof input> =>
-    trpc.lastInput("invites.createInvite") as {
-      input?: { invitedHandle?: unknown };
-    };
-  const input = trpc.lastInput("invites.createInvite") as {
-    input?: { invitedHandle?: unknown };
-  };
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.requireLastInput("invites.createInvite");
+  const input = trpc.requireLastInput("invites.createInvite");
   await expect.poll(async () => (await readInputAtAssertion()).input?.invitedHandle).toBeUndefined();
 
   // The raw link renders ONCE, composed from the returned token, with the you-won't-see-this copy.
@@ -328,13 +323,8 @@ test("handle mode sends the targeted invite with the limits on the wire", async 
   await dialog.getByRole("button", { name: "Send invite" }).click();
 
   await expect.poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  const readInputAtAssertion = async (): Promise<typeof input> =>
-    trpc.lastInput("invites.createInvite") as {
-      input?: { invitedHandle?: unknown; maxUses?: unknown };
-    };
-  const input = trpc.lastInput("invites.createInvite") as {
-    input?: { invitedHandle?: unknown; maxUses?: unknown };
-  };
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.requireLastInput("invites.createInvite");
+  const input = trpc.requireLastInput("invites.createInvite");
   await expect.poll(async () => (await readInputAtAssertion()).input?.invitedHandle).toBe("frodo");
   await expect.poll(async () => (await readInputAtAssertion()).input?.maxUses).toBe(3);
 });
@@ -393,8 +383,8 @@ test("the outstanding list renders per-invite status/uses and revokes a pending 
   await expect(revokes).toHaveCount(1);
   await revokes.click();
   await expect.poll(() => trpc.count("invites.revokeInvite"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  const readInputAtAssertion = async (): Promise<typeof input> => trpc.lastInput("invites.revokeInvite") as { inviteId?: unknown };
-  const input = trpc.lastInput("invites.revokeInvite") as { inviteId?: unknown };
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.requireLastInput("invites.revokeInvite");
+  const input = trpc.requireLastInput("invites.revokeInvite");
   await expect.poll(async () => (await readInputAtAssertion()).inviteId).toBe("chatinvite_ct_a");
 });
 
@@ -494,8 +484,7 @@ test.describe("the sign-up switch", () => {
     await dialog.getByRole("button", { name: "Create link" }).click();
 
     await expect.poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] }).toBe(1);
-    const sent = (): { allowSignup?: unknown; maxUses?: unknown; expiresAt?: unknown } | undefined =>
-      (trpc.lastInput("invites.createInvite") as { input?: { allowSignup?: unknown; maxUses?: unknown; expiresAt?: unknown } }).input;
+    const sent = (): { allowSignup?: unknown; maxUses?: unknown; expiresAt?: unknown } | undefined => trpc.requireLastInput("invites.createInvite").input;
     expect(sent()?.allowSignup).toBe(true);
     expect(sent()?.maxUses).toBe(SIGNUP_MAX_USES);
     expect(typeof sent()?.expiresAt).toBe("number");
@@ -516,8 +505,7 @@ test.describe("the sign-up switch", () => {
     await dialog.getByRole("button", { name: "Create link" }).click();
 
     await expect.poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] }).toBe(1);
-    const sent = (): { allowSignup?: unknown; maxUses?: unknown; expiresAt?: unknown } | undefined =>
-      (trpc.lastInput("invites.createInvite") as { input?: { allowSignup?: unknown; maxUses?: unknown; expiresAt?: unknown } }).input;
+    const sent = (): { allowSignup?: unknown; maxUses?: unknown; expiresAt?: unknown } | undefined => trpc.requireLastInput("invites.createInvite").input;
     await expect
       .poll(() => ({ allowSignup: sent()?.allowSignup, maxUses: sent()?.maxUses, expiry: typeof sent()?.expiresAt }))
       .toEqual({
@@ -663,7 +651,7 @@ test.describe("the sign-up status line", () => {
     await dialog.getByRole("button", { name: "Create link" }).click();
     await expect.poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] }).toBe(1);
     await expect(dialog.locator('[data-slot="field-error"]')).toHaveCount(0);
-    const sent = (trpc.lastInput("invites.createInvite") as { input?: { allowSignup?: unknown; expiresAt?: unknown } }).input;
+    const sent = trpc.requireLastInput("invites.createInvite").input;
     expect({ allowSignup: sent?.allowSignup, expiry: typeof sent?.expiresAt }).toEqual({ allowSignup: true, expiry: "number" });
   });
 });

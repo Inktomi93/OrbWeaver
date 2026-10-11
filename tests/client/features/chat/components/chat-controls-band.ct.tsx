@@ -27,7 +27,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
-import type { TrpcProcedurePath, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import type { TrpcProcedurePath, TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatControlsStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../fixtures.ts";
@@ -62,10 +62,7 @@ async function expandChips(component: Locator): Promise<void> {
 
 /** The room's floor reads: the transcript, the roster, and the divider's present-tense preview (an
  *  unlisted proc's `data: null` default is out-of-contract for the last one and crashes the surface). */
-function routeRoom(
-  page: Page,
-  extra: Partial<TrpcRoutes<TrpcProcedurePath>> = {},
-): Promise<{ readonly count: (p: string) => number; readonly lastInput: (p: string) => unknown }> {
+function routeRoom(page: Page, extra: Partial<TrpcRoutes<TrpcProcedurePath>> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     "chat.previewContextFit": () => ({
@@ -396,7 +393,7 @@ test("send mode: a chip click fires chat.send with the chip's text and leaves th
   await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBe(1);
   // Settled snapshot: the poll above already settled the recorder for this proc — the call is recorded, so its
   // input is a fixed value, not mutable async state.
-  await expect.poll(async () => (trpc.lastInput("chat.send") as { readonly content?: string }).content).toBe("I draw my blade.");
+  await expect.poll(async () => trpc.requireLastInput("chat.send").content).toBe("I draw my blade.");
   await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("");
 });
 

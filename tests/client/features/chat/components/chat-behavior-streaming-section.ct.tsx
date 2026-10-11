@@ -9,22 +9,16 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
 import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatStreamingSectionStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_streaming", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
-const UPDATE_PROC = "settings.updateUserSettingsSection";
 const OWNED_KEYS = ["reasoningAutoCollapse", "smoothStream", "smoothStreamCps", "streamScrollMode"];
 
 function stub(page: Page): Promise<TrpcRecorder> {
-  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => SETTINGS_VIEW });
-}
-
-/** The most recent `chat` section-patch body. */
-function lastPatch(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  const input = trpc.lastInput(UPDATE_PROC) as { section?: string; patch?: Record<string, unknown> } | undefined;
-  return input?.section === "chat" ? input.patch : undefined;
+  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
 }
 
 test("mounts with the persisted defaults rendered (Follow, smooth streaming ON)", async ({ mount, page }) => {
@@ -44,10 +38,10 @@ test("toggling auto-collapse reasoning patches reasoningAutoCollapse with ONLY t
   await mount(<ChatStreamingSectionStory />);
   await page.getByRole("switch", { name: "Auto-collapse reasoning" }).click();
 
-  await expect.poll(() => lastPatch(trpc)?.["reasoningAutoCollapse"], { intervals: [20, 50, 100] }).toBe(false);
+  await expect.poll(() => lastSettingsPatch(trpc, "chat")?.["reasoningAutoCollapse"], { intervals: [20, 50, 100] }).toBe(false);
   // Patch minimality (SET-SEAMS §2.1): no sibling message-handling key rides along.
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
-  expect("enterSends" in (lastPatch(trpc) ?? {})).toBe(false);
+  expect(Object.keys(lastSettingsPatch(trpc, "chat") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  expect("enterSends" in (lastSettingsPatch(trpc, "chat") ?? {})).toBe(false);
 });
 
 test("picking Pin patches streamScrollMode with ONLY this section's owned keys", async ({ mount, page }) => {
@@ -56,11 +50,11 @@ test("picking Pin patches streamScrollMode with ONLY this section's owned keys",
   await page.getByRole("combobox", { name: "While a reply streams" }).click();
   await page.getByRole("option", { name: "Pin my message to the top" }).click();
 
-  await expect.poll(() => lastPatch(trpc)?.["streamScrollMode"], { intervals: [20, 50, 100] }).toBe("pin-prompt");
+  await expect.poll(() => lastSettingsPatch(trpc, "chat")?.["streamScrollMode"], { intervals: [20, 50, 100] }).toBe("pin-prompt");
   // P1: no message-handling key rides along — a full-blob patch would carry a stale `autoSwipe`/`enterSends`
   // and clobber whatever that section just saved (SET-SEAMS §2.1).
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
-  expect("enterSends" in (lastPatch(trpc) ?? {})).toBe(false);
+  expect(Object.keys(lastSettingsPatch(trpc, "chat") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  expect("enterSends" in (lastSettingsPatch(trpc, "chat") ?? {})).toBe(false);
 });
 
 test("the reveal-speed slider is gated on the smooth-streaming toggle, in BOTH directions, and patches smoothStream", async ({ mount, page }) => {
@@ -71,10 +65,10 @@ test("the reveal-speed slider is gated on the smooth-streaming toggle, in BOTH d
   await expect(page.getByRole("slider", { name: "Reveal speed (chars/sec)" })).toBeVisible();
   await page.getByRole("switch", { name: "Smooth streaming" }).click();
   await expect(page.getByRole("slider", { name: "Reveal speed (chars/sec)" })).toHaveCount(0);
-  await expect.poll(() => lastPatch(trpc)?.["smoothStream"], { intervals: [20, 50, 100] }).toBe(false);
+  await expect.poll(() => lastSettingsPatch(trpc, "chat")?.["smoothStream"], { intervals: [20, 50, 100] }).toBe(false);
 
   await page.getByRole("switch", { name: "Smooth streaming" }).click();
   await expect(page.getByRole("slider", { name: "Reveal speed (chars/sec)" })).toBeVisible();
-  await expect.poll(() => lastPatch(trpc)?.["smoothStream"], { intervals: [20, 50, 100] }).toBe(true);
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  await expect.poll(() => lastSettingsPatch(trpc, "chat")?.["smoothStream"], { intervals: [20, 50, 100] }).toBe(true);
+  expect(Object.keys(lastSettingsPatch(trpc, "chat") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 });

@@ -11,6 +11,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { ReactElement } from "react";
+import { UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
 import { defineTrpcRoutes, routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { UTILITY_RUNNING_ROUTES } from "../../../../support/node/utility-role.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
@@ -22,8 +23,6 @@ const SETTINGS_VIEW = {
   configUnreadable: null,
   updatedAt: 0,
 };
-
-const UPDATE_PROC = "settings.updateUserSettingsSection";
 
 /** The config host's viewer-identity read (#649) — the nav resolves the admin/owner-gated panes off it,
  *  and it is nobody's subject in this file. Unfed it resolved `routeTrpc`'s null, so the whole identity-gated
@@ -53,7 +52,7 @@ async function openChatBehavior(mount: (c: ReactElement) => Promise<unknown>, pa
   await routeTrpc(page, {
     ...SHELL_VIEWER_ROUTE,
     "settings.getUserSettings": () => SETTINGS_VIEW,
-    [UPDATE_PROC]: () => (failSaves ? trpcError({ code: "INTERNAL_SERVER_ERROR", message: "nope" }) : SETTINGS_VIEW),
+    [UPDATE_USER_SETTINGS_SECTION]: () => (failSaves ? trpcError({ code: "INTERNAL_SERVER_ERROR", message: "nope" }) : SETTINGS_VIEW),
   });
   await mount(<ConfigHostStory />);
   await page.getByRole("button", { name: "Chat behavior" }).click();
@@ -130,7 +129,7 @@ test("BLOCKED: a section holding its write flips the footer off 'Saved' and stay
         prose: { [ARBITER_SLOT]: { text: "y".repeat(PROSE_MAX_CHARS + 500), baseVersion: PROSE_SLOTS[ARBITER_SLOT].version } },
       },
     }),
-    [UPDATE_PROC]: () => ({
+    [UPDATE_USER_SETTINGS_SECTION]: () => ({
       ...SETTINGS_VIEW,
       config: {
         ...DEFAULT_USER_SETTINGS,

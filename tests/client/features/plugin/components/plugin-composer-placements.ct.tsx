@@ -230,7 +230,7 @@ test("fitting attributed actions render directly, cap at three, and move into or
   await routeTrpc(page, {
     "chat.listChats": () => ({ items: [], nextCursor: null }),
     "plugin.listCommands": () => ORDER_COMMANDS,
-    "plugin.invokeUiCommand": (input: unknown) => {
+    "plugin.invokeUiCommand": (input) => {
       invoked.push(input);
       return { toasts: [] };
     },
@@ -290,8 +290,8 @@ test("composer placements stay in one attributed action menu at narrow width and
   const invoked: string[] = [];
   await routeTrpc(page, {
     ...ROUTES,
-    "plugin.invokeUiCommand": (input: unknown) => {
-      invoked.push((input as { name: string }).name);
+    "plugin.invokeUiCommand": (input) => {
+      invoked.push(input.name);
       return { toasts: [] };
     },
   });
@@ -324,7 +324,7 @@ test("a placed typed command collects values before dispatch through the shared 
   let captured: unknown = null;
   await routeTrpc(page, {
     ...ROUTES,
-    "plugin.invokeUiCommand": (input: unknown) => {
+    "plugin.invokeUiCommand": (input) => {
       captured = input;
       return { toasts: [] };
     },
@@ -776,7 +776,7 @@ test("the room composer mounts the production placement contributions and runs p
       droppedCount: 0,
       compactSummary: null,
     }),
-    "plugin.invokeUiCommand": (input: unknown) => {
+    "plugin.invokeUiCommand": (input) => {
       invoked.push(input);
       return { toasts: [] };
     },

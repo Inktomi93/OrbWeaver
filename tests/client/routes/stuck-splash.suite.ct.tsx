@@ -2,13 +2,12 @@
 // and a section read that suspends must hold only its own shell region.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import { SIGNED_IN_OWNER_ME, stubAuthMe } from "../../support/node/stub-auth-me.ts";
 import { ProductionRouterCrashReportStory, ProductionRouterStory, RegionSuspenseStory } from "./_ct-stories.tsx";
-
-const SIGNED_IN = { authenticated: true, handle: "owner", role: "owner" };
 
 test("a failed authed-app chunk shows a retry, not the pending splash, and Retry reloads the page", async ({ mount, page }) => {
   let chunkRequests = 0;
-  await page.route("**/api/auth/me", (route) => route.fulfill({ status: 200, json: SIGNED_IN }));
+  await stubAuthMe(page, SIGNED_IN_OWNER_ME);
   // A chunk that evaluates to a throw rejects the dynamic import with a plain Error; an aborted request would be a
   // module-not-found error, which TanStack answers with a one-shot page reload instead.
   await page.route(/authed-app/, (route) => {
@@ -29,7 +28,7 @@ test("a failed authed-app chunk shows a retry, not the pending splash, and Retry
 });
 
 test("a route render crash reports once and lands on the retry surface", async ({ mount, page }) => {
-  await page.route("**/api/auth/me", (route) => route.fulfill({ status: 200, json: SIGNED_IN }));
+  await stubAuthMe(page, SIGNED_IN_OWNER_ME);
   await page.route(/authed-app/, (route) =>
     route.fulfill({
       status: 200,

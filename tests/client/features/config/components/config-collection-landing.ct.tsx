@@ -341,7 +341,7 @@ test("New script asks for a name inline and creates the script under it", async 
   await row.getByRole("button", { name: "New script" }).click();
   await row.getByRole("textbox", { name: "Script name" }).fill("Strip OOC");
   await row.getByRole("button", { name: "Create" }).click();
-  await expect.poll(() => (trpc.lastInput("regex.createScript") as { input: { name: string } } | undefined)?.input.name).toBe("Strip OOC");
+  await expect.poll(() => trpc.lastInput("regex.createScript")?.input.name).toBe("Strip OOC");
 });
 
 for (const width of [NARROW_WIDTH, MEDIUM_WIDTH]) {

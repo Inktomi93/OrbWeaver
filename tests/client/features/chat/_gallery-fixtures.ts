@@ -1,6 +1,7 @@
 // Shared network stubs and rows for the gallery CTs (the dialog, its add-picker and its upload zone). Every
 // suite mounts `CharacterGalleryDialogStory`, whose character is `character_ct_gallery` named "Aria".
 
+import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { Page } from "@playwright/test";
 import type { TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 
@@ -75,15 +76,7 @@ export async function capImageUploads(page: Page): Promise<void> {
   await page.route("**/api/auth/config", (route) =>
     route.fulfill({
       json: {
-        uploads: {
-          assetUpload: 1_000_000,
-          image: IMAGE_CAP_BYTES,
-          databankUpload: 1_000_000,
-          importTotal: 1_000_000,
-          importTreeTotal: 1_000_000,
-          importTreeFile: 1_000_000,
-          importTreeFiles: 50_000,
-        },
+        uploads: { ...DEFAULT_UPLOAD_CAPS, image: IMAGE_CAP_BYTES },
       },
     }),
   );

@@ -55,8 +55,8 @@ test("cyoaChoiceBehavior:send — a choice click fires chat.send with the option
   await component.getByRole("button", { name: `1. ${FIRST_OPTION}` }).click();
 
   await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBe(1);
-  const readInputAtAssertion = async (): Promise<typeof input> => trpc.lastInput("chat.send") as { readonly content?: string };
-  const input = trpc.lastInput("chat.send") as { readonly content?: string };
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.requireLastInput("chat.send");
+  const input = trpc.requireLastInput("chat.send");
   await expect.poll(async () => (await readInputAtAssertion()).content).toBe(FIRST_OPTION);
   // send mode never touches the composer draft.
   await expect(component.getByLabel("Message", { exact: true })).toHaveValue("");

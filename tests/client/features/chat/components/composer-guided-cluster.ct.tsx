@@ -59,8 +59,8 @@ test("Response on an EMPTY committed composer fires a PLAIN generate (no steer o
 
   await component.getByRole("button", { name: RESPONSE }).click();
   await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
-  const readInputAtAssertion = async (): Promise<typeof input> => trpc.lastInput("chat.generate") as { guided?: unknown; afterAssistant?: boolean };
-  const input = trpc.lastInput("chat.generate") as { guided?: unknown; afterAssistant?: boolean };
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.requireLastInput("chat.generate");
+  const input = trpc.requireLastInput("chat.generate");
   await expect.poll(async () => (await readInputAtAssertion()).guided).toBeUndefined(); // empty composer ⇒ no steer object
   await expect.poll(async () => (await readInputAtAssertion()).afterAssistant).toBe(true); // still nudged on an assistant tail
 });
@@ -74,8 +74,8 @@ test("Response fires chat.generate with the typed steer + afterAssistant on an a
   await component.getByRole("button", { name: RESPONSE_GUIDED }).click();
 
   await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
-  const readInputAtAssertion = async (): Promise<typeof input> => trpc.lastInput("chat.generate") as { guided?: { input?: string }; afterAssistant?: boolean };
-  const input = trpc.lastInput("chat.generate") as { guided?: { input?: string }; afterAssistant?: boolean };
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.requireLastInput("chat.generate");
+  const input = trpc.requireLastInput("chat.generate");
   await expect.poll(async () => (await readInputAtAssertion()).guided?.input).toBe("make her angrier");
   await expect.poll(async () => (await readInputAtAssertion()).afterAssistant).toBe(true);
   // Response CONSUMES the steer — the composer clears.
@@ -316,8 +316,8 @@ test("Regenerate lives in the ✨ menu and fires a PLAIN reroll of the tail assi
 
   await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
   // Settled snapshot: the poll settled the recorder at exactly 1 call. A PLAIN reroll carries no steer object.
-  const readInputAtAssertion = async (): Promise<typeof input> => trpc.lastInput("chat.swipe") as { guided?: unknown };
-  const input = trpc.lastInput("chat.swipe") as { guided?: unknown };
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.requireLastInput("chat.swipe");
+  const input = trpc.requireLastInput("chat.swipe");
   await expect.poll(async () => (await readInputAtAssertion()).guided).toBeUndefined();
 });
 
@@ -543,9 +543,8 @@ test("Corrections fires the toggle KINDS on the wire — no composed fragment by
 
   await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
   // Settled snapshot: the poll settled the recorder at exactly 1 call.
-  const readInputAtAssertion = async (): Promise<typeof input> =>
-    trpc.lastInput("chat.swipe") as { guided?: { action?: string; input?: string; rewriteToggles?: readonly string[] } };
-  const input = trpc.lastInput("chat.swipe") as { guided?: { action?: string; input?: string; rewriteToggles?: readonly string[] } };
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.requireLastInput("chat.swipe");
+  const input = trpc.requireLastInput("chat.swipe");
   await expect.poll(async () => (await readInputAtAssertion()).guided?.action).toBe("rewrite");
   await expect.poll(async () => (await readInputAtAssertion()).guided?.rewriteToggles).toStrictEqual(["concise", "past-tense"]);
   await expect.poll(async () => (await readInputAtAssertion()).guided?.input).toBe("keep the plot beats");
@@ -570,9 +569,8 @@ test("Corrections with ONLY toggles (no typed instruction) still fires — the k
 
   await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
   // Settled snapshot: the poll settled the recorder at exactly 1 call.
-  const readInputAtAssertion = async (): Promise<typeof input> =>
-    trpc.lastInput("chat.swipe") as { guided?: { input?: string; rewriteToggles?: readonly string[] } };
-  const input = trpc.lastInput("chat.swipe") as { guided?: { input?: string; rewriteToggles?: readonly string[] } };
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.requireLastInput("chat.swipe");
+  const input = trpc.requireLastInput("chat.swipe");
   await expect.poll(async () => (await readInputAtAssertion()).guided?.rewriteToggles).toStrictEqual(["literary"]);
   await expect.poll(async () => (await readInputAtAssertion()).guided?.input).toBeUndefined();
 });

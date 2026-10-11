@@ -23,7 +23,7 @@
 
 import { expect } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import type { TrpcRecorder } from "./route-trpc.ts";
+import type { TrpcProcedurePath, TrpcRecorder } from "./route-trpc.ts";
 
 /** The probe text: a bare identity macro plus prose, so a resolution bug changes the string VISIBLY (an
  *  empty-value resolve would leave " is watching" and still be caught by the exact-equality assert). */
@@ -35,7 +35,7 @@ export interface TokenRoundtripSpec {
   /** The template-text field under test (a textarea/input locator — `getByLabel("Content")`). */
   readonly field: Locator;
   /** The mutation procedure the field's save fires, e.g. `"chat.setChatInjection"`. */
-  readonly proc: string;
+  readonly proc: TrpcProcedurePath;
   /** The key on the mutation input carrying the template text, e.g. `"content"`. A DOTTED path reaches a
    *  nested one (`"config.formatStrings.continueNudge"`) — the preset surfaces save one whole config blob,
    *  so their template fields are never top-level keys. */

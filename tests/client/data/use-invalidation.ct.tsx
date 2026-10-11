@@ -17,8 +17,8 @@ const CHAT_ID = castId<ChatId>("chat_ctinvalidationtest");
 
 test("invalidate() (via the hook's live context) refetches the mounted getChat query", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "chat.getChat": (input: unknown) => ({
-      title: `room for ${(input as { chatId: ChatId }).chatId}`,
+    "chat.getChat": (input) => ({
+      title: `room for ${input.chatId}`,
     }),
   });
 
@@ -50,7 +50,7 @@ interface BurstChatRow {
 }
 
 const BURST_ROUTES: TrpcRoutes<"chat.getChat" | "chat.listChats"> = {
-  "chat.getChat": (input: unknown): { title: string } => ({ title: `room for ${(input as { chatId: ChatId }).chatId}` }),
+  "chat.getChat": (input): { title: string } => ({ title: `room for ${input.chatId}` }),
   // `listChats` is a keyset PAGE now — the probe reads `.items.length`, so the stub owes the page shape.
   "chat.listChats": (): { items: readonly BurstChatRow[]; nextCursor: null; totalCount: number } => ({
     items: [{ id: CHAT_ID }],

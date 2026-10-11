@@ -10,21 +10,16 @@ import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN, FONT_SCALE_MAX, FONT_SCALE_MIN } from "#client/features/app-shell/lib/appearance-bounds.ts";
+import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
 import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AppearanceSizingSectionStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_sizing", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
-const UPDATE_PROC = "settings.updateUserSettingsSection";
 const OWNED_KEYS = ["chatWidthPct", "density", "elevation", "fontScale", "reducedMotion"];
 
 function stub(page: Page): Promise<TrpcRecorder> {
-  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => SETTINGS_VIEW });
-}
-
-function lastPatch(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  const input = trpc.lastInput(UPDATE_PROC) as { section?: string; patch?: Record<string, unknown> } | undefined;
-  return input?.section === "appearance" ? input.patch : undefined;
+  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
 }
 
 test("renders the sizing sliders AND the absorbed density/elevation/motion controls under one heading", async ({ mount, page }) => {
@@ -56,12 +51,12 @@ test("chatWidthPct clamps at its own MIN/MAX and patches key-minimally", async (
 
   await slider.press("Home");
   await expect(slider).toHaveAttribute("aria-valuenow", String(CHAT_WIDTH_MIN));
-  await expect.poll(() => lastPatch(trpc)?.["chatWidthPct"], { intervals: [20, 50, 100] }).toBe(CHAT_WIDTH_MIN);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["chatWidthPct"], { intervals: [20, 50, 100] }).toBe(CHAT_WIDTH_MIN);
 
   await slider.press("End");
   await expect(slider).toHaveAttribute("aria-valuenow", String(CHAT_WIDTH_MAX));
-  await expect.poll(() => lastPatch(trpc)?.["chatWidthPct"], { intervals: [20, 50, 100] }).toBe(CHAT_WIDTH_MAX);
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["chatWidthPct"], { intervals: [20, 50, 100] }).toBe(CHAT_WIDTH_MAX);
+  expect(Object.keys(lastSettingsPatch(trpc, "appearance") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 });
 
 test("fontScale clamps at its own MIN/MAX and patches fontScale", async ({ mount, page }) => {
@@ -71,11 +66,11 @@ test("fontScale clamps at its own MIN/MAX and patches fontScale", async ({ mount
 
   await slider.press("Home");
   await expect(slider).toHaveAttribute("aria-valuenow", String(FONT_SCALE_MIN));
-  await expect.poll(() => lastPatch(trpc)?.["fontScale"], { intervals: [20, 50, 100] }).toBe(FONT_SCALE_MIN);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["fontScale"], { intervals: [20, 50, 100] }).toBe(FONT_SCALE_MIN);
 
   await slider.press("End");
   await expect(slider).toHaveAttribute("aria-valuenow", String(FONT_SCALE_MAX));
-  await expect.poll(() => lastPatch(trpc)?.["fontScale"], { intervals: [20, 50, 100] }).toBe(FONT_SCALE_MAX);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["fontScale"], { intervals: [20, 50, 100] }).toBe(FONT_SCALE_MAX);
 });
 
 test("BOTH density options show their OWN spacing art, and picking one patches density key-minimally", async ({ mount, page }) => {
@@ -104,8 +99,8 @@ test("BOTH density options show their OWN spacing art, and picking one patches d
   await expect.poll(() => previews.nth(1).evaluate((el: HTMLElement) => getComputedStyle(el).rowGap)).toBe("6px"); // compact row = the canonical field step
 
   await page.getByRole("radiogroup", { name: "Density" }).getByRole("radio", { name: "Compact" }).click();
-  await expect.poll(() => lastPatch(trpc)?.["density"], { intervals: [20, 50, 100] }).toBe("compact");
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["density"], { intervals: [20, 50, 100] }).toBe("compact");
+  expect(Object.keys(lastSettingsPatch(trpc, "appearance") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
   await expect(page.getByRole("radio", { name: "Compact" })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("radio", { name: "Comfortable" })).toHaveAttribute("aria-checked", "false");
 });
@@ -131,8 +126,8 @@ test("an elevation CELL patches elevation, key-minimally — and the three diagr
   const cards = page.getByRole("radiogroup", { name: "Surface elevation" });
   await cards.getByRole("radio", { name: "Layered" }).click();
 
-  await expect.poll(() => lastPatch(trpc)?.["elevation"], { intervals: [20, 50, 100] }).toBe("ramp");
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["elevation"], { intervals: [20, 50, 100] }).toBe("ramp");
+  expect(Object.keys(lastSettingsPatch(trpc, "appearance") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 
   // #1099 G4 — THE PIN THAT CHANGED, AND WHY. This arm used to assert that Layered's middle cell computes
   // exactly `--color-surface-raised`, i.e. that the diagram painted the shell's REAL three ramp tones. The

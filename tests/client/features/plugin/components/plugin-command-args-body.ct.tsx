@@ -35,8 +35,8 @@ test("an enum arg renders a typed input and the run dispatches the TYPED value",
   let captured: { name: string; values: unknown } | null = null;
   await routeTrpc(page, {
     ...ROUTES,
-    "plugin.invokeUiCommand": (input: unknown) => {
-      const { name, values } = input as { name: string; values: unknown };
+    "plugin.invokeUiCommand": (input) => {
+      const { name, values } = input;
       captured = { name, values };
       return { toasts: [] };
     },
@@ -132,8 +132,8 @@ test("a declared default opens preselected and is what the run dispatches", asyn
         placements: [],
       },
     ],
-    "plugin.invokeUiCommand": (input: unknown) => {
-      captured = { values: (input as { values: unknown }).values };
+    "plugin.invokeUiCommand": (input) => {
+      captured = { values: input.values };
       return { toasts: [] };
     },
   });

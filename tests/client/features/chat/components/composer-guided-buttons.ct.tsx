@@ -104,8 +104,8 @@ test("Let the room pick is a real row: it fires the generate with NO speaker (th
   await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
   // Settled snapshot: the poll settled the recorder at exactly 1 call. `null`/omitted ⇒ arbitration picks the speaker,
   // so the field must be ABSENT from the wire, not a null placeholder.
-  const readInputAtAssertion = async (): Promise<typeof input> => trpc.lastInput("chat.generate") as { speakerCharacterId?: unknown };
-  const input = trpc.lastInput("chat.generate") as { speakerCharacterId?: unknown };
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.requireLastInput("chat.generate");
+  const input = trpc.requireLastInput("chat.generate");
   await expect.poll(async () => (await readInputAtAssertion()).speakerCharacterId).toBeUndefined();
 });
 
@@ -137,8 +137,8 @@ test("a SOLO-character room keeps the DIRECT Response button — one click fires
   await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
   // The fork's other arm: no popup opened, so nothing to pick — the click IS the fire.
   await expect(page.getByRole("menuitem", { name: AUTO })).toHaveCount(0);
-  const readInputAtAssertion = async (): Promise<typeof input> => trpc.lastInput("chat.generate") as { speakerCharacterId?: unknown };
-  const input = trpc.lastInput("chat.generate") as { speakerCharacterId?: unknown };
+  const readInputAtAssertion = async (): Promise<typeof input> => trpc.requireLastInput("chat.generate");
+  const input = trpc.requireLastInput("chat.generate");
   await expect.poll(async () => (await readInputAtAssertion()).speakerCharacterId).toBeUndefined();
 });
 

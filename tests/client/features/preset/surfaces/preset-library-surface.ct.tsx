@@ -172,13 +172,6 @@ const PRESETS: TrpcFixtureOutput<"preset.list"> = [
   summary({ id: IMPORTED, name: IMPORTED_NAME, updatedAt: EDITED_ONE_AT, kind: "roleplay" }),
 ];
 
-interface RemoveCall {
-  readonly id?: string;
-}
-interface SettingsPatchCall {
-  readonly patch?: { readonly defaultPresetId?: string | null };
-}
-
 /** The library with `activeId` as the active-for-generation pick. */
 function routeLibrary(page: Page, activeId: string | null): Promise<TrpcRecorder> {
   return routeTrpc(page, {
@@ -412,7 +405,7 @@ test("an '(edited)' row deletes from its ⋯ menu — and the built-in row offer
   await page.getByRole("button", { name: "Delete", exact: true }).click();
 
   // THE PIN: the duplicate's OWN id reaches `preset.remove` (a row-indexed delete would send the wrong one).
-  await expect.poll(() => (trpc.inputs("preset.remove") as RemoveCall[]).map((call) => call.id)).toEqual([EDITED_TWO]);
+  await expect.poll(() => trpc.inputs("preset.remove").map((call) => call.id)).toEqual([EDITED_TWO]);
   // Nothing was active, so nothing clears the pointer.
   // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — `onDelete` fires the (conditional) settings write and `preset.remove` in the SAME click handler, and the batch link sends that tick's mutations in ONE request; the recorded remove above therefore proves the request landed, so a settings write, had it happened, is already recorded too.
   expect(trpc.count("settings.updateUserSettingsSection")).toBe(0);
@@ -451,9 +444,9 @@ test("deleting the ACTIVE '(edited)' row also clears the active-for-generation p
   await page.getByRole("menuitem", { name: "Delete" }).click();
   await page.getByRole("button", { name: "Delete", exact: true }).click();
 
-  await expect.poll(() => (trpc.inputs("preset.remove") as RemoveCall[]).map((call) => call.id)).toEqual([EDITED_ONE]);
+  await expect.poll(() => trpc.inputs("preset.remove").map((call) => call.id)).toEqual([EDITED_ONE]);
   // The active pointer is nulled in the same gesture — a dangling id would silently fall back mid-generation.
-  await expect.poll(() => (trpc.inputs("settings.updateUserSettingsSection") as SettingsPatchCall[]).at(-1)?.patch?.defaultPresetId).toBeNull();
+  await expect.poll(() => trpc.inputs("settings.updateUserSettingsSection").at(-1)?.patch["defaultPresetId"]).toBeNull();
 });
 
 // ── §12 row-action grammar (list-pane-projection) ────────────────────────────────────────────────
@@ -462,10 +455,6 @@ test("deleting the ACTIVE '(edited)' row also clears the active-for-generation p
 // always, which at the docked 272px pane left the NAME 109px and clipped four rows of six. The kebab's
 // Duplicate is the one home; the pins below are (1) that the standalone control is gone, (2) that the act
 // still works from its one home, and (3) the width the removal bought, measured per row.
-
-interface CreateCall {
-  readonly name?: string;
-}
 
 test("P1-1 the row carries NO standalone Duplicate control — the kebab's item is the one home", async ({ mount, page }) => {
   await routeLibrary(page, null);
@@ -570,7 +559,7 @@ test("§12 the kebab's Duplicate fires preset.create for THAT row", async ({ mou
   await component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first().hover();
   await page.getByRole("button", { name: menuFor(EDITED_ONE_NAME) }).click();
   await page.getByRole("menuitem", { name: "Duplicate" }).click();
-  await expect.poll(() => (trpc.inputs("preset.create") as CreateCall[]).map((call) => call.name)).toEqual([`Copy of ${EDITED_ONE_NAME}`]);
+  await expect.poll(() => trpc.inputs("preset.create").map((call) => call.name)).toEqual([`Copy of ${EDITED_ONE_NAME}`]);
 });
 
 // §12.2 + side-eye P2d: the kebab is the row grammar's third slot — it rests HIDDEN like the inline verb
@@ -657,7 +646,7 @@ test("P3 the built-in row IS duplicable — a kebab holding Duplicate and nothin
   await expect(page.getByRole("menuitem", { name: "Activate" })).toHaveCount(0);
 
   await page.getByRole("menuitem", { name: "Duplicate" }).click();
-  await expect.poll(() => (trpc.inputs("preset.create") as CreateCall[]).map((call) => call.name)).toEqual(["Copy of Default"]);
+  await expect.poll(() => trpc.inputs("preset.create").map((call) => call.name)).toEqual(["Copy of Default"]);
 });
 
 test("§12 the built-in row still carries NO inline verb, and activation is not CRUD", async ({ mount, page }) => {
@@ -688,9 +677,7 @@ test("§9/D1 the row toggle ACTIVATES that row through the one setDefault mutati
 
   await component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first().hover();
   await toggle.click();
-  await expect
-    .poll(() => (trpc.inputs("settings.updateUserSettingsSection") as SettingsPatchCall[]).map((call) => call.patch?.defaultPresetId))
-    .toEqual([EDITED_ONE]);
+  await expect.poll(() => trpc.inputs("settings.updateUserSettingsSection").map((call) => call.patch["defaultPresetId"])).toEqual([EDITED_ONE]);
 });
 
 test("§9/D1 the toggle NEVER bare-unpresses: pressing the ACTIVE row writes nothing", async ({ mount, page }) => {
@@ -708,9 +695,7 @@ test("§9/D1 the toggle NEVER bare-unpresses: pressing the ACTIVE row writes not
   // subsequent activation below, which proves the same handler DOES write when the row is not the pick.
   await component.locator(LIST_ROW_ROOT, { hasText: IMPORTED_NAME }).first().hover();
   await page.getByRole("radio", { name: activateFor(IMPORTED_NAME), exact: true }).click();
-  await expect
-    .poll(() => (trpc.inputs("settings.updateUserSettingsSection") as SettingsPatchCall[]).map((call) => call.patch?.defaultPresetId))
-    .toEqual([IMPORTED]);
+  await expect.poll(() => trpc.inputs("settings.updateUserSettingsSection").map((call) => call.patch["defaultPresetId"])).toEqual([IMPORTED]);
 });
 
 test("§9/D1 the BUILT-IN row is the null pick — pressed when nothing is chosen, and it activates as null", async ({ mount, page }) => {
@@ -724,9 +709,7 @@ test("§9/D1 the BUILT-IN row is the null pick — pressed when nothing is chose
   await component.locator(LIST_ROW_ROOT, { hasText: "Default" }).first().hover();
   await builtIn.click();
   // NULL, never the system row's sentinel id — "no explicit preset" is what the seed stores.
-  await expect
-    .poll(() => (trpc.inputs("settings.updateUserSettingsSection") as SettingsPatchCall[]).map((call) => call.patch?.defaultPresetId))
-    .toEqual([null]);
+  await expect.poll(() => trpc.inputs("settings.updateUserSettingsSection").map((call) => call.patch["defaultPresetId"])).toEqual([null]);
 });
 
 test("§9/D1 with nothing chosen, the BUILT-IN row wears the pressed state", async ({ mount, page }) => {
@@ -777,9 +760,7 @@ test("#481 P1-1 a keyboard walk writes NOTHING, and Space on the row the user CH
 
   await page.keyboard.press(" ");
   // The WHOLE log is one write, and it names the row the user stopped on — never a row they passed through.
-  await expect
-    .poll(() => (trpc.inputs("settings.updateUserSettingsSection") as SettingsPatchCall[]).map((call) => call.patch?.defaultPresetId))
-    .toEqual([EDITED_TWO]);
+  await expect.poll(() => trpc.inputs("settings.updateUserSettingsSection").map((call) => call.patch["defaultPresetId"])).toEqual([EDITED_TWO]);
 });
 
 test("#481 P1-1 activating ANNOUNCES the new pick in the app's polite live region", async ({ mount, page }) => {
@@ -1062,10 +1043,6 @@ const MERGE_COPY = /An orbweaver export REPLACES the settings of a preset with t
 const ST_SUMMARY = /SillyTavern preset —/;
 const SERVER_PARSE_ERROR = /isn't a valid prompt config/;
 
-interface ImportFileCall {
-  readonly fileText?: string;
-}
-
 /** The library plus an import stub — `outcome` is what `preset.importFile` answers. */
 function routeImportLibrary(page: Page, outcome: TrpcFixtureOutput<"preset.importFile">): Promise<TrpcRecorder> {
   return routeTrpc(page, {
@@ -1094,7 +1071,7 @@ test("G6 an orb.preset file rides the ONE import verb with its own bytes, after 
 
   await page.getByRole("button", { name: "Import preset", exact: true }).click();
   // The FILE'S OWN TEXT reaches the door — not a client-side reserialization, and never `preset.create`.
-  await expect.poll(() => (trpc.inputs("preset.importFile") as ImportFileCall[]).map((call) => call.fileText)).toEqual([ORB_FILE]);
+  await expect.poll(() => trpc.inputs("preset.importFile").map((call) => call.fileText)).toEqual([ORB_FILE]);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — ONE confirm handler picks exactly one arm, so the recorded `importFile` above proves the click's request already landed; a `create` from the same click would be recorded by now.
   expect(trpc.count("preset.create")).toBe(0);
 });

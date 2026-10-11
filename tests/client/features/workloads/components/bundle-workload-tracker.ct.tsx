@@ -33,7 +33,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
+import type { TrpcInput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { BundleWorkloadTrackerStory } from "../_ct-stories.tsx";
@@ -64,8 +64,8 @@ const SUCCEEDED_ROW = {
 
 /** Requests recorded for ONE workload id — `workloads.get` is one procedure for both trackers, so the
  *  per-tracker count is a filter over the recorder's decoded inputs, never `trpc.count`. */
-function readsFor(inputs: readonly unknown[], id: string): number {
-  return inputs.filter((input) => (input as { readonly id?: unknown } | undefined)?.id === id).length;
+function readsFor(inputs: readonly TrpcInput<"workloads.get">[], id: string): number {
+  return inputs.filter((input) => input?.id === id).length;
 }
 
 test("A — an unmount while the gap-heal read is IN FLIGHT reports nothing; the still-mounted twin reports", async ({ mount, page }) => {

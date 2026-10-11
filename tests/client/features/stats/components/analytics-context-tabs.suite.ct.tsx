@@ -12,7 +12,6 @@ import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 // These drive the PRODUCTION path: the real tabs over the real data layer, with the drill seeded through
 // the same `#state` selection the leaderboard writes.
 
-import type { CharacterId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsModelsTabStory, AnalyticsPersonasTabStory } from "../_ct-stories.tsx";
@@ -88,10 +87,7 @@ test("a model bucket with no accounting renders dashes, not `0 tok · $0.00`", a
 // changed.
 test("the Personas tab narrows its read to the drilled character", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.personaUsage": (input: unknown) =>
-      (input as { characterId?: CharacterId } | undefined)?.characterId === undefined
-        ? [personaRow("Alex", 4200), personaRow("Vex", 900)]
-        : [personaRow("Alex", 118)],
+    "stats.personaUsage": (input) => (input?.characterId === undefined ? [personaRow("Alex", 4200), personaRow("Vex", 900)] : [personaRow("Alex", 118)]),
   });
   const component = await mount(<AnalyticsPersonasTabStory drilled={true} />);
 
@@ -103,10 +99,7 @@ test("the Personas tab narrows its read to the drilled character", async ({ moun
 
 test("with nothing drilled the Personas tab reads the whole library and says so", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "stats.personaUsage": (input: unknown) =>
-      (input as { characterId?: CharacterId } | undefined)?.characterId === undefined
-        ? [personaRow("Alex", 4200), personaRow("Vex", 900)]
-        : [personaRow("Alex", 118)],
+    "stats.personaUsage": (input) => (input?.characterId === undefined ? [personaRow("Alex", 4200), personaRow("Vex", 900)] : [personaRow("Alex", 118)]),
   });
   const component = await mount(<AnalyticsPersonasTabStory drilled={false} />);
 

@@ -278,7 +278,7 @@ test("a selected plugin folder reaches shared consent and installs the packed bu
   await expect.poll(() => recorder.lastInput("plugin.install")).toMatchObject({ grant: oracleRow.declaredCapabilities });
   await expect
     .poll(() => {
-      const input = recorder.lastInput("plugin.install") as { readonly bundleBase64: string } | undefined;
+      const input = recorder.lastInput("plugin.install");
       return input === undefined ? [] : Object.keys(unzipSync(Buffer.from(input.bundleBase64, "base64"))).sort();
     })
     .toEqual(["main.js", "manifest.json"]);
@@ -686,7 +686,7 @@ test("#1855: the consent list is read-only and Install grants the FULL declared 
   await expect(page.getByRole("button", { name: "Install" })).toHaveCount(0);
   // The WHOLE manifest set, in the manifest's own order — never a subset, and never a set this screen
   // recomputed. A person who did not want all of it had Cancel.
-  await expect.poll(async () => (recorder.lastInput("plugin.install") as { grant: string[] } | undefined)?.grant).toEqual([...WEATHER_MANIFEST.capabilities]);
+  await expect.poll(async () => recorder.lastInput("plugin.install")?.grant).toEqual([...WEATHER_MANIFEST.capabilities]);
 });
 
 test("a bundle that is not a plugin is refused with a reason, before anything is uploaded", async ({ mount, page }) => {

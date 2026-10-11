@@ -375,7 +375,7 @@ test("⑦ host: editing the cap fires chat.setToolRecurseLimit with the new limi
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
   await openContextSections(component, HOST_BAND);
   await setNumber(component.getByRole("textbox", { name: "Tool rounds per turn" }), "10");
-  await expect.poll(() => (trpc.lastInput(UPDATE_TOOL_LIMIT) as { limit?: number } | undefined)?.limit, { intervals: [20, 50, 100] }).toBe(10);
+  await expect.poll(() => trpc.lastInput(UPDATE_TOOL_LIMIT)?.limit, { intervals: [20, 50, 100] }).toBe(10);
 });
 
 test("⑦ member: the Tool-use section is ABSENT (host-only omit — a member sees no control)", async ({ mount, page }) => {
@@ -486,7 +486,7 @@ test("host: toggling the switch fires chat.setHostDisplayScripts with the new st
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
   await openContextSections(component, "Regex");
   await component.getByRole("switch", { name: "Show my display scripts to everyone" }).click();
-  await expect.poll(() => (trpc.lastInput(UPDATE_HOST_DISPLAY_SCRIPTS) as { enabled?: boolean } | undefined)?.enabled, { intervals: [20, 50, 100] }).toBe(true);
+  await expect.poll(() => trpc.lastInput(UPDATE_HOST_DISPLAY_SCRIPTS)?.enabled, { intervals: [20, 50, 100] }).toBe(true);
 });
 
 test("member: the display-scripts switch is ABSENT (host-only omit — a member sees no control)", async ({ mount, page }) => {
@@ -558,7 +558,7 @@ test("host: toggling the offer-choices switch fires chat.setOfferChoices with th
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
   await openContextSections(component, HOST_BAND);
   await component.getByRole("switch", OFFER_CHOICES_SWITCH).click();
-  await expect.poll(() => (trpc.lastInput(UPDATE_OFFER_CHOICES) as { enabled?: boolean } | undefined)?.enabled, { intervals: [20, 50, 100] }).toBe(true);
+  await expect.poll(() => trpc.lastInput(UPDATE_OFFER_CHOICES)?.enabled, { intervals: [20, 50, 100] }).toBe(true);
 });
 
 test("member: the offer-choices switch is ABSENT (host-only omit — this key steers the room's model)", async ({ mount, page }) => {
@@ -617,7 +617,7 @@ test("host: turning member persona lore off fires chat.setMemberPersonaLore with
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
   await openContextSections(component, HOST_BAND);
   await component.getByRole("switch", MEMBER_PERSONA_LORE_SWITCH).click();
-  await expect.poll(() => (trpc.lastInput(UPDATE_MEMBER_PERSONA_LORE) as { enabled?: boolean } | undefined)?.enabled, { intervals: [20, 50, 100] }).toBe(false);
+  await expect.poll(() => trpc.lastInput(UPDATE_MEMBER_PERSONA_LORE)?.enabled, { intervals: [20, 50, 100] }).toBe(false);
 });
 
 test("member: the member-persona-lore switch is ABSENT (host-only omit)", async ({ mount, page }) => {
@@ -734,9 +734,9 @@ test("host: each reaction switch fires ITS OWN verb with the new state", async (
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
   await openContextSections(component, HOST_BAND);
   await component.getByRole("switch", REACTIONS_SWITCH).click();
-  await expect.poll(() => (trpc.lastInput(UPDATE_REACTIONS_ENABLED) as { enabled?: boolean } | undefined)?.enabled, { intervals: [20, 50, 100] }).toBe(false);
+  await expect.poll(() => trpc.lastInput(UPDATE_REACTIONS_ENABLED)?.enabled, { intervals: [20, 50, 100] }).toBe(false);
   await component.getByRole("switch", CHAR_REACT_SWITCH).click();
-  await expect.poll(() => (trpc.lastInput(UPDATE_CHARACTERS_CAN_REACT) as { enabled?: boolean } | undefined)?.enabled, { intervals: [20, 50, 100] }).toBe(true);
+  await expect.poll(() => trpc.lastInput(UPDATE_CHARACTERS_CAN_REACT)?.enabled, { intervals: [20, 50, 100] }).toBe(true);
 });
 
 test("member: NEITHER reaction switch exists (host-only omit — one gates their writes, one the room's prompt)", async ({ mount, page }) => {

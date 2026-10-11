@@ -6,12 +6,12 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
 import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AppearanceMessageDetailsSectionStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_message_details", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
-const UPDATE_PROC = "settings.updateUserSettingsSection";
 const OWNED_KEYS = [
   "messageActions",
   "showGenerationCost",
@@ -24,12 +24,7 @@ const OWNED_KEYS = [
 ];
 
 function stub(page: Page): Promise<TrpcRecorder> {
-  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => SETTINGS_VIEW });
-}
-
-function lastPatch(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  const input = trpc.lastInput(UPDATE_PROC) as { section?: string; patch?: Record<string, unknown> } | undefined;
-  return input?.section === "appearance" ? input.patch : undefined;
+  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
 }
 
 test("renders the detail chips AND the absorbed action cluster under one heading", async ({ mount, page }) => {
@@ -52,8 +47,8 @@ test("toggling a detail chip patches its key, key-minimally", async ({ mount, pa
   await mount(<AppearanceMessageDetailsSectionStory />);
   await page.getByRole("switch", { name: "Show token count" }).click();
 
-  await expect.poll(() => lastPatch(trpc)?.["showTokenCount"], { intervals: [20, 50, 100] }).toBe(true);
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["showTokenCount"], { intervals: [20, 50, 100] }).toBe(true);
+  expect(Object.keys(lastSettingsPatch(trpc, "appearance") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 });
 
 test("the action cluster patches messageActions, key-minimally", async ({ mount, page }) => {
@@ -62,6 +57,6 @@ test("the action cluster patches messageActions, key-minimally", async ({ mount,
   await page.getByRole("combobox", { name: "Action cluster" }).click();
   await page.getByRole("option", { name: "Always visible" }).click();
 
-  await expect.poll(() => lastPatch(trpc)?.["messageActions"], { intervals: [20, 50, 100] }).toBe("expanded");
-  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  await expect.poll(() => lastSettingsPatch(trpc, "appearance")?.["messageActions"], { intervals: [20, 50, 100] }).toBe("expanded");
+  expect(Object.keys(lastSettingsPatch(trpc, "appearance") ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 });

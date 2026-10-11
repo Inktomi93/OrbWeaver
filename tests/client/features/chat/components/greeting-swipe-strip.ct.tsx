@@ -41,7 +41,7 @@ test("the counter reads the CURRENT text's position, and Next steps to the follo
 
   await component.getByRole("button", { name: "Next greeting" }).click();
 
-  await expect.poll(() => (trpc.lastInput(STEP) as { readonly greetingIndex?: number } | undefined)?.greetingIndex, { intervals: [20, 50, 100] }).toBe(2);
+  await expect.poll(() => trpc.lastInput(STEP)?.greetingIndex, { intervals: [20, 50, 100] }).toBe(2);
 });
 
 test("Previous steps back", async ({ mount, page }) => {
@@ -50,7 +50,7 @@ test("Previous steps back", async ({ mount, page }) => {
   const component = await mount(<GreetingSwipeStripStory variants={ALTERNATES} current={ALT_1} />);
   await component.getByRole("button", { name: "Previous greeting" }).click();
 
-  await expect.poll(() => (trpc.lastInput(STEP) as { readonly greetingIndex?: number } | undefined)?.greetingIndex, { intervals: [20, 50, 100] }).toBe(0);
+  await expect.poll(() => trpc.lastInput(STEP)?.greetingIndex, { intervals: [20, 50, 100] }).toBe(0);
 });
 
 test("at the FIRST alternate Previous wraps to the last, as the reply pager does — Next is live", async ({ mount, page }) => {
@@ -90,7 +90,7 @@ test("a HAND-EDITED greeting (matching no alternate) reads “— / m” and sti
 
   // Next from "custom" enters at the FIRST alternate…
   await component.getByRole("button", { name: "Next greeting" }).click();
-  await expect.poll(() => (trpc.lastInput(STEP) as { readonly greetingIndex?: number } | undefined)?.greetingIndex, { intervals: [20, 50, 100] }).toBe(0);
+  await expect.poll(() => trpc.lastInput(STEP)?.greetingIndex, { intervals: [20, 50, 100] }).toBe(0);
 });
 
 test("Previous from a hand-edited greeting enters at the LAST alternate", async ({ mount, page }) => {
@@ -99,5 +99,5 @@ test("Previous from a hand-edited greeting enters at the LAST alternate", async 
   const component = await mount(<GreetingSwipeStripStory variants={ALTERNATES} current="still nobody's alternate" />);
   await component.getByRole("button", { name: "Previous greeting" }).click();
 
-  await expect.poll(() => (trpc.lastInput(STEP) as { readonly greetingIndex?: number } | undefined)?.greetingIndex, { intervals: [20, 50, 100] }).toBe(2);
+  await expect.poll(() => trpc.lastInput(STEP)?.greetingIndex, { intervals: [20, 50, 100] }).toBe(2);
 });

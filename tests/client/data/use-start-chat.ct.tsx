@@ -166,7 +166,5 @@ test("a founding character set rides through as characterIds", async ({ mount, p
   await component.getByRole("button", { name: "start chat" }).click();
   await expect(component.getByTestId("start-chat-state")).toContainText(CREATED_ID);
 
-  await expect
-    .poll(() => (trpc.lastInput("chat.startChat") as { characterIds: string[] } | undefined)?.characterIds, { intervals: [20, 50, 100] })
-    .toEqual([aria]);
+  await expect.poll(() => trpc.lastInput("chat.startChat")?.characterIds, { intervals: [20, 50, 100] }).toEqual([aria]);
 });

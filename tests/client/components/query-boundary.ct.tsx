@@ -8,7 +8,7 @@ import { BatchedHoldStory, DeferredEchoBoundaryStory, EchoBoundaryStory, Reserve
 
 test("renders suspended data through the boundary and records the decoded input", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    echo: (input: unknown) => ({ message: `pong:${(input as { message: string }).message}` }),
+    echo: (input) => ({ message: `pong:${input.message}` }),
   });
 
   await mount(<EchoBoundaryStory />);
@@ -25,7 +25,7 @@ test("renders suspended data through the boundary and records the decoded input"
 // behind a click, landing born-paused.
 test("offline + pending shows 'Waiting for connection…'; reconnect resumes and clears it", async ({ mount, page, context }) => {
   await routeTrpc(page, {
-    echo: (input: unknown) => ({ message: `pong:${(input as { message: string }).message}` }),
+    echo: (input) => ({ message: `pong:${input.message}` }),
   });
 
   await mount(<DeferredEchoBoundaryStory />);

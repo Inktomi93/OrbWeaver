@@ -4,7 +4,7 @@
 // only the anchor. The room block names a pin whose player left, and never offers a member the host's verbs.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { ChatId, PersonaId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -88,16 +88,14 @@ function stub(
   });
 }
 
-type SeedPatch = { section?: string; patch?: Record<string, unknown> } | undefined;
-
 test("a row switch moves the seat and the last-played pointer, never the default or the pin", async ({ mount, page }) => {
   const trpc = await stub(page, SOLO);
   await mount(<PersonaYouSheetStory chatId={CHAT_ID} />);
 
   await page.getByRole("button", { name: "Switch to Orion", exact: true }).click();
 
-  await expect.poll(() => (trpc.lastInput("persona.setActivePersona") as { personaId?: PersonaId } | undefined)?.personaId).toBe(ORION);
-  await expect.poll(() => (trpc.lastInput("settings.updateUserSettingsSection") as SeedPatch)?.patch).toEqual({ currentPersonaId: ORION });
+  await expect.poll(() => trpc.lastInput("persona.setActivePersona")?.personaId).toBe(ORION);
+  await expect.poll(() => trpc.lastInput("settings.updateUserSettingsSection")?.patch).toEqual({ currentPersonaId: ORION });
   await expect(page.getByTestId("notified")).toHaveText("Now playing as Orion in this chat.");
   await expect.poll(() => trpc.count("chat.setChatAnchorPersona")).toBe(0);
 });
@@ -124,7 +122,7 @@ test("the crown clears the default with a plain notice, no Undo, and never touch
   await mount(<PersonaYouSheetStory chatId={CHAT_ID} />);
 
   await page.getByRole("button", { name: "Nova is your default — press to clear", exact: true }).click();
-  await expect.poll(() => (trpc.lastInput("settings.updateUserSettingsSection") as SeedPatch)?.patch).toEqual({ defaultPersonaId: null });
+  await expect.poll(() => trpc.lastInput("settings.updateUserSettingsSection")?.patch).toEqual({ defaultPersonaId: null });
   await expect(page.getByTestId("notified")).toHaveText("Default persona cleared.");
   await expect(page.getByRole("button", { name: "Undo" })).toHaveCount(0);
   await expect.poll(() => trpc.count("persona.setActivePersona")).toBe(0);
@@ -152,7 +150,7 @@ test("the host's Re-pin offers only members' personas plus Clear pin, and pins t
   await expect(page.getByRole("menuitem", { name: "Nova" })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: "Clear pin" })).toBeVisible();
   await page.getByRole("menuitem", { name: "Zara (Rowan)" }).click();
-  await expect.poll(() => (trpc.lastInput("chat.setChatAnchorPersona") as { personaId?: PersonaId | null } | undefined)?.personaId).toBe(ZARA);
+  await expect.poll(() => trpc.lastInput("chat.setChatAnchorPersona")?.personaId).toBe(ZARA);
 });
 
 test("a held pin says its player is no longer in the room and the card still means them; the host can re-pin", async ({ mount, page }) => {
@@ -173,7 +171,7 @@ test("a MEMBER sees the pin as state only: no Re-pin, no pin toggles, and the sw
   await expect(page.getByRole("button", { name: "Re-pin…" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^Pin the card to/u })).toHaveCount(0);
   await page.getByRole("button", { name: "Switch to Orion", exact: true }).click();
-  await expect.poll(() => (trpc.lastInput("persona.setActivePersona") as { personaId?: PersonaId } | undefined)?.personaId).toBe(ORION);
+  await expect.poll(() => trpc.lastInput("persona.setActivePersona")?.personaId).toBe(ORION);
 });
 
 // The RESTAMP: one server-resolved scope, no message window read, and its blast radius as visible copy that

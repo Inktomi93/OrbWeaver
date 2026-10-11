@@ -919,8 +919,8 @@ test("stepping fires setSeededGreeting with the stepped INDEX, and never any tex
   // THE WIRE CARRIES NO TEXT — the whole point of the index shape. The server resolves the alternate from
   // the card, so this host-gated door can never become a second free-text content write. A client that
   // "helpfully" started sending the resolved string would pass every visual assertion and fail this one.
-  const readSentAtAssertion = async (): Promise<typeof sent> => trpc.lastInput("chat.setSeededGreeting") as Record<string, unknown>;
-  const sent = trpc.lastInput("chat.setSeededGreeting") as Record<string, unknown>;
+  const readSentAtAssertion = async (): Promise<typeof sent> => trpc.requireLastInput("chat.setSeededGreeting");
+  const sent = trpc.requireLastInput("chat.setSeededGreeting");
   await expect.poll(async () => Object.keys(await readSentAtAssertion()).toSorted()).toEqual(["chatId", "greetingIndex", "messageId"]);
 });
 

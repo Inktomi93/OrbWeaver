@@ -8,11 +8,10 @@ import { DEFAULT_PROMPT_TEMPLATES } from "@orb/contracts/imagery";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "../../../../support/node/last-settings-patch.ts";
 import type { TrpcFixtureOutput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ImageryTemplatesSectionStory } from "../_ct-stories.tsx";
-
-const UPDATE_PROC = "settings.updateUserSettingsSection";
 
 /** Build the getUserSettings view with an optional imagery override seed (default: virgin — no overrides). */
 function settingsView(imagery = DEFAULT_USER_SETTINGS.imagery): TrpcFixtureOutput<"settings.getUserSettings"> {
@@ -22,21 +21,15 @@ function settingsView(imagery = DEFAULT_USER_SETTINGS.imagery): TrpcFixtureOutpu
 function stub(page: Page, imagery?: (typeof DEFAULT_USER_SETTINGS)["imagery"]): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "settings.getUserSettings": () => settingsView(imagery),
-    [UPDATE_PROC]: () => settingsView(imagery),
+    [UPDATE_USER_SETTINGS_SECTION]: () => settingsView(imagery),
     // IMGMAC — the section now reads the active-preset plane (the built-in default declares none, so the
     // pre-IMGMAC tests below are unaffected: the hook doesn't even fetch when `defaultPresetId` is null).
     "preset.get": () => ({ config: { userMacros: [] } }),
   });
 }
 
-/** The most recent imagery-section patch body. */
-function lastPatch(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  const input = trpc.lastInput(UPDATE_PROC) as { section?: string; patch?: Record<string, unknown> } | undefined;
-  return input?.section === "imagery" ? input.patch : undefined;
-}
-
 function templates(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  return lastPatch(trpc)?.["templates"] as Record<string, unknown> | undefined;
+  return lastSettingsPatch(trpc, "imagery")?.["templates"] as Record<string, unknown> | undefined;
 }
 
 // The MacroField renders a textarea playing `combobox` (ARIA); each card's label is the mode title (unique).
@@ -89,7 +82,7 @@ function stubWithPlane(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "settings.getUserSettings": () => ({ ...settingsView(), config: { ...DEFAULT_USER_SETTINGS, seeds: { defaultPresetId: ACTIVE_PRESET_ID } } }),
     "preset.get": () => ({ config: { userMacros: USER_MACROS } }),
-    [UPDATE_PROC]: () => ({ ...settingsView(), config: { ...DEFAULT_USER_SETTINGS, seeds: { defaultPresetId: ACTIVE_PRESET_ID } } }),
+    [UPDATE_USER_SETTINGS_SECTION]: () => ({ ...settingsView(), config: { ...DEFAULT_USER_SETTINGS, seeds: { defaultPresetId: ACTIVE_PRESET_ID } } }),
   });
 }
 

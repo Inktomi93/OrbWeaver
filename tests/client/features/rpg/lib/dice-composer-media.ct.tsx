@@ -9,7 +9,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { resolveSpacingPx } from "../../../../support/browser/touch-floor.ts";
-import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
+import type { TrpcFixtureOutput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { CtToastSurface } from "../../../lib/_ct-stories.tsx";
 import { RpgDiceComposerStory } from "../../chat/_ct-stories.tsx";
@@ -58,7 +58,7 @@ function routeRoom(
     readonly unconnected?: boolean;
     readonly attributes?: Readonly<Record<string, number>>;
   } = {},
-): Promise<{ readonly count: (p: string) => number; readonly lastInput: (p: string) => unknown }> {
+): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...(unconnected ? { "chat.checkSendAvailability": NO_CONNECTION } : {}),
@@ -132,7 +132,7 @@ test("a menu roll appends the baked stamp to the draft without sending it", asyn
   // The server roll fired for the clicked notation.
   await expect.poll(() => trpc.count("rpg.rollDice"), { intervals: [20, 50, 100] }).toBe(1);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll settled the recorder — the roll is recorded, so its input is a fixed value.
-  expect((trpc.lastInput("rpg.rollDice") as { readonly notation?: string }).notation).toBe("d20");
+  expect(trpc.requireLastInput("rpg.rollDice").notation).toBe("d20");
   await expect(composer).toHaveValue("I attack — [dice: d20 → 14]");
   // The roll is inserted, never auto-sent — the member sends it as their turn.
   await expect.poll(async () => trpc.count("chat.send")).toBe(0);
