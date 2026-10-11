@@ -39,7 +39,8 @@ export function ConnectionInspector({ connectionId, trpc, invalidation }: Connec
 }
 
 /** Which of the four outcomes the inspection was, stamped as `data-verdict` so tests assert the branch, not its copy. */
-type VerdictKind = "unreachable" | "rejected" | "unreadable" | "ok";
+const VERDICT_KINDS = ["unreachable", "rejected", "unreadable", "ok"] as const;
+type VerdictKind = (typeof VERDICT_KINDS)[number];
 
 const HTTP_SUCCESS_FLOOR = 200;
 const HTTP_SUCCESS_CEILING = 300;
