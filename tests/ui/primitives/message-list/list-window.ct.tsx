@@ -32,7 +32,8 @@ test("instant jumps recompute the top fade after the new sticky rows render", as
         }),
       )
       .toBeLessThan(1);
-    await expect(scroller).not.toHaveAttribute("data-fade-top");
+    await expect(scroller).toHaveAttribute("data-fade-top", "");
+    await expect.poll(() => scroller.evaluate((element) => Number.parseFloat(element.style.getPropertyValue("--mask-top-inset")))).toBeGreaterThan(0);
     await expect.poll(async () => (await pixelExtremaContrast(page, speaker)).ratio).toBeGreaterThanOrEqual(4.5);
     await scroller.evaluate((element, row) => {
       const viewport = element.querySelector('[data-slot="message-list-viewport"]');

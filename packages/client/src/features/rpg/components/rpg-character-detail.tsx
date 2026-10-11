@@ -221,7 +221,7 @@ function IdentityBlock({
 }): ReactElement {
   return (
     <Row gap="block" align="start" data-slot="rpg-character-identity">
-      <Avatar size="lg" shape="rounded" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
+      <Avatar size="lg" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
         {actor.name.slice(0, 1).toUpperCase()}
       </Avatar>
       <Stack gap="field" className="min-w-0 flex-1">

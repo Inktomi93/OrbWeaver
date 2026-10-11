@@ -2177,9 +2177,9 @@ test("0851: at 1280 with BOTH panes docked the topbar keeps the participants tit
   await expect
     .poll(() => subtitle.evaluate((element) => element.clientWidth >= Number.parseFloat(getComputedStyle(element).minWidth) - 1 && element.clientWidth > 0))
     .toBe(true);
-  // The date went first (and the ⌘K chip dropped its word); the chips never paint over text.
+  // The date went first; the ⌘K chip keeps its word, so it still reads as a control; the chips never paint over text.
   await expect(page.locator(".shell-topbar-date")).toBeHidden();
-  await expect(page.locator(".shell-topbar-jump-label")).toBeHidden();
+  await expect(page.locator(".shell-topbar-jump-label")).toBeVisible();
   const groupBox = await page.locator('.shell-topbar-identity[data-identity="wide"] .shell-topbar-title-group').boundingBox();
   const membersBox = await page.locator('[aria-label^="Members — "]').boundingBox();
   if (groupBox === null || membersBox === null) {

@@ -215,7 +215,7 @@ function RpgStatusCard({ actor, subject, edit, onOpen }: RpgStatusCardProps): Re
             title={`Open ${subject}'s sheet`}
             className="min-w-0 px-field font-medium"
           >
-            <Avatar size="md" shape="rounded" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
+            <Avatar size="md" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
               {actor.name.slice(0, 1).toUpperCase()}
             </Avatar>
             <Text as="span" voice="label" className="truncate">

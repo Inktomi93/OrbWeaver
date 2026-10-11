@@ -21,6 +21,7 @@ import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { ListPaneHeaderProps } from "#lib";
 import { LIST_PANE_TITLE_ID } from "#lib";
+import { CountText } from "./count-text.tsx";
 
 export type { ListPaneHeaderProps } from "#lib";
 
@@ -69,7 +70,7 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
           // `gap-row`, not `gap-field` (#525): 6px of air between the NAME and a mono DATUM is below the
           // step the eye needs to read them as two things, and the census is the one child here that is not
           // part of the title's phrase.
-          className="flex min-w-0 items-center gap-row"
+          className="flex min-w-0 items-baseline gap-row"
           data-scoped={accent === undefined ? undefined : "true"}
           data-slot="list-pane-title"
           id={LIST_PANE_TITLE_ID}
@@ -111,9 +112,7 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
             // now that nothing in this cluster uppercases.
             // THE COUNT WEARS THE TITLE'S FAMILY: an unlabelled mono figure beside a sans name reads as a stray
             // datum, not the census of the list. Tabular figures keep it from jittering as it changes.
-            <Text as="span" className="min-w-0 truncate tabular-nums" size="label" tone="muted" weight="regular">
-              {count}
-            </Text>
+            <CountText className="min-w-0 truncate">{count}</CountText>
           )}
         </Heading>
       </Row>

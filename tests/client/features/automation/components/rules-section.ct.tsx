@@ -1807,6 +1807,39 @@ test("a rule's gloss is one line when the row is shut and whole when it is open"
   await expect.poll(clipped).toBe(false);
 });
 
+// On a phone the closed gloss gets two lines before it ellipsises; the desktop keeps one.
+test("a rule's closed gloss clamps to two lines on a phone", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<RulesSectionStory chatId={CHAT} mobile={true} width={260} />);
+  const gloss = ruleDisclosure(page, "Illustrate the scene").getByText(RULE.description, { exact: true });
+  await expect(gloss).toBeVisible();
+  const lineHeight = (): Promise<number> => gloss.evaluate((el) => Number.parseFloat(getComputedStyle(el).lineHeight));
+  await expect.poll(async () => (await gloss.boundingBox())?.height ?? 0).toBeGreaterThan((await lineHeight()) * 1.5);
+  await expect.poll(async () => (await gloss.boundingBox())?.height ?? 0).toBeLessThan((await lineHeight()) * 2.5);
+  await expect
+    .poll(() => gloss.evaluate((el) => el.scrollHeight > el.clientHeight), { message: "the long sentence must really be clipped when shut" })
+    .toBe(true);
+});
+
+// The rate-cap note is prose: it holds the reading measure instead of running the whole row.
+test("the rate-cap note holds the prose measure on a wide pane", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<RulesSectionStory chatId={CHAT} width={1024} />);
+  await openRule(page, "Illustrate the scene");
+  const note = page.getByText(/fire-rate cap/u);
+  await expect(note).toBeVisible();
+  const cap = await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.width = "var(--reading-measure-prose)";
+    document.body.append(probe);
+    const px = probe.getBoundingClientRect().width;
+    probe.remove();
+    return px;
+  });
+  expect(cap, "the measure token must resolve, or the cap below is vacuous").toBeGreaterThan(0);
+  await expect.poll(async () => (await note.boundingBox())?.width ?? 0).toBeLessThanOrEqual(cap + 1);
+});
+
 // ── a rule's CONNECTIONS (item 0025): the rule as a binding actor ──────────────────────────────────────
 // The disclosure offers one role slot per task the rule's arms spend (`generate_image` → Image generation). Every
 // write carries the rule as the actor, and the slot reads the rule's OWN `listBindings` view.

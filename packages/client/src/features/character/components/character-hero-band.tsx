@@ -209,13 +209,9 @@ function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; 
   };
 
   const avatarSrc = previewHash === null ? {} : { src: blobUrl(previewHash) };
-  // NO call-site radius (#169). `size="media"` is `size-auto p-0`, so this button's border box IS the
-  // Avatar's — its confirm ring and hover fill have to trace the Avatar's own corner, which
-  // `shape="square"` puts at `--radius-control`, i.e. Button's own default `shape="control"`. The
-  // `rounded-base` that used to sit here rendered as nothing: `--radius-*` was opaque to tailwind-merge,
-  // both classes survived, and the stylesheet emits `.rounded-control` after `.rounded-base`
-  // (alphabetical within the family). Registering the radius namespace hands the merge to the call site,
-  // which would have opened a 2px corner gap between the confirm ring and the portrait it confirms.
+  // NO call-site radius. `size="media"` is `size-auto p-0`, so this button's border box IS the Avatar's: its
+  // confirm ring and hover fill trace the Avatar's own corner. The avatar is a circle (UI-Density-Law 2.1),
+  // so the button takes `shape="pill"`, the same full radius, and no second radius class is written here.
   const triggerClass = confirming ? "relative shrink-0 ring-2 ring-accent" : "relative shrink-0";
   return (
     <FileTrigger
@@ -227,8 +223,8 @@ function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; 
       }}
     >
       {({ open }): ReactElement => (
-        <Button aria-label="Replace portrait" intent="ghost" size="media" className={triggerClass} onClick={open}>
-          <Avatar hueSeed={detail.id} shape="square" size="hero" {...avatarSrc}>
+        <Button aria-label="Replace portrait" intent="ghost" shape="pill" size="media" className={triggerClass} onClick={open}>
+          <Avatar hueSeed={detail.id} size="hero" {...avatarSrc}>
             {initialsFor(detail.name)}
           </Avatar>
         </Button>

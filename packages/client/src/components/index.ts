@@ -12,6 +12,8 @@ export { ConfirmDialog } from "./confirm-dialog.tsx";
 export { useSetBinding, useUpdateConnection } from "./connection-role-mutations.ts";
 export type { ConnectionRoleSlotProps } from "./connection-role-slot.tsx";
 export { ConnectionRoleSlot } from "./connection-role-slot.tsx";
+export type { CountTextProps } from "./count-text.tsx";
+export { CountText } from "./count-text.tsx";
 export { EditableTagChip } from "./editable-tag-chip.tsx";
 export { useEmbedRefusalToastAfterUnmount } from "./embedder-refusal-toast.ts";
 export type { EntryListEditorProps } from "./entry-list-editor.tsx";

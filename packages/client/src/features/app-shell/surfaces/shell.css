@@ -1295,8 +1295,7 @@
 }
 @container shell-main (max-width: 56rem) {
   .shell-topbar-identity .shell-chat-header-avatar,
-  .shell-topbar-identity .shell-chat-chip-count,
-  .shell-topbar:has(.shell-chat-member-chip) .shell-topbar-jump-label {
+  .shell-topbar-identity .shell-chat-chip-count {
     display: none;
   }
 }

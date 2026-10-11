@@ -52,6 +52,19 @@ test("the count is the title's family with tabular figures at the LABEL step; a 
   // census does not jitter as it changes.
   await expect.poll(() => count.evaluate((el) => getComputedStyle(el).fontFamily)).not.toMatch(MONO_STACK_RE);
   await expect(count).toHaveCSS("font-variant-numeric", "tabular-nums");
+  // The figure sits ON the title's baseline, not floating above it: a zero-size inline-block marker in
+  // each text box reports where its baseline falls.
+  const baselineOf = (target: typeof count): Promise<number> =>
+    target.evaluate((el) => {
+      const marker = document.createElement("span");
+      marker.style.cssText = "display:inline-block;width:0;height:0";
+      el.append(marker);
+      const y = marker.getBoundingClientRect().bottom;
+      marker.remove();
+      return y;
+    });
+  const titleText = component.getByRole("heading", { level: 2 }).getByText("Chats", { exact: true });
+  expect(Math.abs((await baselineOf(count)) - (await baselineOf(titleText)))).toBeLessThan(1);
 
   await component.update(<ListPaneHeader count={0} title="Chats" />);
   await expect(page.getByText("0", { exact: true })).toHaveCount(0);

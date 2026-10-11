@@ -983,8 +983,9 @@ html[data-texture="grain"] .shell-grid [data-slot="card-root"]::after {
  * theme, 1.29–3.34:1 across the top band, with the first row clearing AA only at y≈128. There is no colour
  * to dissolve INTO on an art theme, and every alternative treatment is the same physics — any occlusion of
  * the text collapses its contrast against whatever is behind it — so the honest answer is that the effect
- * does not apply there. `mask-image: none` under the shell's own `data-has-bg-image` flag, the same
- * declarative ancestor signal `message-row-backing.ts` reads for its legibility scrims.
+ * does not apply there at full depth: under the shell's own `data-has-bg-image` flag (the same declarative
+ * ancestor signal `message-row-backing.ts` reads for its legibility scrims) the band shrinks to one section
+ * step, so only the line the edge cuts is dissolved and the rest of the prose stays on its card.
  *
  * The header of `features/chat/lib/message-row-variants.ts` has warned about exactly this since the
  * echo/whisper feather was built ("not literal `mask-image` (that would also fade the text painted on
@@ -995,17 +996,21 @@ html[data-texture="grain"] .shell-grid [data-slot="card-root"]::after {
 /* EACH BAND EASES IN FROM ITS EDGE rather than ramping linearly: the first quarter of the band is nearly
  * transparent, so the line an edge cuts reads as gone instead of half drawn (a linear ramp left it a fifth
  * of the way up, a dim half-glyph under the toolbar), and the band still reaches the full card by its far
- * side. A zero stop collapses all five stops onto one position, so an edge that hides nothing stays opaque. */
+ * side. A zero stop collapses all stops onto one position, so an edge that hides nothing stays opaque.
+ * `--mask-top-inset` is the bottom edge of a header pinned across the top: the span above it stays opaque
+ * (the header is painted there) and the band starts under it. */
 [data-slot="message-list-scroll"] {
   --fade-top-stop: 0%;
   --fade-bottom-stop: 0%;
+  --mask-top-inset: 0px;
   -webkit-mask-image: linear-gradient(
     to bottom,
-    transparent,
-    rgb(0 0 0 / 0.04) calc(var(--fade-top-stop) * 0.25),
-    rgb(0 0 0 / 0.2) calc(var(--fade-top-stop) * 0.5),
-    rgb(0 0 0 / 0.55) calc(var(--fade-top-stop) * 0.75),
-    black var(--fade-top-stop),
+    black var(--mask-top-inset),
+    transparent var(--mask-top-inset),
+    rgb(0 0 0 / 0.04) calc(var(--mask-top-inset) + var(--fade-top-stop) * 0.25),
+    rgb(0 0 0 / 0.2) calc(var(--mask-top-inset) + var(--fade-top-stop) * 0.5),
+    rgb(0 0 0 / 0.55) calc(var(--mask-top-inset) + var(--fade-top-stop) * 0.75),
+    black calc(var(--mask-top-inset) + var(--fade-top-stop)),
     black calc(100% - var(--fade-bottom-stop)),
     rgb(0 0 0 / 0.55) calc(100% - var(--fade-bottom-stop) * 0.75),
     rgb(0 0 0 / 0.2) calc(100% - var(--fade-bottom-stop) * 0.5),
@@ -1014,11 +1019,12 @@ html[data-texture="grain"] .shell-grid [data-slot="card-root"]::after {
   );
   mask-image: linear-gradient(
     to bottom,
-    transparent,
-    rgb(0 0 0 / 0.04) calc(var(--fade-top-stop) * 0.25),
-    rgb(0 0 0 / 0.2) calc(var(--fade-top-stop) * 0.5),
-    rgb(0 0 0 / 0.55) calc(var(--fade-top-stop) * 0.75),
-    black var(--fade-top-stop),
+    black var(--mask-top-inset),
+    transparent var(--mask-top-inset),
+    rgb(0 0 0 / 0.04) calc(var(--mask-top-inset) + var(--fade-top-stop) * 0.25),
+    rgb(0 0 0 / 0.2) calc(var(--mask-top-inset) + var(--fade-top-stop) * 0.5),
+    rgb(0 0 0 / 0.55) calc(var(--mask-top-inset) + var(--fade-top-stop) * 0.75),
+    black calc(var(--mask-top-inset) + var(--fade-top-stop)),
     black calc(100% - var(--fade-bottom-stop)),
     rgb(0 0 0 / 0.55) calc(100% - var(--fade-bottom-stop) * 0.75),
     rgb(0 0 0 / 0.2) calc(100% - var(--fade-bottom-stop) * 0.5),
@@ -1032,11 +1038,14 @@ html[data-texture="grain"] .shell-grid [data-slot="card-root"]::after {
 [data-slot="message-list-scroll"][data-fade-bottom] {
   --fade-bottom-stop: var(--fade-edge-stop);
 }
-/* The art arm: no backdrop to dissolve into ⇒ no dissolve. Written LAST so it wins over both edge rules
-   above regardless of their specificity, and scoped to the scroller (the fade's only consumer). */
-[data-has-bg-image] [data-slot="message-list-scroll"] {
-  -webkit-mask-image: none;
-  mask-image: none;
+/* The art arm: a percentage band would put a wide strip of prose on the photo, so the band is one section
+ * step deep instead, enough to take the cut line off the edge and no more. Written LAST so it wins over
+ * the edge rules above regardless of their specificity. */
+[data-has-bg-image] [data-slot="message-list-scroll"][data-fade-top] {
+  --fade-top-stop: var(--spacing-section);
+}
+[data-has-bg-image] [data-slot="message-list-scroll"][data-fade-bottom] {
+  --fade-bottom-stop: var(--spacing-section);
 }
 
 /* Hairline avatar border: keeps an avatar from dissolving into a blurred/photo background.

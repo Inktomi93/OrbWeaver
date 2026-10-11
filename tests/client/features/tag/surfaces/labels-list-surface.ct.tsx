@@ -91,6 +91,8 @@ test("the finder reads filter · sort · overflow, the band carries New tag, and
   await expect(content(workspace).getByRole("heading", { name: "Tags", level: 2 })).toBeVisible();
   const facts = content(workspace).locator('[data-slot="labels-library-facts"]');
   await expect(facts).toContainText("Unattached1 of 3");
+  // One count spelling across the app: the fact's figure wears the list header's sans count, not mono.
+  await expect.poll(() => facts.getByText("1 of 3", { exact: true }).evaluate((el) => getComputedStyle(el).fontFamily)).not.toMatch(/mono/iu);
   await expect(facts).toContainText("Tags on characters2");
   await expect(facts).toContainText("Tags on chats2");
   // The orphan fact's door acts on EVERY orphan, not the first one: it opens the prune confirm.

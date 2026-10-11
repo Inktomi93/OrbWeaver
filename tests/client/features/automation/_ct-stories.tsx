@@ -23,9 +23,11 @@ import {
 import type { ChatSettingsSectionContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigSectionContribution } from "@orb/client/state";
+import { setMobileViewport } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { RoomActivityLog } from "../../../../packages/client/src/features/automation/components/room-activity-log.tsx";
 import { CommittedSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
 import { CtAppDataProviders, CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
@@ -40,7 +42,19 @@ const CONTEXT_PANE_WIDTH = 384;
 const SETTINGS_PANE_WIDTH = 560;
 
 /** The Rules section over the stubbed network — the tab body production wraps in its own `QueryBoundary`. */
-export function RulesSectionStory({ chatId, width = CONTEXT_PANE_WIDTH }: { readonly chatId: ChatId; readonly width?: number }): ReactElement {
+export function RulesSectionStory({
+  chatId,
+  width = CONTEXT_PANE_WIDTH,
+  mobile = false,
+}: {
+  readonly chatId: ChatId;
+  readonly width?: number;
+  /** Publish the mobile regime before first render, the way the config host story does. */
+  readonly mobile?: boolean;
+}): ReactElement {
+  useState(() => {
+    setMobileViewport(mobile);
+  });
   return (
     <CtDataProviders>
       <div style={{ width }}>

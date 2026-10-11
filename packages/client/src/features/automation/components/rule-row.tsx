@@ -89,6 +89,7 @@ import { QueryBoundary, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
+import { useMobileViewport } from "#state";
 import {
   armLabel,
   hasSpendArm,
@@ -209,6 +210,7 @@ function runNowRefusal(rule: Rule): string | null {
  *  overflow menu carrying the two actions that are not free (Run now — it spends) and not reversible
  *  (Delete — behind the composite's confirm). Then the last dry-run verdict and the collapsible fire log. */
 export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
+  const closedGloss = useMobileViewport() ? "line-clamp-2" : "block truncate";
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setEnabled = useSetRuleEnabled({ trpc, invalidation });
@@ -291,8 +293,8 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
             <Stack className="min-w-0 flex-1" gap="tight">
               <Text voice="promoted">{rule.name}</Text>
               {/* `prose`: the rule's own sentence is the same size as the connection description inside this card.
-                  Shut, it keeps to one line so a closed row stays dense; open, the whole sentence reads. */}
-              <Text className={open ? undefined : "block truncate"} prose={true} voice="gloss">
+                  Shut, it keeps to one line (two on a phone) so a closed row stays dense; open, the whole sentence reads. */}
+              <Text className={open ? undefined : closedGloss} prose={true} voice="gloss">
                 {ruleGloss(rule)}
               </Text>
               {/* The error states stay on the CLOSED face: a rule that cannot or will not run is what a host
@@ -379,7 +381,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
                     }}
                   />
                 </Row>
-                <Text prose={true} voice="gloss">
+                <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
                   {SUGGEST_ON_REFUSAL_HELP}
                 </Text>
               </Stack>
