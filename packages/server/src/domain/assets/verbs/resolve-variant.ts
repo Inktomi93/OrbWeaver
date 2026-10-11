@@ -1,7 +1,6 @@
-// The snap → cache → transform variant pipeline: snap the requested width to the KIND's fixed ladder
-// (variant-policy), read the per-user variant cache, and on a miss transform the owner's CAS original via
-// the injected `imageTransform`. Returns undefined (→ 404) for a malformed hash, off-ladder width, or a blob
-// the caller doesn't own — `isAssetHash` is checked before any path construction (path-traversal defense).
+// The snap → cache → transform variant pipeline over the asset owner's partition, resolved by the same
+// `getMetadata` gate the original-blob route uses. Returns undefined (→ 404) for a malformed hash,
+// off-ladder width, or a blob the caller may not view; `isAssetHash` runs before any path construction.
 
 import type { VariantKind } from "@orb/contracts/assets";
 import { isAssetHash } from "@orb/kit/assets";
@@ -11,6 +10,11 @@ import type { AssetsContext } from "../context.ts";
 import type { ResolveVariantParams } from "../contract/params.ts";
 import type { AssetsService } from "../contract/service.ts";
 import { snapBannerWidth, snapBlobWidth, snapPortraitWidth } from "../substrate/variant-policy.ts";
+
+/** The blob-serve gate, injected at `service.ts` so both blob routes share one owner resolution. */
+interface ResolveVariantDeps {
+  readonly getMetadata: AssetsService["getMetadata"];
+}
 
 const WEBP = "webp";
 // The fallback when a context doesn't inject the live quality getter (tests) — byte-identical to infra/image
@@ -115,11 +119,17 @@ const VARIANT_RESOLVERS: Record<VariantKind, VariantResolver> = {
   banner: resolveBannerVariant,
 };
 
-export function createResolveVariant(ctx: AssetsContext): AssetsService["resolveVariant"] {
-  return ({ principal, hash, width, kind }: ResolveVariantParams) => {
+export function createResolveVariant(ctx: AssetsContext, { getMetadata }: ResolveVariantDeps): AssetsService["resolveVariant"] {
+  return async ({ principal, hash, width, kind }: ResolveVariantParams) => {
     if (!isAssetHash(hash)) {
-      return Promise.resolve(undefined);
+      return;
     }
-    return VARIANT_RESOLVERS[kind](ctx, principal.userId, hash, width);
+    // Security: the gate runs before the cache read. The cache is keyed on the asset owner, so an entry a
+    // co-participant's request wrote is reachable only by a caller who passes this same gate.
+    const meta = await getMetadata({ principal, hash });
+    if (meta === undefined) {
+      return;
+    }
+    return VARIANT_RESOLVERS[kind](ctx, meta.ownerId ?? principal.userId, hash, width);
   };
 }

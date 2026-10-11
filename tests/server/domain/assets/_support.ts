@@ -18,7 +18,7 @@ import type { ParticipantKind } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { ParticipantRole, Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { assets, characters, chatParticipants, chats, messageAssets, messages, personas } from "@orb/db";
+import { characters, chatParticipants, chats, messageAssets, messages, personas } from "@orb/db";
 import type {
   AssetId,
   CharacterHandle,
@@ -35,11 +35,11 @@ import type {
 import { castId } from "@orb/kit/ids";
 import { createLinkCharacterAvatars } from "@orb/server/domain/character";
 import { createCas, createVariantCache } from "@orb/server/infra/storage";
-import { and, eq, inArray, isNull } from "drizzle-orm";
-import { alias } from "drizzle-orm/sqlite-core";
+import { and, eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
 import type { AssetsContext } from "#server/domain/assets/context.ts";
+import { createLoadChatAssetRefs, createLoadCoParticipantOwner } from "#server/entry/compose/co-participant-assets.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
@@ -112,80 +112,9 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
         .limit(1);
       return rows.length > 0;
     },
-    // roster-avatar reference-check, wired as the REAL query (mirrors the compose-root impl,
-    // `entry/compose/services.ts`) so the security property — a rostered character's OR a co-participant
-    // human's PERSONA avatar in a chat the caller is present in, NOT a bare hash oracle — is exercised
-    // against the real seeded DB, not a fake.
-    loadCoParticipantOwner: async (callerId: UserId, hash: string): Promise<UserId | undefined> => {
-      const rosterChar = alias(chatParticipants, "roster_char");
-      const callerSeat = alias(chatParticipants, "caller_seat");
-      const characterRows = await db
-        .select({ ownerId: assets.ownerId })
-        .from(assets)
-        .innerJoin(characters, eq(characters.avatarAssetId, assets.id))
-        .innerJoin(rosterChar, and(eq(rosterChar.characterId, characters.id), eq(rosterChar.kind, "character"), isNull(rosterChar.leftSeq)))
-        .innerJoin(callerSeat, and(eq(callerSeat.chatId, rosterChar.chatId), eq(callerSeat.userId, callerId), isNull(callerSeat.leftSeq)))
-        .where(eq(assets.hash, hash))
-        .limit(1);
-      if (characterRows[0] !== undefined) {
-        return characterRows[0].ownerId;
-      }
-
-      const personaSeat = alias(chatParticipants, "persona_seat");
-      const personaCallerSeat = alias(chatParticipants, "persona_caller_seat");
-      const personaRows = await db
-        .select({ ownerId: assets.ownerId })
-        .from(assets)
-        .innerJoin(personas, eq(personas.avatarAssetId, assets.id))
-        .innerJoin(personaSeat, and(eq(personaSeat.activePersonaId, personas.id), eq(personaSeat.kind, "human"), isNull(personaSeat.leftSeq)))
-        .innerJoin(
-          personaCallerSeat,
-          and(eq(personaCallerSeat.chatId, personaSeat.chatId), eq(personaCallerSeat.userId, callerId), isNull(personaCallerSeat.leftSeq)),
-        )
-        .where(eq(assets.hash, hash))
-        .limit(1);
-      if (personaRows[0] !== undefined) {
-        return personaRows[0].ownerId;
-      }
-
-      // Attachment arm (#67 co-participant render) — mirrors the compose-root impl: the hash is an asset
-      // referenced by a `message_assets` row for a message in a chat where BOTH the caller and the asset
-      // owner are present participants.
-      const attachOwnerSeat = alias(chatParticipants, "attach_owner_seat");
-      const attachCallerSeat = alias(chatParticipants, "attach_caller_seat");
-      const attachmentRows = await db
-        .select({ ownerId: assets.ownerId })
-        .from(assets)
-        .innerJoin(messageAssets, eq(messageAssets.assetId, assets.id))
-        .innerJoin(messages, eq(messages.id, messageAssets.messageId))
-        .innerJoin(attachCallerSeat, and(eq(attachCallerSeat.chatId, messages.chatId), eq(attachCallerSeat.userId, callerId), isNull(attachCallerSeat.leftSeq)))
-        .innerJoin(
-          attachOwnerSeat,
-          and(eq(attachOwnerSeat.chatId, messages.chatId), eq(attachOwnerSeat.userId, assets.ownerId), isNull(attachOwnerSeat.leftSeq)),
-        )
-        .where(eq(assets.hash, hash))
-        .limit(1);
-      return attachmentRows[0]?.ownerId;
-    },
-    // #67 co-participant RENDER resolver — mirrors the compose-root impl (`entry/compose/services.ts`) so the
-    // structural gate (a `message_assets` reference IN `chatId` + owner present + caller present, NOT bare
-    // membership) is exercised against the real seeded DB.
-    loadChatAssetRefs: async (callerId, forChatId, assetIds) => {
-      if (assetIds.length === 0) {
-        return [];
-      }
-      const ownerSeat = alias(chatParticipants, "chat_ref_owner_seat");
-      const callerSeat = alias(chatParticipants, "chat_ref_caller_seat");
-      const rows = await db
-        .selectDistinct({ assetId: assets.id, hash: assets.hash, mime: assets.mime, width: assets.width, height: assets.height })
-        .from(assets)
-        .innerJoin(messageAssets, eq(messageAssets.assetId, assets.id))
-        .innerJoin(messages, eq(messages.id, messageAssets.messageId))
-        .innerJoin(callerSeat, and(eq(callerSeat.chatId, messages.chatId), eq(callerSeat.userId, callerId), isNull(callerSeat.leftSeq)))
-        .innerJoin(ownerSeat, and(eq(ownerSeat.chatId, messages.chatId), eq(ownerSeat.userId, assets.ownerId), isNull(ownerSeat.leftSeq)))
-        .where(and(eq(messages.chatId, forChatId), inArray(assets.id, [...assetIds])));
-      return rows;
-    },
+    // The production queries themselves, so a change to a shipped predicate is what these suites test.
+    loadCoParticipantOwner: createLoadCoParticipantOwner(db),
+    loadChatAssetRefs: createLoadChatAssetRefs(db),
   };
   return {
     ctx,

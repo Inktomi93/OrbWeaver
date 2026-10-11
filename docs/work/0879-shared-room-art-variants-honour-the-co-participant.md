@@ -24,3 +24,5 @@ The variant route resolves the owner through the same co-participant check as ge
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner ruling on review finding F3: a joiner's history floor does not gate art served by hash. A caller cannot learn an asset's hash without the history that carries it, so the attachment case in `createLoadCoParticipantOwner` and `createLoadChatAssetRefs` (`packages/server/src/entry/compose/co-participant-assets.ts`) stays unclamped by `resolveHistoryFloorSeq`, with no code change.
