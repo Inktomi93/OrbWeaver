@@ -1,6 +1,8 @@
 // CT: the badge/chip/pill seal — intent maps to the status token PAIR (computed color), sizes
 // carry real padding (ui-package-design §6.1).
 
+import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
+import { contrastRatio, NORMAL_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { Badge } from "@orb/ui/badge";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -68,27 +70,15 @@ test("ghost tone drops the fill entirely, keeping the hairline outline + muted t
 // see that the same red over a 15%-red tint of that card does not. Measured on the databank home tile:
 // 4.28:1 at 13px/500, i.e. under AA-NORMAL, on the one chip in the app that says "this job is dead".
 //
-// The calculator below composites in a CANVAS (a translucent `color-mix` background is invisible to a
-// naive computed-style read — the same reason a masked surface needs framebuffer sampling) and is
-// VALIDATED IN-TEST against two known ratios before it is trusted for a verdict.
+// The painter below composites in a CANVAS (a translucent `color-mix` background is invisible to a
+// naive computed-style read — the same reason a masked surface needs framebuffer sampling) and hands back
+// raw bytes; the ratio is the shared engine's, and is VALIDATED IN-TEST against two known ratios before
+// it is trusted for a verdict.
 
-/** WCAG 2.x relative luminance + contrast, over sRGB 0-255 triples. */
-function contrastRatio(fg: readonly number[], bg: readonly number[]): number {
-  const luminance = (rgb: readonly number[]): number => {
-    const channels = rgb.slice(0, 3).map((v) => {
-      const c = v / 255;
-      return c <= 0.040_45 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-    });
-    return 0.2126 * (channels[0] ?? 0) + 0.7152 * (channels[1] ?? 0) + 0.0722 * (channels[2] ?? 0);
-  };
-  const [light, dark] = [luminance(fg), luminance(bg)].toSorted((a, b) => b - a);
-  return ((light ?? 0) + 0.05) / ((dark ?? 0) + 0.05);
-}
-
-/** The element's PAINTED foreground + background as sRGB triples: every translucent background from the
+/** The element's PAINTED foreground + background as sRGB bytes: every translucent background from the
  *  nearest opaque ancestor down is composited in a canvas, then the text color is composited on top of
  *  that. Returns `[fg, bg]`. */
-const paintedColors = (el: Element): readonly (readonly number[])[] => {
+const paintedColors = (el: Element): readonly [Rgb, Rgb] => {
   // "Transparent" is READ OFF THE ENGINE (a fresh div's default background) rather than spelled as a
   // color literal — the §13.7 discipline, and more robust than guessing the serialization. The probe must
   // be IN THE DOCUMENT to read it: `getComputedStyle` on a DETACHED element resolves nothing and returns
@@ -119,7 +109,7 @@ const paintedColors = (el: Element): readonly (readonly number[])[] => {
   canvas.height = 4;
   const ctx = canvas.getContext("2d");
   if (ctx === null) {
-    return [[], []];
+    throw new Error("paintedColors: no 2d context");
   }
   // The document's own canvas colour is the floor beneath every layer.
   ctx.fillStyle = getComputedStyle(document.documentElement).backgroundColor;
@@ -128,11 +118,14 @@ const paintedColors = (el: Element): readonly (readonly number[])[] => {
     ctx.fillStyle = layer;
     ctx.fillRect(0, 0, 4, 4);
   }
-  const bg = [...ctx.getImageData(1, 1, 1, 1).data];
+  const [bgR = 0, bgG = 0, bgB = 0] = ctx.getImageData(1, 1, 1, 1).data;
   ctx.fillStyle = getComputedStyle(el).color;
   ctx.fillRect(0, 0, 4, 4);
-  const fg = [...ctx.getImageData(1, 1, 1, 1).data];
-  return [fg, bg];
+  const [fgR = 0, fgG = 0, fgB = 0] = ctx.getImageData(1, 1, 1, 1).data;
+  return [
+    { r: fgR, g: fgG, b: fgB },
+    { r: bgR, g: bgG, b: bgB },
+  ];
 };
 
 test("the calculator agrees with two KNOWN ratios before it is trusted", async ({ mount }) => {
@@ -151,7 +144,7 @@ test("the calculator agrees with two KNOWN ratios before it is trusted", async (
   );
   const measure = async (testid: string): Promise<number> => {
     const [fg, bg] = await probe.getByTestId(testid).evaluate(paintedColors);
-    return contrastRatio(fg ?? [], bg ?? []);
+    return contrastRatio(fg, bg);
   };
   // White on black is 21:1 and black on black is 1:1 — if either misses, the verdict below is noise.
   expect(await measure("max")).toBeCloseTo(21, 1);
@@ -186,12 +179,12 @@ test("soft-tone text clears AA-NORMAL over its own tint, on the surface it actua
   const measured = await Promise.all(
     ["danger", "warning", "neutral", "success", "info", "primary"].map(async (testid) => {
       const [fg, bg] = await chips.getByTestId(testid).evaluate(paintedColors);
-      return { testid, ratio: contrastRatio(fg ?? [], bg ?? []) };
+      return { testid, ratio: contrastRatio(fg, bg) };
     }),
   );
   // AA-NORMAL: the chip is 13px/500, which is not large text under any reading of the rule.
   for (const { testid, ratio } of measured) {
-    expect(ratio, `${testid} soft-tone contrast`).toBeGreaterThanOrEqual(4.5);
+    expect(ratio, `${testid} soft-tone contrast`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
   }
 });
 // ── THE LIGHT ARM of the pin above (2026-09-01) ────────────────────────────────────────────────────
@@ -234,11 +227,11 @@ test("soft-tone text clears AA-NORMAL under the LIGHT theme too — the polarity
   const measured = await Promise.all(
     ["danger", "warning", "neutral", "success", "info", "primary"].map(async (testid) => {
       const [fg, bg] = await chips.getByTestId(testid).evaluate(paintedColors);
-      return { testid, ratio: contrastRatio(fg ?? [], bg ?? []) };
+      return { testid, ratio: contrastRatio(fg, bg) };
     }),
   );
   for (const { testid, ratio } of measured) {
-    expect(ratio, `${testid} soft-tone contrast (light)`).toBeGreaterThanOrEqual(4.5);
+    expect(ratio, `${testid} soft-tone contrast (light)`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
   }
 });
 
@@ -285,11 +278,11 @@ test("status ink and soft chips clear AA-NORMAL on the INTERACTIVE (hover) groun
     const measured = await Promise.all(
       ["gloss", "danger", "warning", "primary", "info", "success"].map(async (testid) => {
         const [fg, bg] = await row.getByTestId(testid).evaluate(paintedColors);
-        return { testid, ratio: contrastRatio(fg ?? [], bg ?? []) };
+        return { testid, ratio: contrastRatio(fg, bg) };
       }),
     );
     for (const { testid, ratio } of measured) {
-      expect(ratio, `${testid} on the hover ground (${theme})`).toBeGreaterThanOrEqual(4.5);
+      expect(ratio, `${testid} on the hover ground (${theme})`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
     }
     await row.unmount();
   }
@@ -310,7 +303,7 @@ test("PLANTED CONTROL: a token that cannot pass on that ground still measures BE
     </div>,
   );
   const [fg, bg] = await row.getByTestId("unreadable").evaluate(paintedColors);
-  expect(contrastRatio(fg ?? [], bg ?? []), "a surface token as ink must measure below AA — if this passes, the measurement has gone blind").toBeLessThan(4.5);
+  expect(contrastRatio(fg, bg), "a surface token as ink must measure below AA — if this passes, the measurement has gone blind").toBeLessThan(NORMAL_MIN_RATIO);
 });
 
 test("md size carries more horizontal padding than sm", async ({ mount }) => {

@@ -6,6 +6,8 @@
 // asserted against the section's OWN exported MIN/MAX constants, never hardcoded numbers.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
+import { contrastRatio, relativeLuminance } from "@orb/tooling/floor/instrument/wcag";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -149,8 +151,8 @@ test("an elevation CELL patches elevation, key-minimally — and the three diagr
   // 1.0 — a false verdict shaped like a real one (this arm's own first draft did exactly that; the planted
   // floor caught it). The canvas also does the ALPHA compositing for free, which is the point here: the
   // ladder is `foreground` at rising alpha over the art ground.
-  const contrastLadder = async (name: string): Promise<readonly number[]> =>
-    await cards.getByRole("radio", { name }).evaluate((cell): readonly number[] => {
+  const contrastLadder = async (name: string): Promise<readonly Rgb[]> =>
+    await cards.getByRole("radio", { name }).evaluate((cell): readonly Rgb[] => {
       const canvas = document.createElement("canvas");
       canvas.width = 1;
       canvas.height = 1;
@@ -159,34 +161,33 @@ test("an elevation CELL patches elevation, key-minimally — and the three diagr
         return [];
       }
       const ground = getComputedStyle(cell.querySelector('[data-slot="picker-cell-art"]') ?? cell).backgroundColor;
-      const luminance = (color: string): number => {
+      const paintedOverGround = (color: string): Rgb => {
         context.clearRect(0, 0, 1, 1);
         context.fillStyle = ground;
         context.fillRect(0, 0, 1, 1);
         context.fillStyle = color;
         context.fillRect(0, 0, 1, 1);
-        const [red = 0, green = 0, blue = 0] = context.getImageData(0, 0, 1, 1).data;
-        const channel = (value: number): number => {
-          const srgb = value / 255;
-          return srgb <= 0.039_28 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
-        };
-        return 0.2126 * channel(red) + 0.7152 * channel(green) + 0.0722 * channel(blue);
+        const [r = 0, g = 0, b = 0] = context.getImageData(0, 0, 1, 1).data;
+        return { r, g, b };
       };
       // The LADDER is the diagram's own three cells (art aperture → layout stack → plate → cells), named
       // structurally. A "every non-transparent descendant" sweep counts the art ground twice — the aperture
       // and the plate both paint `bg-background` — which opens the sorted list with a 1.00:1 pair.
       const steps = [...cell.querySelectorAll('[data-slot="picker-cell-art"] > * > * > *')];
-      return steps.map((node) => luminance(getComputedStyle(node).backgroundColor));
+      return steps.map((node) => paintedOverGround(getComputedStyle(node).backgroundColor));
     });
 
   const layered = await contrastLadder("Layered");
   // The positive control: an EMPTY ladder would satisfy every "all steps differ" claim vacuously, and an
   // empty ladder is literally the defect this arm exists for (`Layered` painted NOTHING for a whole era).
   expect(layered).toHaveLength(3);
-  const sorted = [...layered].sort((a, b) => a - b);
+  const sorted = [...layered].sort((a, b) => relativeLuminance(a) - relativeLuminance(b));
   for (let index = 1; index < sorted.length; index += 1) {
-    const ratio = ((sorted[index] ?? 0) + 0.05) / ((sorted[index - 1] ?? 0) + 0.05);
-    expect(ratio).toBeGreaterThanOrEqual(RatioFloor);
+    const [lighter, darker] = [sorted[index], sorted[index - 1]];
+    if (lighter === undefined || darker === undefined) {
+      throw new Error("the Layered ladder lost a step while sorting");
+    }
+    expect(contrastRatio(lighter, darker)).toBeGreaterThanOrEqual(RatioFloor);
   }
 
   // …and the three options do not draw the same picture: shape + shadow differ, not only the tone.

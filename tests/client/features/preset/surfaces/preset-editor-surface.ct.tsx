@@ -26,6 +26,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { NORMAL_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { SCROLL_FADE_X_CLASS } from "@orb/ui/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -1756,8 +1757,6 @@ test("#483 the editor header renames the open preset — one name-only update ag
 // (a 1280 viewport with both panels docked — the P1-1 measurement above), and 450 is past the strip's own
 // overflow, where the recipe must paint no band at all and every row reads `clear`.
 const STRIP_FADE_PANES = [320, 360, 390, 450] as const;
-/** WCAG 1.4.3 normal text — the tabs are 13px/500, so the 3:1 large-text relaxation does not apply. */
-const STRIP_FADE_INK_FLOOR = 4.5;
 /** A light scope by DERIVATION, never a hand-listed palette — `background` grows the whole ramp. */
 const STRIP_LIGHT_SCOPE_BACKGROUND = "oklch(0.98 0.004 75)";
 /** Below this a clip is sub-pixel noise, not a slice of a tab anyone reads. */
@@ -1963,7 +1962,8 @@ for (const polarity of ["dark", "light"] as const) {
         );
         failures.push(
           ...readings
-            .filter((reading) => reading.ratio < STRIP_FADE_INK_FLOOR)
+            // The tabs are 13px/500, so the 3:1 large-text relaxation does not apply.
+            .filter((reading) => reading.ratio < NORMAL_MIN_RATIO)
             .map((reading) => `${String(pane)}px ${polarity} ${edge}: "${reading.label}" ${reading.ratio.toFixed(2)}:1 — ${reading.describe}`),
         );
       }

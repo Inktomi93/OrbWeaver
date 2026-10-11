@@ -11,8 +11,11 @@
 // stayed BYTE-IDENTICAL — chart chrome was stale until the chart remounted. Hence the second assertion:
 // the mount id must be UNCHANGED, or a green here would only prove React threw the subtree away.
 
+import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
+import { contrastRatio, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import { TOKEN_POLARITY_ARMS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 import {
   ChartThemeAxisLineReadoutStory,
   CustomAcceptedChartCasesStory,
@@ -92,88 +95,110 @@ test("a custom midlight ThemeScope renders a real chart with five 3:1 categorica
   await expect(panel.locator("canvas")).toBeVisible();
   await expect(panel).toHaveAttribute("data-echarts-option", /"series"/u);
   await expect
-    .poll(
-      async () =>
-        await panel.evaluate((element) => {
-          const rawOption = element.getAttribute("data-echarts-option");
-          const option = rawOption === null ? null : JSON.parse(rawOption);
-          const hasProperty = <Key extends PropertyKey>(value: unknown, key: Key): value is { [Property in Key]: unknown } =>
-            typeof value === "object" && value !== null && key in value;
-          const seriesValues: unknown[] = hasProperty(option, "series") && Array.isArray(option.series) ? option.series : [];
-          const colors: string[] = seriesValues.flatMap((series: unknown) => {
-            if (!hasProperty(series, "data")) {
-              return [];
-            }
-            if (!Array.isArray(series.data)) {
-              return [];
-            }
-            return series.data.flatMap((datum: unknown) => {
-              if (!hasProperty(datum, "itemStyle")) {
-                return [];
-              }
-              if (!hasProperty(datum.itemStyle, "color")) {
-                return [];
-              }
-              const color = datum.itemStyle.color;
-              return typeof color === "string" ? [color] : [];
-            });
-          });
-          const chartCanvas = element.querySelector("canvas");
-          const parserCanvas = document.createElement("canvas");
-          parserCanvas.width = 1;
-          parserCanvas.height = 1;
-          const parser = parserCanvas.getContext("2d");
-          const chart = chartCanvas?.getContext("2d") ?? null;
-          if (parser === null || chart === null) {
-            return { colorCount: colors.length, distinctColorCount: 0, minimumRatioClears: false, renderedColorCount: 0, unresolvedColorCount: 0 };
+    .poll(async () => {
+      const { fills, backing, ...rendered } = await panel.evaluate((element) => {
+        const rawOption = element.getAttribute("data-echarts-option");
+        const option = rawOption === null ? null : JSON.parse(rawOption);
+        const hasProperty = <Key extends PropertyKey>(value: unknown, key: Key): value is { [Property in Key]: unknown } =>
+          typeof value === "object" && value !== null && key in value;
+        const seriesValues: unknown[] = hasProperty(option, "series") && Array.isArray(option.series) ? option.series : [];
+        const colors: string[] = seriesValues.flatMap((series: unknown) => {
+          if (!hasProperty(series, "data")) {
+            return [];
           }
-          const rgb = (color: string): readonly [number, number, number] => {
-            parser.clearRect(0, 0, 1, 1);
-            parser.fillStyle = color;
-            parser.fillRect(0, 0, 1, 1);
-            const [r = 0, g = 0, b = 0] = parser.getImageData(0, 0, 1, 1).data;
-            return [r, g, b];
-          };
-          const luminance = ([r, g, b]: readonly [number, number, number]): number => {
-            const [lr, lg, lb] = [r, g, b].map((value) => {
-              const channel = value / 255;
-              return channel <= 0.039_28 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-            });
-            return 0.2126 * (lr ?? 0) + 0.7152 * (lg ?? 0) + 0.0722 * (lb ?? 0);
-          };
-          const backing = luminance(rgb(getComputedStyle(element).backgroundColor));
-          const chartPixels = chart.getImageData(0, 0, chartCanvas?.width ?? 0, chartCanvas?.height ?? 0).data;
-          const renderedMatches = colors.map((color) => {
-            const [expectedR, expectedG, expectedB] = rgb(color);
-            let matches = 0;
-            for (let index = 0; index < chartPixels.length; index += 4) {
-              const r = chartPixels[index] ?? 0;
-              const g = chartPixels[index + 1] ?? 0;
-              const b = chartPixels[index + 2] ?? 0;
-              const alpha = chartPixels[index + 3] ?? 0;
-              if (alpha > 250 && Math.abs(r - expectedR) <= 2 && Math.abs(g - expectedG) <= 2 && Math.abs(b - expectedB) <= 2) {
-                matches += 1;
-              }
+          if (!Array.isArray(series.data)) {
+            return [];
+          }
+          return series.data.flatMap((datum: unknown) => {
+            if (!hasProperty(datum, "itemStyle")) {
+              return [];
             }
-            return matches;
+            if (!hasProperty(datum.itemStyle, "color")) {
+              return [];
+            }
+            const color = datum.itemStyle.color;
+            return typeof color === "string" ? [color] : [];
           });
-          const minRatio = Math.min(
-            ...colors.map((color) => {
-              const fill = luminance(rgb(color));
-              return (Math.max(fill, backing) + 0.05) / (Math.min(fill, backing) + 0.05);
-            }),
-          );
+        });
+        const chartCanvas = element.querySelector("canvas");
+        const parserCanvas = document.createElement("canvas");
+        parserCanvas.width = 1;
+        parserCanvas.height = 1;
+        const parser = parserCanvas.getContext("2d");
+        const chart = chartCanvas?.getContext("2d") ?? null;
+        if (parser === null || chart === null) {
           return {
+            backing: { r: 0, g: 0, b: 0 },
             colorCount: colors.length,
-            distinctColorCount: new Set(colors).size,
-            minimumRatioClears: colors.length === 5 && minRatio >= 3,
-            renderedColorCount: renderedMatches.filter((matches) => matches > 0).length,
-            unresolvedColorCount: colors.filter((color) => /(?:light-dark|var)\(/u.test(color)).length,
+            distinctColorCount: 0,
+            fills: [],
+            renderedColorCount: 0,
+            unresolvedColorCount: 0,
           };
-        }),
-    )
+        }
+        const rgb = (color: string): readonly [number, number, number] => {
+          parser.clearRect(0, 0, 1, 1);
+          parser.fillStyle = color;
+          parser.fillRect(0, 0, 1, 1);
+          const [r = 0, g = 0, b = 0] = parser.getImageData(0, 0, 1, 1).data;
+          return [r, g, b];
+        };
+        const asRgb = ([r, g, b]: readonly [number, number, number]): Rgb => ({ r, g, b });
+        const backdrop = asRgb(rgb(getComputedStyle(element).backgroundColor));
+        const chartPixels = chart.getImageData(0, 0, chartCanvas?.width ?? 0, chartCanvas?.height ?? 0).data;
+        const renderedMatches = colors.map((color) => {
+          const [expectedR, expectedG, expectedB] = rgb(color);
+          let matches = 0;
+          for (let index = 0; index < chartPixels.length; index += 4) {
+            const r = chartPixels[index] ?? 0;
+            const g = chartPixels[index + 1] ?? 0;
+            const b = chartPixels[index + 2] ?? 0;
+            const alpha = chartPixels[index + 3] ?? 0;
+            if (alpha > 250 && Math.abs(r - expectedR) <= 2 && Math.abs(g - expectedG) <= 2 && Math.abs(b - expectedB) <= 2) {
+              matches += 1;
+            }
+          }
+          return matches;
+        });
+        return {
+          backing: backdrop,
+          colorCount: colors.length,
+          distinctColorCount: new Set(colors).size,
+          fills: colors.map((color) => asRgb(rgb(color))),
+          renderedColorCount: renderedMatches.filter((matches) => matches > 0).length,
+          unresolvedColorCount: colors.filter((color) => /(?:light-dark|var)\(/u.test(color)).length,
+        };
+      });
+      const minRatio = Math.min(...fills.map((fill) => contrastRatio(fill, backing)));
+      return { ...rendered, minimumRatioClears: fills.length === 5 && minRatio >= UI_COMPONENT_MIN_RATIO };
+    })
     .toEqual({ colorCount: 5, distinctColorCount: 5, minimumRatioClears: true, renderedColorCount: 5, unresolvedColorCount: 0 });
 });
+
+/** The worst ratio between the panel's five published chart fills and the panel's own background, or 0 when
+ *  the panel does not publish exactly five. The page resolves each CSS colour to bytes; the ratio is the
+ *  shared engine's. */
+async function minimumFillContrast(panel: Locator): Promise<number> {
+  const palette = (await panel.locator("p[data-palette]").getAttribute("data-palette"))?.split("|") ?? [];
+  const resolved = await panel.evaluate((element, colors): { fills: Rgb[]; backing: Rgb } | null => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext("2d");
+    if (ctx === null || colors.length !== 5) {
+      return null;
+    }
+    const rgb = (color: string): Rgb => {
+      ctx.clearRect(0, 0, 1, 1);
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, 1, 1);
+      const [r = 0, g = 0, b = 0] = ctx.getImageData(0, 0, 1, 1).data;
+      return { r, g, b };
+    };
+    return { fills: colors.map(rgb), backing: rgb(getComputedStyle(element).backgroundColor) };
+  }, palette);
+  return resolved === null ? 0 : Math.min(...resolved.fills.map((fill) => contrastRatio(fill, resolved.backing)));
+}
 
 test("named, alpha-composited, and extreme accepted themes render five 3:1 ECharts fills", async ({ mount }) => {
   const scope = await mount(<CustomAcceptedChartCasesStory />);
@@ -181,33 +206,7 @@ test("named, alpha-composited, and extreme accepted themes render five 3:1 EChar
   for (const name of ["named", "transparent", "partial-alpha", "extreme-gamut"] as const) {
     await expect(panel).toHaveAttribute("data-case", name);
     await expect(panel.locator("canvas")).toBeVisible();
-    await expect
-      .poll(async () => {
-        const palette = (await panel.locator("p[data-palette]").getAttribute("data-palette"))?.split("|") ?? [];
-        return await panel.evaluate((element, colors): number => {
-          const canvas = document.createElement("canvas");
-          canvas.width = 1;
-          canvas.height = 1;
-          const ctx = canvas.getContext("2d");
-          if (ctx === null || colors.length !== 5) {
-            return 0;
-          }
-          const luminance = (color: string): number => {
-            ctx.clearRect(0, 0, 1, 1);
-            ctx.fillStyle = color;
-            ctx.fillRect(0, 0, 1, 1);
-            const [r = 0, g = 0, b = 0] = ctx.getImageData(0, 0, 1, 1).data;
-            const [lr, lg, lb] = [r, g, b].map((value) => {
-              const channel = value / 255;
-              return channel <= 0.039_28 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-            });
-            return 0.2126 * (lr ?? 0) + 0.7152 * (lg ?? 0) + 0.0722 * (lb ?? 0);
-          };
-          const backing = luminance(getComputedStyle(element).backgroundColor);
-          return Math.min(...colors.map((color) => (Math.max(luminance(color), backing) + 0.05) / (Math.min(luminance(color), backing) + 0.05)));
-        }, palette);
-      })
-      .toBeGreaterThanOrEqual(3);
+    await expect.poll(async () => await minimumFillContrast(panel)).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
     if (name !== "extreme-gamut") {
       await panel.getByRole("button", { name: "Next accepted theme" }).click();
     }
@@ -222,33 +221,7 @@ test("contextual backgrounds are rejected before derivation and the rendered cha
     await expect(panel).toHaveAttribute("data-case", name);
     await expect(panel.locator("canvas")).toBeVisible();
     await expect.poll(async () => await themeScope.evaluate((element) => (element as HTMLElement).style.getPropertyValue("--color-background"))).toBe("");
-    await expect
-      .poll(async () => {
-        const palette = (await panel.locator("p[data-palette]").getAttribute("data-palette"))?.split("|") ?? [];
-        return await panel.evaluate((element, colors): number => {
-          const canvas = document.createElement("canvas");
-          canvas.width = 1;
-          canvas.height = 1;
-          const ctx = canvas.getContext("2d");
-          if (ctx === null || colors.length !== 5) {
-            return 0;
-          }
-          const luminance = (color: string): number => {
-            ctx.clearRect(0, 0, 1, 1);
-            ctx.fillStyle = color;
-            ctx.fillRect(0, 0, 1, 1);
-            const [r = 0, g = 0, b = 0] = ctx.getImageData(0, 0, 1, 1).data;
-            const [lr, lg, lb] = [r, g, b].map((value) => {
-              const channel = value / 255;
-              return channel <= 0.039_28 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-            });
-            return 0.2126 * (lr ?? 0) + 0.7152 * (lg ?? 0) + 0.0722 * (lb ?? 0);
-          };
-          const backing = luminance(getComputedStyle(element).backgroundColor);
-          return Math.min(...colors.map((color) => (Math.max(luminance(color), backing) + 0.05) / (Math.min(luminance(color), backing) + 0.05)));
-        }, palette);
-      })
-      .toBeGreaterThanOrEqual(3);
+    await expect.poll(async () => await minimumFillContrast(panel)).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
     if (name !== "active-text") {
       await panel.getByRole("button", { name: "Next rejected theme" }).click();
     }
