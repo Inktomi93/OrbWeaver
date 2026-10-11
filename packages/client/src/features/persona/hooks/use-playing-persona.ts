@@ -3,10 +3,11 @@
 // viewer's SEAT; with none it is the global pointer. A switch inside a room always moves the seat; the
 // "Everywhere" scope (and any switch with no room) also writes the global pointer.
 
+import type { PersonaId } from "@orb/kit/ids";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { peekQueryData, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { useActiveChatId } from "#state";
 import { resolveCurrentPersona, resolvePlayingPersona } from "../lib/persona-current.ts";
@@ -57,16 +58,17 @@ export function usePlayingPersona(): PlayingPersonaState {
 
 /** The default pin's two verbs, shared by the switcher and the Settings list. Clearing is a quiet edit of a
  *  stored preference, so it says so and offers Undo. */
-export function useDefaultPin(state: PlayingPersonaState): { readonly pin: (personaId: string) => void; readonly clear: () => void } {
+export function useDefaultPin(state: PlayingPersonaState): { readonly pin: (personaId: PersonaId) => void; readonly clear: () => void } {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const queryClient = useQueryClient();
   const setSeed = useSetPersonaSeed({ trpc, invalidation });
-  const previousId = state.seeds.defaultPersonaId;
+  // The persona being cleared, as a branded id (the stored pointer is a lenient plain string).
+  const previousId = state.personas.find((persona) => persona.id === state.seeds.defaultPersonaId)?.id;
   // Undo reads the default AS IT IS NOW, not as it was when the notice was raised: a pin made since is newer
   // than the one being restored and must not be overwritten by a stale Undo.
-  const defaultNow = (): string | null => queryClient.getQueryData(trpc.settings.getUserSettings.queryKey())?.config.seeds.defaultPersonaId ?? null;
-  const pin = (personaId: string): void => {
+  const defaultNow = (): string | null => peekQueryData(queryClient, trpc.settings.getUserSettings.queryKey())?.config.seeds.defaultPersonaId ?? null;
+  const pin = (personaId: PersonaId): void => {
     setSeed.mutate({ section: "seeds", patch: { defaultPersonaId: personaId } });
   };
   const clear = (): void => {
@@ -76,7 +78,7 @@ export function useDefaultPin(state: PlayingPersonaState): { readonly pin: (pers
         onSuccess: (): void => {
           notify.info({
             title: "Default persona cleared",
-            ...(previousId === null
+            ...(previousId === undefined
               ? {}
               : {
                   action: {
