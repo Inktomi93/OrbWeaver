@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-11
 priority: P1
 area: client
+lane: wt/agent-af25b71bb99b197b8
 ---
 
 # Persona model: crown default, persona pin, default decides new chats
