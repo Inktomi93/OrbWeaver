@@ -220,6 +220,8 @@ interface PersonaNameStoryEntry {
   readonly id: PersonaId;
   readonly name: string;
   readonly description?: string;
+  /** The persona's portrait hash, for the skins that paint identity art. */
+  readonly avatarHash?: string;
 }
 
 /** A character macro-producer entry decoupled from the live roster (the removal case): the character
@@ -304,6 +306,8 @@ export interface MessageRowStoryProps {
   readonly lastRow?: boolean;
   /** The reply's swipe count, for an EARLIER swiped reply (`showSwipes` off): its foot is the count alone. */
   readonly variantCount?: number;
+  /** The card's greeting alternates: the row is a greeting with this many to step through. */
+  readonly greetingVariants?: readonly string[];
 }
 
 /** One row in a chosen chatStyle — the variant-mechanism CT mounts this three times; also the
@@ -342,6 +346,7 @@ export function MessageRowStory({
   showSwipes = false,
   lastRow = false,
   variantCount,
+  greetingVariants,
 }: MessageRowStoryProps): ReactElement {
   const participantsMap =
     participants === undefined
@@ -360,10 +365,12 @@ export function MessageRowStory({
       .filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null)
       .map((p): ChatIdentity => ({ kind: "character", id: p.characterId, name: p.displayName, avatarHash: null })),
     ...(characters ?? []).map((c): ChatIdentity => ({ kind: "character", id: c.id, name: c.name, avatarHash: c.avatarHash ?? null })),
-    ...(personas ?? []).map((p): ChatIdentity => ({ kind: "persona", id: p.id, name: p.name, description: p.description ?? "", avatarHash: null })),
+    ...(personas ?? []).map(
+      (p): ChatIdentity => ({ kind: "persona", id: p.id, name: p.name, description: p.description ?? "", avatarHash: p.avatarHash ?? null }),
+    ),
   ];
   const { characterNamesById, personaNamesById } = buildIdentityNameContext(storyIdentities);
-  const { characterAvatarsById } = buildIdentityAvatarMaps(storyIdentities);
+  const { characterAvatarsById, personaAvatarsById } = buildIdentityAvatarMaps(storyIdentities);
 
   return (
     // The row now always renders <MessageActionsRow> (Edit/Hide/Delete/Fork/Copy), which reads the
@@ -402,6 +409,7 @@ export function MessageRowStory({
             chatStyle={chatStyle}
             showSwipes={showSwipes}
             lastRow={lastRow}
+            {...(greetingVariants === undefined ? {} : { greeting: { variants: greetingVariants } })}
             stickyAttribution={stickyAttribution}
             showLLMReasoningIcon={showLLMReasoningIcon}
             metadataVisibility={metadataVisibility}
@@ -416,6 +424,7 @@ export function MessageRowStory({
             participants={participantsMap}
             characterNamesById={characterNamesById}
             characterAvatarsById={characterAvatarsById}
+            personaAvatarsById={personaAvatarsById}
             personaNamesById={personaNamesById}
             activePersonaId={activePersonaId}
             anchorPersonaId={anchorPersonaId}

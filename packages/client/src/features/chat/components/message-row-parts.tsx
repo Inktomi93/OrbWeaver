@@ -333,6 +333,15 @@ export function renderRowAvatar(args: {
 // BOTH STRIPS TAKE THE SKIN'S SWIPE FOOT (`RowSkin.swipeFoot`). The row places the node: inside the
 // container for a single-container skin, where the container's fill backs it, or under tide's train, where
 // the foot carries the opaque pager plate itself (#221's legibility over art).
+// An earlier greeting's count: its position among the card's alternates, or nothing when it has one.
+function greetingCount(variants: readonly string[], content: string, foot: SwipeFoot): ReactNode {
+  if (variants.length <= 1) {
+    return null;
+  }
+  const index = variants.indexOf(content);
+  return <SwipeCount current={index === -1 ? null : index + 1} total={variants.length} foot={foot} />;
+}
+
 export function renderRowSwipe(args: {
   readonly editing: boolean;
   readonly showSwipes: boolean;
@@ -345,6 +354,9 @@ export function renderRowSwipe(args: {
     return null;
   }
   if (args.greeting !== undefined) {
+    if (!args.showSwipes) {
+      return greetingCount(args.greeting.variants, args.message.content, args.foot);
+    }
     return (
       <GreetingSwipeStrip
         chatId={args.message.chatId}
@@ -358,10 +370,11 @@ export function renderRowSwipe(args: {
   if (args.role !== "assistant") {
     return null;
   }
-  // Every swiped reply shows its count; the chevrons stay on the last one (stock SillyTavern with
-  // `show_swipe_num_all_messages`, as the owner's Moonlit preset sets it).
+  // Every swiped reply shows its count; the chevrons stay on the transcript's last row (stock SillyTavern
+  // with `show_swipe_num_all_messages`, as the owner's Moonlit preset sets it). One variant says nothing.
   if (!args.showSwipes) {
-    return args.message.variantCount > 1 ? <SwipeCount message={args.message} foot={args.foot} /> : null;
+    const total = args.message.variantCount;
+    return total > 1 ? <SwipeCount current={args.message.selectedVariantIdx + 1} total={total} foot={args.foot} /> : null;
   }
   return <SwipeStrip message={args.message} foot={args.foot} />;
 }

@@ -4,6 +4,8 @@
 import type { MessageView } from "@orb/contracts/chat";
 import type { MessageRole } from "@orb/kit/message-role";
 import { gutterCentredTracks } from "@orb/ui/layout";
+import type { RowAttribution } from "./attribution.ts";
+import { PILL_PHONE_CAP } from "./chat-track.ts";
 import type { ActionsReveal } from "./message-actions-reveal.ts";
 import type { RowSkin } from "./message-row-variants.ts";
 
@@ -29,13 +31,25 @@ export function gutterRailFor(skin: RowSkin, role: MessageRole): "none" | "leadi
 }
 
 /** The content column's own sizing class for this skin's placement (#1728 arm B): `flex-1` is the flex
- *  arm's "take the rest", and `@4xl:col-start-2` is the grid arm's "be the CENTRED rail" — the column must
- *  be placed explicitly there because a system row has no chip to auto-place before it. A MIRRORED row
+ *  arm's "take the rest", and `col-start-2` is the grid arm's "be the CENTRED rail" — the column must
+ *  be placed explicitly at every width, because a row with no chip (system, avatars off, document) would
+ *  otherwise auto-place into the content-sized gutter track. A MIRRORED row
  *  packs its content to the column's trailing edge, so a phone-capped bubble sits flush against its chip
  *  and the cap's gap falls on the far side. */
 export function columnClassFor(skin: RowSkin, mirrored = false): string {
-  const placement = skin.columnPlacement === "anchored" ? "min-w-0 flex-1" : "min-w-0 flex-1 @4xl:col-start-2";
+  const placement = skin.columnPlacement === "anchored" ? anchoredColumnClass(skin) : CENTRED_COLUMN;
   return mirrored ? `${placement} items-end` : placement;
+}
+
+// The centred skins' column is ONE width for every row: the reading measure, less the two identity rails
+// where the row is too narrow for it. A content-sized column made short rows narrow centred plates and
+// slid the chip beside them from row to row.
+const CENTRED_COLUMN = "col-start-2 min-w-0 flex-1 @4xl:w-(--reading-column-centred)";
+
+// A train's column hugs its widest pill, so the speaker row above it and the pager under it share the
+// train's edges; the phone cap moves from each pill to the column for the same reason.
+function anchoredColumnClass(skin: RowSkin): string {
+  return skin.bubbleLayout === "trains" ? `min-w-0 max-w-full ${PILL_PHONE_CAP}` : "min-w-0 flex-1";
 }
 
 /** The row body's own placement classes (#1728 arm B): nothing for `anchored`, which stays the flex line it
@@ -46,10 +60,10 @@ export function columnClassFor(skin: RowSkin, mirrored = false): string {
  *  SAME decision. */
 export function rowBodyClassFor(skin: RowSkin): string {
   // `min-w-0 max-w-full` at every placement: a wide child (a code line) may not widen the row past its track.
-  // The anchored line spans the track (`w-full`) so a bubble's phone cap is a share of the track: on a line
-  // that hugged its content, the cap was a share of the bubble itself and squeezed a short reply under its
-  // own header.
-  return skin.columnPlacement === "anchored" ? "w-full min-w-0 max-w-full" : `min-w-0 max-w-full ${gutterCentredTracks()}`;
+  // The body spans the track (`w-full`) at every placement: a body that hugged its content made a bubble's
+  // phone cap a share of the bubble itself, and sat a centred skin's short rows in narrow, sliding columns.
+  const body = "w-full min-w-0 max-w-full";
+  return skin.columnPlacement === "anchored" ? body : `${body} ${gutterCentredTracks()}`;
 }
 
 /** The header bar's shape for this skin and row. A bar that names its speaker always takes a line; an
@@ -69,13 +83,14 @@ export function actionsRevealFor(skin: RowSkin, lastRow: boolean, setting: "expa
   return skin.actionsRow.identity ? "hover" : "focus";
 }
 
-/** The settled transcript's tail ids. While a turn is live the ghost is the tail, so neither id applies. */
-export function settledTail(
-  messages: readonly MessageView[],
-  live: boolean,
-): { readonly lastAssistantId: string | undefined; readonly lastRowId: string | undefined } {
-  if (live) {
-    return { lastAssistantId: undefined, lastRowId: undefined };
-  }
-  return { lastAssistantId: messages.findLast((row) => row.role === "assistant")?.id, lastRowId: messages.at(-1)?.id };
+/** The settled transcript's last row id. While a turn is live the ghost is the tail, so no row is last. */
+export function settledLastRowId(messages: readonly MessageView[], live: boolean): string | undefined {
+  return live ? undefined : messages.at(-1)?.id;
+}
+
+/** The row's identity treatment: the skin's, except that a portrait with no art falls back to the chip.
+ *  A ripple row with no portrait image was a full-height flat block padding every message to its height. */
+export function avatarTreatmentFor(skin: RowSkin, kind: RowAttribution["kind"], avatarHash: string | null): ReturnType<RowSkin["avatarTreatment"]> {
+  const treatment = skin.avatarTreatment(kind);
+  return treatment === "sticky-portrait" && avatarHash === null ? "icon-left" : treatment;
 }

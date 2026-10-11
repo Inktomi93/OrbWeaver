@@ -64,3 +64,8 @@ export const VARIANT_NEXT_NAME = "Next variant";
  * and `swipe-strip.ct.tsx` pins the stale name ABSENT as the regression control.
  */
 export const VARIANT_GENERATE_NAME = "Regenerate a variant";
+
+/** An earlier reply's swipe count, in words: "Reply 3 of 3", or "Edited reply, 3 alternates" off the list. */
+export function variantCountName(current: number | null, total: number): string {
+  return current === null ? `Edited reply, ${String(total)} alternates` : `Reply ${String(current)} of ${String(total)}`;
+}

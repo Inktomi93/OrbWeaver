@@ -69,7 +69,7 @@ function resolvePlaceholder(emptyAction: "continue" | "generate" | null): string
     return "Continue, or type a message…";
   }
   if (emptyAction === "generate") {
-    return "Type a message, or use ▷ to let the reply come…";
+    return "Type, or ▷ for the reply…";
   }
   return "Type a message…";
 }

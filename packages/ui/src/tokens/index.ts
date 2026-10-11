@@ -131,6 +131,7 @@ export const TOKENS = {
   "blur.fill-dense": { cssVar: "--blur-fill-dense", value: "88%" },
   "blur.saturate": { cssVar: "--blur-saturate", value: "1.4" },
   "immersive.echo-art-width": { cssVar: "--immersive-echo-art-width", value: "12rem" },
+  "immersive.echo-art-height-phone": { cssVar: "--immersive-echo-art-height-phone", value: "15.625rem" },
   "immersive.whisper-feather": { cssVar: "--immersive-whisper-feather", value: "70%" },
   "immersive.stripe-width": { cssVar: "--immersive-stripe-width", value: "0.1875rem" },
   "immersive.ripple-portrait-width": { cssVar: "--immersive-ripple-portrait-width", value: "11.25rem" },

@@ -10,9 +10,12 @@ export interface PinnedHeader {
 }
 
 /** What the header bar carries. `identity: false` is a bar with no speaker (stock document): only the
- *  actions, as a quiet chip at the trailing edge, with a line of its own on the last row only. */
+ *  actions, as a quiet chip at the trailing edge, with a line of its own on the last row only. `surface` is
+ *  the plate the actions cluster itself paints: it fades in and out with the actions, so a chip that sits
+ *  over the page is never an empty box and never glyphs on bare words. */
 export interface ActionsRow {
   readonly identity: boolean;
+  readonly surface: string;
 }
 
 // The fade under a pinned bar: the bar's own surface dissolving to nothing over one block step, so the line
@@ -50,10 +53,11 @@ export const PINNED_BAND: PinnedHeader = {
   paint: () => `bg-reading-band text-reading-plate-foreground after:from-reading-band -mx-section px-section @max-md:-mx-row @max-md:px-row ${FADE_BELOW}`,
 };
 
-/** Document: no name to pin, so the bar is the actions chip alone at the trailing edge. */
+/** Document: no name to pin. The bar is the actions chip alone, and the chip's plate is the actions'
+ *  own (`ACTIONS_ONLY.surface`), so the bar paints nothing of its own. */
 export const PINNED_CHIP: PinnedHeader = {
-  paint: () => "bg-reading-band text-reading-plate-foreground rounded-card",
+  paint: () => "",
 };
 
-export const ACTIONS_WITH_IDENTITY: ActionsRow = { identity: true };
-export const ACTIONS_ONLY: ActionsRow = { identity: false };
+export const ACTIONS_WITH_IDENTITY: ActionsRow = { identity: true, surface: "" };
+export const ACTIONS_ONLY: ActionsRow = { identity: false, surface: "rounded-card bg-reading-band text-reading-plate-foreground" };

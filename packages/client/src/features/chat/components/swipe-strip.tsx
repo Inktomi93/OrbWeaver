@@ -27,7 +27,7 @@ import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { turnMutationToast, viewerTimeZone } from "#lib";
 import { useSwipeKeyboardNav } from "../hooks/use-swipe-keyboard-nav.ts";
 import { useVariantHistory } from "../hooks/use-variant-history.ts";
-import { VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME } from "../lib/message-action-names.ts";
+import { VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME, variantCountName } from "../lib/message-action-names.ts";
 import type { SwipeFoot } from "../lib/pager-chrome.ts";
 import { SWIPE_COUNTER } from "../lib/pager-chrome.ts";
 
@@ -189,12 +189,17 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
   );
 }
 
-/** An earlier swiped reply's foot: the `n / m` count alone at the trailing edge, no chevrons. */
-export function SwipeCount({ message, foot }: SwipeStripProps): ReactElement {
+/** An earlier swiped reply's foot: the count alone at the trailing edge, no chevrons. `current` is null for a
+ *  greeting whose text was edited away from every alternate. The visible `n / m` is a glyph run a screen
+ *  reader reads as "n slash m", so it is hidden from the tree and named in words beside it. */
+export function SwipeCount({ current, total, foot }: { readonly current: number | null; readonly total: number; readonly foot: SwipeFoot }): ReactElement {
   return (
     <Row align="center" justify="end" data-slot="swipe-count" className={foot.row}>
-      <Text as="span" voice="datum" data-slot="swipe-strip-counter" className={SWIPE_COUNTER}>
-        {message.selectedVariantIdx + 1} / {Math.max(message.variantCount, 1)}
+      <Text as="span" voice="datum" aria-hidden="true" data-slot="swipe-strip-counter" className={SWIPE_COUNTER}>
+        {current ?? "—"} / {total}
+      </Text>
+      <Text as="span" className="sr-only">
+        {variantCountName(current, total)}
       </Text>
     </Row>
   );

@@ -9,6 +9,10 @@
  * declaring its src explicitly. */
 @source "../";
 @source "../../../ui/src";
+/* The markdown seal renders code blocks through Streamdown, whose own markup carries Tailwind classes (the
+ * block's header row, its Copy/Download buttons, the line inset). A package in node_modules is never
+ * scanned on its own, so without this those classes are never generated and the chrome renders unstyled. */
+@source "../../../ui/node_modules/streamdown/dist";
 
 :root {
   background-color: var(--color-background);
@@ -743,6 +747,12 @@ html[data-shadow] [data-slot="message-bubble"] {
 [data-slot="message-content-column"] {
   font-size: calc(var(--text-body) * var(--reading-body-scale, 1));
   max-width: calc(var(--reading-measure) * var(--reading-body-scale, 1));
+  /* The centred skins' fixed column width (row-placement.ts): the measure, or the row less its two
+   * identity rails when the row is narrower than both. `cqi` resolves against the row's own container. */
+  --reading-column-centred: min(
+    calc(var(--reading-measure) * var(--reading-body-scale, 1)),
+    calc(100cqi - 2 * (var(--spacing-avatar-lg) + var(--spacing-row)))
+  );
 }
 
 /* THE ROOM'S TRACK CENTRES ON THE DEVICE-PIXEL GRID (#1362 — docs/law/integer-line-boxes.md Law 3). The track used
@@ -789,6 +799,13 @@ html[data-shadow] [data-slot="message-bubble"] {
   contain: inline-size;
   max-width: 100%;
   overflow-x: auto;
+}
+/* …which leaves a shrink-to-fit box holding code with no width to give it: a tide pill whose only child is
+ * a code block sized to the block's header and scrolled the code in 52px. A message holding code takes its
+ * whole track instead (still under each skin's own caps), so the code scrolls in the widest box it may use. */
+[data-slot="message-content-column"]:has(pre),
+[data-slot="message-bubble"]:has(pre) {
+  width: 100%;
 }
 /* How far a pinned header bar and the swipe foot reach to the card's side edges: the card's own inset,
  * which echo widens on its art side to the art pane (an inline override from its decoration). */

@@ -205,6 +205,8 @@ export function renderRowActions(args: {
   readonly generationCredit: boolean;
   /** B7 — the room's present characters names (the picker's segment-target parse; see `MessageActionsRowProps`). */
   readonly characterNames?: readonly string[] | undefined;
+  /** `RowSkin.actionsRow.surface`: the plate the cluster paints under its own reveal. */
+  readonly surface: string;
 }): ReactNode {
   if (args.editing || args.selecting) {
     return null;
@@ -216,6 +218,7 @@ export function renderRowActions(args: {
       viewerIsHost={args.viewerIsHost}
       generationCredit={args.generationCredit}
       characterNames={args.characterNames}
+      surface={args.surface}
     />
   );
 }

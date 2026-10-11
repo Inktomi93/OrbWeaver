@@ -9,7 +9,6 @@ import type { MessageView, ParticipantView } from "@orb/contracts/chat";
 import { isNarratorVoiced } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
-import { initialsFor } from "@orb/kit/initials";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
@@ -34,7 +33,7 @@ import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import { BG_PHOTO_CHROME_PLATE } from "../lib/message-row-backing.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
-import { actionsRevealFor, columnClassFor, gutterRailFor, headerShape, rowBodyClassFor, rowMirrored } from "../lib/row-placement.ts";
+import { actionsRevealFor, avatarTreatmentFor, columnClassFor, gutterRailFor, headerShape, rowBodyClassFor, rowMirrored } from "../lib/row-placement.ts";
 import { toolBoundaryDisplayMessage } from "../lib/tool-prose.ts";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageMetadataRow } from "./message-metadata-row.tsx";
@@ -275,13 +274,11 @@ export function MessageRow({
     narratorVoiced: isNarratorVoiced(message.kind),
   });
 
-  const avatarTreatment = skin.avatarTreatment(attribution.kind);
+  const avatarTreatment = avatarTreatmentFor(skin, attribution.kind, attribution.avatarHash);
   const decoration =
     skin.bubbleDecoration?.({
       kind: attribution.kind,
       avatarHash: attribution.avatarHash,
-      hueSeed: attribution.hueSeed,
-      initial: attribution.name === null ? "" : initialsFor(attribution.name),
       showInChatAvatars,
     }) ?? null;
   // #1728 arm B. `Grid` and `Row` are both `div`s taking `className`/`gap`/`data-*` and each ignores the
@@ -342,6 +339,7 @@ export function MessageRow({
         viewerIsHost,
         generationCredit,
         characterNames: [...speakerThemes.keys()],
+        surface: skin.actionsRow.surface,
       }),
     }),
     skin.headerPlacement,

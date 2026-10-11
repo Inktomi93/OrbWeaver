@@ -8,11 +8,10 @@ import type { VariantKind } from "@orb/contracts/assets";
 import { blobBannerUrl, blobPortraitUrl, blobUrl } from "@orb/contracts/assets";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { MessageRole } from "@orb/kit/message-role";
-import { avatarFallbackHueColor } from "@orb/ui/avatar";
 import type { CSSProperties } from "react";
 import { cn, messageBubbleClass } from "#lib";
 import type { RowAttribution } from "./attribution.ts";
-import { BUBBLE_PHONE_CAP, CHAT_TRACK, PILL_PHONE_CAP } from "./chat-track.ts";
+import { BUBBLE_PHONE_CAP, CHAT_TRACK } from "./chat-track.ts";
 import { BG_PHOTO_READING_PLATE } from "./message-row-backing.ts";
 import type { SwipeFoot } from "./pager-chrome.ts";
 import { SWIPE_FOOT_ECHO, SWIPE_FOOT_INSIDE, SWIPE_FOOT_TRAIN } from "./pager-chrome.ts";
@@ -91,9 +90,6 @@ export interface BubbleDecorationArgs {
   readonly avatarHash: string | null;
   /** Static illustration consumers resolve their own art; absent keeps the owned-blob path. */
   readonly imageUrlFor?: (variant: VariantKind, width?: number) => string;
-  /** Seed for the deterministic fallback hue tile, used only on the no-image path. */
-  readonly hueSeed: string;
-  readonly initial: string;
   /** THE `appearance.showInChatAvatars` TOGGLE, threaded to the decorators (#212-6). It used to reach only
    *  `renderRowAvatar`, so the toggle meant three different things across the eight skins: six removed the
    *  chip, ripple lost its whole identity (its portrait IS an avatarTreatment), and echo/whisper ignored it
@@ -108,12 +104,12 @@ export interface BubbleDecorationArgs {
 export interface BubbleDecoration {
   readonly style?: CSSProperties;
   /** Whisper's header-art band, rendered as a real block-level child above the bubble text (never a
-   *  background layer, which would let text sit on bright art). `initial` set only on the no-image fallback. */
-  readonly headerBand?: { readonly style: CSSProperties; readonly className: string; readonly initial?: string | undefined } | undefined;
-  /** Echo's no-avatar fallback edge tile, painting the entity's hue field at the same geometry the
-   *  portrait would use — including which SIDE the art pane sits on (the role mirror, #212-3). Absent for
-   *  the with-image Echo path and every other mode. */
-  readonly edgeTile?: { readonly style: CSSProperties; readonly initial: string; readonly side: "left" | "right" } | undefined;
+   *  background layer, which would let text sit on bright art). */
+  readonly headerBand?: { readonly style: CSSProperties; readonly className: string } | undefined;
+  /** Echo's art pane: a positioned tile on the side the art sits (the role mirror, #212-3), cover-cropped
+   *  and faded by its own mask. A tile and not a background layer so a phone can give it Moonlit's fixed
+   *  mobile height while it stays cropped to its pane. */
+  readonly art?: { readonly style: CSSProperties; readonly side: "left" | "right" } | undefined;
 }
 
 export interface RowSkin {
@@ -226,40 +222,27 @@ function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | null {
   if (args.kind === null || !args.showInChatAvatars) {
     return null;
   }
-  const side = echoArtSide(args.kind);
-  // The art side's inset is the pane, and the header bar and swipe foot reach across it (`--row-reach-*`).
-  const inset: CSSProperties = side === "left" ? { paddingLeft: ECHO_ART_WIDTH } : { paddingRight: ECHO_ART_WIDTH };
-  const padding: CSSProperties = { ...inset, [`--row-reach-${side}`]: ECHO_ART_WIDTH };
-  // The gradient always fades FROM the art edge INTO the bubble fill, so it mirrors with the pane.
-  const fade = `linear-gradient(to ${side === "left" ? "right" : "left"}, transparent, var(--color-ai-bubble) ${ECHO_ART_WIDTH})`;
   const portraitUrl =
     args.imageUrlFor?.("portrait", ECHO_PORTRAIT_REQUEST_WIDTH) ??
     (args.avatarHash === null ? null : blobPortraitUrl(args.avatarHash, ECHO_PORTRAIT_REQUEST_WIDTH));
+  // No portrait image: a clean card. A giant letter tile beside the row's own letter chip said nothing.
   if (portraitUrl === null) {
-    return {
-      style: { ...ECHO_MAX_WIDTH_STYLE, ...padding },
-      edgeTile: {
-        initial: args.initial,
-        side,
-        style: {
-          width: ECHO_ART_WIDTH,
-          backgroundColor: avatarFallbackHueColor(args.hueSeed),
-          backgroundImage: `linear-gradient(to ${side === "left" ? "right" : "left"}, transparent, var(--color-ai-bubble))`,
-        },
-      },
-    };
+    return null;
   }
+  const side = echoArtSide(args.kind);
+  // The art side's inset is the pane, and the header bar and swipe foot reach across it (`--row-reach-*`).
+  const inset: CSSProperties = side === "left" ? { paddingLeft: ECHO_ART_WIDTH } : { paddingRight: ECHO_ART_WIDTH };
+  const toward = side === "left" ? "right" : "left";
   return {
-    style: {
-      ...ECHO_MAX_WIDTH_STYLE,
-      ...padding,
-      backgroundImage: `${fade}, url("${portraitUrl}")`,
-      // The art layer is sized to the PANE (width, natural height) instead of `cover` over the whole
-      // bubble — that is the 4.94x upscale fix. Anchored to the pane's top outer corner so the crop keeps
-      // the subject at any message height.
-      backgroundSize: `100% 100%, ${ECHO_ART_WIDTH} auto`,
-      backgroundPosition: `0 0, ${side === "left" ? "left" : "right"} top`,
-      backgroundRepeat: "no-repeat, no-repeat",
+    style: { ...ECHO_MAX_WIDTH_STYLE, ...inset, [`--row-reach-${side}`]: ECHO_ART_WIDTH, "--echo-art-width": ECHO_ART_WIDTH } as CSSProperties,
+    art: {
+      side,
+      style: {
+        backgroundImage: `url("${portraitUrl}")`,
+        // Moonlit's feather: the art dissolves into the card toward the text and at its foot.
+        maskImage: `linear-gradient(to ${toward}, black 70%, transparent), linear-gradient(to bottom, black 60%, transparent)`,
+        maskComposite: "intersect",
+      },
     },
   };
 }
@@ -287,19 +270,9 @@ function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
   const bannerUrl =
     args.imageUrlFor?.("banner", WHISPER_BANNER_REQUEST_WIDTH) ??
     (args.avatarHash === null ? null : blobBannerUrl(args.avatarHash, WHISPER_BANNER_REQUEST_WIDTH));
+  // No banner image: the stripe alone. A tinted strip with a small letter was a placeholder, not identity.
   if (bannerUrl === null) {
-    return {
-      style: WHISPER_STRIPE,
-      headerBand: {
-        className: WHISPER_BAND_WIDTH,
-        initial: args.initial,
-        style: {
-          aspectRatio: "var(--aspect-banner)",
-          backgroundColor: avatarFallbackHueColor(args.hueSeed),
-          backgroundImage: "linear-gradient(to bottom, transparent, var(--color-ai-bubble) var(--immersive-whisper-feather))",
-        },
-      },
-    };
+    return { style: WHISPER_STRIPE };
   }
   return {
     style: WHISPER_STRIPE,
@@ -419,7 +392,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
   tide: {
     outer: bubbleOuter,
     columnPlacement: "anchored",
-    inner: (role) => cx(bubbleInner(role), PILL_PHONE_CAP),
+    inner: bubbleInner,
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "trains",
     // THE ONE `outside`, and not a concession: a train is N per-paragraph pills with no single container

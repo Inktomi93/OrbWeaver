@@ -144,6 +144,8 @@ export interface MessageActionsRowProps {
   /** Show the generation credit (`GenerationCredit`). The row gates it on the `showModelIcon` appearance
    *  toggle; absent ⇒ no credit. */
   readonly generationCredit?: boolean | undefined;
+  /** A plate under the cluster, shown and hidden with it (the document chip). */
+  readonly surface?: string | undefined;
 }
 
 export function MessageActionsRow({
@@ -152,6 +154,7 @@ export function MessageActionsRow({
   viewerIsHost = false,
   generationCredit = false,
   characterNames = [],
+  surface = "",
 }: MessageActionsRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -257,7 +260,14 @@ export function MessageActionsRow({
   };
 
   return (
-    <Row ref={clusterRef} gap="glyph" align="center" justify="end" data-slot="message-actions-row" className={messageActionsRevealClass(messageActions)}>
+    <Row
+      ref={clusterRef}
+      gap="glyph"
+      align="center"
+      justify="end"
+      data-slot="message-actions-row"
+      className={`${messageActionsRevealClass(messageActions)} ${surface}`}
+    >
       {renderGenerationCredit(generationCredit, message)}
       {/* EDIT IS THE ONE INLINE VERB AT EVERY POINTER. At a touch pointer the bar holds Edit plus the ⋯ and
           nothing else, so it stays one compact line beside the name; Fork and Add a reaction stand down into

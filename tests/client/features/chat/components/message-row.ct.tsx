@@ -22,6 +22,7 @@ import {
   MESSAGE_EDIT_NAME,
   MESSAGE_FORK_NAME,
   MESSAGE_REASONING_NAME,
+  VARIANT_GENERATE_NAME,
   VARIANT_NEXT_NAME,
   VARIANT_PREV_NAME,
 } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
@@ -567,9 +568,10 @@ async function pinHeader(port: Locator): Promise<Locator> {
 }
 
 /** A sticky-verdict row in its own bounded scrollport, tall enough for {@link pinHeader} to pin. */
-function pinnableRow(chatStyle: (typeof THEME_CHAT_STYLES)[number], participant: ParticipantView): ReactElement {
+function pinnableRow(chatStyle: (typeof THEME_CHAT_STYLES)[number], participant: ParticipantView, lastRow = false): ReactElement {
   return (
     <MessageRowStory
+      lastRow={lastRow}
       chatStyle={chatStyle}
       messageRole="assistant"
       characterId={ALICE_ID}
@@ -633,20 +635,21 @@ for (const chatStyle of THEME_CHAT_STYLES) {
 }
 
 // PHONE CAPS (owner ruling, after Moonlit Echoes): below the row's `md` step a bubble takes at most 80% of its
-// column and a tide pill 90%; ripple's portrait narrows to its phone token.
+// column and a tide train 90% of its row (the cap rides the train's column, so its speaker row and pager share
+// the pills' edges); ripple's portrait narrows to its phone token.
 const PHONE_CAP_BODY = "A long enough reply that it would run the full width of a phone column if nothing capped it at all.";
-for (const { chatStyle, share } of [
-  { chatStyle: "bubble", share: 0.8 },
-  { chatStyle: "tide", share: 0.9 },
+for (const { chatStyle, share, box, of } of [
+  { chatStyle: "bubble", share: 0.8, box: BUBBLE, of: CONTENT_COLUMN },
+  { chatStyle: "tide", share: 0.9, box: CONTENT_COLUMN, of: ROW_BODY },
 ] as const) {
-  test(`${chatStyle}: at a phone width the message box is capped at ${String(share * 100)}% of its column`, async ({ mount }) => {
+  test(`${chatStyle}: at a phone width the message is capped at ${String(share * 100)}% of its track`, async ({ mount }) => {
     const component = await mount(
       <MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} width={360} content={PHONE_CAP_BODY} />,
     );
     const ratio = async (): Promise<number> => {
-      const bubble = await component.locator(BUBBLE).first().boundingBox();
-      const column = await component.locator(CONTENT_COLUMN).boundingBox();
-      return (bubble?.width ?? 0) / (column?.width ?? 1);
+      const capped = await component.locator(box).first().boundingBox();
+      const track = await component.locator(of).first().boundingBox();
+      return (capped?.width ?? 0) / (track?.width ?? 1);
     };
     await expect.poll(ratio).toBeLessThanOrEqual(share + 0.005);
     await expect.poll(ratio).toBeGreaterThan(share - 0.05);
@@ -686,7 +689,14 @@ for (const chatStyle of ["bubble", "echo", "tide"] as const) {
 
 test("ripple: at a phone width the welded portrait narrows to its phone width", async ({ mount }) => {
   const component = await mount(
-    <MessageRowStory chatStyle="ripple" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} width={360} content={PHONE_CAP_BODY} />,
+    <MessageRowStory
+      chatStyle="ripple"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[aliceWithAvatar()]}
+      width={360}
+      content={PHONE_CAP_BODY}
+    />,
   );
   const portrait = component.locator(`${BUBBLE} ${AVATAR}`).first();
   // The token resolved in place, so the pin follows the token rather than a copied number.
@@ -809,23 +819,31 @@ test("echo: the art pane is a FIXED column outside the prose measure, sized to t
   const bubble = component.locator(BUBBLE);
   const artWidthPx = remTokenPx(TOKENS["immersive.echo-art-width"].value);
   await expect.poll(async () => bubble.evaluate((el) => Number.parseFloat(getComputedStyle(el).paddingRight))).toBe(artWidthPx);
-  // The art layer is sized to that pane and anchored to its TOP outer corner — never `cover` over the
+  // The art is its own tile, the pane's width, at the pane's top OUTER corner — never `cover` over the
   // whole bubble, which upscaled a 400x600 portrait 4.94x and cropped past the subject on a long turn.
-  const [bgSize, bgPos] = await bubble.evaluate((el) => {
-    const cs = getComputedStyle(el);
-    return [cs.backgroundSize, cs.backgroundPosition];
-  });
-  // Chrome serialises a `<width> auto` layer as the bare width, so the assertion is the layer pair:
-  // the fade covers the box, the ART layer is the pane's width (never `cover`, the 4.94x upscale).
-  expect(bgSize).toBe(`100% 100%, ${artWidthPx}px`);
-  // …anchored to the pane's top OUTER corner (Chrome serialises `right top` as `100% 0%`).
-  expect(bgPos).toBe("0px 0px, 100% 0%");
+  const art = component.locator('[data-slot="message-echo-art"]');
+  await expect
+    .poll(async () => {
+      const tile = await art.boundingBox();
+      const box = await bubble.boundingBox();
+      return {
+        width: Math.round(tile?.width ?? 0),
+        right: Math.round((tile?.x ?? 0) + (tile?.width ?? 0) - ((box?.x ?? 0) + (box?.width ?? 0))),
+        top: Math.round((tile?.y ?? 0) - (box?.y ?? 0)),
+      };
+    })
+    .toEqual({ width: artWidthPx, right: 0, top: 0 });
 });
 
 test("echo: a persona-kind (user) row is decorated too, mirrored to its own outer edge", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const component = await mount(
-    <MessageRowStory chatStyle="echo" messageRole="user" personaId={ALEX_PERSONA_ID} personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]} />,
+    <MessageRowStory
+      chatStyle="echo"
+      messageRole="user"
+      personaId={ALEX_PERSONA_ID}
+      personas={[{ id: ALEX_PERSONA_ID, name: "Alex", avatarHash: "hash_alex" }]}
+    />,
   );
   const bubble = component.locator(BUBBLE);
   const artWidthPx = remTokenPx(TOKENS["immersive.echo-art-width"].value);
@@ -1033,77 +1051,13 @@ test("bubble: a different no-avatar character resolves a DISTINCT hue (per-entit
   await expectInBand(fallback);
 });
 
-test("echo (no avatar): the FALLBACK edge tile IS the art — hue field + initial, SAME feather padding as with-image, aligned to the bled edge", async ({
-  mount,
-  page,
-}) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
-  const component = await mount(
-    <MessageRowStory chatStyle="echo" messageRole="assistant" content={LONG_BODY} characterId={ALICE_ID} participants={[alice()]} />,
-  );
-  const bubble = component.locator(BUBBLE);
-  const tile = component.locator(EDGE_TILE);
-  // The tile renders (not an empty/collapsed slot) and carries the initial in its visible zone.
-  await expect(tile).toHaveCount(1);
-  await expect(tile).toContainText("A");
-  // Owner ruling 2026-07-09 (side-eye): the initial is a scannable identity mark, sized off the
-  // hero-avatar glyph token (~4× the old 16px title), not an easter egg — RENDERED font-size, not a class.
-  await expect
-    .poll(async () => tile.locator('[data-slot="text"]').evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize)))
-    .toBe(SNAPPED_LENGTH_BASE_PX["spacing.avatar-hero"]);
-  // Reading geometry is IDENTICAL to the with-image echo (the regression pin above): text is padded
-  // clear by the art pane's own width token, never a reserved-but-empty gap.
-  await expect.poll(async () => bubble.evaluate((el) => (el as HTMLElement).style.paddingRight)).toBe("min(var(--immersive-echo-art-width), 25cqi)");
-  // The tile's field is the entity's deterministic hue — the SAME color the row's chip paints (one
-  // entity, one hue everywhere).
-  const chip = component.locator(`${AVATAR} ${FALLBACK}`);
-  await expectInBand(tile);
-  expect(await bgOf(tile)).toEqual(await bgOf(chip));
-  // Placement: the tile hugs the bubble's bled (right) edge, no broken overflow.
-  const tileBox = await tile.boundingBox();
-  const bubbleBox = await bubble.boundingBox();
-  const tileRight = (tileBox?.x ?? 0) + (tileBox?.width ?? 0);
-  const bubbleRight = (bubbleBox?.x ?? 0) + (bubbleBox?.width ?? 0);
-  expect(Math.abs(tileRight - bubbleRight)).toBeLessThan(2);
-});
-
-test("whisper (no avatar): the FALLBACK band renders at the SAME 3:1 geometry (hue field + initial), never a bare stripe or a stretched image", async ({
-  mount,
-}) => {
+test("whisper (no avatar): no banner, only the speaker stripe", async ({ mount }) => {
   const component = await mount(
     <MessageRowStory chatStyle="whisper" messageRole="assistant" content={LONG_BODY} characterId={ALICE_ID} participants={[alice()]} />,
   );
-  const band = component.locator(BAND);
-  await expect(band).toBeVisible();
-  await expect(band).toContainText("A");
-  // SAME 3:1 aspect box as the imaged band (the regression pin above) — height derives from width.
-  await expect
-    .poll(async () => {
-      const box = await band.boundingBox();
-      return Math.abs((box?.width ?? 0) / (box?.height ?? 1) - 3);
-    })
-    .toBeLessThan(0.1);
-  // A hue FIELD, not a banner <img> (the with-image band's `?v=banner` URL must be absent here).
-  await expect.poll(async () => band.evaluate((el) => getComputedStyle(el).backgroundImage)).not.toContain("?v=banner");
-  await expectInBand(band);
-});
-
-test("ripple (no avatar): the welded VN portrait falls back to the hue tile at the SAME portrait geometry (sticky, portrait width), no broken image", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <MessageRowStory chatStyle="ripple" messageRole="assistant" content={LONG_BODY} characterId={ALICE_ID} participants={[alice()]} />,
-  );
-  const avatar = component.locator(AVATAR);
-  // No <img> renders (no hash) — the Avatar shows its fallback tile, at the UNCHANGED portrait width.
-  await expect(avatar.locator('[data-slot="avatar-image"]')).toHaveCount(0);
-  const box = await avatar.boundingBox();
-  expect(Math.round(box?.width ?? 0)).toBe(remTokenPx(TOKENS["immersive.ripple-portrait-width"].value));
-  await expect(avatar).toHaveCSS("position", "sticky");
-  const fallback = avatar.locator(FALLBACK);
-  await expect(fallback).toContainText("A");
-  await expect(fallback).toHaveAttribute("data-hue", String(ALICE_HUE_BUCKET));
-  await expectInBand(fallback);
+  await expect(component.locator(BUBBLE)).toBeVisible();
+  await expect(component.locator(BAND)).toHaveCount(0);
+  await expect(component.locator(BUBBLE)).not.toHaveCSS("border-top-width", "0px");
 });
 
 // ── Reading scrim over a background photo (side-eye live P1, 2026-07-09) ───────────────────────────
@@ -2089,6 +2043,7 @@ test("at a desktop-width column the portrait keeps its full size — the step-do
 // CT bundle and breaks its build; the tuple is the same axis with no such cost.
 for (const chatStyle of THEME_CHAT_STYLES) {
   test(`#113 ${chatStyle}: a viewport-exceeding row makes its name row sticky without changing the row's height`, async ({ mount }) => {
+    test.skip(chatStyle === "document", "an earlier document row never pins; its last-row pin is the designed-edges suite");
     const bare = await mount(<MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
     const bareOuter = await nameRowOuterExtent(bare.locator(NAME_ROW));
     await expect(bare.locator(NAME_ROW)).toHaveCSS("position", "static");
@@ -2369,6 +2324,7 @@ for (const chatStyle of THEME_CHAT_STYLES) {
         chatStyle={chatStyle}
         messageRole="assistant"
         showSwipes={true}
+        lastRow={true}
         characterId={ALICE_ID}
         participants={[alice()]}
         width={720}
@@ -2992,13 +2948,15 @@ function reachHolds(reach: "surface" | "chip" | "column", bar: PinnedBarRead): b
 
 for (const chatStyle of THEME_CHAT_STYLES) {
   test(`${chatStyle}: the pinned bar is the row's own surface, one compact line, fading below`, async ({ mount }) => {
-    const component = await mount(pinnableRow(chatStyle, alice()));
+    const component = await mount(pinnableRow(chatStyle, alice(), true));
     const bar = await pinHeader(component);
     const surface = PINNED_SURFACE[chatStyle];
+    // The document chip's plate is its actions cluster's own, so it can never show without the actions.
+    const plate = chatStyle === "document" ? bar.locator(ACTIONS_ROW) : bar;
     await expect
-      .poll(async () => parseOklch(await bar.evaluate((el) => getComputedStyle(el).backgroundColor)))
+      .poll(async () => parseOklch(await plate.evaluate((el) => getComputedStyle(el).backgroundColor)))
       .toEqual(parseOklch(await cssVar(bar, surface.fill)));
-    await expect.poll(async () => parseOklch(await bar.evaluate((el) => getComputedStyle(el).color))).toEqual(parseOklch(await cssVar(bar, surface.ink)));
+    await expect.poll(async () => parseOklch(await plate.evaluate((el) => getComputedStyle(el).color))).toEqual(parseOklch(await cssVar(bar, surface.ink)));
     const read = await readPinnedBar(bar);
     expect({
       reach: reachHolds(PINNED_REACH[chatStyle], read),
@@ -3009,7 +2967,7 @@ for (const chatStyle of THEME_CHAT_STYLES) {
   });
 
   test(`${chatStyle}: the pinned bar lets go where the message ends`, async ({ mount }) => {
-    const component = await mount(pinnableRow(chatStyle, alice()));
+    const component = await mount(pinnableRow(chatStyle, alice(), true));
     const bar = await pinHeader(component);
     // The rows that follow in a real transcript, so the message's end can scroll up past the scrollport top.
     const geometry = await component.evaluate((port: HTMLElement) => {
@@ -3110,6 +3068,77 @@ test.describe("the stock document page", () => {
   });
 });
 
+// ── EVERY ROW'S HEADER ACTIONS KEEP THE TOUCH FLOOR ──────────────────────────────────────────────────────
+// The 32px glyph box carries a pointer-conditional `::before` hit area; on an earlier row it must reach the
+// same floor the last row's does, read by hit-testing the edges of that area rather than its declared size.
+const HIT_STYLES = ["bubble", "echo", "flat", "tide"] as const;
+
+test.describe("header actions at a touch pointer", () => {
+  test.use({ hasTouch: true });
+
+  for (const chatStyle of HIT_STYLES) {
+    for (const messageRole of ["assistant", "user"] as const) {
+      test(`${chatStyle} ${messageRole}: an earlier row's header actions are hit across the whole touch floor`, async ({ mount, page }) => {
+        await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+        // Room above the row, so the hit area's top edge is on screen to be hit-tested.
+        const component = await mount(
+          <div style={{ paddingTop: 48 }}>
+            <MessageRowStory
+              chatStyle={chatStyle}
+              messageRole={messageRole}
+              characterId={messageRole === "assistant" ? ALICE_ID : null}
+              participants={[alice()]}
+              personaId={messageRole === "user" ? ALEX_PERSONA_ID : null}
+              personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]}
+              width={390}
+            />
+          </div>,
+        );
+        await expect(component.locator(ACTIONS_ROW)).toHaveCSS("opacity", "1");
+        const reach = (): Promise<readonly string[]> =>
+          component.locator(ACTIONS_ROW).evaluate((row) => {
+            const probe = document.createElement("div");
+            probe.style.width = "var(--spacing-touch-target)";
+            document.body.append(probe);
+            const floor = probe.getBoundingClientRect().width;
+            probe.remove();
+            const half = floor / 2 - 1;
+            const edges = [
+              [0, -half],
+              [0, half],
+              [-half, 0],
+              [half, 0],
+            ] as const;
+            const shown = [...row.querySelectorAll("button")].filter((button) => button.getBoundingClientRect().width > 0);
+            // One probe per edge of each button's touch floor; a miss names the button, the edge and what it hit.
+            return shown.flatMap((button) => {
+              const box = button.getBoundingClientRect();
+              const name = button.getAttribute("aria-label") ?? "?";
+              return edges
+                .map(([dx, dy]) => ({ dx, dy, hit: document.elementFromPoint(box.left + box.width / 2 + dx, box.top + box.height / 2 + dy) }))
+                .filter(({ hit }) => hit === null || !button.contains(hit))
+                .map(({ dx, dy, hit }) => `${name} @${String(dx)},${String(dy)} -> ${hit?.tagName ?? "null"}`);
+            });
+          });
+        await expect.poll(reach).toEqual([]);
+      });
+    }
+  }
+});
+
+test("document: an earlier long row never pins its actions chip, so no empty plate lands on the page", async ({ mount }) => {
+  const component = await mount(pinnableRow("document", alice()));
+  await component.evaluate((el: HTMLElement, y: number) => {
+    el.scrollTop = y;
+  }, PINNED_SCROLL_TOP_PX);
+  const bar = component.locator(NAME_ROW);
+  await expect(bar).not.toHaveAttribute("data-sticky");
+  await expect(bar).not.toHaveAttribute("data-pinned");
+  await expect(bar).toHaveCSS("position", "static");
+  // Hidden at rest, and the plate is the cluster's own, so it is hidden with it.
+  await expect(component.locator(ACTIONS_ROW)).toHaveCSS("opacity", "0");
+});
+
 test.describe("document actions at a touch pointer", () => {
   test.use({ hasTouch: true });
 
@@ -3127,7 +3156,8 @@ test("an earlier swiped reply shows its count alone, a quiet foot with no chevro
     <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} variantCount={3} />,
   );
   const count = component.locator('[data-slot="swipe-count"]');
-  await expect(count).toHaveText("1 / 3");
+  await expect(count.locator(SWIPE_COUNTER_SLOT)).toHaveText("1 / 3");
+  await expect(count).toContainText("Reply 1 of 3");
   await expect(count.getByRole("button")).toHaveCount(0);
   await expect(component.locator(SWIPE_STRIP)).toHaveCount(0);
 });
@@ -3171,6 +3201,163 @@ test.describe("a short reply at a touch pointer", () => {
   });
 });
 
+// ── AN EARLIER GREETING IS AN EARLIER MESSAGE ──────────────────────────────────────────────────────────
+test("an earlier greeting shows its count alone, never a pager or a Regenerate", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      content="Hello."
+      greetingVariants={["Hello.", "Hi."]}
+    />,
+  );
+  await expect(component.locator(`[data-slot="swipe-count"] ${SWIPE_COUNTER_SLOT}`)).toHaveText("1 / 2");
+  await expect(component.getByRole("button", { name: VARIANT_PREV_NAME })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: VARIANT_GENERATE_NAME })).toHaveCount(0);
+});
+
+test("an earlier greeting with one alternate shows no foot at all", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      content="Hello."
+      greetingVariants={["Hello."]}
+    />,
+  );
+  await expect(component.locator(ROW)).toBeVisible();
+  await expect(component.locator('[data-slot="swipe-count"]')).toHaveCount(0);
+  await expect(component.getByRole("button", { name: VARIANT_PREV_NAME })).toHaveCount(0);
+});
+
+// ── TIDE: THE SPEAKER ROW AND THE PAGER SHARE THE TRAIN'S EDGES ────────────────────────────────────────
+const TIDE_WIDE_PARAGRAPHS = "The lanterns along the quay burned low while the tide pulled hard.\n\nShe counted the boats again.";
+
+test("tide: the speaker row and the pager end where the train's widest pill ends", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="tide"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      content={TIDE_WIDE_PARAGRAPHS}
+      showSwipes={true}
+      lastRow={true}
+      width={720}
+    />,
+  );
+  await expect(component.locator(SWIPE_STRIP)).toBeVisible();
+  await expect
+    .poll(() =>
+      component.evaluate((root: HTMLElement) => {
+        const right = (el: Element | null): number => (el === null ? Number.NaN : Math.round(el.getBoundingClientRect().right));
+        const pills = [...root.querySelectorAll('[data-slot="message-bubble"]')].map((pill) => right(pill));
+        const train = Math.max(...pills);
+        return {
+          header: right(root.querySelector('[data-slot="message-name-row"]')) - train,
+          pager: right(root.querySelector('[data-slot="swipe-strip"]')) - train,
+        };
+      }),
+    )
+    .toEqual({ header: 0, pager: 0 });
+});
+
+// ── THE CENTRED SKINS: ONE COLUMN WIDTH FOR EVERY ROW ──────────────────────────────────────────────────
+for (const chatStyle of ["flat", "hush", "document"] as const) {
+  test(`${chatStyle}: every row's reading column is the same width, so the page is one band and the chip never slides`, async ({ mount }) => {
+    const component = await mount(
+      <GroupTranscriptAttributionStory
+        chatStyle={chatStyle}
+        participants={[alice(), bob()]}
+        persona={{ id: ALEX_PERSONA_ID, name: "Alex" }}
+        showInChatAvatars={true}
+      />,
+    );
+    await expect(component.locator(CONTENT_COLUMN)).toHaveCount(3);
+    await expect
+      .poll(() =>
+        component
+          .locator(CONTENT_COLUMN)
+          .evaluateAll((columns) => [...new Set(columns.map((column) => Math.round(column.getBoundingClientRect().width)))].length),
+      )
+      .toBe(1);
+  });
+}
+
+// ── IDENTITY ART ONLY WHERE THERE IS ART ──────────────────────────────────────────────────────────────
+test("ripple without portrait art keeps the chip, so a short row is not padded to a portrait's height", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="ripple"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      characters={[{ id: ALICE_ID, name: "Alice", avatarHash: null }]}
+      content="Then we go now."
+      width={390}
+    />,
+  );
+  await expect(component.locator(ROW)).toBeVisible();
+  // The chip, not the 2:3 portrait: square, and the row hugs one line of text.
+  await expect
+    .poll(() =>
+      component
+        .locator(AVATAR)
+        .first()
+        .evaluate((el) => Math.round(el.getBoundingClientRect().height)),
+    )
+    .toBeLessThanOrEqual(48);
+  await expect.poll(() => component.locator(ROW).evaluate((el) => el.getBoundingClientRect().height)).toBeLessThan(100);
+});
+
+test("echo without portrait art paints no art pane and no letter tile", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="echo"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      characters={[{ id: ALICE_ID, name: "Alice", avatarHash: null }]}
+      width={390}
+    />,
+  );
+  await expect(component.locator(BUBBLE)).toBeVisible();
+  await expect(component.locator('[data-slot="message-echo-art"]')).toHaveCount(0);
+  await expect(component.locator(BUBBLE)).not.toHaveCSS("padding-right", /^1[0-9]{2}/);
+});
+
+test("echo's art on a phone is Moonlit's fixed mobile height in its pane, not a corner thumbnail", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="echo"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      characters={[{ id: ALICE_ID, name: "Alice", avatarHash: "hash_alice" }]}
+      content={STUCK_BAND_BODY}
+      width={390}
+    />,
+  );
+  const art = component.locator('[data-slot="message-echo-art"]');
+  await expect(art).toHaveCount(1);
+  await expect
+    .poll(() =>
+      art.evaluate((el: HTMLElement) => {
+        const probe = document.createElement("div");
+        probe.style.height = "var(--immersive-echo-art-height-phone)";
+        document.body.append(probe);
+        const tall = probe.getBoundingClientRect().height;
+        probe.remove();
+        return Math.abs(el.getBoundingClientRect().height - tall) < 1;
+      }),
+    )
+    .toBe(true);
+});
+
 // ── WIDE CONTENT SCROLLS INSIDE ITS MESSAGE, PER STYLE, AT A PHONE WIDTH ──────────────────────────────
 const WIDE_CODE = `\`\`\`\n${"const aVeryLongIdentifierThatWillNotWrap = 1; ".repeat(8)}\n\`\`\``;
 
@@ -3185,9 +3372,15 @@ for (const chatStyle of THEME_CHAT_STYLES) {
         component.evaluate((port: HTMLElement) => {
           const row = port.querySelector('[data-slot="message-row"]') as HTMLElement;
           const pre = port.querySelector("pre") as HTMLElement;
-          return { rowFits: row.scrollWidth <= port.clientWidth + 1, preScrolls: pre.scrollWidth > pre.clientWidth };
+          const column = port.querySelector('[data-slot="message-content-column"]') as HTMLElement;
+          return {
+            rowFits: row.scrollWidth <= port.clientWidth + 1,
+            preScrolls: pre.scrollWidth > pre.clientWidth,
+            // Every style keeps at least half its column for code: card padding, the block's own chrome and an art pane at most.
+            codeHasRoom: pre.clientWidth >= column.clientWidth * 0.5 ? true : `${String(pre.clientWidth)} of ${String(column.clientWidth)}`,
+          };
         }),
       )
-      .toEqual({ rowFits: true, preScrolls: true });
+      .toEqual({ rowFits: true, preScrolls: true, codeHasRoom: true });
   });
 }

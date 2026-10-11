@@ -76,7 +76,10 @@ export interface NameRowFrameProps {
 }
 
 export function NameRowFrame(args: NameRowFrameProps): ReactElement {
-  const { ref, pinned } = usePinnedHeader(args.stickyAttribution);
+  // An actions-only overlay never pins: its actions are hidden off the last row, and a pinned box hung over
+  // the page would either paint an empty plate on the words or overrun the row's end.
+  const sticky = args.stickyAttribution && args.shape.ownLine;
+  const { ref, pinned } = usePinnedHeader(sticky);
   return (
     <Row
       ref={ref}
@@ -85,11 +88,11 @@ export function NameRowFrame(args: NameRowFrameProps): ReactElement {
       gap="field"
       data-slot="message-name-row"
       data-placement={args.placement}
-      data-sticky={args.stickyAttribution ? "" : undefined}
+      data-sticky={sticky ? "" : undefined}
       data-pinned={pinned ? "" : undefined}
       className={cn(
         args.mirrored && "flex-row-reverse",
-        headerBacking(args.placement, args.stickyAttribution, pinned),
+        headerBacking(args.placement, sticky, pinned),
         pinned && args.pinnedPaint,
         // An actions-only bar is a chip at the trailing edge, and off the last row it overlays the row's top
         // trailing corner at its full glyph height while costing the row no height at all.

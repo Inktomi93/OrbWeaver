@@ -32,7 +32,6 @@ import type { GhostContentSegment } from "@orb/kit/content";
 import { scanGhostContent } from "@orb/kit/content";
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { initialsFor } from "@orb/kit/initials";
 import { speakerTagsToPlain, stripLeadingSpeakerName } from "@orb/kit/speaker-label";
 import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
@@ -48,7 +47,7 @@ import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-
 import type { RowAttribution } from "../lib/attribution.ts";
 import { ROW_BODY_AT_PHONE_WIDTH } from "../lib/chat-track.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
-import { columnClassFor, gutterRailFor, rowBodyClassFor } from "../lib/row-placement.ts";
+import { avatarTreatmentFor, columnClassFor, gutterRailFor, rowBodyClassFor } from "../lib/row-placement.ts";
 import { CardBlock } from "./card-block.tsx";
 import { placeRowHeader, renderGhostNameRow } from "./message-row-header.tsx";
 import { renderRowAvatar, themedColumnContent } from "./message-row-parts.tsx";
@@ -57,17 +56,6 @@ import { ReasoningBlock } from "./reasoning-block.tsx";
 // Fallback pace when smooth-streaming is on but the surface passed no explicit cps (matches the contract
 // default). The pref (`UserSettings.chat.smoothStreamCps`) overrides it via the `smoothStreamCps` prop.
 const DEFAULT_SMOOTH_STREAM_CPS = 80;
-
-// Module scope so the ghost component stays under the cognitive-complexity ceiling.
-function ghostFallbackTile(attribution: RowAttribution | undefined): {
-  readonly hueSeed: string;
-  readonly initial: string;
-} {
-  if (attribution === undefined || attribution.name === null) {
-    return { hueSeed: attribution?.hueSeed ?? "", initial: "" };
-  }
-  return { hueSeed: attribution.hueSeed, initial: initialsFor(attribution.name) };
-}
 
 // The §4.5 FORMING-CARD placeholder (parity-plus P4, ghost arm only): once a `:::card` OPEN line completes
 // in the ghost text, the accumulating raw HTML is suppressed behind a pretty building-state chip (skeleton
@@ -239,14 +227,13 @@ export function GhostMessageRow({
   const skin = MESSAGE_ROW_SKINS[chatStyle];
 
   const kind = attribution?.kind ?? null;
-  const avatarTreatment = skin.avatarTreatment(kind);
   const decorationAvatarHash = attribution === undefined ? null : attribution.avatarHash;
+  const avatarTreatment = avatarTreatmentFor(skin, kind, decorationAvatarHash);
   const decoration =
     skin.bubbleDecoration?.({
       kind,
       avatarHash: decorationAvatarHash,
       showInChatAvatars,
-      ...ghostFallbackTile(attribution),
     }) ?? null;
   const avatarNode =
     attribution === undefined

@@ -31,7 +31,7 @@ import { contrastRatio } from "@orb/tooling/_shared/wcag";
 import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { MESSAGE_EDIT_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
+import { MESSAGE_EDIT_NAME, VARIANT_GENERATE_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
 import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
 import { corpusSceneSource } from "../../../../support/node/corpus-source.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
@@ -151,20 +151,23 @@ function readEchoArtGeometry(bubble: Locator): Promise<{ reservationMatches: boo
     element.append(probe);
     const full = probe.getBoundingClientRect().width;
     probe.remove();
-    const tile = element.querySelector('[data-slot="message-edge-tile"]');
+    const pane = Math.min(full, row.getBoundingClientRect().width / 4);
+    const art = element.querySelector('[data-slot="message-echo-art"]');
+    const portrait = art !== null && getComputedStyle(art).backgroundImage.includes("?v=portrait");
+    const pad = Number.parseFloat(style.paddingRight);
     return {
-      reservationMatches:
-        Number.parseFloat(style.paddingRight) > 0 &&
-        Math.abs(Number.parseFloat(style.paddingRight) - Math.min(full, row.getBoundingClientRect().width / 4)) < 0.05,
-      portrait: style.backgroundImage.includes("?v=portrait"),
-      tileMatches: tile === null || Math.abs(tile.getBoundingClientRect().width - Number.parseFloat(style.paddingRight)) < 0.05,
+      // The art pane is reserved only where there is art; with none the card is a plain card.
+      reservationMatches: portrait ? Math.abs(pad - pane) < 0.05 : pad < pane,
+      portrait,
+      tileMatches: art === null || Math.abs(art.getBoundingClientRect().width - pad) < 0.5,
     };
   });
 }
 
 function echoPortraitPaints(bubble: Locator): Promise<boolean> {
   return bubble.evaluate(async (element) => {
-    const url = getComputedStyle(element).backgroundImage.match(/url\("?([^")]+)"?\)/u)?.[1];
+    const art = element.querySelector('[data-slot="message-echo-art"]');
+    const url = art === null ? undefined : getComputedStyle(art).backgroundImage.match(/url\("?([^")]+)"?\)/u)?.[1];
     if (url === undefined) {
       return false;
     }
@@ -929,6 +932,27 @@ test("an unbound fit renders the transcript with no budget divider", async ({ mo
   await expect(component.locator(`[data-message-id="${AI_VIEW.id}"]`)).toBeVisible();
   await expect.poll(() => trpc.count("chat.previewContextFit")).toBeGreaterThan(0);
   await expect(component.locator('[data-slot="context-boundary-divider"]')).toHaveCount(0);
+});
+
+// The pager belongs to the transcript's LAST row (stock SillyTavern): once the user has answered a reply, that
+// reply shows its count at most, and a one-variant reply shows nothing, never "‹ 1 / 1 ›" with Regenerate.
+test("a reply the user has already answered shows no pager and no Regenerate", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...ROSTER_STUB,
+    "chat.listMessages": () =>
+      makeMessagesPage([
+        { ...AI_VIEW, seq: 1 },
+        { ...USER_VIEW, seq: 2 },
+      ]),
+  });
+  await routeOrbSocket(page, { frames: [] });
+
+  const component = await mount(<MessageListSurfaceStory />);
+
+  await expect(component.locator(`[data-message-id="${USER_VIEW.id}"]`)).toBeVisible();
+  await expect(component.locator('[data-slot="swipe-strip"]')).toHaveCount(0);
+  await expect(component.getByRole("button", { name: VARIANT_GENERATE_NAME })).toHaveCount(0);
 });
 
 test("no compaction fact when previewContextFit reports no covering summary (plain cutoff line)", async ({ mount, page }) => {

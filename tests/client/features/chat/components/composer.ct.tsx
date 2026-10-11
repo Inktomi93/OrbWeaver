@@ -1839,9 +1839,20 @@ for (const width of [1440, 360]) {
       await page.getByTestId("drive-begin").focus();
       await page.mouse.move(0, 0);
       const rest = await readPaint();
+      // The focus border is the ring colour, a visible step past both rest and hover (a hover-equal focus
+      // was the invisible cue: border 14% to 12%).
+      const ringBorder = await composer.evaluate((element) => {
+        const probe = document.createElement("div");
+        probe.style.borderColor = "color-mix(in oklab, var(--color-ring) 60%, transparent)";
+        element.append(probe);
+        const color = getComputedStyle(probe).borderTopColor;
+        probe.remove();
+        return color;
+      });
       await message.focus();
       await page.keyboard.type("A focused draft");
       await expect.poll(async () => (await readPaint()).border).not.toBe(rest.border);
+      await expect.poll(async () => (await readPaint()).border).toBe(ringBorder);
       await expect.poll(readPaint).toEqual({ border: expect.any(String), width: "1px", shadow: "none", backing: true });
       await testInfo.attach(`focused-composer-${width}`, { body: await page.screenshot(), contentType: "image/png" });
       await dragFiles(component, [{ name: "cat.png", type: "image/png", bytes: 4 }], ["dragenter", "dragover"]);

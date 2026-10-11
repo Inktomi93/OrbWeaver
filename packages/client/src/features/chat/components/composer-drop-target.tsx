@@ -34,11 +34,11 @@ export function ComposerDropTarget({ dragActive, dropTargetProps, children }: Co
       // Reading-surface rule (D44 §12.1): the composer carries its OWN opaque backing (`bg-card`), never
       // leaning on the background scrim for legibility — the translucent `bg-input` tint left the typed
       // text unreadable over a bright background picture with scrim=0 (side-eye, 2026-07-18). The
-      // interaction LIFT survives on the opaque `bg-muted` step. Focus is a quiet border-colour change, not an
-      // accent ring and glow: the composer holds focus for most of a session, so a loud cue never rests.
+      // interaction LIFT survives on the opaque `bg-muted` step. Focus is a 1px border in the ring colour, held
+      // back in alpha: quiet enough to rest on for a whole session, and still a visible step past hover.
       className={cn(
         CHAT_TRACK,
-        "relative isolate rounded-card border border-border bg-card px-field py-field hover:border-input hover:bg-muted focus-within:border-input focus-within:bg-muted",
+        "relative isolate rounded-card border border-border bg-card px-field py-field hover:border-input hover:bg-muted focus-within:border-ring/60 focus-within:bg-muted",
         // The DRAG-OVER paint is louder than focus on purpose: an armed drop target has to announce itself
         // for the moment a file hovers over it.
         "data-[drag-over]:border-primary data-[drag-over]:bg-muted data-[drag-over]:ring-2 data-[drag-over]:ring-ring",
