@@ -36,7 +36,7 @@ export function buildPluginPromptTransform(
     readonly id: string;
     readonly order: number;
     readonly isInstallerHost: (chatId: ChatId) => Promise<boolean>;
-    readonly invoke: (handler: PluginHandlerRef, argsJson: string) => Promise<string>;
+    readonly invoke: (handler: PluginHandlerRef, argsJson: string, signal?: AbortSignal) => Promise<string>;
   },
 ): PromptTransform {
   return {
@@ -45,11 +45,11 @@ export function buildPluginPromptTransform(
     order: deps.order,
     // A thrown guest handler is logged by the resident `invoke` with its plugin and cause.
     logsOwnFailures: true,
-    apply: async (draft, env): Promise<string> => {
+    apply: async (draft, env, signal?: AbortSignal): Promise<string> => {
       if (!(await deps.isInstallerHost(env.chatId))) {
         return draft;
       }
-      return await deps.invoke(reg.handler, JSON.stringify({ draft, env }));
+      return await deps.invoke(reg.handler, JSON.stringify({ draft, env }), signal);
     },
   };
 }

@@ -11,6 +11,7 @@
 // a view of it; publishing the view first meant a rejected write left a live instance with live registrations
 // behind a row that said `disabled`, and the owner's retry then built a SECOND instance next to it.
 
+import { DEADLINE_ABORT_REASON } from "@orb/contracts/chat";
 import type { ProviderDef } from "@orb/contracts/inference";
 import type { PluginInstance } from "@orb/contracts/plugin";
 import { errorMessage } from "@orb/kit/error-message";
@@ -227,8 +228,8 @@ export function createActivate(
         if (isHostAdmissionRefusal(err)) {
           throw err;
         }
-        // A caller that aborted the call already reported its own failure (a deadline); the rejection still counts.
-        if (signal?.aborted !== true) {
+        // A caller that gave up on the call at its deadline already logged the overrun; the rejection still counts.
+        if (signal?.reason !== DEADLINE_ABORT_REASON) {
           logPluginFailure(slug, invokeFailureKind(err), errorMessage(err));
         }
         await crashPolicy.recordCrash({ pluginId: input.pluginId, recipientUserId: input.caller.userId, error: errorMessage(err) });

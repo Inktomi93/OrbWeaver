@@ -22,6 +22,7 @@
 // THE REFUSAL POSTURE IS D53's, verbatim: a transform that throws or outruns its deadline is SKIPPED — the fold
 // keeps the prior text and moves on. A display transform can never blank a message, and it can never block one.
 
+import { DEADLINE_ABORT_REASON } from "@orb/contracts/chat";
 import type { PluginDisplayTransformRegistration } from "@orb/contracts/plugin";
 import type { TransformForDisplayParams } from "../contract/params.ts";
 import type { PluginContext, PluginRegistry, PluginService } from "../contract/service.ts";
@@ -49,7 +50,7 @@ async function applyBounded(invoke: ResidentInvoke, transform: PluginDisplayTran
   const orphan = new AbortController();
   const deadline = new Promise<Outcome>((resolve) => {
     timer = setTimeout(() => {
-      orphan.abort();
+      orphan.abort(DEADLINE_ABORT_REASON);
       resolve({ skip: "deadline" });
     }, PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS);
   });

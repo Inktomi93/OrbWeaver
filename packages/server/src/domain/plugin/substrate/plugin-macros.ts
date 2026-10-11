@@ -25,6 +25,7 @@
 //      entering a macro-EXECUTION plane (`ctx.resolve` runs over a user-macro body), and
 //       law 7 requires the house primitive at exactly that write boundary.
 
+import { DEADLINE_ABORT_REASON } from "@orb/contracts/chat";
 import type { InvocationChat, PluginMacroRegistration } from "@orb/contracts/plugin";
 import { PLUGIN_TOOL_NAME_PREFIX, pluginToolWireName } from "@orb/contracts/plugin";
 import type { ChatId, UserId } from "@orb/kit/ids";
@@ -102,7 +103,7 @@ async function resolveOne(macro: RegisteredMacro, chat: InvocationChat | null, d
   try {
     const answer = await Promise.race([macro.resolve(chat, orphan.signal), deadline]);
     if (answer === null) {
-      orphan.abort();
+      orphan.abort(DEADLINE_ABORT_REASON);
       logPluginFailure(macro.slug, "macro-deadline", `macro '${macro.name}' exceeded its resolve deadline`);
     }
     return answer;

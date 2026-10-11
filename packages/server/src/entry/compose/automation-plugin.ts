@@ -903,7 +903,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
           id,
           order: PLUGIN_TRANSFORM_ORDER_BASE + pluginTransformSeq,
           isInstallerHost: async (chatId) => (await loadPresentRole(db, chatId, scope.installer.userId)) === "host",
-          invoke: (handler, argsJson) => invoke(handler, argsJson, null),
+          invoke: (handler, argsJson, signal) => invoke(handler, argsJson, null, signal),
         });
         pluginTransformSeq += 1;
         chatCompose.promptTransforms.register(transform);

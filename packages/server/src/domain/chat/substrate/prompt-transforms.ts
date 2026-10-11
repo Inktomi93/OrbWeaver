@@ -17,7 +17,7 @@ import type {
   PromptTransformPoint,
   PromptTransformResult,
 } from "@orb/contracts/chat";
-import { PROMPT_TRANSFORM_ABORT_REASON_MAX } from "@orb/contracts/chat";
+import { DEADLINE_ABORT_REASON, PROMPT_TRANSFORM_ABORT_REASON_MAX } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { PromptTransformRegistry } from "../contract/context.ts";
@@ -35,6 +35,11 @@ type BoundedOutcome =
   | { readonly kind: "ok"; readonly text: string }
   | { readonly kind: "skip"; readonly threw: boolean }
   | { readonly kind: "abort"; readonly reason: string };
+
+/** The registry passes a signal that aborts with {@link DEADLINE_ABORT_REASON} at the deadline. `PromptTransform.apply`
+ *  lives in the DOM-free contracts, so it is typed without the parameter; a transform that wants the signal declares
+ *  it as a trailing optional parameter, and every other transform ignores the extra argument. */
+type AbortAwareApply = (draft: string, env: PromptTransformEnv, signal: AbortSignal) => Promise<PromptTransformOutcome>;
 
 const SKIP: BoundedOutcome = { kind: "skip", threw: false };
 const THREW: BoundedOutcome = { kind: "skip", threw: true };
@@ -61,18 +66,27 @@ function classify(answer: PromptTransformOutcome): BoundedOutcome {
   return SKIP;
 }
 
+function applyWithSignal(transform: PromptTransform, draft: string, env: PromptTransformEnv, signal: AbortSignal): Promise<PromptTransformOutcome> {
+  return (transform.apply as AbortAwareApply).call(transform, draft, env, signal);
+}
+
 /** Run ONE transform under the deadline. The timer is always cleared so a fast render never leaves the event
  *  loop pinned. A timeout and a throw both resolve to `skip` — the deadline can never manufacture an abort. */
 async function applyBounded(transform: PromptTransform, draft: string, env: PromptTransformEnv, deadlineMs: number): Promise<BoundedOutcome> {
   let timer: ReturnType<typeof setTimeout> | undefined;
+  const orphan = new AbortController();
   const deadline = new Promise<BoundedOutcome>((resolve) => {
-    timer = setTimeout(() => resolve(SKIP), deadlineMs);
+    timer = setTimeout(() => {
+      // The SKIPPED warning below reports the overrun; the abort tells the transform not to report it again.
+      orphan.abort(DEADLINE_ABORT_REASON);
+      resolve(SKIP);
+    }, deadlineMs);
   });
   // @orb-waive caught-failure-ownership(catch): D53 — a throw resolves to SKIP exactly like a
   // timeout (the type-level BoundedOutcome comment above), never manufactures an abort; the caller keeps the
   // prior draft and warns. Ends if a transform failure needs to abort the turn instead of degrading.
   try {
-    return await Promise.race([transform.apply(draft, env).then(classify), deadline]);
+    return await Promise.race([applyWithSignal(transform, draft, env, orphan.signal).then(classify), deadline]);
   } catch {
     return THREW;
   } finally {
