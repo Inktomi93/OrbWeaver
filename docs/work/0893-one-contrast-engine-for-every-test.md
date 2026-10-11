@@ -11,7 +11,7 @@ plan: test-mirror
 
 ## What
 
-The WCAG luminance and contrast kernel is hand-copied in rules-section, appearance-sizing, app-shell, home-surface (with a different knee, 0.04045), part-vs-surface, badge.ct and the palette-contrast suite, which also re-implements three kit colour functions; a kit suite grades itself with kit's own math. Pass the shared engine (tooling/src/\_shared/wcag.ts or the kit) into page.evaluate and delete the copies.
+The WCAG luminance and contrast kernel is hand-copied in rules-section, appearance-sizing, app-shell, home-surface (with a different knee, 0.04045), part-vs-surface, badge.ct and the palette-contrast suite, which also re-implements three kit colour functions; a kit suite grades itself with kit's own math. Pass the shared engine (tooling/src/floor/instrument/wcag.ts or the kit) into page.evaluate and delete the copies.
 
 ## Why
 
