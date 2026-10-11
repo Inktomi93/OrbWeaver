@@ -60,6 +60,9 @@ export interface RowActionsMenuProps {
    *  config setting row pairs the ⋯ with the tiny `i` and must not inflate the row); `"sm"` is the
    *  small SQUARE trigger for a row whose scale is the `sm` control step. @defaultValue "icon" */
   readonly triggerSize?: "icon" | "inline" | "sm";
+  /** The trigger's outline: `control` (default) or `pill`, for a trigger standing in a row of pill neighbours
+   *  (the composer's controls) so its hover paint matches them. @defaultValue "control" */
+  readonly shape?: "control" | "pill";
   /** A3 hover-reveal on the trigger (rest hidden). @defaultValue false — pass true only where the row already hid its cluster. */
   readonly reveal?: boolean;
   /** Render the trigger's `label` as a hover/focus tooltip — a BOOLEAN, never a second string (#869).
@@ -128,6 +131,7 @@ export function RowActionsMenu({
   icon = MoreHorizontal,
   align = "end",
   triggerSize = "icon",
+  shape = "control",
   reveal = false,
   tooltip = false,
   destructive,
@@ -148,6 +152,7 @@ export function RowActionsMenu({
                       aria-label={label}
                       className={reveal ? `${RECEDED_INK} ${ROW_REVEAL}` : RECEDED_INK}
                       intent="ghost"
+                      shape={shape}
                       size={TRIGGER_BUTTON_SIZE[triggerSize]}
                     >
                       <Icon icon={icon} size="sm" />
@@ -166,6 +171,7 @@ export function RowActionsMenu({
                 aria-label={label}
                 className={reveal ? `${RECEDED_INK} ${ROW_REVEAL}` : RECEDED_INK}
                 intent="ghost"
+                shape={shape}
                 size={TRIGGER_BUTTON_SIZE[triggerSize]}
               >
                 <Icon icon={icon} size="sm" />

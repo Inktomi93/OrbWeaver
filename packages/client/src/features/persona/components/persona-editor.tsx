@@ -15,12 +15,12 @@ import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, usePromptMacroSuggestions, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { ASSISTANT_PREFILL_WARNING, MESSAGE_ROLE_ITEMS } from "#lib";
-import { takePersonaEditorFocus } from "#state";
+import { takePersonaEditorFocus, usePersonaEditorFocusRequest } from "#state";
 import { PersonaForm } from "../hooks/use-persona-form.ts";
 import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations.ts";
 import type { PersonaFormValues } from "../lib/persona-editor-model.ts";
@@ -71,19 +71,23 @@ export function PersonaEditor({ persona, onRequestDelete }: PersonaEditorProps):
   );
 }
 
-/** The editor inside its named, bordered row panel. Focus lands on it as it mounts only when the switcher's
- *  Edit door opened it (`takePersonaEditorFocus`); a chevron expand leaves focus where it is. */
+/** The editor inside its named, bordered row panel. Focus lands on it only on a pending request from the
+ *  switcher's Edit door (mounting or already mounted); a chevron expand leaves focus where it is. */
 export function PersonaEditorRegion({ persona, subject, onRequestDelete }: PersonaEditorProps & { readonly subject: string }): ReactElement {
+  const regionRef = useRef<HTMLDivElement>(null);
+  const request = usePersonaEditorFocusRequest();
+  useEffect(() => {
+    if (request?.personaId === persona.id && regionRef.current !== null) {
+      regionRef.current.focus();
+      takePersonaEditorFocus();
+    }
+  }, [request, persona.id]);
   return (
     <Stack
       aria-label={`Edit ${subject}`}
       className="rounded-base border border-border p-block outline-none"
       gap="section"
-      ref={(node): void => {
-        if (node !== null && takePersonaEditorFocus(persona.id)) {
-          node.focus();
-        }
-      }}
+      ref={regionRef}
       role="group"
       tabIndex={-1}
     >

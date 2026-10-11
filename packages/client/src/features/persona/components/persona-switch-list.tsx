@@ -1,8 +1,9 @@
 // The switcher's SWITCH ROWS (#866 S4 — the rail persona slot's frequency law: only what travels with a
-// switch). Lean radio-style rows: avatar · name · edit · pin — NO rename, NO avatar upload, NO kebab,
-// NO inline editor (all of that lives in Config → Personas now; Edit is the door into it). The
-// row body is ONE stretched button that switches under the caller's SCOPE (Everywhere = the seed pointer,
-// This chat = the per-participant slot — the parent owns the routing); the pin is the one layered sibling.
+// switch). Lean radio-style rows: avatar · name · state markers · pin · edit — NO rename, NO avatar upload,
+// NO inline editor (all of that lives in Config → Personas now; Edit is the door into it). The row body is
+// ONE stretched button that switches; the markers, the pin and Edit are the layered siblings. At a coarse
+// pointer the pin (unpressed) and Edit stand down into ONE actions menu per row, so an uninvolved row wears
+// no faint glyphs; the markers and the pressed pin stay as state.
 //
 // The #443/#458 grammar carries over: two personas may share a name, so the surface resolves qualifiers
 // with the whole list in hand and every named control embeds the row's SUBJECT — spent only on collision,
@@ -12,43 +13,57 @@ import { blobUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
-import type { LucideIcon } from "@orb/ui/icons";
-import { Check, Icon, IdCard, Pencil } from "@orb/ui/icons";
+import { Icon, Pencil } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { MenuItem } from "@orb/ui/menu";
 import { PopoverClose } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { PIN_REVEAL } from "#components";
+import { HIDE_AT_COARSE, PIN_REVEAL, ROW_ACTION_OVERFLOW, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { cn, rowActionSubject, rowQualifiers, timeLib } from "#lib";
 import type { ChromePresentation } from "#state";
 import { closeModal, openPersonaEditor } from "#state";
 import { PersonaPin } from "./persona-pin.tsx";
+import { PersonaStateMarkers } from "./persona-state-markers.tsx";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 
 export interface PersonaSwitchListProps {
   readonly personas: readonly PersonaListItem[];
-  /** The row rendered as current — under a chat scope this is the CHAT's active persona, not the seed.
-   *  Structurally string ids (the settings seed pointers and the chat read both project them unbranded);
-   *  the rows only ever COMPARE against them. */
+  /** The row playing now — the room seat when a room is open, else the global pointer. Structurally a
+   *  string id (the settings pointers and the chat read both project them unbranded); rows only COMPARE. */
   readonly currentId: string | null;
   readonly defaultId: string | null;
   /** The persona pinned to THIS chat — the card's `{{user}}` — while a room is open; `null` otherwise. */
   readonly cardPinId: string | null;
-  /** Switch to this persona under the caller's scope. Also fired for the marked row: the scope may write a
-   *  different pointer than the one the mark reads, so the caller decides whether it is a no-op. */
+  /** True when preset text follows the viewer's seat (no room, or the viewer is the anchor human, ADR 0250);
+   *  otherwise the seat speaks only the viewer's own lines. */
+  readonly seatBindsPresets: boolean;
+  /** Switch to this persona. Also fired for the marked row — the caller skips a no-op write. */
   readonly onSwitch: (persona: PersonaListItem) => void;
   /** Write `seeds.defaultPersonaId` to this persona (the pin). */
   readonly onPin: (persona: PersonaListItem) => void;
+  /** Clear `seeds.defaultPersonaId` (the pressed pin). */
+  readonly onUnpin: () => void;
   /** Which lens hosts the rows: Edit dismisses the popover (bar) or the You modal (sheet) before it lands. */
   readonly presentation: ChromePresentation;
 }
 
 /** The switch rows — qualifiers resolved once with the whole list in hand (#458). */
-export function PersonaSwitchList({ personas, currentId, defaultId, cardPinId, onSwitch, onPin, presentation }: PersonaSwitchListProps): ReactElement {
+export function PersonaSwitchList({
+  personas,
+  currentId,
+  defaultId,
+  cardPinId,
+  seatBindsPresets,
+  onSwitch,
+  onPin,
+  onUnpin,
+  presentation,
+}: PersonaSwitchListProps): ReactElement {
   const nameCounts = new Map<string, number>();
   for (const persona of personas) {
     nameCounts.set(persona.name, (nameCounts.get(persona.name) ?? 0) + 1);
@@ -69,8 +84,10 @@ export function PersonaSwitchList({ personas, currentId, defaultId, cardPinId, o
           isDefault={persona.id === defaultId}
           onPin={(): void => onPin(persona)}
           onSwitch={(): void => onSwitch(persona)}
+          onUnpin={onUnpin}
           persona={persona}
           presentation={presentation}
+          seatBindsPresets={seatBindsPresets}
           subject={rowActionSubject(persona.name, (nameCounts.get(persona.name) ?? 0) > 1 ? (qualifiers[index] ?? "") : undefined)}
         />
       ))}
@@ -88,7 +105,9 @@ function SwitchRow({
   isDefault,
   onSwitch,
   onPin,
+  onUnpin,
   presentation,
+  seatBindsPresets,
 }: {
   readonly persona: PersonaListItem;
   readonly subject: string;
@@ -97,13 +116,15 @@ function SwitchRow({
   readonly isDefault: boolean;
   readonly onSwitch: () => void;
   readonly onPin: () => void;
+  readonly onUnpin: () => void;
   readonly presentation: ChromePresentation;
+  readonly seatBindsPresets: boolean;
 }): ReactElement {
   const avatarSrc = persona.avatarHash === null ? {} : { src: blobUrl(persona.avatarHash) };
   return (
     <Row
       align="center"
-      className="group relative min-h-control-md rounded-control transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent data-selected:bg-accent"
+      className="group relative min-h-control-md rounded-control transition-colors duration-(--motion-fast) ease-out-expo hover:not-data-selected:bg-accent/50 data-selected:bg-accent"
       data-selected={isCurrent ? "" : undefined}
       gap="row"
       padding="field"
@@ -123,13 +144,30 @@ function SwitchRow({
       <Text as="span" className="pointer-events-none relative min-w-0 flex-1 truncate" voice="label">
         {persona.name}
       </Text>
-      {/* Three states, one marker each: playing as (check), the chat's card pin (card), default (the pin). */}
-      {isCurrent ? <RowMarker hint="Your lines and preset text use this persona." icon={Check} label="Playing as" /> : null}
-      {isCardPin ? <RowMarker hint="{{user}} in this character's card" icon={IdCard} label="Pinned to this chat" /> : null}
-      <EditDoor presentation={presentation} personaId={persona.id} subject={subject} />
-      <PersonaPin className="relative shrink-0" isDefault={isDefault} onPin={onPin} subject={subject} toggle={true} />
+      {/* Three states, one marker each: playing as (check), the chat's card persona (card), default (the pin). */}
+      <PersonaStateMarkers isCardPin={isCardPin} isCurrent={isCurrent} name={persona.name} seatBindsPresets={seatBindsPresets} />
+      <PersonaPin className="relative shrink-0" isDefault={isDefault} onPin={onPin} onUnpin={onUnpin} subject={subject} toggle={true} />
+      <EditDoor personaId={persona.id} presentation={presentation} subject={subject} />
+      <Row align="center" className={cn("relative shrink-0", ROW_ACTION_OVERFLOW) ?? ""}>
+        <RowActionsMenu label={`Actions for ${subject}`}>
+          {presentation === "bar" ? (
+            <PopoverClose render={<MenuItem onClick={(): void => openPersonaEditor(persona.id)}>Edit</MenuItem>} />
+          ) : (
+            <MenuItem onClick={(): void => openEditor(persona.id, presentation)}>Edit</MenuItem>
+          )}
+          {isDefault ? <MenuItem onClick={onUnpin}>Clear default</MenuItem> : <MenuItem onClick={onPin}>Set as default</MenuItem>}
+        </RowActionsMenu>
+      </Row>
     </Row>
   );
+}
+
+function openEditor(personaId: PersonaListItem["id"], presentation: ChromePresentation): void {
+  openPersonaEditor(personaId);
+  // The sheet rides the You MODAL; the bar lens closes through its wrapping PopoverClose.
+  if (presentation === "sheet") {
+    closeModal();
+  }
 }
 
 /** The row's door into its editor in Config → Personas — the same landing a tag's persona chip uses. */
@@ -146,15 +184,9 @@ function EditDoor({
   const door = (
     <Button
       aria-label={label}
-      className={cn(PIN_REVEAL, "relative shrink-0") ?? ""}
+      className={cn(PIN_REVEAL, HIDE_AT_COARSE, "relative shrink-0") ?? ""}
       intent="ghost"
-      onClick={(): void => {
-        openPersonaEditor(personaId);
-        // The sheet rides the You MODAL; the bar lens closes through the wrapping PopoverClose.
-        if (presentation === "sheet") {
-          closeModal();
-        }
-      }}
+      onClick={(): void => openEditor(personaId, presentation)}
       size="icon"
     >
       <Icon icon={Pencil} size="sm" />
@@ -164,22 +196,6 @@ function EditDoor({
     <Tooltip>
       <TooltipTrigger render={presentation === "bar" ? <PopoverClose render={door} /> : door} />
       <TooltipPopup side="top">{label}</TooltipPopup>
-    </Tooltip>
-  );
-}
-
-/** A state glyph with its short tooltip. Not a control: the row's one button already switches. */
-function RowMarker({ icon, label, hint }: { readonly icon: LucideIcon; readonly label: string; readonly hint: string }): ReactElement {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Text as="span" aria-label={label} className="relative shrink-0 text-muted-foreground" role="img">
-            <Icon icon={icon} size="sm" />
-          </Text>
-        }
-      />
-      <TooltipPopup side="top">{hint}</TooltipPopup>
     </Tooltip>
   );
 }

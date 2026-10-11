@@ -6,7 +6,6 @@
 import { blobUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
-import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel } from "@orb/ui/collapsible";
 import { FileTrigger } from "@orb/ui/file-trigger";
@@ -26,6 +25,7 @@ import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-muta
 import { PersonaEditorRegion } from "./persona-editor.tsx";
 import { PersonaPin } from "./persona-pin.tsx";
 import { PersonaRowNameColumn } from "./persona-row-name-column.tsx";
+import { PersonaStateMarkers } from "./persona-state-markers.tsx";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 
@@ -37,6 +37,9 @@ export interface PersonaPanelRowProps {
    *  `rowActionSubject(name, qualifier)`, so one row can never announce its subject two different ways. */
   readonly qualifier?: string;
   readonly isCurrent: boolean;
+  /** This persona is the open room's card persona (`{{user}}` in the card). */
+  readonly isCardPin: boolean;
+  readonly seatBindsPresets: boolean;
   readonly isDefault: boolean;
   readonly expanded: boolean;
   readonly onSetCurrent: () => void;
@@ -53,6 +56,8 @@ export function PersonaPanelRow({
   persona,
   qualifier,
   isCurrent,
+  isCardPin,
+  seatBindsPresets,
   isDefault,
   expanded,
   onSetCurrent,
@@ -194,18 +199,12 @@ export function PersonaPanelRow({
             the row's single shrinker. */}
         <Layer className="relative shrink-0" data-slot="persona-row-markers">
           <Row align="center" className={cn("pointer-events-none", ROW_REVEAL_SWAP) ?? ""} gap="field" justify="end">
-            {/* THE ROW IS THE ONE HOME FOR "PLAYING AS" (side-eye 2026-08-03 P2) — the band above the list
-                used to render the current persona a second time, with a different anatomy, 40px away. Words,
-                not just the selected tint + `aria-current`: a colour is not a statement. */}
-            {/* THE PILL (#866 S4, the Personas board): "playing as" on the current row, "pinned · {{user}}"
-                on the default row — words at rest on a fine pointer, exactly where the old kicker lived.
-                ONE pill max: on a row that is BOTH (your only persona), current wins — "pinned" is already
-                the solid pin's statement one cell over, and two pills re-buy the width collapse this row's
-                fences exist to prevent. The cell keeps plain `ROW_REVEAL_SWAP`: the coarse drop is
-                DELIBERATE (a narrow row cannot afford pills), and at coarse the states survive as the
-                stretched button's state-aware NAME + `aria-current` (current) and the always-in-flow PIN
-                (default). */}
-            <RowPill isCurrent={isCurrent} isDefault={isDefault} />
+            {/* THE STATE MARKERS (the switcher's own set): a check on who is playing, a card on the room's card
+                persona — glyphs, not pills, so no state is said twice beside the pin one cell over. The cell keeps
+                plain `ROW_REVEAL_SWAP`: the coarse drop is DELIBERATE (a narrow row cannot afford them), and at
+                coarse the states survive as the stretched button's state-aware NAME + `aria-current` (current)
+                and the always-in-flow PIN (default). */}
+            <PersonaStateMarkers isCardPin={isCardPin} isCurrent={isCurrent} name={persona.name} seatBindsPresets={seatBindsPresets} />
           </Row>
 
           {/* INERT AT REST, and that is a CONSEQUENCE of sharing the cell (`ROW_REVEAL`'s own carve-out: an
@@ -371,27 +370,6 @@ function PersonaRowMenu({
       </MenuItem>
     </RowActionsMenu>
   );
-}
-
-/** The title-line pill — ONE max (current wins; see the markers-cell comment). Plain text to a reader:
- *  the STATES are already announced by `aria-current` + the state-aware select name (current) and the
- *  named pin (default); the pill is the fine-pointer rest-glance telling. */
-function RowPill({ isCurrent, isDefault }: { readonly isCurrent: boolean; readonly isDefault: boolean }): ReactElement | null {
-  if (isCurrent) {
-    return (
-      <Badge className="min-w-0 truncate" intent="primary" tone="soft">
-        playing as
-      </Badge>
-    );
-  }
-  if (isDefault) {
-    return (
-      <Badge className="min-w-0 truncate" tone="soft">
-        pinned · {"{{user}}"}
-      </Badge>
-    );
-  }
-  return null;
 }
 
 /** The stretched select target's accessible name — STATE-AWARE (side-eye 2026-08-07 P3a).

@@ -19,7 +19,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { PersonaEditDoorStory, PersonaSwitcherBarStory, PersonaYouSheetStory } from "../_ct-stories.tsx";
+import { PersonaEditDoorColdStory, PersonaEditDoorStory, PersonaSwitcherBarStory, PersonaYouSheetStory } from "../_ct-stories.tsx";
 
 const NOVA = "persona_nova";
 const ORION = "persona_orion";
@@ -51,7 +51,12 @@ const SEED_PROC = "settings.updateUserSettingsSection";
 const ACTIVE_PROC = "persona.setActivePersona";
 const RESTAMP_PROC = "chat.reattributePersona";
 
-function stub(page: Page, extra?: TrpcRoutes<"chat.getChat">): Promise<TrpcRecorder> {
+function stub(
+  page: Page,
+  extra?: Partial<
+    TrpcRoutes<"chat.getChat" | "regex.countScripts" | "rosterPreset.count" | "sessions.me" | "settings.getAppSettingsWithOverrides" | "worldInfo.countBooks">
+  >,
+): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "persona.list": () => PERSONAS,
     "settings.getUserSettings": () => ({
@@ -100,8 +105,8 @@ async function stubAuth(page: Page, mode = "local"): Promise<void> {
 }
 
 /** Open the bar lens's popover (the rail avatar chip). */
-async function openPopover(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Playing as Nova" }).click();
+async function openPopover(page: Page, playing = "Nova"): Promise<void> {
+  await page.getByRole("button", { name: `Playing as ${playing}` }).click();
   await expect(page.getByRole("dialog", { name: "Account & personas" })).toBeVisible();
 }
 
@@ -170,7 +175,7 @@ test("with NO chat open the popover renders the switcher without the contextual 
   await expect(page.getByRole("button", { name: /^Re-attribute / })).toHaveCount(0);
 });
 
-test("with a chat open the contextual block renders, and the DEFAULT scope still routes a switch to the seed pointer", async ({ mount, page }) => {
+test("with a chat open the contextual block renders, and the DEFAULT scope moves the seat AND the global pointer", async ({ mount, page }) => {
   const trpc = await stub(page, { "chat.getChat": () => CHAT });
   await stubAuth(page);
   await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
@@ -187,8 +192,8 @@ test("with a chat open the contextual block renders, and the DEFAULT scope still
 
   await page.getByRole("button", { name: "Switch to Orion", exact: true }).dispatchEvent("click");
   await expect.poll(() => trpc.lastInput(SEED_PROC), { intervals: [20, 50, 100] }).toMatchObject({ section: "seeds", patch: { currentPersonaId: ORION } });
-  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the seed write above already resolved
-  expect(trpc.count(ACTIVE_PROC)).toBe(0);
+  // Inside a room a switch always moves the seat too, so the chip, the head and the check follow it.
+  await expect.poll(() => trpc.lastInput(ACTIVE_PROC), { intervals: [20, 50, 100] }).toMatchObject({ chatId: CHAT_ID, personaId: ORION });
 });
 
 test("flipping the scope to This chat routes the SAME row to persona.setActivePersona for THIS room", async ({ mount, page }) => {
@@ -210,7 +215,8 @@ test("in a room the playing-as check marks the seat persona under either scope, 
   await stub(page, { "chat.getChat": () => ({ ...CHAT, viewerActivePersonaId: ORION }) });
   await stubAuth(page);
   await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
-  await openPopover(page);
+  // The rail chip names the seat persona too — one derivation for chip, head and check.
+  await openPopover(page, "Orion");
 
   // Everywhere is the default scope.
   await expect(rowOf(page, "Orion").getByRole("img", { name: PLAYING, exact: true })).toBeVisible();
@@ -224,18 +230,22 @@ test("with Everywhere scope a switch still writes the seed pointer, even to the 
   const trpc = await stub(page, { "chat.getChat": () => ({ ...CHAT, viewerActivePersonaId: ORION }) });
   await stubAuth(page);
   await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
-  await openPopover(page);
+  await openPopover(page, "Orion");
   await page.getByRole("button", { name: "Orion — current persona" }).dispatchEvent("click");
   await expect.poll(() => trpc.lastInput(SEED_PROC), { intervals: [20, 50, 100] }).toMatchObject({ section: "seeds", patch: { currentPersonaId: ORION } });
 });
 
-test("re-attribute fires chat.reattributePersona with the server-resolved {kind:'mine'} scope", async ({ mount, page }) => {
+test("the restamp fires chat.reattributePersona with the server-resolved {kind:'mine'} scope and states its scope", async ({ mount, page }) => {
   const trpc = await stub(page, { "chat.getChat": () => CHAT });
   await stubAuth(page);
   await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
   await openPopover(page);
 
-  await page.getByRole("button", { name: "Re-attribute your messages here → Nova" }).click();
+  const restamp = page.getByRole("button", { name: "Restamp my messages to this persona" });
+  // The consequence is visible copy bound to the control, never hover-only.
+  await expect(page.locator('[data-slot="restamp-scope"]')).toBeVisible();
+  await expect(restamp).toHaveAccessibleDescription(/however far back/);
+  await restamp.click();
   await expect
     .poll(() => trpc.lastInput(RESTAMP_PROC), { intervals: [20, 50, 100] })
     .toMatchObject({ chatId: CHAT_ID, scope: { kind: "mine" }, personaId: NOVA });
@@ -354,7 +364,7 @@ test("no raw {{macro}} renders in the visible rows, even with a different person
       updatedAt: 0,
       configUnreadable: null,
     }),
-    "chat.getChat": () => CHAT,
+    "chat.getChat": () => ({ ...CHAT, viewerActivePersonaId: ORION }),
   });
   await stubAuth(page);
   await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
@@ -390,7 +400,7 @@ test("a row's Edit door closes the popover and lands in that persona's open, foc
 
 const ZARA = "persona_zara";
 const PLAYING = "Playing as";
-const CARD_PIN = "Pinned to this chat";
+const CARD_PIN = "Card's persona in this chat";
 const DEFAULT_PIN = "Pinned — your default persona";
 
 /** The switch row holding the control named `persona` (its stretched button is the row's direct child). */
@@ -403,7 +413,7 @@ test("after a swap the playing-as and card-pin markers sit on different rows, ea
   await stub(page, { "chat.getChat": () => ({ ...CHAT, viewerActivePersonaId: ORION, anchorPersonaId: LYRA }) });
   await stubAuth(page);
   await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
-  await openPopover(page);
+  await openPopover(page, "Orion");
   await pickScope(page, "This chat");
 
   await expect(rowOf(page, "Orion").getByRole("img", { name: PLAYING, exact: true })).toBeVisible();
@@ -448,7 +458,7 @@ test("a member's persona as the card pin gets a room line, no row marker, and Re
   await stubAuth(page);
   await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
   await openPopover(page);
-  await expect(page.getByText("Card sees you as Zara")).toBeVisible();
+  await expect(page.getByText("Card's persona: Zara (Rowan)")).toBeVisible();
   await expect(page.getByRole("img", { name: CARD_PIN, exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Re-pin" })).toBeVisible();
 });
@@ -458,7 +468,7 @@ test("a non-host sees the card-pin room line but no Re-pin", async ({ mount, pag
   await stubAuth(page);
   await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
   await openPopover(page);
-  await expect(page.getByText("Card sees you as Zara")).toBeVisible();
+  await expect(page.getByText("Card's persona: Zara (Rowan)")).toBeVisible();
   await expect(page.getByRole("button", { name: "Re-pin" })).toHaveCount(0);
 });
 
@@ -471,4 +481,174 @@ test("expanding a persona's editor with its chevron does not move focus", async 
   await expect(page.getByRole("group", { name: "Edit Lyra", exact: true })).toBeVisible();
   await expect(page.getByRole("group", { name: "Edit Lyra", exact: true })).not.toBeFocused();
   await expect(page.getByRole("button", { name: "Hide details for Lyra", exact: true })).toBeFocused();
+});
+
+test("the check's seat binding tells whether preset text follows it: solo room yes, another member's anchor no", async ({ mount, page }) => {
+  await stub(page, { "chat.getChat": () => ROOM });
+  await stubAuth(page);
+  await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
+  await openPopover(page);
+  // The anchor is Rowan's persona, so preset {{user}} follows Rowan's seat and this seat speaks only my lines.
+  await expect(rowOf(page, "Nova").getByRole("img", { name: PLAYING, exact: true })).toHaveAttribute("data-seat-binds", "lines");
+});
+
+test("the check's seat binding in a solo room covers lines and preset text", async ({ mount, page }) => {
+  await stub(page, { "chat.getChat": () => CHAT });
+  await stubAuth(page);
+  await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
+  await openPopover(page);
+  await expect(rowOf(page, "Nova").getByRole("img", { name: PLAYING, exact: true })).toHaveAttribute("data-seat-binds", "lines-and-presets");
+});
+
+test("in a room a switch to the persona the global pointer already names still moves the seat", async ({ mount, page }) => {
+  // Room seat Orion, global pointer Nova, Everywhere scope: the Nova row is a live switch, never an inert one.
+  const trpc = await stub(page, { "chat.getChat": () => ({ ...CHAT, viewerActivePersonaId: ORION }) });
+  await stubAuth(page);
+  await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
+  await openPopover(page, "Orion");
+  await expect(page.getByRole("button", { name: "Switch to Nova", exact: true })).toBeEnabled();
+  await page.getByRole("button", { name: "Switch to Nova", exact: true }).dispatchEvent("click");
+  await expect.poll(() => trpc.lastInput(ACTIVE_PROC), { intervals: [20, 50, 100] }).toMatchObject({ chatId: CHAT_ID, personaId: NOVA });
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the seat write above already resolved
+  expect(trpc.count(SEED_PROC)).toBe(0);
+});
+
+test("an empty room seat shows no persona as playing: head and chip say none, no check anywhere", async ({ mount, page }) => {
+  await stub(page, { "chat.getChat": () => ({ ...CHAT, viewerActivePersonaId: null }) });
+  await stubAuth(page);
+  await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
+  await page.getByRole("button", { name: "Account & personas", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Account & personas" })).toBeVisible();
+  await expect(page.locator('[data-slot="persona-who-head"]')).not.toContainText("Nova");
+  await expect(page.getByRole("img", { name: PLAYING, exact: true })).toHaveCount(0);
+});
+
+test("Edit focuses the editor even when that persona's editor is already open", async ({ mount, page }) => {
+  await stub(page, { "chat.getChat": () => CHAT });
+  await stubAuth(page);
+  await mount(<PersonaEditDoorStory />);
+  await openPopover(page);
+  await page.getByRole("button", { name: "Edit Lyra", exact: true }).click();
+  const editor = page.getByRole("group", { name: "Edit Lyra", exact: true });
+  await expect(editor).toBeFocused();
+  // Focus leaves the editor; the second Edit on the already-selected persona must pull it back.
+  await page.getByRole("button", { name: "Hide details for Lyra", exact: true }).focus();
+  await expect(editor).not.toBeFocused();
+  await openPopover(page);
+  await page.getByRole("button", { name: "Edit Lyra", exact: true }).click();
+  await expect(editor).toBeFocused();
+});
+
+test("the pressed pin clears the default; the unpressed one sets it", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  await stubAuth(page);
+  await mount(<PersonaYouSheetStory />);
+  await page.getByRole("button", { name: DEFAULT_PIN, pressed: true }).dispatchEvent("click");
+  await expect.poll(() => trpc.lastInput(SEED_PROC), { intervals: [20, 50, 100] }).toMatchObject({ section: "seeds", patch: { defaultPersonaId: null } });
+});
+
+test("the phone sheet in a room follows the seat and marks the card persona, and a switch moves the seat", async ({ mount, page }) => {
+  const trpc = await stub(page, { "chat.getChat": () => ({ ...CHAT, viewerActivePersonaId: ORION, anchorPersonaId: LYRA }) });
+  await stubAuth(page);
+  await mount(<PersonaYouSheetStory chatId={CHAT_ID} />);
+  await expect(rowOf(page, "Orion").getByRole("img", { name: PLAYING, exact: true })).toBeVisible();
+  await expect(rowOf(page, "Lyra").getByRole("img", { name: CARD_PIN, exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Switch to Lyra", exact: true }).dispatchEvent("click");
+  await expect.poll(() => trpc.lastInput(ACTIVE_PROC), { intervals: [20, 50, 100] }).toMatchObject({ chatId: CHAT_ID, personaId: LYRA });
+});
+
+test("the pin tooltip wraps at the prose measure instead of spanning the viewport", async ({ mount, page }) => {
+  await stub(page, { "chat.getChat": () => CHAT });
+  await stubAuth(page);
+  await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
+  await openPopover(page);
+  await pinOf(page, "Pin Orion as your default").hover();
+  const popup = page.locator('[data-slot="tooltip-popup"]');
+  await expect(popup).toBeVisible();
+  await expect
+    .poll(() =>
+      popup.evaluate((el: HTMLElement) => {
+        const max = Number.parseFloat(getComputedStyle(el).maxWidth);
+        return Number.isFinite(max) && el.getBoundingClientRect().width <= max + 1;
+      }),
+    )
+    .toBe(true);
+});
+
+test("hovering a row paints a different fill than the selected row", async ({ mount, page }) => {
+  await stub(page, { "chat.getChat": () => CHAT });
+  await stubAuth(page);
+  await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
+  await openPopover(page);
+  // Read each fill once its hover transition has settled, so a half-faded colour never decides the answer.
+  const settledFill = (locator: Locator): Promise<string> =>
+    locator.evaluate(async (el: HTMLElement) => {
+      await Promise.all(el.getAnimations().map((animation) => animation.finished));
+      return getComputedStyle(el).backgroundColor;
+    });
+  await page.getByRole("button", { name: "Switch to Lyra", exact: true }).hover();
+  const [hovered, selected] = [await settledFill(rowOf(page, "Lyra")), await settledFill(rowOf(page, "Nova"))];
+  expect(hovered).not.toBe(selected);
+  expect(hovered).not.toBe("rgba(0, 0, 0, 0)");
+});
+
+test("with all three markers on one row the pin sits beside them, not across a hidden Edit slot", async ({ mount, page }) => {
+  await stub(page, { "chat.getChat": () => CHAT });
+  await stubAuth(page);
+  await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
+  await openPopover(page);
+  const nova = rowOf(page, "Nova");
+  const card = nova.getByRole("img", { name: CARD_PIN, exact: true });
+  const pin = nova.getByRole("button", { name: DEFAULT_PIN });
+  const edit = nova.getByRole("button", { name: "Edit Nova", exact: true });
+  await expect(card).toBeVisible();
+  const box = (locator: Locator): Promise<{ x: number; width: number }> =>
+    locator.evaluate((el: HTMLElement) => {
+      const { x, width } = el.getBoundingClientRect();
+      return { x, width };
+    });
+  const [cardBox, pinBox, editBox] = await Promise.all([box(card), box(pin), box(edit)]);
+  expect(pinBox.x - (cardBox.x + cardBox.width)).toBeLessThan(editBox.width);
+});
+
+test("the cold Edit door keeps focus in the editor — Settings mounting later does not take it", async ({ mount, page }) => {
+  // Settings mounts for real here, so the reads its list and bands make are fed rather than left to answer null.
+  await stub(page, {
+    "chat.getChat": () => CHAT,
+    "sessions.me": () => ({ userId: "user_ct", handle: "owner", globalRole: "owner" }),
+    "regex.countScripts": () => 0,
+    "rosterPreset.count": () => 0,
+    "worldInfo.countBooks": () => 0,
+    "settings.getAppSettingsWithOverrides": () => ({ resolved: { privateEndpointAllowlist: [] }, overrides: { privateEndpointAllowlist: null } }),
+  });
+  await stubAuth(page);
+  await mount(<PersonaEditDoorColdStory />);
+  await openPopover(page);
+  await page.getByRole("button", { name: "Edit Lyra", exact: true }).click();
+  const editor = page.getByRole("group", { name: "Edit Lyra", exact: true });
+  await expect(editor).toBeFocused();
+  // The Config list mounts a beat after the editor: its arrival focus runs once the band exists, and it must
+  // stand down rather than take focus from the editor.
+  const band = page.locator('[data-slot="config-band"]').first();
+  await expect(band).toBeVisible();
+  await expect(editor).toBeFocused();
+  await expect(band).not.toBeFocused();
+});
+
+test.describe("coarse pointer", () => {
+  test.use({ hasTouch: true });
+
+  test("an uninvolved row wears no glyphs: one actions menu holds Edit and Set as default; markers stay as state", async ({ mount, page }) => {
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    await stub(page, { "chat.getChat": () => CHAT });
+    await stubAuth(page);
+    await mount(<PersonaYouSheetStory chatId={CHAT_ID} />);
+    // The pressed pin and the markers are state and stay; the unpressed pin and the pencil stand down.
+    await expect(rowOf(page, "Nova").getByRole("button", { name: DEFAULT_PIN, pressed: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Pin Orion as your default", exact: true })).toBeHidden();
+    await expect(page.getByRole("button", { name: "Edit Orion", exact: true })).toBeHidden();
+    await page.getByRole("button", { name: "Actions for Orion", exact: true }).click();
+    await expect(page.getByRole("menuitem", { name: "Edit", exact: true })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Set as default", exact: true })).toBeVisible();
+  });
 });

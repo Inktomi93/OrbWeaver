@@ -9,17 +9,23 @@ import { QueryBoundary } from "@orb/client/components";
 import { PersonaPanelRow, personaChrome } from "@orb/client/features/persona";
 import type { NotifyInput } from "@orb/client/lib";
 import { bindNotify, toNotice } from "@orb/client/lib";
-import { selectChat } from "@orb/client/state";
+import { __resetConfigNav, selectChat, usePersonaEditorId } from "@orb/client/state";
 import type { ChatId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { ConfigContentSurface } from "../../../../packages/client/src/features/config/surfaces/config-content-surface.tsx";
+import { ConfigListSurface } from "../../../../packages/client/src/features/config/surfaces/config-list-surface.tsx";
 import { FirstRunPersonaDialog } from "../../../../packages/client/src/features/persona/anchors/first-run-persona-dialog.tsx";
 import { PersonaEditor } from "../../../../packages/client/src/features/persona/components/persona-editor.tsx";
 import { PersonaList } from "../../../../packages/client/src/features/persona/components/persona-list.tsx";
 import { PersonaNotificationsSection } from "../../../../packages/client/src/features/persona/components/persona-notifications-section.tsx";
 import { PersonaThisChatSection } from "../../../../packages/client/src/features/persona/components/persona-this-chat-section.tsx";
-import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
+import { realConfigGroups } from "../../../support/browser/ct-config-groups.ts";
+import { CtDataProviders, CtRealConfigSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
+
+const LIST_MOUNT_DELAY_MS = 800;
 
 type PersonaFixture = Parameters<typeof PersonaPanelRow>[0]["persona"];
 
@@ -102,7 +108,9 @@ export function PersonaPanelRowDenseStory({ width = 358 }: { readonly width?: nu
       <div style={{ width }}>
         <PersonaPanelRow
           expanded={false}
+          isCardPin={true}
           isCurrent={true}
+          seatBindsPresets={true}
           isDefault={true}
           onDelete={(): void => undefined}
           onSetCurrent={(): void => undefined}
@@ -124,7 +132,13 @@ export function PersonaPanelRowDenseStory({ width = 358 }: { readonly width?: nu
  *
  *  The list itself comes from the `.ct.tsx`'s `persona.list` + `settings.getUserSettings` stubs — this
  *  story supplies only the 320px sheet box, which is the narrowest real host for these rows (#458). */
-export function PersonaYouSheetStory(): ReactElement {
+export function PersonaYouSheetStory({ chatId }: { readonly chatId?: ChatId } = {}): ReactElement {
+  useState(() => {
+    if (chatId !== undefined) {
+      selectChat(chatId);
+    }
+    return null;
+  });
   return (
     <CtDataProviders>
       <div style={{ width: 320 }}>{personaChrome.behavior.kind === "widget" ? personaChrome.behavior.body("sheet") : null}</div>
@@ -167,6 +181,53 @@ export function PersonaEditDoorStory(): ReactElement {
   );
 }
 
+/** The switcher beside a Settings that is NOT mounted yet: the Config panes appear only once the Edit door
+ *  selects a persona, the way the shell mounts Settings on the first jump — so the list's arrival focus runs
+ *  AFTER the door has focused the editor. */
+export function PersonaEditDoorColdStory(): ReactElement {
+  useState(() => {
+    __resetConfigNav();
+    return null;
+  });
+  return (
+    <CtDataProviders>
+      <CtRealConfigSectionRegistry>
+        <TooltipProvider>
+          <div style={{ display: "flex", gap: 16, width: 1100 }}>
+            <div style={{ width: 120, height: 640 }}>{personaChrome.behavior.kind === "widget" ? personaChrome.behavior.body("bar") : null}</div>
+            <ColdConfigPanes />
+          </div>
+        </TooltipProvider>
+      </CtRealConfigSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+// The CONTENT pane mounts with the selection and the LIST a beat later — the order a lazily-loaded Settings
+// produces, which is what lets the list's arrival focus land after the editor already has focus.
+function ColdConfigPanes(): ReactElement | null {
+  const selected = usePersonaEditorId();
+  const [listMounted, setListMounted] = useState(false);
+  useEffect(() => {
+    if (selected === null) {
+      return;
+    }
+    const timer = setTimeout((): void => setListMounted(true), LIST_MOUNT_DELAY_MS);
+    return (): void => clearTimeout(timer);
+  }, [selected]);
+  if (selected === null) {
+    return null;
+  }
+  return (
+    <div style={{ display: "flex", height: 560, width: 900 }}>
+      <div style={{ minHeight: 0, overflow: "auto", width: 280 }}>{listMounted ? <ConfigListSurface groups={realConfigGroups} /> : null}</div>
+      <div style={{ flex: 1, minHeight: 0, minWidth: 0 }}>
+        <ConfigContentSurface groups={realConfigGroups} />
+      </div>
+    </div>
+  );
+}
+
 /** The LIST at its ONE remaining mount posture — the Config → Personas section body (#866 S4 moved it
  *  out of the popover and the sheet). 360px stands in for the narrowest real content-pane column (a 430px
  *  phone minus the pane padding); the #443/#458/#463 collision pins run against this mount now. */
@@ -192,7 +253,9 @@ export function PersonaPanelRowStory(): ReactElement {
       <div style={{ width: 320 }}>
         <PersonaPanelRow
           expanded={expanded}
+          isCardPin={false}
           isCurrent={false}
+          seatBindsPresets={true}
           isDefault={false}
           onDelete={(): void => setFired("delete")}
           onSetCurrent={(): void => setFired("current")}

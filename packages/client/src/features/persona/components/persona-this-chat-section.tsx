@@ -78,8 +78,6 @@ export function PersonaThisChatSection({ anchorId, idle }: PersonaThisChatSectio
   const notifyOnChange = settings.config.persona.showNotifications;
 
   const setActive = useSetChatActivePersona({ trpc, invalidation });
-  const reattribute = useReattributePersona({ trpc, invalidation });
-  const scopeId = useId();
 
   if (chatId === null) {
     return idle === undefined ? null : (
@@ -105,26 +103,6 @@ export function PersonaThisChatSection({ anchorId, idle }: PersonaThisChatSectio
         onSuccess: (): void => {
           if (notifyOnChange) {
             notify.info(`Now playing as ${persona.name} in this chat.`);
-          }
-        },
-      },
-    );
-  };
-
-  // One call, no pre-read: the server resolves "every user row I authored in this chat" itself. The
-  // confirming notify honors the same `persona.showNotifications` opt-out the switch does (one setting, one
-  // meaning) and fires on the server's ACK, so it never claims a restamp the write didn't land.
-  const onReattribute = (): void => {
-    const targetPersonaId = chat.viewerActivePersonaId;
-    if (targetPersonaId === null) {
-      return;
-    }
-    reattribute.mutate(
-      { chatId, scope: { kind: "mine" }, personaId: targetPersonaId },
-      {
-        onSuccess: (): void => {
-          if (notifyOnChange) {
-            notify.info(`Your messages in this chat now read as ${personaLabel(chat, personas, targetPersonaId)}.`);
           }
         },
       },
@@ -159,32 +137,20 @@ export function PersonaThisChatSection({ anchorId, idle }: PersonaThisChatSectio
 
       <ChatAnchorRow chat={chat} personas={personas} />
 
-      {/* THE BLAST RADIUS IS ON THE SURFACE, NOT IN A TOOLTIP (#2443, side-eye 2026-09-19). This button
-          rewrites EVERY one of the viewer's own lines in the chat, however far back they go — a bulk
-          history edit — and its scope/safety sentence used to live only in a Base UI tooltip, which is
-          `mouseOnly: true` with a `:focus-visible`-gated focus fallback (`TooltipTrigger.js:147`,
-          `useFocus.js:104`). On a phone the button was pressable and its consequence was unreadable. A
-          hover-gated disclosure is the wrong carrier for a consequence the user is about to accept at all;
-          it is visible copy, and `aria-describedby` binds it to the control so AT reads it as the button's
-          description rather than as loose prose after it. */}
-      <Stack gap="field">
-        <Button
-          aria-describedby={scopeId}
-          disabled={chat.viewerActivePersonaId === null || reattribute.isPending}
-          intent="ghost"
-          onClick={onReattribute}
-          size="sm"
-        >
-          <Icon icon={History} size="xs" />
-          Restamp my messages to this persona
-        </Button>
-        <Text as="span" data-slot="restamp-scope" id={scopeId} voice="gloss">
-          Restamps every one of your own lines in this chat to "{personaLabel(chat, personas, chat.viewerActivePersonaId)}" — however far back they go. What you
-          wrote is untouched; replies keep the names they were written with.
-        </Text>
-      </Stack>
+      <ChatRestamp chat={chat} personas={personas} />
     </Section>
   );
+}
+
+/** The card persona's line. Your own persona reads "Card sees you as …"; another member's must not say
+ *  "you", so it names the persona and its member. */
+function anchorLine(chat: ChatDetail, personas: readonly PersonaListItem[]): string {
+  const name = personaLabel(chat, personas, chat.anchorPersonaId);
+  const owner = chat.participants.find((p) => p.kind === "human" && p.activePersonaId === chat.anchorPersonaId);
+  if (chat.anchorPersonaId === null || personas.some((p) => p.id === chat.anchorPersonaId) || owner?.userId === chat.viewerUserId) {
+    return `Card sees you as ${name}`;
+  }
+  return owner === undefined ? `Card's persona: ${name}` : `Card's persona: ${name} (${owner.displayName})`;
 }
 
 /** The card-pin line: who the card's `{{user}}` is in this chat, with the host-only re-pin. Shared by the
@@ -200,7 +166,7 @@ export function ChatAnchorRow({ chat, personas }: { readonly chat: ChatDetail; r
       <Row gap="field" align="center">
         <Icon icon={IdCard} size="xs" />
         <Text size="label" tone="muted">
-          Card sees you as {personaLabel(chat, personas, chat.anchorPersonaId)}
+          {anchorLine(chat, personas)}
         </Text>
       </Row>
       {chat.viewerIsHost ? (
@@ -241,5 +207,59 @@ export function ChatAnchorRow({ chat, personas }: { readonly chat: ChatDetail; r
         </Menu>
       ) : null}
     </Row>
+  );
+}
+
+/** The restamp verb and its visible scope sentence — one name and one consequence for Settings and the
+ *  rail switcher. */
+export function ChatRestamp({ chat, personas }: { readonly chat: ChatDetail; readonly personas: readonly PersonaListItem[] }): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
+  const notifyOnChange = settings.config.persona.showNotifications;
+  const reattribute = useReattributePersona({ trpc, invalidation });
+  const scopeId = useId();
+  const chatId = chat.id;
+  // One call, no pre-read: the server resolves "every user row I authored in this chat" itself. The
+  // confirming notify honors the same `persona.showNotifications` opt-out the switch does (one setting, one
+  // meaning) and fires on the server's ACK, so it never claims a restamp the write didn't land.
+  const onReattribute = (): void => {
+    const targetPersonaId = chat.viewerActivePersonaId;
+    if (targetPersonaId === null) {
+      return;
+    }
+    reattribute.mutate(
+      { chatId, scope: { kind: "mine" }, personaId: targetPersonaId },
+      {
+        onSuccess: (): void => {
+          if (notifyOnChange) {
+            notify.info(`Your messages in this chat now read as ${personaLabel(chat, personas, targetPersonaId)}.`);
+          }
+        },
+      },
+    );
+  };
+  // THE BLAST RADIUS IS ON THE SURFACE, NOT IN A TOOLTIP (#2443, side-eye 2026-09-19). This button rewrites
+  // EVERY one of the viewer's own lines in the chat, however far back they go — a bulk history edit — and
+  // its scope sentence used to live only in a Base UI tooltip, which is hover/focus-visible gated: on a
+  // phone the button was pressable and its consequence unreadable. It is visible copy, and
+  // `aria-describedby` binds it to the control so AT reads it as the button's description.
+  return (
+    <Stack gap="field">
+      <Button
+        aria-describedby={scopeId}
+        disabled={chat.viewerActivePersonaId === null || reattribute.isPending}
+        intent="ghost"
+        onClick={onReattribute}
+        size="sm"
+      >
+        <Icon icon={History} size="xs" />
+        Restamp my messages to this persona
+      </Button>
+      <Text as="span" data-slot="restamp-scope" id={scopeId} voice="gloss">
+        Restamps every one of your own lines in this chat to "{personaLabel(chat, personas, chat.viewerActivePersonaId)}" — however far back they go. What you
+        wrote is untouched; replies keep the names they were written with.
+      </Text>
+    </Stack>
   );
 }

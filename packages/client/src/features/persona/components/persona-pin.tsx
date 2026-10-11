@@ -1,11 +1,11 @@
 // The PIN — the default-persona affordance, ONE glyph with one meaning (#866 S4, pin-not-crown: crowns
 // mean HOST in this app's chat vocabulary, so the default marker stopped wearing one). The config list
-// row's pin has two arms, exactly one rendered: the DEFAULT row's pin is a solid named MARKER (there is no
-// "unpin" verb — a default always exists while you own a persona, so the solid pin has nothing to do and is
-// honest as state); every other row's pin is the "make this my default" BUTTON, faint-on-hover at fine
-// pointers (rest-invisible — the verb is secondary chrome) and always-faint at coarse (no hover exists; an
-// invisible control would be an unreachable one). The rail switcher passes `toggle`: ONE pressed/unpressed
-// button on every row, the pinned row's state shown by `aria-pressed` and a rest-visible primary glyph.
+// row's pin has two arms, exactly one rendered: the DEFAULT row's pin is a solid named MARKER; every other
+// row's pin is the "make this my default" BUTTON, faint-on-hover at fine pointers (rest-invisible — the
+// verb is secondary chrome) and always-faint at coarse (no hover exists; an invisible control would be an
+// unreachable one). The rail switcher passes `toggle`: ONE pressed/unpressed button on every row — pressing
+// the pinned one clears the default — whose unpressed arm stands down at coarse into the row's actions menu
+// and whose pressed arm stays visible as the state.
 
 import { Button } from "@orb/ui/button";
 import { Icon, Pin } from "@orb/ui/icons";
@@ -14,14 +14,17 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 // PIN_REVEAL is pointer-keyed, so it is homed in `#components/pointer-variants.ts` (the
 // `no-pointer-variants-in-features` law), documented there.
-import { PIN_REVEAL } from "#components";
+import { HIDE_AT_COARSE, PIN_REVEAL } from "#components";
 import { cn } from "#lib";
 
-/** This row pin is the DEFAULT persona for new chats (the last link of `startChat`'s connected → current →
- *  default chain), not a chat's persona pin: a chat pins whoever opened it, and that persona is the card
- *  text's `{{user}}` for the life of the chat while preset text follows the current persona. */
-const PIN_HINT =
-  "Pin to make this your default persona for new chats. Each chat pins whoever opened it: {{user}} in card text stays that persona, while preset text follows who you're playing now.";
+/** The row pin is the DEFAULT persona for new chats (the last link of `startChat`'s connected → current →
+ *  default chain), not a chat's persona: a chat's card keeps whoever opened it while preset text follows the
+ *  persona playing now. One sentence per state; the accessible NAME stays short and the hint is not read as
+ *  a description on every row. */
+const PIN_HINT_UNPINNED =
+  "Pin to make this your default persona for new chats. A chat's card keeps whoever opened it ({{user}}); preset text follows who you're playing now.";
+const PIN_HINT_PINNED =
+  "Your default persona for new chats. A chat's card keeps whoever opened it ({{user}}); preset text follows who you're playing now. Press to clear.";
 
 export interface PersonaPinProps {
   /** True on the row `seeds.defaultPersonaId` names — the solid-marker arm. */
@@ -32,6 +35,8 @@ export interface PersonaPinProps {
   readonly onPin: () => void;
   /** The switcher's single pressed/unpressed button in place of the marker/button pair. */
   readonly toggle?: boolean;
+  /** Clears the default — the toggle's pressed arm. Required with `toggle`. */
+  readonly onUnpin?: () => void;
   /** Extra classes for the rendered element (both arms) — the list row passes `relative shrink-0` to
    *  layer above its stretched select target. */
   readonly className?: string;
@@ -39,26 +44,25 @@ export interface PersonaPinProps {
 
 /** The pin. The marker arm keeps its `role="img"` name at every pointer class (the crown's
  *  coarse-invisibility bug — a marker that is the state's ONLY telling may never be display-dropped). */
-export function PersonaPin({ isDefault, subject, onPin, toggle = false, className }: PersonaPinProps): ReactElement {
+export function PersonaPin({ isDefault, subject, onPin, toggle = false, onUnpin, className }: PersonaPinProps): ReactElement {
   if (toggle) {
-    const toggleLabel = isDefault ? "Pinned — your default persona" : `Pin ${subject} as your default`;
     return (
-      <Tooltip>
+      <Tooltip describesTrigger={false}>
         <TooltipTrigger
           render={
             <Button
-              aria-label={toggleLabel}
+              aria-label={isDefault ? "Pinned — your default persona" : `Pin ${subject} as your default`}
               aria-pressed={isDefault}
-              className={cn(isDefault ? "text-primary" : PIN_REVEAL, className) ?? ""}
+              className={cn(isDefault ? "text-primary" : `${PIN_REVEAL} ${HIDE_AT_COARSE}`, className) ?? ""}
               intent="ghost"
-              onClick={isDefault ? undefined : onPin}
+              onClick={isDefault ? onUnpin : onPin}
               size="icon"
             >
               <Icon icon={Pin} size="sm" />
             </Button>
           }
         />
-        <TooltipPopup side="top">{PIN_HINT}</TooltipPopup>
+        <TooltipPopup side="top">{pinHint(isDefault)}</TooltipPopup>
       </Tooltip>
     );
   }
@@ -90,4 +94,8 @@ export function PersonaPin({ isDefault, subject, onPin, toggle = false, classNam
       <TooltipPopup side="top">{label}</TooltipPopup>
     </Tooltip>
   );
+}
+
+function pinHint(isDefault: boolean): string {
+  return isDefault ? PIN_HINT_PINNED : PIN_HINT_UNPINNED;
 }

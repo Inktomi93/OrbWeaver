@@ -247,19 +247,10 @@ test("at the 320px You-sheet width the name lane and the marker cluster never ov
 // carries over: one line by CONSTRUCTION (nowrap) and nothing clipped at the narrow mount. (The old
 // height/line-height ratio probe can't serve a Badge — its box carries vertical padding — so the pin
 // reads the wrap rule + the overflow directly.)
-test("the 'playing as' pill is one unclipped line at 320px — the truncation claim is true", async ({ mount }) => {
+test("the playing-as and card-persona glyphs both render at 320px, beside the pin", async ({ mount }) => {
   const component = await mount(<PersonaPanelRowDenseStory width={320} />);
-  const pill = component.getByText("playing as", { exact: true });
-  await expect(pill).toBeVisible();
-  await expect
-    .poll(
-      async () =>
-        await pill.evaluate((el: HTMLElement) => ({
-          nowrap: getComputedStyle(el).whiteSpace === "nowrap",
-          clipped: el.scrollWidth > el.clientWidth + 1,
-        })),
-    )
-    .toEqual({ nowrap: true, clipped: false });
+  await expect(component.getByRole("img", { name: "Playing as", exact: true })).toBeVisible();
+  await expect(component.getByRole("img", { name: "Card's persona in this chat", exact: true })).toBeVisible();
 });
 
 test("at 320px the persona's whole name still renders — no ellipsis on a 8-char name", async ({ mount }) => {

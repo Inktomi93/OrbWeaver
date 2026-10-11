@@ -14,7 +14,6 @@ import { Drama, Icon, Plus, Upload } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
@@ -22,7 +21,7 @@ import { notify, rowQualifiers, timeLib } from "#lib";
 import { selectPersonaEditor, usePersonaEditorId } from "#state";
 import { useSetPersonaSeed } from "../hooks/use-persona-identity.ts";
 import { useCreatePersona, useImportPersonaFile, useRemovePersona } from "../hooks/use-persona-mutations.ts";
-import { resolveCurrentPersona } from "../lib/persona-current.ts";
+import { usePlayingPersona, useSwitchPersona } from "../hooks/use-playing-persona.ts";
 import { PersonaFromCharacterDialog } from "./persona-from-character-dialog.tsx";
 import { PersonaPanelRow } from "./persona-panel-row.tsx";
 
@@ -31,21 +30,18 @@ export function PersonaList(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setSeed = useSetPersonaSeed({ trpc, invalidation });
+  // The same "who is playing" the switcher reads: a room's seat when one is open, else the global pointer.
+  const state = usePlayingPersona();
+  const switchTo = useSwitchPersona(state, "everywhere");
   const create = useCreatePersona({ trpc, invalidation });
   const remove = useRemovePersona({ trpc, invalidation });
   const importPersona = useImportPersonaFile({ trpc, invalidation });
-  const { data: personas } = useSuspenseQuery(trpc.persona.list.queryOptions());
-  const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
+  const { personas, seeds, playing, chat, seatBindsPresets } = state;
 
   const expandedId = usePersonaEditorId();
   const setExpandedId = selectPersonaEditor;
   const [fromCharacterOpen, setFromCharacterOpen] = useState(false);
-  const defaultId = settings.config.seeds.defaultPersonaId;
-  const current = resolveCurrentPersona(personas, settings.config.seeds);
-
-  const setCurrent = (personaId: PersonaId): void => {
-    setSeed.mutate({ section: "seeds", patch: { currentPersonaId: personaId } });
-  };
+  const defaultId = seeds.defaultPersonaId;
   const onCreate = async (): Promise<void> => {
     // @orb-waive caught-failure-ownership(catch): createEntityMutation's own errorToast already surfaced the failure — nothing to expand. Ends if useCreatePersona drops its errorToast.
     try {
@@ -140,10 +136,12 @@ export function PersonaList(): ReactElement {
               key={persona.id}
               persona={persona}
               {...((nameCounts.get(persona.name) ?? 0) > 1 ? { qualifier: qualifiers[index] ?? "" } : {})}
-              isCurrent={persona.id === current?.id}
+              isCurrent={persona.id === playing?.id}
+              isCardPin={persona.id === chat?.anchorPersonaId}
+              seatBindsPresets={seatBindsPresets}
               isDefault={persona.id === defaultId}
               expanded={persona.id === expandedId}
-              onSetCurrent={(): void => setCurrent(persona.id)}
+              onSetCurrent={(): void => switchTo(persona)}
               onSetDefault={(): void => setSeed.mutate({ section: "seeds", patch: { defaultPersonaId: persona.id } })}
               onToggleExpand={(): void => setExpandedId(expandedId === persona.id ? null : persona.id)}
               onDelete={(): void => onDelete(persona.id)}
