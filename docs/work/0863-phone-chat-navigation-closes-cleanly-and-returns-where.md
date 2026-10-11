@@ -23,3 +23,5 @@ Back closes an open sheet first, then the chat; a chat opened from Home returns 
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner ruling: platform back matches SillyTavern, so no browser-history entries are added; only the in-app back semantics here are owed.

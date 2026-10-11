@@ -24,3 +24,5 @@ The popover uses the app's standard type steps (one row style, one kicker style)
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Later owner rulings: drop the pinned label; the pin icon's tooltip explains how a pinned persona changes what {{user}} resolves to in presets versus chats; each row gets a quick Edit button that opens that persona in Settings.

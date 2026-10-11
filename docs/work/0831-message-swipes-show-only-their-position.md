@@ -24,3 +24,5 @@ The swipe control shows its position count only, on desktop and mobile; coupled 
 ## Evidence
 
 Owner ruling: inline swipe like SillyTavern. Chevrons sit on the message edges with a small position count at the foot, with no VARIANT label and no separate pager row, on phones.
+
+Later owner rulings: the swipe foot is designed per style as a pair with the sticky header, older swiped messages show the count only, the foot never widens a short bubble, and there is no dead space under it. Each style gets one sticky header bar holding name, time and the message actions (no separate actions row), using the row's own surface, never cutting a text line, one compact height across styles.
