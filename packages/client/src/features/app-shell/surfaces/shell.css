@@ -792,9 +792,15 @@
 .shell-main [data-slot="chat-room-flank-row"] {
   --flank-flip-dir: 0;
   --flank-track-delta: calc(var(--width-sidebar-sm) + var(--spacing-block) - var(--spacing-control-lg));
-  /* @orb-waive css-length-tokens(--flank-centre-flip-from): the zero floor of a centring delta is structural arithmetic, the same expression as --shell-centre-flip-from. */
+  /* `max(0, x - W)` is `x - min(x, W)`, so the delta needs no zero floor: with A the thread after the toggle
+   * and B before it, ((A - min(A, W)) - (B - min(B, W))) / 2 and A - B = dir * delta. */
   --flank-centre-flip-from: calc(
-    (max(0px, 100cqi + var(--flank-flip-dir) * var(--flank-track-delta) - var(--width-shell-content)) - max(0px, 100cqi - var(--width-shell-content))) /
+    (
+      var(--flank-flip-dir) *
+      var(--flank-track-delta) +
+      min(100cqi, var(--width-shell-content)) -
+      min(100cqi + var(--flank-flip-dir) * var(--flank-track-delta), var(--width-shell-content))
+    ) /
     2
   );
 }
