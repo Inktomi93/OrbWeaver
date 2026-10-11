@@ -5,8 +5,8 @@ import type { ModelCheck, ProviderDef } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { Button } from "@orb/ui/button";
-import { DialogClose } from "@orb/ui/dialog";
-import { Row, Stack } from "@orb/ui/layout";
+import { DialogClose, DialogFooter } from "@orb/ui/dialog";
+import { Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
@@ -312,7 +312,7 @@ export function AddConnectionFormBody({
               const provider = providerOf(providerId);
               // A blocked pick's notice carries its own Close; this footer would only repeat it.
               return provider !== undefined && keyStorageBlocks(provider, keyStorage) ? null : (
-                <Row gap="field" justify="end">
+                <DialogFooter>
                   {onCancel === undefined ? (
                     <DialogClose render={<Button intent="ghost">Cancel</Button>} />
                   ) : (
@@ -321,7 +321,7 @@ export function AddConnectionFormBody({
                     </Button>
                   )}
                   <form.SubmitButton>{CONNECTION_FORM_COPY.submit}</form.SubmitButton>
-                </Row>
+                </DialogFooter>
               );
             }}
           </form.Subscribe>

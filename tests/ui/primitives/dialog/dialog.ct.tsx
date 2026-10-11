@@ -1,4 +1,4 @@
-import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle, DialogTrigger } from "@orb/ui/dialog";
+import { Dialog, DialogClose, DialogDescription, DialogFooter, DialogPopup, DialogTitle, DialogTrigger } from "@orb/ui/dialog";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -253,4 +253,42 @@ test("popup content taller than the viewport scrolls instead of clipping", async
   const submit = page.getByRole("button", { name: "Submit" });
   await submit.scrollIntoViewIfNeeded();
   await expect.poll(async () => await popup.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+});
+
+test.describe("DialogFooter on a 430x740 phone", () => {
+  test.use({ viewport: { width: 430, height: 740 } });
+
+  test("stays inside the viewport with the popup's own bottom inset while the body scrolls", async ({ mount, page }) => {
+    await mount(
+      <Dialog defaultOpen={true}>
+        <DialogPopup>
+          <DialogTitle>Tall</DialogTitle>
+          <div style={{ height: "3000px", flexShrink: 0 }}>Tall content</div>
+          <DialogFooter>
+            <DialogClose>Done</DialogClose>
+          </DialogFooter>
+        </DialogPopup>
+      </Dialog>,
+    );
+    const popup = page.locator('[data-slot="dialog-popup"]');
+    const footer = page.locator('[data-slot="dialog-footer"]');
+    await expect.poll(async () => await popup.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+    await expect(page.getByRole("button", { name: "Done" })).toBeInViewport({ ratio: 1 });
+    await expect
+      .poll(async () => {
+        const [popupBox, footerBox, inset] = await Promise.all([
+          popup.boundingBox(),
+          footer.boundingBox(),
+          popup.evaluate((el) => {
+            const style = getComputedStyle(el);
+            return Number.parseFloat(style.paddingBottom) + Number.parseFloat(style.borderBottomWidth);
+          }),
+        ]);
+        return popupBox === null || footerBox === null ? Number.NaN : Math.abs(popupBox.y + popupBox.height - inset - (footerBox.y + footerBox.height));
+      })
+      .toBeLessThanOrEqual(1);
+    // Scrolled to the very end the footer lands in the same place.
+    await popup.evaluate((el) => el.scrollTo({ top: el.scrollHeight }));
+    await expect(page.getByRole("button", { name: "Done" })).toBeInViewport({ ratio: 1 });
+  });
 });

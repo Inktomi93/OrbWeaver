@@ -1235,3 +1235,28 @@ test.describe("first-model top anchor on a phone", () => {
     await expect(page.getByRole("button", { name: "Add connection", exact: true }).first()).toBeFocused();
   });
 });
+
+test.describe("add dialog footer on a phone", () => {
+  test.use({ viewport: { width: 430, height: 740 }, hasTouch: true });
+  test("the actions stay inside the viewport while the body scrolls", async ({ mount, page }) => {
+    await stubConnectionsPane(page);
+    await mount(<ConnectionsAuthoringStory width={430} />);
+    const dialog = await openAddDialog(page);
+    await pickProvider(page, dialog, "OpenRouter");
+    const add = dialog.getByRole("button", { name: "Add connection" });
+    await expect(add).toBeInViewport({ ratio: 1 });
+    await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeInViewport({ ratio: 1 });
+    // The form overflows the 740px phone, so something above the footer scrolls rather than the form fitting.
+    await expect
+      .poll(() =>
+        add.evaluate((element) => {
+          let node = element.parentElement;
+          while (node !== null && node.scrollHeight <= node.clientHeight) {
+            node = node.parentElement;
+          }
+          return node !== null && getComputedStyle(node).overflowY !== "visible";
+        }),
+      )
+      .toBe(true);
+  });
+});

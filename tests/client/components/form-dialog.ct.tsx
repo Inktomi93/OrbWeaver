@@ -88,3 +88,38 @@ test.describe("form-dialog footer on a phone", () => {
       .toBeLessThanOrEqual(740);
   });
 });
+
+// A short body at desktop size keeps the centred placement and scrolls nothing: the sticky footer adds no height.
+test("a short dialog at desktop size stays centred and does not scroll", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await mount(
+    <FormDialog
+      anchor="center"
+      open={true}
+      onOpenChange={(): void => undefined}
+      submit={{ label: "Confirm", onSubmit: (): void => undefined }}
+      title="Short prompt"
+    >
+      <input aria-label="Name" />
+    </FormDialog>,
+  );
+  const popup = page.locator('[data-slot="dialog-popup"]');
+  await expect(page.getByRole("button", { name: "Confirm" })).toBeInViewport({ ratio: 1 });
+  await expect.poll(() => popup.evaluate((element) => element.getAnimations().length)).toBe(0);
+  await expect
+    .poll(async () => {
+      const box = await popup.boundingBox();
+      return box === null ? Number.NaN : Math.abs(box.y - (800 - box.y - box.height));
+    })
+    .toBeLessThanOrEqual(1);
+  await expect
+    .poll(() =>
+      popup.evaluate((element) => {
+        const scrollers = [element, ...element.querySelectorAll("*")].filter(
+          (node) => node.scrollHeight > node.clientHeight && getComputedStyle(node).overflowY !== "visible",
+        );
+        return scrollers.length;
+      }),
+    )
+    .toBe(0);
+});

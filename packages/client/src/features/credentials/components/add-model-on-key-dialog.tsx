@@ -11,8 +11,8 @@ import type { ModelListing, ProviderDef } from "@orb/contracts/inference";
 import { providerDisplayLabel } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { Button } from "@orb/ui/button";
-import { DialogClose } from "@orb/ui/dialog";
-import { Row, Stack } from "@orb/ui/layout";
+import { DialogClose, DialogFooter } from "@orb/ui/dialog";
+import { Stack } from "@orb/ui/layout";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
@@ -149,10 +149,10 @@ function AddModelOnKeyBody({
               <field.SwitchField label={CONNECTION_FORM_COPY.backgroundLabel} description={CONNECTION_FORM_COPY.backgroundDescription} />
             )}
           </form.AppField>
-          <Row gap="field" justify="end">
+          <DialogFooter>
             <DialogClose render={<Button intent="ghost">Cancel</Button>} />
             <form.SubmitButton>{CONNECTION_FORM_COPY.submit}</form.SubmitButton>
-          </Row>
+          </DialogFooter>
         </Stack>
       </form>
     </form.AppForm>

@@ -13,8 +13,8 @@
 
 import { Button } from "@orb/ui/button";
 // @orb-waive dialog-via-composite(Dialog): the /join preview-to-confirm landing owns loading, invalid, and ready states rather than a form; ends if a flow composite owns those states.
-import { Dialog, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
-import { Row, Stack } from "@orb/ui/layout";
+import { Dialog, DialogDescription, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
@@ -103,17 +103,17 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
           }
         }}
       >
-        <Stack gap="block">
+        <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="block">
           <DialogTitle>Join a chat</DialogTitle>
           {state.kind === "loading" ? <Text voice="quiet">Checking the invite…</Text> : null}
           {state.kind === "invalid" ? (
             <>
               <DialogDescription>{DEAD_INVITE_SENTENCE}</DialogDescription>
-              <Row gap="field" justify="end">
+              <DialogFooter>
                 <Button intent="secondary" onClick={onDone} ref={primaryRef}>
                   Close
                 </Button>
-              </Row>
+              </DialogFooter>
             </>
           ) : null}
           {state.kind === "ready" ? (
@@ -124,14 +124,14 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
                   {state.preview.modeLabel}
                 </Text>
               </Stack>
-              <Row gap="field" justify="end">
+              <DialogFooter>
                 <Button intent="ghost" onClick={onDone}>
                   Not now
                 </Button>
                 <Button intent="primary" disabled={redeem.isPending} onClick={join} data-testid={testId("joinInviteConfirm")} ref={primaryRef}>
                   {redeem.isPending ? "Joining…" : "Join chat"}
                 </Button>
-              </Row>
+              </DialogFooter>
             </>
           ) : null}
         </Stack>

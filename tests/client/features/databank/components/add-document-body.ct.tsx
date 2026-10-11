@@ -153,3 +153,29 @@ test.describe("phone mode layout", () => {
     await expect(dialog.getByLabel("File", { exact: true })).toHaveAccessibleDescription(FORMAT_DESCRIPTION);
   });
 });
+
+test.describe("footer on a 430x740 phone", () => {
+  test.use({ viewport: { width: 430, height: 740 }, hasTouch: true });
+
+  test("the actions stay inside the viewport while the body scrolls", async ({ mount, page }) => {
+    await stubDatabank(page);
+    const band = await mount(<DatabankListHeaderStory />);
+    await band.getByRole("button", { name: "Add", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: "From a link", exact: true }).click();
+    const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });
+    await expect(cancel).toBeInViewport({ ratio: 1 });
+    await expect(dialog.getByRole("button", { name: "Fetch and add", exact: true })).toBeInViewport({ ratio: 1 });
+    await expect
+      .poll(() =>
+        cancel.evaluate((element) => {
+          let node = element.parentElement;
+          while (node !== null && node.scrollHeight <= node.clientHeight) {
+            node = node.parentElement;
+          }
+          return node !== null && getComputedStyle(node).overflowY !== "visible";
+        }),
+      )
+      .toBe(true);
+  });
+});

@@ -21,7 +21,7 @@ import type { UserMacroSpec } from "@orb/contracts/preset";
 import type { MacroArgType, UserMacroInputKind } from "@orb/kit/macro";
 import { createDefaultRegistry, MACRO_ARG_TYPES, USER_MACRO_INPUT_KINDS } from "@orb/kit/macro";
 import { Button } from "@orb/ui/button";
-import { DialogClose } from "@orb/ui/dialog";
+import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
@@ -144,9 +144,9 @@ export function UserMacroEditorDialog({ form, index, onClose, suggestions }: Use
           )}
         </form.AppField>
 
-        <Row gap="field" justify="end">
+        <DialogFooter>
           <DialogClose render={<Button intent="primary">Done</Button>} />
-        </Row>
+        </DialogFooter>
       </Stack>
     </FormDialog>
   );

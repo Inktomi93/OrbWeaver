@@ -1,8 +1,9 @@
-export type { DialogDescriptionProps, DialogPopupProps, DialogTitleProps } from "./dialog.tsx";
+export type { DialogDescriptionProps, DialogFooterProps, DialogPopupProps, DialogTitleProps } from "./dialog.tsx";
 export {
   Dialog,
   DialogClose,
   DialogDescription,
+  DialogFooter,
   DialogPopup,
   DialogTitle,
   DialogTrigger,

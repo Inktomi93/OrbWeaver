@@ -10,8 +10,9 @@
 // name field is pre-filled with the suggestion and mounts focused — the rename-dialog prompt shape.
 
 import { Button } from "@orb/ui/button";
+import { DialogFooter } from "@orb/ui/dialog";
 import { Input } from "@orb/ui/input";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -75,14 +76,14 @@ export function PresetForkChoiceDialog({ open, sourceName, forkName, suggestedNa
         >
           <Stack gap="block">
             <Input aria-label="New fork name" onValueChange={setName} placeholder="Preset name" ref={nameRef} value={name} />
-            <Row gap="field" justify="end">
+            <DialogFooter>
               <Button intent="ghost" onClick={(): void => setNaming(false)}>
                 Back
               </Button>
               <Button disabled={trimmed === ""} intent="primary" type="submit">
                 Create fork
               </Button>
-            </Row>
+            </DialogFooter>
           </Stack>
         </form>
       ) : (

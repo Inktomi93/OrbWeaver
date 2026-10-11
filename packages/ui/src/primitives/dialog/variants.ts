@@ -16,9 +16,14 @@ export const dialogVariants = tv({
     // registered they DO dedupe last-wins, and per-size stays because a size arm STATING its own gutter is
     // legible where an arm neutralising an inherited one is not.
     viewport: "fixed inset-0 z-(--z-modal) flex justify-center",
-    popup: `relative flex max-h-full flex-col overflow-y-auto overscroll-contain ${MODAL_SURFACE} ${OVERLAY_MOTION.modalPopup}`,
+    // A footer that is a DIRECT child of the popup sits in the popup's own scroll container, where sticky ignores
+    // the padding: it takes the bottom padding for itself so a stuck footer keeps the popup's inset.
+    popup: `relative flex max-h-full flex-col overflow-y-auto overscroll-contain [&>[data-slot=dialog-footer]]:-mb-section [&>[data-slot=dialog-footer]]:pb-section ${MODAL_SURFACE} ${OVERLAY_MOTION.modalPopup}`,
     title: "text-title leading-title font-semibold",
     description: "mt-field text-body leading-body text-muted-foreground",
+    // The action row. Place it last inside the region that scrolls the body: `sticky bottom-0` keeps it at that
+    // region's bottom edge, and the opaque surface hides the body passing beneath it.
+    footer: "sticky bottom-0 z-10 flex shrink-0 items-center justify-end gap-field bg-popover pt-field",
   },
   variants: {
     size: {

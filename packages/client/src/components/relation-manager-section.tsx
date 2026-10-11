@@ -7,7 +7,7 @@
 // client-shared (a generic relation manager — the RowActionsMenu precedent; NOT @orb/ui, ui stays parts-only).
 
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogClose, DialogPopup, DialogTitle, DialogTrigger } from "@orb/ui/dialog";
+import { Dialog, DialogClose, DialogFooter, DialogPopup, DialogTitle, DialogTrigger } from "@orb/ui/dialog";
 import { Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
@@ -89,7 +89,7 @@ export function RelationManagerSection<TId extends string>({
       <Dialog>
         <DialogTrigger render={<Button intent="secondary">{addTriggerLabel}</Button>} />
         <DialogPopup>
-          <Stack gap="block">
+          <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="block">
             <DialogTitle>{addTitle}</DialogTitle>
             {available.length === 0 ? (
               <Text tone="muted">{addEmptyLabel}</Text>
@@ -109,7 +109,9 @@ export function RelationManagerSection<TId extends string>({
                 ))}
               </Stack>
             )}
-            <DialogClose render={<Button intent="ghost">Done</Button>} />
+            <DialogFooter>
+              <DialogClose render={<Button intent="ghost">Done</Button>} />
+            </DialogFooter>
           </Stack>
         </DialogPopup>
       </Dialog>

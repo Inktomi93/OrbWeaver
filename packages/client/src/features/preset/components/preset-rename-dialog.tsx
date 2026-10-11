@@ -9,9 +9,9 @@
 // who opens it.
 
 import { Button } from "@orb/ui/button";
-import { DialogClose } from "@orb/ui/dialog";
+import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Input } from "@orb/ui/input";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
@@ -60,12 +60,12 @@ export function PresetRenameDialog({ open, onOpenChange, currentName, onRename }
             // eslint-disable-next-line jsx-a11y/no-autofocus
             autoFocus={true}
           />
-          <Row gap="field" justify="end">
+          <DialogFooter>
             <DialogClose render={<Button intent="ghost">Cancel</Button>} />
             <Button intent="primary" type="submit" disabled={!canSave}>
               Save
             </Button>
-          </Row>
+          </DialogFooter>
         </Stack>
       </form>
     </FormDialog>

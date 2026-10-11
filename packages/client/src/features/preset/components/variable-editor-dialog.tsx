@@ -5,7 +5,7 @@
 import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 // @orb-waive dialog-via-composite(Dialog): this seven-field form needs a pinned title above its internally-scrolled dynamic body; ends when FormDialog supports that layout.
-import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { Dialog, DialogClose, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -61,9 +61,9 @@ export function VariableEditorDialog({ form, index, onClose }: VariableEditorDia
             {(field): ReactElement => <field.SwitchField label="Random pick" description="Choose an option at random instead of asking." />}
           </form.AppField>
 
-          <Row gap="field" justify="end">
+          <DialogFooter>
             <DialogClose render={<Button intent="primary">Done</Button>} />
-          </Row>
+          </DialogFooter>
         </Stack>
       </DialogPopup>
     </Dialog>
