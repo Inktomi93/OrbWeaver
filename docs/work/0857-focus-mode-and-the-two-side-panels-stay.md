@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-11
 priority: P2
 area: client
+lane: wt/agent-adc51f781af4ecfb9
 ---
 
 # Focus mode and the two side panels stay in sync
