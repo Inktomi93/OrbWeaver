@@ -9,6 +9,8 @@
 import { FlaskConical } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { QueryBoundary } from "#components";
+import { SkeletonRows } from "#data";
 import type { ContextTabDef, RefineryContextState } from "#lib";
 import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
@@ -86,6 +88,8 @@ function useRefinerySelectionTitle(): string | null {
   return `${REFINERY_SECTION_LABEL} · ${String(census)}`;
 }
 
+const REFINERY_LIST_SKELETON_ROWS = 6;
+
 export const refinerySection: SectionDefinition = {
   id: "refinery",
   rail: { label: REFINERY_SECTION_LABEL, icon: FlaskConical, group: "authoring", mobile: "sheet" },
@@ -98,7 +102,9 @@ export const refinerySection: SectionDefinition = {
   },
   list: (): ReactElement => (
     <RefineryListAnchor>
-      <RefineryListSurface />
+      <QueryBoundary fallback={<SkeletonRows count={REFINERY_LIST_SKELETON_ROWS} />} reserveKey="refinery.list">
+        <RefineryListSurface />
+      </QueryBoundary>
     </RefineryListAnchor>
   ),
   listSearch: "required",

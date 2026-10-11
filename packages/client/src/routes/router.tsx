@@ -1,4 +1,5 @@
 import { createRoute, createRouter, lazyRouteComponent, notFound, redirect } from "@tanstack/react-router";
+import type { ReactElement } from "react";
 import { redirectIfAuthed, requireAuthed } from "#features/auth";
 import { healCorpusModeFrom, openConfigTo, parseConfigLink, resolveSectionPath, setActiveSection } from "#state";
 // Deep, not `#lib`: app-ready-signal is OUT of the barrel so its production import graph stays explicit.
@@ -6,6 +7,7 @@ import { healCorpusModeFrom, openConfigTo, parseConfigLink, resolveSectionPath, 
 import type { RouteResolution } from "../lib/app-ready-signal.ts";
 import { rootRoute } from "./__root.tsx";
 import { LoginPage } from "./login-page.tsx";
+import { RouteError } from "./route-error.tsx";
 import { RoutePending } from "./route-pending.tsx";
 import { observeRouterViewTransitions } from "./router-view-transition.ts";
 
@@ -89,6 +91,9 @@ export const router = createRouter({
   // Paints while beforeLoad's auth gate resolves — without it a slow/hanging fetch shows a blank page.
   defaultPendingComponent: RoutePending,
   defaultPendingMs: 0,
+  // A failed lazy chunk lands here. The browser caches a failed module fetch for the life of the document, so only
+  // a reload can retry it.
+  defaultErrorComponent: (): ReactElement => <RouteError onRetry={(): void => globalThis.location.reload()} />,
   // A free crossfade on the only real navigations (/ <-> /login); no-op without the View Transition API.
   defaultViewTransition: true,
 });

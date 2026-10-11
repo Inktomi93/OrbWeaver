@@ -21,6 +21,7 @@ import { StrictMode, useEffect, useState } from "react";
 import type { RouteResolution } from "../../../packages/client/src/lib/app-ready-signal.ts";
 import { installAppReadySignal } from "../../../packages/client/src/lib/app-ready-signal.ts";
 import { AppRoot } from "../../../packages/client/src/routes/app-root.tsx";
+import { RoutePending } from "../../../packages/client/src/routes/route-pending.tsx";
 import { router } from "../../../packages/client/src/routes/router.tsx";
 import { CtDataProviders, CtRealSectionRegistry } from "../../support/browser/ct-data-providers.tsx";
 
@@ -108,6 +109,23 @@ export function HomePageReadinessStory(): ReactElement {
       <CtRealSectionRegistry>
         <InstallAppReadySignal />
         <HomePageRouter />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** {@link HomePageStory} under the production router pending screen: a read that suspends past every section
+ *  boundary replaces the whole shell with the loading glyph here, exactly as it does in the app. */
+export function HomePagePendingStory(): ReactElement {
+  const [pendingRouter] = useState(() => {
+    const root = createRootRoute();
+    const home = createRoute({ getParentRoute: () => root, path: "/", component: AppRoot });
+    return createRouter({ routeTree: root.addChildren([home]), defaultPendingComponent: RoutePending, defaultPendingMs: 0 });
+  });
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <RouterProvider router={pendingRouter} />
       </CtRealSectionRegistry>
     </CtDataProviders>
   );

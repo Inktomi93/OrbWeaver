@@ -33,6 +33,53 @@ describe("observeRouterViewTransitions", () => {
     expect(transitionDocument.startViewTransition).toBe(nativeStart);
   });
 
+  test("starts no native transition while the document is hidden, and the router update still runs", () => {
+    const nativeStart = vi.fn();
+    const transitionDocument: { visibilityState: string; startViewTransition: typeof nativeStart | undefined } = {
+      visibilityState: "hidden",
+      startViewTransition: nativeStart,
+    };
+    vi.stubGlobal("document", transitionDocument);
+    let nativeSeenByRouter: unknown;
+    const router = {
+      startViewTransition: (routerUpdate: () => Promise<void>): void => {
+        nativeSeenByRouter = transitionDocument.startViewTransition;
+        routerUpdate().catch(() => undefined);
+      },
+    };
+    const update = vi.fn(() => Promise.resolve());
+
+    observeRouterViewTransitions(router);
+    router.startViewTransition(update);
+
+    expect(nativeSeenByRouter).toBeUndefined();
+    expect(nativeStart).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledOnce();
+    expect(transitionDocument.startViewTransition).toBe(nativeStart);
+  });
+
+  test("absorbs the InvalidStateError Chrome rejects ready and finished with on a hidden document", async () => {
+    const queued: Array<() => void> = [];
+    const hidden = Object.assign(new Error("Transition was aborted because of invalid state. Document hidden"), { name: "InvalidStateError" });
+    vi.stubGlobal("queueMicrotask", (callback: () => void) => queued.push(callback));
+    const transitionDocument = {
+      startViewTransition: () => ({ ready: Promise.reject(hidden), finished: Promise.reject(hidden), updateCallbackDone: Promise.resolve() }),
+    };
+    vi.stubGlobal("document", transitionDocument);
+    const router = {
+      startViewTransition: (): void => {
+        transitionDocument.startViewTransition().updateCallbackDone.catch(() => undefined);
+      },
+    };
+
+    observeRouterViewTransitions(router);
+    router.startViewTransition();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(queued).toHaveLength(0);
+  });
+
   test("surfaces an AbortError thrown by the router update callback", async () => {
     const queued: Array<() => void> = [];
     const callbackAbort = Object.assign(new Error("application update aborted"), { name: "AbortError" });
