@@ -491,6 +491,7 @@ if (host.grants.includes("ui.surface")) {
   host.ui.registerCommand({
     name: "draw",
     describe: "Draw from the oracle deck — one card, several, or a past/present/future spread",
+    placements: [{ target: "composer-action", label: "Draw", icon: "sparkles" }],
     args: [
       { name: "count", type: "number", describe: "How many cards to draw (1-3, default 1)" },
       {
@@ -531,6 +532,7 @@ if (host.grants.includes("ui.surface")) {
   host.ui.registerCommand({
     name: "reveal",
     describe: "Open the reveal dialog for this oracle session",
+    placements: [{ target: "composer-action", label: "Reveal" }],
     onRun: async () => {
       const session = await loadSession();
       await host.ui.setState("reveal_dialog", {

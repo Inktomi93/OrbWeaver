@@ -190,7 +190,8 @@ function DisplayLeaf({
   }
   if (node.kind === "badge") {
     return (
-      <Badge intent={node.intent ?? "neutral"} size="sm" tone="soft">
+      // Plugin text has no length bound the pill was drawn for: wrap inside the surface rather than clip.
+      <Badge className="max-w-full whitespace-normal" intent={node.intent ?? "neutral"} size="sm" tone="soft">
         {resolveString(node.text, state)}
       </Badge>
     );

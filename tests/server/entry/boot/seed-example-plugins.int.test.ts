@@ -448,6 +448,7 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
     expect.objectContaining({ pluginId: installed.id, slug: "oracle-deck", pluginName: "Oracle Deck", name: "draw" }),
     expect.objectContaining({ pluginId: installed.id, slug: "oracle-deck", pluginName: "Oracle Deck", name: "reveal", args: [] }),
   ]);
+  expect(commands.map((command) => command.placements.map((placement) => placement.target))).toEqual([["composer-action"], ["composer-action"]]);
   expect(commands[0]?.args).toEqual([
     expect.objectContaining({ name: "count", type: "number" }),
     expect.objectContaining({ name: "spread", type: "enum", enumValues: ["single", "past_present_future"] }),
@@ -1026,7 +1027,9 @@ test("keepsake camera: the spend pipeline — structured quiet falls back, the p
   // is a BOUND grid and whose detail stage is a BOUND image — this passing the real registration validation
   // IS the receipt that the new vocabulary survives an actual activation over the WASM runtime).
   const commands = await h.service.listCommands({ caller });
-  expect(commands).toEqual([expect.objectContaining({ name: "snapshot", slug: "keepsake-camera" })]);
+  expect(commands).toEqual([
+    expect.objectContaining({ name: "snapshot", slug: "keepsake-camera", placements: [{ target: "composer-media", label: "Snapshot", icon: "images" }] }),
+  ]);
   expect(commands[0]?.args?.map((arg) => arg.name)).toEqual(["style", "note"]);
   expect(await h.service.listSurfaces({ caller })).toEqual([expect.objectContaining({ id: "album_page", anchor: "page", tier: "static" })]);
 
