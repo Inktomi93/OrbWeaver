@@ -8,10 +8,14 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import { readPhantomScrollers } from "../../../../support/browser/scroll-containing-block.ts";
 import { ContextDefaultTabStory, ContextMetaRailStory, ContextTabStatesStory, ContextTabStripStory, EmptyContextScrollStory } from "../_ct-stories.tsx";
 
-const TAB_NAMES = ["Members", "Settings", "Preview", "Injections"] as const;
+/** Chat's own tabs, named by the product's own labels. */
+const TAB_NAMES = Object.values(CHAT_CONTEXT_TAB_LABELS);
+const MEMBERS_TAB = CHAT_CONTEXT_TAB_LABELS.members;
+const SETTINGS_TAB = CHAT_CONTEXT_TAB_LABELS.settings;
 const TRANSPARENT = "rgba(0, 0, 0, 0)";
 
 /** The pane's ONE tab strip — the section-named tablist in the header row. */
@@ -22,7 +26,7 @@ function strip(component: Locator): Locator {
 function state(component: Locator): Locator {
   return component.getByRole("toolbar", { name: "Game state" });
 }
-/** One tab of the header strip; `exact` so "Members" never matches a "Members — 3" chip. */
+/** One tab of the header strip; `exact` so the Members tab never matches a "Members — 3" chip. */
 function tab(component: Locator, name: string): Locator {
   return strip(component).getByRole("tab", { name, exact: true });
 }
@@ -55,11 +59,11 @@ test("an `opaque` tab's panel paints an opaque fill and an ordinary tab's panel 
     return fill.startsWith("rgba") ? (channels[3] ?? 1) : 1;
   };
 
-  await expect(panel("Members")).toBeVisible();
-  expect(await fillOf("Members"), "an ordinary tab's panel keeps the pane's own surface").toBe(TRANSPARENT);
-  await tab(component, "Settings").click();
-  await expect(panel("Settings")).toBeVisible();
-  expect(alphaOf(await fillOf("Settings")), "the setup view's panel is opaque").toBe(1);
+  await expect(panel(MEMBERS_TAB)).toBeVisible();
+  expect(await fillOf(MEMBERS_TAB), "an ordinary tab's panel keeps the pane's own surface").toBe(TRANSPARENT);
+  await tab(component, SETTINGS_TAB).click();
+  await expect(panel(SETTINGS_TAB)).toBeVisible();
+  expect(alphaOf(await fillOf(SETTINGS_TAB)), "the setup view's panel is opaque").toBe(1);
 });
 
 // ── ONE TABLIST, IN THE HEADER ROW, NO FOOT RAIL ─────────────────────────────────────────────────────────
@@ -73,14 +77,11 @@ test("a pane has exactly ONE tablist, seated in the header row, with real tab se
   await expect(component.getByRole("toolbar")).toHaveCount(0);
   // The strip lives INSIDE the header row — the one place the pane's navigation is.
   await expect(component.locator('[data-slot="context-bracket-header"]').getByRole("tablist")).toHaveCount(1);
-  await expect(tab(component, "Members")).toHaveAttribute("aria-selected", "true");
+  await expect(tab(component, MEMBERS_TAB)).toHaveAttribute("aria-selected", "true");
   await expect(component.locator('[aria-selected="true"]')).toHaveCount(1);
   await expect(strip(component)).toMatchAriaSnapshot(`
     - tablist "Chat":
-      - tab "Members"
-      - tab "Settings"
-      - tab "Preview"
-      - tab "Injections"
+${TAB_NAMES.map((name) => `      - tab "${name}"`).join("\n")}
   `);
 });
 
@@ -130,7 +131,7 @@ test("when the tabs do not fit, the strip SCROLLS inside the header — whole wo
 test("an icon-LESS tab sits in the same strip as icon tabs and both keep their word", async ({ mount }) => {
   const component = await mount(<ContextTabStripStory width={600} withIconless={true} />);
   await expect(tab(component, "Iconless").locator('[data-slot="context-cell-caption"]')).toHaveText("Iconless");
-  await expect(tab(component, "Members").locator('[data-slot="context-cell-caption"]')).toHaveText("Members");
+  await expect(tab(component, MEMBERS_TAB).locator('[data-slot="context-cell-caption"]')).toHaveText(MEMBERS_TAB);
   await expect.poll(async () => clippedCaptions(component)).toBe(0);
 });
 
@@ -138,17 +139,17 @@ test("an icon-LESS tab sits in the same strip as icon tabs and both keep their w
 
 test("the strip is ONE tab stop with roving focus and manual activation, and the viewport is a region named by the selected tab", async ({ mount, page }) => {
   const component = await mount(<ContextTabStripStory width={480} />);
-  const members = tab(component, "Members");
+  const members = tab(component, MEMBERS_TAB);
   await members.focus();
-  await expect(tab(component, "Settings")).toHaveAttribute("tabindex", "-1");
+  await expect(tab(component, SETTINGS_TAB)).toHaveAttribute("tabindex", "-1");
   await page.keyboard.press("ArrowRight");
   // Focus MOVED, nothing was committed.
-  await expect(tab(component, "Settings")).toBeFocused();
+  await expect(tab(component, SETTINGS_TAB)).toBeFocused();
   await expect(members).toHaveAttribute("aria-selected", "true");
-  await expect(tab(component, "Settings")).toHaveAttribute("aria-selected", "false");
+  await expect(tab(component, SETTINGS_TAB)).toHaveAttribute("aria-selected", "false");
   // Enter commits.
   await page.keyboard.press("Enter");
-  await expect(tab(component, "Settings")).toHaveAttribute("aria-selected", "true");
+  await expect(tab(component, SETTINGS_TAB)).toHaveAttribute("aria-selected", "true");
   await expect(members).toHaveAttribute("aria-selected", "false");
 
   await expect(component.getByRole("tabpanel")).toHaveCount(0);
@@ -167,7 +168,7 @@ test("a game tab lands in the state rail UNDER the header strip; the pane still 
   await expect(component.getByRole("tablist")).toHaveCount(1);
   await expect(state(component)).toBeVisible();
   await expect(stateCell(component, "Status")).toBeVisible();
-  await expect(tab(component, "Members")).toBeVisible();
+  await expect(tab(component, MEMBERS_TAB)).toBeVisible();
 
   // Geometry: header strip → state rail → viewport.
   const [header, rail, viewport] = await Promise.all([
@@ -182,9 +183,9 @@ test("a game tab lands in the state rail UNDER the header strip; the pane still 
   await expect(stateCell(component, "Status")).toHaveAttribute("aria-current", "true");
   await expect(component.locator('[aria-selected="true"]')).toHaveCount(0);
 
-  await tab(component, "Settings").click();
+  await tab(component, SETTINGS_TAB).click();
   await expect(component.getByTestId("ctx-body-settings")).toBeVisible();
-  await expect(tab(component, "Settings")).toHaveAttribute("aria-selected", "true");
+  await expect(tab(component, SETTINGS_TAB)).toHaveAttribute("aria-selected", "true");
   await expect(stateCell(component, "Status")).not.toHaveAttribute("aria-current", "true");
   await expect(component.locator('[aria-selected="true"]')).toHaveCount(1);
 });
@@ -200,12 +201,12 @@ test("the header's active bar belongs to header tabs only: no bar while a state 
   await expect(indicator).toBeHidden();
 
   // A header tab holds it: the bar sits under THAT tab.
-  await tab(component, "Settings").click();
-  await expect(tab(component, "Settings")).toHaveAttribute("aria-selected", "true");
+  await tab(component, SETTINGS_TAB).click();
+  await expect(tab(component, SETTINGS_TAB)).toHaveAttribute("aria-selected", "true");
   await expect(indicator).toBeVisible();
   await expect
     .poll(async () => {
-      const [bar, current] = await Promise.all([indicator.boundingBox(), tab(component, "Settings").boundingBox()]);
+      const [bar, current] = await Promise.all([indicator.boundingBox(), tab(component, SETTINGS_TAB).boundingBox()]);
       return bar !== null && current !== null && bar.x >= current.x - 1 && bar.x + bar.width <= current.x + current.width + 1;
     })
     .toBe(true);
@@ -224,7 +225,7 @@ test("one view is not a strip: a single resolved tab leaves a header that NAMES 
   const heading = component.locator('[data-slot="context-bracket-header"] [data-slot="context-header-title"]');
   await expect(heading).toHaveText("Chat");
   await expect(component.locator('[data-slot="context-bracket-header"]').getByRole("button", { name: "Close Chats details" })).toBeVisible();
-  await expect(component.getByRole("region", { name: "Members" })).toBeVisible();
+  await expect(component.getByRole("region", { name: MEMBERS_TAB })).toBeVisible();
 });
 
 // A section whose rail label is also its topbar title would print that word again in the pane header.
@@ -237,7 +238,7 @@ test("End on the strip scrolls to the true end: the end fade stands down and nev
   const component = await mount(<ContextMetaRailStory />);
   const list = strip(component);
   await expect(component.locator('[data-slot="context-tab-strip"]')).toHaveAttribute("data-overflow-end", "true");
-  await tab(component, "Members").focus();
+  await tab(component, MEMBERS_TAB).focus();
   await page.keyboard.press("End");
   await expect(tab(component, "Activity")).toBeFocused();
   // The scroll leaves a gutter beside the focused tab and the track stops at its end: no fade left to cover it.
@@ -254,16 +255,16 @@ test("End on the strip scrolls to the true end: the end fade stands down and nev
 test("defaultTab (§4.1): a fresh panel lands on the flagged tab, not the declared-order first", async ({ mount }) => {
   const component = await mount(<ContextDefaultTabStory />);
   await expect(stateCell(component, "Status")).toHaveAttribute("aria-current", "true");
-  await expect(tab(component, "Members")).toHaveAttribute("aria-selected", "false");
+  await expect(tab(component, MEMBERS_TAB)).toHaveAttribute("aria-selected", "false");
   await expect(component.getByTestId("ctx-body-status")).toBeVisible();
-  await tab(component, "Members").click();
-  await expect(tab(component, "Members")).toHaveAttribute("aria-selected", "true");
+  await tab(component, MEMBERS_TAB).click();
+  await expect(tab(component, MEMBERS_TAB)).toHaveAttribute("aria-selected", "true");
   await expect(stateCell(component, "Status")).not.toHaveAttribute("aria-current", "true");
 });
 
 test("the selected tab names itself: ink at the foreground and the strip's active bar rides the header's bottom edge", async ({ mount }) => {
   const component = await mount(<ContextTabStripStory width={480} />);
-  const members = tab(component, "Members");
+  const members = tab(component, MEMBERS_TAB);
   await expect(members).toHaveAttribute("aria-selected", "true");
   const indicator = component.locator('[data-slot="tabs-indicator"]');
   await expect(indicator).toBeVisible();

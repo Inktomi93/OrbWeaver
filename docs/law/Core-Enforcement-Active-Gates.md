@@ -115,7 +115,7 @@ in its own module header, never restated here.
 | `css-var-defined` | css-variable-resolution | ordinary/error | @frontend | a custom-property reference has no… |
 | `css-var-defined-grants` | css-variable-resolution | reviewed-grant/error | @frontend | a vendor custom property or runtime… |
 | `css-var-defined-health` | css-variable-resolution | hard/error | @frontend | the CSS-variable evidence population… |
-| `ct-config-mirror-parity` | — | hard/error | @client,@tests\* | the browser-CT config composition has… |
+| `ct-config-mirror-parity` | — | hard/error | @client,@tests\* | the browser-CT door has drifted from… |
 | `ct-no-oneshot-live-read-assert` | — | ordinary/error | @tests\* | a non-retrying expect() reads MUTABLE… |
 | `ct-poll-schedule-and-paint` | — | hard/error | @tests | a Playwright poll idiom that loses… |
 | `ct-poll-schedule-and-paint-health` | ct-poll-schedule-and-paint | hard/error | @tests\* | the founding CT for the… |

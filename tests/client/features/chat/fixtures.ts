@@ -141,6 +141,10 @@ export const CHAT_AMBIENT_ROUTES: TrpcRoutes<
   | "connection.list"
   | "connection.listBindings"
   | "connection.resolveChatCapability"
+  | "plugin.list"
+  | "plugin.listSurfaces"
+  | "plugin.listCommands"
+  | "chat.getRuntimeVariables"
 > = {
   // The viewer's settings row, at the production defaults (`userSettingsSchema.parse({})`) — the same shape
   // the workloads/admin CTs feed. Real config, so a reader that keys off a tier gets a tier.
@@ -208,6 +212,13 @@ export const CHAT_AMBIENT_ROUTES: TrpcRoutes<
     providerId: testProviderId(AMBIENT_CONNECTION.providerId),
     model: testModelId(AMBIENT_CONNECTION.model),
   }),
+  // The plugin plane and the room's variable fold, read by the production door's chat surfaces (the plugin
+  // flank, composer and footer anchors, the automation meters) and its plugin palette source. EMPTY is the
+  // honest default for a viewer with no plugins and a room that carries no variables.
+  "plugin.list": [],
+  "plugin.listSurfaces": [],
+  "plugin.listCommands": [],
+  "chat.getRuntimeVariables": {},
 };
 
 /**

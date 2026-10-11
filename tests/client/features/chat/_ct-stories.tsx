@@ -9,7 +9,6 @@ import { ListPaneHeaderHost, QueryBoundary } from "@orb/client/components";
 import type { ChatBusDeps } from "@orb/client/data";
 import { applyChatBusEvent, createInvalidation, QueryErrorState, useOrbSocket, useTRPC } from "@orb/client/data";
 import { automationActivityTab, automationQuickReplySource, automationSuggestionSource } from "@orb/client/features/automation";
-import { characterSlashCommands } from "@orb/client/features/character";
 import type { GoToSection } from "@orb/client/features/chat";
 import {
   CharacterGalleryAnchor,
@@ -23,7 +22,6 @@ import {
   chatMastheadTile,
   chatQuickPicksTile,
   chatRecentsTile,
-  chatSlashCommands,
   chatTempChatTile,
   JoinInviteDialog,
   MessageListSurface,
@@ -31,7 +29,6 @@ import {
   makeChatControlsContribution,
   NewChatPicker,
 } from "@orb/client/features/chat";
-import { corpusModePaletteSource } from "@orb/client/features/discovery";
 import { HomeSurface } from "@orb/client/features/home";
 // #618 — the shell-level detail modal the room-image click opens; imported through the SAME front door the
 // providers use, never a relative path (a relative import gets a different React context instance).
@@ -46,7 +43,6 @@ import type {
   ChatControlSourceMountProps,
   ChatSurfaceAnchor,
   ChatSurfaceContribution,
-  CommandPaletteSource,
   ContextTabDef,
   ContributorRegistry,
   MessageRenderContext,
@@ -197,18 +193,17 @@ import { createWarningSurface } from "#client/features/chat/lib/turn-warning-sur
 import { warningNotice } from "#client/features/chat/lib/warning-notice.ts";
 import { enableAppearanceMessageRegistry } from "#client/lib/appearance-message-registry.ts";
 import type { SlashArgOffer } from "#client/lib/contribution-contracts.ts";
-import { CtAppDataProviders, CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
+import {
+  CtAppDataProviders,
+  CtChatContributorSectionRegistry,
+  CtDataProviders,
+  CtRealConfigSectionRegistry,
+  CtRealSectionRegistry,
+} from "../../../support/browser/ct-data-providers.tsx";
+import { chatSurfaceContributors, commandPaletteSources, slashCommands, toolRenderers } from "../../../support/browser/ct-door.ts";
 import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeChatSummary, makeMessageView } from "./fixtures.ts";
-
-// The door's empty chat-surface registry (§6c/M8) — stories that don't test the seam itself pass this,
-// mirroring main.tsx's zero-contribution assembly (no visual change over today's layout).
-const NO_SURFACE_CONTRIBUTORS = createContributorRegistry<ChatSurfaceContribution>("chat-surface", []);
-
-// The door's empty per-tool-name renderer registry (§6c) — mirrors main.tsx's zero-contribution assembly, so
-// every persisted tool record renders through the generic `ToolCallBlock` fallback.
-const NO_TOOL_RENDERERS = createContributorRegistry<ToolRenderer>("tool-renderers", []);
 
 // ── Pure-render stories (no data layer) ─────────────────────────────────────────────────────────
 
@@ -432,7 +427,7 @@ export function MessageRowStory({
             activePersonaId={activePersonaId}
             anchorPersonaId={anchorPersonaId}
             viewerIsHost={viewerIsHost}
-            toolRenderers={NO_TOOL_RENDERERS}
+            toolRenderers={toolRenderers}
           />
         </MessageThreadAnchor>
       </div>
@@ -544,7 +539,7 @@ export function NarratorTranscriptStory({
     participants: participantsMap,
     characterNamesById,
     personaNamesById,
-    toolRenderers: NO_TOOL_RENDERERS,
+    toolRenderers,
   } as const;
   return (
     <CtDataProviders>
@@ -598,7 +593,7 @@ export function GroupTranscriptAttributionStory({ chatStyle, participants, perso
     participants: participantsMap,
     characterNamesById,
     personaNamesById,
-    toolRenderers: NO_TOOL_RENDERERS,
+    toolRenderers,
   } as const;
   const [first, second] = seated;
   return (
@@ -1244,7 +1239,7 @@ function SurfaceHarness({ chatId = CHAT_ID }: { readonly chatId?: ChatId } = {})
   return (
     <div style={{ height: 480 }}>
       <MessageThreadAnchor>
-        <MessageListSurface chatId={chatId} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} toolRenderers={NO_TOOL_RENDERERS} />
+        <MessageListSurface chatId={chatId} busDeps={busDeps} surfaceContributors={chatSurfaceContributors} toolRenderers={toolRenderers} />
       </MessageThreadAnchor>
     </div>
   );
@@ -1306,7 +1301,7 @@ function StreamNoticeHarness({ columnHeight }: { readonly columnHeight: number }
       <main className="shell-content">
         <div className="shell-region-fill">
           <MessageThreadAnchor>
-            <MessageListSurface chatId={CHAT_ID} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} toolRenderers={NO_TOOL_RENDERERS} />
+            <MessageListSurface chatId={CHAT_ID} busDeps={busDeps} surfaceContributors={chatSurfaceContributors} toolRenderers={toolRenderers} />
           </MessageThreadAnchor>
         </div>
       </main>
@@ -1418,7 +1413,7 @@ function FooterDisclosureHarness(): ReactElement {
   return (
     <div style={{ height: 480 }}>
       <MessageThreadAnchor>
-        <MessageListSurface chatId={CHAT_ID} busDeps={busDeps} surfaceContributors={FOOTER_DISCLOSURE_CONTRIBUTORS} toolRenderers={NO_TOOL_RENDERERS} />
+        <MessageListSurface chatId={CHAT_ID} busDeps={busDeps} surfaceContributors={FOOTER_DISCLOSURE_CONTRIBUTORS} toolRenderers={toolRenderers} />
       </MessageThreadAnchor>
     </div>
   );
@@ -1454,7 +1449,7 @@ function StoppingHarness(): ReactElement {
   return (
     <div style={{ height: 480 }}>
       <MessageThreadAnchor>
-        <MessageListSurface chatId={CHAT_ID} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} toolRenderers={NO_TOOL_RENDERERS} />
+        <MessageListSurface chatId={CHAT_ID} busDeps={busDeps} surfaceContributors={chatSurfaceContributors} toolRenderers={toolRenderers} />
       </MessageThreadAnchor>
       <button
         type="button"
@@ -2046,17 +2041,16 @@ function CtFakeCommandMount({ onRunner, onFire }: SlashCommandMountProps & { rea
 
 export interface CommandPaletteSurfaceStoryProps {
   /** Which slash-command registry the palette reads.
-   *  `"door"` (default) mirrors main.tsx's assembly — the feature-owned built-ins, and nothing else.
-   *  `"none"` mounts NO Provider at all: the zero-registrant baseline (navigation groups only).
+   *  `"door"` (default) is the production slash-command list.
+   *  `"none"` mounts NO slash-command Provider at all: the zero-registrant baseline (navigation groups only).
    *  `"contributed"` adds one fake contribution on top of the door set (the extension proof). */
   readonly commands?: "door" | "none" | "contributed";
-  readonly corpus?: boolean;
 }
 
 /** The palette's registry: the real door set, plus one grafted contribution in the `"contributed"` arm.
  *  Module-scope + pure (D54 full-compile — manual memo is banned; the compiler caches the call site). */
 function buildPaletteRegistry(commands: CommandPaletteSurfaceStoryProps["commands"], onFakeFire: () => void): ContributorRegistry<SlashCommandContribution> {
-  const door = [...chatSlashCommands, ...characterSlashCommands];
+  const door = slashCommands.list();
   const contributions: readonly SlashCommandContribution[] =
     commands === "contributed"
       ? [
@@ -2075,20 +2069,25 @@ function buildPaletteRegistry(commands: CommandPaletteSurfaceStoryProps["command
 /** The J4 ⌘K command palette body, wired to the real data layer (routeTrpc stubs `chat.listChats`).
  *  `goToSections` is a fixed CT literal (app-root derives it from the section registry in production);
  *  the COMMAND rows come from the real slash-command registry, exactly as they do at the door. */
-export function CommandPaletteSurfaceStory({ commands = "door", corpus = false }: CommandPaletteSurfaceStoryProps): ReactElement {
+export function CommandPaletteSurfaceStory({ commands = "door" }: CommandPaletteSurfaceStoryProps): ReactElement {
   const [ranFake, setRanFake] = useState(false);
   const registry = buildPaletteRegistry(commands, (): void => setRanFake(true));
 
-  const sources = createContributorRegistry<CommandPaletteSource>("command-palette-sources", corpus ? [corpusModePaletteSource] : []);
   const body = (
-    <CommandPaletteSourceRegistryProvider value={sources}>
+    <CommandPaletteSourceRegistryProvider value={commandPaletteSources}>
       <div style={{ height: 480, width: 560 }}>
         <CommandPaletteSurface goToSections={[...CT_GO_TO_SECTIONS, { id: "config", label: "Settings" }]} />
         <div data-testid="ct-palette-command-ran">{ranFake ? "ran" : ""}</div>
       </div>
     </CommandPaletteSourceRegistryProvider>
   );
-  return <CtDataProviders>{commands === "none" ? body : <SlashCommandRegistryProvider value={registry}>{body}</SlashCommandRegistryProvider>}</CtDataProviders>;
+  return (
+    <CtDataProviders>
+      <CtRealConfigSectionRegistry>
+        {commands === "none" ? body : <SlashCommandRegistryProvider value={registry}>{body}</SlashCommandRegistryProvider>}
+      </CtRealConfigSectionRegistry>
+    </CtDataProviders>
+  );
 }
 
 // ── Chat-room story (the composed transcript + composer pane) ────────────────────────────────────
@@ -2102,7 +2101,7 @@ function ChatRoomHarness({ height = 480 }: { readonly height?: number | string }
   };
   return (
     <div style={{ height }}>
-      <ChatRoomSurface busDeps={busDeps} handle={committedChat(CHAT_ID)} surfaceContributors={NO_SURFACE_CONTRIBUTORS} toolRenderers={NO_TOOL_RENDERERS} />
+      <ChatRoomSurface busDeps={busDeps} handle={committedChat(CHAT_ID)} surfaceContributors={chatSurfaceContributors} toolRenderers={toolRenderers} />
       {/* The clear-on-send signal: simulates the bus observing the caller's OWN user-row
           `messageCommitted`. Driven directly rather than through the SSE stub because the signal itself is
           what the send hook subscribes to, and this fires it deterministically for CHAT_ID. */}
@@ -2403,7 +2402,7 @@ export function ChatSurfaceContributorStory({ anchor, visible, silent = false, g
   );
 }
 
-/** The REAL `chats` section content open on {@link CHAT_ID} with no surface contributors: the production
+/** The REAL `chats` section content open on {@link CHAT_ID} with the door's surface contributors: the production
  *  room path a room-changing action (Fork chat here) is driven through. */
 export function ChatsSectionRoomStory(): ReactElement {
   useEffect(() => {
@@ -2411,7 +2410,7 @@ export function ChatsSectionRoomStory(): ReactElement {
   }, []);
   return (
     <CtDataProviders>
-      <CtChatContributorSectionRegistry surfaceContributors={NO_SURFACE_CONTRIBUTORS}>
+      <CtChatContributorSectionRegistry surfaceContributors={chatSurfaceContributors}>
         <ChatContentHarness />
       </CtChatContributorSectionRegistry>
     </CtDataProviders>
@@ -4141,9 +4140,7 @@ function ChatControlsRoom({
     stream: chatStream,
     invalidate: createInvalidation({ queryClient, trpc }).invalidate,
   };
-  const room = (
-    <ChatRoomSurface busDeps={busDeps} handle={committedChat(CHAT_ID)} surfaceContributors={surfaceContributors} toolRenderers={NO_TOOL_RENDERERS} />
-  );
+  const room = <ChatRoomSurface busDeps={busDeps} handle={committedChat(CHAT_ID)} surfaceContributors={surfaceContributors} toolRenderers={toolRenderers} />;
   if (worstArt === undefined) {
     return <div style={{ height: columnHeight ?? 480 }}>{room}</div>;
   }

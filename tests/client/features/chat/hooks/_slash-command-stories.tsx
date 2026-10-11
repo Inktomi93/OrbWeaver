@@ -10,12 +10,12 @@
 //               send, never silently posted.
 // `registered: false` mounts the same tree with an EMPTY registry — the zero-registrant baseline.
 
-import { chatSlashCommands } from "@orb/client/features/chat";
 import type { ContributorRegistry, SlashCommandContribution, SlashCommandMountProps } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import { SlashCommandRegistryProvider } from "@orb/client/state";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
+import { slashCommands } from "../../../../support/browser/ct-door.ts";
 import { ComposerStory } from "../_ct-stories.tsx";
 import { SLASH_LOCKED_REASON } from "../fixtures.ts";
 
@@ -75,13 +75,10 @@ export function SlashComposerStory({ registered = true }: SlashComposerStoryProp
   );
 }
 
-/** The composer over the chat feature's own door commands (`/new-chat`, `/gallery`), as `main.tsx` registers
- *  them. Module-scope: the registry is static. */
-const CHAT_DOOR_REGISTRY = createContributorRegistry<SlashCommandContribution>("slash-commands", chatSlashCommands);
-
+/** The composer over the production slash-command list, in production order. */
 export function ChatDoorSlashComposerStory(): ReactElement {
   return (
-    <SlashCommandRegistryProvider value={CHAT_DOOR_REGISTRY}>
+    <SlashCommandRegistryProvider value={slashCommands}>
       <ComposerStory />
     </SlashCommandRegistryProvider>
   );

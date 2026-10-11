@@ -24,6 +24,7 @@ import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import type { TrpcInput, TrpcProcedurePath, TrpcRecorder, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../support/node/route-trpc.ts";
 import { STREAM_MUTATION_ROUTES } from "../../data/bus/fixtures.ts";
+import { chatListResponder } from "../chat/fixtures.ts";
 
 /** Comfortably past the model's 5-minute stall threshold — a frozen row, not a slow one. */
 const WEDGED_AGO_MS = 3_600_000;
@@ -197,6 +198,13 @@ export async function stubDatabank(
       updatedAt: NOW,
       configUnreadable: null,
     },
+    // The reads of the door's other home tiles (chat recents and quick picks, the face shelf, saved rosters),
+    // which the real tile grid mounts beside the databank tile. EMPTY is the honest default for a fresh viewer.
+    "character.list": { items: [], nextCursor: null, totalCount: 0 },
+    "chat.listChats": chatListResponder([]),
+    "rosterPreset.count": 0,
+    "chat.reapTemporaryChats": { reaped: 0 },
+    "rosterPreset.list": [],
     "databank.list": pagedBank(bank),
     "databank.bankHealth": bankCensus(bank),
     "databank.listGlobal": () => [READY_DOC.id],
