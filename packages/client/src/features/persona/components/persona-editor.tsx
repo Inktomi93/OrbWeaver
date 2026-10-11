@@ -70,6 +70,23 @@ export function PersonaEditor({ persona, onRequestDelete }: PersonaEditorProps):
   );
 }
 
+/** The editor inside its named, bordered row panel. Focus lands on it as it mounts, so a deep link (the
+ *  switcher's Edit door) opens the editor AND moves the keyboard into it. */
+export function PersonaEditorRegion({ persona, subject, onRequestDelete }: PersonaEditorProps & { readonly subject: string }): ReactElement {
+  return (
+    <Stack
+      aria-label={`Edit ${subject}`}
+      className="rounded-base border border-border p-block outline-none"
+      gap="section"
+      ref={(node): void => node?.focus()}
+      role="group"
+      tabIndex={-1}
+    >
+      <PersonaEditor persona={persona} onRequestDelete={onRequestDelete} />
+    </Stack>
+  );
+}
+
 interface PersonaEditorBodyProps {
   readonly session: AutosaveSession<PersonaFormValues>;
   readonly persona: PersonaDetail;

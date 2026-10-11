@@ -1,8 +1,8 @@
 // The Identity (persona) chrome widget's render — the rail SWITCHER (#866 S4, the frequency law: the rail
 // slot carries only what travels with a switch). ONE widget, TWO lenses:
 // `presentation:"bar"` is the desktop rail.end avatar chip + popover; `presentation:"sheet"` inlines the
-// same grammar into the mobile You sheet. Both render: the WHO-HEAD (who you are playing as, and whether
-// that is your pinned default) → the SWITCH rows (`PersonaSwitchList` — radio-style, with the inline pin)
+// same grammar into the mobile You sheet. Both render: the WHO-HEAD (who you are playing as) → the SWITCH rows
+// (`PersonaSwitchList` — radio-style, with the inline edit door and pin)
 // → the ACCOUNT FOOT (the retired account modal's facts + Log out, owner-ruled F-3). The bar lens adds
 // the CONTEXTUAL block while a chat room is open: an Applies scope (`Everywhere | This chat`) that routes
 // the next switch to the seed pointer vs the per-participant slot, plus the re-attribute escape hatch —
@@ -16,10 +16,10 @@ import { Button } from "@orb/ui/button";
 import { CircleUser, History, Icon, SlidersHorizontal } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverClose, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
+import type { SelectItems } from "@orb/ui/select";
+import { Select } from "@orb/ui/select";
 import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
-import { Toggle } from "@orb/ui/toggle";
-import { ToggleGroup } from "@orb/ui/toggle-group";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -28,7 +28,7 @@ import { useState } from "react";
 import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { useGatedQuery, useInvalidation, useReattributePersona, useTRPC } from "#data";
-import { notify } from "#lib";
+import { deriveChatTitle, notify } from "#lib";
 import type { ChromePresentation } from "#state";
 import { closeModal, openConfigTo, useActiveChatId } from "#state";
 import { PersonaAccountFoot } from "../components/persona-account-foot.tsx";
@@ -44,6 +44,20 @@ type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
  *  pointer (`seeds.currentPersonaId`, the existing playing-as mechanism), This chat is the
  *  per-participant slot (`setActivePersona`). */
 type SwitchScope = "everywhere" | "chat";
+
+const SCOPE_ITEMS: SelectItems<SwitchScope> = [
+  { label: "Everywhere", value: "everywhere" },
+  { label: "This chat", value: "chat" },
+];
+
+/** The room's name in the kicker. HOOK: the participant-first room title (the chat header's helper) replaces
+ *  this one call when it lands on main. */
+function roomLabel(chat: ChatDetail): string {
+  return deriveChatTitle(
+    chat.title,
+    chat.participants.filter((p) => p.kind === "character").map((p) => p.displayName),
+  );
+}
 
 export interface PersonaPanelSurfaceProps {
   readonly presentation: ChromePresentation;
@@ -122,11 +136,18 @@ function PanelBody({ presentation }: PersonaPanelSurfaceProps): ReactElement {
 
   const sections: ReactNode = (
     <Stack gap="row">
-      <WhoHead current={current} isPinnedDefault={current !== null && current.id === seeds.defaultPersonaId} />
+      <WhoHead current={current} />
       <Separator />
       <Stack gap="field">
         <Text voice="kicker">Switch persona</Text>
-        <PersonaSwitchList currentId={currentId} defaultId={seeds.defaultPersonaId} onPin={onPin} onSwitch={onSwitch} personas={personas} />
+        <PersonaSwitchList
+          currentId={currentId}
+          defaultId={seeds.defaultPersonaId}
+          onPin={onPin}
+          onSwitch={onSwitch}
+          personas={personas}
+          presentation={presentation}
+        />
       </Stack>
       {chatOpen ? <ChatScopeBlock chat={chat} notifyOnChange={notifyOnChange} onScopeChange={setPickedScope} personas={personas} scope={pickedScope} /> : null}
       <ManageDoor presentation={presentation} />
@@ -184,16 +205,8 @@ function PanelTrigger({ current }: { readonly current: PersonaListItem | null })
   );
 }
 
-/** The who-head's second line: the null-persona invitation, or whether the play is the pinned default. */
-function whoGloss(current: PersonaListItem | null, isPinnedDefault: boolean): string {
-  if (current === null) {
-    return "Create one under Manage personas.";
-  }
-  return isPinnedDefault ? "Playing as · pinned — your default everywhere" : "Playing as";
-}
-
-/** WHO you are playing as, and whether that is the pinned default — the board's head strip. */
-function WhoHead({ current, isPinnedDefault }: { readonly current: PersonaListItem | null; readonly isPinnedDefault: boolean }): ReactElement {
+/** WHO you are playing as — the board's head strip, and the one place "Playing as" is said. */
+function WhoHead({ current }: { readonly current: PersonaListItem | null }): ReactElement {
   const avatarSrc = current === null || current.avatarHash === null ? {} : { src: blobUrl(current.avatarHash) };
   return (
     <Row gap="row" align="center" className="min-w-0" data-slot="persona-who-head">
@@ -201,11 +214,11 @@ function WhoHead({ current, isPinnedDefault }: { readonly current: PersonaListIt
         {current === null ? <Icon icon={CircleUser} size="md" /> : initialsFor(current.name)}
       </Avatar>
       <Stack className="min-w-0 flex-1">
-        <Text className="truncate" weight="semibold">
+        <Text className="truncate" voice="label">
           {current?.name ?? "No persona yet"}
         </Text>
         <Text className="truncate" voice="gloss">
-          {whoGloss(current, isPinnedDefault)}
+          {current === null ? "Create one under Manage personas." : "Playing as"}
         </Text>
       </Stack>
     </Row>
@@ -257,18 +270,17 @@ function ChatScopeBlock({
   return (
     <Stack gap="field" data-slot="persona-chat-scope">
       <Text className="truncate" voice="kicker">
-        In {chat.title ?? "this chat"}
+        In {roomLabel(chat)}
       </Text>
       <Row gap="row" align="center" className="justify-between">
-        <Text voice="label">Applies</Text>
-        <ToggleGroup
+        <Text voice="label">Applies to</Text>
+        <Select<SwitchScope>
           aria-label="Where the next switch applies"
-          value={[scope]}
-          onValueChange={(picked): void => onScopeChange((picked[0] as SwitchScope | undefined) ?? "everywhere")}
-        >
-          <Toggle value="everywhere">Everywhere</Toggle>
-          <Toggle value="chat">This chat</Toggle>
-        </ToggleGroup>
+          items={SCOPE_ITEMS}
+          layout="inline"
+          onValueChange={(picked): void => onScopeChange(picked ?? "everywhere")}
+          value={scope}
+        />
       </Row>
       <Button disabled={targetId === null || reattribute.isPending} intent="ghost" size="sm" className="justify-start" onClick={onReattribute}>
         <Icon icon={History} size="xs" />

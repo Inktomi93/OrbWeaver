@@ -149,6 +149,24 @@ export function PersonaSwitcherBarStory({ chatId }: { readonly chatId?: ChatId }
   );
 }
 
+/** The switcher beside the Personas section body it deep-links into. The shell's rail-to-Settings switch is
+ *  not mounted here; what is under test is the landing contract: the switcher's Edit door closes its popover
+ *  and the list opens that persona's editor, focused. */
+export function PersonaEditDoorStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ display: "flex", gap: 16, width: 900 }}>
+        <div style={{ width: 120, height: 640 }}>{personaChrome.behavior.kind === "widget" ? personaChrome.behavior.body("bar") : null}</div>
+        <div style={{ width: 360 }}>
+          <QueryBoundary fallback={<p>Loading…</p>} renderError={(): ReactElement => <p>error</p>}>
+            <PersonaList />
+          </QueryBoundary>
+        </div>
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** The LIST at its ONE remaining mount posture — the Config → Personas section body (#866 S4 moved it
  *  out of the popover and the sheet). 360px stands in for the narrowest real content-pane column (a 430px
  *  phone minus the pane padding); the #443/#458/#463 collision pins run against this mount now. */

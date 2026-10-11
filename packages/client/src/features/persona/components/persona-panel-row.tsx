@@ -23,7 +23,7 @@ import type { Trpc } from "#data";
 import { useInvalidation, useTRPC, useTRPCClient, useUploadAsset, useUploadCaps } from "#data";
 import { cn, downloadTextFile, notify, oversizeUploadMessage, rowActionSubject, rowActionsName } from "#lib";
 import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations.ts";
-import { PersonaEditor } from "./persona-editor.tsx";
+import { PersonaEditorRegion } from "./persona-editor.tsx";
 import { PersonaPin } from "./persona-pin.tsx";
 import { PersonaRowNameColumn } from "./persona-row-name-column.tsx";
 
@@ -288,9 +288,7 @@ export function PersonaPanelRow({
 
       <Collapsible onOpenChange={onToggleExpand} open={expanded}>
         <CollapsiblePanel>
-          <Stack className="rounded-base border border-border p-block" gap="section">
-            <PersonaEditor persona={persona} onRequestDelete={(): void => setDeleteOpen(true)} />
-          </Stack>
+          <PersonaEditorRegion persona={persona} subject={subject} onRequestDelete={(): void => setDeleteOpen(true)} />
         </CollapsiblePanel>
       </Collapsible>
     </Stack>

@@ -1,6 +1,6 @@
 // The switcher's SWITCH ROWS (#866 S4 — the rail persona slot's frequency law: only what travels with a
-// switch). Lean radio-style rows: avatar · name · "playing" pill · the pin — NO rename, NO avatar upload,
-// NO kebab, NO editor (all of that lives in Config → Personas now; `PersonaList` is that mount). The
+// switch). Lean radio-style rows: avatar · name · edit · pin — NO rename, NO avatar upload, NO kebab,
+// NO inline editor (all of that lives in Config → Personas now; Edit is the door into it). The
 // row body is ONE stretched button that switches under the caller's SCOPE (Everywhere = the seed pointer,
 // This chat = the per-participant slot — the parent owns the routing); the pin is the one layered sibling.
 //
@@ -11,14 +11,19 @@
 import { blobUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
-import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { Icon, Pencil } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { PopoverClose } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { PIN_REVEAL } from "#components";
 import type { Trpc } from "#data";
-import { rowActionSubject, rowQualifiers, timeLib } from "#lib";
+import { cn, rowActionSubject, rowQualifiers, timeLib } from "#lib";
+import type { ChromePresentation } from "#state";
+import { closeModal, openPersonaEditor } from "#state";
 import { PersonaPin } from "./persona-pin.tsx";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
@@ -34,10 +39,12 @@ export interface PersonaSwitchListProps {
   readonly onSwitch: (persona: PersonaListItem) => void;
   /** Write `seeds.defaultPersonaId` to this persona (the pin). */
   readonly onPin: (persona: PersonaListItem) => void;
+  /** Which lens hosts the rows: Edit dismisses the popover (bar) or the You modal (sheet) before it lands. */
+  readonly presentation: ChromePresentation;
 }
 
 /** The switch rows — qualifiers resolved once with the whole list in hand (#458). */
-export function PersonaSwitchList({ personas, currentId, defaultId, onSwitch, onPin }: PersonaSwitchListProps): ReactElement {
+export function PersonaSwitchList({ personas, currentId, defaultId, onSwitch, onPin, presentation }: PersonaSwitchListProps): ReactElement {
   const nameCounts = new Map<string, number>();
   for (const persona of personas) {
     nameCounts.set(persona.name, (nameCounts.get(persona.name) ?? 0) + 1);
@@ -58,6 +65,7 @@ export function PersonaSwitchList({ personas, currentId, defaultId, onSwitch, on
           onPin={(): void => onPin(persona)}
           onSwitch={(): void => onSwitch(persona)}
           persona={persona}
+          presentation={presentation}
           subject={rowActionSubject(persona.name, (nameCounts.get(persona.name) ?? 0) > 1 ? (qualifiers[index] ?? "") : undefined)}
         />
       ))}
@@ -74,6 +82,7 @@ function SwitchRow({
   isDefault,
   onSwitch,
   onPin,
+  presentation,
 }: {
   readonly persona: PersonaListItem;
   readonly subject: string;
@@ -81,6 +90,7 @@ function SwitchRow({
   readonly isDefault: boolean;
   readonly onSwitch: () => void;
   readonly onPin: () => void;
+  readonly presentation: ChromePresentation;
 }): ReactElement {
   const avatarSrc = persona.avatarHash === null ? {} : { src: blobUrl(persona.avatarHash) };
   return (
@@ -98,26 +108,52 @@ function SwitchRow({
         intent="ghost"
         {...(isCurrent ? {} : { onClick: onSwitch })}
       />
-      {/* Ornament under the stretched button — the row's one control already names the persona. */}
-      <Avatar className="pointer-events-none shrink-0" fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
+      {/* Ornament over the stretched button (`relative` paints it above the button's hover fill, so the name
+          never disappears under it) — the row's one control already names the persona. */}
+      <Avatar className="pointer-events-none relative shrink-0" fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
         {initialsFor(persona.name)}
       </Avatar>
-      <Text as="span" className="pointer-events-none min-w-0 flex-1 truncate" weight="medium">
+      <Text as="span" className="pointer-events-none relative min-w-0 flex-1 truncate" voice="label">
         {persona.name}
       </Text>
-      {/* ONE pill max (the list row's rule): current wins; "pinned" on a non-current default row only —
-          on the current+default row the solid pin beside it already states pinned. */}
-      {isCurrent ? (
-        <Badge className="pointer-events-none shrink-0" intent="primary" tone="soft">
-          playing as
-        </Badge>
-      ) : null}
-      {!isCurrent && isDefault ? (
-        <Badge className="pointer-events-none shrink-0" tone="soft">
-          pinned · {"{{user}}"}
-        </Badge>
-      ) : null}
-      <PersonaPin className="relative shrink-0" isDefault={isDefault} onPin={onPin} subject={subject} />
+      <EditDoor presentation={presentation} personaId={persona.id} subject={subject} />
+      <PersonaPin className="relative shrink-0" isDefault={isDefault} onPin={onPin} subject={subject} toggle={true} />
     </Row>
+  );
+}
+
+/** The row's door into its editor in Config → Personas — the same landing a tag's persona chip uses. */
+function EditDoor({
+  personaId,
+  subject,
+  presentation,
+}: {
+  readonly personaId: PersonaListItem["id"];
+  readonly subject: string;
+  readonly presentation: ChromePresentation;
+}): ReactElement {
+  const label = `Edit ${subject}`;
+  const door = (
+    <Button
+      aria-label={label}
+      className={cn(PIN_REVEAL, "relative shrink-0") ?? ""}
+      intent="ghost"
+      onClick={(): void => {
+        openPersonaEditor(personaId);
+        // The sheet rides the You MODAL; the bar lens closes through the wrapping PopoverClose.
+        if (presentation === "sheet") {
+          closeModal();
+        }
+      }}
+      size="icon"
+    >
+      <Icon icon={Pencil} size="sm" />
+    </Button>
+  );
+  return (
+    <Tooltip>
+      <TooltipTrigger render={presentation === "bar" ? <PopoverClose render={door} /> : door} />
+      <TooltipPopup side="top">{label}</TooltipPopup>
+    </Tooltip>
   );
 }
