@@ -138,10 +138,10 @@ export const gate = defineGate({
   authority: "reviewed-grant",
   severity: "error",
   // Legacy scanned all client source and subtracted six files; those files are grants now, so nothing is
-  // subtracted. `entire-population` because grant liveness is a whole-population verdict.
+  // subtracted. `selected-files`: a subset run leaves unconsumed grants unjudged (lib/gate-authority.ts).
   population: "@client",
   analysis: "types",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,

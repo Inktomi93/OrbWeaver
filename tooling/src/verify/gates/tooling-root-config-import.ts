@@ -13,9 +13,8 @@
 // FAMILY `tooling-front-door` — the shared reader is `lib/tooling-import-door.ts` (`resolveRelativeImport`),
 // the same specifier resolution the ordinary sibling judges the tooling-internal boundary with.
 //
-// `entire-population` because grant liveness is only sound after a COMPLETE owner run: a narrowed request
-// DEFERS this policy, which is what retires the legacy defect the retired int test pinned (a scoped run's
-// `visit` never saw the row's consumer and called the live row stale — measured 2026-08-30) and the
+// `selected-files`: each occurrence is judged alone, and a subset run leaves unconsumed grants unjudged (stale is a whole-coverage verdict, lib/gate-authority.ts). A scoped run
+// therefore cannot call a live row stale, which retires the legacy defect the retired int test pinned, and the
 // legacy `fileLoaded(exit-contract)` anchor guard with it. The knip fixture retains an ungranted `mustFlag`
 // baseline; its authored witness proves synthetic exact-grant consumption, while the family test exercises
 // real central grant identity and staleness through the live argv policy (§4.3).
@@ -58,7 +57,7 @@ export const gate = defineGate({
   severity: "error",
   population: "@tooling",
   analysis: "syntax",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,

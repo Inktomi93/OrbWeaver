@@ -161,11 +161,11 @@ export const gate = defineGate({
   // `scanRoot` was `p.includes("packages/client/src/") || p.includes("packages/ui/src/")` MINUS three home
   // files returned false one at a time (`use-prefers-reduced-motion.ts`, `reduced-motion-now.ts`,
   // `use-is-mobile-viewport.ts`). The final admits the same two packages and subtracts NOTHING — the homes
-  // are grant rows now, which is the whole point (see the header). `entire-population` because grant
-  // liveness is a whole-population verdict.
+  // are grant rows now, which is the whole point (see the header). `selected-files`: a subset run leaves
+  // unconsumed grants unjudged (lib/gate-authority.ts).
   population: ["@client", "@ui"],
   analysis: "types",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,

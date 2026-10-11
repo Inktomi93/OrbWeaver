@@ -77,7 +77,7 @@ export const gate = defineGate({
   // The legacy scope regex was `/packages/(client|ui)/src/`; the clamp homes are NOT subtracted.
   population: ["@client", "@ui"],
   analysis: "types",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,

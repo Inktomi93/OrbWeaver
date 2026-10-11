@@ -21,9 +21,8 @@
 // under its own id — the one-loader rule has no sibling reading the ts-morph door.
 //
 // THE REPORTED POSITION is `new <callee>` as written; grant granularity is one finding per (file, operation)
-// however many constructions the file carries (mustFlag[3]). `entire-population` because grant liveness is
-// only sound after a complete run; a narrowed request DEFERS this policy (pinned in
-// tests/tooling/verify/gates/tooling-plumbing-family.suite.test.ts). POPULATION PORT: byte-identical — the legacy
+// however many constructions the file carries (mustFlag[3]). `selected-files`: each occurrence is judged alone, and a subset run leaves unconsumed grants unjudged (stale is a whole-coverage verdict, lib/gate-authority.ts).
+// POPULATION PORT: byte-identical — the legacy
 // fenced arms A–H to `tooling/src/` inside `visit`, which is `@tooling`.
 //
 // Legacy descriptor: `bbdccb2d5c` (`tooling/src/verify/gates/tooling-shared-plumbing.ts`, arm A + HOMES +
@@ -65,7 +64,7 @@ export const gate = defineGate({
   severity: "error",
   population: "@tooling",
   analysis: "types",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,

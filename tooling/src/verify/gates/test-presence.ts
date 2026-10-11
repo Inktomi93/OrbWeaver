@@ -524,8 +524,9 @@ function blindnessMessage(state: ScanState): string | undefined {
 /** The two §4.6 blindness tripwires, gated on the REAL-TREE ANCHOR: a conformance mini-project and a scoped
  *  run both legitimately carry neither the domain corpus nor the tier corpus. Once armed, zero recognition is
  *  an analysis failure, so it refuses evaluation and withholds every partial finding gathered before it. */
-function refuseBlindness(state: ScanState, mirror: MirrorIndex): void {
-  if (!mirror.sourceFiles.has(REAL_TREE_ANCHOR)) {
+// A subset run never sees the whole corpus, so zero recognition there is not blindness.
+function refuseBlindness(state: ScanState, mirror: MirrorIndex, subset: boolean): void {
+  if (subset || !mirror.sourceFiles.has(REAL_TREE_ANCHOR)) {
     return;
   }
   const blind = blindnessMessage(state);
@@ -542,7 +543,8 @@ export const gate = defineGate({
   severity: "error",
   population: ["@server", "@contracts"],
   analysis: "resource",
-  execution: "entire-population",
+  // Each source file is judged alone against the complete mirror index; only the blindness tripwire is a whole-tree claim.
+  execution: "selected-files",
   facts: [],
   resources: [{ kind: "mirror-index", id: "package-test" }],
   message:
@@ -553,7 +555,9 @@ export const gate = defineGate({
     return {
       evaluate: () => {
         const mirror = readyResourceValue(ctx.resources.mirrorIndex("package-test"));
-        for (const sourceFile of ctx.files) {
+        // A changed mirror member reselects the whole source population (the mirror is a resource input), so the
+        // subject filter is what keeps a staged run to the requested files.
+        for (const sourceFile of ctx.files.filter((file) => ctx.includesSubject(ctx.relativePath(file)))) {
           const rel = ctx.relativePath(sourceFile);
           // Server barrels (domain/infra `index.ts`) are pure re-exports — exempt. A contracts `index.ts` is
           // NOT a barrel (the domain's schemas co-locate there), so it is checked below.
@@ -567,7 +571,7 @@ export const gate = defineGate({
             pushContracts(mirror.testFiles, rel.slice(CONTRACTS_SRC.length), sourceFile, state.findings);
           }
         }
-        refuseBlindness(state, mirror);
+        refuseBlindness(state, mirror, ctx.subset);
         for (const finding of state.findings) {
           ctx.report.file(finding.file, { line: 1, column: 1, message: finding.message });
         }

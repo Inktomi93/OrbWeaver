@@ -20,8 +20,7 @@
 // excludes the tailwind-merge conflict-pair fixture at `tests/ui/lib/class-merge.test.ts:80` — a string
 // naming the class, never an application of it. It is excluded BY CONSTRUCTION and must never acquire an
 // exemption: a fixture that must name the token to test the merge behaviour is not a violation of anything.
-// `entire-population` because a grant's liveness is a whole-population verdict (the same reason
-// `no-raw-matchmedia` carries it).
+// `selected-files`: each occurrence is judged alone, and a subset run leaves unconsumed grants unjudged (stale is a whole-coverage verdict, lib/gate-authority.ts).
 //
 // ONE LIVE CLASS APPLICATION, refused in place with its own receipt: `packages/client/src/lib/message-bubble-class.ts`
 // ("`max-w-prose` STAYS HERE, AND IT IS THE ONE PLACE IT DOES", the #1145/#1175 transcript-bubble ruling), so it is a
@@ -75,7 +74,7 @@ export const gate = defineGate({
   severity: "error",
   population: ["@client", "@ui"],
   analysis: "syntax",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,

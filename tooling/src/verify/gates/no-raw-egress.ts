@@ -132,12 +132,11 @@ export const gate = defineGate({
   authority: "reviewed-grant",
   severity: "error",
   // The legacy predicate admitted all server source and subtracted two directory zones; the homes are
-  // grants now, so nothing is subtracted. `entire-population` because grant liveness is a whole-population
-  // verdict — and that is also why the widening had to be BOTH roots in one edit: a grant liveness verdict
-  // taken over half the corpus calls every row whose subject sits in the other half stale.
+  // grants now, so nothing is subtracted. `selected-files`: a subset run leaves
+  // unconsumed grants unjudged (lib/gate-authority.ts), so a narrowed selection stales nothing.
   population: { in: ["@server", "@inference"] },
   analysis: "types",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,

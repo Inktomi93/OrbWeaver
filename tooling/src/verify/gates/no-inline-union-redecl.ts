@@ -1,16 +1,16 @@
 // Policy: no-inline-union-redecl (docs/law/Spine-TypeScript-and-Patterns.md §7.5) — a string-union AXIS is
-// declared ONCE as an `as const` tuple and the union derived; never re-spelled. Two arms, one authority:
-// (A) an inline string-literal union TYPE ALIAS of ≥3 members. (B) any inline string-literal SET — a union
-// in a property/return/argument position, or a `z.enum([...])` array — whose members EXACTLY equal a
-// canonical tuple homed somewhere the re-speller can import from. A genuine one-off enum with no canonical
-// tuple (NODE_ENV) is not flagged, which is why arm B is an exact-set match and not a heuristic.
+// declared ONCE as an `as const` tuple and the union derived; never re-spelled. This is arm B: any inline
+// string-literal SET — a union in a property/return/argument position, or a `z.enum([...])` array — whose
+// members EXACTLY equal a canonical tuple homed somewhere the re-speller can import from. A genuine one-off
+// enum with no canonical tuple (NODE_ENV) is not flagged, which is why arm B is an exact-set match and not a
+// heuristic. Arm A (the inline type ALIAS of ≥3 members) judges each alias alone and lives in
+// `no-inline-union-alias`, which runs over a staged selection; this arm cannot, see `execution` below.
+// The history below was written when both arms were one policy.
 //
-// ── FAMILY: singleton, under its own id, reading `lib/union-axis.ts` ────────────────────────────────────
+// ── FAMILY: `union-axis`, reading `lib/union-axis.ts` ────────────────────────────────────────────────────
 // The axis-identity layer (as-const unwrapping through `satisfies`, the `Interface["prop"]` co-declaration
 // resolution, the two member floors, the package-cake reach fence) is in that reader; this module owns the
-// INTENT — which arm reports, what it says, and where the waiver anchors. No sibling policy shares the
-// reader today, so the family is this policy's own id (§3: "a policy with no proven sibling is a singleton
-// family under its own id"); a second consumer of `union-axis.ts` renames the family, nothing else.
+// INTENT — what reports, what it says, and where the waiver anchors. `no-inline-union-alias` is the sibling.
 //
 // ── THE RULED THREE-WAY ARITY WAS AMENDED TO ONE POLICY (#1584 §12.6, orchestrator ruling 2026-09-12) ───
 // §12.6 ruled this module into "ordinary union/respell policy, reviewed SDK-mirror grant policy, and hard
@@ -101,24 +101,14 @@ import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { firstAnchor } from "../lib/caught-failure.ts";
 import type { AxisRespellCandidate, CanonicalAxisTuple } from "../lib/union-axis.ts";
-import {
-  ALIAS_MIN_MEMBERS,
-  axisRespellCandidate,
-  canonicalAxisTuple,
-  canReachAxisHome,
-  inlineUnionAlias,
-  UNION_AXIS_VISITOR_KINDS,
-} from "../lib/union-axis.ts";
+import { axisRespellCandidate, canonicalAxisTuple, canReachAxisHome, UNION_AXIS_VISITOR_KINDS } from "../lib/union-axis.ts";
 
 const MESSAGE =
   "a string-union AXIS is declared ONCE as an `as const` tuple and the union derived — never re-spelled inline (Spine-TypeScript-and-Patterns.md §7.5).";
-const ALIAS_MESSAGE =
-  `an inline string-literal union TYPE ALIAS of ${String(ALIAS_MIN_MEMBERS)} or more members: declare the axis once as ` +
-  "`export const X = [...] as const` and derive `(typeof X)[number]` (Spine-TypeScript-and-Patterns.md §7.5).";
 const FIX =
   "home the axis in one `as const` tuple and derive from it — `(typeof X)[number]` for a type, `z.enum(X)` for a schema. " +
   "A deliberate occurrence waives with `@orb-waive no-inline-union-redecl(<position>): <reason + end condition>`, where " +
-  "<position> is the ALIAS NAME for an inline alias (`Mode`) and the inline SET's own source text for a re-spell " +
+  "<position> is the inline SET's own source text " +
   "(`'a' | 'b' | 'c'`, or `['a', 'b', 'c']` for a z.enum) — the exact slice the report anchors on. A set spanning a " +
   "newline cannot be a marker position at all, so the runtime derives the set's first member literal instead.";
 
@@ -149,7 +139,7 @@ function reportAnchored(
 
 export const gate = defineGate({
   id: "no-inline-union-redecl",
-  family: "no-inline-union-redecl",
+  family: "union-axis",
   authority: "ordinary",
   severity: "error",
   population: { in: ["@authored"], notUnder: ["tooling/src/verify/gates/**"] },
@@ -178,11 +168,6 @@ export const gate = defineGate({
         {
           kinds: [...UNION_AXIS_VISITOR_KINDS],
           visit: (node): void => {
-            const alias = inlineUnionAlias(node);
-            if (alias !== undefined) {
-              reportAnchored(ctx.report.node, { reported: alias.alias, anchor: alias.nameNode, message: ALIAS_MESSAGE });
-              return;
-            }
             const file = ctx.relativePath(node.getSourceFile());
             const tuple = Node.isVariableDeclaration(node) ? canonicalAxisTuple(node, file) : undefined;
             if (tuple !== undefined) {
@@ -214,18 +199,6 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
-    {
-      mode: "types",
-      files: { "packages/contracts/src/x.ts": "export type Mode = 'a' | 'b' | 'c';\n" },
-      expect: { count: 1, token: "Mode", messageIncludes: "TYPE ALIAS" },
-      why: "ARM A, the founding row — an inline string-union type alias of ≥3 members. The position is the ALIAS NAME, an authored slice: the legacy synthetic token `union Mode` appears in no source file and would THROW under `report.node`",
-    },
-    {
-      mode: "types",
-      files: { "tooling/src/verify/lib/reader.ts": 'export type ReaderVerdict = "reads" | "other" | "unreadable";\n' },
-      expect: { count: 1, token: "ReaderVerdict", messageIncludes: "TYPE ALIAS" },
-      why: 'ARM A ON THE SHAPE THIS PROGRAM ITSELF RE-SPELLS (#2051). #1584\'s identity readers each declared a private `<hit> | "other" | "unreadable"` — the #944 three answers — and this gate reported SIX of them on the real tree, three minted by the wave that converted this very policy. They now derive from `contract/origin-verdict.ts`\'s `OriginVerdict<Hit>`; this row is the ratchet that reds the seventh reader to re-spell it, and it is under `@tooling` deliberately, because that is where the re-spelling happened and where a lane would otherwise assume the policy does not look',
-    },
     {
       mode: "types",
       files: {
@@ -281,21 +254,15 @@ export const gate = defineGate({
       expect: { count: 1, token: "'a' | 'b' | 'c'" },
       why: "THE SHIPPED-PACKAGE MEMBERSHIP, pinned: `@authored` includes `packages/showcase-plugins/src` because the legacy `packages/*/src/**` glob covered it. Classify `@showcase` outside `@authored` and this row is the one that dies — the contracts home stays admitted, so the fixture still admits paths and the failure is a missing FINDING rather than an empty-population tool error",
     },
+  ],
+  mustPass: [
     {
       mode: "types",
       files: {
         "packages/contracts/src/alias-home.ts": "export const ALIAS_AXIS = ['a', 'b', 'c'] as const;\n",
         "packages/server/src/alias-respell.ts": "export type Reuse = 'a' | 'b' | 'c';\n",
       },
-      expect: { count: 1, token: "Reuse" },
-      why: "ONE SITE, ONE FINDING: an inline alias whose members ALSO match a homed tuple is arm A's subject and arm B must not claim it as well. `count: 1` with the ALIAS-NAME token is the discriminator — delete `axisRespellCandidate`'s type-alias-parent skip and this row reports 2 findings on one declaration, which (sharing a carrier and needing two different markers) is a site with no working waiver door",
-    },
-  ],
-  mustPass: [
-    {
-      mode: "types",
-      files: { "packages/contracts/src/y.ts": "export type NodeEnv = 'development' | 'production';\n" },
-      why: "THE ARM-A ≥3 FLOOR: a 2-member one-off alias with no canonical tuple anywhere. Drop the floor to 2 and this row is the one that dies",
+      why: "ONE SITE, ONE POLICY: an inline alias whose members ALSO match a homed tuple is `no-inline-union-alias`'s subject and this arm must not claim it as well. Delete `axisRespellCandidate`'s type-alias-parent skip and this row reds, leaving the declaration with two findings and two different waiver markers",
     },
     {
       mode: "types",
@@ -316,7 +283,7 @@ export const gate = defineGate({
         "packages/server/src/local-pair-home.ts": "export const LOCAL_PAIR = ['x', 'y'] as const;\n",
         "packages/server/src/local-pair-use.ts": "export interface Q { side: 'x' | 'y' }\n",
       },
-      why: "THE DEFAULT ≥3 REGISTRATION FLOOR: the same 2-member tuple as `mustFlag[3]`, homed OUTSIDE contracts/kit, does NOT register — a coincidental generic pair is not an axis. Raise the trusted floor to 3 (or widen `TRUSTED_TUPLE_HOMES` to `packages/`) and this row is the one that dies",
+      why: "THE DEFAULT ≥3 REGISTRATION FLOOR: the same 2-member tuple as `mustFlag[2]`, homed OUTSIDE contracts/kit, does NOT register — a coincidental generic pair is not an axis. Raise the trusted floor to 3 (or widen `TRUSTED_TUPLE_HOMES` to `packages/`) and this row is the one that dies",
     },
     {
       mode: "types",
@@ -355,7 +322,7 @@ export const gate = defineGate({
       files: {
         "packages/contracts/src/mixed.ts": "export const NUMBERS = [1, 2, 3] as const;\nexport type Mixed = 'a' | 'b' | 3;\n",
       },
-      why: "STRING-ONLY, THE UNION SIDE: a union carrying a numeric member is not a string axis, so arm A's ≥3 count never reaches it and arm B never signs it. Accept a non-string union member and this row reds",
+      why: "STRING-ONLY, THE UNION SIDE: a union carrying a numeric member is not a string axis, so arm B never signs it. Accept a non-string union member and this row reds",
     },
     {
       mode: "types",
@@ -368,19 +335,11 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/contracts/src/waived-alias.ts":
-          "// @orb-waive no-inline-union-redecl(Mode): the proof's stand-in reason; ends when this fixture stops flagging.\nexport type Mode = 'a' | 'b' | 'c';\n",
-      },
-      why: "§4.2 POSITIONAL IDENTITY, ARM A: the twin of `mustFlag[0]` (count 1, so exactly one occurrence exists for the one marker to consume) plus the marker line. An author waives the ALIAS NAME — the exact slice `firstAnchor` anchors on — not the file and not the union text. The family test drives the same fixture through `runPolicyPass` for the two assertions a `mustPass` cannot make (`waivedFindings === 1`, `authorityAlarms === []`)",
-    },
-    {
-      mode: "types",
-      files: {
         "packages/contracts/src/waived-home.ts": "export const WAIVED_AXIS = ['a', 'b', 'c'] as const;\n",
         "packages/server/src/waived-respell.ts":
           "// @orb-waive no-inline-union-redecl('a' | 'b' | 'c'): the proof's stand-in reason; ends when this fixture stops flagging.\nexport interface T { mode: 'a' | 'b' | 'c' }\n",
       },
-      why: "§4.2 POSITIONAL IDENTITY, ARM B: the twin of `mustFlag[1]`, and the arm whose position shape is unusual — the marker carries the SET's own source text, spacing included. The carrier is the interface STATEMENT (a node finding binds to leading trivia on the node or its ancestors up to the enclosing statement), which is why the marker sits above `export interface T` and not inside it",
+      why: "§4.2 POSITIONAL IDENTITY, ARM B: the twin of `mustFlag[0]`, and the arm whose position shape is unusual — the marker carries the SET's own source text, spacing included. The carrier is the interface STATEMENT (a node finding binds to leading trivia on the node or its ancestors up to the enclosing statement), which is why the marker sits above `export interface T` and not inside it",
     },
   ],
 });

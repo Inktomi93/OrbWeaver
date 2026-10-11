@@ -51,7 +51,7 @@ export const gate = defineGate({
   // The legacy scope regex was `/packages/(client|ui)/src/`; the seal homes are NOT subtracted.
   population: ["@client", "@ui"],
   analysis: "syntax",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,

@@ -24,9 +24,8 @@
 // and the spelled name gates only the fail-closed answer, so an aliased `join as j` is one read (mustFlag[2])
 // and an unplaceable callee spelled like nothing path-shaped stays silent.
 //
-// THE REPORTED POSITION is the literal (or the const) as written, inside the call. `entire-population`
-// because grant liveness is only sound after a complete run; a narrowed request DEFERS this policy (pinned in
-// tests/tooling/verify/gates/tooling-plumbing-family.suite.test.ts). POPULATION PORT: byte-identical (`@tooling`).
+// THE REPORTED POSITION is the literal (or the const) as written, inside the call. `selected-files`: each occurrence is judged alone, and a subset run leaves unconsumed grants unjudged (stale is a whole-coverage verdict, lib/gate-authority.ts).
+// POPULATION PORT: byte-identical (`@tooling`).
 //
 // Legacy descriptor: `bbdccb2d5c` (`tooling/src/verify/gates/tooling-shared-plumbing.ts`, arm C). No private
 // marker grammar; zero live `@orb-gate-ignore tooling-shared-plumbing` markers at conversion.
@@ -52,7 +51,7 @@ export const gate = defineGate({
   severity: "error",
   population: "@tooling",
   analysis: "types",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,

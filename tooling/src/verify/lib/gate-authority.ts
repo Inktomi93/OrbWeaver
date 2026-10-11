@@ -319,7 +319,13 @@ function processOrdinary(state: CoordinationState): ReturnType<ReturnType<typeof
   for (const [id, count] of matched.consumption) {
     state.ordinaryCounts.set(id, count);
   }
-  return engine.reconcile({ completedPolicyIds: [...state.completedOrdinary].toSorted(), match: matched });
+  const subsetPopulations = new Map(
+    [...state.completedOrdinary].flatMap((id) => {
+      const result = state.results.get(id);
+      return result?.coverage === "subset" ? [[id, new Set(result.populationFiles)] as const] : [];
+    }),
+  );
+  return engine.reconcile({ completedPolicyIds: [...state.completedOrdinary].toSorted(), subsetPopulations, match: matched });
 }
 
 interface GrantReconciliation {

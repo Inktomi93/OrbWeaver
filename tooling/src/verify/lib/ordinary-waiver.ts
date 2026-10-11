@@ -376,6 +376,7 @@ function matchBatch(
   downgradeUnreachableUnbound(evaluated, new Set(waiverIds.flatMap((waiverId, index) => (waiverId === null ? [] : [index]))));
   const markerMatches: OrdinaryWaiverMarkerMatch[] = evaluated.map(({ marker, outcome, candidates }) => ({
     id: marker.id,
+    file: marker.file,
     policyId: marker.policyId,
     outcome,
     candidateCount: candidates.length,
@@ -407,12 +408,17 @@ function markerMessage(marker: OrdinaryWaiverMarkerMatch): string | undefined {
   return messages[marker.outcome];
 }
 
-function reconcileMatch(completedPolicyIds: readonly string[], match: OrdinaryWaiverMatchResult): readonly OrdinaryAuthorityAlarm[] {
+function reconcileMatch(
+  completedPolicyIds: readonly string[],
+  match: OrdinaryWaiverMatchResult,
+  subsetPopulations: ReadonlyMap<string, ReadonlySet<string>>,
+): readonly OrdinaryAuthorityAlarm[] {
   const completed = new Set(completedPolicyIds);
   const alarms: OrdinaryAuthorityAlarm[] = [];
   for (const marker of match.markers) {
     const completionBound = ["stale", "dead-position", "unbound-trivia", "ambiguous-trivia", "over-broad", "duplicate-target"].includes(marker.outcome);
-    if (completionBound && !completed.has(marker.policyId)) {
+    // A subset owner never saw a file outside its population, so it cannot call a marker there stale.
+    if (completionBound && (!completed.has(marker.policyId) || subsetPopulations.get(marker.policyId)?.has(marker.file) === false)) {
       continue;
     }
     const message = markerMessage(marker);
@@ -437,6 +443,6 @@ export function createOrdinaryWaiverEngine(input: OrdinaryWaiverEngineInput): Or
   const markers = acquireMarkers(input, policies);
   return {
     match: (findings) => matchBatch(markers, sources, findings),
-    reconcile: ({ completedPolicyIds, match }) => reconcileMatch(completedPolicyIds, match),
+    reconcile: ({ completedPolicyIds, match, subsetPopulations }) => reconcileMatch(completedPolicyIds, match, subsetPopulations ?? new Map()),
   };
 }
