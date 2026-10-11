@@ -32,8 +32,11 @@ test("a failing section renders inline at its anchor WITH a retry, even while ho
     // fed empty (the honest fresh-library arm) rather than left to routeTrpc's inert null.
     "tag.listTagsWithUsage": [],
     "regex.listScripts": [],
+    "regex.countScripts": 0,
     "worldInfo.listBooksWithUsage": [],
+    "worldInfo.countBooks": 0,
     "rosterPreset.list": [],
+    "rosterPreset.count": 0,
     "settings.listThemes": [],
   });
   await mount(<ConfigHostStory />);

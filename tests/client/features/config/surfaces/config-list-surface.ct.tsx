@@ -155,6 +155,10 @@ function stub(
   return routeTrpc(page, {
     // The fourth collection (casts) + the viewer projection the LIST's `when` gate reads (#866 S1).
     "rosterPreset.list": [],
+    // The group bands read their census from the count procedures, not from the enriched page.
+    "rosterPreset.count": 0,
+    "regex.countScripts": () => scripts.length,
+    "worldInfo.countBooks": () => books.length,
     // The workspace story now mounts the CONTEXT through the real resolve (#866 S3), and a selected
     // group's skimmer sections read the settings blob — fed the real defaults, never an inert null.
     "settings.getUserSettings": () => ({ userId: "user_ct_config", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 }),

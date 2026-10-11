@@ -85,6 +85,7 @@ function stub(
       { id: "theme_00000000000000000000000003", name: "Light", override: {}, css: null, isSeed: true, isDefault: false, createdAt: 0, updatedAt: 0 },
     ],
     "rosterPreset.list": [ROSTER],
+    "rosterPreset.count": 1,
     // The roster member editor's own read — the NONE-collection pin opens it.
     "rosterPreset.get": {
       id: ROSTER.id,
@@ -103,9 +104,11 @@ function stub(
     // Opening Chat behavior mounts its Memory section, which reads the Utility role.
     ...UTILITY_RUNNING_ROUTES,
     "regex.listScripts": () => [SCRIPT, SCRIPT_2],
+    "regex.countScripts": 2,
     "regex.listGlobal": () => [],
     "regex.listScriptUsage": () => ({ presets: [], characters: [], rooms: [] }),
     "worldInfo.listBooksWithUsage": () => [],
+    "worldInfo.countBooks": 0,
     "persona.list": () => [],
     "character.list": () => ({ items: [], nextCursor: null }),
     "notifications.list": () => ({ items: [], nextCursor: null }),
@@ -378,11 +381,14 @@ function stubModified(page: Page): Promise<TrpcRecorder> {
     }),
     "settings.listThemes": () => [],
     "rosterPreset.list": [ROSTER],
+    "rosterPreset.count": 1,
     "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },
     "regex.listScripts": () => [SCRIPT, SCRIPT_2],
+    "regex.countScripts": 2,
     "regex.listGlobal": () => [],
     "regex.listScriptUsage": () => ({ presets: [], characters: [], rooms: [] }),
     "worldInfo.listBooksWithUsage": () => [],
+    "worldInfo.countBooks": 0,
     "persona.list": () => [],
     "character.list": () => ({ items: [], nextCursor: null }),
   });

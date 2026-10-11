@@ -52,11 +52,14 @@ const AMBIENT = {
   // The Looks section (#866 S4) reads the theme library the moment the appearance group mounts.
   "settings.listThemes": (): TrpcWireOutput<"settings.listThemes"> => [],
   "regex.listScripts": [],
+  "regex.countScripts": 0,
   "worldInfo.listBooksWithUsage": [BOOK],
+  "worldInfo.countBooks": 1,
   "worldInfo.listGlobal": [],
   "worldInfo.getBook": { id: BOOK.id, name: BOOK.name, description: null, createdAt: 1 },
   "worldInfo.listEntries": [],
   "rosterPreset.list": [],
+  "rosterPreset.count": 0,
   "persona.list": [],
   // A search hit can land on Chat behavior, whose Memory section reads the Utility role.
   ...UTILITY_RUNNING_ROUTES,
@@ -67,11 +70,14 @@ const AMBIENT = {
   | "settings.getUserSettings"
   | "settings.listThemes"
   | "regex.listScripts"
+  | "regex.countScripts"
   | "worldInfo.listBooksWithUsage"
+  | "worldInfo.countBooks"
   | "worldInfo.listGlobal"
   | "worldInfo.getBook"
   | "worldInfo.listEntries"
   | "rosterPreset.list"
+  | "rosterPreset.count"
   | "persona.list"
 >;
 

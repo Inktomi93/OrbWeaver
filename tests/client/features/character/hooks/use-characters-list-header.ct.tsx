@@ -27,7 +27,7 @@ import { CharactersBandInShellStory } from "../_ct-stories.tsx";
 const REST_WIDTH = 307;
 const SQUEEZED_WIDTH = 272;
 
-/** The band's census read is `character.list` at `{limit: 1}` (see `use-character-census.ts`); the count is
+/** The band's census read is `character.count` (see `use-character-census.ts`); the count is
  *  what the title competes with for the lane, so it must be a REAL three-digit census — the 312-row library
  *  the finding was taken on. */
 const LIBRARY_TOTAL = 312;

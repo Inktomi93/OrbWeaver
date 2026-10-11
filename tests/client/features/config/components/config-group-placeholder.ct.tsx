@@ -42,8 +42,11 @@ const VIEWER_ROUTE = defineTrpcRoutes({
   // (the honest fresh-library arm) rather than left to routeTrpc's inert null.
   "tag.listTagsWithUsage": [],
   "regex.listScripts": [],
+  "regex.countScripts": 0,
   "worldInfo.listBooksWithUsage": [],
+  "worldInfo.countBooks": 0,
   "rosterPreset.list": [],
+  "rosterPreset.count": 0,
 });
 
 test("a deferred category renders the teaching placeholder: its distinct copy + the 'Not built yet' chip", async ({ mount, page }) => {

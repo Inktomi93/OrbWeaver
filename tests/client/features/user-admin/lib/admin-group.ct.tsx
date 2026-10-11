@@ -107,8 +107,11 @@ function stub(page: Page, viewer: TrpcWireOutput<"sessions.me">): Promise<TrpcRe
     // fed empty (the honest fresh-library arm) rather than left to routeTrpc's inert null.
     "tag.listTagsWithUsage": [],
     "regex.listScripts": [],
+    "regex.countScripts": 0,
     "worldInfo.listBooksWithUsage": [],
+    "worldInfo.countBooks": 0,
     "rosterPreset.list": [],
+    "rosterPreset.count": 0,
     "admin.listUsers": () => USERS,
     "sessions.me": () => viewer,
     // Multi-user's owner-only Share card reads the relay; fed at rest.

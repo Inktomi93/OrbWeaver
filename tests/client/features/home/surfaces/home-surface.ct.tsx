@@ -110,7 +110,7 @@ const SEEDED_ROSTERS: readonly RosterPresetSummary[] = SEED_MANIFEST.flatMap((it
 const FIRST_BOOT_HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 4, stalled: 0 }, chunks: 48, passages: 48, staleExtraction: 0, total: 4 };
 /** Ambient to every shipped-registry mount here: the Rosters tile's gate reads the roster library, and `routeTrpc`'s
  *  null is not a list. Empty, so the tile stays off every measurement below; its gate has its own CT. */
-const HOME_ROUTES = { ...CHAT_ROOM_ROUTES, "rosterPreset.list": [] };
+const HOME_ROUTES = { ...CHAT_ROOM_ROUTES, "rosterPreset.list": [], "rosterPreset.count": 0 };
 
 test("tiles render in (order, id), not door-array order", async ({ mount }) => {
   const home = await mount(<HomeTileOrderStory />);
@@ -669,6 +669,7 @@ test("#129 the shipped first boot reserves each tile the box a FULL page settles
     "databank.bankHealth": health,
     "databank.list": documents,
     "rosterPreset.list": [...SEEDED_ROSTERS],
+    "rosterPreset.count": SEEDED_ROSTERS.length,
     "automation.listRulePresets": [],
     "settings.getUserSettings": settings,
   });
@@ -2150,6 +2151,7 @@ async function firstBootShift(
       "chat.reapTemporaryChats": { reaped: 0 },
       "character.list": characters,
       "rosterPreset.list": [...SEEDED_ROSTERS],
+      "rosterPreset.count": SEEDED_ROSTERS.length,
       "automation.listRulePresets": [],
       "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: newId<UserId>() },
     },
@@ -2192,6 +2194,7 @@ test("a new account's first boot decides the shelf foot once the shelf settles, 
       "chat.reapTemporaryChats": { reaped: 0 },
       "character.list": characters,
       "rosterPreset.list": [...SEEDED_ROSTERS],
+      "rosterPreset.count": SEEDED_ROSTERS.length,
       "automation.listRulePresets": [],
       "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: newId<UserId>() },
     },
@@ -2242,6 +2245,7 @@ test("a return visit shifts nothing: every tile reserves the height it settled a
       "chat.reapTemporaryChats": { reaped: 0 },
       "character.list": characterListResponder(FIRST_BOOT_FACES),
       "rosterPreset.list": [...SEEDED_ROSTERS],
+      "rosterPreset.count": SEEDED_ROSTERS.length,
       "automation.listRulePresets": [],
       "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: newId<UserId>() },
     },

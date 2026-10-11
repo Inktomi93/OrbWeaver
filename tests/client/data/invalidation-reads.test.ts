@@ -70,6 +70,7 @@ describe("the named read sets", () => {
       ...paths(hiddenRevealRead(trpc)),
       ...paths(runtimeVariablesRead(trpc)),
       "chat.listChats",
+      "chat.countChats",
     ]);
   });
 

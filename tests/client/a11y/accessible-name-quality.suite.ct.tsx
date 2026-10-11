@@ -52,8 +52,11 @@ const VIEWER_IDENTITY_ROUTES = defineTrpcRoutes({
   // The config LIST paints every shelf, so the four collection bands read their rosters — fed empty.
   "tag.listTagsWithUsage": [],
   "regex.listScripts": [],
+  "regex.countScripts": 0,
   "worldInfo.listBooksWithUsage": [],
+  "worldInfo.countBooks": 0,
   "rosterPreset.list": [],
+  "rosterPreset.count": 0,
   "sessions.me": { userId: "user_ct_namecraft", globalRole: "user", handle: "namecraft" },
   "persona.list": [],
   // The config host's appearance target mounts `appearance-looks-section.tsx`, whose
@@ -184,6 +187,7 @@ test("the app shell is navigable by name", async ({ mount, page }) => {
   // — the #1797 whole-tree census caught this file's shell mount leaving it unstubbed and INERT).
   await routeTrpc(page, {
     "settings.getUserSettings": () => USER_SETTINGS_VIEW,
+    "character.count": 0,
     ...VIEWER_IDENTITY_ROUTES,
     ...CHAT_AND_INBOX_READS_EMPTY,
   });
@@ -209,6 +213,7 @@ test("the members panel is navigable by name", async ({ mount, page }) => {
 test("the character library is navigable by name", async ({ mount, page }) => {
   await routeTrpc(page, {
     "rosterPreset.list": [],
+    "character.count": 2,
     "character.list": () => ({ items: [ARIA, BOLT], nextCursor: null }),
     "settings.getUserSettings": () => USER_SETTINGS_VIEW,
     "chat.listChats": () => EMPTY_CHAT_LIST,

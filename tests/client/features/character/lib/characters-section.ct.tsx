@@ -53,6 +53,7 @@ const HER_CHAT = makeChatSummary({
 async function routeAll(page: Page): Promise<void> {
   await routeTrpc(page, {
     "character.list": () => CHARACTER_PAGE,
+    "character.count": () => CHARACTER_PAGE.totalCount,
     "character.get": () => AVELINE_DETAIL,
     "character.update": () => AVELINE_DETAIL,
     "chat.listChats": chatListResponder([HER_CHAT]),
@@ -196,6 +197,7 @@ test("#841 Trust is its own door too — a security concern reads as one", async
 test("#843 the Origin card tells a shipped example card apart from one you made", async ({ mount, page }) => {
   await routeTrpc(page, {
     "character.list": () => CHARACTER_PAGE,
+    "character.count": () => CHARACTER_PAGE.totalCount,
     // #900 — the shipped arm is DERIVED, not declared twice. This used to spread a hand-set
     // `creator: "orbweaver"` AND a hand-set `provenance: "shipped"` past the factory; now only the RAW
     // column is stated (the shared marker the seeder stamps, not a re-typed literal) and
@@ -269,6 +271,7 @@ test("#860 the CONTEXT head band is the open character's identity, over a foot r
 test("#860 a card with its own look carries the Own look mark in the band", async ({ mount, page }) => {
   await routeTrpc(page, {
     "character.list": () => CHARACTER_PAGE,
+    "character.count": () => CHARACTER_PAGE.totalCount,
     // `accent` is a card-embeddable `ThemeOverride` key; `primary` is a rendered CSS custom property and
     // never a wire key, so a stub carrying it projects to an empty card theme and the mark stays hidden.
     "character.get": () => makeCharacterDetail({ ...AVELINE_DETAIL, themeOverride: { accent: "#ff8800" } }),

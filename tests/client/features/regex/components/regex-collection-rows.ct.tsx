@@ -62,6 +62,7 @@ const EXPORTED = { filename: "strip-ooc-regex_script_stripooc00000.json", fileTe
 function stub(page: Page, scripts: TrpcWireOutput<"regex.listScripts"> = SCRIPTS, globals: TrpcWireOutput<"regex.listGlobal"> = []): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "regex.listScripts": () => scripts,
+    "regex.countScripts": () => scripts.length,
     "regex.listGlobal": () => globals,
     "regex.attachGlobal": () => null,
     "regex.detachGlobal": () => ({ detached: true }),

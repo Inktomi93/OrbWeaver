@@ -96,13 +96,16 @@ const BOOK_DETAIL = { id: BOOK.id, name: BOOK.name, description: BOOK.descriptio
 function stub(page: Page, scripts: TrpcFixtureOutput<"regex.listScripts"> = [SCRIPT]): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "rosterPreset.list": () => [ROSTER],
+    "rosterPreset.count": 1,
     "settings.getUserSettings": () => ({ userId: "user_ct_config", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 }),
     "settings.listThemes": () => [],
     "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },
     "regex.listScripts": () => scripts,
+    "regex.countScripts": () => scripts.length,
     "regex.listGlobal": () => [],
     "regex.listScriptUsage": () => ({ presets: [], characters: [], rooms: [] }),
     "worldInfo.listBooksWithUsage": () => [BOOK],
+    "worldInfo.countBooks": 1,
     "worldInfo.listGlobal": () => [],
     // The BOOK EDITOR's own two reads — the drill-row pin below opens a book, and an unstubbed suspense
     // read resolves `null` and throws INSIDE the boundary, which reads as "the header is missing".

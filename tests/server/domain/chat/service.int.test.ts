@@ -70,6 +70,12 @@ function makeService(
   events: ChatBusEvent[];
 } {
   const events: ChatBusEvent[] = [];
+  const characterDeco = (characterId: CharacterId): Awaited<ReturnType<ChatContext["resolveSeatDeco"]>> => ({
+    renderPolicy: { htmlTrust: "trusted", forbidExternalMedia: false },
+    themeOverride: { accent: "oklch(0.7 0.14 250)" },
+    backgroundOverride: null,
+    card: { name: names[characterId] ?? "Unknown", avatarAssetId: null },
+  });
   const ctx = makeChatContext(db, {
     runChatTurn: scripted("Hi there"),
     applyStatsDelta: (_b: unknown, _d: Db, _delta: StatsDelta): void => undefined,
@@ -84,13 +90,10 @@ function makeService(
       Promise.resolve(
         characterId === null
           ? { renderPolicy: { htmlTrust: "untrusted", forbidExternalMedia: true }, themeOverride: null, backgroundOverride: null, card: null }
-          : {
-              renderPolicy: { htmlTrust: "trusted", forbidExternalMedia: false },
-              themeOverride: { accent: "oklch(0.7 0.14 250)" },
-              backgroundOverride: null,
-              card: { name: names[characterId] ?? "Unknown", avatarAssetId: null },
-            },
+          : characterDeco(characterId),
       ),
+    // The roster read resolves character seats through the batch door; same decoration as the single door.
+    resolveSeatDecos: ({ characterIds }) => Promise.resolve(new Map(characterIds.map((id) => [id, characterDeco(id)] as const))),
     ...ctxOverrides,
   });
   const deps: ChatServiceDeps = {
@@ -266,14 +269,11 @@ describe("createChatService — assembly", () => {
 
   test("a deleted CHARACTER card mid-read degrades to the removed-character label, never the raw id (ruling 2)", async () => {
     const { host, chatId } = await seedRoom();
-    // resolveSeatDeco resolves a null card (deleted between the roster read and this resolution) → the
-    // seat degrades to the removed-character label.
+    // The batch door resolves nothing for the character (deleted between the roster read and this resolution)
+    // → the seat falls to the floor decoration and degrades to the removed-character label.
     const { service } = makeService(
       {},
-      {
-        resolveSeatDeco: () =>
-          Promise.resolve({ renderPolicy: { htmlTrust: "untrusted", forbidExternalMedia: true }, themeOverride: null, backgroundOverride: null, card: null }),
-      },
+      { resolveSeatDecos: () => Promise.resolve(new Map<CharacterId, Awaited<ReturnType<ChatContext["resolveSeatDeco"]>>>()) },
     );
     const roster = await service.listParticipants({ principal: principal(host), chatId });
 
