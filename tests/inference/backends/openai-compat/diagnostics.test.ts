@@ -179,3 +179,28 @@ test("a test request whose 2xx reply the chat path cannot read is not ok, and sa
   expect(inspection.response?.bodyPreview).toBe("not json at all");
   expect(inspection.error).toBeDefined();
 });
+
+// The test fails as fast as a chat turn would: the row's own idle bound ends a hung endpoint.
+test("a hung endpoint fails the test request within the row's requestTimeoutMs, not at the transport's own timeout", async () => {
+  const idleMs = 50;
+  const row = fakeResolved({
+    task: "chat",
+    providerId: "custom-openai",
+    model: "m",
+    capability: generationCapability(),
+    baseUrl: "https://byo.example.com/v1",
+    secret: fakeApiKeySecret(API_KEY),
+    declaredFeatures: { requestTimeoutMs: idleMs },
+  });
+  const hung: typeof fetch = (_input, init) =>
+    new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => {
+        reject(init.signal?.reason);
+      });
+    });
+
+  const inspection = await inspectOpenAiCompatEndpoint({ connection: row }, { fetch: hung, app: APP });
+
+  expect(inspection.ok).toBe(false);
+  expect(inspection.error).toContain(`${idleMs} ms`);
+});
