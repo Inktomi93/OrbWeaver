@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
-updated: 2026-09-23
+status: superseded
+updated: 2026-10-11
+superseded-by: docs/adr/0311-the-users-own-body-wins-every-collision-outside-the-denylist.md
 ---
 
 # `customParameters` passthrough exists for endpoints we cannot model, never as a second sampling surface for one we own

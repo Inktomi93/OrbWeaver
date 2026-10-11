@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
-updated: 2026-10-03
+status: superseded
+updated: 2026-10-11
+superseded-by: docs/adr/0310-ollama-chat-and-the-connection-test-ride-the-native-route.md
 ---
 
 # Ollama chat rides its native route

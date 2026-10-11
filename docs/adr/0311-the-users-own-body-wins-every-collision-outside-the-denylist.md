@@ -2,6 +2,7 @@
 kind: adr
 status: active
 updated: 2026-10-11
+supersedes: docs/adr/0156-customparameters-passthrough-exists-for-endpoints-we-cannot-model.md
 ---
 
 # The user's own request body wins every collision outside the denylist
