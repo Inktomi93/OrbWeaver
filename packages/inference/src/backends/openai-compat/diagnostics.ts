@@ -17,6 +17,7 @@ import type { ProviderScrubSet } from "../../contract/errors.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { Resolved } from "../../contract/resolved.ts";
 import { authHeaders, fetchJson, openAiPath } from "../kit/fetch-json.ts";
+import { turnAbortSignal } from "../kit/idle-timeout.ts";
 import { bareCatalogEntry, failedListing, listingOf } from "../kit/model-listing.ts";
 import { redactHeaders, redactSecretsFromText, secretScrubOverhang } from "../kit/openai-body.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../kit/sanitize.ts";
@@ -248,15 +249,19 @@ export async function inspectOpenAiCompatEndpoint(req: InspectRequest, deps: Ins
     replyImages: false,
     warnings: [],
   });
+  // The row's own idle bound, as chat arms it: a hung endpoint fails the test when it would fail a turn.
+  const idle = turnAbortSignal(req.signal, connection.features.requestTimeoutMs);
   try {
     await model.doGenerate({
       prompt: [{ role: "user", content: [{ type: "text", text: PING_CONTENT }] }],
       maxOutputTokens: PING_MAX_TOKENS,
-      ...(req.signal !== undefined ? { abortSignal: req.signal } : {}),
+      abortSignal: idle.signal,
     });
     return await inspectionOf(observed, secrets, undefined);
   } catch (err) {
     return { ...(await inspectionOf(observed, secrets, err)), ok: false, error: sanitizeApiError(redactSecretsFromText(errorMessage(err), secrets)) };
+  } finally {
+    idle.dispose();
   }
 }
 

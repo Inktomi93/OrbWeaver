@@ -293,3 +293,53 @@ test("OpenAI: the posture's off rides `reasoning_effort: none` where the model t
   expect(mandatory.bodies[0]?.["max_completion_tokens"]).toBeGreaterThan(ARBITER_CAP);
   expect(warnedCodes(mandatory.lines)).toContain("reasoning_mandatory_clamp");
 });
+
+// ── The connection test wakes a sleeping row the way a chat turn does ──
+
+test("the connection test wakes a sleeping vLLM row before it sends", async () => {
+  const requests: string[] = [];
+  let sleeping = true;
+  const engine: typeof fetch = (input, init) => {
+    const { pathname } = new URL(String(input));
+    requests.push(`${init?.method ?? "GET"} ${pathname}`);
+    if (pathname === "/is_sleeping") {
+      return Promise.resolve(Response.json({ ["is_sleeping"]: sleeping }));
+    }
+    if (pathname === "/wake_up") {
+      sleeping = false;
+      return Promise.resolve(new Response(null, { status: 200 }));
+    }
+    return Promise.resolve(
+      Response.json({
+        id: "c",
+        object: "chat.completion",
+        created: 1,
+        model: "m",
+        choices: [{ index: 0, message: { role: "assistant", content: "ok" }, ["finish_reason"]: "stop" }],
+      }),
+    );
+  };
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "vllm",
+    model: "Qwen/Qwen3-8B",
+    capability: generationCapability(),
+    baseUrl: "http://127.0.0.1:8000/v1",
+  });
+  const { backend } = createOpenAiCompatBackend({
+    now: () => NOW,
+    log: recordingLog([]),
+    fetch: engine,
+    app: APP,
+    snapshotStore: memoryStores().snapshotStore,
+  });
+
+  if (backend.inspect === undefined) {
+    throw new Error("the openai-compat backend serves inspect");
+  }
+
+  await expect(backend.inspect({ connection })).resolves.toMatchObject({ ok: true });
+
+  expect(requests.indexOf("POST /wake_up")).toBeGreaterThanOrEqual(0);
+  expect(requests.indexOf("POST /v1/chat/completions")).toBeGreaterThan(requests.indexOf("POST /wake_up"));
+});
