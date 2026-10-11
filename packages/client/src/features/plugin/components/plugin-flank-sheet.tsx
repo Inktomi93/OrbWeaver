@@ -23,7 +23,7 @@ export function PluginChatFlank({ chatId }: { readonly chatId?: ChatId }): React
 
 /** The sheet itself, mounted only while the caller has a showing flank panel. A portal leaves nothing in the room's
  *  column, so the column still collapses on `:empty`. */
-export function PluginFlankSheet({ chatId }: { readonly chatId?: ChatId }): ReactElement | null {
+function PluginFlankSheet({ chatId }: { readonly chatId?: ChatId }): ReactElement | null {
   const visible = useVisibleAnchoredSurfaces("chat-flank", chatId);
   const hasPanels = visible.length > 0;
   return hasPanels ? <FlankSheet {...(chatId === undefined ? {} : { chatId })} /> : null;
