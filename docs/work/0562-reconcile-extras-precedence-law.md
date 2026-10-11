@@ -1,9 +1,10 @@
 ---
 kind: decision
-status: open
-updated: 2026-10-04
+status: doing
+updated: 2026-10-11
 priority: P2
 area: inference
+lane: wt/agent-a53b04e959c9a90db
 ---
 
 # Reconcile extras precedence law
