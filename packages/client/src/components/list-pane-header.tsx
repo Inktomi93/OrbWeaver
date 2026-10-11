@@ -1,7 +1,7 @@
 // ListPaneHeader — the client-shared LIST chrome-band cluster (D12). The content
 // a section definition's `useListHeader` slot feeds into `.shell-panel-header`: an optional back affordance, the
 // section title at the DISPLAY step (optionally `Title · <accent>` for a scoped/entity mode — #1136, see the
-// heading), a live mono count, and the panel's ONE primary action (D66 A2).
+// heading), a live count, and the panel's ONE primary action (D66 A2).
 //
 // Minted because three landed headers hand-copied the identical `Row(Heading micro/caps/semibold + Text
 // micro/mono/muted)` cluster (chat · corpus · analytics) and the character screen's modal band adds two more
@@ -109,7 +109,9 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
             // `normal-case` is gone with the heading's caps: the #525 defect it existed to stop
             // (`CHATS 129 OF 896` — the joining word shouting at the section name's weight) cannot occur
             // now that nothing in this cluster uppercases.
-            <Text as="span" className="min-w-0 truncate font-mono" size="label" tone="muted" weight="regular">
+            // THE COUNT WEARS THE TITLE'S FAMILY: an unlabelled mono figure beside a sans name reads as a stray
+            // datum, not the census of the list. Tabular figures keep it from jittering as it changes.
+            <Text as="span" className="min-w-0 truncate tabular-nums" size="label" tone="muted" weight="regular">
               {count}
             </Text>
           )}

@@ -2,7 +2,7 @@
 // The three landed band headers (chat · corpus · analytics) and the character screen's two modal modes all
 // render through it, so the conformance the private copies each held by hand is pinned ONCE here:
 //
-//   · the title is the DISPLAY step against the GENERATED token map (not a hardcoded px), the count is mono;
+//   · the title is the DISPLAY step against the GENERATED token map (not a hardcoded px), the count shares its family;
 //   · the accent half (`Chats · Aveline`) recedes to the muted tone behind the name it qualifies;
 //   · a zero count renders NOTHING (a zero census is noise) while a real count renders;
 //   · `back` is a real focusable button carrying its accessible name (the glyph has no text);
@@ -41,14 +41,17 @@ test("#1136 the title is the DISPLAY step and clears the flat-hierarchy ratio ag
   );
 });
 
-test("the count is mono at the LABEL step; a ZERO count renders nothing at all", async ({ mount, page }) => {
+test("the count is the title's family with tabular figures at the LABEL step; a ZERO count renders nothing at all", async ({ mount, page }) => {
   const component = await mount(<ListPaneHeader count={12} title="Chats" />);
   const count = component.getByText("12", { exact: true });
   // #1136 — micro beside a 24px name is not quiet, it is unreadable. A legibility step, not a grid one:
   // where this datum LANDS is the band's own arithmetic, pinned by the #1154 case at the end of this file
   // (the 47px content box that decided it is gone — the band's separator is an inset shadow now).
   await expect(count).toHaveCSS("font-size", LABEL_PX);
-  await expect.poll(() => count.evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(MONO_STACK_RE);
+  // An unlabelled mono number beside a sans name reads as a stray datum; the figures stay tabular so the
+  // census does not jitter as it changes.
+  await expect.poll(() => count.evaluate((el) => getComputedStyle(el).fontFamily)).not.toMatch(MONO_STACK_RE);
+  await expect(count).toHaveCSS("font-variant-numeric", "tabular-nums");
 
   await component.update(<ListPaneHeader count={0} title="Chats" />);
   await expect(page.getByText("0", { exact: true })).toHaveCount(0);

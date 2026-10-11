@@ -22,4 +22,16 @@ Toolbar actions are grouped with one control style and the shortcut hint shows C
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Re-derived first. The merged context pane work already fixed the right header slab, the foot rail and the second shade in the pane (`docs/adr/0313-the-context-panes-tabs-live-in-its-header-row.md`).
+
+Surfaces, sampled from snaps at 1280 and 1920 with both panels open, before and after: rail (9, 7, 6), list and context panes (12, 9, 7), content and topbar (15, 12, 10). One step per column and no second shade inside a pane, so the elevation item needed no change.
+
+Fixed, each with a test that failed on the old source first:
+
+- Toolbar. The palette chip is a ghost control like the others and the icon actions are one cluster (`topbar-trail.tsx`, `shell.css`). The hint is `Ctrl+K` off Apple platforms (`command-shortcut-label.ts`). Tests: `command-shortcut-label.test.ts`, `app-shell.ct.tsx`.
+- List count. It wears the title's family with tabular figures (`list-pane-header.tsx`). Test: `list-pane-header.ct.tsx`.
+- Avatar shape. `docs/law/UI-Density-Law.md` 2.1 gives avatars the full radius, so the faces strip, character picker, library row and refinery row are circles. Portrait slots keep `rounded`. The overflow tile stays distinct by its dashed outline on no fill. Tests: `face-strip.ct.tsx`, `character-picker.ct.tsx`, `character-card.ct.tsx`.
+- Transcript top edge. Both edge bands ease in, so the cut line reads as gone (`globals.css`). Test: `message-list-surface.ct.tsx`, a framebuffer sample.
+- Flank. The column keeps a top gap under the divider (`chat-room-surface.tsx`). Pocket Arcade puts New game on its own line in the 194px frame (1.0.2, artifacts rebuilt). Frames get the thin themed scrollbar (`card-frame/index.ts`). Tests: `chat-room-surface.ct.tsx`, `pocket-arcade.suite.ct.tsx`, `sandbox-frame.ct.tsx`.
+
+Kept: the 2px ember edge atop the context pane is the content-to-context binding line, not a surface shade. The hero portrait uploader keeps `square` so its button ring traces the avatar's corner.

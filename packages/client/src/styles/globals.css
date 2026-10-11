@@ -992,11 +992,39 @@ html[data-texture="grain"] .shell-grid [data-slot="card-root"]::after {
  * `elementFromPoint` + `getComputedStyle`, which report the fully-opaque cream card for every faded row,
  * and therefore to design-audit and to snap's css-resolve path. It was found by sampling pixels and it is
  * pinned by sampling pixels (tests/client/features/chat/message-list-edge-fade.ct.tsx). */
+/* EACH BAND EASES IN FROM ITS EDGE rather than ramping linearly: the first quarter of the band is nearly
+ * transparent, so the line an edge cuts reads as gone instead of half drawn (a linear ramp left it a fifth
+ * of the way up, a dim half-glyph under the toolbar), and the band still reaches the full card by its far
+ * side. A zero stop collapses all five stops onto one position, so an edge that hides nothing stays opaque. */
 [data-slot="message-list-scroll"] {
   --fade-top-stop: 0%;
   --fade-bottom-stop: 0%;
-  -webkit-mask-image: linear-gradient(to bottom, transparent, black var(--fade-top-stop), black calc(100% - var(--fade-bottom-stop)), transparent);
-  mask-image: linear-gradient(to bottom, transparent, black var(--fade-top-stop), black calc(100% - var(--fade-bottom-stop)), transparent);
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    rgb(0 0 0 / 0.04) calc(var(--fade-top-stop) * 0.25),
+    rgb(0 0 0 / 0.2) calc(var(--fade-top-stop) * 0.5),
+    rgb(0 0 0 / 0.55) calc(var(--fade-top-stop) * 0.75),
+    black var(--fade-top-stop),
+    black calc(100% - var(--fade-bottom-stop)),
+    rgb(0 0 0 / 0.55) calc(100% - var(--fade-bottom-stop) * 0.75),
+    rgb(0 0 0 / 0.2) calc(100% - var(--fade-bottom-stop) * 0.5),
+    rgb(0 0 0 / 0.04) calc(100% - var(--fade-bottom-stop) * 0.25),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    rgb(0 0 0 / 0.04) calc(var(--fade-top-stop) * 0.25),
+    rgb(0 0 0 / 0.2) calc(var(--fade-top-stop) * 0.5),
+    rgb(0 0 0 / 0.55) calc(var(--fade-top-stop) * 0.75),
+    black var(--fade-top-stop),
+    black calc(100% - var(--fade-bottom-stop)),
+    rgb(0 0 0 / 0.55) calc(100% - var(--fade-bottom-stop) * 0.75),
+    rgb(0 0 0 / 0.2) calc(100% - var(--fade-bottom-stop) * 0.5),
+    rgb(0 0 0 / 0.04) calc(100% - var(--fade-bottom-stop) * 0.25),
+    transparent
+  );
 }
 [data-slot="message-list-scroll"][data-fade-top] {
   --fade-top-stop: var(--fade-edge-stop);

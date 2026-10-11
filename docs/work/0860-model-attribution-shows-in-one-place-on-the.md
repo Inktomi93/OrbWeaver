@@ -22,6 +22,18 @@ Every place the chat page names or switches the model or preset is listed with i
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Already satisfied by the merged chat-page work, so this item changes no code: it adds the room-level test and lists each place. Re-derived on this tree with codegraph over the chat feature, `ast-grep` for `$X.model` and `trpc.connection.$M` across the client in both `ts` and `tsx`, and `pnpm ast`.
 
-Owner ruling: no model or preset swaps from the chat room; those are set in room settings, not on the chat page.
+Every place the chat page names or switches the model or preset:
+
+- `packages/client/src/features/chat/components/generation-credit.tsx`: the per-message stamp. Kept. A glyph in the reply's action cluster; the sentence is on `title` and in screen-reader text, behind the Show model appearance toggle.
+- `packages/client/src/features/chat/components/composer-next-turn-line.tsx`: the composer's next-reply line. It prints a sentence only for a refusal (no chat connection, or a failed check) and never names a model.
+- The context pane and the chat header: no connection section, preset chip or model read remains. The pane's tabs live in its header row (`docs/adr/0313-the-context-panes-tabs-live-in-its-header-row.md`).
+- `packages/client/src/features/chat/lib/warning-notice.ts`: turn notices say "this model" and do not name it.
+- No swap control: the chat feature reads connections only in `use-credit-connections.ts`, `message-cost-readout.tsx` and the next-reply line, and no mutation of a connection or preset is reachable from the room.
+
+Correction to the Done line: a room has no model or preset of its own. The model is set in Settings, Model roles, and the preset is the active preset in Presets, so both stay settable outside the chat page.
+
+Test: `tests/client/features/chat/surfaces/chat-room-surface.ct.tsx`, "the room names the model only in the per-message stamp and mounts no model or preset swap". It plants a model name outside the stamp first, to prove its probe sees one, then asserts the room has none and no model, connection or preset control. It passes on the unchanged source by design.
+
+Owner ruling: no model or preset swaps from the chat room.

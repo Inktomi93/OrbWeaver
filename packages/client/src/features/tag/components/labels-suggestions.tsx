@@ -145,8 +145,10 @@ function SuggestionGroupBlock({
           Apply to all
         </Button>
       </Row>
+      {/* `w-fit`: the table is as wide as its two columns, so a name's verbs sit beside it instead of a pane-width away. */}
       <Table
         aria-label={`Characters suggested ${group.name}`}
+        className="w-fit max-w-full"
         columns={columns}
         data={group.rows}
         defaultPagination={{ pageIndex: 0, pageSize: group.rows.length }}
@@ -201,14 +203,8 @@ function SuggestionRow({
     failedAction.current = null;
   }, [pending]);
   return (
-    <Row
-      align="center"
-      className="flex-wrap"
-      gap="field"
-      justify="end"
-      role="group"
-      aria-label={`Suggested ${suggestion.name} for ${suggestion.characterName}`}
-    >
+    // No wrap: Apply and Reject are one pair, and the table gives this cell its own width.
+    <Row align="center" gap="field" justify="end" role="group" aria-label={`Suggested ${suggestion.name} for ${suggestion.characterName}`}>
       <Button
         data-slot="label-review-apply"
         intent="secondary"

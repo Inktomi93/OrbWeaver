@@ -1865,6 +1865,26 @@ async function openRuleConnections(page: Page): Promise<Locator> {
   return page.locator('[data-slot="rule-connections"]');
 }
 
+// One card, one size for its teaching copy: the rule's own summary, the note under its rate-cap switch and the
+// connection slot's description are sibling sentences. The slot's reads at the label step, so a summary or note
+// left at the micro step made the slot the loudest text in the card.
+test("a rule card's summary, rate-cap note and connection description are one size", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  const slots = await openRuleConnections(page);
+
+  const sizeOf = (copy: Locator): Promise<number> => copy.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
+  const summary = ruleDisclosure(page, "Illustrate the scene").getByText(RULE.description, { exact: true });
+  const note = page.getByText("When this rule hits a fire-rate cap", { exact: false });
+  const description = slots.getByText("Pictures this rule makes are drawn with it", { exact: false });
+  await expect(summary).toBeVisible();
+  await expect(note).toBeVisible();
+  await expect(description).toBeVisible();
+  const [summarySize, noteSize, descriptionSize] = await Promise.all([sizeOf(summary), sizeOf(note), sizeOf(description)]);
+  expect(descriptionSize, "the slot description is the label step; the probe must have measured it").toBeGreaterThan(0);
+  expect({ summary: summarySize, note: noteSize }).toEqual({ summary: descriptionSize, note: descriptionSize });
+});
+
 test("a rule's slot binds a connection AS THE RULE, and reads the rule's own bindings back", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<RulesSectionStory chatId={CHAT} />);

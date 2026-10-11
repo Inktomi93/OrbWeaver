@@ -1205,8 +1205,19 @@
 .shell-topbar-trail {
   flex: none;
 }
-/* The one seam in the trail: separates the bordered ⌘K chip (group 1) from the ghost toggle cluster
- * (group 2) so the topbar reads as exactly two groups (P1/N1). */
+/* The trail's icon actions are one group: tighter than the row's rhythm so they read as a cluster, and a
+ * cluster whose members are all hidden paints nothing. Both groups wear the ghost control. */
+.shell-topbar-cluster {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-field);
+}
+.shell-topbar-cluster:empty {
+  display: none;
+}
+/* The one seam in the trail: separates the ⌘K chip (group 1) from the icon cluster (group 2) so the topbar
+ * reads as exactly two groups (P1/N1). */
 .shell-topbar-divider {
   flex: none;
   width: var(--border-width-control);

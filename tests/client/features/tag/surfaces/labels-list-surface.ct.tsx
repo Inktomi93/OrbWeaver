@@ -329,6 +329,41 @@ test("suggestions group by tag, merge near-duplicates, hide seed tags and apply 
   await expect.poll(() => recorder.count("tag.attachTag")).toBe(2);
 });
 
+// A suggestion row is a name and its two verbs. The verbs never stack (a phone row was ~118px tall, five rows
+// ~600px) and sit beside their name instead of a pane-width away from it (~700px on a desktop).
+const SUGGESTION_LAYOUTS = [
+  { label: "phone", viewport: { width: 390, height: 844 } },
+  { label: "desktop", viewport: { width: 1280, height: 800 } },
+] as const;
+
+for (const { label, viewport } of SUGGESTION_LAYOUTS) {
+  test(`${label}: a suggestion row keeps Apply and Reject on one line, beside the character's name`, async ({ mount, page }) => {
+    await page.setViewportSize(viewport);
+    const noir = tagRow("tag_noir", "noir", 0);
+    const { usage: _usage, pendingSuggestions: _pending, ...rest } = noir;
+    await routeTrpc(page, {
+      "tag.listTagsWithUsage": () => [noir],
+      "tag.listAttachedEntities": { entities: [], hasMore: false },
+      "tag.listPendingSuggestions": () => [{ ...rest, characterId: mintTypeId(ID_PREFIX.character), characterName: "Aria" }],
+    });
+    const workspace = await mount(<LabelsWorkspaceStory />);
+    const row = content(workspace).getByRole("group", { name: "Suggested noir for Aria", exact: true });
+    await expect(row).toBeVisible();
+
+    const apply = await row.getByRole("button", { name: "Apply", exact: true }).boundingBox();
+    const reject = await row.getByRole("button", { name: "Reject", exact: true }).boundingBox();
+    const name = await content(workspace).getByRole("button", { name: "Aria", exact: true }).boundingBox();
+    expect(apply, "Apply must have a box").not.toBeNull();
+    expect(reject, "Reject must have a box").not.toBeNull();
+    expect(name, "the character's name must have a box").not.toBeNull();
+    expect(Math.abs((apply?.y ?? 0) - (reject?.y ?? 0)), "Apply and Reject share a line").toBeLessThan(2);
+    const gap = (apply?.x ?? 0) - ((name?.x ?? 0) + (name?.width ?? 0));
+    expect(gap, "the verbs sit beside the name, not at the far edge of the pane").toBeLessThan(SUGGESTION_NAME_TO_ACTION_MAX_PX);
+  });
+}
+/** Far under the old ~700px pane-width gap, and far over what a table cell's padding needs. */
+const SUGGESTION_NAME_TO_ACTION_MAX_PX = 240;
+
 test("pending-only labels stay outside In use and prune until Apply; Reject removes the staged junction", async ({ mount, page }) => {
   const staged = { ...tagRow("tag_staged", "staged", 0), pendingSuggestions: 1 };
   const rejected = { ...tagRow("tag_rejected", "rejected", 0), pendingSuggestions: 1 };

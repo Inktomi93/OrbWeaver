@@ -1222,15 +1222,15 @@ async function samplePixel(page: Page, x: number, y: number): Promise<{ readonly
 /** Scroll the thread off its top edge so `data-fade-top` arms, then sample a proven text-free inset
  * INSIDE the fade band. The old horizontal centre crossed the rendered message glyphs, so it compared
  * ink to CARD_RGB and called the expected dark text a leaking backdrop. */
-async function sampleTopBandPixel(page: Page, scroller: Locator): Promise<{ readonly r: number; readonly g: number; readonly b: number }> {
+async function sampleTopBandPixel(page: Page, scroller: Locator, offsetY = 8): Promise<{ readonly r: number; readonly g: number; readonly b: number }> {
   await scroller.evaluate((el: HTMLElement) => {
     el.scrollTop = 200;
   });
   await expect(scroller).toHaveAttribute("data-fade-top", "");
   await expect.poll(async () => scroller.boundingBox()).not.toBeNull();
   const box = await scroller.boundingBox();
-  // 8px below the top edge: deep inside the 10% (~40px) band, where the mask's alpha is ~0.2.
-  const point = { x: Math.round((box?.x ?? 0) + (box?.width ?? 0) - 24), y: Math.round((box?.y ?? 0) + 8) };
+  // `offsetY` below the top edge, inside the 10% (~40px) band. The default 8px is the line the edge cuts.
+  const point = { x: Math.round((box?.x ?? 0) + (box?.width ?? 0) - 24), y: Math.round((box?.y ?? 0) + offsetY) };
   const crossesText = await scroller.evaluate((element, sample) => {
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
@@ -1270,6 +1270,21 @@ test("EDGE FADE CONTROL: the same probe DOES see the dissolve where the fade is 
 
   // Green pulls far away from the cream card's blue channel long before it reaches the backdrop.
   expect(pixel.b).toBeLessThan(CARD_RGB.b - 24);
+});
+
+// The line the top edge cuts must read as gone, not half drawn: the band eases in, so the first stretch
+// under the edge (about a line) paints almost nothing, and the band still ramps up to the full card by its
+// far side. A linear ramp left that first stretch a fifth of the way up, which drew the cut line as a dim
+// half-glyph under the toolbar.
+test("EDGE FADE: the line the top edge cuts is gone, and the band still ramps up to the card", async ({ mount, page }) => {
+  const component = await mount(<MessageListEdgeFadeStory artBackdrop={false} />);
+  const scroller = component.locator(FADE_SCROLLER);
+  const cut = await sampleTopBandPixel(page, scroller, 8);
+  const clear = await sampleTopBandPixel(page, scroller, 36);
+
+  // The card's blue channel is the dissolve gauge (the backdrop has none): near 0 = backdrop, 227 = card.
+  expect(cut.b, "8px under the edge the card has all but dissolved").toBeLessThan(20);
+  expect(clear.b, "36px under the edge (of a ~40px band) the card is nearly back").toBeGreaterThan(CARD_RGB.b * 0.6);
 });
 
 // ── THE LOADING STATE MUST BE LEGIBLE OVER ART (#468) ─────────────────────────────────────────────
