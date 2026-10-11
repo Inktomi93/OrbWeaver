@@ -194,6 +194,7 @@ export {
   combineTokenProvenance,
   connectionAttributionProvenanceSchema,
   INLINE_REPLY_ORIGIN,
+  isSeededGreetingRow,
   legacyNotionalCostSamples,
   MESSAGE_ASSET_ORIGINS,
   macroFreezeRecordSchema,

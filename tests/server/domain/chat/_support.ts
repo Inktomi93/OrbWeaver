@@ -279,6 +279,10 @@ export async function seedMessage(
     /** Who started the slot. Omitted ⇒ `human`, the column default a typed turn is born with; `import` is the
      *  bulk-import seam's stamp. */
     readonly initiator?: TurnInitiator;
+    /** Stamp the selected variant's generation window — what a model-generated reply carries and a seeded
+     *  greeting never does. Omitted ⇒ null, the non-generated row. */
+    readonly genStartedAt?: number;
+    readonly genFinishedAt?: number;
   } = {},
 ): Promise<{ messageId: MessageId; variantId: MessageVariantId }> {
   const messageId = overrides.id ?? castId<MessageId>(`message_${chatId}_${seq}`);
@@ -303,6 +307,8 @@ export async function seedMessage(
     content: overrides.content ?? `body-${seq}`,
     reasoning: overrides.reasoning ?? null,
     ...(overrides.contextBoundaryMessageId !== undefined ? { contextBoundaryMessageId: overrides.contextBoundaryMessageId } : {}),
+    ...(overrides.genStartedAt === undefined ? {} : { genStartedAt: overrides.genStartedAt }),
+    ...(overrides.genFinishedAt === undefined ? {} : { genFinishedAt: overrides.genFinishedAt }),
     createdAt: FROZEN_AT,
   });
   await db.update(messages).set({ selectedVariantId: variantId }).where(eq(messages.id, messageId));

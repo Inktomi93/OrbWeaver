@@ -11,6 +11,7 @@
 // broken. The server's refusal is the authority; this is the affordance.
 
 import type { MessageView } from "@orb/contracts/chat";
+import { isSeededGreetingRow } from "@orb/contracts/chat";
 
 /** Binds a row to the card alternates it may be stepped through. Present ⇒ `message-row` renders the greeting
  *  strip instead of the variant strip. */
@@ -31,7 +32,7 @@ export function isGreetingWindowOpen(messages: readonly MessageView[]): boolean 
 }
 
 /** The binding for ONE row, or undefined when it is not a steppable seeded greeting. A row qualifies when the
- *  window is open, it is character-voiced assistant canon, and its card offers ≥2 alternates — the same three
+ *  window is open, it is a seeded greeting (a generated reply is not), and its card offers ≥2 alternates — the same three
  *  facts the verb's belts check, minus the authority (which the server owns alone). */
 export function resolveGreetingBinding(args: {
   readonly windowOpen: boolean;
@@ -39,7 +40,7 @@ export function resolveGreetingBinding(args: {
   readonly alternatesByCharacter: ReadonlyMap<string, readonly string[]>;
 }): GreetingBinding | undefined {
   const { windowOpen, message, alternatesByCharacter } = args;
-  if (!windowOpen || message.role !== "assistant" || message.characterId === null) {
+  if (!(windowOpen && isSeededGreetingRow(message))) {
     return;
   }
   const variants = alternatesByCharacter.get(message.characterId);
