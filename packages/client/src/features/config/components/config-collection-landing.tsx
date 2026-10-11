@@ -216,7 +216,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
   return (
     // In the control row the form takes its own full-width line under the other controls when the row's
     // container is narrow, so asking for a name never squeezes the filter out.
-    <Stack className={inBand ? "order-last basis-full @md:order-none @md:basis-auto" : undefined}>
+    <Stack className={inBand ? "order-last basis-full @2xl:order-none @2xl:basis-auto" : undefined}>
       <form
         noValidate={true}
         onSubmit={(event): void => {
