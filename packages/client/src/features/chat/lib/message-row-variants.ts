@@ -9,11 +9,10 @@ import { blobBannerUrl, blobPortraitUrl, blobUrl } from "@orb/contracts/assets";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { MessageRole } from "@orb/kit/message-role";
 import { avatarFallbackHueColor } from "@orb/ui/avatar";
-import { gutterCentredTracks } from "@orb/ui/layout";
 import type { CSSProperties } from "react";
 import { cn, messageBubbleClass } from "#lib";
 import type { RowAttribution } from "./attribution.ts";
-import { CHAT_TRACK } from "./chat-track.ts";
+import { BUBBLE_PHONE_CAP, CHAT_TRACK, PILL_PHONE_CAP } from "./chat-track.ts";
 import { BG_PHOTO_READING_PLATE } from "./message-row-backing.ts";
 import type { SwipeFoot } from "./pager-chrome.ts";
 import { SWIPE_FOOT_GUTTER, SWIPE_FOOT_GUTTER_WIDE, SWIPE_FOOT_HUG, SWIPE_FOOT_TRAIN } from "./pager-chrome.ts";
@@ -125,6 +124,8 @@ export interface RowSkin {
   readonly bubbleLayout: BubbleLayout;
   /** {@link HeaderPlacement} — where this skin's speaker/timestamp/actions row lives (#288). */
   readonly headerPlacement: HeaderPlacement;
+  /** Whether a USER row mirrors to the trailing edge, chip and all (Moonlit Echoes: bubble, echo, tide). */
+  readonly mirrorUser: boolean;
   readonly swipeFoot: SwipeFoot;
   /** A pinned inside header's band bleeds to the container's edges (margin and padding cancel). */
   readonly headerBleed: string;
@@ -298,44 +299,18 @@ function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
   };
 }
 
-/** WHICH GRID RAIL this row's identity chip sits in under `columnPlacement: "gutterCentred"`, or `"none"`
- *  for an `anchored` skin whose body is still a flex line (#1728 arm B). A bare helper, not inlined, so
- *  `MessageRow` and `GhostMessageRow` read the SAME decision and neither pays for it in complexity. */
-export function gutterRailFor(skin: RowSkin, role: MessageRole): "none" | "leading" | "trailing" {
-  if (skin.columnPlacement === "anchored") {
-    return "none";
-  }
-  return role === "user" ? "trailing" : "leading";
-}
-
-/** The content column's own sizing class for this skin's placement (#1728 arm B): `flex-1` is the flex
- *  arm's "take the rest", and `@4xl:col-start-2` is the grid arm's "be the CENTRED rail" — the column must
- *  be placed explicitly there because a system row has no chip to auto-place before it. */
-export function columnClassFor(skin: RowSkin): string {
-  return skin.columnPlacement === "anchored" ? "min-w-0 flex-1" : "min-w-0 flex-1 @4xl:col-start-2";
-}
-
-/** The row body's own placement classes (#1728 arm B): nothing for `anchored`, which stays the flex line it
- *  has always been, and `@orb/ui`'s three-rail `gutterCentred` tracks for the centred skins. A CLASS and not
- *  a choice of ELEMENT because `react-hooks/static-components` bans a render-scoped component binding — and
- *  it is right to: swapping the element type at a width step would remount the row and drop mid-edit state.
- *  Homing it here is what keeps `MessageRow` and `GhostMessageRow` under the complexity ceiling reading the
- *  SAME decision. */
-export function rowBodyClassFor(skin: RowSkin): string {
-  return skin.columnPlacement === "anchored" ? "" : gutterCentredTracks();
-}
-
 /** The exhaustive chatStyle → skin table; a new chatStyle fails to compile without a row here. */
 export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
   bubble: {
     outer: bubbleOuter,
     columnPlacement: "anchored",
-    inner: bubbleInner,
+    inner: (role) => cx(bubbleInner(role), BUBBLE_PHONE_CAP),
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "single",
     headerPlacement: "inside",
     swipeFoot: SWIPE_FOOT_HUG,
     headerBleed: "-mx-block px-block",
+    mirrorUser: true,
   },
   flat: {
     outer: flatOuter,
@@ -349,6 +324,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     headerPlacement: "inside",
     swipeFoot: SWIPE_FOOT_GUTTER_WIDE,
     headerBleed: "-mx-section px-section",
+    mirrorUser: false,
   },
   document: {
     outer: () => cx(CHAT_TRACK, "items-center"),
@@ -363,6 +339,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     headerPlacement: "inside",
     swipeFoot: SWIPE_FOOT_GUTTER,
     headerBleed: "-mx-block px-block",
+    mirrorUser: false,
   },
   echo: {
     outer: echoOuter,
@@ -379,9 +356,10 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     headerPlacement: "inside",
     swipeFoot: SWIPE_FOOT_HUG,
     headerBleed: "-mx-block px-block",
+    mirrorUser: true,
   },
   whisper: {
-    outer: bubbleOuter,
+    outer: () => bubbleOuter("assistant"),
     columnPlacement: "anchored",
     inner: bubbleInner,
     avatarTreatment: iconLeftTreatment,
@@ -394,6 +372,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     headerPlacement: "inside",
     swipeFoot: SWIPE_FOOT_HUG,
     headerBleed: "-mx-block px-block",
+    mirrorUser: false,
   },
   hush: {
     outer: flatOuter,
@@ -407,9 +386,10 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     headerPlacement: "inside",
     swipeFoot: SWIPE_FOOT_GUTTER_WIDE,
     headerBleed: "-mx-section px-section",
+    mirrorUser: false,
   },
   ripple: {
-    outer: bubbleOuter,
+    outer: () => bubbleOuter("assistant"),
     columnPlacement: "anchored",
     inner: bubbleInner,
     avatarTreatment: rippleAvatarTreatment,
@@ -420,11 +400,12 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     headerPlacement: "inside",
     swipeFoot: SWIPE_FOOT_HUG,
     headerBleed: "-mx-block px-block",
+    mirrorUser: false,
   },
   tide: {
     outer: bubbleOuter,
     columnPlacement: "anchored",
-    inner: bubbleInner,
+    inner: (role) => cx(bubbleInner(role), PILL_PHONE_CAP),
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "trains",
     // THE ONE `outside`, and not a concession: a train is N per-paragraph pills with no single container
@@ -433,6 +414,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     headerPlacement: "outside",
     swipeFoot: SWIPE_FOOT_TRAIN,
     headerBleed: "",
+    mirrorUser: true,
   },
 };
 

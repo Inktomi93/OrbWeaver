@@ -1,9 +1,12 @@
 // Screenshot capture: paint-settle (#123 — two identical frames before the PNG), native stabilization
 // (SHOT_BASE), element shots, volatile-region masks, and the native crop.
-import type { Locator, Page, ViewportSize } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+import { devices } from "@playwright/test";
 import { registerInstrumentArtifact } from "../../../_shared/artifact-out.ts";
 import type { InstrumentCurrentScope } from "../../../_shared/artifact-scope.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
+import type { OwnerMetrics } from "../../../_shared/browser-emulation-guard.ts";
+import { overrideOwnerViewport, reassertOwnerViewport } from "../../../_shared/browser-emulation-guard.ts";
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import { budget } from "../../../_shared/load-budget.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds } from "../../contract/arms.ts";
@@ -175,13 +178,26 @@ const INNER_SCROLL_OVERFLOW_SCRIPT = `(() => {
 
 /** `--full` on an app shell. Home scrolls inside its own container while the document never does, so
  *  Playwright's fullPage returns the viewport. Growing the viewport by the container's overflow lets the
- *  layout itself lay the whole container out. Returns the viewport to restore after the shot; null means
- *  nothing grew. */
-async function growViewportToScrollContainers(page: Page): Promise<ViewportSize | null> {
+ *  layout itself lay the whole container out. Returns the metrics to restore after the shot; null means
+ *  nothing grew. The grow and the restore go through the owner session, never `page.setViewportSize`, which
+ *  would reset the emulated screen to the viewport for the rest of the page's life. */
+async function growViewportToScrollContainers(page: Page, opts: Args): Promise<OwnerMetrics | null> {
   const original = page.viewportSize();
   if (original === null) {
     return null;
   }
+  // A string expression: tooling compiles without the DOM lib.
+  const device = (await page.evaluate("({ width: screen.width, height: screen.height, deviceScaleFactor: devicePixelRatio })")) as {
+    readonly width: number;
+    readonly height: number;
+    readonly deviceScaleFactor: number;
+  };
+  const metrics: OwnerMetrics = {
+    viewport: original,
+    screen: { width: device.width, height: device.height },
+    deviceScaleFactor: device.deviceScaleFactor,
+    isMobile: opts.device === null ? false : (devices[opts.device]?.isMobile ?? false),
+  };
   // The PNG stays inside the run's image budget as well as Chromium's surface.
   const maxHeight = Math.min(FULL_PAGE_MAX_HEIGHT_PX, Math.floor(SHOT_PIXEL_BUDGET / original.width));
   let height = original.height;
@@ -191,23 +207,23 @@ async function growViewportToScrollContainers(page: Page): Promise<ViewportSize 
       break;
     }
     height = Math.min(maxHeight, height + Math.ceil(overflow));
-    await page.setViewportSize({ width: original.width, height });
+    await overrideOwnerViewport(page, metrics, { width: original.width, height });
     await waitForPaintSettle(page, true);
   }
   if (height === original.height) {
     return null;
   }
-  return original;
+  return metrics;
 }
 
 async function captureShot(page: Page, opts: Args, out: string, mask: Locator[]): Promise<void> {
   await waitForPaintSettle(page, opts.fullPage);
-  const grownFrom = opts.fullPage && opts.shotOf === null ? await growViewportToScrollContainers(page) : null;
+  const grownFrom = opts.fullPage && opts.shotOf === null ? await growViewportToScrollContainers(page, opts) : null;
   try {
     await shootPage(page, opts, out, mask);
   } finally {
     if (grownFrom !== null) {
-      await page.setViewportSize(grownFrom);
+      await reassertOwnerViewport(page, grownFrom);
     }
   }
 }

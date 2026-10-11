@@ -265,7 +265,7 @@ for (const width of [320, 430]) {
   test.describe(`mobile avatar paint at ${width}`, () => {
     test.use({ viewport: { width, height: 780 }, hasTouch: true });
     for (const chatStyle of THEME_CHAT_STYLES) {
-      test(`${chatStyle}: gutter chips stand down and any painted ring fits inside the real scrollport`, async ({ mount, page }, testInfo) => {
+      test(`${chatStyle}: accent rings fit inside the real scrollport for user and character rows`, async ({ mount, page }, testInfo) => {
         const character = castId<CharacterId>("character_ct_edge");
         const persona = castId<PersonaId>("persona_ct_edge");
         const identities: ChatIdentity[] = [
@@ -295,35 +295,30 @@ for (const width of [320, 430]) {
         const component = await mount(<MessageListSurfaceStory />);
         const avatars = component.locator('[data-slot="avatar-root"]');
         await expect(avatars).toHaveCount(2);
-        // Owner ruling (about 24px of transcript text margin on a phone): the GUTTER chip stands down at this
-        // width. A portrait welded inside the bubble (ripple) still paints, and must fit like any other.
-        await expect(component.locator('[data-slot="message-row-body"] > [data-slot="avatar-root"]').filter({ visible: true })).toHaveCount(0);
         const geometry = (): Promise<boolean[]> =>
           avatars.evaluateAll((elements) =>
-            elements
-              .filter((element) => element.getBoundingClientRect().width > 0)
-              .map((element) => {
-                const viewport = element.closest('[data-slot="message-list-scroll"]');
-                if (viewport === null) {
-                  throw new Error("avatar lacks its physical scrollport");
-                }
-                const a = element.getBoundingClientRect();
-                const v = viewport.getBoundingClientRect();
-                const style = getComputedStyle(element);
-                const probe = document.createElement("span");
-                probe.style.boxShadow = style.getPropertyValue("--tw-ring-shadow");
-                element.append(probe);
-                const lengths = getComputedStyle(probe).boxShadow.match(/[-\d.]+px/gu);
-                const extent = Number.parseFloat(lengths?.at(-1) ?? "0");
-                probe.remove();
-                if (extent === 0) {
-                  throw new Error("configured accent ring did not paint");
-                }
-                return a.left - extent >= v.left && a.right + extent <= v.right;
-              }),
+            elements.map((element) => {
+              const viewport = element.closest('[data-slot="message-list-scroll"]');
+              if (viewport === null) {
+                throw new Error("avatar lacks its physical scrollport");
+              }
+              const a = element.getBoundingClientRect();
+              const v = viewport.getBoundingClientRect();
+              const style = getComputedStyle(element);
+              const probe = document.createElement("span");
+              probe.style.boxShadow = style.getPropertyValue("--tw-ring-shadow");
+              element.append(probe);
+              const lengths = getComputedStyle(probe).boxShadow.match(/[-\d.]+px/gu);
+              const extent = Number.parseFloat(lengths?.at(-1) ?? "0");
+              probe.remove();
+              if (extent === 0) {
+                throw new Error("configured accent ring did not paint");
+              }
+              return a.left - extent >= v.left && a.right + extent <= v.right;
+            }),
           );
         await testInfo.attach("mobile-avatar-edges", { body: await component.screenshot(), contentType: "image/png" });
-        await expect.poll(async () => (await geometry()).every(Boolean)).toBe(true);
+        await expect.poll(geometry).toEqual([true, true]);
       });
     }
   });

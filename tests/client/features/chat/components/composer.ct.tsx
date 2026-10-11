@@ -673,6 +673,27 @@ test("#206: a disabled reply action remains focusable and exposes its reason", a
 test.describe("#206 coarse touch layout", () => {
   test.use({ hasTouch: true });
 
+  // The compact density tier shrinks `spacing.block`; the glyph rows ride their own density-proof gap, so the
+  // touch targets stay apart there too (verifier finding: a `block` gap overlapped them by 4px at compact).
+  for (const density of ["comfortable", "compact"] as const) {
+    test(`at ${density} density no two composer touch targets overlap`, async ({ mount, page }) => {
+      await page.setViewportSize({ width: 430, height: 932 });
+      await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": groupedComposerChat });
+      const component = await mount(
+        <div data-density={density}>
+          <ComposerStory />
+        </div>,
+      );
+      await expect(component.locator('[data-slot="composer"]')).toBeVisible();
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      const boxes = await controlBoxes(component, COMPOSER_ACTIONS);
+      await expectTouchTargets(
+        component,
+        boxes.filter((box) => box.name !== "Message"),
+      );
+    });
+  }
+
   for (const viewport of [
     { width: 430, height: 932 },
     { width: 390, height: 844 },

@@ -104,9 +104,11 @@ export function renderRowNameRow(args: {
   readonly placement: HeaderPlacement;
   readonly bleed: string;
   readonly role: MessageRole;
+  /** The row sits mirrored at the trailing edge (`rowMirrored`). */
+  readonly mirrored: boolean;
 }): ReactElement {
   // Mirroring is the OWN-SIDE read: it only exists when the header is packed inside a container edge.
-  const mirrored = args.placement === "inside" && args.role === "user";
+  const mirrored = args.placement === "inside" && args.mirrored;
   return (
     <NameRowFrame
       identity={renderRowIdentity({ attribution: args.attribution, message: args.message, showTimestamp: args.showTimestamp, mirrored })}

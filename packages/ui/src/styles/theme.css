@@ -93,6 +93,7 @@
   --spacing-density-section-compact: round(up, 1rem, 1px);
   --spacing-gutter: round(up, 2rem, 1px);
   --spacing-touch-target: round(up, 2.75rem, 1px);
+  --spacing-glyph-gap: round(up, 0.75rem, 1px);
   --spacing-control-sm: round(up, 2.75rem, 1px);
   --spacing-control-md: round(up, 3rem, 1px);
   --spacing-control-lg: round(up, 3.5rem, 1px);
@@ -133,6 +134,7 @@
   --immersive-whisper-feather: 70%;
   --immersive-stripe-width: 0.1875rem;
   --immersive-ripple-portrait-width: 11.25rem;
+  --immersive-ripple-portrait-width-phone: 6.25rem;
   --reading-line-height: 1.55;
   --reading-letter-spacing: 0rem;
   --reading-paragraph-spacing: 0.75rem;
@@ -228,6 +230,7 @@
 @media (pointer: fine) {
   :root {
     --spacing-touch-target: round(up, 1.75rem, 1px);
+    --spacing-glyph-gap: round(up, 0.375rem, 1px);
     --spacing-control-sm: round(up, 2rem, 1px);
     --spacing-control-md: round(up, 2.125rem, 1px);
     --spacing-control-lg: round(up, 2.5rem, 1px);

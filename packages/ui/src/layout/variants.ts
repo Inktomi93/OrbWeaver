@@ -10,6 +10,8 @@ const GAP = {
   block: "gap-block",
   section: "gap-section",
   gutter: "gap-gutter",
+  // Between glyph buttons: pointer-conditional and density-proof, so their touch-floor hit areas never overlap.
+  glyph: "gap-glyph-gap",
 } as const;
 const PADDING = {
   field: "p-field",
@@ -306,17 +308,14 @@ export const gridVariants = tv({
       // one step, never clipping. Container steps are `rem`-denominated, so the whole thing moves with
       // `--font-scale` exactly like the measure it is derived from.
       //
-      // THE ROLE MIRROR IS PART OF THE TEMPLATE, not a caller's job: `data-role="user"` rows carry the chip
-      // TRAILING, so the two-track arm flips to `[column, chip]` — auto-placement then seats both roles
-      // correctly with no explicit column-start below the step, which is what keeps the narrow arm free of
-      // placement classes entirely.
+      // NO ROLE MIRROR: the centred skins seat every role's chip LEADING (owner ruling, as Moonlit Echoes
+      // leaves flat, hush and document unmirrored), so one template serves both roles and auto-placement
+      // seats the chip then the column with no explicit column-start below the step.
       gutterCentred:
-        // @orb-waive no-arbitrary-tw-values(in-data-[role=user]:grid-cols-[minmax): this layout recipe owns the documented grid-track composition; ends when a token expresses these tracks.
         // @orb-waive no-arbitrary-tw-values(grid-cols-[auto_minmax): this layout recipe owns the documented grid-track composition; ends when a token expresses these tracks.
-        "grid-cols-[auto_minmax(0,1fr)] in-data-[role=user]:grid-cols-[minmax(0,1fr)_auto] " +
-        // @orb-waive no-arbitrary-tw-values(@4xl:in-data-[role=user]:grid-cols-[minmax): this layout recipe owns the documented grid-track composition; ends when a token expresses these tracks.
+        "grid-cols-[auto_minmax(0,1fr)] " +
         // @orb-waive no-arbitrary-tw-values(@4xl:grid-cols-[minmax): this layout recipe owns the documented grid-track composition; ends when a token expresses these tracks.
-        "@4xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] @4xl:in-data-[role=user]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]",
+        "@4xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]",
       // AN INSTRUMENT ROW'S THREE CELLS — name · flexing rail · the value cluster (added 2026-08-19,
       // side-eye P1-1 on the preset params deck). `readout`'s sibling, and the same ruling one axis wider:
       // the first track is CONTENT-sized so a name can never be clipped by a box, and the middle track

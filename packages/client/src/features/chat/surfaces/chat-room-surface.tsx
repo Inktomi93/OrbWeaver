@@ -121,7 +121,12 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           // viewer's own theme already paints `.shell-grid`, and elevation=ramp deliberately re-fills
           // `.shell-main` with card — this must not override that) and to the no-wallpaper arm (over art
           // the wallpaper IS the page and the reading plates carry the text).
-          className={cn("h-full px-block pb-block outline-none", roomTheme?.background !== undefined && "not-in-data-[has-bg-image]:bg-background")}
+          // A phone keeps the transcript and composer near the screen edge (owner ruling, as Moonlit Echoes pads its
+          // chat 8px): the room steps its side inset down to `tight`, the transcript adds the ring clearance.
+          className={cn(
+            "h-full px-block pb-block outline-none @max-md:px-tight",
+            roomTheme?.background !== undefined && "not-in-data-[has-bg-image]:bg-background",
+          )}
           gap="block"
           ref={surfaceRef}
           role="group"

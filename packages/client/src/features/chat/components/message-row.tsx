@@ -33,7 +33,8 @@ import { ROW_BODY_AT_PHONE_WIDTH } from "../lib/chat-track.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import { BG_PHOTO_CHROME_PLATE } from "../lib/message-row-backing.ts";
-import { columnClassFor, gutterRailFor, MESSAGE_ROW_SKINS, rowBodyClassFor } from "../lib/message-row-variants.ts";
+import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
+import { columnClassFor, gutterRailFor, rowBodyClassFor, rowMirrored } from "../lib/row-placement.ts";
 import { toolBoundaryDisplayMessage } from "../lib/tool-prose.ts";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageMetadataRow } from "./message-metadata-row.tsx";
@@ -134,23 +135,16 @@ const NO_METADATA_VISIBLE: MessageMetadataVisibility = {
   showGenerationCost: false,
 };
 
-/** THE ROW HAS EXACTLY ONE AVATAR SLOT: the identity GUTTER, a SIBLING of the content column (§B.1 — a law
- *  with its own pins, not this file's to reverse), placed leading for a non-user row and trailing for a user
- *  one. This docblock used to describe a second, narrow `inline` slot in the name row and a `@container`
- *  query that CHOSE between them; no such slot and no such gate exist (`inlineAvatar` has zero definitions
- *  on the tree — it survived only as this comment's own dangling self-reference), and reading it as live
- *  anatomy is what makes "the reading column is inset on the left" look like a leak.
+/** THE ROW HAS EXACTLY ONE AVATAR SLOT: the identity GUTTER, a SIBLING of the content column (§B.1). It sits
+ *  leading, or trailing for a user row in a skin that mirrors it (`RowSkin.mirrorUser`: bubble, echo, tide).
  *
- *  WHAT THE `@container` QUERY ACTUALLY DOES IS SCALE THE SLOT, NEVER HIDE IT (the `@max-md:` pair on the
- *  row body below): at a phone-width column the chip steps DOWN from `avatar-md` 32px to `size-6` 24px and
- *  the gap from `row` 8px to `field` 6px, so the gutter the content column is offset by is 40px at a desktop
- *  and 30px at a phone one. Both numbers are RATIFIED, not incidental: `dimension.shell-content-floor`'s
- *  derivation (tokens.json, #1204) spends "a 32px `md` avatar chip + its 8px gap" as a term, so removing or
- *  centring the gutter would invalidate the chat-width dial's own floor.
+ *  THE `@container` QUERY SCALES THE SLOT AND NEVER HIDES IT (`ROW_BODY_AT_PHONE_WIDTH`): at a phone-width
+ *  column the chip steps down from `avatar-md` 32px to `size-6` 24px and the gap from `row` 8px to `field`
+ *  6px, so the gutter is 40px at a desktop and 30px on a phone. Both are ratified: the derivation of
+ *  `dimension.shell-content-floor` (tokens.json) spends "a 32px `md` avatar chip + its 8px gap" as a term.
  *
- *  THE SLOT'S ABSENT ARM COSTS NOTHING, by construction: `renderRowAvatar` returns null when
- *  `showInChatAvatars` is off or the row resolved no name, and a null child is no flex item — `gap` applies
- *  only BETWEEN adjacent items, so there is no phantom inset to remove on that arm. */
+ *  THE SLOT'S ABSENT ARM COSTS NOTHING: `renderRowAvatar` returns null when `showInChatAvatars` is off or the
+ *  row resolved no name, and a null child is no flex item, so `gap` leaves no phantom inset. */
 export function MessageRow({
   message,
   chatStyle,
@@ -293,6 +287,7 @@ export function MessageRow({
   // other's variant prop, so ONE element spelling serves both arms and the body's markup is not written
   // twice; the two placement facts are single-homed beside the skin table that decides them.
   const gutterRail = gutterRailFor(skin, role);
+  const mirrored = rowMirrored(skin, role);
   const columnClass = columnClassFor(skin);
   const avatarNode = renderRowAvatar({
     attribution,
@@ -305,12 +300,13 @@ export function MessageRow({
     avatarRing,
     alignToInsideHeader: skin.headerPlacement === "inside",
     gutterRail,
+    mirrored,
   });
   const weldedAvatar = avatarTreatment === "sticky-portrait" ? avatarNode : null;
-  const leadingAvatar = weldedAvatar !== null || role === "user" ? null : avatarNode;
-  const trailingAvatar = weldedAvatar !== null || role !== "user" ? null : avatarNode;
-  // THE GUTTER IS FREE ON A PHONE (`ROW_BODY_AT_PHONE_WIDTH`): this row is its own `@container`, and below
-  // its `md` step the chip stands down so the reading column runs edge to edge.
+  const leadingAvatar = weldedAvatar !== null || mirrored ? null : avatarNode;
+  const trailingAvatar = weldedAvatar !== null || !mirrored ? null : avatarNode;
+  // THE GUTTER COSTS LESS ON A PHONE (`ROW_BODY_AT_PHONE_WIDTH`): this row is its own `@container`, and below
+  // its `md` step the chip steps down and the gap tightens; the chip is never hidden.
 
   // §6c/M8 message-footer: absent for a pre-commit draft-greeting row (no `surfaceContributors` passed).
   const footerContributions = resolveMessageFooter(surfaceContributors, message);
@@ -333,6 +329,7 @@ export function MessageRow({
       stickyAttribution,
       placement: skin.headerPlacement,
       bleed: skin.headerBleed,
+      mirrored,
       // B7 — the picker's segment-target parse keys the SAME character-name set the span renderer uses
       // (`speakerThemesByName`'s keys); the actions row narrator-gates it against `message.kind` itself.
       actions: renderRowActions({
@@ -400,6 +397,7 @@ export function MessageRow({
                   skin,
                   decoration,
                   weldedAvatar,
+                  mirrored,
                   render,
                   renderContext,
                   speakerThemes,

@@ -610,6 +610,66 @@ test("a user row mirrors it — avatar AFTER the content column (§B.1 own-messa
   await expect(userChildren.last()).toHaveAttribute("data-slot", "avatar-root");
 });
 
+// WHICH STYLES MIRROR THE PERSONA (owner ruling, after Moonlit Echoes): bubble, echo and tide put a user row's
+// identity on the trailing edge; flat, document, whisper, hush and ripple keep it leading like every other row.
+// The identity is the gutter chip, or ripple's welded portrait.
+const MIRRORED_USER_STYLES: ReadonlySet<string> = new Set(["bubble", "echo", "tide"]);
+for (const chatStyle of THEME_CHAT_STYLES) {
+  test(`${chatStyle}: a user row's identity sits ${MIRRORED_USER_STYLES.has(chatStyle) ? "trailing" : "leading"}`, async ({ mount }) => {
+    const component = await mount(
+      <MessageRowStory chatStyle={chatStyle} messageRole="user" personaId={ALEX_PERSONA_ID} personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]} width={720} />,
+    );
+    const avatar = component.locator(AVATAR).first();
+    await expect(avatar).toBeVisible();
+    const side = async (): Promise<"leading" | "trailing"> => {
+      const avatarBox = await avatar.boundingBox();
+      const proseBox = await component.locator(`${BUBBLE} p`).first().boundingBox();
+      return (avatarBox?.x ?? 0) < (proseBox?.x ?? 0) ? "leading" : "trailing";
+    };
+    await expect.poll(side).toBe(MIRRORED_USER_STYLES.has(chatStyle) ? "trailing" : "leading");
+  });
+}
+
+// PHONE CAPS (owner ruling, after Moonlit Echoes): below the row's `md` step a bubble takes at most 80% of its
+// column and a tide pill 90%; ripple's portrait narrows to its phone token.
+const PHONE_CAP_BODY = "A long enough reply that it would run the full width of a phone column if nothing capped it at all.";
+for (const { chatStyle, share } of [
+  { chatStyle: "bubble", share: 0.8 },
+  { chatStyle: "tide", share: 0.9 },
+] as const) {
+  test(`${chatStyle}: at a phone width the message box is capped at ${String(share * 100)}% of its column`, async ({ mount }) => {
+    const component = await mount(
+      <MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} width={360} content={PHONE_CAP_BODY} />,
+    );
+    const ratio = async (): Promise<number> => {
+      const bubble = await component.locator(BUBBLE).first().boundingBox();
+      const column = await component.locator(CONTENT_COLUMN).boundingBox();
+      return (bubble?.width ?? 0) / (column?.width ?? 1);
+    };
+    await expect.poll(ratio).toBeLessThanOrEqual(share + 0.005);
+    await expect.poll(ratio).toBeGreaterThan(share - 0.05);
+  });
+}
+
+test("ripple: at a phone width the welded portrait narrows to its phone width", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory chatStyle="ripple" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} width={360} content={PHONE_CAP_BODY} />,
+  );
+  const portrait = component.locator(`${BUBBLE} ${AVATAR}`).first();
+  // The token resolved in place, so the pin follows the token rather than a copied number.
+  const phoneWidth = await portrait.evaluate((el) => {
+    const probe = document.createElement("span");
+    probe.style.display = "block";
+    probe.style.width = "var(--immersive-ripple-portrait-width-phone)";
+    el.parentElement?.append(probe);
+    const width = probe.getBoundingClientRect().width;
+    probe.remove();
+    return width;
+  });
+  // A zero token would make "close to it" vacuous, so the read only counts once the token resolved.
+  await expect.poll(async () => phoneWidth > 0 && Math.abs(((await portrait.boundingBox())?.width ?? 0) - phoneWidth) < 0.5).toBe(true);
+});
+
 test("avatars-off drops the avatar element entirely; the content column is unaffected (§B.1)", async ({ mount }) => {
   const component = await mount(
     <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} showInChatAvatars={false} />,
@@ -1948,11 +2008,52 @@ test("two rows, one producer, different DECLARED kinds: narrator reads Narrator,
   await expect(component.getByTestId("narrator-row").locator(THEME_SCOPE).filter({ hasText: "I'll take this one." }).last()).toBeVisible();
 });
 
-// ── THE PHONE'S READING COLUMN ──────────────────────────────────────────────────────────────────────
-// At a phone-width column the gutter chip stands down (owner ruling: about 24px of transcript text margin on a
-// phone); the phone pin with the #1728 block below holds that. At a desktop width the portrait is untouched.
+// ── THE PHONE'S READING COLUMN (side-eye leg-4 P2) ───────────────────────────────────────────────────
+// "stop treating a phone as a narrow desktop." Measured on a real room at 430px: the avatar gutter took
+// 76px, one paragraph ran 22 CHARACTERS over 12 lines (§2 wants 65–75ch) and the speaker name wrapped to
+// two lines. The row is its own `@container` now, so the gutter shrinks at a phone-width column and the
+// reading measure gets the difference.
+//
+// ⚑ WHAT THIS DOES NOT DO, and why: the review asked for the gutter to FOLD INTO the name row. §B.1 —
+// pinned three tests above — says the avatar is a SIBLING of the content column and NEVER a descendant of
+// the name row. Reversing a recorded anatomy law is the owner's call, not this lane's, so the fork is
+// reported and this is the anatomy-preserving half.
 
+const PHONE_COLUMN = 320;
 const DESKTOP_COLUMN = 720;
+
+test("at a phone-width column the avatar gutter shrinks and the reading measure grows", async ({ mount }) => {
+  const narrow = await mount(
+    <MessageRowStory chatStyle="bubble" characterId={ALICE_ID} messageRole="assistant" participants={[alice()]} width={PHONE_COLUMN} />,
+  );
+  // MEASURE THE GUTTER, not the column: in bubble style the column hugs its text (the `w-fit` pin two
+  // screens up), so a column-share assertion would measure the FIXTURE's sentence rather than the row's
+  // composition. The gutter is what this change moves.
+  const readMeasuredAtAssertion = async (): Promise<typeof measured> =>
+    await narrow.locator(CONTENT_COLUMN).evaluate((el: HTMLElement) => {
+      const row = el.closest('[data-slot="message-row-body"]') as HTMLElement;
+      const avatar = row.querySelector('[data-slot="avatar-root"]') as HTMLElement | null;
+      return {
+        gap: Number.parseFloat(getComputedStyle(row).columnGap),
+        row: (row.closest('[data-slot="message-row"]') as HTMLElement).getBoundingClientRect().width,
+        avatar: avatar === null ? 0 : avatar.getBoundingClientRect().width,
+      };
+    });
+  const measured = await narrow.locator(CONTENT_COLUMN).evaluate((el: HTMLElement) => {
+    const row = el.closest('[data-slot="message-row-body"]') as HTMLElement;
+    const avatar = row.querySelector('[data-slot="avatar-root"]') as HTMLElement | null;
+    return {
+      gap: Number.parseFloat(getComputedStyle(row).columnGap),
+      row: (row.closest('[data-slot="message-row"]') as HTMLElement).getBoundingClientRect().width,
+      avatar: avatar === null ? 0 : avatar.getBoundingClientRect().width,
+    };
+  });
+  // The portrait still renders (a phone does not lose the character) …
+  await expect.poll(async () => (await readMeasuredAtAssertion()).avatar).toBeGreaterThan(0);
+  // … at the stepped-down size, and the gutter costs well under a tenth of the row (it was 76 of 320).
+  await expect.poll(async () => (await readMeasuredAtAssertion()).avatar).toBeLessThanOrEqual(24);
+  expect((measured.avatar + measured.gap) / measured.row).toBeLessThan(0.12);
+});
 
 test("at a desktop-width column the portrait keeps its full size — the step-down is a WIDTH answer, not a mode", async ({ mount }) => {
   const wide = await mount(
@@ -2734,9 +2835,7 @@ test("#1728: the bubble skin KEEPS its edge-anchored identity gutter at a deskto
   await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(40);
 });
 
-// At a phone width the gutter chip stands down and the column runs the row's full width (owner ruling: about
-// 24px of transcript text margin on a phone). The speaker stays named in the header.
-test("at a phone width the identity gutter stands down and the reading column starts at the row's edge", async ({ mount }) => {
+test("#1728: the bubble skin KEEPS its edge-anchored identity gutter at a phone width", async ({ mount }) => {
   const component = await mount(
     <MessageRowStory
       width={320}
@@ -2749,8 +2848,8 @@ test("at a phone width the identity gutter stands down and the reading column st
     />,
   );
   await expect(component.locator(READING_COLUMN)).toBeVisible();
-  await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(0);
-  await expect(component.locator('[data-slot="avatar-root"]')).toBeHidden();
+  // The row's own `@max-md` step: a 24px chip + a 6px `spacing.field` gap.
+  await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(30);
 });
 
 test("#1728: below the crossover the centred skins keep the IN-FLOW gutter", async ({ mount }) => {

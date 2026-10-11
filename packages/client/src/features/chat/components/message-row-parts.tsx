@@ -167,6 +167,8 @@ export function renderRowBubble(args: {
   readonly decoration: BubbleDecoration | null;
   /** Ripple's sticky portrait, welded inside the bubble's own Row; null for every other mode/kind. */
   readonly weldedAvatar: ReactElement | null;
+  /** The row sits mirrored at the trailing edge, so a welded portrait sits on the bubble's trailing side. */
+  readonly mirrored: boolean;
   readonly render: RowRenderPolicy;
   readonly renderContext: MessageRenderContext;
   readonly speakerThemes: ReadonlyMap<string, ThemeScopeTokens>;
@@ -195,6 +197,7 @@ export function renderRowBubble(args: {
         bubbleClassName,
         decoration: args.decoration,
         weldedAvatar: args.weldedAvatar,
+        mirrored: args.mirrored,
       })
     ) : (
       // A train has no single container, so an `inside` header would have nowhere to be inside — `tide` is
@@ -257,6 +260,8 @@ export function renderRowAvatar(args: {
    *  with the name row" CT is the fence). ST's own refs align the chip to the header line, not the card.
    *  False for an `outside` skin, where the header IS the column's first line and nothing is offset. */
   readonly alignToInsideHeader: boolean;
+  /** The row sits mirrored at the trailing edge (`rowMirrored`): the weld rounds its other outer edge. */
+  readonly mirrored: boolean;
   /** #1728 arm B — this row's skin seats its column with `columnPlacement: "gutterCentred"`, so at/above
    *  the `@4xl` crossover the chip lives in a `1fr` RAIL beside the centred column rather than in flow
    *  beside it. A rail is wider than the chip, so the chip has to hug the column's edge or it drifts to
@@ -276,7 +281,7 @@ export function renderRowAvatar(args: {
   const chipClass = cn(args.alignToInsideHeader ? "mt-row" : "", railClass);
   const headerOffset = chipClass === undefined || chipClass === "" ? {} : { className: chipClass };
   if (args.avatarTreatment === "sticky-portrait") {
-    const weldRounding = args.role === "user" ? "rounded-l-none rounded-r-card" : "rounded-l-card rounded-r-none";
+    const weldRounding = args.mirrored ? "rounded-l-none rounded-r-card" : "rounded-l-card rounded-r-none";
     return (
       <Avatar
         size={args.avatarSize}
@@ -285,7 +290,7 @@ export function renderRowAvatar(args: {
         ring={args.avatarRing}
         fallbackDelay={0}
         hueSeed={args.attribution.hueSeed}
-        className={cn("sticky top-0 h-auto w-(--immersive-ripple-portrait-width)", weldRounding) ?? ""}
+        className={cn("sticky top-0 h-auto w-(--immersive-ripple-portrait-width) @max-md:w-(--immersive-ripple-portrait-width-phone)", weldRounding) ?? ""}
         {...(args.imageUrlFor === undefined ? avatarPortraitSrcProp(args.attribution.avatarHash) : { src: args.imageUrlFor("portrait") })}
       >
         {initialsFor(args.attribution.name)}

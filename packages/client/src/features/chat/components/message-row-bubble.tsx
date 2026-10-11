@@ -35,6 +35,8 @@ export function renderSingleBubble(args: {
   readonly bubbleClassName: string;
   readonly decoration: BubbleDecoration | null;
   readonly weldedAvatar: ReactElement | null;
+  /** The row sits mirrored, so the welded portrait sits on the trailing side. */
+  readonly mirrored: boolean;
 }): ReactElement {
   const headerBand = args.decoration?.headerBand;
   const bubbleStyle = args.decoration?.style;
@@ -104,13 +106,13 @@ export function renderSingleBubble(args: {
   }
   return (
     <Row align="start" data-slot="message-bubble" className={withoutBubblePadding(args.bubbleClassName)} style={bubbleStyle}>
-      {args.role === "user" ? null : args.weldedAvatar}
+      {args.mirrored ? null : args.weldedAvatar}
       <Stack gap="row" className="min-w-0 flex-1 px-block py-row">
         {args.header}
         {args.content}
         {args.footer}
       </Stack>
-      {args.role === "user" ? args.weldedAvatar : null}
+      {args.mirrored ? args.weldedAvatar : null}
     </Row>
   );
 }

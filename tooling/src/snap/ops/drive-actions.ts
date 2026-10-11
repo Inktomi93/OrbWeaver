@@ -90,7 +90,11 @@ async function runSoftKeyboardStep(page: Page, step: Extract<Step, { readonly ki
     } else {
       state.height = height;
     }
+    // Both events `keyboard-inset.ts` subscribes to: iOS resizes the visual viewport and scrolls it. `offsetTop`
+    // stays the native value, 0 unless the page itself scrolled the visual viewport, so the inset arithmetic
+    // (innerHeight - offsetTop - height) reads exactly the keyboard band.
     viewport.dispatchEvent(new Event("resize"));
+    viewport.dispatchEvent(new Event("scroll"));
   }, step.height);
 }
 

@@ -29,7 +29,7 @@ import { pathToFileURL } from "node:url";
 import { attachProbeSession, closeProbeSession, launchProbeSession } from "@orb/tooling/_shared/browser";
 import { openProbeContext } from "@orb/tooling/_shared/browser-context";
 import type { ProbeSession } from "@orb/tooling/_shared/browser-contract";
-import { reassertOwnerDevice, reassertOwnerViewport } from "@orb/tooling/_shared/browser-emulation-guard";
+import { overrideOwnerViewport, reassertOwnerDevice, reassertOwnerViewport } from "@orb/tooling/_shared/browser-emulation-guard";
 import { MOBILE_DEVICE } from "@orb/tooling/_shared/browser-environment";
 import type { Page } from "@playwright/test";
 import { chromium } from "@playwright/test";
@@ -406,6 +406,8 @@ test("the viewport round trip keeps a phone's own screen size", async ({ scratch
     await session.page.goto(`${base}/owner.html`);
     // A phone page declares its viewport; the app's own index.html does.
     await session.page.setContent('<meta name="viewport" content="width=device-width, initial-scale=1"><main>phone</main>');
+    // A screenshot needs the first compositor frame; under load the launch can expose the page before it.
+    await waitForCompositorFrame(session.page);
     const { viewport, screen } = session.environmentContract.applied;
     const boot = (await session.page.evaluate(READ_SCREEN_JS)) as { readonly w: number; readonly h: number };
     expect({ w: boot.w, h: boot.h }).toStrictEqual({ w: screen.width, h: screen.height });
@@ -422,6 +424,15 @@ test("the viewport round trip keeps a phone's own screen size", async ({ scratch
       await session.page.screenshot({ scale: "css" });
       expect(await session.page.evaluate(READ_SCREEN_JS), `call ${String(call)} after its shot`).toStrictEqual(boot);
     }
+    // `--full`'s grow and restore take the same owner-session path: the grown capture sees the taller
+    // viewport, and afterwards a shot still reads the phone's own screen and viewport.
+    const applied = session.environmentContract.applied;
+    await overrideOwnerViewport(session.page, applied, { width: viewport.width, height: viewport.height * 2 });
+    expect(((await session.page.evaluate(READ_SCREEN_JS)) as { readonly ih: number }).ih).toBe(viewport.height * 2);
+    await session.page.screenshot({ scale: "css", fullPage: true });
+    await reassertOwnerViewport(session.page, applied);
+    await session.page.screenshot({ scale: "css" });
+    expect(await session.page.evaluate(READ_SCREEN_JS), "after a full-page grow and restore").toStrictEqual(boot);
   } finally {
     await closeProbeSession(session);
     await closeOrigin(server);

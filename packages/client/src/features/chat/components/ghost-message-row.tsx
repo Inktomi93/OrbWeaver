@@ -47,7 +47,8 @@ import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream.ts";
 import type { RowAttribution } from "../lib/attribution.ts";
 import { ROW_BODY_AT_PHONE_WIDTH } from "../lib/chat-track.ts";
-import { columnClassFor, gutterRailFor, MESSAGE_ROW_SKINS, rowBodyClassFor } from "../lib/message-row-variants.ts";
+import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
+import { columnClassFor, gutterRailFor, rowBodyClassFor } from "../lib/row-placement.ts";
 import { CardBlock } from "./card-block.tsx";
 import { placeRowHeader, renderGhostNameRow } from "./message-row-header.tsx";
 import { renderRowAvatar, themedColumnContent } from "./message-row-parts.tsx";
@@ -261,6 +262,8 @@ export function GhostMessageRow({
           avatarRing,
           alignToInsideHeader: skin.headerPlacement === "inside",
           gutterRail: gutterRailFor(skin, "assistant"),
+          // The live turn is always the assistant side, which never mirrors.
+          mirrored: false,
         });
   // #1728 arm B — THE GHOST TAKES THE SETTLED ROW'S PLACEMENT, for the reason this file already states
   // about the header two blocks down: a live turn laid out one way that relaid out at commit is a visible
@@ -319,8 +322,8 @@ export function GhostMessageRow({
       {/* The `@container` above and this element's two arms are the settled row's, verbatim — the ghost is
           the one row that MUST be laid out identically to what it becomes (#1728 arm B). THE `@max-md`
           AVATAR STEP IS PART OF THAT PARITY: the row body takes the settled row's own
-          `ROW_BODY_AT_PHONE_WIDTH`, or a live turn at a phone width would paint its chip through the
-          whole stream and drop it the instant it settled. */}
+          `ROW_BODY_AT_PHONE_WIDTH`, or a live turn at a phone width would paint its full-size chip
+          through the whole stream and step it down the instant it settled. */}
       <Row align="start" gap="row" data-slot="message-row-body" className={cn(rowBodyClassFor(skin), "w-full", ROW_BODY_AT_PHONE_WIDTH)}>
         {avatarNode}
         {/* The skin's own column width rides the ghost too — a live turn that reflows at commit is a

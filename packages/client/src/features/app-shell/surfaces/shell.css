@@ -1512,8 +1512,10 @@
     padding-block-end: env(safe-area-max-inset-bottom, env(safe-area-inset-bottom));
     grid-template-rows: minmax(0, 1fr);
   }
-  /* …and the sheets and scrim opened from the room run to that inset instead of stopping where the bar was. */
-  .shell-grid[data-room-screen] .shell-panel[data-panel-mode],
+  /* …and the sheets and scrim opened from the room run to that inset instead of stopping where the bar was.
+   * The open CONTEXT sheet is excluded: it already runs to the edge and pays the inset as its own padding
+   * (the overlay rule below), so this rule's higher specificity would pay it twice. */
+  .shell-grid[data-room-screen] .shell-panel[data-panel-mode]:not([data-panel-side="context"][data-panel-mode="overlay"]),
   .shell-grid[data-room-screen] .shell-scrim {
     inset-block-end: env(safe-area-max-inset-bottom, env(safe-area-inset-bottom));
   }
