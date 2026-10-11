@@ -1396,6 +1396,11 @@
       "reason": "both arms of this stat converge on \"remove nothing\" — an absent path has nothing to delete, and an unreadable one is a path this belt can no longer vouch for. It runs in a `finally` whose loud half already fired at compute time (`resolveStagedPath` throws the escape), and a genuine fs fault re-surfaces on the next run's read of the same tree. Ends if this rm becomes the only proof a staged tree was removed."
     },
     {
+      "siteId": "packages/server/src/entry/boot/reactivate-plugins.ts::restoreOne::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "activate already logged the failure with its plugin and cause and wrote the row errored; the failed count in the summary line is the boot-level record. Ends if activation stops logging its failures."
+    },
+    {
       "siteId": "packages/server/src/domain/plugin/activation/activate.ts::providerActivationError::err::1",
       "verdict": "deliberate-absorb",
       "reason": "the refusal becomes the returned activation error string; createActivate persists it as `plugins.lastError` and returns `{ok:false,error}`. Ends if that caller stops recording and returning this detail."

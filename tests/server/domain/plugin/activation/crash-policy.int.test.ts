@@ -5,6 +5,8 @@ import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "@orb/server/domain/plugin";
+import { logger } from "@orb/server/foundation/observability";
+import { vi } from "vitest";
 import { createCrashPolicy } from "../../../../../packages/server/src/domain/plugin/activation/crash-policy.ts";
 import { getById } from "../../../../../packages/server/src/domain/plugin/persistence/plugins.ts";
 import { createPluginLifecycleLanes } from "../../../../../packages/server/src/domain/plugin/substrate/lifecycle-lanes.ts";
@@ -97,6 +99,7 @@ test("two crashes racing across the threshold notify the owner ONCE (the crossin
     await policy.recordCrash({ pluginId: installed.id, recipientUserId: owner, error: `crash ${i}` });
   }
   expect(emitted).toEqual([]);
+  const errorSpy = vi.spyOn(logger, "error");
 
   // …then two guest invocations arrive concurrently (two resident handlers, two tabs' UI actions). The
   // lifecycle lane serializes their durable transition while preserving the one-notification crossing.
@@ -107,6 +110,9 @@ test("two crashes racing across the threshold notify the owner ONCE (the crossin
 
   expect(emitted).toEqual([{ type: "plugin-disabled", recipientUserId: owner, pluginId: installed.id }]);
   expect((await getById(h.ctx.db, owner, installed.id))?.status).toBe("errored");
+  // One disable is one operator line, however many crashes land past the threshold.
+  expect(errorSpy.mock.calls.filter(([fields]) => (fields as { kind?: string }).kind === "auto-disabled")).toHaveLength(1);
+  errorSpy.mockRestore();
 });
 
 test("a clean run resets the crash counter", async () => {

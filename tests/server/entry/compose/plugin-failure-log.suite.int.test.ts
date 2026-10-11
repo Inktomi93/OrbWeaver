@@ -1,7 +1,8 @@
 /// <reference path="../../../../packages/plugin-sdk/shared.d.ts" />
 
 // Every way a plugin can fail reaches the server log once, naming the plugin, the kind of failure and the cause.
-// Each case drives a scratch plugin through the real broker and compose, then reads the log ring.
+// Each case drives a scratch plugin through the real broker and compose and counts ALL warn/error lines the
+// failure produced, so a second line from anywhere up the stack fails the case.
 import "../../../support/composed-real.ts";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -13,33 +14,17 @@ import { connectionBindings, userConnections } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { packPluginDirectory } from "@orb/plugin-toolchain";
 import { startAutomationWatcher } from "@orb/server/domain/automation";
+import { logger } from "@orb/server/foundation/observability";
 import { vi } from "vitest";
 import { createAutomationWatcherEnv } from "../../../../packages/server/src/entry/compose/automation-watcher.ts";
 import { makeGenerationCapability } from "../../../support/factories/resolved-connection.ts";
 import { seedUser } from "../../../support/factories/user.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
-interface FailureLine {
-  readonly pluginSlug: string;
-  readonly kind: string;
-  readonly cause: string;
-}
-
-// The log level is silent under test, so record what the single failure-logging helper is asked to write.
-const recorded = vi.hoisted((): FailureLine[] => []);
-// @orb-waive test-mock-doctrine(mock): the logger is process-global and silent under test, so the helper is the only seam that exposes what is logged. Ends if tests can read the log ring at info level.
-vi.mock("../../../../packages/server/src/domain/plugin/substrate/failure-log.ts", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../../../../packages/server/src/domain/plugin/substrate/failure-log.ts")>();
-  return {
-    ...original,
-    logPluginFailure: (pluginSlug: string, kind: string, cause: string): void => {
-      recorded.push({ pluginSlug, kind, cause });
-    },
-  };
-});
-
-function failureLines(slug: string): FailureLine[] {
-  return recorded.filter((line) => line.pluginSlug === slug);
+interface LogLine {
+  readonly level: "warn" | "error";
+  readonly fields: Record<string, unknown>;
+  readonly message: string;
 }
 
 async function scratchPlugin(slug: string, capabilities: readonly PluginCapability[], mainSource: string): Promise<Uint8Array> {
@@ -71,10 +56,13 @@ async function scratchPlugin(slug: string, capabilities: readonly PluginCapabili
   }
 }
 
-const COMMAND_THROWS =
-  'const host = orb.host(1);\nhost.ui.registerCommand({ name: "boom", describe: "x", onRun: () => { throw new Error("command boom"); } });\n';
+const SETTLE_MS = 600;
+const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
 
-test("each plugin failure path logs once with its plugin, kind and cause", { timeout: 90_000 }, async ({ app, db, services, clock }) => {
+const commandThrowing = (message: string): string =>
+  `const host = orb.host(1);\nhost.ui.registerCommand({ name: "boom", describe: "x", onRun: () => { throw new Error(${JSON.stringify(message)}); } });\n`;
+
+test("each plugin failure path logs exactly one line naming its plugin, kind and cause", { timeout: 120_000 }, async ({ app, db, services, clock }) => {
   const user = await seedUser(db);
   const caller: Principal = { userId: user.id, handle: user.handle, role: user.role, externalId: user.externalId, via: "header" };
   const connectionId = mintTypeId(ID_PREFIX.userConnection);
@@ -94,6 +82,15 @@ test("each plugin failure path logs once with its plugin, kind and cause", { tim
   await services.settings.updateUserSettingsSection({ principal: caller, input: { section: "memory", patch: { enabled: false } } });
   const { chat } = await services.chat.startChat({ principal: caller, characterIds: [], opening: "none" });
   const watcher = startAutomationWatcher(createAutomationWatcherEnv({ automation: app.automation, eventBus: app.eventBus }));
+  const lines: LogLine[] = [];
+  const spies = (["warn", "error"] as const).map((level) =>
+    vi.spyOn(logger, level).mockImplementation((fields: unknown, message?: string): void => {
+      lines.push({ level, fields: typeof fields === "object" && fields !== null ? (fields as Record<string, unknown>) : {}, message: message ?? "" });
+    }),
+  );
+  // Unrelated subsystems may warn while a case runs; only a plugin-side line can be a duplicate.
+  const since = (from: number): LogLine[] => lines.slice(from).filter((line) => !line.message.startsWith("inference:"));
+  const failures = (from: number): LogLine[] => since(from).filter((line) => line.message === "plugin: failure");
   const enabled: Awaited<ReturnType<typeof services.plugin.install>>["id"][] = [];
   const bring = async (slug: string, capabilities: readonly PluginCapability[], source: string): Promise<{ readonly id: (typeof enabled)[number] }> => {
     const installed = await services.plugin.install({ caller, bundle: await scratchPlugin(slug, capabilities, source), grant: [...capabilities] });
@@ -101,39 +98,91 @@ test("each plugin failure path logs once with its plugin, kind and cause", { tim
     enabled.push(installed.id);
     return installed;
   };
+  const drop = (pluginId: (typeof enabled)[number]): Promise<unknown> => services.plugin.setEnabled({ caller, pluginId, enabled: false });
   try {
-    // A UI command that throws, then two more throws: the third strike auto-disables.
-    const command = await bring("cmd-thrower", ["ui.surface"], COMMAND_THROWS);
+    // A UI command that throws: one line per strike, and the third strike adds the single auto-disable line.
+    const command = await bring("cmd-thrower", ["ui.surface"], commandThrowing("command boom"));
     const run = (): Promise<unknown> => services.plugin.invokeUiCommand({ caller, pluginId: command.id, name: "boom", args: "", chatId: chat.id });
+    let mark = lines.length;
     await expect(run()).rejects.toThrow("command boom");
-    expect(failureLines("cmd-thrower")).toEqual([{ pluginSlug: "cmd-thrower", kind: "guest-error", cause: expect.stringContaining("command boom") }]);
+    expect(since(mark).map((line) => [line.level, line.fields["pluginSlug"], line.fields["kind"]])).toEqual([["warn", "cmd-thrower", "guest-error"]]);
+    expect(String(lines[mark]?.fields["cause"])).toContain("command boom");
+    mark = lines.length;
     await expect(run()).rejects.toThrow("command boom");
+    expect(since(mark).length).toBe(1);
+    mark = lines.length;
     await expect(run()).rejects.toThrow();
-    expect(failureLines("cmd-thrower").map((line) => line.kind)).toEqual(["guest-error", "guest-error", "guest-error", "auto-disabled"]);
+    expect(since(mark).map((line) => [line.level, line.fields["kind"]])).toEqual([
+      ["warn", "guest-error"],
+      ["error", "auto-disabled"],
+    ]);
+
+    // A guest error text is guest-controlled: the logged cause is bounded and says so.
+    const big = await bring("big-thrower", ["ui.surface"], commandThrowing("x".repeat(100_000)));
+    mark = lines.length;
+    await expect(services.plugin.invokeUiCommand({ caller, pluginId: big.id, name: "boom", args: "", chatId: chat.id })).rejects.toThrow();
+    const [bigLine, ...bigRest] = since(mark);
+    expect(bigRest).toEqual([]);
+    const cause = String(bigLine?.fields["cause"]);
+    expect(cause.length).toBeLessThan(300);
+    expect(cause.endsWith("[truncated]")).toBe(true);
+    await drop(big.id);
 
     // The client reporting a dead UI surface.
     const ui = await bring("ui-reporter", ["ui.surface"], 'const host = orb.host(1);\nhost.log.info("up");\n');
+    mark = lines.length;
     await services.plugin.reportUiCrash({ caller, pluginId: ui.id, surfaceId: "panel", reason: "tree refused by client schema" });
-    expect(failureLines("ui-reporter")).toEqual([{ pluginSlug: "ui-reporter", kind: "ui-crash", cause: "surface 'panel': tree refused by client schema" }]);
+    expect(failures(mark).map((line) => line.fields)).toEqual([
+      { pluginSlug: "ui-reporter", kind: "ui-crash", cause: "surface 'panel': tree refused by client schema" },
+    ]);
+    expect(since(mark).length).toBe(1);
+    await drop(ui.id);
 
-    // An event handler that throws: one line, not one from the handler and another from the delivery.
-    await bring(
+    // An event handler that throws: one line from the resident invoke, none from the delivery boundary.
+    const event = await bring(
       "event-thrower",
       ["events.subscribe"],
       'const host = orb.host(1);\nhost.events.on("messageCommitted", () => { throw new Error("handler boom"); });\n',
     );
+    mark = lines.length;
     await services.chat.commitMessage({ principal: caller, chatId: chat.id, content: "hello" });
-    await expect.poll(() => failureLines("event-thrower").length).toBe(1);
-    expect(failureLines("event-thrower")[0]).toMatchObject({ kind: "guest-error", cause: expect.stringContaining("handler boom") });
+    await expect.poll(() => since(mark).length).toBeGreaterThan(0);
+    await settle();
+    expect(since(mark).length).toBe(1);
+    expect(failures(mark)[0]?.fields).toMatchObject({ pluginSlug: "event-thrower", kind: "guest-error" });
+    await drop(event.id);
+
+    // A private-event (pubsub) handler that throws: same, one line.
+    const emitter = await bring(
+      "ps-emitter",
+      ["ui.surface", "plugin_events"],
+      'const host = orb.host(1);\nhost.ui.registerCommand({ name: "ping", describe: "x", onRun: async () => { await host.pubsub.emit("ping", {}); } });\n',
+    );
+    const listener = await bring(
+      "ps-listener",
+      ["plugin_events"],
+      'const host = orb.host(1);\nhost.pubsub.on("ps-emitter", "ping", () => { throw new Error("pubsub boom"); });\n',
+    );
+    mark = lines.length;
+    await services.plugin.invokeUiCommand({ caller, pluginId: emitter.id, name: "ping", args: "", chatId: chat.id });
+    await expect.poll(() => since(mark).length).toBeGreaterThan(0);
+    await settle();
+    expect(since(mark).length).toBe(1);
+    expect(failures(mark)[0]?.fields).toMatchObject({ pluginSlug: "ps-listener", kind: "guest-error" });
+    await drop(emitter.id);
+    await drop(listener.id);
 
     // A display transform that outruns its deadline.
-    await bring(
+    const display = await bring(
       "slow-display",
       ["chat.transform"],
       'const host = orb.host(1);\nhost.transforms.registerDisplay({ name: "slow", apply: () => new Promise<string>(() => {}) });\n',
     );
+    mark = lines.length;
     await services.plugin.transformForDisplay({ caller, chatId: chat.id, messageId: mintTypeId(ID_PREFIX.message), text: "row" });
-    expect(failureLines("slow-display")).toEqual([{ pluginSlug: "slow-display", kind: "display-deadline", cause: expect.stringContaining("exceeded 200ms") }]);
+    expect(failures(mark).map((line) => line.fields["kind"])).toEqual(["display-deadline"]);
+    expect(since(mark).length).toBe(1);
+    await drop(display.id);
 
     // A plugin whose main.js throws at activation.
     const failing = await services.plugin.install({
@@ -141,12 +190,18 @@ test("each plugin failure path logs once with its plugin, kind and cause", { tim
       bundle: await scratchPlugin("boot-thrower", ["ui.surface"], 'throw new Error("boot boom");\n'),
       grant: ["ui.surface"],
     });
+    mark = lines.length;
     await services.plugin.setEnabled({ caller, pluginId: failing.id, enabled: true }).catch(() => undefined);
-    expect(failureLines("boot-thrower")).toEqual([{ pluginSlug: "boot-thrower", kind: "activation-failed", cause: expect.stringContaining("boot boom") }]);
+    expect(since(mark).length).toBe(1);
+    expect(failures(mark)[0]?.fields).toMatchObject({ pluginSlug: "boot-thrower", kind: "activation-failed" });
+    expect(String(failures(mark)[0]?.fields["cause"])).toContain("boot boom");
   } finally {
+    for (const spy of spies) {
+      spy.mockRestore();
+    }
     watcher.stop();
     for (const pluginId of enabled) {
-      await services.plugin.setEnabled({ caller, pluginId, enabled: false }).catch(() => undefined);
+      await drop(pluginId).catch(() => undefined);
     }
   }
 });

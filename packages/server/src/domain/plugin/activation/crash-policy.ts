@@ -34,8 +34,6 @@ export function createCrashPolicy(ctx: PluginContext, deactivate: (pluginId: Plu
           // later one carries the newer failure detail, which is the honest `lastError` for the row.
           await setStatus(ctx.db, pluginId, { status: "errored", lastError: error, updatedAt: ctx.now() });
           await deactivate(pluginId);
-          const row = await getById(ctx.db, recipientUserId, pluginId);
-          logPluginFailure(row?.slug ?? pluginId, "auto-disabled", `${count} consecutive crashes; last: ${error}`);
           // …but the NOTIFICATION is not idempotent: it appends a durable row to the owner's inbox. So it is
           // gated on the CROSSING (was below, now at or above), which exactly one caller can observe because
           // the increment is atomic and hands each caller its own `previous`. Without that gate, two crashes
@@ -43,6 +41,8 @@ export function createCrashPolicy(ctx: PluginContext, deactivate: (pluginId: Plu
           // "your plugin was disabled" rows for one disable. Tested against `>=`, not `===`: a threshold LOWERED
           // by a deploy must still disable a row already parked above it.
           if (previous < PLUGIN_CRASH_DISABLE_THRESHOLD) {
+            const row = await getById(ctx.db, recipientUserId, pluginId);
+            logPluginFailure(row?.slug ?? pluginId, "auto-disabled", `${count} consecutive crashes; last: ${error}`);
             // "the owner is notified" — the closed `plugin-disabled` member (recipient = the installing
             // owner; a human, an agent has no inbox). Rides the SAME injected notifications emit an automation
             // action uses (one durable-first inbox path — never a re-rolled delivery).

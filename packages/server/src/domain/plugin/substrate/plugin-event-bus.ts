@@ -58,8 +58,10 @@ export function createPluginEventBus(): PluginEventBus {
             // Fire-and-forget under the subscriber's OWN invocation budget (the port's `invoke` runs the guest
             // handler under the FIFO + CPU guard). A throwing/slow handler is contained to that plugin's crash
             // policy and never blocks the emitter or a sibling.
+            // A rejection is already logged with its plugin and cause by the resident `invoke`, so it is settled
+            // here rather than rethrown into a second "detached operation failed" line.
             superviseDetached(`plugin-pubsub:${sub.emitterSlug}:${sub.name}`, "plugin.pubsub.deliver", { emitterSlug: sub.emitterSlug, name: sub.name }, () =>
-              invoke(sub.handler, payloadJson, null),
+              Promise.allSettled([invoke(sub.handler, payloadJson, null)]),
             );
           },
         };
