@@ -24,3 +24,5 @@ Owner rules one precedence and the conflicting law is amended before any collisi
 ## Evidence
 
 Owner ruling (custom body wins): the user's custom body is merged last and wins every collision, preset knobs included, on connections that expose the body field. Amend ADR 0143/0156 to match Tier-3b before changing any collision behaviour.
+
+Owner confirmation: custom fields win any collision and are never policed, with one exception. The fixed 6-key infra denylist (BELT_OWNED_BODY_KEYS) keeps dropping with a warning.
