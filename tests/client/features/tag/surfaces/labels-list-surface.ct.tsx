@@ -364,6 +364,37 @@ for (const { label, viewport } of SUGGESTION_LAYOUTS) {
 /** Far under the old ~700px pane-width gap, and far over what a table cell's padding needs. */
 const SUGGESTION_NAME_TO_ACTION_MAX_PX = 240;
 
+// A 320px phone gives the content pane about 295px. The story's own layout is not a phone shell, so the
+// table root is capped to that width directly. A long character name wraps inside its cell; the verbs stay
+// on one line and the table never needs its own horizontal scroll.
+const PHONE_PANE_PX = 295;
+
+test("a long character name wraps in a phone-width pane and the suggestion row does not overflow sideways", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const noir = tagRow("tag_noir", "noir", 0);
+  const { usage: _usage, pendingSuggestions: _pending, ...rest } = noir;
+  const longName = "Aria Nightshade of the Long Winter Court and Beyond";
+  await routeTrpc(page, {
+    "tag.listTagsWithUsage": () => [noir],
+    "tag.listAttachedEntities": { entities: [], hasMore: false },
+    "tag.listPendingSuggestions": () => [{ ...rest, characterId: mintTypeId(ID_PREFIX.character), characterName: longName }],
+  });
+  const workspace = await mount(<LabelsWorkspaceStory />);
+  const row = content(workspace).getByRole("group", { name: `Suggested noir for ${longName}`, exact: true });
+  await expect(row).toBeVisible();
+  const root = row.locator('xpath=ancestor::*[@data-slot="table-root"]');
+  await root.evaluate((el, width) => {
+    el.style.maxWidth = `${String(width)}px`;
+  }, PHONE_PANE_PX);
+
+  const apply = row.getByRole("button", { name: "Apply", exact: true });
+  const reject = row.getByRole("button", { name: "Reject", exact: true });
+  const scroller = row.locator('xpath=ancestor::*[@data-slot="table-scroll"]');
+  await expect.poll(async () => Math.round((await scroller.boundingBox())?.width ?? 0), { message: "the cap must bind" }).toBeLessThanOrEqual(PHONE_PANE_PX);
+  await expect.poll(async () => Math.abs(((await apply.boundingBox())?.y ?? 0) - ((await reject.boundingBox())?.y ?? 99))).toBeLessThan(2);
+  await expect.poll(() => scroller.evaluate((el) => el.scrollWidth <= el.clientWidth), { message: "the table must not need a sideways scroll" }).toBe(true);
+});
+
 test("pending-only labels stay outside In use and prune until Apply; Reject removes the staged junction", async ({ mount, page }) => {
   const staged = { ...tagRow("tag_staged", "staged", 0), pendingSuggestions: 1 };
   const rejected = { ...tagRow("tag_rejected", "rejected", 0), pendingSuggestions: 1 };

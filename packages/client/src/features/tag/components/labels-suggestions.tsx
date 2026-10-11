@@ -161,9 +161,11 @@ function SuggestionGroupBlock({
 function SuggestionCharacter({ suggestion, groupName }: { readonly suggestion: TagSuggestionView; readonly groupName: string }): ReactElement {
   return (
     <Row align="center" className="flex-wrap" gap="field">
+      {/* `wrap`: a long character name wraps inside its cell instead of pushing the verbs off the pane. */}
       <Button
+        className="min-w-0 text-start"
         intent="ghost"
-        size="sm"
+        size="wrap"
         type="button"
         onClick={(): void => {
           selectCharacter(suggestion.characterId);

@@ -1791,6 +1791,22 @@ for (const [arm, width] of Object.entries(REVIEW_WIDTHS)) {
   });
 }
 
+// The closed row keeps its gloss to one line so the pane stays dense; opening the row reads the whole sentence.
+test("a rule's gloss is one line when the row is shut and whole when it is open", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<RulesSectionStory chatId={CHAT} width={REVIEW_WIDTHS.desktop} />);
+  const gloss = ruleDisclosure(page, "Illustrate the scene").getByText(RULE.description, { exact: true });
+  await expect(gloss).toBeVisible();
+  const lineHeight = (): Promise<number> => gloss.evaluate((el) => Number.parseFloat(getComputedStyle(el).lineHeight));
+  const clipped = (): Promise<boolean> => gloss.evaluate((el) => el.scrollWidth > el.clientWidth);
+  await expect.poll(async () => (await gloss.boundingBox())?.height ?? 0).toBeLessThan((await lineHeight()) * 1.5);
+  await expect.poll(clipped, { message: "the long sentence must really be clipped when shut" }).toBe(true);
+
+  await openRule(page, "Illustrate the scene");
+  await expect.poll(async () => (await gloss.boundingBox())?.height ?? 0).toBeGreaterThan((await lineHeight()) * 1.5);
+  await expect.poll(clipped).toBe(false);
+});
+
 // ── a rule's CONNECTIONS (item 0025): the rule as a binding actor ──────────────────────────────────────
 // The disclosure offers one role slot per task the rule's arms spend (`generate_image` → Image generation). Every
 // write carries the rule as the actor, and the slot reads the rule's OWN `listBindings` view.
