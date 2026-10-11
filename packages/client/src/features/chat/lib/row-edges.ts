@@ -60,4 +60,5 @@ export const PINNED_CHIP: PinnedHeader = {
 };
 
 export const ACTIONS_WITH_IDENTITY: ActionsRow = { identity: true, surface: "" };
-export const ACTIONS_ONLY: ActionsRow = { identity: false, surface: "rounded-card bg-reading-band text-reading-plate-foreground" };
+// Positioned and raised: an overlay chip's plate must paint over the line it sits on, not under its words.
+export const ACTIONS_ONLY: ActionsRow = { identity: false, surface: "relative z-(--z-raised) rounded-card bg-reading-band text-reading-plate-foreground" };

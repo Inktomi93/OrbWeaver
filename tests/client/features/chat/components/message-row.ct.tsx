@@ -956,7 +956,6 @@ test("avatars OFF removes the IMMERSIVE art too — echo's pane, whisper's band,
   const echoBubble = echo.locator(BUBBLE);
   await expect.poll(() => echoBubble.evaluate((el) => (el as HTMLElement).style.paddingRight)).toBe("");
   await expect.poll(() => echoBubble.evaluate((el) => getComputedStyle(el).backgroundImage)).toBe("none");
-  await expect(echo.locator(EDGE_TILE)).toHaveCount(0);
   await echo.unmount();
 
   const whisper = await mount(
@@ -985,7 +984,6 @@ test("avatars OFF removes the IMMERSIVE art too — echo's pane, whisper's band,
 // (avatar top ≈ name-row top) holds for BOTH real and fallback, and the with-image cases are UNCHANGED
 // (the regression pins above never pass a null hash → they double as the with-art geometry lock).
 
-const EDGE_TILE = '[data-slot="message-edge-tile"]';
 const BAND = '[data-slot="message-band"]';
 const FALLBACK = '[data-slot="avatar-fallback"]';
 const LONG_BODY = "Line one is fairly long.\n\nLine two.\n\nLine three.\n\nLine four.\n\nLine five.";
@@ -2286,8 +2284,8 @@ const SWIPE_BODY = "The pale light of the second moon slid across the courtyard 
  *  stated against the container's own border and padding. */
 function readFootContainer(foot: Locator): Promise<{ readonly contentLeft: number; readonly contentRight: number }> {
   return foot.evaluate((element) => {
-    // Skip the strip's own wrapper: the container is the first ancestor that owns a reading inset, or the
-    // content column for the one style (tide) whose foot sits under a train with no container.
+    // Skip the strip's own wrapper: the container is the first ancestor that owns a reading inset. Tide's foot
+    // sits under a train with no container, so it carries the reading inset on its own row.
     let parent = element.parentElement;
     while (parent !== null && Number.parseFloat(getComputedStyle(parent).paddingLeft) === 0 && parent.dataset["slot"] !== "message-content-column") {
       parent = parent.parentElement;
@@ -2295,8 +2293,9 @@ function readFootContainer(foot: Locator): Promise<{ readonly contentLeft: numbe
     if (parent === null) {
       throw new Error("the swipe foot has no container");
     }
-    const box = parent.getBoundingClientRect();
-    const style = getComputedStyle(parent);
+    const container = parent.dataset["slot"] === "message-content-column" ? element : parent;
+    const box = container.getBoundingClientRect();
+    const style = getComputedStyle(container);
     const left = box.left + Number.parseFloat(style.borderLeftWidth) + Number.parseFloat(style.paddingLeft);
     const right = box.right - Number.parseFloat(style.borderRightWidth) - Number.parseFloat(style.paddingRight);
     return { contentLeft: left, contentRight: right };
@@ -3267,6 +3266,43 @@ test("tide: the speaker row and the pager end where the train's widest pill ends
       }),
     )
     .toEqual({ header: 0, pager: 0 });
+});
+
+for (const width of [360, 1024]) {
+  test(`tide at ${String(width)}px: a user row packs its train to the trailing edge, beside its own chip`, async ({ mount }) => {
+    const component = await mount(
+      <MessageRowStory
+        chatStyle="tide"
+        messageRole="user"
+        personaId={ALEX_PERSONA_ID}
+        personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]}
+        width={width}
+        content="Then we go now."
+      />,
+    );
+    await expect
+      .poll(() =>
+        component.evaluate((root: HTMLElement) => {
+          const right = (selector: string): number => Math.round(root.querySelector(selector)?.getBoundingClientRect().right ?? Number.NaN);
+          const left = (selector: string): number => Math.round(root.querySelector(selector)?.getBoundingClientRect().left ?? Number.NaN);
+          return {
+            chipAtTrailingEdge: right('[data-slot="avatar-root"]') === right('[data-slot="message-row-body"]'),
+            trainBesideChip: left('[data-slot="avatar-root"]') - right('[data-slot="message-content-column"]') <= 8,
+          };
+        }),
+      )
+      .toEqual({ chipAtTrailingEdge: true, trainBesideChip: true });
+  });
+}
+
+test("document: a revealed actions chip is a raised layer, so its plate paints over the line beneath it", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
+  const component = await mount(
+    <MessageRowStory chatStyle="document" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} content={LONG_BODY} />,
+  );
+  const chip = component.locator(ACTIONS_ROW);
+  await expect(chip).toHaveCSS("position", "relative");
+  await expect.poll(() => chip.evaluate((el) => Number(getComputedStyle(el).zIndex) > 0)).toBe(true);
 });
 
 // ── THE CENTRED SKINS: ONE COLUMN WIDTH FOR EVERY ROW ──────────────────────────────────────────────────

@@ -18,6 +18,7 @@ import { IMPERSONATE_STOP_LABEL, MODEL_ROLES_PATH_TEXT, IMAGE_GEN_SPENDS_NOW as 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { routeImpersonateStream } from "../../../../support/node/route-impersonate-stream.ts";
@@ -224,6 +225,37 @@ test.describe("#2443: the band's refusal at a coarse pointer", () => {
     });
     const component = await mount(<ComposerStory />);
     await expect(component.locator('[data-slot="composer-guided-refusal"]')).toHaveText(ENDPOINT_UNREACHABLE_REASON);
+  });
+
+  test("with the soft keyboard up the refusal keeps to one line, at the quiet body step", async ({ mount, page }) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    await routeTrpc(page, {
+      ...CHAT_AMBIENT_ROUTES,
+      ...CHAT_ROOM_ROUTES,
+      "chat.checkSendAvailability": () => ({ available: false, cause: "endpoint-unreachable" }),
+    });
+    const component = await mount(<ComposerStory />);
+    const line = component.locator('[data-slot="composer-guided-refusal"]');
+    await expect(line).toHaveText(ENDPOINT_UNREACHABLE_REASON);
+    const lineHeight = (): Promise<{ readonly height: number; readonly leading: number }> =>
+      line.evaluate((el) => ({ height: el.getBoundingClientRect().height, leading: Number.parseFloat(getComputedStyle(el).lineHeight) }));
+    // At rest the reason wraps on the narrowest phone; with the keyboard up the transcript needs the room.
+    await expect
+      .poll(async () => {
+        const read = await lineHeight();
+        return read.height > read.leading + 0.5;
+      })
+      .toBe(true);
+    await page.evaluate(() => document.documentElement.toggleAttribute("data-keyboard-up", true));
+    await expect
+      .poll(async () => {
+        const read = await lineHeight();
+        return read.height <= read.leading + 0.5;
+      })
+      .toBe(true);
+    // Type steps are authored in rem; the computed size resolves at the 16px root.
+    await expect(line).toHaveCSS("font-size", `${Number.parseFloat(TOKENS["text.body"].value) * 16}px`);
+    await page.evaluate(() => document.documentElement.toggleAttribute("data-keyboard-up", false));
   });
 
   test("no-connection is stated once, by the next-turn line: the band's refusal line stands down", async ({ mount, page }) => {

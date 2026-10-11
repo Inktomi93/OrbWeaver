@@ -97,6 +97,9 @@ export function NameRowFrame(args: NameRowFrameProps): ReactElement {
         // An actions-only bar is a chip at the trailing edge, and off the last row it overlays the row's top
         // trailing corner at its full glyph height while costing the row no height at all.
         !args.shape.identity && "ms-auto w-fit",
+        // An outside header (tide's) sits on the same inset as the pager under its train, so the last action
+        // ends where the forward chevron does and its touch area stays inside the scrollport.
+        args.placement === "outside" && "px-field",
         !args.shape.ownLine && "box-content h-glyph-lg -mb-glyph-lg",
         // THE ACTION RAIL'S ONLY RESERVATION. The rail is centred on this row, so a content height of
         // `glyph-lg - 2 * row` makes it span exactly the container's top inset, this row and the

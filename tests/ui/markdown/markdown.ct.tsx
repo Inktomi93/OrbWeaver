@@ -187,6 +187,119 @@ test("trusted: a fenced code block is REAL Shiki-highlighted, not inert (D44 §1
     .toBeGreaterThan(1);
 });
 
+// THE APP THEME, NOT THE DEVICE, PICKS THE CODE PALETTE. A dark theme sets `color-scheme: dark` on its scope;
+// Streamdown's own `dark:` switch is the OS query, so a dark theme on a light-mode phone painted light tokens on
+// the dark ground (1.19:1), and the reverse at 1.07:1. Each token's contrast against the block's own ground is
+// read from the rendered colours.
+async function minimumTokenContrast(component: import("@playwright/experimental-ct-react").MountResult): Promise<number> {
+  return await component.evaluate((root) => {
+    const canvas = document.createElement("canvas").getContext("2d");
+    if (canvas === null) {
+      throw new Error("no canvas");
+    }
+    const rgb = (css: string): readonly [number, number, number] => {
+      canvas.clearRect(0, 0, 1, 1);
+      canvas.fillStyle = css;
+      canvas.fillRect(0, 0, 1, 1);
+      const [r = 0, g = 0, b = 0] = canvas.getImageData(0, 0, 1, 1).data;
+      return [r, g, b];
+    };
+    const luminance = ([r, g, b]: readonly [number, number, number]): number => {
+      const lin = (c: number): number => (c / 255 <= 0.040_45 ? c / 255 / 12.92 : ((c / 255 + 0.055) / 1.055) ** 2.4);
+      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    };
+    // The ground is what actually paints behind a token: its nearest ancestor with an opaque background.
+    const groundOf = (el: Element): string => {
+      for (let node: Element | null = el; node !== null; node = node.parentElement) {
+        const paint = getComputedStyle(node).backgroundColor;
+        canvas.clearRect(0, 0, 1, 1);
+        canvas.fillStyle = paint;
+        canvas.fillRect(0, 0, 1, 1);
+        if (canvas.getImageData(0, 0, 1, 1).data[3] === 255) {
+          return paint;
+        }
+      }
+      return getComputedStyle(document.body).backgroundColor;
+    };
+    const tokens = [...root.querySelectorAll('pre code span[style*="--sdm-c"]')].filter((span) => (span.textContent ?? "").trim() !== "");
+    if (tokens.length === 0) {
+      return 0;
+    }
+    return Math.min(
+      ...tokens.map((span) => {
+        const tokenLum = luminance(rgb(getComputedStyle(span).color));
+        const groundLum = luminance(rgb(groundOf(span)));
+        return (Math.max(tokenLum, groundLum) + 0.05) / (Math.min(tokenLum, groundLum) + 0.05);
+      }),
+    );
+  });
+}
+
+const THEMED_CODE = "```ts\nconst tideHeightCm: number = measure(42); // reading\n```";
+const BUTTONED_CODE = "```js\nconst answer = 42;\n```";
+
+for (const { theme, device } of [
+  { theme: "dark", device: "light" },
+  { theme: "light", device: "dark" },
+] as const) {
+  test(`a ${theme} app theme on a ${device}-mode device keeps every code token at AA contrast`, async ({ mount, page }) => {
+    await page.emulateMedia({ colorScheme: device, reducedMotion: "no-preference" });
+    const cmp = await mount(
+      <div data-theme={theme === "light" ? "light" : undefined}>
+        <Markdown trust="trusted" mode="static">
+          {THEMED_CODE}
+        </Markdown>
+      </div>,
+    );
+    // Streamdown paints the fence as plain inherited text until the grammar loads; measure the highlighted tokens.
+    await expect(cmp.locator('pre code span[style*="--shiki-dark"]').first()).toBeVisible();
+    await expect.poll(() => minimumTokenContrast(cmp), { timeout: 5000 }).toBeGreaterThanOrEqual(4.5);
+  });
+}
+
+test.describe("code block controls at a touch pointer", () => {
+  test.use({ hasTouch: true });
+
+  test("Copy and Download are hit across the whole touch floor", async ({ mount, page }) => {
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    const cmp = await mount(
+      <div style={{ paddingTop: 48 }}>
+        <Markdown trust="trusted" mode="static">
+          {BUTTONED_CODE}
+        </Markdown>
+      </div>,
+    );
+    await expect(cmp.locator('[data-streamdown="code-block-copy-button"]')).toBeVisible();
+    await expect
+      .poll(() =>
+        cmp.evaluate((root) => {
+          const probe = document.createElement("div");
+          probe.style.width = "var(--spacing-touch-target)";
+          document.body.append(probe);
+          const half = probe.getBoundingClientRect().width / 2 - 1;
+          probe.remove();
+          const edges = [
+            [0, -half],
+            [0, half],
+            [-half, 0],
+            [half, 0],
+          ] as const;
+          // One probe per edge of a button's touch floor; a miss names the button.
+          const missed = (button: Element): boolean => {
+            const box = button.getBoundingClientRect();
+            return edges.some(([dx, dy]) => {
+              const hit = document.elementFromPoint(box.left + box.width / 2 + dx, box.top + box.height / 2 + dy);
+              return hit === null || !button.contains(hit);
+            });
+          };
+          const buttons = [...root.querySelectorAll('[data-streamdown="code-block-copy-button"], [data-streamdown="code-block-download-button"]')];
+          return buttons.filter(missed).map((button) => button.getAttribute("data-streamdown"));
+        }),
+      )
+      .toEqual([]);
+  });
+});
+
 test("trusted: inline math ($…$) renders a KaTeX element", async ({ mount }) => {
   // The KaTeX plugin (remark-math → rehype-katex) is wired via plugins.math. A rendered equation
   // produces a `.katex` container.

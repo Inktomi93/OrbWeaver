@@ -35,7 +35,7 @@ export const SWIPE_FOOT_ECHO: SwipeFoot = {
 
 /** Tide's train of pills has no single container, so the foot runs under the train on the pager plate,
  *  which over a wallpaper is the only thing backing it. */
-export const SWIPE_FOOT_TRAIN: SwipeFoot = { placement: "below", row: BG_PHOTO_PAGER_PLATE, chevron: "text-muted-foreground" };
+export const SWIPE_FOOT_TRAIN: SwipeFoot = { placement: "below", row: `${BG_PHOTO_PAGER_PLATE} px-field`, chevron: "text-muted-foreground" };
 
 /** The count: a small tabular value beside the forward chevron. */
 export const SWIPE_COUNTER = "whitespace-nowrap text-muted-foreground";

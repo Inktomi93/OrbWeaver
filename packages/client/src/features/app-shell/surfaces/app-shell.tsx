@@ -299,7 +299,7 @@ export function AppShell(): ReactElement {
             data-section={layout.activeSection}
             data-list-mode={layout.listMode}
             data-context-mode={layout.contextMode}
-            {...roomScreen.gridAttrs}
+            data-room-screen={roomScreen.roomScreen}
             data-elevation={appearance.elevation}
             {...(hasBgImage ? { "data-has-bg-image": true } : {})}
             style={shellVars}

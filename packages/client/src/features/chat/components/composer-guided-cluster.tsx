@@ -253,7 +253,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             and the Stop that ends it is already rendered beside the icons as visible chrome. A refusal another
             element already states (`refusalStatedBy`, the next-turn line) is not shown here either: one statement. */}
         {bandRefusal === undefined ? null : (
-          <Text as="span" className={SHOW_ONLY_AT_COARSE} data-slot="composer-guided-refusal" voice="gloss">
+          <Text as="span" className={SHOW_ONLY_AT_COARSE} data-slot="composer-guided-refusal" voice="quiet">
             {bandRefusal}
           </Text>
         )}

@@ -2,6 +2,8 @@
 // read by `MessageRow` and `GhostMessageRow` alike so neither pays for the decision in complexity.
 
 import type { MessageView } from "@orb/contracts/chat";
+import type { AppearanceSettings } from "@orb/contracts/settings";
+import type { MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { gutterCentredTracks } from "@orb/ui/layout";
 import type { RowAttribution } from "./attribution.ts";
@@ -37,7 +39,7 @@ export function gutterRailFor(skin: RowSkin, role: MessageRole): "none" | "leadi
  *  packs its content to the column's trailing edge, so a phone-capped bubble sits flush against its chip
  *  and the cap's gap falls on the far side. */
 export function columnClassFor(skin: RowSkin, mirrored = false): string {
-  const placement = skin.columnPlacement === "anchored" ? anchoredColumnClass(skin) : CENTRED_COLUMN;
+  const placement = skin.columnPlacement === "anchored" ? anchoredColumnClass(skin, mirrored) : CENTRED_COLUMN;
   return mirrored ? `${placement} items-end` : placement;
 }
 
@@ -48,8 +50,12 @@ const CENTRED_COLUMN = "col-start-2 min-w-0 flex-1 @4xl:w-(--reading-column-cent
 
 // A train's column hugs its widest pill, so the speaker row above it and the pager under it share the
 // train's edges; the phone cap moves from each pill to the column for the same reason.
-function anchoredColumnClass(skin: RowSkin): string {
-  return skin.bubbleLayout === "trains" ? `min-w-0 max-w-full ${PILL_PHONE_CAP}` : "min-w-0 flex-1";
+// A mirrored train still packs to the trailing edge, beside its own chip.
+function anchoredColumnClass(skin: RowSkin, mirrored: boolean): string {
+  if (skin.bubbleLayout !== "trains") {
+    return "min-w-0 flex-1";
+  }
+  return mirrored ? `min-w-0 max-w-full ms-auto ${PILL_PHONE_CAP}` : `min-w-0 max-w-full ${PILL_PHONE_CAP}`;
 }
 
 /** The row body's own placement classes (#1728 arm B): nothing for `anchored`, which stays the flex line it
@@ -76,7 +82,7 @@ export function headerShape(skin: RowSkin, lastRow: boolean): HeaderShape {
 
 /** How a row's header actions reveal: always on the transcript's last row (or when the reader set them to
  *  show), else on hover and focus, and an actions-only bar never pins itself on at a touch pointer. */
-export function actionsRevealFor(skin: RowSkin, lastRow: boolean, setting: "expanded" | "hover" | undefined): ActionsReveal {
+export function actionsRevealFor(skin: RowSkin, lastRow: boolean, setting: AppearanceSettings["messageActions"] | undefined): ActionsReveal {
   if (lastRow || setting === "expanded") {
     return "expanded";
   }
@@ -84,7 +90,7 @@ export function actionsRevealFor(skin: RowSkin, lastRow: boolean, setting: "expa
 }
 
 /** The settled transcript's last row id. While a turn is live the ghost is the tail, so no row is last. */
-export function settledLastRowId(messages: readonly MessageView[], live: boolean): string | undefined {
+export function settledLastRowId(messages: readonly MessageView[], live: boolean): MessageId | undefined {
   return live ? undefined : messages.at(-1)?.id;
 }
 

@@ -281,9 +281,8 @@ function ChatThread({
     pinnedPromptIdRef.current = promptId;
     listHandleRef.current?.pinToIndex(idx);
   }, [pinMode, items]);
-  // Which row carries the swipe controls: the newest assistant row. Every one of them is a real GENERATION
-  // now — D124 retired the rpg state-anchor slot, an empty-body assistant row that was filtered out of the
-  // rendered list yet still answered this question, stripping the arrows off the last visible reply.
+  // Which row carries the swipe controls: the transcript's last row. A reply the user has already answered
+  // shows its count at most.
   const lastRowId = settledLastRowId(messages, live);
   // The transcript divider's PRESENT-TENSE source: previewContextFit runs the same fit the next real
   // turn would, so the line tracks preset/settings knob changes live (it's invalidated on canon-terminal bus

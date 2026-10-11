@@ -10,7 +10,8 @@ export function roomScreenShell(args: {
   readonly activeSection: string;
   readonly listIsPrimaryContent: boolean;
   readonly activeChatId: string | null;
-}): { readonly gridAttrs: { readonly "data-room-screen"?: true }; readonly showMobileRail: boolean } {
+}): { readonly roomScreen: true | undefined; readonly showMobileRail: boolean } {
   const roomScreen = args.mobileViewport && args.activeSection === ROOM_SECTION && !args.listIsPrimaryContent && args.activeChatId !== null;
-  return { gridAttrs: roomScreen ? { "data-room-screen": true } : {}, showMobileRail: args.mobileViewport && !roomScreen };
+  // `undefined`, not `false`: the grid carries the attribute only on the room screen.
+  return { roomScreen: roomScreen || undefined, showMobileRail: args.mobileViewport && !roomScreen };
 }

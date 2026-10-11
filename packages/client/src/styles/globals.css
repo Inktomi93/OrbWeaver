@@ -807,6 +807,55 @@ html[data-shadow] [data-slot="message-bubble"] {
 [data-slot="message-bubble"]:has(pre) {
   width: 100%;
 }
+/* CODE TOKENS FOLLOW THE APP THEME, NOT THE DEVICE. Streamdown colours each Shiki token through `--sdm-c` and
+ * switches to `--shiki-dark` under Tailwind's `dark:`, which is the OS `prefers-color-scheme` query. The app's
+ * polarity is the `color-scheme` its theme scope sets; keyed on the OS, a dark theme on a light-mode phone
+ * paints the light palette on the dark code ground. `light-dark()` resolves against that `color-scheme`;
+ * these rules are unlayered, so they outrank the layered `dark:` utilities either way. */
+[data-streamdown="code-block"] [style*="--sdm-c"] {
+  color: light-dark(var(--sdm-c, currentcolor), var(--shiki-dark, var(--sdm-c, currentcolor)));
+}
+[data-streamdown="code-block"] [style*="--sdm-tbg"] {
+  background-color: light-dark(var(--sdm-tbg, transparent), var(--shiki-dark-bg, var(--sdm-tbg, transparent)));
+}
+[data-streamdown="code-block"] [style*="--sdm-bg"] {
+  background-color: light-dark(var(--sdm-bg, transparent), var(--shiki-dark-bg, var(--sdm-bg, transparent)));
+}
+/* Streamdown's Copy and Download are 24px glyph buttons; at a coarse pointer they take the room's touch floor
+ * through an invisible centred hit area, the same pointer-conditional token every glyph button uses. */
+/* @orb-waive css-selector-has-a-writer([data-streamdown="code-block-copy-button"]): Streamdown's code block writes it. */
+[data-streamdown="code-block-copy-button"],
+/* @orb-waive css-selector-has-a-writer([data-streamdown="code-block-download-button"]): Streamdown's code block writes it. */
+[data-streamdown="code-block-download-button"] {
+  position: relative;
+}
+/* …and the pair is spaced so those areas never overlap: the floor less the 24px button box. */
+/* @orb-waive css-selector-has-a-writer([data-streamdown="code-block-actions"]): Streamdown's code block writes it. */
+[data-streamdown="code-block-actions"] {
+  column-gap: calc(var(--spacing-touch-target) - var(--spacing-glyph-md));
+}
+[data-streamdown="code-block-copy-button"]::before,
+[data-streamdown="code-block-download-button"]::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--spacing-touch-target);
+  height: var(--spacing-touch-target);
+  translate: -50% -50%;
+}
+/* WITH THE SOFT KEYBOARD UP the transcript is what the reader needs: the plugin panels' disclosure folds
+ * away and the composer's refusal keeps to one line. `data-keyboard-up` is written beside
+ * `--orb-keyboard-inset` by `use-keyboard-inset-var.ts`. */
+html[data-keyboard-up] [data-slot="plugin-flank"] {
+  display: none;
+}
+html[data-keyboard-up] [data-slot="composer-guided-refusal"] {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 /* How far a pinned header bar and the swipe foot reach to the card's side edges: the card's own inset,
  * which echo widens on its art side to the art pane (an inline override from its decoration). */
 [data-slot="message-bubble"] {

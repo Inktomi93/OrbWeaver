@@ -349,6 +349,32 @@ test("the empty toast overlay does not intercept page controls", async ({ mount,
   await expect(page.locator('[data-slot="toast-viewport"]')).toHaveCSS("pointer-events", "none");
 });
 
+test("a soft keyboard marks the root keyboard-up while it is open, and clears it when it closes", async ({ mount, page }) => {
+  const shell = await mount(<AppShellStory />);
+  await expect(shell.getByText("chats content pane")).toBeVisible();
+  const html = page.locator("html");
+  await expect(html).not.toHaveAttribute("data-keyboard-up");
+  // An iOS-shaped keyboard: the visual viewport loses 336px of its height.
+  await page.evaluate(() => {
+    const viewport = window.visualViewport;
+    if (viewport === null) {
+      throw new Error("no visualViewport");
+    }
+    Object.defineProperty(viewport, "height", { configurable: true, get: () => window.innerHeight - 336 });
+    viewport.dispatchEvent(new Event("resize"));
+  });
+  await expect(html).toHaveAttribute("data-keyboard-up", "");
+  await page.evaluate(() => {
+    const viewport = window.visualViewport;
+    if (viewport === null) {
+      throw new Error("no visualViewport");
+    }
+    Reflect.deleteProperty(viewport, "height");
+    viewport.dispatchEvent(new Event("resize"));
+  });
+  await expect(html).not.toHaveAttribute("data-keyboard-up");
+});
+
 test("default renders the chats content pane inside the frame", async ({ mount }) => {
   const shell = await mount(<AppShellStory />);
   await expect(shell.getByText("chats content pane")).toBeVisible();
