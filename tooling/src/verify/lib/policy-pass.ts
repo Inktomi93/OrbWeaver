@@ -89,6 +89,7 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
     ordinaryWaiverSources: waiverCarriers.sources,
     ownerResults: policies.map(authorityOwnerResult),
     reviewedGrants: input.reviewedGrants,
+    ...(input.waiverBudget === undefined ? {} : { waiverBudget: input.waiverBudget }),
     failOnWarnings: input.failOnWarnings,
   });
   const sortedErrors = toolErrors.toSorted(

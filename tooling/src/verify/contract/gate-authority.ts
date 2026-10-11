@@ -81,7 +81,7 @@ export interface AuthorityConsumption {
 /** The alarm kinds, as ONE tuple: the three alarm interfaces below narrow on it, and the conformance runner's
  *  refusal envelope (`lib/policy-refusal-envelope.ts`) derives its `[<kind>]` tokens from it — so a fourth
  *  alarm is one row here and `tsc` finds every reader (string-union dispatch discipline). */
-export const GATE_AUTHORITY_ALARM_KINDS = ["ordinary-waiver", "stale-reviewed-grant", "over-broad-reviewed-grant"] as const;
+export const GATE_AUTHORITY_ALARM_KINDS = ["ordinary-waiver", "stale-reviewed-grant", "over-broad-reviewed-grant", "waiver-budget"] as const;
 /** @public knip type-face false positive — a structural field (`kind`) of the exported `OrdinaryAuthorityAlarm` shape,
  *  never referenced by its own name at any call site. */
 export type GateAuthorityAlarmKind = (typeof GATE_AUTHORITY_ALARM_KINDS)[number];
@@ -114,7 +114,16 @@ interface OverBroadGrantAuthorityAlarm {
   readonly message: string;
 }
 
-export type GateAuthorityAlarm = OrdinaryAuthorityAlarm | StaleGrantAuthorityAlarm | OverBroadGrantAuthorityAlarm;
+/** A whole-coverage owner whose waived plus granted count differs from its committed budget (`lib/waiver-ratchet.ts`). */
+export interface WaiverBudgetAuthorityAlarm {
+  readonly kind: Extract<GateAuthorityAlarmKind, "waiver-budget">;
+  readonly policyId: string;
+  readonly budget: number;
+  readonly count: number;
+  readonly message: string;
+}
+
+export type GateAuthorityAlarm = OrdinaryAuthorityAlarm | StaleGrantAuthorityAlarm | OverBroadGrantAuthorityAlarm | WaiverBudgetAuthorityAlarm;
 
 export const GATE_AUTHORITY_TOOL_ERROR_KINDS = [
   "invalid-policy",
@@ -162,12 +171,17 @@ export interface GateAuthorityVerdict {
   readonly failOnWarnings: boolean;
 }
 
+/** Committed waived plus granted allowance per policy id (`lib/waiver-budget.ts`). A policy with no row has a budget of zero. */
+export type WaiverBudget = Readonly<Record<string, number>>;
+
 export interface GateAuthorityBatchInput {
   readonly knownPolicies: readonly SelectedGatePolicy[];
   readonly selectedPolicies: readonly SelectedGatePolicy[];
   readonly ordinaryWaiverSources: readonly OrdinaryWaiverSource[];
   readonly ownerResults: readonly GateOwnerResult[];
   readonly reviewedGrants: readonly ReviewedGateGrant[];
+  /** Per-policy waived plus granted allowance. Absent for fixture and conformance passes, which judge no ratchet. */
+  readonly waiverBudget?: WaiverBudget;
   readonly failOnWarnings: boolean;
 }
 

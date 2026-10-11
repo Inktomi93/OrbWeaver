@@ -178,29 +178,34 @@ is RED.
 
 ---
 
-## 5. Tests — one central tree, mirroring `src` 1:1
+## 5. Tests — one central tree that mirrors `src` directories
 
-**The mirror rule (one line, fully enforceable):** a test for `packages/<pkg>/src/<path>.ts` lives at
-`tests/<pkg>/<path>.<kind>.test.ts`. **Path = prefix-swap** (`packages/<pkg>/src/` ↔ `tests/<pkg>/`); the
-`test-layout` gate exempts the non-mirror trees `support/` + `e2e/` and the `.suite` kinds;
-`tooling/` is CONDITIONAL — `tests/tooling/<dir>/` mirrors `tooling/src/<dir>/` whenever that tool dir
-exists (§9), and only flat files + dirs with no tool twin stay exempt. **Kind by suffix**: `.test.ts` (unit) · `.int.test.ts` (integration/db) ·
-`.contract.test.ts` (golden/surface) · `.test-d.ts` (types) · `.suite.test.ts`/`.suite.int.test.ts`
-(cross-cutting property suites — mirror-exempt).
-The **node** lanes are Vitest `test.projects` selected by suffix in ONE config. **Browser lanes are
-Playwright, not Vitest** (Vitest browser-mode hangs): `.ct.tsx` (component, Playwright CT) · `.spec.ts`
-(e2e) — separate runners, not in the fast `check`.
+**The mirror rule:** a test for code in `packages/<pkg>/src/<dir>/` lives in `tests/<pkg>/<dir>/`. The directory is a
+prefix swap (`packages/<pkg>/src/` ↔ `tests/<pkg>/`); the file name says the behaviour the test proves, not the
+module it touches. One test file may cover several modules of its directory, and one module may be proved by several
+files. `tests/tooling/<tool>/<dir>/` mirrors `tooling/src/<tool>/<dir>/` when that tool exists (§9); flat
+`tests/tooling` files and directories with no tool twin are exempt. `support/` and `e2e/` mirror nothing. A
+`.suite.*` kind asserts one property across many modules, so it may sit anywhere in its package tree. **Kind by
+suffix**: `.test.ts` (unit) · `.int.test.ts` (integration/db) · `.contract.test.ts` (golden/surface) · `.test-d.ts`
+(types) · `.suite.test.ts`/`.suite.int.test.ts` (cross-cutting property suites). The node lanes are Vitest
+`test.projects` selected by suffix in ONE config. **Browser lanes are Playwright, not Vitest** (Vitest browser-mode
+hangs): `.ct.tsx` (component, Playwright CT) · `.spec.ts` (e2e) — separate runners, not in the fast `check`.
 
-Why central+mirror over colocation: an agent can drop a colocated test anywhere; the mirror + a
-path-gate means a test **must** land at the computed path or `check` goes red, and the src tree stays
-clean. The fixture doctrine is composed `test.extend` (over `beforeEach`/`freshDb()`).
+**Presence is reach, not a path.** A file at a computed path proves only that the file exists. A module counts as
+tested when a test, or a test-tree helper it imports, references one of the module's value exports through the
+import graph, or when a test names the module in an `@subject <path>` header. `Spine-Testing.md` §5 owns which
+modules must be reached and by which kind.
+
+Why central plus a directory mirror over colocation: an agent can drop a colocated test anywhere, while the mirrored
+directory gives every test one home a gate can check, and the src tree stays clean. The fixture doctrine is composed
+`test.extend` (over `beforeEach`/`freshDb()`).
 
 A test imports a package's source through the root `#<package>/*` imports map
 (`#server/domain/chat/verbs/send.ts`), never a relative climb into `packages/` (`tests-package-subpath`). The map
 lives in the root `package.json`, so product code cannot resolve it and every package keeps its root-only exports.
 
-> **Authority: `Spine-Testing.md`.** This section is the mirror rule + `test-layout` gate only. The full
-> policy — the tree (§2 there), the lanes/projects, `test-presence`, the mock/determinism doctrine, the
+> **Authority: `Spine-Testing.md`.** This section is the mirror rule and the `test-layout` gate only. The full
+> policy — the tree (§2 there), the lanes/projects, presence (`test-reach`), the mock/determinism doctrine, the
 > factory contract, and the homes for the oracle + the esoterica + memory's 6 semantics — lives there.
 
 ---
@@ -232,8 +237,8 @@ The rot mode is a concept with no single home. Each of these has exactly one, up
 | Every feature is the identical 8-slot template | `feature-structure` |
 | One verb per file, named for the verb | `verb-naming` |
 | Exported feature types live only in `contract/`; `service.ts` interface always present | `types-in-contract` |
-| Tests mirror src 1:1 (prefix-swap), kind by suffix | `test-layout` |
-| **Verbs/schemas/persistence each have their required test** (presence, not blanket coverage) | `test-presence` (§5 `spine/testing`) |
+| Tests live in the mirrored source directory, kind by suffix | `test-layout` |
+| **Verbs, routers, schemas and persistence are each reached by the test kind they owe** (presence by reach, not blanket coverage) | `test-reach` (§5 `spine/testing`) |
 | **No ambient clock/random/unseeded-id under `tests/`** (inject the frozen clock + seeded ids) | `test-determinism` (§3 `spine/testing`) |
 | `kit/` = pure primitives + isomorphic engines; **no `node:*`/domain/contracts/db import** (isomorphic npm OK) | `kit-purity` |
 | **No exported `type`/`interface`/`z.object`/structural-cast outside `db` schema / `contracts` / a domain's `contract/` / `kit`** (incl. `context.ts` = explicit interface, not `ReturnType<>`) | `no-inline-types` (§7.4 spine) |

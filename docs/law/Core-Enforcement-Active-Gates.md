@@ -50,7 +50,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(359 registered gates)
+(358 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -350,9 +350,8 @@ in its own module header, never restated here.
 | `test-layout` | mirror-index | hard/error | none | a test under tests/ has the wrong… |
 | `test-mock-doctrine` | — | ordinary/error | @authored\* | vi.mock on an internal module — fake… |
 | `test-no-stubs` | — | hard/error | @tests | stub test contains no assertions… |
-| `test-presence` | mirror-index | hard/error | @server,@contracts | a presence-gated source file has no… |
 | `test-presence-client` | mirror-index | hard/error | @client,@ui\* | client data/forms/state primitive has… |
-| `test-presence-inference` | mirror-index | hard/error | @inference,@tests\* | inference runtime source has no… |
+| `test-reach` | mirror-index | reviewed-grant/error | @server,@contracts,@inference,@tests | a presence-gated module is reached by… |
 | `test-world-browser-contracts` | — | hard/error | @tests | a Node-intent test consumes a… |
 | `testid-liveness` | — | ordinary/error | @packages,@showcase,@tests | dead test-id (UI-Gates-and-Lessons.md… |
 | `testid-liveness-health` | testid-liveness | hard/error | @client\* | testid-liveness read ZERO rows out of… |

@@ -6,7 +6,7 @@ updated: 2026-10-11
 
 # Orbweaver — Spine: Testing
 
-Testing policy: central source mirrors, registered test kinds, isolated fixtures, and native runner verification. `Core-0-Architecture-and-Structure.md` §5 owns layout. `tooling/src/floor/testing/test-kinds.ts` owns the executable kind vocabulary; native runner configs own execution, and the verification registry owns tier admission.
+Testing policy: central directory mirrors, presence by reach, registered test kinds, isolated fixtures, and native runner verification. `Core-0-Architecture-and-Structure.md` §5 owns layout. `tooling/src/floor/testing/test-kinds.ts` owns the executable kind vocabulary; native runner configs own execution, and the verification registry owns tier admission.
 
 ## 0. The principle
 
@@ -29,7 +29,7 @@ Measurement-budget qualification follows [D308](../adr/0308-hardware-scoped-timi
 | `.ct.tsx` | DOM + Node | Playwright CT | Rendered component behavior |
 | `.spec.ts` | DOM + Node | Playwright E2E | Full-stack behavior |
 
-`.repo.int.test.ts` is the registered integration/Node/module-mirror kind for tests that require the repository resource. `.suite.test.ts`, `.suite.int.test.ts` and `.suite.ct.tsx` mark a property spanning multiple source modules. They use the same executor as their family and are exempt from a single-module mirror. Unsupported test-shaped filenames fail `test-layout`; registering a kind must update every relevant consumer and prove native collection before adoption.
+`.repo.int.test.ts` is the registered integration/Node/module-mirror kind for tests that require the repository resource. `.suite.test.ts`, `.suite.int.test.ts` and `.suite.ct.tsx` mark a property spanning multiple source modules. They use the same executor as their family and may sit in any directory of their package tree. Unsupported test-shaped filenames fail `test-layout`; registering a kind must update every relevant consumer and prove native collection before adoption.
 
 Compiler world follows the contract being checked. Component props, element identities, refs and browser events require real DOM declarations. A successful Node compile alone is insufficient: React provides fallback DOM declarations that can make distinct browser types indistinguishable. Pure logic can remain Node-owned even inside a UI package. Do not classify every test by package directory or maintain per-component exceptions.
 
@@ -59,12 +59,12 @@ tests/
 │   ├── iso/                    platform-independent helpers
 │   ├── node/                   Node drivers, filesystem and network helpers
 │   └── browser/                browser helpers and CT providers
-├── <package>/                  mirror packages/<package>/src for registered workspaces
-├── tooling/                    mirror tooling/src where a tool home exists
+├── <package>/                  mirror packages/<package>/src directories for registered workspaces
+├── tooling/                    mirror tooling/src directories where a tool home exists
 └── e2e/                        full-stack Playwright tests
 ```
 
-`support/` and `e2e/` are exempt from source mirroring, but tests there still require valid kinds and runner/compiler ownership. A tooling test mirrors its tool module when that tool directory exists; flat config tests and research subjects without a tool directory retain their documented exemption. Related kinds stay beside one another at the source mirror. The registry defines which source extensions each test kind can mirror.
+A test lives in the directory that mirrors the source directory it covers, and its file name says the behaviour it proves. One file may cover several modules of its directory; prefer one feature suite over a thin file per module. `support/` and `e2e/` mirror nothing, but tests there still require valid kinds and runner/compiler ownership. A tooling test sits in its tool's mirrored directory when that tool exists; flat config tests and research subjects without a tool directory retain their documented exemption. `test-layout` enforces the kinds and the directory placement.
 
 ## 3. Determinism + mock doctrine
 
@@ -94,59 +94,57 @@ tests/
 
 ## 5. The presence rule — what MUST have a test
 
-`test-layout` enforces *where*; `test-presence` (`tooling/src/verify/gates/`) enforces *that*, on exactly the surfaces where an untested change silently breaks behavior — no blanket per-file coverage (that breeds assertion-free filler):
+`test-reach` (`tooling/src/verify/gates/`) enforces that each surface below is reached by a test of the kind it owes, on exactly the surfaces where an untested change silently breaks behavior. There is no blanket per-file coverage; that breeds assertion-free filler.
 
-| Surface | Required test |
+**Presence is reach.** A test reaches a module when the test, or a test-tree helper it imports (a story module, a harness, a fixture), references one of the module's value exports through an import, a re-export, a barrel, a dynamic import or a `vi.mock` literal. A type-only import is not reach. Reach stops at the first product module: a test that drives a verb through its feature's `service.ts` or the composition root reaches that root, not the verb. Such a test names the modules it proves in an `@subject <repo path>` line in its leading comment block, and the header counts as presence. A header naming no source module is a finding. A file at a computed path proves nothing.
+
+| Surface | Reached by |
 | - | - |
-| every `domain/<f>/verbs/*.ts` | ≥1 `.test.ts` or `.int.test.ts` at its mirror (the verb IS the behavior; the service façade is covered transitively) |
-| every `contract/*.ts` exporting a zod schema | a `.contract.test.ts` (parse + round-trip) |
-| every `persistence/*.ts` | a `.int.test.ts` against `freshDb` (queries are only "correct" against a real db) |
-| **every OTHER `domain/**` file with runtime logic** — `substrate/`, a named subsystem (`engine/`, `assembly/`, `memory/`, `themes/`…), `guard.ts`, a sanctioned feature-root singleton, a `contract/` file carrying real logic | a `.test.ts` or `.int.test.ts` |
-| infra/foundation files with runtime logic | a `.test.ts` or `.int.test.ts` (security checks, adapters, dispatchers) |
-| **every `entry/**` + `transport/**` file with runtime logic** — a boot step, a composition seam, an HTTP registrar, a job driver, a bus, a ladder primitive | a `.test.ts` or `.int.test.ts` |
-| **every `@orb/inference` runtime source** | an exact registered runtime mirror, or the governed cross-cutting suite for its semantic subsystem |
+| every `domain/<f>/verbs/*.ts` | a unit or integration test (the verb IS the behavior) |
+| every tRPC router — an exported `router({…})` binding under `transport/` | a unit or integration test |
+| every `persistence/*.ts` | an integration test against `freshDb` (queries are only "correct" against a real db) |
+| every domain `contract/*.ts` and every `@orb/contracts` file declaring a zod schema | a contract test (parse + round-trip) |
+| **every OTHER `domain/**` file with runtime logic** — `substrate/`, a named subsystem (`engine/`, `assembly/`, `memory/`, `themes/`…), `guard.ts`, a sanctioned feature-root singleton, a `contract/` file carrying real logic | a unit or integration test |
+| infra/foundation files with runtime logic | a unit or integration test (security checks, adapters, dispatchers) |
+| **every `entry/**` + `transport/**` file with runtime logic** — a boot step, a composition seam, an HTTP registrar, a job driver, a bus, a ladder primitive | a unit or integration test |
+| every `@orb/inference` module with an emitted export | a unit, integration or contract test |
 
-The domain surface above is demand-by-default: every slot the template grows is demanded the day it
-appears. There is no enumerated slot list and no ledger or baseline of any kind to maintain.
+The surfaces are demand-by-default: every slot the template grows is demanded the day it appears. There is no enumerated slot list. A suite kind reaches a module exactly as a module test does.
+
+Modules that no test reached when presence became reach are reviewed-grant rows in `tooling/src/verify/lib/reviewed-grants-test-reach-verbs.ts` and `tooling/src/verify/lib/reviewed-grants-test-reach-modules.ts`. A row reds stale once a test reaches its module; delete it then. A new module gets a test or an `@subject` header, never a row. The waiver ratchet in `docs/law/gate-runtime-standardization.md` §5 holds the table's size.
 
 A pure spread-forwarding DI bridge is exempt by SHAPE — the same shape the `entry/`/`transport/` exemption
 below covers — because the behavior belongs to its target and is demanded there, and the only test
 expressible over one either asserts that a forwarder forwards (the §5 tautology) or mocks an internal
 module (§3, banned). A forwarder that grows a guard, a second statement, or a computed argument loses the
-exemption and is demanded again, which the policy's `mustPass[15]` / `mustFlag[17]` hold from both sides.
+exemption and is demanded again; the policy's proof rows hold the shape from both sides.
 
 The `entry/` and `transport/` tiers get the same demand-by-default treatment: every file with runtime
 logic in either tier is demanded, including the opaque frame-handle store — a security primitive whose
 owner check is the whole no-existence-leak property. The exemption is derived from what the tier law
 allows these tiers to contain (`docs/law/Tier-5-Entry.md` invariant 1: "`entry/` owns no business logic —
 only wiring/boot/HTTP-edge"; `docs/law/Tier-4-Transport.md`: a router is "validate → call the verb → map
-the error, zero business logic"), so wiring is exempt and behavior is not.
+the error, zero business logic"), so wiring is exempt and behavior is not. A router is demanded because its
+procedure table is the client's whole contract with the verbs.
 
 Exempt by nature — all detected on SHAPE, never a path list, so a file that grows logic loses the exemption:
-`index.ts` barrels, the zero-logic `service.ts` composition root and `context.ts` DI bundle at a feature root,
-a `contract/` file declaring only error classes (and a pure-type one, which carries no runtime logic at all),
-and a D58 no-op stub runner. In the tiers, additionally: a `.d.ts` declaration file (no runtime to assert), a
-tRPC router shell (a `router({…})` binding is no callable export, so it is exempt for free), and a
-PASS-THROUGH wiring file — every exported callable's body reducing to ONE expression that is a delegating
-call, a DI-bundle object literal over its own parameters, or a factory returning one of those. A second
-statement, a branch (including a ternary), or a computed argument is behavior and stays demanded. Browser
-lanes are not generally presence-gated. The deliberate exception is the standing
-`worst-legal-art-contrast.suite.ct.tsx`: `test-presence-client` requires that one cross-cutting rendered floor
-because deleting it restores a known blind class across every theme polarity at once.
+`index.ts` barrels in the server, the zero-logic `service.ts` composition root and `context.ts` DI bundle at a
+feature root, a `contract/` file declaring only error classes (and a pure-type one, which carries no runtime logic
+at all), a D58 no-op stub runner, and an inference module with no emitted export of its own. In the tiers,
+additionally: a `.d.ts` declaration file (no runtime to assert) and a PASS-THROUGH wiring file — every exported
+callable's body reducing to ONE expression that is a delegating call, a DI-bundle object literal over its own
+parameters, or a factory returning one of those. A second statement, a branch (including a ternary), or a computed
+argument is behavior and stays demanded.
 
-`test-presence-inference` owns the inference package's distinct topology. It reads the bounded
-`packages/inference/src` and `tests/inference` mirror family, proves both complete denominators, and classifies
-every source as exact-module covered, structurally reached from a governed subsystem test root, or non-runtime
-type-only contract/barrel. Every emitted export — including data, namespaces, uninitialized variables and local
-named/default exports — is runtime. A suite path or category alone proves nothing: static import/re-export edges
-from that subsystem's tests must reach the source. Backend behavior uses the backend/conformance test roots;
-catalog, capability, resolution and role behavior use their subsystem roots; contract, funnel, registry and
-package-root behavior use the package integration root. A new runtime source outside those declared categories
-owes an exact mirror.
-Missing, empty, unreadable, or dispatch-incomplete source/test corpora refuse evaluation rather than returning a
-clean zero.
+Browser lanes are not reach-gated. `test-presence-client` still proves the client `data/`, `forms/` and `state/`
+primitives and the non-primitive `@orb/ui` logic groups by mirror name; converting it to reach is not yet built. Its
+deliberate cross-cutting floor is the standing `worst-legal-art-contrast.suite.ct.tsx`, required because deleting
+it restores a known blind class across every theme polarity at once.
 
-**`test-presence` checks EXISTENCE, not coverage:** it confirms a store's mirror `.ct.tsx` EXISTS — NOT
+Missing, empty, or unreadable source/test corpora refuse evaluation rather than returning a clean zero, and so does a
+test tree that resolves no reference into the demanded modules.
+
+**Presence is not coverage:** `test-presence-client` confirms a store's mirror test EXISTS and names each action — NOT
 that new actions are ASSERTED. Adding an action to an existing store passes presence WITHOUT covering it.
 Every NEW `#state` action / projection / non-trivial behavior gets an assertion in the mirror (drive it,
 assert the resulting store state — a dual-write writes BOTH channels). Old tests passing ≠ new behavior
