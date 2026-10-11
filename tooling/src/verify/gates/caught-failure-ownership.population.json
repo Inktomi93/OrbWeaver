@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 703,
+    "sites": 704,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 703,
+      "deliberate-absorb": 704,
       "unproven": 0
     },
     "byGrammar": {
       "default": 160,
-      "empty": 356,
+      "empty": 357,
       "promise": 187
     }
   },
@@ -1396,11 +1396,6 @@
       "reason": "both arms of this stat converge on \"remove nothing\" — an absent path has nothing to delete, and an unreadable one is a path this belt can no longer vouch for. It runs in a `finally` whose loud half already fired at compute time (`resolveStagedPath` throws the escape), and a genuine fs fault re-surfaces on the next run's read of the same tree. Ends if this rm becomes the only proof a staged tree was removed."
     },
     {
-      "siteId": "packages/server/src/entry/boot/reactivate-plugins.ts::restoreOne::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a refused activation was already logged by activate with its plugin and cause and the row is errored; every other throw is logged in the same catch; the failed count is the summary. Ends if activate stops logging a refusal."
-    },
-    {
       "siteId": "packages/server/src/domain/plugin/activation/activate.ts::providerActivationError::err::1",
       "verdict": "deliberate-absorb",
       "reason": "the refusal becomes the returned activation error string; createActivate persists it as `plugins.lastError` and returns `{ok:false,error}`. Ends if that caller stops recording and returning this detail."
@@ -1408,12 +1403,12 @@
     {
       "siteId": "packages/server/src/domain/plugin/substrate/plugin-macros.ts::resolveOne::catch::1",
       "verdict": "deliberate-absorb",
-      "reason": "a throw or rejected invoke was already logged by the resident `invoke`, and a deadline is logged in the same function; the caller renders `null` as an empty body. Ends if a guest failure stops being logged at those two sites."
+      "reason": "a throw or rejected invoke was already logged by the resident `invoke`, and a deadline is logged below; the caller renders `null` as an empty body. Ends if a guest failure stops being logged at those two sites."
     },
     {
       "siteId": "packages/server/src/domain/plugin/verbs/transform-for-display.ts::applyBounded::catch::1",
       "verdict": "deliberate-absorb",
-      "reason": "a throw or rejected invoke was already logged by the resident `invoke`, and a deadline overrun is logged by the caller; the caller keeps the row's prior text. Ends if a guest failure stops being logged at those two sites."
+      "reason": "the rejection was already logged by the resident's `invoke`; the caller keeps the row's prior text. Ends if `invoke` stops logging the failures it rethrows."
     },
     {
       "siteId": "packages/server/src/domain/refinery/persistence/queries.ts::customRunViewOf::catch::1",
@@ -1569,6 +1564,11 @@
       "siteId": "packages/server/src/entry/boot/migrate-data-layout.ts::pidAlive::err::1",
       "verdict": "deliberate-absorb",
       "reason": "`kill(pid, 0)` ASKS a question and throws to answer it — ESRCH is \"dead\", and EPERM is a live process under another uid, which must read as alive so its journal is never resumed under it. Ends if the answer needs more than alive/dead."
+    },
+    {
+      "siteId": "packages/server/src/entry/boot/reactivate-plugins.ts::restoreOne::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a refused activation (`PluginCrashedError`) was already logged by `activate` with its plugin and cause, and every other throw is logged in this catch; the `failed` count is the summary. Ends if `activate` stops logging a refusal."
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::buildAutomationPlugin.isBookAttachedToChat::catch::1",
