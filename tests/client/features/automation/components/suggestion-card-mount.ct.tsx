@@ -167,7 +167,7 @@ test("a rule terminal refreshes the visible room Activity list through the alway
   });
 
   const component = await mount(<AutomationActivityFreshnessStory />);
-  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Activity", exact: true }).click();
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Activity", exact: true }).click();
 
   const activity = component.getByRole("region", { name: "Activity", exact: true });
   // A responder invocation precedes delivery; only the rendered empty list proves the first query settled.
@@ -190,7 +190,7 @@ test("a rule terminal delivered before the initial Activity response still refre
     releaseFrames: initialActivity.requested,
   });
   const component = await mount(<AutomationActivityFreshnessStory />);
-  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Activity", exact: true }).click();
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Activity", exact: true }).click();
   await initialActivity.requested;
   // The later frame's rendered card proves the real subscriber already processed the preceding terminal.
   await expect(component.getByText("Fix the last reply — repeats itself?")).toBeVisible();

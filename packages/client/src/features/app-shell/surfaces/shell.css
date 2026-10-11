@@ -1263,6 +1263,20 @@
   }
 }
 
+/* THE CONTEXT PANE'S HEADER ROW sits on the shared 48px horizon: the bracket's 2px ember edge sits above it,
+ * so the row is that much shorter and its bottom hairline lands on the topbar's and list band's divider. */
+.shell-context-header {
+  height: calc(var(--dimension-chrome-row) - var(--dimension-shell-accent-edge));
+  box-shadow: inset 0 calc(var(--border-width-control) * -1) 0 var(--color-sidebar-border);
+}
+/* The tab strip scrolls inside its row; the fade and chevron say there is more, so no native scrollbar. */
+.shell-context-tab-strip {
+  scrollbar-width: none;
+}
+.shell-context-tab-strip::-webkit-scrollbar {
+  display: none;
+}
+
 /* …AND THE CONTENT COLUMN'S OWN IDENTITY ECHO GOES WITH IT (#875 F5, side-eye 2026-08-30). The same
  * decision one region over: while the CONTEXT pane's head band is on screen it is the artifact's identity,
  * so the character hero's read-only echoes of it — the `@handle`, the Own-look trigger, the "N chats ›"
@@ -1279,10 +1293,8 @@
 /* Progressive-disclosure shed on a narrow content column (@container, matched off .shell-main). At the
  * mobile column width the identity + trail can't share the row without starving the title, so three
  * low-value items step aside to give the title real room (not just its 6ch floor):
- *  · the member-count chip — single-homed in the Context › Members tab (chat-header §13/§14), so dropping
- *    it from the topbar loses nothing;
- *  · the memory-recall chip — its own marker since #846 (it wore the roster chip's class by accident and
- *    inherited this shed without saying so); its standing home is the context band; and
+ *  · the chat identity's avatars, title and preset chip (the screen title names the room; the members and
+ *    memory chips stay, glyph-only);
  *  · the ⌘K chip's "jump" TEXT label (~87px) — redundant on a phone with no ⌘K key. The chip itself
  *    stays (icon-only) so the command menu is still reachable; only its word label sheds. */
 @container shell-main (max-width: 30rem) {
@@ -1297,8 +1309,6 @@
   .shell-topbar-trail {
     min-height: var(--dimension-chrome-row);
   }
-  .shell-chat-member-chip,
-  .shell-chat-recall-chip,
   .shell-topbar-jump-label {
     display: none;
   }
@@ -1307,6 +1317,17 @@
    * name + the trail's icons. So the section's rich header cluster (avatars, chips, badges — desktop
    * anatomy) steps aside for the plain screen title, which is the OPEN member's own name. */
   .shell-topbar-identity[data-identity="wide"] {
+    display: none;
+  }
+  /* The chat identity is the exception: its avatars, title and preset step aside but the room's state chips
+   * (members, memory — glyph-only at this width) ride after the screen title. */
+  .shell-topbar-identity[data-identity="wide"]:has(.shell-chat-member-chip) {
+    display: flex;
+    flex: none;
+    order: 1;
+  }
+  .shell-topbar-identity[data-identity="wide"] .shell-chat-header-lead,
+  .shell-topbar-identity[data-identity="wide"] .shell-chat-preset-chip {
     display: none;
   }
   .shell-topbar-identity[data-identity="narrow"] {

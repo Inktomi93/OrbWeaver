@@ -3,21 +3,13 @@
 // tabs, band and actions. Domain-agnostic: every tab's `node` is pre-rendered by the host's `useResolved`
 // hook; a new domain grafts a context tab inside its OWN section definition, never here.
 //
-// ONE COLUMN, EVERY PANE (owner-ruled 2026-08-30, #860, D150).
-// SUPERSEDES the "ONE STRIP, ALWAYS" this header carried since HUD-1 §5.1: the generic pane used to render a
-// single top strip labelled "Detail" (a `tablist` of `tab`s, `flex-1` panels, the shell.css `.ctx-tab-strip`),
-// while a CLAIMED pane rendered the rpg HUD's head-and-foot bracket — the SAME resolved chat tabs at y=56 as
-// a head tablist in a normal room and at y=754 as a foot toolbar in a game room (#845 measured it). The
-// ruling: the bracket IS the panel's chrome, in every room. "One META strip, always" survives — at the FOOT.
-// The head strip, its `tab`/`aria-selected` model, its `aria-disabled` treatment of a locked tab and
-// `.ctx-tab-strip` are gone; `ContextRegionHost` is gone with them (a claim is a HEAD-BAND claim now, folded
-// into `header` by `resolveContextTabs`, so there is one host and nothing left to fork).
+// ONE COLUMN, EVERY PANE (D150): the bracket is the panel's chrome in every room — one tab strip in the header
+// row, then an optional identity band, then the viewport. The owner moved the strip from the foot to the header.
 //
 // Tab selection rides the shared #state contextTab seam; resolved against the visible ids so a
 // foreign/absent value falls back to a tab instead of selecting nothing — a `defaultTab`-flagged tab
 // (rpg.status for a game chat, §4.1) if one is present, else the first visible tab.
 
-import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import type { ResolvedContextTab } from "#lib";
 import { useContextTabSelection } from "../hooks/use-context-tab-selection.ts";
@@ -25,12 +17,12 @@ import { ContextBracket } from "./context-bracket.tsx";
 
 export interface ContextTabsPanelProps {
   readonly tabs: readonly ResolvedContextTab[];
-  /** The host's rail-trail actions, rendered beside the FOOT rail's cells. */
+  /** The host's view-level actions, rendered in the header row before the close ×. */
   readonly actions?: ReactNode;
-  /** The HEAD band's content (`ResolvedContextTabs.header`). Absent ⇒ the column starts at its first rail. */
+  /** The optional identity band under the header row (`ResolvedContextTabs.header`). */
   readonly header?: ReactNode;
   readonly empty?: ReactNode;
-  /** The FOOT rail's name — the artifact noun ("Chat"), or the section's own label. */
+  /** The tab strip's accessible name — the artifact noun ("Chat"), or the section's own label. */
   readonly railLabel: string;
   /** The floating pane's own way out (overlay mode only). */
   readonly dismissLabel?: string;
@@ -43,7 +35,7 @@ export function ContextTabsPanel({ tabs, actions, header, empty, railLabel, dism
   return (
     <ContextBracket
       view={{ tabs, activeTab, selectTab, ...(actions === undefined ? {} : { actions }) }}
-      band={header ?? <Text voice="label">{railLabel}</Text>}
+      band={header}
       empty={empty}
       railLabel={railLabel}
       {...(dismissLabel === undefined ? {} : { dismissLabel })}

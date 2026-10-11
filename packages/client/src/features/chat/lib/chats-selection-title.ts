@@ -9,7 +9,7 @@
 // a row from the creation click, so there is one arm and the shared display-title chain names it.
 
 import { useGatedQuery, useTRPC } from "#data";
-import { deriveChatTitle } from "#lib";
+import { authoredChatName, deriveChatTitle } from "#lib";
 import { useActiveChatId } from "#state";
 import { useChatCensus } from "../hooks/use-chat-census.ts";
 import { CHATS_SECTION_LABEL } from "./chats-section-label.ts";
@@ -30,11 +30,13 @@ export function useChatsSelectionTitle(): string | null {
     if (data === undefined) {
       return null;
     }
-    const characters = filterCharacters(data.participants);
-    return deriveChatTitle(
-      data.title,
-      characters.map((character) => character.displayName),
+    // Participants first, then the user's own name for the room as the secondary part — the desktop header's order.
+    const participants = deriveChatTitle(
+      null,
+      filterCharacters(data.participants).map((character) => character.displayName),
     );
+    const roomName = authoredChatName(data.title);
+    return roomName === null ? participants : `${participants} \u00b7 ${roomName}`;
   }
   // A ZERO CENSUS IS STILL SUPPRESSED, in the band's own spelling (`ListPaneHeader`: "a zero census is
   // noise, not information", and `"0"` is the same fact a caller happened to format): an empty roster says

@@ -2310,6 +2310,79 @@ for (const arm of TOPBAR_YIELD_ARMS) {
   });
 }
 
+// ── THE CONTEXT PANE'S HEADER ROW IS ON THE SHARED 48px HORIZON (owner: tabs live in the header) ──────────
+// The pane's one tablist sits in a header row whose bottom edge is the same line as the topbar's divider and
+// the list band's, at the two desktop widths the owner reviews.
+for (const width of [1280, 1920]) {
+  test(`the context pane's header row ends on the topbar's divider at ${String(width)} — one tablist, in that row`, async ({ mount, page }) => {
+    await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.getChat": () => TOPBAR_IDENTITY_ROOM });
+    await seatNotificationBell(page);
+    await page.setViewportSize({ width, height: 900 });
+    const shell = await mount(<AppShellChatTopbarIdentityStory withBand={true} />);
+    // The fake section registry hands the context pane to the shell as a `single` body, so the shell paints
+    // a labelled `.shell-panel-header` over it. Production's tabs pane renders NOTHING into that band
+    // (`SectionContextHeader` returns null) and shell.css collapses the empty band — reproduce that collapse.
+    await page.addStyleTag({ content: '.shell-panel[data-panel-side="context"] .shell-panel-header { display: none; }' });
+    await setContextPane(page, shell, "open");
+
+    const pane = page.locator('.shell-panel[data-panel-side="context"]');
+    const header = pane.locator('[data-slot="context-bracket-header"]');
+    await expect(header).toBeVisible();
+    await expect(pane.getByRole("tablist")).toHaveCount(1);
+    await expect(header.getByRole("tablist")).toHaveCount(1);
+    // No foot rail anywhere in the pane.
+    await expect(pane.locator('[data-slot="context-rail"]')).toHaveCount(0);
+
+    const bottoms = (): Promise<{ readonly topbar: number; readonly list: number; readonly header: number }> =>
+      page.evaluate(() => {
+        const bottomOf = (selector: string): number => document.querySelector(selector)?.getBoundingClientRect().bottom ?? Number.NaN;
+        return {
+          topbar: bottomOf(".shell-topbar"),
+          list: bottomOf('.shell-panel[data-panel-side="list"] .shell-panel-header'),
+          header: bottomOf('[data-slot="context-bracket-header"]'),
+        };
+      });
+    await expect.poll(async () => Math.abs((await bottoms()).header - (await bottoms()).topbar)).toBeLessThanOrEqual(1);
+    await expect.poll(async () => Math.abs((await bottoms()).header - (await bottoms()).list)).toBeLessThanOrEqual(1);
+  });
+}
+
+// ── THE ROOM'S STATE CHIPS ON A PHONE: glyph-only beside the screen title, never overprinting it ──────────
+test.describe("the phone chat topbar keeps the members and memory chips (coarse pointer)", () => {
+  test.use({ hasTouch: true });
+  for (const width of [320, 390, 430]) {
+    test(`@${String(width)}: both chips are on the row, inside the viewport, and the title does not run under them`, async ({ mount, page }) => {
+      await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.getChat": () => TOPBAR_IDENTITY_ROOM });
+      await seatNotificationBell(page);
+      await page.setViewportSize({ width, height: 800 });
+      await mount(<AppShellChatTopbarIdentityStory />);
+
+      const members = page.locator('[aria-label^="Members — "]');
+      const memory = page.locator('[aria-label^="Memory — "]');
+      const title = page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title');
+      await expect(members).toBeVisible();
+      await expect(memory).toBeVisible();
+      await expect(title).toBeVisible();
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      const boxes = await Promise.all([members.boundingBox(), memory.boundingBox(), title.boundingBox()]);
+      const [membersBox, memoryBox, titleBox] = boxes;
+      if (membersBox === null || memoryBox === null || titleBox === null) {
+        throw new Error("expected the chips and the title to be laid out");
+      }
+      // Inside the viewport, and glyph-only (the digit is collapsed).
+      expect(membersBox.x + membersBox.width).toBeLessThanOrEqual(width);
+      expect(memoryBox.x + memoryBox.width).toBeLessThanOrEqual(width);
+      await expect(members.locator(".shell-chat-chip-count")).toBeHidden();
+      // The title ends before the first chip begins, and the chips do not overlap each other.
+      expect(titleBox.x + titleBox.width).toBeLessThanOrEqual(membersBox.x + 1);
+      expect(membersBox.x + membersBox.width).toBeLessThanOrEqual(memoryBox.x + 1);
+      // Touch floor.
+      expect(membersBox.height).toBeGreaterThanOrEqual(44);
+      expect(memoryBox.height).toBeGreaterThanOrEqual(44);
+    });
+  }
+});
+
 test("#375 the context regime follows rendered shell geometry and releases its observer", async ({ mount, page }) => {
   await page.evaluate(() => {
     document.documentElement.dataset["primacyObserveCount"] = "0";

@@ -85,14 +85,10 @@ function useOverlayFocus(
   }, [overlay, pane, grid, scrim, toggleMarker]);
 }
 
-/** A FLOATING context pane's own way out, handed to the bracket to seat inside its head band (side-eye
- *  2026-08-06 P2 — the close sits where the thing it closes is; a phone cannot reach the scrim under a 100dvw
- *  sheet). Docked/collapsed panes carry none: the topbar toggle is the ONE detail-panel control there. The
- *  label is the same one `PanelChrome` would print, so a reader hears one name for one control. */
+/** The context pane's own way out, handed to the bracket to seat as the header row's trailing ×. It closes the
+ *  pane in every mode: docked, or a floating sheet a phone cannot reach the scrim under. The label is the same
+ *  one `PanelChrome` would print, so a reader hears one name for one control. */
 function contextDismiss(layout: ShellLayout): Pick<SectionContextHostProps, "dismissLabel" | "onDismiss"> {
-  if (layout.contextMode !== "overlay") {
-    return {};
-  }
   return { dismissLabel: `Close ${layout.activeSectionLabel} details`, onDismiss: (): void => layout.collapsePanel("context") };
 }
 

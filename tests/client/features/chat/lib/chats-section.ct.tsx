@@ -51,12 +51,10 @@ const THIS_CHAT_TAB_READS: TrpcRoutes<"chat.getUserMacroPicks" | "chat.getVariab
   ...REGEX_READS_EMPTY,
 };
 
-/** One CELL of the pane's FOOT rail (the context bracket, #860): a BUTTON inside the toolbar named "Chat"
- *  (the section's `railLabel`), carrying `aria-current` while it holds the view — never a `tab` (#112, the
- *  rail model is universal now). `exact`, because the head band's roster chip is named "Members — N" and a
- *  loose match would seat the chip where the cell was meant. */
+/** One TAB of the pane's header strip (the context bracket's one tablist, named by the section's `railLabel`).
+ *  `exact`, so a tab never matches a chip or button that merely starts with the same word. */
 function cell(component: Locator, name: string): Locator {
-  return component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name, exact: true });
+  return component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name, exact: true });
 }
 
 const ALEX_HOST_RE = /Alex — host/u;
@@ -346,7 +344,7 @@ test("host in a GROUP (2-character) chat sees the Members tab AND it is the defa
   const members = cell(component, "Members");
   await expect(members).toBeVisible();
   // The §7 ONE rule: with no tab requested, a group composition opens to Members.
-  await expect(members).toHaveAttribute("aria-current", "true");
+  await expect(members).toHaveAttribute("aria-selected", "true");
   // The Character rows render with the row contract's accessible names.
   await expect(component.getByRole("button", { name: "Aria — character" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Bryn — character" })).toBeVisible();
