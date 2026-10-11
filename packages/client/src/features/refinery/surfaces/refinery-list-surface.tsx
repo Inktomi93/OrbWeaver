@@ -225,13 +225,7 @@ export function RefineryListSurface(): ReactElement {
             clickable={true}
             key={row.rawId}
             leading={
-              <Avatar
-                fallbackDelay={0}
-                hueSeed={row.characterId}
-                shape="square"
-                size="sm"
-                {...(row.avatarHash === null ? {} : { src: blobUrl(row.avatarHash) })}
-              >
+              <Avatar fallbackDelay={0} hueSeed={row.characterId} size="sm" {...(row.avatarHash === null ? {} : { src: blobUrl(row.avatarHash) })}>
                 {initialsFor(row.characterName)}
               </Avatar>
             }

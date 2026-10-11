@@ -196,10 +196,13 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                   stacked under the thread, a tall tenant (an opened plugin frame) would otherwise take the
                   whole column and leave the transcript a zero box, the #680 silent arm reached from the
                   other side. The transcript always keeps at least half the room. */}
+                  {/* The column's own top gap (`pt-block`) keeps a card off the topbar's divider while the column
+                  still starts on the row's top edge, where the transcript does. Stacked, the row's `gap` already
+                  separates the column from the thread. */}
                   <Stack
                     gap="block"
                     className={cn(
-                      "empty:hidden relative transition-[max-width,margin,opacity] duration-(--motion-layout) ease-out-expo @max-lg:max-h-1/2 @max-lg:max-w-none @max-lg:overflow-y-auto",
+                      "empty:hidden relative pt-block transition-[max-width,margin,opacity] duration-(--motion-layout) ease-out-expo @max-lg:max-h-1/2 @max-lg:max-w-none @max-lg:overflow-y-auto @max-lg:pt-0",
                       // Collapsed, the column keeps its place in the tree (a plugin frame in it stays minted) and gives
                       // its width back, and the row's gap with it, so the transcript takes the whole room.
                       flankCollapsed ? "pointer-events-none -ms-block max-w-0 overflow-hidden opacity-0" : "max-w-(--width-sidebar-sm)",

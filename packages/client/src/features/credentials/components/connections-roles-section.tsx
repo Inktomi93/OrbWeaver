@@ -58,7 +58,7 @@ function BuiltinRerankerHint({
   }
   return (
     <Row align="center" className="flex-wrap" gap="field">
-      <Text voice="gloss" className={PROSE_MEASURE}>
+      <Text prose={true} voice="gloss" className={PROSE_MEASURE}>
         {`To use a lighter or older built-in reranker, open ${row.label} under Connections and pick another model.`}
       </Text>
       <Button

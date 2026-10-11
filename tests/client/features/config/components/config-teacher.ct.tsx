@@ -24,6 +24,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { COMMAND_CHIP_NAME } from "../../../../support/browser/command-chip-name.ts";
 import type { TrpcFixtureOutput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { UTILITY_RUNNING_ROUTES } from "../../../../support/node/utility-role.ts";
@@ -558,7 +559,7 @@ test("actual docked 1040px shell allocates its title floor without covering comm
     )
     .toBe(true);
   const title = shell.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title');
-  const command = shell.getByRole("button", { name: "⌘K jump — the command menu", exact: true });
+  const command = shell.getByRole("button", { name: COMMAND_CHIP_NAME });
   await expect(title).toBeVisible();
   await expect(command).toBeVisible();
   const geometry = (): Promise<{ readonly width: number; readonly parentWidth: number; readonly contained: boolean; readonly titleHit: boolean }> =>

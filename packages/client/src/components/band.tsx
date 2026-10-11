@@ -28,7 +28,7 @@
 //    not), so the gutter cannot drift from the chevron it stands in for the way a re-spelled width would.
 //  · The VOICE BUDGET (`features/config/components/config-list-group.tsx` owns its one home, and it is the
 //    PANE's rather than per-species — #1714): a band is a control that names a region, so its label is
-//    `interactiveKicker`; a census is a mono `datum`; STATE IS A `Badge`, never a voice — which is what
+//    `interactiveKicker`; a census is a `CountText`; STATE IS A `Badge`, never a voice — which is what
 //    `marks` is for.
 //
 // ── THE "YOU ARE HERE" PAINT IS DERIVED FROM THE ARIA, NEVER A SECOND PROP (#1823) ───────────────────
@@ -74,6 +74,7 @@ import { ChevronDown, ChevronRight, Icon } from "@orb/ui/icons";
 import { SELECTION_RAIL } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { CountText } from "./count-text.tsx";
 
 /**
  * The band's props. Its two AXES ride inline here rather than as exported aliases:
@@ -154,9 +155,9 @@ export function Band({ label, chevron, icon, count, censusAlign = "trailing", ma
         {label}
       </Text>
       {count === undefined ? null : (
-        <Text as="span" {...(censusAlign === "trailing" ? { className: "ms-auto" } : {})} data-slot="band-census" voice="datum">
+        <CountText {...(censusAlign === "trailing" ? { className: "ms-auto" } : {})} data-slot="band-census">
           {count}
-        </Text>
+        </CountText>
       )}
       {marks}
     </Button>
