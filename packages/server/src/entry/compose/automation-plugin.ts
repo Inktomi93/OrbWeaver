@@ -937,7 +937,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
             const argsJson = JSON.stringify(capFactContent(fact, PLUGIN_MESSAGE_CONTENT_CAP));
             // The event handler runs IN the fact's chat scope. `canWrite` = the installer is HOST; a chat-less
             // domain fact ⇒ no scope (`null`). The per-delivery host read + guest invokes are fire-and-forget.
-            superviseDetached(`plugin-event:${randomUUID()}`, "plugin.event.deliver", { eventType: fact.type }, async () => {
+            superviseDetached(`plugin-event:${randomUUID()}`, "plugin.event.deliver", { eventType: fact.type, pluginSlug: scope.slug }, async () => {
               let eventChat: InvocationChat | null = null;
               if (fact.chatId !== null) {
                 const factChatId = castId<ChatId>(fact.chatId);
