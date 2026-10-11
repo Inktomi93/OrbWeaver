@@ -24,4 +24,6 @@ The cold-start failure has a demonstrated cause and discriminating controls. Sel
 
 Orphaned claim: its codex branch is fully merged into main and no session holds it. Done when still needs a hosted run to confirm.
 
+Hosted check: the scheduled CI qualification on e88487bf62 failed in every ct and node partition; e2e-smoke did not run.
+
 Filled at landing: what ran and where its output is.

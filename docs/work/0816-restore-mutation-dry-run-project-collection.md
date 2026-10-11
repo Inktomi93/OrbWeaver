@@ -24,4 +24,6 @@ Native sandbox collection and meaningful refusal controls pass. The real unmutat
 
 Orphaned claim: its codex branch is fully merged into main and no session holds it. Done when still needs a hosted run to confirm.
 
+Hosted check: the weekly tooling proof (non-corpus), which carries the Stryker run, failed on e88487bf62.
+
 Filled at landing: what ran and where its output is.

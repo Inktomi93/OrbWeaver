@@ -24,4 +24,6 @@ The diagnostic runs the real selected-mode setup and readiness controls, retains
 
 Orphaned claim: its codex branch is fully merged into main and no session holds it. Done when still needs a hosted run to confirm.
 
+Hosted check: the Diagnostics workflow has no runs on record.
+
 Filled at landing: what ran and where its output is.
