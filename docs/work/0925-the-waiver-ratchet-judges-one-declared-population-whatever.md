@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-11
 priority: P1
 area: verify
+lane: wt/agent-acfe1992a696352b3
 plan: test-mirror
 ---
 
