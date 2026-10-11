@@ -675,8 +675,8 @@ html[data-shadow] [data-slot="message-bubble"] {
 
 /* THE READING MEASURE (#97, side-eye aesthetic shakedown 2026-08-16). The transcript ran at
  * `max-width: none` — measured 98ch at 1280px with both panels closed, and ~200ch on a 2560 monitor,
- * against the house 65-75ch law that `document` mode (max-w-prose) and the Configuration teaching copy
- * (max-w-(--width-content-col)) already honour. Homed here, in the styles tier, rather than as a class on
+ * against the house 65-75ch law that the Configuration teaching copy (max-w-(--width-content-col)) already
+ * honours. Homed here, in the styles tier, rather than as a class on
  * the two content columns: `message-row` and `ghost-message-row` BOTH stamp this slot and their measures
  * must not be allowed to drift (a ghost that reflows at commit is a visible jump), and this is already the
  * seam that owns reading typography for the slot below.

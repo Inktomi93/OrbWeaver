@@ -15,8 +15,7 @@ import { openConfigTo } from "#state";
 import { useCreditConnections } from "../hooks/use-credit-connections.ts";
 import type { SendGate } from "../hooks/use-send-availability.ts";
 import { CHAT_TRACK } from "../lib/chat-track.ts";
-import type { NextTurnLine } from "../lib/next-turn-line.ts";
-import { nextTurnLine, nextTurnReadsChatRole } from "../lib/next-turn-line.ts";
+import { lineRefusal, nextTurnLine, nextTurnReadsChatRole } from "../lib/next-turn-line.ts";
 
 export interface ComposerNextTurnLineProps {
   readonly chatId: ChatId;
@@ -26,17 +25,11 @@ export interface ComposerNextTurnLineProps {
   readonly id: string;
 }
 
-// Each state's ink: an unset connection warns, a failed read is an error, the rest keep the quiet voice.
-const STATE_INK: Record<NextTurnLine["state"], string | undefined> = {
-  named: undefined,
-  checking: undefined,
+// Each refusal's ink: an unset connection warns, a failed read is an error.
+const STATE_INK: Record<"unset" | "failed", string> = {
   unset: "text-warning",
   failed: "text-destructive",
 };
-
-// The states that state a refusal the reader can act on. Naming the connection and model, or checking it,
-// is attribution the chat page does not carry.
-const SHOWN_STATES: ReadonlySet<NextTurnLine["state"]> = new Set<NextTurnLine["state"]>(["unset", "failed"]);
 
 export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextTurnLineProps): ReactElement | null {
   const trpc = useTRPC();
@@ -55,10 +48,12 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
     resolveFailed: resolve.isError,
     connections,
   });
-  if (!SHOWN_STATES.has(line.state)) {
+  // Naming the connection and model, or checking it, is attribution the chat page does not carry.
+  const refusal = lineRefusal(line);
+  if (refusal === undefined) {
     return null;
   }
-  const { door } = line;
+  const { door } = refusal;
   return (
     // The card's own track, so the fill spans the card's width AND the text starts at the card's edge — the
     // horizontal inset rides the paragraph's own padding (which insets its content, not its box), never the
@@ -71,13 +66,13 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
       <Text
         as="p"
         voice="quiet"
-        className={cn("min-w-0 max-w-(--reading-measure-prose) break-words px-field", STATE_INK[line.state])}
+        className={cn("min-w-0 max-w-(--reading-measure-prose) break-words px-field", STATE_INK[refusal.state])}
         data-slot="composer-next-turn"
-        data-unset={line.state === "unset" ? "" : undefined}
-        data-failed={line.state === "failed" ? "" : undefined}
+        data-unset={refusal.state === "unset" ? "" : undefined}
+        data-failed={refusal.state === "failed" ? "" : undefined}
         id={id}
       >
-        {line.text}
+        {refusal.text}
         {door === undefined ? null : (
           <>
             {` ${door.lead} `}

@@ -3113,7 +3113,7 @@ test.describe("the stock document page", () => {
 test.describe("document actions at a touch pointer", () => {
   test.use({ hasTouch: true });
 
-  test("an earlier row keeps its actions hidden until a tap focuses the row", async ({ mount, page }) => {
+  test("an earlier row keeps its actions hidden at a touch pointer, as stock does", async ({ mount, page }) => {
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     const component = await mount(<MessageRowStory chatStyle="document" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
     await expect(component.locator(ACTIONS_ROW)).toHaveCSS("opacity", "0");

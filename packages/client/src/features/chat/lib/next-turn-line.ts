@@ -1,14 +1,11 @@
-// The composer's next-turn line: which connection and model the next reply in this room runs on. A turn
-// resolves the room HOST's chat role (the frozen host seat funds it), so only a host viewer's own chat-role
-// read describes it; a member is told it is the host's connection and never shown the host's row.
+// The composer's next-turn line: why the next reply in this room cannot run, when it cannot. A turn resolves
+// the room HOST's chat role (the frozen host seat funds it), so only a host viewer's own chat-role read can
+// fail for the viewer; a room that can reply is a state with no sentence (the chat page names no model).
 
 import type { ResolvedConnectionView, UnavailableCause } from "@orb/contracts/inference";
-import { CONNECTION_LABEL_SEPARATOR } from "@orb/contracts/inference";
-import { modelDisplayName } from "@orb/kit/model-name";
 import type { SendRefusalKey } from "#lib";
-import { ADD_CONNECTION_DOOR, ADD_CONNECTION_PATH, CHAT_ROLE_DOOR, labelNamesModel, MODEL_ROLES_PATH } from "#lib";
+import { ADD_CONNECTION_DOOR, ADD_CONNECTION_PATH, CHAT_ROLE_DOOR, MODEL_ROLES_PATH } from "#lib";
 import type { CreditConnections } from "./swipe-attribution.ts";
-import { providerName } from "./swipe-attribution.ts";
 
 /** What the line can know. Each value field is `undefined` until its read settles; each `…Failed` flag says
  *  that read settled as an error. */
@@ -38,14 +35,19 @@ interface NextTurnDoor {
   readonly setting: string;
 }
 
-/** The line's sentence, its state, and the Settings door when the viewer can fix the state there. */
-export interface NextTurnLine {
-  readonly state: NextTurnState;
+/** A refusal the line states: its sentence, and the Settings door when the viewer can fix it there. */
+export interface NextTurnRefusal {
+  readonly state: Exclude<NextTurnState, "named" | "checking">;
   readonly text: string;
   readonly door: NextTurnDoor | undefined;
 }
 
-const CHECKING: NextTurnLine = { state: "checking", text: "Next reply: checking the connection…", door: undefined };
+/** The line's state, with a sentence only for a refusal: a room that can reply, or is still being checked,
+ *  says nothing. */
+type NextTurnLine = NextTurnRefusal | { readonly state: Extract<NextTurnState, "named" | "checking"> };
+
+const NAMED: NextTurnLine = { state: "named" };
+const CHECKING: NextTurnLine = { state: "checking" };
 const FAILED: NextTurnLine = { state: "failed", text: "Next reply: the connection couldn't be checked.", door: undefined };
 // The addresses come from `#lib`, which the Connections nav reads too: a feature never imports another's nav.
 const MODEL_ROLES_DOOR: NextTurnDoor = {
@@ -104,15 +106,15 @@ export function nextTurnReadsChatRole(viewerIsHost: boolean | undefined, cause: 
 }
 
 function hostLine(inputs: NextTurnInputs): NextTurnLine {
-  const { resolved, connections } = inputs;
-  if (resolved !== undefined) {
-    const row = connections.rows?.find((candidate) => candidate.id === resolved.connectionId);
-    const connection = row?.label ?? providerName(resolved.providerId, row);
-    const model = modelDisplayName(resolved.model);
-    const named = labelNamesModel(connection, resolved.model) ? connection : `${connection}${CONNECTION_LABEL_SEPARATOR}${model}`;
-    return { state: "named", text: `Next reply: ${named}`, door: undefined };
+  if (inputs.resolved !== undefined) {
+    return NAMED;
   }
   return inputs.resolveFailed ? FAILED : CHECKING;
+}
+
+/** The refusal the line states, or `undefined` for a room that can reply or is still being checked. */
+export function lineRefusal(line: NextTurnLine): NextTurnRefusal | undefined {
+  return "text" in line ? line : undefined;
 }
 
 /** The line for the room as the viewer sees it. */
@@ -129,5 +131,5 @@ export function nextTurnLine(inputs: NextTurnInputs): NextTurnLine {
   if (inputs.viewerIsHost === undefined) {
     return inputs.chatFailed ? FAILED : CHECKING;
   }
-  return inputs.viewerIsHost ? hostLine(inputs) : { state: "named", text: "Next reply: the host's chat connection.", door: undefined };
+  return inputs.viewerIsHost ? hostLine(inputs) : NAMED;
 }

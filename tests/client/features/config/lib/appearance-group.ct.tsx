@@ -231,7 +231,7 @@ test("a section's save carries none of its siblings' keys and never re-fires or 
 
   // A: Avatars — change a sibling section, wait for ITS save.
   await page.getByRole("combobox", { name: "Avatar size" }).click();
-  await page.getByRole("option", { name: "Large" }).click();
+  await page.getByRole("option", { name: "Medium" }).click();
   await expect.poll(() => patchCountFor(trpc, "avatarSize"), { intervals: [20, 50, 100] }).toBe(1);
 
   // A's payload names A's keys only — `surfaceTexture` is nowhere in it (a full-blob patch would have
@@ -265,7 +265,7 @@ test("a failing save lights the aggregate footer, an INLINE retry at the failing
   await page.getByRole("heading", { name: "Message style" }).waitFor();
 
   await page.getByRole("combobox", { name: "Avatar size" }).click();
-  await page.getByRole("option", { name: "Large" }).click();
+  await page.getByRole("option", { name: "Medium" }).click();
 
   // The aggregate is read-only and LOCATES the failure (never a retry-all, D41).
   const footer = page.locator('[data-slot="config-save-footer"]');
@@ -279,8 +279,8 @@ test("a failing save lights the aggregate footer, an INLINE retry at the failing
   await expect(page.locator('[data-slot="autosave-status"]')).toHaveCount(1);
 
   // …and its nav row carries the locator marker — EXACTLY this word, never composed with "Modified"
-  // (#1712, owner default: precedence stays). This section's picked value ("Large") already differs from
-  // its default ("md", `appearance.ts`'s `avatarSize` schema) — a save-failed row is definitionally also a
+  // (#1712, owner default: precedence stays). This section's picked value ("Medium") already differs from
+  // its default ("lg", `appearance.ts`'s `avatarSize` schema) — a save-failed row is definitionally also a
   // modified one — and `{ exact: true }` is the receipt that the row states that ONE fact once, not both.
   await expect(page.getByRole("region", { name: "Settings groups" }).getByText("Save failed", { exact: true })).toBeVisible();
 });

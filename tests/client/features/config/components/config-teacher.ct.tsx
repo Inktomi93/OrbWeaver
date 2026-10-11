@@ -231,16 +231,16 @@ test("the pane prints the CONTROL'S display word, never the wire value", async (
     .getByRole("button", { name: /Appearance/ })
     .click();
 
-  // Avatar size stores "md" and its picker reads "Medium" (#1099 F15: the teacher printed "Using the
-  // default — md."). The ROSTER prints it first — every visible row carries its value — and the DRILL
+  // Avatar size stores "lg" and its picker reads "Large" (#1099 F15: the teacher printed "Using the
+  // default — md." when the default was md). The ROSTER prints it first — every visible row carries its value — and the DRILL
   // prints it again in the default-vs-current block.
   const row = workspace.locator('[data-setting="avatar-size"]');
   await row.scrollIntoViewIfNeeded();
   const pane = workspace.locator(CONTEXT_PANE);
-  await expect(pane.locator('[data-slot="teacher-roster-entry"][data-setting="avatars/avatar-size"]')).toContainText("Medium");
+  await expect(pane.locator('[data-slot="teacher-roster-entry"][data-setting="avatars/avatar-size"]')).toContainText("Large");
 
   await row.getByRole("combobox").focus();
-  await expect(pane.getByText("Using the default — Medium.")).toBeVisible();
+  await expect(pane.getByText("Using the default — Large.")).toBeVisible();
 });
 
 test("focusing a knob row teaches THAT setting — head and About swap, and the i is its door", async ({ mount, page }) => {

@@ -93,7 +93,7 @@ describe("updateUserSettingsSection", () => {
     // Two partial patches on the same section: the second must not clobber the first (deep-merge).
     await h.svc.updateUserSettingsSection({
       principal: p,
-      input: { section: "appearance", patch: { chatStyle: "flat", avatarSize: "lg" } },
+      input: { section: "appearance", patch: { chatStyle: "flat", avatarSize: "md" } },
     });
     await h.svc.updateUserSettingsSection({
       principal: p,
@@ -101,7 +101,7 @@ describe("updateUserSettingsSection", () => {
     });
     const view = await h.svc.getUserSettings({ principal: p });
     expect(view.config.appearance.chatStyle).toBe("flat");
-    expect(view.config.appearance.avatarSize).toBe("lg"); // survived the second patch
+    expect(view.config.appearance.avatarSize).toBe("md"); // survived the second patch
     expect(view.config.appearance.showInChatAvatars).toBe(false);
     // An untouched knob keeps its §12.1 default.
     expect(view.config.appearance.density).toBe("comfortable");
