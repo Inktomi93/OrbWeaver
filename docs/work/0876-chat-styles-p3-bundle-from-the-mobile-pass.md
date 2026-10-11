@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-11
 priority: P3
 area: chat
+lane: wt/agent-af6669286d41e6e5e
 ---
 
 # Chat styles P3 bundle from the mobile pass

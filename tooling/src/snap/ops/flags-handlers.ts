@@ -103,6 +103,34 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
     }
     pushStep(a, { kind: "swipe", selector: head, dy, page });
   },
+  "--swipe-x": (a, rest, page) => {
+    const { head, tail } = splitLastEq(rest.shift() ?? "");
+    const dx = Number(tail);
+    if (head === "" || tail === "" || !Number.isFinite(dx)) {
+      a.errors.push(`--swipe-x expects selector=dx (CSS px; positive drags the finger left), got ${JSON.stringify(`${head}=${tail}`)}`);
+      return;
+    }
+    pushStep(a, { kind: "swipe-x", selector: head, dx, page });
+  },
+  "--long-press": (a, rest, page) => {
+    const { head, tail } = splitLastEq(rest.shift() ?? "");
+    const ms = Number(tail);
+    if (head === "" || tail === "" || !Number.isInteger(ms) || ms < 1) {
+      a.errors.push(`--long-press expects selector=ms (whole milliseconds held, at least 1), got ${JSON.stringify(`${head}=${tail}`)}`);
+      return;
+    }
+    pushStep(a, { kind: "long-press", selector: head, ms, page });
+  },
+  "--tap-at": (a, rest, page) => {
+    const raw = rest.shift() ?? "";
+    const parts = raw.split(",");
+    const [x, y] = parts.map((part) => (part.trim() === "" ? Number.NaN : Number(part)));
+    if (parts.length !== 2 || x === undefined || y === undefined || !Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) {
+      a.errors.push(`--tap-at expects x,y (viewport CSS px, both at least 0), got ${JSON.stringify(raw)}`);
+      return;
+    }
+    pushStep(a, { kind: "tap-at", x, y, page });
+  },
   "--soft-keyboard": (a, rest, page) => {
     const raw = rest.shift() ?? "";
     const height = Number(raw);

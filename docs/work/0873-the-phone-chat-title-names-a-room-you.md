@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-11
 priority: P2
 area: client
+lane: wt/agent-a60f3647a45bd36a0
 ---
 
 # The phone chat title names a room you renamed

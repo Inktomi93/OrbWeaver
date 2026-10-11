@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-11
 priority: P2
 area: chat
+lane: wt/agent-a753be51eef96b9c6
 ---
 
 # Model attribution shows in one place on the chat page

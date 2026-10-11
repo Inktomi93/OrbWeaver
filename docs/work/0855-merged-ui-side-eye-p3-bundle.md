@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-11
 priority: P3
 area: client
+lane: wt/agent-a753be51eef96b9c6
 ---
 
 # Merged UI side-eye P3 bundle

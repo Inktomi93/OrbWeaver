@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-11
 priority: P2
 area: client
+lane: wt/agent-a753be51eef96b9c6
 ---
 
 # Desktop chat chrome reads as one designed surface

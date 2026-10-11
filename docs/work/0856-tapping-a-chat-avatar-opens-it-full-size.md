@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-11
 priority: P2
 area: chat
+lane: wt/agent-af6669286d41e6e5e
 ---
 
 # Tapping a chat avatar opens it full size
