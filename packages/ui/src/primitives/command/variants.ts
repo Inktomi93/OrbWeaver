@@ -58,6 +58,8 @@ export const commandVariants = tv({
       // A stable compact viewport keeps filtering from moving its containing dialog without reserving
       // the giant empty cavity the old full-height palette left behind.
       compact: { list: "h-48 [&_[cmdk-list-sizer]]:h-full" },
+      // The model picker's list: tall enough to fill its box, still a fixed viewport so a narrowing search holds still.
+      grow: { list: "h-72 [&_[cmdk-list-sizer]]:h-full" },
     },
   },
   defaultVariants: { listSize: "content" },

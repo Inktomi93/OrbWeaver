@@ -10,7 +10,7 @@ in the [plugin-authoring design](../../../docs/plans/plugin-authoring/design.md)
 research-familiar/     event reactor      watches the room, reaches the network, files lore + databank clips
 oracle-deck/           tool provider      gives the model tools — plus the whole UI plane in one file:
                                           tool card, page, dialog, typed-arg commands, toasts, a macro,
-                                          a pubsub announcement, the footer mark
+                                          a pubsub announcement, the table mark
 affinity-tracker/      quiet thinker      asks the model privately, keeps private state, notifies;
                                           authors a scripted (browser-side) surface in ui.ts
 draft-polish/          text pipeline      one capability, two seams: prompt transform + display transform
@@ -256,7 +256,7 @@ host.ui.register({ id, anchor, title, tier, spec, onAction });
 | `tool-card` | how one of your tools' calls renders (`toolName` links it) | oracle-deck |
 | `page` | a full page behind the app's one **Plugin pages** rail entry | oracle-deck, keepsake-camera, card-atlas |
 | `dialog` | a house modal, opened only by `host.ui.openDialog` from your own action/command | oracle-deck |
-| `message-footer` | one STATIC decoration strip under every committed message — static-only, no bindings, ≤ 8 nodes; say one thing quietly | oracle-deck |
+| `message-footer` | one STATIC decoration strip under every committed message — static-only, no bindings, ≤ 8 nodes; say one thing quietly | none shipped |
 
 **Tiers** — who computes the tree: `static` (the spec lives server-side; values bind with `{ $state }` to
 state you publish via `host.ui.setState`) · `scripted` (your `ui.js` computes whole trees in the browser at

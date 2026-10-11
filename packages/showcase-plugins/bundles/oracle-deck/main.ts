@@ -622,18 +622,13 @@ if (host.grants.includes("ui.surface")) {
     },
   });
 
-  // ── THE MESSAGE-FOOTER MARK — the per-row anchor, and its honest constraints ─────────────────────────────
-  // `message-footer` mounts once per COMMITTED transcript row, so it carries the tightest bounds in the
-  // vocabulary, all enforced at registration: STATIC tier only, decoration kinds only (badge/text/meter/
-  // image/row — no buttons, no lists, no markdown), ≤ 8 nodes, depth ≤ 2, and — the one that shapes what a
-  // footer can BE — no `$state` bindings: a bound footer would paint fallbacks under every row until you
-  // publish, so the mount skips bound specs entirely. A footer is therefore a FIXED mark, the same under
-  // every message. Use it for something that is true of every row, keep it to ONE small node, and remember
-  // the strip already carries your plugin's name — say one thing, quietly. Here: the deck's table-presence
-  // mark, the standing reminder that this room's draws are commitment-checked.
+  // ── THE TABLE MARK — a once-per-room flank surface, not a footer ─────────────────────────────────────────
+  // A `message-footer` surface is a FIXED per-row spec repeated under every committed message, which would
+  // stamp this reminder under every draw. The room's standing reminder that draws are commitment-checked is
+  // true once per room, so it lives at `chat-flank`.
   host.ui.register({
     id: "table_mark",
-    anchor: "message-footer",
+    anchor: "chat-flank",
     title: "At the table",
     tier: "static",
     spec: { kind: "badge", intent: "neutral", text: "⟡ draws are committed — reveal verifies" },

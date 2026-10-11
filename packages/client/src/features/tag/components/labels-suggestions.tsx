@@ -3,6 +3,8 @@ import type { TagSuggestionView } from "@orb/contracts/tag";
 import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
+import type { TableColumn } from "@orb/ui/table";
+import { Table } from "@orb/ui/table";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -11,6 +13,8 @@ import { EditableTagChip, QueryBoundary, useAcceptSuggestion, useRejectSuggestio
 import { QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { selectCharacter, setActiveSection } from "#state";
+import type { SuggestionGroup } from "../lib/label-suggestion-groups.ts";
+import { groupSuggestions } from "../lib/label-suggestion-groups.ts";
 
 export function LabelsSuggestions(): ReactElement {
   return (
@@ -30,7 +34,7 @@ function SuggestionsBody(): ReactElement {
   const { data: suggestions } = useSuspenseQuery(trpc.tag.listPendingSuggestions.queryOptions());
   const root = useRef<HTMLDivElement>(null);
   const empty = useRef<HTMLParagraphElement>(null);
-  const [reviewed, setReviewed] = useState<{ readonly key: string; readonly index: number; readonly button: HTMLButtonElement } | null>(null);
+  const [reviewed, setReviewed] = useState<ReviewedMark | null>(null);
   const handledReview = useRef<typeof reviewed>(null);
   useEffect(() => {
     if (reviewed === null || handledReview.current === reviewed || suggestions.some((item) => `${item.id}:${item.characterId}` === reviewed.key)) {
@@ -47,23 +51,127 @@ function SuggestionsBody(): ReactElement {
     }
     handledReview.current = reviewed;
   }, [reviewed, suggestions]);
-  if (suggestions.length === 0) {
+  const groups = groupSuggestions(suggestions);
+  if (groups.length === 0) {
     return (
       <Text role="status" ref={empty} tabIndex={-1} voice="gloss">
         No suggested tags awaiting review.
       </Text>
     );
   }
+  const ordered = groups.flatMap((group) => group.rows);
   return (
     <Stack ref={root} gap="field">
-      {suggestions.map((suggestion, index) => (
-        <SuggestionRow
-          key={`${suggestion.id}:${suggestion.characterId}`}
-          suggestion={suggestion}
-          onReviewed={(button): void => setReviewed({ key: `${suggestion.id}:${suggestion.characterId}`, index, button })}
+      {groups.map((group) => (
+        <SuggestionGroupBlock
+          key={group.key}
+          group={group}
+          onReviewed={(row, button): void => setReviewed({ key: suggestionKey(row), index: ordered.indexOf(row), button })}
         />
       ))}
     </Stack>
+  );
+}
+
+interface ReviewedMark {
+  readonly key: string;
+  readonly index: number;
+  readonly button: HTMLButtonElement;
+}
+
+const suggestionKey = (suggestion: TagSuggestionView): string => `${suggestion.id}:${suggestion.characterId}`;
+
+function SuggestionGroupBlock({
+  group,
+  onReviewed,
+}: {
+  readonly group: SuggestionGroup;
+  readonly onReviewed: (row: TagSuggestionView, button: HTMLButtonElement) => void;
+}): ReactElement | null {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const accept = useAcceptSuggestion({ trpc, invalidation });
+  const [applyingAll, setApplyingAll] = useState(false);
+  const first = group.rows[0];
+  const columns: readonly TableColumn<TagSuggestionView>[] = [
+    {
+      id: "character",
+      header: "Character",
+      accessor: (row) => row.characterName,
+      cell: (_value, row) => <SuggestionCharacter suggestion={row} groupName={group.name} />,
+    },
+    {
+      id: "review",
+      header: "Review",
+      accessor: () => null,
+      align: "end",
+      cell: (_value, row) => <SuggestionRow suggestion={row} onReviewed={(button): void => onReviewed(row, button)} />,
+    },
+  ];
+  if (first === undefined) {
+    return null;
+  }
+  return (
+    <Stack gap="field" role="group" aria-label={`Suggested ${group.name}`}>
+      <Row align="center" className="flex-wrap" gap="field">
+        <EditableTagChip tag={first} />
+        <Text voice="gloss">{group.rows.length === 1 ? "1 character" : `${String(group.rows.length)} characters`}</Text>
+        <Button
+          intent="secondary"
+          size="sm"
+          type="button"
+          disabled={applyingAll}
+          onClick={(event): void => {
+            const button = event.currentTarget;
+            const focused = document.activeElement === button;
+            setApplyingAll(true);
+            // @orb-waive caught-failure-ownership(Promise.allSettled): allSettled never rejects; each failed attach already raises the mutation's own error toast, and the catch only releases the busy flag.
+            Promise.allSettled(
+              group.rows.map((row) => accept.mutateAsync({ tagId: row.id, targetType: "character" as const, targetId: row.characterId, status: "accepted" })),
+            )
+              .then((results) => {
+                setApplyingAll(false);
+                const applied = results.filter((result) => result.status === "fulfilled").length;
+                if (applied > 0) {
+                  notify.success(`Applied ${group.name} to ${String(applied)} ${applied === 1 ? "character" : "characters"}.`);
+                  if (focused) {
+                    onReviewed(first, button);
+                  }
+                }
+              })
+              .catch(() => setApplyingAll(false));
+          }}
+        >
+          Apply to all
+        </Button>
+      </Row>
+      <Table
+        aria-label={`Characters suggested ${group.name}`}
+        columns={columns}
+        data={group.rows}
+        defaultPagination={{ pageIndex: 0, pageSize: group.rows.length }}
+        getRowId={suggestionKey}
+      />
+    </Stack>
+  );
+}
+
+function SuggestionCharacter({ suggestion, groupName }: { readonly suggestion: TagSuggestionView; readonly groupName: string }): ReactElement {
+  return (
+    <Row align="center" className="flex-wrap" gap="field">
+      <Button
+        intent="ghost"
+        size="sm"
+        type="button"
+        onClick={(): void => {
+          selectCharacter(suggestion.characterId);
+          setActiveSection("characters");
+        }}
+      >
+        {suggestion.characterName}
+      </Button>
+      {suggestion.name === groupName ? null : <Text voice="gloss">{suggestion.name}</Text>}
+    </Row>
   );
 }
 
@@ -93,20 +201,14 @@ function SuggestionRow({
     failedAction.current = null;
   }, [pending]);
   return (
-    <Row align="center" className="flex-wrap" gap="field" role="group" aria-label={`Suggested ${suggestion.name} for ${suggestion.characterName}`}>
-      <Text voice="gloss">Suggested</Text>
-      <EditableTagChip tag={suggestion} />
-      <Button
-        intent="ghost"
-        size="sm"
-        type="button"
-        onClick={(): void => {
-          selectCharacter(suggestion.characterId);
-          setActiveSection("characters");
-        }}
-      >
-        {suggestion.characterName}
-      </Button>
+    <Row
+      align="center"
+      className="flex-wrap"
+      gap="field"
+      justify="end"
+      role="group"
+      aria-label={`Suggested ${suggestion.name} for ${suggestion.characterName}`}
+    >
       <Button
         data-slot="label-review-apply"
         intent="secondary"

@@ -175,6 +175,22 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
     }
   }, [listReady, focusOnList, pickerId]);
 
+  // The pick is rendered even past the render cap, but it may sit below the fold of the fixed-height list, so
+  // bring its row into view when the list lands or the pick changes. Rows carry their value in `data-value`.
+  useEffect(() => {
+    if (!listReady || value === "") {
+      return;
+    }
+    const rows = document.getElementById(pickerId)?.querySelectorAll<HTMLElement>("[cmdk-item]") ?? [];
+    for (const row of rows) {
+      const rowValue = row.getAttribute("data-value");
+      if (rowValue === value || rowValue === `${RECENT_VALUE_PREFIX}${value}`) {
+        row.scrollIntoView({ block: "nearest" });
+        return;
+      }
+    }
+  }, [listReady, value, pickerId]);
+
   // A pointer the user MOVES over the list hands it the highlight. Chromium also fires a zero-movement
   // pointermove when the list renders under a still cursor; that one is not the user choosing a row.
   const onPointerMove = (event: PointerEvent<HTMLDivElement>): void => {
@@ -244,7 +260,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
             </ToggleGroup>
           </Row>
         ) : null}
-        <CommandList label={`Models on ${listOwner}`} listSize="compact" onPointerMove={onPointerMove}>
+        <CommandList label={`Models on ${listOwner}`} listSize="grow" onPointerMove={onPointerMove}>
           {models === null ? (
             <CommandLoading label={`Loading ${listOwner} models…`}>
               <Stack data-slot="model-picker-skeleton" gap="field" padding="row">

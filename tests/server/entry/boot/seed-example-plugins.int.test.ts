@@ -435,8 +435,8 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
     // WASM runtime, not just the schema.
     expect.objectContaining({ id: "deck_page", anchor: "page", title: "The Deck" }),
     expect.objectContaining({ id: "reveal_dialog", anchor: "dialog", title: "Reveal this session" }),
-    // …and the U6 per-row mark — the smallest legal `message-footer` occupant (one static badge).
-    expect.objectContaining({ id: "table_mark", anchor: "message-footer", tier: "static" }),
+    // …and the once-per-room table mark: a static badge at `chat-flank`, not a per-row footer.
+    expect.objectContaining({ id: "table_mark", anchor: "chat-flank", tier: "static" }),
   ]);
 
   // The two COMMANDS the same activation registered — what `/plugin oracle-deck draw` and the Plugins wand menu
