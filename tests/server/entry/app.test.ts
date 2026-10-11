@@ -276,6 +276,26 @@ describe("createApp", () => {
     expect(seen).toEqual([{ ownerId: COOKIE_OWNER.userId, query, limit: 1 }]);
   });
 
+  test.each([
+    ["POST", "/api/no-such-route"],
+    ["GET", "/api/no-such-route"],
+    ["PUT", "/api/trpc-typo/notifications.list"],
+    ["POST", "/api"],
+    ["POST", "/api/"],
+  ])("%s %s misses every route → a JSON 404, never a bare text or HTML page", async (method, path) => {
+    const app = createApp(deps({}));
+    const res = await hit(app, new Request(`http://localhost${path}`, { method, headers: { accept: "text/html", "x-orb-csrf": "1" } }));
+    expect(res.status).toBe(NOT_FOUND);
+    expect(res.headers.get("content-type")).toContain("application/json");
+    expect(await res.json()).toEqual({ error: "Not found" });
+  });
+
+  test("a non-API miss keeps the default plain 404", async () => {
+    const res = await hit(createApp(deps({})), new Request("http://localhost/no-such-page"));
+    expect(res.status).toBe(NOT_FOUND);
+    expect(res.headers.get("content-type") ?? "").not.toContain("application/json");
+  });
+
   test("GET /healthz → 200 ok when live", async () => {
     const app = createApp(deps({}));
     const res = await hit(app, new Request("http://localhost/healthz"));

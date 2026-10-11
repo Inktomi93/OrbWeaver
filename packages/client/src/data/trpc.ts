@@ -38,6 +38,20 @@ export type TrpcReadError = TRPCClientErrorLike<AppRouter>;
 
 export const { TRPCProvider, useTRPC, useTRPCClient } = createTRPCContext<AppRouter>();
 
+/** Refuse a non-JSON answer to a tRPC call with an error that names the HTTP status, instead of letting the
+ *  batch link's JSON parse report `Unexpected token '<'`. A page here came from something in front of the app
+ *  (a proxy or login redirect), never from the tRPC mount, which always answers JSON. */
+const jsonOnlyFetch: NonNullable<Parameters<typeof httpBatchLink>[0]["fetch"]> = async (input, init) => {
+  // The link's init type allows an explicit `undefined` signal; the DOM type (exactOptionalPropertyTypes) does not.
+  const response = await fetch(input, init === undefined ? undefined : { ...init, signal: init.signal ?? null });
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType.includes("json")) {
+    return response;
+  }
+  const where = response.redirected ? ` after a redirect to ${response.url}` : "";
+  throw new Error(`The server answered HTTP ${response.status}${where} with ${contentType === "" ? "no content type" : contentType} instead of JSON`);
+};
+
 /**
  * The wire client. Two links behind a split: subscriptions ride SSE over a JSON POST
  * (`httpSubscriptionLink` with {@link PostEventSource}, because a relay that buffers GET bodies freezes a
@@ -97,6 +111,7 @@ export function createTrpcClient(url: string = TRPC_URL): TrpcClient {
             maxItems: TRPC_BATCH_MAX_ITEMS,
             maxURLLength: TRPC_BATCH_MAX_URL_LENGTH,
             methodOverride: "POST",
+            fetch: jsonOnlyFetch,
             headers: () => ({ [CSRF_HEADER]: "1" }),
           }),
         ],

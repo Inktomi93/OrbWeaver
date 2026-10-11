@@ -278,6 +278,14 @@ describe("registerSpa", () => {
     expect(await res.text()).not.toContain("<!doctype");
   });
 
+  test.each(["POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])("a %s to an /api/* miss never gets the app page", async (method) => {
+    for (const path of ["/api/trpc/notifications.list,plugin.listCommands", "/api", "/api/"]) {
+      const res = await app.request(path, { method, headers: { ...NAV_HEADERS, "x-orb-csrf": "1" } });
+      expect(res.headers.get("content-type") ?? "").not.toContain("text/html");
+      expect(await res.text()).not.toContain("<!doctype");
+    }
+  });
+
   test("an API route registered before the SPA still wins", async () => {
     const res = await app.request("/api/known", { headers: NAV_HEADERS });
     expect(res.status).toBe(OK);
