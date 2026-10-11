@@ -16,6 +16,7 @@ import { startPlannerMaintenance } from "../../../../packages/server/src/entry/b
 import { freshCountedDb } from "../../../support/db.ts";
 import { principal } from "../../../support/factories/principal.ts";
 import { test as base, expect, OWNER_USER_ID } from "../../../support/fixtures.ts";
+import { recencyPlan, STALE_STATS_INDEX, seedStaleMessageStats } from "../../../support/stale-planner-stats.ts";
 
 const test = base.extend<{ db: Db; observed: Awaited<ReturnType<typeof freshCountedDb>> }>({
   observed: async ({}, use) => await use(await freshCountedDb()),
@@ -145,4 +146,25 @@ test("a post-commit ANALYZE failure preserves real imported cards and the termin
   expect(observed.queries.statements().filter((statement) => statement.trim() === "ANALYZE")).toHaveLength(1);
   const stats = await db.all<Record<string, string>>(sql`SELECT stat FROM sqlite_stat1 WHERE tbl = 'characters'`);
   expect(stats.map((row) => row["stat"]?.split(" ")[0])).toContain("20");
+});
+
+test("a completed profile import re-plans the chat recency subquery over a library the stats call empty", async ({
+  app,
+  db,
+  clock,
+  ownerCaller,
+  importStagingDir,
+}) => {
+  void ownerCaller;
+  await seedStaleMessageStats(db);
+  expect((await recencyPlan(db)).join("\n")).not.toContain(STALE_STATS_INDEX);
+  const token = await stageProfile(importStagingDir);
+  const result = await app.workloadContributions["import-st"].run(
+    { userId: OWNER_USER_ID, ownerId: OWNER_USER_ID, now: () => clock.now() },
+    { stagedDir: token },
+    () => undefined,
+    new AbortController().signal,
+  );
+  expect(result.failed).toBe(0);
+  expect((await recencyPlan(db)).join("\n")).toContain(STALE_STATS_INDEX);
 });
