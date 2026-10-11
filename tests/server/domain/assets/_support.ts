@@ -18,7 +18,7 @@ import type { ParticipantKind } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { ParticipantRole, Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { assets, characters, chatParticipants, chats, messageAssets, messages, personas } from "@orb/db";
+import { characters, chatParticipants, chats, messageAssets, messages, personas } from "@orb/db";
 import type {
   AssetId,
   CharacterHandle,
@@ -35,12 +35,11 @@ import type {
 import { castId } from "@orb/kit/ids";
 import { createLinkCharacterAvatars } from "@orb/server/domain/character";
 import { createCas, createVariantCache } from "@orb/server/infra/storage";
-import { and, eq, inArray, isNull } from "drizzle-orm";
-import { alias } from "drizzle-orm/sqlite-core";
+import { and, eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
 import type { AssetsContext } from "../../../../packages/server/src/domain/assets/context.ts";
-import { createLoadCoParticipantOwner } from "../../../../packages/server/src/entry/compose/co-participant-owner.ts";
+import { createLoadChatAssetRefs, createLoadCoParticipantOwner } from "../../../../packages/server/src/entry/compose/co-participant-assets.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
@@ -113,27 +112,9 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
         .limit(1);
       return rows.length > 0;
     },
-    // The production query itself, so a change to the shipped predicate is what these suites test.
+    // The production queries themselves, so a change to a shipped predicate is what these suites test.
     loadCoParticipantOwner: createLoadCoParticipantOwner(db),
-    // #67 co-participant RENDER resolver — mirrors the compose-root impl (`entry/compose/services.ts`) so the
-    // structural gate (a `message_assets` reference IN `chatId` + owner present + caller present, NOT bare
-    // membership) is exercised against the real seeded DB.
-    loadChatAssetRefs: async (callerId, forChatId, assetIds) => {
-      if (assetIds.length === 0) {
-        return [];
-      }
-      const ownerSeat = alias(chatParticipants, "chat_ref_owner_seat");
-      const callerSeat = alias(chatParticipants, "chat_ref_caller_seat");
-      const rows = await db
-        .selectDistinct({ assetId: assets.id, hash: assets.hash, mime: assets.mime, width: assets.width, height: assets.height })
-        .from(assets)
-        .innerJoin(messageAssets, eq(messageAssets.assetId, assets.id))
-        .innerJoin(messages, eq(messages.id, messageAssets.messageId))
-        .innerJoin(callerSeat, and(eq(callerSeat.chatId, messages.chatId), eq(callerSeat.userId, callerId), isNull(callerSeat.leftSeq)))
-        .innerJoin(ownerSeat, and(eq(ownerSeat.chatId, messages.chatId), eq(ownerSeat.userId, assets.ownerId), isNull(ownerSeat.leftSeq)))
-        .where(and(eq(messages.chatId, forChatId), inArray(assets.id, [...assetIds])));
-      return rows;
-    },
+    loadChatAssetRefs: createLoadChatAssetRefs(db),
   };
   return {
     ctx,

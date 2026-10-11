@@ -15,14 +15,13 @@ import { DEFAULT_GUIDED_ACTIONS, SIDE_GEN_POSTURES } from "@orb/contracts/preset
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
-import { assets as assetsTable, characters as charactersTable, chatParticipants, messageAssets, messages as messagesTable } from "@orb/db";
+import { characters as charactersTable } from "@orb/db";
 import { readSeedAvatar, readSeedBackground, SEED_BACKGROUND_PLATES } from "@orb/default-content";
 import type { RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
 import { resolveSideGenSampling } from "@orb/inference";
 import type { AssetId, CharacterHandle, CharacterId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import { and, eq, inArray, isNull } from "drizzle-orm";
-import { alias } from "drizzle-orm/sqlite-core";
+import { and, eq } from "drizzle-orm";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import { createAssetsService } from "#domain/assets";
 import type { CharacterService, DefaultCharacterSeeder } from "#domain/character";
@@ -45,7 +44,7 @@ import type { Cas, VariantCache } from "#infra/storage";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "../boot/index.ts";
 import { createDefaultPersonaSeeder } from "../boot/index.ts";
-import { createLoadCoParticipantOwner } from "./co-participant-owner.ts";
+import { createLoadChatAssetRefs, createLoadCoParticipantOwner } from "./co-participant-assets.ts";
 import { createMaterializeBackground } from "./materialize-background.ts";
 import { minter } from "./minter.ts";
 
@@ -197,31 +196,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     linkCharacterAvatars: createLinkCharacterAvatars({ db, now }),
     assertCharacterOwned: characterOwned,
     loadCoParticipantOwner: createLoadCoParticipantOwner(db),
-    // Chat-scoped resolver a present viewer uses to render inline attachments: a pair is returned only
-    // when the asset has a message_assets row for a message in `chatId` AND both owner and caller are
-    // present participants. Membership alone is not sufficient — the message_assets FK is the reference.
-    loadChatAssetRefs: async (callerId, forChatId, assetIds) => {
-      if (assetIds.length === 0) {
-        return [];
-      }
-      const ownerSeat = alias(chatParticipants, "chat_ref_owner_seat");
-      const callerSeat = alias(chatParticipants, "chat_ref_caller_seat");
-      const rows = await db
-        .selectDistinct({
-          assetId: assetsTable.id,
-          hash: assetsTable.hash,
-          mime: assetsTable.mime,
-          width: assetsTable.width,
-          height: assetsTable.height,
-        })
-        .from(assetsTable)
-        .innerJoin(messageAssets, eq(messageAssets.assetId, assetsTable.id))
-        .innerJoin(messagesTable, eq(messagesTable.id, messageAssets.messageId))
-        .innerJoin(callerSeat, and(eq(callerSeat.chatId, messagesTable.chatId), eq(callerSeat.userId, callerId), isNull(callerSeat.leftSeq)))
-        .innerJoin(ownerSeat, and(eq(ownerSeat.chatId, messagesTable.chatId), eq(ownerSeat.userId, assetsTable.ownerId), isNull(ownerSeat.leftSeq)))
-        .where(and(eq(messagesTable.chatId, forChatId), inArray(assetsTable.id, [...assetIds])));
-      return rows;
-    },
+    loadChatAssetRefs: createLoadChatAssetRefs(db),
   };
   const assets = createAssetsService(assetsCtx);
   // Now that `assets` exists, bind the real materializeBackground op (the holder above forwards to it). Full

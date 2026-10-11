@@ -1,5 +1,5 @@
-// The roster-avatar reference check behind the blob routes' co-participant exception. Kept apart from the
-// assets seam so the assets test harness runs this exact query instead of a copy.
+// The co-participant reference checks that let a room member read another member's assets. Kept apart from
+// the assets seam so the assets test harness runs these exact queries instead of copies.
 
 import type { Db } from "@orb/db";
 import {
@@ -10,9 +10,39 @@ import {
   messages as messagesTable,
   personas as personasTable,
 } from "@orb/db";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import type { AssetsContext } from "#domain/assets";
+
+/**
+ * Chat-scoped resolver a present viewer uses to render inline attachments: a pair is returned only when the
+ * asset has a `message_assets` row for a message in `chatId` and both owner and caller are present
+ * participants. Membership alone is not sufficient; the `message_assets` FK is the reference.
+ */
+export function createLoadChatAssetRefs(db: Db): NonNullable<AssetsContext["loadChatAssetRefs"]> {
+  return async (callerId, forChatId, assetIds) => {
+    if (assetIds.length === 0) {
+      return [];
+    }
+    const ownerSeat = alias(chatParticipants, "chat_ref_owner_seat");
+    const callerSeat = alias(chatParticipants, "chat_ref_caller_seat");
+    const rows = await db
+      .selectDistinct({
+        assetId: assetsTable.id,
+        hash: assetsTable.hash,
+        mime: assetsTable.mime,
+        width: assetsTable.width,
+        height: assetsTable.height,
+      })
+      .from(assetsTable)
+      .innerJoin(messageAssets, eq(messageAssets.assetId, assetsTable.id))
+      .innerJoin(messagesTable, eq(messagesTable.id, messageAssets.messageId))
+      .innerJoin(callerSeat, and(eq(callerSeat.chatId, messagesTable.chatId), eq(callerSeat.userId, callerId), isNull(callerSeat.leftSeq)))
+      .innerJoin(ownerSeat, and(eq(ownerSeat.chatId, messagesTable.chatId), eq(ownerSeat.userId, assetsTable.ownerId), isNull(ownerSeat.leftSeq)))
+      .where(and(eq(messagesTable.chatId, forChatId), inArray(assetsTable.id, [...assetIds])));
+    return rows;
+  };
+}
 
 /**
  * Roster-avatar reference-check, not a hash→any-owner oracle. Returns an owner only if `hash` is the
