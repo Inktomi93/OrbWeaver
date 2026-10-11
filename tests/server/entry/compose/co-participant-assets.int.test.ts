@@ -27,10 +27,12 @@ import {
 const PNG = "image/png";
 const LEFT_SEQ = 5;
 
-// The caller's seat in the room: `null` is no seat; a `leftSeq` marks a caller who left.
-type CallerSeat = { readonly leftSeq?: number } | null;
-const SEATED: CallerSeat = {};
-const DEPARTED: CallerSeat = { leftSeq: LEFT_SEQ };
+// Where the caller sits: in the asset's room (a `leftSeq` marks a caller who left it), only in a second room
+// the owner also sits in, or nowhere (`null`).
+type CallerSeat = { readonly room: "shared"; readonly leftSeq?: number } | { readonly room: "other" } | null;
+const SEATED: CallerSeat = { room: "shared" };
+const DEPARTED: CallerSeat = { room: "shared", leftSeq: LEFT_SEQ };
+const OTHER_ROOM: CallerSeat = { room: "other" };
 
 interface Case {
   readonly name: string;
@@ -47,6 +49,23 @@ const ATTACHMENT: Case = {
   },
 };
 
+function personaCase(ownerLeftSeq?: number): Case {
+  return {
+    name: "co-participant active persona avatar",
+    link: async (db, chat, owner, assetId): Promise<void> => {
+      const persona = await seedPersona(db, owner, { name: "Alter" });
+      await setPersonaAvatar(db, persona, assetId);
+      await seedParticipant(db, chat, "human", {
+        id: "cp_owner",
+        userId: owner,
+        role: "host",
+        activePersonaId: persona,
+        ...(ownerLeftSeq === undefined ? {} : { leftSeq: ownerLeftSeq }),
+      });
+    },
+  };
+}
+
 const CASES: readonly Case[] = [
   {
     name: "rostered character avatar",
@@ -56,14 +75,7 @@ const CASES: readonly Case[] = [
       await seedParticipant(db, chat, "character", { id: "cp_char", characterId: character });
     },
   },
-  {
-    name: "co-participant active persona avatar",
-    link: async (db, chat, owner, assetId) => {
-      const persona = await seedPersona(db, owner, { name: "Alter" });
-      await setPersonaAvatar(db, persona, assetId);
-      await seedParticipant(db, chat, "human", { id: "cp_owner", userId: owner, role: "host", activePersonaId: persona });
-    },
-  },
+  personaCase(),
   ATTACHMENT,
 ];
 
@@ -85,8 +97,12 @@ async function seedCase(c: Case, seat: CallerSeat): Promise<Seeded> {
   const asset = await createAssetsService(h.ctx).store({ principal: principal(owner), bytes: pngBytes(1, 2, 3), kind: "avatar", mime: PNG });
   const chat = await seedChatRow(db, "chat_shared");
   await c.link(db, chat, owner, asset.assetId);
-  if (seat !== null) {
-    await seedParticipant(db, chat, "human", { id: "cp_caller", userId: caller, ...seat });
+  if (seat?.room === "shared") {
+    await seedParticipant(db, chat, "human", { id: "cp_caller", userId: caller, ...(seat.leftSeq === undefined ? {} : { leftSeq: seat.leftSeq }) });
+  } else if (seat?.room === "other") {
+    const other = await seedChatRow(db, "chat_other");
+    await seedParticipant(db, other, "human", { id: "cp_owner_other", userId: owner, role: "host" });
+    await seedParticipant(db, other, "human", { id: "cp_caller_other", userId: caller });
   }
   return { db, owner, caller, chat, assetId: asset.assetId, hash: asset.hash };
 }
@@ -116,7 +132,15 @@ describe("createLoadCoParticipantOwner", () => {
     test(`${c.name}: a caller who left the room resolves nothing`, async () => {
       expect((await ownerFor(c, DEPARTED)).resolved).toBeUndefined();
     });
+
+    test(`${c.name}: a caller seated only in another room shared with the owner resolves nothing`, async () => {
+      expect((await ownerFor(c, OTHER_ROOM)).resolved).toBeUndefined();
+    });
   }
+
+  test("a persona whose owner left the room resolves nothing for a seated caller", async () => {
+    expect((await ownerFor(personaCase(LEFT_SEQ), SEATED)).resolved).toBeUndefined();
+  });
 });
 
 describe("createLoadChatAssetRefs", () => {
@@ -131,5 +155,9 @@ describe("createLoadChatAssetRefs", () => {
 
   test("a caller who left the room resolves nothing", async () => {
     expect((await chatRefsFor(DEPARTED)).refs).toEqual([]);
+  });
+
+  test("a caller seated only in another room shared with the owner resolves nothing", async () => {
+    expect((await chatRefsFor(OTHER_ROOM)).refs).toEqual([]);
   });
 });
