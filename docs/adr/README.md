@@ -256,3 +256,5 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D307 | [Separate product qualification from weekly tooling proof](0307-weekly-tooling-proof-and-product-qualification.md) | active |
 | D308 | [Timing budgets qualify only on a named hardware class](0308-hardware-scoped-timing-budgets.md) | active |
 | D309 | [Keep mutation measurement outside GitHub-hosted CI](0309-hosted-mutation-execution.md) | active |
+| D310 | [Ollama chat and the connection test ride the native route](0310-ollama-chat-and-the-connection-test-ride-the-native-route.md) | active |
+| D311 | [The user's own request body wins every collision outside the denylist](0311-the-users-own-body-wins-every-collision-outside-the-denylist.md) | active |

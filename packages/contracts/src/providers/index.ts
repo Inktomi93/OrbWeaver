@@ -108,11 +108,11 @@ export const generationCostSchema = z.object({
 });
 export type GenerationCost = z.infer<typeof generationCostSchema>;
 
-/** The "Test endpoint" inspector's result — the `inspect` surface returns it. Carries the ACTUAL shaped
- *  request (headers REDACTED — the key never leaves the server) plus the raw response, or a `null`
- *  response + an `error` message when the request never completed (DNS / refused / timeout). */
+/** The "Test endpoint" inspector's result — the `inspect` surface returns it. Carries the request one chat
+ *  call sent on the route chat uses (headers REDACTED — the key never leaves the server) plus the raw
+ *  response, or a `null` response + an `error` message when the request never completed (DNS / refused / timeout). */
 export const endpointInspectionSchema = z.object({
-  /** True iff the endpoint answered with a 2xx. */
+  /** True iff the endpoint answered with a 2xx the chat path reads as a reply. */
   ok: z.boolean(),
   request: z.object({
     url: z.string(),
@@ -129,7 +129,7 @@ export const endpointInspectionSchema = z.object({
       bodyPreview: z.string(),
     })
     .nullable(),
-  /** Transport error message; present only when `response` is `null`. */
+  /** Why the call failed: the request never completed (`response` is `null`), or the chat path could not read the reply. */
   error: z.string().optional(),
 });
 export type EndpointInspection = z.infer<typeof endpointInspectionSchema>;

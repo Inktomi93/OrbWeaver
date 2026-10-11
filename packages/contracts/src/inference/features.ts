@@ -138,7 +138,7 @@ export const OUTPUT_CAP_FIELDS = ["max_tokens", "max_completion_tokens"] as cons
 export const MODEL_INFO_APIS = ["ollama", "llama-cpp", "koboldcpp"] as const;
 export type ModelInfoApi = (typeof MODEL_INFO_APIS)[number];
 
-/** A server's native chat route, sent instead of `/v1/chat/completions` (D296). `ollama` = `POST /api/chat`,
+/** A server's native chat route, sent instead of `/v1/chat/completions` (D310). `ollama` = `POST /api/chat`,
  *  which takes `options.num_ctx` and the samplers the OpenAI route drops; `none` = `/v1`, the override that
  *  turns a provider row's native route off. Embeddings stay on `/v1`. */
 export const NATIVE_CHAT_APIS = ["ollama", "none"] as const;
@@ -246,7 +246,7 @@ export function foldFeatures(...layers: readonly (EndpointFeatures | undefined)[
 }
 
 /** The request-body keys the wire OWNS on every endpoint we build the body for — a key here in a
- *  connection's `extras` is DROPPED with `custom_parameters_ignored{key}`, never merged (D143(b)/D156,
+ *  connection's `extras` is DROPPED with `custom_parameters_ignored{key}`, never merged (D311,
  *  unchanged — F21). EIGHT keys, each with its failure written down:
  *    `truncate_prompt_tokens` / `truncation_side` — the engine-side truncation that #165 measured as an
  *      unbounded hang; the belt clamps client-side instead.

@@ -1,4 +1,4 @@
-// backends/openai-compat/ollama-native — an Ollama row's chat turn rides `/api/chat` (D296). The request side is
+// backends/openai-compat/ollama-native — an Ollama row's chat turn rides `/api/chat` (D310). The request side is
 // pinned on the body that reaches the wire; the reply side replays what the rig's Ollama wrote, byte for byte
 // (`_ollama-native-recordings.ts`), through the real SDK and the real turn, so a translation slip shows as a
 // wrong reply, tool call, reasoning or usage.
@@ -130,6 +130,21 @@ test("an Ollama turn posts /api/chat with the window as num_ctx and the samplers
   expect(result.reply).toBe("Hello, how are you?");
   expect(result.finishReason).toBe("stop");
   expect(result.usage).toMatchObject({ tokensIn: 35, tokensOut: 7 });
+});
+
+// D311: the user's own body wins a sampler collision on the native route too, after the translator moves it.
+test("a temperature in the connection's own body beats the preset's in Ollama's options", async () => {
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "ollama",
+    model: "qwen2.5:0.5b",
+    capability: capability(),
+    baseUrl: BASE_URL,
+    extras: { temperature: 1.2 },
+  });
+  const { recorded } = await turn([OLLAMA_NATIVE_RECORDINGS.text], { connection, params: { temperature: 0.8, maxOutputTokens: 64 } });
+  expect(recorded[0]?.body["options"]).toMatchObject({ temperature: 1.2 });
+  expect(Object.hasOwn(recorded[0]?.body ?? {}, "temperature")).toBe(false);
 });
 
 test("the connection's keep_alive rides the top level and its num_batch rides options; unset, neither is sent", async () => {

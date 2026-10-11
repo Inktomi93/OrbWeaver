@@ -1,8 +1,8 @@
 // The openai-compat diagnostics: `probe` (credential health by a cheap authenticated read), the three
 // OpenRouter-only plain-fetch surfaces (`accountCredits` → `GET /credits`, `generationCost` → `GET
 // /generation?id=`, and the enriched `listModels` → `GET /models`), the `/v1/models` list for every other row,
-// and the "Test endpoint" INSPECTOR — the ACTUAL shaped 1-token request with the row's transforms applied,
-// redacted request + raw (scrubbed, over-read-then-cut, #1820) response back, never a throw.
+// and the "Test endpoint" INSPECTOR — one 1-token chat call on the route chat uses, the redacted request + raw
+// (scrubbed, over-read-then-cut, #1820) response back, never a throw.
 
 import type { CredentialHealth } from "@orb/contracts/credentials";
 import type { ModelCatalogEntry, ModelListing } from "@orb/contracts/inference";
@@ -18,16 +18,18 @@ import { ProviderError } from "../../contract/errors.ts";
 import type { Resolved } from "../../contract/resolved.ts";
 import { authHeaders, fetchJson, openAiPath } from "../kit/fetch-json.ts";
 import { bareCatalogEntry, failedListing, listingOf } from "../kit/model-listing.ts";
-import { applyIncludeExclude, redactHeaders, redactSecretsFromText, secretScrubOverhang } from "../kit/openai-body.ts";
+import { redactHeaders, redactSecretsFromText, secretScrubOverhang } from "../kit/openai-body.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../kit/sanitize.ts";
+import type { TransportDeps } from "./model.ts";
+import { languageModelFor } from "./model.ts";
 
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_FORBIDDEN = 403;
 const PING_CONTENT = "ping";
 const PING_MAX_TOKENS = 1;
 const BODY_PREVIEW_LIMIT = 4000;
-const JSON_CONTENT_TYPE = "application/json";
-const CHAT_COMPLETIONS_PATH = "/chat/completions";
+const INSPECT_LABEL = "endpoint inspector";
+const INSPECT_API = "chat-completions";
 const CREDITS_PATH = "/credits";
 const GENERATION_PATH = "/generation";
 
@@ -177,12 +179,7 @@ async function readBodyPreview(res: Response, overhang: number): Promise<string>
   }
 }
 
-function inspectionRequest(
-  url: string,
-  headers: Record<string, string>,
-  body: Record<string, unknown>,
-  secrets: ProviderScrubSet,
-): EndpointInspection["request"] {
+function inspectionRequest(url: string, headers: Record<string, string>, body: unknown, secrets: ProviderScrubSet): EndpointInspection["request"] {
   return {
     url: redactSecretsFromText(url, secrets),
     headers: redactHeaders(headers, secrets),
@@ -190,40 +187,96 @@ function inspectionRequest(
   };
 }
 
-/** The 1-token probe against the row's endpoint: the SAME body a real turn would send with the row's
- *  `includeBody`/`excludeBody` applied, host-pinned, the response scrubbed BEFORE it is display-eligible. */
-export async function inspectOpenAiCompatEndpoint(req: InspectRequest, deps: DiagnosticsDeps): Promise<EndpointInspection> {
-  const { connection } = req;
-  const baseUrl = requireBaseUrl(connection, "endpoint inspector");
-  const secrets = resolvedScrubSet(connection);
-  const body = applyIncludeExclude(
-    { model: connection.model, messages: [{ role: "user", content: PING_CONTENT }], stream: false, max_tokens: PING_MAX_TOKENS },
-    connection.transport?.includeBody ?? null,
-    connection.transport?.excludeBody ?? null,
-  );
-  const headers: Record<string, string> = { "content-type": JSON_CONTENT_TYPE, ...authHeaders(connection.credential.secret, connection.transport?.headers) };
-  const url = openAiPath(baseUrl, CHAT_COMPLETIONS_PATH);
-  const request = inspectionRequest(url, headers, body, secrets);
-  try {
-    const res = await deps.fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-      redirect: "manual",
-      ...(req.signal !== undefined ? { signal: req.signal } : {}),
-    });
-    // @orb-waive caught-failure-ownership(readBodyPreview): a preview read failure degrades to an explicit empty preview while status and headers remain inspectable. Precedent: the gate mustPass fixture tooling/src/probe/unproven-outcome.ts proves the same degraded inspection result. Ends if preview bytes become authoritative.
-    const text = await readBodyPreview(res, secretScrubOverhang(secrets)).catch((): string => "");
-    return {
-      ok: res.ok,
-      request,
-      response: {
-        status: res.status,
-        statusText: redactSecretsFromText(res.statusText, secrets),
-        bodyPreview: redactSecretsFromText(text, secrets).slice(0, BODY_PREVIEW_LIMIT),
-      },
-    };
-  } catch (err) {
-    return { ok: false, request, response: null, error: sanitizeApiError(redactSecretsFromText(errorMessage(err), secrets)) };
+/** What the inspector's call needs beyond the diagnostics deps: the app identity the model factory sends. */
+export interface InspectDeps {
+  readonly fetch: typeof fetch;
+  readonly app: TransportDeps["app"];
+}
+
+/** The one send the model factory made, as the server received it, and its reply as the server sent it. */
+interface Observed {
+  request?: { readonly url: string; readonly headers: Record<string, string>; readonly body: unknown };
+  reply?: Response;
+}
+
+function urlOf(input: Parameters<typeof fetch>[0]): string {
+  if (typeof input === "string") {
+    return input;
   }
+  return input instanceof URL ? input.toString() : input.url;
+}
+
+// The factory always sends a JSON string it serialised itself, so the parse cannot fail here.
+function sentBody(body: RequestInit["body"]): unknown {
+  return typeof body === "string" ? JSON.parse(body) : "";
+}
+
+/** Sits under the factory's `wrapFetch` (and under a native route's rewrite), so it sees the final URL, headers
+ *  and body, and keeps a copy of the reply before any translation reads it. */
+function observingFetch(inner: typeof fetch, observed: Observed): typeof fetch {
+  return async (input, init): Promise<Response> => {
+    observed.request = { url: urlOf(input), headers: Object.fromEntries(new Headers(init?.headers)), body: sentBody(init?.body) };
+    const res = await inner(input, init);
+    observed.reply = res.clone();
+    return res;
+  };
+}
+
+/**
+ * The "Send a test request" probe, one 1-token chat call through the same model factory and route a chat turn
+ * uses (D310). On an own-server row it takes the `nativeChat` route and the openai-compat body shaper: `extras`,
+ * the include/exclude pair and the row's feature rules. It does not exercise dialect placement (the openrouter
+ * extras `openRouterShape` places in `chat.ts`) or turn-derived shaping (preset samplers, reasoning, prefill,
+ * tools, structured output, cache markers). `ok` means the call came back as a reply the chat path reads. The
+ * request is shown as sent, and the response as the server sent it, scrubbed before it is display-eligible.
+ */
+export async function inspectOpenAiCompatEndpoint(req: InspectRequest, deps: InspectDeps): Promise<EndpointInspection> {
+  const { connection } = req;
+  requireBaseUrl(connection, INSPECT_LABEL);
+  const secrets = resolvedScrubSet(connection);
+  const observed: Observed = {};
+  const model = languageModelFor({
+    connection,
+    deps: { fetch: observingFetch(deps.fetch, observed), app: deps.app },
+    label: INSPECT_LABEL,
+    api: INSPECT_API,
+    plan: null,
+    prefillAllowed: false,
+    templateThinking: undefined,
+    templatePreserveReasoning: undefined,
+    foldSameRole: false,
+    replyImages: false,
+    warnings: [],
+  });
+  try {
+    await model.doGenerate({
+      prompt: [{ role: "user", content: [{ type: "text", text: PING_CONTENT }] }],
+      maxOutputTokens: PING_MAX_TOKENS,
+      ...(req.signal !== undefined ? { abortSignal: req.signal } : {}),
+    });
+    return await inspectionOf(observed, secrets, undefined);
+  } catch (err) {
+    return { ...(await inspectionOf(observed, secrets, err)), ok: false, error: sanitizeApiError(redactSecretsFromText(errorMessage(err), secrets)) };
+  }
+}
+
+/** The inspection of the send `observed` saw; `failure` is what the chat call threw, if it threw. */
+async function inspectionOf(observed: Observed, secrets: ProviderScrubSet, failure: unknown): Promise<EndpointInspection> {
+  const sent = observed.request ?? { url: "", headers: {}, body: "" };
+  const request = inspectionRequest(sent.url, sent.headers, sent.body, secrets);
+  const reply = observed.reply;
+  if (reply === undefined) {
+    return { ok: false, request, response: null };
+  }
+  // @orb-waive caught-failure-ownership(readBodyPreview): a preview read failure degrades to an explicit empty preview while status and headers remain inspectable. Precedent: the gate mustPass fixture tooling/src/probe/unproven-outcome.ts proves the same degraded inspection result. Ends if preview bytes become authoritative.
+  const text = await readBodyPreview(reply, secretScrubOverhang(secrets)).catch((): string => "");
+  return {
+    ok: failure === undefined && reply.ok,
+    request,
+    response: {
+      status: reply.status,
+      statusText: redactSecretsFromText(reply.statusText, secrets),
+      bodyPreview: redactSecretsFromText(text, secrets).slice(0, BODY_PREVIEW_LIMIT),
+    },
+  };
 }
