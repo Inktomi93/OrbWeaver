@@ -121,7 +121,7 @@ export const gate = defineGate({
   // exactly `@authored`. The kit time home is NOT subtracted — it is a grant.
   population: "@authored",
   analysis: "types",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,

@@ -26,9 +26,8 @@
 // row here (mustFlag[2]) pins the refusal side. Extending the shared plant with `exit` is the recorded
 // follow-up that lets a module row take the pin over.
 //
-// THE REPORTED POSITION is the member read as written (`process.exit`). `entire-population` because grant
-// liveness is only sound after a complete run; a narrowed request DEFERS this policy (pinned in
-// tests/tooling/verify/gates/tooling-plumbing-family.suite.test.ts). POPULATION PORT: byte-identical (`@tooling`).
+// THE REPORTED POSITION is the member read as written (`process.exit`). `selected-files`: each occurrence is judged alone, and a subset run leaves unconsumed grants unjudged (stale is a whole-coverage verdict, lib/gate-authority.ts).
+// POPULATION PORT: byte-identical (`@tooling`).
 //
 // Legacy descriptor: `bbdccb2d5c` (`tooling/src/verify/gates/tooling-shared-plumbing.ts`, arm D). No private
 // marker grammar; zero live `@orb-gate-ignore tooling-shared-plumbing` markers at conversion.
@@ -55,7 +54,7 @@ export const gate = defineGate({
   severity: "error",
   population: "@tooling",
   analysis: "types",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,

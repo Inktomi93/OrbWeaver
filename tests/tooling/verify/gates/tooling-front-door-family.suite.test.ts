@@ -142,18 +142,21 @@ test("every argv grant row in the central table names a subject that exists on t
 });
 
 // ─── §4.5 DEFERRAL ──────────────────────────────────────────────────────────────────────────────────────
-test("a narrowed request DEFERS every entire-population policy in both families instead of adjudicating a row its scope cannot see", () => {
+test("a narrowed request judges the selected-files policies on the requested rows only, and DEFERS the whole-tree health policy", () => {
   const files = {
     [ANCHOR]: ANCHOR_SOURCE,
     "tooling/src/aa/ops/root-config.ts": 'import knipConfig from "../../../../knip.ts";\nexport const globs = knipConfig;\n',
     "tooling/src/snap/cli.ts": 'import process from "node:process";\nexport const a = process.argv.slice(2);\n',
     "tooling/src/_shared/log.ts": "export const warn = 1;\n",
   };
-  for (const policy of [rootConfigImport, argvFrontDoor, argvHealth]) {
+  for (const policy of [rootConfigImport, argvFrontDoor]) {
     const narrowed = passOf([policy], files, { requestedPaths: ["tooling/src/_shared/log.ts"] });
     expect(narrowed.toolErrors, policy.id).toEqual([]);
-    expect(narrowed.policies.find(({ id }) => id === policy.id)?.owner, policy.id).toMatchObject({ status: "not-applicable", population: "complete" });
+    expect(narrowed.policies.find(({ id }) => id === policy.id)?.owner, policy.id).toMatchObject({ status: "success", population: "complete" });
     expect(narrowed.authority.effectiveFindings, policy.id).toEqual([]);
     expect(narrowed.authority.authorityAlarms, policy.id).toEqual([]);
   }
+  const health = passOf([argvHealth], files, { requestedPaths: ["tooling/src/_shared/log.ts"] });
+  expect(health.toolErrors).toEqual([]);
+  expect(health.policies.find(({ id }) => id === argvHealth.id)?.owner).toMatchObject({ status: "not-applicable", population: "complete" });
 });

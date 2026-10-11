@@ -50,7 +50,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(355 registered gates)
+(356 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -214,7 +214,8 @@ in its own module header, never restated here.
 | `no-inline-invalidate-outside-seam` | tanstack-query-origin | reviewed-grant/error | @client | an inline invalidateQueries call… |
 | `no-inline-optimistic-in-surface` | tanstack-query-origin | ordinary/error | @authored\* | Optimistic-mutation plumbing… |
 | `no-inline-types` | — | ordinary/error | @client,@server,@inference,@tooling\* | exported type/zod-schema outside a… |
-| `no-inline-union-redecl` | — | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
+| `no-inline-union-alias` | union-axis | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
+| `no-inline-union-redecl` | union-axis | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
 | `no-interactive-role-in-features` | — | ordinary/error | @client\* | hand-rolled interactive ARIA role in… |
 | `no-layout-context-props` | — | ordinary/error | @client,@ui | layout-context prop (compact/inDrawer/… |
 | `no-legacy-react-api` | react-origin | ordinary/error | @authored | a legacy React API: cloneElement,… |

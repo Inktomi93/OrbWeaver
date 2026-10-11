@@ -146,7 +146,7 @@ export const gate = defineGate({
   // the only exemption is a cited row, so a moved or renamed home reds instead of carrying its sanction.
   population: "@product",
   analysis: "types",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,

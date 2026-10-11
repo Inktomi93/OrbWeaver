@@ -39,6 +39,8 @@ interface ContextInput {
   readonly findings: RawGateFinding[];
   readonly factValues: PolicyFactValueRegistry;
   readonly applicationPaths?: ReadonlySet<string>;
+  /** The narrowed request of a `selected-files` policy; absent when the whole population was requested. */
+  readonly requestedPaths?: ReadonlySet<string>;
 }
 
 export interface PolicyContextRuntime {
@@ -381,7 +383,11 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
   };
   const context: GatePolicyContext = Object.freeze({
     ...capability.context,
-    includesSubject: (path: string) => input.applicationPaths === undefined || input.applicationPaths.has(path) || populationIncludes("@product", path),
+    subset: input.requestedPaths !== undefined,
+    includesSubject: (path: string) =>
+      input.applicationPaths === undefined
+        ? input.requestedPaths === undefined || input.requestedPaths.has(path)
+        : input.applicationPaths.has(path) || populationIncludes("@product", path),
     relativePath,
     sourceFile,
     fact,

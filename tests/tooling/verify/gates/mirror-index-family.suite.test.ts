@@ -35,6 +35,7 @@ import { dirname, join } from "node:path";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
+import { gate as unionAlias } from "../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
 import { gate as testLayout } from "../../../../tooling/src/verify/gates/test-layout.ts";
 import { gate as testPresence } from "../../../../tooling/src/verify/gates/test-presence.ts";
 import { gate as testPresenceClient } from "../../../../tooling/src/verify/gates/test-presence-client.ts";
@@ -76,13 +77,32 @@ test("the mirror-index family keeps its two-sided proofs", { timeout: scaledBudg
 });
 
 function pass(policy: GatePolicy, root: string, overlay: Readonly<Record<string, string>>, failOnWarnings = false): PolicyPassResult {
+  return passRequesting([policy], root, overlay, { failOnWarnings });
+}
+
+/** `pass` narrowed to a request, the shape a staged commit hands the dispatcher. */
+function passRequesting(
+  selected: readonly GatePolicy[],
+  root: string,
+  overlay: Readonly<Record<string, string>>,
+  request: { readonly failOnWarnings?: boolean; readonly requestedPaths?: readonly string[] },
+): PolicyPassResult {
   const project = new Project({ skipAddingFilesFromTsConfig: true });
   for (const [path, content] of Object.entries(overlay)) {
     if (path.endsWith(".ts") || path.endsWith(".tsx")) {
       project.createSourceFile(`${root}/${path}`, content);
     }
   }
-  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root, project, resourceOptions: { overlay }, reviewedGrants: [], failOnWarnings });
+  return runPolicyPass({
+    knownPolicies: selected,
+    policies: selected,
+    root,
+    project,
+    resourceOptions: { overlay },
+    reviewedGrants: [],
+    failOnWarnings: request.failOnWarnings ?? false,
+    ...(request.requestedPaths === undefined ? {} : { requestedPaths: request.requestedPaths }),
+  });
 }
 
 /** The shape every refusal shares: a named tool error, the owner incomplete and withheld, and NO raw OR
@@ -151,6 +171,37 @@ test("test-layout: a complete mirror population reaches a verdict and files one 
       ["mirror-index:tooling-test", 0],
     ],
   ]);
+});
+
+// The staged-commit door: `verify --static --changed staged` hands the policy ONLY the paths the commit
+// touches. A new test with no source mirror must still be judged there, not deferred to the whole-tree run.
+test("test-layout: a staged new test with no source mirror is judged, not deferred", ({ scratch }) => {
+  const orphan = "tests/ui/primitives/orphan.ct.tsx";
+  const result = passRequesting([testLayout], scratch, { ...LAYOUT_TREE, [orphan]: "export const x = 1;\n" }, { requestedPaths: [orphan] });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.policies.map(({ owner }) => owner.status)).not.toContain("not-applicable");
+  expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "test-layout", file: orphan }]);
+});
+
+// An orphan the commit did not touch belongs to whoever left it; blaming every later commit for it would
+// stall unrelated work while main is red. The whole-tree run still owns it.
+test("test-layout: a staged mirrored test is clean even when an untouched test elsewhere is an orphan", ({ scratch }) => {
+  const mirrored = "tests/ui/primitives/other.ct.tsx";
+  const result = passRequesting(
+    [testLayout],
+    scratch,
+    {
+      ...LAYOUT_TREE,
+      [mirrored]: "export const x = 1;\n",
+      "packages/ui/src/primitives/other.tsx": "export const other = 1;\n",
+      "tests/ui/primitives/old-orphan.ct.tsx": "export const x = 1;\n",
+    },
+    { requestedPaths: [mirrored] },
+  );
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
 });
 
 test("test-layout: an ABSENT test tree REFUSES — the exact blindness `existsSync` could not distinguish", ({ scratch }) => {
@@ -237,6 +288,54 @@ test("test-presence: a missing server test is an unsuppressible error that block
   expect(unpromoted.authority.verdict).toEqual({ errors: 1, warnings: 0, blocking: 1, failOnWarnings: false });
   expect(promoted.authority.effectiveFindings).toEqual(unpromoted.authority.effectiveFindings);
   expect(promoted.authority.verdict).toEqual({ errors: 1, warnings: 0, blocking: 1, failOnWarnings: true });
+});
+
+// The staged-commit door for the presence policies: a new logic-bearing source with no mirror test is judged
+// on its own request, and an orphan the commit did not touch is not re-blamed on it.
+test("test-presence: a staged new source with no mirror test is judged, an untouched orphan is not", ({ scratch }) => {
+  const orphan = "packages/server/src/domain/chat/verbs/new-verb.ts";
+  const untouched = "packages/server/src/domain/chat/verbs/old-orphan.ts";
+  const tree = { ...MISSING_SERVER_TEST_TREE, [orphan]: "export const createNewVerb = () => 1;\n", [untouched]: "export const createOld = () => 1;\n" };
+
+  const flagged = passRequesting([testPresence], scratch, tree, { requestedPaths: [orphan] });
+  expect(flagged.toolErrors).toEqual([]);
+  expect(flagged.authority.effectiveFindings).toMatchObject([{ policyId: "test-presence" }]);
+  expect(flagged.authority.effectiveFindings).toHaveLength(1);
+
+  const clean = passRequesting(
+    [testPresence],
+    scratch,
+    { ...tree, "tests/server/domain/chat/verbs/new-verb.test.ts": "export const t = 1;\n" },
+    { requestedPaths: [orphan] },
+  );
+  expect(clean.toolErrors).toEqual([]);
+  expect(clean.authority.effectiveFindings).toEqual([]);
+});
+
+// test-presence reselects every server source when a mirror member is requested. Another policy's waiver in
+// one of those files is outside THAT policy's request and must not be called stale by a subset run.
+test("a subset run does not call a waiver stale in a file only a sibling policy reselected", ({ scratch }) => {
+  const orphan = "packages/server/src/domain/chat/verbs/new-verb.ts";
+  const tree = {
+    ...MISSING_SERVER_TEST_TREE,
+    [orphan]: "export const createNewVerb = () => 1;\n",
+    "packages/server/src/domain/chat/verbs/waived.ts":
+      "// @orb-waive no-inline-union-alias(Mode): fixture stand-in; ends with the fixture.\nexport type Mode = 'a' | 'b';\n",
+  };
+
+  const result = passRequesting([unionAlias, testPresence], scratch, tree, { requestedPaths: [orphan] });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.authorityAlarms).toEqual([]);
+});
+
+test("test-presence-client: a staged new client data hook with no mirror test is judged", ({ scratch }) => {
+  const hook = "packages/client/src/data/use-thing.ts";
+  const tree = { [hook]: "export const useThing = () => 1;\n", "tests/client/data/other.test.ts": "export const t = 1;\n" };
+
+  const flagged = passRequesting([testPresenceClient], scratch, tree, { requestedPaths: [hook] });
+  expect(flagged.toolErrors).toEqual([]);
+  expect(flagged.authority.effectiveFindings).toMatchObject([{ policyId: "test-presence-client" }]);
 });
 
 test("test-presence: a marker cannot suppress the hard finding", ({ scratch }) => {

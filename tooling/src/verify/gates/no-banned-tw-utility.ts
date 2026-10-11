@@ -20,8 +20,7 @@
 // excludes the tailwind-merge conflict-pair fixture at `tests/ui/lib/class-merge.test.ts:80` — a string
 // naming the class, never an application of it. It is excluded BY CONSTRUCTION and must never acquire an
 // exemption: a fixture that must name the token to test the merge behaviour is not a violation of anything.
-// `entire-population` because a grant's liveness is a whole-population verdict (the same reason
-// `no-raw-matchmedia` carries it).
+// `selected-files`: each occurrence is judged alone, and a subset run leaves unconsumed grants unjudged (stale is a whole-coverage verdict, lib/gate-authority.ts).
 //
 // BORN GREEN ON A FIXED TREE, and the census is 2026-09-19's, re-derived rather than inherited. The #1656
 // body said "two transcript sites"; the #2451 re-cut said exactly one. Both are stale: there are TWO live
@@ -80,7 +79,7 @@ export const gate = defineGate({
   severity: "error",
   population: ["@client", "@ui"],
   analysis: "syntax",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,

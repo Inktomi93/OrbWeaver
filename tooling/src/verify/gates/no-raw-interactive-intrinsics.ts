@@ -80,7 +80,7 @@ export const gate = defineGate({
   // that hosts a raw control is a grant row. `.tsx` stays a scope decision — a file KIND, not a home.
   population: { in: ["@client"], under: ["packages/client/src/features/**"], ext: ["tsx"] },
   analysis: "syntax",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,

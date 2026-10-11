@@ -261,7 +261,10 @@ export const gate = defineGate({
   severity: "error",
   population: { of: "none", why: "the test corpus and both source spaces are closed mirror-index membership facts; this policy reads no source file" },
   analysis: "resource",
-  execution: "entire-population",
+  // Selected-files so a staged commit that adds a mirrorless test is judged at the hook. Each row is judged
+  // alone against the COMPLETE mirror indexes (resources are never narrowed, policy-effective-population.ts
+  // rule 1), so the verdict composes over any subset; entire-population here deferred every staged run.
+  execution: "selected-files",
   facts: [],
   resources: [
     { kind: "mirror-index", id: "package-test" },

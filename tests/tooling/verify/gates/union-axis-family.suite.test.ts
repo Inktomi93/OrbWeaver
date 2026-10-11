@@ -20,13 +20,14 @@
 //          which the marker grammar's `[^()\r\n]+` position group cannot hold).
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
+import { gate as unionAlias } from "../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
 import { gate as unionRedecl } from "../../../../tooling/src/verify/gates/no-inline-union-redecl.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/union-axis-family";
-const FAMILY: readonly GatePolicy[] = [unionRedecl];
+const FAMILY: readonly GatePolicy[] = [unionAlias, unionRedecl];
 const HOME = "packages/contracts/src/axis-home.ts";
 const RESPELL = "packages/server/src/axis-respell.ts";
 
@@ -58,11 +59,31 @@ test("the union-axis policy preserves its founding fixtures", () => {
 test("an arm-A waiver binds to the exact policy and the ALIAS NAME the report supplies", () => {
   const waived = passOf({
     "packages/contracts/src/alias.ts":
-      "// @orb-waive no-inline-union-redecl(Mode): the proof's stand-in reason; ends when this fixture stops flagging.\nexport type Mode = 'a' | 'b' | 'c';\n",
+      "// @orb-waive no-inline-union-alias(Mode): the proof's stand-in reason; ends when this fixture stops flagging.\nexport type Mode = 'a' | 'b' | 'c';\n",
   });
   expect(waived.authority.authorityAlarms).toEqual([]);
   expect(waived.authority.effectiveFindings).toEqual([]);
   expect(waived.authority.waivedFindings).toHaveLength(1);
+});
+
+// ─── THE STAGED-COMMIT DOOR ─────────────────────────────────────────────────────────────────────────────
+// `verify --static --changed staged` hands the dispatcher only the paths the commit touches. The alias arm
+// judges each alias alone, so it must RUN there; the re-spell arm needs the whole tree and must defer.
+test("a staged inline union alias is judged by the alias policy, not deferred", () => {
+  const alias = "packages/contracts/src/staged-alias.ts";
+  const staged = passOf({ [alias]: "export type VerdictKind = 'a' | 'b' | 'c';\n", [HOME]: "export const AXIS = ['x', 'y', 'z'] as const;\n" }, [alias]);
+
+  expect(staged.toolErrors).toEqual([]);
+  expect(staged.policies.find(({ id }) => id === "no-inline-union-alias")?.owner.status).not.toBe("not-applicable");
+  expect(staged.authority.effectiveFindings).toMatchObject([{ policyId: "no-inline-union-alias", file: alias }]);
+});
+
+test("a staged 2-member alias stays clean", () => {
+  const alias = "packages/contracts/src/staged-pair.ts";
+  const staged = passOf({ [alias]: "export type Pair = 'a' | 'b';\n" }, [alias]);
+
+  expect(staged.toolErrors).toEqual([]);
+  expect(staged.authority.effectiveFindings).toEqual([]);
 });
 
 test("an arm-B waiver binds to the inline SET's own source text, spacing included", () => {
@@ -88,7 +109,7 @@ test("a request admitting only the re-speller DEFERS instead of declaring the ax
 
   const narrowed = passOf(files, [RESPELL]);
   expect(narrowed.toolErrors).toEqual([]);
-  expect(narrowed.policies[0]?.owner).toMatchObject({ status: "not-applicable", population: "complete" });
+  expect(narrowed.policies.find(({ id }) => id === "no-inline-union-redecl")?.owner).toMatchObject({ status: "not-applicable", population: "complete" });
   // The point of the pin: the narrowed run must produce NO verdict, not a silent clean one. Without the
   // deferral the same request would run arm B against a tuple map the selection never let it collect.
   expect(narrowed.authority.effectiveFindings).toEqual([]);

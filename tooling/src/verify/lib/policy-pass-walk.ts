@@ -36,6 +36,10 @@ export function createRuns({ runs, paths, resources, checker, errors, factValues
       findings: run.findings,
       factValues,
       ...(applicationPaths === undefined ? {} : { applicationPaths: new Set(applicationPaths) }),
+      // Only a selected-files policy judges a subset; an entire-population policy that runs was handed every path it owns.
+      ...(run.policy.execution === "selected-files" && run.population.requestedPaths !== null
+        ? { requestedPaths: new Set(run.population.requestedPaths) }
+        : {}),
     });
     run.finishReceipts = runtime.finishReceipts;
     run.unconsumedFacts = runtime.unconsumedFacts;
