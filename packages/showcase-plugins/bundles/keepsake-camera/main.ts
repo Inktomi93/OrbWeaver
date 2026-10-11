@@ -424,6 +424,7 @@ if (canShoot) {
   host.ui.registerCommand({
     name: "snapshot",
     describe: "Paint this moment of the scene into a postcard for the room (and the album)",
+    placements: [{ target: "composer-media", label: "Snapshot", icon: "images" }],
     args: [
       { name: "style", type: "enum", enumValues: Object.keys(STYLES), default: "painterly", describe: "The postcard's look" },
       { name: "note", type: "string", describe: "Something the painter should not miss" },

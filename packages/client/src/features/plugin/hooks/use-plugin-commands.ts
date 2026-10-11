@@ -77,6 +77,12 @@ export function usePluginCommands(includeComposerDraft = false): readonly Plugin
     );
 }
 
+/** The top-bar launcher's commands: only the ones with no placement. A placed command lives at its placement
+ *  (composer wand), so listing it here too would show it twice. */
+export function useLauncherCommands(): readonly PluginCommandView[] {
+  return usePluginCommands().filter((command) => command.placements.length === 0);
+}
+
 /** What a failed resolve tells the person. Written HERE, module-private, so the slash line and the menu say
  *  the same sentence — the runner below is the ONE place either surface can reach it. */
 const PLUGIN_COMMAND_UNKNOWN = "No plugin command by that name — try the Plugins menu to see what you have.";

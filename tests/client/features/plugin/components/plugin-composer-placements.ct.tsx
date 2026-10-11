@@ -291,14 +291,8 @@ test("composer placements stay in one attributed action menu at narrow width and
   await expect(component.getByRole("button", { name: "Plugin actions" })).toHaveCount(1);
   await expect(component.getByRole("button", { name: /Same Name ·/ })).toHaveCount(0);
 
-  await component.getByRole("button", { name: "Plugin commands" }).click();
-  await expect(page.getByText("Same Name (first)", { exact: true })).toBeVisible();
-  await expect(page.getByText("Same Name (second)", { exact: true })).toBeVisible();
-  await expect(page.getByRole("menuitem", { name: "Same Name (first) · Cards · Run beta · Second action", exact: true })).toBeVisible();
-  await expect(
-    page.getByRole("menuitem", { name: "Same Name (second) · Scenes · Run charlie · Overflow action from a distinct install", exact: true }),
-  ).toBeVisible();
-  await page.keyboard.press("Escape");
+  // Every command here is placed, so the top-bar launcher has nothing to list.
+  await expect(component.getByRole("button", { name: "Plugin commands" })).toHaveCount(0);
 
   const actions = component.getByRole("button", { name: "Plugin actions" });
   await actions.focus();
@@ -419,7 +413,11 @@ for (const width of [320, 390] as const) {
     test.use({ hasTouch: true, viewport: { width, height: 844 } });
 
     test("projects the production plugin command contributor with slug attribution and coarse targets", async ({ mount, page }) => {
-      await routeTrpc(page, ROUTES);
+      // The sheet projects the top-bar launcher, which lists only unplaced commands.
+      await routeTrpc(page, {
+        ...ROUTES,
+        "plugin.listCommands": () => COMMANDS.map((command): TrpcWireOutput<"plugin.listCommands">[number] => ({ ...command, placements: [] })),
+      });
       const component = await mount(<PluginCommandsYouSheetStory />);
 
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
@@ -706,8 +704,36 @@ const UNSORTED_COMMANDS: TrpcWireOutput<"plugin.listCommands"> = [
   },
 ];
 
+test("a placed command shows at its placement only; the launcher lists the unplaced one", async ({ mount, page }) => {
+  const unplaced: TrpcWireOutput<"plugin.listCommands">[number] = {
+    pluginId: ALPHA_ID,
+    slug: "third-party",
+    pluginName: "Third Party",
+    name: "open",
+    describe: "Opens a thing",
+    args: [],
+    group: null,
+    placements: [],
+  };
+  await routeTrpc(page, {
+    "chat.listChats": () => ({ items: [], nextCursor: null }),
+    "plugin.listCommands": () => [...COMMANDS, unplaced],
+  });
+  const component = await mount(<PluginComposerPlacementsStory />);
+
+  await component.getByRole("button", { name: "Plugin commands" }).click();
+  const launcher = page.getByRole("menu").getByRole("menuitem");
+  await expect(launcher).toHaveCount(1);
+  await expect(launcher.first()).toHaveAccessibleName("Third Party (third-party) · Commands · Run open · Opens a thing");
+  await page.keyboard.press("Escape");
+
+  await component.getByRole("button", { name: "Plugin actions" }).click();
+  await expect(page.getByRole("menuitem", { name: "Same Name (first) · Cards · Run Open", exact: true })).toBeVisible();
+});
+
 test("the Plugins menu follows the shown plugin attribution and command name, not the wire order", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": () => ({ items: [], nextCursor: null }), "plugin.listCommands": () => UNSORTED_COMMANDS });
+  const unplacedCommands = UNSORTED_COMMANDS.map((command): TrpcWireOutput<"plugin.listCommands">[number] => ({ ...command, placements: [] }));
+  await routeTrpc(page, { "chat.listChats": () => ({ items: [], nextCursor: null }), "plugin.listCommands": () => unplacedCommands });
   const component = await mount(<PluginComposerPlacementsStory />);
 
   await component.getByRole("button", { name: "Plugin commands" }).click();
