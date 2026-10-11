@@ -18,8 +18,10 @@ Owner wants a cleaner, modern center page; repeating the same model name is nois
 
 ## Done when
 
-Every place the chat page names the model is listed with its file; the owner-approved single home stays (proposed: the per-message stamp for what produced a reply, plus one place to choose the next reply's model), the rest are removed or folded into a hover or menu; CTs assert the model name renders only in the kept homes.
+Every place the chat page names or switches the model or preset is listed with its file. The only kept home on the chat page is the per-message stamp saying what produced each reply; no model or preset quick-swap control remains on the chat page (both stay settable in room settings). CTs assert the model name renders only in that stamp and no swap control mounts in the room.
 
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner ruling: no model or preset swaps from the chat room; those are set in room settings, not on the chat page.
