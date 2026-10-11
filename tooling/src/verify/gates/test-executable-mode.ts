@@ -19,7 +19,7 @@ export const gate = defineGate({
   severity: "error",
   population: "@tests",
   analysis: "resource",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [{ kind: "tracked-files" }],
   message: MESSAGE,

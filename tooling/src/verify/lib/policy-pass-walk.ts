@@ -20,6 +20,18 @@ interface CreateRunsInput {
   readonly applicationPaths?: readonly string[];
 }
 
+/** The request, only when it narrows a `selected-files` policy below its declared population. The application run
+ *  always carries a request (its subject admission) and is a whole run, so it is never a subset. */
+function narrowedRequest(run: PolicyRun, applicationPaths: readonly string[] | undefined): { readonly requestedPaths?: ReadonlySet<string> } {
+  const { requestedPaths, declaredSourcePaths, declaredResourcePaths } = run.population;
+  if (run.policy.execution !== "selected-files" || applicationPaths !== undefined || requestedPaths === null) {
+    return {};
+  }
+  const requested = new Set(requestedPaths);
+  const covers = [...declaredSourcePaths, ...declaredResourcePaths].every((path) => requested.has(path));
+  return covers ? {} : { requestedPaths: requested };
+}
+
 export function createRuns({ runs, paths, resources, checker, errors, factValues, applicationPaths }: CreateRunsInput): void {
   for (const run of runs) {
     if (run.owner.status !== "success") {
@@ -36,6 +48,7 @@ export function createRuns({ runs, paths, resources, checker, errors, factValues
       findings: run.findings,
       factValues,
       ...(applicationPaths === undefined ? {} : { applicationPaths: new Set(applicationPaths) }),
+      ...narrowedRequest(run, applicationPaths),
     });
     run.finishReceipts = runtime.finishReceipts;
     run.unconsumedFacts = runtime.unconsumedFacts;

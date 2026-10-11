@@ -358,8 +358,9 @@ function judgeStores(stores: readonly StoreSubject[], texts: ReadonlyMap<string,
 }
 
 /** #883, RE-ANCHORED: the standing CT is an ABSENCE verdict, so it cannot report at its own path. */
-function judgeWorstArt(mirror: MirrorIndex, reportable: ReadonlySet<string>, findings: Finding[]): void {
-  const armed = mirror.sourceFiles.has(WORST_ART_ANCHOR) || mirror.sourceFiles.has(CLIENT_ENTRY_ANCHOR);
+// The standing CT is a whole-tree absence, so a subset run leaves it to the whole run.
+function judgeWorstArt(mirror: MirrorIndex, reportable: ReadonlySet<string>, findings: Finding[], subset: boolean): void {
+  const armed = !subset && (mirror.sourceFiles.has(WORST_ART_ANCHOR) || mirror.sourceFiles.has(CLIENT_ENTRY_ANCHOR));
   if (!armed || mirror.testFiles.has(WORST_ART_STANDING_CT)) {
     return;
   }
@@ -374,7 +375,8 @@ export const gate = defineGate({
   severity: "error",
   population: { in: ["@client", "@ui"], notNamed: ["index.ts"] },
   analysis: "resource",
-  execution: "entire-population",
+  // Each source file and store is judged alone against the complete mirror index; the standing-CT absence is a whole-tree verdict.
+  execution: "selected-files",
   facts: [],
   resources: [{ kind: "mirror-index", id: "package-test" }, { kind: "authored-text" }],
   message: MSG_CLIENT,
@@ -385,7 +387,9 @@ export const gate = defineGate({
     return {
       evaluate: () => {
         const mirror = readyResourceValue(ctx.resources.mirrorIndex("package-test"));
-        for (const sourceFile of ctx.files) {
+        // A changed mirror member reselects the whole source population, so the subject filter keeps a staged run
+        // to the requested files.
+        for (const sourceFile of ctx.files.filter((file) => ctx.includesSubject(ctx.relativePath(file)))) {
           const rel = ctx.relativePath(sourceFile);
           if (rel.startsWith(CLIENT_SRC)) {
             visitClient(mirror, rel.slice(CLIENT_SRC.length), sourceFile, collected);
@@ -417,7 +421,7 @@ export const gate = defineGate({
         const subjects = demanded.length > 0 ? demanded.toSorted() : [...mirror.testFiles].toSorted().slice(0, 1);
         const corpus = readyResourceValue(ctx.resources.authoredText(subjects));
         judgeStores(stores, new Map(corpus.files.map(({ path, text }) => [path, blankTsCommentsAndStringsInText(text)])), findings);
-        judgeWorstArt(mirror, new Set(ctx.resourcePaths), findings);
+        judgeWorstArt(mirror, new Set(ctx.resourcePaths), findings, ctx.subset);
         for (const finding of findings) {
           ctx.report.file(finding.file, { line: 1, column: 1, message: finding.message });
         }

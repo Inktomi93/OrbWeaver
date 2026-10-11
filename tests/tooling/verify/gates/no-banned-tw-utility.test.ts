@@ -68,7 +68,7 @@ test("the descriptor shape is the thing under test: reviewed-grant, in the share
     "tailwind-class-token",
     "reviewed-grant",
     "error",
-    "entire-population",
+    "selected-files",
   ]);
   expect(gate.family, "the ordinary sibling shares it — one class-token reader, two authorities").toBe(noArbitrary.family);
 });

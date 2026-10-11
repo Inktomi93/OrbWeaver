@@ -25,7 +25,7 @@ export const gate = defineGate({
   severity: "error",
   population: { of: "none", why: "raw byte inventories include non-TypeScript text and docs" }, // resource inventories include non-TypeScript source and docs
   analysis: "resource",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [
     { kind: "authored-tree", id: "packages" },

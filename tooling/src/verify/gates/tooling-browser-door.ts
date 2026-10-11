@@ -22,8 +22,8 @@
 // own page seam and not a Playwright browser type — the arm keys on the engine RECEIVERS (mustPass[0]).
 // FAMILY: a SINGLETON under its own id.
 //
-// `entire-population` because grant liveness is only sound after a complete run; a narrowed request DEFERS
-// this policy (pinned in tests/tooling/verify/gates/tooling-plumbing-family.suite.test.ts). POPULATION PORT:
+// `selected-files`: each occurrence is judged alone, and a subset run leaves unconsumed grants unjudged (stale is a whole-coverage verdict, lib/gate-authority.ts).
+// POPULATION PORT:
 // byte-identical (`@tooling`) — the legacy fenced arm H before `capability()` ever ran, which is what keeps
 // test-owned browsers under `tests/**` out of the substrate (§2.1) and out of this population by derivation.
 //
@@ -61,7 +61,7 @@ export const gate = defineGate({
   severity: "error",
   population: "@tooling",
   analysis: "types",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,

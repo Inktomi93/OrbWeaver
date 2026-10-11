@@ -25,6 +25,8 @@ export type OrdinaryWaiverMarkerOutcome = (typeof ORDINARY_WAIVER_MARKER_OUTCOME
 
 export interface OrdinaryWaiverMarkerMatch {
   readonly id: string;
+  /** The repo-relative file the marker sits in. */
+  readonly file: string;
   readonly policyId: string;
   readonly outcome: OrdinaryWaiverMarkerOutcome;
   readonly candidateCount: number;
@@ -49,6 +51,8 @@ export interface OrdinaryWaiverMatchResult {
  *  55), never referenced by its own name at any call site. */
 export interface OrdinaryWaiverReconciliationInput {
   readonly completedPolicyIds: readonly string[];
+  /** Effective population of each completed owner that covered only a subset; its markers outside it are not judged. */
+  readonly subsetPopulations?: ReadonlyMap<string, ReadonlySet<string>>;
   readonly match: OrdinaryWaiverMatchResult;
 }
 

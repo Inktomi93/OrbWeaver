@@ -23,8 +23,8 @@
 // looser matcher (mustPass[3]).
 //
 // THE REPORTED POSITION is the numeric literal as written (the legacy composed `FIXTURE_PORT = 8123`, which
-// is not a slice of any node). `entire-population` because grant liveness is only sound after a complete
-// run; a narrowed request DEFERS this policy. POPULATION PORT: byte-identical — the legacy fenced arm I to
+// is not a slice of any node). `selected-files`: each occurrence is judged alone, and a subset run leaves unconsumed grants unjudged (stale is a whole-coverage verdict, lib/gate-authority.ts).
+// POPULATION PORT: byte-identical — the legacy fenced arm I to
 // `tooling/src/` + `tests/e2e/support/` inside `visit`; `tests/tooling/**` was never this arm's (mustPass[4]).
 //
 // Legacy descriptor: `bbdccb2d5c` (`tooling/src/verify/gates/tooling-shared-plumbing.ts`, arm I, tree half).
@@ -63,7 +63,7 @@ export const gate = defineGate({
   severity: "error",
   population: { in: ["@tooling", "@tests"], under: ["tooling/src/**", "tests/e2e/support/**"] },
   analysis: "syntax",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,

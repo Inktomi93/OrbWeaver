@@ -62,7 +62,7 @@ export const gate = defineGate({
   severity: "error",
   population: "@client",
   analysis: "types",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,

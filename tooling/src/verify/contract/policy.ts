@@ -109,6 +109,9 @@ export interface GatePolicyContext {
   readonly files: readonly SourceFile[];
   /** Resource inputs remain complete; resource-backed predicates use this before judging a subject row. */
   readonly includesSubject: (repoRelativePath: string) => boolean;
+  // A `selected-files` policy under a narrowed request is handed only the requested subjects; the whole run judges the rest.
+  /** True when the request narrowed the population: a verdict about the whole tree (an absence, a census floor) must not fire. */
+  readonly subset: boolean;
   readonly resourcePaths: readonly string[];
   readonly resources: ResourceHost;
   readonly relativePath: (sourceFile: SourceFile) => string;

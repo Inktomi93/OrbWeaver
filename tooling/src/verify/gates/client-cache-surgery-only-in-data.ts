@@ -60,11 +60,11 @@ export const gate = defineGate({
   authority: "reviewed-grant",
   severity: "error",
   // The legacy predicate: every client source file except test/spec files. The seam is NOT subtracted — a
-  // sanctioned home is a grant, never population subtraction. `entire-population` because grant liveness is
-  // a whole-population verdict: a narrowed selection would stale every row it did not happen to carry.
+  // sanctioned home is a grant, never population subtraction. `selected-files` — a
+  // subset run leaves unconsumed grants unjudged (lib/gate-authority.ts), so a narrowed selection stales nothing.
   population: { in: ["@client"], notNamed: ["*.test.ts", "*.test.tsx", "*.spec.ts", "*.spec.tsx"] },
   analysis: "types",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,

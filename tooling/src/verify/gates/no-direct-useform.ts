@@ -59,7 +59,7 @@ export const gate = defineGate({
   // toolkit home is a grant, not a subtraction.
   population: "@authored",
   analysis: "types",
-  execution: "entire-population",
+  execution: "selected-files",
   facts: [],
   resources: [],
   message: MESSAGE,
