@@ -115,6 +115,19 @@ describe("createBulkImportPersonas", () => {
     expect(rows).toEqual([{ name: "Alex", description: "Alex desc" }]);
   });
 
+  test("a persona named like an Object.prototype member still merges by default", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const op = createBulkImportPersonas(importCtx(db));
+    const first = await op({ ownerId: owner.id, personas: [persona("constructor")] });
+
+    const result = await op({ ownerId: owner.id, personas: [{ ...persona("constructor"), description: "a different one" }], collisions: {} });
+
+    expect(result.personasCreated).toBe(0);
+    expect(result.idByName["constructor"]).toBe(first.idByName["constructor"]);
+    expect(await db.select({ id: personas.id }).from(personas).where(eq(personas.ownerId, owner.id))).toHaveLength(1);
+  });
+
   test("a choice is keyed by folded name: keep-both for one name does not split another", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});

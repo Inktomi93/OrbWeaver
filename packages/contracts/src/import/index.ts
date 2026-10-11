@@ -11,6 +11,7 @@ export {
   encodePersonaCollisionChoices,
   PERSONA_COLLISION_CHOICES,
   PERSONA_COLLISION_FIELD,
+  personaCollisionChoiceFor,
   personaCollisionChoicesSchema,
   personaCollisionReviewSchema,
 } from "./persona-collision.ts";

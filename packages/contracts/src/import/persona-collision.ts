@@ -10,10 +10,21 @@ export type PersonaCollisionChoice = (typeof PERSONA_COLLISION_CHOICES)[number];
 /** What a run with no recorded choice for a collision does, and what the review preselects. */
 export const DEFAULT_PERSONA_COLLISION_CHOICE = "merge" satisfies PersonaCollisionChoice;
 
-/** Folded persona name → the user's choice for that collision. */
 const personaCollisionChoiceSchema = z.enum(PERSONA_COLLISION_CHOICES);
-export const personaCollisionChoicesSchema = z.record(z.string(), personaCollisionChoiceSchema).readonly();
-export type PersonaCollisionChoices = z.infer<typeof personaCollisionChoicesSchema>;
+
+/** Folded persona name → the user's choice for that collision. */
+export type PersonaCollisionChoices = Readonly<Record<string, PersonaCollisionChoice>>;
+
+// Not `z.record`: it rebuilds the object by assignment, which drops an own `__proto__` key (a persona with
+// that name). The value is validated in place, so JSON-parsed own keys survive untouched.
+export const personaCollisionChoicesSchema = z.custom<PersonaCollisionChoices>(
+  (value) =>
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.values(value).every((v) => personaCollisionChoiceSchema.safeParse(v).success),
+  "expected a map of persona name to merge or keep-both",
+);
 
 /** The tree upload's repeated multipart field; each value is `<choice>:<folded name>`. */
 export const PERSONA_COLLISION_FIELD = "personaCollision";
@@ -24,16 +35,23 @@ export function encodePersonaCollisionChoices(choices: PersonaCollisionChoices):
 
 /** The choices a set of {@link PERSONA_COLLISION_FIELD} values spell, or null when any value is malformed. */
 export function decodePersonaCollisionChoices(values: readonly string[]): PersonaCollisionChoices | null {
-  const choices: Record<string, PersonaCollisionChoice> = {};
+  const entries: [string, PersonaCollisionChoice][] = [];
   for (const value of values) {
     const colon = value.indexOf(":");
     const choice = personaCollisionChoiceSchema.safeParse(value.slice(0, colon));
     if (colon === -1 || !choice.success) {
       return null;
     }
-    choices[value.slice(colon + 1)] = choice.data;
+    entries.push([value.slice(colon + 1), choice.data]);
   }
-  return choices;
+  // `fromEntries` defines own properties, so a persona named `__proto__` keeps its choice.
+  return Object.fromEntries(entries);
+}
+
+/** The choice recorded for a folded name. Own keys only: a persona named `constructor` must read as
+ *  unlisted (merge), not as the inherited function. */
+export function personaCollisionChoiceFor(choices: PersonaCollisionChoices | undefined, key: string): PersonaCollisionChoice {
+  return choices !== undefined && Object.hasOwn(choices, key) ? (choices[key] ?? DEFAULT_PERSONA_COLLISION_CHOICE) : DEFAULT_PERSONA_COLLISION_CHOICE;
 }
 
 const personaCollisionSchema = z.strictObject({

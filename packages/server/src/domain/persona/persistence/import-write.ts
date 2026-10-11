@@ -7,7 +7,7 @@
 // migration writes silently; the driver reconciles + emits once at the run level.
 
 import type { PersonaCollisionChoice } from "@orb/contracts/import";
-import { DEFAULT_PERSONA_COLLISION_CHOICE } from "@orb/contracts/import";
+import { personaCollisionChoiceFor } from "@orb/contracts/import";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
 import { personas } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -99,7 +99,7 @@ export function createBulkImportPersonas(ctx: PersonaImportContext): BulkImportP
         continue;
       }
       const identity = identityOf(pi, artHashes);
-      const reused = reusedPersonaId(identity, candidates, owned, collisions?.[key] ?? DEFAULT_PERSONA_COLLISION_CHOICE);
+      const reused = reusedPersonaId(identity, candidates, owned, personaCollisionChoiceFor(collisions, key));
       if (reused !== null) {
         personasSkipped += 1;
       }

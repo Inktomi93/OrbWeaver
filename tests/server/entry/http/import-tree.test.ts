@@ -218,6 +218,38 @@ describe("registerImportTree — belt chain + guard", () => {
   });
 });
 
+describe("registerImportTree — the review route's guard chain", () => {
+  test("mounts [authCsrfGuard, bodyCap, handler]", () => {
+    expect(chain(REVIEW_ROUTE)).toHaveLength(3);
+  });
+
+  test("anonymous → 401, never reaches next", async () => {
+    let nexted = false;
+    // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware to the minimal call-shape for a stub ctx. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    const guard = chain(REVIEW_ROUTE)[0] as unknown as GuardMw;
+    const res = await guard(guardCtx(null), () => {
+      nexted = true;
+      return Promise.resolve();
+    });
+    expect(res instanceof Response ? res.status : null).toBe(401);
+    expect(nexted).toBe(false);
+  });
+
+  test("cookie session WITHOUT the CSRF header → 403", async () => {
+    // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware to the minimal call-shape for a stub ctx. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    const guard = chain(REVIEW_ROUTE)[0] as unknown as GuardMw;
+    const res = await guard(guardCtx(COOKIE_OWNER), () => Promise.resolve());
+    expect(res instanceof Response ? res.status : null).toBe(403);
+  });
+
+  test("fallback session WITHOUT the CSRF header → 403", async () => {
+    // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware to the minimal call-shape for a stub ctx. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    const guard = chain(REVIEW_ROUTE)[0] as unknown as GuardMw;
+    const res = await guard(guardCtx(OWNER), () => Promise.resolve());
+    expect(res instanceof Response ? res.status : null).toBe(403);
+  });
+});
+
 describe("registerImportTree — fail-closed path sanitization (nothing staged, no start)", () => {
   for (const bad of ["wrap/../../etc/passwd", "/abs/characters/Aria.png", "wrap/a\\b.png", "wrap/characters/\0.png"]) {
     test(`rejects ${JSON.stringify(bad)} → 400`, async () => {

@@ -24,7 +24,17 @@ import { DEFAULT_PERSONA_COLLISION_CHOICE } from "@orb/contracts/import";
 import type { WorkloadId } from "@orb/kit/ids";
 import { useRef, useState } from "react";
 import type { TreeImportCaps, TreeImportPlan } from "#data";
-import { importBundle, importCharacters, importTree, planTreeImport, relativePathOf, reviewTreePersonas, useInvalidation, useUploadCaps } from "#data";
+import {
+  importBundle,
+  importCharacters,
+  importTree,
+  plannedFiles,
+  planTreeImport,
+  relativePathOf,
+  reviewTreePersonas,
+  useInvalidation,
+  useUploadCaps,
+} from "#data";
 import { notify } from "#lib";
 import type { BundleCounts, ImportSummary } from "../lib/portability-model.ts";
 import { planNotes, sumBundleCounts, summarizeBundleCounts, summarizeCardImport, summaryCaption } from "../lib/portability-model.ts";
@@ -153,7 +163,7 @@ export function useLibraryImport(): LibraryImport {
     // error state and toasts — a rendered failure surface. Ends if fail() stops writing that state.
     planTreeImport(files, treeCaps(caps))
       .then(async (plan) => {
-        const collisions = await reviewTreePersonas(files);
+        const collisions = await reviewTreePersonas(plannedFiles(plan));
         if (epoch === requestEpoch.current) {
           const choices = Object.fromEntries(collisions.map((c): [string, PersonaCollisionChoice] => [c.key, DEFAULT_PERSONA_COLLISION_CHOICE]));
           setState({ status: "staged", files: [...files], folder: true, plan, collisions, choices });
