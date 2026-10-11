@@ -25,16 +25,17 @@ Do the steps in order. A later step may run in parallel only where its row says 
 
 ### Live state
 
-- Landed: Spine-Testing section 10; the client data and forms direction rules now block components; four zod and alias gates and `tsdoc/syntax` judge tests (item 900, first slice). Biome `noEmptyPattern` stays off for tests because Vitest and Playwright fixtures require empty destructuring, and `noBarrelFile` stays off for tests because Spine-Testing requires the `tests/support/fixtures.ts` barrel.
-- In flight: item 899 first half (law rewrite, reach gate, waiver ratchet support), item 900 core (gate extensions, baselines, catalog, `pnpm ast antipatterns`), items 889, 891 and 893, and the greeting-pager bug, item 903.
-- Next after those land: item 890 (move copied logic to its owning layer, starting with the four widest server harnesses), item 888, item 892, item 894, item 901, item 902, then item 898 after item 887.
+- Landed: Spine-Testing section 10; the client data and forms direction rules now block components; four zod and alias gates and `tsdoc/syntax` judge tests (item 900, first slice). Biome `noEmptyPattern` stays off for tests because Vitest and Playwright fixtures require empty destructuring, and `noBarrelFile` stays off for tests because Spine-Testing requires the `tests/support/fixtures.ts` barrel. Item 899 first half (law rewrite, reach gate, waiver budget), items 889 (with 476), 891 and 903, and the item 893 partial (every test contrast kernel on `wcag.ts`).
+- In flight: item 900 core (gate extensions, baselines, catalog, `pnpm ast antipatterns`), reworked after a refuted review.
+- Open from landed work: item 893 (OKLab known-answer vectors, the kit's second WCAG engine), item 899 second half (section 10 gates), items 914, 915, 920 and 921.
+- Next: item 890 (move copied logic to its owning layer, starting with the four widest server harnesses), item 888, item 892, item 894, item 901, item 902, then item 898 after item 887.
 
 ### Rules that hold during the work
 
 - Do not add a new per-file mirror test beyond what the current gate forces. Prefer a feature suite.
 - Do not mass-move test files. Folding happens when a lane touches an area.
 - Mutation testing is out of scope.
-- The persona-resolution suite stays byte-untouched.
+- The persona-resolution suite's test code stays untouched; its comments may change (owner, 2026-10-11).
 
 ### Burn down the waivers
 
