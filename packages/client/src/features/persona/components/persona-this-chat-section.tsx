@@ -10,7 +10,7 @@
 
 import type { PersonaId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Anchor, Check, ChevronDown, History, Icon } from "@orb/ui/icons";
+import { Check, ChevronDown, History, Icon, IdCard } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
@@ -78,9 +78,6 @@ export function PersonaThisChatSection({ anchorId, idle }: PersonaThisChatSectio
   const notifyOnChange = settings.config.persona.showNotifications;
 
   const setActive = useSetChatActivePersona({ trpc, invalidation });
-  const setAnchor = useSetChatAnchorPersona({ trpc, invalidation });
-  const reattribute = useReattributePersona({ trpc, invalidation });
-  const scopeId = useId();
 
   if (chatId === null) {
     return idle === undefined ? null : (
@@ -92,8 +89,6 @@ export function PersonaThisChatSection({ anchorId, idle }: PersonaThisChatSectio
   if (chat === undefined) {
     return null;
   }
-
-  const memberAnchors = memberAnchorOptions(chat);
 
   // Switch the caller's chat persona; on success fire a confirming toast ONLY when the user opted in via
   // persona.showNotifications (HONORING the previously-stored-but-ignored setting). A no-op switch (already
@@ -108,26 +103,6 @@ export function PersonaThisChatSection({ anchorId, idle }: PersonaThisChatSectio
         onSuccess: (): void => {
           if (notifyOnChange) {
             notify.info(`Now playing as ${persona.name} in this chat.`);
-          }
-        },
-      },
-    );
-  };
-
-  // One call, no pre-read: the server resolves "every user row I authored in this chat" itself. The
-  // confirming notify honors the same `persona.showNotifications` opt-out the switch does (one setting, one
-  // meaning) and fires on the server's ACK, so it never claims a restamp the write didn't land.
-  const onReattribute = (): void => {
-    const targetPersonaId = chat.viewerActivePersonaId;
-    if (targetPersonaId === null) {
-      return;
-    }
-    reattribute.mutate(
-      { chatId, scope: { kind: "mine" }, personaId: targetPersonaId },
-      {
-        onSuccess: (): void => {
-          if (notifyOnChange) {
-            notify.info(`Your messages in this chat now read as ${personaLabel(chat, personas, targetPersonaId)}.`);
           }
         },
       },
@@ -160,76 +135,131 @@ export function PersonaThisChatSection({ anchorId, idle }: PersonaThisChatSectio
         </Menu>
       </Row>
 
-      <Row gap="row" align="center" className="justify-between">
-        <Row gap="field" align="center">
-          <Icon icon={Anchor} size="xs" />
-          <Text size="label" tone="muted">
-            Card sees you as {personaLabel(chat, personas, chat.anchorPersonaId)}
-          </Text>
-        </Row>
-        {chat.viewerIsHost ? (
-          <Menu>
-            <MenuTrigger
-              render={
-                <Button intent="ghost" size="sm">
-                  Re-pin
-                </Button>
-              }
-            />
-            <MenuPopup>
+      <ChatAnchorRow chat={chat} personas={personas} />
+
+      <ChatRestamp chat={chat} personas={personas} />
+    </Section>
+  );
+}
+
+/** The card persona's line. Your own persona reads "Card sees you as …"; another member's must not say
+ *  "you", so it names the persona and its member. */
+function anchorLine(chat: ChatDetail, personas: readonly PersonaListItem[]): string {
+  const name = personaLabel(chat, personas, chat.anchorPersonaId);
+  const owner = chat.participants.find((p) => p.kind === "human" && p.activePersonaId === chat.anchorPersonaId);
+  if (chat.anchorPersonaId === null || personas.some((p) => p.id === chat.anchorPersonaId) || owner?.userId === chat.viewerUserId) {
+    return `Card sees you as ${name}`;
+  }
+  return owner === undefined ? `Card's persona: ${name}` : `Card's persona: ${name} (${owner.displayName})`;
+}
+
+/** The card-pin line: who the card's `{{user}}` is in this chat, with the host-only re-pin. Shared by the
+ *  Settings section and the rail switcher, so the wording and the verb are one. */
+export function ChatAnchorRow({ chat, personas }: { readonly chat: ChatDetail; readonly personas: readonly PersonaListItem[] }): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const setAnchor = useSetChatAnchorPersona({ trpc, invalidation });
+  const chatId = chat.id;
+  const memberAnchors = memberAnchorOptions(chat);
+  return (
+    <Row gap="row" align="center" className="justify-between">
+      <Row gap="field" align="center">
+        <Icon icon={IdCard} size="xs" />
+        <Text size="label" tone="muted">
+          {anchorLine(chat, personas)}
+        </Text>
+      </Row>
+      {chat.viewerIsHost ? (
+        <Menu>
+          <MenuTrigger
+            render={
+              <Button intent="ghost" size="sm">
+                Re-pin
+              </Button>
+            }
+          />
+          <MenuPopup>
+            <MenuGroup>
+              <MenuGroupLabel>Your personas</MenuGroupLabel>
+              {personas.map((p) => (
+                <MenuItem key={p.id} onClick={(): void => setAnchor.mutate({ chatId, personaId: p.id })}>
+                  {p.name}
+                </MenuItem>
+              ))}
+            </MenuGroup>
+            {/* The verb permits ANY present human's persona; grouping by member is what makes that
+                expressible without implying the host owns it. Empty in a solo room ⇒ no group renders. */}
+            {memberAnchors.length > 0 ? (
               <MenuGroup>
-                <MenuGroupLabel>Your personas</MenuGroupLabel>
-                {personas.map((p) => (
-                  <MenuItem key={p.id} onClick={(): void => setAnchor.mutate({ chatId, personaId: p.id })}>
-                    {p.name}
+                <MenuGroupLabel>Members' personas</MenuGroupLabel>
+                {memberAnchors.map((option) => (
+                  <MenuItem key={option.personaId} onClick={(): void => setAnchor.mutate({ chatId, personaId: option.personaId })}>
+                    {option.name} ({option.member})
                   </MenuItem>
                 ))}
               </MenuGroup>
-              {/* The verb permits ANY present human's persona; grouping by member is what makes that
-                  expressible without implying the host owns it. Empty in a solo room ⇒ no group renders. */}
-              {memberAnchors.length > 0 ? (
-                <MenuGroup>
-                  <MenuGroupLabel>Members' personas</MenuGroupLabel>
-                  {memberAnchors.map((option) => (
-                    <MenuItem key={option.personaId} onClick={(): void => setAnchor.mutate({ chatId, personaId: option.personaId })}>
-                      {option.name} ({option.member})
-                    </MenuItem>
-                  ))}
-                </MenuGroup>
-              ) : null}
-              <MenuSeparator />
-              {/* The verb's `personaId: null` arm had no affordance at all — a pin could be moved but never
-                  removed, though clearing it is what falls card {{user}} back to the live speaker. */}
-              <MenuItem onClick={(): void => setAnchor.mutate({ chatId, personaId: null })}>Clear pin</MenuItem>
-            </MenuPopup>
-          </Menu>
-        ) : null}
-      </Row>
+            ) : null}
+            <MenuSeparator />
+            {/* The verb's `personaId: null` arm had no affordance at all — a pin could be moved but never
+                removed, though clearing it is what falls card {{user}} back to the live speaker. */}
+            <MenuItem onClick={(): void => setAnchor.mutate({ chatId, personaId: null })}>Clear pin</MenuItem>
+          </MenuPopup>
+        </Menu>
+      ) : null}
+    </Row>
+  );
+}
 
-      {/* THE BLAST RADIUS IS ON THE SURFACE, NOT IN A TOOLTIP (#2443, side-eye 2026-09-19). This button
-          rewrites EVERY one of the viewer's own lines in the chat, however far back they go — a bulk
-          history edit — and its scope/safety sentence used to live only in a Base UI tooltip, which is
-          `mouseOnly: true` with a `:focus-visible`-gated focus fallback (`TooltipTrigger.js:147`,
-          `useFocus.js:104`). On a phone the button was pressable and its consequence was unreadable. A
-          hover-gated disclosure is the wrong carrier for a consequence the user is about to accept at all;
-          it is visible copy, and `aria-describedby` binds it to the control so AT reads it as the button's
-          description rather than as loose prose after it. */}
-      <Stack gap="field">
-        <Button
-          aria-describedby={scopeId}
-          disabled={chat.viewerActivePersonaId === null || reattribute.isPending}
-          intent="ghost"
-          onClick={onReattribute}
-          size="sm"
-        >
-          <Icon icon={History} size="xs" />
-          Restamp my messages to this persona
-        </Button>
-        <Text as="span" data-slot="restamp-scope" id={scopeId} voice="gloss">
-          Restamps every one of your own lines in this chat to "{personaLabel(chat, personas, chat.viewerActivePersonaId)}" — however far back they go. What you
-          wrote is untouched; replies keep the names they were written with.
-        </Text>
-      </Stack>
-    </Section>
+/** The restamp verb and its visible scope sentence — one name and one consequence for Settings and the
+ *  rail switcher. */
+export function ChatRestamp({ chat, personas }: { readonly chat: ChatDetail; readonly personas: readonly PersonaListItem[] }): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
+  const notifyOnChange = settings.config.persona.showNotifications;
+  const reattribute = useReattributePersona({ trpc, invalidation });
+  const scopeId = useId();
+  const chatId = chat.id;
+  // One call, no pre-read: the server resolves "every user row I authored in this chat" itself. The
+  // confirming notify honors the same `persona.showNotifications` opt-out the switch does (one setting, one
+  // meaning) and fires on the server's ACK, so it never claims a restamp the write didn't land.
+  const onReattribute = (): void => {
+    const targetPersonaId = chat.viewerActivePersonaId;
+    if (targetPersonaId === null) {
+      return;
+    }
+    reattribute.mutate(
+      { chatId, scope: { kind: "mine" }, personaId: targetPersonaId },
+      {
+        onSuccess: (): void => {
+          if (notifyOnChange) {
+            notify.info(`Your messages in this chat now read as ${personaLabel(chat, personas, targetPersonaId)}.`);
+          }
+        },
+      },
+    );
+  };
+  // THE BLAST RADIUS IS ON THE SURFACE, NOT IN A TOOLTIP (#2443, side-eye 2026-09-19). This button rewrites
+  // EVERY one of the viewer's own lines in the chat, however far back they go — a bulk history edit — and
+  // its scope sentence used to live only in a Base UI tooltip, which is hover/focus-visible gated: on a
+  // phone the button was pressable and its consequence unreadable. It is visible copy, and
+  // `aria-describedby` binds it to the control so AT reads it as the button's description.
+  return (
+    <Stack gap="field">
+      <Button
+        aria-describedby={scopeId}
+        disabled={chat.viewerActivePersonaId === null || reattribute.isPending}
+        intent="ghost"
+        onClick={onReattribute}
+        size="sm"
+      >
+        <Icon icon={History} size="xs" />
+        Restamp my messages to this persona
+      </Button>
+      <Text as="span" data-slot="restamp-scope" id={scopeId} voice="gloss">
+        Restamps every one of your own lines in this chat to "{personaLabel(chat, personas, chat.viewerActivePersonaId)}" — however far back they go. What you
+        wrote is untouched; replies keep the names they were written with.
+      </Text>
+    </Stack>
   );
 }

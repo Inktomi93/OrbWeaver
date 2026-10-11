@@ -290,6 +290,7 @@ export type { ModalSlotId } from "./modal-slot-ids.ts";
 export { MODAL_SLOT_IDS } from "./modal-slot-ids.ts";
 export type { OverlayPanelRequest, PanelMode, PanelName } from "./panel-resolve.ts";
 export { resolvePanelMode } from "./panel-resolve.ts";
+export { takePersonaEditorFocus, usePersonaEditorFocusRequest } from "./persona-editor-focus-store.ts";
 export { openPersonaEditor, selectPersonaEditor, usePersonaEditorId } from "./persona-editor-selection-store.ts";
 export {
   __readPluginCommandArgsSubjectForTest,

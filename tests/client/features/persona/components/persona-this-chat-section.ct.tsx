@@ -190,7 +190,7 @@ test("the anchor row names a MEMBER-OWNED pin from the chat's name producer, not
   await mount(<PersonaThisChatStory />);
 
   // Zara is nowhere in `persona.list` — the viewer only owns Nova/Orion.
-  await expect(page.getByText("Card sees you as Zara")).toBeVisible();
+  await expect(page.getByText("Card's persona: Zara (Rowan)")).toBeVisible();
   await expect(page.getByText("Unknown persona")).toHaveCount(0);
 });
 
