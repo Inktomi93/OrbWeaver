@@ -63,6 +63,8 @@ export interface RowActionsMenuProps {
   /** The trigger's outline: `control` (default) or `pill`, for a trigger standing in a row of pill neighbours
    *  (the composer's controls) so its hover paint matches them. @defaultValue "control" */
   readonly shape?: "control" | "pill";
+  /** Roving focus: `-1` takes the trigger out of the tab order while its row is not the list's one tab stop. */
+  readonly triggerTabIndex?: -1;
   /** A3 hover-reveal on the trigger (rest hidden). @defaultValue false — pass true only where the row already hid its cluster. */
   readonly reveal?: boolean;
   /** Render the trigger's `label` as a hover/focus tooltip — a BOOLEAN, never a second string (#869).
@@ -120,6 +122,35 @@ const TRIGGER_BUTTON_SIZE = { icon: "icon", inline: "inline", sm: "icon-sm" } as
   "icon" | "icon-sm" | "inline"
 >;
 
+function actionsTrigger({
+  label,
+  icon,
+  size,
+  shape,
+  reveal,
+  tabIndex,
+}: {
+  readonly label: string;
+  readonly icon: LucideIcon;
+  readonly size: NonNullable<RowActionsMenuProps["triggerSize"]>;
+  readonly shape: "control" | "pill";
+  readonly reveal: boolean;
+  readonly tabIndex: -1 | undefined;
+}): ReactElement {
+  return (
+    <Button
+      aria-label={label}
+      className={reveal ? `${RECEDED_INK} ${ROW_REVEAL}` : RECEDED_INK}
+      intent="ghost"
+      shape={shape}
+      size={TRIGGER_BUTTON_SIZE[size]}
+      {...(tabIndex === undefined ? {} : { tabIndex })}
+    >
+      <Icon icon={icon} size="sm" />
+    </Button>
+  );
+}
+
 /**
  * The one row/entity actions menu — ghost ⋯ trigger, a popup of `children` items, and an optional
  * destructive item wired to a ConfirmDialog whose open-state this composite owns. Non-destructive
@@ -132,6 +163,7 @@ export function RowActionsMenu({
   align = "end",
   triggerSize = "icon",
   shape = "control",
+  triggerTabIndex,
   reveal = false,
   tooltip = false,
   destructive,
@@ -144,40 +176,12 @@ export function RowActionsMenu({
       <Menu>
         {tooltip ? (
           <Tooltip>
-            <TooltipTrigger
-              render={
-                <MenuTrigger
-                  render={
-                    <Button
-                      aria-label={label}
-                      className={reveal ? `${RECEDED_INK} ${ROW_REVEAL}` : RECEDED_INK}
-                      intent="ghost"
-                      shape={shape}
-                      size={TRIGGER_BUTTON_SIZE[triggerSize]}
-                    >
-                      <Icon icon={icon} size="sm" />
-                    </Button>
-                  }
-                />
-              }
-            />
+            <TooltipTrigger render={<MenuTrigger render={actionsTrigger({ icon, label, reveal, shape, size: triggerSize, tabIndex: triggerTabIndex })} />} />
             {/* The popup text IS the accessible name — the same `label`, never a twin (see the prop's doc). */}
             <TooltipPopup side="top">{label}</TooltipPopup>
           </Tooltip>
         ) : (
-          <MenuTrigger
-            render={
-              <Button
-                aria-label={label}
-                className={reveal ? `${RECEDED_INK} ${ROW_REVEAL}` : RECEDED_INK}
-                intent="ghost"
-                shape={shape}
-                size={TRIGGER_BUTTON_SIZE[triggerSize]}
-              >
-                <Icon icon={icon} size="sm" />
-              </Button>
-            }
-          />
+          <MenuTrigger render={actionsTrigger({ icon, label, reveal, shape, size: triggerSize, tabIndex: triggerTabIndex })} />
         )}
         <MenuPopup align={align}>
           {children}

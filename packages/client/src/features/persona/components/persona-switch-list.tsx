@@ -20,7 +20,8 @@ import { PopoverClose } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { ReactElement } from "react";
+import type { KeyboardEvent, ReactElement } from "react";
+import { useState } from "react";
 import { HIDE_AT_COARSE, PIN_REVEAL, ROW_ACTION_OVERFLOW, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { cn, rowActionSubject, rowQualifiers, timeLib } from "#lib";
@@ -52,6 +53,22 @@ export interface PersonaSwitchListProps {
   readonly presentation: ChromePresentation;
 }
 
+/** Arrow-key targets for the roving list: the row index a key lands on, given where focus is and how many rows. */
+function rovingTarget(key: string, at: number, count: number): number | undefined {
+  switch (key) {
+    case "ArrowDown":
+      return Math.min(at + 1, count - 1);
+    case "ArrowUp":
+      return Math.max(at - 1, 0);
+    case "Home":
+      return 0;
+    case "End":
+      return count - 1;
+    default:
+      return;
+  }
+}
+
 /** The switch rows — qualifiers resolved once with the whole list in hand (#458). */
 export function PersonaSwitchList({
   personas,
@@ -74,11 +91,30 @@ export function PersonaSwitchList({
     timeLib.formatDateTime,
   );
 
+  // ONE TAB STOP (APG composite shape): only the row that last held focus (first load: the playing row)
+  // keeps its controls in the tab order; ArrowUp/ArrowDown/Home/End move between the rows' main buttons.
+  // A row's pin, Edit and menu stay reachable — Tab from its main button walks them — so a keyboard reader
+  // pays one stop plus at most one row's controls, whatever the list's length.
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const stopId = personas.some((persona) => persona.id === activeId) ? activeId : (personas.find((persona) => persona.id === currentId)?.id ?? personas[0]?.id);
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>): void => {
+    const rows = [...event.currentTarget.querySelectorAll<HTMLElement>("[data-switch-row-button]")];
+    const at = rows.indexOf(event.target as HTMLElement);
+    const to = rovingTarget(event.key, at, rows.length);
+    if (at === -1 || to === undefined) {
+      return;
+    }
+    event.preventDefault();
+    rows[to]?.focus();
+  };
+
   return (
-    <Stack gap="field">
+    <Stack gap="field" onKeyDown={onKeyDown}>
       {personas.map((persona, index) => (
         <SwitchRow
           key={persona.id}
+          isTabStop={persona.id === stopId}
+          onFocusRow={(): void => setActiveId(persona.id)}
           isCardPin={persona.id === cardPinId}
           isCurrent={persona.id === currentId}
           isDefault={persona.id === defaultId}
@@ -103,6 +139,8 @@ function SwitchRow({
   isCardPin,
   isCurrent,
   isDefault,
+  isTabStop,
+  onFocusRow,
   onSwitch,
   onPin,
   onUnpin,
@@ -114,6 +152,8 @@ function SwitchRow({
   readonly isCardPin: boolean;
   readonly isCurrent: boolean;
   readonly isDefault: boolean;
+  readonly isTabStop: boolean;
+  readonly onFocusRow: () => void;
   readonly onSwitch: () => void;
   readonly onPin: () => void;
   readonly onUnpin: () => void;
@@ -121,9 +161,11 @@ function SwitchRow({
   readonly seatBindsPresets: boolean;
 }): ReactElement {
   const avatarSrc = persona.avatarHash === null ? {} : { src: blobUrl(persona.avatarHash) };
+  const tabIndex = isTabStop ? undefined : -1;
   return (
     <Row
       align="center"
+      onFocus={onFocusRow}
       className="group relative min-h-control-md rounded-control transition-colors duration-(--motion-fast) ease-out-expo hover:not-data-selected:bg-accent/50 data-selected:bg-accent"
       data-selected={isCurrent ? "" : undefined}
       gap="row"
@@ -133,8 +175,10 @@ function SwitchRow({
         aria-current={isCurrent ? "true" : undefined}
         aria-label={isCurrent ? `${subject} — current persona` : `Switch to ${subject}`}
         className="absolute inset-0 rounded-control"
+        data-switch-row-button=""
         intent="ghost"
         onClick={onSwitch}
+        {...(tabIndex === undefined ? {} : { tabIndex })}
       />
       {/* Ornament over the stretched button (`relative` paints it above the button's hover fill, so the name
           never disappears under it) — the row's one control already names the persona. */}
@@ -146,10 +190,17 @@ function SwitchRow({
       </Text>
       {/* Three states, one marker each: playing as (check), the chat's card persona (card), default (the pin). */}
       <PersonaStateMarkers isCardPin={isCardPin} isCurrent={isCurrent} name={persona.name} seatBindsPresets={seatBindsPresets} />
-      <PersonaPin className="relative shrink-0" isDefault={isDefault} onPin={onPin} onUnpin={onUnpin} subject={subject} toggle={true} />
-      <EditDoor personaId={persona.id} presentation={presentation} subject={subject} />
+      <PersonaPin
+        className="relative shrink-0"
+        isDefault={isDefault}
+        onPin={onPin}
+        onUnpin={onUnpin}
+        subject={subject}
+        {...(tabIndex === undefined ? {} : { tabIndex })}
+      />
+      <EditDoor personaId={persona.id} presentation={presentation} subject={subject} tabIndex={tabIndex} />
       <Row align="center" className={cn("relative shrink-0", ROW_ACTION_OVERFLOW) ?? ""}>
-        <RowActionsMenu label={`Actions for ${subject}`}>
+        <RowActionsMenu label={`Actions for ${subject}`} {...(tabIndex === undefined ? {} : { triggerTabIndex: tabIndex })}>
           {presentation === "bar" ? (
             <PopoverClose render={<MenuItem onClick={(): void => openPersonaEditor(persona.id)}>Edit</MenuItem>} />
           ) : (
@@ -175,10 +226,12 @@ function EditDoor({
   personaId,
   subject,
   presentation,
+  tabIndex,
 }: {
   readonly personaId: PersonaListItem["id"];
   readonly subject: string;
   readonly presentation: ChromePresentation;
+  readonly tabIndex: -1 | undefined;
 }): ReactElement {
   const label = `Edit ${subject}`;
   const door = (
@@ -188,6 +241,7 @@ function EditDoor({
       intent="ghost"
       onClick={(): void => openEditor(personaId, presentation)}
       size="icon"
+      {...(tabIndex === undefined ? {} : { tabIndex })}
     >
       <Icon icon={Pencil} size="sm" />
     </Button>

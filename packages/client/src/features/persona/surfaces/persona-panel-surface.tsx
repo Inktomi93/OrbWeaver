@@ -24,15 +24,13 @@ import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { useInvalidation, useTRPC } from "#data";
 import { deriveChatTitle } from "#lib";
 import type { ChromePresentation } from "#state";
 import { closeModal, openConfigTo } from "#state";
 import { PersonaAccountFoot } from "../components/persona-account-foot.tsx";
 import { PersonaSwitchList } from "../components/persona-switch-list.tsx";
 import { ChatAnchorRow, ChatRestamp } from "../components/persona-this-chat-section.tsx";
-import { useSetPersonaSeed } from "../hooks/use-persona-identity.ts";
-import { usePlayingPersona, useSwitchPersona } from "../hooks/use-playing-persona.ts";
+import { useDefaultPin, usePlayingPersona, useSwitchPersona } from "../hooks/use-playing-persona.ts";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
@@ -83,9 +81,6 @@ export function PersonaPanelSurface({ presentation }: PersonaPanelSurfaceProps):
 }
 
 function PanelBody({ presentation }: PersonaPanelSurfaceProps): ReactElement {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  const setSeed = useSetPersonaSeed({ trpc, invalidation });
   // Who is playing, read ONCE for the chip, the head, the rows and (via the hook) the Settings list: a room's
   // SEAT when one is open on either lens, else the global pointer.
   const state = usePlayingPersona();
@@ -95,12 +90,7 @@ function PanelBody({ presentation }: PersonaPanelSurfaceProps): ReactElement {
   // "Everywhere" also writes the global pointer.
   const [pickedScope, setPickedScope] = useState<SwitchScope>("everywhere");
   const onSwitch = useSwitchPersona(state, pickedScope);
-  const onPin = (persona: PersonaListItem): void => {
-    setSeed.mutate({ section: "seeds", patch: { defaultPersonaId: persona.id } });
-  };
-  const onUnpin = (): void => {
-    setSeed.mutate({ section: "seeds", patch: { defaultPersonaId: null } });
-  };
+  const defaultPin = useDefaultPin(state);
 
   const sections: ReactNode = (
     <Stack gap="row">
@@ -112,9 +102,9 @@ function PanelBody({ presentation }: PersonaPanelSurfaceProps): ReactElement {
           cardPinId={chat?.anchorPersonaId ?? null}
           currentId={playing?.id ?? null}
           defaultId={seeds.defaultPersonaId}
-          onPin={onPin}
+          onPin={(persona): void => defaultPin.pin(persona.id)}
           onSwitch={onSwitch}
-          onUnpin={onUnpin}
+          onUnpin={defaultPin.clear}
           personas={personas}
           presentation={presentation}
           seatBindsPresets={seatBindsPresets}

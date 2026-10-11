@@ -7,7 +7,7 @@
 
 import { QueryBoundary } from "@orb/client/components";
 import { PersonaPanelRow, personaChrome } from "@orb/client/features/persona";
-import type { NotifyInput } from "@orb/client/lib";
+import type { NotifyInput, NotifyNotice } from "@orb/client/lib";
 import { bindNotify, toNotice } from "@orb/client/lib";
 import { __resetConfigNav, selectChat, usePersonaEditorId } from "@orb/client/state";
 import type { ChatId, PersonaId } from "@orb/kit/ids";
@@ -100,7 +100,7 @@ export function PersonaThisChatStory(): ReactElement {
  *  defect is invisible at the 320px default story width for the same reason the theme-band clip was invisible
  *  at the content-sized mount — a shortfall this narrow only shows once the box is the real one. The width is
  *  SET on the container (the mount root is content-sized and would simply grow). */
-export function PersonaPanelRowDenseStory({ width = 358 }: { readonly width?: number } = {}): ReactElement {
+export function PersonaPanelRowDenseStory({ width = 358, cardPin = false }: { readonly width?: number; readonly cardPin?: boolean } = {}): ReactElement {
   return (
     <CtDataProviders>
       {/* A FIXED-width container (the narrowest-mount rule): a content-sized mount root agrees with the
@@ -108,12 +108,13 @@ export function PersonaPanelRowDenseStory({ width = 358 }: { readonly width?: nu
       <div style={{ width }}>
         <PersonaPanelRow
           expanded={false}
-          isCardPin={true}
+          isCardPin={cardPin}
           isCurrent={true}
           seatBindsPresets={true}
           isDefault={true}
           onDelete={(): void => undefined}
           onSetCurrent={(): void => undefined}
+          onClearDefault={(): void => undefined}
           onSetDefault={(): void => undefined}
           onToggleExpand={(): void => undefined}
           persona={{ ...PERSONA, name: "Traveler", starred: true }}
@@ -133,15 +134,26 @@ export function PersonaPanelRowDenseStory({ width = 358 }: { readonly width?: nu
  *  The list itself comes from the `.ct.tsx`'s `persona.list` + `settings.getUserSettings` stubs — this
  *  story supplies only the 320px sheet box, which is the narrowest real host for these rows (#458). */
 export function PersonaYouSheetStory({ chatId }: { readonly chatId?: ChatId } = {}): ReactElement {
+  // `notify` no-ops in the CT harness, so the story binds it to a DOM sink: the last notice's action renders
+  // as a button the CT can press, the way the toast host would.
+  const [notice, setNotice] = useState<NotifyNotice | null>(null);
   useState(() => {
     if (chatId !== undefined) {
       selectChat(chatId);
     }
+    const sink = (raised: NotifyInput): void => setNotice(toNotice(raised));
+    bindNotify({ error: sink, info: sink, success: sink, warn: sink });
     return null;
   });
   return (
     <CtDataProviders>
       <div style={{ width: 320 }}>{personaChrome.behavior.kind === "widget" ? personaChrome.behavior.body("sheet") : null}</div>
+      <p data-testid="notified">{notice?.title ?? ""}</p>
+      {notice?.action === undefined ? null : (
+        <button onClick={notice.action.onClick} type="button">
+          {notice.action.label}
+        </button>
+      )}
     </CtDataProviders>
   );
 }
@@ -259,6 +271,7 @@ export function PersonaPanelRowStory(): ReactElement {
           isDefault={false}
           onDelete={(): void => setFired("delete")}
           onSetCurrent={(): void => setFired("current")}
+          onClearDefault={(): void => setFired("clear")}
           onSetDefault={(): void => setFired("default")}
           onToggleExpand={(): void => {
             setFired("expand");

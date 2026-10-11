@@ -10,14 +10,22 @@ import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel } from "@orb/ui/collapsible";
 import { FileTrigger } from "@orb/ui/file-trigger";
 import type { LucideIcon } from "@orb/ui/icons";
-import { ChevronDown, ChevronRight, Copy, Download, Heart, Icon, Pencil } from "@orb/ui/icons";
+import { ChevronDown, ChevronRight, Copy, Download, Heart, Icon, Pencil, Pin } from "@orb/ui/icons";
 import { Layer, Row, Stack } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog, FINE_INERT_UNTIL_HOVER, ROW_ACTION_INLINE, ROW_ACTION_OVERFLOW, ROW_REVEAL, ROW_REVEAL_SWAP, RowActionsMenu } from "#components";
+import {
+  ConfirmDialog,
+  FINE_INERT_UNTIL_HOVER,
+  ROW_ACTION_INLINE,
+  ROW_ACTION_OVERFLOW,
+  ROW_REVEAL,
+  ROW_REVEAL_SWAP_COARSE_KEEP,
+  RowActionsMenu,
+} from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC, useTRPCClient, useUploadAsset, useUploadCaps } from "#data";
 import { cn, downloadTextFile, notify, oversizeUploadMessage, rowActionSubject, rowActionsName } from "#lib";
@@ -44,6 +52,7 @@ export interface PersonaPanelRowProps {
   readonly expanded: boolean;
   readonly onSetCurrent: () => void;
   readonly onSetDefault: () => void;
+  readonly onClearDefault: () => void;
   readonly onToggleExpand: () => void;
   /** Reaches `ConfirmDialog.onConfirm` below, which AWAITS a returned promise (#1563b, widened #1632): the
    *  confirm holds open busy, closes on resolve, stays open with the reason on rejection. `() => void`
@@ -62,6 +71,7 @@ export function PersonaPanelRow({
   expanded,
   onSetCurrent,
   onSetDefault,
+  onClearDefault,
   onToggleExpand,
   onDelete,
 }: PersonaPanelRowProps): ReactElement {
@@ -198,12 +208,11 @@ export function PersonaPanelRow({
             width; it does not make that width elastic. So the cluster reserves what it needs and the NAME is
             the row's single shrinker. */}
         <Layer className="relative shrink-0" data-slot="persona-row-markers">
-          <Row align="center" className={cn("pointer-events-none", ROW_REVEAL_SWAP) ?? ""} gap="field" justify="end">
+          <Row align="center" className={cn("pointer-events-none", ROW_REVEAL_SWAP_COARSE_KEEP) ?? ""} gap="field" justify="end">
             {/* THE STATE MARKERS (the switcher's own set): a check on who is playing, a card on the room's card
-                persona — glyphs, not pills, so no state is said twice beside the pin one cell over. The cell keeps
-                plain `ROW_REVEAL_SWAP`: the coarse drop is DELIBERATE (a narrow row cannot afford them), and at
-                coarse the states survive as the stretched button's state-aware NAME + `aria-current` (current)
-                and the always-in-flow PIN (default). */}
+                persona — glyphs, not pills, so no state is said twice beside the pin one cell over. They are small
+                enough to stay at a coarse pointer too (`ROW_REVEAL_SWAP_COARSE_KEEP`: they step aside for the
+                actions on hover only), so a phone row states the card persona as well as the playing one. */}
             <PersonaStateMarkers isCardPin={isCardPin} isCurrent={isCurrent} name={persona.name} seatBindsPresets={seatBindsPresets} />
           </Row>
 
@@ -252,7 +261,10 @@ export function PersonaPanelRow({
                   onToggleExpand();
                 }
               }}
+              isDefault={isDefault}
+              onClearDefault={onClearDefault}
               onExport={onExport}
+              onSetDefault={onSetDefault}
               onToggleFavorite={onToggleFavorite}
               starred={persona.starred}
               subject={subject}
@@ -266,7 +278,7 @@ export function PersonaPanelRow({
             and the chevron — the board draws pin before ⋯, but the markers⇄actions pair share ONE Layer
             cell by the 2026-08-06 P1 ruling and the pin can ride inside neither half (deviation recorded
             in the design doc). */}
-        <PersonaPin className="relative shrink-0" isDefault={isDefault} onPin={onSetDefault} subject={subject} />
+        <PersonaPin className="relative shrink-0" isDefault={isDefault} onPin={onSetDefault} onUnpin={onClearDefault} subject={subject} />
 
         <IconAction
           className="relative shrink-0"
@@ -315,6 +327,9 @@ function PersonaRowMenu({
   onEdit,
   onExport,
   onToggleFavorite,
+  onSetDefault,
+  onClearDefault,
+  isDefault,
   starred,
   subject,
 }: {
@@ -331,14 +346,17 @@ function PersonaRowMenu({
   readonly onDuplicate: () => void;
   readonly onExport: () => Promise<void>;
   readonly onToggleFavorite: () => void;
+  readonly onSetDefault: () => void;
+  readonly onClearDefault: () => void;
+  readonly isDefault: boolean;
   readonly starred: boolean;
   /** The row's announced identity (`rowActionSubject`) — what the TRIGGER's accessible name embeds, so two
    *  same-named rows can't hand one list two controls called "Actions for Traveler" (#443/#458). */
   readonly subject: string;
 }): ReactElement {
-  // Set-as-default LEFT this menu with #866 S4 (pin-not-crown): the pin is an always-in-flow row control
-  // at BOTH pointer classes, so a coarse-overflow twin here would be the double-telling the collapse
-  // rule exists to prevent. The Favorite twin stays — its inline heart still stands down at coarse.
+  // Set / Clear default stand down into this menu at a coarse pointer, where the row's pin toggle is hidden
+  // (the default row keeps a quiet marker as its state); at a fine pointer the pin is the verb, so the item
+  // is overflow-only — exactly one of the pair is in layout, the Favorite rule.
   return (
     <RowActionsMenu
       destructive={{
@@ -351,6 +369,10 @@ function PersonaRowMenu({
       <MenuItem className={ROW_ACTION_OVERFLOW} onClick={onToggleFavorite}>
         <Icon icon={Heart} size="sm" />
         {starred ? "Unfavorite" : "Favorite"}
+      </MenuItem>
+      <MenuItem className={ROW_ACTION_OVERFLOW} onClick={isDefault ? onClearDefault : onSetDefault}>
+        <Icon icon={Pin} size="sm" />
+        {isDefault ? "Clear default" : "Set as default"}
       </MenuItem>
       <MenuItem onClick={onEdit}>
         <Icon icon={Pencil} size="sm" />

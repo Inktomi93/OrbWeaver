@@ -19,9 +19,8 @@ import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { notify, rowQualifiers, timeLib } from "#lib";
 import { selectPersonaEditor, usePersonaEditorId } from "#state";
-import { useSetPersonaSeed } from "../hooks/use-persona-identity.ts";
 import { useCreatePersona, useImportPersonaFile, useRemovePersona } from "../hooks/use-persona-mutations.ts";
-import { usePlayingPersona, useSwitchPersona } from "../hooks/use-playing-persona.ts";
+import { useDefaultPin, usePlayingPersona, useSwitchPersona } from "../hooks/use-playing-persona.ts";
 import { PersonaFromCharacterDialog } from "./persona-from-character-dialog.tsx";
 import { PersonaPanelRow } from "./persona-panel-row.tsx";
 
@@ -29,10 +28,10 @@ import { PersonaPanelRow } from "./persona-panel-row.tsx";
 export function PersonaList(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const setSeed = useSetPersonaSeed({ trpc, invalidation });
   // The same "who is playing" the switcher reads: a room's seat when one is open, else the global pointer.
   const state = usePlayingPersona();
   const switchTo = useSwitchPersona(state, "everywhere");
+  const defaultPin = useDefaultPin(state);
   const create = useCreatePersona({ trpc, invalidation });
   const remove = useRemovePersona({ trpc, invalidation });
   const importPersona = useImportPersonaFile({ trpc, invalidation });
@@ -142,7 +141,8 @@ export function PersonaList(): ReactElement {
               isDefault={persona.id === defaultId}
               expanded={persona.id === expandedId}
               onSetCurrent={(): void => switchTo(persona)}
-              onSetDefault={(): void => setSeed.mutate({ section: "seeds", patch: { defaultPersonaId: persona.id } })}
+              onSetDefault={(): void => defaultPin.pin(persona.id)}
+              onClearDefault={defaultPin.clear}
               onToggleExpand={(): void => setExpandedId(expandedId === persona.id ? null : persona.id)}
               onDelete={(): void => onDelete(persona.id)}
             />

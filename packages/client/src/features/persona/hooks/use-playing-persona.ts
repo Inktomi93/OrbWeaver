@@ -55,6 +55,32 @@ export function usePlayingPersona(): PlayingPersonaState {
   };
 }
 
+/** The default pin's two verbs, shared by the switcher and the Settings list. Clearing is a quiet edit of a
+ *  stored preference, so it says so and offers Undo. */
+export function useDefaultPin(state: PlayingPersonaState): { readonly pin: (personaId: string) => void; readonly clear: () => void } {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const setSeed = useSetPersonaSeed({ trpc, invalidation });
+  const previousId = state.seeds.defaultPersonaId;
+  const pin = (personaId: string): void => {
+    setSeed.mutate({ section: "seeds", patch: { defaultPersonaId: personaId } });
+  };
+  const clear = (): void => {
+    setSeed.mutate(
+      { section: "seeds", patch: { defaultPersonaId: null } },
+      {
+        onSuccess: (): void => {
+          notify.info({
+            title: "Default persona cleared",
+            ...(previousId === null ? {} : { action: { label: "Undo", onClick: (): void => pin(previousId) } }),
+          });
+        },
+      },
+    );
+  };
+  return { pin, clear };
+}
+
 /** The ONE switch verb. A no-op write (already the seat / already the pointer) is skipped. */
 export function useSwitchPersona(state: PlayingPersonaState, scope: SwitchScope): (persona: PersonaListItem) => void {
   const trpc = useTRPC();

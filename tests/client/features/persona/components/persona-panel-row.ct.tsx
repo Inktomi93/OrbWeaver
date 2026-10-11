@@ -107,7 +107,7 @@ test("a favorited row states 'favorited' ONCE; the default PIN keeps its own nam
   const component = await mount(<PersonaPanelRowDenseStory />);
   await expect(component.getByRole("button", { name: "Unfavorite Traveler", exact: true })).toBeAttached();
   await expect(component.getByRole("img", { name: "Favorited" })).toHaveCount(0);
-  await expect(component.getByRole("img", { name: "Pinned — your default persona" })).toBeVisible();
+  await expect(component.getByRole("button", { name: /is pinned as your default$/, pressed: true })).toBeVisible();
 });
 
 // ── PIN-NOT-CROWN (#866 S4) ─────────────────────────────────────────────────────────────────────────
@@ -117,10 +117,10 @@ test("a favorited row states 'favorited' ONCE; the default PIN keeps its own nam
 // the svg, so a re-introduced crown or star in this row fails here by name.
 test("pin-not-crown: no crown or star glyph anywhere in the row; the default marker is the pin", async ({ mount }) => {
   const component = await mount(<PersonaPanelRowDenseStory />);
-  await expect(component.getByRole("img", { name: "Pinned — your default persona" })).toBeVisible();
+  await expect(component.getByRole("button", { name: /is pinned as your default$/, pressed: true })).toBeVisible();
   await expect(component.locator("svg.lucide-crown")).toHaveCount(0);
   await expect(component.locator("svg.lucide-star")).toHaveCount(0);
-  await expect(component.locator("svg.lucide-pin")).toHaveCount(1);
+  await expect(component.locator("svg.lucide-pin:visible")).toHaveCount(1);
 });
 
 test("the faint pin on a NON-default row is the set-default verb — clicking it fires onSetDefault only", async ({ mount }) => {
@@ -248,7 +248,7 @@ test("at the 320px You-sheet width the name lane and the marker cluster never ov
 // height/line-height ratio probe can't serve a Badge — its box carries vertical padding — so the pin
 // reads the wrap rule + the overflow directly.)
 test("the playing-as and card-persona glyphs both render at 320px, beside the pin", async ({ mount }) => {
-  const component = await mount(<PersonaPanelRowDenseStory width={320} />);
+  const component = await mount(<PersonaPanelRowDenseStory cardPin={true} width={320} />);
   await expect(component.getByRole("img", { name: "Playing as", exact: true })).toBeVisible();
   await expect(component.getByRole("img", { name: "Card's persona in this chat", exact: true })).toBeVisible();
 });
@@ -320,6 +320,13 @@ test.describe("coarse pointer", () => {
       const component = await mount(<PersonaPanelRowDenseStory width={width} />);
       await expect(component.getByRole("img", { name: "Pinned — your default persona" })).toBeVisible();
       await expect(component.getByRole("img", { name: "Favorited" })).toBeVisible();
+    });
+
+    test(`@${width}: the playing-as and card-persona markers stay on a phone row`, async ({ mount, page }) => {
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      const component = await mount(<PersonaPanelRowDenseStory cardPin={true} width={width} />);
+      await expect(component.getByRole("img", { name: "Playing as", exact: true })).toBeVisible();
+      await expect(component.getByRole("img", { name: "Card's persona in this chat", exact: true })).toBeVisible();
     });
 
     // THE A11Y HALF OF THE SAME PREMISE DEATH (found while fixing the visual half; unreported). The heart

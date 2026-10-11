@@ -11,6 +11,7 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Copy, Icon, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { FOCUS_RING } from "@orb/ui/lib";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -85,7 +86,7 @@ export function PersonaEditorRegion({ persona, subject, onRequestDelete }: Perso
   return (
     <Stack
       aria-label={`Edit ${subject}`}
-      className="rounded-base border border-border p-block outline-none"
+      className={`rounded-base border border-border p-block outline-none ${FOCUS_RING}`}
       gap="section"
       ref={regionRef}
       role="group"

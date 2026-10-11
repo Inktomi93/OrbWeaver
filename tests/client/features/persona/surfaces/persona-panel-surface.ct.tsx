@@ -129,7 +129,7 @@ test("the sheet is the switcher grammar: who-head, switch rows with pins, accoun
   await expect(page.getByRole("button", { name: "Nova — current persona" })).toHaveAttribute("aria-current", "true");
   await expect(page.getByRole("button", { name: "Switch to Orion", exact: true })).toBeAttached();
   await expect(page.getByRole("button", { name: "Pin Orion as your default", exact: true })).toBeAttached();
-  await expect(page.getByRole("button", { name: "Pinned — your default persona", pressed: true })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: DEFAULT_PIN_BUTTON, pressed: true })).toHaveCount(1);
   await expect(page.getByRole("button", { name: "Pin Orion as your default", exact: true, pressed: false })).toBeAttached();
   // The account foot carries the identity facts + Log out (the retired modal's anatomy, F-3).
   await expect(page.getByTestId("account-surface")).toContainText("owner");
@@ -312,7 +312,7 @@ test("a row's pin shows only while THAT row is hovered or keyboard-focused; the 
   const lyra = pinOf(page, "Pin Lyra as your default");
 
   // The pinned row (Nova) carries its state at rest; the unrelated rows carry nothing.
-  await expect(pinOf(page, "Pinned — your default persona")).toHaveCSS("opacity", "1");
+  await expect(page.getByRole("button", { name: DEFAULT_PIN_BUTTON, pressed: true })).toHaveCSS("opacity", "1");
   await page.mouse.move(0, 0);
   await expect(orion).toHaveCSS("opacity", "0");
   await expect(lyra).toHaveCSS("opacity", "0");
@@ -402,6 +402,8 @@ const ZARA = "persona_zara";
 const PLAYING = "Playing as";
 const CARD_PIN = "Card's persona in this chat";
 const DEFAULT_PIN = "Pinned — your default persona";
+// The pressed pin's BUTTON names its persona; the coarse marker (an image) keeps the plain state name above.
+const DEFAULT_PIN_BUTTON = /is pinned as your default$/;
 
 /** The switch row holding the control named `persona` (its stretched button is the row's direct child). */
 function rowOf(page: Page, persona: string): Locator {
@@ -418,11 +420,11 @@ test("after a swap the playing-as and card-pin markers sit on different rows, ea
 
   await expect(rowOf(page, "Orion").getByRole("img", { name: PLAYING, exact: true })).toBeVisible();
   await expect(rowOf(page, "Lyra").getByRole("img", { name: CARD_PIN, exact: true })).toBeVisible();
-  await expect(rowOf(page, "Nova").getByRole("button", { name: DEFAULT_PIN, pressed: true })).toBeVisible();
+  await expect(rowOf(page, "Nova").getByRole("button", { name: DEFAULT_PIN_BUTTON, pressed: true })).toBeVisible();
   // One marker per state across the whole list, and none doubled onto a row that does not own the state.
   await expect(page.getByRole("img", { name: PLAYING, exact: true })).toHaveCount(1);
   await expect(page.getByRole("img", { name: CARD_PIN, exact: true })).toHaveCount(1);
-  await expect(page.getByRole("button", { name: DEFAULT_PIN, pressed: true })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: DEFAULT_PIN_BUTTON, pressed: true })).toHaveCount(1);
   await expect(rowOf(page, "Orion").getByRole("img", { name: CARD_PIN, exact: true })).toHaveCount(0);
   // The anchor is on your own row, so there is no separate room line.
   await expect(page.getByText(/^Card sees you as/)).toHaveCount(0);
@@ -437,7 +439,7 @@ test("one persona can own playing-as and card-pin: both markers sit on that one 
   const nova = rowOf(page, "Nova");
   await expect(nova.getByRole("img", { name: PLAYING, exact: true })).toBeVisible();
   await expect(nova.getByRole("img", { name: CARD_PIN, exact: true })).toBeVisible();
-  await expect(nova.getByRole("button", { name: DEFAULT_PIN, pressed: true })).toBeVisible();
+  await expect(nova.getByRole("button", { name: DEFAULT_PIN_BUTTON, pressed: true })).toBeVisible();
 });
 
 const ROOM: TrpcFixtureOutput<"chat.getChat"> = {
@@ -543,7 +545,7 @@ test("the pressed pin clears the default; the unpressed one sets it", async ({ m
   const trpc = await stub(page);
   await stubAuth(page);
   await mount(<PersonaYouSheetStory />);
-  await page.getByRole("button", { name: DEFAULT_PIN, pressed: true }).dispatchEvent("click");
+  await page.getByRole("button", { name: DEFAULT_PIN_BUTTON, pressed: true }).dispatchEvent("click");
   await expect.poll(() => trpc.lastInput(SEED_PROC), { intervals: [20, 50, 100] }).toMatchObject({ section: "seeds", patch: { defaultPersonaId: null } });
 });
 
@@ -599,7 +601,7 @@ test("with all three markers on one row the pin sits beside them, not across a h
   await openPopover(page);
   const nova = rowOf(page, "Nova");
   const card = nova.getByRole("img", { name: CARD_PIN, exact: true });
-  const pin = nova.getByRole("button", { name: DEFAULT_PIN });
+  const pin = nova.getByRole("button", { name: DEFAULT_PIN_BUTTON });
   const edit = nova.getByRole("button", { name: "Edit Nova", exact: true });
   await expect(card).toBeVisible();
   const box = (locator: Locator): Promise<{ x: number; width: number }> =>
@@ -644,11 +646,59 @@ test.describe("coarse pointer", () => {
     await stubAuth(page);
     await mount(<PersonaYouSheetStory chatId={CHAT_ID} />);
     // The pressed pin and the markers are state and stay; the unpressed pin and the pencil stand down.
-    await expect(rowOf(page, "Nova").getByRole("button", { name: DEFAULT_PIN, pressed: true })).toBeVisible();
+    await expect(rowOf(page, "Nova").getByRole("img", { name: DEFAULT_PIN })).toBeVisible();
+    await expect(page.getByRole("button", { name: DEFAULT_PIN_BUTTON })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Pin Orion as your default", exact: true })).toBeHidden();
     await expect(page.getByRole("button", { name: "Edit Orion", exact: true })).toBeHidden();
     await page.getByRole("button", { name: "Actions for Orion", exact: true }).click();
     await expect(page.getByRole("menuitem", { name: "Edit", exact: true })).toBeVisible();
     await expect(page.getByRole("menuitem", { name: "Set as default", exact: true })).toBeVisible();
   });
+});
+
+test("clearing the default raises a notice with Undo, and Undo pins the persona again", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  await stubAuth(page);
+  await mount(<PersonaYouSheetStory />);
+  await page.getByRole("button", { name: DEFAULT_PIN_BUTTON, pressed: true }).dispatchEvent("click");
+  await expect.poll(() => trpc.lastInput(SEED_PROC), { intervals: [20, 50, 100] }).toMatchObject({ patch: { defaultPersonaId: null } });
+  await expect(page.getByTestId("notified")).not.toBeEmpty();
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect.poll(() => trpc.lastInput(SEED_PROC), { intervals: [20, 50, 100] }).toMatchObject({ patch: { defaultPersonaId: NOVA } });
+});
+
+test("the Edit door's focused editor shows a keyboard focus ring", async ({ mount, page }) => {
+  await stub(page, { "chat.getChat": () => CHAT });
+  await stubAuth(page);
+  await mount(<PersonaEditDoorStory />);
+  await openPopover(page);
+  await page.getByRole("button", { name: "Edit Lyra", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  const editor = page.getByRole("group", { name: "Edit Lyra", exact: true });
+  await expect(editor).toBeFocused();
+  await expect.poll(() => editor.evaluate((el: HTMLElement) => getComputedStyle(el).boxShadow)).not.toBe("none");
+});
+
+test("the persona list is ONE tab stop: arrow keys rove between rows and each row's controls stay reachable", async ({ mount, page }) => {
+  await stub(page);
+  await stubAuth(page);
+  await mount(<PersonaYouSheetStory />);
+  await expect(page.getByRole("button", { name: "Nova — current persona" })).toBeVisible();
+  const stops = (): Promise<number> =>
+    page.evaluate(() => {
+      const rowControl = /^(Switch to |Pin |Pinned|Edit |.+ — current persona$)/u;
+      return [...document.querySelectorAll("button")].filter(
+        (b) => b.tabIndex >= 0 && b.offsetParent !== null && rowControl.test(b.getAttribute("aria-label") ?? ""),
+      ).length;
+    });
+  // One row's main button + its pin + its Edit; the other rows' controls are out of the tab order.
+  await expect.poll(stops).toBeLessThanOrEqual(3);
+  await page.getByRole("button", { name: "Nova — current persona" }).focus();
+  await page.keyboard.press("ArrowUp");
+  await expect(page.getByRole("button", { name: "Switch to Orion", exact: true })).toBeFocused();
+  await page.keyboard.press("End");
+  await expect(page.getByRole("button", { name: "Switch to Lyra", exact: true })).toBeFocused();
+  // Tab from the row's main button reaches that row's own pin.
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Pin Lyra as your default", exact: true })).toBeFocused();
 });
