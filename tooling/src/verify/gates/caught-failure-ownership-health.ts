@@ -1,7 +1,7 @@
 // Policy: caught-failure-ownership-health — the committed caught-failure census and the tree must name the
 // SAME sites. It joins `caught-failure-ownership.population.json` (beside this file) to the live sites on
-// `siteId`, in both directions: a committed `siteId` whose site is gone is a finding NAMED BY THAT ID, and a
-// live site the census never recorded is a finding at the site. Neither is ever a silent drop.
+// `siteId`: a committed `siteId` whose site is gone is a finding NAMED BY THAT ID, never a silent drop. The
+// other direction (a live site with no row) is `caught-failure-census-row`, which runs on a narrowed commit too.
 //
 // ── WHY A SIBLING, AND WHY HARD ─────────────────────────────────────────────────────────────────────────
 // `caught-failure-ownership` is a per-file, `ordinary` occurrence policy: its verdict on one file is complete
@@ -25,53 +25,27 @@
 import { SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { JsonValue } from "../contract/resource-json.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
 import type { CaughtFailureSite } from "../lib/caught-failure.ts";
 import { CAUGHT_FAILURE_POPULATION, catchClauseSite, promiseAbsorberSite } from "../lib/caught-failure.ts";
-import { keyCaughtFailureSites } from "../lib/caught-failure-identity.ts";
+import { censusSiteIds, keyCaughtFailureSites } from "../lib/caught-failure-identity.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const POPULATION_PATH = JSON_RESOURCE_PATHS["caught-failure-population"];
 const REGEN = "pnpm exec node tooling/src/verify/cli.ts baseline caught-failure-population";
 
-const MESSAGE = `the committed caught-failure census (${POPULATION_PATH}) and the tree disagree about which sites exist. The census is keyed by \`siteId\` (path::declaration::position::ordinal), and every committed id must name a live site and every live site must have a row. (tooling/src/verify/ops/gen/caught-failure-population.ts)`;
+const MESSAGE = `the committed caught-failure census (${POPULATION_PATH}) and the tree disagree about which sites exist. The census is keyed by \`siteId\` (path::declaration::position::ordinal), and every committed id must name a live site. (tooling/src/verify/ops/gen/caught-failure-population.ts)`;
 
-const FIX = `regenerate the census (\`${REGEN}\`) and commit it, or hand-edit only your own row: a new site gets \`{ "siteId", "verdict", "reason" }\`, a removed site's row is deleted. A line inserted above a site never needs either.`;
+const FIX = `regenerate the census (\`${REGEN}\`) and commit it, or delete the row of a removed site. A line inserted above a site never needs either.`;
 
 const GONE = (siteId: string): string =>
   `census row \`${siteId}\` names a site that is no longer on the tree. Delete the row, or regenerate the census (\`${REGEN}\`).`;
-const UNRECORDED = (siteId: string): string =>
-  `caught-failure site \`${siteId}\` has no census row. Regenerate the census (\`${REGEN}\`), or add its \`{ "siteId", "verdict", "reason" }\` row.`;
 const UNKEYABLE =
   "this caught-failure site has no derivable waiver position, so it has no `siteId` and the census cannot record it. Extend the anchor fallback in tooling/src/verify/lib/caught-failure.ts rather than inventing a key.";
 const NOT_A_POPULATION = (reason: string): string =>
   `${POPULATION_PATH} is not a caught-failure census: ${reason}. Regenerate it (\`${REGEN}\`); nothing can be joined against a file whose rows cannot be read.`;
 const DERIVED_NOTHING =
   "the census has no rows and this run found no caught-failure site anywhere in the population, so the join agreed about nothing. An empty census over a non-empty corpus is a blind classifier or a broken population, never a clean tree. (tooling/src/verify/lib/caught-failure.ts)";
-
-type CensusRead = { readonly ok: true; readonly siteIds: readonly string[] } | { readonly ok: false; readonly reason: string };
-
-/** The committed ids, or why the file is not a census. Only `rows[].siteId` is read: the verdict and reason
- *  are `ledgers:fresh`'s to judge (header). */
-function censusSiteIds(value: JsonValue): CensusRead {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return { ok: false, reason: "the top level is not an object" };
-  }
-  const rows = (value as { readonly [key: string]: JsonValue })["rows"];
-  if (!Array.isArray(rows)) {
-    return { ok: false, reason: "it has no `rows` array" };
-  }
-  const siteIds: string[] = [];
-  for (const [index, row] of rows.entries()) {
-    const siteId = typeof row === "object" && row !== null && !Array.isArray(row) ? (row as { readonly [key: string]: JsonValue })["siteId"] : undefined;
-    if (typeof siteId !== "string" || siteId.length === 0) {
-      return { ok: false, reason: `row ${index} has no \`siteId\` string` };
-    }
-    siteIds.push(siteId);
-  }
-  return { ok: true, siteIds };
-}
 
 /** Every live site by its id. A site with no derivable anchor has no id; it is reported, never keyed on an
  *  invented one. */
@@ -89,7 +63,7 @@ function liveSites(ctx: GatePolicyContext, sitesByPath: ReadonlyMap<string, read
   return live;
 }
 
-/** The two-sided join on `siteId`. */
+/** The committed-side join on `siteId`: every committed id must name a live site. */
 function join(ctx: GatePolicyContext, committedIds: readonly string[], live: ReadonlyMap<string, CaughtFailureSite>): void {
   if (live.size === 0 && committedIds.length === 0) {
     ctx.report.file(POPULATION_PATH, { line: 1, message: DERIVED_NOTHING });
@@ -99,11 +73,6 @@ function join(ctx: GatePolicyContext, committedIds: readonly string[], live: Rea
   for (const siteId of committed) {
     if (!live.has(siteId)) {
       ctx.report.file(POPULATION_PATH, { line: 1, message: GONE(siteId) });
-    }
-  }
-  for (const [siteId, site] of live) {
-    if (!committed.has(siteId)) {
-      ctx.report.node(site.node, { message: UNRECORDED(siteId) });
     }
   }
 }
@@ -168,36 +137,15 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "resource",
-      files: {
-        ...census(`${SITE_PATH}::absorb::catch::1`),
-        [SITE_PATH]: `export function before(): void {\n  try { risky(); } catch {}\n}\n${SITE}`,
-      },
-      expect: { count: 1, messageIncludes: `caught-failure site \`${SITE_PATH}::before::catch::1\` has no census row` },
-      why: "THE ID IS SCOPED TO ITS DECLARATION: a same-token catch inserted in a DIFFERENT function above the recorded one is the only finding. Under the retired per-FILE ordinal the new `before` catch took `::catch::1`, so the recorded row silently named a different site and handed it the verdict, while `absorb` re-keyed to `::catch::2`",
-    },
-    {
-      mode: "resource",
       files: { ...census(SITE_ID), ...ANCHOR },
       expect: { count: 1, messageIncludes: `census row \`${SITE_ID}\` names a site that is no longer on the tree` },
       why: "THE FOUNDING CASE, and the direction the census used to lose silently: the site was deleted and its row stayed. The finding is NAMED BY THE ID, because the committed row carries no coordinate to cite; the clean in-population file is the anchor that keeps the fixture a finding rather than an empty-population refusal",
     },
     {
       mode: "resource",
-      files: { ...census(), [SITE_PATH]: SITE },
-      expect: { count: 1, messageIncludes: `caught-failure site \`${SITE_ID}\` has no census row` },
-      why: "THE OTHER DIRECTION: a live site the census never recorded. Without it the join is one-sided and a new absorber would enter the tree with no review row at all",
-    },
-    {
-      mode: "resource",
-      files: { ...census(SITE_ID), [SITE_PATH]: "export function absorb(): void {\n  try { risky(); } catch {}\n  try { risky(); } catch {}\n}\n" },
-      expect: { count: 1, messageIncludes: `\`${SITE_PATH}::absorb::catch::2\` has no census row` },
-      why: "MULTIPLICITY is part of the identity: a second bindingless catch in the same function is `::absorb::catch::2`, not a duplicate of the recorded `::absorb::catch::1`. A join on (path, position) alone would call this tree agreeing",
-    },
-    {
-      mode: "resource",
       files: { [POPULATION_PATH]: '{ "gate": "caught-failure-ownership" }\n', [SITE_PATH]: SITE },
       expect: { count: 1, messageIncludes: "is not a caught-failure census: it has no `rows` array" },
-      why: "a file that is valid JSON and not a census (no `rows`) would otherwise read as zero committed ids and report every live site as unrecorded — the refusal names the file instead",
+      why: "a file that is valid JSON and not a census (no `rows`) would otherwise read as zero committed ids and report every row as missing — the refusal names the file instead",
     },
     {
       mode: "resource",
@@ -232,7 +180,7 @@ export const gate = defineGate({
       mode: "resource",
       files: { [SITE_PATH]: SITE },
       expect: { messageIncludes: "json:caught-failure-population" },
-      why: "a MISSING census withholds the verdict rather than reading as zero committed ids: an absent file and an empty one are different answers, and treating absence as `rows: []` would report every live site as unrecorded against a file that was never read",
+      why: "a MISSING census withholds the verdict rather than reading as zero committed ids: an absent file and an empty one are different answers, and treating absence as `rows: []` would judge the tree against a file that was never read",
     },
   ],
 });
