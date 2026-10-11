@@ -421,12 +421,16 @@ export function builtAgainstLine(builtAgainst: PluginBuiltAgainst | null): strin
   return builtAgainst === null ? null : `Built against Orbweaver ${builtAgainst.engineVersion}`;
 }
 
-/** The narrow-room disclosure that holds the chat-flank plugin surfaces: one surface is named (once, like its
- *  frame title), several are counted. */
-export function flankDisclosureLabel(surfaces: readonly { readonly pluginName: string; readonly title: string }[]): string {
-  const only = surfaces.length === 1 ? surfaces[0] : undefined;
-  if (only !== undefined) {
-    return only.title === only.pluginName ? only.pluginName : `${only.pluginName} — ${only.title}`;
-  }
-  return `Plugin panels (${surfaces.length})`;
+/** The notice a hidden chat panel leaves behind: what happened, how to reverse it now, where to reverse it later. */
+export function chatPanelHiddenTitle(pluginName: string): string {
+  return `${pluginName} hidden from chat`;
 }
+
+export const CHAT_PANEL_HIDDEN_HINT = "Turn it back on from its row in Settings, Plugins.";
+export const CHAT_PANEL_UNDO_LABEL = "Undo";
+export const CHAT_PANEL_HIDE_LABEL = "Hide";
+/** The Plugins pane's switch for one plugin's chat panels, named for the plugin so a list of them reads as a list. */
+export function showInChatLabel(pluginName: string): string {
+  return `Show the ${pluginName} panel in chat`;
+}
+export const PLUGIN_PANELS_SHEET_LABEL = "Plugin panels";

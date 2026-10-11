@@ -551,12 +551,9 @@ describe("forkChat — D64 character-drop on a non-owner fork (F4 ruling)", () =
     expect(emitted).toContainEqual({ type: "chatCreated", chatId: chat.id });
   });
 
-  // The anchor arm of the same single-owner rule (stickler 2026-08-03 F2, the fork's latent twin): the fork's
-  // host is the FORKER, and the D51 anchor resolves under the host's principal (owner-scoped `persona.get`).
-  // Copying a foreign `anchorPersonaId` verbatim mints a room born with a dead POV pin — the knob serves an
-  // unreadable id while `{{user}}` silently falls through to the active persona. Conditional, like the character
-  // drop and the `resolveForkGmPreset` gate: keep what the forker can read, null what they cannot.
-  test("a foreign anchor persona is NULLED on the fork; the forker's own anchor is carried", async () => {
+  // The pin resolves in the fork whoever owns it (a held pin reads its persona live, item 885), so a fork
+  // carries it: forking must not change who the card means.
+  test("the fork carries the pin, whether another player's persona or the forker's own", async () => {
     const host = await seedUser(db, castId<Handle>("anchor_host"));
     const member = await seedUser(db, castId<Handle>("anchor_member"));
     const hostAnchor = await seedPersona(db, host, "hostpov");
@@ -574,7 +571,7 @@ describe("forkChat — D64 character-drop on a non-owner fork (F4 ruling)", () =
       .select()
       .from(chats)
       .where(eq(chats.id, castId(foreignFork.chat.id)));
-    expect(foreignRow?.anchorPersonaId).toBeNull();
+    expect(foreignRow?.anchorPersonaId).toBe(hostAnchor);
     const [ownRow] = await db
       .select()
       .from(chats)

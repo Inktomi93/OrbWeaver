@@ -155,8 +155,8 @@ export {
 } from "./content-blocks.ts";
 export type { ContentClassPolicy } from "./content-classes.ts";
 export { CONTENT_CLASS_POLICY } from "./content-classes.ts";
-export type { ChatDetail, RedeemInviteResult } from "./detail.ts";
-export { chatDetailSchema, redeemInviteResultSchema, viewerGalleryCharacter } from "./detail.ts";
+export type { AnchorState, ChatDetail, RedeemInviteResult } from "./detail.ts";
+export { ANCHOR_STATES, chatDetailSchema, redeemInviteResultSchema, viewerGalleryCharacter } from "./detail.ts";
 export type { ChatLibraryLens } from "./library.ts";
 export { chatCensusInputSchema } from "./library.ts";
 export type { ChatListCursor } from "./listing.ts";
@@ -194,6 +194,7 @@ export {
   combineTokenProvenance,
   connectionAttributionProvenanceSchema,
   INLINE_REPLY_ORIGIN,
+  isSeededGreetingRow,
   legacyNotionalCostSamples,
   MESSAGE_ASSET_ORIGINS,
   macroFreezeRecordSchema,

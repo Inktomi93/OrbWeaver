@@ -1,6 +1,5 @@
-// THE SWIPE FOOT — the message's own last line: ‹ at its leading edge, the `n / m` count and › at its
-// trailing edge. It is part of the message, never a separate card under it, so it costs one glyph-row of
-// height and no plate of its own inside a container. Each chat style says WHERE the foot sits and how its
+// THE SWIPE FOOT — the message's own last line: ‹ `n / m` › grouped at its trailing corner. It is part of the
+// message, never a separate card under it, so it costs one glyph-row of height and no plate of its own inside a container. Each chat style says WHERE the foot sits and how its
 // chevrons meet the edge through `RowSkin.swipeFoot` (message-row-variants.ts); the two strips
 // (`swipe-strip.tsx`, `greeting-swipe-strip.tsx`) read the same treatment, so to a reader they are one gesture.
 
@@ -26,10 +25,11 @@ const FOOT_INSIDE_WIDTH = "contain-inline-size";
 export const SWIPE_FOOT_INSIDE: SwipeFoot = { placement: "inside", row: FOOT_INSIDE_WIDTH, chevron: "text-muted-foreground" };
 
 /** Echo: the foot reaches across the art pane on the card's fill, as the pinned header bar does
- *  (`--row-reach-*`, row-edges.ts), down to the card's bottom edge. */
+ *  (`--row-reach-*`, row-edges.ts), down to the card's bottom edge. Its group ends at the card's corner: the inset
+ *  it keeps on each side is `--row-foot-inset-*`, set to the card inset in globals.css. */
 export const SWIPE_FOOT_ECHO: SwipeFoot = {
   placement: "inside",
-  row: `${FOOT_INSIDE_WIDTH} -ml-(--row-reach-left) pl-(--row-reach-left) -mr-(--row-reach-right) pr-(--row-reach-right) -mb-row rounded-b-card bg-ai-bubble`,
+  row: `${FOOT_INSIDE_WIDTH} -ml-(--row-reach-left) pl-(--row-foot-inset-left) -mr-(--row-reach-right) pr-(--row-foot-inset-right) -mb-row rounded-b-card bg-ai-bubble`,
   chevron: "text-muted-foreground",
 };
 

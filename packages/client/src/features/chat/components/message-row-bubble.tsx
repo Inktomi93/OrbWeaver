@@ -6,7 +6,9 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
-import type { BubbleDecoration } from "../lib/message-row-variants.ts";
+import type { BubbleDecoration } from "../lib/art-decorations.ts";
+import type { ArtView } from "./art-slot.tsx";
+import { EchoArtTile, WhisperBand } from "./art-slot.tsx";
 
 // The bubble's own padding is REMOVED at the string level, not overridden. It was written when `cn` knew
 // the DTCG type-scale groups only (lib/class-merge.ts) and custom SPACING tokens were opaque, so a `p-0`
@@ -36,13 +38,17 @@ export function renderSingleBubble(args: {
   readonly weldedAvatar: ReactElement | null;
   /** The row sits mirrored, so the welded portrait sits on the trailing side. */
   readonly mirrored: boolean;
+  /** Opens the decoration's art full size; null where the row has no art to open or no viewer to open it in. */
+  readonly artView: ArtView | null;
+  /** Reports whether the row's art failed to load, so the row can drop the chip that would repeat its fallback. */
+  readonly onArtFailed?: (failed: boolean) => void;
 }): ReactElement {
   const headerBand = args.decoration?.headerBand;
   const bubbleStyle = args.decoration?.style;
   if (headerBand !== undefined) {
     return (
       <Stack data-slot="message-bubble" className={withoutBubblePadding(args.bubbleClassName)} style={bubbleStyle}>
-        <Stack aria-hidden="true" data-slot="message-band" className={cn("rounded-t-card", headerBand.className)} style={headerBand.style} />
+        <WhisperBand band={headerBand} view={args.artView} onFailedChange={args.onArtFailed} />
         <Stack gap="row" className="px-block py-row">
           {args.header}
           {args.content}
@@ -55,19 +61,7 @@ export function renderSingleBubble(args: {
     const art = args.decoration?.art;
     return (
       <Stack gap="row" data-slot="message-bubble" className={cn(args.bubbleClassName, art !== undefined && "relative")} style={bubbleStyle}>
-        {art === undefined ? null : (
-          <Stack
-            aria-hidden="true"
-            data-slot="message-echo-art"
-            // The pane's width, a portrait's height (Moonlit's fixed mobile height on a phone), never past the
-            // card's own foot; cover-cropped from its centre.
-            className={cn(
-              "pointer-events-none absolute top-0 aspect-(--aspect-portrait) max-h-full bg-center bg-cover bg-no-repeat @max-md:aspect-auto @max-md:h-(--immersive-echo-art-height-phone)",
-              art.side === "left" ? "left-0 rounded-tl-card" : "right-0 rounded-tr-card",
-            )}
-            style={art.style}
-          />
-        )}
+        {art === undefined ? null : <EchoArtTile art={art} view={args.artView} onFailedChange={args.onArtFailed} />}
         {args.header}
         {args.content}
         {args.footer}
@@ -77,10 +71,12 @@ export function renderSingleBubble(args: {
   return (
     <Row align="start" data-slot="message-bubble" className={withoutBubblePadding(args.bubbleClassName)} style={bubbleStyle}>
       {args.mirrored ? null : args.weldedAvatar}
-      <Stack gap="row" className="min-w-0 flex-1 px-block py-row">
+      {/* The column stretches the card's height and the foot takes its end, so the swipe group sits in the card's
+          bottom corner beside a tall portrait instead of floating under a short reply. */}
+      <Stack gap="row" className="min-w-0 flex-1 self-stretch px-block py-row">
         {args.header}
         {args.content}
-        {args.footer}
+        {args.footer === null ? null : <Stack className="mt-auto">{args.footer}</Stack>}
       </Stack>
       {args.mirrored ? args.weldedAvatar : null}
     </Row>

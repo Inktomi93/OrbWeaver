@@ -1133,7 +1133,7 @@ const WIDTHS = [384, 430, 1024] as const;
 const THEMES = ["dark", "light"] as const;
 /** WCAG AA for the body/gloss steps this row uses. The shipped surface measured far above it. */
 const CONTRAST_AA = 4.5;
-/** The share of the row the NAME COLUMN must own — the reviewer's ">=55% at 384px", made a range property. */
+/** The share of the row the NAME COLUMN must own — the reviewer's "`>=55%` at 384px", made a range property. */
 const NAME_COLUMN_SHARE = 0.55;
 const TRANSPARENT_BG = "rgba(0, 0, 0, 0)";
 

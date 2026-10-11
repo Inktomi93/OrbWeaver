@@ -69,9 +69,8 @@ export function TouchFloorCtaGlyphIsolatedStory(): ReactElement {
  *  in the same isolated 400px stage as the positive arms.
  *
  *  It is a reconstruction rather than the old component because the old component no longer exists; what
- *  is reproduced is the CASCADE, which is the whole mechanism. `glyphBox` at bb8b535fb8 spelled the hit
- *  area `after:absolute after:top-1/2 after:left-1/2 after:size-touch-target after:-translate-x-1/2
- *  after:-translate-y-1/2`, and the CTA ring claims the same `::after` from an UNLAYERED rule — so the
+ *  is reproduced is the CASCADE, which is the whole mechanism. `glyphBox` at bb8b535fb8 spelled the hit area
+ *  `after:absolute after:top-1/2 after:left-1/2 after:size-touch-target after:-translate-x-1/2 after:-translate-y-1/2`, and the CTA ring claims the same `::after` from an UNLAYERED rule — so the
  *  ring wins for every property it declares (`inset`, `pointer-events`, `border`, `background`) while the
  *  utilities' `width`/`height`/`translate` SURVIVE. The two rules below are in that order for that reason.
  *

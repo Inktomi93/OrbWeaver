@@ -2,9 +2,8 @@
 // wire contract. Pure logic, no JSX. The nested metadata.inject{depth,role} and description-placement
 // kind flatten to sibling fields here and re-nest into the metadata blob on save.
 //
-// Identity is row-owned: name/avatarAssetId/starred are edited in the row (persona-panel-row.tsx),
-// each a standalone partial patch fired instantly — not part of this form. This model covers only the
-// details the row's expand reveals: title/description + the injection placement.
+// The name rides the form with the details (the editor's identity row). avatarAssetId stays a standalone
+// patch (an upload, not a typed value) and starred stays the row's own patch.
 
 import type { PersonaMetadata, UpdatePersonaInput } from "@orb/contracts/persona";
 import { isAssistantPrefill } from "@orb/kit/injection";
@@ -19,9 +18,10 @@ type PersonaDetail = inferOutput<Trpc["persona"]["get"]>;
 const DEFAULT_INJECT_DEPTH = 2;
 const DEFAULT_INJECT_ROLE: MessageRole = "system";
 
-/** The flat form value shape the persona details bind (nested inject\{depth,role\} flattened; identity
- *  fields excluded). */
+/** The flat form value shape the persona editor binds (nested inject\{depth,role\} flattened). */
 export interface PersonaFormValues {
+  /** Required; a blank name is never sent, so the persona keeps its last saved name. */
+  readonly name: string;
   /** Display subtitle — never prompt-injected. `""` ⇒ `null` on save. */
   readonly title: string;
   readonly description: string;
@@ -33,6 +33,7 @@ export interface PersonaFormValues {
 
 /** From-scratch defaults for a create with no server row yet. */
 export const DEFAULT_PERSONA_FORM: PersonaFormValues = {
+  name: "",
   title: "",
   description: "",
   descriptionPosition: "in_prompt",
@@ -45,6 +46,7 @@ export const DEFAULT_PERSONA_FORM: PersonaFormValues = {
 export function personaFormFromEntity(persona: PersonaDetail): PersonaFormValues {
   const placement = resolvePersonaDescriptionPlacement(persona.metadata ?? undefined);
   return {
+    name: persona.name,
     title: persona.title ?? "",
     description: persona.description,
     descriptionPosition: placement.kind,
@@ -76,10 +78,12 @@ function metadataFromForm(values: PersonaFormValues, base: PersonaMetadata | nul
   return next;
 }
 
-/** Build the persona.update partial input from the details form values. name/avatarAssetId/starred
- *  are never sent from here — they're the row's own patches. */
+/** Build the persona.update partial input from the form values. avatarAssetId/starred are never sent from
+ *  here; a blank name is withheld so the server keeps the last saved one. */
 export function personaInputFromForm(values: PersonaFormValues, base: PersonaMetadata | null): UpdatePersonaInput {
+  const name = values.name.trim();
   return {
+    ...(name === "" ? {} : { name }),
     title: values.title.trim() === "" ? null : values.title,
     description: values.description,
     metadata: metadataFromForm(values, base),

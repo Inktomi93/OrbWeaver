@@ -3,7 +3,7 @@
 // oversized → top rung; non-usable widths → undefined (the route 404s them).
 
 import { describe } from "vitest";
-import { BANNER_WIDTHS, BLOB_WIDTHS, snapBannerWidth, snapBlobWidth } from "#server/domain/assets/substrate/variant-policy.ts";
+import { BANNER_WIDTHS, BLOB_WIDTHS, snapBannerWidth, snapBlobWidth, snapPortraitWidth } from "#server/domain/assets/substrate/variant-policy.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("snapBlobWidth", () => {
@@ -26,6 +26,20 @@ describe("snapBlobWidth", () => {
     expect(snapBlobWidth(-10)).toBeUndefined();
     expect(snapBlobWidth(Number.NaN)).toBeUndefined();
     expect(snapBlobWidth(Number.POSITIVE_INFINITY)).toBeUndefined();
+  });
+});
+
+// The portrait (2:3) ladder reaches Moonlit's 864-wide avatar so echo and ripple art stays sharp at 3x.
+describe("snapPortraitWidth", () => {
+  test("snaps to the smallest rung >= the request, deriving the 2:3 height", () => {
+    expect(snapPortraitWidth(180)).toEqual({ width: 200, height: 300 });
+    expect(snapPortraitWidth(384)).toEqual({ width: 400, height: 600 });
+    expect(snapPortraitWidth(576)).toEqual({ width: 600, height: 900 });
+    expect(snapPortraitWidth(864)).toEqual({ width: 864, height: 1296 });
+  });
+
+  test("an oversized ask snaps to the 864 top rung", () => {
+    expect(snapPortraitWidth(100_000)).toEqual({ width: 864, height: 1296 });
   });
 });
 

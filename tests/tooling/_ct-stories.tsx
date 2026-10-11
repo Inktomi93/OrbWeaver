@@ -102,7 +102,7 @@ export function WalkerDimmedContrastStory(): ReactElement {
  *  saturated orange nothing on screen is painted: the live chat room reported 1.14:1 plus a gray-on-color
  *  finding, both fiction. The text here is comfortably legible against the REAL composite, so any color finding
  *  on this line is a defect in the instrument. Authored in `rgba()` at 0.15 so the arithmetic is what is under
- *  test: it clears the old "alpha > 0.1 means opaque" gate the way the live oklab tint did. */
+ *  test: it clears the old "alpha above 0.1 means opaque" gate the way the live oklab tint did. */
 export function WalkerTranslucentTintStory(): ReactElement {
   return (
     <div style={{ backgroundColor: "rgb(18, 18, 22)", padding: 24, width: 480 }}>
@@ -187,8 +187,8 @@ export function WalkerListRowSelectionStory(): ReactElement {
 }
 
 /** The SCREEN-READER-ONLY stage: the app-wide `sr-only` posture the shell skip link wears, measured off the
- *  live surface (snap --eval, 2026-08-18) — `position:absolute; overflow:hidden; clip-path:inset(50%);
- *  white-space:nowrap`, where the 1px width loses to the control's own padding, so the box is 26x32 with
+ *  live surface (snap --eval, 2026-08-18) —
+ *  `position:absolute; overflow:hidden; clip-path:inset(50%); white-space:nowrap`, where the 1px width loses to the control's own padding, so the box is 26x32 with
  *  clientWidth 24 and a nowrap scrollWidth of 70. That reads as a 46px text spill and a 26px tap target, and
  *  both minted P1 on EVERY surface (the shell renders the skip link everywhere), which is what made
  *  `--fail-on P1` unusable. Three arms carry the discriminator:
@@ -847,7 +847,7 @@ export function WalkerBelowTheFoldStory(): ReactElement {
  *  an edge defect. Fixed coordinates are the viewport's own.
  *
  *  THREE ARMS:
- *   - `edge-recentrable` — an 18×18 box wearing a 44×44 pointer ring (`::after`, the @orb/ui glyph-button
+ *   - `edge-recentrable` — an 18×18 box wearing a 44×44 pointer ring (`::after`, the `@orb/ui` glyph-button
  *     shape), parked at the BOTTOM edge of a scroll host the test scrolls it to. The host CAN scroll, so
  *     the fix must re-centre it and measure the real 44 — the arm that proves the fix measures rather than
  *     merely suppresses.

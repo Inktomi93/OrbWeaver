@@ -20,7 +20,7 @@ import { Sandbox } from "@orb/server/infra/plugin-host";
 import { and, eq, inArray } from "drizzle-orm";
 import { zipSync } from "fflate";
 import type { PluginHostOps } from "#server/domain/plugin/contract/ops.ts";
-import type { PluginLogView as DomainPluginLogView } from "#server/domain/plugin/contract/results.ts";
+import type { PluginLogView } from "#server/domain/plugin/contract/results.ts";
 import type {
   CreateInstanceInput,
   CreateInstanceOutcome,
@@ -86,7 +86,7 @@ function makeFakePort(): FakePort {
   const created: CreateInstanceInput[] = [];
   const disposed: PluginInstance[] = [];
   const queue: CreateInstanceOutcome[] = [];
-  const logs = new Map<PluginInstance, readonly DomainPluginLogView[]>();
+  const logs = new Map<PluginInstance, readonly PluginLogView[]>();
   return {
     created,
     disposed,
@@ -111,7 +111,7 @@ function makeFakePort(): FakePort {
     // that plugin tools and event handlers cannot run.
     invoke: (): Promise<string> => Promise.reject(new Error("plugin invoke is not exercised by the fake port (see the composed-real int test)")),
     runSnippet: (): Promise<{ logLines: readonly string[] }> => Promise.resolve({ logLines: [] }),
-    readLog: (instance: PluginInstance): readonly DomainPluginLogView[] => logs.get(instance) ?? [],
+    readLog: (instance: PluginInstance): readonly PluginLogView[] => logs.get(instance) ?? [],
     dispose: (instance: PluginInstance): void => {
       disposed.push(instance);
     },
@@ -130,13 +130,13 @@ function makeFakePort(): FakePort {
  *  registered) — a port built with `createPluginHost` gets all of it, which is what
  *  `tests/server/entry/boot/seed-example-plugins.int.test.ts` uses. */
 export function makeSandboxPort(seams: HostSeams): PluginHostPort {
-  const logs = new Map<PluginInstance, readonly DomainPluginLogView[]>();
+  const logs = new Map<PluginInstance, readonly PluginLogView[]>();
   const sandboxes = new Map<PluginInstance, Sandbox>();
   const stampAt = seams.nowEpochMs();
-  const toLog = (lines: readonly string[]): DomainPluginLogView[] =>
+  const toLog = (lines: readonly string[]): PluginLogView[] =>
     lines.map((line) => {
       const match = LOG_LINE_RE.exec(line);
-      const level = (match?.[1] ?? "info") as DomainPluginLogView["level"];
+      const level = (match?.[1] ?? "info") as PluginLogView["level"];
       return { level, message: match?.[2] ?? line, at: stampAt };
     });
   return {
@@ -156,7 +156,7 @@ export function makeSandboxPort(seams: HostSeams): PluginHostPort {
     // is a fact about this wiring, never about the product's invoke path.
     invoke: (): Promise<string> => Promise.reject(new Error("plugin invoke is not exercised by the sandbox-floor port")),
     runSnippet: (): Promise<{ logLines: readonly string[] }> => Promise.resolve({ logLines: [] }),
-    readLog: (instance: PluginInstance): readonly DomainPluginLogView[] => logs.get(instance) ?? [],
+    readLog: (instance: PluginInstance): readonly PluginLogView[] => logs.get(instance) ?? [],
     dispose: (instance: PluginInstance): void => {
       sandboxes.get(instance)?.dispose();
       sandboxes.delete(instance);

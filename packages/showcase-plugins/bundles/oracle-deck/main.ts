@@ -623,18 +623,6 @@ if (host.grants.includes("ui.surface")) {
       await say("success", "Deck retired — the next draw starts a fresh shuffle.");
     },
   });
-
-  // ── THE TABLE MARK — a once-per-room flank surface, not a footer ─────────────────────────────────────────
-  // A `message-footer` surface is a FIXED per-row spec repeated under every committed message, which would
-  // stamp this reminder under every draw. The room's standing reminder that draws are commitment-checked is
-  // true once per room, so it lives at `chat-flank`.
-  host.ui.register({
-    id: "table_mark",
-    anchor: "chat-flank",
-    title: "At the table",
-    tier: "static",
-    spec: { kind: "badge", intent: "neutral", text: "⟡ draws are committed — reveal verifies" },
-  });
 }
 
 void publishDeckState();

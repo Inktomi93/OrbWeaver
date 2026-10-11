@@ -15,7 +15,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ActivatableTileGrid, BadgedTileGrid, BasicTileGrid, MixedTileGrid, TaggedTileGrid, TileGridSkeleton } from "./media-tile-grid.fixtures.tsx";
 
-/** Container widths chosen against the grid's own `@container` breakpoints (2 → @md 3 → @2xl 4). */
+/** Container widths chosen against the grid's own `@container` breakpoints (2 → `@md` 3 → `@2xl` 4). */
 const NARROW_PX = 320;
 const WIDE_PX = 800;
 /** Tolerance for a sub-pixel grid track division. */

@@ -1,6 +1,4 @@
-/**
- * @module-tag requires-process-chdir
- */
+// @module-tag requires-process-chdir
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

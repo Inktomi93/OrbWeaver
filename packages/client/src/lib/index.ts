@@ -138,6 +138,8 @@ export {
 } from "./embedder-rebuild.ts";
 export type { AppErrorBoundaryProps } from "./error-boundary.tsx";
 export { AppErrorBoundary } from "./error-boundary.tsx";
+export type { FlankHost } from "./flank-placement.ts";
+export { publishFlankHost, publishInlineFlankFit, setFlankSheetOpen, useFlankHost, useFlankSheetOpen, useInlineFlankFits } from "./flank-placement.ts";
 export type { SendRefusalKey } from "./injection-copy.ts";
 export {
   ADD_CONNECTION_PATH,
@@ -258,7 +260,15 @@ export {
   resolveThemeScopeTokens,
   type SeedThemeName,
 } from "./resolve-theme-scope-tokens.ts";
-export { chatWithActionName, duplicateActionName, renameActionName, rowActionSubject, rowActionsName, rowQualifiers } from "./row-qualifiers.ts";
+export {
+  chatWithActionName,
+  duplicateActionName,
+  renameActionName,
+  rowActionSubject,
+  rowActionsName,
+  rowQualifiers,
+  viewImageActionName,
+} from "./row-qualifiers.ts";
 export type { SafeErrorRingRead } from "./safe-error-ring.ts";
 export { installSafeErrorRing, safeErrorRing } from "./safe-error-ring.ts";
 export type { SessionMessage, SingleFlightOutcome } from "./session-channel.ts";

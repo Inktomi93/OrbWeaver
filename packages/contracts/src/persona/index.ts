@@ -159,9 +159,12 @@ export const connectedCharacterViewSchema = z.strictObject({
   name: z.string(),
 }) satisfies z.ZodType<ConnectedCharacterView>;
 
-/** `remove` — `deleted` is always `true` on success (a not-owned/missing persona throws instead). */
+/** `remove` — `deleted` is always `true` on success (a not-owned/missing persona throws instead).
+ *  `newDefaultPersonaId` names the persona the default moved to when the deleted one was the default, so the
+ *  client can say so; `null` when the default did not move. */
 export interface RemovePersonaResult {
   readonly deleted: boolean;
+  readonly newDefaultPersonaId: PersonaId | null;
 }
 
 /** `disconnectFromCharacter` — `false` when the junction row was already absent (idempotent no-op). */
@@ -169,6 +172,9 @@ export interface DisconnectResult {
   readonly disconnected: boolean;
 }
 
-export const removePersonaResultSchema = z.strictObject({ deleted: z.boolean() }) satisfies z.ZodType<RemovePersonaResult>;
+export const removePersonaResultSchema = z.strictObject({
+  deleted: z.boolean(),
+  newDefaultPersonaId: typeIdSchema(ID_PREFIX.persona).nullable(),
+}) satisfies z.ZodType<RemovePersonaResult>;
 
 export const disconnectResultSchema = z.strictObject({ disconnected: z.boolean() }) satisfies z.ZodType<DisconnectResult>;

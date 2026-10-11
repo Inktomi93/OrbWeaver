@@ -23,6 +23,7 @@ import {
   pluginCommandsChrome,
   pluginComposerActionSurface,
   pluginComposerMediaSurface,
+  pluginComposerPanelsSurface,
   pluginMessageFooterSurface,
   pluginSlashCommands,
   pluginSnippetConsoleSection,
@@ -97,6 +98,9 @@ export const chatSurfaceContributors = createContributorRegistry<ChatSurfaceCont
   // plugin). It carries no `when` — "does this person have a chat-flank surface?" is DATA the seam's sync
   // predicate cannot see — so it mounts in every room and renders null where it does not apply.
   pluginChatFlankSurface,
+  // …and, on a touch device, the Message tools item that opens the sheet holding those same panels. It leads the
+  // menu's room groups.
+  pluginComposerPanelsSurface,
   pluginComposerActionSurface,
   // D269: RPG's ruleset-gated dice actions join the existing Message tools menu, away from the persistent band.
   rpgDiceComposerMediaSurface,

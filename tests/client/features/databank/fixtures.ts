@@ -94,8 +94,8 @@ type StubDocument = TrpcWireOutput<"databank.list">["items"][number];
 
 const DEFAULT_BANK: readonly StubDocument[] = [READY_DOC, INDEXING_DOC, EMPTY_DOC, STALLED_DOC];
 
-/** The SERVER's phase rule, spelled here because this stub stands in for the server (`domain/databank/
- *  persistence/queries.ts` `phasePredicate`, whose arithmetic is the client's `countedPhase` + stall
+/** The SERVER's phase rule, spelled here because this stub stands in for the server
+ *  (`domain/databank/persistence/queries.ts` `phasePredicate`, whose arithmetic is the client's `countedPhase` + stall
  *  overlay). Deliberately NOT imported from the client's `databank-model`: a stub that reuses the code under
  *  test can only ever agree with it. */
 type IngestPhase = (typeof INGEST_PHASES)[number];

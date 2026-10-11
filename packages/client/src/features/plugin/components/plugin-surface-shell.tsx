@@ -42,10 +42,12 @@ interface PluginSurfaceShellProps {
   readonly children: ReactNode;
   /** Which chrome the shell draws (see {@link SHELL_CHROMES}). Default `panel`. */
   readonly chrome?: PluginShellChrome | undefined;
+  /** A host control drawn at the end of the panel's attribution line (the panel chrome only). */
+  readonly action?: ReactNode;
 }
 
 /** Wrap a rendered plugin surface in its first-party attribution chrome. */
-export function PluginSurfaceShell({ pluginName, title, scale = "panel", children, chrome = "panel" }: PluginSurfaceShellProps): ReactElement {
+export function PluginSurfaceShell({ pluginName, title, scale = "panel", children, chrome = "panel", action }: PluginSurfaceShellProps): ReactElement {
   // A SURFACE TITLED EXACTLY LIKE ITS PLUGIN SAYS THE NAME ONCE (side-eye 2026-08-29 P3-7: Card Atlas's
   // page rendered "Card Atlas · Card Atlas", which reads as a placeholder bug and wastes the title line).
   // The wall loses nothing — the band's whole job is the plugin's NAME, and that still renders on every
@@ -67,7 +69,9 @@ export function PluginSurfaceShell({ pluginName, title, scale = "panel", childre
           {showTitle ? (
             <>
               <Text voice="gloss">·</Text>
-              <Text voice="gloss">{title}</Text>
+              <Text className="text-foreground" voice="gloss">
+                {title}
+              </Text>
             </>
           ) : null}
           {/* The KICKER names the CLASS, not the instance: "this is a plugin", which is the sentence a
@@ -108,9 +112,12 @@ export function PluginSurfaceShell({ pluginName, title, scale = "panel", childre
         {showTitle ? (
           <>
             <Text voice="gloss">·</Text>
-            <Text voice="gloss">{title}</Text>
+            <Text className="text-foreground" voice="gloss">
+              {title}
+            </Text>
           </>
         ) : null}
+        {action === undefined ? null : <Row className="ms-auto">{action}</Row>}
       </Row>
       <Stack aria-label={regionName} gap="block" role="group">
         {children}

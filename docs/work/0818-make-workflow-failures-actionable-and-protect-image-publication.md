@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
-updated: 2026-10-10
+status: open
+updated: 2026-10-11
 priority: P1
 area: ci
-lane: main
 ---
 
 # Make workflow failures actionable and protect image publication
@@ -23,4 +22,6 @@ Pass scoped feedback tests, workflow lint, application static checks, and hosted
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Orphaned claim under lane main; no session holds it. Workflow work landed in a385b84278, 7d0732fe88 and 23e50ef2ac. Still owed per Done when: hosted workflow proofs and development image attestation checks, which need a push, plus the runner trial and registration report.
+
+Hosted check: the Development image dispatch passed on 7d0732fe88; the scheduled CI on e88487bf62 is still red.

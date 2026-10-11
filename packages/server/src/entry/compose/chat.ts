@@ -223,12 +223,16 @@ export function createTurnPersonaResolver(
     const resolved = await resolvePersonasForParticipants({
       personaIds: [args.anchorPersonaId, triggerPersonaId, ...args.humanSeats.map((seat) => seat.personaId)].flatMap((id) => (id === null ? [] : [id])),
       allowedOwnerIds: args.presentHumanUserIds,
+      heldPersonaId: args.anchorPersonaId,
     });
     const project = (personaId: PersonaId | null): ResolvedPersonas["active"] => {
       const p = personaId === null ? undefined : resolved.get(personaId);
       return p === undefined ? null : { name: p.name, description: p.description, placement: resolvePersonaDescriptionPlacement(p.metadata) };
     };
-    const anchorOwnerId = args.anchorPersonaId === null ? null : (resolved.get(args.anchorPersonaId)?.ownerId ?? null);
+    // A held pin (its owner left or is disabled) still names the card's persona, but its owner is no voice
+    // here: preset {{user}} binds to the frozen host's seat (ADR 0250), so the owner must be in the consent set.
+    const anchorRowOwner = args.anchorPersonaId === null ? null : (resolved.get(args.anchorPersonaId)?.ownerId ?? null);
+    const anchorOwnerId = anchorRowOwner !== null && args.presentHumanUserIds.includes(anchorRowOwner) ? anchorRowOwner : null;
     const voice = voicePersonaFor({ ...args, anchorOwnerId });
     const people = args.humanSeats.flatMap((seat) => {
       const persona = seat.userId === voice.userId ? null : project(seat.personaId);

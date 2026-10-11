@@ -1673,13 +1673,10 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
   // lens (Playing-as header — mobile persona switching lives HERE), and the overflow sections.
   await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Switch theme" })).toHaveCount(0);
-  // Exact: the who-head's gloss ("Playing as") and the current row's pill ("playing as") are BOTH real —
-  // the un-exact string matches case-insensitively and trips strict mode.
-  await expect(page.getByText("Playing as", { exact: true })).toBeVisible();
-  // …and it is the CURRENT persona's row that says it (the row is the identity's ONE home, P2). The row's
-  // select target is STATE-AWARE (side-eye 2026-08-07 P3a): on the persona you are already playing as it is
-  // named for the state, not for a switch that would be a no-op — "Switch to X, current true" was the defect.
-  await expect(page.getByRole("button", { name: `${SHEET_PERSONA.name} — current persona` })).toHaveAttribute("aria-current", "true");
+  // With no room open the who-head names who a new chat starts you as (here the last-played persona, no
+  // default set), and the rows are not switches.
+  await expect(page.locator('[data-slot="persona-who-head"]')).toContainText(SHEET_PERSONA.name);
+  await expect(page.locator("[data-switch-row-button]")).toHaveCount(0);
   // The ACCOUNT FOOT replaced the Account-modal strip (#866 S4, owner-ruled F-3): the sheet renders the
   // identity facts + the mode-aware Log out inline — no modal handoff left to drive.
   await expect(page.getByTestId("account-surface")).toContainText("owner");
@@ -6330,8 +6327,8 @@ for (const side of ["list", "context"] as const) {
 /** THE BAND'S TWO INSET EDGES, READ APART (#1154). This pin used to ask whether the band's `box-shadow`
  *  was `"none"`, which was exact while the ember was the ONLY shadow the band could carry. It no longer is:
  *  the band's bottom separator moved from `border-block-end` to a second inset stop on the same property,
- *  because `height: 3rem` PLUS a border is a 48px border box with a 47px CONTENT box and `align-items:
- *  center` then half-pixels every occupant (docs/law/integer-line-boxes.md Law 4; pinned in
+ *  because `height: 3rem` PLUS a border is a 48px border box with a 47px CONTENT box and
+ *  `align-items: center` then half-pixels every occupant (docs/law/integer-line-boxes.md Law 4; pinned in
  *  tests/client/components/list-pane-header.ct.tsx). THE RULING SURVIVES — ITS INPUT CHANGED: "a floating
  *  context band drops the ember" is unchanged and still asserted; what moved is what `"none"` meant.
  *  So the stops are read by GEOMETRY, which is what distinguishes them on the pixels too — the ember is an

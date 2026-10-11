@@ -73,7 +73,7 @@ export interface CharacterHarness {
   readonly greetingTextCalls: { readonly caller: Principal; readonly prompt: string }[];
   /** Override the template the resolveGreetingTemplate fake returns (default: `"[TPL {{base}} {{input}}]"`). */
   setGreetingTemplate: (template: string) => void;
-  /** Override the {text,costUsd} the generateGreetingText fake returns (default: echoes the prompt). */
+  /** Override the `{ text, costUsd }` the generateGreetingText fake returns (default: echoes the prompt). */
   setGreetingText: (result: { readonly text: string; readonly costUsd: number | null }) => void;
   /** Override the caller's preset prose the resolveGreetingTemplate fake returns (default: `{}` = the
    *  shipped slot defaults, i.e. the pre-fork fragment bytes). */

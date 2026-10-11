@@ -405,14 +405,14 @@ function HostControls({
             DATA — plugin panels: does this person have a plugin that registered one? — cannot answer in the
             seam's SYNC `when` (it sees only `{chatId}`), so it mounts everywhere and renders null where it
             does not apply. Without this, every such contributor would spend a HEADING on every room: a
-            "Plugin panels" kicker over nothing. The body rides a `display:contents` wrapper, so it adds no
+            "Plugin controls" kicker over nothing. The body rides a `display:contents` wrapper, so it adds no
             box of its own and this pane's spacing is unchanged, and the Section hides itself when that
             wrapper has no element children. It cannot hide a live contribution: any rendered node makes the
             wrapper non-empty.
 
             SO A GRAFT'S PANEL IS `keepMounted` (#830). Every section here is now a disclosure, and a CLOSED
             Base UI panel is REMOVED from the DOM — which would take the graft-body wrapper with it and leave
-            `has-[…:empty]` nothing to match, i.e. an orphan "Plugin panels" kicker on every room. Kept
+            `has-[…:empty]` nothing to match, i.e. an orphan "Plugin controls" kicker on every room. Kept
             mounted (hidden, zero height) the wrapper is still there to be asked, and the collapse still
             hides the whole Section, trigger included. Grafted sections start CLOSED unless explicitly
             opted into discovery: a contribution's body

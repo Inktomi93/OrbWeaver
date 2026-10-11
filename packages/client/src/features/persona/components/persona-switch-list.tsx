@@ -1,13 +1,11 @@
-// The switcher's SWITCH ROWS (#866 S4 — the rail persona slot's frequency law: only what travels with a
-// switch). Lean radio-style rows: avatar · name · state markers · pin · edit — NO rename, NO avatar upload,
-// NO inline editor (all of that lives in Config → Personas now; Edit is the door into it). The row body is
-// ONE stretched button that switches; the markers, the pin and Edit are the layered siblings. At a coarse
-// pointer the pin (unpressed) and Edit stand down into ONE actions menu per row, so an uninvolved row wears
-// no faint glyphs; the markers and the pressed pin stay as state.
+// The switcher's ROWS: avatar · name · ✓ · 📌 · 🔗 · 👑 · Edit · ⋯. With a room open the row body is ONE
+// stretched button that switches who you play there; with no room open a row is not a switch (nothing would
+// read it until the default was cleared), so it carries only the crown and the Edit door. The glyph order
+// never changes, so a row's width is the same at rest and on hover. At a coarse pointer the faint toggles and
+// Edit stand down into ONE actions menu per row; pressed toggles and the state glyphs stay visible.
 //
-// The #443/#458 grammar carries over: two personas may share a name, so the surface resolves qualifiers
-// with the whole list in hand and every named control embeds the row's SUBJECT — spent only on collision,
-// exactly the list's "spent, not sprayed" arm (a switcher row shows no timestamp either).
+// Two personas may share a name, so the list resolves qualifiers with the whole list in hand and every named
+// control embeds the row's SUBJECT — spent only on collision (#443/#458).
 
 import { blobUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";
@@ -27,28 +25,33 @@ import type { Trpc } from "#data";
 import { cn, rowActionSubject, rowQualifiers, timeLib } from "#lib";
 import type { ChromePresentation } from "#state";
 import { closeModal, openPersonaEditor } from "#state";
-import { PersonaPin } from "./persona-pin.tsx";
-import { PersonaStateMarkers } from "./persona-state-markers.tsx";
+import { PersonaCardPin } from "./persona-card-pin.tsx";
+import { PersonaCrown } from "./persona-crown.tsx";
+import { ConnectedGlyph, PlayingGlyph } from "./persona-state-markers.tsx";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 
+/** What a row knows about the open room. Absent ⇒ no room is open. */
+export interface SwitchRoom {
+  /** The viewer's seat persona — the ✓ row. */
+  readonly seatId: string | null;
+  /** The card's pin — the pressed 📌 row. */
+  readonly cardPinId: string | null;
+  readonly viewerIsHost: boolean;
+  /** The room's one character and the viewer's personas connected to it; `null` unless exactly one character sits. */
+  readonly connected: { readonly characterName: string; readonly personaIds: ReadonlySet<string> } | null;
+  /** True when preset text follows the viewer's seat (ADR 0250). */
+  readonly seatBindsPresets: boolean;
+  readonly onSwitch: (persona: PersonaListItem) => void;
+  readonly onCardPin: (persona: Pick<PersonaListItem, "id" | "name"> | null) => void;
+}
+
 export interface PersonaSwitchListProps {
   readonly personas: readonly PersonaListItem[];
-  /** The row playing now — the room seat when a room is open, else the global pointer. Structurally a
-   *  string id (the settings pointers and the chat read both project them unbranded); rows only COMPARE. */
-  readonly currentId: string | null;
   readonly defaultId: string | null;
-  /** The persona pinned to THIS chat — the card's `{{user}}` — while a room is open; `null` otherwise. */
-  readonly cardPinId: string | null;
-  /** True when preset text follows the viewer's seat (no room, or the viewer is the anchor human, ADR 0250);
-   *  otherwise the seat speaks only the viewer's own lines. */
-  readonly seatBindsPresets: boolean;
-  /** Switch to this persona. Also fired for the marked row — the caller skips a no-op write. */
-  readonly onSwitch: (persona: PersonaListItem) => void;
-  /** Write `seeds.defaultPersonaId` to this persona (the pin). */
-  readonly onPin: (persona: PersonaListItem) => void;
-  /** Clear `seeds.defaultPersonaId` (the pressed pin). */
-  readonly onUnpin: () => void;
+  readonly room: SwitchRoom | null;
+  readonly onSetDefault: (persona: PersonaListItem) => void;
+  readonly onClearDefault: () => void;
   /** Which lens hosts the rows: Edit dismisses the popover (bar) or the You modal (sheet) before it lands. */
   readonly presentation: ChromePresentation;
 }
@@ -69,18 +72,7 @@ function rovingTarget(key: string, at: number, count: number): number | undefine
   }
 }
 
-/** The switch rows — qualifiers resolved once with the whole list in hand (#458). */
-export function PersonaSwitchList({
-  personas,
-  currentId,
-  defaultId,
-  cardPinId,
-  seatBindsPresets,
-  onSwitch,
-  onPin,
-  onUnpin,
-  presentation,
-}: PersonaSwitchListProps): ReactElement {
+export function PersonaSwitchList({ personas, defaultId, room, onSetDefault, onClearDefault, presentation }: PersonaSwitchListProps): ReactElement {
   const nameCounts = new Map<string, number>();
   for (const persona of personas) {
     nameCounts.set(persona.name, (nameCounts.get(persona.name) ?? 0) + 1);
@@ -91,12 +83,13 @@ export function PersonaSwitchList({
     timeLib.formatDateTime,
   );
 
-  // ONE TAB STOP (APG composite shape): only the row that last held focus (first load: the playing row)
-  // keeps its controls in the tab order; ArrowUp/ArrowDown/Home/End move between the rows' main buttons.
-  // A row's pin, Edit and menu stay reachable — Tab from its main button walks them — so a keyboard reader
-  // pays one stop plus at most one row's controls, whatever the list's length.
+  // ONE TAB STOP in a room (APG composite shape): only the row that last held focus (first load: the playing
+  // row) keeps its controls in the tab order; ArrowUp/ArrowDown/Home/End move between the rows' switch buttons.
+  // With no room there are no switch buttons, so every row's controls keep their own tab stops.
   const [activeId, setActiveId] = useState<string | null>(null);
-  const stopId = personas.some((persona) => persona.id === activeId) ? activeId : (personas.find((persona) => persona.id === currentId)?.id ?? personas[0]?.id);
+  const stopId = personas.some((persona) => persona.id === activeId)
+    ? activeId
+    : (personas.find((persona) => persona.id === room?.seatId)?.id ?? personas[0]?.id);
   const onKeyDown = (event: KeyboardEvent<HTMLElement>): void => {
     const rows = [...event.currentTarget.querySelectorAll<HTMLElement>("[data-switch-row-button]")];
     const at = rows.indexOf(event.target as HTMLElement);
@@ -113,91 +106,64 @@ export function PersonaSwitchList({
       {personas.map((persona, index) => (
         <SwitchRow
           key={persona.id}
-          isTabStop={persona.id === stopId}
-          onFocusRow={(): void => setActiveId(persona.id)}
-          isCardPin={persona.id === cardPinId}
-          isCurrent={persona.id === currentId}
           isDefault={persona.id === defaultId}
-          onPin={(): void => onPin(persona)}
-          onSwitch={(): void => onSwitch(persona)}
-          onUnpin={onUnpin}
+          onClearDefault={onClearDefault}
+          onFocusRow={(): void => setActiveId(persona.id)}
+          onSetDefault={(): void => onSetDefault(persona)}
           persona={persona}
           presentation={presentation}
-          seatBindsPresets={seatBindsPresets}
+          room={room}
           subject={rowActionSubject(persona.name, (nameCounts.get(persona.name) ?? 0) > 1 ? (qualifiers[index] ?? "") : undefined)}
+          tabIndex={room === null || persona.id === stopId ? undefined : -1}
         />
       ))}
     </Stack>
   );
 }
 
-/** One switch row. The current row's stretched button keeps the list's state-aware naming rule
- *  (§13.10 N3/N4): identity leads in both arms, the verb exists only where there is something to do. */
 function SwitchRow({
   persona,
   subject,
-  isCardPin,
-  isCurrent,
+  room,
   isDefault,
-  isTabStop,
+  tabIndex,
   onFocusRow,
-  onSwitch,
-  onPin,
-  onUnpin,
+  onSetDefault,
+  onClearDefault,
   presentation,
-  seatBindsPresets,
 }: {
   readonly persona: PersonaListItem;
   readonly subject: string;
-  readonly isCardPin: boolean;
-  readonly isCurrent: boolean;
+  readonly room: SwitchRoom | null;
   readonly isDefault: boolean;
-  readonly isTabStop: boolean;
+  readonly tabIndex: -1 | undefined;
   readonly onFocusRow: () => void;
-  readonly onSwitch: () => void;
-  readonly onPin: () => void;
-  readonly onUnpin: () => void;
+  readonly onSetDefault: () => void;
+  readonly onClearDefault: () => void;
   readonly presentation: ChromePresentation;
-  readonly seatBindsPresets: boolean;
 }): ReactElement {
   const avatarSrc = persona.avatarHash === null ? {} : { src: blobUrl(persona.avatarHash) };
-  const tabIndex = isTabStop ? undefined : -1;
+  const tabProps = tabIndex === undefined ? {} : { tabIndex };
+  const isPlaying = room !== null && persona.id === room.seatId;
   return (
     <Row
       align="center"
       onFocus={onFocusRow}
-      className="group relative min-h-control-md rounded-control transition-colors duration-(--motion-fast) ease-out-expo hover:not-data-selected:bg-accent/50 data-selected:bg-accent"
-      data-selected={isCurrent ? "" : undefined}
+      className={room === null ? STATIC_ROW : SWITCH_ROW}
+      data-selected={isPlaying ? "" : undefined}
       gap="row"
       padding="field"
     >
-      <Button
-        aria-current={isCurrent ? "true" : undefined}
-        aria-label={isCurrent ? `${subject} — current persona` : `Switch to ${subject}`}
-        className="absolute inset-0 rounded-control"
-        data-switch-row-button=""
-        intent="ghost"
-        onClick={onSwitch}
-        {...(tabIndex === undefined ? {} : { tabIndex })}
-      />
-      {/* Ornament over the stretched button (`relative` paints it above the button's hover fill, so the name
-          never disappears under it) — the row's one control already names the persona. */}
+      {room === null ? null : <SwitchButton isPlaying={isPlaying} onSwitch={(): void => room.onSwitch(persona)} subject={subject} tabIndex={tabIndex} />}
+      {/* Ornament over the stretched button (`relative` paints it above the button's hover fill). */}
       <Avatar className="pointer-events-none relative shrink-0" fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
         {initialsFor(persona.name)}
       </Avatar>
       <Text as="span" className="pointer-events-none relative min-w-0 flex-1 truncate" voice="label">
         {persona.name}
       </Text>
-      {/* Three states, one marker each: playing as (check), the chat's card persona (card), default (the pin). */}
-      <PersonaStateMarkers isCardPin={isCardPin} isCurrent={isCurrent} name={persona.name} seatBindsPresets={seatBindsPresets} />
-      <PersonaPin
-        className="relative shrink-0"
-        isDefault={isDefault}
-        onPin={onPin}
-        onUnpin={onUnpin}
-        subject={subject}
-        {...(tabIndex === undefined ? {} : { tabIndex })}
-      />
+      {room === null ? null : <RoomGlyphs persona={persona} room={room} subject={subject} tabIndex={tabIndex} />}
+      <PersonaCrown isDefault={isDefault} onClear={onClearDefault} onSet={onSetDefault} subject={subject} {...tabProps} />
       <EditDoor personaId={persona.id} presentation={presentation} subject={subject} tabIndex={tabIndex} />
       <Row align="center" className={cn("relative shrink-0", ROW_ACTION_OVERFLOW) ?? ""}>
         <RowActionsMenu label={`Actions for ${subject}`} {...(tabIndex === undefined ? {} : { triggerTabIndex: tabIndex })}>
@@ -206,10 +172,78 @@ function SwitchRow({
           ) : (
             <MenuItem onClick={(): void => openEditor(persona.id, presentation)}>Edit</MenuItem>
           )}
-          {isDefault ? <MenuItem onClick={onUnpin}>Clear default</MenuItem> : <MenuItem onClick={onPin}>Set as default</MenuItem>}
+          {isDefault ? <MenuItem onClick={onClearDefault}>Clear default</MenuItem> : <MenuItem onClick={onSetDefault}>Set as default</MenuItem>}
+          {room?.viewerIsHost === true ? <CardPinMenuItem persona={persona} room={room} /> : null}
         </RowActionsMenu>
       </Row>
     </Row>
+  );
+}
+
+const STATIC_ROW = "group relative min-h-control-md rounded-control";
+const SWITCH_ROW = `${STATIC_ROW} transition-colors duration-(--motion-fast) ease-out-expo hover:not-data-selected:bg-accent/50 data-selected:bg-accent`;
+
+/** The row body in a room: one stretched button that switches. The playing row's name says so instead of
+ *  offering a no-op verb (§13.10 N3/N4). */
+function SwitchButton({
+  isPlaying,
+  subject,
+  onSwitch,
+  tabIndex,
+}: {
+  readonly isPlaying: boolean;
+  readonly subject: string;
+  readonly onSwitch: () => void;
+  readonly tabIndex: -1 | undefined;
+}): ReactElement {
+  return (
+    <Button
+      aria-current={isPlaying ? "true" : undefined}
+      aria-label={isPlaying ? `${subject} — current persona` : `Switch to ${subject}`}
+      className="absolute inset-0 rounded-control"
+      data-switch-row-button=""
+      intent="ghost"
+      onClick={onSwitch}
+      {...(tabIndex === undefined ? {} : { tabIndex })}
+    />
+  );
+}
+
+/** ✓ 📌 🔗 — the room's three per-row facts, in their fixed order. */
+function RoomGlyphs({
+  persona,
+  room,
+  subject,
+  tabIndex,
+}: {
+  readonly persona: PersonaListItem;
+  readonly room: SwitchRoom;
+  readonly subject: string;
+  readonly tabIndex: -1 | undefined;
+}): ReactElement {
+  return (
+    <>
+      {persona.id === room.seatId ? <PlayingGlyph seatBindsPresets={room.seatBindsPresets} /> : null}
+      <PersonaCardPin
+        isHost={room.viewerIsHost}
+        isPinned={persona.id === room.cardPinId}
+        name={persona.name}
+        onPin={(): void => room.onCardPin(persona)}
+        onUnpin={(): void => room.onCardPin(null)}
+        subject={subject}
+        {...(tabIndex === undefined ? {} : { tabIndex })}
+      />
+      {room.connected?.personaIds.has(persona.id) === true ? <ConnectedGlyph characterName={room.connected.characterName} /> : null}
+    </>
+  );
+}
+
+/** The coarse-pointer twin of the host's 📌 toggle. */
+function CardPinMenuItem({ persona, room }: { readonly persona: PersonaListItem; readonly room: SwitchRoom }): ReactElement {
+  return persona.id === room.cardPinId ? (
+    <MenuItem onClick={(): void => room.onCardPin(null)}>Unpin card</MenuItem>
+  ) : (
+    <MenuItem onClick={(): void => room.onCardPin(persona)}>Pin card here</MenuItem>
   );
 }
 
@@ -221,7 +255,7 @@ function openEditor(personaId: PersonaListItem["id"], presentation: ChromePresen
   }
 }
 
-/** The row's door into its editor in Config → Personas — the same landing a tag's persona chip uses. */
+/** The row's door into its editor in Settings → Personas — the same landing a tag's persona chip uses. */
 function EditDoor({
   personaId,
   subject,
