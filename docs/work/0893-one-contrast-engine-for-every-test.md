@@ -25,3 +25,5 @@ One kernel; every contrast test calls it; the diverging knee is gone; the kit su
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner ruling 2026-10-11: yes, add fixed OKLab known-answer vectors as the independent oracle for the kit colour maths. The partial branch 63a00505fb+cc1cffc47f does not carry them; the item stays open until they land.

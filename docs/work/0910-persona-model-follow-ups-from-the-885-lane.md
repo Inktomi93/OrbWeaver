@@ -23,3 +23,5 @@ Each of the eight points is fixed or has a recorded ruling in this item's Eviden
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner ruling 2026-10-11 (point 5): the stale seed-order header comment in tests/server/domain/chat/persona-resolution.suite.int.test.ts may be corrected; the byte protection covers the suite body, not that comment.
