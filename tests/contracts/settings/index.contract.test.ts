@@ -250,6 +250,15 @@ test("the Utility preset choice keeps both explicit arms and degrades a malforme
   expect(seedsOf("same-as-chat").summarizePreset).toBeNull();
 });
 
+test("profile.hiddenChatPluginIds defaults to none, keeps plugin ids, and drops any other element", () => {
+  const pluginId = mintTypeId(ID_PREFIX.plugin);
+  const profileOf = (hiddenChatPluginIds: unknown): UserSettings["profile"] =>
+    parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, profile: { hiddenChatPluginIds } }).profile;
+  expect(DEFAULT_USER_SETTINGS.profile.hiddenChatPluginIds).toEqual([]);
+  expect(profileOf([pluginId, mintTypeId(ID_PREFIX.theme), "plugin", 7]).hiddenChatPluginIds).toEqual([pluginId]);
+  expect(profileOf("not a list").hiddenChatPluginIds).toEqual([]);
+});
+
 // NOTE (test-tree cut-over, @orb/inference program §5.3/§5.3c): the `routing.roleDefaults` section and its
 // v1→v2 lift LEFT the user-settings blob at v8→v9 (packages/contracts/src/settings/index.ts) — the four
 // tests formerly here (the v1→v2 fold into `routing.roleDefaults.chat`, the storedVersion-beats-in-blob-probe

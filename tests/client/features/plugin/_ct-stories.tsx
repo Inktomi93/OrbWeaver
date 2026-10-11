@@ -21,6 +21,7 @@ import {
   pluginComposerMediaSurface,
   pluginDistributeSection,
   pluginMessageFooterSurface,
+  pluginRoomHeaderSurface,
   pluginsInstalledSection,
   pluginsInstallSection,
   pluginToolRenderer,
@@ -66,6 +67,7 @@ import { PluginCommandArgsBody } from "../../../../packages/client/src/features/
 import { PluginCommandsMenu } from "../../../../packages/client/src/features/plugin/components/plugin-commands-menu.tsx";
 import { PluginComposerActions, PluginComposerMediaItems } from "../../../../packages/client/src/features/plugin/components/plugin-composer-placements.tsx";
 import { PluginDialogBody } from "../../../../packages/client/src/features/plugin/components/plugin-dialog-body.tsx";
+import { PluginFlankSheet } from "../../../../packages/client/src/features/plugin/components/plugin-flank-sheet.tsx";
 import { PluginRow } from "../../../../packages/client/src/features/plugin/components/plugin-row.tsx";
 import { PluginSurfacesPanel } from "../../../../packages/client/src/features/plugin/components/plugin-surfaces-panel.tsx";
 import {
@@ -238,6 +240,76 @@ export function PluginChatFlankRoomStory({ registered = true }: { readonly regis
       <CtChatContributorSectionRegistry surfaceContributors={registered ? pluginFlankContributors : noContributors}>
         <ChatRoomHarness />
       </CtChatContributorSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** The flank AND its touch-device twin at the room header, registered exactly as the door registers them. */
+const pluginFlankAndHeaderContributors: ReturnType<typeof createContributorRegistry<ChatSurfaceContribution>> =
+  createContributorRegistry<ChatSurfaceContribution>("chat-surface", [pluginChatFlankSurface, pluginRoomHeaderSurface]);
+
+/** The chats section's topbar header through the REAL registry (`registry.get("chats").header()`), the call the
+ *  shell makes — so the `room-header` anchor renders on the production path. */
+function ChatRoomHeaderHarness(): ReactElement {
+  const registry = useSectionRegistry();
+  return <div data-testid="room-header">{registry.get("chats").header?.()}</div>;
+}
+
+/** The room with its header: the production path for the phone's plugin-panels sheet. Toasts are mounted
+ *  because hiding the last panel leaves its Undo in one. */
+export function PluginFlankSheetRoomStory(): ReactElement {
+  useEffect(() => {
+    selectChat(CHAT_ID);
+  }, []);
+  return (
+    <CtDataProviders>
+      <CtToastSurface>
+        <CtChatContributorSectionRegistry surfaceContributors={pluginFlankAndHeaderContributors}>
+          <ChatRoomHeaderHarness />
+          <ChatRoomHarness />
+        </CtChatContributorSectionRegistry>
+      </CtToastSurface>
+    </CtDataProviders>
+  );
+}
+
+/** The sheet trigger on its own, in the room's id — the component the header anchor mounts on a touch device. */
+export function PluginFlankSheetStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtToastSurface>
+        <PluginFlankSheet chatId={CHAT_ID} />
+      </CtToastSurface>
+    </CtDataProviders>
+  );
+}
+
+function InstalledPluginRows(): ReactElement {
+  const trpc = useTRPC();
+  const { data } = useQuery(trpc.plugin.list.queryOptions());
+  return (
+    <Stack gap="block">
+      {(data ?? []).map((plugin) => (
+        <PluginRow key={plugin.id} plugin={plugin} />
+      ))}
+    </Stack>
+  );
+}
+
+/** The room's flank beside the installed plugin rows: hide from the panel, undo from the notice, re-show from
+ *  the row's switch — all over the one settings read. */
+export function PluginChatVisibilityStory(): ReactElement {
+  useEffect(() => {
+    selectChat(CHAT_ID);
+  }, []);
+  return (
+    <CtDataProviders>
+      <CtToastSurface>
+        <CtChatContributorSectionRegistry surfaceContributors={pluginFlankContributors}>
+          <ChatRoomHarness />
+          <InstalledPluginRows />
+        </CtChatContributorSectionRegistry>
+      </CtToastSurface>
     </CtDataProviders>
   );
 }

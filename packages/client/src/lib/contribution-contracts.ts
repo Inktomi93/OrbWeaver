@@ -25,9 +25,16 @@ import type { ReactNode } from "react";
 
 /** The chat SURFACE-ANCHOR vocabulary (§6c/M8) — closed `as const` tuple, so an unlisted anchor is
  *  unspellable. `thread-flank`/`above-composer` are ROOM-level (mounted once per open room);
- *  `message-footer` is PER-ROW (mounted once per committed message). `composer-room` groups lead Message
- *  tools, ahead of its generic groups; `composer-media` groups follow its Media group. */
-export const CHAT_SURFACE_ANCHORS = ["thread-flank", "above-composer", "composer-action", "composer-room", "composer-media", "message-footer"] as const;
+ *  `message-footer` is PER-ROW (once per committed message); `room-header` sits beside the roster chip. */
+export const CHAT_SURFACE_ANCHORS = [
+  "thread-flank",
+  "above-composer",
+  "composer-action",
+  "composer-room",
+  "composer-media",
+  "room-header",
+  "message-footer",
+] as const;
 export type ChatSurfaceAnchor = (typeof CHAT_SURFACE_ANCHORS)[number];
 
 /** The room-level surface projection — `thread-flank` + `above-composer` read this. `chatId` is `null`

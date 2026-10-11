@@ -37,6 +37,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { FrameLocator, Locator, Page } from "@playwright/test";
 import type { TrpcInput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
+import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { CHAT_ID } from "../../chat/fixtures.ts";
 import { PluginsSurfaceStory, PluginToolCardStory } from "../_ct-stories.tsx";
 
@@ -199,6 +200,7 @@ async function setup(
   },
 ): Promise<TrpcRecorder> {
   const recorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [enabledRow(CHESS_GRANTS), { ...enabledRow(["global_vars", "storage.kv"]), id: VAULT_ID, slug: "vault", name: "Vault" }],
     "plugin.listSurfaces": () => [opts.surface ?? FRAME_SURFACE],
     "plugin.getSurfaceState": () => null,

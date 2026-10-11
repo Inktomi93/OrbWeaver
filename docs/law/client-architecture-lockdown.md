@@ -345,7 +345,8 @@ section, chat included — there is no bespoke chat tabs renderer beside it.
 at named anchor points. The anchor vocabulary is the closed tuple `CHAT_SURFACE_ANCHORS` in
 `packages/client/src/lib/contribution-contracts.ts`; that tuple is the list of anchors. `message-footer` is
 the one per-row anchor. Every other anchor is a room anchor: the thread flank, the band above the composer,
-the composer's action rail, and the Message tools groups that lead the menu or follow its Media group. The
+the composer's action rail, the Message tools groups that lead the menu or follow its Media group, and the
+room header beside the roster chip (`room-header`, rendered by the chats topbar header). The
 anchors carry different state, so `ChatSurfaceContribution` is a discriminated union by anchor: the room
 anchors carry `ChatRoomSurfaceState`; `message-footer` carries `ChatMessageSurfaceState`. Threaded into the content by
 props. `message-footer` mounts per committed message row only. Flank layout is the seam's responsibility:

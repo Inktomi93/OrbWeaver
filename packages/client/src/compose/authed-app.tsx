@@ -57,6 +57,7 @@ import {
   pluginComposerMediaSurface,
   pluginDialogModal,
   pluginMessageFooterSurface,
+  pluginRoomHeaderSurface,
   pluginSlashCommands,
   pluginSnippetConsoleSection,
   pluginsGroup,
@@ -188,6 +189,9 @@ const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContributio
   // plugin). It carries no `when` — "does this person have a chat-flank surface?" is DATA the seam's sync
   // predicate cannot see — so it mounts in every room and renders null where it does not apply.
   pluginChatFlankSurface,
+  // …and its touch-device twin: the header icon whose sheet holds the same flank panels, so a phone's
+  // transcript keeps the column. Exactly one of the two mounts (`chat-anchors.tsx`).
+  pluginRoomHeaderSurface,
   pluginComposerActionSurface,
   // D269: RPG's ruleset-gated dice actions join the existing Message tools menu, away from the persistent band.
   rpgDiceComposerMediaSurface,

@@ -23,6 +23,7 @@ export {
   pluginComposerActionSurface,
   pluginComposerMediaSurface,
   pluginMessageFooterSurface,
+  pluginRoomHeaderSurface,
 } from "./lib/chat-anchors.tsx";
 // The U5 set (seam 16): the tenth rail SECTION (the platform's full-page
 // home), the ONE `/plugin` slash contribution, the "Plugins" wand chrome widget, and the ONE house modal a

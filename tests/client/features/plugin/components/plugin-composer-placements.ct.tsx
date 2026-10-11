@@ -53,7 +53,15 @@ const DRAFT_ROUTES = {
   },
 } satisfies TrpcRoutes;
 
-test("explicit Polish replaces the visible draft, Undo restores exact bytes, and Send submits precisely the replacement", async ({ mount, page }) => {
+test("a composer action names its plugin and command, not the plugin's slug", async ({ mount, page }) => {
+  await routeTrpc(page, DRAFT_ROUTES);
+  await mount(<PluginComposerDraftRoomStory />);
+  const polish = page.getByRole("button", { name: "Draft Polish · Commands · Run Polish", exact: true });
+  await expect(polish).toBeVisible();
+  await expect(polish).toHaveText("Draft Polish · Run Polish");
+});
+
+test("explicit Polish replaces the visible draft,Undo restores exact bytes, and Send submits precisely the replacement", async ({ mount, page }) => {
   const original = "  Hello...  ran ` x  --  ... `\nDone!!!  ";
   const replacement = "Hello… ran ` x  --  ... `\nDone!";
   const recorder = await routeTrpc(page, {
@@ -63,7 +71,7 @@ test("explicit Polish replaces the visible draft, Undo restores exact bytes, and
   });
   await mount(<PluginComposerDraftRoomStory />);
   const draft = page.getByRole("textbox", { name: "Message", exact: true });
-  const polish = page.getByRole("button", { name: "Draft Polish (draft-polish) · Commands · Run Polish", exact: true });
+  const polish = page.getByRole("button", { name: "Draft Polish · Commands · Run Polish", exact: true });
   await draft.fill(original);
   await expect(polish).toBeVisible();
   await expect.poll(() => recorder.count("plugin.invokeUiCommand")).toBe(0);
@@ -98,7 +106,7 @@ test("a pending Polish cannot overwrite an edit-and-restore or another room, and
   });
   await mount(<PluginComposerDraftRoomStory />);
   const draft = page.getByRole("textbox", { name: "Message", exact: true });
-  const polish = page.getByRole("button", { name: "Draft Polish (draft-polish) · Commands · Run Polish", exact: true });
+  const polish = page.getByRole("button", { name: "Draft Polish · Commands · Run Polish", exact: true });
   await draft.fill("Original");
   await polish.click();
   await expect.poll(() => runs).toBe(1);
@@ -144,7 +152,7 @@ test("a late plugin reply cannot replace the draft after its command registratio
   await mount(<PluginComposerDraftRoomStory revocablePluginId={FIRST_ID} />);
   const draft = page.getByRole("textbox", { name: "Message", exact: true });
   await draft.fill("Keep this exact draft");
-  const polish = page.getByRole("button", { name: "Draft Polish (draft-polish) · Commands · Run Polish", exact: true });
+  const polish = page.getByRole("button", { name: "Draft Polish · Commands · Run Polish", exact: true });
   await polish.click();
   await page.getByRole("button", { name: "Disable draft plugin", exact: true }).click();
   await expect(polish).toHaveCount(0);
@@ -162,7 +170,7 @@ test("a failed explicit Polish leaves the draft intact and gives a visible error
   await mount(<PluginComposerDraftRoomStory />);
   const draft = page.getByRole("textbox", { name: "Message", exact: true });
   await draft.fill("Keep my draft");
-  await page.getByRole("button", { name: "Draft Polish (draft-polish) · Commands · Run Polish", exact: true }).click();
+  await page.getByRole("button", { name: "Draft Polish · Commands · Run Polish", exact: true }).click();
   await expect(page.getByLabel("Alerts").getByText("Polish failed", { exact: true })).toBeVisible();
   await expect(draft).toHaveValue("Keep my draft");
   await expect(page.getByRole("button", { name: "Undo Polish", exact: true })).toHaveCount(0);
@@ -369,7 +377,7 @@ test("a direct invocation marks all fitted actions busy and locks overflow and m
   const overflow = component.getByRole("button", { name: "Plugin actions", exact: true });
   await expect(overflow).toBeDisabled();
   await component.getByRole("button", { name: "Message tools", exact: true }).click();
-  await expect(page.getByRole("menuitem", { name: "Zeta Deck (zeta) · Scenes · Run Frame", exact: true })).toBeDisabled();
+  await expect(page.getByRole("menuitem", { name: "Zeta Deck · Scenes · Run Frame", exact: true })).toBeDisabled();
   invocation.release({ toasts: [] });
   await expect(direct.first()).toBeEnabled();
   await expect(overflow).toBeEnabled();
@@ -519,7 +527,7 @@ for (const transition of ["disable", "uninstall", "auto-disable"] as const) {
     await page.keyboard.press("Escape");
     await component.getByRole("button", { name: `Run ${transition}`, exact: true }).click();
     await expect(secondAction).toHaveCount(0);
-    await expect(component.getByRole("button", { name: "Same Name (first) · Cards · Run Open", exact: true })).toBeVisible();
+    await expect(component.getByRole("button", { name: "Same Name · Cards · Run Open", exact: true })).toBeVisible();
     await component.getByRole("button", { name: "Message tools", exact: true }).click();
     await expect(media).toHaveCount(0);
   });
@@ -560,7 +568,7 @@ for (const transition of ["disable", "uninstall", "auto-disable"] as const) {
     await component.getByRole("button", { name: `Run ${transition}`, exact: true }).click();
 
     await actions.click();
-    await expect(page.getByRole("menuitem", { name: "Same Name (first) · Cards · Run Open", exact: true })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Same Name · Cards · Run Open", exact: true })).toBeVisible();
     await expect(secondAction).toHaveCount(0);
     await page.keyboard.press("Escape");
     await media.click();
@@ -643,21 +651,21 @@ const ORDERED_MENUS = [
   {
     trigger: "Plugin actions",
     names: [
-      "Alpha Deck (alpha) · Cards · Run Draw",
-      "Alpha Deck (alpha) · Cards · Run Shuffle",
+      "Alpha Deck · Cards · Run Draw",
+      "Alpha Deck · Cards · Run Shuffle",
       "Mid Deck (a-mid) · Cards · Run Peek",
       "Mid Deck (b-mid) · Cards · Run Peek",
-      "Zeta Deck (zeta) · Scenes · Run Open",
+      "Zeta Deck · Scenes · Run Open",
     ],
   },
   {
     trigger: "Message tools",
     names: [
-      "Alpha Deck (alpha) · Cards · Run Burn",
-      "Alpha Deck (alpha) · Cards · Run Cut",
+      "Alpha Deck · Cards · Run Burn",
+      "Alpha Deck · Cards · Run Cut",
       "Mid Deck (a-mid) · Cards · Run Peek",
       "Mid Deck (b-mid) · Cards · Run Peek",
-      "Zeta Deck (zeta) · Scenes · Run Frame",
+      "Zeta Deck · Scenes · Run Frame",
     ],
   },
 ] as const;

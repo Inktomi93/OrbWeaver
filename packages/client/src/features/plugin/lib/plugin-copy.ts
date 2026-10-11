@@ -430,3 +430,14 @@ export function flankDisclosureLabel(surfaces: readonly { readonly pluginName: s
   }
   return `Plugin panels (${surfaces.length})`;
 }
+
+/** The notice a hidden chat panel leaves behind: what happened, how to reverse it now, where to reverse it later. */
+export function chatPanelHiddenTitle(pluginName: string): string {
+  return `${pluginName} hidden from chat`;
+}
+
+export const CHAT_PANEL_HIDDEN_HINT = "Turn it back on from its row in Settings, Plugins.";
+export const CHAT_PANEL_UNDO_LABEL = "Undo";
+export const CHAT_PANEL_HIDE_LABEL = "Hide";
+export const SHOW_IN_CHAT_LABEL = "Show in chat";
+export const PLUGIN_PANELS_SHEET_LABEL = "Plugin panels";

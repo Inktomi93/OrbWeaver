@@ -117,7 +117,7 @@ interface ChatsSectionContributors {
   readonly contextTabs: ContributorRegistry<ContextTabDef<ChatContextState>>;
   /** HUD-1 §3.2 — the whole-pane REGION-CLAIM contributors; zero claimants ⇒ the generic panel. */
   readonly contextRegions: ContributorRegistry<ContextRegionDef<ChatContextState>>;
-  /** §6c/M8 — the CONTENT-surface anchor contributors (thread-flank / above-composer / message-footer). */
+  /** §6c/M8 — the CONTENT-surface anchor contributors (thread-flank / above-composer / room-header / message-footer). */
   readonly surfaces: ContributorRegistry<ChatSurfaceContribution>;
   /** §6c — the per-tool-name renderers; zero ⇒ every tool record renders through the generic fallback. */
   readonly toolRenderers: ContributorRegistry<ToolRenderer>;
@@ -152,7 +152,7 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
     useSelectionTitle: useChatsSelectionTitle,
     content: () => <ChatContent surfaceContributors={surfaces} toolRenderers={toolRenderers} />,
     // Topbar identity: the open room's roster header, resolved from #state/#data inside the body.
-    header: () => <ChatsTopbarHeader />,
+    header: () => <ChatsTopbarHeader surfaceContributors={surfaces} />,
     context: defineContextTabs<ChatContextState>({
       useContextState: useChatContextState,
       tabs: chatContextTabs(settingsSections),

@@ -50,14 +50,22 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { QueryBoundary, RowActionsMenu } from "#components";
+import { QueryBoundary, RowActionsMenu, SettingSwitchRow } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { installedPluginControlId } from "#state";
+import { usePluginChatVisibility } from "../hooks/use-plugin-chat-visibility.ts";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
-import { builtAgainstLine, PLUGIN_ERROR_COPY_SUBJECT, PLUGIN_ERROR_SENTENCE, REMOVE_PLUGIN_DESCRIPTION, statusCopy } from "../lib/plugin-copy.ts";
+import {
+  builtAgainstLine,
+  PLUGIN_ERROR_COPY_SUBJECT,
+  PLUGIN_ERROR_SENTENCE,
+  REMOVE_PLUGIN_DESCRIPTION,
+  SHOW_IN_CHAT_LABEL,
+  statusCopy,
+} from "../lib/plugin-copy.ts";
 import { PLUGIN_MODEL_HEADING } from "../lib/plugin-model-copy.ts";
 import { useSetPluginEnabled, useSetPluginGrant, useUninstallPlugin, useUpgradePlugin } from "../lib/plugin-mutations.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
@@ -84,6 +92,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
   const upgrade = useUpgradePlugin({ trpc, invalidation });
   const setGrant = useSetPluginGrant({ trpc, invalidation });
   const uninstall = useUninstallPlugin({ trpc, invalidation });
+  const chatVisibility = usePluginChatVisibility();
   const [uploadError, setUploadError] = useState<string | null>(null);
   const enableAdmission = useRef(false);
 
@@ -222,6 +231,13 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
             </Row>
           </Row>
         </Stack>
+
+        {/* Per user and in every room: the plugin's chat panels show by default and are hidden from the panel itself. */}
+        <SettingSwitchRow
+          checked={!chatVisibility.isHidden(plugin.id)}
+          label={SHOW_IN_CHAT_LABEL}
+          onChange={(shown): void => chatVisibility.setShown(plugin.id, shown)}
+        />
 
         {upgrade.isPending ? (
           <Text prose={true} role="status" voice="gloss">

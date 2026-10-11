@@ -22,17 +22,18 @@
 // `getSurfaceState` — is pinned at its own tier in tests/client/data/invalidation.test.ts.)
 
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { PLUGIN_FRAME_ROUTE } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
 import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts";
-import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
+import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../../chat/fixtures.ts";
-import { PluginChatFlankRoomStory, PluginChatSettingsSectionStory } from "../_ct-stories.tsx";
+import { PluginChatFlankRoomStory, PluginChatSettingsSectionStory, PluginChatVisibilityStory, PluginFlankSheetRoomStory } from "../_ct-stories.tsx";
 
 type PluginListRow = TrpcWireOutput<"plugin.list">[number];
 type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
@@ -40,7 +41,7 @@ type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
 type Box = Awaited<ReturnType<Locator["boundingBox"]>>;
 
 const A_PAST_INSTANT = 1_760_000_000_000;
-const AFFINITY_ID = castId<PluginId>("plugin_ct_affinity000001");
+const AFFINITY_ID = mintTypeId(ID_PREFIX.plugin);
 const PLUGIN_NAME = "Affinity Tracker";
 
 /** One installed row as `plugin.list` projects it — the join the shell's attribution line reads its name from.
@@ -338,6 +339,157 @@ test.describe("the flank anchor", () => {
     const readBox = async (): Promise<Box> => await page.locator(SCROLLER).boundingBox();
     await expect.poll(async () => (await readBox())?.width).toBe(baseline?.width);
     await expect.poll(async () => (await readBox())?.height).toBe(baseline?.height);
+  });
+});
+
+// ── Hiding a plugin's chat panels, and the phone's header sheet ───────────────────────────────────────────
+
+const OTHER_ID = mintTypeId(ID_PREFIX.plugin);
+const OTHER_NAME = "Other Plugin";
+const HIDE_NOTICE = `${PLUGIN_NAME} hidden from chat`;
+
+/** `settings.getUserSettings` and its section write over ONE list of hidden plugin ids, the way the server keeps it. */
+function hiddenPluginRoutes(): TrpcRoutes<"settings.getUserSettings" | "settings.updateUserSettingsSection"> {
+  let hidden: readonly PluginId[] = [];
+  const view = (): ReturnType<typeof userSettingsView> => userSettingsView({ profile: { hiddenChatPluginIds: [...hidden] } });
+  return {
+    "settings.getUserSettings": () => view(),
+    "settings.updateUserSettingsSection": (input: TrpcInput<"settings.updateUserSettingsSection">): ReturnType<typeof view> => {
+      hidden = input.patch["hiddenChatPluginIds"] as readonly PluginId[];
+      return view();
+    },
+  };
+}
+
+const HIDE_AFFINITY = { section: "profile", patch: { hiddenChatPluginIds: [AFFINITY_ID] } };
+const SHOW_ALL = { section: "profile", patch: { hiddenChatPluginIds: [] } };
+
+test("a plugin's chat panel hides in one tap, Undo brings it back, and its row's switch shows it again — other plugins are untouched", async ({
+  mount,
+  page,
+}) => {
+  await page.setViewportSize(FLANK_ARMS[0].viewport);
+  const recorder = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...ROOM_ROUTES,
+    ...hiddenPluginRoutes(),
+    "plugin.list": () => [pluginRow("enabled"), { ...pluginRow("enabled"), id: OTHER_ID, slug: "other-plugin", name: OTHER_NAME }],
+    "plugin.listSurfaces": () => [
+      surfaceRow("chat-flank", "affinity_flank", "Warmth", FLANK_SPEC),
+      { ...surfaceRow("chat-flank", "other_flank", "Moods", { kind: "text", value: "other mood" }), pluginId: OTHER_ID },
+    ],
+    "plugin.getSurfaceState": () => FLANK_STATE,
+  });
+  await mount(<PluginChatVisibilityStory />);
+
+  const warmth = page.getByRole("group", { name: `${PLUGIN_NAME} — Warmth` });
+  const moods = page.getByRole("group", { name: `${OTHER_NAME} — Moods` });
+  const showInChat = page.getByRole("group", { name: `${PLUGIN_NAME} plugin` }).getByRole("switch", { name: "Show in chat" });
+  await expect(warmth).toBeVisible();
+  await expect(showInChat).toBeChecked();
+
+  // HIDE — one tap on the panel itself.
+  await page.getByRole("button", { name: `Hide ${PLUGIN_NAME}` }).click();
+  await expect(warmth).toHaveCount(0);
+  await expect(moods).toBeVisible();
+  await expect(showInChat).not.toBeChecked();
+  await expect.poll(() => recorder.lastInput("settings.updateUserSettingsSection")).toEqual(HIDE_AFFINITY);
+
+  // UNDO — from the notice the hide left behind.
+  const alerts = page.getByLabel("Alerts");
+  await expect(alerts.getByText(HIDE_NOTICE, { exact: true })).toBeVisible();
+  await alerts.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(warmth).toBeVisible();
+  await expect(showInChat).toBeChecked();
+  await expect.poll(() => recorder.lastInput("settings.updateUserSettingsSection")).toEqual(SHOW_ALL);
+
+  // RE-SHOW — hidden again, then brought back from the plugin's own row in the Plugins pane.
+  await page.getByRole("button", { name: `Hide ${PLUGIN_NAME}` }).click();
+  await expect(warmth).toHaveCount(0);
+  await showInChat.click();
+  await expect(warmth).toBeVisible();
+  await expect.poll(() => recorder.lastInput("settings.updateUserSettingsSection")).toEqual(SHOW_ALL);
+  await expect(moods).toBeVisible();
+});
+
+/** A frame surface beside the static one, so a second mount of the flank would show as a second mint. */
+const FRAME_SURFACE_ROW: PluginSurfaceRow = { pluginId: AFFINITY_ID, id: "affinity_board", anchor: "chat-flank", title: "Board", tier: "frame" };
+const FRAME_URL = `${PLUGIN_FRAME_ROUTE}/0123456789abcdef0123456789abcdef`;
+const SHEET_TRIGGER = { name: "Plugin panels", exact: true } as const;
+
+test.describe("a touch device", () => {
+  test.use({ hasTouch: true, viewport: { width: 430, height: 740 } });
+
+  test("the flank panels leave the transcript for the header's sheet and mount exactly once", async ({ mount, page }) => {
+    let mints = 0;
+    await page.route(`**${PLUGIN_FRAME_ROUTE}`, (route) => {
+      mints += 1;
+      return route.fulfill({ contentType: "application/json", body: JSON.stringify({ url: FRAME_URL, expiresInMs: 1_800_000 }) });
+    });
+    await page.route(`**${FRAME_URL}`, (route) =>
+      route.fulfill({
+        contentType: "text/html; charset=utf-8",
+        headers: { "content-security-policy": "sandbox allow-scripts" },
+        body: "<!doctype html><p>BOARD</p>",
+      }),
+    );
+    await routeTrpc(page, {
+      ...CHAT_AMBIENT_ROUTES,
+      ...ROOM_ROUTES,
+      // A room MEMBER, not its host: the panels are the viewer's own plugins' and the header icon is not host-gated.
+      "chat.getChat": () => ({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG, viewerIsHost: false }),
+      ...hiddenPluginRoutes(),
+      "plugin.list": () => [pluginRow("enabled")],
+      "plugin.listSurfaces": () => [surfaceRow("chat-flank", "affinity_flank", "Warmth", FLANK_SPEC), FRAME_SURFACE_ROW],
+      "plugin.getSurfaceState": () => FLANK_STATE,
+    });
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches), "hasTouch must make this a coarse pointer").toBe(true);
+
+    // BASELINE: the same room with no plugin contribution at all.
+    const bare = await mount(<PluginChatFlankRoomStory registered={false} />);
+    await expect(page.locator(SCROLLER)).toBeVisible();
+    const baseline = await page.locator(SCROLLER).boundingBox();
+    await bare.unmount();
+
+    await mount(<PluginFlankSheetRoomStory />);
+    await expect(page.locator(SCROLLER)).toBeVisible();
+    const trigger = page.getByRole("button", SHEET_TRIGGER);
+    await expect(trigger).toBeInViewport();
+    // Closed: the transcript keeps the whole column, and nothing of the plugin is mounted anywhere.
+    await expect.poll(async () => (await page.locator(SCROLLER).boundingBox())?.height).toBe(baseline?.height);
+    await expect(page.getByRole("button", { name: "Plugin panels (2)", exact: true })).toHaveCount(0);
+    await expect(page.getByText(PLUGIN_NAME)).toHaveCount(0);
+    await expect(page.locator("iframe")).toHaveCount(0);
+
+    await trigger.click();
+    await expect(page.getByRole("group", { name: `${PLUGIN_NAME} — Warmth` })).toHaveCount(1);
+    await expect(page.getByRole("group", { name: `${PLUGIN_NAME} — Board` })).toHaveCount(1);
+    await expect(page.locator("iframe")).toHaveCount(1);
+    // The frame was minted for ONE mount; the inline flank never mounted a second copy.
+    await expect(page.locator(FLANK_SLOT)).toBeHidden();
+    expect(mints).toBe(1);
+  });
+
+  test("hiding the last panel closes the sheet and takes its icon with it; Undo brings both back", async ({ mount, page }) => {
+    const recorder = await routeTrpc(page, {
+      ...CHAT_AMBIENT_ROUTES,
+      ...ROOM_ROUTES,
+      ...hiddenPluginRoutes(),
+      "plugin.list": () => [pluginRow("enabled")],
+      "plugin.listSurfaces": () => [surfaceRow("chat-flank", "affinity_flank", "Warmth", FLANK_SPEC)],
+      "plugin.getSurfaceState": () => FLANK_STATE,
+    });
+    await mount(<PluginFlankSheetRoomStory />);
+
+    await page.getByRole("button", SHEET_TRIGGER).click();
+    await page.getByRole("button", { name: `Hide ${PLUGIN_NAME}` }).click();
+    await expect(page.getByRole("button", SHEET_TRIGGER)).toHaveCount(0);
+    await expect(page.getByRole("group", { name: `${PLUGIN_NAME} — Warmth` })).toHaveCount(0);
+    await expect.poll(() => recorder.lastInput("settings.updateUserSettingsSection")).toEqual(HIDE_AFFINITY);
+
+    await page.getByLabel("Alerts").getByRole("button", { name: "Undo", exact: true }).click();
+    await expect(page.getByRole("button", SHEET_TRIGGER)).toBeVisible();
+    await expect.poll(() => recorder.lastInput("settings.updateUserSettingsSection")).toEqual(SHOW_ALL);
   });
 });
 

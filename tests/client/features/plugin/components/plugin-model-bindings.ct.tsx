@@ -16,6 +16,7 @@ import {
 } from "../../../../../packages/client/src/features/plugin/lib/plugin-model-copy.ts";
 import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
+import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { PluginsSurfaceStory } from "../_ct-stories.tsx";
 
 type PluginRow = TrpcWireOutput<"plugin.list">[number];
@@ -122,6 +123,7 @@ interface StubRoutes {
 
 async function stub(page: Page, routes: StubRoutes = {}): Promise<TrpcRecorder> {
   return await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => routes.plugins ?? [CAPTIONER],
     "plugin.listSurfaces": () => [],
     "plugin.getLog": () => [],
