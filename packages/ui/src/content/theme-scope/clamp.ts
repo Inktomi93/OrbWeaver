@@ -29,13 +29,7 @@
 // dark smoke. A token names ONE polarity semantic.
 
 import { isDeterministicColor, isSafeColor } from "@orb/kit/safe-color";
-import {
-  accentFillLightness,
-  derivedForegroundLightness,
-  THEME_DERIVATION as KIT_THEME_DERIVATION,
-  proseInkLightness,
-  surfacePolarity,
-} from "@orb/kit/theme-derivation";
+import { accentFillLightness, derivedForegroundLightness, proseInkLightness, surfacePolarity } from "@orb/kit/theme-derivation";
 import { z } from "zod";
 import type { ParsedOklch } from "./color-parse.ts";
 import { compositedBase, serializeOpaqueOklch, toOklch } from "./color-parse.ts";
@@ -128,18 +122,6 @@ export interface ClampedTheme {
 function fontStack(font: ThemeFont): string {
   return font === "Geist" ? "Geist, ui-sans-serif, system-ui, sans-serif" : `${font}, serif`;
 }
-
-/**
- * The numeric derivation constants, exported so the seed-palette-contrast test recomputes the
- * derived colors independently and proves every pairing clears WCAG AA against the real constants.
- *
- * ONE HOME, in `@orb/kit/theme-derivation` (2026-08-08). The numbers moved DOWN the cake because a second
- * consumer appeared that `@orb/ui` cannot reach and that cannot reach `@orb/ui`: the SillyTavern importer
- * persists into the same ThemeOverride contract. This alias keeps every existing consumer's name
- * (`THEME_DERIVATION` off the clamp) while the total accepted-base solver has exactly one declaration.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export const THEME_DERIVATION = KIT_THEME_DERIVATION;
 
 /**
  * ONE author-picked prose ink, judged against the base surface it will be painted on (`null` ⇒ nothing

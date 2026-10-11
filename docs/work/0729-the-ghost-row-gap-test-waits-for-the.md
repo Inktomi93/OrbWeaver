@@ -22,4 +22,4 @@ The test polls the gap and passes with --repeat-each=10.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Done in cb-ui-cleanup. Root cause fixed earlier in 3536e7eb37 (measuring the `display: contents` ghost-stream-body). The gap read in `ghost-message-row.ct.tsx` is now an `expect.poll`. Before the change the single-read test passed 10 of 10 under `--repeat-each=10` (the flake was already gone, so no red is reproducible); after it, `pnpm test:ct tests/client/features/chat/components/ghost-message-row.ct.tsx --repeat-each=10` passes 270 of 270 (27 tests x 10), 0 flaky.

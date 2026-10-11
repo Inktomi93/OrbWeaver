@@ -403,16 +403,21 @@ test("the ghost's streamed body follows its header at the container's row gap, w
   const component = await mount(<GhostRowScriptedStory chunks={["The lantern gutters. "]} speakerName="Marguerite" />);
   await driveScript(component, 1);
   await expect(component.locator('[data-slot="ghost-stream-body"]')).toBeAttached();
-  const gap = await component.locator(NAME_ROW).evaluate((header: HTMLElement) => {
-    // The stream body is `display: contents` (it adds no box), so the first box after the header is its child.
-    const body = header.nextElementSibling;
-    const firstBox = body?.getAttribute("data-slot") === "ghost-stream-body" ? body.firstElementChild : null;
-    if (firstBox === null) {
-      throw new Error("the ghost's header is not followed by its streamed body");
-    }
-    return firstBox.getBoundingClientRect().top - header.getBoundingClientRect().bottom;
-  });
-  expect(Math.abs(gap - SNAPPED_LENGTH_BASE_PX["spacing.row"])).toBeLessThan(1);
+  // Polled so a read taken mid-layout retries instead of failing the run.
+  await expect
+    .poll(async () => {
+      const gap = await component.locator(NAME_ROW).evaluate((header: HTMLElement) => {
+        // The stream body is `display: contents` (it adds no box), so the first box after the header is its child.
+        const body = header.nextElementSibling;
+        const firstBox = body?.getAttribute("data-slot") === "ghost-stream-body" ? body.firstElementChild : null;
+        if (firstBox === null) {
+          throw new Error("the ghost's header is not followed by its streamed body");
+        }
+        return firstBox.getBoundingClientRect().top - header.getBoundingClientRect().bottom;
+      });
+      return Math.abs(gap - SNAPPED_LENGTH_BASE_PX["spacing.row"]);
+    })
+    .toBeLessThan(1);
 });
 
 test("#116: with no resolved attribution the ghost is byte-identically bare — no empty name row", async ({ mount }) => {

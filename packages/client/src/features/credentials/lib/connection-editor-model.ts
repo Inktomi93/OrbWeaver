@@ -9,6 +9,7 @@
 // honesty rules that govern what a source line may say live in THAT file's header.
 
 import type {
+  BeltOwnedBodyKey,
   Capability,
   CatalogStrategy,
   ConnectionTransportDoc,
@@ -18,7 +19,7 @@ import type {
   RoutableTask,
   Task,
 } from "@orb/contracts/inference";
-import { BELT_OWNED_BODY_KEYS, connectionTransportSchema, requirementMet, taskDef } from "@orb/contracts/inference";
+import { connectionTransportSchema, isBeltOwnedBodyKey, requirementMet, taskDef } from "@orb/contracts/inference";
 import { effectiveHttpPort } from "@orb/kit/http-endpoint";
 // Direct, not through `#lib`: node-side CT specs import this module.
 import { ROLE_ROWS_ORDERED } from "../../../lib/connection-roles.ts";
@@ -188,8 +189,8 @@ export function diagnosticsSetCount(extras: Readonly<Record<string, unknown>> | 
 
 // ── the Diagnostics tier: the Extras row editor ────────────────────────────────────────────────────────
 
-const BELT_STREAM_KEYS: readonly string[] = ["stream", "stream_options"];
-const BELT_IDENTITY_KEYS: readonly string[] = ["model", "messages"];
+const BELT_STREAM_KEYS: readonly BeltOwnedBodyKey[] = ["stream", "stream_options"];
+const BELT_IDENTITY_KEYS: readonly BeltOwnedBodyKey[] = ["model", "messages"];
 
 /** WHY a belt key is refused, in the user's terms — one gloss per FAILURE CLASS, not one per key, because
  *  the eight keys at `@orb/contracts/inference::BELT_OWNED_BODY_KEYS` fail in exactly three ways. Written
@@ -197,7 +198,7 @@ const BELT_IDENTITY_KEYS: readonly string[] = ["model", "messages"];
  *  prior string to recover. Rendered at AUTHORING time, before the turn — never as a
  *  `custom_parameters_ignored` warning after it. */
 export function beltKeyGloss(key: string): string | null {
-  if (!BELT_KEYS.includes(key)) {
+  if (!isBeltOwnedBodyKey(key)) {
     return null;
   }
   if (BELT_STREAM_KEYS.includes(key)) {
@@ -208,11 +209,6 @@ export function beltKeyGloss(key: string): string | null {
   }
   return `We own ${key} — getting it wrong hangs or 400s the turn, so the history fit sets it. This row is dropped before the request is sent.`;
 }
-
-/** The belt keys, from their ONE home (a literal list here would be the second home the `extras` ratchet
- *  exists to prevent). NOT exported: nothing outside this module asks "is this key the belt's" — the gloss
- *  is the whole public answer, and an exported alias would be a second name for the same tuple. */
-const BELT_KEYS: readonly string[] = BELT_OWNED_BODY_KEYS;
 
 /** ONE `extras` row while it is being edited. `id` is the row's IDENTITY (§5.3a property 1): the delete
  *  button removes THAT row and editing a key does not rebuild the list under the caret. A row with an empty

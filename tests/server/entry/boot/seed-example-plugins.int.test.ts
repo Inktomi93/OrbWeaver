@@ -430,7 +430,7 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
   expect(await h.service.listSurfaces({ caller })).toEqual([
     expect.objectContaining({ id: "draw_card", anchor: "tool-card", toolName: "draw", toolWireName: "plugin_oracle__deck_draw" }),
     // …and the two U5 surfaces the same activation registered (#679 U5): the full-page deck behind the ONE
-    // Extensions rail entry, and the reveal DIALOG — which the deck opens only from its own page/command, never
+    // Plugins rail entry, and the reveal DIALOG — which the deck opens only from its own page/command, never
     // spontaneously. This is the end-to-end receipt that `page` and `dialog` survive a REAL activation over the
     // WASM runtime, not just the schema.
     expect.objectContaining({ id: "deck_page", anchor: "page", title: "The Deck" }),
