@@ -26,3 +26,5 @@ The header leads with the participants (character names, and avatar where the he
 Filled at landing: what ran and where its output is.
 
 Later owner rulings: the room title and its chips always live in the center chat header (no hand-off into the context panel) in the app's standard type, and imported names with a duplicate (N) suffix count as unnamed. The context pane's header is its own tabs, moved up from the bottom (one tab strip), on the shared 48px line with a close control.
+
+Orchestrator call within the owner's tab ruling: it overrides the earlier universal foot rail; every context pane gets one header tablist with a close control, the kicker is dropped, and game rooms keep their state rail as panel content under the tabs.
