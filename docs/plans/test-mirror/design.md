@@ -48,7 +48,8 @@ The law is the specification. Where a gate enforces less than the law text says,
 - Mint schemas for the hand-spelled HTTP responses and parse both ends: chat import (`packages/server/src/entry/http/import-chat.ts:59` against `packages/client/src/data/import-chats.ts:27`), auth config (`packages/server/src/entry/http/auth-meta.ts:69-88`), auth me (`packages/client/src/data/auth-bootstrap.ts:54`), import tree and bundle, and the card lorebook restore.
 - Parse typed JSON columns on read: plugin manifest and granted capabilities (`packages/server/src/domain/plugin/persistence/plugins.ts`), connection declared, extras and transport (`packages/server/src/domain/connection/persistence/connections.ts:17-36`), notification payloads, workload progress and result, and character theme and background overrides.
 - Replace contract copies with derived types: the client plugin command view, the card-frame request as `z.input`, the portable chat variant, the discover character group, the variant economics shape (land with any MessageView trim, which edits the same contract file), the import wave outcomes and the character hero detail. The contract-enforcement report names each site.
-- Owner ruling pending: the brace-scanning JSON extractor on the structured path feeds zod; the default keeps it.
+- Owner ruled: the brace-scanning JSON extractor on the structured path stays, because it extracts structure that zod then parses.
+- Owner ruled: `testid-typed-only` widens to CT stories with a baseline that burns down; a hand-written JSON-schema literal in a CT is exempt only where the literal is the subject under test.
 
 ### Known violations by item
 
