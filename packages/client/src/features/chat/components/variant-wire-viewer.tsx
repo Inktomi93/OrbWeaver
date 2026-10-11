@@ -54,6 +54,8 @@ import type { ReactElement } from "react";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 
+const PROSE_MEASURE = "max-w-(--reading-measure-prose)";
+
 export interface VariantWireViewerProps {
   readonly chatId: ChatId;
   readonly variantId: MessageVariantId;
@@ -82,7 +84,9 @@ function WireSection({ heading, gloss, text }: { readonly heading: string; reado
   return (
     <Section heading={<Text voice="kicker">{heading}</Text>}>
       <Stack gap="field">
-        <Text voice="gloss">{gloss}</Text>
+        <Text data-slot="wire-section-gloss" voice="gloss">
+          {gloss}
+        </Text>
         <LogViewer lines={toLines(text)} className="max-h-64" />
       </Stack>
     </Section>
@@ -179,7 +183,7 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
   }
   return (
     <Stack gap="section">
-      <Text voice="gloss">
+      <Text className={PROSE_MEASURE} data-slot="wire-intro" prose={true} voice="gloss">
         The prompt text this reply was generated from, as recorded when it was sent — not a re-render. It holds the system prose and the in-history injections;
         the chat history rows are not stored here. Host-only: it carries every member's content, the room's hidden spans, and each character's full card.
       </Text>
@@ -197,7 +201,14 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
       {prompt.sendHistory ? null : <Text voice="gloss">History was DISABLED for this turn — the model saw no transcript.</Text>}
       {params === null ? null : (
         <Section heading={<Text voice="kicker">Settings this send ran under</Text>}>
-          <LogViewer lines={JSON.stringify(params, null, 2).split("\n")} className="max-h-40" />
+          {Object.keys(params).length === 0 ? (
+            // Replies recorded before the effective settings were stamped carry `{}`, which would read as "ran under no settings".
+            <Text data-slot="wire-params-unrecorded" voice="gloss">
+              Not recorded for this reply.
+            </Text>
+          ) : (
+            <LogViewer lines={JSON.stringify(params, null, 2).split("\n")} className="max-h-40" />
+          )}
         </Section>
       )}
       <WireProvenance wire={wire} />
