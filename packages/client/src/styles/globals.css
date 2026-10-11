@@ -401,20 +401,29 @@ body {
      * the plateless base verbatim. */
     html[data-blur-modals] [data-slot="dialog-popup"],
     html[data-blur-modals] [data-slot="alert-dialog-popup"] {
+      /* The glass sits on ::before, not here: a backdrop-filter on the popup makes it a backdrop root, and the
+       * sticky footer's nested blur then cannot see the body scrolling beneath it. */
+      isolation: isolate;
+      background-color: transparent;
+    }
+    html[data-blur-modals] [data-slot="dialog-popup"]::before,
+    html[data-blur-modals] [data-slot="alert-dialog-popup"]::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      border-radius: inherit;
+      pointer-events: none;
       backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
       background-color: light-dark(
         color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), var(--color-reading-plate)),
         color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), transparent)
       );
     }
-    /* The sticky footer wears the popup's own glass fill, so it is no solid band across the glass; its blur
-     * softens the body text scrolling beneath it. */
+    /* The footer only blurs: the popup layer already paints the fill, and a second one reads as a slab. */
     html[data-blur-modals] [data-slot="dialog-footer"] {
       backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
-      background-color: light-dark(
-        color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), var(--color-reading-plate)),
-        color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), transparent)
-      );
+      background-color: transparent;
     }
     /* Per-role bubble base so the glass tints as that bubble, not a generic grey. */
     html[data-blur-messages] [data-role="user"] [data-slot="message-bubble"] {

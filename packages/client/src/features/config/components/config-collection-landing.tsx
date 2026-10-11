@@ -56,7 +56,7 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { FileTrigger } from "@orb/ui/file-trigger";
 import { Icon, ListChecks, MoreVertical, Plus, Upload } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
-import { Row, Stack } from "@orb/ui/layout";
+import { Container, Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
@@ -159,8 +159,9 @@ function CollectionControlRow({
   readonly onFilterChange: (next: string) => void;
 }): ReactElement {
   return (
-    <Row align="center" data-slot="collection-control-row" gap="field">
-      {/* A FILTER, never the settings index's jump search (§3.2): it narrows THIS library's rows in place,
+    <Container className="w-full">
+      <Row align="center" className="flex-wrap" data-slot="collection-control-row" gap="field">
+        {/* A FILTER, never the settings index's jump search (§3.2): it narrows THIS library's rows in place,
           which is the verb every peer LIST pane's `Input` performs. The settings `combobox` above it jumps
           instead, and the two must not read as one control.
           NO LEADING GLYPH, and that is a MEASURED call rather than a taste one (#1725): the row carries five
@@ -168,15 +169,16 @@ function CollectionControlRow({
           one box a reader types into. At 430 the glyph + its joint took the filter to ~85px — "Filter tag",
           clipped mid-word — against ~130px in the approved p2 board, which draws no glyph either. The
           placeholder already names the verb. */}
-      <Row align="center" className="min-w-0 flex-1">
-        <Input aria-label={`Filter ${label.toLowerCase()}`} onValueChange={onFilterChange} placeholder={`Filter ${label.toLowerCase()}…`} value={filter} />
-      </Row>
-      <CollectionBulkToggle collection={collection} />
-      {/* CREATE IS THE ROW'S ONE PRIMARY (C-2's no-aggregate-primary ruling is about the WELCOME, not here):
+        <Row align="center" className="min-w-0 flex-1">
+          <Input aria-label={`Filter ${label.toLowerCase()}`} onValueChange={onFilterChange} placeholder={`Filter ${label.toLowerCase()}…`} value={filter} />
+        </Row>
+        <CollectionBulkToggle collection={collection} />
+        {/* CREATE IS THE ROW'S ONE PRIMARY (C-2's no-aggregate-primary ruling is about the WELCOME, not here):
           it is the library's own verb, on the library's own pane. */}
-      <CollectionCreate collection={collection} inBand={true} />
-      <CollectionOverflow collection={collection} />
-    </Row>
+        <CollectionCreate collection={collection} inBand={true} />
+        <CollectionOverflow collection={collection} />
+      </Row>
+    </Container>
   );
 }
 
@@ -212,37 +214,43 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
     );
   }
   return (
-    <form
-      noValidate={true}
-      onSubmit={(event): void => {
-        event.preventDefault();
-        if (trimmed !== "" && !pending) {
-          setPending(true);
-          run(trimmed, cancel, (): void => setPending(false));
-        }
-      }}
-    >
-      <Row align="center" gap="field">
-        <Input
-          aria-label={askName.fieldLabel}
-          maxLength={askName.maxLength}
-          onKeyDown={(event): void => {
-            if (event.key === "Escape") {
-              cancel();
-            }
-          }}
-          onValueChange={setName}
-          ref={nameRef}
-          value={name}
-        />
-        <Button disabled={trimmed === "" || pending} intent="primary" type="submit" {...(inBand ? { size: "sm" as const } : {})}>
-          Create
-        </Button>
-        <Button intent="ghost" onClick={cancel} type="button" {...(inBand ? { size: "sm" as const } : {})}>
-          Cancel
-        </Button>
-      </Row>
-    </form>
+    // In the control row the form takes its own full-width line under the other controls when the row's
+    // container is narrow, so asking for a name never squeezes the filter out.
+    <Stack className={inBand ? "order-last basis-full @md:order-none @md:basis-auto" : undefined}>
+      <form
+        noValidate={true}
+        onSubmit={(event): void => {
+          event.preventDefault();
+          if (trimmed !== "" && !pending) {
+            setPending(true);
+            run(trimmed, cancel, (): void => setPending(false));
+          }
+        }}
+      >
+        <Row align="center" gap="field">
+          <Input
+            aria-label={askName.fieldLabel}
+            className="min-w-0 flex-1"
+            maxLength={askName.maxLength}
+            onKeyDown={(event): void => {
+              if (event.key === "Escape") {
+                cancel();
+              }
+            }}
+            onValueChange={setName}
+            placeholder={askName.fieldLabel}
+            ref={nameRef}
+            value={name}
+          />
+          <Button disabled={trimmed === "" || pending} intent="primary" type="submit" {...(inBand ? { size: "sm" as const } : {})}>
+            Create
+          </Button>
+          <Button intent="ghost" onClick={cancel} type="button" {...(inBand ? { size: "sm" as const } : {})}>
+            Cancel
+          </Button>
+        </Row>
+      </form>
+    </Stack>
   );
 }
 
