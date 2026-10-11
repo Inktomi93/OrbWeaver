@@ -7,7 +7,7 @@ area: client
 lane: wt/agent-adc51f781af4ecfb9
 ---
 
-# Focus mode and the two side panels stay in sync
+# Focus mode is removed
 
 ## What
 
@@ -19,8 +19,10 @@ A toggle whose icon lies and panels that do not come back are disorienting.
 
 ## Done when
 
-One source of truth: focus on hides both panels, focus off restores exactly the panels open before, opening a panel while in focus exits focus, and the toggle's icon and pressed state always reflect whether any side panel is showing; CTs cover enter, exit, open-a-panel-in-focus, both-panels and one-panel cases at desktop widths.
+Focus mode and its toggle are removed (store state, panel resolution, chrome entry, agent-nav verbs, tests and docs); the per-panel toggles are the only panel controls and the narrow-desktop auto-collapse still works.
 
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner ruling: focus mode is not needed; remove it rather than fix its sync.
