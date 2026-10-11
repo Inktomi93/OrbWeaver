@@ -30,6 +30,10 @@ Do the steps in order. A later step may run in parallel only where its row says 
 - Mutation testing is out of scope.
 - The persona-resolution suite stays byte-untouched.
 
+### Burn down the waivers
+
+A green structure run hides findings that are waived one by one. The largest waiver populations are `caught-failure-ownership`, `no-test-fabrication` and `ct-no-oneshot-live-read-assert`, followed by `test-determinism`, the id-brand gates and `owner-scoped-reads` and `owner-scoped-writes`. Item 899 adds a ratchet per waived gate so the waived count can only fall. Review the owner-scoped waivers first, because they concern tenancy.
+
 ### Known violations by item
 
 Each row names the test site, the production counterpart, and the fix. The four audit reports in the owner archive (orbweaver-reviews, test-mirror client, server, e2e-ui-contracts and inference-tooling-gates) hold the full tables.
@@ -62,14 +66,18 @@ Each row names the test site, the production counterpart, and the fix. The four 
 - Story harnesses: `chat/_ct-stories.tsx:1244` copies the removed `surfaceWarning`; `chat/_reaction-stories.tsx:115-152` copies a moved wrapper; `auth/_ct-stories.tsx:183-188` re-implements session recovery; `user-admin/components/share-card.ct.tsx:94-145` partly copies the share refusal rule; `components/greeting-studio.fixtures.tsx:17-36` wires a path production never takes.
 - Inference and tooling: `tests/inference/capability/synthesize.test.ts:12` and `resolve/resolve-task.suite.test.ts:346` copy `requireGenerationCapability`; two showcase plugin suites copy a toast floor that has diverged from `ui-outbox.ts:85`; `tests/support/tool-fixtures.ts:59-62` copies `tooling/src/codemod/lib/plans.ts:70-73`.
 
+- Contracts: `tests/contracts/rpg/extraction.contract.test.ts:63` and `rpg/tracker.contract.test.ts:34` copy the actor-key scheme from `packages/contracts/src/rpg/actor.ts:138-146`; `rpg/structured-patch.contract.test.ts:47-65` copies the tool builder from `packages/server/src/entry/compose/rpg.ts:1082-1120` (move it to contracts); `prose/index.contract.test.ts:37,116-130` copies the hash and version rule from `tooling/src/verify/ops/gen/prose.ts:37-60`; `rpg/extraction.contract.test.ts:1082-1105` copies the name-map walker from `packages/inference/src/wire-subset.ts:95`.
+- UI: `tests/ui/art/web-weave/web-weave-spider.dom.test.ts:40` copies `wrapToPi` (`packages/ui/src/art/web-weave/web-weave-math.ts:26`); `tests/ui/content/sandbox-frame/sandbox-frame.ct.tsx:325` carries a stale copy of the server CSP; `sandbox-frame.ct.tsx:166` and `content/immersive-card/immersive-card.ct.tsx:93,130` serve frames by hand instead of through `frameHeaders`; `lib/selection-ring.ct.tsx:99-109` re-spells `SELECTION_RING_SELECTED`.
+- Tests that assert their own literal, and so test nothing: `tests/contracts/chat/index.contract.test.ts:18-31,152-199` (the server and client sides call one function twice), `chat/messages.contract.test.ts:57-101`, `session/index.contract.test.ts:19-44`, `search/index.contract.test.ts:60-149`, `portability/index.contract.test.ts:85-125`, `stats/index.contract.test.ts:226-247`, `identity/index.contract.test.ts:73-117`, `rpg/bus.contract.test.ts:25-57`. Parse each fixture through its real schema, move compile-only checks to `.test-d.ts`, or delete. Fixtures with fake ids (`tag/index.contract.test.ts:19`, `assets/index.contract.test.ts:70`) must be minted, because the strict schemas reject them.
+
 **891, typed recorder.**
 
 - `tests/support/node/route-trpc.ts:471-477,569-573`: `lastInput` and `inputs` return unknown, so client tests cast to hand shapes. Type them by procedure with `TrpcInput`.
 - The `lastPatch` helper copied across the settings section CTs; the untyped `auth/me` stubs; the untyped upload caps in `chat/_gallery-fixtures.ts:75-90`; `TrpcFixture` accepting any non-empty subset.
 
-**892, constants.** The AA floor, the talkativeness default, max output tokens, max image bytes, blur surfaces, chat styles, owned settings keys, the frozen clock, config anchor ids, the CSRF header, chat-with names, test ids, the chat width default (`chat/_ct-stories.tsx:2104-2107` measures at 50dvw against a production default of 60), and the inline e2e timeouts.
+**892, constants.** Also the private constants tests re-spell: web-weave, snap, reveal and glint timings, the touch floor (`SNAPPED_LENGTH_BASE_PX` in `packages/ui/src/tokens/index.ts`), contract caps and defaults kept private in `settings/appearance.ts`, `character/index.ts`, `refinery/index.ts` and `databank/index.ts` (export them), and token px literals in the layout primitive CTs. The AA floor, the talkativeness default, max output tokens, max image bytes, blur surfaces, chat styles, owned settings keys, the frozen clock, config anchor ids, the CSRF header, chat-with names, test ids, the chat width default (`chat/_ct-stories.tsx:2104-2107` measures at 50dvw against a production default of 60), and the inline e2e timeouts.
 
-**893, contrast engine.** Copies in `rules-section.ct.tsx:1154-1161`, `appearance-sizing-section.ct.tsx:171-173`, `app-shell.ct.tsx:5377-5391`, `home-surface.ct.tsx:1372-1374` (diverging knee), `tests/support/browser/part-vs-surface.ts:44-56`, `badge.ct.tsx:77-86` and `tests/ui/content/theme-scope/palette-contrast.suite.test.ts:35`. One engine: `tooling/src/_shared/wcag.ts`.
+**893, contrast engine.** Also `tests/ui/charts/chart/use-chart-theme.ct.tsx`, `content/theme-scope/theme-scope.ct.tsx`, `primitives/switch/switch.ct.tsx`, `primitives/toast/toast.ct.tsx`, `markdown/markdown.ct.tsx` and `tokens/index.test.ts`; `palette-contrast.suite.test.ts` copies five kit colour functions. Copies in `rules-section.ct.tsx:1154-1161`, `appearance-sizing-section.ct.tsx:171-173`, `app-shell.ct.tsx:5377-5391`, `home-surface.ct.tsx:1372-1374` (diverging knee), `tests/support/browser/part-vs-surface.ts:44-56`, `badge.ct.tsx:77-86` and `tests/ui/content/theme-scope/palette-contrast.suite.test.ts:35`. One engine: `tooling/src/_shared/wcag.ts`.
 
 **894, seeders.** Local seeders in `tests/db/schema` with a fake content hash; raw settings and preset mutations in two live specs where `trpc.ts` helpers exist.
 
