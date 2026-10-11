@@ -1,5 +1,5 @@
 // Policy: tooling-cli-entry (docs/law/Core-Tooling-Law.md §4.4, arm E of the retired
-// `tooling-shared-plumbing`) — every tool `cli.ts` enters through `runTool` (_shared/run-tool.ts), the
+// `tooling-shared-plumbing`) — every tool `cli.ts` enters through `runTool` (floor/cli/run-tool.ts), the
 // exit-honesty runner that owns crash≠verdict, pipe-drain and never-downgrade. A cli.ts that hand-rolls its
 // own entry exits with whatever node decided, and a crash reads as "violations found". Comment posture:
 // comment-SAFE (node kinds only).
@@ -13,7 +13,7 @@
 // `lib/tooling-import-door.ts#isToolCli` (the four-segment cli shape). The family name is minted WITH this
 // second member — the loader refuses a one-member family under any name but its policy id.
 //
-// IDENTITY, NOT SPELLING: the legacy required an import whose specifier ENDED IN `_shared/run-tool.ts` plus
+// IDENTITY, NOT SPELLING: the legacy required an import whose specifier ENDED IN `floor/cli/run-tool.ts` plus
 // a call whose callee TEXT was `runTool`, so a local `function runTool()` passed as an entry (mustFlag[1] now
 // reds it) and `import { runTool as run }` was reported (mustPass[1] now passes it). The callee must resolve
 // BY DECLARATION to the runner home's `runTool` export; a callee the readers cannot place is no proven entry
@@ -37,25 +37,25 @@
 // `tooling-shared-plumbing` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
 // `bbdccb2d5c` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,464 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,617 and final `population` admits 16.
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,617 and final `population` admits 16.
 // legacy − final = 1,601 — every scanned path other than `tooling/src/*/cli.ts` and the runner home: arm E judged the
 // cli shape by regex inside `visitFile`. final − legacy = ∅. Controls: inside: no virtual sibling fits the exact-path
-// population, so the real shared member `tooling/src/_shared/run-tool.ts` is the control, admitted by both; outside
+// population, so the real shared member `tooling/src/floor/cli/run-tool.ts` is the control, admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-home-origin.ts";
 import { isToolCli } from "../lib/tooling-import-door.ts";
 
-const RUNNER_HOME = { path: "tooling/src/_shared/run-tool.ts", names: ["runTool"] } as const;
+const RUNNER_HOME = { path: "tooling/src/floor/cli/run-tool.ts", names: ["runTool"] } as const;
 const RUNNER_RECEIPT = "program-entry home: run-tool";
 
 const MESSAGE =
-  'a tool cli.ts must enter through runTool (_shared/run-tool.ts) — the exit-honesty runner owns crash≠verdict, pipe-drain and never-downgrade, and a hand-rolled entry exits with whatever node decided, so a crash reads as "violations found" (docs/law/Core-Tooling-Law.md §4.4).';
-const FIX = "end the cli.ts in `await runTool(main)` (_shared/run-tool.ts), where `main` returns the EXIT member; the runner classifies every other outcome.";
+  'a tool cli.ts must enter through runTool (floor/cli/run-tool.ts) — the exit-honesty runner owns crash≠verdict, pipe-drain and never-downgrade, and a hand-rolled entry exits with whatever node decided, so a crash reads as "violations found" (docs/law/Core-Tooling-Law.md §4.4).';
+const FIX = "end the cli.ts in `await runTool(main)` (floor/cli/run-tool.ts), where `main` returns the EXIT member; the runner classifies every other outcome.";
 
 const missing = (rel: string): string =>
-  `${rel} must enter through runTool (_shared/run-tool.ts): no call in it resolves to the runner's \`runTool\` export, so it never enters the exit-honesty runner and its exit code is whatever node decided.`;
+  `${rel} must enter through runTool (floor/cli/run-tool.ts): no call in it resolves to the runner's \`runTool\` export, so it never enters the exit-honesty runner and its exit code is whatever node decided.`;
 
 export const gate = defineGate({
   id: "tooling-cli-entry",
@@ -119,7 +119,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         [RUNNER_HOME.path]: `${runnerStub()}export function other(): void {}\n`,
-        "tooling/src/othercli/cli.ts": 'import { other } from "../_shared/run-tool.ts";\n\nother();\n',
+        "tooling/src/othercli/cli.ts": 'import { other } from "../floor/cli/run-tool.ts";\n\nother();\n',
       },
       expect: { count: 1, line: 1 },
       why: "THE EXPORT-NAME HALF of the identity: a call into the runner HOME that is not the runner EXPORT is no entry. Widening RUNNER_HOME.names to admit `other` turns this row green, which is what pins the name half of the `(file, export)` pair",
@@ -136,7 +136,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         [RUNNER_HOME.path]: runnerStub(),
-        "tooling/src/goodcli/cli.ts": 'import { runTool } from "../_shared/run-tool.ts";\nawait runTool(() => 0);\n',
+        "tooling/src/goodcli/cli.ts": 'import { runTool } from "../floor/cli/run-tool.ts";\nawait runTool(() => 0);\n',
       },
       why: "a cli.ts entering through runTool — the sanctioned front-door shape (arm E's pass half). The runner home is in the population and is SKIPPED, never judged: it is not a cli.ts by shape",
     },
@@ -144,7 +144,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         [RUNNER_HOME.path]: runnerStub(),
-        "tooling/src/aliascli/cli.ts": 'import { runTool as run } from "../_shared/run-tool.ts";\nawait run(() => 0);\n',
+        "tooling/src/aliascli/cli.ts": 'import { runTool as run } from "../floor/cli/run-tool.ts";\nawait run(() => 0);\n',
       },
       why: "AN IMPORT ALIAS enters the same runner — the callee resolves to the home's export whatever it was spelled as. The legacy text comparison reported this cli as unentered",
     },
@@ -153,7 +153,7 @@ export const gate = defineGate({
       files: {
         [RUNNER_HOME.path]: runnerStub(),
         "tooling/src/nestedcli/cli.ts":
-          'import { runTool } from "../_shared/run-tool.ts";\nasync function boot(): Promise<void> {\n  await runTool(() => 0);\n}\nawait boot();\n',
+          'import { runTool } from "../floor/cli/run-tool.ts";\nasync function boot(): Promise<void> {\n  await runTool(() => 0);\n}\nawait boot();\n',
       },
       why: "DECLARED LIMIT, carried from the legacy: the runner call may sit anywhere in the cli, not only at module scope — the legacy accepted any call, and the module-scope rule is the ops-direct-invocation program arm's, not this policy's",
     },

@@ -23,12 +23,12 @@ import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-co
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/tooling-ops-direct-invocation";
-const GUARD_HOME = "tooling/src/_shared/entrypoint.ts";
-const RUNNER_HOME = "tooling/src/_shared/run-tool.ts";
+const GUARD_HOME = "tooling/src/floor/cli/entrypoint.ts";
+const RUNNER_HOME = "tooling/src/floor/cli/run-tool.ts";
 const GUARD_SOURCE = "export function refuseDirectInvocation(u: string, e: string): void {\n  void u;\n  void e;\n}\n";
 const RUNNER_SOURCE = "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n";
 const GUARDED_OPS =
-  'import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";\n\nrefuseDirectInvocation(import.meta.url, "pnpm aa");\n\nexport const x = 1;\n';
+  'import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";\n\nrefuseDirectInvocation(import.meta.url, "pnpm aa");\n\nexport const x = 1;\n';
 const OPS = "tooling/src/aa/ops/x.ts";
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
@@ -86,7 +86,7 @@ test("a RENAMED guard export leaves the home's receipt unresolved and refuses â€
   const renamed = passOf({
     [GUARD_HOME]: "export function refuseEntry(u: string, e: string): void {\n  void u;\n  void e;\n}\n",
     [RUNNER_HOME]: RUNNER_SOURCE,
-    [OPS]: 'import { refuseEntry } from "../../_shared/entrypoint.ts";\n\nrefuseEntry(import.meta.url, "pnpm aa");\n',
+    [OPS]: 'import { refuseEntry } from "../../floor/cli/entrypoint.ts";\n\nrefuseEntry(import.meta.url, "pnpm aa");\n',
   });
   expect(renamed.toolErrors).toMatchObject([{ policyId: gate.id, phase: "receipt" }]);
   expect(renamed.toolErrors[0]?.message).toContain('"program-entry home: entrypoint" left 1 unresolved');

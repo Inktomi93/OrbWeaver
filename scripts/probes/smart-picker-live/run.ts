@@ -32,7 +32,7 @@ import { smartArbitrate } from "../../../packages/server/src/domain/chat/engine/
 import { speakerArbiterFor } from "../../../packages/server/src/entry/compose/chat.ts";
 import { fakeApiKeySecret, fakeConnection, fakeDeps } from "../../../tests/inference/_support.ts";
 import { principal } from "../../../tests/support/factories/principal.ts";
-import { execGit } from "../../../tooling/src/_shared/git.ts";
+import { execGit } from "../../../tooling/src/floor/git/git.ts";
 import { readEnvKey } from "../openrouter/_kit.ts";
 import type { Scene } from "./scenes.ts";
 import { SCENES } from "./scenes.ts";

@@ -6,8 +6,8 @@
 // a mint through `pendingDocProblems`, an edit through `introducedDocProblems`.
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { UsageError } from "../../_shared/run-tool.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { UsageError } from "../../floor/cli/run-tool.ts";
 import type { DocEdit, GovernedDoc, ItemPatch, ItemState, NewItemInput, WorkItem } from "../contract/types.ts";
 import { DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { allItems } from "../lib/generated.ts";

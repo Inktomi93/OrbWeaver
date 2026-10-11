@@ -1,5 +1,5 @@
 // Policy: tooling-process-exit-home (docs/law/Core-Tooling-Law.md §4.4, arm D of the retired
-// `tooling-shared-plumbing`) — the process EXITS in ONE home, `_shared/run-tool.ts` (the exit-honesty
+// `tooling-shared-plumbing`) — the process EXITS in ONE home, `floor/cli/run-tool.ts` (the exit-honesty
 // runner: crash≠verdict, pipe-drain, never-downgrade). A `process.exit(` anywhere else under `tooling/src/**`
 // drops unflushed stdout mid-report AND dodges the runner's exit classification. Comment posture:
 // comment-SAFE (node kinds only).
@@ -14,7 +14,7 @@
 // `tooling-process-exit` singleton would have re-spelled it, which is the two-spellings-of-one-concept merge
 // case the family law forbids. IDENTITY, NOT SPELLING: the legacy compared the receiver's TEXT to `process`;
 // the subject is now the `exit` member of the real `process` — the ambient global or the default export of
-// the `node:process` door (the live spelling, `_shared/run-tool.ts:12`) — so a local object named `process`
+// the `node:process` door (the live spelling, `floor/cli/run-tool.ts:12`) — so a local object named `process`
 // is provably different and passes (mustPass[0]), and a receiver the readers cannot place is REPORTED under
 // the disjoint UNREADABLE text (mustFlag[2], #944). Both the dotted and the computed-literal
 // `process["exit"]` spelling are one call (mustFlag[1]).
@@ -41,11 +41,11 @@ const EXIT_MEMBER = "exit";
 const OPERATION = "process-exit";
 
 const MESSAGE =
-  "a bare process.exit outside the exit-honesty runner — `process.exit()` drops unflushed stdout (a large report truncates mid-line) AND dodges the runner's crash≠verdict / never-downgrade classification; the ONE exit lives in _shared/run-tool.ts, and every other path sets `process.exitCode` or returns its EXIT member and lets the loop drain (docs/law/Core-Tooling-Law.md §4.4).";
+  "a bare process.exit outside the exit-honesty runner — `process.exit()` drops unflushed stdout (a large report truncates mid-line) AND dodges the runner's crash≠verdict / never-downgrade classification; the ONE exit lives in floor/cli/run-tool.ts, and every other path sets `process.exitCode` or returns its EXIT member and lets the loop drain (docs/law/Core-Tooling-Law.md §4.4).";
 const UNREADABLE =
   "a call spelled like process.exit whose receiver the shared readers cannot place, so whether it exits the real process CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
-  "return the EXIT member (or set `process.exitCode`) and let `runTool` (_shared/run-tool.ts) own the exit; a genuine hard exit belongs in the runner, which carries the exact reviewed grant `(run-tool.ts, process-exit)`.";
+  "return the EXIT member (or set `process.exitCode`) and let `runTool` (floor/cli/run-tool.ts) own the exit; a genuine hard exit belongs in the runner, which carries the exact reviewed grant `(run-tool.ts, process-exit)`.";
 
 export const gate = defineGate({
   id: "tooling-process-exit-home",
@@ -117,9 +117,10 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/_shared/run-tool.ts": 'import process from "node:process";\nexport function crash(): never {\n  process.exit(process.exitCode ?? 2);\n}\n',
+        "tooling/src/floor/cli/run-tool.ts":
+          'import process from "node:process";\nexport function crash(): never {\n  process.exit(process.exitCode ?? 2);\n}\n',
       },
-      expect: { count: 1, messageIncludes: "Subject: tooling/src/_shared/run-tool.ts, operation: process-exit" },
+      expect: { count: 1, messageIncludes: "Subject: tooling/src/floor/cli/run-tool.ts, operation: process-exit" },
       why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the runner reds like any other site and is licensed by its exact grant row (`tooling-process-exit-home:run-tool`). The family test proves this real central grant consumes the identity; module witnesses independently prove the synthetic exact-grant door",
     },
     {

@@ -82,7 +82,7 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     policyId: "eslint-grant-liveness",
     subject: "config[0].ignores[3]",
     operation: 'eslint-zero-member-selector:".stryker-tmp/**"',
-    why: "Stryker writes rewritten copies and generated runner setup outside the authored corpus, so the ignore has no tracked member by construction. Migrated from the retired gate-local RATIFIED row (#1922), whose cite `tooling/src/_shared/stryker-config.ts` is no longer liveness-checked by anything (successor citation check: #2349).",
+    why: "Stryker writes rewritten copies and generated runner setup outside the authored corpus, so the ignore has no tracked member by construction. Migrated from the retired gate-local RATIFIED row (#1922), whose cite `tooling/src/floor/testing/stryker-config.ts` is no longer liveness-checked by anything (successor citation check: #2349).",
     endsWhen:
       "Stryker's sandbox directory changes or mutation execution is retired — the ignore moves or leaves the config and this row is consumed zero times.",
   },

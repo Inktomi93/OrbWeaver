@@ -1,5 +1,5 @@
 import type { SourceFile } from "ts-morph";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ResourceLoad, ResourceReader } from "../contract/resource.ts";
 import type {
   PackageDependencyFacts,

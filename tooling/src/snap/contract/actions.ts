@@ -1,6 +1,6 @@
 // Snap's one argv-ordered browser-drive queue. Types stay separate from the larger run/result contract so
 // adding an action cannot push that contract back over tooling's hard source-size ceiling.
-import type { NavMethod } from "../../_shared/nav.ts";
+import type { NavMethod } from "../../floor/instrument/nav.ts";
 
 // `page` = the target page index for --pages multi-tab mode (0 when unprefixed / single-page). Every
 // step/capture carries it so one flat argv-ordered list can drive N tabs in one shared context.

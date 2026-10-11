@@ -12,7 +12,7 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SecretBox } from "@orb/server/infra/crypto";
-import { budget } from "@orb/tooling/_shared/load-budget";
+import { budget } from "@orb/tooling/floor/host/load-budget";
 import { describe, vi } from "vitest";
 import type { CredentialContext } from "../../../../../packages/server/src/domain/credentials/context.ts";
 import { CREDENTIALS_OP_CODES } from "../../../../../packages/server/src/domain/credentials/contract/errors.ts";

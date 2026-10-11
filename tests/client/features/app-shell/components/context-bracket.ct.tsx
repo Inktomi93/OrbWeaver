@@ -10,7 +10,7 @@
 //  - a NON-claiming contributor is ignored — the section's own band renders (the §3.3 regression floor);
 //  - the shell's own band slot renders NOTHING over a tabs pane, claimed or not.
 
-import { contrastRatio } from "@orb/tooling/_shared/wcag";
+import { contrastRatio } from "@orb/tooling/floor/instrument/wcag";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { pixelContrast, pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { ContextMetaRailStory, ContextOwnershipStory, ContextRegionClaimStory, ContextRegionHeaderStory, ContextRegionNoClaimStory } from "../_ct-stories.tsx";

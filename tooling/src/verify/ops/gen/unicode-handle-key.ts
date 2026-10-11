@@ -5,9 +5,9 @@ import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { emitLine, warn } from "@orb/tooling/_shared/log";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { emitLine, warn } from "@orb/tooling/floor/cli/log";
 
 export const UNICODE_HANDLE_KEY_BASELINE = "unicode-handle-key";
 const REGEN = `pnpm exec node tooling/src/verify/cli.ts baseline ${UNICODE_HANDLE_KEY_BASELINE}`;

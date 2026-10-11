@@ -3,7 +3,7 @@
 // else — no loader flag, no emit, no bundle, no dist path for the SERVER. The only build artifact in this
 // repo is @orb/client's `vite build` output. An argv snapshot test pins that.
 import { join } from "node:path";
-import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "../../_shared/server-entry.ts";
+import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "../../floor/process/server-entry.ts";
 import type { ProdSpawnPlan, ProdSpawnPlanOpts } from "../contract/types.ts";
 import { stripDebugEnv } from "./debug-env.ts";
 

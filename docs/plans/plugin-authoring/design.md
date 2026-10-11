@@ -52,7 +52,7 @@ The app does not build fetched repositories because their build scripts run outs
 
 ## Coupled sites
 
-`packages/showcase-plugins/`, `packages/plugin-sdk/`, `packages/plugin-toolchain/`, `packages/contracts/src/plugin/`, `tooling/src/_shared/project-worlds.ts`, `tooling/src/_shared/type-config-intent.ts`, `scripts/pack-plugin.ts`, and the guest harness change together. Both standalone template repositories consume versioned SDK and toolchain tarballs rather than workspace paths.
+`packages/showcase-plugins/`, `packages/plugin-sdk/`, `packages/plugin-toolchain/`, `packages/contracts/src/plugin/`, `tooling/src/floor/compiler/project-worlds.ts`, `tooling/src/floor/compiler/type-config-intent.ts`, `scripts/pack-plugin.ts`, and the guest harness change together. Both standalone template repositories consume versioned SDK and toolchain tarballs rather than workspace paths.
 
 ## Test plan
 

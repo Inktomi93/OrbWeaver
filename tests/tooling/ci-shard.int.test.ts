@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { testProcessEnv } from "@orb/tooling/_shared/process-env";
-import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/_shared/test-tags";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { testProcessEnv } from "@orb/tooling/floor/process/process-env";
+import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
 import { z } from "zod";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";

@@ -15,9 +15,9 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { getWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { Disposition, InstalledPart, ManifestComponent, ManifestPart, SurfaceManifest } from "../../contract/baseui.ts";
 import { BASE_UI_MANIFEST_REL, blindParts, readInstalledSurface, readManifest, renderedPartsByComponent, truncatedParts } from "../../lib/baseui-read.ts";
 

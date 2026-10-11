@@ -5,7 +5,7 @@ import { createInterface } from "node:readline";
 import { SETUP_COMMAND, SETUP_FRIENDS_ANSWER, SHARE_MODE_REFUSAL } from "@orb/contracts/identity";
 import { ALLOWED_HOSTS_KEY, machineHostNames, splitHostList } from "@orb/kit/allowed-hosts";
 import { applyEnvEdits } from "@orb/kit/env-file";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type {
   AnswerParse,
   SetupAnswers,

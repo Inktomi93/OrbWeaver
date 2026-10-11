@@ -28,7 +28,7 @@
 //      tries the shared module-origin reader FIRST (which is what closes cross-module factories, aliases and
 //      re-export renames) and falls back to the shared lexical symbol for the module-local case.
 //
-// REFUSAL VOCABULARY is the shared one (`_shared/reference-fact-contract.ts`): every answer is a `ReferenceFact`,
+// REFUSAL VOCABULARY is the shared one (`floor/code-facts/reference-fact-contract.ts`): every answer is a `ReferenceFact`,
 // so unsupported syntax is an `unresolved` FACT with a reason and an anchor — never absence, never an empty
 // key set (§12.3). A caller's fail-closed decision is its own: this reader states what it could not read.
 //
@@ -37,10 +37,10 @@
 // GREENER for its consumers, and no consumer or live site asks for it; widening is a separate, provable
 // change. No hop cap: the walk is bounded by a node-identity cycle guard, not by a depth budget.
 
-import { resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
-import { lexicalReferenceSymbol } from "@orb/tooling/_shared/reference-fact-alias";
-import { resolveCallableOrigin } from "@orb/tooling/_shared/reference-fact-call";
-import type { ReferenceFact, ReferenceUnresolvedReason, UnresolvedReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
+import { resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
+import { lexicalReferenceSymbol } from "@orb/tooling/floor/code-facts/reference-fact-alias";
+import { resolveCallableOrigin } from "@orb/tooling/floor/code-facts/reference-fact-call";
+import type { ReferenceFact, ReferenceUnresolvedReason, UnresolvedReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readStringValue, unwrapExpression } from "./ast-read.ts";

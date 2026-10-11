@@ -25,17 +25,17 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `no-manual-token-estimate` descriptor at 9d8b96146c08572d427924e073005e4913b07638, the parent of the conversion
 // `2ee31c5d22` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,196 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// 7,196 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 3,220 and final `population` admits 3,220. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
 //
-// FAMILY: a declared SINGLETON under its own id. `_shared/reference-fact.ts` (`readStaticNumber`,
+// FAMILY: a declared SINGLETON under its own id. `floor/code-facts/reference-fact.ts` (`readStaticNumber`,
 // `resolveExportedDeclarations`), `lib/type-member-origin.ts` and `lib/origin-verdict.ts` are corpus-wide primitives;
 // no sibling judges a hand-rolled token estimate.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference, readStaticNumber, resolveExportedDeclarations } from "../../_shared/reference-fact.ts";
+import { readMemberReference, readStaticNumber, resolveExportedDeclarations } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { declaredByPackage, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";

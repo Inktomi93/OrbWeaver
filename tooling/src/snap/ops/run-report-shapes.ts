@@ -1,5 +1,5 @@
 // Small primitive guards shared by the run-index reader's structural validators.
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --report <index>");
 

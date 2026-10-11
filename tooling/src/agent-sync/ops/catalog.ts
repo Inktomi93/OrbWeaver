@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { processEnvValue } from "../../_shared/process-env.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { processEnvValue } from "../../floor/process/process-env.ts";
 import type { ModelCatalog } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm agents:sync");

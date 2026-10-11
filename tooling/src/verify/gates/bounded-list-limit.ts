@@ -8,7 +8,7 @@
 // FAMILY `bounded-list-limit` — a declared SINGLETON, because no other policy judges a BUILDER CHAIN. Its
 // verdict walks a zod chain hop by hop asking whether a `.max()` appears anywhere before the factory root;
 // that walk is this module's own and nothing else in the corpus wants it. The shared machinery it consumes
-// is `_shared/reference-fact.ts` (`resolveModuleMemberOrigin` for the chain root, `readMemberReference` per hop,
+// is `floor/code-facts/reference-fact.ts` (`resolveModuleMemberOrigin` for the chain root, `readMemberReference` per hop,
 // `resolveStableExpression` for a named schema), `lib/sealed-origin.ts`'s `originModuleSpecifier`, and
 // `lib/property-assignment-name.ts` for the field key — consuming four shared readers is not a family
 // (guide §2, §7 item 4), so it declares itself rather than inventing one around "wire schemas".
@@ -21,13 +21,13 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `bounded-list-limit` descriptor at 4561cb18c483c15b9fc1dfed78777f70bbd958cb, the parent of the conversion
 // `02536f2f07` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,186 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// 7,186 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 132 and final `population` admits 132. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/contracts/src/assets/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference, resolveModuleMemberOrigin, resolveStableExpression } from "../../_shared/reference-fact.ts";
+import { readMemberReference, resolveModuleMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { propertyAssignmentName } from "../lib/property-assignment-name.ts";
 import { originModuleSpecifier } from "../lib/sealed-origin.ts";

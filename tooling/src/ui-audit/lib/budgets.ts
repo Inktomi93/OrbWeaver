@@ -1,5 +1,5 @@
 // The census-stability window — a floor and a ceiling, not sleeps. The CEILING is LOAD-SCALED at module
-// load through the one policy (`@orb/tooling/_shared/load-budget`, #1232): the literal is the QUIET-BOX
+// load through the one policy (`@orb/tooling/floor/host/load-budget`, #1232): the literal is the QUIET-BOX
 // BASE and a contended box stretches it, so the int suites stop exiting 2 on synthetic pages purely
 // because five lanes were live (#1222).
 //
@@ -7,7 +7,7 @@
 // dir stopped navigating and clicking when the scan became a Snap arm, and Snap's own `lib/budgets.ts`
 // owns those three (nav 15 s · wait 10 s · step 5 s) plus the throttled and isolated-stage variants a
 // drive actually needs. One drive, one budget table.
-import { budget } from "@orb/tooling/_shared/load-budget";
+import { budget } from "@orb/tooling/floor/host/load-budget";
 
 const CENSUS_OBSERVE_CEILING_BASE_MS = 5000;
 

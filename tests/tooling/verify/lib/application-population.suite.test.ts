@@ -1,7 +1,7 @@
 // Exercise application subject dispatch with real resource acquisition and full fact/authority inputs.
 import { symlinkSync } from "node:fs";
 import { join } from "node:path";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { defineGate, executePolicyPlan, planPolicyArgv } from "@orb/tooling/verify";
 import { ModuleKind, ModuleResolutionKind, Project } from "ts-morph";
 import { gate as legacyMarkers } from "../../../../tooling/src/verify/gates/gate-ignore-inventory.ts";

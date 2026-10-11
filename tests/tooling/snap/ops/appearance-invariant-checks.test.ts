@@ -1,6 +1,6 @@
 import { describe } from "vitest";
-import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/_shared/appearance-matrix.ts";
-import type { BrowserEnvironmentEvidence } from "../../../../tooling/src/_shared/browser-environment.ts";
+import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
+import type { BrowserEnvironmentEvidence } from "../../../../tooling/src/floor/browser/browser-environment.ts";
 import type { AppearanceCheckContext } from "../../../../tooling/src/snap/ops/appearance-invariant-check-context.ts";
 import { buildAppearanceInvariantChecks } from "../../../../tooling/src/snap/ops/appearance-invariant-checks.ts";
 import type { AppearanceDomSnapshot, AppearanceDomSubject, AppearanceElementFacts } from "../../../../tooling/src/snap/ops/appearance-invariant-dom.ts";

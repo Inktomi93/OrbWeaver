@@ -29,7 +29,7 @@
 //
 // POPULATION PORT: an INTENTIONAL NARROWING that deletes a structurally redundant fence. The legacy
 // descriptor carried `scopeSafety: "whole-project"` with NO `scanRoot`, so its admitted set was the whole
-// harness corpus (`_shared/ts-workspace.ts#harnessGlobs`, 7,557 files on the real tree at `(pruned from public history)`) —
+// harness corpus (`floor/compiler/ts-workspace.ts#harnessGlobs`, 7,557 files on the real tree at `(pruned from public history)`) —
 // and then `lib/css-selector-writers.ts#isProductSource` and `css-family-source-provenance.ts#ownerForPath`
 // each discarded everything outside `packages/{ui,client}/src/`, which is `@ui` + `@client` byte for byte
 // (`contract/population.ts#POPULATION_ROOTS`). `StaticClassCollector.index`/`.visit` additionally fence on
@@ -72,7 +72,7 @@
 // resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run path
 // filter — lib/css-family-source-provenance.ts `ownerForPath` (via lib/css-selector-writers.ts `isProductSource`),
 // `packages/{ui,client}/src/`. Over the SAME 7,567 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`) it admits 1,686 and the final `population` admits 1,686 (the bare harness
+// `floor/compiler/ts-workspace.ts#harnessGlobs`) it admits 1,686 and the final `population` admits 1,686 (the bare harness
 // dispatch was 7,567). legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` rejected by both.

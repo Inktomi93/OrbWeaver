@@ -33,7 +33,7 @@
 //   (settle observers, reveal scrolls), and ops/walker/** is under active rework by a sibling lane
 //   (cb-state-paint) this era. The suite instead gathers RAW facts itself (computed values only) and
 //   feeds the instrument's OWN judgment kernels — every threshold, exemption and composite lives in
-//   @orb/tooling (checks-* + _shared/wcag), never re-derived here. Where a rule's INPUT itself requires
+//   @orb/tooling (checks-* + floor/instrument/wcag), never re-derived here. Where a rule's INPUT itself requires
 //   walker-derived machinery (hit-extent probing, sanctioned-carrier tagging), the rule is WITHHELD by
 //   name rather than fed a forked derivation — see JUDGED/WITHHELD below.
 //
@@ -72,7 +72,7 @@
 //
 // Import direction: tests → @orb/tooling is legal (orchestrator-verified 2026-09-01; the imports:depcruise
 // stage cruises `packages tooling` only, and 38 tests/ precedents exist incl. tests/support/
-// pixel-contrast.ts importing @orb/tooling/_shared/wcag for exactly this kernel). tv objects are deep-
+// pixel-contrast.ts importing @orb/tooling/floor/instrument/wcag for exactly this kernel). tv objects are deep-
 // imported RELATIVELY from packages/ui/src (the @orb/ui exports map does not re-export variants; the
 // house precedent is tests/ui/stream/snap.test.ts:15). packages/ui/src stays READ-ONLY to this suite.
 
@@ -308,7 +308,7 @@ export interface ExpectedFinding {
 // disabled-axis run (#1016) measured a disabled Slider's label at 3.19:1 under light, the row pinned it
 // two-sided, and when the owning fix landed the SAME DAY (ARM B — the shared classifier now derives a
 // text's inactive kind from a control that NAMES it, and reads Base UI's [data-disabled] composite
-// spelling: tooling/src/_shared/wcag.ts) the row went RED exactly as designed — "EXPECTED-FINDING row no
+// spelling: tooling/src/floor/instrument/wcag.ts) the row went RED exactly as designed — "EXPECTED-FINDING row no
 // longer matches its defect", matched 0 of 3 — and was deleted in the fixing commit. That red IS the
 // mechanism working; a row that could not produce it would be an allowlist.
 //

@@ -22,7 +22,7 @@
 // stale, and the run says so at each row instead of silently having nothing to judge.
 //
 // FAMILY: SINGLETON (`no-direct-users-read`). `lib/sealed-origin.ts#readSealedOrigin`/`sealedOriginReports`
-// and `_shared/reference-fact.ts#readMemberReference` are corpus-wide primitives, not a family computation; the
+// and `floor/code-facts/reference-fact.ts#readMemberReference` are corpus-wide primitives, not a family computation; the
 // identity root's home constant is this policy's alone and no sibling shares its subject.
 // POPULATION PORT: byte-identical. The legacy descriptor filtered `MSG_DIR.test(p)` where
 // `MSG_DIR = /packages\/server\/src\/domain\//` (`b5acbf2594^:71`); the final population is
@@ -33,13 +33,13 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `no-direct-users-read` descriptor at b01dff396ad1f8f51bfd1cc92a0f972de8cdc731, the parent of the conversion
 // `b5acbf2594` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,219 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// 7,219 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 1,148 and final `population` admits 1,148. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../_shared/reference-fact.ts";
+import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SealedHome } from "../lib/sealed-origin.ts";
 import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";

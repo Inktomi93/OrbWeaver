@@ -35,7 +35,7 @@
 // `ui-variant-axes-stamped` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
 // `f93c987f82` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,461 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 366 and final `population` admits 1.
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 366 and final `population` admits 1.
 // legacy − final = 365 `@ui` sources other than `lib/variant-attrs.ts` — the axis home is this arm's whole
 // population. final − legacy = ∅. Controls: inside: no virtual sibling fits the exact-path population, so the real
 // shared member `packages/ui/src/lib/variant-attrs.ts` is the control, admitted by both; outside

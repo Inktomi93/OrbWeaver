@@ -3,11 +3,11 @@
 import { existsSync } from "node:fs";
 import { copyFile } from "node:fs/promises";
 import { join } from "node:path";
-import { artifactDir } from "../../_shared/artifact-out.ts";
-import { print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { resolveFfmpeg } from "../../_shared/ffmpeg.ts";
-import { runNicedSync } from "../../_shared/proc.ts";
+import { artifactDir } from "../../floor/artifacts/artifact-out.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { resolveFfmpeg } from "../../floor/instrument/ffmpeg.ts";
+import { runNicedSync } from "../../floor/process/proc.ts";
 import type { Args } from "../contract/types.ts";
 import type { DiffOutcome } from "../contract/verdict.ts";
 import { PNG_EXT_RE, SSIM_ALL_RE } from "../lib/out-names.ts";

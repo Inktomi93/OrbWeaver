@@ -1,13 +1,13 @@
 // --contrast: rendered WCAG verdicts with an honest method per line (css-resolve vs pixel-sample),
 // the occlusion/off-screen refusals (#211), foreground-opacity compositing, and role-aware thresholds.
-// The WCAG math itself is the fleet-shared kernel (_shared/wcag.ts) — one ruler for every instrument.
+// The WCAG math itself is the fleet-shared kernel (floor/instrument/wcag.ts) — one ruler for every instrument.
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
-import type { Viewport } from "../../../_shared/argv.ts";
-import { aggregateScope } from "../../../_shared/artifact-scope.ts";
-import type { ResultPair } from "../../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import { compositeForeground, contrastRatio, FOREGROUND_OPACITY_EPS, isLargeText, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "../../../_shared/wcag.ts";
+import { aggregateScope } from "../../../floor/artifacts/artifact-scope.ts";
+import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
+import type { Viewport } from "../../../floor/instrument/argv.ts";
+import { compositeForeground, contrastRatio, FOREGROUND_OPACITY_EPS, isLargeText, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "../../../floor/instrument/wcag.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
 import type { ContrastCapture, ContrastFacts, ContrastMeasured, ContrastOutcome } from "../../contract/contrast.ts";
 import { buildContrastScript } from "../../lib/contrast-script.ts";

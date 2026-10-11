@@ -277,16 +277,16 @@ know all):
 
 ```
 tooling/src/<tool>/
-├── cli.ts        argv parse + dispatch ONLY (cap 200 lines; enters through _shared/run-tool.ts)
+├── cli.ts        argv parse + dispatch ONLY (cap 200 lines; enters through floor/cli/run-tool.ts)
 ├── index.ts      programmatic API — tests import THIS; cli.ts consumes it
 ├── contract/     result shapes, config schemas, typed exit data
 ├── ops/          one file per command family / capability
 └── lib/          tool-internal pure helpers
 ```
 
-Two sanctioned departures: **`_shared/`** is the ONE plumbing floor (flat modules — the browser bootstrap,
-the ts-morph workspace loader, the artifact filer, the argv idioms, the exit contract, the process door),
-the plan's explicit exception to §1 principle 3's no-`_shared` rule, and it reaches UP to no tool
+Two sanctioned departures: **`floor/`** is the ONE plumbing floor, role-subfoldered and never a flat drawer
+(`browser/` holds the browser bootstrap, `compiler/` the ts-morph workspace loader, `artifacts/` the artifact
+filer, `cli/` the exit contract, `process/` the process door, and so on), and it reaches UP to no tool
 (`tooling-shared-floor`); **`gates/`** is a SIXTH slot inside `verify/` only — the fs-discovered gate
 corpus is neither a command family nor tool-internal helpers, and it is cap-exempt. A bash-fronted tool
 (`stack/`) carries its `.sh` entrypoints at the tool root under a typed exemption row, and its node half is
@@ -305,10 +305,10 @@ did not change when the fleet moved.
 | a cross-tool import enters through the sibling's front door (`#<tool>`), never its `ops`/`lib`/`contract` | `tooling-front-door` (shape) + `tooling-internal-direction` + `tooling-cli-via-index` (resolved edges) |
 | no file >450 lines; no `cli.ts` >200 (`verify/gates/**` cap-exempt) | `tooling-size` |
 | ONE home per plumbing capability: the ts-morph project, the browser launch, the artifact dir, `process.exit`, the `cli.ts` `runTool` entry, the `node:child_process` door, the un-niced spawn census | `tooling-project-home` · `tooling-browser-door` · `tooling-artifact-path-home` · `tooling-artifact-run-slot` · `tooling-process-exit-home` · `tooling-cli-entry` · `tooling-child-process-door` (the `tooling-shared-plumbing` split, `Core-Tooling-Law.md` §4.4) |
-| every instrument whose output is a VERDICT about the app owns a planted-defect proof AND a planted-absence proof | `tooling-instrument-proof` (keyed off `_shared/instruments.ts`) |
+| every instrument whose output is a VERDICT about the app owns a planted-defect proof AND a planted-absence proof | `tooling-instrument-proof` (keyed off `floor/instrument/instruments.ts`) |
 | `packages/** ⇏ tooling/**`; provider families stay sealed | `packages-no-tooling` · `tooling-no-provider-families` |
 
-**Two fleet-wide doors, both in `_shared/`.** `exit-contract.ts` owns `EXIT = { clean: 0, violations: 1,
+**Two fleet-wide doors, both in `floor/cli/`.** `exit-contract.ts` owns `EXIT = { clean: 0, violations: 1,
 toolError: 2, misuse: 3 }` and `run-tool.ts` is the exit-honesty runner every `cli.ts` enters through:
 crash ≠ verdict (an uncaught throw becomes a hard `toolError`, never a silent 1), verdicts set
 `process.exitCode` so stdout drains, and a verdict never downgrades. `proc.ts` is the ONE

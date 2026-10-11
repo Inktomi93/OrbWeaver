@@ -4,7 +4,7 @@
 // annotations, and collection counts cannot prove that a test executed.
 
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import type { FullResult, Reporter, Suite } from "@playwright/test/reporter";
 
 refuseDirectInvocation(import.meta.url, "pnpm e2e:live (Playwright loads this module as a reporter)");

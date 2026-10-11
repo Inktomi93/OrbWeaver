@@ -59,3 +59,4 @@ export { applyTextReplacements, replacementsForNodes } from "./lib/text.ts";
 export { MANIFEST } from "./ops/manifest.ts";
 export { migrateMacroBlocks, migrateMacroBlocksOp } from "./ops/migrate-macro-blocks.ts";
 export { printHelp, printList, printRecipe, printRecipes, RECIPES, searchHelpers } from "./ops/recipes.ts";
+export { applyRelocation, planRelocation, relocateOp } from "./ops/relocate.ts";

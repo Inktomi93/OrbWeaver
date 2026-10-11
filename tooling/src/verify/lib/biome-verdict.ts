@@ -16,7 +16,7 @@
 // "linted clean" in silence either.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { runNicedSync } from "../../_shared/proc.ts";
+import { runNicedSync } from "../../floor/process/proc.ts";
 import type { TranscriptAudit } from "../contract/stage.ts";
 
 /** biome's own summary line, in every text reporter: `Checked 12 files in 3s.` / `Checked 1 file in 4s.` */

@@ -28,7 +28,7 @@
 import { existsSync, lstatSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { StructureReport } from "../../../../tooling/src/verify/contract/structure-report.ts";
 import type { PlantedPolicyRequest } from "../../../support/planted-gate-corpus.ts";
 import { plantedPolicySource, SUBJECT_COLUMN, plantedSubject as subject } from "../../../support/planted-gate-corpus.ts";

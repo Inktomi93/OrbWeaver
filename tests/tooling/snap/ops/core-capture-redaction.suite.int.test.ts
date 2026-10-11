@@ -2,13 +2,13 @@
 // findings reach run.json, the bounded end card, or a later browser-free report.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { vi } from "vitest";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(120_000);
-// THE CHILD HAD A SCALED CEILING AND THE TEST DID NOT (#1744) — the `_shared/browser.int.test.ts` class
+// THE CHILD HAD A SCALED CEILING AND THE TEST DID NOT (#1744) — the `floor/browser/browser.int.test.ts` class
 // exactly: this arm drives a REAL Chromium through the CLI and then reads it back through a second CLI,
 // while the TEST body ran under the parallel lane's 5s default. Green alone, `Test timed out in 5000ms`
 // the moment any snap sibling is co-scheduled (measured 2026-09-05 at loadavg ~28, six snap files at

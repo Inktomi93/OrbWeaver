@@ -28,16 +28,16 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import type { Flags } from "lighthouse";
 import type { Page as PuppeteerPage } from "puppeteer-core";
-import { artifactFile, registerInstrumentArtifact } from "../../../_shared/artifact-out.ts";
-import { exactScope } from "../../../_shared/artifact-scope.ts";
-import type { ResultPair } from "../../../_shared/artifacts.ts";
-import { print } from "../../../_shared/artifacts.ts";
-import type { ProbeSession } from "../../../_shared/browser-contract.ts";
-import { MOBILE_DEVICE } from "../../../_shared/browser-environment.ts";
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import type { EvidenceGap } from "../../../_shared/evidence.ts";
-import { printEvidenceGaps } from "../../../_shared/evidence.ts";
-import { EXIT } from "../../../_shared/exit-contract.ts";
+import { artifactFile, registerInstrumentArtifact } from "../../../floor/artifacts/artifact-out.ts";
+import { exactScope } from "../../../floor/artifacts/artifact-scope.ts";
+import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
+import { print } from "../../../floor/artifacts/artifacts.ts";
+import type { ProbeSession } from "../../../floor/browser/browser-contract.ts";
+import { MOBILE_DEVICE } from "../../../floor/browser/browser-environment.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../../floor/cli/exit-contract.ts";
+import type { EvidenceGap } from "../../../floor/verdict/evidence.ts";
+import { printEvidenceGaps } from "../../../floor/verdict/evidence.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmRunInstance } from "../../contract/arms.ts";
 import type { LighthouseDevice, LighthouseMode, LighthouseOutcome, LighthouseReceipt } from "../../contract/lighthouse.ts";
 import { LIGHTHOUSE_CATEGORIES } from "../../contract/lighthouse.ts";
@@ -109,7 +109,7 @@ async function awaitEndpoint(port: number): Promise<void> {
     await sleep(ENDPOINT_RETRY_MS);
   }
   throw new Error(
-    `the Chrome debugging endpoint on 127.0.0.1:${port} never answered within ${ENDPOINT_ATTEMPTS * ENDPOINT_RETRY_MS}ms — the browser published that port in its profile's DevToolsActivePort but nothing is listening on it (tooling/src/_shared/debugging-endpoint.ts)`,
+    `the Chrome debugging endpoint on 127.0.0.1:${port} never answered within ${ENDPOINT_ATTEMPTS * ENDPOINT_RETRY_MS}ms — the browser published that port in its profile's DevToolsActivePort but nothing is listening on it (tooling/src/floor/browser/debugging-endpoint.ts)`,
   );
 }
 

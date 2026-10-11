@@ -6,7 +6,7 @@
 // resolve is fail-closed. DECLARED LIMITS live in the mustPass rows.
 //
 // FAMILY `test-mock-doctrine` — a declared SINGLETON. Its subject is ONE doctrine rule about ONE runner API;
-// it consumes `_shared/reference-fact.ts` and `lib/sealed-origin.ts`'s `originModuleSpecifier`, and sharing those
+// it consumes `floor/code-facts/reference-fact.ts` and `lib/sealed-origin.ts`'s `originModuleSpecifier`, and sharing those
 // with the rest of the canonical-origin corpus is not a family (guide §2). "Test-tree policies" is a theme.
 //
 // POPULATION PORT: byte-identical, legacy at `4561cb18c4^` (`scanRoot: (p) => p.includes("tests/")` — every
@@ -16,12 +16,12 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `test-mock-doctrine` descriptor at 2325062f91fac612856a95c68027bd8735eb040c, the parent of the conversion
 // `4561cb18c4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,186 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// 7,186 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 2,780 and final `population` admits 2,780. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `tests/client/a11y/__cbbhr_in__ct-stories.tsx` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference, readStaticString, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import { readMemberReference, readStaticString, resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { originModuleSpecifier } from "../lib/sealed-origin.ts";
 

@@ -8,7 +8,7 @@
 // Exit: 0 clean · 1 a guard refused (production without --force, --fresh without a file: url) · 2 the seed
 // broke · 3 misuse (unknown verb, or the multi-user contract env is missing).
 import process from "node:process";
-import { runTool, UsageError } from "../_shared/run-tool.ts";
+import { runTool, UsageError } from "../floor/cli/run-tool.ts";
 import { loadChatSeed, loadDemoSeed, loadMultiUserSeed } from "./index.ts";
 
 const USAGE = "usage: seed (demo [--fresh] [--force] | chat [--messages N] [--characters M] [--title T] [--force] | multi-user)";

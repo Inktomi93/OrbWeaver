@@ -3,8 +3,8 @@ import { chmod, copyFile, mkdir, readFile, rename, stat, symlink, writeFile } fr
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
-import { budget } from "@orb/tooling/_shared/load-budget";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { budget } from "@orb/tooling/floor/host/load-budget";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { strToU8, zipSync } from "fflate";
 import { parse } from "yaml";
 import { z } from "zod";

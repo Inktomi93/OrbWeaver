@@ -1,4 +1,4 @@
-import { TEST_RESOURCE_NAMES, VITEST_RUNTIME_FAMILY_GROUPS, VITEST_TYPECHECK_GROUP_NAMES } from "./tooling/src/_shared/test-kinds.ts";
+import { TEST_RESOURCE_NAMES, VITEST_RUNTIME_FAMILY_GROUPS, VITEST_TYPECHECK_GROUP_NAMES } from "./tooling/src/floor/testing/test-kinds.ts";
 import base from "./vitest.config.ts";
 
 // Derive mutation execution from the normal config while preserving its rigor defaults.

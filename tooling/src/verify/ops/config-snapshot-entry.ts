@@ -3,7 +3,7 @@
 
 import { readFileSync } from "node:fs";
 import process from "node:process";
-import { runTool } from "../../_shared/run-tool.ts";
+import { runTool } from "../../floor/cli/run-tool.ts";
 import { runConfigSnapshot } from "./config-snapshot.ts";
 import { runEslintDiscovery } from "./eslint-discovery.ts";
 

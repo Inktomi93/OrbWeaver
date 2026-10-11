@@ -1,8 +1,9 @@
 // The cache floor and the pure verdict: how a case's measured calls are judged and which exit a run earns.
 // A call is judged against the PREVIOUS call's whole prompt, never against what that call cached: a broken
 // placement makes both calls agree on a shorter prefix, which reads 1.0 against "what was cached".
-import type { VerdictOptions } from "../../_shared/evidence.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
+
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import type { VerdictOptions } from "../../floor/verdict/evidence.ts";
 import type { CacheRoute, CallUsage, CaseEvidence, CaseJudgement, CaseOutcome, CaseVerdict, JudgedPair } from "../contract/types.ts";
 import { CASE_VERDICTS } from "../contract/types.ts";
 

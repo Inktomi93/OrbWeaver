@@ -11,7 +11,7 @@
 import { join } from "node:path";
 import process from "node:process";
 import { Project } from "ts-morph";
-import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
+import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { RawGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { PolicyToolError } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate } from "../../../../tooling/src/verify/gates/test-world-browser-contracts.ts";

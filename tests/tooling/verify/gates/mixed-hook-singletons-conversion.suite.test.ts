@@ -36,9 +36,9 @@ function plant(root: string, files: Readonly<Record<string, string>>): Project {
 
 test("§4.5 — a complete tooling-instrument-proof run files its demand receipt and reaches a verdict", ({ scratch }) => {
   const files = {
-    "tooling/src/_shared/instruments.ts": 'export const INSTRUMENT_TOOLS = ["snapx"] as const;\n',
-    "tooling/src/_shared/exit-contract.ts": "export const EXIT = 0;\n",
-    "tooling/src/_shared/artifacts.ts": "export function printResult(_tool: string, _pairs: unknown): void {}\n",
+    "tooling/src/floor/instrument/instruments.ts": 'export const INSTRUMENT_TOOLS = ["snapx"] as const;\n',
+    "tooling/src/floor/cli/exit-contract.ts": "export const EXIT = 0;\n",
+    "tooling/src/floor/artifacts/artifacts.ts": "export function printResult(_tool: string, _pairs: unknown): void {}\n",
     "tooling/src/snapx/index.ts": "export {};\n",
     "tests/tooling/snapx/proof.test.ts":
       "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",

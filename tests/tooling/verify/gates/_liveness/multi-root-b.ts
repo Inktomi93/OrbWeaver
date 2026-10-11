@@ -265,7 +265,7 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
   {
     policy: toolingInstrumentProof,
     // A registry row naming a tool with no directory.
-    overlays: [edit("tooling/src/_shared/instruments.ts", "INSTRUMENT_TOOLS = [\n", 'INSTRUMENT_TOOLS = [\n  "livenessghost",\n')],
+    overlays: [edit("tooling/src/floor/instrument/instruments.ts", "INSTRUMENT_TOOLS = [\n", 'INSTRUMENT_TOOLS = [\n  "livenessghost",\n')],
     messageIncludes: "is not a live directory",
   },
   {

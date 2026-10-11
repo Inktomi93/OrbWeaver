@@ -3,7 +3,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { CT_RUN_SLOT_ENV } from "@orb/tooling/_shared/ct-run-slot";
+import { CT_RUN_SLOT_ENV } from "@orb/tooling/floor/testing/ct-run-slot";
 
 const PNG_SUFFIX = /\.png$/iu;
 

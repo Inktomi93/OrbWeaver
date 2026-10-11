@@ -1,8 +1,8 @@
 import { dirname } from "node:path";
-import type { CompilerSourceOverlay } from "@orb/tooling/_shared/compiler-programs";
-import { readCompilerPrograms } from "@orb/tooling/_shared/compiler-programs";
-import type { SemanticWorkspace } from "@orb/tooling/_shared/ts-workspace";
-import { canonicalCompilerPath, createSemanticWorkspace } from "@orb/tooling/_shared/ts-workspace";
+import type { CompilerSourceOverlay } from "@orb/tooling/floor/compiler/compiler-programs";
+import { readCompilerPrograms } from "@orb/tooling/floor/compiler/compiler-programs";
+import type { SemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
+import { canonicalCompilerPath, createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { FileSystemHost, Project, RuntimeDirEntry, SourceFile } from "ts-morph";
 
 function currentSources(project: Project, root: string): ReadonlyMap<string, SourceFile> {

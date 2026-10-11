@@ -4,10 +4,10 @@
 import { readFileSync } from "node:fs";
 import process from "node:process";
 import type { RequestTrace } from "@orb/server/foundation/observability";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { instrumentError } from "../../_shared/evidence.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { UsageError } from "../../_shared/run-tool.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { UsageError } from "../../floor/cli/run-tool.ts";
+import { instrumentError } from "../../floor/verdict/evidence.ts";
 import { emptySpansGap } from "../lib/evidence.ts";
 import { renderTrace } from "../lib/render.ts";
 

@@ -2,7 +2,7 @@
 // minimal global-hook collector, not the React DevTools backend/frontend: React already hands the hook
 // the Fiber root at every commit, and the agent-readable contract is a bounded read-only projection of
 // that graph. owns the capability/omission census.
-import type { EvidenceWindowId } from "../../_shared/artifact-scope.ts";
+import type { EvidenceWindowId } from "../../floor/artifacts/artifact-scope.ts";
 import type {
   RankedReactComponent,
   ReactActivitySummary,

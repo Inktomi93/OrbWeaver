@@ -70,11 +70,11 @@ A symbol is evidence, not automatically a unique origin.
 
 Use:
 
-- `_shared/reference-fact.ts` for stable expressions, members, module origins, and declaration traces;
-- `_shared/reference-fact-call.ts` for callable origins (`resolveCallableOrigin`, "which module export") and callable
+- `floor/code-facts/reference-fact.ts` for stable expressions, members, module origins, and declaration traces;
+- `floor/code-facts/reference-fact-call.ts` for callable origins (`resolveCallableOrigin`, "which module export") and callable
   DECLARATIONS (`resolveCallableDeclaration`, "which declaration/body", module-first then lexical), and
   `lib/gate-contract-origin.ts` for member aliases;
-- `_shared/reference-fact-writes.ts` for assignment, destructuring, and argument-effect invalidation;
+- `floor/code-facts/reference-fact-writes.ts` for assignment, destructuring, and argument-effect invalidation;
 - `lib/authored-key-set.ts` for the UNION of authored property names across branches, spreads of calls, and every
   expression a factory returns — a KEY-SET question, which the value readers above structurally cannot answer.
 
@@ -90,7 +90,7 @@ Use:
    resolves only through `resolveStableExpression` — which then refuses the call per limit 1. Real code is full of
    module-local factories; all three in `domain/chat/persistence/canon-write.ts` are.
 
-   **Ask `_shared/reference-fact-call.ts#resolveCallableDeclaration` instead.** It IS the module-first-then-lexical
+   **Ask `floor/code-facts/reference-fact-call.ts#resolveCallableDeclaration` instead.** It IS the module-first-then-lexical
    sequence this entry used to prescribe by hand, and it returns ONE proven declaration plus its body and file, or one
    precise refusal — never a declaration list. It resolves a local function, a const alias, a const-held arrow, an
    import, an import rename and a re-export rename; it refuses a reassigned or mutable binding (`write`), an alias or
@@ -198,7 +198,7 @@ both of the last two whole-corpus conformance failures (#1953, #1955). Emptiness
 
 ## Project and node lifecycle
 
-There is one workspace constructor: `tooling/src/_shared/ts-workspace.ts#getWorkspace`. Gate modules and fact providers never call `new Project`, add files, resolve dependencies, or select globs.
+There is one workspace constructor: `tooling/src/floor/compiler/ts-workspace.ts#getWorkspace`. Gate modules and fact providers never call `new Project`, add files, resolve dependencies, or select globs.
 
 Within one immutable pass, `node.compilerNode` is the stable identity used for deduplication and invocation caches. Do not retain it across commands or after any manipulation. Upstream documents that source refresh, organize-imports/fixes, and other manipulation forget child nodes; the underlying compiler checker object is also discarded after manipulation.
 

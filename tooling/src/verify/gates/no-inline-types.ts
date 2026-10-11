@@ -27,7 +27,7 @@
 // → `mustPass[8]`; the four client/server tier homes → `mustPass[9]`, which carries all four at once and
 // reds under each of the four cuts separately; `notNamed` → `mustPass[10]`, likewise reddening under each
 // of its three entries; the VariableStatement export-keyword test → `mustPass[11]`; the `zod` door →
-// `mustPass[12]`. `mustPass[0]`/`[2]`/`[3]`/`[7]` already carried `**/contract/**`, `tooling/src/_shared/**`
+// `mustPass[12]`. `mustPass[0]`/`[2]`/`[3]`/`[7]` already carried `**/contract/**`, `tooling/src/floor/**`
 // and `packages/client/src/data/**`. Since #0038 the factory set is tested ONCE, on the candidate name, and
 // `isZodCall` then requires the resolved terminal to equal that name — the earlier pair of mutually redundant
 // factory tests (a name prefilter and a terminal-set test) is gone with the private reader.
@@ -41,10 +41,10 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `no-inline-types` descriptor at f4b6d0cbae5e9351b180b7079da5339b02820284, the parent of the conversion `493fdbedae`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,263 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 7,263
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 7,263
 // and final `population` admits 3,204. legacy − final = 4,059 §7.4 type homes the legacy visitor returned early on
 // through `isTypeHome` — `@kit`/`@contracts`/`@db`/`@ui`, `packages/showcase-plugins`, `tests/**`, `scripts/**`, the
-// client `data|forms|state|lib` tiers, `packages/server/src/kit`, `tooling/src/_shared`, every `contract/` directory
+// client `data|forms|state|lib` tiers, `packages/server/src/kit`, `tooling/src/floor`, every `contract/` directory
 // and `contract.ts` — now population algebra, the move the paragraph above states. final − legacy = ∅. Controls:
 // inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `docs/__cbbhr_out_control.ts` (virtual) rejected by both.
@@ -88,7 +88,7 @@ export const gate = defineGate({
       "packages/client/src/state/**",
       "packages/client/src/lib/**",
       "packages/server/src/kit/**",
-      "tooling/src/_shared/**",
+      "tooling/src/floor/**",
       "**/contract/**",
     ],
     notNamed: ["contract.ts", "*.test.ts", "*.test.tsx"],
@@ -199,9 +199,9 @@ export const gate = defineGate({
       mode: "types",
       files: {
         "packages/server/src/domain/x/anchor.ts": "const local = 1;\nexport const use = (): number => local;\n",
-        "tooling/src/_shared/x.ts": "export type Foo = string;\n",
+        "tooling/src/floor/host/x.ts": "export type Foo = string;\n",
       },
-      why: "tooling `_shared/` is the plumbing floor — a sanctioned type home (Core-Tooling-Law.md §2.4)",
+      why: "tooling `floor/` is the plumbing floor — a sanctioned type home (Core-Tooling-Law.md §2.4)",
     },
     {
       mode: "types",

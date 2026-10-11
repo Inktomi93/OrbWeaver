@@ -1,7 +1,7 @@
 // chains: declarations whose ONLY life originates inside other DEAD declarations.
 import type { Node } from "ts-morph";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { ChainAudit, ChainCandidate, ChainLink, Flags, Hit, Liveness } from "../contract/types.ts";
 import { fileOfKey, isModuleScopeKey, topLevelDeclarations } from "../lib/edges.ts";
 import { emit, hitOf, narrate } from "../lib/emit.ts";

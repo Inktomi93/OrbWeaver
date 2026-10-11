@@ -14,11 +14,11 @@
 // TRANSLUCENT INK IS COMPOSITED, NEVER TRUSTED RAW. A border-color at alpha < 1 paints as a blend of the
 // authored colour and whatever is behind it, and reading the authored rgb as if opaque is the same lie
 // `checks-color.ts` records for backgrounds (the 1.11-vs-2.6 false FAIL). The composite uses the fleet's
-// one home, `_shared/wcag.ts` `compositeForeground`.
+// one home, `floor/instrument/wcag.ts` `compositeForeground`.
 //
 // Pure; thresholds cited. Provenance: lib/collect.ts header.
-import type { Rgb } from "@orb/tooling/_shared/wcag";
-import { compositeForeground, contrastRatio, isContrastExempt, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/_shared/wcag";
+import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
+import { compositeForeground, contrastRatio, isContrastExempt, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/floor/instrument/wcag";
 import type { Backdrop } from "../contract/backdrop.ts";
 import type { CandidateDisposition, Finding } from "../contract/findings.ts";
 import type { BorderContrastInput, BorderContrastSide } from "../contract/samples.ts";
@@ -82,7 +82,7 @@ export function classifyBorderContrast(input: BorderContrastInput): CandidateDis
     return { kind: "excluded", reason: "noDeclaredBorder" };
   }
   // WCAG 1.4.11's own exemption: "inactive user interface components" owe no non-text contrast. The
-  // classifier is the fleet-shared one (_shared/wcag.ts), so this rule cannot disagree with snap's
+  // classifier is the fleet-shared one (floor/instrument/wcag.ts), so this rule cannot disagree with snap's
   // `--contrast` about which control is inactive — the #624 divergence, one rule over.
   if (isContrastExempt(input.inactiveKind)) {
     return { kind: "excluded", reason: "inactiveExempt" };

@@ -51,7 +51,7 @@
 // `04eaef9f44` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `c24d4d7057`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,435 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,435, and the final
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,435, and the final
 // `population` admits 0; the subject is the declared `authored-css`. legacy − final = all 7,435 harness candidates —
 // dispatched to the legacy `run`, which read none of them (its subject came off disk through
 // `globSync("packages/{ui,client}/src/**/*.css")`); retired with that read. final − legacy = ∅. Controls: the legacy

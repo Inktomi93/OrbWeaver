@@ -6,9 +6,9 @@
 import { relative } from "node:path";
 import process from "node:process";
 import { formatPluginAuthorDiagnostics } from "@orb/plugin-toolchain";
-import { print, REPO_ROOT } from "../_shared/artifacts.ts";
-import { EXIT } from "../_shared/exit-contract.ts";
-import { runTool, UsageError } from "../_shared/run-tool.ts";
+import { print, REPO_ROOT } from "../floor/artifacts/artifacts.ts";
+import { EXIT } from "../floor/cli/exit-contract.ts";
+import { runTool, UsageError } from "../floor/cli/run-tool.ts";
 import { compileShowcasePlugins, showcaseBundleDirectory, staleShowcaseArtifacts, writeShowcaseArtifacts } from "./index.ts";
 
 const USAGE = "usage: node tooling/src/plugin-author-showcase/cli.ts <build|check>";

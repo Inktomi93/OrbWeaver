@@ -4,8 +4,8 @@
 // reachability and the clamp discharge stay there, and its `resolveChatMatrix` is this fold's family door.
 // The SUBJECT name every refusal spells travels in as `constName`, so the family's vocabulary constants keep
 // their one home there. One-way: this module imports nothing from `chat-plane-read.ts`.
-import { readStaticString, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
-import type { ReferenceUnresolvedReason } from "@orb/tooling/_shared/reference-fact-contract";
+import { readStaticString, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
+import type { ReferenceUnresolvedReason } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node as MorphNode, ObjectLiteralExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readStringValue, unwrapExpression } from "./ast-read.ts";

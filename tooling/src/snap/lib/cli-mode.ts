@@ -1,7 +1,7 @@
 // Pure strict-modal argv ownership for Snap's browser-free/admin modes. The ordinary parser accepts the
 // whole Snap vocabulary before dispatch; this layer proves an early-return mode did not quietly discard
 // a drive/output flag. cli.ts runs it before any browser, stage, or run slot is allocated.
-import { splitPageSuffix } from "../../_shared/argv.ts";
+import { splitPageSuffix } from "../../floor/instrument/argv.ts";
 import type { Args } from "../contract/types.ts";
 
 interface ModalGrammar {

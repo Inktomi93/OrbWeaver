@@ -14,7 +14,7 @@
 //      and its verdict lands through the central grant table with zero alarms (#1947).
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/tsconfig-entry-liveness.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/tsconfig-entry-liveness-health.ts";

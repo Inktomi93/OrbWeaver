@@ -1,8 +1,8 @@
 import type { Server, Socket } from "node:net";
 import { errorMessage } from "@orb/kit/error-message";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { budget } from "../../_shared/load-budget.ts";
-import { warn } from "../../_shared/log.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { warn } from "../../floor/cli/log.ts";
+import { budget } from "../../floor/host/load-budget.ts";
 import type { SessionRequest } from "../contract/session.ts";
 import { readSessionRequest } from "../lib/session-wire.ts";
 

@@ -7,7 +7,7 @@
 import { existsSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { runNicedSync } from "../../_shared/proc.ts";
+import { runNicedSync } from "../../floor/process/proc.ts";
 
 /** The probe config lives AT THE REPO ROOT, never in a temp dir. MEASURED 2026-09-02: with
  *  `--config-path` pointing outside the repo, biome moves its PROJECT ROOT to the config's directory —

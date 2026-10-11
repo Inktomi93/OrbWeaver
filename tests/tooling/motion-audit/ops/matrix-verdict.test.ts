@@ -1,5 +1,5 @@
-import { MOBILE_DEVICE } from "../../../../tooling/src/_shared/browser-environment.ts";
-import { EXIT } from "../../../../tooling/src/_shared/exit-contract.ts";
+import { MOBILE_DEVICE } from "../../../../tooling/src/floor/browser/browser-environment.ts";
+import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import type { AuditData } from "../../../../tooling/src/motion-audit/contract/types.ts";
 import type { MotionMatrixVariant, MotionStaticExpectedLink } from "../../../../tooling/src/motion-audit/ops/matrix-contract.ts";
 import type { MotionMatrixCellEvidence } from "../../../../tooling/src/motion-audit/ops/matrix-verdict.ts";

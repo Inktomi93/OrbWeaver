@@ -7,7 +7,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { parseSnapArgs, prepareScenario, SNAP_HELP } from "@orb/tooling/snap";
 import { vi } from "vitest";
 import { SNAP_SCENARIO_PRESET_NAMES, scenarioPresetFile } from "../../../../tooling/src/snap/contract/scenario-presets.ts";

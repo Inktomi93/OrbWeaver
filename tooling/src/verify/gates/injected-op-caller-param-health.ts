@@ -25,7 +25,7 @@
 // `injected-op-caller-param` descriptor at 6044391ca791b8ae4a28e91fa13be8cb94e86350, the parent of the conversion
 // `fd17cc9a10`; this module did not exist there, so it is measured against the module it was carved from,
 // `injected-op-caller-param` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
-// Over the SAME 7,365 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`),
+// Over the SAME 7,365 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`),
 // legacy `scanRoot` admits 178 and final `population` admits 1,596. legacy − final = ∅. final − legacy = 1,418 —
 // `@server` beyond `domain/*/contract/` (1,316), `@kit` beyond `ids` (60) and all of `@db` (42): the recorded pure
 // widening. Controls: inside: no virtual sibling fits the exact-path population, so the real shared member

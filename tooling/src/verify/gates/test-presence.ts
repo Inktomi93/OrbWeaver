@@ -148,14 +148,14 @@
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy descriptor had no
 // `scanRoot`, so its effective population is its in-run path filter — scanTestPresence: `serverSrcRel`
 // ("/packages/server/src/") or `contractsSrcRel` ("/packages/contracts/src/"). Over the SAME 7,487 harness candidates
-// at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 1,598 and the final `population`
+// at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`) it admits 1,598 and the final `population`
 // admits 1,598 (the bare harness dispatch was 7,487). legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/contracts/src/assets/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` rejected by both.
 import type { Expression, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
-import type { TestFamily } from "../../_shared/test-kinds.ts";
-import { TEST_KIND_DEFINITIONS } from "../../_shared/test-kinds.ts";
+import type { TestFamily } from "../../floor/testing/test-kinds.ts";
+import { TEST_KIND_DEFINITIONS } from "../../floor/testing/test-kinds.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { MirrorIndex } from "../contract/resource-mirror.ts";
 import { codeTextForScan } from "../lib/comment-spans.ts";

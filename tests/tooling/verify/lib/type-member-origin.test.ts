@@ -4,7 +4,7 @@
 // here is a same-SPELLING/different-IDENTITY pair — a local lookalike interface, a second module exporting
 // the same type name — because that pair is the whole reason the readers exist.
 
-import type { ReferenceFact, ResolvedReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
+import type { ReferenceFact, ResolvedReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind, Type } from "ts-morph";
 import { vi } from "vitest";

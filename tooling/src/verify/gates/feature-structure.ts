@@ -28,7 +28,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `feature-structure` descriptor at 530b6705a73e829158782f26b382377f10e0a828, the parent of the conversion
 // `f01f0b92a4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,354 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness
+// 7,354 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), the legacy harness
 // — no `scanRoot` — dispatched 7,354, and the final `population` admits 0; the subject is the declared
 // `server-domain` tree. legacy − final = all 7,354 harness candidates — dispatched to the legacy `run`, which read
 // none of them (its subject came off disk through `readdirSync`/`existsSync`/`statSync` over

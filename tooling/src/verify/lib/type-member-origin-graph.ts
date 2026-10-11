@@ -3,7 +3,7 @@
 // candidates for a recursively-transported or opaque value position. Drives the containment lattice
 // (type-member-origin-containment.ts) and the constructor-summary fixed point (type-member-origin-
 // recurrence.ts); neither of those siblings imports back from here.
-import type { ReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
+import type { ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Type, TypeNode } from "ts-morph";
 import { Node, TypeFlags } from "ts-morph";
 import type { Containment, TypeIdentityOrigin } from "../contract/type-member-origin.ts";

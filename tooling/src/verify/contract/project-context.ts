@@ -11,7 +11,7 @@ import type { Project, SourceFile } from "ts-morph";
 
 export interface ProjectContext {
   readonly root: string;
-  /** The ONE shared workspace (`_shared/ts-workspace.ts#getWorkspace`) — never a per-caller Project. */
+  /** The ONE shared workspace (`floor/compiler/ts-workspace.ts#getWorkspace`) — never a per-caller Project. */
   readonly project: Project;
   /** Every source file that workspace resolved, read once. */
   readonly files: readonly SourceFile[];

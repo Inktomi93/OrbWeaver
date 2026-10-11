@@ -17,7 +17,7 @@
 // POPULATION PORT: an INTENTIONAL NARROWING, legacy at 39f71b2294, and the narrowing DELETES A DEAD CLAUSE
 // rather than losing a capability. The legacy `directCtCssImports` filtered `ctx.files` for
 // `rel.startsWith("playwright/") || rel.startsWith("tests/")`. The gate harness corpus is
-// `_shared/ts-workspace.ts#harnessGlobs` — `packages/*/src/**`, `tests/**`, `tooling/src/**`, `scripts/**`
+// `floor/compiler/ts-workspace.ts#harnessGlobs` — `packages/*/src/**`, `tests/**`, `tooling/src/**`, `scripts/**`
 // and nothing else; `playwright/**/*.tsx` appears ONLY in `searchGlobs`, which the gate run does not use.
 // So `ctx.files` never contained a `playwright/**` module and that clause matched zero files BY
 // CONSTRUCTION rather than merely today (the tree also holds exactly four `playwright/` files, one of which
@@ -84,7 +84,7 @@
 // resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run path
 // filter — directCtCssImports: `ctx.files` filtered
 // `rel !== CT_BOOT && (rel.startsWith("playwright/") || rel.startsWith("tests/"))`. Over the SAME 7,554 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 2,940 and the final
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`) it admits 2,940 and the final
 // `population` admits 4,259 (the bare harness dispatch was 7,554). legacy − final = ∅. final − legacy = 1,319
 // `@client` sources — the compiler half now reads the three production anchors' ImportDeclarations through
 // `ctx.files`, where the legacy read `MAIN`/`APP_SHELL`/`CSS_ENTRY` off disk. Controls: inside

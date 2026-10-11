@@ -91,7 +91,7 @@ that needs an upward import is in the wrong place. Move the code; never force th
 ## Test layout
 
 - Tests live under `tests/<package>/` and mirror `packages/<package>/src/` path for path. The `test-layout` gate fails a test next to its source.
-- `tooling/src/_shared/test-kinds.ts` owns the test suffixes and compiler worlds. Inject clocks and ids so tests are deterministic. Policy: `Spine-Testing.md`.
+- `tooling/src/floor/testing/test-kinds.ts` owns the test suffixes and compiler worlds. Inject clocks and ids so tests are deterministic. Policy: `Spine-Testing.md`.
 
 ## No escape hatches
 

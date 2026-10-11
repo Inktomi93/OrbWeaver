@@ -2,8 +2,8 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import process from "node:process";
-import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
-import { spawnNiced } from "@orb/tooling/_shared/proc";
+import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
+import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 

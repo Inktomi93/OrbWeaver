@@ -1,7 +1,7 @@
 // The dev supervisor's pure decisions: a host export wins over a pin, a relative run dir resolves against
 // the repo root from any cwd, and the ports follow the server's own `.env`-over-shell precedence.
 import { join, resolve } from "node:path";
-import { DEV_PORTS } from "../../../../tooling/src/_shared/ports.ts";
+import { DEV_PORTS } from "../../../../tooling/src/floor/host/ports.ts";
 import { cmdlineNamesCheckout, devStackPins, printablePins, stackContext, stackPorts, stackRunDir } from "../../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 

@@ -27,7 +27,7 @@ import { defineGate } from "../contract/policy.ts";
 import { literalsContaining, parseStaticSourceText } from "../lib/config-static-read.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
-const TEST_KINDS = "tooling/src/_shared/test-kinds.ts";
+const TEST_KINDS = "tooling/src/floor/testing/test-kinds.ts";
 const VITEST_CONFIG = "vitest.config.ts";
 
 /** Suffixes that belong to Playwright, never vitest. */
@@ -37,7 +37,7 @@ const BROWSER_FAMILIES = new Set(["component", "e2e"]);
 const MESSAGE =
   "browser-mode test suffixes (.ct.tsx, .spec.ts) must not appear in vitest project includes — " +
   "vitest cannot execute Playwright CT or e2e files and the import hangs the worker; " +
-  "tooling/src/_shared/test-kinds.ts RUNTIME_BY_FAMILY is the one home for runner assignment";
+  "tooling/src/floor/testing/test-kinds.ts RUNTIME_BY_FAMILY is the one home for runner assignment";
 
 const FIX = "ensure RUNTIME_BY_FAMILY maps component to playwright-ct and e2e to playwright-e2e, and that no vitest include glob matches a browser suffix";
 
@@ -211,7 +211,7 @@ function runtimeMap(overrides: { readonly component?: string; readonly e2e?: str
 
 /** BOTH SUBJECTS ON EVERY ROW, and neither is optional. `vitest.config.ts` is a DECLARED exact-file
  *  resource, so an absent one refuses the whole fact at the population phase and drowns the row under test;
- *  `tooling/src/_shared/test-kinds.ts` is the only `@tooling` member a row plants, so without it the
+ *  `tooling/src/floor/testing/test-kinds.ts` is the only `@tooling` member a row plants, so without it the
  *  population admits zero paths and refuses for the opposite reason. Defaults are the sanctioned shapes. */
 function subjects(overrides: { readonly kinds?: string; readonly config?: string } = {}): Record<string, string> {
   return {

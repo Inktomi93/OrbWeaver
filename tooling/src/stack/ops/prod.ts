@@ -14,11 +14,11 @@
 //
 // NO SERVER BUILD STEP: node 26 runs `packages/server/src/entry/index.ts` directly (type stripping).
 // `--build` builds only the CLIENT bundle, through @orb/client's own `vite build` script.
-import { print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { ExitCode } from "../../_shared/exit-contract.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { warn } from "../../_shared/log.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { ExitCode } from "../../floor/cli/exit-contract.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { warn } from "../../floor/cli/log.ts";
 import type { StackInvocation } from "../contract/types.ts";
 import { doDown, doStatus } from "./prod-down.ts";
 import { DEFAULT_LOG_LINES, tailLog } from "./prod-support.ts";

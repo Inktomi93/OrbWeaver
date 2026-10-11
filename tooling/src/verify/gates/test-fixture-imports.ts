@@ -33,11 +33,11 @@
 // `4561cb18c4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `464652d33d`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,186 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 2,627 and final `population` admits 2,627.
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 2,627 and final `population` admits 2,627.
 // legacy − final = ∅. final − legacy = ∅. Controls: inside `tests/client/a11y/__cbbhr_in__ct-stories.tsx` (virtual)
 // admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../_shared/reference-fact.ts";
+import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { FixtureDoor } from "../contract/test-runner-door.ts";
 import { FIXTURE_NAMES, readFixtureDoor, registersSnapshotSerializer } from "../lib/test-runner-door.ts";

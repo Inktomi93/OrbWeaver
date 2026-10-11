@@ -27,7 +27,7 @@
 // client/UI carve-out stated above does not apply to it.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveLexicalValueDeclaration } from "../../_shared/reference-fact.ts";
+import { resolveLexicalValueDeclaration } from "../../floor/code-facts/reference-fact.ts";
 import type { GatePolicyProof } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";

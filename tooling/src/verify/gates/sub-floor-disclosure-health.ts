@@ -26,7 +26,7 @@
 // `sub-floor-disclosure` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
 // `ce02ffcdfe` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,450 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,685 and final `population` admits 1.
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,685 and final `population` admits 1.
 // legacy − final = 1,684 `@client`/`@ui` sources other than `primitives/collapsible/variants.ts` — arm C only read
 // that home. final − legacy = ∅. Controls: inside: no virtual sibling fits the exact-path population, so the real
 // shared member `packages/ui/src/primitives/collapsible/variants.ts` is the control, admitted by both; outside

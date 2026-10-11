@@ -15,7 +15,6 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { ModuleResolutionKind, Project } from "ts-morph";
 import { describe } from "vitest";
-import { installOutputSink } from "../../../tooling/src/_shared/log.ts";
 import type {
   ApiSurfaceEntry,
   ChainCandidate,
@@ -76,6 +75,7 @@ import {
 import { respellNearCandidatesFor } from "../../../tooling/src/ast/lib/respell-near-analysis.ts";
 import { assignabilityChecker, respellHitsFor } from "../../../tooling/src/ast/lib/respell-shapes.ts";
 import { REPO_ROOT as AST_REPO_ROOT } from "../../../tooling/src/ast/lib/root.ts";
+import { installOutputSink } from "../../../tooling/src/floor/cli/log.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";

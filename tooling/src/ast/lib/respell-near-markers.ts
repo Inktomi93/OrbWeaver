@@ -1,7 +1,7 @@
 // Target-specific exemption marker parsing and audit for `ast respell --near`.
 
 import type { Node } from "ts-morph";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { MalformedNearPairMarker, NearPairAudit, NearPairCandidate, NearPairExemption, StaleNearPairMarker } from "../contract/types.ts";
 import { declKey } from "./keys.ts";
 import { commentHost } from "./public-markers.ts";

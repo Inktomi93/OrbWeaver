@@ -130,14 +130,14 @@
 // `7a0a2375aa` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy
 // descriptor had no `scanRoot`, so its effective population is its in-run path filter —
 // `CLIENT_SRC = "/packages/client/src/"`, `UI_SRC = "/packages/ui/src/"`, `sf.getBaseName() === "index.ts"` skipped.
-// Over the SAME 7,487 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it
+// Over the SAME 7,487 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`) it
 // admits 1,555 and the final `population` admits 1,555 (the bare harness dispatch was 7,487). legacy − final = ∅.
 // final − legacy = ∅. Controls: inside `packages/client/src/agent-nav/__cbbhr_in_panel-request.ts` (virtual) admitted
 // by both; outside `packages/client/src/agent-handles/__cbbhr_out/index.ts` rejected by both.
 import { dirname } from "node:path";
 import type { SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
-import { classifyTestFilename, TEST_KIND_DEFINITIONS } from "../../_shared/test-kinds.ts";
+import { classifyTestFilename, TEST_KIND_DEFINITIONS } from "../../floor/testing/test-kinds.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { MirrorIndex } from "../contract/resource-mirror.ts";
 import { subjectAnchor } from "../lib/absent-subject-anchor.ts";
@@ -169,7 +169,7 @@ const MSG_STATE_ACTION = (action: string): string =>
  *  judged and the gate reported CLEAN. A clause that CANNOT run must never look like one that ran and found
  *  nothing. Fires when clause A says a mirror exists but clause C read no corpus from it. */
 const MSG_STATE_UNREADABLE =
-  "clause C could not read ANY corpus from this store's mirror, even though a mirror test EXISTS — so its actions went UNJUDGED and a ✓ here would be a lie about coverage this gate does not have (issue #619). Either the mirror is empty, or its kind is not registered in tooling/src/_shared/test-kinds.ts — fix the shared vocabulary, never special-case it here.";
+  "clause C could not read ANY corpus from this store's mirror, even though a mirror test EXISTS — so its actions went UNJUDGED and a ✓ here would be a lie about coverage this gate does not have (issue #619). Either the mirror is empty, or its kind is not registered in tooling/src/floor/testing/test-kinds.ts — fix the shared vocabulary, never special-case it here.";
 /** The missing filename rides the MESSAGE because the finding cannot anchor on an absent subject. */
 const MSG_WORST_ART = `the standing DOM-derived worst-legal-art contrast CT is missing — restore ${WORST_ART_STANDING_CT}. The room's rendered text population must stay sampled across shipped and custom theme polarities (issue #883).`;
 

@@ -5,14 +5,14 @@
 import { readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { BOX_LOAD_ENV } from "@orb/tooling/_shared/load-budget";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
 import type { MeterData, StepReport } from "@orb/tooling/cpu-profile";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { BOX_LOAD_ENV } from "@orb/tooling/floor/host/load-budget";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import type { AuditData } from "@orb/tooling/motion-audit";
 import { beforeEach, vi } from "vitest";
-import type { TimingCapability } from "../../../../tooling/src/_shared/timing-capability.ts";
 import { buildReports } from "../../../../tooling/src/cpu-profile/ops/report.ts";
+import type { TimingCapability } from "../../../../tooling/src/floor/host/timing-capability.ts";
 import { animationTotals } from "../../../../tooling/src/motion-audit/lib/animations.ts";
 import { clsTotals, loafTotals, observedClsTotals } from "../../../../tooling/src/motion-audit/lib/verdicts.ts";
 import { evaluateMotionAudit } from "../../../../tooling/src/motion-audit/ops/report.ts";
@@ -570,7 +570,7 @@ test("no tracked file still tells a reader to run a retired instrument command, 
   }
   expect(hits).toEqual([]);
   // THE PLANTED POSITIVE CONTROLS, in the same invocation: a bare zero above must mean "it is not there",
-  // never "the search could not look" (_shared/evidence.ts's law, applied to a corpus sweep). BOTH
+  // never "the search could not look" (floor/verdict/evidence.ts's law, applied to a corpus sweep). BOTH
   // directions are planted, because an over-broad marker would silence the sweep just as completely as a
   // broken read: the recipe line is SEEN and the retirement-note line is NOT.
   const planted = [

@@ -4,7 +4,7 @@
 // `existsSync`, which cannot distinguish "the test tree has no member here" from "the test tree is not
 // there at all" — and the second reads as a clean corpus. An absent or unreadable space propagates the
 // tree's own status verbatim; it never becomes an empty index.
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ResourceLoad, ResourceReader, ResourceTreeEntry } from "../contract/resource.ts";
 import type { MirrorFamilyId, MirrorIndex } from "../contract/resource-mirror.ts";
 import { MIRROR_FAMILY_DEFINITIONS } from "../contract/resource-mirror.ts";

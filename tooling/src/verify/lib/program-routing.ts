@@ -4,9 +4,9 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
-import { runGit } from "@orb/tooling/_shared/git";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { isTypeWorldSource, predictedProgram, requiresExclusiveRoot } from "@orb/tooling/_shared/project-worlds";
+import { isTypeWorldSource, predictedProgram, requiresExclusiveRoot } from "@orb/tooling/floor/compiler/project-worlds";
+import { runGit } from "@orb/tooling/floor/git/git";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import type { CompilerProgram, PolicyRepositoryInventory, PolicySemanticPath } from "../contract/policy-scope.ts";
 import type { TypecheckPlan, TypecheckPlanMode, TypecheckPlanSubject } from "../contract/typecheck-plan.ts";
 import { readCompilerProgramsFromInventory, resolvePolicyPathOwnership } from "./policy-program-membership.ts";

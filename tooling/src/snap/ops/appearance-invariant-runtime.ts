@@ -1,17 +1,17 @@
 // Live browser owner for #953's literal row receipts: reach the named surface, take checkpoint-scoped
 // subject/pixel/cascade/merge evidence, then hand the complete receipt to the pure strict reconciler.
 
-import { instrumentRefusal, navResultShape } from "@orb/tooling/_shared/page-validate";
+import { instrumentRefusal, navResultShape } from "@orb/tooling/floor/browser/page-validate";
 import type { Page } from "@playwright/test";
-import type { RuntimeAppearanceHistoricalRow } from "../../_shared/appearance-matrix.ts";
-import { appearanceReachReceipt, readRuntimeAppearanceContract } from "../../_shared/appearance-matrix.ts";
-import { readAppearancePrepaintEvidence } from "../../_shared/appearance-prepaint.ts";
-import { settle } from "../../_shared/browser.ts";
-import type { ProbeSession } from "../../_shared/browser-contract.ts";
-import { readBrowserEnvironment } from "../../_shared/browser-environment.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { budget } from "../../_shared/load-budget.ts";
-import { buildNavScript } from "../../_shared/nav.ts";
+import type { RuntimeAppearanceHistoricalRow } from "../../floor/appearance/appearance-matrix.ts";
+import { appearanceReachReceipt, readRuntimeAppearanceContract } from "../../floor/appearance/appearance-matrix.ts";
+import { readAppearancePrepaintEvidence } from "../../floor/appearance/appearance-prepaint.ts";
+import { settle } from "../../floor/browser/browser.ts";
+import type { ProbeSession } from "../../floor/browser/browser-contract.ts";
+import { readBrowserEnvironment } from "../../floor/browser/browser-environment.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { budget } from "../../floor/host/load-budget.ts";
+import { buildNavScript } from "../../floor/instrument/nav.ts";
 import type { AppearanceCascadeExpectation, AppearanceInvariantReceipt, AppearanceMergeExpectation } from "../contract/appearance-invariants.ts";
 import type { ContrastEvidence } from "../contract/contrast.ts";
 import type { Args } from "../contract/types.ts";

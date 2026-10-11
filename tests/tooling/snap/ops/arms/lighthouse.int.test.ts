@@ -11,7 +11,7 @@
 // so a clean run — the negative control this whole file rests on — is unreachable over file://.
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { vi } from "vitest";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../../_load-budget.ts";

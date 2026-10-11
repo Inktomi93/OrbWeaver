@@ -23,7 +23,7 @@
 //   §6.3 REAL-CORPUS LIVENESS is DATA in `_liveness/client.ts`, run by the one liveness runner over the
 //   structure run's own corpus, so a family that had silently stopped reaching the live door census cannot
 //   read as clean.
-import { ACTION_DOOR_RULINGS, rulingOperation } from "../../../../tooling/src/_shared/action-door-rulings.ts";
+import { ACTION_DOOR_RULINGS, rulingOperation } from "../../../../tooling/src/floor/code-facts/action-door-rulings.ts";
 import { gate as doors } from "../../../../tooling/src/verify/gates/duplicate-action-doors.ts";
 import { gate as doorsHealth } from "../../../../tooling/src/verify/gates/duplicate-action-doors-health.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";

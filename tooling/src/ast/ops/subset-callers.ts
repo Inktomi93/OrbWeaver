@@ -13,7 +13,7 @@
 // through a bare `.mutate(…)` that names nothing, which is why refusing `mutate` as a pooling tail (correct
 // — it pools every unrelated verb) left this lens blind to every affordance a user actually clicks. The
 // RECEIVER is resolved instead, through the ONE shared client-door resolver
-// (`tooling/src/_shared/trpc-doors.ts`, shared with the `duplicate-action-doors` gate so the census and the
+// (`tooling/src/floor/code-facts/trpc-doors.ts`, shared with the `duplicate-action-doors` gate so the census and the
 // lens can never disagree about what a door is), and the keys are pooled under the resolved verb.
 // The resolver states its own limits at each level; this lens PRINTS them (the door census in the banner)
 // rather than letting an unfollowable fire site read as agreement.
@@ -28,12 +28,12 @@
 // count, which is the lens's own "counted and NAMED" promise going unhonoured.
 import type { CallExpression, Node, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
-import type { ActionDoorRuling } from "../../_shared/action-door-rulings.ts";
-import { ACTION_DOOR_RULINGS } from "../../_shared/action-door-rulings.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { DestructuredFires, MutationFactoryIndex, ResolvedDoor, UnresolvedDoor } from "../../_shared/trpc-doors.ts";
-import { destructuredFires, indexMutationFactories, MUTATION_FIRE_MEMBERS, procedureMatches, resolveFiredDoor } from "../../_shared/trpc-doors.ts";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { ActionDoorRuling } from "../../floor/code-facts/action-door-rulings.ts";
+import { ACTION_DOOR_RULINGS } from "../../floor/code-facts/action-door-rulings.ts";
+import type { DestructuredFires, MutationFactoryIndex, ResolvedDoor, UnresolvedDoor } from "../../floor/code-facts/trpc-doors.ts";
+import { destructuredFires, indexMutationFactories, MUTATION_FIRE_MEMBERS, procedureMatches, resolveFiredDoor } from "../../floor/code-facts/trpc-doors.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, Hit, SubsetAudit, SubsetCallSite, SubsetDoorCensus, SubsetFinding, SubsetSiteScan, SubsetUnjudgedFire } from "../contract/types.ts";
 import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { exitToolError, noteUnits, scanCorpus } from "../lib/ledger.ts";
@@ -316,14 +316,14 @@ interface RuledPair {
 
 /** THE RULED door pairs, each beside its own procedure path (#569's second consumer, re-pointed 2026-09-13).
  *  The ruling used to live in `duplicate-action-doors.baseline.json`; the #1584 authority migration deleted
- *  that ledger and moved every ruled pair into `_shared/action-door-rulings.ts`, which
+ *  that ledger and moved every ruled pair into `floor/code-facts/action-door-rulings.ts`, which
  *  `verify/lib/reviewed-grants.ts` maps into the central reviewed-grant table. A ruling's `subject` is the
  *  same `<plane>::<procedure>` key the ledger row carried.
  *
  *  IT READS THE FLOOR, NOT `verify`. Reading the central table would mean importing `verify/index.ts` — the
  *  only cross-tool door `tooling-internal-direction` permits — and that barrel reaches `ops/debt.ts` and
  *  onward to `ast/index.ts`, i.e. back to this module: five `lint/suspicious/noImportCycles` errors,
- *  measured. `_shared` is the floor both tools read down into, and the retired `DOORS_BASELINE_REL` lived
+ *  measured. `floor` is the floor both tools read down into, and the retired `DOORS_BASELINE_REL` lived
  *  there for the same reason. */
 export function ruledDoorPairs(): readonly RuledPair[] {
   return ACTION_DOOR_RULINGS.map((ruling) => ({ procedure: ruling.subject.split("::").at(-1) ?? "", ruling }));
@@ -416,7 +416,7 @@ export function cmdSubsetCallers(project: SourceCorpus, symbol: string, flags: F
   printUnresolved(audit.sites, flags);
   if (audit.doors.factories === 0) {
     exitToolError(
-      "[ast] CLIENT-DOOR ARM BLIND — zero `createEntityMutation` hooks were indexed in the scanned corpus, so every client door was invisible and this run judged DIRECT call sites only. That is a TOOL ERROR, not a narrower clean: either the corpus excludes packages/client/src or the one mutation factory was renamed (re-point MUTATION_FACTORY in tooling/src/_shared/trpc-doors.ts).",
+      "[ast] CLIENT-DOOR ARM BLIND — zero `createEntityMutation` hooks were indexed in the scanned corpus, so every client door was invisible and this run judged DIRECT call sites only. That is a TOOL ERROR, not a narrower clean: either the corpus excludes packages/client/src or the one mutation factory was renamed (re-point MUTATION_FACTORY in tooling/src/floor/code-facts/trpc-doors.ts).",
     );
   }
   if (audit.sites.length === 0) {

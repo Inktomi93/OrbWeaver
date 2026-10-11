@@ -8,7 +8,7 @@
 
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { vi } from "vitest";
 import type { AuthoredPathIdentity } from "../../../../tooling/src/verify/contract/resource-path.ts";
 import { loadAuthoredPaths } from "../../../../tooling/src/verify/ops/resource-path.ts";
@@ -150,7 +150,7 @@ test("a resource load shares prefix answers and the next load sees ignore edits"
   plantFile(scratch, ".gitignore", "dist/\n");
   plantFile(scratch, "packages/showcase-plugins/package.json", "{}\n");
   const selectors = ["packages/showcase-plugins/dist/a.js", "packages/showcase-plugins/dist/b.js"];
-  const spy = vi.spyOn(await import("../../../../tooling/src/_shared/git.ts"), "runGit");
+  const spy = vi.spyOn(await import("../../../../tooling/src/floor/git/git.ts"), "runGit");
   try {
     expect(identify(scratch, selectors).every((identity) => identity.status === "absent" && identity.ignoredBuildOutput === true)).toBe(true);
     expect(spy).toHaveBeenCalledTimes(2);

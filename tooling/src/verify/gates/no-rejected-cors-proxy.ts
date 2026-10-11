@@ -30,7 +30,7 @@
 // `no-raw-egress` descriptor at f4b6d0cbae5e9351b180b7079da5339b02820284, the parent of the conversion `493fdbedae`;
 // this module did not exist there, so it is measured against the module it was carved from, `no-raw-egress` (blob
 // read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,263 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,492
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,492
 // and final `population` admits 1,492. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.

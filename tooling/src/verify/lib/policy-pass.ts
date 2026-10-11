@@ -1,6 +1,6 @@
 // Final policy dispatcher: resolve once, create once, walk once, then centrally reconcile authority.
 import { performance } from "node:perf_hooks";
-import { beginReferencePass, endReferencePass } from "@orb/tooling/_shared/reference-fact";
+import { beginReferencePass, endReferencePass } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { TypeChecker } from "ts-morph";
 import type { GateFactToolError, PolicyFactValueRegistry, PolicyPassInput, PolicyPassResult, PolicyToolError } from "../contract/policy-pass.ts";
 import { GATE_FACT_PHASES, POLICY_PHASES } from "../contract/policy-pass.ts";

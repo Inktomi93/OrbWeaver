@@ -7,11 +7,11 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { adoptRunSlot } from "../../_shared/artifact-out.ts";
-import { publishRunSlot } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { killPidGroup } from "../../_shared/proc.ts";
-import { pidAlive } from "../../_shared/run-retention.ts";
+import { adoptRunSlot } from "../../floor/artifacts/artifact-out.ts";
+import { publishRunSlot } from "../../floor/artifacts/artifacts.ts";
+import { pidAlive } from "../../floor/artifacts/run-retention.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { killPidGroup } from "../../floor/process/proc.ts";
 import type { SessionLimits, SessionRow } from "../contract/session.ts";
 import {
   resolveSessionLimits,
@@ -38,7 +38,7 @@ const MS_PER_MINUTE = 60_000;
 /** THE ONE env door for the session registry — read once, at module load, because every consumer is a
  *  FRESH PROCESS (the client cli, the daemon cli, each spawned proof), so a caller that wants different
  *  knobs sets them in the environment of the CHILD and never mid-process. That is the same posture
- *  `_shared/load-budget.ts` states for `ORB_BUDGET_CEILING_MS`, and it is why one destructure can serve
+ *  `floor/host/load-budget.ts` states for `ORB_BUDGET_CEILING_MS`, and it is why one destructure can serve
  *  both readers below instead of three scattered `process.env` reads. */
 // biome-ignore lint/style/noProcessEnv: the three ambient TOOLING knobs this file owns — ORB_SNAP_SESSION_HOME (the committed proofs plant a scratch registry; writing the box's REAL one would collide with a live sibling's session) plus the owner-ruled ORB_SESSION_TTL_MIN / ORB_SESSION_CAP overrides. Same class as this tree's SNAP_BASE_URL/DEBUG_TOKEN/FFMPEG_BIN rows; the env door the rule points at (packages/server/src/foundation/env) sits ABOVE @orb/tooling in the cake and cannot be imported down here.
 const { ORB_SNAP_SESSION_HOME: HOME_OVERRIDE, ORB_SESSION_TTL_MIN: TTL_MIN_ENV, ORB_SESSION_CAP: CAP_ENV } = process.env;
@@ -192,7 +192,7 @@ export function liveSessionNames(root: string): ReadonlySet<string> {
 }
 
 /** Signal the daemon's whole process group — `spawnFullPriorityChild` is detached, so the daemon leads its own
- *  group and the browser tree rides with it. Through the SYSCALL door (`_shared/proc.ts` `killPidGroup`)
+ *  group and the browser tree rides with it. Through the SYSCALL door (`floor/process/proc.ts` `killPidGroup`)
  *  and never a spawned `kill -SIG -<pgid>`: procps parses that as the pgid's first digit, which with
  *  seven-digit pids is `kill(-1)` — the whole box (#1254, paid by this file on 2026-09-02). A row whose
  *  pgid is not a real group leader (≤ 1) is refused outright: a corrupt row must never become a broadcast. */

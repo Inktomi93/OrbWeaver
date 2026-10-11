@@ -42,7 +42,7 @@
 //
 // THE OPTIONS EXPRESSION IS RESOLVED, NOT REQUIRED INLINE. `persist(init, opts)` through an immutable const
 // hop read 0 before #2089 — the options object is the whole subject, and a one-identifier hop is not a
-// different program. The hop is the SHARED stable-binding reader `_shared/reference-fact.ts#resolveStableExpression`
+// different program. The hop is the SHARED stable-binding reader `floor/code-facts/reference-fact.ts#resolveStableExpression`
 // (the same one `windowed-infinite-query` uses for the identical shape), which follows const bindings and
 // import doors and REFUSES on a write, a cycle or a dynamic terminal.
 //
@@ -96,7 +96,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `persist-partialize-and-total-migrate` descriptor at (pruned from public history), the parent of the
 // conversion `9aea17e390` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
-// the SAME 7,368 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// the SAME 7,368 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy
 // `scanRoot` admits 1,319 and final `population` admits 2. legacy − final = 1,317 `@client` sources other than the
 // two minting factories — the ARM A reach retired to `no-raw-zustand-persist`. final − legacy = ∅. Controls: inside:
 // no virtual sibling fits the exact-path population, so the real shared member
@@ -104,7 +104,7 @@
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { CallExpression, Node, SourceFile } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
-import { resolveStableExpression } from "../../_shared/reference-fact.ts";
+import { resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 import { readPackageExportOrigin } from "../lib/project-home-origin.ts";

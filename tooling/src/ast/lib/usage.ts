@@ -249,7 +249,7 @@ export const USAGE = [
   "  a bare `.mutate(…)` that names nothing — so this lens ALSO resolves each fire site's RECEIVER back to",
   "  its factory hook and pools those keys under the verb the subject names (bare member `generate`, or the",
   "  full path `chat.generate`). That resolution is the SAME one `duplicate-action-doors` counts doors with",
-  "  (tooling/src/_shared/trpc-doors.ts — ONE home, so the gate's census and this lens cannot disagree about",
+  "  (tooling/src/floor/code-facts/trpc-doors.ts — ONE home, so the gate's census and this lens cannot disagree about",
   "  what a door is). It is LEVEL 1: a receiver bound same-file to a corpus-indexed hook. Every run prints a",
   "  DOOR CLASSES banner saying what it could and could not judge — a fire site the resolver cannot follow",
   "  (a parameter, a cross-module binding, an ambiguous hook name) is COUNTED there, a destructured",

@@ -23,7 +23,7 @@
 // `public-route-body-cap` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
 // `(pruned from public history)` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,455 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 17 and final `population` admits 17.
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 17 and final `population` admits 17.
 // legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/server/src/entry/http/__cbbhr_in_auth-meta.ts`
 // (virtual) admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by
 // both.

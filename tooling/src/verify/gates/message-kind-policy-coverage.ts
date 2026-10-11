@@ -17,7 +17,7 @@
 // raise: a missing home, a renamed record or interface, and an empty axis set all take the receipt to zero
 // members and withhold the verdict. No real-tree anchor file decides which substrate a proof receives.
 //
-// FAMILY: SINGLETON under its own id. `_shared/reference-fact.ts` (`resolveModuleMemberOrigin`) is a shared
+// FAMILY: SINGLETON under its own id. `floor/code-facts/reference-fact.ts` (`resolveModuleMemberOrigin`) is a shared
 // PRIMITIVE, not a family key — fifteen policies in thirteen unrelated families resolve references through
 // it (`drizzle-schema`, `registry-definitions`, `zod-modern-spellings`, `sole-env-reader`, `no-raw-egress`
 // and eight more) — and no sibling policy judges whether a policy RECORD's axis has a production reader,
@@ -47,7 +47,7 @@
 // descriptor had no `scanRoot`, so its effective population is its in-run path filter — readers:
 // `READER_SCOPE_RE = /(?:^|\/)packages\/(?:server|client)\/src\//`, plus HOME
 // `packages/contracts/src/chat/participants.ts` and the mode-B REAL_TREE_ANCHOR `packages/db/src/schema/index.ts`.
-// Over the SAME 7,144 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it
+// Over the SAME 7,144 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`) it
 // admits 2,784 and the final `population` admits 2,887 (the bare harness dispatch was 7,144). legacy − final =
 // {`packages/db/src/schema/index.ts`} — the mode-B real-tree anchor, retired with that arm. final − legacy = 104
 // `@contracts` sources other than the home — admitted by the `@contracts` root and never judged (the reader census
@@ -56,7 +56,7 @@
 // `packages/db/src/client/__cbbhr_out_index.ts` rejected by both.
 import type { InterfaceDeclaration, Node as MorphNode, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { referenceResolutionServices, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import { referenceResolutionServices, resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { resolveTypeIdentityOrigin, resolveTypePropertyOrigin } from "../lib/type-member-origin.ts";
 

@@ -23,7 +23,7 @@
 // that, one loop would be reported as two offenders.
 
 import { baseUiAttributionMismatch, isSanctionedLibraryAnimation } from "@orb/kit/motion-allowance";
-import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
+import type { EvidenceGap } from "@orb/tooling/floor/verdict/evidence";
 import type { AnimationRecord, MotionFlagRecord } from "../contract/types.ts";
 
 /** The allowance POLICY is not decided here any more (#1069): `@orb/kit/motion-allowance` is its one home,

@@ -2,7 +2,7 @@
 // sample even when a hypothetical second read would disagree.
 import type { Browser } from "@playwright/test";
 import { vi } from "vitest";
-import type { BrowserAccelerationEvidence } from "../../../../tooling/src/_shared/browser-acceleration.ts";
+import type { BrowserAccelerationEvidence } from "../../../../tooling/src/floor/browser/browser-acceleration.ts";
 import { snapRatePostureSchema } from "../../../../tooling/src/snap/contract/rate-posture.ts";
 import { ratePostureDisposition, sampleSnapRatePosture } from "../../../../tooling/src/snap/lib/rate-posture.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";

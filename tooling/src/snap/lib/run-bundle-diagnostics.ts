@@ -4,11 +4,11 @@
 // file-size ceiling; the front door re-exports the two entry points its callers already import.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { artifactFilePath, artifactKey } from "../../_shared/artifact-naming.ts";
-import { artifactDir, registerInstrumentArtifact } from "../../_shared/artifact-out.ts";
-import { aggregateScope, evidenceWindowId, exactScope, notApplicableScope } from "../../_shared/artifact-scope.ts";
-import { DIAGNOSTIC_LEVELS, DIAGNOSTIC_ORIGINS } from "../../_shared/browser-contract.ts";
-import type { BrowserDiagnostic, OrbConsoleCompletenessSummary } from "../../_shared/browser-diagnostics.ts";
+import { artifactFilePath, artifactKey } from "../../floor/artifacts/artifact-naming.ts";
+import { artifactDir, registerInstrumentArtifact } from "../../floor/artifacts/artifact-out.ts";
+import { aggregateScope, evidenceWindowId, exactScope, notApplicableScope } from "../../floor/artifacts/artifact-scope.ts";
+import { DIAGNOSTIC_LEVELS, DIAGNOSTIC_ORIGINS } from "../../floor/browser/browser-contract.ts";
+import type { BrowserDiagnostic, OrbConsoleCompletenessSummary } from "../../floor/browser/browser-diagnostics.ts";
 import type { DiskSafeBrowserDiagnostic, DiskSafeLimitReceipt } from "../contract/browser-evidence-redaction.ts";
 import { NETWORK_LIMIT_KINDS } from "../contract/har-redaction.ts";
 import type { SnapRunArtifact, SnapRunDiagnosticCompleteness, SnapRunIndex } from "../contract/run-index.ts";

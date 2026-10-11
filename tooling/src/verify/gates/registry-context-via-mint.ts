@@ -33,7 +33,7 @@
 // licensed nothing and the home is now simply scanned like every other file.
 import type { Node as MorphNode, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { referenceResolutionServices, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import { referenceResolutionServices, resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { LocatedProjectHome, ProjectHomeDeclaration } from "../lib/project-home-origin.ts";
 import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-home-origin.ts";

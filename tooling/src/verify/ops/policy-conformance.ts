@@ -3,8 +3,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, 
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { CoordinatedGateFinding, ReviewedGateGrant } from "../contract/gate-authority.ts";

@@ -2,11 +2,11 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import process from "node:process";
-import { openRunSlot, publishRunSlot, runFile } from "@orb/tooling/_shared/artifacts";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { testProcessEnv } from "@orb/tooling/_shared/process-env";
-import { runTool, UsageError } from "@orb/tooling/_shared/run-tool";
-import { toRepoRelative } from "@orb/tooling/_shared/scoped-run-paths";
+import { openRunSlot, publishRunSlot, runFile } from "@orb/tooling/floor/artifacts/artifacts";
+import { runTool, UsageError } from "@orb/tooling/floor/cli/run-tool";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { testProcessEnv } from "@orb/tooling/floor/process/process-env";
+import { toRepoRelative } from "@orb/tooling/floor/testing/scoped-run-paths";
 import type { NativeDurationShardCollection, NativeNodeShard, ScopedTestRunner } from "@orb/tooling/verify";
 import { balanceNativeFiles, collectCtCases, collectNode, ownScheme, readNativeCtCases, requireNativeSelection } from "@orb/tooling/verify";
 import { z } from "zod";

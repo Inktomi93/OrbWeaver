@@ -4,7 +4,7 @@
 // THE TABLE, NOT A MARKER. Until #1276 there was ONE row —
 // `active.json` — because there was one band, so two lanes wanting a stage was a refusal by construction
 // (four lanes blocked in one afternoon, 2026-09-02). A `StageRow` is now ONE row of
-// `<main>/.cache/snap-stage/bands.json`, keyed by its band index in `_shared/ports.ts`'s `STAGE_BANDS`, and
+// `<main>/.cache/snap-stage/bands.json`, keyed by its band index in `floor/host/ports.ts`'s `STAGE_BANDS`, and
 // the #108 ownership rules apply PER ROW rather than to the box.
 //
 // DERIVED FIELDS ARE NOT STORED. `shortSha`/`baseUrl` used to live in the marker; they are functions of
@@ -12,7 +12,7 @@
 // derived value is a second home that drifts. Ports ARE stored because they are the band's identity as the
 // row was written — a row whose ports disagree with `stageBandPorts(row.band)` is evidence of a registry
 // edit, not something to silently paper over.
-import type { ListeningPortsRead } from "../../_shared/platform.ts";
+import type { ListeningPortsRead } from "../../floor/host/platform.ts";
 import type { ServedState } from "../../stack/index.ts";
 
 export interface StagePorts {
@@ -106,7 +106,7 @@ interface StageDeath {
 
 /** One row of the band table: a stage on band `k`, owned by one checkout, serving one sha. */
 export interface StageRow {
-  /** Index into `_shared/ports.ts` `STAGE_BANDS` — the row's key. */
+  /** Index into `floor/host/ports.ts` `STAGE_BANDS` — the row's key. */
   readonly band: number;
   readonly sha: string;
   readonly dir: string;
@@ -213,7 +213,7 @@ export interface StageKeeperEvidence {
    *  = nobody is connected. Unidentifiable and off-box peers describe as foreign: "I could not identify
    *  the client" never grants permission to reap (ops/stage-probe.ts `foreignBandPeer`). */
   readonly foreignPeer: string | null;
-  /** Those of the row's ports that a RESERVED row owns (`_shared/ports.ts`) — normally empty. */
+  /** Those of the row's ports that a RESERVED row owns (`floor/host/ports.ts`) — normally empty. */
   readonly reservedPorts: readonly number[];
   readonly nowMs: number;
   readonly ttlMs: number;

@@ -1,5 +1,5 @@
 import { matchesGlob } from "node:path";
-import { TEST_KIND_DEFINITIONS } from "@orb/tooling/_shared/test-kinds";
+import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import ctConfig from "../../playwright-ct.config.ts";
 import { readPolicyRepositoryInventory } from "../../tooling/src/verify/lib/policy-repo-inventory.ts";
 import { MODE_PROJECTS } from "../e2e/support/modes.ts";

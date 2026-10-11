@@ -28,7 +28,12 @@
 //
 // A pure reader over one delivered node: no walk, no Project, no filesystem, no cache.
 
-import { readMemberReference, referenceResolutionServices, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
+import {
+  readMemberReference,
+  referenceResolutionServices,
+  resolveGlobalMemberOrigin,
+  resolveModuleMemberOrigin,
+} from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode } from "ts-morph";
 import type { ProcessMemberVerdict } from "../contract/origin-verdict.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";

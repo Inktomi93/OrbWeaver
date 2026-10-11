@@ -1,5 +1,5 @@
-import type { EvidenceGap } from "../../_shared/evidence.ts";
-import type { TimingEvidencePolicy } from "../../_shared/timing-capability.ts";
+import type { TimingEvidencePolicy } from "../../floor/host/timing-capability.ts";
+import type { EvidenceGap } from "../../floor/verdict/evidence.ts";
 import type { ArmFactEmission } from "../contract/arms.ts";
 
 /** Keep hardware-unqualified timing recorded while preserving instrument refusal and load precedence. */

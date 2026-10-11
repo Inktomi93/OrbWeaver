@@ -1,8 +1,8 @@
 // Canonical identity and authored-value composition for the visitor-fed bus fact collector.
 
-import { readMemberReference, readStaticString, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
-import { resolveCallableOrigin } from "@orb/tooling/_shared/reference-fact-call";
-import type { ReferenceUnresolvedReason } from "@orb/tooling/_shared/reference-fact-contract";
+import { readMemberReference, readStaticString, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
+import { resolveCallableOrigin } from "@orb/tooling/floor/code-facts/reference-fact-call";
+import type { ReferenceUnresolvedReason } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { CallExpression, Node as MorphNode, Symbol as MorphSymbol, Type, TypeAliasDeclaration, VariableDeclaration } from "ts-morph";
 import { Node } from "ts-morph";
 import type {

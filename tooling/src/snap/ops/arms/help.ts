@@ -10,7 +10,7 @@
 //
 // Evaluation order matters and is guaranteed: a template literal evaluates its expressions left to right,
 // so every `armHelp` call in `SNAP_HELP` has already run by the time `remainingArmHelp()` is reached.
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 import type { Arm } from "../../contract/arm-vocabulary.ts";
 import { ARMS } from "../../contract/arm-vocabulary.ts";
 import { ARM_DEFS } from "./registry.ts";

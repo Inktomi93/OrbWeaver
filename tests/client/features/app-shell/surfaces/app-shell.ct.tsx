@@ -32,7 +32,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/modal-slot-ids.ts";
 import type { SectionId } from "../../../../../packages/client/src/state/section-ids.ts";
-import APPEARANCE_PRESET_FILE from "../../../../../tooling/src/_shared/appearance-presets.json" with { type: "json" };
+import APPEARANCE_PRESET_FILE from "../../../../../tooling/src/floor/appearance/appearance-presets.json" with { type: "json" };
 import { COMMAND_CHIP_NAME } from "../../../../support/browser/command-chip-name.ts";
 import { pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { touchDrag } from "../../../../support/browser/weave-drive.ts";

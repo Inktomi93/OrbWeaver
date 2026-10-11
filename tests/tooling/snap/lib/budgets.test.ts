@@ -1,5 +1,5 @@
 // T14/T15 for snap specifically (#1283): the pure
-// load-scaling contract is pinned once, fleet-wide, at tests/tooling/_shared/load-budget.test.ts — this
+// load-scaling contract is pinned once, fleet-wide, at tests/tooling/floor/host/load-budget.test.ts — this
 // file proves snap's OWN drive/stage/throttle ceilings are wired to it, using the SAME base numbers
 // tooling/src/snap/lib/budgets.ts actually declares (imported, never re-typed, so a base that changes
 // there cannot silently drift out of what this pin exercises).
@@ -9,7 +9,7 @@
 // process, so the live reading is correct for the shipped code). To prove the FORMULA those exports rest
 // on stretches/holds them correctly, this file re-applies `budget()` to the real, imported bases with an
 // INJECTED reader — the same technique T14/T15 use everywhere else — rather than re-deriving the numbers.
-import { budget } from "../../../../tooling/src/_shared/load-budget.ts";
+import { budget } from "../../../../tooling/src/floor/host/load-budget.ts";
 import {
   MOUNT_SETTLE_MS,
   NAV_BASE_MS,
@@ -25,7 +25,7 @@ import {
 } from "../../../../tooling/src/snap/lib/budgets.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-/** Per-core 4.0 on a 24-core box — the FORCED-LOAD reading T14 uses (mirrors tests/tooling/_shared/load-budget.test.ts). */
+/** Per-core 4.0 on a 24-core box — the FORCED-LOAD reading T14 uses (mirrors tests/tooling/floor/host/load-budget.test.ts). */
 const LOADED = { loadavg1: 96, cpuCount: 24 } as const;
 /** Per-core 0.3 — quiet, and quiet is EXACTLY factor 1. */
 const QUIET = { loadavg1: 7.2, cpuCount: 24 } as const;

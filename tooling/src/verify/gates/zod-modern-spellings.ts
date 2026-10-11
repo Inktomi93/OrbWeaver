@@ -51,7 +51,7 @@
 // value is the copy-paste it refuses tomorrow, not the sites it finds today.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../_shared/reference-fact.ts";
+import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { ZodCandidateCall } from "../lib/zod-origin.ts";
 import { isZodCall, zodCandidateCall } from "../lib/zod-origin.ts";

@@ -57,7 +57,7 @@
 // second home for the ownership fact and rots silently the day the key moves (§3). The end condition is the
 // blob moving to a `$type`d column of its own, at which point this arm covers it with no gate edit.
 // COLUMNS ARE RESOLVED, NOT REQUIRED INLINE (#945): the columns argument is read through
-// `_shared/schema-read.ts`, which follows an imported/aliased object-literal binding (and object spreads)
+// `floor/code-facts/schema-read.ts`, which follows an imported/aliased object-literal binding (and object spreads)
 // and refuses loudly on any other shape. `sqliteTable("x", importedColumns, …)` used to yield ZERO columns
 // here, erasing this gate's obligations while the schema file scan stayed healthy; findings anchor on the
 // column's DECLARING file and the scan line prints the resolved table/column population.

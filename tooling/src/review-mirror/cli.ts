@@ -4,9 +4,9 @@
 // external mirror stays throwaway, but the milestone run leaves a tracked, board-linkable findings artifact.
 // Exit: 0 generated with complete evidence · 2 generation/evidence failure · 3 bad arguments.
 import process from "node:process";
-import { print } from "../_shared/artifacts.ts";
-import { EXIT } from "../_shared/exit-contract.ts";
-import { runTool, UsageError } from "../_shared/run-tool.ts";
+import { print } from "../floor/artifacts/artifacts.ts";
+import { EXIT } from "../floor/cli/exit-contract.ts";
+import { runTool, UsageError } from "../floor/cli/run-tool.ts";
 import type { RunReviewMirrorOptions } from "./index.ts";
 import { runReviewMirror } from "./index.ts";
 

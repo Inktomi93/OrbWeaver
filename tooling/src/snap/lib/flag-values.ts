@@ -4,8 +4,9 @@
 // cap once the session flags and the arms flags both landed on it (Core-Tooling-Law.md §4.3, "pure logic
 // to lib/"). Every function reports by PUSHING onto `errors`; none throws and none returns a verdict, so a
 // single argv pass collects every refusal instead of dying on the first.
-import { parseViewport, splitFirstEq, splitLastEq, splitSelectorEq } from "../../_shared/argv.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { parseViewport, splitFirstEq, splitLastEq, splitSelectorEq } from "../../floor/instrument/argv.ts";
 import { LIGHTHOUSE_DEVICE_SPELLINGS, LIGHTHOUSE_MODE_SPELLINGS, parseLighthouseDevice, parseLighthouseMode } from "./lighthouse-report.ts";
 import { CROP_RE } from "./out-names.ts";
 import { selectorRefusalForFlag } from "./selector-shape.ts";

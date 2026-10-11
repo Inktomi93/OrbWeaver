@@ -124,9 +124,9 @@ Every authored TypeScript file has an intended world (ISO, Node or DOM) and exac
 
 | Fact | Home |
 | - | - |
-| Intended world and primary owner | `tooling/src/_shared/project-worlds.ts` |
-| Test kinds, compiler intent and mirror rules | `tooling/src/_shared/test-kinds.ts` |
-| Generated world templates and runnable configs | `tooling/src/_shared/type-config-intent.ts` |
+| Intended world and primary owner | `tooling/src/floor/compiler/project-worlds.ts` |
+| Test kinds, compiler intent and mirror rules | `tooling/src/floor/testing/test-kinds.ts` |
+| Generated world templates and runnable configs | `tooling/src/floor/compiler/type-config-intent.ts` |
 | Compiler roots, references and inherited inputs | `tooling/src/verify/lib/policy-program-membership.ts` |
 | Native import closures and the membership report | `tooling/src/verify/ops/tests-type-membership.ts` |
 | File-to-program routing for the hook and scoped verification | `tooling/src/verify/ops/typecheck-plan.ts` |

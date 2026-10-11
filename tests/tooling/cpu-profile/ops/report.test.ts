@@ -14,9 +14,10 @@
 // ASSERTED THROUGH `printTable`'s BYTES, not through the new pure builder, so this spec compiles against
 // the pre-fix source and goes RED there rather than failing to build (red-first receipt: the HEAD run
 // printed `... blocking  script  click(...)` and a bare `plantedHot` cell, with no legend line at all).
-import { installOutputSink } from "../../../../tooling/src/_shared/log.ts";
+
 import type { StepReport } from "../../../../tooling/src/cpu-profile/index.ts";
 import { printTable } from "../../../../tooling/src/cpu-profile/index.ts";
+import { installOutputSink } from "../../../../tooling/src/floor/cli/log.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const STEP: StepReport = {

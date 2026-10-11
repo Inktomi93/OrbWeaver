@@ -168,8 +168,8 @@ settings response, or read `<html data-reduced-motion>`) and state which state t
 other.
 
 `--appearance '<json>'` deep-merges keys over the real settings response
-(`tooling/src/_shared/appearance.ts`); untouched keys keep the account's own value.
-`--appearance-preset <name>` loads a named profile from `tooling/src/_shared/appearance-presets.json`
+(`tooling/src/floor/appearance/appearance.ts`); untouched keys keep the account's own value.
+`--appearance-preset <name>` loads a named profile from `tooling/src/floor/appearance/appearance-presets.json`
 (that file is the one home for a new curated preset). `--appearance` composes over a preset (later
 keys win); an unknown name is `ARG ERROR`. A motion/visual verdict owes both the bare run and
 `--full-motion` / `--appearance-preset maximal`.

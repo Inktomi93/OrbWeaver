@@ -38,7 +38,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `no-raw-random` descriptor at b01dff396ad1f8f51bfd1cc92a0f972de8cdc731, the parent of the conversion `b5acbf2594`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,219 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 4,383
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 4,383
 // and final `population` admits 4,382. legacy − final = {`packages/showcase-plugins/src/index.ts`} — the one source
 // of an authored package outside the declared composite roots (`@showcase` is not in `@authored`/`@packages`, #1980,
 // `contract/population.ts`); a one-file NARROWING. final − legacy = ∅. Controls: inside
@@ -58,7 +58,7 @@
 // showcase and default-content are now judged with the rest of the shipped source tree.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../_shared/reference-fact.ts";
+import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
 import type { AmbientSource } from "../contract/ambient-determinism.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readAmbientInvocation } from "../lib/ambient-determinism.ts";

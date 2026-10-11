@@ -11,8 +11,8 @@
 // Container-level plus the fields the node side reads; the optional members of the contract stay
 // optional on purpose (`--isolated --ref <old sha>` legitimately measures a bundle that predates them,
 // which the contract's own comments state).
-import { pageArray, pageBoolean, pageNumber, pageNumberFields, pageObject, pageString } from "@orb/tooling/_shared/page-validate";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { pageArray, pageBoolean, pageNumber, pageNumberFields, pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { AnimationRecord, MotionFlagRecord, MotionSnapshot } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --motion");

@@ -13,7 +13,7 @@ import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll } from "vitest";
-import { TEST_KIND_SUFFIXES } from "../../tooling/src/_shared/test-kinds.ts";
+import { TEST_KIND_SUFFIXES } from "../../tooling/src/floor/testing/test-kinds.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 
 interface DcRestriction {
@@ -348,7 +348,7 @@ function writeAllFixtures(): void {
   // tooling-cli-via-index: a cli reaching its own internals instead of ./index.ts.
   fx("tooling/src/__dc_ta/cli.ts", `import "./x.ts";\n`);
   // tooling-shared-floor: the plumbing floor reaching UP into a tool.
-  fx("tooling/src/_shared/__dc_up.ts", `import "../__dc_ta/x.ts";\n`);
+  fx("tooling/src/floor/process/__dc_up.ts", `import "../../__dc_ta/x.ts";\n`);
   // tooling-no-provider-families — a tool reaching a provider FAMILY (backends/<x>, where the agent-sdk
   // credential firewall lives). The rule shipped without this pin, so the anti-drift `test.each(ACTIVE_RULES)`
   // case had nothing to fire it and the suite was RED on main before the P6 verify move touched it.

@@ -3,7 +3,7 @@
 //
 // Exit: 0 clean · 1 a refusal (nothing written) · 2 the tool broke · 3 misuse.
 import process from "node:process";
-import { runTool } from "../_shared/run-tool.ts";
+import { runTool } from "../floor/cli/run-tool.ts";
 import { parseDocCommand, runDocCommand } from "./index.ts";
 
 function main(): number {

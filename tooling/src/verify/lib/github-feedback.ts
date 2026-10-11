@@ -1,7 +1,7 @@
 // GitHub output is a projection of completed native results, never a second verdict authority.
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import process from "node:process";
-import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import type { StageResult, VerifyReport } from "../contract/stage.ts";
 import { producedNoVerdict } from "./exit-classifiers.ts";
 

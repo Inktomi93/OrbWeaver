@@ -18,7 +18,7 @@
 // array and also exits non-zero. That case is a real (empty) collection which the barren arm then reports
 // per-operand — the direction the pin plants alongside the load failure.
 import { resolve } from "node:path";
-import { toRepoRelative } from "@orb/tooling/_shared/scoped-run-paths";
+import { toRepoRelative } from "@orb/tooling/floor/testing/scoped-run-paths";
 import type { NativeCtCase, NativeCtCaseCollection, ScopedTestCollection } from "../contract/scoped-test.ts";
 import { DIAGNOSTIC_ONLY_ANNOTATION } from "../contract/scoped-test.ts";
 

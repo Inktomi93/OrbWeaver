@@ -72,7 +72,7 @@
 // `b6a112823f` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `(pruned from public history)`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,558 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 8 and final `population` admits 105.
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 8 and final `population` admits 105.
 // legacy − final = ∅. final − legacy = 97 `@contracts` sources beyond the eight `BUS_FILES` — carrier files a finding
 // may now anchor in; the dispatch roots stay the eight. Controls: inside: no virtual sibling fits the exact-path
 // population, so the real shared member `packages/contracts/src/automation/index.ts` is the control, admitted by

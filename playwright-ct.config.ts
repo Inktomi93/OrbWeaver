@@ -2,14 +2,14 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
-import { adoptRunSlot } from "@orb/tooling/_shared/artifact-out";
-import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
-import { CT_CACHE_DIR_ENV, CT_RUN_RACING_ENV, CT_RUN_SLOT_ENV } from "@orb/tooling/_shared/ct-run-slot";
-import { budget } from "@orb/tooling/_shared/load-budget";
-import { CT_VITE_PORT } from "@orb/tooling/_shared/ports";
-import { currentRunLease, inheritedRunMarker, runLeaseArg, runMarkerArg } from "@orb/tooling/_shared/run-marker";
-import { TEST_KIND_DEFINITIONS } from "@orb/tooling/_shared/test-kinds";
-import { applicationTestExclusions } from "@orb/tooling/_shared/test-population";
+import { adoptRunSlot } from "@orb/tooling/floor/artifacts/artifact-out";
+import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
+import { budget } from "@orb/tooling/floor/host/load-budget";
+import { CT_VITE_PORT } from "@orb/tooling/floor/host/ports";
+import { currentRunLease, inheritedRunMarker, runLeaseArg, runMarkerArg } from "@orb/tooling/floor/process/run-marker";
+import { CT_CACHE_DIR_ENV, CT_RUN_RACING_ENV, CT_RUN_SLOT_ENV } from "@orb/tooling/floor/testing/ct-run-slot";
+import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
+import { applicationTestExclusions } from "@orb/tooling/floor/testing/test-population";
 import type { PlaywrightTestConfig } from "@playwright/experimental-ct-react";
 import { defineConfig, devices } from "@playwright/experimental-ct-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -227,7 +227,7 @@ export function ctConfig(applicationOnly = false): PlaywrightTestConfig {
     // docs/work/0062 — the working-tree guard: captures `git status` + a content hash of every dirty path
     // before the first component mounts, and its returned teardown reds the run (naming the path) if a CT
     // wrote into the real checkout instead of its own harness/temp state.
-    globalSetup: "./tooling/src/_shared/working-tree-guard.ts",
+    globalSetup: "./tooling/src/floor/testing/working-tree-guard.ts",
     testMatch: CT_TEST_MATCH,
     ...(exclusions.length === 0 ? {} : { testIgnore: exclusions }),
     outputDir: "reports/ct-results",
@@ -295,7 +295,7 @@ export function ctConfig(applicationOnly = false): PlaywrightTestConfig {
       // processes came from: playwright starts each browser in its OWN session, so a killed CT run's process
       // group kill never reaches them. The launcher (`cli.ts scoped-test ct`) exports the marker into this
       // config's environment; the ARG channel is what a chromium actually keeps (it wipes its own environ —
-      // `_shared/run-marker.ts` RUN_MARKER_ARG_PREFIX), and the runner's sweeps read it back from
+      // `floor/process/run-marker.ts` RUN_MARKER_ARG_PREFIX), and the runner's sweeps read it back from
       // `/proc/<pid>/cmdline`. No marker (a bare `npx playwright test`) ⇒ no arg, exactly as before.
       // THE LEASE RIDES BESIDE IT (#2504) — the marker says which RUN may kill this browser, the lease says
       // which INVOCATION started it, and `release()` sweeps only the second. One switch could not say both.

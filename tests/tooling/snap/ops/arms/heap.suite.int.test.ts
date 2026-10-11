@@ -5,8 +5,8 @@
 // growth is measured rather than blind; missing/malformed/incompatible evidence must refuse, never pass.
 import { copyFile, readFile, truncate, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
 import type { HeapComparisonReceipt, HeapRetainerReceipt, HeapSnapshotReceipt, SnapRunIndex } from "@orb/tooling/snap";
 import {
   assertComparableHeapSnapshots,

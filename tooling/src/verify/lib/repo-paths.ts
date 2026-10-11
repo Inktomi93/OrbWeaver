@@ -4,17 +4,17 @@
 import { existsSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 import process from "node:process";
-import { GIT_READ_PREFIX, runGit } from "@orb/tooling/_shared/git";
-import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
-import { UsageError } from "@orb/tooling/_shared/run-tool";
+import { UsageError } from "@orb/tooling/floor/cli/run-tool";
+import { GIT_READ_PREFIX, runGit } from "@orb/tooling/floor/git/git";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import type { ChangedPath, ChangedPathClassification, ChangedPathStatus, MeasurementBoundary } from "../contract/selection.ts";
 import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../contract/selection.ts";
 
 export const ROOT = process.cwd();
 
 // biome-ignore lint/performance/noBarrelFile: compatibility front door keeps existing verifier imports stable after the shared path extraction.
-export { GIT_READ_PREFIX, repoGitEnvironment } from "@orb/tooling/_shared/git";
-export { FIXTURE_GIT_CONFIG_ARGS, fixtureGitEnvironment } from "@orb/tooling/_shared/git-fixture";
+export { GIT_READ_PREFIX, repoGitEnvironment } from "@orb/tooling/floor/git/git";
+export { FIXTURE_GIT_CONFIG_ARGS, fixtureGitEnvironment } from "@orb/tooling/floor/git/git-fixture";
 
 function changedPath(path: string, status: ChangedPathStatus, previousPath: string | null = null): ChangedPath {
   return { path, status, previousPath };
@@ -327,5 +327,5 @@ export function packageDir(name: string): string {
 }
 
 // The caller-facing existence check for `--file` paths used to live HERE as `badPaths`, private to
-// verify. It moved to `_shared/scoped-run-paths.ts` (#1192) when the two scoped TEST runners were found
+// verify. It moved to `floor/testing/scoped-run-paths.ts` (#1192) when the two scoped TEST runners were found
 // to have no such check at all: one rule, three doors, one refusal sentence. `lib/run-argv.ts` calls it.

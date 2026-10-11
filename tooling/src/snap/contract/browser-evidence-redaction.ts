@@ -1,8 +1,8 @@
 // Disk-safe projections for browser diagnostics and the smaller console/request rings persisted beside
 // Snap artifacts. Raw collector types stay live-only; these shapes are the serialization boundary.
-import type { CapturedConsole, CapturedRequest } from "../../_shared/browser-capture.ts";
-import type { BrowserPageError } from "../../_shared/browser-contract.ts";
-import type { BrowserDiagnostic } from "../../_shared/browser-diagnostics.ts";
+import type { CapturedConsole, CapturedRequest } from "../../floor/browser/browser-capture.ts";
+import type { BrowserPageError } from "../../floor/browser/browser-contract.ts";
+import type { BrowserDiagnostic } from "../../floor/browser/browser-diagnostics.ts";
 import type { NetworkEvidenceLimits, NetworkLimitEvent, RedactedJsonValue } from "./har-redaction.ts";
 
 export interface DiskSafeLimitReceipt {

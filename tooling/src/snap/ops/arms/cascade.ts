@@ -2,12 +2,12 @@
 // declaration-state evidence behind one `cssEvidence` manifest member; there is no second app bridge.
 
 import type { CssMergeConflict, CssMergeReceipt, CssMergeTraceSnapshot } from "@orb/ui/css-merge-contract";
-import { splitLastEq } from "../../../_shared/argv.ts";
-import { aggregateScope } from "../../../_shared/artifact-scope.ts";
-import type { ResultPair } from "../../../_shared/artifacts.ts";
-import type { ProbeSession } from "../../../_shared/browser-contract.ts";
-import type { DevToolsCascadeRawDeclaration, DevToolsCascadeRuntime } from "../../../_shared/devtools-runtime.ts";
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { aggregateScope } from "../../../floor/artifacts/artifact-scope.ts";
+import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
+import type { ProbeSession } from "../../../floor/browser/browser-contract.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
+import type { DevToolsCascadeRawDeclaration, DevToolsCascadeRuntime } from "../../../floor/devtools/devtools-runtime.ts";
+import { splitLastEq } from "../../../floor/instrument/argv.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmRunContext, ArmRunInstance } from "../../contract/arms.ts";
 import type { CssCascadeDeclaration, CssCascadeQuery, CssCascadeReceipt, CssEvidenceReceipt } from "../../contract/cascade.ts";
 import { cssMergeTraceStatusSchema } from "../../contract/cascade.ts";

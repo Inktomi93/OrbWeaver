@@ -5,14 +5,15 @@
 //   pnpm codemod                       # overview        pnpm codemod list [id]   # helpers by category
 //   pnpm codemod recipes|recipe <id>   # recipes          pnpm codemod search <t>  # grep helpers+recipes
 //   pnpm codemod migrate-macro-blocks [--dry-run] <file...>   # the §12A seed migration (idempotent)
+//   pnpm codemod relocate <plan.json> [--apply]                # move files by plan; re-spell every citation
 //
 // Output overflow: long outputs spill to /tmp with the path banner at head AND tail
 // (`--max-output-lines=N`, parsed here / NEO_CODEMOD_MAX_LINES). Exit: 0 clean · EXIT.misuse on a bad
 // subcommand, an unknown flag, or a malformed --max-output-lines value.
 import process from "node:process";
-import { EXIT } from "../_shared/exit-contract.ts";
-import { runTool, UsageError } from "../_shared/run-tool.ts";
-import { migrateMacroBlocksOp, printHelp, printList, printRecipe, printRecipes, searchHelpers } from "./index.ts";
+import { EXIT } from "../floor/cli/exit-contract.ts";
+import { runTool, UsageError } from "../floor/cli/run-tool.ts";
+import { migrateMacroBlocksOp, printHelp, printList, printRecipe, printRecipes, relocateOp, searchHelpers } from "./index.ts";
 
 /** The ONE flag this tier owns (the kit's output-spill knob). */
 const MAX_LINES_FLAG = "--max-output-lines=";
@@ -55,6 +56,10 @@ function main(): number {
   // The one verb with its own flag grammar — it owns its tail verbatim.
   if (sub === "migrate-macro-blocks") {
     migrateMacroBlocksOp(tail);
+    return EXIT.clean;
+  }
+  if (sub === "relocate") {
+    relocateOp(tail);
     return EXIT.clean;
   }
   refuseUnknownFlags(tail, sub);

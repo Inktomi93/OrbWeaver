@@ -1,8 +1,8 @@
 // Approval grants execution, never qualification; candidate metadata is compared as data and never executed.
 import { readFileSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
-import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
-import { runTool } from "@orb/tooling/_shared/run-tool";
+import { runTool } from "@orb/tooling/floor/cli/run-tool";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { z } from "zod";
 
 const REPOSITORY = "Inktomi93/OrbWeaver";

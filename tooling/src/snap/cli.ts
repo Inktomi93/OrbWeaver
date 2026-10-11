@@ -1,13 +1,13 @@
 // snap — one browser run, many pieces of UI evidence. Argv parse + dispatch ONLY (the five-slot cap):
 // the programmatic surface is ./index.ts; the operator cookbook is `pnpm snap --help` + the ops/ headers.
 // Boots against the running dev stack (`pnpm stack up` first) or an isolated stage (`--isolated`);
-// artifacts land in this run's slot via _shared/artifact-out, published as reports/snaps/… pointers.
+// artifacts land in this run's slot via floor/artifacts/artifact-out, published as reports/snaps/… pointers.
 import process from "node:process";
 import { pathToFileURL } from "node:url";
-import { withInstrumentRun } from "../_shared/artifact-out.ts";
-import { print, prunedRuns, REPO_ROOT } from "../_shared/artifacts.ts";
-import { EXIT } from "../_shared/exit-contract.ts";
-import { runTool } from "../_shared/run-tool.ts";
+import { withInstrumentRun } from "../floor/artifacts/artifact-out.ts";
+import { print, prunedRuns, REPO_ROOT } from "../floor/artifacts/artifacts.ts";
+import { EXIT } from "../floor/cli/exit-contract.ts";
+import { runTool } from "../floor/cli/run-tool.ts";
 import type { Args } from "./index.ts";
 import {
   completeSnapRun,

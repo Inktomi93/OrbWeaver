@@ -1,13 +1,13 @@
 // `stack status` and `stack logs`: the record's verdict, the ports, the two answers, the served-module
 // probe, the pins the launch used and the auth mode the server really resolved.
 import { readFileSync } from "node:fs";
-import { print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { ExitCode } from "../../_shared/exit-contract.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { httpOk } from "../../_shared/http-probe.ts";
-import { budget } from "../../_shared/load-budget.ts";
-import { describePortOwner } from "../../_shared/platform.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { ExitCode } from "../../floor/cli/exit-contract.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { budget } from "../../floor/host/load-budget.ts";
+import { describePortOwner } from "../../floor/host/platform.ts";
+import { httpOk } from "../../floor/http/http-probe.ts";
 import type { DevPinKey, LeaderRead, LeaderState, PinSource, ServedVerdict, StackContext } from "../contract/types.ts";
 import { DEV_PIN_KEYS } from "../contract/types.ts";
 import { authConfigUrl, healthzUrl, PRINTABLE_PINS, printablePins } from "../lib/stack-plan.ts";

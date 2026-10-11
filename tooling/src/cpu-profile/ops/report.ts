@@ -1,6 +1,6 @@
 // Bucket the meter's entries into per-step windows + print the table.
-import { print } from "@orb/tooling/_shared/artifacts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { print } from "@orb/tooling/floor/artifacts/artifacts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { LongTask, MeterData, PerfEvent, StepReport } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --perf");

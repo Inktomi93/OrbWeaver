@@ -19,8 +19,8 @@
 // is "somebody else's table" or "a subject I refuse", are the calling policy's law, decided on the shared
 // module-origin fact of this node.
 
-import { resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
-import type { ReferenceFact, ReferenceUnresolvedReason, UnresolvedReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
+import { resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
+import type { ReferenceFact, ReferenceUnresolvedReason, UnresolvedReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 import { unwrapExpression } from "./ast-read.ts";

@@ -2,13 +2,13 @@
 // (SHOT_BASE), element shots, volatile-region masks, and the native crop.
 import type { Locator, Page } from "@playwright/test";
 import { devices } from "@playwright/test";
-import { registerInstrumentArtifact } from "../../../_shared/artifact-out.ts";
-import type { InstrumentCurrentScope } from "../../../_shared/artifact-scope.ts";
-import type { ResultPair } from "../../../_shared/artifacts.ts";
-import type { OwnerMetrics } from "../../../_shared/browser-emulation-guard.ts";
-import { overrideOwnerViewport, reassertOwnerViewport } from "../../../_shared/browser-emulation-guard.ts";
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import { budget } from "../../../_shared/load-budget.ts";
+import { registerInstrumentArtifact } from "../../../floor/artifacts/artifact-out.ts";
+import type { InstrumentCurrentScope } from "../../../floor/artifacts/artifact-scope.ts";
+import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
+import type { OwnerMetrics } from "../../../floor/browser/browser-emulation-guard.ts";
+import { overrideOwnerViewport, reassertOwnerViewport } from "../../../floor/browser/browser-emulation-guard.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
+import { budget } from "../../../floor/host/load-budget.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds } from "../../contract/arms.ts";
 import type { Args, ReportCtx } from "../../contract/types.ts";
 import { captureScope } from "../../lib/capture-scope.ts";

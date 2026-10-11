@@ -7,7 +7,7 @@
 // under three different detail types. A cast would let a shape change land as fabricated selectors on a
 // real finding; the structural readers below simply see nothing, and the node COUNT they report is the
 // count they actually read.
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type {
   LighthouseAuditNode,
   LighthouseCategoryScore,

@@ -27,7 +27,7 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { CharacterId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { contrastRatio } from "@orb/tooling/_shared/wcag";
+import { contrastRatio } from "@orb/tooling/floor/instrument/wcag";
 import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";

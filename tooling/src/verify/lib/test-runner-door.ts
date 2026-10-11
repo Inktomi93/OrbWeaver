@@ -6,7 +6,7 @@
 // that installs the RESULT snapshot serializer (Core-Tooling-Law.md §4.8: entering through the plain door
 // bakes unnormalized inline snapshots). Both are read structurally, so a rename of either door is free.
 
-import { readMemberReference, referenceResolutionServices } from "@orb/tooling/_shared/reference-fact";
+import { readMemberReference, referenceResolutionServices } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { ImportDeclaration, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { FixtureDoor } from "../contract/test-runner-door.ts";

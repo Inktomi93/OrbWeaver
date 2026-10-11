@@ -7,7 +7,7 @@
 // all, which was fine while the matrix's `asset` background arm could fall back to the static `kind:"seeded"`
 // catalog. That catalog retired 2026-09-18 (the same commit this file's own `variants=14` comment already
 // cites), so `planSnapAppearanceMatrix` (`ops/matrix.ts`) now REQUIRES a real
-// `discovery.settings.backgroundLibraryFirst` (`_shared/appearance.ts` `readBackgroundCapability`) before it
+// `discovery.settings.backgroundLibraryFirst` (`floor/appearance/appearance.ts` `readBackgroundCapability`) before it
 // will build ANY matrix cells — scenario-checkpoints mode included, since cell planning is appearance-shared
 // even though scenario mode never reports appearance receipts. Proven red-first: the unmocked fixture makes
 // `--matrix --scenario` refuse in `runRatedMatrix` before a single cell runs (`INSTRUMENT ERROR: matrix
@@ -22,9 +22,9 @@ import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import process from "node:process";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
-import { listProcesses } from "@orb/tooling/_shared/platform";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
+import { listProcesses } from "@orb/tooling/floor/host/platform";
 import { vi } from "vitest";
 import { appearanceMatrixContract } from "../../../../packages/client/src/lib/appearance-carrier-manifest.ts";
 import { readSessionRow } from "../../../../tooling/src/snap/lib/session-wire.ts";

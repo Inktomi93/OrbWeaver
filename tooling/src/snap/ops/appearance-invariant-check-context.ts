@@ -1,10 +1,10 @@
 // The browser facts consumed by the literal R1-R7 semantic checks. Kept separate so the settings/theme
 // check arm can split before the tooling size cap without importing the public dispatcher back into itself.
 
-import type { SettingsShimEvidence } from "../../_shared/appearance.ts";
-import type { RuntimeMessageRegistryReceipt } from "../../_shared/appearance-matrix.ts";
-import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SettingsShimEvidence } from "../../floor/appearance/appearance.ts";
+import type { RuntimeMessageRegistryReceipt } from "../../floor/appearance/appearance-matrix.ts";
+import type { BrowserEnvironmentEvidence } from "../../floor/browser/browser-environment.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { AppearanceDomSnapshot } from "./appearance-invariant-dom.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --matrix");

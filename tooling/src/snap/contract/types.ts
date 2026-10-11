@@ -1,13 +1,13 @@
 // snap's typed surface — the queue/args/outcome shapes every op speaks (docs/law/Core-Tooling-Law.md §2.5).
-import type { AppearancePatch } from "../../_shared/appearance.ts";
-import type { Viewport } from "../../_shared/argv.ts";
-import type { BrowserAccelerationEvidence } from "../../_shared/browser-acceleration.ts";
-import type { CapturedConsole, CapturedRequest } from "../../_shared/browser-capture.ts";
-import type { BrowserEvidenceChannels, BrowserPageError, LocalStorageSeed } from "../../_shared/browser-contract.ts";
-import type { BrowserDiagnostic, OrbConsoleCompleteness } from "../../_shared/browser-diagnostics.ts";
-import type { EvidenceGap } from "../../_shared/evidence.ts";
-import type { ThemeRequest } from "../../_shared/theme.ts";
-import type { FileActionReceipt } from "../../_shared/upload.ts";
+import type { AppearancePatch } from "../../floor/appearance/appearance.ts";
+import type { ThemeRequest } from "../../floor/appearance/theme.ts";
+import type { BrowserAccelerationEvidence } from "../../floor/browser/browser-acceleration.ts";
+import type { CapturedConsole, CapturedRequest } from "../../floor/browser/browser-capture.ts";
+import type { BrowserEvidenceChannels, BrowserPageError, LocalStorageSeed } from "../../floor/browser/browser-contract.ts";
+import type { BrowserDiagnostic, OrbConsoleCompleteness } from "../../floor/browser/browser-diagnostics.ts";
+import type { FileActionReceipt } from "../../floor/browser/upload.ts";
+import type { Viewport } from "../../floor/instrument/argv.ts";
+import type { EvidenceGap } from "../../floor/verdict/evidence.ts";
 import type { DesignAuditSeverity } from "../../ui-audit/index.ts";
 import type { Assertion, DriveFailure, PagedExpr, SnapAction } from "./actions.ts";
 import type { CssCascadeQuery, CssEvidenceReceipt } from "./cascade.ts";
@@ -121,7 +121,7 @@ export interface Args extends StageArgs {
    *  inheritance must be able to tell "no --every" from "--every 1000". */
   watchEveryMs: number;
   /** Output basename override (reports/snaps/<out>.png), or — when path-shaped (absolute / `./` / `../`) —
-   *  the exact file to write. Defaults to the route slug. Resolution lives in _shared/artifacts.ts. */
+   *  the exact file to write. Defaults to the route slug. Resolution lives in floor/artifacts/artifacts.ts. */
   out: string | null;
   viewport: Viewport;
   /** Did the CALLER spell `--viewport`? A size override is not a device change (#1668): under `--mobile`
@@ -173,12 +173,12 @@ export interface Args extends StageArgs {
    *  is an OS/browser contract, applied through the shared CDP rail and read back from the page. */
   reducedTransparency?: boolean;
   /** `--appearance '<json>'` / `--appearance-preset <name>` / `--full-motion`: the deep-merge patch shimmed
-   *  over the REAL `settings.getUserSettings` response for this run (never written — _shared/appearance.ts).
+   *  over the REAL `settings.getUserSettings` response for this run (never written — floor/appearance/appearance.ts).
    *  Accumulated in argv order, later keys winning. null = drive the account's real state (the default, and
    *  a valid arm — it is the owner's actual experience). */
   appearance: AppearancePatch | null;
   /** `--theme <name|id|none>`: the ACTIVE THEME this run pretends is selected, shimmed over the same
-   *  `settings.getUserSettings` response (never written — _shared/theme.ts). Last spelling wins. null = the
+   *  `settings.getUserSettings` response (never written — floor/appearance/theme.ts). Last spelling wins. null = the
    *  account's own theme. A carried-theme chat room overrides it on purpose (D44 §12). */
   theme: ThemeRequest | null;
   /** Settle on networkidle (bounded) instead of a fixed timeout before capture. */
@@ -283,7 +283,7 @@ export interface Args extends StageArgs {
    *  lifetime flag is refused (lib/session-plan.ts SESSION_ONLY_FLAGS). null = the one-shot path, untouched. */
   session: string | null;
   /** `--session-daemon <name>`: the DAEMON'S OWN entry — spawned by ops/session-client.ts through
-   *  _shared/proc.ts, never typed by an operator. The rest of the argv is the session's BOOT argv. */
+   *  floor/process/proc.ts, never typed by an operator. The rest of the argv is the session's BOOT argv. */
   sessionDaemon: string | null;
   /** `--session-status [<name>]`: every session of this repo — owner · pid · live/dead · idle · binding —
    *  then exit. Ignores the route. */
@@ -377,7 +377,7 @@ export interface AssertionOutcome {
 // The `--network`/`--cpu-throttle` vocabulary and the drive ceilings live in ./load-emulation.ts.
 
 export interface PerfEvidence {
-  /** The three members of the ONE rate vocabulary (`_shared/load-budget.ts` `MEASUREMENT_DISPOSITIONS`),
+  /** The three members of the ONE rate vocabulary (`floor/host/load-budget.ts` `MEASUREMENT_DISPOSITIONS`),
    *  spelled in this arm's own words: `measured` = `complete`. `load-suspect` carries a REAL number that
    *  nothing may promote (#1616); `withheld` carries none at all (an unproven browser). */
   readonly rate: { readonly status: "measured" | "load-suspect" | "withheld"; readonly reason: string };

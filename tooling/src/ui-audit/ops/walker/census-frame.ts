@@ -29,8 +29,8 @@
 // that scrolls, which is load-bearing twice over: the frame is the page's RESTING layout, and this
 // segment reads only core's primitives (`allEls`, `isVisible`, `isDevChrome`, `describe`) so it carries
 // no ordering debt to a later segment's `var` vocabulary. Raw JS in a template literal (no backticks /
-// dollar-brace — see _shared/browser.ts for why a string, not a function). Provenance: ops/walker.ts.
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+// dollar-brace — see floor/browser/browser.ts for why a string, not a function). Provenance: ops/walker.ts.
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 

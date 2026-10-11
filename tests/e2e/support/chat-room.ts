@@ -20,7 +20,7 @@
 //     the e2e app in dev mode so the handle exists; orb has no `chat-stream-state` testid.
 
 import type { MessageId } from "@orb/kit/ids";
-import { budget } from "@orb/tooling/_shared/load-budget";
+import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { rowActionsName } from "../../../packages/client/src/lib/row-qualifiers.ts";

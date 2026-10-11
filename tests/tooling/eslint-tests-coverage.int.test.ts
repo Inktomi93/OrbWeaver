@@ -25,8 +25,8 @@
 // lesson), so a future story/fixture module that lands outside every glob reds HERE instead of silently
 // widening the hole again.
 import { execSync } from "node:child_process";
-import { BROWSER_PACKAGES, isNodeToolSource, PACKAGE_WORLDS } from "@orb/tooling/_shared/project-worlds";
-import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/_shared/test-tags";
+import { BROWSER_PACKAGES, isNodeToolSource, PACKAGE_WORLDS } from "@orb/tooling/floor/compiler/project-worlds";
+import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
 import { ESLint } from "eslint";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";

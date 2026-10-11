@@ -17,14 +17,14 @@
 // `runUiAudit`; the partial-verdict gaps (population, cap, hover, force, instrument page error) ride
 // beside the tables rather than instead of them.
 import { errorMessage } from "@orb/kit/error-message";
-import type { SettingsShimEvidence } from "@orb/tooling/_shared/appearance";
+import type { SettingsShimEvidence } from "@orb/tooling/floor/appearance/appearance";
 import type { Page } from "@playwright/test";
-import type { ProbeSession } from "../../_shared/browser-contract.ts";
-import { pageErrorText } from "../../_shared/browser-contract.ts";
-import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
-import { readBrowserEnvironment } from "../../_shared/browser-environment.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { EvidenceGap } from "../../_shared/evidence.ts";
+import type { ProbeSession } from "../../floor/browser/browser-contract.ts";
+import { pageErrorText } from "../../floor/browser/browser-contract.ts";
+import type { BrowserEnvironmentEvidence } from "../../floor/browser/browser-environment.ts";
+import { readBrowserEnvironment } from "../../floor/browser/browser-environment.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { EvidenceGap } from "../../floor/verdict/evidence.ts";
 import type {
   BackdropRefusal,
   CensusReachInput,
@@ -145,7 +145,7 @@ export interface DesignAuditMeasurement {
   };
   readonly navError: string | null;
   readonly actionsFailed: number;
-  /** Partial-verdict gaps — the tables still print, the run still exits 2 (`_shared/evidence.ts`). */
+  /** Partial-verdict gaps — the tables still print, the run still exits 2 (`floor/verdict/evidence.ts`). */
   readonly gaps: readonly EvidenceGap[];
   readonly verdicts: DesignAuditVerdicts;
   readonly selectorProof: readonly SelectorProof[];

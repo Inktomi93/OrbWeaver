@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
-import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
+import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
 import { z } from "zod";
 
 const require = createRequire(import.meta.url);

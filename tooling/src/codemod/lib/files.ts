@@ -2,7 +2,7 @@
 // ── §8 ─ File operations ─────────────────────────────────────────────────────
 
 import { existsSync, readFileSync } from "node:fs";
-import { canonicalCompilerPath } from "@orb/tooling/_shared/ts-workspace";
+import { canonicalCompilerPath } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { SourceFile } from "ts-morph";
 import type { CodemodContext, OperationOptions, Plan } from "../contract/types.ts";
 import { CodemodError } from "./errors.ts";

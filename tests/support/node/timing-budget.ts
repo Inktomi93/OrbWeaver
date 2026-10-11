@@ -1,12 +1,12 @@
 import type { TestInfo } from "@playwright/test";
-import { classifyTestFilename } from "../../../tooling/src/_shared/test-kinds.ts";
-import type { TimingCapability, TimingMeasurement } from "../../../tooling/src/_shared/timing-capability.ts";
+import type { TimingCapability, TimingMeasurement } from "../../../tooling/src/floor/host/timing-capability.ts";
 import {
   NATIVE_TIMING_CASE_ANNOTATION,
   TIMING_MEASUREMENT_ANNOTATION,
   timingCapability,
   timingMeasurementResult,
-} from "../../../tooling/src/_shared/timing-capability.ts";
+} from "../../../tooling/src/floor/host/timing-capability.ts";
+import { classifyTestFilename } from "../../../tooling/src/floor/testing/test-kinds.ts";
 
 /** Attach before asserting, so both qualified failures and record-only breaches retain the same evidence. */
 export async function assertTimingBudget(

@@ -1,10 +1,10 @@
-// drizzle column defs + the STRUCTURAL write scan (schema tables ride _shared/schema-read).
+// drizzle column defs + the STRUCTURAL write scan (schema tables ride floor/code-facts/schema-read).
 
-import type { SchemaTable } from "@orb/tooling/_shared/schema-read";
-import { schemaTables } from "@orb/tooling/_shared/schema-read";
+import type { SchemaTable } from "@orb/tooling/floor/code-facts/schema-read";
+import { schemaTables } from "@orb/tooling/floor/code-facts/schema-read";
 import type { Expression } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { TableDef, WriteScan } from "../contract/types.ts";
 import { relPath } from "../ops/swallowed.ts";
 import { declKey } from "./keys.ts";

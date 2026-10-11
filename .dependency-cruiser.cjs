@@ -71,7 +71,7 @@
  * @type {import('dependency-cruiser').IConfiguration}
  */
 
-const { TEST_KIND_SUFFIXES } = require("./tooling/src/_shared/test-kinds.ts");
+const { TEST_KIND_SUFFIXES } = require("./tooling/src/floor/testing/test-kinds.ts");
 
 const KIT = "^packages/kit/src/";
 const CONTRACTS = "^packages/contracts/src/";
@@ -762,7 +762,7 @@ module.exports = {
     {
       name: "tooling-cli-via-index",
       comment:
-        "A tool's cli.ts consumes its OWN tool only through ./index.ts (argv parse + dispatch fronts the programmatic API; a cli reaching into ops/lib couples the argv surface to internals). _shared imports stay legal (a different top dir, not matched here). (Core-Tooling-Law.md §4.2/§4.6.)",
+        "A tool's cli.ts consumes its OWN tool only through ./index.ts (argv parse + dispatch fronts the programmatic API; a cli reaching into ops/lib couples the argv surface to internals). floor imports stay legal (a different top dir, not matched here). (Core-Tooling-Law.md §4.2/§4.6.)",
       severity: "error",
       from: { path: "^tooling/src/([^/]+)/cli\\.ts$" },
       to: { path: "^tooling/src/$1/", pathNot: "^tooling/src/$1/index\\.ts$" },
@@ -770,10 +770,10 @@ module.exports = {
     {
       name: "tooling-shared-floor",
       comment:
-        "_shared/ is @orb/tooling's floor — read DOWN-into by every tool, reaching UP to none (the foundation-reaches-up-to-nothing mirror). (Core-Tooling-Law.md §2.4/§4.6.)",
+        "floor/ is @orb/tooling's plumbing floor — read DOWN-into by every tool, reaching UP to none (the foundation-reaches-up-to-nothing mirror). (Core-Tooling-Law.md §2.4/§4.6.)",
       severity: "error",
-      from: { path: "^tooling/src/_shared/" },
-      to: { path: "^tooling/src/", pathNot: "^tooling/src/_shared/" },
+      from: { path: "^tooling/src/floor/" },
+      to: { path: "^tooling/src/", pathNot: "^tooling/src/floor/" },
     },
     {
       name: "tooling-no-provider-families",
@@ -869,7 +869,7 @@ module.exports = {
         pathNot: [
           "\\.d\\.ts$",
           "(^|/)index\\.ts$",
-          "^tooling/src/_shared/instruments\\.ts$",
+          "^tooling/src/floor/instrument/instruments\\.ts$",
           // Verified byte-consumed entries only; a sibling helper.ts remains an orphan.
           "^packages/showcase-plugins/bundles/[^/]+/(main|ui|frame)\\.ts$",
         ],

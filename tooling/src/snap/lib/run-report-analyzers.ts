@@ -1,6 +1,6 @@
 // Browser-free rendering for analyzer-owned problem rows. The analyzer artifacts own threshold policy;
 // this module only preserves severity, caps terminal output and points to the full immutable population.
-import { print } from "../../_shared/artifacts.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
 import type { SnapAnalyzerProblemKind } from "../contract/analyzer.ts";
 import { isSnapAnalyzerProducer, snapAnalyzerArm } from "../contract/analyzer.ts";
 import type { SnapReportQuery, SnapRunIndex } from "../contract/run-index.ts";

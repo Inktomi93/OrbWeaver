@@ -2,7 +2,7 @@
 // policy block (facts, refusals, alarms, withheld owners) — split out of ops/show.ts, which sits at the tooling
 // line cap. Same voice as the legacy lines there: the artifact reader prints what the artifact SAYS, never a
 // re-derivation. Colour functions arrive from the caller so this file owns no TTY detection.
-import { formatSplit } from "@orb/tooling/_shared/ratchet-rows";
+import { formatSplit } from "@orb/tooling/floor/verdict/ratchet-rows";
 import type { Violation } from "../contract/harness.ts";
 import type { FinalPolicyRow, StructurePolicyReport } from "../contract/structure-report.ts";
 

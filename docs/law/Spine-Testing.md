@@ -6,7 +6,7 @@ updated: 2026-10-09
 
 # Orbweaver — Spine: Testing
 
-Testing policy: central source mirrors, registered test kinds, isolated fixtures, and native runner verification. `Core-0-Architecture-and-Structure.md` §5 owns layout. `tooling/src/_shared/test-kinds.ts` owns the executable kind vocabulary; native runner configs own execution, and the verification registry owns tier admission.
+Testing policy: central source mirrors, registered test kinds, isolated fixtures, and native runner verification. `Core-0-Architecture-and-Structure.md` §5 owns layout. `tooling/src/floor/testing/test-kinds.ts` owns the executable kind vocabulary; native runner configs own execution, and the verification registry owns tier admission.
 
 ## 0. The principle
 
@@ -43,7 +43,7 @@ Runtime and compiler ownership are separate. A `.dom.test.ts` has DOM declaratio
 - Native compiler membership reports distinguish authored roots, imported closures and intended ownership. Merely appearing in some import closure does not prove that a test has the correct compiler owner.
 - Native Vitest and Playwright collection is the execution oracle. Reconciliation must detect unclaimed tests, duplicate claims and empty views; duplicating config globs in the checker is not independent proof.
 - Integration fixtures default to isolated resources and parallel execution under the shared capacity profile. Scheduling restrictions require a current resource or measurement reason; historical slowness does not establish serialization or mutation ineligibility.
-- Vitest execution groups (called projects by the Vitest API) derive their selectors from `tooling/src/_shared/test-kinds.ts`; there is no hand-maintained filename roster. Normal groups run at `sequence.groupOrder: 0`. The `repository` group selects registered kinds whose resource is `repository`, runs after them at group order 1, and uses `fileParallelism: false` to serialize files within that group.
+- Vitest execution groups (called projects by the Vitest API) derive their selectors from `tooling/src/floor/testing/test-kinds.ts`; there is no hand-maintained filename roster. Normal groups run at `sequence.groupOrder: 0`. The `repository` group selects registered kinds whose resource is `repository`, runs after them at group order 1, and uses `fileParallelism: false` to serialize files within that group.
 - The `semantic-corpus` group selects its registered resource after the repository group. Independent files run concurrently under measured corpus memory limits from `tooling/concurrency-profile.json`.
 
 Ownership enforcement claims require planted positive and negative controls through the real verification path. The linked type-world program owns migration and acceptance state.
@@ -237,7 +237,7 @@ Vitest browser-mode is FORBIDDEN — cold-cache dep-discovery *hangs*. Two Playw
 
 ## 8. Tags (Vitest 4.1+) — the runtime axis, orthogonal to suffix
 
-`tooling/src/_shared/test-tags.ts` owns the registered Vitest tag names and options. The runtime uses `strictTags: true`; the test-only ambient augmentation derives the same closed name union for TypeScript. Register a tag when a real test needs it, rather than reserving hypothetical categories. The `slow` tag preserves a 30-second timeout without adding retries. Select tagged cases through native `--tagsFilter=slow` or a negated expression.
+`tooling/src/floor/testing/test-tags.ts` owns the registered Vitest tag names and options. The runtime uses `strictTags: true`; the test-only ambient augmentation derives the same closed name union for TypeScript. Register a tag when a real test needs it, rather than reserving hypothetical categories. The `slow` tag preserves a 30-second timeout without adding retries. Select tagged cases through native `--tagsFilter=slow` or a negated expression.
 
 Tags describe cross-cutting test requirements; suffixes retain test kind and compiler-world meaning. Mutation filtering uses declared capabilities rather than filename lists. Tags filter callbacks after module import, so they cannot isolate import-time side effects or supply repository/process capabilities missing from the runner. A capability exemption needs a native runner proof and must remain visible in collected/executed test accounting.
 

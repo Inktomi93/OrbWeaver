@@ -3,7 +3,7 @@
 // P4 (the tooling-size cap).
 import type { Node, SourceFile, VariableDeclaration } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import { CONTRACTS_SRC, calleeName, MODEL_PROJECTION_CALLEES, TOOL_ARGS_SCHEMA_KEY } from "./fields.ts";
 import { isTestPath } from "./root.ts";
 

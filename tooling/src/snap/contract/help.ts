@@ -7,9 +7,9 @@
 // its whole life, and nothing could have caught that while this file was hand-maintained. `armHelp` THROWS
 // on an unknown arm and `remainingArmHelp()` prints every arm this file did not place, so an arm added to
 // `ARMS` shows up in `--help` without an edit here.
-import { appearanceHelpBlock } from "../../_shared/appearance-flags.ts";
-import { panelPresetHelpBlock } from "../../_shared/panel-flags.ts";
-import { themeHelpBlock } from "../../_shared/theme.ts";
+import { appearanceHelpBlock } from "../../floor/appearance/appearance-flags.ts";
+import { themeHelpBlock } from "../../floor/appearance/theme.ts";
+import { panelPresetHelpBlock } from "../../floor/instrument/panel-flags.ts";
 import { SHOT_PIXEL_BUDGET } from "../lib/shot-scale.ts";
 import { NETWORK_PROFILE_SPELLINGS } from "../lib/throttle.ts";
 import { armHelp, remainingArmHelp } from "../ops/arms/help.ts";

@@ -2,7 +2,7 @@
 // Split from ast.ts (P4 of #393); the section headers carry the keying law verbatim.
 import type { ImportDeclaration, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { ConsumptionArm, Liveness, LivenessOptions, NamespaceSite } from "../contract/types.ts";
 import { recordDeclarationEdges } from "./edges.ts";
 import { declKey, exposedNames } from "./keys.ts";

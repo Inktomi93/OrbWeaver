@@ -5,7 +5,7 @@
 // interaction-state paint, and via which mechanism" through ONE predicate.
 // This segment DECLARES functions and vocabulary only; all
 // census EXECUTION stays in the consuming segments, so its presence in the main walk costs nothing.
-// Raw JS in a template literal (no backticks / dollar-brace — see _shared/browser.ts for why a
+// Raw JS in a template literal (no backticks / dollar-brace — see floor/browser/browser.ts for why a
 // string, not a function). Provenance + attribution: ops/walker.ts.
 //
 // TWO MECHANISMS, ONE QUESTION. CSS `:hover` is a pseudo-class only CDP can force; Base UI — the
@@ -27,7 +27,7 @@
 // this file hit the 450 cap, where `tooling-size` reds on the next field — so the next addition here
 // lands as a sibling module too, never as an arm and never by deleting a comment to buy its line
 // (docs/law/Core-Tooling-Law.md §4.3). Both compositions carry the pair in order.
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 

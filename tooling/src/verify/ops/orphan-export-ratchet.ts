@@ -67,15 +67,15 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import type { PackageName } from "@orb/tooling/_shared/project-worlds";
-import { PACKAGE_NAMES } from "@orb/tooling/_shared/project-worlds";
-import { UsageError } from "@orb/tooling/_shared/run-tool";
-import type { SourceCorpus } from "@orb/tooling/_shared/ts-workspace";
-import { createSemanticWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import type { ApiSurfaceEntry } from "@orb/tooling/ast";
 import { buildLiveness, collectApiSurface, isProdConsumed, isPublicTagged, ownExports, publicMarkerOf } from "@orb/tooling/ast";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { UsageError } from "@orb/tooling/floor/cli/run-tool";
+import type { PackageName } from "@orb/tooling/floor/compiler/project-worlds";
+import { PACKAGE_NAMES } from "@orb/tooling/floor/compiler/project-worlds";
+import type { SourceCorpus } from "@orb/tooling/floor/compiler/ts-workspace";
+import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { Node } from "ts-morph";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:orphan-ratchet");

@@ -5,11 +5,11 @@
 // imports nothing from it.
 //
 // COLOUR MATH: `@orb/kit/safe-color` (ColorJS-backed, standards CSS parsing) for oklch -> sRGB, and
-// `@orb/tooling/_shared/wcag` for the ratio. NO third converter is minted here — the house already
+// `@orb/tooling/floor/instrument/wcag` for the ratio. NO third converter is minted here — the house already
 // paid for that lesson twice (ui-audit/lib/css-color.ts's header).
 import { parseCssColorToSrgb } from "@orb/kit/safe-color";
-import type { Rgb } from "../../_shared/wcag.ts";
-import { contrastRatio } from "../../_shared/wcag.ts";
+import type { Rgb } from "../../floor/instrument/wcag.ts";
+import { contrastRatio } from "../../floor/instrument/wcag.ts";
 import type { StaticClassCandidate } from "./static-class-expression.ts";
 
 /** A token painted as TEXT somewhere in the product, with the carrier that paints it. */

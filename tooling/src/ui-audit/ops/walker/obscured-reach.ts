@@ -1,5 +1,5 @@
 // ui-audit in-page segment — THE OBSCURED-TARGET CENSUS AND ITS REVEAL. Raw JS in a template literal (no
-// backticks / dollar-brace — see _shared/browser.ts for why a string, not a function). Composed by
+// backticks / dollar-brace — see floor/browser/browser.ts for why a string, not a function). Composed by
 // ops/walker.ts immediately after WALKER_CENSUS_COLLISION, of whose function scope it is a continuation:
 // it reads that segment's `relationalAccounting` and the core segment's `describe`/`isVisible`/`ownsPoint`
 // vocabulary, so the ORDER is load-bearing and it has no other valid position.
@@ -23,7 +23,7 @@
 // nowhere it stands and everywhere it can be scrolled to — `recenterObscuredCandidate` is what makes that
 // a measurement rather than a lottery any page can draw (measured at 1400x1000: y=999.4 hits, y=999.5 is
 // null).
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
