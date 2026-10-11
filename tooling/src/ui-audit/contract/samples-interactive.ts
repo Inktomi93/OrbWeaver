@@ -6,7 +6,7 @@
 // samples.ts re-exports every name below, so no importer moves and `contract/samples.ts` remains the one
 // door onto the walker's sample vocabulary.
 
-import type { InactiveKind, Rgb } from "@orb/tooling/_shared/wcag";
+import type { InactiveKind, Rgb } from "@orb/tooling/floor/instrument/wcag";
 import type { Backdrop } from "./backdrop.ts";
 
 // ── ARIA navigability ────────────────────────────────────────────────────────

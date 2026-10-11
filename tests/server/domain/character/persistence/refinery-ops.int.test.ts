@@ -9,7 +9,7 @@ import { characterSnapshots, characters } from "@orb/db";
 import type { CharacterHandle, CharacterId, CharacterSnapshotId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
-import { createDeleteSnapshot, createLoadOwnedCard, createStampRefinerySignals } from "../../../../../packages/server/src/domain/character/index.ts";
+import { createDeleteSnapshot, createLoadOwnedCard, createStampRefinerySignals } from "#server/domain/character/index.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedUser } from "../../../../support/factories/user.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

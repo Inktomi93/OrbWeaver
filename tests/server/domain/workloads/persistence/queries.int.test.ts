@@ -20,7 +20,7 @@ import {
   markStarted,
   markTerminal,
   toView,
-} from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
+} from "#server/domain/workloads/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { fakeContributions, seedUser, seedWorkloadRow, T0 } from "../_support.ts";

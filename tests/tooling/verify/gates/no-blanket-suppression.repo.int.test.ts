@@ -9,7 +9,7 @@
 // the real tree (`__g_` stays the gate harness's).
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
 import type { CoordinatedGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";

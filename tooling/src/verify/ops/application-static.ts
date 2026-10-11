@@ -2,10 +2,10 @@
 // starts, and every nonzero/no-verdict exit survives; no diagnostic is classified by its path.
 import { join } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { isImportEntry } from "@orb/tooling/_shared/import-population";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { UsageError } from "@orb/tooling/_shared/run-tool";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { UsageError } from "@orb/tooling/floor/cli/run-tool";
+import { isImportEntry } from "@orb/tooling/floor/compiler/import-population";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { APPLICATION_STATIC_CHECKERS } from "../contract/application.ts";
 import { readApplicationSubjects } from "../lib/application-programs.ts";
 import { asViolations, ownScheme } from "../lib/exit-classifiers.ts";

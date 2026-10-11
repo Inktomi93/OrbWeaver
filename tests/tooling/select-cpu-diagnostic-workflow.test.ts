@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { runInNewContext } from "node:vm";
-import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { parse } from "yaml";
 import { z } from "zod";
 import { expect, test } from "../support/tool-fixtures.ts";

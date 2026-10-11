@@ -1,7 +1,7 @@
 // The relative-specifier dynamic-import resolver (ts-morph gives no primitive for it).
 import type { Node, SourceFile } from "ts-morph";
 import { Node as TsNode } from "ts-morph";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 
 const MODULE_FILE_EXTS = [".ts", ".tsx"] as const;
 

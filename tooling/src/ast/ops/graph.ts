@@ -1,8 +1,8 @@
 // cycles + aliases — the module-graph rot lenses.
 import type { SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { scanCorpus } from "../lib/ledger.ts";

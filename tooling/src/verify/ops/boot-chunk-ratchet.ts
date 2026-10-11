@@ -50,10 +50,10 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { budget } from "@orb/tooling/_shared/load-budget";
-import { spawnNiced } from "@orb/tooling/_shared/proc";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { budget } from "@orb/tooling/floor/host/load-budget";
+import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import type { AppStylesheetSentinel, AppStylesheetVerdict, BootChunkFile, BootChunkVerdict } from "../contract/scoped.ts";
 import { HIDDEN_SOURCEMAP_ARGS, removeChunkSourcemaps, runDevInstrumentAbsence } from "./dev-instrument-absence.ts";
 

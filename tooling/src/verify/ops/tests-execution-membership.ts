@@ -18,12 +18,12 @@
 import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { UsageError } from "@orb/tooling/_shared/run-tool";
-import { looksLikeTestFilename, TEST_RESOURCE_NAMES, VITEST_RUNTIME_FAMILY_GROUPS, VITEST_TYPECHECK_GROUP_NAMES } from "@orb/tooling/_shared/test-kinds";
-import { isApplicationTest } from "@orb/tooling/_shared/test-population";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { UsageError } from "@orb/tooling/floor/cli/run-tool";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { looksLikeTestFilename, TEST_RESOURCE_NAMES, VITEST_RUNTIME_FAMILY_GROUPS, VITEST_TYPECHECK_GROUP_NAMES } from "@orb/tooling/floor/testing/test-kinds";
+import { isApplicationTest } from "@orb/tooling/floor/testing/test-population";
 import { z } from "zod";
 import { APPLICATION_TEST_CONFIGS } from "../contract/application.ts";
 import { classifyCtListing } from "../lib/ct-listing.ts";

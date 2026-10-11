@@ -12,7 +12,7 @@
 
 import type { Db } from "@orb/db";
 import { pluginAssets } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { AssetId, PluginId } from "@orb/kit/ids";
 import { and, eq, ne } from "drizzle-orm";
 import type { PluginBundleAssetLink } from "../contract/bundle-assets.ts";

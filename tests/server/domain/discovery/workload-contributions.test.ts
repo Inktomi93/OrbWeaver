@@ -10,8 +10,8 @@ import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import type { DiscoveryWorkloadDeps } from "../../../../packages/server/src/domain/discovery/contract/service.ts";
-import { createDiscoveryWorkloadContributions } from "../../../../packages/server/src/domain/discovery/workload-contributions.ts";
+import type { DiscoveryWorkloadDeps } from "#server/domain/discovery/contract/service.ts";
+import { createDiscoveryWorkloadContributions } from "#server/domain/discovery/workload-contributions.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ID = castId<UserId>("user_owner");

@@ -16,7 +16,7 @@ import { __setEgressResolverForTest } from "@orb/server/infra/network";
 import { AMBIENT_STUBS } from "@orb/server/infra/plugin-host";
 import { unzipSync } from "fflate";
 import { afterEach, beforeEach, vi } from "vitest";
-import { createAutomationWatcherEnv } from "../../../../packages/server/src/entry/compose/automation-watcher.ts";
+import { createAutomationWatcherEnv } from "#server/entry/compose/automation-watcher.ts";
 import { makeGenerationCapability } from "../../../support/factories/resolved-connection.ts";
 import { seedUser } from "../../../support/factories/user.ts";
 import { expect, test } from "../../../support/fixtures.ts";

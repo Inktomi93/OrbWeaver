@@ -1,8 +1,8 @@
 // Every decision `pnpm dev` makes, pure: argv, ports, watch roots, both spawn plans and the banner.
 // Paths are composed with node:path and every spawn is node plus a JS file, so no plan needs a shell.
 import { join } from "node:path";
-import { DEV_PORTS, MAX_TCP_PORT } from "../../_shared/ports.ts";
-import { SERVER_ENTRY_IN_PACKAGE, SERVER_NODE_FLAGS } from "../../_shared/server-entry.ts";
+import { DEV_PORTS, MAX_TCP_PORT } from "../../floor/host/ports.ts";
+import { SERVER_ENTRY_IN_PACKAGE, SERVER_NODE_FLAGS } from "../../floor/process/server-entry.ts";
 import type { DevParse, DevSpawnPlan, PortParse, WorkspacePackage } from "../contract/types.ts";
 
 export const DEV_USAGE = "usage: pnpm dev";

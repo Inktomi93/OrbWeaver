@@ -10,7 +10,7 @@
 // widened accusing side alone would have turned correctly invalidated bracket-spelled reads into findings.
 // The visitor subscribes `MEMBER_ACCESS_KINDS`, not half the family.
 
-import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
+import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineFact } from "../contract/fact.ts";

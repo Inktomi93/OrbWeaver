@@ -7,7 +7,7 @@
 // D23-CLEAN: NO `ownerId` ANYWHERE. Authority derives through the chat FK chain — `rpg_games.chatId →
 // chat_participants` (D18/D20); the host participant is the authority, gated at the producer verb. Every
 // enum column derives its `@orb/contracts/rpg` tuple with a tuple-built CHECK (no re-spell); every JSON
-// column is `$type<>`d and parse-on-read at the `@orb/db/kit` seam.
+// column is `$type<>`d and parse-on-read at the `@orb/db/query` seam.
 //
 // THE SWIPE-VOLATILE PLANE (§2.4-2.5, D124): `rpg_snapshots` is VARIANT-KEYED IFF the row was produced by
 // that variant's own TURN FLUSH (UNIQUE `variantId`, CASCADE) — a swipe rewinds BY CONSTRUCTION (each
@@ -47,7 +47,7 @@ import type {
 } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { checkList } from "../kit/check-list.ts";
+import { checkList } from "../query/check-list.ts";
 import { characters } from "./character.ts";
 import { chats, messages, messageVariants } from "./chat.ts";
 import { presets } from "./preset.ts";
@@ -87,7 +87,7 @@ export const rpgGames = sqliteTable(
     gmPresetId: text("gm_preset_id")
       .$type<PresetId>()
       .references(() => presets.id, { onDelete: "set null" }),
-    // The full config blob (statProfile + lite dials). Typed JSON, parse-on-read at the `@orb/db/kit` seam.
+    // The full config blob (statProfile + lite dials). Typed JSON, parse-on-read at the `@orb/db/query` seam.
     config: text("config", { mode: "json" }).$type<RpgGameConfig>().notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),

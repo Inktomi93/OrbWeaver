@@ -4,8 +4,8 @@
 import type { EmbeddingBatchObservation } from "@orb/contracts/embeddings";
 import type { Wire } from "@orb/contracts/inference";
 import { EMBEDDING_FLOOR } from "@orb/contracts/inference";
-import type { ProviderBackend } from "../../../packages/inference/src/contract/backend.ts";
-import { createProviderExecutor } from "../../../packages/inference/src/roles/executor.ts";
+import type { ProviderBackend } from "#inference/contract/backend.ts";
+import { createProviderExecutor } from "#inference/roles/executor.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { fakeDeps, fakeResolved } from "../_support.ts";
 

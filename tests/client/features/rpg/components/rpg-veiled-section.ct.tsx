@@ -5,7 +5,7 @@
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { hideActionName, revealActionName } from "../../../../../packages/ui/src/lib/action-names.ts";
+import { hideActionName, revealActionName } from "#ui/lib/action-names.ts";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { RpgVeiledSectionStory } from "../_ct-stories.tsx";

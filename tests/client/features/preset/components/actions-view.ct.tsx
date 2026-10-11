@@ -11,7 +11,7 @@
 import { TEMPLATE_DEFS, TEMPLATE_KINDS } from "@orb/contracts/preset";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { TEMPLATE_KIND_LABEL } from "../../../../../packages/client/src/features/preset/lib/template-rows.ts";
+import { TEMPLATE_KIND_LABEL } from "#client/features/preset/lib/template-rows.ts";
 import { ActionsForkStory, ActionsStory } from "./_actions-stories.tsx";
 
 /** The rendered box, rounded — sub-pixel noise is not a defect, an 8/16px shear is. */

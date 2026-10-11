@@ -6,7 +6,7 @@
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { collectArchivedCards } from "../../../../../packages/client/src/features/rpg/lib/archived-cards.ts";
+import { collectArchivedCards } from "#client/features/rpg/lib/archived-cards.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const VIEWER = castId<UserId>("user_viewer");

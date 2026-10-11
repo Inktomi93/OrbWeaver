@@ -38,8 +38,8 @@ import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/c
 import type { UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { MacroSourceRef, OffVocabularyPick } from "@orb/kit/macro";
 import { findOffVocabularyPicks } from "@orb/kit/macro";

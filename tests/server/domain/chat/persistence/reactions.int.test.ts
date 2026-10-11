@@ -22,7 +22,7 @@ import {
   loadPresentHostUserId,
   loadReactorSeatId,
   loadVariantSlotInChat,
-} from "../../../../../packages/server/src/domain/chat/persistence/reactions.ts";
+} from "#server/domain/chat/persistence/reactions.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { addVariant, FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";

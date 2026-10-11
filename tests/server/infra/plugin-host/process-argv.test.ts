@@ -1,4 +1,4 @@
-import { parsePluginBrokerArguments, parsePluginBrokerWatchdogArguments } from "../../../../packages/server/src/infra/plugin-host/process-argv.ts";
+import { parsePluginBrokerArguments, parsePluginBrokerWatchdogArguments } from "#server/infra/plugin-host/process-argv.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 test("broker and watchdog accept only their closed inherited-channel launch arguments", () => {

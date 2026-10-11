@@ -15,8 +15,8 @@
 // copied — the stage shells out to `vitest list`/`playwright test --list` for real, so this arm runs the
 // actual CLI (`runCli`, process-spawning — `.int.test.ts`), not a fixture.
 
-import { TEST_RESOURCE_NAMES, VITEST_RUNTIME_FAMILY_GROUPS, VITEST_TYPECHECK_GROUP_NAMES } from "@orb/tooling/_shared/test-kinds";
-import { isApplicationTest } from "@orb/tooling/_shared/test-population";
+import { TEST_RESOURCE_NAMES, VITEST_RUNTIME_FAMILY_GROUPS, VITEST_TYPECHECK_GROUP_NAMES } from "@orb/tooling/floor/testing/test-kinds";
+import { isApplicationTest } from "@orb/tooling/floor/testing/test-population";
 import { findMultiMembershipFiles, findUnrunFiles, unclassifiedVitestProjects } from "@orb/tooling/verify";
 import { withApplicationPrograms } from "../../../../tooling/src/verify/lib/application-programs.ts";
 import { enumerateTestFiles, playwrightFiles, vitestFiles } from "../../../../tooling/src/verify/ops/tests-execution-membership.ts";

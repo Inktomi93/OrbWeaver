@@ -2,8 +2,8 @@
 // ignore rules and then proves every tracked code file survived the drop/strip/copy pass.
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { runGit } from "../../_shared/git.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { runGit } from "../../floor/git/git.ts";
 import type { MirrorSummary } from "../contract/types.ts";
 import { stripComments, stripperFor } from "../lib/strip.ts";
 

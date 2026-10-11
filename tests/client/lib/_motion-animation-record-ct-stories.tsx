@@ -3,7 +3,7 @@
 
 import type { ReactElement } from "react";
 import { useEffect } from "react";
-import { activeAnimations, installAnimationLifecycleRecorder } from "../../../packages/client/src/lib/motion-animation-record.ts";
+import { activeAnimations, installAnimationLifecycleRecorder } from "#client/lib/motion-animation-record.ts";
 
 export function AnimationRecordStory(): ReactElement {
   useEffect(() => {

@@ -19,8 +19,8 @@ import { chats } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { DEFAULT_CHAT_BEHAVIOR } from "../../../../../packages/server/src/domain/chat/contract/foreign.ts";
-import type { TurnRequest } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
+import { DEFAULT_CHAT_BEHAVIOR } from "#server/domain/chat/contract/foreign.ts";
+import type { TurnRequest } from "#server/domain/chat/contract/results.ts";
 import { scenario, tape } from "../../../../support/chat/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

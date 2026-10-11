@@ -6,8 +6,8 @@
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type { RegisteredTool, ToolRegistry } from "../../../../../packages/server/src/domain/tool-use/contract/results.ts";
-import { lookupForDriver, toolRegistryKey } from "../../../../../packages/server/src/domain/tool-use/substrate/partition.ts";
+import type { RegisteredTool, ToolRegistry } from "#server/domain/tool-use/contract/results.ts";
+import { lookupForDriver, toolRegistryKey } from "#server/domain/tool-use/substrate/partition.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const ALICE: UserId = castId("user_alice");

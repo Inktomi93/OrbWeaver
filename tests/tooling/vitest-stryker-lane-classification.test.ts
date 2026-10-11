@@ -1,9 +1,9 @@
 // Native config imports must retain the base population and mutation-specific rigor.
 import { existsSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
-import { TEST_TAGS } from "@orb/tooling/_shared/test-tags";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
+import { TEST_TAGS } from "@orb/tooling/floor/testing/test-tags";
 import base from "../../vitest.config.ts";
 import mutation, { assertEveryLaneClassified, DROPPED_LANES, RUNTIME_LANES } from "../../vitest.stryker.config.ts";
 import { expect, test } from "../support/tool-fixtures.ts";

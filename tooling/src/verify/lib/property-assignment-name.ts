@@ -14,7 +14,7 @@
 // `no-direct-reports-write`, `no-handwritten-wire-json-schema`, `no-hardcoded-side-gen-sampling`), whose
 // refusal arm was reached by zero rows in all four.
 
-import { readStaticString } from "@orb/tooling/_shared/reference-fact";
+import { readStaticString } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 

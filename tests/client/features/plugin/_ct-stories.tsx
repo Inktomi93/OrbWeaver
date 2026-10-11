@@ -56,25 +56,25 @@ import { Menu, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { ModalHost } from "../../../../packages/client/src/features/app-shell/components/modal-host.tsx";
-import { YouSheet } from "../../../../packages/client/src/features/app-shell/components/you-sheet.tsx";
-import { MessageToolCalls } from "../../../../packages/client/src/features/chat/components/message-tool-calls.tsx";
+import { ModalHost } from "#client/features/app-shell/components/modal-host.tsx";
+import { YouSheet } from "#client/features/app-shell/components/you-sheet.tsx";
+import { MessageToolCalls } from "#client/features/chat/components/message-tool-calls.tsx";
 // The "This chat" tab as the component it is — the same relative-into-the-package import chat's own story
 // module takes for it (a story legitimately composes feature internals the front door does not re-export).
-import { CommittedSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
-import { PluginCommandArgsBody } from "../../../../packages/client/src/features/plugin/components/plugin-command-args-body.tsx";
-import { PluginCommandsMenu } from "../../../../packages/client/src/features/plugin/components/plugin-commands-menu.tsx";
-import { PluginComposerActions, PluginComposerMediaItems } from "../../../../packages/client/src/features/plugin/components/plugin-composer-placements.tsx";
-import { PluginDialogBody } from "../../../../packages/client/src/features/plugin/components/plugin-dialog-body.tsx";
-import { PluginRow } from "../../../../packages/client/src/features/plugin/components/plugin-row.tsx";
-import { PluginSurfacesPanel } from "../../../../packages/client/src/features/plugin/components/plugin-surfaces-panel.tsx";
+import { CommittedSettingsTab } from "#client/features/chat/components/settings-context-tab.tsx";
+import { PluginCommandArgsBody } from "#client/features/plugin/components/plugin-command-args-body.tsx";
+import { PluginCommandsMenu } from "#client/features/plugin/components/plugin-commands-menu.tsx";
+import { PluginComposerActions, PluginComposerMediaItems } from "#client/features/plugin/components/plugin-composer-placements.tsx";
+import { PluginDialogBody } from "#client/features/plugin/components/plugin-dialog-body.tsx";
+import { PluginRow } from "#client/features/plugin/components/plugin-row.tsx";
+import { PluginSurfacesPanel } from "#client/features/plugin/components/plugin-surfaces-panel.tsx";
 import {
   useReportUiCrash,
   useSetPluginEnabled,
   useSetPluginGrant,
   useUninstallPlugin,
   useWithdrawPlugin,
-} from "../../../../packages/client/src/features/plugin/lib/plugin-mutations.ts";
+} from "#client/features/plugin/lib/plugin-mutations.ts";
 import {
   CtAppDataProviders,
   CtChatContributorSectionRegistry,

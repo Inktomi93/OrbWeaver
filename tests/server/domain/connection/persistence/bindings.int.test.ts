@@ -9,7 +9,7 @@ import { userConnections } from "@orb/db";
 import type { AutomationRuleId, ConnectionBindingId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { listBindingsForActor, lookupBinding, upsertBinding } from "../../../../../packages/server/src/domain/connection/persistence/bindings.ts";
+import { listBindingsForActor, lookupBinding, upsertBinding } from "#server/domain/connection/persistence/bindings.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

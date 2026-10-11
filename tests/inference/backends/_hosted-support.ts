@@ -252,7 +252,7 @@ export function generationCapability(overrides: Partial<GenerationCapability> = 
  * Wrap a fake `fetch` so an ALREADY-ABORTED `init.signal` rejects with `signal.reason` — which is what
  * undici does per spec, and therefore the only way a cancellation pin can observe WHICH reason a backend
  * handed the transport. A fake that ignores the signal makes every cancellation arm pass vacuously (the
- * turn simply succeeds), and it is what lets the abort-flatten law (`backends/kit/abort-flatten.ts`) be
+ * turn simply succeeds), and it is what lets the abort-flatten law (`backends/http/abort-flatten.ts`) be
  * asserted from outside: with the fold in place the reason is always a plain `AbortError`; with
  * `AbortSignal.any` it is the caller's own — which the transport classifier then reads.
  */

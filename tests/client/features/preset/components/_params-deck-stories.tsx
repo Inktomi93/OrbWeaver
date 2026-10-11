@@ -16,10 +16,10 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ParamsDeck } from "../../../../../packages/client/src/features/preset/components/params-deck.tsx";
-import { samplerSpellingOf } from "../../../../../packages/client/src/features/preset/lib/capability-panel-model.ts";
-import { validatePresetConfig } from "../../../../../packages/client/src/features/preset/lib/preset-editor-model.ts";
-import type { ReadFailure } from "../../../../../packages/client/src/features/preset/lib/resolve-failure.ts";
+import { ParamsDeck } from "#client/features/preset/components/params-deck.tsx";
+import { samplerSpellingOf } from "#client/features/preset/lib/capability-panel-model.ts";
+import { validatePresetConfig } from "#client/features/preset/lib/preset-editor-model.ts";
+import type { ReadFailure } from "#client/features/preset/lib/resolve-failure.ts";
 import { CtDataProviders } from "../../../../support/browser/ct-data-providers.tsx";
 import { makeCachePolicy, makeGenerationCapability } from "../../../../support/factories/resolved-connection.ts";
 

@@ -5,8 +5,8 @@ import { generationUsageLegSchema, projectGenerationUsage, responseCacheSchema, 
 import type { RetainedChatAccountingScope } from "@orb/contracts/stats";
 import { generationObservationSpendDelta } from "@orb/contracts/stats";
 import { chatGenerationObservations, chats, messages, messageVariants, userConnections } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, batchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, batchStmt } from "@orb/db/query";
 import { GenerationObservationPersistenceError } from "@orb/inference";
 import type { SQL } from "drizzle-orm";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";

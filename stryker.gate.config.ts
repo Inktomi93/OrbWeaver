@@ -1,4 +1,4 @@
-import { createStrykerConfig } from "./tooling/src/_shared/stryker-config.ts";
+import { createStrykerConfig } from "./tooling/src/floor/testing/stryker-config.ts";
 
 // This exact target set and break threshold are one calibrated unit; change either only after a cold run.
 export default createStrykerConfig({

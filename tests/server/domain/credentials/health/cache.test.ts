@@ -4,12 +4,7 @@
 // module-scope singleton state never leaks across tests.
 
 import { describe } from "vitest";
-import {
-  clearHealthStrikes,
-  getLastHealthCheck,
-  recordHealthStrike,
-  rememberHealthCheck,
-} from "../../../../../packages/server/src/domain/credentials/health/cache.ts";
+import { clearHealthStrikes, getLastHealthCheck, recordHealthStrike, rememberHealthCheck } from "#server/domain/credentials/health/cache.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("getLastHealthCheck / rememberHealthCheck", () => {

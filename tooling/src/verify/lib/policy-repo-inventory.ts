@@ -2,9 +2,9 @@
 // malformed path, unresolved link, and root escape refuses instead of shrinking the manifest.
 import { lstatSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
-import { runGit } from "@orb/tooling/_shared/git";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { assertRepoPath, readAuthoredRepositoryInventory } from "../../_shared/authored-repository.ts";
+import { runGit } from "@orb/tooling/floor/git/git";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { assertRepoPath, readAuthoredRepositoryInventory } from "../../floor/compiler/authored-repository.ts";
 import type {
   PolicyChangedSelection,
   PolicyRepositoryInventory,

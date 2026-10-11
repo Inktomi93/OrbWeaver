@@ -1,12 +1,12 @@
 import type { InvocationChat, PluginCapability } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { vi } from "vitest";
-import { __setEgressResolverForTest } from "../../../../packages/server/src/infra/network/egress.ts";
-import type { BridgeAuthority } from "../../../../packages/server/src/infra/plugin-host/bridge-rpc.ts";
-import { authorizeBridgeCall, authorizeSyncCall, dispatchBridgeCall } from "../../../../packages/server/src/infra/plugin-host/bridge-rpc.ts";
-import type { PluginEgressBridge } from "../../../../packages/server/src/infra/plugin-host/net-egress.ts";
-import { createPluginNetEgress } from "../../../../packages/server/src/infra/plugin-host/net-egress.ts";
-import { isBridgeOperation } from "../../../../packages/server/src/infra/plugin-host/process-protocol.ts";
+import { __setEgressResolverForTest } from "#server/infra/network/egress.ts";
+import type { BridgeAuthority } from "#server/infra/plugin-host/bridge-rpc.ts";
+import { authorizeBridgeCall, authorizeSyncCall, dispatchBridgeCall } from "#server/infra/plugin-host/bridge-rpc.ts";
+import type { PluginEgressBridge } from "#server/infra/plugin-host/net-egress.ts";
+import { createPluginNetEgress } from "#server/infra/plugin-host/net-egress.ts";
+import { isBridgeOperation } from "#server/infra/plugin-host/process-protocol.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const CHAT = "chat_authorized00000000000000" as ChatId;

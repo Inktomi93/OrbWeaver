@@ -8,7 +8,7 @@ import { assets } from "@orb/db";
 import type { AssetId, CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { listAssetOwners, loadAvatarBackfillCandidates, loadOwnerAssetRows } from "../../../../../packages/server/src/domain/assets/persistence/maintenance.ts";
+import { listAssetOwners, loadAvatarBackfillCandidates, loadOwnerAssetRows } from "#server/domain/assets/persistence/maintenance.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

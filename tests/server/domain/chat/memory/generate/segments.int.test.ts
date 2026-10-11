@@ -3,7 +3,7 @@ import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
 import { beforeEach, describe, vi } from "vitest";
-import { generateSegments } from "../../../../../../packages/server/src/domain/chat/memory/generate/segments.ts";
+import { generateSegments } from "#server/domain/chat/memory/generate/segments.ts";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedUser } from "../../_support.ts";

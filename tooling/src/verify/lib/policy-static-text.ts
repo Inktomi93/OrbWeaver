@@ -6,8 +6,8 @@
 // reads and why a hit is certain while an absence is not. `unwrapExpression` here unwraps NonNull as well,
 // which `ast-read.ts`'s does not — the family's own spelling. One-way: this module imports nothing from
 // `policy-descriptor-read.ts`.
-import { resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
-import { resolveCallableDeclaration } from "@orb/tooling/_shared/reference-fact-call";
+import { resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
+import { resolveCallableDeclaration } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type { ArrowFunction, CallExpression, FunctionDeclaration, FunctionExpression, Identifier, Node as MorphNode, TemplateExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { Discrimination, StaticSegments } from "../contract/policy-descriptor-read.ts";

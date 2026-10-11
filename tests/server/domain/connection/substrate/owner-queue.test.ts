@@ -1,6 +1,6 @@
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createOwnerWriteQueue } from "../../../../../packages/server/src/domain/connection/substrate/owner-queue.ts";
+import { createOwnerWriteQueue } from "#server/domain/connection/substrate/owner-queue.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("an owner's pending write serializes its reads without blocking another owner", async ({ ids }) => {

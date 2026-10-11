@@ -17,7 +17,7 @@ Docs are markdown in git, in four homes plus the mission doc: `docs/law/` for st
 
 Agents write prose only. Every structural change goes through `pnpm doc` (`tooling/src/doc/`): numbering, status and supersession, work-item transitions and landing, archiving with link rewrites, and the generated indexes. The tool rewrites a file's frontmatter block or a whole generated file; it never edits inside prose.
 
-One checker, `pnpm check:agents`, covers the new tree: frontmatter schema per kind, required sections per kind, size caps per kind, allowed folders, generated-index freshness, dead links and paths, and the writing rules on history, counts and banned words. The rules live in `tooling/src/doc/lib/rules.ts` and `tooling/src/_shared/prose-rules.ts`; `.claude/rules/writing.md` is the one style law.
+One checker, `pnpm check:agents`, covers the new tree: frontmatter schema per kind, required sections per kind, size caps per kind, allowed folders, generated-index freshness, dead links and paths, and the writing rules on history, counts and banned words. The rules live in `tooling/src/doc/lib/rules.ts` and `tooling/src/floor/prose/prose-rules.ts`; `.claude/rules/writing.md` is the one style law.
 
 An ADR keeps the ledger's D number as its file number and earns a file only when the decision was contested or expensive to reverse. It is immutable: a change is a new ADR that supersedes the old one, and the tool writes both halves of that link. Status lives in frontmatter only.
 

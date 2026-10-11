@@ -9,12 +9,12 @@ import type { Db } from "@orb/db";
 import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { vi } from "vitest";
-import type { WorkloadContributions } from "../../../../packages/server/src/domain/workloads/contract/contribution.ts";
-import type { WorkloadRunnerDeps, WorkloadService } from "../../../../packages/server/src/domain/workloads/contract/service.ts";
-import type { WorkloadRowAnyKind, WorkloadRunnableRow } from "../../../../packages/server/src/domain/workloads/contract/workload-row.ts";
-import type { CatalogRefreshSchedulerDeps } from "../../../../packages/server/src/transport/jobs/catalog-refresh-scheduler.ts";
-import type { OidcGcSchedulerDeps } from "../../../../packages/server/src/transport/jobs/oidc-gc-scheduler.ts";
-import type { WorkloadsWorkerDeps } from "../../../../packages/server/src/transport/jobs/workloads-worker.ts";
+import type { WorkloadContributions } from "#server/domain/workloads/contract/contribution.ts";
+import type { WorkloadRunnerDeps, WorkloadService } from "#server/domain/workloads/contract/service.ts";
+import type { WorkloadRowAnyKind, WorkloadRunnableRow } from "#server/domain/workloads/contract/workload-row.ts";
+import type { CatalogRefreshSchedulerDeps } from "#server/transport/jobs/catalog-refresh-scheduler.ts";
+import type { OidcGcSchedulerDeps } from "#server/transport/jobs/oidc-gc-scheduler.ts";
+import type { WorkloadsWorkerDeps } from "#server/transport/jobs/workloads-worker.ts";
 
 /** A fixed instant — every timestamp pins here (no ambient clock; test-determinism §3). */
 export const T0 = 1_700_000_000_000;

@@ -15,7 +15,7 @@
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy descriptor had no
 // `scanRoot`, so its effective population is its in-run path filter — collectColumns:
 // `if (!path.includes(SCHEMA_DIR)) continue` with SCHEMA_DIR = "/packages/db/src/schema/". Over the SAME 7,130
-// harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 30 and the final
+// harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`) it admits 30 and the final
 // `population` admits 30 (the bare harness dispatch was 7,130). legacy − final = ∅. final − legacy = ∅. Controls:
 // inside `packages/db/src/schema/__cbbhr_in_assets.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` rejected by both.

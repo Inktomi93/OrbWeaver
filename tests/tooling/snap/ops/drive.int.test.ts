@@ -11,7 +11,7 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { chromium, devices } from "@playwright/test";
-import { MOBILE_DEVICE } from "../../../../tooling/src/_shared/browser-environment.ts";
+import { MOBILE_DEVICE } from "../../../../tooling/src/floor/browser/browser-environment.ts";
 import { STAGE_WARMUP_MAX_RENAVIGATIONS } from "../../../../tooling/src/snap/lib/budgets.ts";
 import { __resetStageRunBinding, registerStageRunBinding, takeBootDeadStage } from "../../../../tooling/src/snap/lib/stage-run-binding.ts";
 import { navigate } from "../../../../tooling/src/snap/ops/drive.ts";

@@ -21,11 +21,9 @@ import { foldNestedUsage, foldTokenUsage } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type { ModelId } from "@orb/kit/ids";
 import { z } from "zod";
-import type { ChatResult } from "../../contract/chat.ts";
-import { normalizeFinishReason } from "../../contract/chat.ts";
-import type { ChatEvent, RateLimitSnapshot } from "../../contract/events.ts";
-import type { ResolvedSampling, ResolvedWarning } from "../../contract/resolve.ts";
-import { variantProviderMetadataOf } from "../kit/provider-metadata.ts";
+import type { ChatEvent, ChatResult, RateLimitSnapshot, ResolvedSampling, ResolvedWarning } from "#contract";
+import { normalizeFinishReason } from "#contract";
+import { variantProviderMetadataOf } from "../wire/provider-metadata.ts";
 import type { StreamDrain } from "./stream.ts";
 
 const TOKENS_PER_MTOK = 1_000_000;
@@ -232,7 +230,7 @@ export interface ResultContext {
   readonly generationId: string | null;
   /** What the wire carried for effort (`ChatResult.appliedEffort`) — read off the built options by the transport. */
   readonly appliedEffort: EffortLevel | null;
-  /** The response's rate-limit headers, parsed by the transport (`backends/kit/rate-limit-headers.ts`). */
+  /** The response's rate-limit headers, parsed by the transport (`backends/http/rate-limit-headers.ts`). */
   readonly rateLimit: RateLimitSnapshot | null;
   readonly warnings: readonly ResolvedWarning[];
   /** Boundary-normalized facts where the SDK loses reportedness (native GenerateContent). */
@@ -294,7 +292,7 @@ export function toChatResult(drain: StreamDrain, ctx: ResultContext): ChatResult
   };
   const raw = drain.finish.raw ?? drain.finish.unified;
   const toolCalls = drain.toolCalls.length > 0 ? drain.toolCalls : undefined;
-  // The vendor's bag under OUR registry id, narrowed to the closed sidecar arm (`backends/kit/provider-metadata`).
+  // The vendor's bag under OUR registry id, narrowed to the closed sidecar arm (`backends/wire/provider-metadata`).
   // Keyed on `ctx.providerId` ALONE — the old `?? providerMetadata["openrouter"]` fallback filed OpenRouter's bag
   // under whatever id the connection actually carried, which is the one thing a per-provider record may not do.
   // `measuredCostOf` keeps its own unconditional read of that key: a COST is the same number whoever routed it.

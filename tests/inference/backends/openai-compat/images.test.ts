@@ -1,5 +1,5 @@
-import { passthroughImageNormalizer } from "../../../../packages/inference/src/backends/kit/image-normalize.ts";
-import { runOpenAiCompatGenerateImage } from "../../../../packages/inference/src/backends/openai-compat/images.ts";
+import { runOpenAiCompatGenerateImage } from "#inference/backends/openai-compat/images.ts";
+import { passthroughImageNormalizer } from "#inference/backends/wire/image-normalize.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { fakeApiKeySecret, fakeDeps, fakeResolved } from "../../_support.ts";
 import { generationCapability } from "../_hosted-support.ts";

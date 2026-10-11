@@ -3,7 +3,7 @@
 // "export" when the name slugs to empty.
 
 import { describe } from "vitest";
-import { slug } from "../../../../../packages/server/src/domain/export/substrate/download-slug.ts";
+import { slug } from "#server/domain/export/substrate/download-slug.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("slug", () => {

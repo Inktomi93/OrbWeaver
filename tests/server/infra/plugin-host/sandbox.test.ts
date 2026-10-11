@@ -13,7 +13,7 @@
 import process from "node:process";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { PLUGIN_INVOCATION_ENDED, Sandbox } from "@orb/server/infra/plugin-host";
-import { budget } from "@orb/tooling/_shared/load-budget";
+import { budget } from "@orb/tooling/floor/host/load-budget";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 

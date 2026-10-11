@@ -5,8 +5,8 @@
 //
 // §11.3: the builder takes CONCRETE resolved colors (never `TOKENS[...].value`) — <Heatmap> resolves the
 // DTCG tokens live via `useChartTheme` and passes them in, because ECharts' canvas can't resolve `var()`.
-import type { ChartColors } from "../../../../packages/ui/src/charts/chart/use-chart-theme.ts";
-import { buildHeatmapOption } from "../../../../packages/ui/src/charts/heatmap/option.ts";
+import type { ChartColors } from "#ui/charts/chart/use-chart-theme.ts";
+import { buildHeatmapOption } from "#ui/charts/heatmap/option.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const COLORS: ChartColors = {

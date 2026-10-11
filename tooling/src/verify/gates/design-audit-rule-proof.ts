@@ -44,7 +44,7 @@
 // `registry.size` was 0 against a 62-row registry and the gate's single real-tree finding was its own
 // zero-population tripwire. The fix is in the shared reader, not here: the collector now names the
 // read-only `Array.prototype` members and fails closed on every other member
-// (`_shared/reference-fact-writes.ts` READ_ONLY_MEMBERS, both directions pinned in
+// (`floor/code-facts/reference-fact-writes.ts` READ_ONLY_MEMBERS, both directions pinned in
 // `tests/tooling/verify/lib/static-authored-value.test.ts`). Every fixture below resolved through the
 // refusal because none of them declared a consumer beside the array — which is why `mustPass[3]` now does.
 //
@@ -53,7 +53,7 @@
 // `ce85507a5c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `7474cfee30`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,476 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 43 and final `population` admits 43.
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 43 and final `population` admits 43.
 // legacy − final = ∅. final − legacy = ∅. Controls: inside: no virtual sibling fits the exact-path population, so the
 // real shared member `tests/tooling/design-audit-walker.ct.tsx` is the control, admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
@@ -566,7 +566,7 @@ export const gate = defineGate({
         [REGISTRY]: `${ONE_RULE}export const ${REGISTRY_CONST}_IDS: readonly string[] = ${REGISTRY_CONST}.map((rule) => rule.id);\n`,
         [PROOF_FILE]: `${BOUND_HELPER_FIXTURE}${BOTH_PROOFS}`,
       },
-      why: "THE REAL TREE'S OWN SHAPE, and the row this policy shipped BLIND without (#1950 D2): the registry declares a sibling `.map(...)` projection three lines below itself. `resolveAuthoredComposite` refused that with `dynamic` — a refusal about the BINDING'S DOWNSTREAM USE, which says nothing about the literal in place — so `registry.size` was 0 against a 62-row registry and the only finding on the real tree was this module's own zero-population tripwire, while every fixture here resolved because none declared a consumer. The reader now names the read-only `Array.prototype` members and fails closed on everything else (`_shared/reference-fact-writes.ts` READ_ONLY_MEMBERS); restoring the blanket refusal REDS this row with `zero-population`",
+      why: "THE REAL TREE'S OWN SHAPE, and the row this policy shipped BLIND without (#1950 D2): the registry declares a sibling `.map(...)` projection three lines below itself. `resolveAuthoredComposite` refused that with `dynamic` — a refusal about the BINDING'S DOWNSTREAM USE, which says nothing about the literal in place — so `registry.size` was 0 against a 62-row registry and the only finding on the real tree was this module's own zero-population tripwire, while every fixture here resolved because none declared a consumer. The reader now names the read-only `Array.prototype` members and fails closed on everything else (`floor/code-facts/reference-fact-writes.ts` READ_ONLY_MEMBERS); restoring the blanket refusal REDS this row with `zero-population`",
     },
   ],
 });

@@ -6,8 +6,8 @@
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type { ImportPersonaInput } from "../../../../../packages/server/src/domain/import/contract/views.ts";
-import { createImportPersonas } from "../../../../../packages/server/src/domain/import/verbs/import-personas.ts";
+import type { ImportPersonaInput } from "#server/domain/import/contract/views.ts";
+import { createImportPersonas } from "#server/domain/import/verbs/import-personas.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeProfileHarness } from "../_support.ts";
 

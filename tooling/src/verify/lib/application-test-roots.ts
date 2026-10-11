@@ -1,7 +1,7 @@
 // Runner collection proves execution membership; the independent authored suffix census catches omissions.
 
-import { classifyTestFilename } from "@orb/tooling/_shared/test-kinds";
-import { isApplicationTest } from "@orb/tooling/_shared/test-population";
+import { classifyTestFilename } from "@orb/tooling/floor/testing/test-kinds";
+import { isApplicationTest } from "@orb/tooling/floor/testing/test-population";
 import { APPLICATION_TEST_CONFIGS } from "../contract/application.ts";
 import {
   buildRuntimeMembership,

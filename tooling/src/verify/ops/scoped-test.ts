@@ -8,16 +8,16 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { openRunSlot } from "@orb/tooling/_shared/artifacts";
-import { CT_CACHE_DIR_ENV, CT_RUN_RACING_ENV, CT_RUN_SLOT_ENV } from "@orb/tooling/_shared/ct-run-slot";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { warn } from "@orb/tooling/_shared/log";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { testProcessEnv } from "@orb/tooling/_shared/process-env";
-import { runLeaseEnv, runMarkerEnv } from "@orb/tooling/_shared/run-marker";
-import { UsageError } from "@orb/tooling/_shared/run-tool";
-import type { ScopedOperand } from "@orb/tooling/_shared/scoped-run-paths";
+import { openRunSlot } from "@orb/tooling/floor/artifacts/artifacts";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { warn } from "@orb/tooling/floor/cli/log";
+import { UsageError } from "@orb/tooling/floor/cli/run-tool";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { testProcessEnv } from "@orb/tooling/floor/process/process-env";
+import { runLeaseEnv, runMarkerEnv } from "@orb/tooling/floor/process/run-marker";
+import { CT_CACHE_DIR_ENV, CT_RUN_RACING_ENV, CT_RUN_SLOT_ENV } from "@orb/tooling/floor/testing/ct-run-slot";
+import type { ScopedOperand } from "@orb/tooling/floor/testing/scoped-run-paths";
 import {
   barrenOperands,
   barrenRefusal,
@@ -26,8 +26,8 @@ import {
   toRepoRelative,
   unresolvedOperands,
   unresolvedRefusal,
-} from "@orb/tooling/_shared/scoped-run-paths";
-import { VITEST_TYPECHECK_GROUP_PREFIX } from "@orb/tooling/_shared/test-kinds";
+} from "@orb/tooling/floor/testing/scoped-run-paths";
+import { VITEST_TYPECHECK_GROUP_PREFIX } from "@orb/tooling/floor/testing/test-kinds";
 import type { NativeCtCaseCollection, NativeNodeShardCollection, ScopedTestCollection, ScopedTestRunner } from "../contract/scoped-test.ts";
 
 import { SCOPED_TEST_RUNNERS } from "../contract/scoped-test.ts";

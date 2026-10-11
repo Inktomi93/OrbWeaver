@@ -10,7 +10,7 @@
 //
 // PORTS — AN OFFSET PAIR, SO THE FIXTURE IS A SIDECAR: the fixture boots on its own pair with its own DB,
 // assets and stack record, so BOTH stacks run at once — the same isolation recipe every e2e mode uses
-// (tests/e2e/support/modes.ts). The pair is READ from `_shared/ports.ts` (`FIXTURE_PORTS`) and the
+// (tests/e2e/support/modes.ts). The pair is READ from `floor/host/ports.ts` (`FIXTURE_PORTS`) and the
 // credentials from the stack tool's own recipe, so nothing is respelled here;
 // `resolveFixtureTarget` is the ONE seam every port/URL decision flows through, so an override
 // (`--fixture-server`/`--fixture-base`, or SNAP_FIXTURE_SERVER_URL/SNAP_FIXTURE_BASE_URL) reaches the
@@ -21,16 +21,16 @@
 // fixture actually seeds) is a loud refusal, never a guess.
 
 import process from "node:process";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { httpJsonSync, httpOkSync } from "../../_shared/http-probe.ts";
-import { FIXTURE_PORTS } from "../../_shared/ports.ts";
-import { SESSION_COOKIE_MINTED } from "../../_shared/session-cookie.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { FIXTURE_PORTS } from "../../floor/host/ports.ts";
+import { httpJsonSync, httpOkSync } from "../../floor/http/http-probe.ts";
+import { SESSION_COOKIE_MINTED } from "../../floor/http/session-cookie.ts";
 import { FIXTURE_CREDENTIALS } from "../../stack/index.ts";
 import type { AuthConfig, FixtureStatus, FixtureTarget, FixtureTargetOverride, PortOwnerAuthProbe } from "../contract/fixture.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
-// The fixture's OFFSET pair comes from the ONE port registry (_shared/ports.ts `FIXTURE_PORTS`) — NOT the
+// The fixture's OFFSET pair comes from the ONE port registry (floor/host/ports.ts `FIXTURE_PORTS`) — NOT the
 // dev stack's pair, so both run side by side. `localhost` for the vite origin, 127.0.0.1 for the server:
 // vite v8 binds [::1] only.
 export const FIXTURE_SERVER_URL_DEFAULT = `http://127.0.0.1:${FIXTURE_PORTS.server}`;

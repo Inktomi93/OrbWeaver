@@ -9,16 +9,8 @@
 
 import { buildWeb } from "@orb/ui/web-weave";
 import { describe } from "vitest";
-import type { WeavePluck } from "../../../../packages/ui/src/art/web-weave/web-weave-physics.ts";
-import {
-  decayShiver,
-  findStrandHit,
-  PLUCK_LIFE_MS,
-  pluckDisplacement,
-  pluckOffset,
-  raiseShiver,
-  swayGain,
-} from "../../../../packages/ui/src/art/web-weave/web-weave-physics.ts";
+import type { WeavePluck } from "#ui/art/web-weave/web-weave-physics.ts";
+import { decayShiver, findStrandHit, PLUCK_LIFE_MS, pluckDisplacement, pluckOffset, raiseShiver, swayGain } from "#ui/art/web-weave/web-weave-physics.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const BOX = { width: 1280, height: 800, hub: { x: 0.5, y: 0.42 }, seed: 7 } as const;

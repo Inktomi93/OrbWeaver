@@ -9,12 +9,7 @@ import type { DocumentId, UserId } from "@orb/kit/ids";
 import { castId, mintTypeId } from "@orb/kit/ids";
 import type { WorkloadContribution, WorkloadContributions } from "@orb/server/domain/workloads";
 import { describe } from "vitest";
-import {
-  activeConflictMessage,
-  assertAdmissible,
-  parseWorkloadInput,
-  resolveAdmissionKey,
-} from "../../../../../packages/server/src/domain/workloads/substrate/params.ts";
+import { activeConflictMessage, assertAdmissible, parseWorkloadInput, resolveAdmissionKey } from "#server/domain/workloads/substrate/params.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const OWNER: UserId = castId("user_owner");

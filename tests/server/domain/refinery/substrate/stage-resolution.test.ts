@@ -5,8 +5,8 @@
 // warning), and a session pointing at a DELETED/foreign schema throws leak-free NOT_FOUND.
 
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { StageResolution } from "../../../../../packages/server/src/domain/refinery/contract/prompts.ts";
-import { resolveStageResolution } from "../../../../../packages/server/src/domain/refinery/substrate/stage-resolution.ts";
+import type { StageResolution } from "#server/domain/refinery/contract/prompts.ts";
+import { resolveStageResolution } from "#server/domain/refinery/substrate/stage-resolution.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, seedOwnedCharacter, seedUser, validScoreSchema } from "../_support.ts";

@@ -35,7 +35,7 @@ import { CHAT_APIS, LOCAL_LIGHT_SEED_ROWS, MODEL_CHECKS } from "@orb/contracts/i
 import type { ModelId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { checkList } from "../kit/check-list.ts";
+import { checkList } from "../query/check-list.ts";
 import { userCredentials } from "./credentials.ts";
 import { users } from "./users.ts";
 

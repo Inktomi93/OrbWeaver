@@ -9,10 +9,10 @@
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import sharp from "sharp";
-import type { Viewport } from "../../_shared/argv.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { Rgb } from "../../_shared/wcag.ts";
-import { UI_COMPONENT_MIN_RATIO } from "../../_shared/wcag.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { Viewport } from "../../floor/instrument/argv.ts";
+import type { Rgb } from "../../floor/instrument/wcag.ts";
+import { UI_COMPONENT_MIN_RATIO } from "../../floor/instrument/wcag.ts";
 import type { ContrastCapture, ContrastFillReading, ContrastMeasured } from "../contract/contrast.ts";
 import { readFillChannels } from "../lib/contrast-fill.ts";
 import { FIELD_TAGS } from "../lib/contrast-verdict.ts";

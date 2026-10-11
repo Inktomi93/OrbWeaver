@@ -27,8 +27,8 @@ import { parseVariantMetadata, VARIANT_METADATA_REASONING_MS_KEY, VARIANT_METADA
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/query";
 import { stripHiddenSpans } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";

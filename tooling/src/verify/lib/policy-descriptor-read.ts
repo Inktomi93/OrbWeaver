@@ -39,7 +39,7 @@
 // `policyProductionDependencies` is `policy-production-reach.ts`. Both are leaves; registration, the
 // descriptor fields, proof rows and the report-site readers (3) stay here.
 
-import { resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
+import { resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, PropertyAssignment, ShorthandPropertyAssignment, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateContractKind } from "../contract/gate-corpus.ts";

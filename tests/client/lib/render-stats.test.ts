@@ -1,4 +1,4 @@
-import { __resetRenderStats, recordRender, renderHeatmap } from "../../../packages/client/src/lib/render-stats.ts";
+import { __resetRenderStats, recordRender, renderHeatmap } from "#client/lib/render-stats.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("render evidence can be reset between driven checkpoints", () => {

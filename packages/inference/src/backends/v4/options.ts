@@ -12,9 +12,8 @@ import type {
   SharedV4ProviderOptions,
 } from "@ai-sdk/provider";
 import type { EffortLevel } from "@orb/contracts/inference";
-import type { ToolChoice } from "../../contract/chat.ts";
-import type { ResolvedSampling } from "../../contract/resolve.ts";
-import type { PlannedResponseFormat, PlannedTool, StructuredPlan } from "../../structured/plan.ts";
+import type { ResolvedSampling, ToolChoice } from "#contract";
+import type { PlannedResponseFormat, PlannedTool, StructuredPlan } from "#structured";
 
 /** The V4 `reasoning` vocabulary — our `max` is the wire's `xhigh` (no provider spells `max` on this axis). */
 type WireEffort = Exclude<NonNullable<LanguageModelV4CallOptions["reasoning"]>, "provider-default">;

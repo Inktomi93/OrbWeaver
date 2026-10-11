@@ -1,5 +1,5 @@
 // The helper MANIFEST — every kit helper, grouped by category (the `pnpm codemod list` data).
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm codemod <verb>");
 

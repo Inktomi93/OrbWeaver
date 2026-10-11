@@ -5,8 +5,8 @@
 
 import type { Db } from "@orb/db";
 import { characterKeywordProfiles, characters, keywordCooccurrence } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/query";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { eq, inArray } from "drizzle-orm";
 import type { ComputeCooccurrenceOptions } from "../contract/params.ts";

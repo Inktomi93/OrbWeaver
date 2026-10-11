@@ -11,7 +11,7 @@ lane: wt/agent-ab4068ef65b2864f9
 
 ## What
 
-packages/inference/src/backends/kit, packages/db/src/kit and packages/server/src/kit (and their test mirrors) sit beside the @orb/kit package and hold non-primitives: fetch-json, retry, sse, response-cache (inference), query builders such as chat-visibility and fetch-owned (db), embedding-generation and stored-config (server). Law 3 says kit is pure primitives only.
+packages/inference/src/backends/kit, packages/db/src/query and packages/server/src/primitives (and their test mirrors) sit beside the @orb/kit package and hold non-primitives: fetch-json, retry, sse, response-cache (inference), query builders such as chat-visibility and fetch-owned (db), embedding-generation and stored-config (server). Law 3 says kit is pure primitives only.
 
 ## Why
 

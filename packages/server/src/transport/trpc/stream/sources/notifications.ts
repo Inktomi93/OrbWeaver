@@ -36,7 +36,7 @@
 
 import { NOTIFICATIONS_LIST_MAX_LIMIT } from "@orb/contracts/notifications";
 import type { StreamDataFrame } from "@orb/contracts/stream";
-import { subscribeNotifications } from "../../notifications-bus.ts";
+import { subscribeNotifications } from "#src/transport/trpc/notifications-bus.ts";
 import type { RoomSourceDef } from "../room-source.ts";
 
 // The replay's page size. TIED to the read's own ceiling on purpose: `replaySince` clamps to

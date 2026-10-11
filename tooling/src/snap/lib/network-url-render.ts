@@ -1,6 +1,6 @@
 // Rendering keeps absolute, protocol-relative, root-relative, and path-relative URL evidence useful
 // after the URL parser has normalized and scrubbed its authority/query/fragment.
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 

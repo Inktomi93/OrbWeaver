@@ -4,7 +4,7 @@
 import type { LocalLightSeedSlot, ProviderId, RoutableTask } from "@orb/contracts/inference";
 import { builtinProvider, LOCAL_LIGHT_SEED_ROWS, modelIdSchema, taskDef } from "@orb/contracts/inference";
 import { connectionBindings, userConnections } from "@orb/db";
-import { batchMany, batchStmt } from "@orb/db/kit";
+import { batchMany, batchStmt } from "@orb/db/query";
 import type { UserId } from "@orb/kit/ids";
 import { and, eq, inArray, isNull, ne, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";

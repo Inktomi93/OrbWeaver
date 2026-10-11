@@ -6,9 +6,9 @@ import type { EndpointFeatures, WireSchemaLimits, WireSchemaMode } from "@orb/co
 import { effectiveStructuredLimits } from "@orb/contracts/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
-import type { ResponseFormat } from "../../../packages/inference/src/contract/chat.ts";
-import type { Resolved } from "../../../packages/inference/src/contract/resolved.ts";
-import { planStructuredFor } from "../../../packages/inference/src/structured/plan.ts";
+import type { ResponseFormat } from "#inference/contract/chat.ts";
+import type { Resolved } from "#inference/contract/resolved.ts";
+import { planStructuredFor } from "#inference/structured/plan.ts";
 import { makeCapability, makeGenerationCapability, makeResolved } from "../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { wireSchema } from "../../support/wire-ready.ts";

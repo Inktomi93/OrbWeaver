@@ -12,9 +12,9 @@
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import type { ReactAsCharacterOp } from "../../../../packages/server/src/domain/chat/contract/results.ts";
-import type { ToolExecutionContext } from "../../../../packages/server/src/domain/tool-use/contract/params.ts";
-import { createReactToolDefinition } from "../../../../packages/server/src/entry/compose/chat-tools.ts";
+import type { ReactAsCharacterOp } from "#server/domain/chat/contract/results.ts";
+import type { ToolExecutionContext } from "#server/domain/tool-use/contract/params.ts";
+import { createReactToolDefinition } from "#server/entry/compose/chat-tools.ts";
 import { principal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 

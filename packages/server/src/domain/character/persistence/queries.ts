@@ -10,7 +10,7 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { assets, characterSnapshots, characterSummaries, characters, characterTags, chatParticipants, chats, tags } from "@orb/db";
-import { chatRecencyExpr, escapeLikeTerm, memberVisibleChatScope, parseStringArrayColumn } from "@orb/db/kit";
+import { chatRecencyExpr, escapeLikeTerm, memberVisibleChatScope, parseStringArrayColumn } from "@orb/db/query";
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, TagId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
@@ -419,7 +419,7 @@ function keysetFor(activity: CharacterActivity, cursor: CharacterListCursor): SQ
  *
  *  THE NEEDLE IS A LITERAL, NOT A PATTERN. It used to be interpolated raw, so a search for `%` matched the
  *  ENTIRE library and `_` matched any single character — the user's text was silently compiled into a
- *  wildcard expression. `escapeLikeTerm` (`@orb/db/kit`, the one home) + an explicit `ESCAPE '\'` on EVERY
+ *  wildcard expression. `escapeLikeTerm` (`@orb/db/query`, the one home) + an explicit `ESCAPE '\'` on EVERY
  *  arm makes the term mean itself; the clause is per-arm because SQLite scopes it to one `LIKE`. */
 function searchPredicate(db: Db, needle: string): SQL | undefined {
   const like = `%${escapeLikeTerm(needle)}%`;

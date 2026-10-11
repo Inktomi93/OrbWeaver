@@ -2,7 +2,7 @@
 // prints and files. Snap's own vocabulary, deliberately NOT Lighthouse's LHR — the report is an
 // artifact we write whole, and everything the RESULT line and the accounting block state is derived
 // once, in lib/lighthouse-report.ts, from a shape a unit test can build without a browser.
-import type { EvidenceGap } from "../../_shared/evidence.ts";
+import type { EvidenceGap } from "../../floor/verdict/evidence.ts";
 
 /** `--lighthouse <desktop|mobile>`. The device is NOT a Lighthouse emulation setting here: the mobile
  *  arm rides snap's own `--mobile` descriptor (touch, coarse pointer, DPR 3) and Lighthouse is told to
@@ -69,5 +69,5 @@ export interface LighthouseReceipt {
 }
 
 /** A refusal is never a finding: the run measured NOTHING and exits `EXIT.toolError`, per the zero-
- *  hygiene law in `_shared/evidence.ts`. */
+ *  hygiene law in `floor/verdict/evidence.ts`. */
 export type LighthouseOutcome = { readonly kind: "measured"; readonly receipt: LighthouseReceipt } | { readonly kind: "refused"; readonly gap: EvidenceGap };

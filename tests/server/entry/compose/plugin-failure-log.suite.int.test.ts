@@ -17,7 +17,7 @@ import { startAutomationWatcher } from "@orb/server/domain/automation";
 import { logger } from "@orb/server/foundation/observability";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
-import { createAutomationWatcherEnv } from "../../../../packages/server/src/entry/compose/automation-watcher.ts";
+import { createAutomationWatcherEnv } from "#server/entry/compose/automation-watcher.ts";
 import { makeGenerationCapability } from "../../../support/factories/resolved-connection.ts";
 import { seedUser } from "../../../support/factories/user.ts";
 import { expect, test } from "../../../support/fixtures.ts";

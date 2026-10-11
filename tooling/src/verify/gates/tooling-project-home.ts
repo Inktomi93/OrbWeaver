@@ -1,5 +1,5 @@
 // Policy: tooling-project-home (docs/law/Core-Tooling-Law.md §4.4, arm A of the retired
-// `tooling-shared-plumbing`) — the shared WORKSPACE is loaded ONCE, by `_shared/ts-workspace.ts#getWorkspace`;
+// `tooling-shared-plumbing`) — the shared WORKSPACE is loaded ONCE, by `floor/compiler/ts-workspace.ts#getWorkspace`;
 // a second `new Project(` under `tooling/src/**` is a second loader unless it is a reviewed NON-workspace
 // construction (a scratch parser over one string, the installed `.d.ts` surface, a proof mini-project).
 // Comment posture: comment-SAFE (node kinds only).
@@ -29,7 +29,7 @@
 // PROJECT_SITES). No private marker grammar; zero live `@orb-gate-ignore tooling-shared-plumbing` markers at
 // conversion (rg over packages/, tests/, tooling/, scripts/), so no translation was owed.
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../_shared/reference-fact.ts";
+import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readPackageExportOrigin } from "../lib/project-home-origin.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
@@ -41,11 +41,11 @@ const PROJECT_EXPORT: ReadonlySet<string> = new Set([PROJECT]);
 const OPERATION = "ts-morph-project-construction";
 
 const MESSAGE =
-  "a second ts-morph loader — the shared workspace is loaded ONCE by `getWorkspace()` (_shared/ts-workspace.ts), and a `new Project(` anywhere else is either a duplicate walk of the whole tree (the class the tooling package was minted to end, docs/law/Core-Tooling-Law.md §2.4/§4.4) or a NON-workspace construction that needs a reviewed grant naming what it loads and what ends it.";
+  "a second ts-morph loader — the shared workspace is loaded ONCE by `getWorkspace()` (floor/compiler/ts-workspace.ts), and a `new Project(` anywhere else is either a duplicate walk of the whole tree (the class the tooling package was minted to end, docs/law/Core-Tooling-Law.md §2.4/§4.4) or a NON-workspace construction that needs a reviewed grant naming what it loads and what ends it.";
 const UNREADABLE =
   "a construction spelled like ts-morph's `Project` whose callee the shared readers cannot place, so whether it is the ts-morph loader CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
-  "call `getWorkspace()` from _shared/ts-workspace.ts (types: true when a checker is needed) instead of constructing a Project; a genuinely non-workspace parser (an in-memory scratch over one string, a proof mini-project) takes an exact reviewed grant `(file, ts-morph-project-construction)` in lib/reviewed-grants.ts with its end condition.";
+  "call `getWorkspace()` from floor/compiler/ts-workspace.ts (types: true when a checker is needed) instead of constructing a Project; a genuinely non-workspace parser (an in-memory scratch over one string, a proof mini-project) takes an exact reviewed grant `(file, ts-morph-project-construction)` in lib/reviewed-grants.ts with its end condition.";
 
 /** The constructor's spelled name — the identifier, or the member name of `ns.Project` — so only a
  *  callee that LOOKS like the door is ever carried to the identity readers (fail-closure stays honest). */

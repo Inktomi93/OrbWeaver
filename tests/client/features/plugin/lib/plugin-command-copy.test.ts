@@ -2,8 +2,8 @@
 // the identifier itself as the value that is sent.
 
 import type { PluginCommandArgSpec } from "@orb/contracts/plugin";
-import { humanizeId } from "../../../../../packages/client/src/features/plugin/lib/plugin-command-copy.ts";
-import { pluginCommandArgOffers } from "../../../../../packages/client/src/features/plugin/lib/plugin-command-dispatch.ts";
+import { humanizeId } from "#client/features/plugin/lib/plugin-command-copy.ts";
+import { pluginCommandArgOffers } from "#client/features/plugin/lib/plugin-command-dispatch.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("humanizeId reads camelCase, snake_case and kebab-case identifiers as one sentence-case phrase", () => {

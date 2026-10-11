@@ -12,7 +12,7 @@ import { loadWorkload, runWorkload } from "@orb/server/domain/workloads";
 import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import type { PrincipalEnv } from "@orb/server/entry/http";
 import { registerExport, registerImportBundle } from "@orb/server/entry/http";
-import { buildImageryCall, parseImageryCall } from "@orb/server/kit/serde/imagery";
+import { buildImageryCall, parseImageryCall } from "@orb/server/primitives/serde/imagery";
 import { subscribeUserEvents } from "@orb/server/transport/trpc";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";

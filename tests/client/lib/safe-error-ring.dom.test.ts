@@ -3,7 +3,7 @@
 // outside this origin, query or deep path segment survives into a record.
 
 import { beforeEach, describe } from "vitest";
-import { __resetSafeErrorRing, recordSafeError, safeErrorRing, safeStackFrames, sectionOfPathname } from "../../../packages/client/src/lib/safe-error-ring.ts";
+import { __resetSafeErrorRing, recordSafeError, safeErrorRing, safeStackFrames, sectionOfPathname } from "#client/lib/safe-error-ring.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const ORIGIN = "http://192.0.2.10:8788";

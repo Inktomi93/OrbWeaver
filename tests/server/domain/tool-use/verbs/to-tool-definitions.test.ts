@@ -5,7 +5,7 @@
 
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
-import { createToolUseService } from "../../../../../packages/server/src/domain/tool-use/index.ts";
+import { createToolUseService } from "#server/domain/tool-use/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { ANY_DRIVER, defOf, makeHarness } from "../_support.ts";
 

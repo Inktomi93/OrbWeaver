@@ -38,7 +38,7 @@
 // `ct-poll-schedule-and-paint` descriptor at 1692e75291431f4ef5246b641b8927f2ae4d6876, the parent of the conversion
 // `608deaffcb`; this module did not exist there, so it is measured against the module it was carved from,
 // `ct-poll-schedule-and-paint` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
-// Over the SAME 7,360 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`),
+// Over the SAME 7,360 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`),
 // legacy `scanRoot` admits 2,869 and final `population` admits 1. legacy − final = 2,868 `tests/**` sources other
 // than the founding file — the arm counted only `tests/client/lib/motion-stats.ct.tsx`. final − legacy = ∅. Controls:
 // inside `tests/client/lib/__cbbhr_in/motion-stats.ct.tsx` (virtual) admitted by both; outside

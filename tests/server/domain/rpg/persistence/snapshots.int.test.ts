@@ -10,7 +10,7 @@ import { messages, rpgSnapshots } from "@orb/db";
 import type { ChatId, MessageVariantId } from "@orb/kit/ids";
 import { eq, isNull } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { snapshotRowToState } from "../../../../../packages/server/src/domain/rpg/contract/service.ts";
+import { snapshotRowToState } from "#server/domain/rpg/contract/service.ts";
 import {
   commitSnapshotForVariant,
   findSnapshotByVariant,
@@ -21,7 +21,7 @@ import {
   resolveTurnSnapshotPair,
   writeHandSnapshot,
   writeStagedSnapshot,
-} from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+} from "#server/domain/rpg/persistence/snapshots.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { addVariant, emptyState, expect, FROZEN_AT, handTarget, seedChat, seedGame, seedMessage, snapshotId, target, test } from "../_support.ts";
 

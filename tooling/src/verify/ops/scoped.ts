@@ -11,9 +11,9 @@
 // they implemented by hand is the same fence the dispatcher derives from the population, which is why
 // nothing about the deferred notice's PURPOSE changed when its producer did.
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { UsageError } from "@orb/tooling/_shared/run-tool";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { UsageError } from "@orb/tooling/floor/cli/run-tool";
 import type { SourceFile } from "ts-morph";
 import type { GatePolicy } from "../contract/policy.ts";
 import type { ProjectContext } from "../contract/project-context.ts";

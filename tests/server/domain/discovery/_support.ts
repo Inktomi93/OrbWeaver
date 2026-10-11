@@ -54,9 +54,9 @@ import type {
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { resolveTier0Range } from "../../../../packages/server/src/domain/chat/index.ts";
-import type { DiscoveryContext } from "../../../../packages/server/src/domain/discovery/index.ts";
-import { createStatsService } from "../../../../packages/server/src/domain/stats/service.ts";
+import { resolveTier0Range } from "#server/domain/chat/index.ts";
+import type { DiscoveryContext } from "#server/domain/discovery/index.ts";
+import { createStatsService } from "#server/domain/stats/service.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";

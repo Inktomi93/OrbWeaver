@@ -1,9 +1,5 @@
 import { RPG_PROFILE_D20 } from "@orb/contracts/rpg";
-import {
-  canGenerateD20Attributes,
-  rollD20Attributes,
-  standardD20Attributes,
-} from "../../../../../packages/client/src/features/rpg/lib/attribute-generation.ts";
+import { canGenerateD20Attributes, rollD20Attributes, standardD20Attributes } from "#client/features/rpg/lib/attribute-generation.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("the standard array has the six canonical keys in displayed order", () => {

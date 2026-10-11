@@ -5,7 +5,7 @@ import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, symlinkSyn
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import process from "node:process";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { ESLint } from "eslint";
 import { createVitest } from "vitest/node";
 import { readConfigSnapshot } from "../../../../tooling/src/verify/lib/config-snapshot.ts";
@@ -216,8 +216,8 @@ test("a contained absolute symlink resolves to staged target bytes", ({ scratch 
 });
 
 test("the overlay transaction resolves @orb workspace imports from staged bytes", ({ repoRoot }) => {
-  const helper = "tooling/src/_shared/config-snapshot-overlay-control.ts";
-  const config = `import { SELECTOR } from "@orb/tooling/_shared/config-snapshot-overlay-control";\nexport default { test: { include: [SELECTOR] } };\n`;
+  const helper = "tooling/src/floor/testing/config-snapshot-overlay-control.ts";
+  const config = `import { SELECTOR } from "@orb/tooling/floor/testing/config-snapshot-overlay-control";\nexport default { test: { include: [SELECTOR] } };\n`;
   const overlaid = readConfigSnapshot(repoRoot, "vitest", CONFIG_REL, {
     overlay: { [CONFIG_REL]: config, [helper]: 'export const SELECTOR = "tests/staged.test.ts";\n' },
   });
@@ -231,12 +231,12 @@ test("the overlay transaction resolves @orb workspace imports from staged bytes"
 
 test("the overlay transaction refuses a deleted workspace target instead of resolving the original package", ({ repoRoot }) => {
   const config =
-    'import { VITEST_TYPECHECK_GROUP_PREFIX } from "@orb/tooling/_shared/test-kinds";\nexport default { test: { include: [VITEST_TYPECHECK_GROUP_PREFIX + "*.test.ts"] } };\n';
+    'import { VITEST_TYPECHECK_GROUP_PREFIX } from "@orb/tooling/floor/testing/test-kinds";\nexport default { test: { include: [VITEST_TYPECHECK_GROUP_PREFIX + "*.test.ts"] } };\n';
   const deleted = readConfigSnapshot(repoRoot, "vitest", CONFIG_REL, {
     overlay: { [CONFIG_REL]: config, tooling: null },
   });
   expect(deleted).toMatchObject({ kind: "unreadable" });
-  expect(deleted.kind === "unreadable" ? deleted.detail : "").toContain('Missing "./_shared/test-kinds" specifier');
+  expect(deleted.kind === "unreadable" ? deleted.detail : "").toContain('Missing "./floor/testing/test-kinds" specifier');
 });
 
 test("an overlay entry with a parent-traversal path refuses instead of escaping the stage root", ({ scratch }) => {

@@ -5,7 +5,7 @@
 import { ownerStats } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { reconcileOwnerStats } from "../../../../../packages/server/src/domain/stats/substrate/reconcile-owner.ts";
+import { reconcileOwnerStats } from "#server/domain/stats/substrate/reconcile-owner.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedOwnerStats, seedUser, T0 } from "../_support.ts";

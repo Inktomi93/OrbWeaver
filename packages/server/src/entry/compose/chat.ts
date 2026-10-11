@@ -17,7 +17,7 @@ import { composeProse } from "@orb/contracts/prose";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { characterPersonas, chatParticipants, personas, users } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { BindingActor, ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, ChatTurnInput, Resolved, RoleClientsWithSignal } from "@orb/inference";
 import { carriesStructured, NoConnectionError, toChatRequest, unavailableRefusal } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
@@ -112,8 +112,8 @@ import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import { createCopyHandoffBooks, createCountHandoffBooks } from "#domain/world-info";
 import type { AuditEntry } from "#foundation/observability";
 import { buildAuditStatement, buildAuditStatementIfPrecedingWrote, recordMemoryLog } from "#foundation/observability";
-import { createRegexApplyReplace, createRegexTest } from "#kit/regex";
-import { publishNotification } from "../../transport/trpc/index.ts";
+import { createRegexApplyReplace, createRegexTest } from "#primitives/regex";
+import { publishNotification } from "#transport/trpc";
 import { createReactToolDefinition } from "./chat-tools.ts";
 import { createChatChangedEmitter } from "./emit-chat-changed.ts";
 import { resolveImageRefToUrl } from "./resolve-image-ref.ts";
@@ -552,7 +552,7 @@ function chatTurnInputOf(args: {
     // and so the stateful backend keys its resume cache by it.
     chatId: req.chatId,
     history: req.history,
-    // The cache breakpoint DEPTH (role switches from the end — `backends/kit/cache-control.ts` owns the axis).
+    // The cache breakpoint DEPTH (role switches from the end — `backends/wire/cache-control.ts` owns the axis).
     // SHAPE computes the turn's MINIMUM SAFE depth and returns nothing at all when the stable prefix is
     // disrupted; the admin knob is a FLOOR layered on top, so it can only push the breakpoint DEEPER (more of
     // the tail kept volatile), never shallower — a shallower breakpoint pins bytes that change every turn, which
@@ -608,7 +608,7 @@ function finalTurnChunk(req: TurnRequest, result: ChatResult): TurnStreamChunk {
       terminalReason: result.terminalReason,
       generationId: result.generationId ?? null,
       // §5.3c class 3 — the per-provider sidecar, already NARROWED by the runtime to the closed union
-      // (`backends/kit/provider-metadata.ts`). This seam carries it and decides nothing about its shape: the
+      // (`backends/wire/provider-metadata.ts`). This seam carries it and decides nothing about its shape: the
       // per-vendor spelling is backend knowledge, and re-deriving it here would put provider shape above the
       // package boundary. Absent on a provider with no first-party arm.
       ...(result.providerMetadata !== undefined ? { providerMetadata: result.providerMetadata } : {}),

@@ -21,9 +21,9 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AutomationOps, AutomationTurnRequest, ExecutePluginSuggestion } from "@orb/server/domain/automation";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
-import type { AutomationContext } from "../../../../../packages/server/src/domain/automation/contract/service.ts";
-import { createArmExecutors } from "../../../../../packages/server/src/domain/automation/engine/arm-executors.ts";
-import { createAutomationService } from "../../../../../packages/server/src/domain/automation/service.ts";
+import type { AutomationContext } from "#server/domain/automation/contract/service.ts";
+import { createArmExecutors } from "#server/domain/automation/engine/arm-executors.ts";
+import { createAutomationService } from "#server/domain/automation/service.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";
 import { FIXED_NOW_MS, principal, ruleFixture, seedUser } from "../_support.ts";
@@ -696,7 +696,7 @@ describe('S5 — an ANALYSIS-origin confirm (the {via:"analysis"} payload arm)',
     expect(result).toEqual({ ran: "stashed-arm", outcome: "fired" });
 
     // The guidance landed VERBATIM (braces intact — §2 law 6)…
-    const { selectRuleState } = await import("../../../../../packages/server/src/domain/automation/persistence/rule-state.ts");
+    const { selectRuleState } = await import("#server/domain/automation/persistence/rule-state.ts");
     expect((await selectRuleState(fixture.db, rule.id)).guidance).toBe("Plant the courier's absence. {{getglobalvar::x}}");
     // …and the fire log names the confirmer AND the act (the host's "why did this run" answer).
     const fires = await fixture.svc.listFires({ principal: principal(fixture.host), ruleId: rule.id });

@@ -7,7 +7,7 @@
 import type { RoleClientTask } from "@orb/contracts/role-clients";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { requireTaskModel } from "../../../../../packages/server/src/domain/embeddings/substrate/task-model.ts";
+import { requireTaskModel } from "#server/domain/embeddings/substrate/task-model.ts";
 import { makeFakeRoleClients } from "../../../../support/factories/role-clients.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

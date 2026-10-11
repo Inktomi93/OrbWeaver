@@ -18,7 +18,7 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { reconcileStats } from "../../../../packages/server/src/domain/stats/index.ts";
+import { reconcileStats } from "#server/domain/stats/index.ts";
 import type { RecordedRequest, SseEvent } from "../../../inference/backends/_hosted-support.ts";
 import { anthropicTextStream, openAiTextStream, scriptedSseFetch } from "../../../inference/backends/_hosted-support.ts";
 import { seedUser } from "../../../support/factories/user.ts";

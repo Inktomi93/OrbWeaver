@@ -6,7 +6,7 @@ import type { Db } from "@orb/db";
 import type { ChatId, Handle, RpgCheckpointId, RpgJournalId, RpgQuestId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { rpgRouter } from "../../../../packages/server/src/transport/trpc/routers/rpg.ts";
+import { rpgRouter } from "#server/transport/trpc/routers/rpg.ts";
 import { freshDb } from "../../../support/db.ts";
 import type { RpgHarness } from "./_support.ts";
 import { expect, makeRpgService, principal, seedChat, seedLiteGame, test } from "./_support.ts";

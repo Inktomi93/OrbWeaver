@@ -2,16 +2,16 @@
 // the STANDALONE world-info-book export over a real db: read an owned `world_books` row + its `world_entries`
 // → the canonical shape → the portable `worlds/*.json` file. Asserts the owner gate (foreign/absent → null),
 // the priority order + the null-keys restore, and that the emitted bytes re-parse to the canonical shape
-// (the export/import round-trip closes through `#kit/serde/world-info`).
+// (the export/import round-trip closes through `#primitives/serde/world-info`).
 
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { worldBooks, worldEntries } from "@orb/db";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { parseWorldBookFile } from "@orb/server/kit/serde/world-info";
+import { parseWorldBookFile } from "@orb/server/primitives/serde/world-info";
 import { describe } from "vitest";
-import { createExport } from "../../../../../packages/server/src/domain/world-info/verbs/export.ts";
+import { createExport } from "#server/domain/world-info/verbs/export.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

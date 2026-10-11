@@ -2,8 +2,8 @@
 import type { ModelCatalogEntry, ModelListing } from "@orb/contracts/inference";
 import { z } from "zod";
 import { googleBaseUrl, googleModelId } from "../backends/google/model.ts";
-import { fetchJson } from "../backends/kit/fetch-json.ts";
-import { bareCatalogEntry, failedListing, listingOf } from "../backends/kit/model-listing.ts";
+import { fetchJson } from "../backends/http/fetch-json.ts";
+import { bareCatalogEntry, failedListing, listingOf } from "../backends/wire/model-listing.ts";
 import type { ProviderScrubSet } from "../contract/errors.ts";
 import { ProviderError } from "../contract/errors.ts";
 

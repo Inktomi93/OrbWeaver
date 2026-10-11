@@ -17,7 +17,7 @@
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy descriptor had no
 // `scanRoot`, so its effective population is its in-run path filter — fs walk of `packages/client/src`, SKIP_DIRS
 // {node_modules,dist,__screenshots__}, `.ts`/`.tsx` minus `/\.(?:test|spec|gen)\.tsx?$/` and `.d.ts`. Over the SAME
-// 7,047 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`; the walk-based
+// 7,047 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`; the walk-based
 // filter over every tracked `.ts`/`.tsx` path) it admits 1,286 and the final `population` admits 1,286 (the bare
 // harness dispatch was 7,047). legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside

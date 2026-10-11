@@ -4,8 +4,8 @@
 // reaches the child itself, so the handler only records the stop.
 // The browser open waits beside a child and ends with it, so a server that dies in boot opens nothing; its respawn waits.
 import { isRestartExit } from "@orb/kit/supervisor";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { childExitCode, forwardSignalsTo } from "../../_shared/proc-signals.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { childExitCode, forwardSignalsTo } from "../../floor/process/proc-signals.ts";
 import type { StartSupervisorDeps, SupervisedChild } from "../contract/types.ts";
 import { startAppUrl } from "./start-plan.ts";
 

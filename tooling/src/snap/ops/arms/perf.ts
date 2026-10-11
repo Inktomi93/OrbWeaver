@@ -7,10 +7,10 @@
 // thing that goes missing in a refactor (`--no-deadcss` had no help row for its whole life until this
 // registry made one mandatory).
 import type { Page } from "@playwright/test";
-import { aggregateScope } from "../../../_shared/artifact-scope.ts";
-import type { ResultPair } from "../../../_shared/artifacts.ts";
-import { print } from "../../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { aggregateScope } from "../../../floor/artifacts/artifact-scope.ts";
+import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
+import { print } from "../../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 import type { ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds } from "../../contract/arms.ts";
 import type { PerfEvidence } from "../../contract/types.ts";
 import type { SnapRatePosture } from "../../lib/rate-posture.ts";

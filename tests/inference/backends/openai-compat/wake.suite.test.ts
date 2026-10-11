@@ -3,7 +3,7 @@
 
 import type { ChatResult, Resolved } from "@orb/inference";
 import { createInferenceRuntime } from "@orb/inference";
-import { createReachabilityProber } from "../../../../packages/inference/src/backends/openai-compat/reachability.ts";
+import { createReachabilityProber } from "#inference/backends/openai-compat/reachability.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
 import { principal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";

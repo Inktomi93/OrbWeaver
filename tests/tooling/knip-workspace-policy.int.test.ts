@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { config } from "../../knip.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 

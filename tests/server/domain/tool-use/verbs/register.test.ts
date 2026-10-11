@@ -3,7 +3,7 @@
 // on the entry (read back through resolveTools).
 
 import { z } from "zod";
-import { createToolUseService, ToolNameCollisionError } from "../../../../../packages/server/src/domain/tool-use/index.ts";
+import { createToolUseService, ToolNameCollisionError } from "#server/domain/tool-use/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { ANY_DRIVER, defOf, makeHarness } from "../_support.ts";
 

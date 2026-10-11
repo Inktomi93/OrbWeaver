@@ -5,7 +5,7 @@
 import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import { embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
 import type { UserId } from "@orb/kit/ids";
-import { generationIdOf } from "#kit/embedding-generation";
+import { generationIdOf } from "#primitives/embedding-generation";
 import type { EmbeddingsContext } from "../context.ts";
 import type { EmbeddingConnectionSnapshot, EmbeddingsService } from "../contract/service.ts";
 import { readGenerationTargets } from "../persistence/space-state.ts";

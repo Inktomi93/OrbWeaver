@@ -14,8 +14,8 @@
 // full 4.5:1 AA floor. A classifier that silently stopped stamping would turn every disabled twin into a
 // false failure, and nothing in the suite could tell that from a real one. So the refs pass 1 actually
 // sampled are the DENOMINATOR here: every one must come back classified, or the run is not a verdict.
-import type { InactiveKind } from "@orb/tooling/_shared/wcag";
-import { INACTIVE_KINDS } from "@orb/tooling/_shared/wcag";
+import type { InactiveKind } from "@orb/tooling/floor/instrument/wcag";
+import { INACTIVE_KINDS } from "@orb/tooling/floor/instrument/wcag";
 
 function isInactiveKind(value: unknown): value is InactiveKind {
   return typeof value === "string" && (INACTIVE_KINDS as readonly string[]).includes(value);

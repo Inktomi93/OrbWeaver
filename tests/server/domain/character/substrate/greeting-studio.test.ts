@@ -4,7 +4,7 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import { describe } from "vitest";
-import { buildGreetingPrompt, composeGreetingSteer } from "../../../../../packages/server/src/domain/character/substrate/greeting-studio.ts";
+import { buildGreetingPrompt, composeGreetingSteer } from "#server/domain/character/substrate/greeting-studio.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

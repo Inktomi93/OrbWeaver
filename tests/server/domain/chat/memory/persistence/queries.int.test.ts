@@ -11,7 +11,7 @@ import {
   loadSegmentHashes,
   loadSegmentSpans,
   loadWitnessHorizons,
-} from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
+} from "#server/domain/chat/memory/persistence/queries.ts";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../_support.ts";

@@ -10,7 +10,7 @@ import {
   selectForProvisionByHandle,
   selectIdByHandle,
   updateUser,
-} from "../../../../../packages/server/src/domain/sessions/persistence/users.ts";
+} from "#server/domain/sessions/persistence/users.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

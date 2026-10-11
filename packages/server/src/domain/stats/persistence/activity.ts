@@ -5,7 +5,7 @@
 import type { Db } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-import { calendarBucketStartSql } from "#kit/calendar-bucket-sql";
+import { calendarBucketStartSql } from "#primitives/calendar-bucket-sql";
 import type { MomentumBucket } from "../contract/views.ts";
 import { ownerChatIds } from "../substrate/owner-chat-scope.ts";
 

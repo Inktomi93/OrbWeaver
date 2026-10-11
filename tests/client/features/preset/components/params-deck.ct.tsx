@@ -20,8 +20,8 @@ import { DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT, MANAGED_VERBATIM_
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { MIROSTAT_SKIPPED_GLOSS } from "../../../../../packages/client/src/features/preset/lib/effective-knobs.ts";
-import { compactionModeLabel } from "../../../../../packages/client/src/features/preset/lib/preset-nav.ts";
+import { MIROSTAT_SKIPPED_GLOSS } from "#client/features/preset/lib/effective-knobs.ts";
+import { compactionModeLabel } from "#client/features/preset/lib/preset-nav.ts";
 import { expectCacheProse } from "../../../../support/browser/cache-prose.ts";
 import { boxWithBeforeFloor, resolveSpacingPxIn } from "../../../../support/browser/touch-floor.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";

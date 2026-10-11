@@ -12,8 +12,8 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { can } from "../../../../packages/server/src/domain/admin/guard.ts";
-import { assertHostRole, assertOwnUserRef, notFoundGame } from "../../../../packages/server/src/domain/rpg/guard.ts";
+import { can } from "#server/domain/admin/guard.ts";
+import { assertHostRole, assertOwnUserRef, notFoundGame } from "#server/domain/rpg/guard.ts";
 import { principal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 

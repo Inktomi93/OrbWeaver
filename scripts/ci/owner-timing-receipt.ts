@@ -1,8 +1,8 @@
 // D308 qualification requires the declared native cases and their actual successful assert-policy measurements.
 import { readFileSync } from "node:fs";
 import process from "node:process";
-import { runTool } from "@orb/tooling/_shared/run-tool";
-import { TIMING_HARDWARE_CLASSES } from "@orb/tooling/_shared/timing-capability";
+import { runTool } from "@orb/tooling/floor/cli/run-tool";
+import { TIMING_HARDWARE_CLASSES } from "@orb/tooling/floor/host/timing-capability";
 import { z } from "zod";
 import type { CtNativeTimingCase } from "../../tooling/src/verify/contract/ct-run.ts";
 

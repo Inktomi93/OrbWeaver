@@ -14,12 +14,12 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { httpOkSync } from "../../_shared/http-probe.ts";
-import { budget } from "../../_shared/load-budget.ts";
-import type { EstablishedConnection, PortOwner, SocketTableRead } from "../../_shared/platform.ts";
-import { establishedConnections, processAgeSeconds, processGroupId, processInfo, processStartTicks } from "../../_shared/platform.ts";
-import { runNicedSync } from "../../_shared/proc.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { budget } from "../../floor/host/load-budget.ts";
+import type { EstablishedConnection, PortOwner, SocketTableRead } from "../../floor/host/platform.ts";
+import { establishedConnections, processAgeSeconds, processGroupId, processInfo, processStartTicks } from "../../floor/host/platform.ts";
+import { httpOkSync } from "../../floor/http/http-probe.ts";
+import { runNicedSync } from "../../floor/process/proc.ts";
 import type { ServedState } from "../../stack/index.ts";
 import type { StageHolder, StagePorts } from "../contract/stage.ts";
 import { STAGE_ROOT_REL, stageBaseUrl, stageServedProbeSpawn } from "../lib/stage-plan.ts";

@@ -23,7 +23,7 @@ import {
   loadOwnedCharacterRow,
   loadOwnedCharacterWithAvatar,
   summaryOf,
-} from "../../../../../packages/server/src/domain/character/persistence/queries.ts";
+} from "#server/domain/character/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedCharacterSummary, seedRawCharacter, seedSeatedChat, seedUser } from "../_support.ts";

@@ -6,7 +6,7 @@
 //
 // WHY AN ALLOCATOR AT ALL. Before this, `snap --isolated` had ONE port pair, so a second lane wanting a
 // stage was a refusal by construction: four lanes were blocked in a single afternoon (2026-09-02,
-// p-home-perf ×3 · p-quiet-checked · p-audit-blind). `_shared/ports.ts` declares ten bands with a proven
+// p-home-perf ×3 · p-quiet-checked · p-audit-blind). `floor/host/ports.ts` declares ten bands with a proven
 // disjointness pin; this module is what turns that range into "every lane gets its own stage".
 //
 // THE ORDER IS THE SPEC'S, AND IT IS NOT ARBITRARY (§3.6):
@@ -276,7 +276,7 @@ function stageRangeRefusal(views: readonly StageBandView[], nowMs: number): stri
     `STAGE REFUSED  all ${views.length} stage bands are taken and none is stranded — nothing was measured.`,
     ...views.map((view) => describeStageBandRow(view, nowMs)),
     "  Tear down one you own (`pnpm snap --stage-down`), reap the stranded ones (`pnpm snap --stage-sweep`), or wait —",
-    "  the band range is tooling/src/_shared/ports.ts `STAGE_BANDS`.",
+    "  the band range is tooling/src/floor/host/ports.ts `STAGE_BANDS`.",
   ].join("\n");
 }
 

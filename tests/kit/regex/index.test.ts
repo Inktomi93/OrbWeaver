@@ -123,7 +123,7 @@ test("MAX_FIND_REGEX_LENGTH guard: an over-long pattern is rejected and reported
 // assumed rather than known. These pins state it. DO NOT "fix" the heuristic to make the first arm below
 // reject: it counts quantifier-stack OCCURRENCES, not nesting depth, and the module's own header says so
 // — the real boundary is the server's node:vm-sandboxed `applyReplace` timeout
-// (`packages/server/src/kit/regex/index.ts`, `vm.Script` with `timeout: 50`), which stays the boundary.
+// (`packages/server/src/primitives/regex/index.ts`, `vm.Script` with `timeout: 50`), which stays the boundary.
 // The value of pinning is that a future edit to the counter shows up as a CHANGED verdict here rather
 // than as silence.
 

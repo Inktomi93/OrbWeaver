@@ -14,7 +14,7 @@ import { createInferenceRuntime, DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL, Prov
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type { InferenceDeps, InferenceLog } from "../../../packages/inference/src/deps.ts";
+import type { InferenceDeps, InferenceLog } from "#inference/deps.ts";
 import { principal } from "../../support/factories/principal.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { fakeApiKeySecret, fakeConnection, fakeDeps, newUserId } from "../_support.ts";

@@ -22,7 +22,7 @@
 // STALE LOCKS SELF-HEAL: a killed run leaves its file behind, and a lock nobody holds must never wedge the
 // next run — so an unheld lock (its pid is gone) is STOLEN with a printed note, never obeyed.
 //
-// A THIRD CAP JOINED THEM (#1835): the HOST-WIDE CT slot pool (`ctHostSlotPool` in _shared/host-slots.ts,
+// A THIRD CAP JOINED THEM (#1835): the HOST-WIDE CT slot pool (`ctHostSlotPool` in floor/host/host-slots.ts,
 // which the snap session daemon shares). Everything above is about ONE WORKTREE, and the #1835 finding
 // was precisely that every cap on the tree was per-worktree: six lanes across two accounts each ran their own CT fleet, and
 // node_load1 peaked at 105.8 on 24 cores with the co-hosted homelab starved. The two caps answer
@@ -32,12 +32,12 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { checkoutName } from "@orb/tooling/_shared/artifacts";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import type { HostSlotDeps } from "@orb/tooling/_shared/host-slots";
-import { acquireHostSlot, ctHostSlotPool } from "@orb/tooling/_shared/host-slots";
-import type { RunMarkerDeps } from "@orb/tooling/_shared/run-marker";
-import { describeRunMarkerSweep, inheritedRunMarker, mintRunMarker, sweepAbandonedRunMarkers, sweepRunMarkerNow } from "@orb/tooling/_shared/run-marker";
+import { checkoutName } from "@orb/tooling/floor/artifacts/artifacts";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import type { HostSlotDeps } from "@orb/tooling/floor/host/host-slots";
+import { acquireHostSlot, ctHostSlotPool } from "@orb/tooling/floor/host/host-slots";
+import type { RunMarkerDeps } from "@orb/tooling/floor/process/run-marker";
+import { describeRunMarkerSweep, inheritedRunMarker, mintRunMarker, sweepAbandonedRunMarkers, sweepRunMarkerNow } from "@orb/tooling/floor/process/run-marker";
 import type { CtRunnerLock, CtRunnerLockRecord } from "../contract/scoped-test.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm test:ct <paths…>");

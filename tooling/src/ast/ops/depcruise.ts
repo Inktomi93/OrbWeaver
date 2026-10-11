@@ -1,9 +1,9 @@
 // The depcruise pass-throughs (flow/reaches) — async now: the spawn rides the proc door
 // (spawnNiced streams, so the old 64MiB maxBuffer ceiling is gone with the raw spawnSync).
 
-import { spawnNiced } from "@orb/tooling/_shared/proc";
-import { print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { spawnNiced } from "@orb/tooling/floor/process/proc";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { exitToolError, noteMatches, noteScope } from "../lib/ledger.ts";
 import { REPO_ROOT } from "../lib/root.ts";
 

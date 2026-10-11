@@ -3,8 +3,8 @@
 // without being an ENGINE DIR — a dir some file under snap/ imports through `<tool>/index.ts` (owner ask
 // 2026-09-06, #1315: Snap is the sole rendered front door, so the engines behind its arms own no argv
 // door; DERIVED from snap's import specifiers, never a row); (C) a tool-root entry outside
-// {cli.ts,index.ts,contract/,ops/,lib/}; (D) a subdir under _shared/ (the plumbing floor is FLAT by
-// design); (F) stale CORPUS_SLOTS row (no such tool dir, or the named slot dir is gone). Comment
+// {cli.ts,index.ts,contract/,ops/,lib/}; (D) a loose file directly under floor/, or a subdir inside a floor
+// role folder (the floor is one level of role folders, each flat); (F) stale CORPUS_SLOTS row (no such tool dir, or the named slot dir is gone). Comment
 // posture: fs-shape only, comment-SAFE.
 //
 // The legacy descriptor walked `tooling/src` with `existsSync`/`readdirSync` and received every harness
@@ -18,7 +18,7 @@ import type { ResourceTreeEntry } from "../contract/resource.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const TOOLING_SRC = "tooling/src";
-const SHARED = "_shared";
+const FLOOR = "floor";
 const TOOL_ROOT_FILES = new Set(["cli.ts", "index.ts"]);
 const TOOL_SLOT_DIRS = new Set(["contract", "ops", "lib"]);
 
@@ -56,7 +56,7 @@ function engineTools(files: readonly SourceFile[], relativePath: (sourceFile: So
       }
       const target = relative(TOOLING_SRC, normalize(join(dirname(file), spec))).split(sep);
       const [tool, entry] = target;
-      if (target.length === 2 && tool !== undefined && tool !== "snap" && tool !== SHARED && entry === "index.ts") {
+      if (target.length === 2 && tool !== undefined && tool !== "snap" && tool !== FLOOR && entry === "index.ts") {
         out.add(tool);
       }
     }
@@ -119,10 +119,10 @@ function scanTree(entries: readonly ResourceTreeEntry[], engines: ReadonlySet<st
     if (entry.kind !== "directory") {
       out.push({
         file: entry.path,
-        message: `loose file "${name}" at tooling/src root — every entry is a tool DIRECTORY or _shared/ (docs/law/Core-Tooling-Law.md §4.1)`,
+        message: `loose file "${name}" at tooling/src root — every entry is a tool DIRECTORY or floor/ (docs/law/Core-Tooling-Law.md §4.1)`,
       });
-    } else if (name === SHARED) {
-      out.push(...sharedViolations(entries));
+    } else if (name === FLOOR) {
+      out.push(...floorViolations(entries));
     } else {
       out.push(...toolDirViolations(entries, name, engines));
     }
@@ -130,14 +130,23 @@ function scanTree(entries: readonly ResourceTreeEntry[], engines: ReadonlySet<st
   return out;
 }
 
-function sharedViolations(entries: readonly ResourceTreeEntry[]): readonly FsViolation[] {
+function floorViolations(entries: readonly ResourceTreeEntry[]): readonly FsViolation[] {
   const out: FsViolation[] = [];
-  for (const entry of children(entries, `${TOOLING_SRC}/${SHARED}`)) {
-    if (entry.kind === "directory") {
+  for (const role of children(entries, `${TOOLING_SRC}/${FLOOR}`)) {
+    if (role.kind !== "directory") {
       out.push({
-        file: entry.path,
-        message: `"${entry.path.slice(TOOLING_SRC.length + 1)}/" — the plumbing floor is FLAT modules; a subdir is a hidden drawer (docs/law/Core-Tooling-Law.md §2.4)`,
+        file: role.path,
+        message: `loose floor module "${role.path.slice(TOOLING_SRC.length + 1)}" — every floor module lives in a role folder (docs/law/Core-Tooling-Law.md §2.4)`,
       });
+      continue;
+    }
+    for (const entry of children(entries, role.path)) {
+      if (entry.kind === "directory") {
+        out.push({
+          file: entry.path,
+          message: `"${entry.path.slice(TOOLING_SRC.length + 1)}/" — a floor role folder holds flat modules; a nested folder is a hidden drawer (docs/law/Core-Tooling-Law.md §2.4)`,
+        });
+      }
     }
   }
   return out;
@@ -185,7 +194,7 @@ export const gate = defineGate({
   facts: [],
   resources: [{ kind: "authored-tree", id: "tooling-slot" }],
   message:
-    "a @orb/tooling tree entry violates the five-slot tool template — every tool is cli.ts + index.ts + {contract/,ops/,lib/}; _shared/ is flat plumbing; nothing else lives at a tool root (docs/law/Core-Tooling-Law.md §2.5/§4.1).",
+    "a @orb/tooling tree entry violates the five-slot tool template — every tool is cli.ts + index.ts + {contract/,ops/,lib/}; floor/ is role folders of flat plumbing modules; nothing else lives at a tool root (docs/law/Core-Tooling-Law.md §2.5/§4.1).",
   fix: "add the missing front door, move the stray into ops//lib/, or (an engine) enter it from a snap arm through its index.ts — an engine dir owns no cli.ts.",
   create: (ctx) => ({
     evaluate: () => {
@@ -225,9 +234,15 @@ export const gate = defineGate({
     },
     {
       mode: "resource",
-      files: { ...CLASSIFIED_HOMES, "tooling/src/_shared/sub/x.ts": "export const x = 1;\n" },
-      expect: { count: 1, messageIncludes: "FLAT modules" },
-      why: "a subdir under _shared/ — the plumbing floor is flat by design",
+      files: { ...CLASSIFIED_HOMES, "tooling/src/floor/process/sub/x.ts": "export const x = 1;\n" },
+      expect: { count: 1, messageIncludes: "hidden drawer" },
+      why: "a nested folder inside a floor role folder — each role folder is flat",
+    },
+    {
+      mode: "resource",
+      files: { ...CLASSIFIED_HOMES, "tooling/src/floor/x.ts": "export const x = 1;\n" },
+      expect: { count: 1, messageIncludes: "loose floor module" },
+      why: "a module directly under floor/ — every floor module names its role by its folder",
     },
     {
       mode: "resource",
@@ -260,9 +275,9 @@ export const gate = defineGate({
         "tooling/src/goodtool/cli.ts": "export {};\n",
         "tooling/src/goodtool/index.ts": "export {};\n",
         "tooling/src/goodtool/ops/run.ts": "export const r = 1;\n",
-        "tooling/src/_shared/log.ts": "export const l = 1;\n",
+        "tooling/src/floor/cli/log.ts": "export const l = 1;\n",
       },
-      why: "a conforming five-slot tool + a flat _shared module — the sanctioned layout",
+      why: "a conforming five-slot tool + a floor module in its role folder — the sanctioned layout",
     },
     {
       mode: "resource",

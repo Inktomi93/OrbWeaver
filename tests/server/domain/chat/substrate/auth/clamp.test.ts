@@ -11,7 +11,7 @@ import {
   NO_HISTORY_FLOOR,
   resolveCardVisibility,
   resolveHistoryFloorSeq,
-} from "../../../../../../packages/server/src/domain/chat/substrate/auth/index.ts";
+} from "#server/domain/chat/substrate/auth/index.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
 const CHAR = castId<CharacterId>("character_aria");

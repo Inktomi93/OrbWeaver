@@ -6,7 +6,7 @@
 // Direct source import (not a barrel): these are module-internal primitives exported `@public` for the pins.
 
 import { describe } from "vitest";
-import { forgetIfCurrent, rememberBounded } from "../../../packages/client/src/data/bounded-memo.ts";
+import { forgetIfCurrent, rememberBounded } from "#client/data/bounded-memo.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 describe("rememberBounded — a memo cannot grow without bound", () => {

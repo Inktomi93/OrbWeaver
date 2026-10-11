@@ -25,9 +25,9 @@
 // One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the segments IN
 // ORDER, so this one must sit AFTER WALKER_RESOLVE (`parseRgb`, `resolveBackdropUnder`) and after the core
 // primitives (`isVisible`, `isDevChrome`, `describe`). Raw JS in a template literal (no backticks /
-// dollar-brace — see _shared/browser.ts for why a string, not a function). Provenance: ops/walker.ts.
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import { INACTIVE_KIND_EXPR } from "../../../_shared/wcag.ts";
+// dollar-brace — see floor/browser/browser.ts for why a string, not a function). Provenance: ops/walker.ts.
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
+import { INACTIVE_KIND_EXPR } from "../../../floor/instrument/wcag.ts";
 import { BORDER_CONTRAST_SIDES } from "../../contract/samples-interactive.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");

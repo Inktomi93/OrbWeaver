@@ -359,7 +359,7 @@ export interface ChatResult {
    *  as the bag would push per-provider shape knowledge up into the server's compose seam — the exact
    *  inversion `Tier-3b-Providers` forbids in the other direction — and would leave an open bag crossing a
    *  package boundary with a closed union sitting one hop away (the #164 defect this record exists to end).
-   *  So the untyped bag never leaves `backends/**`: `backends/kit/provider-metadata.ts` is its ONE reader,
+   *  So the untyped bag never leaves `backends/**`: `backends/wire/provider-metadata.ts` is its ONE reader,
    *  and what crosses this contract is a value a reader narrows by `provider` or does not compile. */
   readonly providerMetadata?: VariantProviderMetadata | undefined;
   /** Inline reply pictures (§6.7) — a chat model whose `output.modalities ∋ image` answered with them. */

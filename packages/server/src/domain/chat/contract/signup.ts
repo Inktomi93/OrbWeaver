@@ -6,7 +6,7 @@
 import type { InvitePreview } from "@orb/contracts/chat";
 import type { AuthMode } from "@orb/contracts/identity";
 import type { JoinerPersona } from "@orb/contracts/persona";
-import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
+import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
 import type { ChatId, ChatInviteId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import type { AuditEntry } from "#foundation/observability";

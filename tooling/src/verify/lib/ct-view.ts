@@ -4,7 +4,7 @@
 // mirror-only a lying green). This is honest ONLY because a scoped green is never the coverage verdict —
 // the push bar (`tests:node` running the WHOLE `pnpm test:ct --retries=2`) is. Split out of lib/selection.ts
 // at the @orb/tooling P6 move (size cap §4.3); the triggers and the mirror map are unchanged.
-import { classifyTestFilename } from "../../_shared/test-kinds.ts";
+import { classifyTestFilename } from "../../floor/testing/test-kinds.ts";
 import type { CtView } from "../contract/selection.ts";
 import { existsRel, ROOT } from "./repo-paths.ts";
 

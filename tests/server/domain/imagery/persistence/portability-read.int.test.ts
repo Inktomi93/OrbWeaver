@@ -1,6 +1,6 @@
 import { imageryGenerations } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { readOwnedImageryCalls } from "../../../../../packages/server/src/domain/imagery/persistence/portability-read.ts";
+import { readOwnedImageryCalls } from "#server/domain/imagery/persistence/portability-read.ts";
 import { seedAsset } from "../../../../support/factories/asset.ts";
 import { seedCharacter } from "../../../../support/factories/character.ts";
 import { makeImageryCall } from "../../../../support/factories/imagery-call.ts";

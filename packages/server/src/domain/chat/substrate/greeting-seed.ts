@@ -15,7 +15,7 @@
 // Determinism: every id and timestamp is caller-stamped (the `canon-write` rule) — no ambient mint here.
 
 import type { MessageView } from "@orb/contracts/chat";
-import type { BatchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
 import { buildCommittedMessageView, insertCanonMessageStatements } from "../persistence/canon-write.ts";

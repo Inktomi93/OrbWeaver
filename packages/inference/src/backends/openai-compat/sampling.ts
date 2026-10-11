@@ -5,7 +5,7 @@
 
 import type { Dialect, EndpointFeatures, SamplerKnob, SamplerStage } from "@orb/contracts/inference";
 import { BODY_SAMPLER_KNOBS, DEFAULT_SAMPLER_KEYS, SAMPLER_KNOBS, SAMPLER_ORDER_TOKENS } from "@orb/contracts/inference";
-import type { ResolvedSampling, ResolvedWarning } from "../../contract/resolve.ts";
+import type { ResolvedSampling, ResolvedWarning } from "#contract";
 
 const OPENROUTER_DIALECT: Dialect = "openrouter";
 const LOGIT_BIAS_BAN: NonNullable<EndpointFeatures["bannedStrings"]> = "logit-bias-ban";

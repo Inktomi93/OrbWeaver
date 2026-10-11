@@ -1,15 +1,15 @@
 // Drizzle table/column authored-value extraction for the invocation-scoped schema query.
 
-import { inspectReferenceWrites, readMemberReference, resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
-import { resolveCallableOrigin } from "@orb/tooling/_shared/reference-fact-call";
+import { inspectReferenceWrites, readMemberReference, resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
+import { resolveCallableOrigin } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type {
   ModuleMemberOrigin,
   ReferenceFact,
   ReferenceUnresolvedReason,
   ResolvedReferenceFact,
   UnresolvedReferenceFact,
-} from "@orb/tooling/_shared/reference-fact-contract";
-import { invokedMemberThroughAliases } from "@orb/tooling/_shared/reference-fact-writes";
+} from "@orb/tooling/floor/code-facts/reference-fact-contract";
+import { invokedMemberThroughAliases } from "@orb/tooling/floor/code-facts/reference-fact-writes";
 import type { CallExpression, Node as MorphNode, Type, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { SchemaColumn, SchemaColumnIdentity, SchemaJsonShape, SchemaQueryOptions, SchemaTable, SchemaTableIdentity } from "../contract/schema-fact.ts";

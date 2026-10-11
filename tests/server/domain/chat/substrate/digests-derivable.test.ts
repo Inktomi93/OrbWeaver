@@ -3,7 +3,7 @@
 import type { SendAvailability } from "@orb/contracts/inference";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { digestsDerivable } from "../../../../../packages/server/src/domain/chat/substrate/digests-derivable.ts";
+import { digestsDerivable } from "#server/domain/chat/substrate/digests-derivable.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const FUNDER = castId<UserId>("user_funder");

@@ -14,15 +14,15 @@ import { Button } from "@orb/ui/button";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ModalHost } from "../../../../packages/client/src/features/app-shell/components/modal-host.tsx";
-import { DatabankContextBody } from "../../../../packages/client/src/features/databank/components/databank-context-body.tsx";
-import { useDatabankListHeader } from "../../../../packages/client/src/features/databank/hooks/use-databank-list-header.tsx";
-import { databankDocumentsTile } from "../../../../packages/client/src/features/databank/lib/home-documents-tile.tsx";
-import { DatabankDetailSurface } from "../../../../packages/client/src/features/databank/surfaces/databank-detail-surface.tsx";
-import { DatabankLibrarySurface } from "../../../../packages/client/src/features/databank/surfaces/databank-library-surface.tsx";
-import { HomeSurface, makeSectionJumpTile } from "../../../../packages/client/src/features/home/index.ts";
-import { createContributorRegistry } from "../../../../packages/client/src/lib/index.ts";
-import type { HomeTileContribution } from "../../../../packages/client/src/state/index.ts";
+import { ModalHost } from "#client/features/app-shell/components/modal-host.tsx";
+import { DatabankContextBody } from "#client/features/databank/components/databank-context-body.tsx";
+import { useDatabankListHeader } from "#client/features/databank/hooks/use-databank-list-header.tsx";
+import { databankDocumentsTile } from "#client/features/databank/lib/home-documents-tile.tsx";
+import { DatabankDetailSurface } from "#client/features/databank/surfaces/databank-detail-surface.tsx";
+import { DatabankLibrarySurface } from "#client/features/databank/surfaces/databank-library-surface.tsx";
+import { HomeSurface, makeSectionJumpTile } from "#client/features/home/index.ts";
+import { createContributorRegistry } from "#client/lib/index.ts";
+import type { HomeTileContribution } from "#client/state/index.ts";
 import {
   closeModal,
   selectChat,
@@ -34,7 +34,7 @@ import {
   useOpenModal,
   useSelectedCharacterId,
   useSelectedDocumentId,
-} from "../../../../packages/client/src/state/index.ts";
+} from "#client/state/index.ts";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/browser/measure-content-column.ts";
 

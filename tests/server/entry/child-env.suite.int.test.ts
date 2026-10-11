@@ -13,7 +13,7 @@ import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { afterAll } from "vitest";
-import { APP_SECRET_ENV_KEYS } from "../../../packages/server/src/foundation/env/index.ts";
+import { APP_SECRET_ENV_KEYS } from "#server/foundation/env/index.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const ENTRY = fileURLToPath(new URL("../../../packages/server/src/entry/index.ts", import.meta.url));

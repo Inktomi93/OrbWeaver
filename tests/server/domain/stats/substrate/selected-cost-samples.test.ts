@@ -1,6 +1,6 @@
 import type { CharacterId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import { costOfSamples, createSelectedCostAccumulator, modelCostKey } from "../../../../../packages/server/src/domain/stats/substrate/selected-cost-samples.ts";
+import { costOfSamples, createSelectedCostAccumulator, modelCostKey } from "#server/domain/stats/substrate/selected-cost-samples.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 

@@ -13,7 +13,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { spawnNicedChild } from "@orb/tooling/_shared/proc";
+import { spawnNicedChild } from "@orb/tooling/floor/process/proc";
 import { POLICY_PHASES } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { loadGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
 import { plantedPolicySource } from "../../../support/planted-gate-corpus.ts";

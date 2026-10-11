@@ -3,7 +3,7 @@
 // child's native exit into the repo's 0/1/2/3 contract. A "forgotten script" becomes structurally
 // impossible: verify-registry-parity.ts reds when a package.json verification-shaped script has no row here.
 
-import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import type { StageDef, Tier } from "../contract/stage.ts";
 import { biomeStageAudit } from "./biome-verdict.ts";
 import { asViolations, eslintScheme, ownScheme } from "./exit-classifiers.ts";

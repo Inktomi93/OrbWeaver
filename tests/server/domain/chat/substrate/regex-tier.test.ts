@@ -12,8 +12,8 @@ import { regexScriptSchema } from "@orb/contracts/regex";
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type { HostTierRegexSources, RegexTierLabels } from "../../../../../packages/server/src/domain/chat/contract/regex.ts";
-import { resolveHostTierRegexScripts, resolveRegexTiers } from "../../../../../packages/server/src/domain/chat/substrate/regex-tier.ts";
+import type { HostTierRegexSources, RegexTierLabels } from "#server/domain/chat/contract/regex.ts";
+import { resolveHostTierRegexScripts, resolveRegexTiers } from "#server/domain/chat/substrate/regex-tier.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const idsByLabel = new Map<string, ReturnType<typeof mintTypeId>>();

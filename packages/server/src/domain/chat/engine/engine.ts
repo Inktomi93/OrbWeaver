@@ -41,8 +41,8 @@ import {
 } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { StatsDelta } from "@orb/contracts/stats";
-import type { BatchStmt } from "@orb/db/kit";
-import { isConstraintViolation } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { isConstraintViolation } from "@orb/db/query";
 // A VALUE import from infra, unlike this file's other `#infra/providers` type-only imports: the fault-outcome
 // arm needs `instanceof` against the real class to read a thrown turn's OWN classification (see
 // `providerTerminalReason`). Legal in the tier order (domain sits ABOVE infra); the reverse edge is what
@@ -769,7 +769,7 @@ async function commitGeneration(args: {
  *    fenced by the signal alone.
  *
  * NOT A TRANSACTION-LEVEL FENCE, deliberately. `db.transaction()` is banned in product code and
- * `@orb/db/kit::batchMany`'s header bans batching a SELECT ahead of writes (a DEFERRED batch that reads
+ * `@orb/db/query::batchMany`'s header bans batching a SELECT ahead of writes (a DEFERRED batch that reads
  * first must upgrade its snapshot → an unretryable SQLITE_BUSY_SNAPSHOT), so the ownership predicate
  * cannot ride inside the commit batch. What remains is the batch's own latency instead of a whole
  * generation's — and {@link runInLockWithHeartbeat} no longer releases the lock while this body is still

@@ -9,7 +9,7 @@
 // The fence is two-sided on purpose. Excluding non-rendered subtrees is only correct if a VISIBLE
 // multi-span label still concatenates — over-exclusion would turn a real name into a shorter lie, which
 // is the same defect class pointing the other way.
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../../_load-budget.ts";
 

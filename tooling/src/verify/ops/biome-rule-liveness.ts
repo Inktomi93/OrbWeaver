@@ -20,8 +20,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import type { RuleLivenessOutcome } from "../lib/biome-rule-liveness.ts";
 import { judgeRuleLiveness } from "../lib/biome-rule-liveness.ts";
 import { isFileExact } from "../lib/grant-liveness.ts";

@@ -18,11 +18,11 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
-import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble.ts";
-import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
-import { computeHistoryBreakpoint, shape, toShapeCanon } from "../../../../../packages/server/src/domain/chat/assembly/shape.ts";
-import type { DeliveredCue, HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
-import { buildWireHistory, convertsToEmptyWireRow } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
+import { assemblePrompt } from "#server/domain/chat/assembly/assemble.ts";
+import { BEFORE_HISTORY_DEPTH } from "#server/domain/chat/assembly/injections.ts";
+import { computeHistoryBreakpoint, shape, toShapeCanon } from "#server/domain/chat/assembly/shape.ts";
+import type { DeliveredCue, HistoryMacroNames } from "#server/domain/chat/contract/results.ts";
+import { buildWireHistory, convertsToEmptyWireRow } from "#server/domain/chat/substrate/wire-history.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const ARIA = castId<CharacterId>("character_aria");

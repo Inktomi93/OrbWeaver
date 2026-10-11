@@ -11,11 +11,11 @@
 // subprocess) · EXIT.misuse an UNKNOWN VERB (the typo'd-verb-silently-clean class — it used to print
 // usage and exit 0). Bare `pnpm ast` stays the usage door (exit 0).
 import process from "node:process";
-import { print } from "../_shared/artifacts.ts";
-import { EXIT } from "../_shared/exit-contract.ts";
-import { warn } from "../_shared/log.ts";
-import { runTool, UsageError } from "../_shared/run-tool.ts";
 import { CodemodError } from "../codemod/index.ts";
+import { print } from "../floor/artifacts/artifacts.ts";
+import { EXIT } from "../floor/cli/exit-contract.ts";
+import { warn } from "../floor/cli/log.ts";
+import { runTool, UsageError } from "../floor/cli/run-tool.ts";
 import {
   ARGLESS_VERBS,
   AstToolError,

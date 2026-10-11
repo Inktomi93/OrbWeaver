@@ -11,7 +11,7 @@ import type { CharacterHandle, CharacterId, ChatId, Handle, TagId, UserId } from
 import { castId } from "@orb/kit/ids";
 import { createCharacterService, createStampRefinerySignals } from "@orb/server/domain/character";
 import { describe, vi } from "vitest";
-import { cardTokenSize } from "../../../../../packages/server/src/domain/character/substrate/card-tokens.ts";
+import { cardTokenSize } from "#server/domain/character/substrate/card-tokens.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedCharacterSummary, seedRawCharacter, seedSeatedChat, seedUser } from "../_support.ts";

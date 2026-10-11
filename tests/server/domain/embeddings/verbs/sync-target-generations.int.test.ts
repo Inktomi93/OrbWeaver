@@ -1,7 +1,7 @@
 import { embedGenerationTargets } from "@orb/db";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
-import type { EmbeddingConnectionSnapshot } from "../../../../../packages/server/src/domain/embeddings/contract/service.ts";
+import type { EmbeddingConnectionSnapshot } from "#server/domain/embeddings/contract/service.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId } from "../../../../support/inference-identities.ts";
 import { EMBED_DIM, fakeVector, makeStoreHarness, seedUser } from "../_support.ts";

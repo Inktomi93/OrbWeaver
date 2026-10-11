@@ -15,7 +15,7 @@ import { isPng, readCardChunk } from "@orb/kit/png-card-chunk";
 import { createExportService } from "@orb/server/domain/export";
 import { parseCardPng } from "@orb/server/domain/import";
 import { createLinkCarriedBooks } from "@orb/server/domain/world-info";
-import { cardFromJson } from "@orb/server/kit/serde/card";
+import { cardFromJson } from "@orb/server/primitives/serde/card";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";

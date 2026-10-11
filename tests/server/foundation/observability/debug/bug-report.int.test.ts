@@ -23,8 +23,8 @@ import {
   serializeScrubbed,
   snapshotServerEvidence,
   writeBugReport,
-} from "../../../../../packages/server/src/foundation/observability/debug/bug-report.ts";
-import { logRing } from "../../../../../packages/server/src/foundation/observability/logger.ts";
+} from "#server/foundation/observability/debug/bug-report.ts";
+import { logRing } from "#server/foundation/observability/logger.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const NOW = 1_760_000_000_000;
@@ -152,7 +152,7 @@ describe("the credential scrub", () => {
 // ESCAPES `"` and `\`, so an operator credential containing either sat in the bytes under a spelling the
 // raw-literal search never saw. Worse, this module's OWN post-condition ("is the literal still present?")
 // asked the same raw question, so it certified the leaked bytes and let the file reach disk. Both halves now
-// go through the ONE expansion in `@orb/server/kit/secret-redaction`.
+// go through the ONE expansion in `@orb/server/primitives/secret-redaction`.
 describe("the credential scrub — a QUOTE-bearing operator secret (#1785)", () => {
   const quote = '"';
   const backslash = "\\";

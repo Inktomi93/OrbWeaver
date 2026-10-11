@@ -17,7 +17,7 @@ import {
   readableTheme,
   updateOwnedTheme,
   upsertSeedTheme,
-} from "../../../../../packages/server/src/domain/settings/persistence/theme-queries.ts";
+} from "#server/domain/settings/persistence/theme-queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";

@@ -16,11 +16,11 @@
 // per-turn rows, and that is where the D16 floor lands.
 
 import type { RpgTrackerView } from "@orb/contracts/rpg";
-import { buildTrackerView } from "../../chat-ops/tracker-view.ts";
-import type { ReadGameParams } from "../../contract/params.ts";
-import type { RpgContext, RpgService } from "../../contract/service.ts";
-import { resolveMember } from "../../guard.ts";
-import { stripHiddenForViewer } from "../../substrate/hidden-spans.ts";
+import { buildTrackerView } from "#src/domain/rpg/chat-ops/tracker-view.ts";
+import type { ReadGameParams } from "#src/domain/rpg/contract/params.ts";
+import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
+import { resolveMember } from "#src/domain/rpg/guard.ts";
+import { stripHiddenForViewer } from "#src/domain/rpg/substrate/hidden-spans.ts";
 
 export function createGetTrackerView(ctx: RpgContext): Pick<RpgService, "getTrackerView"> {
   async function getTrackerView(params: ReadGameParams): Promise<RpgTrackerView> {

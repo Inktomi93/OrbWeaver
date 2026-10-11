@@ -54,7 +54,7 @@ export interface ListCharacterTagGroupsParams extends CharacterActorParams, Char
 
 /** What a caller writing from an OLD basis declares it merged against (#1446/#1560) — the card state the
  *  write is conditional on. `contentHash` covers the card's IDENTITY; every member beside it is a field a
- *  stale-basis caller may WRITE that the hash deliberately does not witness (`#kit/serde/card`
+ *  stale-basis caller may WRITE that the hash deliberately does not witness (`#primitives/serde/card`
  *  `semanticFields` excludes the re-attribution fields on purpose, and `creatorNotes` is both excluded and
  *  refinable). A field in the second group with no member here is a silent overwrite waiting to happen, so
  *  the producer builds this object under a compile-forced mapped type. */

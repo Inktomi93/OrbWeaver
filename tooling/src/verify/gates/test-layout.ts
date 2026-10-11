@@ -99,7 +99,7 @@
 // (#2264). The §4.7 arm asks whether the mirror target EXISTS. So a module SPLIT (not deleted) whose test is
 // re-pointed at the new half while keeping its old name leaves the mirror resolving over a relationship
 // that has become a lie, and this gate stays green — measured live for a whole release on
-// `tests/tooling/_shared/artifacts*`. The limit is DECLARED rather than fixed here because the fix is a new
+// `tests/tooling/floor/artifacts/artifacts*`. The limit is DECLARED rather than fixed here because the fix is a new
 // capability plus a corpus, not a clause: closing it means comparing a test's IMPORT SET against its mirror
 // target, and the cheap form of that predicate is REFUTED by measurement (2026-09-13, probe over all 2952
 // files under `tests/`): of the 2441 tests whose mirror target resolves, **1460 never name it in their own
@@ -109,15 +109,15 @@
 // day one, which is a test-mirror revamp (the one #2142's park waited for; that park closed by RENAME
 // instead — see the §4.6 record above — so this limit outlived it and is still open), not a gate fix. The
 // row that would DIE under a name-only gate IS constructible and should be the capability's first
-// `mustFlag`: `tooling/src/_shared/{artifacts,artifact-naming}.ts` both present, plus a
-// `tests/tooling/_shared/artifacts.test.ts` importing ONLY `artifact-naming.ts` — name-only says PASS,
+// `mustFlag`: `tooling/src/floor/artifacts/{artifacts,artifact-naming}.ts` both present, plus a
+// `tests/tooling/floor/artifacts/artifacts.test.ts` importing ONLY `artifact-naming.ts` — name-only says PASS,
 // subject-aware says FLAG. Until then the cheap interim is procedural: after a decomposition, read the
 // mirrored test's IMPORTS rather than trusting that its name resolves.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `test-layout` descriptor at (pruned from public history), the parent of the conversion `7a0a2375aa`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,487 harness
-// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no
+// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), the legacy harness — no
 // `scanRoot` — dispatched 7,487, and the final `population` admits 0; the subject is the declared `mirror-index`.
 // legacy − final = all 7,487 harness candidates — dispatched to the legacy `run`, which read none of them (its
 // subject came off disk through `readdirSync(tests, { recursive: true })` plus `existsSync` mirror questions);
@@ -126,9 +126,9 @@
 // OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
 // not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
 // neither side reaches outside the harness corpus, not that the legacy filter discriminates.
-import { PACKAGE_NAMES } from "../../_shared/project-worlds.ts";
-import type { TestFilenameClassification } from "../../_shared/test-kinds.ts";
-import { classifyTestFilename, looksLikeTestFilename, TEST_KIND_SUFFIXES } from "../../_shared/test-kinds.ts";
+import { PACKAGE_NAMES } from "../../floor/compiler/project-worlds.ts";
+import type { TestFilenameClassification } from "../../floor/testing/test-kinds.ts";
+import { classifyTestFilename, looksLikeTestFilename, TEST_KIND_SUFFIXES } from "../../floor/testing/test-kinds.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { MirrorIndex } from "../contract/resource-mirror.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";

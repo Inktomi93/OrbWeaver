@@ -2,7 +2,7 @@ import type { AutomationRuleCreateInput, AutomationRuleEditable, AutomationRuleU
 import { automationRuleEditableSchema } from "@orb/contracts/automation";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { createRuleSaveSession } from "../../../../../packages/client/src/features/automation/lib/rule-save-session.ts";
+import { createRuleSaveSession } from "#client/features/automation/lib/rule-save-session.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { createSeededIds } from "../../../../support/ids.ts";
 

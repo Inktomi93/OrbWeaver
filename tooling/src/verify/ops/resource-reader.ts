@@ -3,7 +3,7 @@
 import type { Dirent } from "node:fs";
 import { lstatSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ResourceFileSnapshot, ResourceLoad, ResourceReader, ResourceReaderOptions, ResourceTreeEntry } from "../contract/resource.ts";
 import { assertRepoPathIdentity } from "../lib/policy-validation.ts";
 

@@ -1,8 +1,8 @@
 // columns: every drizzle column classified by workspace consumption.
 
 import process from "node:process";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { ColumnAudit, ColumnCandidate, ColumnClass, Flags, Hit, ProducerlessTableCandidate, TableDef } from "../contract/types.ts";
 import { collectColumnCandidates } from "../lib/column-reads.ts";
 import { COLUMN_CLASS_PAD, COLUMN_COUNT_PAD, COLUMN_SITES_SHOWN, collectSchemaTables, isColumnExempt } from "../lib/columns.ts";

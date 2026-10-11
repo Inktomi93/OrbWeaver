@@ -12,7 +12,12 @@
 //
 // A pure reader over delivered nodes: no walk, no Project, no filesystem, no cache.
 
-import { readMemberReference, referenceResolutionServices, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
+import {
+  readMemberReference,
+  referenceResolutionServices,
+  resolveGlobalMemberOrigin,
+  resolveModuleMemberOrigin,
+} from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, VariableDeclarationKind } from "ts-morph";
 import type { ProjectHomeVerdict } from "../contract/origin-verdict.ts";

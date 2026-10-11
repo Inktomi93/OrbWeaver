@@ -6,7 +6,7 @@
 // for why, and keep it composed immediately after this segment.
 // One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the segments IN
 // ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the pre-split monolith.
-// Raw JS in a template literal (no backticks / dollar-brace — see _shared/browser.ts for why a string,
+// Raw JS in a template literal (no backticks / dollar-brace — see floor/browser/browser.ts for why a string,
 // not a function). Provenance + attribution: ops/walker.ts.
 //
 // WHY THIS SEGMENT EXISTS — the two blind spots a whole UX review fell through (side-eye
@@ -32,7 +32,7 @@
 // and shared-composite credit) and requires the winner to share an ancestor within a few levels.
 //
 // THE UNASKABLE-POINT ACCOUNTING that closes (2) moved with the census — ops/walker/obscured-reach.ts.
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 

@@ -4,7 +4,7 @@ import type { ArrayLiteralExpression, ObjectLiteralExpression, PropertyAssignmen
 import { Node } from "ts-morph";
 import { literalObjectKeys } from "./appearance-carrier-contract-ast.ts";
 export const SCHEMA_FILE = "packages/contracts/src/settings/appearance.ts";
-export const SNAP_APPEARANCE_FILE = "tooling/src/_shared/appearance.ts";
+export const SNAP_APPEARANCE_FILE = "tooling/src/floor/appearance/appearance.ts";
 export const MANIFEST_SYMBOL = "APPEARANCE_CARRIER_MANIFEST";
 export interface AppearanceCarrierEvidence {
   readonly identifiersByFunction: ReadonlyMap<string, ReadonlySet<string>>;

@@ -8,7 +8,7 @@
 // for. `shouldSyncOnMount` is why an EMPTY list takes its first sync from the scroller's ResizeObserver
 // rather than from mount. Both are stated at length in the module's header.
 
-import { nextScrollportHeight, shouldRepinTail, shouldSyncOnMount } from "../../../../packages/ui/src/primitives/message-list/content-growth.ts";
+import { nextScrollportHeight, shouldRepinTail, shouldSyncOnMount } from "#ui/primitives/message-list/content-growth.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 /** A measured, laid-out, following list — the one arm that may re-pin. Each case flips ONE field. */

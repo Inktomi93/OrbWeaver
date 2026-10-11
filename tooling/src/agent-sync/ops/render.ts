@@ -2,8 +2,8 @@
 // Codex-readable source before promising the role can read it), so it lives in ops/, not lib/.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { REPO_ROOT } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ClaudeAgent } from "../contract/types.ts";
 import { parseClaudeAgent } from "../lib/frontmatter.ts";
 import { ROLE_EFFORT_OVERRIDES } from "../lib/paths.ts";

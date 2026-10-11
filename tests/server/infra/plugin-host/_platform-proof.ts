@@ -609,9 +609,7 @@ function sendChildMessage(message: ChildMessage): void {
   process.send?.(message);
 }
 
-async function childRuntime(
-  root: string,
-): Promise<ReturnType<typeof import("../../../../packages/server/src/infra/plugin-host/process-runtime.ts")["createPluginHost"]>> {
+async function childRuntime(root: string): Promise<ReturnType<typeof import("#server/infra/plugin-host/process-runtime.ts")["createPluginHost"]>> {
   const runtimeUrl = pathToFileURL(resolve(root, "packages/server/src/infra/plugin-host/process-runtime.ts")).href;
   const { createPluginHost } = await import(runtimeUrl);
   return createPluginHost({ nowEpochMs: Date.now, nextRandom: Math.random, mintId: randomUUID });

@@ -67,7 +67,7 @@
 // `css-selector-has-a-writer` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
 // The `(pruned from public history)` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,567 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,567, and the final
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,567, and the final
 // `population` admits 0; the subject is the declared `product-css` + `vendor-css-surface`. legacy − final = all 7,567
 // harness candidates — dispatched to the legacy `run`, which read none of them (its subject came off disk through
 // `ctx.root` filesystem reads of the CSS identity and the installed vendor surface); retired with that read.

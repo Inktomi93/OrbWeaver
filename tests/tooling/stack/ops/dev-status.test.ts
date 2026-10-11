@@ -1,7 +1,7 @@
 // `stack status` over a planted socket table: a table it cannot read, or a port held by an owner the OS will
 // not name, must end in `status=unknown` and exit 2, never `down` or "not bound".
 
-import { EXIT } from "../../../../tooling/src/_shared/exit-contract.ts";
+import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import { doDevStatus } from "../../../../tooling/src/stack/ops/dev-status.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { captured, devContext, PLANTED_PORTS, REFUSED_TABLE, tableHolding } from "../_dev-verbs.ts";

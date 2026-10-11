@@ -9,14 +9,14 @@
 
 import type { Db } from "@orb/db";
 import { chats, statsCanonVersions } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchStmt } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchStmt } from "@orb/db/query";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { bumpStatsCanonVersion } from "@orb/server/domain/stats";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { commitHostFencedWrite } from "../../../../../packages/server/src/domain/chat/substrate/host-fenced-write.ts";
+import { commitHostFencedWrite } from "#server/domain/chat/substrate/host-fenced-write.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedChat, seedParticipant, seedUser } from "../_support.ts";

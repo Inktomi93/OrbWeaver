@@ -10,7 +10,7 @@ import { chatParticipants } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import type { EmitChatChanged } from "#domain/chat";
-import { publishChatChanged } from "../../transport/trpc/index.ts";
+import { publishChatChanged } from "#transport/trpc";
 
 /** Build the member-fan op ({@link EmitChatChanged}). `options.detail` ⇒ the emitted event carries `chatId`
  *  (drives `getChat` too, for the lifecycle/create/delete case). */

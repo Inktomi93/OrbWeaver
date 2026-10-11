@@ -23,7 +23,7 @@ import { chatRegexScripts, personas } from "@orb/db";
 import type { Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { buildRegex } from "../../../../packages/server/src/entry/compose/regex.ts";
+import { buildRegex } from "#server/entry/compose/regex.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedParticipant } from "../../domain/chat/_support.ts";

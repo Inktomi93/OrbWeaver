@@ -5,13 +5,13 @@
 // path runs — never a second capture path (invariant 4). Split from ops/session-daemon.ts (the process,
 // socket and lifecycle) by nature: this file is the capture half.
 import process from "node:process";
-import { artifactKey, routeSlug } from "../../_shared/artifact-naming.ts";
-import { artifactFile, beginInstrumentRun, finishInstrumentRun } from "../../_shared/artifact-out.ts";
-import { print } from "../../_shared/artifacts.ts";
-import type { ProbeSession } from "../../_shared/browser-contract.ts";
-import { reassertOwnerDevice, reassertOwnerViewport } from "../../_shared/browser-emulation-guard.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
+import { artifactKey, routeSlug } from "../../floor/artifacts/artifact-naming.ts";
+import { artifactFile, beginInstrumentRun, finishInstrumentRun } from "../../floor/artifacts/artifact-out.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import type { ProbeSession } from "../../floor/browser/browser-contract.ts";
+import { reassertOwnerDevice, reassertOwnerViewport } from "../../floor/browser/browser-emulation-guard.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
 import type { SessionCallTarget, SessionRequest } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
 import { shouldProduceShot } from "../lib/out-names.ts";

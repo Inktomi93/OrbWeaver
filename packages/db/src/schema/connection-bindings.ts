@@ -18,7 +18,7 @@ import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId,
 import { sql } from "drizzle-orm";
 // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates positional primaryKey; the supported object form is used below.
 import { check, foreignKey, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { checkList } from "../kit/check-list.ts";
+import { checkList } from "../query/check-list.ts";
 import { automationRules } from "./automation.ts";
 import { userConnections } from "./connection.ts";
 import { plugins } from "./plugin.ts";

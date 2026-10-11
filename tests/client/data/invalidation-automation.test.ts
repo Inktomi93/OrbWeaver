@@ -6,7 +6,7 @@ import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { QueryClient } from "@tanstack/react-query";
-import { allAutomationRoomFilters, automationEventFilters } from "../../../packages/client/src/data/invalidation-automation.ts";
+import { allAutomationRoomFilters, automationEventFilters } from "#client/data/invalidation-automation.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat_automation_filters");

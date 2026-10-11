@@ -39,7 +39,7 @@
 // known — `evaluateObjectProperties` takes the name set — and those names come from the CSS census. The
 // provider therefore reads the same closed identity its consumers do, one phase earlier.
 
-import { readStaticString } from "@orb/tooling/_shared/reference-fact";
+import { readStaticString } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { SourceFile, Type } from "ts-morph";
 import { Node } from "ts-morph";
 import type { GateFactContext } from "../contract/fact.ts";
@@ -180,7 +180,7 @@ function jsxValue(attribute: import("ts-morph").JsxAttribute): Node | undefined 
 }
 
 /** A property NAME in every authored spelling. The computed arm reads its expression through the shared
- *  stable-binding resolver (`_shared/reference-fact.ts`), so `{ [DATA_SHELL_RAIL]: true }` is the same fact as
+ *  stable-binding resolver (`floor/code-facts/reference-fact.ts`), so `{ [DATA_SHELL_RAIL]: true }` is the same fact as
  *  `{ "data-shell-rail": true }` — a widening over the legacy `unwrapExpression`-only strip. */
 function propertyName(node: Node): string | undefined {
   if (Node.isIdentifier(node) || Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node)) {

@@ -12,15 +12,15 @@
 // -containment, -recurrence, -graph); this front door owns only the direct declaration readers plus the
 // package/file/ambient-surface predicates, and re-exports resolveTypeValueOrigins unchanged.
 
-import { readMemberReference } from "@orb/tooling/_shared/reference-fact";
-import type { ReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
+import { readMemberReference } from "@orb/tooling/floor/code-facts/reference-fact";
+import type { ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type { ContextualMemberOrigin, TypeIdentityOrigin, TypeMemberOrigin } from "../contract/type-member-origin.ts";
 import { normalizedPath, resolved, symbolDeclarations, unresolved } from "./type-member-origin-core.ts";
 
 // RE-EXPORTED, NEVER RE-BOUND (#2414, 2026-09-18). `export const X = importedX;` is a BINDING ALIAS, and the
-// canonical-export reader (`_shared/reference-fact-module.ts` `validatedProjectTarget`) refuses one fail-closed
+// canonical-export reader (`floor/code-facts/reference-fact-module.ts` `validatedProjectTarget`) refuses one fail-closed
 // BY DESIGN (#2320, #944): an identifier initializer cannot prove where the export actually comes from. The
 // tooling-size split `b26828ab3b` landed the rebound form, and `policy-legacy-imports` — which asks this front
 // door about every `../lib/` binding a final gate module imports — then REFUSED the whole real-tree run

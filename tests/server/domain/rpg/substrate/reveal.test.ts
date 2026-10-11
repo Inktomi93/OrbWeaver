@@ -5,8 +5,8 @@
 
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { RevealBodyRow } from "../../../../../packages/server/src/domain/rpg/contract/service.ts";
-import { buildRevealView } from "../../../../../packages/server/src/domain/rpg/substrate/reveal.ts";
+import type { RevealBodyRow } from "#server/domain/rpg/contract/service.ts";
+import { buildRevealView } from "#server/domain/rpg/substrate/reveal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const LIE = (character: string, truth: string): string => `<lie character="${character}" type="motive" truth="${truth}" reason="greed" />`;

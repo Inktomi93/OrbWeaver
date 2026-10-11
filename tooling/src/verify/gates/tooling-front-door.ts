@@ -1,7 +1,7 @@
 // Policy: tooling-front-door (docs/law/Core-Tooling-Law.md §4.2) — cross-tool imports enter through
-// the sibling's index.ts only (`#<tool>` or `…/<tool>/index.ts`); `_shared/*` is per-MODULE by design (no
-// barrel — a _shared index would chain-load playwright/ts-morph for every consumer); cli.ts consumes its
-// own tool ONLY through ./index.ts (+ _shared) — the cli fronts the programmatic API, never ops/lib
+// the sibling's index.ts only (`#<tool>` or `…/<tool>/index.ts`); `floor/<role>/*` is per-MODULE by design (no
+// barrel — a floor index would chain-load playwright/ts-morph for every consumer); cli.ts consumes its
+// own tool ONLY through ./index.ts (+ floor) — the cli fronts the programmatic API, never ops/lib
 // directly. The lane-speed AST arm; the .dependency-cruiser.cjs tooling stanzas are the whole-graph
 // resolved-edge backstop. Comment posture: comment-SAFE (ImportDeclaration nodes only).
 //
@@ -34,8 +34,8 @@
 // `24ed572f1c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `8de18d2f5f`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,445 harness candidates at that tree (`git ls-tree` ∩
-// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,105 and final `population` admits 1,105.
-// legacy − final = ∅. final − legacy = ∅. Controls: inside `tooling/src/_shared/__cbbhr_in_appearance-flags.ts`
+// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,105 and final `population` admits 1,105.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside `tooling/src/floor/appearance/__cbbhr_in_appearance-flags.ts`
 // (virtual) admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by
 // both.
 import { Node, SyntaxKind } from "ts-morph";
@@ -43,7 +43,7 @@ import { defineGate } from "../contract/policy.ts";
 import { isToolCli, resolveRelativeImport, TOOLING_PREFIX, toolOf } from "../lib/tooling-import-door.ts";
 
 const MESSAGE =
-  "a @orb/tooling import bypasses a front door — cross-tool enters through the sibling's index.ts; cli.ts consumes only its own index.ts (+ _shared) (docs/law/Core-Tooling-Law.md §4.2). A relative escape out of tooling/ is judged by tooling-root-config-import.";
+  "a @orb/tooling import bypasses a front door — cross-tool enters through the sibling's index.ts; cli.ts consumes only its own index.ts (+ floor) (docs/law/Core-Tooling-Law.md §4.2). A relative escape out of tooling/ is judged by tooling-root-config-import.";
 
 const FIX =
   "import the sibling's index.ts (or #<tool>); re-export what the cli needs from the tool's index.ts. A deliberate " +
@@ -65,7 +65,7 @@ function verdict(rel: string, spec: string): string | null {
   if (to === from) {
     return isToolCli(rel) && resolved !== `${TOOLING_PREFIX}${from}/index.ts` ? cliInternals(spec) : null;
   }
-  if (to === "_shared" || resolved === `${TOOLING_PREFIX}${to}/index.ts`) {
+  if (to === "floor" || resolved === `${TOOLING_PREFIX}${to}/index.ts`) {
     return null; // per-module by design (see header) · the sibling's front door
   }
   return deepImport(spec, to);
@@ -124,12 +124,12 @@ export const gate = defineGate({
       mode: "source",
       files: {
         "tooling/src/aa/ops/x.ts":
-          'import { b } from "../../bb/index.ts";\nimport { warn } from "../../_shared/log.ts";\nimport { u } from "../lib/util.ts";\nexport const x = [b, warn, u];\n',
+          'import { b } from "../../bb/index.ts";\nimport { warn } from "../../floor/cli/log.ts";\nimport { u } from "../lib/util.ts";\nexport const x = [b, warn, u];\n',
         "tooling/src/bb/index.ts": "export const b = 1;\n",
-        "tooling/src/_shared/log.ts": "export const warn = 1;\n",
+        "tooling/src/floor/cli/log.ts": "export const warn = 1;\n",
         "tooling/src/aa/lib/util.ts": "export const u = 1;\n",
       },
-      why: "the three legal shapes: a sibling's front door, a _shared module, own-tool internals. Deleting the `_shared` allowance or the index.ts allowance reds this row",
+      why: "the three legal shapes: a sibling's front door, a floor module, own-tool internals. Deleting the `floor` allowance or the index.ts allowance reds this row",
     },
     {
       mode: "source",

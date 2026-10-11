@@ -3,7 +3,7 @@
 // read/verify closures are ops/hover-walker-read.ts — three segments of ONE function scope, split at the
 // rule-family seam for the tooling-size cap and composed IN ORDER by ops/hover.ts.
 // Raw JS in a template literal (no backticks / dollar-brace — see
-// _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
+// floor/browser/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 // Composed by ops/hover.ts, NOT by COLLECT_SAMPLES_JS: this pass has a Node-side CDP round trip in
 // the middle of it. The shared predicate/vocabulary segment is ops/walker/state-paint.ts.
 //
@@ -40,7 +40,7 @@
 // census on first use; it is primed here in the rest state and reused under force. A state rule that
 // creates or moves a full-page paint layer would be mis-attributed — that is a stated limit, and the
 // alternative (re-censusing every paint layer per subject) is the cost this whole design exists to avoid.
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 

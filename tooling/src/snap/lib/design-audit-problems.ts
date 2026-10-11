@@ -5,7 +5,7 @@
 // carries its rule, severity, selector and measured value, and `--fail-on` is the run's own boundary, so
 // each row restates the verdict rather than recomputing it. That is the whole contract of an analyzer
 // problem row (contract/analyzer.ts): the writer owns the policy, the reader renders the fact.
-import type { EvidenceGap } from "../../_shared/evidence.ts";
+import type { EvidenceGap } from "../../floor/verdict/evidence.ts";
 import type { Finding, Severity } from "../../ui-audit/index.ts";
 import type { SnapAnalyzerProblem } from "../contract/analyzer.ts";
 import type { SelectorProof } from "../ops/design-audit-walk.ts";

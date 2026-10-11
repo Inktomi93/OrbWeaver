@@ -4,9 +4,9 @@
 import { relative, sep } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import { ESLint } from "eslint";
-import { EXIT } from "../../_shared/exit-contract.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm lint:eslint");
 

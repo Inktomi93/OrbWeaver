@@ -11,10 +11,9 @@
 import type { RerankOnnx } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import { formatBytes } from "@orb/kit/strings";
-import type { LocalLightLoadProgress } from "../../contract/local-light-worker.ts";
-import type { LocalLightModelSlot } from "../../contract/runtime.ts";
-import { LOCAL_LIGHT_MODEL_SLOTS } from "../../contract/runtime.ts";
-import type { InferenceLog } from "../../deps.ts";
+import type { LocalLightLoadProgress, LocalLightModelSlot } from "#contract";
+import { LOCAL_LIGHT_MODEL_SLOTS } from "#contract";
+import type { InferenceLog } from "#src/deps.ts";
 import type { LocalLightModelCache } from "./model-cache.ts";
 
 const LOCAL_LIGHT_PREFETCH_STATUSES = ["queued", "downloading", "ready", "failed"] as const;

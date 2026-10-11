@@ -7,11 +7,11 @@
 import type { ChatMetadata } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
-import { batchMany } from "@orb/db/kit";
+import { batchMany } from "@orb/db/query";
 import type { ChatId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { chatMetadataDropStatement, chatMetadataSetStatement } from "../../../../../packages/server/src/domain/chat/persistence/chat-metadata-write.ts";
+import { chatMetadataDropStatement, chatMetadataSetStatement } from "#server/domain/chat/persistence/chat-metadata-write.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, seedChat } from "../_support.ts";

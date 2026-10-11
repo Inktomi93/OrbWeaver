@@ -12,6 +12,7 @@ import type { RoleClientsWithSignal } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { can } from "#domain/admin";
+import { requireHost, requireParticipant } from "#domain/chat";
 import type { DatabankContext, DatabankIngest, DatabankPortabilityContext, DatabankService } from "#domain/databank";
 import { createDatabankIngest, createDatabankService } from "#domain/databank";
 import type { EmbeddingsService } from "#domain/embeddings";
@@ -21,8 +22,7 @@ import type { WorkloadService } from "#domain/workloads";
 import type { AuditEntry } from "#foundation/observability";
 import { EXTRACTOR_VERSION } from "#infra/extraction";
 import { fetchWebDocument } from "#infra/network";
-import { requireHost, requireParticipant } from "../../domain/chat/index.ts";
-import { publishUserEvent } from "../../transport/trpc/index.ts";
+import { publishUserEvent } from "#transport/trpc";
 import { minter } from "./minter.ts";
 import {
   createDeleteReachCapture,

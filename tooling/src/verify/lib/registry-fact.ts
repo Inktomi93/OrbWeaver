@@ -1,7 +1,7 @@
 // Visitor-fed registry facts; this module owns no Project, walk, path predicate, or binding resolver.
 
-import { resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
-import type { ReferenceFact, ReferenceUnresolvedReason } from "@orb/tooling/_shared/reference-fact-contract";
+import { resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
+import type { ReferenceFact, ReferenceUnresolvedReason } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { ArrowFunction, FunctionDeclaration, FunctionExpression, Node as MorphNode, ReturnStatement, TypeNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateFact } from "../contract/fact.ts";

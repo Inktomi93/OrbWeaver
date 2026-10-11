@@ -29,7 +29,7 @@ import {
   tags,
   userConnections,
 } from "@orb/db";
-import { batchMany, batchStmt } from "@orb/db/kit";
+import { batchMany, batchStmt } from "@orb/db/query";
 import type {
   ChatId,
   ChatParticipantId,
@@ -46,16 +46,13 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { createExportRpgGame } from "@orb/server/domain/rpg";
-import type { PortableChat } from "@orb/server/kit/serde/chat-bundle";
-import { parseChatBundleFile } from "@orb/server/kit/serde/chat-bundle";
+import type { PortableChat } from "@orb/server/primitives/serde/chat-bundle";
+import { parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import {
-  appendGenerationObservation,
-  createGenerationObservationSession,
-} from "../../../../../packages/server/src/domain/chat/persistence/generation-observation.ts";
-import { createExportChatBundle } from "../../../../../packages/server/src/domain/export/verbs/export-chat-bundle.ts";
-import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/index.ts";
+import { appendGenerationObservation, createGenerationObservationSession } from "#server/domain/chat/persistence/generation-observation.ts";
+import { createExportChatBundle } from "#server/domain/export/verbs/export-chat-bundle.ts";
+import { applyStatsDelta } from "#server/domain/stats/index.ts";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { makeGenerationUsage } from "../../../../support/factories/generation-usage.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

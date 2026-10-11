@@ -1,6 +1,6 @@
 // The family reader for the LITERAL-shaped plumbing laws — `tooling-port-registry` (a TCP port is a row in
-// the one registry, `_shared/ports.ts`), `tooling-clock-budget` (a wall clock is derived through the one
-// load budget, `_shared/load-budget.ts`) and `tooling-runner-config-literals` (both laws over the three
+// the one registry, `floor/host/ports.ts`), `tooling-clock-budget` (a wall clock is derived through the one
+// load budget, `floor/host/load-budget.ts`) and `tooling-runner-config-literals` (both laws over the three
 // ROOT runner configs, which no population reaches) — so what counts as "a port literal" and "a fixed
 // clock" is ONE predicate in three policies (family `plumbing-literals`).
 //
@@ -86,7 +86,7 @@ function boundName(node: MorphNode): { readonly name: string; readonly sep: stri
 /** Is this numeric literal a port the registry should own? TWO shapes, and the order matters — a registry
  *  VALUE is a respell of a known row (the strongest claim, and it needs no name), while a port-NAMED
  *  position carrying an unknown number is a hand-picked pair. `registry` is the caller's live set (the
- *  policies import it from `_shared/ports.ts`, so a new reserved row widens the arm for free). */
+ *  policies import it from `floor/host/ports.ts`, so a new reserved row widens the arm for free). */
 export function portLiteralOf(node: MorphNode, registry: ReadonlySet<number>): PortLiteral | null {
   if (!Node.isNumericLiteral(node)) {
     return null;

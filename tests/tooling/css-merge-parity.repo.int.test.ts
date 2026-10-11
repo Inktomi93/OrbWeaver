@@ -9,7 +9,7 @@ import { assertTokenContract } from "@orb/ui/token-contract";
 import { Scanner } from "@tailwindcss/oxide";
 import { compile } from "tailwindcss";
 import type { SourceFile } from "ts-morph";
-import { getWorkspace } from "../../tooling/src/_shared/ts-workspace.ts";
+import { getWorkspace } from "../../tooling/src/floor/compiler/ts-workspace.ts";
 import { walkStaticClassExpressions } from "../../tooling/src/verify/lib/static-class-expression.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 

@@ -6,7 +6,7 @@
 // not the built chat service — so there is no ordering knot.
 //
 // The ENGINE is composed elsewhere and stays there: `@orb/kit/regex` executes, and the `node:vm` ReDoS
-// watchdog (`@orb/server/kit/regex`) is injected onto ChatContext as `applyRegexReplace`. This seam wires
+// watchdog (`@orb/server/primitives/regex`) is injected onto ChatContext as `applyRegexReplace`. This seam wires
 // only the DATA the engine runs on (Constitution.md §1 "engine vs data").
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
@@ -16,7 +16,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import { can } from "#domain/admin";
-import { parseChatMetadata } from "#domain/chat";
+import { parseChatMetadata, requireHost, requireParticipant } from "#domain/chat";
 import type {
   ExportCardScripts,
   ExportRegexScripts,
@@ -39,8 +39,7 @@ import {
   createResolveRegexSources,
 } from "#domain/regex";
 import type { AuditEntry } from "#foundation/observability";
-import { requireHost, requireParticipant } from "../../domain/chat/index.ts";
-import { publishUserEvent } from "../../transport/trpc/index.ts";
+import { publishUserEvent } from "#transport/trpc";
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture, createEmitRoomRegexChanged, createFanRegexScriptRooms } from "./room-reach.ts";
 import { createResolveVisibleRooms } from "./visible-rooms.ts";

@@ -1,7 +1,7 @@
 // Unit: the per-character default tint (features/chat/lib/speaker-color, #21 §12.4). Pins the
 // determinism gate (pure hash — same key always paints the same color) and the OKLCH shape/safety.
 
-import { colorForCharacter } from "../../../../../packages/client/src/features/chat/lib/speaker-color.ts";
+import { colorForCharacter } from "#client/features/chat/lib/speaker-color.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const OKLCH_SHAPE = /^oklch\(72% 0\.16 \d+(?:\.\d+)?\)$/u;

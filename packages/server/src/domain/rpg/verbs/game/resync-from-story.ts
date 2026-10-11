@@ -50,14 +50,14 @@
 //     archive itself uses `addJournalEntry`/`editJournalEntry`/`deleteJournalEntry` (built, host-gated).
 
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
-import type { ResyncFromStoryParams } from "../../contract/params.ts";
-import type { ResyncResult } from "../../contract/results.ts";
-import type { RpgContext, RpgService } from "../../contract/service.ts";
-import { snapshotRowToState } from "../../contract/service.ts";
-import { resolveHost } from "../../guard.ts";
-import { resolveSnapshotForTurn, writeResyncedSnapshot } from "../../persistence/snapshots.ts";
-import { defaultSnapshotState } from "../../substrate/default-state.ts";
-import { applyLockedPatch } from "../../substrate/merge.ts";
+import type { ResyncFromStoryParams } from "#src/domain/rpg/contract/params.ts";
+import type { ResyncResult } from "#src/domain/rpg/contract/results.ts";
+import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
+import { snapshotRowToState } from "#src/domain/rpg/contract/service.ts";
+import { resolveHost } from "#src/domain/rpg/guard.ts";
+import { resolveSnapshotForTurn, writeResyncedSnapshot } from "#src/domain/rpg/persistence/snapshots.ts";
+import { defaultSnapshotState } from "#src/domain/rpg/substrate/default-state.ts";
+import { applyLockedPatch } from "#src/domain/rpg/substrate/merge.ts";
 
 /** The state-plane key whose vehicle semantics are APPEND (`applyUpdateScene` returns `[...base, beat]`) and
  *  whose reconciler semantics are REBUILD — the one plane {@link resyncStatePatch} re-shapes. */

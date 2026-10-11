@@ -6,7 +6,7 @@
 // the 450-line `tooling-size` cap with zero headroom until #2487, where the cap had already been paid in
 // the wrong currency — `documentFrame` lost its doc comment to fit. Core-Tooling-Law.md §4.3 owns that
 // rule now; the typography family moved out to contract/samples-typography.ts to make the room.
-import type { InactiveKind, Rgb } from "@orb/tooling/_shared/wcag";
+import type { InactiveKind, Rgb } from "@orb/tooling/floor/instrument/wcag";
 // `Backdrop` MOVED to contract/backdrop.ts (see its header). Imported locally because the shapes below
 // USE it, and re-exported below so its consumers keep one import.
 import type { Backdrop, GlowShadowInput, RadialGlowInput } from "./backdrop.ts";
@@ -60,7 +60,7 @@ export interface ContrastInput {
    *  components from the contrast minimum, and `snap --contrast` has always honoured that — design-audit
    *  did not, so it filed a P1 at 2.64:1 on the very element snap reported as `SKIPPED inactive control`.
    *  Every disabled control in the app was a standing false positive, which teaches a reader to discount
-   *  the instrument's P1s. Classified by the ONE shared classifier (`_shared/wcag.ts` `INACTIVE_KIND_EXPR`)
+   *  the instrument's P1s. Classified by the ONE shared classifier (`floor/instrument/wcag.ts` `INACTIVE_KIND_EXPR`)
    *  so the two instruments cannot drift again. Optional: absent in the fixture sample sets that predate
    *  it, and absent reads as `"none"`. */
   readonly inactive?: InactiveKind;

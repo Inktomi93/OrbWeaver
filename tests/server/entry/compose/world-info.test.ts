@@ -21,8 +21,8 @@ import type { Db } from "@orb/db";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import type { WorldInfoComposeDeps } from "../../../../packages/server/src/entry/compose/world-info.ts";
-import { buildWorldInfo } from "../../../../packages/server/src/entry/compose/world-info.ts";
+import type { WorldInfoComposeDeps } from "#server/entry/compose/world-info.ts";
+import { buildWorldInfo } from "#server/entry/compose/world-info.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("usr_owner");

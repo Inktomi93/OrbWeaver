@@ -13,8 +13,8 @@ import { characterEmbeddings, embedGenerations, embedGenerationTargets } from "@
 import type { CharacterEmbeddingId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { clearVectorTable } from "../../../../../packages/server/src/domain/embeddings/persistence/clear.ts";
-import { upsertCharacterEmbedding } from "../../../../../packages/server/src/domain/embeddings/persistence/queries.ts";
+import { clearVectorTable } from "#server/domain/embeddings/persistence/clear.ts";
+import { upsertCharacterEmbedding } from "#server/domain/embeddings/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, seedCharacter, seedUser } from "../_support.ts";

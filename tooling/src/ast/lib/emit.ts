@@ -1,11 +1,11 @@
 // Flag parsing + hit emission (dedupe / collapse / truncation warning) + the ONE project loader
-// (rides _shared/ts-workspace — the consolidated bootstrap). Split from ast.ts (P4 of #393).
-import type { SourceCorpus } from "@orb/tooling/_shared/ts-workspace";
-import { createSemanticWorkspace, getWorkspace, searchGlobs } from "@orb/tooling/_shared/ts-workspace";
+// (rides floor/compiler/ts-workspace — the consolidated bootstrap). Split from ast.ts (P4 of #393).
+import type { SourceCorpus } from "@orb/tooling/floor/compiler/ts-workspace";
+import { createSemanticWorkspace, getWorkspace, searchGlobs } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { Node } from "ts-morph";
-import { print } from "../../_shared/artifacts.ts";
-import { warn } from "../../_shared/log.ts";
-import { UsageError } from "../../_shared/run-tool.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { warn } from "../../floor/cli/log.ts";
+import { UsageError } from "../../floor/cli/run-tool.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { EPILOGUE_TAG, noteMatches, scanMeta } from "./ledger.ts";
 import { COLLAPSE_THRESHOLD, DEFAULT_MAX, REPO_ROOT, RESPELL_NEAR_DEFAULT_PCT, SNIPPET_CAP } from "./root.ts";

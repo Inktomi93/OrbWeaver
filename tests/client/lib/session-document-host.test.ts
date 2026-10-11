@@ -1,5 +1,5 @@
 import { afterEach, vi } from "vitest";
-import { bindSessionDocumentHost, sessionDocument } from "../../../packages/client/src/lib/session-document-host.ts";
+import { bindSessionDocumentHost, sessionDocument } from "#client/lib/session-document-host.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 afterEach(() => {

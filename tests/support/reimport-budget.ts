@@ -18,10 +18,10 @@
 // number in a comment at the call site so the next reader can re-derive the declaration instead of
 // trusting it.
 //
-// The load scaling on top is `budget()`'s (`@orb/tooling/_shared/load-budget` — THE one reading of the
+// The load scaling on top is `budget()`'s (`@orb/tooling/floor/host/load-budget` — THE one reading of the
 // box): on a quiet box the returned value is byte-identical to the base, so this never hides a real
 // slowdown, and above the contention boundary it stretches rather than reporting a red about the box.
-import { budget } from "@orb/tooling/_shared/load-budget";
+import { budget } from "@orb/tooling/floor/host/load-budget";
 
 /** The load-scaled `testTimeout` for a re-import-as-subject suite. `declaredBaseMs` is the author's
  *  measured-cold-first-test number times its headroom (see the header) — never a copied constant. */

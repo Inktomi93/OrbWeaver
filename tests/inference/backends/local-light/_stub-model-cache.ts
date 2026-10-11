@@ -5,10 +5,10 @@
 import process from "node:process";
 import type { LocalTextEncoding } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
-import type { LocalLightModelCache, ModelCacheConfig } from "../../../../packages/inference/src/backends/local-light/model-cache.ts";
-import type { ProviderErrorInit } from "../../../../packages/inference/src/contract/errors.ts";
-import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
-import { agentSdkSessionIdSchema } from "../../../../packages/inference/src/contract/identity.ts";
+import type { LocalLightModelCache, ModelCacheConfig } from "#inference/backends/local-light/model-cache.ts";
+import type { ProviderErrorInit } from "#inference/contract/errors.ts";
+import { ProviderError } from "#inference/contract/errors.ts";
+import { agentSdkSessionIdSchema } from "#inference/contract/identity.ts";
 
 export const BLOCK_PREFIX = "block:";
 export const CRASH = "crash";

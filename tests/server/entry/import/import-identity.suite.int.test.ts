@@ -13,9 +13,9 @@ import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { runProfileImport } from "@orb/server/entry/import";
 import { describe } from "vitest";
-import { relativePathOf } from "../../../../packages/client/src/data/import-tree.ts";
+import { relativePathOf } from "#client/data/import-tree.ts";
 // Deep import of the PURE planner module (the barrel drags browser TSX into the node program).
-import { planTreeImport } from "../../../../packages/client/src/data/import-tree-plan.ts";
+import { planTreeImport } from "#client/data/import-tree-plan.ts";
 import "../../../support/composed-real.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { expect, OWNER_USER_ID, test } from "../../../support/fixtures.ts";

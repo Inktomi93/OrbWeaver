@@ -2,11 +2,7 @@
 // boot refusal share, and which entries the refusal picks out (the boot-level refusal is pinned in index.test.ts).
 
 import { describe } from "vitest";
-import {
-  parseTrustedPrivateRanges,
-  trustedPrivateRangeRefusal,
-  unreadableTrustedPrivateRanges,
-} from "../../../../packages/server/src/foundation/env/private-ranges.ts";
+import { parseTrustedPrivateRanges, trustedPrivateRangeRefusal, unreadableTrustedPrivateRanges } from "#server/foundation/env/private-ranges.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 describe("parseTrustedPrivateRanges", () => {

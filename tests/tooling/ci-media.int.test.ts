@@ -1,6 +1,6 @@
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { spawnNiced } from "@orb/tooling/_shared/proc";
+import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { z } from "zod";
 import { expect, test } from "../support/tool-fixtures.ts";
 

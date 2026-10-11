@@ -33,7 +33,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { REBUILD_JOBS_LABEL, SEARCH_PAUSED_COPY } from "../../../../../packages/client/src/lib/embedder-rebuild.ts";
+import { REBUILD_JOBS_LABEL, SEARCH_PAUSED_COPY } from "#client/lib/embedder-rebuild.ts";
 import { CORPUS_PREVIEW_COVERAGE, corpusDigestSource, corpusSceneSource } from "../../../../support/node/corpus-source.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";

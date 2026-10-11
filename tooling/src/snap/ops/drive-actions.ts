@@ -2,15 +2,15 @@
 // 2026-08-15/16) and the trailing-eval split that keeps a trailing `--eval` a settled-surface observer.
 // Split out of drive.ts (which owns navigation + app-readiness) to keep that file under the size cap.
 import { errorMessage } from "@orb/kit/error-message";
-import type { NavResultShape } from "@orb/tooling/_shared/page-validate";
-import { navResultShape } from "@orb/tooling/_shared/page-validate";
+import type { NavResultShape } from "@orb/tooling/floor/browser/page-validate";
+import { navResultShape } from "@orb/tooling/floor/browser/page-validate";
 import type { Page } from "@playwright/test";
-import { print } from "../../_shared/artifacts.ts";
-import { settle } from "../../_shared/browser.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { buildNavScript } from "../../_shared/nav.ts";
-import type { FileActionReceipt } from "../../_shared/upload.ts";
-import { driveFileDrop, driveFileUpload, fileActionReceiptLine } from "../../_shared/upload.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { settle } from "../../floor/browser/browser.ts";
+import type { FileActionReceipt } from "../../floor/browser/upload.ts";
+import { driveFileDrop, driveFileUpload, fileActionReceiptLine } from "../../floor/browser/upload.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { buildNavScript } from "../../floor/instrument/nav.ts";
 import type { ArmActionContext, ArmActionDisposition, ArmTapeContext } from "../contract/arms.ts";
 import type { Args, DriveFailure, EvalOutcome, NavAction, SnapAction, Step } from "../contract/types.ts";
 import { HOVER_REVEAL_MS, STEP_SETTLE_MS, STEP_TIMEOUT_MS, WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
@@ -267,7 +267,7 @@ async function driveNav(page: Page, action: NavAction, index: number): Promise<D
   try {
     // @orb-waive caught-failure-ownership(page.evaluate): a fire-and-forget readiness ping whose result is discarded — the very next line's evaluate() runs regardless and its failure IS caught by this try, reported as NAV FAILED. Ends if the next evaluate stops being what reports real failures.
     await page.evaluate("window.__orb && window.__orb.ready").catch(() => undefined);
-    // #1004 — ONE nav-result predicate for all four call sites (_shared/page-validate.ts); this file
+    // #1004 — ONE nav-result predicate for all four call sites (floor/browser/page-validate.ts); this file
     // used to declare its own copy of the shape and assert it.
     result = navResultShape(await page.evaluate(buildNavScript(action.kind, action.target)), `nav ${action.kind} ${action.target}`);
   } catch (e) {

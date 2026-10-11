@@ -87,7 +87,7 @@ import type { WorldInfoService } from "#domain/world-info";
 import { superviseDetached } from "#foundation/observability";
 import { fetchPluginBundle, pluginGitSource } from "#infra/network";
 import { createPluginHost } from "#infra/plugin-host";
-import { publishAutomationEvent, publishNotification, publishUserEvent } from "../../transport/trpc/index.ts";
+import { publishAutomationEvent, publishNotification, publishUserEvent } from "#transport/trpc";
 import { createAutomationOps } from "./automation-watcher.ts";
 import type { ChatComposeResult } from "./chat.ts";
 import { minter } from "./minter.ts";

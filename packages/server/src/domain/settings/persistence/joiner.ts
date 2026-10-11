@@ -6,7 +6,7 @@ import type { UserSettings } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS, USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { userSettings } from "@orb/db";
-import type { AwaitableBatchStmt } from "@orb/db/kit";
+import type { AwaitableBatchStmt } from "@orb/db/query";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 

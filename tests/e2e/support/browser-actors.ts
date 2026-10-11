@@ -6,7 +6,7 @@
 // multi-user FIXTURE stack, which is a MANUALLY-RAISED sidecar — `pnpm fixture up`, never something a
 // screenshot tool boots (tooling/src/snap/ops/fixture.ts only DETECTS it). So `--contexts` yields nothing
 // in an unattended run. (Its ports stopped colliding with the dev pair in 2026-08-03 and both pairs are
-// registry rows now — `tooling/src/_shared/ports.ts` `DEV_PORTS`/`FIXTURE_PORTS`, #1271 — so the old
+// registry rows now — `tooling/src/floor/host/ports.ts` `DEV_PORTS`/`FIXTURE_PORTS`, #1271 — so the old
 // "it reuses the dev ports" reason recorded here was stale.) The `local` Playwright project already boots a
 // genuinely isolated multi-human stack (own ports, own DB, `E2E_HARNESS=on`, seeded owner+member), so the
 // two-human PIXELS belong here, next to the two-human wire drives.

@@ -9,8 +9,8 @@
 // missing page errors change the verdict. The receipts below come from the REAL ring, not hand-built JSON,
 // so the pin dies if the ring's accounting changes shape (it emits `[aggregate, ...per-scope]`, which is
 // why the summarizer counts aggregates only — summing every row double-counts every eviction).
-import { exactScope } from "@orb/tooling/_shared/artifact-scope";
-import { BoundedEvidenceRing, BROWSER_EVIDENCE_SOURCES, retentionBatch } from "@orb/tooling/_shared/browser-evidence-ring";
+import { exactScope } from "@orb/tooling/floor/artifacts/artifact-scope";
+import { BoundedEvidenceRing, BROWSER_EVIDENCE_SOURCES, retentionBatch } from "@orb/tooling/floor/browser/browser-evidence-ring";
 import { summarizePageErrorRetention } from "../../../../tooling/src/snap/ops/manifest.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 

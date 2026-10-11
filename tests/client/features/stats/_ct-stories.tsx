@@ -28,7 +28,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
-import { SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
+import { SectionContextHost } from "#client/features/app-shell/components/section-context-host.tsx";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 
 /** The Analytics LIST leaderboard navigator over the real data layer. */

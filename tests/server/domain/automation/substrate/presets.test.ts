@@ -7,14 +7,14 @@
 import { RULE_PRESET_IDS } from "@orb/contracts/automation";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { RuleValidationError } from "@orb/server/domain/automation";
-import type { ErasedRulePresetDef } from "../../../../../packages/server/src/domain/automation/contract/presets.ts";
-import { RULE_PRESETS } from "../../../../../packages/server/src/domain/automation/contract/presets.ts";
+import type { ErasedRulePresetDef } from "#server/domain/automation/contract/presets.ts";
+import { RULE_PRESETS } from "#server/domain/automation/contract/presets.ts";
 import {
   resolveChatRulePresetKnobs,
   resolveRulePresetKnobs,
   rulePresetSpendsAtDefaults,
   toRulePresetView,
-} from "../../../../../packages/server/src/domain/automation/substrate/presets.ts";
+} from "#server/domain/automation/substrate/presets.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const PACING = RULE_PRESETS.pacingNudge;

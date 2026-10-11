@@ -75,7 +75,7 @@ export interface StageDef {
   readonly manualReason?: string;
   /** THIS STAGE'S OWN HANG CEILING, in quiet-box ms, for a stage whose honest runtime does not fit the
    *  runner's default (#1848). ABSENT ⇒ the default. It is DATA DERIVED FROM THE PROFILE
-   *  (`_shared/concurrency-profile.ts` `readStageBudgets`), never a literal typed here: the CT suite's
+   *  (`floor/host/concurrency-profile.ts` `readStageBudgets`), never a literal typed here: the CT suite's
    *  wall clock is a function of `ctWorkers`, and on 2026-09-06 a single hand-typed 45 minutes applied to
    *  every stage turned a QUIET-box product-test run into `[tool-error] TIMED OUT`. The runner still
    *  passes it through `budget()`, so a contended box stretches it further. */

@@ -11,8 +11,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
-import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import type { GateAuthority } from "../../contract/gate-authority.ts";
 import { ACTIVE_GATES_INDEX_REL } from "../../contract/ledger-paths.ts";
 import type { GatePolicy } from "../../contract/policy.ts";

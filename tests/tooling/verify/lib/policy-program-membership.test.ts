@@ -1,7 +1,7 @@
 // Program discovery uses authored paths and compiler references, independent of directory layout.
 import { mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { readCompilerPrograms } from "@orb/tooling/verify";
 import type { PolicyProgramMembership } from "../../../../tooling/src/verify/contract/policy-scope.ts";
 import {

@@ -4,11 +4,11 @@
 // aria, eval and perf halves that shared that file are now their own arms.
 import { errorMessage } from "@orb/kit/error-message";
 import type { Locator, Page } from "@playwright/test";
-import { splitLastEq } from "../../../_shared/argv.ts";
-import { aggregateScope } from "../../../_shared/artifact-scope.ts";
-import type { ResultPair } from "../../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import { EXIT } from "../../../_shared/exit-contract.ts";
+import { aggregateScope } from "../../../floor/artifacts/artifact-scope.ts";
+import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../../floor/cli/exit-contract.ts";
+import { splitLastEq } from "../../../floor/instrument/argv.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
 import type { SnapArmState } from "../../contract/run-facts.ts";
 import type { Assertion, AssertionOutcome } from "../../contract/types.ts";

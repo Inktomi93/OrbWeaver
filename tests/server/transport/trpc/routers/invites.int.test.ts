@@ -15,7 +15,7 @@ import { chatParticipants } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { guestModeSentence } from "../../../../../packages/server/src/domain/chat/verbs/invite-preview.ts";
+import { guestModeSentence } from "#server/domain/chat/verbs/invite-preview.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { seedCharacter } from "../../../../support/factories/character.ts";
 import { seedChat } from "../../../../support/factories/chat.ts";

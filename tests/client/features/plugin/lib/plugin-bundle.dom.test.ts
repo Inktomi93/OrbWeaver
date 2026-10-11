@@ -1,5 +1,5 @@
 import { unzipSync } from "fflate";
-import { PluginBundlePreviewError, packPluginFolder } from "../../../../../packages/client/src/features/plugin/lib/plugin-bundle.ts";
+import { PluginBundlePreviewError, packPluginFolder } from "#client/features/plugin/lib/plugin-bundle.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function folderFile(path: string, contents = path): File {

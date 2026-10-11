@@ -6,8 +6,8 @@ import { Worker } from "node:worker_threads";
 import { isHubModelId } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
-import type { ProviderErrorInit } from "../../contract/errors.ts";
-import { ProviderError } from "../../contract/errors.ts";
+import type { ProviderErrorInit } from "#src/contract/errors.ts";
+import { ProviderError } from "#src/contract/errors.ts";
 import type {
   LocalLightHostMessage,
   LocalLightLoadProgress,
@@ -16,8 +16,8 @@ import type {
   LocalLightWorkerMessage,
   LocalLightWorkerOptions,
   LocalLightWorkerValue,
-} from "../../contract/local-light-worker.ts";
-import type { InferenceLog } from "../../deps.ts";
+} from "#src/contract/local-light-worker.ts";
+import type { InferenceLog } from "#src/deps.ts";
 import type { LocalLightModelCache } from "./model-cache.ts";
 
 // How long `close` waits for the worker to exit: one embed or rerank run returns well inside it. A model load

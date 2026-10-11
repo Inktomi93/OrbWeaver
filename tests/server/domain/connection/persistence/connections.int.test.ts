@@ -9,7 +9,7 @@
 import { SUMMARIZE_CONCURRENCY_MAX } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { connectionBindings, userConnections } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import type { ConnectionBindingId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
@@ -22,7 +22,7 @@ import {
   listOwnedConnections,
   listOwnedLabels,
   updateOwnedConnection,
-} from "../../../../../packages/server/src/domain/connection/persistence/connections.ts";
+} from "#server/domain/connection/persistence/connections.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

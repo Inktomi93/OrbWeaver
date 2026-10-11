@@ -4,10 +4,10 @@ import { existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from "
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
-import { listProcesses, pnpmInvocation } from "@orb/tooling/_shared/platform";
-import { killPidGroup } from "@orb/tooling/_shared/proc";
-import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
-import { RUN_MARKER_ENV, runMarkerOwnerPid, sweepRunMarker } from "@orb/tooling/_shared/run-marker";
+import { listProcesses, pnpmInvocation } from "@orb/tooling/floor/host/platform";
+import { killPidGroup } from "@orb/tooling/floor/process/proc";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
+import { RUN_MARKER_ENV, runMarkerOwnerPid, sweepRunMarker } from "@orb/tooling/floor/process/run-marker";
 import { z } from "zod";
 import { devMarkerPreload, serverSpawnPlan } from "../../../../tooling/src/dev/lib/plan.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -24,7 +24,7 @@ for (const launcher of ["node", "pnpm"] as const) {
       const markerFile = join(scratch, "marker");
       const descendantFile = join(scratch, "descendant.json");
       const preload = join(scratch, "preload.mjs");
-      writeFileSync(preload, devMarkerPreload(markerFile, pathToFileURL(join(repoRoot, "tooling/src/_shared/run-marker.ts")).href));
+      writeFileSync(preload, devMarkerPreload(markerFile, pathToFileURL(join(repoRoot, "tooling/src/floor/process/run-marker.ts")).href));
       const descendant = join(scratch, "descendant.mjs");
       writeFileSync(
         descendant,

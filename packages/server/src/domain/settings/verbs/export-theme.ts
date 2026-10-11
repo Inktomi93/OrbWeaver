@@ -1,12 +1,12 @@
 // verb: exportTheme — read the owner's OWNED themes as a portable theme-backup file (the uniform export/import
 // portability template, §1 part 2). Owner-scoped: reads ONLY `themes` rows where `ownerId = ownerId`
 // (`listOwnedThemes` — seeds are code-authored, ownerId IS NULL, and never travel), projects each to the
-// id-less/owner-less `CanonicalTheme`, and hands the set to `#kit/serde/theme`'s `buildThemeBackup`. PURE read
+// id-less/owner-less `CanonicalTheme`, and hands the set to `#primitives/serde/theme`'s `buildThemeBackup`. PURE read
 // + serde — no db write, no audit (a read leaves no trace). `import-theme.ts` is the round-trip twin.
 
 import type { UserId } from "@orb/kit/ids";
-import type { CanonicalTheme } from "#kit/serde/theme";
-import { buildThemeBackup } from "#kit/serde/theme";
+import type { CanonicalTheme } from "#primitives/serde/theme";
+import { buildThemeBackup } from "#primitives/serde/theme";
 import type { SettingsPortableFile } from "../contract/portability.ts";
 import type { SettingsContext } from "../contract/service.ts";
 import { listOwnedThemes } from "../persistence/theme-queries.ts";

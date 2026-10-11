@@ -6,7 +6,7 @@
 // reads hidden. The span vocabulary itself belongs to `@orb/kit/content` and is pinned there.
 
 import { describe } from "vitest";
-import { stripHiddenDeep, stripHiddenForViewer } from "../../../../../packages/server/src/domain/rpg/substrate/hidden-spans.ts";
+import { stripHiddenDeep, stripHiddenForViewer } from "#server/domain/rpg/substrate/hidden-spans.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const HIDDEN = '<lie character="Mira" truth="she is the informant"/>';

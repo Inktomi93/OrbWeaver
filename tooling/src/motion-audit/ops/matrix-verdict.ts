@@ -2,10 +2,10 @@
 // Ordinary motion-audit zero-frame law stays untouched: this exception earns STATIC-EXPECTED only through
 // exact app/OS/device identity and a paired full-motion interaction that proves the trace can see frames.
 
-import { actualDeviceLabel, MOBILE_DEVICE } from "../../_shared/browser-environment.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import type { TimingEvidencePolicy } from "../../_shared/timing-capability.ts";
+import { actualDeviceLabel, MOBILE_DEVICE } from "../../floor/browser/browser-environment.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import type { TimingEvidencePolicy } from "../../floor/host/timing-capability.ts";
 import type { AuditData } from "../contract/types.ts";
 import type { MotionMatrixVariant, MotionStaticExpectedLink } from "./matrix-contract.ts";
 import { evaluateMotionAudit } from "./report.ts";

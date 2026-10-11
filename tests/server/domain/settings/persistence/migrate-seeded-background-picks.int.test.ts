@@ -25,7 +25,7 @@ import { assets, userSettings } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { migrateSeededBackgroundPicks } from "../../../../../packages/server/src/domain/settings/persistence/migrate-seeded-background-picks.ts";
+import { migrateSeededBackgroundPicks } from "#server/domain/settings/persistence/migrate-seeded-background-picks.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";

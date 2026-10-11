@@ -4,7 +4,7 @@
 // non-theme file is a refusal as words, never a blank theme.
 
 import { createSettingsService } from "@orb/server/domain/settings";
-import { buildThemeBackup } from "@orb/server/kit/serde/theme";
+import { buildThemeBackup } from "@orb/server/primitives/serde/theme";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

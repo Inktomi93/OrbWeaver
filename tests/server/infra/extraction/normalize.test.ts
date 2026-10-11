@@ -2,7 +2,7 @@
 // transforms every loader's output goes through: BOM strip, CRLF/CR → \n, NFC, 3+-blank-line collapse, and
 // the two invariants that keep the text canon (no intra-line trim, no case folding).
 
-import { normalizeText } from "../../../../packages/server/src/infra/extraction/normalize.ts";
+import { normalizeText } from "#server/infra/extraction/normalize.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const BOM = "\uFEFF";

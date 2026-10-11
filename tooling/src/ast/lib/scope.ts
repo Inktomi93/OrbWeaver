@@ -1,6 +1,6 @@
 // Scope normalization + validation (a zero-file scope is a tool error) + ownExports.
 import type { Node, SourceFile } from "ts-morph";
-import type { SourceCorpus } from "../../_shared/ts-workspace.ts";
+import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Scope } from "../contract/types.ts";
 import { exitToolError, noteScope } from "./ledger.ts";
 import { LEADING_SLASHES_RE, TEST_FILE_RE, TRAILING_SLASHES_RE, WORKSPACE_PACKAGES } from "./root.ts";

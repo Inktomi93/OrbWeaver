@@ -50,7 +50,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(356 registered gates)
+(359 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -268,7 +268,9 @@ in its own module header, never restated here.
 | `owner-scoped-upserts` | tenancy-scope | ordinary/error | @server | an onConflictDoUpdate upsert of an… |
 | `owner-scoped-writes` | tenancy-scope | ordinary/error | @server | an update/delete of an ownerId-scoped… |
 | `ownerid-registry` | drizzle-schema | hard/error | @db\* | a table stamps an ownerId column but… |
+| `package-deep-import` | — | hard/error | @client,@ui,@server,@db,@contracts,@kit,@inference | a parent-relative import climbs two… |
 | `package-layout` | — | reviewed-grant/error | @client,@ui,@db,@contracts,@kit,@inference | a loose .ts file (not index.ts) sits… |
+| `package-subpath-crossing` | — | reviewed-grant/error | @client,@ui,@server,@db,@contracts,@kit,@inference | a #src/ subpath reaches into another… |
 | `persist-partialize-and-total-migrate` | — | ordinary/error | @client\* | the mint factory's own persist()… |
 | `persisted-store-registry` | persistence-boundary | hard/error | @client | a persisted store name that is not in… |
 | `persistence-boundary` | — | reviewed-grant/error | @client | raw browser storage outside the… |
@@ -355,6 +357,7 @@ in its own module header, never restated here.
 | `testid-liveness` | — | ordinary/error | @packages,@showcase,@tests | dead test-id (UI-Gates-and-Lessons.md… |
 | `testid-liveness-health` | testid-liveness | hard/error | @client\* | testid-liveness read ZERO rows out of… |
 | `testid-typed-only` | — | ordinary/error | @client | freeform data-testid string — use the… |
+| `tests-package-subpath` | — | hard/error | @tests | a test reaches into a package's… |
 | `theme-override-only-via-scope` | — | reviewed-grant/error | @client,@ui | an inline style prop overrides a… |
 | `tokens-contract` | — | hard/error | none | the token vault violates the pinned… |
 | `tooling-argv-front-door` | process-member | reviewed-grant/error | @tooling | a second argv reader — the operator's… |

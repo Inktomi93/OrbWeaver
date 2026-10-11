@@ -7,8 +7,8 @@ import type { CompareAndSetImportedTokenUsage, ImportedTokenUsageCandidate, List
 import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats, messages, messageVariants } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { BatchStmt } from "@orb/db/query";
+import { batchMany } from "@orb/db/query";
 import type { UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, eq, gt, isNotNull, isNull } from "drizzle-orm";

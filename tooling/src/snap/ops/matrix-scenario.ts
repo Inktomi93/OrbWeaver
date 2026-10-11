@@ -2,8 +2,8 @@
 // This reconciler proves every derived cell still ran the complete named checkpoint population with
 // actual browser/settings evidence and, when requested, a durable per-cell manifest.
 
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { instrumentRefusal } from "../../_shared/page-validate.ts";
+import { instrumentRefusal } from "../../floor/browser/page-validate.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { SnapRunReceipt } from "../contract/run.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --matrix --scenario <json|preset>");

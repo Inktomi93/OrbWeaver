@@ -41,9 +41,9 @@ import type { RpgActorOp, RpgActorRef, RpgDateMode, RpgExtraction, RpgTrackerDef
 import { actorRefKey, actorTrackerWriteKeys, RPG_PROFILE_D20, rpgSheetSchema, rpgSnapshotStateSchema, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId, ChatTurnId, Handle, RpgGameId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { RpgGatherResult } from "../../../../packages/server/src/domain/rpg/contract/params.ts";
-import type { RpgParticipantActor } from "../../../../packages/server/src/domain/rpg/index.ts";
-import { RPG_DELTA_HEADING, RPG_SCENE_OPENS_HEADING } from "../../../../packages/server/src/domain/rpg/substrate/delta.ts";
+import type { RpgGatherResult } from "#server/domain/rpg/contract/params.ts";
+import type { RpgParticipantActor } from "#server/domain/rpg/index.ts";
+import { RPG_DELTA_HEADING, RPG_SCENE_OPENS_HEADING } from "#server/domain/rpg/substrate/delta.ts";
 import { freshDb } from "../../../support/db.ts";
 import { zodLeafPaths } from "../../../support/zod-leaf-paths.ts";
 import type { RpgHarness } from "./_support.ts";

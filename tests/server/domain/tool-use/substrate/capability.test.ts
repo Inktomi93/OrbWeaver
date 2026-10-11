@@ -7,7 +7,7 @@ import type { Can } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import { checkToolCapability } from "../../../../../packages/server/src/domain/tool-use/substrate/capability.ts";
+import { checkToolCapability } from "#server/domain/tool-use/substrate/capability.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { execOf } from "../_support.ts";
 

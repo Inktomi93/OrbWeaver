@@ -28,9 +28,9 @@ import type { AssetId, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids"
 import { castId } from "@orb/kit/ids";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
-import { imageryToolDefinitions } from "../../../../packages/server/src/domain/imagery/index.ts";
-import type { ImageryComposeDeps } from "../../../../packages/server/src/entry/compose/imagery.ts";
-import { buildImagery, createCharacterSeated } from "../../../../packages/server/src/entry/compose/imagery.ts";
+import { imageryToolDefinitions } from "#server/domain/imagery/index.ts";
+import type { ImageryComposeDeps } from "#server/entry/compose/imagery.ts";
+import { buildImagery, createCharacterSeated } from "#server/entry/compose/imagery.ts";
 import { freshDb } from "../../../support/db.ts";
 import { principal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";

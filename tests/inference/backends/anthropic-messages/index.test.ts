@@ -11,11 +11,11 @@
 import type { ProviderId } from "@orb/contracts/inference";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { castId } from "@orb/kit/ids";
-import { createAnthropicBackend } from "../../../../packages/inference/src/backends/anthropic-messages/index.ts";
-import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
-import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
-import type { StructuredRequest, SummarizeRequest } from "../../../../packages/inference/src/contract/roles.ts";
-import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
+import { createAnthropicBackend } from "#inference/backends/anthropic-messages/index.ts";
+import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "#inference/capability/synthesize.ts";
+import type { StructuredRequest, SummarizeRequest } from "#inference/contract/roles.ts";
+import type { InferenceLog } from "#inference/deps.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { wireSchema } from "../../../support/wire-ready.ts";
 import { fakeApiKeySecret, fakeResolved } from "../../_support.ts";

@@ -32,7 +32,7 @@
 // this module did not exist there, so it is measured against the module it was carved from, `testid-liveness` (blob
 // read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `07b1b7b19d` cited above is an
 // ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations resolve to this source.
-// Over the SAME 7,461 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`),
+// Over the SAME 7,461 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`),
 // legacy `scanRoot` admits 6,297 and final `population` admits 1. legacy − final = 6,296 `packages/*/src` +
 // `tests/**` sources other than `lib/test-ids.ts` — the shared liveness `scanRoot` this arm rode. final − legacy = ∅.
 // Controls: inside: no virtual sibling fits the exact-path population, so the real shared member

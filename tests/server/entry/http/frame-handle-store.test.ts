@@ -10,7 +10,7 @@ import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 // Deep-imported: the store is internal to the two frame registrars and deliberately not on the
 // `entry/http` front door (the `catalog-refresh-scheduler` test's spelling).
-import { createFrameHandleStore, FRAME_HANDLE_SHAPE, FRAME_HANDLE_TTL_MS } from "../../../../packages/server/src/entry/http/frame-handle-store.ts";
+import { createFrameHandleStore, FRAME_HANDLE_SHAPE, FRAME_HANDLE_TTL_MS } from "#server/entry/http/frame-handle-store.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 

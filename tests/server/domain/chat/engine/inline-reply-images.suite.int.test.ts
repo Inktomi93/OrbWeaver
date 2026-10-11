@@ -26,22 +26,15 @@ import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { buildWirePlan } from "../../../../../packages/inference/src/backends/v4/prompt.ts";
-import { drainStream } from "../../../../../packages/inference/src/backends/v4/stream.ts";
-import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
-import type {
-  ResolvedMediaRef,
-  TurnEconomics,
-  TurnMessage,
-  TurnPrep,
-  TurnRequest,
-  TurnStreamChunk,
-} from "../../../../../packages/server/src/domain/chat/contract/results.ts";
-import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine.ts";
-import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
-import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
-import { loadCanonContentSignatures, loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
-import { createPostNarratorMessage } from "../../../../../packages/server/src/domain/chat/verbs/post-narrator-message.ts";
+import { buildWirePlan } from "#inference/backends/v4/prompt.ts";
+import { drainStream } from "#inference/backends/v4/stream.ts";
+import type { ChatContext } from "#server/domain/chat/context.ts";
+import type { ResolvedMediaRef, TurnEconomics, TurnMessage, TurnPrep, TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
+import { createTurnEngine } from "#server/domain/chat/engine/engine.ts";
+import { loadWitnessHorizons } from "#server/domain/chat/memory/persistence/queries.ts";
+import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
+import { loadCanonContentSignatures, loadCanonHistory } from "#server/domain/chat/persistence/queries.ts";
+import { createPostNarratorMessage } from "#server/domain/chat/verbs/post-narrator-message.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeCapability, makeGenerationCapability, makeResolved, TEST_PROVIDER_ID } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

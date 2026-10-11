@@ -6,7 +6,7 @@
 // classify as a retryable server fault and be re-run).
 
 import type { Wire } from "@orb/contracts/inference";
-import { flattenAbortSignal } from "../backends/kit/abort-flatten.ts";
+import { flattenAbortSignal } from "../backends/http/abort-flatten.ts";
 import type { BackendRegistry, ProviderBackend } from "../contract/backend.ts";
 import { ProviderError } from "../contract/errors.ts";
 import type { Resolved } from "../contract/resolved.ts";

@@ -7,7 +7,7 @@
 //
 // FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaFact`), which owns
 // the column model this policy's nullability verdict rests on; the drizzle callee identity comes from the
-// other shared reader, `_shared/reference-fact.ts` (`resolveModuleMemberOrigin`). The POPULATION is this
+// other shared reader, `floor/code-facts/reference-fact.ts` (`resolveModuleMemberOrigin`). The POPULATION is this
 // policy's own rather than the provider's, because the SUBJECT is a query anywhere in the cake while the
 // FACT is the schema directory — the derivation and its measured delta are at
 // `NULLABLE_INEQUALITY_POPULATION` below.
@@ -18,7 +18,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `nullable-column-inequality` descriptor at 229652060f634f7172e9238af3ccc7064e4345b9, the parent of the conversion
 // `311379083c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,141 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// 7,141 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 6,114 and final `population` admits 6,113. legacy − final = {`packages/showcase-plugins/src/index.ts`} — the
 // one source of an authored package outside the declared composite roots (`@showcase` is not in
 // `@authored`/`@packages`, #1980, `contract/population.ts`); a one-file NARROWING. final − legacy = ∅. Controls:
@@ -26,7 +26,7 @@
 // `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
 import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import { resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaColumn, SchemaModel } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";

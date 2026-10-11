@@ -1,6 +1,6 @@
 // Terminal renderer for --map's atlas, shell topology, and scoped surface. Raw structured evidence stays
 // in the manifest; this is the bounded sight-unseen-agent view.
-import { print } from "../../_shared/artifacts.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
 import type { MapAtlasEvidence, MapEntry, MapShellEvidence } from "../contract/map.ts";
 import type { Args } from "../contract/types.ts";
 

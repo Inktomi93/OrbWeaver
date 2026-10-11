@@ -2,7 +2,7 @@
 // shapes are unresolved, while genuine runtime leaves are counted opaque and partial templates retain
 // the prefix proven before their first runtime substitution.
 
-import { resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
+import { resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { ImportClause, ImportDeclaration, SourceFile } from "ts-morph";
 import { Node, VariableDeclarationKind } from "ts-morph";
 import { evalComposerCall } from "./static-class-collections.ts";

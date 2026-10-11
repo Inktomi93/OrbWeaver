@@ -107,7 +107,8 @@
     "./z-scope": "./src/tokens/z-scope.ts"
   },
   "imports": {
-    "#*": "./src/*/index.ts"
+    "#*": "./src/*/index.ts",
+    "#src/*": "./src/*"
   },
   "scripts": {
     "tokens:build": "node tokens.build.ts"

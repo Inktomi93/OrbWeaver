@@ -7,11 +7,11 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { BOX_LOAD_ENV } from "@orb/tooling/_shared/load-budget";
-import { installOutputSink } from "@orb/tooling/_shared/log";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { installOutputSink } from "@orb/tooling/floor/cli/log";
+import { BOX_LOAD_ENV } from "@orb/tooling/floor/host/load-budget";
 import { beforeEach, vi } from "vitest";
-import { aggregateScope, factBatchId } from "../../../../tooling/src/_shared/artifact-scope.ts";
+import { aggregateScope, factBatchId } from "../../../../tooling/src/floor/artifacts/artifact-scope.ts";
 import { snapArmFact } from "../../../../tooling/src/snap/contract/run-facts.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { completeSnapRun, registerSnapFactBatch, registerSnapResultPairs } from "../../../../tooling/src/snap/ops/run-bundle.ts";
@@ -314,7 +314,7 @@ test("#1556/#1675 — the 4 KB budget measures the agent-readable body; the raci
   const file = join(scratch, "agent-readable-concurrency.html");
   await writeFile(file, FIXTURE);
 
-  // PLANTED RACING SLOT. The census in tooling/src/_shared/artifacts.ts calls a sibling slot live when its
+  // PLANTED RACING SLOT. The census in tooling/src/floor/artifacts/artifacts.ts calls a sibling slot live when its
   // `.inflight` marker names a pid that answers signal 0 — so a directory naming THIS vitest process is a
   // second live run as far as the next snap child is concerned, and it is deterministic where
   // co-scheduling two suites is not. If that marker name ever changes, the CONCURRENT assertion below goes

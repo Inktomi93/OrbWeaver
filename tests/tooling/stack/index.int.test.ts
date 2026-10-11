@@ -9,7 +9,7 @@ import { createServer } from "node:http";
 import { connect, createServer as createTcpServer } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
-import { processEnvValue } from "@orb/tooling/_shared/process-env";
+import { processEnvValue } from "@orb/tooling/floor/process/process-env";
 import type { LeaderRecord } from "../../../tooling/src/stack/index.ts";
 import { LEADER_RECORD_FILE, parseLeaderRecord, probeServedTransform, serializeLeaderRecord } from "../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";

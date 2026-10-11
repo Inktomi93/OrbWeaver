@@ -5,8 +5,8 @@
 // mirror).
 
 import { mirrorDraft, readDraftSeed } from "@orb/client/forms";
-import { entryDraftStore } from "../../../../../packages/client/src/features/world-info/lib/entry-draft-store.ts";
-import { NEW_ENTRY_FORM } from "../../../../../packages/client/src/features/world-info/lib/entry-editor-model.ts";
+import { entryDraftStore } from "#client/features/world-info/lib/entry-draft-store.ts";
+import { NEW_ENTRY_FORM } from "#client/features/world-info/lib/entry-editor-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("entry draft mirrors a form-value change and reads it back keyed by entityId", () => {

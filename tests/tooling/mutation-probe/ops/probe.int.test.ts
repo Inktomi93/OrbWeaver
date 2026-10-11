@@ -8,7 +8,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { probeMutants } from "../../../../tooling/src/mutation-probe/index.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import type { ToolFixtures } from "../../../support/tool-fixtures.ts";

@@ -846,7 +846,7 @@ void _greetingTransformsAreExhaustive;
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Custom parameters — Layer-1 boundary guard (schema). Layer-2 runtime defense (`deepMergeRequestBody`,
-// the ACTUAL defense) lives in `@orb/server/kit/custom-parameters`. Zod strips `__proto__` implicitly;
+// the ACTUAL defense) lives in `@orb/server/primitives/custom-parameters`. Zod strips `__proto__` implicitly;
 // `superRefine` here rejects `constructor`/`prototype` (which Zod does NOT strip) at every nested level.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -2403,7 +2403,7 @@ export type PromptConfig = z.infer<typeof promptConfigSchema>;
 // ── THE PIPELINE ORDER (the ONE declaration of what runs when) ─────────────────────────────────────
 // The order the prompt-side and reply-side transforms execute in is a FACT OF THE ENGINE, and it used to
 // live in two places that could not check each other: the executors (`domain/chat/engine/pipeline.ts`'s
-// `applyReceiveTransforms` + `@orb/server/kit/post-process`) and a hand-numbered list of rows in the
+// `applyReceiveTransforms` + `@orb/server/primitives/post-process`) and a hand-numbered list of rows in the
 // preset editor's Transforms readout. The list drifted, as a hand-numbered list of someone else's order
 // always does, and the readout printed FOUR untruths at once: `REASONING` before the post-process block
 // (the engine runs it after), the three receive switches in exactly reverse execution order, and

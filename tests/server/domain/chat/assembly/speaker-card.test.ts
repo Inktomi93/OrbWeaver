@@ -10,8 +10,8 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
-import { shapeContextForSpeaker, speakerCue, voiceContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card.ts";
-import { CHAT_OP_CODES } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
+import { shapeContextForSpeaker, speakerCue, voiceContextForSpeaker } from "#server/domain/chat/assembly/speaker-card.ts";
+import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);

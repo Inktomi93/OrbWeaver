@@ -11,9 +11,9 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { Surface } from "@orb/ui/layout";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
-import { useAppearanceRootEffects } from "../../../../packages/client/src/features/app-shell/hooks/use-appearance-root-effects.ts";
-import type { SeedThemeName } from "../../../../packages/client/src/state/appearance-boot-hint.ts";
-import type { PanelMode } from "../../../../packages/client/src/state/panel-resolve.ts";
+import { useAppearanceRootEffects } from "#client/features/app-shell/hooks/use-appearance-root-effects.ts";
+import type { SeedThemeName } from "#client/state/appearance-boot-hint.ts";
+import type { PanelMode } from "#client/state/panel-resolve.ts";
 
 /** Roughly a production list panel (346px, reports/side-eye-138/L1.log) — see the probe comment below. */
 const PANEL_PROBE_WIDTH = "346px";

@@ -158,7 +158,7 @@ test("the gate's own header states the spread-built/no-annotation limit — the 
 test("a second `cardFromJson` declaration in @server outside the canonical home is flagged", () => {
   const result = passOf(serdeCoreDefinitionUniqueness, {
     "packages/server/src/domain/import/substrate/dup.ts": "export function cardFromJson(raw: unknown): unknown { return raw; }\n",
-    "packages/server/src/kit/serde/card/index.ts":
+    "packages/server/src/primitives/serde/card/index.ts":
       "export function cardFromJson(raw: unknown, fallbackName: string): unknown { return raw; }\nexport function cardContentHash(): string { return ''; }\nexport function buildCardV3(): unknown { return {}; }\n",
   });
 
@@ -173,7 +173,7 @@ test("a same-named `cardFromJson` declared in packages/kit is OUT OF POPULATION 
   // policy's declared population is `@server` and the kit file is never admitted for it to read.
   // `serde-core-seal` (a different gate) is what would judge a kit-side fork, not this one.
   const result = passOf(serdeCoreDefinitionUniqueness, {
-    "packages/server/src/kit/serde/card/index.ts":
+    "packages/server/src/primitives/serde/card/index.ts":
       "export function cardFromJson(raw: unknown, fallbackName: string): unknown { return raw; }\nexport function cardContentHash(): string { return ''; }\nexport function buildCardV3(): unknown { return {}; }\n",
     "packages/kit/src/serde/card.ts": "export function cardFromJson(raw: unknown): unknown { return raw; }\n",
   });

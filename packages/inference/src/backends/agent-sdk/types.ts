@@ -4,16 +4,22 @@
 import type { query, SessionStore } from "@anthropic-ai/claude-agent-sdk";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type { ChatId, ModelId } from "@orb/kit/ids";
-import type { AgentSdkSessionTotals, SessionEntryWriter } from "../../contract/agent.ts";
-import type { WireCaptureSink } from "../../contract/backend.ts";
-import type { ChatResult, ContextUsage } from "../../contract/chat.ts";
-import type { ProviderScrubSet } from "../../contract/errors.ts";
-import type { ChatDeltaEvent, ChatEvent } from "../../contract/events.ts";
-import type { AgentSdkSessionId } from "../../contract/identity.ts";
-import type { ScheduleTimeout, SpawnIdentity } from "../../contract/runtime.ts";
-import type { InferenceLog } from "../../deps.ts";
-import type { PlannedResponseFormat } from "../../structured/plan.ts";
-import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
+import type {
+  AgentSdkSessionId,
+  AgentSdkSessionTotals,
+  ChatDeltaEvent,
+  ChatEvent,
+  ChatResult,
+  ContextUsage,
+  ProviderScrubSet,
+  ScheduleTimeout,
+  SessionEntryWriter,
+  SpawnIdentity,
+  WireCaptureSink,
+} from "#contract";
+import type { InferenceLog } from "#src/deps.ts";
+import type { PlannedResponseFormat } from "#structured";
+import type { NormalizeImageBytes } from "../wire/image-normalize.ts";
 import type { ClaudeRuntimeOverrides } from "./env.ts";
 import type { SeededSessionDecision } from "./session/index.ts";
 

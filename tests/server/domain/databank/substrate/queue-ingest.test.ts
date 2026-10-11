@@ -5,7 +5,7 @@
 import type { DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import { queueIngest } from "../../../../../packages/server/src/domain/databank/substrate/queue-ingest.ts";
+import { queueIngest } from "#server/domain/databank/substrate/queue-ingest.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const documentId = castId<DocumentId>("document_x");

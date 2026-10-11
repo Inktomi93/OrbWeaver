@@ -5,9 +5,9 @@
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { CREDENTIALS_OP_CODES } from "../../../../../packages/server/src/domain/credentials/contract/errors.ts";
-import { reloadView, requireStorage } from "../../../../../packages/server/src/domain/credentials/substrate/stored.ts";
-import { createSecretBox } from "../../../../../packages/server/src/infra/crypto/secrets.ts";
+import { CREDENTIALS_OP_CODES } from "#server/domain/credentials/contract/errors.ts";
+import { reloadView, requireStorage } from "#server/domain/credentials/substrate/stored.ts";
+import { createSecretBox } from "#server/infra/crypto/secrets.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, seedCredential, seedUser } from "../_support.ts";

@@ -10,7 +10,7 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { PluginNotDistributedError } from "@orb/server/domain/plugin";
-import { listDistributions } from "../../../../../packages/server/src/domain/plugin/persistence/distributed-plugins.ts";
+import { listDistributions } from "#server/domain/plugin/persistence/distributed-plugins.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";

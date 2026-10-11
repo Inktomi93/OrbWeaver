@@ -2,8 +2,8 @@
 // caller can navigate. Run arms are readers of this ring; they never add page listeners.
 import { errorMessage } from "@orb/kit/error-message";
 import type { BrowserContext, Page, Request, Response } from "@playwright/test";
-import type { ProbeContext, ProbeSession } from "../../_shared/browser-contract.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { ProbeContext, ProbeSession } from "../../floor/browser/browser-contract.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type {
   RequestBodyOutcome,
   RequestBodyRetentionReason,

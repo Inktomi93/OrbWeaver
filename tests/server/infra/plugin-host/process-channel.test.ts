@@ -1,5 +1,5 @@
-import { PluginIpcSender, parsePluginIpcMessage } from "../../../../packages/server/src/infra/plugin-host/process-channel.ts";
-import { PLUGIN_BROKER_MESSAGE_MAX_BYTES } from "../../../../packages/server/src/infra/plugin-host/process-protocol.ts";
+import { PluginIpcSender, parsePluginIpcMessage } from "#server/infra/plugin-host/process-channel.ts";
+import { PLUGIN_BROKER_MESSAGE_MAX_BYTES } from "#server/infra/plugin-host/process-protocol.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const GENERATION = "generation-for-channel";

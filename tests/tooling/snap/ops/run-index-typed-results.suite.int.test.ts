@@ -17,8 +17,8 @@ import {
   pageIndex,
   scopeMatches,
   scopeV1,
-} from "../../../../tooling/src/_shared/artifact-scope.ts";
-import { BROWSER_EVIDENCE_SOURCES, retentionBatch } from "../../../../tooling/src/_shared/browser-evidence-ring.ts";
+} from "../../../../tooling/src/floor/artifacts/artifact-scope.ts";
+import { BROWSER_EVIDENCE_SOURCES, retentionBatch } from "../../../../tooling/src/floor/browser/browser-evidence-ring.ts";
 import { snapRatePostureIdSchema } from "../../../../tooling/src/snap/contract/rate-posture.ts";
 import type { SnapRunFactBatch } from "../../../../tooling/src/snap/contract/run-facts.ts";
 import { parseSnapRunResults, SNAP_RUN_RESULTS_VERSION, snapArmFact } from "../../../../tooling/src/snap/contract/run-facts.ts";

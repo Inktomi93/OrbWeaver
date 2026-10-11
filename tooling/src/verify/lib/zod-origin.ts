@@ -5,7 +5,7 @@
 // different libraries under one name. Identity, never spelling: a project object spelled `z` is not zod.
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
-import { readMemberReference, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import { readMemberReference, resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import { declaredByPackage } from "./type-member-origin.ts";
 
 const ZOD_PACKAGE = "zod";

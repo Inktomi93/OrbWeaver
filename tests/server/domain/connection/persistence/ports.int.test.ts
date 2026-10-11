@@ -8,7 +8,7 @@ import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
 import { providerRows } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createConnectionPorts } from "../../../../../packages/server/src/domain/connection/persistence/ports.ts";
+import { createConnectionPorts } from "#server/domain/connection/persistence/ports.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

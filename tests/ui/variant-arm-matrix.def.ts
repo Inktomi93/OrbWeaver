@@ -33,7 +33,7 @@
 //   (settle observers, reveal scrolls), and ops/walker/** is under active rework by a sibling lane
 //   (cb-state-paint) this era. The suite instead gathers RAW facts itself (computed values only) and
 //   feeds the instrument's OWN judgment kernels — every threshold, exemption and composite lives in
-//   @orb/tooling (checks-* + _shared/wcag), never re-derived here. Where a rule's INPUT itself requires
+//   @orb/tooling (checks-* + floor/instrument/wcag), never re-derived here. Where a rule's INPUT itself requires
 //   walker-derived machinery (hit-extent probing, sanctioned-carrier tagging), the rule is WITHHELD by
 //   name rather than fed a forked derivation — see JUDGED/WITHHELD below.
 //
@@ -72,29 +72,29 @@
 //
 // Import direction: tests → @orb/tooling is legal (orchestrator-verified 2026-09-01; the imports:depcruise
 // stage cruises `packages tooling` only, and 38 tests/ precedents exist incl. tests/support/
-// pixel-contrast.ts importing @orb/tooling/_shared/wcag for exactly this kernel). tv objects are deep-
+// pixel-contrast.ts importing @orb/tooling/floor/instrument/wcag for exactly this kernel). tv objects are deep-
 // imported RELATIVELY from packages/ui/src (the @orb/ui exports map does not re-export variants; the
 // house precedent is tests/ui/stream/snap.test.ts:15). packages/ui/src stays READ-ONLY to this suite.
 
 import type { DesignAuditRuleId } from "@orb/tooling/ui-audit";
-import { badgeVariants } from "../../packages/ui/src/primitives/badge/variants.ts";
-import { buttonVariants } from "../../packages/ui/src/primitives/button/variants.ts";
-import { cardVariants } from "../../packages/ui/src/primitives/card/variants.ts";
-import { checkboxVariants } from "../../packages/ui/src/primitives/checkbox/variants.ts";
-import { colorFieldVariants } from "../../packages/ui/src/primitives/color-field/variants.ts";
-import { emptyStateVariants } from "../../packages/ui/src/primitives/empty-state/variants.ts";
-import { highlightedTextVariants } from "../../packages/ui/src/primitives/highlighted-text/variants.ts";
-import { inputVariants } from "../../packages/ui/src/primitives/input/variants.ts";
-import { kbdVariants } from "../../packages/ui/src/primitives/kbd/variants.ts";
-import { listRowVariants } from "../../packages/ui/src/primitives/list-row/variants.ts";
-import { pickerCellVariants } from "../../packages/ui/src/primitives/picker-cell/variants.ts";
-import { selectVariants } from "../../packages/ui/src/primitives/select/variants.ts";
-import { sliderVariants } from "../../packages/ui/src/primitives/slider/variants.ts";
-import { statusChipVariants } from "../../packages/ui/src/primitives/status-chip/variants.ts";
-import { switchVariants } from "../../packages/ui/src/primitives/switch/variants.ts";
-import { textVariants } from "../../packages/ui/src/primitives/text/variants.ts";
-import { textareaVariants } from "../../packages/ui/src/primitives/textarea/variants.ts";
-import { toggleVariants } from "../../packages/ui/src/primitives/toggle/variants.ts";
+import { badgeVariants } from "#ui/primitives/badge/variants.ts";
+import { buttonVariants } from "#ui/primitives/button/variants.ts";
+import { cardVariants } from "#ui/primitives/card/variants.ts";
+import { checkboxVariants } from "#ui/primitives/checkbox/variants.ts";
+import { colorFieldVariants } from "#ui/primitives/color-field/variants.ts";
+import { emptyStateVariants } from "#ui/primitives/empty-state/variants.ts";
+import { highlightedTextVariants } from "#ui/primitives/highlighted-text/variants.ts";
+import { inputVariants } from "#ui/primitives/input/variants.ts";
+import { kbdVariants } from "#ui/primitives/kbd/variants.ts";
+import { listRowVariants } from "#ui/primitives/list-row/variants.ts";
+import { pickerCellVariants } from "#ui/primitives/picker-cell/variants.ts";
+import { selectVariants } from "#ui/primitives/select/variants.ts";
+import { sliderVariants } from "#ui/primitives/slider/variants.ts";
+import { statusChipVariants } from "#ui/primitives/status-chip/variants.ts";
+import { switchVariants } from "#ui/primitives/switch/variants.ts";
+import { textVariants } from "#ui/primitives/text/variants.ts";
+import { textareaVariants } from "#ui/primitives/textarea/variants.ts";
+import { toggleVariants } from "#ui/primitives/toggle/variants.ts";
 // Imported beside the re-export below because shapes in THIS file use them (a bare `export … from`
 // re-exports without binding locally — the contract/samples.ts lesson).
 import type { StoryKey, ThemeArm } from "./variant-arm-matrix.keys.ts";
@@ -308,7 +308,7 @@ export interface ExpectedFinding {
 // disabled-axis run (#1016) measured a disabled Slider's label at 3.19:1 under light, the row pinned it
 // two-sided, and when the owning fix landed the SAME DAY (ARM B — the shared classifier now derives a
 // text's inactive kind from a control that NAMES it, and reads Base UI's [data-disabled] composite
-// spelling: tooling/src/_shared/wcag.ts) the row went RED exactly as designed — "EXPECTED-FINDING row no
+// spelling: tooling/src/floor/instrument/wcag.ts) the row went RED exactly as designed — "EXPECTED-FINDING row no
 // longer matches its defect", matched 0 of 3 — and was deleted in the fixing commit. That red IS the
 // mechanism working; a row that could not produce it would be an allowlist.
 //

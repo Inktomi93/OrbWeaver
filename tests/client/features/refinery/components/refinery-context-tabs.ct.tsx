@@ -12,7 +12,7 @@ import type { RefinerySchemaId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
+import { testId } from "#client/lib/test-ids.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { makeCharacterDetail } from "../../character/fixtures.ts";

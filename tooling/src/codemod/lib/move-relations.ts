@@ -1,6 +1,6 @@
 import { dirname, posix } from "node:path";
-import type { SemanticWorkspace } from "@orb/tooling/_shared/ts-workspace";
-import { canonicalCompilerPath } from "@orb/tooling/_shared/ts-workspace";
+import type { SemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
+import { canonicalCompilerPath } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { Project, SourceFile, StringLiteral } from "ts-morph";
 import { CodemodError } from "./errors.ts";
 import { repoRelative } from "./plans.ts";

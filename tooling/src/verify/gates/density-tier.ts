@@ -104,7 +104,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standing law §2.1, 2026-09-13, lane p-convert-density-tier).
 // Legacy `scanRoot: (p) => p.includes("packages/client/src/") || p.includes("packages/ui/src/")` becomes
 // `["@client", "@ui"]` = `packages/client/src/` + `packages/ui/src/`. Over the SAME 7,704 harness candidates
-// at `c2f07a4d25` (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy admits 1,687 and final
+// at `c2f07a4d25` (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy admits 1,687 and final
 // admits 1,687. legacy − final = ∅. final − legacy = ∅. The only change is that a substring match becomes
 // two anchored prefixes, and that distinction is empty on this tree. Controls: inside
 // `packages/client/src/features/__dtlane_in/probe.tsx` (virtual) admitted by both; outside

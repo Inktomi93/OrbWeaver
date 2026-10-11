@@ -1,6 +1,6 @@
 // Reviewed grants: db-structure-producer-home, dangling-ref-citations, duplicate-action-doors.
 // Split from reviewed-grants.ts — see that file for the central home comment.
-import { ACTION_DOOR_RULINGS, rulingOperation } from "../../_shared/action-door-rulings.ts";
+import { ACTION_DOOR_RULINGS, rulingOperation } from "../../floor/code-facts/action-door-rulings.ts";
 import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 export const REVIEWED_GRANTS_DBSTRUCTUREPRODUCERHOME_DANGLINGREFCITATIONS: readonly ReviewedGateGrant[] = [
@@ -191,10 +191,10 @@ export const REVIEWED_GRANTS_DBSTRUCTUREPRODUCERHOME_DANGLINGREFCITATIONS: reado
   // migration: a third door, a moved door, a swapped door or a pure RENAME changes the set, the row stops matching,
   // the finding is effective, and the orphaned row alarms stale.
   //
-  // THE ROWS ARE AUTHORED IN `_shared/action-door-rulings.ts` AND MAPPED HERE, which is the ONLY placement that
+  // THE ROWS ARE AUTHORED IN `floor/code-facts/action-door-rulings.ts` AND MAPPED HERE, which is the ONLY placement that
   // serves both readers: the `ast subset-callers` lens renders the same ruling, and a lens reading this table
   // through `verify/index.ts` closes a real import cycle (measured 2026-09-13: five `noImportCycles` errors, the
-  // loop being verify/index → ops/debt → … → ast/index → ops/subset-callers). `_shared` is the floor both tools
+  // loop being verify/index → ops/debt → … → ast/index → ops/subset-callers). `floor` is the floor both tools
   // read down into; the retired `DOORS_BASELINE_REL` sat there for exactly this reason. Consumption, staleness and
   // over-broad judgment remain entirely central.
   ...ACTION_DOOR_RULINGS.map(

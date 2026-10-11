@@ -12,7 +12,7 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "@orb/server/foundation/observability";
 import { beforeEach, vi } from "vitest";
-import { __resetImageSpaceDegrade, reportImageSpaceDegrade } from "../../../../../packages/server/src/domain/embeddings/substrate/image-space-degrade.ts";
+import { __resetImageSpaceDegrade, reportImageSpaceDegrade } from "#server/domain/embeddings/substrate/image-space-degrade.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("user_degrade_a");

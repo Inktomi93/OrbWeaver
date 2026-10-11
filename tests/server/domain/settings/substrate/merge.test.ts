@@ -4,7 +4,7 @@
 
 import type { AppSettings } from "@orb/contracts/settings";
 import { describe } from "vitest";
-import { deepMergeAppSettings, deepMergePlain } from "../../../../../packages/server/src/domain/settings/substrate/merge.ts";
+import { deepMergeAppSettings, deepMergePlain } from "#server/domain/settings/substrate/merge.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("deepMergeAppSettings", () => {

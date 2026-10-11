@@ -12,10 +12,10 @@ import type { ProcessMacroOptions } from "@orb/kit/macro";
 import type { RegexHistoryDepth } from "@orb/kit/regex";
 import { HISTORY_DEPTH_PLACEMENT } from "@orb/kit/regex";
 import { describe, vi } from "vitest";
-import { applyPromptHistoryRegex } from "../../../../../packages/server/src/domain/chat/assembly/history-regex.ts";
-import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
-import { shape } from "../../../../../packages/server/src/domain/chat/assembly/shape.ts";
-import { convertsToEmptyWireRow } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
+import { applyPromptHistoryRegex } from "#server/domain/chat/assembly/history-regex.ts";
+import { BEFORE_HISTORY_DEPTH } from "#server/domain/chat/assembly/injections.ts";
+import { shape } from "#server/domain/chat/assembly/shape.ts";
+import { convertsToEmptyWireRow } from "#server/domain/chat/substrate/wire-history.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 type ShapeArgs = Parameters<typeof shape>[0];

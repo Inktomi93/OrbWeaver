@@ -22,7 +22,7 @@ import type { ServicesResult } from "../../../packages/server/src/entry/compose/
 import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "../../../packages/server/src/entry/compose/index.ts";
 import { freshDb } from "../../../tests/support/db.ts";
 import { seedUser } from "../../../tests/support/factories/user.ts";
-import { execGit } from "../../../tooling/src/_shared/git.ts";
+import { execGit } from "../../../tooling/src/floor/git/git.ts";
 import { readEnvKey } from "../openrouter/_kit.ts";
 import type { PanelRead } from "./scenario.ts";
 import { FINAL_EXPECT, judge, NARRATOR_CARD, panelDiff, readPanel, SCENARIO_CONTROLS, SWIPE_CHECKS, SWIPE_SCRIPT, TRACKERS, TURNS } from "./scenario.ts";

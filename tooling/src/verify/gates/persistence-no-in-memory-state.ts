@@ -18,7 +18,7 @@
 // different constructor and passes, and only a door with no reachable target is reported.
 //
 // FAMILY `persistence-no-in-memory-state` — a declared SINGLETON. It is the only policy whose subject is an
-// AMBIENT GLOBAL constructor; the readers it consumes (`_shared/reference-fact.ts`'s global and module origin
+// AMBIENT GLOBAL constructor; the readers it consumes (`floor/code-facts/reference-fact.ts`'s global and module origin
 // resolvers, `lib/origin-verdict.ts`'s `classifyOriginRefusal`) are shared with policies asking entirely
 // different questions, and a shared reader is not a family (guide §2).
 //
@@ -27,7 +27,7 @@
 // final `PERSISTENCE_POPULATION` is that expression, and both exclusion clauses already carry rows.
 //
 // DECLARED LIMIT, §4.1 fourth outcome (UNFALSIFIABLE, with the construction attempted — #2046). The ambient
-// arm's `origin.value.memberPath.length === 0` half cannot be falsified: `_shared/reference-fact-global.ts`'s
+// arm's `origin.value.memberPath.length === 0` half cannot be falsified: `floor/code-facts/reference-fact-global.ts`'s
 // `appendMember` COLLAPSES `globalThis`/`self`/`window` member reads onto the bare global with an EMPTY
 // path, and every other receiver yields a `globalName` equal to the RECEIVER rather than to the member — so
 // `globalName === spelled.name` already implies an empty path. The one shape that would separate them is a
@@ -39,13 +39,13 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `persistence-no-in-memory-state` descriptor at de9a84d2560cc0c2ae9642f4f98144315cbaab53, the parent of the
 // conversion `76196db5d4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
-// the SAME 7,183 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// the SAME 7,183 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy
 // `scanRoot` admits 104 and final `population` admits 104. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/admin/persistence/__cbbhr_in_queries.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import { readMemberReference, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 

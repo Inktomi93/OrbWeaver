@@ -10,8 +10,8 @@
 import type { ChatIdentity } from "@orb/contracts/chat";
 import type { CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { MemberRowSources } from "../../../../../packages/client/src/features/chat/lib/member-rows.ts";
-import { rowAccessibleName, toCharacterRows, toPersonRows } from "../../../../../packages/client/src/features/chat/lib/member-rows.ts";
+import type { MemberRowSources } from "#client/features/chat/lib/member-rows.ts";
+import { rowAccessibleName, toCharacterRows, toPersonRows } from "#client/features/chat/lib/member-rows.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeParticipant } from "./_support.ts";
 

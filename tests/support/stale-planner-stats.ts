@@ -3,7 +3,7 @@
 
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
-import { chatRecencyExpr } from "@orb/db/kit";
+import { chatRecencyExpr } from "@orb/db/query";
 import { sql } from "drizzle-orm";
 
 /** Enough rows that a stale "4 rows" claim flips the recency subquery to a bare `SEARCH m`. */

@@ -6,7 +6,7 @@ import type { Db } from "@orb/db";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { buildGreetingSeed } from "../../../../../packages/server/src/domain/chat/substrate/greeting-seed.ts";
+import { buildGreetingSeed } from "#server/domain/chat/substrate/greeting-seed.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext } from "../_support.ts";

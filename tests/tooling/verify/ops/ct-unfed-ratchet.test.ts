@@ -17,7 +17,7 @@
 //     naming a CT file that is off the tree must RED (no run can ever retire it).
 // The GREEN control is here too: a baselined read that is still observed, in a file that ran and announced
 // itself, is silent — an assertion that can only fail is not a fence, it is a wall.
-import { parseBudgetMap } from "@orb/tooling/_shared/ratchet-rows";
+import { parseBudgetMap } from "@orb/tooling/floor/verdict/ratchet-rows";
 import type { UnfedRunObservation } from "../../../../tooling/src/verify/ops/ct-unfed-ratchet.ts";
 import { judgeUnfedReads, subjectOf } from "../../../../tooling/src/verify/ops/ct-unfed-ratchet.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";

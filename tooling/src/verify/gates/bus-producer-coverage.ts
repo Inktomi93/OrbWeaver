@@ -55,7 +55,7 @@
 // `defineGate`). The legacy descriptor had no `scanRoot`, so its effective population is its in-run path filter —
 // bus-coverage SPEC: contractsFile `/packages/contracts/src/chat/bus.ts`, emitScope
 // `/packages/server/src/(?:domain|transport|entry/compose)/`. Over the SAME 7,026 harness candidates at that tree
-// (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 1,220 and the final `population` admits 1,570
+// (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`) it admits 1,220 and the final `population` admits 1,570
 // (the bare harness dispatch was 7,026). legacy − final = ∅. final − legacy = 350 — every other `@contracts` source
 // (103) and the `@server` tiers outside `domain|transport|entry/compose` (247): the emit-scope regex left the
 // population for the shared `busProducerFact` (the 5→1 consolidation above). Controls: inside: the real shared member

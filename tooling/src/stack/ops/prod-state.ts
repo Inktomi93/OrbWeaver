@@ -3,11 +3,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { budget } from "@orb/tooling/_shared/load-budget";
-import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { listeningPids, socketTableOrThrow } from "../../_shared/platform.ts";
-import { DEV_PORTS } from "../../_shared/ports.ts";
+import { budget } from "@orb/tooling/floor/host/load-budget";
+import { print, REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { listeningPids, socketTableOrThrow } from "../../floor/host/platform.ts";
+import { DEV_PORTS } from "../../floor/host/ports.ts";
 import type { DebugPosture, InstanceClassification, ObservedInstance, ProdRecord } from "../contract/types.ts";
 import { envFilePath, parseEnvText, readEnvText } from "../lib/env-file.ts";
 import { classifyInstance } from "../lib/identity.ts";

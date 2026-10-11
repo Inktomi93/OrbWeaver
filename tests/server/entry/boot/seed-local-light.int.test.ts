@@ -10,7 +10,7 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSessionsService } from "@orb/server/domain/sessions";
 import { eq, sql } from "drizzle-orm";
-import { createLocalLightUserSeed, seedLocalLightOnBoot } from "../../../../packages/server/src/entry/boot/seed-local-light.ts";
+import { createLocalLightUserSeed, seedLocalLightOnBoot } from "#server/entry/boot/seed-local-light.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";

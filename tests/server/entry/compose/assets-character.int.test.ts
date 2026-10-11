@@ -25,7 +25,7 @@ import type { ConnectionBindingId, PersonaId, PresetId, UserId } from "@orb/kit/
 import { castId } from "@orb/kit/ids";
 import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { describe, vi } from "vitest";
-import { createPersonaSeedLatch } from "../../../../packages/server/src/entry/compose/assets-character.ts";
+import { createPersonaSeedLatch } from "#server/entry/compose/assets-character.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
 import { freshDb } from "../../../support/db.ts";
 import { seedUser } from "../../../support/factories/index.ts";

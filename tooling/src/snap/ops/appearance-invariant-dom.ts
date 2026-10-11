@@ -2,9 +2,9 @@
 // every match as sampled, skipped, occluded, or off-viewport and retains one measured representative.
 
 import type { Page } from "@playwright/test";
-import type { RuntimeAppearanceHistoricalRow } from "../../_shared/appearance-matrix.ts";
-import { splitPseudoSelector } from "../../_shared/css-pseudo-selector.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { RuntimeAppearanceHistoricalRow } from "../../floor/appearance/appearance-matrix.ts";
+import { splitPseudoSelector } from "../../floor/browser/css-pseudo-selector.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { AppearancePopulationAccounting, AppearanceSubjectReceipt } from "../contract/appearance-invariants.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --matrix");
@@ -95,7 +95,7 @@ interface BrowserSubjectPolicy {
   readonly selector: string;
   /** The selector a DOM query can run — the subject's selector minus a trailing pseudo carrier. */
   readonly host: string;
-  /** `::before`/`::after` when the subject IS the generated box, else null (`_shared/css-pseudo-selector.ts`).
+  /** `::before`/`::after` when the subject IS the generated box, else null (`floor/browser/css-pseudo-selector.ts`).
    *  Split NODE-SIDE because this census is serialized into the page and can import nothing. */
   readonly pseudo: string | null;
   readonly sample: "carrier" | "geometry" | "interactive" | "pixel";

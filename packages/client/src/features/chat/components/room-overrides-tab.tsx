@@ -15,9 +15,9 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { BackgroundSourceField } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { RoomOverridesForm } from "../components/room-overrides-form.tsx";
 import { useSetChatBackground, useSetRoomOverrides } from "../hooks/use-context-panel-mutations.ts";
 import { ROOM_OVERRIDES_ENTITY_PREFIX } from "../lib/room-overrides-form-model.ts";
+import { RoomOverridesForm } from "./room-overrides-form.tsx";
 
 export interface RoomOverridesTabProps {
   readonly chatId: ChatId;

@@ -11,7 +11,7 @@ import type { RefineryScorePayload, RefinerySelection } from "@orb/contracts/ref
 import { DEFAULT_REFINERY_STAGE_CONFIG, REFINERY_SESSION_STATUSES, REFINERY_STAGES } from "@orb/contracts/refinery";
 import type { Db } from "@orb/db";
 import { characters, refineryRuns, refinerySessions, users } from "@orb/db";
-import { isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/query";
 import type { CharacterHandle, CharacterId, Handle, ModelId, RefineryRunId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, desc, eq, sql } from "drizzle-orm";

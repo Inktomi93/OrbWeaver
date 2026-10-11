@@ -8,7 +8,7 @@ import type { CharacterHandle, CharacterId, CharacterSnapshotId, Handle, UserId 
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { CharacterOperationError } from "../../../../../packages/server/src/domain/character/contract/errors.ts";
+import { CharacterOperationError } from "#server/domain/character/contract/errors.ts";
 import {
   appendSnapshot,
   deleteOwnedCharacter,
@@ -17,9 +17,9 @@ import {
   restoreCardInPlace,
   setArchivedBulk,
   writeCardInPlace,
-} from "../../../../../packages/server/src/domain/character/persistence/card.ts";
-import { buildGroupCard } from "../../../../../packages/server/src/domain/character/substrate/group-character.ts";
-import { applyStatsDelta, bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
+} from "#server/domain/character/persistence/card.ts";
+import { buildGroupCard } from "#server/domain/character/substrate/group-character.ts";
+import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

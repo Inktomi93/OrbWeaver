@@ -10,7 +10,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { BACK_TO_PARENT_CHAT_LABEL } from "../../../../../packages/client/src/features/chat/lib/chat-options-names.ts";
+import { BACK_TO_PARENT_CHAT_LABEL } from "#client/features/chat/lib/chat-options-names.ts";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ChatForkMenuStory, ChatGameModeMenuStory, ChatOptionsMenuStory, ChatStartFailureMenuStory } from "../_ct-stories.tsx";

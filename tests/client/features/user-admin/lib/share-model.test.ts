@@ -4,7 +4,7 @@
 import type { AuthMode, RelayStatus } from "@orb/contracts/identity";
 import { AUTH_MODES, IP_CERTIFICATE_REFUSALS, RELAY_BINARY_REFUSALS, SHARE_REFUSALS } from "@orb/contracts/identity";
 import { describe } from "vitest";
-import type { ShareFactsView } from "../../../../../packages/client/src/features/user-admin/lib/share-model.ts";
+import type { ShareFactsView } from "#client/features/user-admin/lib/share-model.ts";
 import {
   canStartSharing,
   dismissLinkChange,
@@ -17,7 +17,7 @@ import {
   shareStartFailure,
   shareStatusPollMs,
   shareView,
-} from "../../../../../packages/client/src/features/user-admin/lib/share-model.ts";
+} from "#client/features/user-admin/lib/share-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const READY_LOCAL: ShareFactsView = { mode: "local", localMultiUser: true, discreetLogin: true, refusal: null };

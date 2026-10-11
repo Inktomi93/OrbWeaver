@@ -3,7 +3,7 @@
 
 import { lstatSync, realpathSync } from "node:fs";
 import { basename, dirname, isAbsolute, normalize, relative, resolve, sep } from "node:path";
-import { classifyTestFilename } from "@orb/tooling/_shared/test-kinds";
+import { classifyTestFilename } from "@orb/tooling/floor/testing/test-kinds";
 import type { OperationOptions, Plan } from "../contract/types.ts";
 import { CodemodError } from "./errors.ts";
 

@@ -17,7 +17,7 @@ import {
   CHARACTER_STALE_BASIS_COPY,
   characterMutationToast,
   characterRefusalCopy,
-} from "../../../../../packages/client/src/features/character/lib/character-refusal-notice.ts";
+} from "#client/features/character/lib/character-refusal-notice.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A tRPC client error as the formatter shapes it — the `data.reason` discriminator beside a domain message. */

@@ -5,7 +5,7 @@ import type { ImageCaptionMeta } from "@orb/contracts/embeddings";
 import { imageCaptionMetaSchema } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import { assets, embedGenerations, imageAnalyses, imageEmbeddings } from "@orb/db";
-import type { AwaitableBatchStmt } from "@orb/db/kit";
+import type { AwaitableBatchStmt } from "@orb/db/query";
 import type { AssetId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { and, eq, sql } from "drizzle-orm";
 import type { StoredImageAnalysis } from "../contract/results.ts";

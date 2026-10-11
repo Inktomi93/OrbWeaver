@@ -636,7 +636,7 @@ const VITEST_HEAD = /^\s*(?:npx\s+vitest|vitest|\S*node_modules\/\.bin\/vitest|p
 // A bare `node` gets heap_size_limit 4192 MiB and no NODE_OPTIONS; a `pnpm exec node` / `pnpm run` child
 // gets 16480 (pnpm-workspace.yaml `nodeOptions`). The ENTRY SPELLING decides the heap ceiling, and these
 // are the tools that need it: typed eslint, tsc, the in-process ts-morph verbs, stryker, jscpd, knip,
-// depcruise. The priority floor does NOT depend on the spelling (every _shared/proc.ts niced door lowers its
+// depcruise. The priority floor does NOT depend on the spelling (every floor/process/proc.ts niced door lowers its
 // child regardless of caller), so this rule is about the heap FLOOR, never politeness.
 // PRECISION, the guard's first law: only the spellings with NO floor at all are refused — `npx <tool>`,
 // `<path>/node_modules/.bin/<tool>`, and a bare `node <heavy script>`. EVERY `pnpm …` spelling passes
@@ -678,7 +678,7 @@ const VITEST_RUNNER_STAGE = /\bpnpm\s+(?:run\s+)?test:(?:scoped|node|tooling)\b/
 const CONCURRENCY_DOOR =
   SELF_CHECKOUT === null
     ? null
-    : await import(pathToFileURL(path.join(SELF_CHECKOUT, "tooling", "src", "_shared", "concurrency-profile.ts")).href).catch(() => null);
+    : await import(pathToFileURL(path.join(SELF_CHECKOUT, "tooling", "src", "floor", "host", "concurrency-profile.ts")).href).catch(() => null);
 let concurrencyCapsCache;
 /** `{ct, vitest}` as the door derives them for this machine, or null when it cannot answer — fail-open, like
  *  every other fact this guard derives from the tree. */
@@ -1577,7 +1577,7 @@ const PW_CLAUSE_HEAD = new RegExp(
 );
 // Playwright flags that take their value as a SEPARATE word. The rewritten `pnpm test:ct` runs
 // `scoped-test`, whose preflight reads every non-flag operand carrying a `/`
-// (or a test-file extension) as a PATH CLAIM (`_shared/scoped-run-paths.ts` isPathShaped) — so a forwarded
+// (or a test-file extension) as a PATH CLAIM (`floor/testing/scoped-run-paths.ts` isPathShaped) — so a forwarded
 // `--output reports/ct-out` or `-g chat/composer` turns a run that would have worked into exit 3
 // (UNRESOLVED) or exit 2 (BARREN). The `=`-joined spelling starts with `-` and is never read as a claim,
 // which is why the refusal names it instead of the rewrite silently mangling the run. An INCOMPLETE list

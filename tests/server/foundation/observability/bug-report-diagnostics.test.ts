@@ -4,9 +4,9 @@
 
 import { bugReportDiagnosticsSchema } from "@orb/contracts/diagnostics";
 import { beforeEach, describe } from "vitest";
-import { readBugReportDiagnostics } from "../../../../packages/server/src/foundation/observability/bug-report-diagnostics.ts";
-import { secretLiterals } from "../../../../packages/server/src/foundation/observability/debug/bug-report.ts";
-import { logRing } from "../../../../packages/server/src/foundation/observability/logger.ts";
+import { readBugReportDiagnostics } from "#server/foundation/observability/bug-report-diagnostics.ts";
+import { secretLiterals } from "#server/foundation/observability/debug/bug-report.ts";
+import { logRing } from "#server/foundation/observability/logger.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const AT = "2026-09-02T08:00:00.000Z";

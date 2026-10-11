@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
+import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
 
 const EXIT_CLEAN = 0;
 const EXIT_VIOLATIONS = 1;

@@ -1,5 +1,5 @@
 // THE VITEST SEAM of the ONE load policy (NOT a test file — no `.test` suffix, so test-layout ignores it,
-// the `_support.ts` precedent). The POLICY itself moved DOWN to `@orb/tooling/_shared/load-budget` on
+// the `_support.ts` precedent). The POLICY itself moved DOWN to `@orb/tooling/floor/host/load-budget` on
 // 2026-09-02 (#1232): the box reading, the factor, the
 // wall-clock `budget()`, the rate judgment, the two markers and the kill message are shared with the
 // INSTRUMENTS, the two runner configs and the stack launcher, and a policy that lives under `tests/` can
@@ -11,12 +11,12 @@
 //   • the CHILD RUNNERS (`runNodeWithBudget` / `runPnpmWithBudget` / `spawnNodeWithBudget`), the shape a
 //     tooling self-test uses to shell a real CLI and get a LEGIBLE kill instead of an opaque red. They are
 //     synchronous `execFileSync`/`spawnSync` doors built for a test body; the instruments spawn through
-//     `_shared/proc.ts` (the nice -19 floor), which now takes its own default from `budget()`.
+//     `floor/process/proc.ts` (the nice -19 floor), which now takes its own default from `budget()`.
 // The re-exports below are the seam's PUBLIC face for the 11 suites that already import from here — one
 // import site, one policy underneath.
 import { execFileSync, spawnSync } from "node:child_process";
 import process from "node:process";
-import type { BoxLoad, MeasurementVerdict } from "@orb/tooling/_shared/load-budget";
+import type { BoxLoad, MeasurementVerdict } from "@orb/tooling/floor/host/load-budget";
 import {
   boxLoadKnobError,
   budget,
@@ -25,10 +25,10 @@ import {
   LOAD_SUSPECT_META_KEY,
   loadKillError,
   readBoxLoad,
-} from "@orb/tooling/_shared/load-budget";
+} from "@orb/tooling/floor/host/load-budget";
 import type { TaskMeta } from "vitest";
-import type { TimingCapability } from "../../tooling/src/_shared/timing-capability.ts";
-import { timingCapability } from "../../tooling/src/_shared/timing-capability.ts";
+import type { TimingCapability } from "../../tooling/src/floor/host/timing-capability.ts";
+import { timingCapability } from "../../tooling/src/floor/host/timing-capability.ts";
 
 // THE VITEST DOOR for a mis-spelled planted-box knob (#1666). The policy module deliberately does NOT throw
 // on a bad `ORB_BOX_LOAD` — it is read inside instrument IMPORT GRAPHS, where a throw exits 1 ("violations")
@@ -41,7 +41,7 @@ if (knobError !== null) {
   throw new Error(knobError);
 }
 
-export type { BoxLoad, MeasurementVerdict } from "@orb/tooling/_shared/load-budget";
+export type { BoxLoad, MeasurementVerdict } from "@orb/tooling/floor/host/load-budget";
 export {
   computeLoadFactor,
   isJudgeableMeasurement,
@@ -52,7 +52,7 @@ export {
   LOAD_SUSPECT_MARKER,
   LOAD_SUSPECT_META_KEY,
   readBoxLoad,
-} from "@orb/tooling/_shared/load-budget";
+} from "@orb/tooling/floor/host/load-budget";
 
 // The reporter-visible channel for a LOAD-SUSPECT arm, declared where the label lives. `TaskMeta` is
 // vitest's own augmentation point and `meta` is a per-test field the json reporter serializes for a PASSING

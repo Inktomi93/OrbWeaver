@@ -9,7 +9,7 @@ import type { HookInput, HookJSONOutput, McpSdkServerConfigWithInstance, Options
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import { JsonSchemaLiftError, liftJsonSchema } from "@orb/kit/json-schema";
 import type { ZodRawShape } from "zod";
-import type { ToolCallInput, WireTool } from "../../contract/chat.ts";
+import type { ToolCallInput, WireTool } from "#contract";
 import type { AgentSdkLog } from "./log.ts";
 import { TERMINAL_MCP_NAMESPACE } from "./translate.ts";
 

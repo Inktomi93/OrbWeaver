@@ -5,10 +5,10 @@
 import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type { ImportService } from "../../../../../packages/server/src/domain/import/contract/service.ts";
-import { createImportChatBundle } from "../../../../../packages/server/src/domain/import/verbs/import-chat-bundle.ts";
-import { createImportChatFile } from "../../../../../packages/server/src/domain/import/verbs/import-chat-file.ts";
-import { createImportChats } from "../../../../../packages/server/src/domain/import/verbs/import-chats.ts";
+import type { ImportService } from "#server/domain/import/contract/service.ts";
+import { createImportChatBundle } from "#server/domain/import/verbs/import-chat-bundle.ts";
+import { createImportChatFile } from "#server/domain/import/verbs/import-chat-file.ts";
+import { createImportChats } from "#server/domain/import/verbs/import-chats.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import type { ProfileHarness } from "../_support.ts";
 import { makeProfileHarness } from "../_support.ts";

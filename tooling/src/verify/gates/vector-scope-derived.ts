@@ -15,7 +15,7 @@
 // (`lib/origin-verdict.ts`) — it had none, because before this it only ever acquitted.
 //
 // FAMILY `vector-scope-derived` — a declared SINGLETON. It is a THREE-ARM policy (import · write · cosine)
-// over one substrate, and no sibling shares an arm; `lib/sealed-origin.ts` and `_shared/reference-fact.ts` are
+// over one substrate, and no sibling shares an arm; `lib/sealed-origin.ts` and `floor/code-facts/reference-fact.ts` are
 // shared readers, which guide §2 says is not a family.
 //
 // POPULATION PORT: byte-identical, legacy at `02536f2f07^` (`scanRoot: (p) => SERVER_SRC.test(\`/\${p}\`)` —
@@ -26,13 +26,13 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `vector-scope-derived` descriptor at 4561cb18c483c15b9fc1dfed78777f70bbd958cb, the parent of the conversion
 // `02536f2f07` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
-// 7,186 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// 7,186 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 1,488 and final `population` admits 1,488. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../_shared/reference-fact.ts";
+import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { referenceNamesExport } from "../lib/origin-verdict.ts";
 import type { SealedHome } from "../lib/sealed-origin.ts";

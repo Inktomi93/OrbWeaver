@@ -1,7 +1,7 @@
 // substrate: mode — the mode classification guards + the multimodal→extraction fallback map.
 
 import { describe } from "vitest";
-import { extractionFallbackFor, isMultimodalMode } from "../../../../../packages/server/src/domain/imagery/substrate/mode.ts";
+import { extractionFallbackFor, isMultimodalMode } from "#server/domain/imagery/substrate/mode.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("mode classification", () => {

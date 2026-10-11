@@ -6,7 +6,7 @@ import type { ThemeDriftBucket } from "@orb/contracts/discovery";
 import type { CalendarPosition } from "@orb/kit/time";
 import { createTimeLib } from "@orb/kit/time";
 import { describe } from "vitest";
-import { localThemeDrift, localThemeTimeline } from "../../../../../packages/client/src/features/discovery/lib/story-time-folds.ts";
+import { localThemeDrift, localThemeTimeline } from "#client/features/discovery/lib/story-time-folds.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function at(timeZone: string): (epochMs: number) => CalendarPosition {

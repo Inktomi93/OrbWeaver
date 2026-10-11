@@ -1,6 +1,6 @@
 // .int tests for schema/character (D28 — flat card + opaque snapshot log). Real libSQL :memory: via
 // freshDb (FK PRAGMA ON). Covers: insert→select round-trip (branded id survives, always-a-list defaults),
-// the card-content JSON round-trips through the @orb/db/kit read-seam (greetings, extensions, residualData,
+// the card-content JSON round-trips through the @orb/db/query read-seam (greetings, extensions, residualData,
 // depthPrompt, refinery, a non-empty regexScripts), the snapshot opaque-blob round-trip, the CASCADE on character delete
 // (snapshots + character_personas junction both vanish), the per-owner unique(ownerId, handle) namespace
 // (same-owner dup collides → kind "unique"; a different owner with the same handle coexists), and the
@@ -9,7 +9,7 @@
 import type { CardDepthPrompt, CharacterCard, RefinerySignals } from "@orb/contracts/character";
 import type { Db } from "@orb/db";
 import { assets, characterPersonas, characterSnapshots, characters, personas } from "@orb/db";
-import { isConstraintViolation, parseRecord, parseStringArray, parseStringArrayColumn } from "@orb/db/kit";
+import { isConstraintViolation, parseRecord, parseStringArray, parseStringArrayColumn } from "@orb/db/query";
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -111,7 +111,7 @@ test("card-content JSON columns round-trip (greetings, extensions, residualData,
   expect(rows[0]?.creationDate).toBe(1_700_000_000);
   expect(rows[0]?.modificationDate).toBe(1_700_100_000);
   expect(rows[0]?.residualData).toEqual(DEFERRED_RESIDUAL);
-  // depthPrompt + refinery are nullable JSON blobs — round-trip through the @orb/db/kit read-seam parser.
+  // depthPrompt + refinery are nullable JSON blobs — round-trip through the @orb/db/query read-seam parser.
   expect(parseRecord(rows[0]?.depthPrompt)).toEqual(depthPrompt);
   expect(parseRecord(rows[0]?.refinery)).toEqual(refinery);
 });

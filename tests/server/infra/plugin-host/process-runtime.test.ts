@@ -10,10 +10,10 @@ import { createPluginHost, PLUGIN_MEMORY_LIMIT_BYTES } from "@orb/server/infra/p
 import { writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { unzipSync } from "fflate";
 import { afterEach, beforeAll, vi } from "vitest";
-import { env } from "../../../../packages/server/src/foundation/env/index.ts";
-import { __setEgressResolverForTest } from "../../../../packages/server/src/infra/network/egress.ts";
-import { PLUGIN_AUTHORITY_TAIL_CALLS_MAX, PLUGIN_AUTHORITY_TAIL_MS } from "../../../../packages/server/src/infra/plugin-host/budgets.ts";
-import { pluginBrokerExecArgv, pluginWatchdogExecArgv } from "../../../../packages/server/src/infra/plugin-host/process-permission.ts";
+import { env } from "#server/foundation/env/index.ts";
+import { __setEgressResolverForTest } from "#server/infra/network/egress.ts";
+import { PLUGIN_AUTHORITY_TAIL_CALLS_MAX, PLUGIN_AUTHORITY_TAIL_MS } from "#server/infra/plugin-host/budgets.ts";
+import { pluginBrokerExecArgv, pluginWatchdogExecArgv } from "#server/infra/plugin-host/process-permission.ts";
 import {
   __countLiveAuthorityTailsForTest,
   __hasManagedPluginBrokerForTest,
@@ -24,8 +24,8 @@ import {
   __pauseManagedPluginConnectChaseForTest,
   __readManagedPluginDirectoryForTest,
   __terminateManagedPluginBrokerForTest,
-} from "../../../../packages/server/src/infra/plugin-host/process-runtime.ts";
-import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "../../../../packages/showcase-plugins/src/index.ts";
+} from "#server/infra/plugin-host/process-runtime.ts";
+import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "#showcase-plugins/index.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const LONG = 30_000;

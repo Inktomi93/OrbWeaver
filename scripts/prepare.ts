@@ -20,7 +20,7 @@ if (!existsSync(join(process.cwd(), ".git"))) {
 // absolute lefthook path into them, so a disposable lane would own every checkout's hooks until it is removed.
 // The hooks already run a worktree's own lefthook.yml; only the main checkout installs them.
 // Imported here, past the no-.git exit, so a source archive never loads the tooling tree.
-const { runGit } = await import("../tooling/src/_shared/git.ts");
+const { runGit } = await import("../tooling/src/floor/git/git.ts");
 const gitDirs = runGit(process.cwd(), ["rev-parse", "--git-dir", "--git-common-dir"]).stdout.trim().split(/\r?\n/u);
 if (gitDirs.length === 2 && resolve(gitDirs[0] ?? "") !== resolve(gitDirs[1] ?? "")) {
   console.log("linked worktree: the main checkout owns the shared git hooks. Skipping lefthook install.");

@@ -5,11 +5,11 @@ import { createHash } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, statSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
-import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
-import { HOST_POOL_ROOT_ENV, hostPoolDir } from "@orb/tooling/_shared/host-slots";
-import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
-import { TS7_SLOT_BUSY_EXIT } from "@orb/tooling/_shared/ts7-admission";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
+import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
+import { HOST_POOL_ROOT_ENV, hostPoolDir } from "@orb/tooling/floor/host/host-slots";
+import { TS7_SLOT_BUSY_EXIT } from "@orb/tooling/floor/host/ts7-admission";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 

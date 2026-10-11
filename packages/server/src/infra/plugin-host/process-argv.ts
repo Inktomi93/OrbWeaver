@@ -1,5 +1,5 @@
-import type { NodeEnvironment } from "../../kit/node-environment.ts";
-import { NODE_ENVIRONMENTS } from "../../kit/node-environment.ts";
+import type { NodeEnvironment } from "#primitives/node-environment";
+import { NODE_ENVIRONMENTS } from "#primitives/node-environment";
 import type { PluginBrokerArguments, PluginBrokerWatchdogArguments } from "./contract/process-protocol.ts";
 
 const ARGUMENT_COUNT = 4;

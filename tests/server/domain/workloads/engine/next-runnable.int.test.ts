@@ -6,8 +6,8 @@
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { nextRunnableWorkload } from "../../../../../packages/server/src/domain/workloads/engine/next-runnable.ts";
-import { emitWorkloadEvent, getRecentWorkloadEvents } from "../../../../../packages/server/src/domain/workloads/engine/progress-bus.ts";
+import { nextRunnableWorkload } from "#server/domain/workloads/engine/next-runnable.ts";
+import { emitWorkloadEvent, getRecentWorkloadEvents } from "#server/domain/workloads/engine/progress-bus.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { fakeContributions, seedWorkloadRow, T0 } from "../_support.ts";

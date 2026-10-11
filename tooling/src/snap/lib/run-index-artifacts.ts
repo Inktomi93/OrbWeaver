@@ -1,7 +1,7 @@
 // Pure validation of immutable run-index artifact rows and every cross-record artifact reference.
 import { dirname, isAbsolute, resolve } from "node:path";
-import { instrumentArtifactCompletenessSchema, instrumentArtifactRoleSchema } from "../../_shared/artifact-out.ts";
-import { artifactRefSchema, instrumentCurrentScopeSchema, instrumentEvidenceScopeSchema } from "../../_shared/artifact-scope.ts";
+import { instrumentArtifactCompletenessSchema, instrumentArtifactRoleSchema } from "../../floor/artifacts/artifact-out.ts";
+import { artifactRefSchema, instrumentCurrentScopeSchema, instrumentEvidenceScopeSchema } from "../../floor/artifacts/artifact-scope.ts";
 import { ARMS } from "../contract/arm-vocabulary.ts";
 import type { SnapRunArtifact, SnapRunIndex } from "../contract/run-index.ts";
 

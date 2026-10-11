@@ -11,12 +11,12 @@
 import type { WorkloadProgress } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { describe, vi } from "vitest";
-import type { WorkloadContribution } from "../../../../../packages/server/src/domain/workloads/contract/contribution.ts";
-import type { WorkloadRunnerDeps } from "../../../../../packages/server/src/domain/workloads/contract/service.ts";
-import { getRecentWorkloadEvents } from "../../../../../packages/server/src/domain/workloads/engine/progress-bus.ts";
-import { reapOrphanedWorkloads } from "../../../../../packages/server/src/domain/workloads/engine/reaper.ts";
-import { runWorkload } from "../../../../../packages/server/src/domain/workloads/engine/runner.ts";
-import { loadWorkload, loadWorkloadStatus, markTerminal } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
+import type { WorkloadContribution } from "#server/domain/workloads/contract/contribution.ts";
+import type { WorkloadRunnerDeps } from "#server/domain/workloads/contract/service.ts";
+import { getRecentWorkloadEvents } from "#server/domain/workloads/engine/progress-bus.ts";
+import { reapOrphanedWorkloads } from "#server/domain/workloads/engine/reaper.ts";
+import { runWorkload } from "#server/domain/workloads/engine/runner.ts";
+import { loadWorkload, loadWorkloadStatus, markTerminal } from "#server/domain/workloads/persistence/queries.ts";
 import { createManualTimer } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

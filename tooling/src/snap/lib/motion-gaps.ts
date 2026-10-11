@@ -1,7 +1,7 @@
 // snap/lib/motion-gaps — the motion arm's evidence GAPS and its load LABEL, pure over the rate posture and the
 // argv-ordered action queue. Split out of ops/arms/motion.ts at the tooling-size cap (Core-Tooling-Law §4.3) when
 // #1616 turned load from a gap into a label; nothing here touches a browser or a file.
-import type { EvidenceGap } from "../../_shared/evidence.ts";
+import type { EvidenceGap } from "../../floor/verdict/evidence.ts";
 import type { SnapAction, Step } from "../contract/actions.ts";
 import type { Args } from "../contract/types.ts";
 import type { SnapRatePosture } from "./rate-posture.ts";

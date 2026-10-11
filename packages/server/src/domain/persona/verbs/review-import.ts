@@ -4,7 +4,14 @@
 
 import type { PersonaCollision } from "@orb/contracts/import";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { differingPersonaFields, findDuplicatePersona, findNameCollision, foldPersonaName, mintPersonaName, personaPlacementOf } from "#kit/serde/persona";
+import {
+  differingPersonaFields,
+  findDuplicatePersona,
+  findNameCollision,
+  foldPersonaName,
+  mintPersonaName,
+  personaPlacementOf,
+} from "#primitives/serde/persona";
 import type { PersonaContext } from "../context.ts";
 import type { ReviewPersonaImportParams } from "../contract/params.ts";
 import type { PersonaService } from "../contract/service.ts";

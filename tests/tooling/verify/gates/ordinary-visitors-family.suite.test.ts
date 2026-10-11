@@ -150,7 +150,8 @@ test("untrusted-regex-safe-exec REFUSES when the canonical composition seam disa
 
 test("untrusted-regex-safe-exec is not laundered by a SAFE seam in another compose module", () => {
   const laundered = passOf(untrustedRegexSafeExec, {
-    "packages/server/src/kit/regex/index.ts": "export declare function createRegexTest(timeoutMs?: number): (regex: RegExp, haystack: string) => boolean;\n",
+    "packages/server/src/primitives/regex/index.ts":
+      "export declare function createRegexTest(timeoutMs?: number): (regex: RegExp, haystack: string) => boolean;\n",
     "packages/server/src/entry/compose/chat.ts": "export const unrelated = 1;\n",
     "packages/server/src/entry/compose/other.ts":
       'import { createRegexTest } from "../../kit/regex/index.ts";\nexport const other = { testRegexKey: createRegexTest() };\n',

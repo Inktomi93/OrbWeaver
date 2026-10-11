@@ -1,6 +1,6 @@
 // Snap's diff/verdict result shapes. They are split from the argv-heavy Args contract so adding one
 // instrument cannot push the shared public type door back over the tooling-size cap.
-import type { ResultPair } from "../../_shared/artifacts.ts";
+import type { ResultPair } from "../../floor/artifacts/artifacts.ts";
 
 export interface DiffOutcome {
   readonly diffPairs: ResultPair[];

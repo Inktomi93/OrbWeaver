@@ -17,10 +17,10 @@
 // rather than silently serving an older file.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { formatRunProvenance, pointerAdvisories, resolvePointer, slotCensus } from "@orb/tooling/_shared/artifact-pointer";
-import { instrumentRunsDir } from "@orb/tooling/_shared/artifacts";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { UsageError } from "@orb/tooling/_shared/run-tool";
+import { formatRunProvenance, pointerAdvisories, resolvePointer, slotCensus } from "@orb/tooling/floor/artifacts/artifact-pointer";
+import { instrumentRunsDir } from "@orb/tooling/floor/artifacts/artifacts";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { UsageError } from "@orb/tooling/floor/cli/run-tool";
 import type { StageResult, VerifyReport } from "../contract/stage.ts";
 import { VERIFY_INSTRUMENT, VERIFY_REPORT_NAME } from "../contract/stage.ts";
 import { aggregateExit } from "./exit-classifiers.ts";

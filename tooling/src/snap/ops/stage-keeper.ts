@@ -37,12 +37,12 @@ import { dirname } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { print } from "../../_shared/artifacts.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { ExitCode } from "../../_shared/exit-contract.ts";
-import { EXIT } from "../../_shared/exit-contract.ts";
-import { spawnNicedChild } from "../../_shared/proc.ts";
-import { pidAlive } from "../../_shared/run-retention.ts";
+import { print } from "../../floor/artifacts/artifacts.ts";
+import { pidAlive } from "../../floor/artifacts/run-retention.ts";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { ExitCode } from "../../floor/cli/exit-contract.ts";
+import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { spawnNicedChild } from "../../floor/process/proc.ts";
 import type { StageKeeperEvidence, StageRow, StageStopVerdict } from "../contract/stage.ts";
 import {
   keeperPollMs,
@@ -82,7 +82,7 @@ export function armStageKeeper(home: string, row: StageRow): StageRow {
   if (stageKeeperAlive(row)) {
     return row;
   }
-  // A LOG FILE, NEVER A PIPE, and the reason is the launcher as much as the child (`_shared/proc.ts`
+  // A LOG FILE, NEVER A PIPE, and the reason is the launcher as much as the child (`floor/process/proc.ts`
   // `spawnNicedChild`): with no `logPath` the child gets `["ignore","pipe","pipe"]`, and (a) the keeper's
   // first write after this snap call exits would be EPIPE — losing the one line #1163 asks it to print —
   // while (b) the parent's stream handles stay referenced, so `child.unref()` alone does NOT let a short

@@ -24,7 +24,7 @@
 //   typecheck-plan ops/typecheck-plan.ts (mode + file paths + optional JSON)
 //   typecheck     ops/typecheck.ts (zero or more repeated --config selectors)
 //   eslint-scoped ops/eslint.ts    (one or more paths, never a flag)
-import { UsageError } from "../../_shared/run-tool.ts";
+import { UsageError } from "../../floor/cli/run-tool.ts";
 import type { VerifyVerb } from "../contract/verbs.ts";
 
 /** `own` — the verb's own parse module refuses what it doesn't know; the object form — the verb takes NO

@@ -2,7 +2,7 @@
 // result. Part of the uniform portability template (W-worldinfo): the
 // per-book primitive the delivery-core registry descriptor composes into its `exportAll` stream. PURE-READ +
 // serde: it reads the owner's `world_books` row + `world_entries` → the canonical `BulkImportLorebookInput`
-// and emits the portable `worlds/*.json` file via `#kit/serde/world-info` `buildWorldBookFile`. Owner-scoped
+// and emits the portable `worlds/*.json` file via `#primitives/serde/world-info` `buildWorldBookFile`. Owner-scoped
 // (a foreign / absent book returns null — the leak-free posture of the owner-scoped book reads). Homed under
 // `contract/` (types-in-contract / no-context-returntype); explicit interfaces, never a `ReturnType<>`.
 
