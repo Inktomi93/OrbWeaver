@@ -24,7 +24,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { TrpcFixtureOutput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
 /** The CONTENT pane — the box whose height the windowed arm now inherits. */
@@ -97,7 +97,7 @@ function stub(
   page: Page,
   scripts: TrpcFixtureOutput<"regex.listScripts"> = [SCRIPT],
   books: readonly (typeof BOOK)[] = [BOOK],
-  failFirstBookCreate = false,
+  bookCreate: { readonly failFirst?: boolean; readonly hold?: ReturnType<typeof trpcHold> } = {},
 ): Promise<TrpcRecorder> {
   let bookCreates = 0;
   return routeTrpc(page, {
@@ -114,7 +114,7 @@ function stub(
     // The BOOK EDITOR's own two reads — the drill-row pin below opens a book, and an unstubbed suspense
     // read resolves `null` and throws INSIDE the boundary, which reads as "the header is missing".
     "worldInfo.getBook": () => BOOK_DETAIL,
-    "worldInfo.createBook": () => (failFirstBookCreate && bookCreates++ === 0 ? trpcError() : BOOK_DETAIL),
+    "worldInfo.createBook": () => bookCreate.hold ?? (bookCreate.failFirst === true && bookCreates++ === 0 ? trpcError() : BOOK_DETAIL),
     "regex.createScript": () => SCRIPT,
     "worldInfo.listEntries": () => [],
     "persona.list": () => [],
@@ -278,7 +278,7 @@ test("New book swaps for an inline name field: Escape cancels and clears, a fail
   mount,
   page,
 }) => {
-  const trpc = await stub(page, [SCRIPT], [BOOK], true);
+  const trpc = await stub(page, [SCRIPT], [BOOK], { failFirst: true });
   const workspace = await mount(<ConfigHostStory height={900} target="worldInfo" width={INTERACTIVE_WIDTH} />);
   const row = workspace.locator(CONTROL_ROW);
   const field = row.getByRole("textbox", { name: "Book name" });
@@ -334,4 +334,25 @@ test("New script asks for a name inline and creates the script under it", async 
   await row.getByRole("textbox", { name: "Script name" }).fill("Strip OOC");
   await row.getByRole("button", { name: "Create" }).click();
   await expect.poll(() => (trpc.lastInput("regex.createScript") as { input: { name: string } } | undefined)?.input.name).toBe("Strip OOC");
+});
+
+test("a create in flight cannot be submitted twice: Enter then Create makes exactly one request", async ({ mount, page }) => {
+  const hold = trpcHold();
+  const trpc = await stub(page, [SCRIPT], [BOOK], { hold });
+  const workspace = await mount(<ConfigHostStory height={900} target="worldInfo" width={INTERACTIVE_WIDTH} />);
+  const row = workspace.locator(CONTROL_ROW);
+
+  await row.getByRole("button", { name: "New book" }).click();
+  const field = row.getByRole("textbox", { name: "Book name" });
+  await field.fill("Twice");
+  await field.press("Enter");
+  await hold.requested;
+  await expect(row.getByRole("button", { name: "Create" })).toBeDisabled();
+  // A forced click and a second Enter both land on a disabled / guarded control.
+  await row.getByRole("button", { name: "Create" }).click({ force: true });
+  await field.press("Enter");
+
+  hold.release(BOOK_DETAIL);
+  await expect(field).toHaveCount(0);
+  await expect.poll(() => trpc.count("worldInfo.createBook")).toBe(1);
 });

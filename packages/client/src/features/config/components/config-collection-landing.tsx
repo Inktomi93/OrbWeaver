@@ -190,6 +190,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
   const run = useRun();
   const [asking, setAsking] = useState(false);
   const [name, setName] = useState("");
+  const [pending, setPending] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   useFocusOnSwap(nameRef, asking);
   const trimmed = name.trim();
@@ -215,8 +216,9 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
       noValidate={true}
       onSubmit={(event): void => {
         event.preventDefault();
-        if (trimmed !== "") {
-          run(trimmed, cancel);
+        if (trimmed !== "" && !pending) {
+          setPending(true);
+          run(trimmed, cancel, (): void => setPending(false));
         }
       }}
     >
@@ -233,7 +235,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
           ref={nameRef}
           value={name}
         />
-        <Button disabled={trimmed === ""} intent="primary" type="submit" {...(inBand ? { size: "sm" as const } : {})}>
+        <Button disabled={trimmed === "" || pending} intent="primary" type="submit" {...(inBand ? { size: "sm" as const } : {})}>
           Create
         </Button>
         <Button intent="ghost" onClick={cancel} type="button" {...(inBand ? { size: "sm" as const } : {})}>
