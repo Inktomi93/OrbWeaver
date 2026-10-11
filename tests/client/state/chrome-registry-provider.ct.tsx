@@ -10,5 +10,5 @@ test("ChromeRegistryProvider renders children and delivers the registry to a nes
   const out = probe.locator("output");
   await expect(out).toBeVisible();
   // All three registered widgets reached the consumer — the provider delivered the full registry.
-  await Promise.all(["notifications-bell", "fullscreen-toggle", "context-toggle"].map((id) => expect(out).toContainText(id)));
+  await Promise.all(["notifications-bell", "context-toggle"].map((id) => expect(out).toContainText(id)));
 });

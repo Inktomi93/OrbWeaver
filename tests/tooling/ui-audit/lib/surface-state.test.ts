@@ -11,13 +11,7 @@
 
 import process from "node:process";
 import type { ShellStateSnapshot } from "../../../../tooling/src/ui-audit/index.ts";
-import {
-  buildSurfaceStateAccounting,
-  DRIVE_STATE_SPACE,
-  FOCUS_STATE_SPACE,
-  PANEL_MODE_SPACE,
-  surfaceStateAxisLabel,
-} from "../../../../tooling/src/ui-audit/index.ts";
+import { buildSurfaceStateAccounting, DRIVE_STATE_SPACE, PANEL_MODE_SPACE, surfaceStateAxisLabel } from "../../../../tooling/src/ui-audit/index.ts";
 import { surfaceStateRows } from "../../../../tooling/src/ui-audit/lib/result-rows.ts";
 import { printSurfaceState } from "../../../../tooling/src/ui-audit/ops/report.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -30,7 +24,6 @@ function shell(overrides: Partial<ShellStateSnapshot> = {}): ShellStateSnapshot 
       { side: "context", mode: "collapsed", available: true },
     ],
     chatOpen: false,
-    focus: false,
     ...overrides,
   };
 }
@@ -45,26 +38,16 @@ test("a mounted shell judges exactly the observed mode and withholds the rest of
 
   expect(accounting.panelContext.judged).toBe(1);
   expect(accounting.panelContext.withheld).toEqual({ docked: 1, overlay: 1 });
-
-  expect(accounting.focus.candidates).toBe(FOCUS_STATE_SPACE.length);
-  expect(accounting.focus.judged).toBe(1);
-  expect(accounting.focus.withheld).toEqual({ on: 1 });
-});
-
-test("a mounted shell with focus ON withholds off, not on", () => {
-  const accounting = buildSurfaceStateAccounting(shell({ focus: true }), "rest");
-  expect(accounting.focus.withheld).toEqual({ off: 1 });
 });
 
 test("no shell mounted at all EXCLUDES every axis wholesale — a proven fact, not a guess", () => {
   const accounting = buildSurfaceStateAccounting(null, "rest");
 
-  for (const census of [accounting.panelList, accounting.panelContext, accounting.focus]) {
+  for (const census of [accounting.panelList, accounting.panelContext]) {
     expect(census.judged).toBe(0);
     expect(census.withheld).toEqual({});
   }
   expect(accounting.panelList.excluded).toEqual({ "no-shell-mounted": PANEL_MODE_SPACE.length });
-  expect(accounting.focus.excluded).toEqual({ "no-shell-mounted": FOCUS_STATE_SPACE.length });
 });
 
 test("a shell snapshot with an empty section and no panels is treated as unmounted", () => {
@@ -91,9 +74,9 @@ test("axis labels: withheld for the ordinary single-run case, excluded when the 
 });
 
 test("every axis's own accounting settles under assertCensusAccounting's invariant — candidates = judged + withheld + excluded", () => {
-  for (const snapshot of [shell(), shell({ focus: true }), null, shell({ panels: [] })]) {
+  for (const snapshot of [shell(), null, shell({ panels: [] })]) {
     const accounting = buildSurfaceStateAccounting(snapshot, "rest");
-    for (const census of [accounting.panelList, accounting.panelContext, accounting.focus, accounting.drive]) {
+    for (const census of [accounting.panelList, accounting.panelContext, accounting.drive]) {
       const withheldTotal = Object.values(census.withheld).reduce((a, b) => a + b, 0);
       const excludedTotal = Object.values(census.excluded).reduce((a, b) => a + b, 0);
       expect(census.candidates).toBe(census.judged + withheldTotal + excludedTotal);
@@ -117,7 +100,6 @@ test("the drive axis judges the regime this run measured and withholds the one i
 test("an unmounted shell excludes every SHELL axis but still JUDGES the drive regime — it is an argv fact", () => {
   const accounting = buildSurfaceStateAccounting(null, "driven");
   expect(accounting.panelList.excluded).toEqual({ "no-shell-mounted": PANEL_MODE_SPACE.length });
-  expect(accounting.focus.excluded).toEqual({ "no-shell-mounted": FOCUS_STATE_SPACE.length });
   expect(accounting.drive.excluded).toEqual({});
   expect(accounting.drive.judged).toBe(1);
   expect(surfaceStateAxisLabel(accounting.drive)).toBe("withheld");
@@ -152,25 +134,17 @@ test("#1122 a section that declares BOTH panes unavailable EXCLUDES both panel a
   }
 });
 
-test("#1122 …and FOCUS goes with them: on a section with zero panes the shell ships no focus toggle at all", () => {
-  const accounting = buildSurfaceStateAccounting(paneless(), "rest");
-  expect(accounting.focus.judged).toBe(0);
-  expect(accounting.focus.excluded).toEqual({ sectionDeclaresNoPanes: FOCUS_STATE_SPACE.length });
-  expect(surfaceStateAxisLabel(accounting.focus)).toBe("excluded");
-});
-
 // THE PLANTED CONTROL IN THE OTHER DIRECTION — without it, "excluded" would also pass on a tree where the
 // withheld arm had simply been deleted. A section that DOES declare the pane and was not driven into the
-// other modes still reports WITHHELD, and one available pane is enough to put FOCUS back in play.
+// other modes still reports WITHHELD.
 test("#1122 CONTROL: a section that DOES declare the pane still WITHHOLDS the modes this run did not visit", () => {
   const accounting = buildSurfaceStateAccounting(shell(), "rest");
   expect(accounting.panelList.excluded).toEqual({});
   expect(accounting.panelList.withheld).toEqual({ collapsed: 1, overlay: 1 });
   expect(surfaceStateAxisLabel(accounting.panelList)).toBe("withheld");
-  expect(surfaceStateAxisLabel(accounting.focus)).toBe("withheld");
 });
 
-test("#1122 CONTROL: ONE declared pane excludes only ITS OWN axis — the twin and focus stay withheld", () => {
+test("#1122 CONTROL: ONE declared pane excludes only ITS OWN axis — the twin stays withheld", () => {
   const accounting = buildSurfaceStateAccounting(
     shell({
       panels: [
@@ -184,7 +158,6 @@ test("#1122 CONTROL: ONE declared pane excludes only ITS OWN axis — the twin a
   expect(accounting.panelList.excluded).toEqual({ sectionDeclaresNoPane: PANEL_MODE_SPACE.length });
   expect(accounting.panelContext.excluded).toEqual({});
   expect(accounting.panelContext.judged).toBe(1);
-  expect(surfaceStateAxisLabel(accounting.focus)).toBe("withheld");
 });
 
 // An UNPUBLISHED declaration is a BROKEN PUBLISH, not an inapplicability: this builder is pure and total,
@@ -202,7 +175,6 @@ test("#1122 an UNPUBLISHED declaration is never read as unavailable — it stays
   );
   expect(accounting.panelList.excluded).toEqual({});
   expect(surfaceStateAxisLabel(accounting.panelList)).toBe("withheld");
-  expect(surfaceStateAxisLabel(accounting.focus)).toBe("withheld");
 });
 
 // THE RESULT-LINE HALF OF THE SAME POLARITY. `NO-VERDICT` belongs to WITHHELD alone — an excluded axis
@@ -212,13 +184,11 @@ test("#1122 the RESULT line prints NO-VERDICT only for WITHHELD; excluded and co
   const rows = new Map(surfaceStateRows(paneless(), buildSurfaceStateAccounting(paneless(), "rest"), "rest"));
   expect(rows.get("panel-list-axis")).toBe("excluded");
   expect(rows.get("panel-context-axis")).toBe("excluded");
-  expect(rows.get("focus-axis")).toBe("excluded");
   expect(rows.get("drive-axis")).toBe("NO-VERDICT");
 
   const measured = shell();
   const measuredRows = new Map(surfaceStateRows(measured, buildSurfaceStateAccounting(measured, "rest"), "rest"));
   expect(measuredRows.get("panel-list-axis")).toBe("NO-VERDICT");
-  expect(measuredRows.get("focus-axis")).toBe("NO-VERDICT");
 });
 
 // THE PRINTED LINE ITSELF, captured off stdout rather than re-derived — the reviewer reads the console,
@@ -244,9 +214,6 @@ test("#1122 the printed SURFACE-AXIS lines name the exclusion and its count, wit
   expect(
     paneLess.some((line) => line.includes("SURFACE-AXIS panel-list") && line.includes("excluded(sectionDeclaresNoPane=3)") && line.endsWith("excluded")),
   ).toBe(true);
-  expect(paneLess.some((line) => line.includes("SURFACE-AXIS focus") && line.includes("excluded(sectionDeclaresNoPanes=2)") && line.endsWith("excluded"))).toBe(
-    true,
-  );
   // No axis on a pane-less section may still say "withheld(...)" with a count in it.
   expect(paneLess.filter((line) => line.startsWith("SURFACE-AXIS panel")).every((line) => line.includes("withheld()"))).toBe(true);
 

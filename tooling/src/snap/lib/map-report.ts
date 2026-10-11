@@ -81,7 +81,7 @@ function printAtlas(atlas: MapAtlasEvidence | null, error: string | null): void 
     return;
   }
   const { capabilities, place } = atlas;
-  print(`  CURRENT url=${place.url} section=${place.section ?? "(unpublished)"} chat-open=${String(place.chatOpen)} focus=${String(place.focus)}`);
+  print(`  CURRENT url=${place.url} section=${place.section ?? "(unpublished)"} chat-open=${String(place.chatOpen)}`);
   printGroup("SECTIONS", capabilities.sections, (value) => command("--goto", value));
   printGroup("MODALS", capabilities.modalSlots, (value) => command("--goto", `modal:${value}`));
   printGroup("CONFIG GROUPS", capabilities.configGroups, (value) => command("--goto", `config:${value}`));
@@ -96,7 +96,7 @@ function printAtlas(atlas: MapAtlasEvidence | null, error: string | null): void 
   printGroup("CHAT POSITIONS", capabilities.chatPositions, (value) => command("--open-chat", value));
   print('  LOOKUP chat       pnpm snap --open-chat "<id-or-title>" --map');
   print('  LOOKUP character  pnpm snap --open-character "<id-or-name>" --map');
-  print('  SHELL controls    pnpm snap --panel "list=docked" --map | --panel "context=collapsed" --map | --focus on --map');
+  print('  SHELL controls    pnpm snap --panel "list=docked" --map | --panel "context=collapsed" --map');
   print("  WORKFLOW choose a NAV TARGET, then map that settled destination; add --session <name> to continue in one browser lifetime.");
 }
 
@@ -120,7 +120,7 @@ function printShell(shell: MapShellEvidence | null, error: string | null): void 
     return;
   }
   print(
-    `  regime=${shell.regime} viewport=${String(shell.viewport.width)}x${String(shell.viewport.height)} dpr=${String(shell.viewport.devicePixelRatio)} section=${shell.section} section-label=${shell.sectionLabel ?? "(unpublished)"} content=${shell.contentIdentity ?? "(unnamed)"} chat-open=${String(shell.chatOpen)} focus=${String(shell.focus)}`,
+    `  regime=${shell.regime} viewport=${String(shell.viewport.width)}x${String(shell.viewport.height)} dpr=${String(shell.viewport.devicePixelRatio)} section=${shell.section} section-label=${shell.sectionLabel ?? "(unpublished)"} content=${shell.contentIdentity ?? "(unnamed)"} chat-open=${String(shell.chatOpen)}`,
   );
   print(`  active-tab=${shell.activeContextTab ?? "none"} relation=${shell.contextRelation}`);
   for (const region of shell.regions) {

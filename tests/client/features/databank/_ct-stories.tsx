@@ -26,7 +26,7 @@ import type { HomeTileContribution } from "../../../../packages/client/src/state
 import {
   closeModal,
   selectChat,
-  setFocusMode,
+  setNarrowViewport,
   useActiveChatId,
   useActiveSection,
   useConfigTarget,
@@ -104,7 +104,7 @@ export function DatabankDetailStory(): ReactElement {
  *  mounted, because the arm under test is "the list is off screen, so this pane cannot defer to it". Both
  *  arms in ONE mount (a CT mounts once per test).
  *
- *  THE DRIVER IS FOCUS MODE: the shell's ONE flag for "no side panel is showing" (item 20) — regime-free,
+ *  THE DRIVER IS THE NARROW REGIME: a docked default auto-collapses there, so no side panel is showing —
  *  section-independent and synchronous, where `setPanelMode` writes the ACTIVE section's override and
  *  `setActiveSection` defers its write through `withViewTransition` (a story doing both in one handler lands
  *  the override on the previous section — measured). The pane reads the RESOLVED mode, so any regime that
@@ -113,10 +113,10 @@ export function DatabankDetailListModeStory(): ReactElement {
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
-        <button type="button" onClick={(): void => setFocusMode(true)}>
+        <button type="button" onClick={(): void => setNarrowViewport(true)}>
           take the list off screen
         </button>
-        <button type="button" onClick={(): void => setFocusMode(false)}>
+        <button type="button" onClick={(): void => setNarrowViewport(false)}>
           put the list back
         </button>
         <div style={{ height: 700, width: 720 }}>
@@ -158,7 +158,7 @@ export function DatabankDetailWideStory(): ReactElement {
  *  against the CONTENT REGION, which `RegionAnchor` wraps in exactly this named `@orb/ui` container. A
  *  story without it has no `container-type` ancestor at all, the breathe arm can never match, and the pin
  *  would certify a production it does not have (the oracle refuses loudly rather than reading that as a
- *  pass). Measured on the real shell: 968px both-docked, 1864px in focus mode at 1920. */
+ *  pass). Measured on the real shell: 968px both-docked, 1864px with both collapsed at 1920. */
 export function DatabankDetailContentColumnStory(): ReactElement {
   const [width, setWidth] = useState(CONTENT_COLUMN_NARROW_PANE);
   return (
@@ -327,10 +327,10 @@ export function DatabankWorkspaceListModeStory(): ReactElement {
     <CtDataProviders>
       <CtRealSectionRegistry>
         <DatabankSettingsProbe />
-        <button onClick={(): void => setFocusMode(true)} type="button">
+        <button onClick={(): void => setNarrowViewport(true)} type="button">
           take the list off screen
         </button>
-        <button onClick={(): void => setFocusMode(false)} type="button">
+        <button onClick={(): void => setNarrowViewport(false)} type="button">
           put the list back
         </button>
         <DatabankTriPane />

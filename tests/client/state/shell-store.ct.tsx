@@ -4,7 +4,7 @@
 // `useSectionListMode` (the narrow #state projection a feature reads instead of `useShellLayout`), the
 // settings deep-link (`openSettingsTo`), the CONTEXT tab request (`setContextTab`), and the dual-write
 // `revealContextPanel` (writes contextTab + openOverlayPanel + the CONTEXT panel dock together). The resolve
-// (override ?? the section registry's panelDefaults) + toggle/focus derivations live in the app-shell
+// (override ?? the section registry's panelDefaults) + toggle derivations live in the app-shell
 // feature hook and are covered by app-shell.ct.tsx — here the store's raw overrides read `none` until
 // explicitly set.
 
@@ -17,7 +17,7 @@ import { ContentSwapFloatProbe, ShellStoreProbe } from "./_ct-stories.tsx";
 // (`panels.list: "unavailable"`), and the projection pins that arm `collapsed` unconditionally (H3 / arm
 // L-b). Every docked assertion below therefore drives a list-bearing section first.
 const DEFAULT_STATE =
-  "section=home list=none context=none modal=none docked=false settingsTarget=none contextTab=none openOverlayPanel=none narrowViewport=false focus=false";
+  "section=home list=none context=none modal=none docked=false settingsTarget=none contextTab=none openOverlayPanel=none narrowViewport=false";
 
 test("panel overrides are PER-SECTION: set on one section, remembered, not leaked to another", async ({ mount }) => {
   const probe = await mount(<ShellStoreProbe />);
@@ -34,7 +34,7 @@ test("panel overrides are PER-SECTION: set on one section, remembered, not leake
   // Switch to corpus — its own (unset) override reads `none`, NOT chats' collapsed (no leak).
   await probe.getByRole("button", { name: "go corpus" }).click();
   await expect(state).toHaveText(
-    "section=corpus list=none context=none modal=none docked=true settingsTarget=none contextTab=none openOverlayPanel=none narrowViewport=false focus=false",
+    "section=corpus list=none context=none modal=none docked=true settingsTarget=none contextTab=none openOverlayPanel=none narrowViewport=false",
   );
 
   // Switch back to chats — the override is REMEMBERED (§4.2 rule 2).
@@ -237,110 +237,43 @@ test("useSectionListMode resolves non-docked in the narrow-desktop regime too (t
   await expect(state).toContainText("docked=true");
 });
 
-// ── Focus mode is ONE flag that never writes panel state (item 20) ──────────────────────────────────
-// The measured live desync: the narrow-viewport auto-collapse wrote/read the same "both collapsed"
-// signal focus mode used as its truth, so the flag, the button label and the stored panel modes could
-// disagree. The store-tier guarantee under test: entering focus leaves `panelOverrides` BYTE-IDENTICAL —
-// there is no separate saved snapshot to corrupt, and a narrow round-trip while focused cannot touch it.
+// ── The narrow auto-collapse is a derivation: it never writes panel state ───────────────────────────
+// The narrow-viewport auto-collapse reads as "both panels collapsed" with no user intent. The store-tier
+// guarantee under test: crossing into the narrow regime and back leaves `panelOverrides` untouched, so the
+// section's own dock preference is what returns on re-widen.
 
-test("entering focus writes NO panel override, and exiting restores the section's own saved modes", async ({ mount }) => {
-  const probe = await mount(<ShellStoreProbe />);
-  const state = probe.locator("output");
-  await probe.getByRole("button", { name: "go chats" }).click();
-
-  // A deliberate pre-focus layout: list collapsed by hand, context docked.
-  await probe.getByRole("button", { name: "collapse list" }).click();
-  await probe.getByRole("button", { name: "dock context" }).click();
-  await expect(state).toContainText("list=collapsed context=docked");
-  await expect(state).toContainText("focus=false");
-
-  await probe.getByRole("button", { name: "enter focus", exact: true }).click();
-  // The flag flips; the overrides are untouched (the OLD implementation overwrote BOTH with "collapsed",
-  // which is how exiting focus later re-docked a pane the user had collapsed on purpose).
-  await expect(state).toContainText("list=collapsed context=docked");
-  await expect(state).toContainText("focus=true");
-
-  await probe.getByRole("button", { name: "exit focus", exact: true }).click();
-  await expect(state).toContainText("list=collapsed context=docked");
-  await expect(state).toContainText("focus=false");
-});
-
-test("the narrow-viewport auto-collapse during focus cannot corrupt the saved pre-focus modes", async ({ mount }) => {
+test("the narrow-viewport auto-collapse cannot corrupt the saved dock preferences", async ({ mount }) => {
   const probe = await mount(<ShellStoreProbe />);
   const state = probe.locator("output");
   await probe.getByRole("button", { name: "go chats" }).click();
   await probe.getByRole("button", { name: "dock list" }).click();
   await probe.getByRole("button", { name: "dock context" }).click();
 
-  await probe.getByRole("button", { name: "enter focus", exact: true }).click();
-  // Cross into the narrow regime and back WHILE focused — the auto-overlay derivation runs over both
-  // panels in both directions. It is a derivation, so nothing may be written.
   await probe.getByRole("button", { name: "enter narrow viewport" }).click();
   await expect(state).toContainText("list=docked context=docked");
-  await expect(state).toContainText("narrowViewport=true focus=true");
-  await probe.getByRole("button", { name: "enter wide viewport" }).click();
-
-  await probe.getByRole("button", { name: "exit focus", exact: true }).click();
-  await expect(state).toContainText("list=docked context=docked");
-  await expect(state).toContainText("narrowViewport=false focus=false");
-  // …and the live projection agrees: the list is docked again, exactly as before focus.
-  await expect(state).toContainText("docked=true");
-});
-
-test("useSectionListMode reads collapsed while focused (focus outranks the section's own docked preference), and true again on exit", async ({ mount }) => {
-  const probe = await mount(<ShellStoreProbe />);
-  const state = probe.locator("output");
-  // A list-bearing section: the projection reads the REGISTRY default now (#434), and the born `home`
-  // declares no list pane at all.
-  await probe.getByRole("button", { name: "go chats" }).click();
-  await expect(state).toContainText("docked=true");
-
-  await probe.getByRole("button", { name: "enter focus", exact: true }).click();
+  await expect(state).toContainText("narrowViewport=true");
+  // The projection resolves the docked default to a closed slide-over while narrow…
   await expect(state).toContainText("docked=false");
 
-  await probe.getByRole("button", { name: "exit focus", exact: true }).click();
+  await probe.getByRole("button", { name: "enter wide viewport" }).click();
+  await expect(state).toContainText("list=docked context=docked");
+  await expect(state).toContainText("narrowViewport=false");
+  // …and the dock returns on re-widen, exactly as before.
   await expect(state).toContainText("docked=true");
 });
 
-test("a REVEALING write leaves focus; a HIDING write does not (the manual-toggle-while-focused ruling)", async ({ mount }) => {
+test("opening a slide-over writes no panel override, and a rail-section switch releases the request", async ({ mount }) => {
   const probe = await mount(<ShellStoreProbe />);
   const state = probe.locator("output");
   await probe.getByRole("button", { name: "go chats" }).click();
 
-  // Docking a panel by hand is a reveal: focus must end, or the panel would show while the button still
-  // read "Exit focus mode" — the multi-truth this rework deletes.
-  await probe.getByRole("button", { name: "enter focus", exact: true }).click();
-  await probe.getByRole("button", { name: "dock context" }).click();
-  await expect(state).toContainText("context=docked");
-  await expect(state).toContainText("focus=false");
-
-  // Collapsing one agrees with what focus is already showing — the flag stands.
-  await probe.getByRole("button", { name: "enter focus", exact: true }).click();
-  await probe.getByRole("button", { name: "collapse list" }).click();
-  await expect(state).toContainText("list=collapsed");
-  await expect(state).toContainText("focus=true");
-
-  // Same split on the ephemeral channel: OPENING a slide-over leaves focus…
   await probe.getByRole("button", { name: "open context overlay" }).click();
   await expect(state).toContainText("openOverlayPanel=context");
-  await expect(state).toContainText("focus=false");
-  // …and entering focus closes whatever slide-over was open (one truth: nothing is showing).
-  await probe.getByRole("button", { name: "open context overlay" }).click();
-  await probe.getByRole("button", { name: "enter focus", exact: true }).click();
-  await expect(state).toContainText("openOverlayPanel=none");
-  await expect(state).toContainText("focus=true");
-});
-
-test("a rail-section switch leaves focus mode — a tap lands on the new section's own layout", async ({ mount }) => {
-  const probe = await mount(<ShellStoreProbe />);
-  const state = probe.locator("output");
-  await probe.getByRole("button", { name: "go chats" }).click();
-  await probe.getByRole("button", { name: "enter focus", exact: true }).click();
-  await expect(state).toContainText("focus=true");
+  await expect(state).toContainText("list=none context=none");
 
   await probe.getByRole("button", { name: "go corpus" }).click();
   await expect(state).toContainText("section=corpus");
-  await expect(state).toContainText("focus=false");
+  await expect(state).toContainText("openOverlayPanel=none");
 });
 
 // The RETIRED-SECTION HEAL (R2, the §6a step-2 sanitizer): a user whose device still remembers

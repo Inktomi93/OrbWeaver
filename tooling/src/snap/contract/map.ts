@@ -67,7 +67,6 @@ interface MapCurrentPlace {
   readonly url: string;
   readonly section: MapSectionId | null;
   readonly chatOpen: boolean;
-  readonly focus: boolean;
 }
 
 export type MapAtlasEvidence =
@@ -116,7 +115,6 @@ export type MapShellEvidence =
       }>;
       readonly contentIdentity: string | null;
       readonly chatOpen: boolean;
-      readonly focus: boolean;
       readonly activeContextTab: MapContextTabId | null;
       readonly contextRelation: "unspecified/auxiliary";
       readonly regions: readonly MapShellRegion[];

@@ -12,7 +12,7 @@ import { resolvePanelMode } from "./panel-resolve.ts";
 import type { SectionId } from "./section-ids.ts";
 import type { SectionSelection } from "./section-registry.ts";
 import { useSectionRegistry } from "./section-registry-context.ts";
-import { useFocusMode, useMobileViewport, useNarrowViewport, useOpenOverlayPanel, usePanelOverride } from "./shell-store.ts";
+import { useMobileViewport, useNarrowViewport, useOpenOverlayPanel, usePanelOverride } from "./shell-store.ts";
 
 // The no-seam fallbacks are MODULE constants, not inline lambdas: `useSyncExternalStore` re-subscribes
 // whenever `subscribe`'s identity changes, and a fresh closure per render would tear the subscription down
@@ -85,7 +85,6 @@ export function useSectionHasSelection(section: SectionId): boolean {
  *  the registry through the projection above rather than re-deriving anything. */
 export function useSectionListMode(section: SectionId): PanelMode {
   const definition = useSectionRegistry().get(section);
-  const isFocus = useFocusMode();
   const isMobile = useMobileViewport();
   const isNarrow = useNarrowViewport();
   const openOverlayPanel = useOpenOverlayPanel();
@@ -95,5 +94,5 @@ export function useSectionListMode(section: SectionId): PanelMode {
     return "collapsed";
   }
   const resolved = override ?? definition.panelDefaults.list;
-  return resolvePanelMode("list", resolved, { isFocus, isMobile, isNarrow, openOverlayPanel, listIsScreen });
+  return resolvePanelMode("list", resolved, { isMobile, isNarrow, openOverlayPanel, listIsScreen });
 }

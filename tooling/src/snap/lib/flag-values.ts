@@ -126,8 +126,7 @@ function validatePairFlagValue(flag: string, raw: string, errors: string[]): voi
 }
 
 /** `--panel <name>=<mode>` (the same `<a>=<b>` shape --fill/--key/--expect-text use — a panel NAME never
- *  carries `=`) and `--focus <on|off>`, the one nav verb whose value is a bare boolean rather than a
- *  selector/pair. Own function so validatePairFlagValue and validateFlagValue's dispatch both stay under
+ *  carries `=`). Own function so validatePairFlagValue and validateFlagValue's dispatch both stay under
  *  the biome cognitive-complexity cap. */
 function validateShellNavFlagValue(flag: string, raw: string, errors: string[]): void {
   if (flag === "--panel") {
@@ -135,9 +134,6 @@ function validateShellNavFlagValue(flag: string, raw: string, errors: string[]):
     if (head === "" || tail === "") {
       errors.push(`--panel expects name=mode, got ${JSON.stringify(raw)}`);
     }
-  }
-  if (flag === "--focus" && raw !== "on" && raw !== "off") {
-    errors.push(`--focus expects on|off, got ${JSON.stringify(raw)}`);
   }
 }
 

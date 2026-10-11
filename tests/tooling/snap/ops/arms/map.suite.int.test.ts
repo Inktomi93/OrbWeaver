@@ -38,12 +38,12 @@ function validBridge(sectionValues = ["home", "chats"], contextMode: "docked" | 
   return `<script>globalThis.__orb={
     nav:{capabilities:()=>({sections:${JSON.stringify(sectionValues)},modalSlots:["command"],configGroups:["appearance"],
       contextTabs:["game"],contextTabNames:[{id:"game",label:"Game"}],contextTabsPublished:true,chatPositions:["first","latest","current"]})},
-    shell:()=>({section:"Chats",panels:${JSON.stringify(panels)},chatOpen:true,focus:false}),
+    shell:()=>({section:"Chats",panels:${JSON.stringify(panels)},chatOpen:true}),
     snap:()=>({fixture:true}),consoleErrors:()=>({records:[],dropped:0,cap:128})};</script>`;
 }
 
 function shellBody(extra = ""): string {
-  return `<div class="shell-grid" data-section="chats" data-list-mode="docked" data-context-mode="docked" data-focus-mode="false">
+  return `<div class="shell-grid" data-section="chats" data-list-mode="docked" data-context-mode="docked">
     <nav class="shell-rail" aria-label="Orbweaver"><button aria-current="page">Chats</button></nav>
     <aside class="shell-panel" data-panel-side="list" data-panel-mode="docked" data-panel-available="true" aria-label="Chats list"><button disabled>Unavailable chat</button></aside>
     <div class="shell-main"><header class="shell-topbar"><button aria-expanded="true">Menu</button></header>
@@ -143,7 +143,7 @@ test("static maps stay DOM-only while malformed live bridge evidence refuses", a
   expect(clean.stdout).toContain("NAV TARGETS unavailable — static file has no Orbweaver navigation bridge");
   expect(clean.stdout).toContain('button  "Inspect"');
 
-  const malformedBridge = `<script>globalThis.__orb={nav:{capabilities:()=>({sections:["home"],modalSlots:[],configGroups:[],contextTabs:["game"],contextTabNames:[],contextTabsPublished:true,chatPositions:["latest"]})},shell:()=>({section:"Home",panels:[],chatOpen:false,focus:false}),consoleErrors:()=>({records:[],dropped:0,cap:128})};</script>`;
+  const malformedBridge = `<script>globalThis.__orb={nav:{capabilities:()=>({sections:["home"],modalSlots:[],configGroups:[],contextTabs:["game"],contextTabNames:[],contextTabsPublished:true,chatPositions:["latest"]})},shell:()=>({section:"Home",panels:[],chatOpen:false}),consoleErrors:()=>({records:[],dropped:0,cap:128})};</script>`;
   const malformedPage = await fixture(scratch, "malformed", document(shellBody(), malformedBridge));
   const refused = await runCli("snap", ["--file", malformedPage, "--no-shot", "--map", "--no-failure-evidence"], { timeoutMs: TIMEOUT_MS });
   await expect(refused).toExitWith(EXIT.toolError);
