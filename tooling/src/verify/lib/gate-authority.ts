@@ -20,6 +20,7 @@ import { GATE_OWNER_COVERAGES } from "../contract/gate-authority.ts";
 import type { ValidatedReviewedGrants } from "./gate-authority-validation.ts";
 import { isGateAuthority, isGateAuthorityIdentity, isGateSeverity, reviewedGrantIdentity, validateReviewedGrants } from "./gate-authority-validation.ts";
 import { createOrdinaryWaiverEngine } from "./ordinary-waiver.ts";
+import { waiverRatchetAlarms } from "./waiver-ratchet.ts";
 
 function findingOrder(left: CoordinatedGateFinding, right: CoordinatedGateFinding): number {
   return (
@@ -31,9 +32,15 @@ function findingOrder(left: CoordinatedGateFinding, right: CoordinatedGateFindin
     left.policyId.localeCompare(right.policyId)
   );
 }
+function alarmIdentity(alarm: GateAuthorityAlarm): string {
+  if (alarm.kind === "ordinary-waiver") {
+    return alarm.waiverId ?? "";
+  }
+  return alarm.kind === "waiver-budget" ? "" : alarm.grantId;
+}
 function alarmOrder(left: GateAuthorityAlarm, right: GateAuthorityAlarm): number {
-  const leftId = left.kind === "ordinary-waiver" ? (left.waiverId ?? "") : left.grantId;
-  const rightId = right.kind === "ordinary-waiver" ? (right.waiverId ?? "") : right.grantId;
+  const leftId = alarmIdentity(left);
+  const rightId = alarmIdentity(right);
   return left.policyId.localeCompare(right.policyId) || left.kind.localeCompare(right.kind) || leftId.localeCompare(rightId);
 }
 function toolErrorOrder(left: GateAuthorityToolError, right: GateAuthorityToolError): number {
@@ -417,7 +424,10 @@ export function coordinateGateAuthority(input: GateAuthorityBatchInput): GateAut
   const sortedEffective = effectiveFindings.toSorted(findingOrder);
   const errors = sortedEffective.filter(({ severity }) => severity === "error").length;
   const warnings = sortedEffective.length - errors;
-  const { alarms: authorityAlarms, unjudged: unjudgedReviewedGrants } = reconcileAuthority(state, ordinaryAlarms);
+  const reconciled = reconcileAuthority(state, ordinaryAlarms);
+  const ratchet = waiverRatchetAlarms(input.waiverBudget, results, [...waivedFindings, ...grantedFindings], withheld);
+  const authorityAlarms = [...reconciled.alarms, ...ratchet].toSorted(alarmOrder);
+  const unjudgedReviewedGrants = reconciled.unjudged;
   const alarmErrors = authorityAlarms.length;
   return {
     effectiveFindings: sortedEffective,

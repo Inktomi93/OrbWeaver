@@ -74,6 +74,7 @@ import { structureConsole } from "../lib/structure-console.ts";
 import { finalSide, finalToolErrorCount, structureCountReconciliation } from "../lib/structure-report.ts";
 import { parseStructureTombstone, tailRefusal, VOID_FLAG } from "../lib/structure-tail.ts";
 import { policyTimingAlarms } from "../lib/timing.ts";
+import { WAIVER_BUDGET } from "../lib/waiver-budget.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
@@ -319,7 +320,14 @@ async function runStructurePopulation(
   const ctx = context();
   // #2069 sample ONE: the tree as it stood when this run took its fileset.
   const plantedAtStart = plantedPaths(root);
-  const executed = executePolicyPlan({ root, project: ctx.project, corpus, plan, reviewedGrants: reviewedGrantsFor(corpus.gates) });
+  const executed = executePolicyPlan({
+    root,
+    project: ctx.project,
+    corpus,
+    plan,
+    reviewedGrants: reviewedGrantsFor(corpus.gates),
+    waiverBudget: WAIVER_BUDGET,
+  });
   if (!executed.ok) {
     process.stderr.write(`check:structure: TOOL ERROR — ${executed.message}\n`);
     closeRunSlot(slot);

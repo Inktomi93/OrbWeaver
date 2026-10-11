@@ -139,6 +139,7 @@ export function executePolicyPlan(input: PolicyPlanExecutionInput): PolicyPlanEx
       ...(input.plan.applicationPaths === undefined ? {} : { applicationPaths: input.plan.applicationPaths }),
       ownerPlansByPolicy: new Map(input.plan.policies.map(({ policyId, mode, reason, population }) => [policyId, { mode, reason, population }])),
       reviewedGrants: input.reviewedGrants,
+      ...(input.waiverBudget === undefined ? {} : { waiverBudget: input.waiverBudget }),
       failOnWarnings: input.plan.failOnWarnings,
       ...(input.resourceOptions === undefined ? {} : { resourceOptions: input.resourceOptions }),
     });

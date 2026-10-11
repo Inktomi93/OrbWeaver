@@ -1,4 +1,4 @@
-// Gate: test-no-stubs — anti-gaming for test-presence (Spine-Testing.md §5): every test/it block must
+// Gate: test-no-stubs — anti-gaming for test-reach (Spine-Testing.md §5): every test/it block must
 // carry ≥1 real assertion (expect/expectTypeOf), or a stub satisfies presence rules without testing
 // anything. HARD authority: there is no legitimate reason to waive a stub test, and an ordinary marker
 // escape would defeat exactly the gaming this gate exists to prevent.

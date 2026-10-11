@@ -313,7 +313,7 @@ Coupled: `tests/tooling/dependency-cruiser.int.test.ts` carries a `__dc` pin per
 
 ### 4.7 `test-layout` — the tooling mirror
 
-When a test path is `tests/tooling/<dir>/…` AND `tooling/src/<dir>/` exists, the mirror rule applies: `tests/tooling/<tool>/<path>.<kind>` must prefix-swap to `tooling/src/<tool>/<path>.ts` (file or dir-index), with the existing `.suite.*` exemptions. Flat files directly under `tests/tooling/` and dirs matching no `tooling/src/` dir stay exempt — they test root configs, the guard, and research-zone scripts.
+When `tooling/src/<tool>/` exists, a test under `tests/tooling/<tool>/` sits in a directory that prefix-swaps to an existing `tooling/src/` directory (`.suite.*` exempt), named for its behaviour. Flat files directly under `tests/tooling/` and dirs matching no `tooling/src/` dir stay exempt — they test root configs, the guard, and research-zone scripts.
 
 Endgame residents of the flat tier: `tool-guard.int.test.ts` (subject is `.claude/hooks/*.mjs`), `issue-form-guidance-integrity.test.ts` (subject is `.github/`), `dependency-cruiser.int.test.ts` (subject is the root config), `smoke.test.ts`.
 

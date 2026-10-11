@@ -90,7 +90,7 @@ that needs an upward import is in the wrong place. Move the code; never force th
 
 ## Test layout
 
-- Tests live under `tests/<package>/` and mirror `packages/<package>/src/` path for path. The `test-layout` gate fails a test next to its source.
+- Tests live under `tests/<package>/` in the directory that mirrors `packages/<package>/src/`, named for the behaviour they prove. `test-layout` checks the directory; `test-reach` checks that each presence-gated module is imported and used by a test or named in its `@subject` header.
 - `tooling/src/floor/testing/test-kinds.ts` owns the test suffixes and compiler worlds. Inject clocks and ids so tests are deterministic. Policy: `Spine-Testing.md`.
 
 ## No escape hatches
