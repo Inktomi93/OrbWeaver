@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-11
 priority: P2
 area: import
+lane: wt/agent-a64767965a4be8d1a
 ---
 
 # Import asks before splitting a same-named persona
