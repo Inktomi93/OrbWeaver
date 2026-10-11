@@ -4,7 +4,6 @@
 
 import type { MessageRole } from "@orb/kit/message-role";
 import { Row, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
 import type { BubbleDecoration } from "../lib/message-row-variants.ts";
@@ -30,82 +29,60 @@ export function renderSingleBubble(args: {
    *  `gap="row"` that separates the body's blocks. Null when the skin's `headerPlacement` is `outside`. */
   readonly header: ReactNode;
   readonly content: ReactNode;
+  /** The swipe foot, the container's last line when the skin seats it inside; null otherwise. */
+  readonly footer: ReactNode;
   readonly bubbleClassName: string;
   readonly decoration: BubbleDecoration | null;
   readonly weldedAvatar: ReactElement | null;
+  /** The row sits mirrored, so the welded portrait sits on the trailing side. */
+  readonly mirrored: boolean;
 }): ReactElement {
   const headerBand = args.decoration?.headerBand;
   const bubbleStyle = args.decoration?.style;
   if (headerBand !== undefined) {
     return (
       <Stack data-slot="message-bubble" className={withoutBubblePadding(args.bubbleClassName)} style={bubbleStyle}>
-        <Stack
-          aria-hidden="true"
-          data-slot="message-band"
-          className={cn("rounded-t-card", headerBand.initial !== undefined && "items-center justify-start pt-block")}
-          style={headerBand.style}
-        >
-          {headerBand.initial === undefined ? null : (
-            // A decorative aria-hidden mark on the band's own fill — the `monogram` voice (§2.3 as amended,
-            // S6); the band owns the ink, which is why the voice carries no colour of its own.
-            <Text as="span" voice="monogram" className="text-primary-foreground">
-              {headerBand.initial}
-            </Text>
-          )}
-        </Stack>
+        <Stack aria-hidden="true" data-slot="message-band" className={cn("rounded-t-card", headerBand.className)} style={headerBand.style} />
         <Stack gap="row" className="px-block py-row">
           {args.header}
           {args.content}
+          {args.footer}
         </Stack>
       </Stack>
     );
   }
   if (args.weldedAvatar === null) {
-    const edgeTile = args.decoration?.edgeTile;
+    const art = args.decoration?.art;
     return (
-      <Stack
-        gap="row"
-        data-slot="message-bubble"
-        // `relative overflow-clip` ONLY when the Echo fallback tile is present — it anchors the
-        // absolutely-positioned tile and clips its feather to the bubble's `rounded-card` corners. No
-        // other mode/kind reaches this (the plain bubble is byte-identical without a tile). `clip`, not
-        // `hidden`: a hidden overflow makes the bubble a scroll container, and the sticky header would then
-        // stick to the bubble and never pin to the transcript's scrollport.
-        className={cn(args.bubbleClassName, edgeTile !== undefined && "relative overflow-clip")}
-        style={bubbleStyle}
-      >
-        {edgeTile === undefined ? null : (
+      <Stack gap="row" data-slot="message-bubble" className={cn(args.bubbleClassName, art !== undefined && "relative")} style={bubbleStyle}>
+        {art === undefined ? null : (
           <Stack
             aria-hidden="true"
-            data-slot="message-edge-tile"
-            // The tile IS the art pane on the no-image path, so it takes the pane's own fixed width and the
-            // same side the portrait would (#212-3) — pixel-identical geometry between the two arms.
+            data-slot="message-echo-art"
+            // The pane's width, a portrait's height (Moonlit's fixed mobile height on a phone), never past the
+            // card's own foot; cover-cropped from its centre.
             className={cn(
-              "absolute inset-y-0 w-(--immersive-echo-art-width) justify-center",
-              edgeTile.side === "left" ? "left-0 items-start ps-block" : "right-0 items-end pe-block",
+              "pointer-events-none absolute top-0 aspect-(--aspect-portrait) max-h-full bg-center bg-cover bg-no-repeat @max-md:aspect-auto @max-md:h-(--immersive-echo-art-height-phone)",
+              art.side === "left" ? "left-0 rounded-tl-card" : "right-0 rounded-tr-card",
             )}
-            style={edgeTile.style}
-          >
-            {/* The Echo tile's feathered letter — the same decorative `monogram` voice, sized past the
-                title step by the tile's own hero dimension (a mark this large has no type-scale step). */}
-            <Text as="span" voice="monogram" className="text-primary-foreground leading-none" style={{ fontSize: "var(--spacing-avatar-hero)" }}>
-              {edgeTile.initial}
-            </Text>
-          </Stack>
+            style={art.style}
+          />
         )}
         {args.header}
         {args.content}
+        {args.footer}
       </Stack>
     );
   }
   return (
     <Row align="start" data-slot="message-bubble" className={withoutBubblePadding(args.bubbleClassName)} style={bubbleStyle}>
-      {args.role === "user" ? null : args.weldedAvatar}
+      {args.mirrored ? null : args.weldedAvatar}
       <Stack gap="row" className="min-w-0 flex-1 px-block py-row">
         {args.header}
         {args.content}
+        {args.footer}
       </Stack>
-      {args.role === "user" ? args.weldedAvatar : null}
+      {args.mirrored ? args.weldedAvatar : null}
     </Row>
   );
 }

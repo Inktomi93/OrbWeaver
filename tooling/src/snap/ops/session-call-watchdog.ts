@@ -4,6 +4,8 @@ import { print } from "../../_shared/artifacts.ts";
 import type { ProbeSession } from "../../_shared/browser-contract.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { budget, loadKillError } from "../../_shared/load-budget.ts";
+import type { SnapAction } from "../contract/types.ts";
+import { STEP_BASE_MS, STEP_SETTLE_MS } from "../lib/budgets.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> <route>");
 
@@ -85,8 +87,22 @@ export function isTerminalSessionCallError(error: unknown): boolean {
 /** Navigation and matrix/scenario orchestration already own stage-aware load budgets up to 90s + 60s.
  * The daemon watchdog is the outer leak boundary, so it must sit beyond those verdict-producing inner
  * clocks instead of racing them. */
-export function sessionCallWatchdogBaseMs(navigates: boolean, armBaseMs: number | null = null): number {
-  return Math.max(navigates ? SESSION_NAVIGATION_CALL_BASE_MS : SESSION_CALL_BASE_MS, armBaseMs ?? 0);
+export function sessionCallWatchdogBaseMs(navigates: boolean, armBaseMs: number | null = null, tapeBaseMs = 0): number {
+  return Math.max(navigates ? SESSION_NAVIGATION_CALL_BASE_MS : SESSION_CALL_BASE_MS + tapeBaseMs, armBaseMs ?? 0);
+}
+
+/** The quiet-box time a live call's own tape may take: each step its own timeout plus its settle, and a
+ *  `--pause` the time it asked for. A flat 5s killed `--tap row --pause 1200 --tap x --pause 900` as a
+ *  hang before any one step could report its own STEP FAILED. Evals add nothing: a hung eval is what
+ *  this watchdog exists to stop. */
+export function sessionTapeBaseMs(actions: readonly SnapAction[]): number {
+  return actions.reduce((total, entry) => {
+    if (entry.type === "eval") {
+      return total;
+    }
+    const own = entry.type === "step" && entry.action.kind === "pause" ? entry.action.ms : STEP_BASE_MS;
+    return total + own + STEP_SETTLE_MS;
+  }, 0);
 }
 
 async function terminatePageExecution(session: ProbeSession): Promise<void> {

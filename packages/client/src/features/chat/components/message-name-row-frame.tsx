@@ -10,11 +10,10 @@ import {
   BG_PHOTO_CHROME_PLATE,
   STICKY_ATTRIBUTION_CHROME,
   STICKY_ATTRIBUTION_CHROME_INSIDE,
-  STICKY_ATTRIBUTION_INSIDE_PINNED_PAINT,
-  STICKY_ATTRIBUTION_PINNED_PAINT,
   STICKY_ATTRIBUTION_REST_PAINT,
 } from "../lib/message-row-backing.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
+import type { HeaderShape } from "../lib/row-placement.ts";
 
 type HeaderPlacement = RowSkin["headerPlacement"];
 
@@ -70,10 +69,17 @@ export interface NameRowFrameProps {
   readonly placement: HeaderPlacement;
   /** User identity sits at the trailing edge; its action cluster takes the opposite edge. */
   readonly mirrored: boolean;
+  /** `RowSkin.pinnedHeader`'s paint for this row: the row's own surface, applied only while pinned. */
+  readonly pinnedPaint: string;
+  /** Whether the bar names the speaker and takes a line of its own (`headerShape`). */
+  readonly shape: HeaderShape;
 }
 
 export function NameRowFrame(args: NameRowFrameProps): ReactElement {
-  const { ref, pinned } = usePinnedHeader(args.stickyAttribution);
+  // An actions-only overlay never pins: its actions are hidden off the last row, and a pinned box hung over
+  // the page would either paint an empty plate on the words or overrun the row's end.
+  const sticky = args.stickyAttribution && args.shape.ownLine;
+  const { ref, pinned } = usePinnedHeader(sticky);
   return (
     <Row
       ref={ref}
@@ -82,19 +88,27 @@ export function NameRowFrame(args: NameRowFrameProps): ReactElement {
       gap="field"
       data-slot="message-name-row"
       data-placement={args.placement}
-      data-sticky={args.stickyAttribution ? "" : undefined}
+      data-sticky={sticky ? "" : undefined}
       data-pinned={pinned ? "" : undefined}
       className={cn(
         args.mirrored && "flex-row-reverse",
-        headerBacking(args.placement, args.stickyAttribution, pinned),
+        headerBacking(args.placement, sticky, pinned),
+        pinned && args.pinnedPaint,
+        // An actions-only bar is a chip at the trailing edge, and off the last row it overlays the row's top
+        // trailing corner at its full glyph height while costing the row no height at all.
+        !args.shape.identity && "ms-auto w-fit",
+        // An outside header (tide's) sits on the same inset as the pager under its train, so the last action
+        // ends where the forward chevron does and its touch area stays inside the scrollport.
+        args.placement === "outside" && "px-field",
+        !args.shape.ownLine && "box-content h-glyph-lg -mb-glyph-lg",
         // THE ACTION RAIL'S ONLY RESERVATION. The rail is centred on this row, so a content height of
-        // `control-md - 2 * row` makes it span exactly the container's top inset, this row and the
+        // `glyph-lg - 2 * row` makes it span exactly the container's top inset, this row and the
         // `gap-row` below it: contained in the bubble, clear of the prose, and no empty band between
         // name and body. It is unconditional (ghost, editing and sticky arms alike) because the sticky
         // verdict is computed from the measured row height: any box the verdict changed would re-enter
         // its own input and oscillate. `box-content` keeps the sticky band's `pt-row` additive, so its
         // `-mt-row` cancellation stays exact.
-        args.placement === "inside" && "box-content min-h-[calc(var(--spacing-control-md)_-_2_*_var(--spacing-row))]",
+        args.placement === "inside" && args.shape.ownLine && "box-content min-h-[calc(var(--spacing-glyph-lg)_-_2_*_var(--spacing-row))]",
         // At rest an inside header paints on the role bubble, so every datum must inherit that bubble's
         // paired foreground. Speaker/gloss inks derive from the scope's BASE and are invalid on an
         // independently-picked bubble fill. A pinned row paints its own reading band and keeps that
@@ -113,16 +127,14 @@ export function NameRowFrame(args: NameRowFrameProps): ReactElement {
 }
 
 /** The one backing decision, as a total function of the two axes (#288). `inside` at rest takes NOTHING:
- *  the container's fill/plate is the surface, and adding a second one is the defect. */
+ *  the container's fill/plate is the surface, and adding a second one is the defect. The pinned paint is
+ *  the skin's (`RowSkin.pinnedHeader`), layered by the frame itself. */
 function headerBacking(placement: HeaderPlacement, stickyAttribution: boolean, pinned: boolean): string {
   if (placement === "outside") {
     if (!stickyAttribution) {
       return BG_PHOTO_CHROME_PLATE;
     }
-    return cn(STICKY_ATTRIBUTION_CHROME, pinned ? STICKY_ATTRIBUTION_PINNED_PAINT : STICKY_ATTRIBUTION_REST_PAINT) ?? "";
+    return cn(STICKY_ATTRIBUTION_CHROME, !pinned && STICKY_ATTRIBUTION_REST_PAINT) ?? "";
   }
-  if (!stickyAttribution) {
-    return "";
-  }
-  return cn(STICKY_ATTRIBUTION_CHROME_INSIDE, pinned && STICKY_ATTRIBUTION_INSIDE_PINNED_PAINT) ?? "";
+  return stickyAttribution ? STICKY_ATTRIBUTION_CHROME_INSIDE : "";
 }

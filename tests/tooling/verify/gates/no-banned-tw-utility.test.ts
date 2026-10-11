@@ -3,8 +3,8 @@
 //
 // WHAT ONLY THIS FILE CAN PROVE, because a declared row structurally cannot (GATE-AUTHORING §5: `runPass`
 // pins `reviewedGrants: []`, so a module row cannot reach the central table at all):
-//   · THE REAL ROWS in `lib/reviewed-grants.ts` consume the REAL live sites — the two transcript-geometry
-//     applications this policy was born green against, read off the checkout rather than re-typed.
+//   · THE REAL ROWS in `lib/reviewed-grants.ts` consume the REAL live site — the transcript-geometry
+//     application this policy guards, read off the checkout rather than re-typed.
 //   · WRONG IDENTITY: a grant with the right subject and the wrong operation licenses NOTHING.
 //   · STALE: a grant whose subject holds no finding is an alarm, not a quiet pass.
 //   · NO DOUBLE REPORT with the ordinary sibling: the two policies share one class-token reader and must
@@ -21,9 +21,8 @@ import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-co
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/banned-tw-utility";
-/** The two live class applications, both ruled in place (#1145/#1175) and both grant rows. */
+/** The one live class application, ruled in place (#1145/#1175) and a grant row. */
 const BUBBLE = "packages/client/src/lib/message-bubble-class.ts";
-const VARIANTS = "packages/client/src/features/chat/lib/message-row-variants.ts";
 const OPERATION = "banned-tw-utility:max-w-prose";
 
 interface Outcome {
@@ -47,12 +46,11 @@ function drive(policies: readonly GatePolicy[], files: Readonly<Record<string, s
   };
 }
 
-/** The two ruled files exactly as the checkout has them — never a re-typed stand-in, so a re-point that
+/** The ruled file exactly as the checkout has it — never a re-typed stand-in, so a re-point that
  *  removes the class makes the grant rows stale HERE as well as in the real run. */
 function liveSites(): Readonly<Record<string, string>> {
   return {
     [BUBBLE]: readFileSync(new URL(`../../../../${BUBBLE}`, import.meta.url), "utf8"),
-    [VARIANTS]: readFileSync(new URL(`../../../../${VARIANTS}`, import.meta.url), "utf8"),
   };
 }
 
@@ -73,17 +71,17 @@ test("the descriptor shape is the thing under test: reviewed-grant, in the share
   expect(gate.family, "the ordinary sibling shares it — one class-token reader, two authorities").toBe(noArbitrary.family);
 });
 
-test("the REAL central rows consume the REAL live sites: two granted, nothing effective, nothing alarming", () => {
-  expect(REAL_GRANTS.map((grant) => grant.id).toSorted()).toEqual(["no-banned-tw-utility:message-bubble-class", "no-banned-tw-utility:message-row-variants"]);
+test("the REAL central rows consume the REAL live site: one granted, nothing effective, nothing alarming", () => {
+  expect(REAL_GRANTS.map((grant) => grant.id)).toEqual(["no-banned-tw-utility:message-bubble-class"]);
   const outcome = drive([gate], liveSites(), REAL_GRANTS);
-  expect(outcome).toEqual({ hits: [], granted: 2, alarms: [] });
+  expect(outcome).toEqual({ hits: [], granted: 1, alarms: [] });
 });
 
 test("WRONG IDENTITY licenses nothing: the right subject with the wrong operation leaves the finding standing", () => {
   const wrong = REAL_GRANTS.map((grant) => ({ ...grant, operation: "banned-tw-utility:max-w-screen" }));
   const outcome = drive([gate], liveSites(), wrong);
   expect(outcome.granted).toBe(0);
-  expect(outcome.hits).toHaveLength(2);
+  expect(outcome.hits).toHaveLength(1);
 });
 
 test("a STALE grant is an alarm, not a quiet pass", () => {

@@ -18,6 +18,7 @@ import { IMPERSONATE_STOP_LABEL, MODEL_ROLES_PATH_TEXT, IMAGE_GEN_SPENDS_NOW as 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { routeImpersonateStream } from "../../../../support/node/route-impersonate-stream.ts";
@@ -51,21 +52,32 @@ for (const width of [1440, 360]) {
       await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
       const component = await mount(<ComposerStory />);
       const message = component.getByRole("textbox", { name: "Message", exact: true });
-      const controls = ["Chat options", "Message tools", "Send message"];
       await expect(message).toBeVisible();
       const input = await message.boundingBox();
       if (input === null) {
         throw new Error("message input has no layout box");
       }
-      for (const name of controls) {
+      const boxOf = async (name: string): Promise<{ x: number; y: number; width: number; height: number }> => {
         const control = component.getByRole("button", { name, exact: true });
         await expect(control).toBeVisible();
         const box = await control.boundingBox();
         if (box === null) {
           throw new Error(`${name} has no layout box`);
         }
-        expect(Math.abs(box.y + box.height / 2 - input.y - input.height / 2), name).toBeLessThan(1);
-      }
+        return box;
+      };
+      const inputMid = input.y + input.height / 2;
+      // SillyTavern's input row (owner ruling): ☰ over ✨ in one narrow column left of the draft, the pair
+      // centred on the row, and Send at the row's centre on the right.
+      const menu = await boxOf("Chat options");
+      const tools = await boxOf("Message tools");
+      const send = await boxOf("Send message");
+      expect(menu.y + menu.height).toBeLessThanOrEqual(tools.y);
+      expect(Math.abs(menu.x + menu.width / 2 - (tools.x + tools.width / 2))).toBeLessThan(1);
+      expect(Math.abs((menu.y + tools.y + tools.height) / 2 - inputMid)).toBeLessThan(1);
+      expect(menu.x + menu.width).toBeLessThan(input.x);
+      expect(Math.abs(send.y + send.height / 2 - inputMid), "Send message").toBeLessThan(1);
+      expect(send.x).toBeGreaterThan(input.x + input.width - 1);
       const you = await component.getByRole("group", { name: "Your message", exact: true }).boundingBox();
       const them = await component.getByRole("group", { name: "Their reply", exact: true }).boundingBox();
       if (you === null || them === null) {
@@ -213,6 +225,37 @@ test.describe("#2443: the band's refusal at a coarse pointer", () => {
     });
     const component = await mount(<ComposerStory />);
     await expect(component.locator('[data-slot="composer-guided-refusal"]')).toHaveText(ENDPOINT_UNREACHABLE_REASON);
+  });
+
+  test("with the soft keyboard up the refusal keeps to one line, at the quiet body step", async ({ mount, page }) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    await routeTrpc(page, {
+      ...CHAT_AMBIENT_ROUTES,
+      ...CHAT_ROOM_ROUTES,
+      "chat.checkSendAvailability": () => ({ available: false, cause: "endpoint-unreachable" }),
+    });
+    const component = await mount(<ComposerStory />);
+    const line = component.locator('[data-slot="composer-guided-refusal"]');
+    await expect(line).toHaveText(ENDPOINT_UNREACHABLE_REASON);
+    const lineHeight = (): Promise<{ readonly height: number; readonly leading: number }> =>
+      line.evaluate((el) => ({ height: el.getBoundingClientRect().height, leading: Number.parseFloat(getComputedStyle(el).lineHeight) }));
+    // At rest the reason wraps on the narrowest phone; with the keyboard up the transcript needs the room.
+    await expect
+      .poll(async () => {
+        const read = await lineHeight();
+        return read.height > read.leading + 0.5;
+      })
+      .toBe(true);
+    await page.evaluate(() => document.documentElement.toggleAttribute("data-keyboard-up", true));
+    await expect
+      .poll(async () => {
+        const read = await lineHeight();
+        return read.height <= read.leading + 0.5;
+      })
+      .toBe(true);
+    // Type steps are authored in rem; the computed size resolves at the 16px root.
+    await expect(line).toHaveCSS("font-size", `${Number.parseFloat(TOKENS["text.body"].value) * 16}px`);
+    await page.evaluate(() => document.documentElement.toggleAttribute("data-keyboard-up", false));
   });
 
   test("no-connection is stated once, by the next-turn line: the band's refusal line stands down", async ({ mount, page }) => {
@@ -443,8 +486,9 @@ function expectRowMajorOrder(boxes: readonly ControlBox[]): void {
     }
     const previousCenter = previous.y + previous.height / 2;
     const currentCenter = current.y + current.height / 2;
-    expect(currentCenter, `${current.name} must not paint above ${previous.name}`).toBeGreaterThanOrEqual(previousCenter - 0.5);
-    const followsPrevious = Math.abs(currentCenter - previousCenter) > 0.5 || current.x > previous.x;
+    const besideOnBand = current.x >= previous.x + previous.width - 0.5 && current.y < previous.y + previous.height && previous.y < current.y + current.height;
+    expect(besideOnBand || currentCenter >= previousCenter - 0.5, `${current.name} must not paint above ${previous.name}`).toBe(true);
+    const followsPrevious = besideOnBand || Math.abs(currentCenter - previousCenter) > 0.5 || current.x > previous.x;
     expect(followsPrevious, `${current.name} must follow ${previous.name} on their shared row`).toBe(true);
   }
 }
@@ -468,7 +512,8 @@ async function expectExplicitCoarseRows(component: Locator): Promise<void> {
   }
   expect(yours.y).toBe(theirs.y);
   expect(chat.y).toBeGreaterThanOrEqual(yours.y + yours.height);
-  expect(send.y).toBe(chat.y);
+  // Send shares the input row with the stacked tool column: the two centre on one line.
+  expect(Math.abs(send.y + send.height / 2 - (chat.y + chat.height / 2))).toBeLessThan(1);
   expect(send.x).toBeGreaterThan(chat.x);
   // Whatever the fit produces, the FINAL row reaches the composer's right edge: the terminal Send home is
   // right-anchored on a wrapped line exactly as it is on a full one (the auto margins, not a grid column).
@@ -485,6 +530,30 @@ async function expectNearestActionGroups(component: Locator, actions: readonly A
     ),
   );
   expect(nearestGroups).toEqual(actions.map(({ group }) => group));
+}
+
+/** Every action's FINGER target meets the coarse floor and no two targets overlap. The compact glyph buttons
+ *  carry their target as a centred `::before`; a full control is its own box. */
+async function expectTouchTargets(component: Locator, actionBoxes: readonly ControlBox[]): Promise<void> {
+  const targets: readonly ControlBox[] = await Promise.all(
+    actionBoxes.map(async (action) => ({
+      name: action.name,
+      ...(await component.getByRole("button", { name: action.name, exact: true }).evaluate((button) => {
+        const box = button.getBoundingClientRect();
+        const before = getComputedStyle(button, "::before");
+        const w = Math.max(box.width, Number.parseFloat(before.width) || 0);
+        const h = Math.max(box.height, Number.parseFloat(before.height) || 0);
+        return { x: box.left + box.width / 2 - w / 2, y: box.top + box.height / 2 - h / 2, width: w, height: h };
+      })),
+    })),
+  );
+  for (const target of targets) {
+    expect(Math.min(target.width, target.height), `${target.name} must meet the coarse 44px target floor`).toBeGreaterThanOrEqual(44);
+  }
+  const pairs = targets.flatMap((a, index) => targets.slice(index + 1).map((b) => [a, b] as const));
+  for (const [a, b] of pairs) {
+    expect(overlaps(a, b), `${a.name}'s touch target must not overlap ${b.name}'s`).toBe(false);
+  }
 }
 
 async function expectCoarseComposerLayout(page: Page, component: Locator, actions: readonly ActionSpec[]): Promise<void> {
@@ -505,9 +574,7 @@ async function expectCoarseComposerLayout(page: Page, component: Locator, action
   const viewportWidth = await page.evaluate(() => innerWidth);
 
   const actionBoxes = boxes.filter((box) => box.name !== "Message");
-  for (const action of actionBoxes) {
-    expect(Math.min(action.width, action.height), `${action.name} must meet the coarse 44px target floor`).toBeGreaterThanOrEqual(44);
-  }
+  await expectTouchTargets(component, actionBoxes);
   const centreOwnership = await Promise.all(
     actionBoxes.map(async (action) => ({
       name: action.name,
@@ -638,6 +705,27 @@ test("#206: a disabled reply action remains focusable and exposes its reason", a
 test.describe("#206 coarse touch layout", () => {
   test.use({ hasTouch: true });
 
+  // The compact density tier shrinks `spacing.block`; the glyph rows ride their own density-proof gap, so the
+  // touch targets stay apart there too (verifier finding: a `block` gap overlapped them by 4px at compact).
+  for (const density of ["comfortable", "compact"] as const) {
+    test(`at ${density} density no two composer touch targets overlap`, async ({ mount, page }) => {
+      await page.setViewportSize({ width: 430, height: 932 });
+      await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": groupedComposerChat });
+      const component = await mount(
+        <div data-density={density}>
+          <ComposerStory />
+        </div>,
+      );
+      await expect(component.locator('[data-slot="composer"]')).toBeVisible();
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      const boxes = await controlBoxes(component, COMPOSER_ACTIONS);
+      await expectTouchTargets(
+        component,
+        boxes.filter((box) => box.name !== "Message"),
+      );
+    });
+  }
+
   for (const viewport of [
     { width: 430, height: 932 },
     { width: 390, height: 844 },
@@ -733,7 +821,7 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
       };
     });
     await expect.poll(async () => (await readFocusedAtAssertion()).active).toBe(true);
-    expect(focused.carrierShadow, "the focus-within ring/glow must paint on the keyboard focus frame").not.toBe("none");
+    expect(focused.carrierShadow, "focus is a quiet border change, never a ring or glow").toBe("none");
     for (const transition of [...focused.carrierTransitions, ...focused.textareaTransitions]) {
       const animatesPaint = transition.durationMs > 0 && PAINT_TRANSITIONS.has(transition.property);
       expect(animatesPaint, `${transition.property} must not animate keyboard-focus paint for ${String(transition.durationMs)}ms`).toBe(false);
@@ -1501,18 +1589,22 @@ function measureActionBar(page: Page): Promise<{
     if (bar === null || firstHome === undefined) {
       throw new Error("the composer action bar did not render");
     }
-    const tops = homes.map((el) => Math.round(el.getBoundingClientRect().top));
-    const lastTop = Math.max(...tops);
-    const lastRow = homes.filter((_, index) => tops[index] === lastTop);
+    const rowOf = (el: HTMLElement): Element | null => el.parentElement?.closest('[data-slot="composer-utilities"], [data-slot="composer-input"]') ?? null;
+    const rowSlots = homes.map(rowOf);
+    const lastSlot = rowSlots.at(-1) ?? null;
+    const lastRow = homes.filter((_, index) => rowSlots[index] === lastSlot);
+    // A glyph button's finger target is its centred hit-area pseudo; a full control is its own box.
+    const targetHeight = (el: Element): number =>
+      Math.round(Math.max(el.getBoundingClientRect().height, Number.parseFloat(getComputedStyle(el, "::before").height) || 0));
     return {
       coarse: matchMedia("(pointer: coarse)").matches,
       barWidth: Math.round(bar.getBoundingClientRect().width),
       // The `field` gap the homes already use BETWEEN their own controls — the bar's own floor for "fits".
       homeInnerGap: Math.round(Number.parseFloat(getComputedStyle(firstHome).columnGap)),
-      rows: new Set(tops).size,
+      rows: new Set(rowSlots).size,
       homeWidths: homes.map((el) => Math.round(el.getBoundingClientRect().width)),
       // Every focusable control in the bar — the row saving must not have been bought by crushing targets.
-      controlHeights: [...bar.querySelectorAll("button")].map((el) => Math.round(el.getBoundingClientRect().height)),
+      controlHeights: [...bar.querySelectorAll("button")].map(targetHeight),
       barRight: Math.round(bar.getBoundingClientRect().right),
       lastRowRight: Math.round(Math.max(...lastRow.map((el) => el.getBoundingClientRect().right))),
     };
@@ -1684,10 +1776,12 @@ for (const viewport of [
               throw new Error("Missing guided controls");
             }
             const gap = Number.parseFloat(getComputedStyle(root?.querySelector('[aria-label="Your message"]') as Element).columnGap);
+            const stacked = options.bottom <= tools.top && Math.abs(options.left + options.width / 2 - (tools.left + tools.width / 2)) < 1;
+            const sendOnInputRow = send.top < tools.bottom && options.top < send.bottom;
             return {
-              paired: options.y === tools.y && tools.left - options.right <= gap,
-              narrow: guided.y < options.y && send.y === options.y,
-              wide: guided.y < options.y && send.y === options.y,
+              paired: stacked && tools.top - options.bottom <= gap * 4,
+              narrow: guided.y < options.y && sendOnInputRow,
+              wide: guided.y < options.y && sendOnInputRow,
             };
           });
           return { paired: layout.paired, fit: viewport.touch ? layout.narrow : layout.wide };
@@ -1757,78 +1851,47 @@ for (const viewport of [
 }
 
 for (const width of [1440, 360]) {
-  test.describe(`governed composer glow at ${width}`, () => {
+  test.describe(`quiet composer focus at ${width}`, () => {
     test.use({ viewport: { width, height: 900 }, hasTouch: width === 360 });
-    test("focus lift uses governed layers while backing, ring and real input remain intact", async ({ mount, page }, testInfo) => {
+    test("focus is a 1px border-colour change on the opaque backing: no ring, no glow; a drag still arms loudly", async ({ mount, page }, testInfo) => {
       await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
       const component = await mount(<ComposerStory />);
       const composer = component.locator('[data-slot="composer"]');
       const message = component.getByLabel("Message", { exact: true });
-      await message.click();
-      await expect(message).toBeFocused();
-      await page.keyboard.type("A focused draft");
-      await expect(message).toHaveValue("A focused draft");
-      await expect
-        .poll(() =>
-          composer.evaluate((element) => {
-            const root = getComputedStyle(element);
-            const effect = getComputedStyle(element, "::before");
-            const content = element.querySelector('[data-slot="composer-content"]');
-            const contentStyle = content === null ? null : getComputedStyle(content);
-            const probe = document.createElement("div");
-            probe.style.backgroundColor = "var(--color-muted)";
-            element.append(probe);
-            const expectedBacking = getComputedStyle(probe).backgroundColor;
-            probe.remove();
-            return {
-              ringPresent: root.getPropertyValue("--tw-ring-shadow") !== "",
-              ringNonzero: !root.getPropertyValue("--tw-ring-shadow").includes("0 0 #0000"),
-              rootNotGlow: root.getPropertyValue("--tw-shadow").trim() !== root.getPropertyValue("--shadow-glow").trim(),
-              contentPresent: effect.content !== "none",
-              effectPresent: effect.boxShadow !== "none",
-              pointer: effect.pointerEvents,
-              position: effect.position,
-              base: Number(effect.zIndex) === Number(root.getPropertyValue("--z-base")),
-              raised: contentStyle !== null && Number(contentStyle.zIndex) === Number(root.getPropertyValue("--z-raised")),
-              behindContent: contentStyle !== null && Number(effect.zIndex) < Number(contentStyle.zIndex),
-              sameRadius: effect.borderRadius === root.borderRadius,
-              isolation: root.isolation,
-              backing: root.backgroundColor === expectedBacking,
-              opacity: root.opacity,
-            };
-          }),
-        )
-        .toEqual({
-          ringPresent: true,
-          ringNonzero: true,
-          rootNotGlow: true,
-          contentPresent: true,
-          effectPresent: true,
-          pointer: "none",
-          position: "absolute",
-          base: true,
-          raised: true,
-          behindContent: true,
-          sameRadius: true,
-          isolation: "isolate",
-          backing: true,
-          opacity: "1",
+      const readPaint = async (): Promise<{ readonly border: string; readonly width: string; readonly shadow: string; readonly backing: boolean }> =>
+        await composer.evaluate((element) => {
+          const style = getComputedStyle(element);
+          const probe = document.createElement("div");
+          probe.style.backgroundColor = "var(--color-muted)";
+          element.append(probe);
+          const muted = getComputedStyle(probe).backgroundColor;
+          probe.remove();
+          return { border: style.borderTopColor, width: style.borderTopWidth, shadow: style.boxShadow, backing: style.backgroundColor === muted };
         });
+      await page.getByTestId("drive-begin").focus();
+      await page.mouse.move(0, 0);
+      const rest = await readPaint();
+      // The focus border is the ring colour, a visible step past both rest and hover (a hover-equal focus
+      // was the invisible cue: border 14% to 12%).
+      const ringBorder = await composer.evaluate((element) => {
+        const probe = document.createElement("div");
+        probe.style.borderColor = "color-mix(in oklab, var(--color-ring) 60%, transparent)";
+        element.append(probe);
+        const color = getComputedStyle(probe).borderTopColor;
+        probe.remove();
+        return color;
+      });
+      await message.focus();
+      await page.keyboard.type("A focused draft");
+      await expect.poll(async () => (await readPaint()).border).not.toBe(rest.border);
+      await expect.poll(async () => (await readPaint()).border).toBe(ringBorder);
+      await expect.poll(readPaint).toEqual({ border: expect.any(String), width: "1px", shadow: "none", backing: true });
       await testInfo.attach(`focused-composer-${width}`, { body: await page.screenshot(), contentType: "image/png" });
       await dragFiles(component, [{ name: "cat.png", type: "image/png", bytes: 4 }], ["dragenter", "dragover"]);
-      const affordance = composer.locator('[data-slot="composer-content"]').locator(DROP_AFFORDANCE);
-      await expect(affordance).toBeVisible();
-      await expect(affordance).toHaveText("Drop images or video to attach");
       await expect(composer).toHaveAttribute("data-drag-over", "");
-      await testInfo.attach(`drag-composer-${width}`, { body: await page.screenshot(), contentType: "image/png" });
+      await expect.poll(async () => (await readPaint()).shadow).not.toBe("none");
       await dragFiles(component, [{ name: "cat.png", type: "image/png", bytes: 4 }], ["dragleave"]);
-      await expect(affordance).toHaveCount(0);
-
-      await component.getByRole("button", { name: "Message tools", exact: true }).click();
-      await page.getByRole("menuitem", { name: "Clear input", exact: true }).click();
-      await expect(message).toHaveValue("");
-      await page.getByTestId("drive-begin").focus();
-      await expect.poll(() => composer.evaluate((element) => getComputedStyle(element, "::before").boxShadow)).toBe("none");
+      await expect(composer.locator(DROP_AFFORDANCE)).toHaveCount(0);
     });
   });
 }

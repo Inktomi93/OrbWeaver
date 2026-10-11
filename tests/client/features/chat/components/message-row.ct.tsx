@@ -22,11 +22,12 @@ import {
   MESSAGE_EDIT_NAME,
   MESSAGE_FORK_NAME,
   MESSAGE_REASONING_NAME,
+  VARIANT_GENERATE_NAME,
   VARIANT_NEXT_NAME,
   VARIANT_PREV_NAME,
 } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
 import { projectViewForMember } from "../../../../../packages/server/src/domain/chat/substrate/member-visibility.ts";
-import { pixelContrast, pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
+import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GroupTranscriptAttributionStory, MessageRowStory, NarratorTranscriptStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, makeMessageView } from "../fixtures.ts";
@@ -438,14 +439,15 @@ test("showInChatAvatars=false hides the avatar image but KEEPS the speaker name"
 // The GROUP arm of the same promise. The switch's own gloss reads "Hide to show only the speaker's name
 // on each message", so with avatars off a multi-speaker room must still name EVERY turn — the single-row
 // pin above cannot see two consecutive turns running together unattributed, which is what a reader in a
-// group room would actually be hurt by. Runs across the three non-immersive modes because the skin table
-// is where a per-mode chrome suppression would land (the skin table owns every per-mode chrome decision).
+// group room would actually be hurt by. Runs across the non-immersive modes that name a speaker (the
+// document page names nobody, as stock does; its own pin is below) because the skin table is where a
+// per-mode chrome suppression would land.
 //
 // HONEST LABEL: this is a FENCE, not a defect proof. It passes against the pre-fix source too — the
 // behaviour was already correct, and side-eye 2026-08-16's "the fallback never renders" was read off a
 // transcript scrolled past the name rows (live receipt in the lane report). It exists so the next
 // avatars-off change cannot quietly take attribution with it.
-for (const chatStyle of ["bubble", "flat", "document"] as const) {
+for (const chatStyle of ["bubble", "flat"] as const) {
   test(`group transcript, avatars off, ${chatStyle}: every row still names its own speaker`, async ({ mount }) => {
     const component = await mount(
       <GroupTranscriptAttributionStory
@@ -566,9 +568,10 @@ async function pinHeader(port: Locator): Promise<Locator> {
 }
 
 /** A sticky-verdict row in its own bounded scrollport, tall enough for {@link pinHeader} to pin. */
-function pinnableRow(chatStyle: (typeof THEME_CHAT_STYLES)[number], participant: ParticipantView): ReactElement {
+function pinnableRow(chatStyle: (typeof THEME_CHAT_STYLES)[number], participant: ParticipantView, lastRow = false): ReactElement {
   return (
     <MessageRowStory
+      lastRow={lastRow}
       chatStyle={chatStyle}
       messageRole="assistant"
       characterId={ALICE_ID}
@@ -608,6 +611,106 @@ test("a user row mirrors it — avatar AFTER the content column (§B.1 own-messa
   const userChildren = user.locator(`${ROW_BODY} > *`);
   await expect(userChildren.first()).toHaveAttribute("data-slot", "message-content-column");
   await expect(userChildren.last()).toHaveAttribute("data-slot", "avatar-root");
+});
+
+// WHICH STYLES MIRROR THE PERSONA (owner ruling, after Moonlit Echoes): bubble, echo and tide put a user row's
+// identity on the trailing edge; flat, document, whisper, hush and ripple keep it leading like every other row.
+// The identity is the gutter chip, or ripple's welded portrait.
+const MIRRORED_USER_STYLES: ReadonlySet<string> = new Set(["bubble", "echo", "tide"]);
+for (const chatStyle of THEME_CHAT_STYLES) {
+  test(`${chatStyle}: a user row's identity sits ${MIRRORED_USER_STYLES.has(chatStyle) ? "trailing" : "leading"}`, async ({ mount }) => {
+    test.skip(chatStyle === "document", "the document page names nobody, as stock does; its own pins are the document block");
+    const component = await mount(
+      <MessageRowStory chatStyle={chatStyle} messageRole="user" personaId={ALEX_PERSONA_ID} personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]} width={720} />,
+    );
+    const avatar = component.locator(AVATAR).first();
+    await expect(avatar).toBeVisible();
+    const side = async (): Promise<"leading" | "trailing"> => {
+      const avatarBox = await avatar.boundingBox();
+      const proseBox = await component.locator(`${BUBBLE} p`).first().boundingBox();
+      return (avatarBox?.x ?? 0) < (proseBox?.x ?? 0) ? "leading" : "trailing";
+    };
+    await expect.poll(side).toBe(MIRRORED_USER_STYLES.has(chatStyle) ? "trailing" : "leading");
+  });
+}
+
+// PHONE CAPS (owner ruling, after Moonlit Echoes): below the row's `md` step a bubble takes at most 80% of its
+// column and a tide train 90% of its row (the cap rides the train's column, so its speaker row and pager share
+// the pills' edges); ripple's portrait narrows to its phone token.
+const PHONE_CAP_BODY = "A long enough reply that it would run the full width of a phone column if nothing capped it at all.";
+for (const { chatStyle, share, box, of } of [
+  { chatStyle: "bubble", share: 0.8, box: BUBBLE, of: CONTENT_COLUMN },
+  { chatStyle: "tide", share: 0.9, box: CONTENT_COLUMN, of: ROW_BODY },
+] as const) {
+  test(`${chatStyle}: at a phone width the message is capped at ${String(share * 100)}% of its track`, async ({ mount }) => {
+    const component = await mount(
+      <MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} width={360} content={PHONE_CAP_BODY} />,
+    );
+    const ratio = async (): Promise<number> => {
+      const capped = await component.locator(box).first().boundingBox();
+      const track = await component.locator(of).first().boundingBox();
+      return (capped?.width ?? 0) / (track?.width ?? 1);
+    };
+    await expect.poll(ratio).toBeLessThanOrEqual(share + 0.005);
+    await expect.poll(ratio).toBeGreaterThan(share - 0.05);
+  });
+}
+
+// …and in a MIRRORED user row the capped box sits flush against its own trailing chip, the cap's gap on the
+// far side. A start-aligned box left the gap between the message and its own identity (verifier: a 99-char
+// bubble at 0..264 with its chip at 336..360).
+for (const chatStyle of ["bubble", "echo", "tide"] as const) {
+  for (const [length, content] of [
+    ["short", "Hi there."],
+    ["long", PHONE_CAP_BODY],
+  ] as const) {
+    test(`${chatStyle}: at a phone width a ${length} user message sits flush against its trailing chip`, async ({ mount }) => {
+      const component = await mount(
+        <MessageRowStory
+          chatStyle={chatStyle}
+          messageRole="user"
+          personaId={ALEX_PERSONA_ID}
+          personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]}
+          width={360}
+          content={content}
+        />,
+      );
+      const gapToChip = async (): Promise<number> => {
+        const bubble = await component.locator(BUBBLE).last().boundingBox();
+        const chip = await component.locator(`${ROW_BODY} > ${AVATAR}`).boundingBox();
+        return (chip?.x ?? 0) - ((bubble?.x ?? 0) + (bubble?.width ?? 0));
+      };
+      // The row body's own gap at a phone width is `spacing.field`; nothing else may sit between the two.
+      await expect.poll(gapToChip).toBeGreaterThanOrEqual(-0.5);
+      await expect.poll(gapToChip).toBeLessThanOrEqual(SNAPPED_LENGTH_BASE_PX["spacing.field"] + 0.5);
+    });
+  }
+}
+
+test("ripple: at a phone width the welded portrait narrows to its phone width", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="ripple"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[aliceWithAvatar()]}
+      width={360}
+      content={PHONE_CAP_BODY}
+    />,
+  );
+  const portrait = component.locator(`${BUBBLE} ${AVATAR}`).first();
+  // The token resolved in place, so the pin follows the token rather than a copied number.
+  const phoneWidth = await portrait.evaluate((el) => {
+    const probe = document.createElement("span");
+    probe.style.display = "block";
+    probe.style.width = "var(--immersive-ripple-portrait-width-phone)";
+    el.parentElement?.append(probe);
+    const width = probe.getBoundingClientRect().width;
+    probe.remove();
+    return width;
+  });
+  // A zero token would make "close to it" vacuous, so the read only counts once the token resolved.
+  await expect.poll(async () => phoneWidth > 0 && Math.abs(((await portrait.boundingBox())?.width ?? 0) - phoneWidth) < 0.5).toBe(true);
 });
 
 test("avatars-off drops the avatar element entirely; the content column is unaffected (§B.1)", async ({ mount }) => {
@@ -716,23 +819,31 @@ test("echo: the art pane is a FIXED column outside the prose measure, sized to t
   const bubble = component.locator(BUBBLE);
   const artWidthPx = remTokenPx(TOKENS["immersive.echo-art-width"].value);
   await expect.poll(async () => bubble.evaluate((el) => Number.parseFloat(getComputedStyle(el).paddingRight))).toBe(artWidthPx);
-  // The art layer is sized to that pane and anchored to its TOP outer corner — never `cover` over the
+  // The art is its own tile, the pane's width, at the pane's top OUTER corner — never `cover` over the
   // whole bubble, which upscaled a 400x600 portrait 4.94x and cropped past the subject on a long turn.
-  const [bgSize, bgPos] = await bubble.evaluate((el) => {
-    const cs = getComputedStyle(el);
-    return [cs.backgroundSize, cs.backgroundPosition];
-  });
-  // Chrome serialises a `<width> auto` layer as the bare width, so the assertion is the layer pair:
-  // the fade covers the box, the ART layer is the pane's width (never `cover`, the 4.94x upscale).
-  expect(bgSize).toBe(`100% 100%, ${artWidthPx}px`);
-  // …anchored to the pane's top OUTER corner (Chrome serialises `right top` as `100% 0%`).
-  expect(bgPos).toBe("0px 0px, 100% 0%");
+  const art = component.locator('[data-slot="message-echo-art"]');
+  await expect
+    .poll(async () => {
+      const tile = await art.boundingBox();
+      const box = await bubble.boundingBox();
+      return {
+        width: Math.round(tile?.width ?? 0),
+        right: Math.round((tile?.x ?? 0) + (tile?.width ?? 0) - ((box?.x ?? 0) + (box?.width ?? 0))),
+        top: Math.round((tile?.y ?? 0) - (box?.y ?? 0)),
+      };
+    })
+    .toEqual({ width: artWidthPx, right: 0, top: 0 });
 });
 
 test("echo: a persona-kind (user) row is decorated too, mirrored to its own outer edge", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
   const component = await mount(
-    <MessageRowStory chatStyle="echo" messageRole="user" personaId={ALEX_PERSONA_ID} personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]} />,
+    <MessageRowStory
+      chatStyle="echo"
+      messageRole="user"
+      personaId={ALEX_PERSONA_ID}
+      personas={[{ id: ALEX_PERSONA_ID, name: "Alex", avatarHash: "hash_alex" }]}
+    />,
   );
   const bubble = component.locator(BUBBLE);
   const artWidthPx = remTokenPx(TOKENS["immersive.echo-art-width"].value);
@@ -845,7 +956,6 @@ test("avatars OFF removes the IMMERSIVE art too — echo's pane, whisper's band,
   const echoBubble = echo.locator(BUBBLE);
   await expect.poll(() => echoBubble.evaluate((el) => (el as HTMLElement).style.paddingRight)).toBe("");
   await expect.poll(() => echoBubble.evaluate((el) => getComputedStyle(el).backgroundImage)).toBe("none");
-  await expect(echo.locator(EDGE_TILE)).toHaveCount(0);
   await echo.unmount();
 
   const whisper = await mount(
@@ -874,7 +984,6 @@ test("avatars OFF removes the IMMERSIVE art too — echo's pane, whisper's band,
 // (avatar top ≈ name-row top) holds for BOTH real and fallback, and the with-image cases are UNCHANGED
 // (the regression pins above never pass a null hash → they double as the with-art geometry lock).
 
-const EDGE_TILE = '[data-slot="message-edge-tile"]';
 const BAND = '[data-slot="message-band"]';
 const FALLBACK = '[data-slot="avatar-fallback"]';
 const LONG_BODY = "Line one is fairly long.\n\nLine two.\n\nLine three.\n\nLine four.\n\nLine five.";
@@ -940,77 +1049,13 @@ test("bubble: a different no-avatar character resolves a DISTINCT hue (per-entit
   await expectInBand(fallback);
 });
 
-test("echo (no avatar): the FALLBACK edge tile IS the art — hue field + initial, SAME feather padding as with-image, aligned to the bled edge", async ({
-  mount,
-  page,
-}) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
-  const component = await mount(
-    <MessageRowStory chatStyle="echo" messageRole="assistant" content={LONG_BODY} characterId={ALICE_ID} participants={[alice()]} />,
-  );
-  const bubble = component.locator(BUBBLE);
-  const tile = component.locator(EDGE_TILE);
-  // The tile renders (not an empty/collapsed slot) and carries the initial in its visible zone.
-  await expect(tile).toHaveCount(1);
-  await expect(tile).toContainText("A");
-  // Owner ruling 2026-07-09 (side-eye): the initial is a scannable identity mark, sized off the
-  // hero-avatar glyph token (~4× the old 16px title), not an easter egg — RENDERED font-size, not a class.
-  await expect
-    .poll(async () => tile.locator('[data-slot="text"]').evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize)))
-    .toBe(SNAPPED_LENGTH_BASE_PX["spacing.avatar-hero"]);
-  // Reading geometry is IDENTICAL to the with-image echo (the regression pin above): text is padded
-  // clear by the art pane's own width token, never a reserved-but-empty gap.
-  await expect.poll(async () => bubble.evaluate((el) => (el as HTMLElement).style.paddingRight)).toBe("min(var(--immersive-echo-art-width), 25cqi)");
-  // The tile's field is the entity's deterministic hue — the SAME color the row's chip paints (one
-  // entity, one hue everywhere).
-  const chip = component.locator(`${AVATAR} ${FALLBACK}`);
-  await expectInBand(tile);
-  expect(await bgOf(tile)).toEqual(await bgOf(chip));
-  // Placement: the tile hugs the bubble's bled (right) edge, no broken overflow.
-  const tileBox = await tile.boundingBox();
-  const bubbleBox = await bubble.boundingBox();
-  const tileRight = (tileBox?.x ?? 0) + (tileBox?.width ?? 0);
-  const bubbleRight = (bubbleBox?.x ?? 0) + (bubbleBox?.width ?? 0);
-  expect(Math.abs(tileRight - bubbleRight)).toBeLessThan(2);
-});
-
-test("whisper (no avatar): the FALLBACK band renders at the SAME 3:1 geometry (hue field + initial), never a bare stripe or a stretched image", async ({
-  mount,
-}) => {
+test("whisper (no avatar): no banner, only the speaker stripe", async ({ mount }) => {
   const component = await mount(
     <MessageRowStory chatStyle="whisper" messageRole="assistant" content={LONG_BODY} characterId={ALICE_ID} participants={[alice()]} />,
   );
-  const band = component.locator(BAND);
-  await expect(band).toBeVisible();
-  await expect(band).toContainText("A");
-  // SAME 3:1 aspect box as the imaged band (the regression pin above) — height derives from width.
-  await expect
-    .poll(async () => {
-      const box = await band.boundingBox();
-      return Math.abs((box?.width ?? 0) / (box?.height ?? 1) - 3);
-    })
-    .toBeLessThan(0.1);
-  // A hue FIELD, not a banner <img> (the with-image band's `?v=banner` URL must be absent here).
-  await expect.poll(async () => band.evaluate((el) => getComputedStyle(el).backgroundImage)).not.toContain("?v=banner");
-  await expectInBand(band);
-});
-
-test("ripple (no avatar): the welded VN portrait falls back to the hue tile at the SAME portrait geometry (sticky, portrait width), no broken image", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <MessageRowStory chatStyle="ripple" messageRole="assistant" content={LONG_BODY} characterId={ALICE_ID} participants={[alice()]} />,
-  );
-  const avatar = component.locator(AVATAR);
-  // No <img> renders (no hash) — the Avatar shows its fallback tile, at the UNCHANGED portrait width.
-  await expect(avatar.locator('[data-slot="avatar-image"]')).toHaveCount(0);
-  const box = await avatar.boundingBox();
-  expect(Math.round(box?.width ?? 0)).toBe(remTokenPx(TOKENS["immersive.ripple-portrait-width"].value));
-  await expect(avatar).toHaveCSS("position", "sticky");
-  const fallback = avatar.locator(FALLBACK);
-  await expect(fallback).toContainText("A");
-  await expect(fallback).toHaveAttribute("data-hue", String(ALICE_HUE_BUCKET));
-  await expectInBand(fallback);
+  await expect(component.locator(BUBBLE)).toBeVisible();
+  await expect(component.locator(BAND)).toHaveCount(0);
+  await expect(component.locator(BUBBLE)).not.toHaveCSS("border-top-width", "0px");
 });
 
 // ── Reading scrim over a background photo (side-eye live P1, 2026-07-09) ───────────────────────────
@@ -1122,6 +1167,7 @@ for (const style of ALL_CHAT_STYLES) {
   });
 
   test(`${style} over a bg image: the USER name row is backed too (the row the live defect showed naked)`, async ({ mount }) => {
+    test.skip(style === "document", "the document page names nobody, as stock does; its own pins are the document block");
     const component = await mount(
       <div data-has-bg-image="">
         <MessageRowStory
@@ -1420,11 +1466,15 @@ test.describe("#988 message action rail containment", () => {
         buttons: visibleButtons.map((button) => {
           const rect = button.getBoundingClientRect();
           const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+          // A glyph button's touch target is its `::before` hit area, not its visible 32px box.
+          const area = getComputedStyle(button, "::before");
+          const areaWidth = area.content === "none" ? 0 : Number.parseFloat(area.width) || 0;
+          const areaHeight = area.content === "none" ? 0 : Number.parseFloat(area.height) || 0;
           return {
-            height: rect.height,
+            height: Math.max(rect.height, areaHeight),
             hitOwned: hit !== null && button.contains(hit),
             name: button.getAttribute("aria-label"),
-            width: rect.width,
+            width: Math.max(rect.width, areaWidth),
           };
         }),
         content: {
@@ -1607,6 +1657,7 @@ for (const coarse of [false, true] as const) {
     test.use({ hasTouch: coarse });
     for (const chatStyle of INSIDE_CHAT_STYLES) {
       test(`${chatStyle}: the body follows the header at the row gap and the rail stays clear of it`, async ({ mount, page }) => {
+        test.skip(chatStyle === "document", "the document page names nobody, as stock does; its own pins are the document block");
         await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(coarse);
         const component = await mount(<MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
         const rowPx = SNAPPED_LENGTH_BASE_PX["spacing.row"];
@@ -1696,39 +1747,6 @@ test("#204 over art, metadata gloss steps up to the FULL foreground (the muted b
   await expect
     .poll(async () => parseOklch(await plainStamp.evaluate((el) => getComputedStyle(el).color)))
     .toEqual(parseOklch(await cssVar(plainStamp, "--color-muted-foreground")));
-});
-
-test("#204/#241 the sticky band's ink is the base's derived foreground — the palette its fill now derives from", async ({ mount }) => {
-  const component = await mount(pinnableRow("bubble", alice()));
-  const nameRow = await pinHeader(component);
-  const inkVar = await cssVar(nameRow, "--color-foreground");
-  const readRenderedAtAssertion = async (): Promise<typeof rendered> => await nameRow.evaluate((el) => getComputedStyle(el).color);
-  const rendered = await nameRow.evaluate((el) => getComputedStyle(el).color);
-  await expect.poll(async () => parseOklch(await readRenderedAtAssertion())).toEqual(parseOklch(inkVar));
-});
-
-// ── #241 (owner-ruled off #223): THE BAND IS THE PLATE, AT ALPHA 1 ─────────────────────────────────
-// The band pins a tall turn's speaker name over that turn's own prose — which rides
-// `--color-reading-plate`. It shipped as `bg-card` (base +0.047 against the plate's −0.038), so every
-// message stacked two tones a constant ΔL apart and the owner filed the step as unintentional
-// ("two stacked whites of different opacity per message"). The fill is now `--color-reading-band`: the
-// SAME derived colour, at alpha 1. Measured through the RENDERED fill, not the class, because the class
-// is what a refactor changes and the step is what a reader sees.
-test("#241 the pinned band's fill IS the reading plate's colour at alpha 1 — the ΔL step is gone", async ({ mount }) => {
-  const component = await mount(pinnableRow("bubble", alice()));
-  const nameRow = await pinHeader(component);
-  const [bandL, bandC, bandH, bandAlpha] = parseOklch(await nameRow.evaluate((el) => getComputedStyle(el).backgroundColor));
-  const [plateL, plateC, plateH, plateAlpha] = parseOklch(await cssVar(nameRow, "--color-reading-plate"));
-  expect(bandL).toBeCloseTo(plateL, 2);
-  expect(bandC).toBeCloseTo(plateC, 3);
-  expect(bandH).toBeCloseTo(plateH, 1);
-  // #168 is untouched: the band OCCLUDES. The plate does not — which is what makes the colour match a
-  // real claim rather than the same token twice.
-  expect(bandAlpha).toBe(1);
-  expect(plateAlpha).toBeLessThan(1);
-  // And it is no longer the CARD ramp surface — the tone it stepped away from is still a different colour.
-  const [cardL] = parseOklch(await cssVar(nameRow, "--color-card"));
-  expect(Math.abs(cardL - bandL)).toBeGreaterThan(0.05);
 });
 
 // ── D48 tool records reach the row (the wiring the transcript was silently dropping) ────────────────
@@ -1962,7 +1980,7 @@ test("two rows, one producer, different DECLARED kinds: narrator reads Narrator,
 const PHONE_COLUMN = 320;
 const DESKTOP_COLUMN = 720;
 
-test("at a phone-width column the avatar gutter shrinks and the reading measure grows", async ({ mount }) => {
+test("at a phone-width column the chip keeps its 40px and only the gutter gap tightens", async ({ mount }) => {
   const narrow = await mount(
     <MessageRowStory chatStyle="bubble" characterId={ALICE_ID} messageRole="assistant" participants={[alice()]} width={PHONE_COLUMN} />,
   );
@@ -1990,9 +2008,10 @@ test("at a phone-width column the avatar gutter shrinks and the reading measure 
   });
   // The portrait still renders (a phone does not lose the character) …
   await expect.poll(async () => (await readMeasuredAtAssertion()).avatar).toBeGreaterThan(0);
-  // … at the stepped-down size, and the gutter costs well under a tenth of the row (it was 76 of 320).
-  await expect.poll(async () => (await readMeasuredAtAssertion()).avatar).toBeLessThanOrEqual(24);
-  expect((measured.avatar + measured.gap) / measured.row).toBeLessThan(0.12);
+  // … at the same 40px chip as a desktop (the Glimmer preset's size), and the gutter costs well under a
+  // sixth of the row (it was 76 of 320 before the gap tightened).
+  await expect.poll(async () => (await readMeasuredAtAssertion()).avatar).toBe(40);
+  expect((measured.avatar + measured.gap) / measured.row).toBeLessThan(0.15);
 });
 
 test("at a desktop-width column the portrait keeps its full size — the step-down is a WIDTH answer, not a mode", async ({ mount }) => {
@@ -2022,6 +2041,7 @@ test("at a desktop-width column the portrait keeps its full size — the step-do
 // CT bundle and breaks its build; the tuple is the same axis with no such cost.
 for (const chatStyle of THEME_CHAT_STYLES) {
   test(`#113 ${chatStyle}: a viewport-exceeding row makes its name row sticky without changing the row's height`, async ({ mount }) => {
+    test.skip(chatStyle === "document", "an earlier document row never pins; its last-row pin is the designed-edges suite");
     const bare = await mount(<MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
     const bareOuter = await nameRowOuterExtent(bare.locator(NAME_ROW));
     await expect(bare.locator(NAME_ROW)).toHaveCSS("position", "static");
@@ -2068,6 +2088,7 @@ for (const chatStyle of THEME_CHAT_STYLES) {
 // row, so in this flush mount it is already pinned at scroll 0.
 for (const chatStyle of INSIDE_CHAT_STYLES) {
   test(`${chatStyle}: a long reply's header is unbacked at rest and backed once pinned, with no box change`, async ({ mount }) => {
+    test.skip(chatStyle === "document", "the document page names nobody; its pinned chip is the designed-edges suite");
     const component = await mount(
       <MessageRowStory
         chatStyle={chatStyle}
@@ -2249,101 +2270,164 @@ test("#106 CONTROL: with no background photo the same row is byte-identically ba
   await expect(component.locator(METADATA_ROW)).toHaveCSS("backdrop-filter", "none");
 });
 
-// ── #221: THE SWIPE STRIP over a bg photo — the last naked band under the bubble ───────────────────
-// The metadata row and the message footer take `BG_PHOTO_CHROME_PLATE` mode-independently (#106); the
-// swipe strip sits BETWEEN them and took nothing, so its chevrons floated on the raw wallpaper —
-// measured 1.60:1 live (rescore-chats-2026-08-18), against WCAG 1.4.11's 3:1 for a UI component.
-// The row owns the backing and threads it (`renderRowSwipe`), so a strip knows nothing about the shell's
-// wallpaper flag. The pager takes the opaque card and its paired ink: its counter must stay readable over art.
+// ── THE SWIPE FOOT: the message's own last line, per chat style (owner ruling, SillyTavern's inline swipe) ──
+// ‹ sits at the container's leading edge and the count beside › at its trailing edge, as the message's own
+// foot rather than a separate card under it. Each style decides where that foot lives (`RowSkin.swipeFoot`):
+// inside the container for the seven single-container styles, under the train for tide. The count is the
+// position and nothing else.
 const SWIPE_STRIP = '[data-slot="swipe-strip"]';
+const SWIPE_COUNTER_SLOT = '[data-slot="swipe-strip-counter"]';
+const PAGER_COUNTER_TEXT = "2 / 3";
+const SWIPE_BODY = "The pale light of the second moon slid across the courtyard flagstones, and Alice counted the guards again before she answered.";
+/** The foot's container as the chevrons see it: its content box, i.e. its reading inset on each side. Echo's
+ *  inset on the art side is its art pane and hush's leading edge is its stripe, which is why the law is
+ *  stated against the container's own border and padding. */
+function readFootContainer(foot: Locator): Promise<{ readonly contentLeft: number; readonly contentRight: number }> {
+  return foot.evaluate((element) => {
+    // Skip the strip's own wrapper: the container is the first ancestor that owns a reading inset. Tide's foot
+    // sits under a train with no container, so it carries the reading inset on its own row.
+    let parent = element.parentElement;
+    while (parent !== null && Number.parseFloat(getComputedStyle(parent).paddingLeft) === 0 && parent.dataset["slot"] !== "message-content-column") {
+      parent = parent.parentElement;
+    }
+    if (parent === null) {
+      throw new Error("the swipe foot has no container");
+    }
+    const container = parent.dataset["slot"] === "message-content-column" ? element : parent;
+    const box = container.getBoundingClientRect();
+    const style = getComputedStyle(container);
+    const left = box.left + Number.parseFloat(style.borderLeftWidth) + Number.parseFloat(style.paddingLeft);
+    const right = box.right - Number.parseFloat(style.borderRightWidth) - Number.parseFloat(style.paddingRight);
+    return { contentLeft: left, contentRight: right };
+  });
+}
 
-test("the swipe strip over a bg image uses the opaque card and its paired ink (#221)", async ({ mount, page }) => {
+/** The trailing edge of the header bar's last action: where the foot's › must line up. */
+async function headerActionsRight(component: Locator): Promise<number> {
+  return await component.locator(`${NAME_ROW} ${ACTIONS_ROW}`).evaluate((row) => {
+    const buttons = [...row.querySelectorAll("button")].filter((button) => getComputedStyle(button).display !== "none");
+    return buttons.at(-1)?.getBoundingClientRect().right ?? Number.NaN;
+  });
+}
+
+/** A computed background as comparable OKLCH, or the transparent sentinel. */
+function parseOklchOrTransparent(value: string): unknown {
+  return value === TRANSPARENT ? TRANSPARENT : parseOklch(value);
+}
+
+for (const chatStyle of THEME_CHAT_STYLES) {
+  test(`the swipe foot sits at its container's edges and shows only the position (${chatStyle})`, async ({ mount, page }) => {
+    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
+    const component = await mount(
+      <MessageRowStory
+        chatStyle={chatStyle}
+        messageRole="assistant"
+        showSwipes={true}
+        lastRow={true}
+        characterId={ALICE_ID}
+        participants={[alice()]}
+        width={720}
+        content={SWIPE_BODY}
+      />,
+    );
+    const foot = component.locator(SWIPE_STRIP);
+    await expect(foot).toHaveCount(1);
+    // THE 0831 RULING: no label beside the count.
+    await expect(foot).toHaveText(PAGER_COUNTER_TEXT);
+    // Placement: the container's own last line, or under the train where there is no single container.
+    const inside = await component.locator(`${BUBBLE} ${SWIPE_STRIP}`).count();
+    expect(inside, "tide alone seats the foot under its train").toBe(chatStyle === "tide" ? 0 : 1);
+    // One settled read of the whole arrangement, retried until the row has laid out.
+    const footLaw = async (): Promise<Record<string, boolean>> => {
+      const container = await readFootContainer(foot);
+      const prev = await foot.getByRole("button", { name: VARIANT_PREV_NAME }).boundingBox();
+      const next = await foot.getByRole("button", { name: VARIANT_NEXT_NAME }).boundingBox();
+      const counter = await foot.locator(SWIPE_COUNTER_SLOT).boundingBox();
+      const footBox = await foot.boundingBox();
+      if (prev === null || next === null || counter === null || footBox === null) {
+        return { rendered: false };
+      }
+      // Tide's foot is its own container, so pin that container to the train: it spans the widest pill.
+      const pills = await component
+        .locator(BUBBLE)
+        .evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map(({ left, right }) => ({ left, right })));
+      const widest = pills.toSorted((a, b) => b.right - b.left - (a.right - a.left))[0];
+      return {
+        rendered: true,
+        onTrain:
+          chatStyle !== "tide" || (widest !== undefined && Math.abs(footBox.x - widest.left) < 1 && Math.abs(footBox.x + footBox.width - widest.right) < 1),
+        // ‹ and › sit on the container's reading inset, the same inset the header bar's actions sit on.
+        leading: Math.abs(prev.x - container.contentLeft) < 1,
+        trailing: Math.abs(next.x + next.width - container.contentRight) < 1,
+        matchesHeader: Math.abs(next.x + next.width - (await headerActionsRight(component))) < 1,
+        countBesideNext: counter.x > prev.x + prev.width && counter.x + counter.width <= next.x + 0.5,
+        // One glyph line, not a card: the foot is as tall as its chevrons.
+        oneLine: Math.abs(footBox.height - next.height) < 0.5,
+      };
+    };
+    await expect
+      .poll(footLaw)
+      .toEqual({ rendered: true, onTrain: true, leading: true, trailing: true, matchesHeader: true, countBesideNext: true, oneLine: true });
+    // Echo's foot rides the card's fill across the art pane; every other inside foot sits on its container.
+    const fill = await foot.evaluate((el) => getComputedStyle(el).backgroundColor);
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): the foot law above polled the row to its settled layout; its fill is a static class.
+    expect(parseOklchOrTransparent(fill)).toEqual(chatStyle === "echo" ? parseOklch(await cssVar(foot, "--color-ai-bubble")) : TRANSPARENT);
+  });
+}
+
+test("over a wallpaper the bubble foot rides the bubble's own fill, and its count stays legible", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
   const component = await mount(
     <div data-has-bg-image="">
       <MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} characterId={ALICE_ID} participants={[alice()]} />
     </div>,
   );
-  const strip = component.locator(SWIPE_STRIP);
-  await expect(strip).toHaveCount(1);
-  await expect(strip.getByRole("button", { name: VARIANT_NEXT_NAME })).toBeVisible();
-  const { bg, ink, backdrop } = await strip.evaluate((el) => {
-    const cs = getComputedStyle(el);
-    return { bg: cs.backgroundColor, ink: cs.color, backdrop: cs.backdropFilter };
-  });
-  expect(bg).not.toBe(TRANSPARENT);
-  expect(parseOklch(bg)).toEqual(parseOklch(await cssVar(strip, "--color-card")));
-  expect(parseOklch(bg)[3]).toBe(1);
-  expect(parseOklch(ink)).toEqual(parseOklch(await cssVar(strip, "--color-card-foreground")));
-  expect(backdrop).toBe("none");
-  const counterContrast = await pixelContrast(page, strip.locator('[data-slot="swipe-strip-counter"]'));
+  const foot = component.locator(`${BUBBLE} ${SWIPE_STRIP}`);
+  await expect(foot).toHaveCount(1);
+  await expect(foot).toHaveCSS("background-color", TRANSPARENT);
+  const counterContrast = await pixelContrast(page, foot.locator(SWIPE_COUNTER_SLOT));
   expect(counterContrast.ratio, counterContrast.describe).toBeGreaterThanOrEqual(4.5);
 });
 
-test("without a bg image the swipe strip stays unbacked — don't chip what doesn't need it (#221)", async ({ mount, page }) => {
+test("over a wallpaper tide's foot, which has no container, takes the opaque pager plate (#221)", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
   const component = await mount(
-    <MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} characterId={ALICE_ID} participants={[alice()]} />,
+    <div data-has-bg-image="">
+      <MessageRowStory chatStyle="tide" messageRole="assistant" showSwipes={true} characterId={ALICE_ID} participants={[alice()]} />
+    </div>,
   );
-  const strip = component.locator(SWIPE_STRIP);
-  const { bg, backdrop } = await strip.evaluate((el) => {
-    const cs = getComputedStyle(el);
-    return { bg: cs.backgroundColor, backdrop: cs.backdropFilter };
-  });
-  expect(bg).toBe(TRANSPARENT);
-  expect(backdrop).toBe("none");
+  const foot = component.locator(SWIPE_STRIP);
+  await expect(foot).toHaveCount(1);
+  const card = parseOklch(await cssVar(foot, "--color-card"));
+  await expect.poll(async () => parseOklch(await foot.evaluate((el) => getComputedStyle(el).backgroundColor))).toEqual(card);
+  const counterContrast = await pixelContrast(page, foot.locator(SWIPE_COUNTER_SLOT));
+  expect(counterContrast.ratio, counterContrast.describe).toBeGreaterThanOrEqual(4.5);
 });
 
-// The swipe pager rides the trailing edge aligned with the row actions (#312). Measure its own box rather
-// than a stretching wrapper, and cover both narrow and wide mounts; setting width alone does not prove
-// alignment.
-const TRAILING_EDGE_BODY = "The pale light of the second moon slid across the courtyard flagstones, and Alice counted the guards again before she answered.";
+test.describe("the swipe foot at a coarse pointer", () => {
+  test.use({ hasTouch: true });
 
-for (const width of [360, 720] as const) {
-  test(`the swipe strip packs to the content column's trailing edge, with the row actions (#312, ${width}px)`, async ({ mount, page }) => {
+  // The chevrons are compact glyph boxes, so the finger's floor rides the glyph arm's hit-area pseudo.
+  test("each chevron keeps a touch-floor hit area around its compact glyph", async ({ mount, page }) => {
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
-    const component = await mount(
-      <MessageRowStory
-        chatStyle="bubble"
-        messageRole="assistant"
-        showSwipes={true}
-        characterId={ALICE_ID}
-        participants={[alice()]}
-        width={width}
-        content={TRAILING_EDGE_BODY}
-      />,
-    );
-    const strip = component.locator(SWIPE_STRIP);
-    await expect(strip).toHaveCount(1);
-    // The full pager is present (the story seeds variantCount 3), so the chip is genuinely narrower than
-    // the column — the precondition that makes "left vs trailing" an observable difference at all.
-    await expect(strip.getByRole("button", { name: VARIANT_NEXT_NAME })).toBeVisible();
-
-    const stripBox = await strip.boundingBox();
-    const columnBox = await component.locator(CONTENT_COLUMN).boundingBox();
-    const actionsBox = await component.locator(ACTIONS_ROW).boundingBox();
-    const stripRight = (stripBox?.x ?? 0) + (stripBox?.width ?? 0);
-    const columnRight = (columnBox?.x ?? 0) + (columnBox?.width ?? 0);
-    const actionsRight = (actionsBox?.x ?? 0) + (actionsBox?.width ?? 0);
-
-    // A genuine chip: narrower than the column, so its horizontal position is not forced.
-    expect(stripBox?.width ?? 0).toBeGreaterThan(0);
-    expect(stripBox?.width ?? 0).toBeLessThan((columnBox?.width ?? 0) - 8);
-    // It sits at the TRAILING edge — its right edge is the column's right edge (the mirror of the metadata
-    // row, whose chips hug the column's LEFT edge). This is THE fix: left-by-omission fails here.
-    expect(Math.abs(stripRight - columnRight)).toBeLessThan(2);
-    // …the SAME trailing edge the edit/kebab cluster packs to (the owner's "aligned with the actions"). The
-    // strip reaches at least as far right as the kebab and no further than a bubble's inner padding past it:
-    // the actions live INSIDE the bubble (inset by its right padding) while the strip is a sibling below it
-    // at the column's outer edge, so a few px of overhang is the padding, not a misalignment. A left-hugging
-    // strip (old source) sits hundreds of px LEFT of the kebab and fails the first of these.
-    expect(stripRight).toBeGreaterThanOrEqual(actionsRight - 2);
-    expect(stripRight - actionsRight).toBeLessThan(24);
-    // …and it is genuinely PUSHED right, not full-width or left-hugging: its left edge is well clear of the
-    // column's left edge (a left-by-omission chip fails here — its left edge would BE the column's left).
-    expect((stripBox?.x ?? 0) - (columnBox?.x ?? 0)).toBeGreaterThan(24);
+    const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content="Ok" width={360} />);
+    const next = component.locator(SWIPE_STRIP).getByRole("button", { name: VARIANT_NEXT_NAME });
+    const touchTarget = SNAPPED_LENGTH_BASE_PX["spacing.touch-target"];
+    const hitSide = (): Promise<number> =>
+      next.evaluate((el) => {
+        const before = getComputedStyle(el, "::before");
+        return Math.min(Number.parseFloat(before.width), Number.parseFloat(before.height));
+      });
+    await expect.poll(hitSide).toBeGreaterThanOrEqual(touchTarget - 0.5);
+    // A short reply still contains its foot: neither chevron leaves the bubble.
+    const bubble = await component.locator(BUBBLE).boundingBox();
+    const prev = await component.locator(SWIPE_STRIP).getByRole("button", { name: VARIANT_PREV_NAME }).boundingBox();
+    const nextBox = await next.boundingBox();
+    expect(prev?.x ?? 0).toBeGreaterThanOrEqual((bubble?.x ?? 0) - 0.5);
+    expect((nextBox?.x ?? 0) + (nextBox?.width ?? 0)).toBeLessThanOrEqual((bubble?.x ?? 0) + (bubble?.width ?? 0) + 0.5);
   });
-}
+});
 
 // ── #220: THE MOBILE NAME BAND'S BUDGET — identity first, chrome second ──────────────────────────────
 //
@@ -2416,14 +2500,14 @@ test.describe("#220 coarse name band", () => {
     expect(split.actions).toBeLessThan(split.band / 3);
   });
 
-  test("the collapsed verbs keep a door: the ⋯ menu carries Edit and Fork at a coarse pointer", async ({ mount, page }) => {
+  test("a phone's bar keeps Edit inline beside the ⋯, and the ⋯ still carries Edit and Fork", async ({ mount, page }) => {
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     const component = await mount(
       <MessageRowStory chatStyle="flat" messageRole="assistant" characterId={ALICE_ID} participants={[calamity()]} width={PHONE_BAND_WIDTH} />,
     );
-    // The inline pair stood down — `display:none`, so they leave the a11y tree too, and the menu is the
-    // ONE door (never two announcements of one verb).
-    await expect(component.getByRole("button", { name: MESSAGE_EDIT_NAME })).toBeHidden();
+    // Edit is the one inline verb at a touch pointer; Fork stood down (`display:none`, so it leaves the
+    // a11y tree too) and the menu is its one door.
+    await expect(component.getByRole("button", { name: MESSAGE_EDIT_NAME })).toBeVisible();
     await expect(component.getByRole("button", { name: MESSAGE_FORK_NAME })).toBeHidden();
 
     await component.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME }).click();
@@ -2465,6 +2549,7 @@ const HEADER_INSIDE_STYLES = ["bubble", "flat", "document", "echo", "whisper", "
 
 for (const style of HEADER_INSIDE_STYLES) {
   test(`#288 ${style}: the name row is INSIDE the message container, not a sibling above it`, async ({ mount }) => {
+    test.skip(style === "document", "the document page names nobody, as stock does; its own pins are the document block");
     const component = await mount(<MessageRowStory chatStyle={style} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
     // The header is a descendant of the container the body renders in …
     await expect(component.locator(BUBBLE).first().locator(NAME_ROW)).toHaveCount(1);
@@ -2662,284 +2747,6 @@ test("#220 at a FINE pointer the inline Edit/Fork pair is untouched", async ({ m
   await expect(component.getByRole("button", { name: MESSAGE_FORK_NAME })).toBeVisible();
 });
 
-// ── #598: THE PAGER MAY NOT WIDEN OR OVERHANG THE BUBBLE IT PAGES ─────────────────────────────────
-//
-// The content column resolves to the max-content of its widest child (the bubble family's row outer is
-// `items-start`, so the row body shrink-wraps — the #245 note on message-row.tsx). #490 grew the swipe chip
-// to 177.5px by naming it "Variant", which is WIDER than a short reply's bubble, so the chip became that
-// widest child: measured on the pre-fix source, a two-word reply rendered bubble 132.00 / strip 177.55 /
-// column 177.55 — a pager hanging 45px past the right edge of the box it pages, at BOTH ends of the width
-// matrix. (The #312 pin above records the same collapse from the other side and worked around it by
-// lengthening its fixture.)
-//
-// Two properties, both asserted per cell, because they fail independently: the chip must not SIZE the column
-// (fixed by the pager track's `container-type: inline-size` — an inline-size container resolves its width
-// without regard to its contents, so it contributes nothing upward and still stretches downward), and it
-// must not EXTEND past the bubble (fixed by the kicker standing down below the width that can hold it — no
-// containment can shrink a 177.5px chip under a 132px bubble). The label assertions run in BOTH directions
-// in the same matrix, so a rule that hid the word everywhere would fail as loudly as one that never hid it.
-const PAGER_LABEL = "Variant";
-/** The counter is reached by its TEXT, never by the `swipe-strip-counter` slot the fix added: a red-first
- *  receipt has to compile AND run against the source that still has the defect, so every locator here is one
- *  the pre-fix DOM also answers. The text survives the compaction (`word-spacing` moves no characters). */
-const PAGER_COUNTER_TEXT = "2 / 3";
-/** Every cell keeps a USABLE pager: both chevrons and the counter, whatever the label does. */
-async function expectPagerUsable(component: Locator): Promise<void> {
-  await expect(component.getByRole("button", { name: VARIANT_PREV_NAME })).toBeVisible();
-  await expect(component.getByRole("button", { name: VARIANT_NEXT_NAME })).toBeVisible();
-  await expect(component.getByText(PAGER_COUNTER_TEXT)).toBeVisible();
-}
-
-/** One read of everything the two pager laws are about.
- *
- *  `labelInFlow` is a WIDTH question, not a visibility one (#608): the kicker stands down to `sr-only`,
- *  which Playwright still calls visible — it is absolutely positioned at 1×1 — so what the assertions want
- *  to know is whether it occupies layout.
- *
- *  `counterLines` is HEIGHT ÷ line-height, and the two probes it replaces are both UN-FAILABLE here —
- *  each was written, run against the pre-fix source, and caught lying (2026-08-24):
- *    · `el.getClientRects().length` counts LINE BOXES only for an inline element. The counter is a flex
- *      ITEM, which CSS blockifies, so a block box is one rect no matter how many lines it holds — it read
- *      1 on the wrapped pre-fix counter.
- *    · a Range over the element's contents returns a rect per TEXT RUN, and `{current} / {total}` is three
- *      of them — it read 3 in every cell, wrapped or not.
- *    · box-width vs `scrollWidth` cannot see it either: the text RE-LAYS OUT into the narrower box, so
- *      scrollWidth follows the box down (30.08 vs 30) instead of reporting the overflow.
- *  Height is what actually moves: the pre-fix coarse cells measured 32.50px against a 16.25px
- *  line-height — the "2 /" over "3" side-eye photographed — and every healthy cell measures 16.25px. */
-async function readPagerGeometry(component: Locator): Promise<{
-  readonly bubble: number;
-  readonly chip: number;
-  readonly chipIntrinsic: number;
-  readonly chipGap: number;
-  readonly column: number;
-  readonly chevron: { readonly w: number; readonly h: number };
-  readonly counterLines: number;
-  readonly counterWidth: number;
-  readonly counterClipped: boolean;
-  readonly labelInFlow: boolean;
-  readonly rightDelta: number;
-  readonly leftDelta: number;
-}> {
-  const bubbleBox = await component.locator(BUBBLE).boundingBox();
-  const chipBox = await component.locator(SWIPE_STRIP).boundingBox();
-  const columnBox = await component.locator(CONTENT_COLUMN).boundingBox();
-  const chevronBox = await component.getByRole("button", { name: VARIANT_PREV_NAME }).boundingBox();
-  const labelBox = await component.getByText(PAGER_LABEL, { exact: true }).boundingBox();
-  const counter = await component.getByText(PAGER_COUNTER_TEXT).evaluate((el) => ({
-    height: el.getBoundingClientRect().height,
-    width: el.getBoundingClientRect().width,
-    lineHeight: Number.parseFloat(getComputedStyle(el).lineHeight),
-    clipped: el.scrollWidth > el.clientWidth + 1,
-  }));
-  // The chip's INTRINSIC width, read from the chip itself rather than pinned as a px literal: the sum of
-  // its IN-FLOW children plus one gap between each pair. `sr-only` children are absolutely positioned, so
-  // they are neither flex items nor gap-bearing (`PAGER_LABEL_QUIET_WHEN_TIGHT`) and must not be counted.
-  // The test is the COMPUTED position, not `offsetParent` (which is null only for fixed/detached boxes,
-  // so it calls an `sr-only` child in-flow and inflates the floor by a pixel and a gap — measured).
-  const intrinsic = await component.locator(SWIPE_STRIP).evaluate((chip: HTMLElement) => {
-    const gap = Number.parseFloat(getComputedStyle(chip).columnGap) || 0;
-    const flowed = [...chip.children].filter((kid) => {
-      const position = getComputedStyle(kid).position;
-      return position !== "absolute" && position !== "fixed";
-    });
-    const sum = flowed.reduce((total, kid) => total + kid.getBoundingClientRect().width, 0);
-    return { gap, width: sum + gap * Math.max(flowed.length - 1, 0) };
-  });
-  return {
-    bubble: bubbleBox?.width ?? 0,
-    chip: chipBox?.width ?? 0,
-    chipIntrinsic: intrinsic.width,
-    chipGap: intrinsic.gap,
-    column: columnBox?.width ?? 0,
-    chevron: { w: chevronBox?.width ?? 0, h: chevronBox?.height ?? 0 },
-    counterLines: Math.round(counter.height / counter.lineHeight),
-    counterWidth: counter.width,
-    counterClipped: counter.clipped,
-    labelInFlow: (labelBox?.width ?? 0) > 1,
-    rightDelta: (chipBox?.x ?? 0) + (chipBox?.width ?? 0) - ((bubbleBox?.x ?? 0) + (bubbleBox?.width ?? 0)),
-    leftDelta: (chipBox?.x ?? 0) - (bubbleBox?.x ?? 0),
-  };
-}
-
-/** The chip's placement, in the two arms it actually has (#312 + #608's rendered receipt).
- *
- *  FITS ⇒ the trailing edges meet: the pager sits under the row's action cluster, which is #312's whole
- *  ruling. OVERFLOWS (a bubble narrower than the touch-floored chip) ⇒ the LEADING edges meet instead, and
- *  that arm is not cosmetic: `align-self: flex-end` overflows towards the START, which put the ‹ chevron at
- *  x = −47px — off the pane, unclickable — while the auto margin in `PAGER_CHIP` sends the same overflow
- *  into the column's own empty room. A pin that only asserted the trailing edge would pass on the version
- *  that loses a control off-screen; it was the SHOT, not the numbers, that caught it. */
-function expectPagerAlignment(g: { readonly rightDelta: number; readonly leftDelta: number }): void {
-  // ONE of the two edges is flush with the bubble's — trailing while the chip fits, leading once it cannot.
-  expect(Math.min(Math.abs(g.rightDelta), Math.abs(g.leftDelta))).toBeLessThanOrEqual(1);
-  // …and the overflow, when there is one, is never towards the pane's edge. THIS is the line that reds on
-  // the `self-end` spelling (measured −47px there).
-  expect(g.leftDelta).toBeGreaterThanOrEqual(-1);
-}
-
-const PAGER_MATRIX = [
-  // A SHORT reply is the defect cell: its bubble is narrower than the full chip, so the label stands down.
-  { label: "short", content: "Hi there", labelShown: false },
-  // One line at roughly the chip's own width — the crossover, where the label comes back.
-  { label: "medium", content: "That is a reasonably sized reply line", labelShown: true },
-  {
-    label: "long",
-    content:
-      "This one runs on for quite a while so that the body wraps across several lines and the bubble reaches the reading measure cap without any doubt about it.",
-    labelShown: true,
-  },
-] as const;
-
-for (const width of [360, 900] as const) {
-  for (const cell of PAGER_MATRIX) {
-    test(`#598 the variant pager neither widens nor overhangs its bubble (${cell.label} body, ${width}px)`, async ({ mount, page }) => {
-      await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
-      const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content={cell.content} width={width} />);
-      await expect(component.locator(SWIPE_STRIP)).toHaveCount(1);
-      await expectPagerUsable(component);
-
-      const g = await readPagerGeometry(component);
-      // (1) THE COLUMN IS THE BUBBLE'S. A chip that still sized the column reads column === chip here.
-      expect(g.bubble).toBeGreaterThan(0);
-      expect(g.column).toBeCloseTo(g.bubble, 1);
-      // (2) NOTHING HANGS OUT. At a fine pointer every cell of this matrix FITS, so the chip is inside the
-      // bubble and the trailing edges meet (#312) — `expectPagerAlignment` states both arms in general.
-      expect(g.chip).toBeLessThanOrEqual(g.bubble + 1);
-      expectPagerAlignment(g);
-      // …and the word occupies LAYOUT exactly where the bubble can hold it — both arms, same matrix.
-      expect(g.labelInFlow).toBe(cell.labelShown);
-      // …and the counter is one line at every width (the coarse arm below is where this one bites).
-      expect(g.counterLines).toBe(1);
-    });
-  }
-}
-
-// THE FLOOR CASE — a two-letter body, so the bubble is as narrow as the row can make it: its width is the
-// name row's action cluster inside `px-block` and nothing else (166.59px here; 149.67px measured with a
-// two-letter speaker name). The compact label-less chip is 99.48px, so the stand-downs leave real headroom
-// rather than a coincidence; if a future action cluster shrinks past the chip, THIS is the pin that goes red.
-test("#598 even the narrowest bubble the row can produce still contains its pager", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
-  const component = await mount(
-    <MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content="Ok" width={360} characterId={ALICE_ID} participants={[alice()]} />,
-  );
-  await expectPagerUsable(component);
-  const g = await readPagerGeometry(component);
-  expect(g.chip).toBeLessThan(g.bubble);
-  expectPagerAlignment(g);
-});
-
-// ── #608: THE SAME PAGER, AT A COARSE POINTER — the chip may not be CRUSHED either ────────────────
-//
-// #598 contained the chip's track, which made the BUBBLE the chip's available width. At a fine pointer that
-// is all upside. At a coarse one it moved the failure rather than removing it, and side-eye measured the
-// result in the room: a `w-fit` chip resolved against a short bubble and its flex children absorbed the
-// deficit — chevrons at 41.41×48 (under the app's own 48px coarse box AND WCAG 2.5.5's 44px floor) with the
-// counter wrapped to "2 /" over "3". Same reading at `--font-scale 1.5`, so not a type-scale accident.
-//
-// The fix is `w-max` (the chip is its content, the CONTAINED track absorbs the overflow — the column is
-// untouched either way, which is what #598's containment bought) plus two width-keyed stand-downs, so the
-// chip is as small as it can HONESTLY be before it is asked to be smaller than its own controls.
-//
-// THE HONEST FLOOR, and why these pins do not assert "chip ≤ bubble" at a coarse pointer (measured, this
-// file's own story): the narrowest bubble the row can produce is NOT the 128.58px the room happened to show
-// — that reading carried a timestamp. With `showTimestamps` off (the default) the bubble's width is the name
-// row's ⋯ cluster inside `px-block`: 89.67px with a two-letter speaker, 72.00px with none. Two 48px targets
-// alone are 96px. NO arrangement of a two-button pager fits that bubble, so the chip stops shrinking at its
-// compact floor (127.48px measured) and hangs past the bubble instead — WCAG 2.5.5 outranks flushness, and a
-// crushed 41px target is the defect this issue was filed for. The assertion is therefore `chip ≤ max(bubble,
-// floor)`: flush wherever flushness is reachable, and the touch floor exactly where it is not.
-//
-// THE FLOOR IS MEASURED, NOT PINNED (#1050, 2026-09-02). This block used to carry `COARSE_CHIP_FLOOR =
-// 127.48` — 2 × 48px chevron + the compact counter + 2 × 4px `gap-tight`, i.e. two device constants and ONE
-// FONT METRIC. `77e07912eb` vendored Geist, the datum-voice counter went 23.48 → 24.00px, the chip went
-// 127.48 → 128.00, and a 0.52px drift red a 0.5px `toBeCloseTo` tolerance with no product code changed
-// (measured both ways in ONE evaluate: with the inherited stack and with the pre-Geist
-// `ui-monospace, SFMono-Regular, monospace` fallback forced, which reproduces 127.484375 exactly).
-// A pin whose expected value is a glyph advance is a pin on the font, so the floor is now READ OFF THE CHIP
-// (`chipIntrinsic` = its in-flow children + their gaps) and the LAW is asserted against device constants
-// only: two full `COARSE_TOUCH_BOX` targets plus the gaps between them, a counter that is neither wrapped
-// nor clipped, and a chip that is exactly its own content — no crush, no stretch. That is strictly stronger
-// than the literal: it fails on a stretched chip too, and it cannot flip on a font change.
-const COARSE_TOUCH_BOX = 48;
-
-test.describe("#608 coarse pager", () => {
-  test.use({ hasTouch: true });
-
-  for (const width of [360, 900] as const) {
-    for (const cell of PAGER_MATRIX) {
-      test(`#608 the pager keeps its touch box and one-line counter (${cell.label} body, ${width}px)`, async ({ mount, page }) => {
-        // The emulation PROVES itself before any geometry is trusted (the #220 precedent) — `hasTouch` is
-        // what flips `(pointer: coarse)` in chromium; `page.emulateMedia` has no pointer feature.
-        await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
-        await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
-        const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content={cell.content} width={width} />);
-        await expectPagerUsable(component);
-
-        const g = await readPagerGeometry(component);
-        // THE DEFECT, both halves: a squeezed target and a wrapped counter.
-        expect(g.chevron.w).toBeCloseTo(COARSE_TOUCH_BOX, 0);
-        expect(g.chevron.h).toBeCloseTo(COARSE_TOUCH_BOX, 0);
-        expect(g.counterLines).toBe(1);
-        // #598's first law still holds at this pointer: the column is the bubble's.
-        expect(g.column).toBeCloseTo(g.bubble, 1);
-        // …and the chip is flush where flushness is reachable, at its own content width where it is not.
-        expect(g.chip).toBeLessThanOrEqual(Math.max(g.bubble, g.chipIntrinsic) + 1);
-        expectPagerAlignment(g);
-      });
-    }
-  }
-
-  // The floor arm, asserted DIRECTLY rather than implied by the inequality above: under a bubble narrower
-  // than the compact chip, the chip stops at its floor with legal targets instead of crushing to fit.
-  test("#608 under a bubble narrower than the chip, the chip holds its touch floor rather than crushing", async ({ mount, page }) => {
-    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
-    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
-    const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content="Ok" width={360} />);
-    await expectPagerUsable(component);
-    const g = await readPagerGeometry(component);
-    // THE LEGAL FLOOR, derived here rather than remembered: two whole touch targets, the counter's OWN
-    // measured width, and the gaps between the chip's three in-flow items. Nothing in it is a font
-    // constant, and nothing in it is read off a box the defect would have shrunk.
-    const legalFloor = 2 * COARSE_TOUCH_BOX + g.counterWidth + 2 * g.chipGap;
-    // THE PREMISE: this bubble cannot hold a legal chip at all, so flushness is unreachable here and the
-    // floor is what decides the width. (Stated against the floor, not against the chip — a crushed chip
-    // would make a chip-relative premise vacuously true.)
-    expect(g.bubble, "the narrowest bubble cannot hold a legal chip").toBeLessThan(legalFloor);
-    // THE DEFECT, both halves, before anything else is trusted: a squeezed target and a wrapped counter.
-    expect(g.chevron.w).toBeCloseTo(COARSE_TOUCH_BOX, 0);
-    expect(g.counterLines).toBe(1);
-    // The counter is not clipped either — the other way a chip can look the right size and lie.
-    expect(g.counterClipped).toBe(false);
-    // …so the chip is AT its floor, and is exactly its own content: neither squeezed by the bubble nor
-    // stretched by the track.
-    expect(g.chip, "the chip holds the legal floor").toBeGreaterThanOrEqual(legalFloor - 0.5);
-    expect(g.chip).toBeCloseTo(g.chipIntrinsic, 0);
-    // The column is STILL the bubble's — the chip overflows the track it cannot fit, and the track is
-    // contained, so nothing about the message's own box moves.
-    expect(g.column).toBeCloseTo(g.bubble, 1);
-  });
-});
-
-// THE KICKER'S STAND-DOWN IS VISUAL ONLY (#608). #490 ruled that the sighted reader must be told what this
-// control is; #598 answered a geometry problem by removing the word from a narrow chip, which quietly took
-// the SCREEN-READER half of that ruling with it (`hidden` is out of the a11y tree). `sr-only` is the repair:
-// the word leaves the FLOW — zero width contribution, and an absolutely-positioned child is not a flex item
-// at all, so its gap goes too — while the accessible name of the band still reads "Variant 2 / 3".
-test("#598/#608 the narrow chip keeps the word in the a11y tree even though it leaves the layout", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
-  const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content="Hi there" width={360} />);
-  await expect(component.locator(SWIPE_STRIP)).toHaveCount(1);
-  const g = await readPagerGeometry(component);
-  expect(g.labelInFlow).toBe(false);
-  await expect(component.locator(SWIPE_STRIP)).toMatchAriaSnapshot(`
-    - button "Previous variant"
-    - text: Variant 2 / 3
-    - button "Next variant"
-  `);
-});
-
 // ── #1728 arm B: WHERE THE READING COLUMN SITS IN ITS ROW (owner ruling 2026-09-05) ─────────────────
 // The defect: the CENTRED skins (`flat`/`hush` via `flatOuter`, and `document`) centred the row BODY —
 // chip plus column as one unit — so the prose sat off-centre by the chip and SLID when a reader toggled
@@ -3014,9 +2821,8 @@ test("#1728: the bubble skin KEEPS its edge-anchored identity gutter at a deskto
     />,
   );
   await expect(component.locator(READING_COLUMN)).toBeVisible();
-  // A 32px `avatar-md` chip + its 8px `spacing.row` gap — the term `dimension.shell-content-floor`'s
-  // derivation spends, deliberately left alone by arm B.
-  await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(40);
+  // The 40px `avatar-lg` chip + its 8px `spacing.row` gap.
+  await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(48);
 });
 
 test("#1728: the bubble skin KEEPS its edge-anchored identity gutter at a phone width", async ({ mount }) => {
@@ -3032,8 +2838,8 @@ test("#1728: the bubble skin KEEPS its edge-anchored identity gutter at a phone 
     />,
   );
   await expect(component.locator(READING_COLUMN)).toBeVisible();
-  // The row's own `@max-md` step: a 24px chip + a 6px `spacing.field` gap.
-  await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(30);
+  // The chip keeps its 40px on a phone; the row's own `@max-md` step tightens only the gap, to `spacing.field`.
+  await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(46);
 });
 
 test("#1728: below the crossover the centred skins keep the IN-FLOW gutter", async ({ mount }) => {
@@ -3052,99 +2858,574 @@ test("#1728: below the crossover the centred skins keep the IN-FLOW gutter", asy
     />,
   );
   await expect(component.locator(READING_COLUMN)).toBeVisible();
-  await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(40);
+  await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(48);
   await expect.poll(async () => (await readingColumnInsets(component))[1]).toBe(0);
 });
 
-// ── #2425: THE PINNED BAND PAINTS THE SAME BREATHING UNDER THE NAME IN ALL EIGHT SKINS ─────────────
-// Driven live 2026-09-19 (side-eye `side-eye-F`, `scrollTop 20166`, a carried-art room): #1873 made the
-// inside band's cancellation TOP-ONLY, which left `padding-bottom: 0` — so the opaque fill stopped ~5px
-// under the name's glyph box (the line box's own half-leading) and the prose scrolling underneath was
-// severed flush against the pinned name. Pre-#1873 that fill was ~13px; the untouched `tide` skin still
-// renders ~13px in the same build, which is what makes this a regression rather than a taste call.
-//
-// WHAT IS ASSERTED, AND WHY IT IS THE FRAMEBUFFER. The fix is PAINT (an out-of-flow `::after`), because
-// the layout arm is the one #1873 forbids — a bottom padding re-enters `exceedsViewport`'s own input.
-// Paint is exactly what a class list and `getComputedStyle` cannot see, and a box read would measure the
-// border box and report the extension as absent. So this samples the band's own fill from the shot, then
-// samples the strip that begins BELOW the name's box, and requires the two to be the same colour across
-// the whole skin axis — one quantity, eight skins, which is the P2's equality claim stated as pixels.
-//
-// THE NEGATIVE CONTROL RIDES THE SAME MOUNT: the strip one full --spacing-row PAST the band must NOT be
-// the band's fill, or the sampler would be reporting "the same colour" about the whole column.
-// RED on the pre-fix source for the seven `inside` skins (the below-name strip is the row's own prose /
-// container fill, not the band's), GREEN for `tide` — which is the control the review named.
+// ── THE MESSAGE'S DESIGNED TOP EDGE: the pinned header bar, per chat style ───────────────────────────
+// A long reply's header pins as one compact bar in the row's OWN surface: the cards' role fill, tide's pill,
+// the reading band for the unboxed styles, and a trailing actions chip for the document page, which names
+// nobody. Below the bar its surface fades out, so the line passing under the bar's edge dissolves instead of
+// being cut, and the bar lets go where the message ends. The bar's paint is `RowSkin.pinnedHeader`.
 
-/** A carried per-character base dark enough that its derived reading band is nowhere near the app's. */
-const CARRIED_ROOM_BASE = "oklch(0.2 0.03 260)";
+type ChatStyle = (typeof THEME_CHAT_STYLES)[number];
 
-/** Per-channel equality with 2/255 of slack — screenshot quantisation, never a colour difference. */
-function sameRgb(a: { r: number; g: number; b: number }, b: { r: number; g: number; b: number }): boolean {
-  return Math.abs(a.r - b.r) <= 2 && Math.abs(a.g - b.g) <= 2 && Math.abs(a.b - b.b) <= 2;
+/** The surface each style's pinned bar paints, and the ink paired with it. */
+const PINNED_SURFACE: Record<ChatStyle, { readonly fill: string; readonly ink: string }> = {
+  bubble: { fill: "--color-ai-bubble", ink: "--color-ai-bubble-foreground" },
+  echo: { fill: "--color-ai-bubble", ink: "--color-ai-bubble-foreground" },
+  whisper: { fill: "--color-ai-bubble", ink: "--color-ai-bubble-foreground" },
+  ripple: { fill: "--color-ai-bubble", ink: "--color-ai-bubble-foreground" },
+  tide: { fill: "--color-ai-bubble", ink: "--color-ai-bubble-foreground" },
+  flat: { fill: "--color-reading-band", ink: "--color-reading-plate-foreground" },
+  hush: { fill: "--color-reading-band", ink: "--color-reading-plate-foreground" },
+  document: { fill: "--color-reading-band", ink: "--color-reading-plate-foreground" },
+};
+
+/** How far the bar reaches: across the whole surface it pins in, a chip at the surface's trailing inset
+ *  (document), or within the content column (tide, whose bar is a pill above its train). */
+const PINNED_REACH: Record<ChatStyle, "surface" | "chip" | "column"> = {
+  bubble: "surface",
+  echo: "surface",
+  whisper: "surface",
+  ripple: "surface",
+  flat: "surface",
+  hush: "surface",
+  document: "chip",
+  tide: "column",
+};
+
+interface PinnedBarRead {
+  readonly left: number;
+  readonly right: number;
+  readonly height: number;
+  readonly surfaceLeft: number;
+  readonly surfaceRight: number;
+  readonly surfaceContentRight: number;
+  readonly fade: string;
+  readonly fadeHeight: number;
+  readonly compactPx: number;
 }
 
-for (const chatStyle of THEME_CHAT_STYLES) {
-  test(`#2425 ${chatStyle}: the pinned band paints one --spacing-row of fill below the speaker name`, async ({ mount, page }) => {
-    const component = await mount(pinnableRow(chatStyle, alice()));
-    const nameRow = await pinHeader(component);
-    await expect(nameRow).toHaveCSS("position", "sticky");
-
-    // ONE --spacing-row, read as the band's OWN resolved top padding rather than as a literal 8 or a raw
-    // token lookup. Both spellings spend `pt-row` above the name, so this is the same quantity in both
-    // arms, in px, at whatever the scale is tuned to — and the claim becomes "the fill below the name
-    // equals the fill above it", which is what "the same band" means to a reader.
-    const spacingRow = Number.parseFloat(await nameRow.evaluate((el) => getComputedStyle(el).paddingTop));
-    expect(spacingRow, "the band must spend one --spacing-row of top padding to compare against").toBeGreaterThan(0);
-
-    // Where the name's own box ends, as a FRACTION of the band's box — `pixelSurface` takes its region in
-    // the target's own coordinates, and regions past 1 sample below it, which is where the extension lives.
-    const geometry = await nameRow.evaluate((el: HTMLElement) => {
-      const name = el.querySelector('[data-slot="message-attribution"]');
-      if (name === null) {
-        throw new Error("#2425: the row rendered no attribution cluster to measure against");
-      }
-      const band = el.getBoundingClientRect();
-      return { bandTop: band.top, bandHeight: band.height, nameBottom: name.getBoundingClientRect().bottom };
-    });
-    const fraction = (y: number): number => (y - geometry.bandTop) / geometry.bandHeight;
-
-    // The band's OWN fill, read away from the name's glyphs (the cluster is leading; the action slot is
-    // zero-height and paints nothing at rest).
-    const band = await pixelSurface(page, nameRow, { region: { x0: 0.6, x1: 0.95, y0: 0.05, y1: 0.45 } });
-    // The strip immediately below the name's box — inset by 1px at each end so neither edge samples an
-    // antialiased boundary.
-    const below = await pixelSurface(page, nameRow, {
-      region: { x0: 0.6, x1: 0.95, y0: fraction(geometry.nameBottom + 1), y1: fraction(geometry.nameBottom + spacingRow - 1) },
-    });
-    expect(sameRgb(below.rgb, band.rgb), `below-name strip ${below.describe} must be the band's fill ${band.describe}`).toBe(true);
-
-    // THE PLANTED CONTROL, same mount: past the band's breathing the column is NOT the band.
-    const past = await pixelSurface(page, nameRow, {
-      region: { x0: 0.6, x1: 0.95, y0: fraction(geometry.nameBottom + spacingRow + 2), y1: fraction(geometry.nameBottom + spacingRow + 6) },
-    });
-    expect(sameRgb(past.rgb, band.rgb), `control strip ${past.describe} must NOT be the band's fill ${band.describe}`).toBe(false);
+// The bar against the surface it pins in (its parent's padding box), plus its fade and the compact ceiling:
+// one glyph box plus one row step, a single line of chrome with its breathing.
+function readPinnedBar(bar: Locator): Promise<PinnedBarRead> {
+  return bar.evaluate((el: HTMLElement) => {
+    // The surface is the nearest box: a themed speaker scope wraps the bar in a `display: contents` layer.
+    let parent = el.parentElement;
+    while (parent !== null && getComputedStyle(parent).display === "contents") {
+      parent = parent.parentElement;
+    }
+    if (parent === null) {
+      throw new Error("the pinned bar has no surface");
+    }
+    const box = el.getBoundingClientRect();
+    const surface = parent.getBoundingClientRect();
+    const surfaceStyle = getComputedStyle(parent);
+    const fade = getComputedStyle(el, "::after");
+    const probe = document.createElement("div");
+    probe.style.height = "calc(var(--spacing-glyph-lg) + var(--spacing-row))";
+    document.body.append(probe);
+    const compactPx = probe.getBoundingClientRect().height;
+    probe.remove();
+    const surfaceLeft = surface.left + parent.clientLeft;
+    const surfaceRight = surfaceLeft + parent.clientWidth;
+    return {
+      left: box.left,
+      right: box.right,
+      height: box.height,
+      surfaceLeft,
+      surfaceRight,
+      surfaceContentRight: surfaceRight - Number.parseFloat(surfaceStyle.paddingRight),
+      fade: fade.content === "none" ? "none" : fade.backgroundImage,
+      fadeHeight: fade.content === "none" ? 0 : Number.parseFloat(fade.height),
+      compactPx,
+    };
   });
 }
 
-test("#2425 the OUTSIDE skin's band takes the speaker's palette, exactly like the seven INSIDE skins", async ({ mount }) => {
-  // The other half of the P2 ("tide renders a neutral `oklch(0.12 0.006 60)` fill instead of the
-  // speaker-tinted `oklch(0.112 …)`"). The speaker scope used to wrap the BUBBLE, so `tide` — the one skin
-  // whose header is a sibling ABOVE the box — sat outside it and resolved `--color-reading-band` from the
-  // VIEWER's palette while the prose one line below rode the CARRIED one: #204's "one column, two
-  // palettes" defect at the surface #288's anatomy move left outside the container. The scope is the
-  // content COLUMN's now, so the two agree.
-  const bandFill = async (chatStyle: (typeof THEME_CHAT_STYLES)[number], participant: ParticipantView): Promise<string> => {
-    const component = await mount(pinnableRow(chatStyle, participant));
-    const fill = await (await pinHeader(component)).evaluate((el) => getComputedStyle(el).backgroundColor);
-    await component.unmount();
-    return fill;
-  };
-  const carried: ParticipantView = { ...alice(), themeOverride: { background: CARRIED_ROOM_BASE } };
-  const tide = await bandFill("tide", carried);
-  const hush = await bandFill("hush", carried);
-  expect(parseOklch(tide), `tide ${tide} vs hush ${hush}`).toEqual(parseOklch(hush));
-  // THE PLANTED CONTROL — without the carried base the band is a DIFFERENT colour, so the equality above
-  // is a claim about the carried palette reaching tide rather than about every band being the same tone.
-  const uncarried = await bandFill("tide", alice());
-  expect(parseOklch(tide), `carried ${tide} must differ from uncarried ${uncarried}`).not.toEqual(parseOklch(uncarried));
+function reachHolds(reach: "surface" | "chip" | "column", bar: PinnedBarRead): boolean {
+  if (reach === "surface") {
+    return Math.abs(bar.left - bar.surfaceLeft) < 1 && Math.abs(bar.right - bar.surfaceRight) < 1;
+  }
+  if (reach === "chip") {
+    return Math.abs(bar.right - bar.surfaceContentRight) < 1 && bar.right - bar.left < (bar.surfaceRight - bar.surfaceLeft) / 2;
+  }
+  return bar.left >= bar.surfaceLeft - 1 && bar.right <= bar.surfaceRight + 1;
+}
+
+for (const chatStyle of THEME_CHAT_STYLES) {
+  test(`${chatStyle}: the pinned bar is the row's own surface, one compact line, fading below`, async ({ mount }) => {
+    const component = await mount(pinnableRow(chatStyle, alice(), true));
+    const bar = await pinHeader(component);
+    const surface = PINNED_SURFACE[chatStyle];
+    // The document chip's plate is its actions cluster's own, so it can never show without the actions.
+    const plate = chatStyle === "document" ? bar.locator(ACTIONS_ROW) : bar;
+    await expect
+      .poll(async () => parseOklch(await plate.evaluate((el) => getComputedStyle(el).backgroundColor)))
+      .toEqual(parseOklch(await cssVar(bar, surface.fill)));
+    await expect.poll(async () => parseOklch(await plate.evaluate((el) => getComputedStyle(el).color))).toEqual(parseOklch(await cssVar(bar, surface.ink)));
+    const read = await readPinnedBar(bar);
+    expect({
+      reach: reachHolds(PINNED_REACH[chatStyle], read),
+      compact: read.height <= read.compactPx,
+      // The chip is small enough to sit over the page; every bar that spans its surface fades below.
+      fades: read.fade.startsWith("linear-gradient") && read.fadeHeight > 0,
+    }).toEqual({ reach: true, compact: true, fades: chatStyle !== "document" });
+  });
+
+  test(`${chatStyle}: the pinned bar lets go where the message ends`, async ({ mount }) => {
+    const component = await mount(pinnableRow(chatStyle, alice(), true));
+    const bar = await pinHeader(component);
+    // The rows that follow in a real transcript, so the message's end can scroll up past the scrollport top.
+    const geometry = await component.evaluate((port: HTMLElement) => {
+      const row = port.querySelector('[data-slot="message-row"]');
+      if (row === null) {
+        throw new Error("no row to scroll past");
+      }
+      const spacer = document.createElement("div");
+      spacer.style.cssText = `height:${String(port.clientHeight * 2)}px;flex-shrink:0`;
+      row.after(spacer);
+      const portTop = port.getBoundingClientRect().top;
+      // Park the message's last pixels just under the scrollport top.
+      port.scrollTop += row.getBoundingClientRect().bottom - portTop - 4;
+      return { portTop, rowBottom: row.getBoundingClientRect().bottom };
+    });
+    const released = await bar.evaluate((el: HTMLElement) => {
+      const parent = el.parentElement as HTMLElement;
+      const surface = parent.getBoundingClientRect();
+      const box = el.getBoundingClientRect();
+      return { barTop: box.top, surfaceBottom: surface.bottom };
+    });
+    // It travelled up with the message end instead of staying pinned over the next message.
+    expect(released.barTop, JSON.stringify({ ...geometry, ...released })).toBeLessThan(geometry.portTop - 1);
+  });
+
+  test(`${chatStyle}: the actions ride the header bar, one actions surface per row, name before actions`, async ({ mount }) => {
+    const component = await mount(
+      <MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} lastRow={true} />,
+    );
+    await expect(component.locator(ACTIONS_ROW)).toHaveCount(1);
+    await expect(component.locator(`${NAME_ROW} ${ACTIONS_ROW}`)).toHaveCount(1);
+    // The last row shows its actions at rest.
+    await expect(component.locator(ACTIONS_ROW)).toHaveCSS("opacity", "1");
+    // Keyboard order is DOM order (nothing here carries a positive tabindex): the speaker, then the actions.
+    const order = await component.locator(NAME_ROW).evaluate((bar) => {
+      const name = bar.querySelector('[data-slot="message-attribution"]');
+      const action = bar.querySelector('[data-slot="message-actions-row"] button');
+      if (action === null) {
+        return "no actions";
+      }
+      if (name === null) {
+        return "actions only";
+      }
+      const all = [...bar.querySelectorAll("*")];
+      return all.indexOf(name) < all.indexOf(action) ? "name, then actions" : "actions, then name";
+    });
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): DOM order is fixed at render, and the actions' settled opacity was awaited above.
+    expect(order).toBe(chatStyle === "document" ? "actions only" : "name, then actions");
+  });
+}
+
+// ── THE STOCK DOCUMENT PAGE ──────────────────────────────────────────────────────────────────────────────
+test.describe("the stock document page", () => {
+  test("names nobody — no avatar, name or timestamp — and the page runs the full column", async ({ mount }) => {
+    const component = await mount(
+      <MessageRowStory
+        chatStyle="document"
+        messageRole="user"
+        personaId={ALEX_PERSONA_ID}
+        personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]}
+        metadataVisibility={meta({ showTimestamps: true })}
+        content={MEASURE_FILLING_BODY}
+        width={1024}
+      />,
+    );
+    await expect(component.locator(AVATAR)).toHaveCount(0);
+    await expect(component.locator(ATTRIBUTION)).toHaveCount(0);
+    await expect(component.locator(TIMESTAMP)).toHaveCount(0);
+    const widths = await component.locator(BUBBLE).evaluate((bubble: HTMLElement) => {
+      const column = bubble.closest('[data-slot="message-content-column"]') as HTMLElement;
+      return { bubble: bubble.getBoundingClientRect().width, column: column.getBoundingClientRect().width };
+    });
+    expect(Math.abs(widths.bubble - widths.column)).toBeLessThan(1);
+  });
+
+  test("an earlier row's bar costs no height and its actions wait for hover or focus, even on a phone", async ({ mount, page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    const component = await mount(<MessageRowStory chatStyle="document" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
+    expect(await nameRowOuterExtent(component.locator(NAME_ROW))).toBeLessThan(1);
+    await expect(component.locator(ACTIONS_ROW)).toHaveCSS("opacity", "0");
+    await component.getByRole("button", { name: MESSAGE_EDIT_NAME }).focus();
+    await expect(component.locator(ACTIONS_ROW)).toHaveCSS("opacity", "1");
+  });
+
+  test("the last row's bar takes its own line above the page, with the actions shown", async ({ mount }) => {
+    const component = await mount(
+      <MessageRowStory chatStyle="document" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} lastRow={true} />,
+    );
+    await expect(component.locator(ACTIONS_ROW)).toHaveCSS("opacity", "1");
+    await expect
+      .poll(() =>
+        component.locator(NAME_ROW).evaluate((bar: HTMLElement) => {
+          const barBottom = bar.getBoundingClientRect().bottom;
+          return (bar.nextElementSibling as HTMLElement).getBoundingClientRect().top >= barBottom - 0.5;
+        }),
+      )
+      .toBe(true);
+  });
 });
+
+// ── EVERY ROW'S HEADER ACTIONS KEEP THE TOUCH FLOOR ──────────────────────────────────────────────────────
+// The 32px glyph box carries a pointer-conditional `::before` hit area; on an earlier row it must reach the
+// same floor the last row's does, read by hit-testing the edges of that area rather than its declared size.
+const HIT_STYLES = ["bubble", "echo", "flat", "tide"] as const;
+
+test.describe("header actions at a touch pointer", () => {
+  test.use({ hasTouch: true });
+
+  for (const chatStyle of HIT_STYLES) {
+    for (const messageRole of ["assistant", "user"] as const) {
+      test(`${chatStyle} ${messageRole}: an earlier row's header actions are hit across the whole touch floor`, async ({ mount, page }) => {
+        await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+        // Room above the row, so the hit area's top edge is on screen to be hit-tested.
+        const component = await mount(
+          <div style={{ paddingTop: 48 }}>
+            <MessageRowStory
+              chatStyle={chatStyle}
+              messageRole={messageRole}
+              characterId={messageRole === "assistant" ? ALICE_ID : null}
+              participants={[alice()]}
+              personaId={messageRole === "user" ? ALEX_PERSONA_ID : null}
+              personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]}
+              width={390}
+            />
+          </div>,
+        );
+        await expect(component.locator(ACTIONS_ROW)).toHaveCSS("opacity", "1");
+        const reach = (): Promise<readonly string[]> =>
+          component.locator(ACTIONS_ROW).evaluate((row) => {
+            const probe = document.createElement("div");
+            probe.style.width = "var(--spacing-touch-target)";
+            document.body.append(probe);
+            const floor = probe.getBoundingClientRect().width;
+            probe.remove();
+            const half = floor / 2 - 1;
+            const edges = [
+              [0, -half],
+              [0, half],
+              [-half, 0],
+              [half, 0],
+            ] as const;
+            const shown = [...row.querySelectorAll("button")].filter((button) => button.getBoundingClientRect().width > 0);
+            // One probe per edge of each button's touch floor; a miss names the button, the edge and what it hit.
+            return shown.flatMap((button) => {
+              const box = button.getBoundingClientRect();
+              const name = button.getAttribute("aria-label") ?? "?";
+              return edges
+                .map(([dx, dy]) => ({ dx, dy, hit: document.elementFromPoint(box.left + box.width / 2 + dx, box.top + box.height / 2 + dy) }))
+                .filter(({ hit }) => hit === null || !button.contains(hit))
+                .map(({ dx, dy, hit }) => `${name} @${String(dx)},${String(dy)} -> ${hit?.tagName ?? "null"}`);
+            });
+          });
+        await expect.poll(reach).toEqual([]);
+      });
+    }
+  }
+});
+
+test("document: an earlier long row never pins its actions chip, so no empty plate lands on the page", async ({ mount }) => {
+  const component = await mount(pinnableRow("document", alice()));
+  await component.evaluate((el: HTMLElement, y: number) => {
+    el.scrollTop = y;
+  }, PINNED_SCROLL_TOP_PX);
+  const bar = component.locator(NAME_ROW);
+  await expect(bar).not.toHaveAttribute("data-sticky");
+  await expect(bar).not.toHaveAttribute("data-pinned");
+  await expect(bar).toHaveCSS("position", "static");
+  // Hidden at rest, and the plate is the cluster's own, so it is hidden with it.
+  await expect(component.locator(ACTIONS_ROW)).toHaveCSS("opacity", "0");
+});
+
+test.describe("document actions at a touch pointer", () => {
+  test.use({ hasTouch: true });
+
+  test("an earlier row keeps its actions hidden at a touch pointer, as stock does", async ({ mount, page }) => {
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    const component = await mount(<MessageRowStory chatStyle="document" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
+    await expect(component.locator(ACTIONS_ROW)).toHaveCSS("opacity", "0");
+  });
+});
+
+// ── THE MESSAGE'S DESIGNED BOTTOM EDGE: the swipe foot's two quieter cases ─────────────────────────────
+test("an earlier swiped reply shows its count alone, a quiet foot with no chevrons", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
+  const component = await mount(
+    <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} variantCount={3} />,
+  );
+  const count = component.locator('[data-slot="swipe-count"]');
+  await expect(count.locator(SWIPE_COUNTER_SLOT)).toHaveText("1 / 3");
+  await expect(count).toContainText("Reply 1 of 3");
+  await expect(count.getByRole("button")).toHaveCount(0);
+  await expect(component.locator(SWIPE_STRIP)).toHaveCount(0);
+});
+
+test.describe("a short reply at a touch pointer", () => {
+  test.use({ hasTouch: true });
+
+  test("its swipe foot never sets the bubble's width: the bubble is as wide as its header", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...CHAT_AMBIENT_ROUTES,
+      ...CHAT_ROOM_ROUTES,
+      "chat.listMessageVariants": () => [
+        { variantId: "msgvar_hi_0", idx: 0 },
+        { variantId: "msgvar_hi_1", idx: 1 },
+        { variantId: "msgvar_hi_2", idx: 2 },
+      ],
+    });
+    const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" content="Hi." showSwipes={true} width={390} />);
+    const read = (): Promise<{ readonly content: number; readonly header: number; readonly footNatural: number }> =>
+      component.locator(BUBBLE).evaluate((bubble: HTMLElement) => {
+        const style = getComputedStyle(bubble);
+        const bar = bubble.querySelector('[data-slot="message-name-row"]') as HTMLElement;
+        const barGap = Number.parseFloat(getComputedStyle(bar).columnGap) || 0;
+        const barParts = [...bar.children].filter((child) => getComputedStyle(child).display !== "none");
+        const header = barParts.reduce((sum, child) => sum + child.getBoundingClientRect().width, 0) + barGap * Math.max(0, barParts.length - 1);
+        const foot = bubble.querySelector('[data-slot="swipe-strip"]') as HTMLElement;
+        const footNatural = [...foot.children].reduce((sum, child) => sum + child.getBoundingClientRect().width, 0);
+        return {
+          content: bubble.clientWidth - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight),
+          header,
+          footNatural,
+        };
+      });
+    // The guard that makes this a real claim: the foot's own glyphs are wider than the header's.
+    await expect
+      .poll(async () => {
+        const g = await read();
+        return { footWiderThanHeader: g.footNatural > g.header, bubbleHugsHeader: Math.abs(g.content - g.header) < 1 };
+      })
+      .toEqual({ footWiderThanHeader: true, bubbleHugsHeader: true });
+  });
+});
+
+// ── AN EARLIER GREETING IS AN EARLIER MESSAGE ──────────────────────────────────────────────────────────
+test("an earlier greeting shows its count alone, never a pager or a Regenerate", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      content="Hello."
+      greetingVariants={["Hello.", "Hi."]}
+    />,
+  );
+  await expect(component.locator(`[data-slot="swipe-count"] ${SWIPE_COUNTER_SLOT}`)).toHaveText("1 / 2");
+  await expect(component.getByRole("button", { name: VARIANT_PREV_NAME })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: VARIANT_GENERATE_NAME })).toHaveCount(0);
+});
+
+test("an earlier greeting with one alternate shows no foot at all", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      content="Hello."
+      greetingVariants={["Hello."]}
+    />,
+  );
+  await expect(component.locator(ROW)).toBeVisible();
+  await expect(component.locator('[data-slot="swipe-count"]')).toHaveCount(0);
+  await expect(component.getByRole("button", { name: VARIANT_PREV_NAME })).toHaveCount(0);
+});
+
+// ── TIDE: THE SPEAKER ROW AND THE PAGER SHARE THE TRAIN'S EDGES ────────────────────────────────────────
+const TIDE_WIDE_PARAGRAPHS = "The lanterns along the quay burned low while the tide pulled hard.\n\nShe counted the boats again.";
+
+test("tide: the speaker row and the pager end where the train's widest pill ends", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.listMessageVariants": () => [] });
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="tide"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      content={TIDE_WIDE_PARAGRAPHS}
+      showSwipes={true}
+      lastRow={true}
+      width={720}
+    />,
+  );
+  await expect(component.locator(SWIPE_STRIP)).toBeVisible();
+  await expect
+    .poll(() =>
+      component.evaluate((root: HTMLElement) => {
+        const right = (el: Element | null): number => (el === null ? Number.NaN : Math.round(el.getBoundingClientRect().right));
+        const pills = [...root.querySelectorAll('[data-slot="message-bubble"]')].map((pill) => right(pill));
+        const train = Math.max(...pills);
+        return {
+          header: right(root.querySelector('[data-slot="message-name-row"]')) - train,
+          pager: right(root.querySelector('[data-slot="swipe-strip"]')) - train,
+        };
+      }),
+    )
+    .toEqual({ header: 0, pager: 0 });
+});
+
+for (const width of [360, 1024]) {
+  test(`tide at ${String(width)}px: a user row packs its train to the trailing edge, beside its own chip`, async ({ mount }) => {
+    const component = await mount(
+      <MessageRowStory
+        chatStyle="tide"
+        messageRole="user"
+        personaId={ALEX_PERSONA_ID}
+        personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]}
+        width={width}
+        content="Then we go now."
+      />,
+    );
+    await expect
+      .poll(() =>
+        component.evaluate((root: HTMLElement) => {
+          const right = (selector: string): number => Math.round(root.querySelector(selector)?.getBoundingClientRect().right ?? Number.NaN);
+          const left = (selector: string): number => Math.round(root.querySelector(selector)?.getBoundingClientRect().left ?? Number.NaN);
+          return {
+            chipAtTrailingEdge: right('[data-slot="avatar-root"]') === right('[data-slot="message-row-body"]'),
+            trainBesideChip: left('[data-slot="avatar-root"]') - right('[data-slot="message-content-column"]') <= 8,
+          };
+        }),
+      )
+      .toEqual({ chipAtTrailingEdge: true, trainBesideChip: true });
+  });
+}
+
+test("document: a revealed actions chip is a raised layer, so its plate paints over the line beneath it", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
+  const component = await mount(
+    <MessageRowStory chatStyle="document" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} content={LONG_BODY} />,
+  );
+  const chip = component.locator(ACTIONS_ROW);
+  await expect(chip).toHaveCSS("position", "relative");
+  await expect.poll(() => chip.evaluate((el) => Number(getComputedStyle(el).zIndex) > 0)).toBe(true);
+});
+
+// ── THE CENTRED SKINS: ONE COLUMN WIDTH FOR EVERY ROW ──────────────────────────────────────────────────
+for (const chatStyle of ["flat", "hush", "document"] as const) {
+  test(`${chatStyle}: every row's reading column is the same width, so the page is one band and the chip never slides`, async ({ mount }) => {
+    const component = await mount(
+      <GroupTranscriptAttributionStory
+        chatStyle={chatStyle}
+        participants={[alice(), bob()]}
+        persona={{ id: ALEX_PERSONA_ID, name: "Alex" }}
+        showInChatAvatars={true}
+      />,
+    );
+    await expect(component.locator(CONTENT_COLUMN)).toHaveCount(3);
+    await expect
+      .poll(() =>
+        component
+          .locator(CONTENT_COLUMN)
+          .evaluateAll((columns) => [...new Set(columns.map((column) => Math.round(column.getBoundingClientRect().width)))].length),
+      )
+      .toBe(1);
+  });
+}
+
+// ── IDENTITY ART ONLY WHERE THERE IS ART ──────────────────────────────────────────────────────────────
+test("ripple without portrait art keeps the chip, so a short row is not padded to a portrait's height", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="ripple"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      characters={[{ id: ALICE_ID, name: "Alice", avatarHash: null }]}
+      content="Then we go now."
+      width={390}
+    />,
+  );
+  await expect(component.locator(ROW)).toBeVisible();
+  // The chip, not the 2:3 portrait: square, and the row hugs one line of text.
+  await expect
+    .poll(() =>
+      component
+        .locator(AVATAR)
+        .first()
+        .evaluate((el) => Math.round(el.getBoundingClientRect().height)),
+    )
+    .toBeLessThanOrEqual(48);
+  await expect.poll(() => component.locator(ROW).evaluate((el) => el.getBoundingClientRect().height)).toBeLessThan(100);
+});
+
+test("echo without portrait art paints no art pane and no letter tile", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="echo"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      characters={[{ id: ALICE_ID, name: "Alice", avatarHash: null }]}
+      width={390}
+    />,
+  );
+  await expect(component.locator(BUBBLE)).toBeVisible();
+  await expect(component.locator('[data-slot="message-echo-art"]')).toHaveCount(0);
+  await expect(component.locator(BUBBLE)).not.toHaveCSS("padding-right", /^1[0-9]{2}/);
+});
+
+test("echo's art on a phone is Moonlit's fixed mobile height in its pane, not a corner thumbnail", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="echo"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      characters={[{ id: ALICE_ID, name: "Alice", avatarHash: "hash_alice" }]}
+      content={STUCK_BAND_BODY}
+      width={390}
+    />,
+  );
+  const art = component.locator('[data-slot="message-echo-art"]');
+  await expect(art).toHaveCount(1);
+  await expect
+    .poll(() =>
+      art.evaluate((el: HTMLElement) => {
+        const probe = document.createElement("div");
+        probe.style.height = "var(--immersive-echo-art-height-phone)";
+        document.body.append(probe);
+        const tall = probe.getBoundingClientRect().height;
+        probe.remove();
+        return Math.abs(el.getBoundingClientRect().height - tall) < 1;
+      }),
+    )
+    .toBe(true);
+});
+
+// ── WIDE CONTENT SCROLLS INSIDE ITS MESSAGE, PER STYLE, AT A PHONE WIDTH ──────────────────────────────
+const WIDE_CODE = `\`\`\`\n${"const aVeryLongIdentifierThatWillNotWrap = 1; ".repeat(8)}\n\`\`\``;
+
+for (const chatStyle of THEME_CHAT_STYLES) {
+  test(`${chatStyle}: a wide code block scrolls inside the message and never widens the row at 390px`, async ({ mount }) => {
+    const component = await mount(
+      <MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} content={WIDE_CODE} width={390} />,
+    );
+    await expect(component.locator("pre").first()).toBeVisible();
+    await expect
+      .poll(() =>
+        component.evaluate((port: HTMLElement) => {
+          const row = port.querySelector('[data-slot="message-row"]') as HTMLElement;
+          const pre = port.querySelector("pre") as HTMLElement;
+          const column = port.querySelector('[data-slot="message-content-column"]') as HTMLElement;
+          return {
+            rowFits: row.scrollWidth <= port.clientWidth + 1,
+            preScrolls: pre.scrollWidth > pre.clientWidth,
+            // Every style keeps at least half its column for code: card padding, the block's own chrome and an art pane at most.
+            codeHasRoom: pre.clientWidth >= column.clientWidth * 0.5 ? true : `${String(pre.clientWidth)} of ${String(column.clientWidth)}`,
+          };
+        }),
+      )
+      .toEqual({ rowFits: true, preScrolls: true, codeHasRoom: true });
+  });
+}

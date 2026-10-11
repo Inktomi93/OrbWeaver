@@ -19,7 +19,7 @@
 // THE CENTRING IS NOT `mx-auto` ANY MORE, AND THAT IS A CRISPNESS FIX, NOT A LAYOUT ONE (#1362, Law 3 of
 // docs/law/integer-line-boxes.md). `margin-inline: auto` splits the leftover width in HALF, so an ODD
 // remainder puts the whole track — and every promoted layer inside it — on a half pixel. Measured on the
-// isolated stage at 1280x800, `--width-shell-content` resolving `clamp(46.125rem, 60dvw, 100dvw)` = 768px
+// isolated stage at 1280x800, `--width-shell-content` resolving `clamp(46.625rem, 60dvw, 100dvw)` = 768px
 // inside an 893px content pane: remainder 125, half 62.5, track left 437.5, i.e. `left -0.500 device px`
 // on the composer's `backdrop-filter` layer AND on every `message-bubble`'s. A composited layer is
 // rasterized once at its own sub-pixel offset with baseline snapping OFF, so that half pixel is inherited
@@ -30,3 +30,14 @@
 // (packages/client/src/styles/globals.css); the class is here rather than the rule, because the rule needs
 // `round()` and a percentage-bearing `calc()` that no utility can spell and a feature may not inline.
 export const CHAT_TRACK = "orb-chat-track w-full max-w-(--width-shell-content)";
+
+/** A transcript ROW BODY at a phone width: below the row's `md` container step the gap tightens. The chip
+ *  keeps the reader's own size and is never hidden (owner ruling, as Moonlit Echoes keeps its 40px avatar on
+ *  a phone). The settled row and the streaming ghost share it, or a live turn reflows as it settles. */
+export const ROW_BODY_AT_PHONE_WIDTH = "@max-md:gap-field";
+
+/** Phone caps on a message box, below the row's `md` container step (owner ruling, after Moonlit Echoes'
+ *  phone layout): a bubble takes at most 80% of its column, so the other side reads as the other speaker's,
+ *  and a tide pill 90%. */
+export const BUBBLE_PHONE_CAP = "@max-md:max-w-4/5";
+export const PILL_PHONE_CAP = "@max-md:max-w-9/10";

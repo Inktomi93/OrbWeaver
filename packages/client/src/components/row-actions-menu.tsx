@@ -58,10 +58,12 @@ export interface RowActionsMenuProps {
   /** Trigger button size — this composite's OWN vocabulary, resolved to a Button size arm by
    *  `TRIGGER_BUTTON_SIZE` below, never a passthrough. `"inline"` is the HintTrigger-parity box (the
    *  config setting row pairs the ⋯ with the tiny `i` and must not inflate the row); `"sm"` is the
-   *  small SQUARE trigger for a row whose scale is the `sm` control step. @defaultValue "icon" */
-  readonly triggerSize?: "icon" | "inline" | "sm";
-  /** The trigger's outline: `control` (default) or `pill`, for a trigger standing in a row of pill neighbours
-   *  (the composer's controls) so its hover paint matches them. @defaultValue "control" */
+   *  small SQUARE trigger for a row whose scale is the `sm` control step; `"glyph"` is the glyph-button box
+   *  for a compact tool column (the composer's ☰), its touch floor carried by the glyph arm. @defaultValue "icon" */
+  readonly triggerSize?: "glyph" | "icon" | "inline" | "sm";
+  /** The trigger's outline: `control` (default) or `pill`, for a trigger standing among pill or glyph
+   *  neighbours (the composer's controls, a message's header actions) so its hover paint matches them.
+   *  @defaultValue "control" */
   readonly shape?: "control" | "pill";
   /** Roving focus: `-1` takes the trigger out of the tab order while its row is not the list's one tab stop. */
   readonly triggerTabIndex?: -1;
@@ -78,6 +80,9 @@ export interface RowActionsMenuProps {
    *  longer disagree. A trigger that needs a fuller explanation puts it in `label` (where it becomes the name
    *  as well as the pixels), never in a divergent twin. @defaultValue false */
   readonly tooltip?: boolean;
+  /** The trigger's ink: `receded` for a demoted-actions door (see below), `inherit` for a trigger that is one
+   *  tool among equals and must match its neighbours (the composer's ☰ beside the ✨). @defaultValue "receded" */
+  readonly ink?: "inherit" | "receded";
   /** The bottom destructive item + its confirm dialog. Omit for a menu with no destructive action. */
   readonly destructive?: RowDestructiveAction;
 }
@@ -117,30 +122,34 @@ export interface RowActionsMenuProps {
  * through to a text step — the same one-union-plus-mapped-Record discipline the spine asks of every
  * dispatch axis.
  */
-const TRIGGER_BUTTON_SIZE = { icon: "icon", inline: "inline", sm: "icon-sm" } as const satisfies Record<
+const TRIGGER_BUTTON_SIZE = { glyph: "glyph-lg", icon: "icon", inline: "inline", sm: "icon-sm" } as const satisfies Record<
   NonNullable<RowActionsMenuProps["triggerSize"]>,
-  "icon" | "icon-sm" | "inline"
+  "glyph-lg" | "icon" | "icon-sm" | "inline"
 >;
+
+const TRIGGER_INK = { inherit: "", receded: RECEDED_INK } as const satisfies Record<NonNullable<RowActionsMenuProps["ink"]>, string>;
 
 function actionsTrigger({
   label,
   icon,
   size,
   shape,
+  ink,
   reveal,
   tabIndex,
 }: {
   readonly label: string;
   readonly icon: LucideIcon;
   readonly size: NonNullable<RowActionsMenuProps["triggerSize"]>;
-  readonly shape: "control" | "pill";
+  readonly shape: NonNullable<RowActionsMenuProps["shape"]>;
+  readonly ink: NonNullable<RowActionsMenuProps["ink"]>;
   readonly reveal: boolean;
   readonly tabIndex: -1 | undefined;
 }): ReactElement {
   return (
     <Button
       aria-label={label}
-      className={reveal ? `${RECEDED_INK} ${ROW_REVEAL}` : RECEDED_INK}
+      className={reveal ? `${TRIGGER_INK[ink]} ${ROW_REVEAL}` : TRIGGER_INK[ink]}
       intent="ghost"
       shape={shape}
       size={TRIGGER_BUTTON_SIZE[size]}
@@ -166,22 +175,24 @@ export function RowActionsMenu({
   triggerTabIndex,
   reveal = false,
   tooltip = false,
+  ink = "receded",
   destructive,
 }: RowActionsMenuProps): ReactElement {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const destructiveLabel = destructive?.label ?? "Delete";
+  const trigger = actionsTrigger({ icon, label, reveal, shape, ink, size: triggerSize, tabIndex: triggerTabIndex });
 
   return (
     <>
       <Menu>
         {tooltip ? (
           <Tooltip>
-            <TooltipTrigger render={<MenuTrigger render={actionsTrigger({ icon, label, reveal, shape, size: triggerSize, tabIndex: triggerTabIndex })} />} />
+            <TooltipTrigger render={<MenuTrigger render={trigger} />} />
             {/* The popup text IS the accessible name — the same `label`, never a twin (see the prop's doc). */}
             <TooltipPopup side="top">{label}</TooltipPopup>
           </Tooltip>
         ) : (
-          <MenuTrigger render={actionsTrigger({ icon, label, reveal, shape, size: triggerSize, tabIndex: triggerTabIndex })} />
+          <MenuTrigger render={trigger} />
         )}
         <MenuPopup align={align}>
           {children}

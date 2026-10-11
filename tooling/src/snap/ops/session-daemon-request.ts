@@ -15,7 +15,7 @@ import { foreignSessionRefusal, sessionBusyRefusal, sessionStageDeadRefusal } fr
 import { armSessionCallBaseMs } from "./arms/registry.ts";
 import { parseSnapArgs } from "./parse.ts";
 import { takeSnapFactBatches, takeSnapResultPairs } from "./run-bundle.ts";
-import { isTerminalSessionCallError, runSessionCallWithinBudget, sessionCallWatchdogBaseMs } from "./session-call-watchdog.ts";
+import { isTerminalSessionCallError, runSessionCallWithinBudget, sessionCallWatchdogBaseMs, sessionTapeBaseMs } from "./session-call-watchdog.ts";
 import type { SessionCallState } from "./session-daemon-call.ts";
 import { runSessionCallInDaemon } from "./session-daemon-call.ts";
 import type { SessionEvidenceState } from "./session-evidence.ts";
@@ -150,7 +150,12 @@ async function serveSerialized(state: SessionDaemonState, request: SessionReques
   try {
     const call = request.kind === "call" ? parseSnapArgs([...request.argv], { sessionDevice: state.bootArgs.device }) : null;
     const navigates = call !== null && (sessionCallTarget(call) !== "live" || call.matrix || call.scenario !== null);
-    exit = await runSessionCallWithinBudget(state, op, run, sessionCallWatchdogBaseMs(navigates, call === null ? null : armSessionCallBaseMs(call)));
+    exit = await runSessionCallWithinBudget(
+      state,
+      op,
+      run,
+      sessionCallWatchdogBaseMs(navigates, call === null ? null : armSessionCallBaseMs(call), call === null ? 0 : sessionTapeBaseMs(call.actions)),
+    );
   } catch (error) {
     print(`SESSION CALL ERROR  ${state.name}: ${errorMessage(error)}`);
     if (isTerminalSessionCallError(error)) {

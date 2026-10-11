@@ -555,13 +555,13 @@ test("reduced motion: the full streamed text lands immediately, with no pacing l
 const AVATAR_ROOT = '[data-slot="avatar-root"]';
 const ROW_BODY_SEL = '[data-slot="message-row-body"]';
 
-test("#1745 the ghost's avatar steps down to the phone size at a narrow width, matching the settled row", async ({ mount }) => {
+test("#1745 the ghost's avatar keeps the settled row's 40px chip at a narrow width, and the same tightened gap", async ({ mount }) => {
   const component = await mount(<GhostRowScriptedStory chunks={["Hello there."]} speakerName="Marguerite" />);
   await driveScript(component, 1);
 
   const avatar = component.locator(AVATAR_ROOT).first();
   await expect(avatar).toBeVisible();
-  await expect.poll(async () => avatar.evaluate((el) => el.getBoundingClientRect().width)).toBe(24);
+  await expect.poll(async () => avatar.evaluate((el) => el.getBoundingClientRect().width)).toBe(40);
   await expect
     .poll(() =>
       component

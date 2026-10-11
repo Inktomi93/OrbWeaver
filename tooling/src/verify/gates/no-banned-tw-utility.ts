@@ -22,14 +22,9 @@
 // exemption: a fixture that must name the token to test the merge behaviour is not a violation of anything.
 // `selected-files`: each occurrence is judged alone, and a subset run leaves unconsumed grants unjudged (stale is a whole-coverage verdict, lib/gate-authority.ts).
 //
-// BORN GREEN ON A FIXED TREE, and the census is 2026-09-19's, re-derived rather than inherited. The #1656
-// body said "two transcript sites"; the #2451 re-cut said exactly one. Both are stale: there are TWO live
-// class APPLICATIONS, each already refused in place with its own receipt —
-// `packages/client/src/lib/message-bubble-class.ts:37` (refusal at `:25`, "`max-w-prose` STAYS HERE, AND IT
-// IS THE ONE PLACE IT DOES") and `packages/client/src/features/chat/lib/message-row-variants.ts:367`
-// (refusal at `:363`, "`max-w-prose` is DELIBERATE RESIDUE here … this is transcript geometry"). Both are
-// the same #1145/#1175 transcript-bubble ruling, so both are grant rows and neither is debt parking. Every
-// other product hit of the string is a COMMENT recording a re-point away from it.
+// ONE LIVE CLASS APPLICATION, refused in place with its own receipt: `packages/client/src/lib/message-bubble-class.ts`
+// ("`max-w-prose` STAYS HERE, AND IT IS THE ONE PLACE IT DOES", the #1145/#1175 transcript-bubble ruling), so it is a
+// grant row and not debt parking. Every other product hit of the string is a COMMENT recording a re-point away from it.
 //
 // RETIRED MARKERS: none — a new policy with no legacy owner.
 import { SyntaxKind } from "ts-morph";

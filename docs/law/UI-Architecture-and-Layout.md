@@ -232,14 +232,14 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             section defaults collapsed (each `SectionDefinition.panelDefaults`); the persisted
             per-panel override wins thereafter.
 
-MOBILE:  RAIL → BOTTOM tab bar: Home · Chats · Characters · You (D271).
+MOBILE:  RAIL → BOTTOM tab bar (none in a chat room): Home · Chats · Characters · You (D271).
          Corpus enters through You. You is the mobile PROJECTION of shell chrome (§B) over the SAME resolved chrome
          list: `mobile:"sheet"` rail entries + the `rail.end` chrome (incl. the persona Identity
          widget's `body("sheet")` view, so mobile persona switching lives here). Containment chain: You ⊃ Identity ⊃ Account
-         (the account leaf modal). Everything is also reachable via ⌘K.
+         (the account leaf modal). Everything is reachable via ⌘K.
          LIST/CONTEXT → full-screen / sheets; single column. Corpus uses the mode landings below.
-         Other sections land on CONTENT, never on an open list sheet.
-         (Mobile is a responsive LAYOUT, never a theme.)
+         Other sections land on CONTENT, never on a list sheet.
+         (Mobile is a responsive LAYOUT, not a theme.)
 ```
 
 D271 replaces only D62-P3 and preserves D211. Corpus is the Variant A workbench: an `Explore | Insights | Labels` switch over one LIST / CONTENT / CONTEXT anatomy. The switch heads the LIST, and heads CONTENT while the LIST is off screen. Its phone landing policy follows the active mode:

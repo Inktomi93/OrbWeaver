@@ -30,9 +30,8 @@ const BUBBLE_TOKENS: Record<MessageRole, string> = {
  *  against that ruling. And the two tokens whose VALUE matches 65ch are not spellable here either:
  *  `--reading-measure-min` is a MIN-WIDTH floor (globals.css consumes it as `min-width`), so using it as a
  *  ceiling would invert the token's own contract. A transcript bubble cap is therefore an OPEN ruling
- *  question, not a mechanical re-point — filed, not guessed. Same refusal at
- *  `features/chat/lib/message-row-variants.ts`'s `document` skin. */
+ *  question, not a mechanical re-point — filed, not guessed. */
 export function messageBubbleClass(role: MessageRole): string {
   // `cn` is typed `string | undefined` (never undefined at runtime) — coalesce so callers get a `string`.
-  return cn("w-fit max-w-prose rounded-card px-block py-row", BUBBLE_TOKENS[role]) ?? "";
+  return cn("w-fit min-w-0 max-w-prose rounded-card px-block py-row", BUBBLE_TOKENS[role]) ?? "";
 }

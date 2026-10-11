@@ -350,6 +350,32 @@ test("the empty toast overlay does not intercept page controls", async ({ mount,
   await expect(page.locator('[data-slot="toast-viewport"]')).toHaveCSS("pointer-events", "none");
 });
 
+test("a soft keyboard marks the root keyboard-up while it is open, and clears it when it closes", async ({ mount, page }) => {
+  const shell = await mount(<AppShellStory />);
+  await expect(shell.getByText("chats content pane")).toBeVisible();
+  const html = page.locator("html");
+  await expect(html).not.toHaveAttribute("data-keyboard-up");
+  // An iOS-shaped keyboard: the visual viewport loses 336px of its height.
+  await page.evaluate(() => {
+    const viewport = window.visualViewport;
+    if (viewport === null) {
+      throw new Error("no visualViewport");
+    }
+    Object.defineProperty(viewport, "height", { configurable: true, get: () => window.innerHeight - 336 });
+    viewport.dispatchEvent(new Event("resize"));
+  });
+  await expect(html).toHaveAttribute("data-keyboard-up", "");
+  await page.evaluate(() => {
+    const viewport = window.visualViewport;
+    if (viewport === null) {
+      throw new Error("no visualViewport");
+    }
+    Reflect.deleteProperty(viewport, "height");
+    viewport.dispatchEvent(new Event("resize"));
+  });
+  await expect(html).not.toHaveAttribute("data-keyboard-up");
+});
+
 test("default renders the chats content pane inside the frame", async ({ mount }) => {
   const shell = await mount(<AppShellStory />);
   await expect(shell.getByText("chats content pane")).toBeVisible();
@@ -3733,7 +3759,7 @@ test("#2442 no .orb-chat-track carrier leaves its FLIP corridor — the composer
 // ── #2442 / A1-3: the CLAMPED delta, at the appearance the owner actually runs ───────────────────────
 // `--list-track-docked / 2` is the honest delta only while the docked content column is WIDER than
 // `--width-shell-content` — i.e. while the box really is the fixed-width box #1646's derivation names. At
-// `--font-scale: 1.25` the dial's own floor (46.125rem) resolves 922.5px against an ~850px docked track,
+// `--font-scale: 1.25` the dial's own floor (46.625rem) resolves 932.5px against an ~850px docked track,
 // so the box is WIDTH-CONSTRAINED while docked: its width changes with the track and its left-edge delta
 // is the track MINUS that width change, which the halved track over-applies (measured live: a 37px
 // residual jump of the transcript on every collapse).
@@ -4775,9 +4801,9 @@ test("#242 both docked at 1360: the content track reaches the reading floor, and
   await expect(page.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-mode", "docked");
 
   const [rail = 0, list = 0, content = 0, context = 0] = await shellTracks(page);
-  // THE RULED OUTCOME: the content track meets the floor (40rem = 640px), up from the 569.6px the same
-  // viewport produced before the squeeze — the +70px the CT's reading-line measurement asked for.
-  expect(content).toBeGreaterThanOrEqual(remPx(40) - 1);
+  // THE RULED OUTCOME: the content track meets the floor (40.5rem = 648px: the ruled 40rem plus the 8px the
+  // 40px chip added to the row's gutter), up from the 569.6px the same viewport produced before the squeeze.
+  expect(content).toBeGreaterThanOrEqual(remPx(40.5) - 1);
   expect(rail + list + content + context).toBeCloseTo(SQUEEZE_BINDS.width, 0);
   // …bought out of BOTH panes, neither past its floor. The context floor is the Waystone container step:
   // 3c49a6cce2 widened this pane so a standard desktop REACHES 24rem, and #242 does not spend that.
@@ -5795,7 +5821,7 @@ test("useAppearanceRootEffects lands a representative axis on <html> as a real c
 const UA_ROOT_PX = 16;
 
 test("chatWidthPct stamps a real rendered max-width on a --width-shell-content consumer", async ({ mount, page }) => {
-  const chatWidthPct = 90; // clear of the clamp's 46.125rem floor at any CT viewport ≥ 820px wide (#1204).
+  const chatWidthPct = 90; // clear of the clamp's 46.625rem floor at any CT viewport ≥ 830px wide (#1204).
   await routeTrpc(page, {
     ...SHELL_AMBIENT_ROUTES,
     "settings.getUserSettings": () => ({
@@ -6511,6 +6537,38 @@ for (const { id, label } of ONE_SHELL_SECTIONS) {
     await expect(page.getByRole("button", { name: `Back to ${label}` })).toHaveCount(0);
   });
 }
+
+// THE ROOM SCREEN HAS NO TAB BAR (owner ruling, docs/law/UI-Architecture-and-Layout.md MOBILE): inside an
+// open chat the bar stands down and its row goes to the room; back is the header chevron, and the list screen
+// gets the bar again. Another section's pushed detail keeps it, so the rule is the room's, not the push's.
+test("ONE-SHELL @320: an open chat room hides the tab bar and gives its row to the room; back restores it", async ({ mount, page }) => {
+  await page.setViewportSize(MOBILE_NARROW);
+  const shell = await mount(<AppShellMobileRuleStory section="chats" />);
+  const tabBar = page.locator(".shell-rail");
+  const grid = page.locator(".shell-grid");
+  await expect(tabBar).toBeVisible();
+
+  await shell.getByRole("button", { name: "open a member" }).click();
+  await expect(page.getByText("chats content pane")).toBeVisible();
+  await expect(tabBar).toHaveCount(0);
+  await expect(grid).toHaveAttribute("data-room-screen", "true");
+  // The room takes the whole frame: CONTENT runs to the grid's own bottom edge.
+  const gridBox = await grid.boundingBox();
+  const mainBox = await page.locator(".shell-main").boundingBox();
+  expect((mainBox?.y ?? 0) + (mainBox?.height ?? 0)).toBeCloseTo((gridBox?.y ?? 0) + (gridBox?.height ?? 0), 0);
+
+  await shell.getByRole("button", { name: "Back to Chats" }).click();
+  await expect(tabBar).toBeVisible();
+  await expect(grid).not.toHaveAttribute("data-room-screen", /.*/u);
+});
+
+test("ONE-SHELL @320: another section's pushed detail keeps the tab bar", async ({ mount, page }) => {
+  await page.setViewportSize(MOBILE_NARROW);
+  const shell = await mount(<AppShellMobileRuleStory section="characters" />);
+  await shell.getByRole("button", { name: "open a member" }).click();
+  await expect(page.getByText("characters content pane")).toBeVisible();
+  await expect(page.locator(".shell-rail")).toBeVisible();
+});
 
 // The escape hatch, and the reason the lead control is never dead in the no-selection arm: a section's
 // no-selection CONTENT is a real surface for some sections (the corpus + analytics dashboards, the config

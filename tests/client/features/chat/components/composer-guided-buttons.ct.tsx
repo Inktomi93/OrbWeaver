@@ -9,10 +9,10 @@
 //      character and a SPEAKER MENU above that (Auto + one row per character). The cluster CT never stubs a
 //      roster, so it only ever meets the solo arm; the multi-character room — the fork's whole reason to
 //      exist — was unexercised.
-//   2. THE CHARGE ASYMMETRY — `hasText && !disabled` for Swipe/Continue/Impersonate vs bare `hasText` for
-//      Response. So on a room with no assistant tail, typing charges Response and does NOT charge the two
-//      tail-gated icons. `data-cta` (@orb/ui Button's primary marker) is the rendered tell; @orb/ui primitives
-//      drop `data-testid`, so the controls are reached by role+name.
+//   2. THE STEER SIGNAL WITHOUT A DISC — typing renames the controls that can steer to their guided verbs and
+//      turns their glyph from outline to filled (bold where the glyph cannot fill); the tail-gated pair stays
+//      outline. No button but Send ever paints a fill, and Send's is a compact disc only once there is a draft.
+//      @orb/ui primitives drop `data-testid`, so the controls are reached by role+name.
 //   3. NO NATIVE `title` ON A TOOLTIP-WRAPPED TRIGGER (side-eye 2026-08-21, the file header's law). Every
 //      control here is a Base UI TooltipTrigger that ALSO carried the same string as a `title`, so Chrome
 //      stacked its OS tooltip on the rendered popup. The fix is only durable if the ABSENCE is pinned together
@@ -142,29 +142,141 @@ test("a SOLO-character room keeps the DIRECT Response button — one click fires
   await expect.poll(async () => (await readInputAtAssertion()).speakerCharacterId).toBeUndefined();
 });
 
-// ── 2. The charge asymmetry ───────────────────────────────────────────────────────────────────────────────
+// ── 2. The steer signal, without a disc ──────────────────────────────────────────────────────────────────
 
-// @orb/ui Button marks its `primary` intent with `data-cta` — the guided icons' CHARGE tell.
-const CHARGE = "data-cta";
+interface ComposerPaint {
+  readonly filled: readonly string[];
+  readonly glyphs: Readonly<Record<string, { readonly fill: string | null; readonly stroke: string | null; readonly accent: boolean }>>;
+  readonly send: { readonly filled: boolean; readonly accentFill: boolean; readonly size: number };
+}
 
-test("typing charges only what it can actually steer: Response + Draft charge, the tail-gated icons do not", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES }); // no assistant tail ⇒ Swipe/Continue are phase-disabled
+// Every button the composer paints, read at rest (pointer parked, nothing pressed): which carry a fill, what
+// each guided glyph looks like, and Send's disc.
+async function composerPaint(component: import("@playwright/experimental-ct-react").MountResult, names: readonly string[]): Promise<ComposerPaint> {
+  return await component.locator('[data-slot="composer"]').evaluate((composer, guided) => {
+    const probe = document.createElement("div");
+    probe.style.color = "var(--color-primary)";
+    probe.style.backgroundColor = "var(--color-primary)";
+    composer.append(probe);
+    const accent = getComputedStyle(probe).color;
+    const accentFill = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    const isFilled = (node: Element): boolean => {
+      const fill = getComputedStyle(node).backgroundColor;
+      return fill !== "rgba(0, 0, 0, 0)" && fill !== "transparent";
+    };
+    const buttons = [...composer.querySelectorAll("button")];
+    const glyphs = Object.fromEntries(
+      guided.map((name) => {
+        const button = buttons.find((candidate) => candidate.getAttribute("aria-label") === name);
+        const svg = button?.querySelector("svg");
+        return [
+          name,
+          {
+            fill: svg?.getAttribute("fill") ?? null,
+            stroke: svg?.getAttribute("stroke-width") ?? null,
+            accent: button !== undefined && getComputedStyle(button).color === accent,
+          },
+        ];
+      }),
+    );
+    const send = composer.querySelector('button[aria-label="Send message"]');
+    const sendStyle = send === null ? null : getComputedStyle(send);
+    return {
+      filled: buttons.filter((button) => button !== send && isFilled(button)).map((button) => button.getAttribute("aria-label") ?? ""),
+      glyphs,
+      send: {
+        filled: send !== null && isFilled(send),
+        accentFill: sendStyle !== null && sendStyle.backgroundColor === accentFill,
+        size: send === null ? Number.NaN : Math.max(send.getBoundingClientRect().width, send.getBoundingClientRect().height),
+      },
+    };
+  }, names);
+}
+
+const OUTLINE = { fill: "none", stroke: "1.75", accent: false };
+
+test("typing marks the controls that can steer with a filled glyph, not a disc; Send alone fills, at the glyph box", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES }); // no assistant tail: Swipe/Continue are phase-disabled
   const component = await mount(<ComposerStory />);
+  await page.mouse.move(0, 0);
 
-  // Empty composer: nothing is charged.
-  await Promise.all(
-    [RESPONSE, IMPERSONATE, SWIPE, CONTINUE].map((name) => expect(component.getByRole("button", { name, exact: true })).not.toHaveAttribute(CHARGE)),
-  );
+  const atRest = [RESPONSE, IMPERSONATE, SWIPE, CONTINUE];
+  await expect
+    .poll(async () => composerPaint(component, atRest))
+    .toEqual({
+      filled: [],
+      glyphs: Object.fromEntries(atRest.map((name) => [name, OUTLINE])),
+      send: { filled: false, accentFill: false, size: expect.any(Number) },
+    });
 
   await component.getByRole("textbox", { name: "Message" }).fill("make her angrier");
+  await page.mouse.move(0, 0);
 
-  // `hasText` alone charges Response; `hasText && !disabled` leaves the two tail-gated icons cold — a charged
-  // icon that cannot fire is the lie this asymmetry exists to prevent.
-  await expect(component.getByRole("button", { name: RESPONSE_GUIDED, exact: true })).toHaveAttribute(CHARGE);
-  await expect(component.getByRole("button", { name: "Guided draft your line", exact: true })).toHaveAttribute(CHARGE);
-  await expect(component.getByRole("button", { name: "Try another reply with this direction", exact: true })).not.toHaveAttribute(CHARGE);
-  await expect(component.getByRole("button", { name: "Continue the reply with this direction", exact: true })).not.toHaveAttribute(CHARGE);
+  const steering = [RESPONSE_GUIDED, "Guided draft your line", "Try another reply with this direction", "Continue the reply with this direction"];
+  const paint = await composerPaint(component, steering);
+  expect(paint.filled, "no composer button but Send paints a fill").toEqual([]);
+  expect(paint.glyphs).toEqual({
+    // Play fills; the drama masks cannot, so they take the bold stroke — a shape change either way.
+    [RESPONSE_GUIDED]: { fill: "currentColor", stroke: "1.75", accent: true },
+    "Guided draft your line": { fill: "none", stroke: "2.5", accent: true },
+    // The tail-gated pair cannot steer here (no reply to steer), so they stay outline and muted.
+    "Try another reply with this direction": OUTLINE,
+    "Continue the reply with this direction": OUTLINE,
+  });
+  expect(paint.send.filled && paint.send.accentFill, "a draft turns Send into the accent disc").toBe(true);
+  const glyphBox = await component.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.width = "var(--spacing-glyph-lg)";
+    document.body.append(probe);
+    const width = probe.getBoundingClientRect().width;
+    probe.remove();
+    return width;
+  });
+  expect(paint.send.size, "Send's disc is the 32px glyph box, not a control-height disc").toBeLessThanOrEqual(glyphBox);
 });
+
+for (const viewport of [
+  { name: "desktop", width: 1280, touch: false },
+  { name: "phone", width: 390, touch: true },
+] as const) {
+  test.describe(`${viewport.name}: one glyph-button shape`, () => {
+    test.use({ viewport: { width: viewport.width, height: 844 }, hasTouch: viewport.touch });
+
+    test("every composer glyph button tints as the same glyph-sized circle, the ☰ included", async ({ mount, page }) => {
+      await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
+      const component = await mount(<ComposerStory />);
+      const readShapes = (): Promise<{ readonly names: readonly (string | null)[]; readonly radii: readonly string[] }> =>
+        component.locator('[data-slot="composer"]').evaluate((composer) => {
+          const probe = document.createElement("div");
+          probe.style.width = "var(--spacing-glyph-lg)";
+          composer.append(probe);
+          const glyph = probe.getBoundingClientRect().width;
+          probe.remove();
+          // The glyph boxes: every square button at the glyph step (the 44px hit area is a `::before`, not the box).
+          const glyphButtons = [...composer.querySelectorAll("button")].filter((button) => {
+            const box = button.getBoundingClientRect();
+            return Math.abs(box.width - glyph) < 0.5 && Math.abs(box.height - glyph) < 0.5;
+          });
+          return {
+            names: glyphButtons.map((button) => button.getAttribute("aria-label")),
+            radii: [...new Set(glyphButtons.map((button) => getComputedStyle(button).borderRadius))],
+          };
+        });
+      await expect
+        .poll(async () => {
+          const shapes = await readShapes();
+          return {
+            menus: shapes.names.includes("Chat options") && shapes.names.includes("Message tools"),
+            oneRadius: shapes.radii.length === 1,
+            // A circle: the radius is at least half the glyph box.
+            circle: Number.parseFloat(shapes.radii[0] ?? "0") >= 16,
+          };
+        })
+        .toEqual({ menus: true, oneRadius: true, circle: true });
+    });
+  });
+}
 
 // ── 3. No native `title` — the tooltip and the accessible description are the carriers ────────────────────
 

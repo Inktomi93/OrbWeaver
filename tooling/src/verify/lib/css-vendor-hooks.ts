@@ -25,10 +25,15 @@ import type { VendorInstalledFile } from "../contract/resource-vendor.ts";
 import type { SelectorHookIdentity } from "./css-family-selector-provenance.ts";
 import { hookValueMatches } from "./css-family-selector-provenance.ts";
 
-/** The contracted Streamdown code-block hook, and the exact emission spelling its bundles carry. */
+/** The contracted Streamdown code-block hooks: the block and the controls product CSS sizes for touch. */
 export const STREAMDOWN_HOOK_NAME = "data-streamdown";
-export const STREAMDOWN_HOOK_VALUE = "code-block";
-const STREAMDOWN_EMISSION = `"${STREAMDOWN_HOOK_NAME}":"${STREAMDOWN_HOOK_VALUE}"`;
+export const STREAMDOWN_HOOK_VALUES = ["code-block", "code-block-actions", "code-block-copy-button", "code-block-download-button"] as const;
+type StreamdownHookValue = (typeof STREAMDOWN_HOOK_VALUES)[number];
+
+/** The exact emission spelling the bundles carry; the closing quote keeps `code-block` from matching its siblings. */
+function streamdownEmission(value: StreamdownHookValue): string {
+  return `"${STREAMDOWN_HOOK_NAME}":"${value}"`;
+}
 
 export interface VendorHookCensus {
   /** Base UI state attributes present on BOTH sides, mapped to their statically declared values. An empty
@@ -39,8 +44,8 @@ export interface VendorHookCensus {
   readonly baseUiManifestOnly: readonly string[];
   /** Present in the installed surface, absent from the committed manifest. */
   readonly baseUiInstalledOnly: readonly string[];
-  /** Does an installed Streamdown bundle still emit the contracted code-block hook? */
-  readonly streamdownEmitted: boolean;
+  /** The contracted Streamdown hooks an installed bundle still emits. */
+  readonly streamdownEmitted: ReadonlySet<StreamdownHookValue>;
 }
 
 /** Every `data-<state>` attribute a surface's anatomy parts declare. Written against the STRUCTURAL shape
@@ -81,7 +86,7 @@ export function readVendorHooks({ manifest, installed, installedValues, selector
     ),
     baseUiManifestOnly: difference(manifestAttributes, installedAttributes),
     baseUiInstalledOnly: difference(installedAttributes, manifestAttributes),
-    streamdownEmitted: selectorSources.some((source) => source.text.includes(STREAMDOWN_EMISSION)),
+    streamdownEmitted: new Set(STREAMDOWN_HOOK_VALUES.filter((value) => selectorSources.some((source) => source.text.includes(streamdownEmission(value))))),
   };
 }
 
@@ -93,6 +98,6 @@ export function vendorWritesHook(census: VendorHookCensus, hook: SelectorHookIde
   const baseUiValues = census.baseUiAttributes.get(hook.name);
   return (
     (baseUiValues !== undefined && hookValueMatches(hook.operator, hook.value, baseUiValues)) ||
-    (hook.name === STREAMDOWN_HOOK_NAME && hook.operator === "=" && hook.value === STREAMDOWN_HOOK_VALUE && census.streamdownEmitted)
+    (hook.name === STREAMDOWN_HOOK_NAME && hook.operator === "=" && [...census.streamdownEmitted].some((value) => value === hook.value))
   );
 }

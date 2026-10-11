@@ -432,6 +432,75 @@ test("--swipe scrolls a touch scroller by dispatched touch events, and refuses w
   expect(parseSnapArgs(["/", "--swipe", "#list=400"]).errors.join("\n")).toContain("--swipe needs a touch-capable context");
 });
 
+// --soft-keyboard: headless Chromium never raises an on-screen keyboard, so a --mobile drive that focused the
+// composer read visualViewport.height === innerHeight and the app's keyboard inset stayed 0 (measured on a
+// staged chat room). The page below records what visualViewport resize AND scroll listeners see, the two
+// events `keyboard-inset.ts` subscribes to, and the inset by its own arithmetic (innerHeight - offsetTop -
+// height), so the assertions are about what the app would compute.
+const KEYBOARD_DOCUMENT = `<!doctype html><html lang="en" data-app-ready="settled"><head>
+<meta name="viewport" content="width=device-width, initial-scale=1"></head><body>
+<textarea id="field"></textarea>
+<script>
+  window.__seen = [];
+  var record = function (event) {
+    window.__seen.push({ type: event.type, inner: innerHeight, inset: Math.round(innerHeight - visualViewport.offsetTop - visualViewport.height) });
+  };
+  visualViewport.addEventListener("resize", record);
+  visualViewport.addEventListener("scroll", record);
+</script></body></html>`;
+
+test("--soft-keyboard shrinks the visual viewport iOS-style, fires resize and scroll, and closes at 0", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const server = createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(KEYBOARD_DOCUMENT);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const base = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await (await browser.newContext(devices[MOBILE_DEVICE])).newPage();
+    await page.goto(base);
+    const fullHeight = Number(await page.evaluate("innerHeight"));
+    const restingInset = Number(await page.evaluate("Math.round(innerHeight - visualViewport.offsetTop - visualViewport.height)"));
+    // Chromium fires its own resize as the mobile viewport settles after load; only the drive's count.
+    await page.evaluate("window.__seen = []");
+    const args = parseSnapArgs([
+      "/",
+      "--soft-keyboard",
+      "340",
+      "--soft-keyboard",
+      "0",
+      "--mobile",
+      "--base",
+      base,
+      "--no-shot",
+      "--no-deadcss",
+      "--no-failure-evidence",
+    ]);
+    expect(args.errors).toEqual([]);
+    const failures = await driveActions({ page, actions: args.actions });
+    expect(failures.stepFailures).toBe(0);
+    const seen = (await page.evaluate("window.__seen")) as readonly { readonly type: string; readonly inner: number; readonly inset: number }[];
+    // Open: the layout viewport keeps its height (WebKit) and the inset is the keyboard band. Close: the
+    // inset returns to rest. Each state reached BOTH listeners; a listener may hear a state more than once,
+    // as on a real phone, so the distinct readings per event type are what is asserted.
+    for (const type of ["resize", "scroll"]) {
+      const ofType = seen.filter((reading) => reading.type === type);
+      const states = ofType.filter((reading, index) => index === 0 || reading.inset !== ofType[index - 1]?.inset);
+      expect(states, type).toEqual([
+        { type, inner: fullHeight, inset: restingInset + 340 },
+        { type, inner: fullHeight, inset: restingInset },
+      ]);
+    }
+  } finally {
+    await browser.close();
+    server.closeAllConnections();
+    server.close();
+  }
+  expect(parseSnapArgs(["/", "--soft-keyboard", "340"]).errors.join("\n")).toContain("--soft-keyboard needs a phone context");
+  expect(parseSnapArgs(["/", "--soft-keyboard", "tall", "--mobile"]).errors.join("\n")).toContain("--soft-keyboard expects a keyboard height");
+});
+
 test("explicit cold bootstrap waits on the actual capture document beyond ordinary readiness", { timeout: BROWSER_TIMEOUT_MS }, async () => {
   const browser = await chromium.launch({ headless: true });
   try {

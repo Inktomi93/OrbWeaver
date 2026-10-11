@@ -288,7 +288,7 @@ export function MessageList<T>({
     virtualizer.scrollToEnd({ behavior: "auto" });
   }, [virtualizer]);
 
-  useTailRepin({ contentHeightPx, scrollRef, stickToBottomRef, tailFollowActive, virtualizer });
+  useTailRepin({ contentHeightPx, scrollRef, scrollportHeightPx, stickToBottomRef, tailFollowActive, virtualizer });
 
   // A scroll position matching virtual-core's last recorded write is its own drift/re-pin — ignore
   // it for FOLLOW intent (edge fades track every scroll, whoever moved it). Anything else was moved

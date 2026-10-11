@@ -27,9 +27,7 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import { useCarriedAppearance, useGatedQuery, useTRPC } from "#data";
 import { useActiveChatId, useActiveSection } from "#state";
 import { resolveChatBackgroundSource } from "../lib/resolve-theme-background.ts";
-
-/** The section whose CONTENT is the chat room — the only surface a carried background may dress. */
-const ROOM_SECTION = "chats";
+import { ROOM_SECTION } from "../lib/room-section.ts";
 
 /** The active chat's effective carried background source, or `undefined` when the viewer's own appearance
  *  background should paint (the app-shell cascades this over `appearanceBackgroundSource(appearance)`). */

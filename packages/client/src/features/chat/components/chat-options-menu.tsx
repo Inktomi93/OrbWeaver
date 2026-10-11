@@ -240,7 +240,9 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters }
       <RowActionsMenu
         icon={MenuIcon}
         label="Chat options"
+        triggerSize="glyph"
         shape="pill"
+        ink="inherit"
         // The hover/focus explanation is the LABEL, not a twin of it (#869): the popup used to read "Manage
         // this chat" over an accessible name of "Chat options", and on an icon-only trigger the popup IS the
         // visible label — WCAG 2.5.3, so the words a voice-control user could see did not reach the room's

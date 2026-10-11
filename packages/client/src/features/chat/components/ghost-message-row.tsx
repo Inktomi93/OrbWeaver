@@ -32,7 +32,6 @@ import type { GhostContentSegment } from "@orb/kit/content";
 import { scanGhostContent } from "@orb/kit/content";
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { initialsFor } from "@orb/kit/initials";
 import { speakerTagsToPlain, stripLeadingSpeakerName } from "@orb/kit/speaker-label";
 import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
@@ -46,7 +45,9 @@ import { cn, renderMessageForDisplay } from "#lib";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream.ts";
 import type { RowAttribution } from "../lib/attribution.ts";
-import { columnClassFor, gutterRailFor, MESSAGE_ROW_SKINS, rowBodyClassFor } from "../lib/message-row-variants.ts";
+import { ROW_BODY_AT_PHONE_WIDTH } from "../lib/chat-track.ts";
+import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
+import { avatarTreatmentFor, columnClassFor, gutterRailFor, rowBodyClassFor } from "../lib/row-placement.ts";
 import { CardBlock } from "./card-block.tsx";
 import { placeRowHeader, renderGhostNameRow } from "./message-row-header.tsx";
 import { renderRowAvatar, themedColumnContent } from "./message-row-parts.tsx";
@@ -55,17 +56,6 @@ import { ReasoningBlock } from "./reasoning-block.tsx";
 // Fallback pace when smooth-streaming is on but the surface passed no explicit cps (matches the contract
 // default). The pref (`UserSettings.chat.smoothStreamCps`) overrides it via the `smoothStreamCps` prop.
 const DEFAULT_SMOOTH_STREAM_CPS = 80;
-
-// Module scope so the ghost component stays under the cognitive-complexity ceiling.
-function ghostFallbackTile(attribution: RowAttribution | undefined): {
-  readonly hueSeed: string;
-  readonly initial: string;
-} {
-  if (attribution === undefined || attribution.name === null) {
-    return { hueSeed: attribution?.hueSeed ?? "", initial: "" };
-  }
-  return { hueSeed: attribution.hueSeed, initial: initialsFor(attribution.name) };
-}
 
 // The §4.5 FORMING-CARD placeholder (parity-plus P4, ghost arm only): once a `:::card` OPEN line completes
 // in the ghost text, the accumulating raw HTML is suppressed behind a pretty building-state chip (skeleton
@@ -202,7 +192,7 @@ export function GhostMessageRow({
   renderContext,
   rowCharacterId,
   attribution,
-  avatarSize = "md",
+  avatarSize = "lg",
   avatarShape = "round",
   avatarAspect = "square",
   avatarRing = "none",
@@ -237,14 +227,13 @@ export function GhostMessageRow({
   const skin = MESSAGE_ROW_SKINS[chatStyle];
 
   const kind = attribution?.kind ?? null;
-  const avatarTreatment = skin.avatarTreatment(kind);
   const decorationAvatarHash = attribution === undefined ? null : attribution.avatarHash;
+  const avatarTreatment = avatarTreatmentFor(skin, kind, decorationAvatarHash);
   const decoration =
     skin.bubbleDecoration?.({
       kind,
       avatarHash: decorationAvatarHash,
       showInChatAvatars,
-      ...ghostFallbackTile(attribution),
     }) ?? null;
   const avatarNode =
     attribution === undefined
@@ -260,6 +249,8 @@ export function GhostMessageRow({
           avatarRing,
           alignToInsideHeader: skin.headerPlacement === "inside",
           gutterRail: gutterRailFor(skin, "assistant"),
+          // The live turn is always the assistant side, which never mirrors.
+          mirrored: false,
         });
   // #1728 arm B — THE GHOST TAKES THE SETTLED ROW'S PLACEMENT, for the reason this file already states
   // about the header two blocks down: a live turn laid out one way that relaid out at commit is a visible
@@ -269,7 +260,16 @@ export function GhostMessageRow({
   // #116/#288 — the SPEAKER, for the whole generation, in the SAME home the settled row will put it in.
   // The placement is read off the skin here rather than hardcoded because a live turn whose header sat
   // above the bubble and jumped inside it at commit would be a visible one-frame reflow on every reply.
-  const header = placeRowHeader(renderGhostNameRow({ attribution, stickyAttribution, placement: skin.headerPlacement }), skin.headerPlacement);
+  const header = placeRowHeader(
+    renderGhostNameRow({
+      attribution,
+      stickyAttribution,
+      placement: skin.headerPlacement,
+      pinnedPaint: skin.pinnedHeader.paint("assistant"),
+      named: skin.actionsRow.identity,
+    }),
+    skin.headerPlacement,
+  );
   const bubble = (
     // w-full so the shimmer/streaming-markdown children have a sized parent (the assistant skin is
     // otherwise shrink-to-fit).
@@ -314,18 +314,10 @@ export function GhostMessageRow({
     >
       {/* The `@container` above and this element's two arms are the settled row's, verbatim — the ghost is
           the one row that MUST be laid out identically to what it becomes (#1728 arm B). THE `@max-md`
-          AVATAR STEP IS PART OF THAT PARITY (#1745, side-eye 2026-09-05): the container query landed with
-          arm B, but the row body's own `@max-md:gap-field @max-md:*:data-[slot=avatar-root]:size-6`
-          pair — `message-row.tsx`'s phone-width chip shrink — never came with it, so a live turn at a
-          phone width rendered its 32px avatar-md chip through the whole stream and only stepped down to
-          24px the instant it settled: a visible one-frame reflow on every reply, the exact class of jump
-          this file's own header worries about elsewhere on this row. */}
-      <Row
-        align="start"
-        gap="row"
-        data-slot="message-row-body"
-        className={cn(rowBodyClassFor(skin), "w-full", "@max-md:gap-field @max-md:*:data-[slot=avatar-root]:size-6")}
-      >
+          AVATAR STEP IS PART OF THAT PARITY: the row body takes the settled row's own
+          `ROW_BODY_AT_PHONE_WIDTH`, or a live turn at a phone width would reflow its gutter the
+          instant it settled. */}
+      <Row align="start" gap="row" data-slot="message-row-body" className={cn(rowBodyClassFor(skin), "w-full", ROW_BODY_AT_PHONE_WIDTH)}>
         {avatarNode}
         {/* The skin's own column width rides the ghost too — a live turn that reflows at commit is a
             visible jump (the reading-measure suite pins the two columns equal). */}

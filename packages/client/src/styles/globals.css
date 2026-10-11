@@ -9,6 +9,10 @@
  * declaring its src explicitly. */
 @source "../";
 @source "../../../ui/src";
+/* The markdown seal renders code blocks through Streamdown, whose own markup carries Tailwind classes (the
+ * block's header row, its Copy/Download buttons, the line inset). A package in node_modules is never
+ * scanned on its own, so without this those classes are never generated and the chrome renders unstyled. */
+@source "../../../ui/node_modules/streamdown/dist";
 
 :root {
   background-color: var(--color-background);
@@ -696,8 +700,8 @@ html[data-shadow] [data-slot="message-bubble"] {
 
 /* THE READING MEASURE (#97, side-eye aesthetic shakedown 2026-08-16). The transcript ran at
  * `max-width: none` — measured 98ch at 1280px with both panels closed, and ~200ch on a 2560 monitor,
- * against the house 65-75ch law that `document` mode (max-w-prose) and the Configuration teaching copy
- * (max-w-(--width-content-col)) already honour. Homed here, in the styles tier, rather than as a class on
+ * against the house 65-75ch law that the Configuration teaching copy (max-w-(--width-content-col)) already
+ * honours. Homed here, in the styles tier, rather than as a class on
  * the two content columns: `message-row` and `ghost-message-row` BOTH stamp this slot and their measures
  * must not be allowed to drift (a ghost that reflows at commit is a visible jump), and this is already the
  * seam that owns reading typography for the slot below.
@@ -743,12 +747,15 @@ html[data-shadow] [data-slot="message-bubble"] {
 [data-slot="message-content-column"] {
   font-size: calc(var(--text-body) * var(--reading-body-scale, 1));
   max-width: calc(var(--reading-measure) * var(--reading-body-scale, 1));
+  /* The centred skins' fixed column width (row-placement.ts): the measure, or the row less its two
+   * identity rails when the row is narrower than both. `cqi` resolves against the row's own container. */
+  --centred-column-width: min(calc(var(--reading-measure) * var(--reading-body-scale, 1)), calc(100cqi - 2 * (var(--spacing-avatar-lg) + var(--spacing-row))));
 }
 
 /* THE ROOM'S TRACK CENTRES ON THE DEVICE-PIXEL GRID (#1362 — docs/law/integer-line-boxes.md Law 3). The track used
  * to carry Tailwind's `mx-auto`, which splits the leftover width in half: an ODD remainder lands the track,
  * and therefore every `backdrop-filter` layer inside it, on a half pixel. Measured on the isolated stage at
- * 1280x800 with all four blur surfaces on — content pane 893px, track 768px (`clamp(46.125rem, 60dvw,
+ * 1280x800 with all four blur surfaces on — content pane 893px, track 768px (`clamp(46.625rem, 60dvw,
  * 100dvw)`), remainder 125, margin 62.5 — `design-audit` reported `left -0.500 device px` on FOUR promoted
  * layers at once: `[data-slot=composer]`, `[data-slot=swipe-strip]` and two `[data-slot=message-bubble]`s,
  * plus the `off-grid-text` those bubbles' glyphs inherit. One cause, one repair site, because all of them
@@ -781,6 +788,74 @@ html[data-shadow] [data-slot="message-bubble"] {
 }
 [data-slot="message-bubble"] p + p {
   margin-top: var(--reading-paragraph-spacing);
+}
+/* Wide content scrolls inside its message, never widens it: a code line wider than the phone pushed the
+ * whole row off screen. `contain: inline-size` takes the block out of its shrink-to-fit bubble's intrinsic
+ * width, so the bubble sizes to its prose and the code scrolls within whatever width that leaves. */
+[data-slot="message-bubble"] pre {
+  contain: inline-size;
+  max-width: 100%;
+  overflow-x: auto;
+}
+/* …which leaves a shrink-to-fit box holding code with no width to give it: a tide pill whose only child is
+ * a code block sized to the block's header and scrolled the code in 52px. A message holding code takes its
+ * whole track instead (still under each skin's own caps), so the code scrolls in the widest box it may use. */
+[data-slot="message-content-column"]:has(pre),
+[data-slot="message-bubble"]:has(pre) {
+  width: 100%;
+}
+/* CODE TOKENS FOLLOW THE APP THEME, NOT THE DEVICE. Streamdown colours each Shiki token through `--sdm-c` and
+ * switches to `--shiki-dark` under Tailwind's `dark:`, which is the OS `prefers-color-scheme` query. The app's
+ * polarity is the `color-scheme` its theme scope sets; keyed on the OS, a dark theme on a light-mode phone
+ * paints the light palette on the dark code ground. `light-dark()` resolves against that `color-scheme`;
+ * these rules are unlayered, so they outrank the layered `dark:` utilities either way. */
+[data-streamdown="code-block"] [style*="--sdm-c"] {
+  color: light-dark(var(--sdm-c, currentcolor), var(--shiki-dark, var(--sdm-c, currentcolor)));
+}
+[data-streamdown="code-block"] [style*="--sdm-tbg"] {
+  background-color: light-dark(var(--sdm-tbg, transparent), var(--shiki-dark-bg, var(--sdm-tbg, transparent)));
+}
+[data-streamdown="code-block"] [style*="--sdm-bg"] {
+  background-color: light-dark(var(--sdm-bg, transparent), var(--shiki-dark-bg, var(--sdm-bg, transparent)));
+}
+/* Streamdown's Copy and Download are 24px glyph buttons; at a coarse pointer they take the room's touch floor
+ * through an invisible centred hit area, the same pointer-conditional token every glyph button uses. */
+[data-streamdown="code-block-copy-button"],
+[data-streamdown="code-block-download-button"] {
+  position: relative;
+}
+/* …and the pair is spaced so those areas never overlap: the floor less the 24px button box. */
+[data-streamdown="code-block-actions"] {
+  column-gap: calc(var(--spacing-touch-target) - var(--spacing-glyph-md));
+}
+[data-streamdown="code-block-copy-button"]::before,
+[data-streamdown="code-block-download-button"]::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--spacing-touch-target);
+  height: var(--spacing-touch-target);
+  translate: -50% -50%;
+}
+/* WITH THE SOFT KEYBOARD UP the transcript is what the reader needs: the plugin panels' disclosure folds
+ * away and the composer's refusal keeps to one line. `data-keyboard-up` is written beside
+ * `--orb-keyboard-inset` by `use-keyboard-inset-var.ts`. */
+/* …unless the keyboard is the flank's own: hiding a focused plugin field drops focus and the typing with it. */
+html[data-keyboard-up] [data-slot="plugin-flank"]:not(:focus-within) {
+  display: none;
+}
+html[data-keyboard-up] [data-slot="composer-guided-refusal"] {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* How far a pinned header bar and the swipe foot reach to the card's side edges: the card's own inset,
+ * which echo widens on its art side to the art pane (an inline override from its decoration). */
+[data-slot="message-bubble"] {
+  --row-reach-left: var(--spacing-block);
+  --row-reach-right: var(--spacing-block);
 }
 /* JUSTIFY SHIPS WITH HYPHENATION, ALWAYS (#852). Justified text without it opens rivers of white down the
  * column — the browser can only stretch word spacing, so a long word that will not fit forces the line

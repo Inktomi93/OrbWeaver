@@ -28,6 +28,7 @@ import {
   Circle as CircleGlyph,
   Crown as CrownGlyph,
   Droplet as DropletGlyph,
+  FastForward as FastForwardGlyph,
   Flag as FlagGlyph,
   Flame as FlameGlyph,
   Heart as HeartGlyph,
@@ -53,6 +54,8 @@ export const Circle: FillableIcon = CircleGlyph as FillableIcon;
 /** The closed crown silhouette fills; its separate open baseline remains a stroke. */
 export const Crown: FillableIcon = CrownGlyph as FillableIcon;
 export const Droplet: FillableIcon = DropletGlyph as FillableIcon;
+/** Two closed triangles, each of which fills solid (the composer's steer-ready Continue). */
+export const FastForward: FillableIcon = FastForwardGlyph as FillableIcon;
 export const Flag: FillableIcon = FlagGlyph as FillableIcon;
 export const Flame: FillableIcon = FlameGlyph as FillableIcon;
 export const Heart: FillableIcon = HeartGlyph as FillableIcon;

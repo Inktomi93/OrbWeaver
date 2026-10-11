@@ -58,6 +58,9 @@ function filmstripActionLabel(action: SnapAction): string {
   if (step.kind === "pause") {
     return `pause ${String(step.ms)}ms`;
   }
+  if (step.kind === "soft-keyboard") {
+    return `soft-keyboard ${String(step.height)}px`;
+  }
   if (step.kind === "keyboard") {
     return `keyboard ${step.key}`;
   }

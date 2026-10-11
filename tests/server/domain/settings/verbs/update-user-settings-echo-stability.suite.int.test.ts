@@ -60,7 +60,7 @@ describe("updateUserSettingsSection — echo-stability fixed points (#16)", () =
 
     const seeded = await h.svc.updateUserSettingsSection({
       principal: p,
-      input: { section: "appearance", patch: { ...DEFAULT_APPEARANCE_SETTINGS, elevation: "glow" as const, avatarSize: "lg" as const } },
+      input: { section: "appearance", patch: { ...DEFAULT_APPEARANCE_SETTINGS, elevation: "glow" as const, avatarSize: "md" as const } },
     });
     const anchor = JSON.stringify(seeded.config.appearance);
     // Three re-saves of the exact echo, sequenced (each depends on the prior for realism, but no

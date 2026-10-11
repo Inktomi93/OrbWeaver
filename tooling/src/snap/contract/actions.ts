@@ -15,6 +15,11 @@ type StepAction =
   // A touch DRAG (`Input.dispatchTouchEvent` start/move/end) that scrolls a touch scroller by `dy` CSS px.
   // Chromium's `Input.synthesizeScrollGesture` does not scroll in the headless build; this does.
   | { kind: "swipe"; selector: string; dy: number }
+  // An iOS-shaped ON-SCREEN KEYBOARD of `height` CSS px (0 closes it). Headless Chromium never shows one,
+  // so without this every phone drive measured the composer with a permanent keyboard inset of 0. It
+  // shrinks `visualViewport.height` and fires its `resize` while the layout viewport stays full height,
+  // which is what WebKit does and the branch `keyboard-inset.ts` exists for.
+  | { kind: "soft-keyboard"; height: number }
   | { kind: "motion-click"; selector: string | null }
   | { kind: "jsclick"; selector: string }
   | { kind: "press"; selector: string }

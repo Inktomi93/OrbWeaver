@@ -23,12 +23,12 @@
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { ChevronLeft, ChevronRight, Icon } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { cn } from "#lib";
-import { PAGER_CHIP, PAGER_CHIP_COMPACT, PAGER_COUNTER, PAGER_TRACK } from "../lib/pager-chrome.ts";
+import type { SwipeFoot } from "../lib/pager-chrome.ts";
+import { SWIPE_COUNTER } from "../lib/pager-chrome.ts";
+import { SwipeFootRow } from "./swipe-strip.tsx";
 
 interface SetSeededGreetingVars {
   readonly chatId: ChatId;
@@ -52,13 +52,12 @@ export interface GreetingSwipeStripProps {
   readonly variants: readonly string[];
   /** The currently shown greeting text (the row's content) — the strip derives its position from it. */
   readonly current: string;
-  /** #221 — the row-owned wallpaper backing, threaded exactly as `SwipeStrip` takes it: the two strips
-   *  share one slot and one chrome, so they cannot differ on whether that chrome is legible over art. */
-  readonly backingClass?: string | undefined;
+  /** The chat style's swipe treatment, shared with `SwipeStrip`: one gesture to a reader. */
+  readonly foot: SwipeFoot;
 }
 
 /** The `n / m` greeting-alternate counter + prev/next for a seeded greeting row. */
-export function GreetingSwipeStrip({ chatId, messageId, variants, current, backingClass }: GreetingSwipeStripProps): ReactElement {
+export function GreetingSwipeStrip({ chatId, messageId, variants, current, foot }: GreetingSwipeStripProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const step = useSetSeededGreeting({ trpc, invalidation });
@@ -79,32 +78,14 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, backi
   };
 
   return (
-    // Sized to its content like its twin (#228): the two strips share one slot and one chrome, so a plate
-    // that spans the whole message width on one of them and hugs the chevrons on the other would be the
-    // drift this pair's threading exists to prevent.
-    //
-    // TRAILING-EDGE ALIGNED (#312), for the same reason and by the same lever as `SwipeStrip`: the two
-    // strips share one slot, so they cannot differ on which edge the chevrons pack to. The chip rides the
-    // content column's right edge instead of its left-by-omission — via `PAGER_CHIP`'s auto margin since
-    // #608 (same edge, defined overflow direction; `self-end` put an overflowing chip off the pane).
-    // AND IT MAY NOT SIZE THE BUBBLE'S COLUMN EITHER (#598, same slot ⇒ same track). The content column
-    // resolves to the max-content of its widest child, so a `w-fit` chip under a SHORT greeting became that
-    // child and hung past the bubble it pages. `container-type: inline-size` (Tailwind's `@container`)
-    // resolves this track's width without regard to its contents: it contributes nothing to the column and
-    // still stretches to whatever the bubble set. The track is here because the two strips share one slot and
-    // must not differ on whether a pager can widen the message it pages.
-    //
-    // AND IT MAY NOT BE CRUSHED EITHER (#608, `PAGER_CHIP`/`PAGER_CHIP_COMPACT` — one chrome, both strips):
-    // `w-fit` resolved this chip against the BUBBLE once the track contained the column, so under a short
-    // greeting at a coarse pointer its chevrons squeezed under the 48px box and the counter wrapped. `w-max`
-    // plus the compact arms is the same answer its twin takes, for the same reason. This chip carries no
-    // kicker (it never took #490's word), so it needs no LABEL stand-down — it takes the other two, which are
-    // the ones that keep a 48px touch box under a narrow greeting.
-    <Stack data-slot="greeting-swipe-strip-track" className={PAGER_TRACK}>
-      <Row gap="field" align="center" data-slot="greeting-swipe-strip" className={cn(PAGER_CHIP, PAGER_CHIP_COMPACT, backingClass)}>
+    <SwipeFootRow
+      foot={foot}
+      slot="greeting-swipe-strip"
+      prev={
         <Button
           intent="ghost"
-          size="icon"
+          size="glyph-lg"
+          className={foot.chevron}
           disabled={!canPrev || step.isPending}
           loading={step.isPending}
           aria-label="Previous greeting"
@@ -112,14 +93,17 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, backi
         >
           <Icon icon={ChevronLeft} size="sm" />
         </Button>
-        {/* Same counter, same `datum` voice, same compaction as the settled row's swipe strip — one grammar
-            for both, down to when the spaces around the slash stand down (#608). */}
-        <Text as="span" voice="datum" data-slot="greeting-swipe-strip-counter" className={PAGER_COUNTER}>
+      }
+      count={
+        <Text as="span" voice="datum" data-slot="greeting-swipe-strip-counter" className={SWIPE_COUNTER}>
           {atCustom ? "—" : currentIdx + 1} / {total}
         </Text>
+      }
+      next={
         <Button
           intent="ghost"
-          size="icon"
+          size="glyph-lg"
+          className={foot.chevron}
           disabled={!canNext || step.isPending}
           loading={step.isPending}
           aria-label="Next greeting"
@@ -127,7 +111,7 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, backi
         >
           <Icon icon={ChevronRight} size="sm" />
         </Button>
-      </Row>
-    </Stack>
+      }
+    />
   );
 }

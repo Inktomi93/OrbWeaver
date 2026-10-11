@@ -218,7 +218,8 @@ build; use a production build or `--file` for the network case. A bad rate refus
 
 `--click` is a mouse dispatch even under `--mobile`: it fires `pointerenter`/`mouseover` and can open a
 hover-only tooltip no finger could reach. `--tap <sel>` is a real touch tap (set `--mobile` at session boot) and
-fires none of those. For hover-revealed targets (group-hover kebabs, row toolbars), `--force-click`
+fires none of those. Headless Chromium shows no on-screen keyboard, so follow a `--tap` on a field with
+`--soft-keyboard <px>` (about 340 for an iPhone) to drive the app's keyboard path; `--soft-keyboard 0` closes it. For hover-revealed targets (group-hover kebabs, row toolbars), `--force-click`
 hovers then force-clicks; synthetic `--hover` loses `:hover` on re-render, so prefer the focus path for
 reveal-state evidence.
 

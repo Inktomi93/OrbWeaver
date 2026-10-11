@@ -17,9 +17,9 @@ import { cn, renderMessageForDisplay } from "#lib";
 import type { RowAttribution } from "../lib/attribution.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { MESSAGE_REASONING_NAME } from "../lib/message-action-names.ts";
-import { BG_PHOTO_PAGER_PLATE } from "../lib/message-row-backing.ts";
 import type { BubbleDecoration, BubbleDecorationArgs, RowSkin } from "../lib/message-row-variants.ts";
 import { avatarPortraitSrcProp, avatarSrcProp } from "../lib/message-row-variants.ts";
+import type { SwipeFoot } from "../lib/pager-chrome.ts";
 import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
 import { GreetingSwipeStrip } from "./greeting-swipe-strip.tsx";
 import { MessageContent } from "./message-content.tsx";
@@ -28,7 +28,7 @@ import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { renderSingleBubble } from "./message-row-bubble.tsx";
 import { MessageToolCalls } from "./message-tool-calls.tsx";
 import { ReasoningBlock } from "./reasoning-block.tsx";
-import { SwipeStrip } from "./swipe-strip.tsx";
+import { SwipeCount, SwipeStrip } from "./swipe-strip.tsx";
 
 /** #1728 arm B — a chip in a `1fr` RAIL must hug the centred column's edge or it drifts to the far side of
  *  the margin. Mapped rather than branched, so a new rail member fails tsc here (the house dispatch rule). */
@@ -160,11 +160,17 @@ export function renderRowBubble(args: {
    *  the plain box, whisper's below-the-band stack and ripple's welded-portrait row — so "one container"
    *  is a property of the anatomy rather than of one branch. */
   readonly header: ReactNode;
+  /** The swipe foot when this skin seats it INSIDE its container (`SwipeFoot.placement`), else null. */
+  readonly footer: ReactNode;
+  /** The transcript's last row, which takes `RowSkin.lastRowInner`. */
+  readonly lastRow: boolean;
   readonly trainParagraphs: readonly string[] | null;
   readonly skin: RowSkin;
   readonly decoration: BubbleDecoration | null;
   /** Ripple's sticky portrait, welded inside the bubble's own Row; null for every other mode/kind. */
   readonly weldedAvatar: ReactElement | null;
+  /** The row sits mirrored at the trailing edge, so a welded portrait sits on the bubble's trailing side. */
+  readonly mirrored: boolean;
   readonly render: RowRenderPolicy;
   readonly renderContext: MessageRenderContext;
   readonly speakerThemes: ReadonlyMap<string, ThemeScopeTokens>;
@@ -174,12 +180,14 @@ export function renderRowBubble(args: {
   readonly editing: boolean;
 }): ReactElement {
   // Hide-from-AI dims the row (still user-visible — the toggle holds it out of assembly only).
-  const bubbleClassName = cn(args.skin.inner(args.role), args.editing && "w-full", args.message.excludedFromPrompt && "opacity-50") ?? "";
+  const bubbleClassName =
+    cn(args.skin.inner(args.role), args.lastRow && args.skin.lastRowInner, args.editing && "w-full", args.message.excludedFromPrompt && "opacity-50") ?? "";
   const body =
     args.trainParagraphs === null ? (
       renderSingleBubble({
         role: args.role,
         header: args.header,
+        footer: args.footer,
         content:
           args.reasoning === null ? (
             args.content
@@ -192,6 +200,7 @@ export function renderRowBubble(args: {
         bubbleClassName,
         decoration: args.decoration,
         weldedAvatar: args.weldedAvatar,
+        mirrored: args.mirrored,
       })
     ) : (
       // A train has no single container, so an `inside` header would have nowhere to be inside — `tide` is
@@ -254,6 +263,8 @@ export function renderRowAvatar(args: {
    *  with the name row" CT is the fence). ST's own refs align the chip to the header line, not the card.
    *  False for an `outside` skin, where the header IS the column's first line and nothing is offset. */
   readonly alignToInsideHeader: boolean;
+  /** The row sits mirrored at the trailing edge (`rowMirrored`): the weld rounds its other outer edge. */
+  readonly mirrored: boolean;
   /** #1728 arm B — this row's skin seats its column with `columnPlacement: "gutterCentred"`, so at/above
    *  the `@4xl` crossover the chip lives in a `1fr` RAIL beside the centred column rather than in flow
    *  beside it. A rail is wider than the chip, so the chip has to hug the column's edge or it drifts to
@@ -272,8 +283,12 @@ export function renderRowAvatar(args: {
   const railClass = GUTTER_RAIL_CLASS[args.gutterRail];
   const chipClass = cn(args.alignToInsideHeader ? "mt-row" : "", railClass);
   const headerOffset = chipClass === undefined || chipClass === "" ? {} : { className: chipClass };
+  // A bare skin (stock document) shows no identity art at all.
+  if (args.avatarTreatment === "none") {
+    return null;
+  }
   if (args.avatarTreatment === "sticky-portrait") {
-    const weldRounding = args.role === "user" ? "rounded-l-none rounded-r-card" : "rounded-l-card rounded-r-none";
+    const weldRounding = args.mirrored ? "rounded-l-none rounded-r-card" : "rounded-l-card rounded-r-none";
     return (
       <Avatar
         size={args.avatarSize}
@@ -282,7 +297,7 @@ export function renderRowAvatar(args: {
         ring={args.avatarRing}
         fallbackDelay={0}
         hueSeed={args.attribution.hueSeed}
-        className={cn("sticky top-0 h-auto w-(--immersive-ripple-portrait-width)", weldRounding) ?? ""}
+        className={cn("sticky top-0 h-auto w-(--immersive-ripple-portrait-width) @max-md:w-(--immersive-ripple-portrait-width-phone)", weldRounding) ?? ""}
         {...(args.imageUrlFor === undefined ? avatarPortraitSrcProp(args.attribution.avatarHash) : { src: args.imageUrlFor("portrait") })}
       >
         {initialsFor(args.attribution.name)}
@@ -315,37 +330,53 @@ export function renderRowAvatar(args: {
 // holds (no user row yet) and the roster's cards. Absent ⇒ the variant strip's own `showSwipes` rule decides,
 // exactly as before.
 //
-// BOTH STRIPS TAKE THE ROW'S PAIRED PAGER BACKING (#221). The slot sits between the metadata row and the
-// message footer, which have carried `BG_PHOTO_CHROME_PLATE` mode-independently since #106 — the strip
-// took nothing, so its chevrons were the one band still floating on the raw photo (measured 1.60:1 live,
-// against WCAG 1.4.11's 3:1 for a UI component). The pager now takes its opaque card/foreground pair because
-// legal custom palette pivots left the new counter below AA on the translucent chrome plate.
-// It is threaded from here, not imported by the strips, for
-// the same reason `MessageMetadataRow` takes it as a prop: the ROW owns its backings and the leaf keeps
-// knowing nothing about the shell's wallpaper flag. Self-gated on `in-data-[has-bg-image]`, so a
-// plain-background room is byte-identical.
+// BOTH STRIPS TAKE THE SKIN'S SWIPE FOOT (`RowSkin.swipeFoot`). The row places the node: inside the
+// container for a single-container skin, where the container's fill backs it, or under tide's train, where
+// the foot carries the opaque pager plate itself (#221's legibility over art).
+// An earlier greeting's count: its position among the card's alternates, or nothing when it has one.
+function greetingCount(variants: readonly string[], content: string, foot: SwipeFoot): ReactNode {
+  if (variants.length <= 1) {
+    return null;
+  }
+  const index = variants.indexOf(content);
+  return <SwipeCount current={index === -1 ? null : index + 1} total={variants.length} foot={foot} />;
+}
+
 export function renderRowSwipe(args: {
   readonly editing: boolean;
   readonly showSwipes: boolean;
   readonly role: MessageView["role"];
   readonly greeting: GreetingBinding | undefined;
   readonly message: MessageView;
+  readonly foot: SwipeFoot;
 }): ReactNode {
   if (args.editing) {
     return null;
   }
   if (args.greeting !== undefined) {
+    if (!args.showSwipes) {
+      return greetingCount(args.greeting.variants, args.message.content, args.foot);
+    }
     return (
       <GreetingSwipeStrip
         chatId={args.message.chatId}
         messageId={args.message.id}
         variants={args.greeting.variants}
         current={args.message.content}
-        backingClass={BG_PHOTO_PAGER_PLATE}
+        foot={args.foot}
       />
     );
   }
-  return args.showSwipes && args.role === "assistant" ? <SwipeStrip message={args.message} backingClass={BG_PHOTO_PAGER_PLATE} /> : null;
+  if (args.role !== "assistant") {
+    return null;
+  }
+  // Every swiped reply shows its count; the chevrons stay on the transcript's last row (stock SillyTavern
+  // with `show_swipe_num_all_messages`, as the owner's Moonlit preset sets it). One variant says nothing.
+  if (!args.showSwipes) {
+    const total = args.message.variantCount;
+    return total > 1 ? <SwipeCount current={args.message.selectedVariantIdx + 1} total={total} foot={args.foot} /> : null;
+  }
+  return <SwipeStrip message={args.message} foot={args.foot} />;
 }
 
 /** Resolves the `when`-filtered `message-footer` contributions for one row (§6c/M8) — a bare helper

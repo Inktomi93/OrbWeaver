@@ -27,7 +27,7 @@ test("mounts with the persisted defaults rendered", async ({ mount, page }) => {
   await stub(page);
   await mount(<AppearanceAvatarsSectionStory />);
   await expect(page.getByRole("heading", { name: "Avatars" })).toBeVisible();
-  await expect(page.getByRole("combobox", { name: "Avatar size" })).toContainText("Medium");
+  await expect(page.getByRole("combobox", { name: "Avatar size" })).toContainText("Large");
 });
 
 test("avatar size/shape/aspect/ring each patch their key, and the payload stays key-minimal", async ({ mount, page }) => {
@@ -35,8 +35,8 @@ test("avatar size/shape/aspect/ring each patch their key, and the payload stays 
   await mount(<AppearanceAvatarsSectionStory />);
 
   await page.getByRole("combobox", { name: "Avatar size" }).click();
-  await page.getByRole("option", { name: "Large" }).click();
-  await expect.poll(() => lastPatch(trpc)?.["avatarSize"], { intervals: [20, 50, 100] }).toBe("lg");
+  await page.getByRole("option", { name: "Medium" }).click();
+  await expect.poll(() => lastPatch(trpc)?.["avatarSize"], { intervals: [20, 50, 100] }).toBe("md");
 
   await page.getByRole("combobox", { name: "Avatar shape" }).click();
   await page.getByRole("option", { name: "Square", exact: true }).click();
@@ -54,7 +54,7 @@ test("avatar size/shape/aspect/ring each patch their key, and the payload stays 
   // nothing else — P1: five keys, not the 41-key appearance blob.
   await expect
     .poll(() => lastPatch(trpc), { intervals: [20, 50, 100] })
-    .toMatchObject({ avatarSize: "lg", avatarShape: "square", avatarAspect: "portrait", avatarRing: "accent" });
+    .toMatchObject({ avatarSize: "md", avatarShape: "square", avatarAspect: "portrait", avatarRing: "accent" });
   expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 });
 

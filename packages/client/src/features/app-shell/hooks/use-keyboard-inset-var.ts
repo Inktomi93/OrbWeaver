@@ -9,6 +9,8 @@ import { useEffect } from "react";
 // exactly one, by construction, which is what makes the removeProperty-on-cleanup contract below sound.
 // The string is paired with `shell.css` by NAME; grep both when renaming.
 const KEYBOARD_INSET_VAR = "--orb-keyboard-inset";
+// The boolean twin CSS selects on (`globals.css`): a keyboard is up. Paired with the stylesheet by NAME too.
+const KEYBOARD_UP_ATTRIBUTE = "data-keyboard-up";
 
 /**
  * Mirrors the live virtual-keyboard inset onto the document root as `--orb-keyboard-inset` (#1869).
@@ -47,6 +49,7 @@ export function useKeyboardInsetVar(): void {
         return;
       }
       last = inset;
+      root.toggleAttribute(KEYBOARD_UP_ATTRIBUTE, inset > 0);
       if (inset === 0) {
         root.style.removeProperty(KEYBOARD_INSET_VAR);
         return;
@@ -58,6 +61,7 @@ export function useKeyboardInsetVar(): void {
     return (): void => {
       unsubscribe();
       root.style.removeProperty(KEYBOARD_INSET_VAR);
+      root.removeAttribute(KEYBOARD_UP_ATTRIBUTE);
     };
   }, []);
 }

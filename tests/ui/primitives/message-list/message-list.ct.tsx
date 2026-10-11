@@ -130,6 +130,16 @@ test("stick-to-bottom on RESIZE: the tail row growing taller keeps the viewport 
     .toBe("true");
 });
 
+test("stick-to-bottom on a SHRINKING scrollport: a rising keyboard keeps the tail in view", async ({ mount }) => {
+  const component = await mount(<TailGrowthList initialCount={200} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
+  await expect(component.getByText("Message 199", { exact: true })).toBeVisible();
+
+  await component.getByTestId("shrink-scrollport").click();
+
+  // The scroll offset alone would leave the tail under the keyboard; the re-pin puts it back on screen.
+  await expect.poll(async () => rowBottomDelta(component, "Message 199")).toBeLessThan(2);
+});
+
 test("the reader-scrolled-up guard survives a tail RESIZE: growth never yanks a history reader down", async ({ mount, page }) => {
   const component = await mount(<TailGrowthList initialCount={200} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
   await expect(component.getByText("Message 199", { exact: true })).toBeVisible();

@@ -42,8 +42,10 @@
    * grid means there is no scroll container to scroll.
    *
    * Subtracting the measured inset makes the frame fit the space the keyboard leaves, which is what
-   * `resizes-content` would have done: every region inside reflows from the grid as it already does, the
-   * tab bar stays on its own row, and the composer rides up with the content column. ONE declaration,
+   * `resizes-content` would have done: every region inside reflows from the grid as it already does, and the
+   * composer rides up with the content column. Inside a chat room on a phone there is no tab bar to keep:
+   * it stands down on the room screen (`[data-room-screen]`, owner ruling, in the mobile arm below), which
+   * overrides the earlier rule that kept it on its own row above the keyboard. ONE declaration,
    * because the grid is the thing every region's geometry already resolves through.
    *
    * `--orb-keyboard-inset` is written imperatively by `use-keyboard-inset-var.ts` (shell tier) off
@@ -246,11 +248,10 @@
  * RE-DERIVED POST-GEIST, ARITHMETIC UNCHANGED (#1204, 2026-09-02). The ruling survives; its INPUT moved.
  * Geist has a wide zero and narrower lowercase, so it pushed the two floors in OPPOSITE directions: 65 CSS
  * `ch` went 557.7 → 650px while 65 characters of the room's own prose went the other way, to 462px
- * measured in the bubble's 15px prose font. Track → line here is −60.6 (track to pane) −88 (the 40px
- * avatar gutter + the flat inner's two `--spacing-section` insets), so the REAL-CHARACTER floor this
- * squeeze answers now needs 610.6px of track and the ruled 40rem clears it by 29px of line. Nothing below
- * changes and `--dimension-content-reading-floor` keeps its value — lowering it would only buy back panel
- * at the cost of reading width. The 65 `ch` floor is still unmet in this state and is still the stated
+ * measured in the bubble's 15px prose font. Track → line here is −60.6 (track to pane) −96 (the 48px
+ * avatar gutter, a 40px chip and its gap, + the flat inner's two `--spacing-section` insets). The ruled
+ * 40rem was measured with a 32px chip; the 40px chip took 8px of line, so `--dimension-content-reading-floor`
+ * carries those 8px (40.5rem). The 65 `ch` floor is still unmet in this state and is still the stated
  * residual here; where it IS answered is the reader's own dial, whose clamp floor is now
  * `--dimension-shell-content-floor`, derived from that same 650 (app-shell.tsx).
  *
@@ -1545,6 +1546,20 @@
   .shell-main {
     grid-column: 1;
     grid-row: 1;
+  }
+  /* THE ROOM SCREEN HAS NO TAB BAR (owner ruling, docs/law/UI-Architecture-and-Layout.md MOBILE). The
+   * rail is not mounted there, so its row goes and the frame pays the bottom inset itself again, as on
+   * every regime without a bar. */
+  .shell-grid[data-room-screen] {
+    padding-block-end: env(safe-area-max-inset-bottom, env(safe-area-inset-bottom));
+    grid-template-rows: minmax(0, 1fr);
+  }
+  /* …and the sheets and scrim opened from the room run to that inset instead of stopping where the bar was.
+   * The open CONTEXT sheet is excluded: it already runs to the edge and pays the inset as its own padding
+   * (the overlay rule below), so this rule's higher specificity would pay it twice. */
+  .shell-grid[data-room-screen] .shell-panel[data-panel-mode]:not([data-panel-side="context"][data-panel-mode="overlay"]),
+  .shell-grid[data-room-screen] .shell-scrim {
+    inset-block-end: env(safe-area-max-inset-bottom, env(safe-area-inset-bottom));
   }
   /* NO FLIP ON A PHONE, FOR EITHER TRACK. The grid is ONE column here and every panel is `position:
    * fixed` over it, so a docking LIST or CONTEXT pane never moves CONTENT — the counter-translate would

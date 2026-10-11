@@ -270,6 +270,32 @@ test.describe("the flank anchor", () => {
     expect(transcript).toBeGreaterThan(row / 3);
   });
 
+  test("phone: a keyboard opened by a field inside the flank keeps that field, and the typing lands in it", async ({ mount, page }) => {
+    await page.setViewportSize({ width: 430, height: 740 });
+    const fieldSpec: NonNullable<PluginSurfaceRow["spec"]> = { kind: "textField", name: "note", label: "Note" };
+    await routeTrpc(page, {
+      ...CHAT_AMBIENT_ROUTES,
+      ...ROOM_ROUTES,
+      "plugin.list": () => [pluginRow("enabled")],
+      "plugin.listSurfaces": () => [surfaceRow("chat-flank", "notes", "Notes", fieldSpec)],
+      "plugin.getSurfaceState": () => null,
+    });
+    const component = await mount(<PluginChatFlankRoomStory registered={true} />);
+    await page.getByRole("button", { name: `${PLUGIN_NAME} — Notes`, exact: true }).click();
+    const field = component.getByRole("textbox", { name: "Note", exact: true });
+    await field.focus();
+    // The soft keyboard this focus raised: the shell marks the root while it is up.
+    await page.evaluate(() => document.documentElement.toggleAttribute("data-keyboard-up", true));
+    await expect(field).toBeVisible();
+    await expect(field).toBeFocused();
+    await page.keyboard.type("north gate");
+    await expect(field).toHaveValue("north gate");
+    // Control: with focus back in the transcript's column, the same keyboard folds the flank away.
+    await field.blur();
+    await expect(page.locator('[data-slot="plugin-flank"]')).toBeHidden();
+    await page.evaluate(() => document.documentElement.toggleAttribute("data-keyboard-up", false));
+  });
+
   test("desktop: chat-flank surfaces show beside the transcript with no disclosure", async ({ mount, page }) => {
     await page.setViewportSize(FLANK_ARMS[0].viewport);
     await routeTrpc(page, {

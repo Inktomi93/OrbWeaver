@@ -99,7 +99,7 @@ export async function runSessionCallInDaemon(state: SessionCallState, request: S
   // reverted to Chromium's compiled default while `window.innerWidth/innerHeight` read correctly. A
   // forced round trip on THIS persistent connection is the one mechanism proven to survive that
   // sibling's own detach (browser-emulation-guard.ts); cheap (two CDP round trips) and idempotent.
-  await reassertOwnerViewport(session.page, session.environmentContract.applied.viewport);
+  await reassertOwnerViewport(session.page, session.environmentContract.applied);
   // The same holds for touch: an earlier call's analyzers can have taken a clipped screenshot.
   await reassertOwnerDevice(session.page, session.environmentContract.applied);
   const target = sessionCallTarget(call);

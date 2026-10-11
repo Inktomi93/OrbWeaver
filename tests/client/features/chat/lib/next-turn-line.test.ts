@@ -1,13 +1,13 @@
 // Unit: the composer's next-turn line (features/chat/lib/next-turn-line). A turn runs on the room host's
-// chat role, so the host's own resolution names it, a member is pointed at the host, and the room's
-// `no-connection` verdict is the unset state for both.
+// chat role, so only the host's own read can fail for the viewer; a room that can reply has no sentence, and
+// the room's `no-connection` verdict is the unset state for both.
 
 import { MODEL_ROLES_PATH } from "@orb/client/lib";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { modelDisplayName } from "@orb/kit/model-name";
 import type { NextTurnInputs } from "../../../../../packages/client/src/features/chat/lib/next-turn-line.ts";
 import {
+  lineRefusal,
   nextTurnLine,
   nextTurnReadsChatRole,
   nextTurnStatesRefusal,
@@ -29,39 +29,9 @@ const BASE: NextTurnInputs = {
 };
 const FAILED = { state: "failed", text: "Next reply: the connection couldn't be checked.", door: undefined };
 
-test("a host names their resolved connection and model", () => {
-  expect(nextTurnLine(BASE)).toEqual({ state: "named", text: `Next reply: Work key · ${modelDisplayName(MODEL)}`, door: undefined });
-});
-
-/** The line for a host whose chat connection row carries `label` and resolves `model`. */
-function lineFor(label: string, model: string): string {
-  const row = { id: MINE, label, providerLabel: "OpenRouter", tasks: ["chat" as const] };
-  return nextTurnLine({
-    ...BASE,
-    resolved: { connectionId: MINE, providerId: testProviderId("openrouter"), model: testModelId(model) },
-    connections: { rows: [row], failed: false },
-  }).text;
-}
-
-test("a label minted from this exact model names it once", () => {
-  for (const label of [`OpenRouter · ${MODEL}`, `OpenRouter · ${MODEL} (2)`, `OpenRouter · ${modelDisplayName(MODEL)}`]) {
-    expect(lineFor(label, MODEL)).toBe(`Next reply: ${label}`);
-  }
-});
-
-// A label is minted once and kept when the model is edited, so a label naming a DIFFERENT model that merely
-// starts with or contains this one is stale: the line still names the model the turn actually runs on.
-test("a stale label naming a longer sibling model keeps the real model beside it", () => {
-  for (const [label, model] of [
-    ["OpenRouter · openai/gpt-4o", "openai/gpt-4"],
-    ["OpenRouter · anthropic/claude-sonnet-5.5", "anthropic/claude-sonnet-5"],
-  ] as const) {
-    expect(lineFor(label, model)).toBe(`Next reply: ${label} · ${modelDisplayName(testModelId(model))}`);
-  }
-});
-
-test("a host whose connection list has not loaded names the provider instead of nothing", () => {
-  expect(nextTurnLine({ ...BASE, connections: { rows: undefined, failed: false } }).text).toBe(`Next reply: Anthropic · ${modelDisplayName(MODEL)}`);
+test("a host whose chat role resolves can reply, so the line has no sentence", () => {
+  expect(nextTurnLine(BASE)).toEqual({ state: "named" });
+  expect(nextTurnLine({ ...BASE, connections: { rows: undefined, failed: false } })).toEqual({ state: "named" });
 });
 
 test("the room's no-connection verdict is the unset state; the host gets the Model roles door, a member does not", () => {
@@ -81,7 +51,7 @@ test("the room's no-connection verdict is the unset state; the host gets the Mod
 // add flow instead; while the list is still loading it offers neither, so it never points at the wrong one.
 test("the host's unset door follows their connection list: add flow with none, Model roles with some", () => {
   const unset = (connections: NextTurnInputs["connections"]): { readonly sub: string; readonly setting: string } | undefined => {
-    const door = nextTurnLine({ ...BASE, availabilityCause: "no-connection", resolved: undefined, connections }).door;
+    const door = lineRefusal(nextTurnLine({ ...BASE, availabilityCause: "no-connection", resolved: undefined, connections }))?.door;
     return door === undefined ? undefined : { sub: door.sub, setting: door.setting };
   };
   expect(unset({ rows: [], failed: false })).toEqual({ sub: "connections", setting: "add-connection" });
@@ -132,8 +102,8 @@ test("the chat-role read waits for the verdict and never fires into a no-connect
   expect(nextTurnReadsChatRole(undefined, null, false)).toBe(false);
 });
 
-test("a member is pointed at the host's connection, whatever the member's own resolution says", () => {
-  expect(nextTurnLine({ ...BASE, viewerIsHost: false })).toEqual({ state: "named", text: "Next reply: the host's chat connection.", door: undefined });
+test("a member's room that can reply has no sentence, whatever the member's own resolution says", () => {
+  expect(nextTurnLine({ ...BASE, viewerIsHost: false })).toEqual({ state: "named" });
 });
 
 test("a host whose chat-role read failed is told the check failed", () => {
@@ -144,13 +114,11 @@ test("a failed room read leaves the viewer unknown and reads the same failure se
   expect(nextTurnLine({ ...BASE, viewerIsHost: undefined, chatFailed: true })).toEqual(FAILED);
 });
 
-test("a member's line needs no connection read, so a failed verdict still names the host's connection", () => {
-  expect(nextTurnLine({ ...BASE, viewerIsHost: false, availabilityCause: undefined, availabilityFailed: true }).text).toBe(
-    "Next reply: the host's chat connection.",
-  );
+test("a member's line needs no connection read, so a failed verdict is not a failure the member can fix", () => {
+  expect(nextTurnLine({ ...BASE, viewerIsHost: false, availabilityCause: undefined, availabilityFailed: true }).state).toBe("named");
 });
 
 test("an unknown viewer, or a host whose read has not settled, is still checking", () => {
   expect(nextTurnLine({ ...BASE, viewerIsHost: undefined }).state).toBe("checking");
-  expect(nextTurnLine({ ...BASE, resolved: undefined }).text).toBe("Next reply: checking the connection…");
+  expect(nextTurnLine({ ...BASE, resolved: undefined }).state).toBe("checking");
 });

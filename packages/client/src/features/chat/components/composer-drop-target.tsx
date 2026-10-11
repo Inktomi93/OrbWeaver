@@ -34,18 +34,17 @@ export function ComposerDropTarget({ dragActive, dropTargetProps, children }: Co
       // Reading-surface rule (D44 §12.1): the composer carries its OWN opaque backing (`bg-card`), never
       // leaning on the background scrim for legibility — the translucent `bg-input` tint left the typed
       // text unreadable over a bright background picture with scrim=0 (side-eye, 2026-07-18). The
-      // interaction LIFT survives on the opaque `bg-muted` step + the border/ring/shadow focus cues.
+      // interaction LIFT survives on the opaque `bg-muted` step. Focus is a 1px border in the ring colour, held
+      // back in alpha: quiet enough to rest on for a whole session, and still a visible step past hover.
       className={cn(
         CHAT_TRACK,
-        "relative isolate rounded-card border border-border bg-card px-field py-field hover:border-input hover:bg-muted focus-within:border-input focus-within:bg-muted focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background",
-        "before:pointer-events-none before:absolute before:inset-0 before:z-(--z-base) before:rounded-(--radius-card) before:content-[''] focus-within:before:shadow-glow",
-        // The DRAG-OVER paint reuses the focus lift, so an armed surface reads in the language the composer
-        // already speaks instead of inventing a second one.
+        "relative isolate rounded-card border border-border bg-card px-field py-field hover:border-input hover:bg-muted focus-within:border-ring/60 focus-within:bg-muted",
+        // The DRAG-OVER paint is louder than focus on purpose: an armed drop target has to announce itself
+        // for the moment a file hovers over it.
         "data-[drag-over]:border-primary data-[drag-over]:bg-muted data-[drag-over]:ring-2 data-[drag-over]:ring-ring",
       )}
     >
-      {/* Keep real content above the inert glow using the two governed in-context tiers. */}
-      <Stack className="relative z-(--z-raised) min-w-0" data-slot="composer-content" gap="field">
+      <Stack className="min-w-0" data-slot="composer-content" gap="field">
         {/* The drop AFFORDANCE — a designed state, not an afterthought: a drag over the composer is an empty
           state that has to name what will be taken (both media classes) or the highlight teaches nothing.
           Rendered in flow at the top of the card so it reads inside the surface it describes. */}

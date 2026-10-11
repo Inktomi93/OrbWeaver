@@ -94,7 +94,7 @@ function SizingBody({ sectionId, session }: { readonly sectionId: string; readon
               floor the clamp's MIN wins at EVERY position of this slider and dragging it changes nothing.
               The row keeps its lead (`span`) so the setting still teaches where it went — what is withheld
               is the control, not the explanation. The threshold comes from the hook, which resolves the
-              SAME token the shell clamps against; `738` is not spelled here or there. */}
+              SAME token the shell clamps against; `746` is not spelled here or there. */}
           {dialIsDead ? (
             <SettingRow settingId="chat-width" span={true}>
               <Text voice="gloss">The chat column already fills this screen — this setting takes effect on a wider one.</Text>

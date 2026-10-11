@@ -70,6 +70,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--pause [@N] <value>` | an ordered pause in the tape (not a measurement window) |
 | `--scenario <value>` | sequential checkpoints in ONE browser lifetime (json file or a named preset) |
 | `--scenario-summary` | one CHECKPOINT name PASS/FAIL line per checkpoint (pair with --json) |
+| `--soft-keyboard [@N] <value>` | px — open an iOS-shaped on-screen keyboard that shrinks visualViewport by px (0 closes); needs --mobile like --tap |
 | `--stream-settle <value>` | fixed post-drive settle for a streaming surface |
 | `--swipe [@N] <value>` | selector=dy — a dispatched touch drag that scrolls a touch scroller dy px; needs --mobile like --tap |
 | `--tap [@N] <value>` | a REAL touch tap without mouseover; use --mobile at session boot or another touch device |

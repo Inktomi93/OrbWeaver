@@ -15,11 +15,22 @@
 // (`#components/pointer-variants.ts`, gate `no-pointer-variants-in-features`) and is composed in here.
 import { REVEAL_AT_COARSE } from "#components";
 
-const HOVER_REVEAL = `opacity-0 pointer-events-none transition-opacity duration-(--motion-fast) ease-out-expo group-focus-within:opacity-100 group-focus-within:pointer-events-auto group-hover:opacity-100 group-hover:pointer-events-auto ${REVEAL_AT_COARSE}`;
+const FOCUS_REVEAL =
+  "opacity-0 pointer-events-none transition-opacity duration-(--motion-fast) ease-out-expo group-focus-within:opacity-100 group-focus-within:pointer-events-auto group-hover:opacity-100 group-hover:pointer-events-auto";
+const HOVER_REVEAL = `${FOCUS_REVEAL} ${REVEAL_AT_COARSE}`;
 const ALWAYS_REVEALED = "opacity-100";
 
-export function messageActionsRevealClass(mode: "expanded" | "hover" = "hover"): string {
-  return mode === "expanded" ? ALWAYS_REVEALED : HOVER_REVEAL;
+/** `expanded` always shows; `hover` reveals on hover and focus and is always on at a touch pointer; `focus`
+ *  reveals on hover and keyboard focus only, so at a touch pointer it stays hidden: stock SillyTavern shows
+ *  an earlier row's buttons nowhere on a phone, and a tap focuses the row item, not the reveal group. */
+const ACTIONS_REVEALS = ["expanded", "focus", "hover"] as const;
+// @orb-waive no-inline-types(ActionsReveal): a three-member UI reveal mode the row, its header and the actions cluster share; not a wire or domain shape.
+export type ActionsReveal = (typeof ACTIONS_REVEALS)[number];
+
+const REVEAL_CLASS: Record<ActionsReveal, string> = { expanded: ALWAYS_REVEALED, focus: FOCUS_REVEAL, hover: HOVER_REVEAL };
+
+export function messageActionsRevealClass(mode: ActionsReveal = "hover"): string {
+  return REVEAL_CLASS[mode];
 }
 
 // A drop-shadow (not text-shadow, these are lucide svg glyphs) so the action icons stay legible over

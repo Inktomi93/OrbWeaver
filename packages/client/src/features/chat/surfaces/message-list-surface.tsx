@@ -50,6 +50,7 @@ import { liveCardRowIds } from "../lib/live-card-rows.ts";
 import { BG_PHOTO_ERROR_PLATE, BG_PHOTO_LOADING_PLATE } from "../lib/message-row-backing.ts";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { buildParticipantsById } from "../lib/roster.ts";
+import { settledLastRowId } from "../lib/row-placement.ts";
 
 /** Initial row-height model. A flat 96px guess made a 3k-character RPG turn look like a one-line bubble,
  *  so the bottom-anchored virtualizer mounted and parsed too many multi-KB rows before measurement caught up.
@@ -280,10 +281,9 @@ function ChatThread({
     pinnedPromptIdRef.current = promptId;
     listHandleRef.current?.pinToIndex(idx);
   }, [pinMode, items]);
-  // Which row carries the swipe controls: the newest assistant row. Every one of them is a real GENERATION
-  // now — D124 retired the rpg state-anchor slot, an empty-body assistant row that was filtered out of the
-  // rendered list yet still answered this question, stripping the arrows off the last visible reply.
-  const lastAssistantId = live ? undefined : messages.findLast((row) => row.role === "assistant")?.id;
+  // Which row carries the swipe controls: the transcript's last row. A reply the user has already answered
+  // shows its count at most.
+  const lastRowId = settledLastRowId(messages, live);
   // The transcript divider's PRESENT-TENSE source: previewContextFit runs the same fit the next real
   // turn would, so the line tracks preset/settings knob changes live (it's invalidated on canon-terminal bus
   // events + settings/preset changes via the central seam). Non-suspense so it never blocks the transcript;
@@ -354,7 +354,8 @@ function ChatThread({
         metadataVisibility={messageAppearance.metadataVisibility}
         viewerIsHost={chatDetail.viewerIsHost === true}
         messageActions={messageAppearance.messageActions}
-        showSwipes={item.view.id === lastAssistantId}
+        showSwipes={item.view.id === lastRowId}
+        lastRow={item.view.id === lastRowId}
         contextBoundary={item.view.id === contextBoundaryMessageId}
         contextBoundaryLabel={contextBoundaryLabel}
         contextBoundaryCompactSummary={contextBoundaryCompactSummary}
@@ -422,8 +423,9 @@ function ChatThread({
           // pinned the sticky name band 12px below the visible top with a guillotined strip of prose
           // permanently above it (#204). The first/last rows still breathe off the topbar/composer edges.
           blockPaddingToken="block"
-          // Narrow tracks need ring clearance; wider tracks retain the shared reading budget.
-          className="h-full @max-md:px-field"
+          // Narrow tracks keep exactly the row focus ring's clearance (2px outline + 2px offset) and no more:
+          // the phone's transcript margin is the room's own inset (owner ruling, about 24px of text margin).
+          className="h-full @max-md:px-tight"
         />
         <JumpToLatestPill count={jump.count} visible={jump.visible} onJump={jump.onJump} />
       </Stack>

@@ -320,6 +320,7 @@ export function HandleExposingList({ initialCount, rowHeightPx, listHeightPx }: 
 export function TailGrowthList({ initialCount, rowHeightPx, listHeightPx }: AppendableListProps): ReactElement {
   const [items, setItems] = useState<FixtureItem[]>(() => makeItems(initialCount));
   const [tailHeightPx, setTailHeightPx] = useState(rowHeightPx);
+  const [heightPx, setHeightPx] = useState(listHeightPx);
   const handleRef = useRef<MessageListHandle>(null);
   const [isAtEnd, setIsAtEnd] = useState<string>("unread");
   const [distanceFromEnd, setDistanceFromEnd] = useState<string>("unread");
@@ -328,6 +329,10 @@ export function TailGrowthList({ initialCount, rowHeightPx, listHeightPx }: Appe
     <div>
       <button type="button" data-testid="grow-tail" onClick={(): void => setTailHeightPx((h) => h + 360)}>
         grow tail
+      </button>
+      {/* A soft keyboard rising: the scrollport loses its lower half while the scroll offset holds. */}
+      <button type="button" data-testid="shrink-scrollport" onClick={(): void => setHeightPx(listHeightPx / 2)}>
+        shrink scrollport
       </button>
       {/* Append a new tall row at the tail — an "arriving message". Grows the container (so the seal's
           ResizeObserver fires) even when the reader has scrolled the old tail off-screen. */}
@@ -352,7 +357,7 @@ export function TailGrowthList({ initialCount, rowHeightPx, listHeightPx }: Appe
       </button>
       <div data-testid="is-at-end">{isAtEnd}</div>
       <div data-testid="distance-from-end">{distanceFromEnd}</div>
-      <div style={{ height: listHeightPx }}>
+      <div style={{ height: heightPx }}>
         <MessageList
           ref={handleRef}
           items={items}

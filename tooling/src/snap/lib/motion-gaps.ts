@@ -80,6 +80,7 @@ const DISPATCHES_INPUT: Record<Step["kind"], boolean> = {
   press: true,
   tap: true,
   swipe: true,
+  "soft-keyboard": true,
   upload: true,
   waitfor: false,
   wheel: true,

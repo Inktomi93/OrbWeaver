@@ -45,6 +45,7 @@ import { selectChat, startEditingMessage } from "#state";
 import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
 import { useReattributeTarget } from "../hooks/use-reattribute-target.ts";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_EDIT_NAME, MESSAGE_FORK_NAME, MESSAGE_REACTION_ADD_NAME } from "../lib/message-action-names.ts";
+import type { ActionsReveal } from "../lib/message-actions-reveal.ts";
 import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/message-actions-reveal.ts";
 import { GenerationCredit } from "./generation-credit.tsx";
 import { ReattributeFromHereConfirm, ReattributeFromHereItem } from "./reattribute-from-here.tsx";
@@ -129,7 +130,7 @@ function renderGenerationCredit(show: boolean, message: MessageView): ReactEleme
 
 export interface MessageActionsRowProps {
   readonly message: MessageView;
-  readonly messageActions?: "expanded" | "hover" | undefined;
+  readonly messageActions?: ActionsReveal | undefined;
   /** B7/MR3 — the room's PRESENT CHARACTER-NAME set (`speakerThemesByName`'s keys, threaded from the row). The
    *  picker's segment-target list parses the CANON body with these under the narrator-voice gate — the
    *  identical inputs the server's write validation uses, so a picked index survives the round trip.
@@ -143,6 +144,8 @@ export interface MessageActionsRowProps {
   /** Show the generation credit (`GenerationCredit`). The row gates it on the `showModelIcon` appearance
    *  toggle; absent ⇒ no credit. */
   readonly generationCredit?: boolean | undefined;
+  /** A plate under the cluster, shown and hidden with it (the document chip). */
+  readonly surface?: string | undefined;
 }
 
 export function MessageActionsRow({
@@ -151,6 +154,7 @@ export function MessageActionsRow({
   viewerIsHost = false,
   generationCredit = false,
   characterNames = [],
+  surface = "",
 }: MessageActionsRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -256,43 +260,58 @@ export function MessageActionsRow({
   };
 
   return (
-    <Row ref={clusterRef} gap="field" align="center" justify="end" data-slot="message-actions-row" className={messageActionsRevealClass(messageActions)}>
+    <Row
+      ref={clusterRef}
+      gap="glyph"
+      align="center"
+      justify="end"
+      data-slot="message-actions-row"
+      className={`${messageActionsRevealClass(messageActions)} ${surface}`}
+    >
       {renderGenerationCredit(generationCredit, message)}
+      {/* EDIT IS THE ONE INLINE VERB AT EVERY POINTER. At a touch pointer the bar holds Edit plus the ⋯ and
+          nothing else, so it stays one compact line beside the name; Fork and Add a reaction stand down into
+          the ⋯ there (`ROW_ACTION_INLINE`), where every verb also lives at every pointer (mirror parity). */}
       {editable ? (
-        // #220 THE COARSE COLLAPSE (row-reveal.ts). At a touch pointer `REVEAL_AT_COARSE` pins this whole
-        // cluster ON, and every icon button is a ≥44px box by token construction — measured on --mobile,
-        // the pair plus the ⋯ plus the credit held 297px of a 407px band and left the speaker's name 65px,
-        // wrapped to three lines. Both verbs ride the ⋯ menu below at EVERY pointer (the chats row's
-        // mirror-parity ruling: one item, never a coarse-only twin), so the collapse costs one tap and
-        // nothing leaves the a11y tree.
-        <Row align="center" className={ROW_ACTION_INLINE}>
-          <Button intent="ghost" size="icon" aria-label={MESSAGE_EDIT_NAME} onClick={onEdit}>
+        <>
+          <Button intent="ghost" size="glyph-lg" shape="pill" aria-label={MESSAGE_EDIT_NAME} onClick={onEdit}>
             <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Pencil} size="sm" />
           </Button>
           <Button
             intent="ghost"
-            size="icon"
+            size="glyph-lg"
+            shape="pill"
+            className={ROW_ACTION_INLINE}
             loading={fork.isPending}
             aria-label={MESSAGE_FORK_NAME}
             onClick={(): void => void onFork().catch(globalThis.reportError)}
           >
             <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={GitFork} size="sm" />
           </Button>
-        </Row>
+        </>
       ) : null}
       {/* B6 — the FINE door. `ROW_ACTION_INLINE` stands it down at a coarse pointer, where its `MenuItem`
-          twin below is the one door (the #220 coarse collapse, exactly as Edit/Fork use it). Present on
+          twin below is the one door (the #220 coarse collapse, exactly as Fork uses it). Present on
           EVERY committed row, not only editable ones: reacting to a system notice is legal and harmless,
           and the applicability question a reaction asks ("is this canon?") is already answered by the row
           being rendered at all. Ordered AFTER the Edit/Fork primary actions (#786, owner ruling): a row's
           roving Tab stop must reach "Edit message" before "Add a reaction". */}
       {reactionsEnabled ? (
-        <Button aria-label={MESSAGE_REACTION_ADD_NAME} className={ROW_ACTION_INLINE} intent="ghost" onClick={(): void => setPickerOpen(true)} size="icon">
+        <Button
+          aria-label={MESSAGE_REACTION_ADD_NAME}
+          className={ROW_ACTION_INLINE}
+          intent="ghost"
+          onClick={(): void => setPickerOpen(true)}
+          shape="pill"
+          size="glyph-lg"
+        >
           <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={SmilePlus} size="sm" />
         </Button>
       ) : null}
       <RowActionsMenu
         label={MESSAGE_ACTIONS_MENU_NAME}
+        triggerSize="glyph"
+        shape="pill"
         destructive={{
           title: "Delete this message?",
           description: "This can't be undone.",

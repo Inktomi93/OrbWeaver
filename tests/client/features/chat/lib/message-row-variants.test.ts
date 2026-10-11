@@ -11,22 +11,18 @@
 // rendered as `bubble` and echo's took no decoration at all, so half of every transcript was not in the
 // skin the reader chose ("ripple/echo are half-built", #212-4/-5; the references give BOTH roles the card
 // and the art, mirrored to the outer edge per role). The new symptom is satisfied for echo + ripple; the
-// old mechanism is preserved everywhere it was not measured wrong — WHISPER's band stays character-only
-// (its user row was at parity), hush's stripe stays chrome-for-every-kind, and the kind-gating MECHANISM
-// (a decorator that reads `args.kind`) is untouched: only the answers for two skins changed.
+// old mechanism is preserved everywhere it was not measured wrong: hush's stripe stays chrome-for-every-kind,
+// and the kind-gating MECHANISM (a decorator that reads `args.kind`) is untouched. Whisper's band now paints
+// for both roles (owner ruling, as Moonlit paints both), and identity art paints only where there IS art.
 
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { BubbleDecorationArgs } from "../../../../../packages/client/src/features/chat/lib/message-row-variants.ts";
 import { MESSAGE_ROW_SKINS } from "../../../../../packages/client/src/features/chat/lib/message-row-variants.ts";
-// Deep imports, NOT the @orb/ui barrels: this is a NODE-lane test, and a barrel import drags browser
-// TSX + #lib (which re-exports portal-container's ShadowRoot) into the dom-less typecheck:graph program.
-import { avatarFallbackHueColor } from "../../../../../packages/ui/src/primitives/avatar/hue.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-/** A `bubbleDecoration` argument builder — the two no-image FALLBACK fields (`hueSeed`/`initial`, the
- *  owner-ruled first-class tile inputs) default to fixed test values; a case overrides what it asserts. */
+/** A `bubbleDecoration` argument builder; a case overrides what it asserts. */
 function decoArgs(kind: BubbleDecorationArgs["kind"], avatarHash: string | null, extra?: Partial<BubbleDecorationArgs>): BubbleDecorationArgs {
-  return { kind, avatarHash, hueSeed: "char_alice", initial: "AL", showInChatAvatars: true, ...extra };
+  return { kind, avatarHash, showInChatAvatars: true, ...extra };
 }
 
 test("the skin table covers exactly the chatStyle vocabulary", () => {
@@ -75,12 +71,16 @@ test("#288 every single-container skin homes its header INSIDE it; only a trains
   expect(MESSAGE_ROW_SKINS.tide.headerPlacement).toBe("outside");
 });
 
-test("the 3 clean modes + hush/tide never special-case avatar art (icon-left always)", () => {
-  for (const name of ["bubble", "flat", "document", "hush", "tide"] as const) {
+test("bubble, flat, hush and tide never special-case avatar art (icon-left always); document shows none", () => {
+  for (const name of ["bubble", "flat", "hush", "tide"] as const) {
     const skin = MESSAGE_ROW_SKINS[name];
     expect(skin.avatarTreatment("character"), name).toBe("icon-left");
     expect(skin.avatarTreatment("persona"), name).toBe("icon-left");
     expect(skin.avatarTreatment(null), name).toBe("icon-left");
+  }
+  // Stock SillyTavern's document names nobody and shows no identity art.
+  for (const kind of ["character", "persona", null] as const) {
+    expect(MESSAGE_ROW_SKINS.document.avatarTreatment(kind)).toBe("none");
   }
 });
 
@@ -102,30 +102,24 @@ test("echo/whisper keep the plain icon-left chip (their art is a bubbleDecoratio
   expect(ripple.avatarTreatment(null)).toBe("icon-left");
 });
 
-test("echo's art pane sits OUTSIDE the prose measure, is sized to the pane (never `cover`), and mirrors per role", () => {
+test("echo's art pane sits OUTSIDE the prose measure, as its own tile on the role's side", () => {
   const echo = MESSAGE_ROW_SKINS.echo;
   const painted = echo.bubbleDecoration?.(decoArgs("character", "abababab"));
-  // The sharp `portrait` variant (not the raw original) — the reading-surface fix.
-  expect(painted?.style?.backgroundImage).toContain("/api/blob/abababab?v=portrait&w=");
+  // The sharp `portrait` variant (not the raw original) — the reading-surface fix — on the art tile, never
+  // as a layer on the bubble's own box.
+  expect(painted?.art?.style.backgroundImage).toContain("/api/blob/abababab?v=portrait&w=");
+  expect(painted?.style?.backgroundImage).toBeUndefined();
   // THE MEASURE FIX (#212-2): the bubble grows by the art pane's FIXED width, so the prose keeps the
-  // band's floor. The old shape spent 55% of the box on padding and rendered 28 chars/line.
-  // One skin-owned CSSProperties value caps both the bubble and its containing column; equality prevents
-  // the two copies of this geometry from drifting. Rendered width stays pinned in chat-room-track CT.
+  // band's floor. One skin-owned value caps both the bubble and its containing column.
   expect(painted?.style?.maxWidth).toBeDefined();
   expect(painted?.style?.maxWidth).toBe(echo.columnStyle?.maxWidth);
   expect(painted?.style?.paddingRight).toBe("min(var(--immersive-echo-art-width), 25cqi)");
-  // THE CROP FIX (#212-3): the art layer is sized to the PANE and anchored to its top outer corner. Sized
-  // `cover` against the whole bubble it was a 4.94x upscale cropped past the subject on a long turn.
-  expect(painted?.style?.backgroundSize).toBe("100% 100%, min(var(--immersive-echo-art-width), 25cqi) auto");
-  expect(painted?.style?.backgroundPosition).toBe("0 0, right top");
-  // The with-image path carries NO fallback tile.
-  expect(painted?.edgeTile).toBeUndefined();
-  // THE USER ROW IS DECORATED NOW (#212-5, reversing hide-user-portrait for this skin — see the header):
-  // same geometry, mirrored to the row's own outer edge.
+  expect(painted?.art?.side).toBe("right");
+  // The user row mirrors to its own outer edge.
   const own = echo.bubbleDecoration?.(decoArgs("persona", "abababab"));
   expect(own?.style?.paddingLeft).toBe("min(var(--immersive-echo-art-width), 25cqi)");
   expect(own?.style?.paddingRight).toBeUndefined();
-  expect(own?.style?.backgroundPosition).toBe("0 0, left top");
+  expect(own?.art?.side).toBe("left");
   // An unattributed row still has no identity to paint.
   expect(echo.bubbleDecoration?.(decoArgs(null, "abababab"))).toBeNull();
 });
@@ -142,52 +136,25 @@ test("the avatars-off reader gets NO identity art in any immersive skin (owner r
   expect(MESSAGE_ROW_SKINS.hush.bubbleDecoration?.(decoArgs("character", null, off))?.style?.borderLeftColor).toBe("var(--color-speaker)");
 });
 
-test("echo's no-image character row paints the first-class FALLBACK tile (owner ruling 2026-07-09), not nothing", () => {
-  const echo = MESSAGE_ROW_SKINS.echo;
-  const fallback = echo.bubbleDecoration?.(decoArgs("character", null, { hueSeed: "char_alice" }));
-  // The tile IS the art source now — the mode no longer degrades to a plain bubble for an imageless
-  // character. Reading geometry is IDENTICAL to the with-image case (same padding-right token).
-  expect(fallback).not.toBeNull();
-  expect(fallback?.style?.paddingRight).toBe("min(var(--immersive-echo-art-width), 25cqi)");
-  expect(fallback?.edgeTile?.initial).toBe("AL");
-  // The tile IS the art pane, so it names the same side the portrait would take.
-  expect(fallback?.edgeTile?.side).toBe("right");
-  expect(echo.bubbleDecoration?.(decoArgs("persona", null))?.edgeTile?.side).toBe("left");
-  // The tile field is the entity's DETERMINISTIC hue (seeded off the id, matching the chip everywhere).
-  expect(fallback?.edgeTile?.style.backgroundColor).toBe(avatarFallbackHueColor("char_alice"));
-  // No portrait <img> in the tile fallback — it's a flat hue field feathered into the bubble.
-  expect(fallback?.edgeTile?.style.backgroundImage).not.toContain("?v=portrait");
+test("without art, echo paints a clean card and whisper its stripe alone: no letter tiles", () => {
+  expect(MESSAGE_ROW_SKINS.echo.bubbleDecoration?.(decoArgs("character", null))).toBeNull();
+  expect(MESSAGE_ROW_SKINS.echo.bubbleDecoration?.(decoArgs("persona", null))).toBeNull();
+  const whisper = MESSAGE_ROW_SKINS.whisper.bubbleDecoration?.(decoArgs("character", null));
+  expect(whisper?.style?.borderTopColor).toBe("var(--color-speaker)");
+  expect(whisper?.headerBand).toBeUndefined();
 });
 
-test("whisper's stripe always paints (speaker-color chrome); the header band is a real child, only for a character", () => {
+test("whisper's stripe always paints (speaker-color chrome); the header band is a real child for both roles", () => {
   const whisper = MESSAGE_ROW_SKINS.whisper;
-  const userDecoration = whisper.bubbleDecoration?.(decoArgs("persona", "x"));
-  expect(userDecoration?.style?.borderTopColor).toBe("var(--color-speaker)");
-  expect(userDecoration?.headerBand).toBeUndefined();
-  const characterDecoration = whisper.bubbleDecoration?.(decoArgs("character", "x"));
-  expect(characterDecoration?.style?.borderTopColor).toBe("var(--color-speaker)");
-  // No background-image on the bubble's OWN style — the art lives on the headerBand's style instead (a
-  // real block child, never a layer on the bubble's own message-length-dependent box — the squish fix).
-  expect(characterDecoration?.style?.backgroundImage).toBeUndefined();
-  expect(characterDecoration?.headerBand?.style.backgroundImage).toContain("/api/blob/x?v=banner&w=");
-  // A fixed height drifted the box aspect off 3:1 as the fluid bubble width changed — the band is now
-  // an aspect-ratio box so its height derives from width and always matches the server's 3:1 crop.
-  expect(characterDecoration?.headerBand?.style.aspectRatio).toBe("var(--aspect-banner)");
-  // An IMAGED band carries no initial — the banner IS the art.
-  expect(characterDecoration?.headerBand?.initial).toBeUndefined();
-});
-
-test("whisper's no-image character band is the first-class FALLBACK tile (hue field + initial), not a bare stripe", () => {
-  const whisper = MESSAGE_ROW_SKINS.whisper;
-  const fallback = whisper.bubbleDecoration?.(decoArgs("character", null, { hueSeed: "char_alice" }));
-  // The stripe still paints AND a band now renders (the mode no longer collapses to a bare stripe for an
-  // imageless character) — at the SAME 3:1 geometry as the imaged band.
-  expect(fallback?.style?.borderTopColor).toBe("var(--color-speaker)");
-  expect(fallback?.headerBand?.style.aspectRatio).toBe("var(--aspect-banner)");
-  expect(fallback?.headerBand?.initial).toBe("AL");
-  expect(fallback?.headerBand?.style.backgroundColor).toBe(avatarFallbackHueColor("char_alice"));
-  // A hue FIELD, never a banner <img>.
-  expect(fallback?.headerBand?.style.backgroundImage).not.toContain("?v=banner");
+  for (const kind of ["character", "persona"] as const) {
+    const decoration = whisper.bubbleDecoration?.(decoArgs(kind, "x"));
+    expect(decoration?.style?.borderTopColor, kind).toBe("var(--color-speaker)");
+    // The art lives on the band, a real block child, never a layer on the bubble's own box (the squish fix).
+    expect(decoration?.style?.backgroundImage, kind).toBeUndefined();
+    expect(decoration?.headerBand?.style.backgroundImage, kind).toContain("/api/blob/x?v=banner&w=");
+    // An aspect-ratio box, so its height derives from width and always matches the server's 3:1 crop.
+    expect(decoration?.headerBand?.style.aspectRatio, kind).toBe("var(--aspect-banner)");
+  }
 });
 
 test("owned renderer artwork uses the same geometry and respects identity-art admission", () => {
@@ -200,10 +167,9 @@ test("owned renderer artwork uses the same geometry and respects identity-art ad
   const args = decoArgs("character", null, { imageUrlFor });
   const echo = MESSAGE_ROW_SKINS.echo.bubbleDecoration?.(args);
   const whisper = MESSAGE_ROW_SKINS.whisper.bubbleDecoration?.(args);
-  expect(echo?.style?.backgroundImage).toContain(art);
+  expect(echo?.art?.style.backgroundImage).toContain(art);
   expect(echo?.style?.maxWidth).toBe(MESSAGE_ROW_SKINS.echo.columnStyle?.maxWidth);
   expect(echo?.style?.paddingRight).toBe("min(var(--immersive-echo-art-width), 25cqi)");
-  expect(echo?.edgeTile).toBeUndefined();
   expect(whisper?.headerBand?.style.backgroundImage).toContain(art);
   expect(whisper?.headerBand?.style.aspectRatio).toBe("var(--aspect-banner)");
   expect(requests).toEqual([
@@ -212,7 +178,7 @@ test("owned renderer artwork uses the same geometry and respects identity-art ad
   ]);
   expect(MESSAGE_ROW_SKINS.echo.bubbleDecoration?.({ ...args, kind: null })).toBeNull();
   expect(MESSAGE_ROW_SKINS.echo.bubbleDecoration?.({ ...args, showInChatAvatars: false })).toBeNull();
-  expect(MESSAGE_ROW_SKINS.whisper.bubbleDecoration?.({ ...args, kind: "persona" })?.headerBand).toBeUndefined();
+  expect(MESSAGE_ROW_SKINS.whisper.bubbleDecoration?.({ ...args, kind: null })?.headerBand).toBeUndefined();
   expect(MESSAGE_ROW_SKINS.whisper.bubbleDecoration?.({ ...args, showInChatAvatars: false })?.headerBand).toBeUndefined();
   expect(requests).toHaveLength(2);
 });

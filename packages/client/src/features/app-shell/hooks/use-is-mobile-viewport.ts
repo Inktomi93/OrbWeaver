@@ -68,7 +68,7 @@ function readBelowShellContentFloor(): boolean {
     return false;
   }
   // `snappedLengthPx` is the token pipeline's own inverse of the emitted length (#1640) — the decoder, not
-  // a re-spelling of `46.125 * root`.
+  // a re-spelling of `46.625 * root`.
   const floorPx = snappedLengthPx(SHELL_CONTENT_FLOOR, rootFontSizePx);
   return floorPx !== null && globalThis.innerWidth <= floorPx;
 }
