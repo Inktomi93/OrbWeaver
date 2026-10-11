@@ -10,11 +10,12 @@ import { join } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { PluginCapability } from "@orb/contracts/plugin";
-import { connectionBindings, userConnections } from "@orb/db";
+import { connectionBindings, plugins, userConnections } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { packPluginDirectory } from "@orb/plugin-toolchain";
 import { startAutomationWatcher } from "@orb/server/domain/automation";
 import { logger } from "@orb/server/foundation/observability";
+import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 import { createAutomationWatcherEnv } from "../../../../packages/server/src/entry/compose/automation-watcher.ts";
 import { makeGenerationCapability } from "../../../support/factories/resolved-connection.ts";
@@ -62,7 +63,7 @@ const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve,
 const commandThrowing = (message: string): string =>
   `const host = orb.host(1);\nhost.ui.registerCommand({ name: "boom", describe: "x", onRun: () => { throw new Error(${JSON.stringify(message)}); } });\n`;
 
-test("each plugin failure path logs exactly one line naming its plugin, kind and cause", { timeout: 120_000 }, async ({ app, db, services, clock }) => {
+test("each plugin failure path logs exactly one line naming its plugin, kind and cause", { timeout: 180_000 }, async ({ app, db, services, clock }) => {
   const user = await seedUser(db);
   const caller: Principal = { userId: user.id, handle: user.handle, role: user.role, externalId: user.externalId, via: "header" };
   const connectionId = mintTypeId(ID_PREFIX.userConnection);
@@ -172,6 +173,19 @@ test("each plugin failure path logs exactly one line naming its plugin, kind and
     await drop(emitter.id);
     await drop(listener.id);
 
+    // A prompt transform that throws: the plugin's own line only, not the registry's SKIPPED warning on top.
+    const prompt = await bring(
+      "prompt-thrower",
+      ["chat.transform"],
+      'const host = orb.host(1);\nhost.transforms.register({ name: "boom", point: "user_input", apply: () => { throw new Error("transform boom"); } });\n',
+    );
+    mark = lines.length;
+    await services.chat.commitMessage({ principal: caller, chatId: chat.id, content: "to be transformed" });
+    await settle();
+    expect(failures(mark).map((line) => [line.fields["pluginSlug"], line.fields["kind"]])).toEqual([["prompt-thrower", "guest-error"]]);
+    expect(since(mark).length).toBe(1);
+    await drop(prompt.id);
+
     // A display transform that outruns its deadline.
     const display = await bring(
       "slow-display",
@@ -181,6 +195,10 @@ test("each plugin failure path logs exactly one line naming its plugin, kind and
     mark = lines.length;
     await services.plugin.transformForDisplay({ caller, chatId: chat.id, messageId: mintTypeId(ID_PREFIX.message), text: "row" });
     expect(failures(mark).map((line) => line.fields["kind"])).toEqual(["display-deadline"]);
+    expect(since(mark).length).toBe(1);
+    // The orphaned invocation settles later and counts the one crash, without a second line.
+    const crashes = async (): Promise<number> => (await db.select().from(plugins).where(eq(plugins.id, display.id)))[0]?.consecutiveCrashes ?? 0;
+    await expect.poll(crashes, { timeout: 45_000, interval: 500 }).toBe(1);
     expect(since(mark).length).toBe(1);
     await drop(display.id);
 

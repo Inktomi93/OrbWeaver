@@ -4,7 +4,15 @@
 
 import { getLog } from "#foundation/observability";
 
-type PluginFailureKind = "activation-failed" | "guest-error" | "host-deadline" | "broker-unavailable" | "display-deadline" | "ui-crash" | "auto-disabled";
+type PluginFailureKind =
+  | "activation-failed"
+  | "guest-error"
+  | "host-deadline"
+  | "broker-unavailable"
+  | "display-deadline"
+  | "macro-deadline"
+  | "ui-crash"
+  | "auto-disabled";
 
 /** Kinds that leave the plugin unusable log at error; a failed single call logs at warn. */
 const ERROR_KINDS: ReadonlySet<PluginFailureKind> = new Set<PluginFailureKind>(["activation-failed", "auto-disabled"]);

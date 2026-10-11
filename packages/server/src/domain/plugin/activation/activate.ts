@@ -128,8 +128,12 @@ async function loadRevalidatedBundle(
   ctx: PluginContext,
   input: ActivateInput,
 ): Promise<{ readonly ok: true; readonly bundle: RevalidatedBundle } | { readonly ok: false; readonly error: string }> {
-  const { bytes } = await ctx.assets.readBytes(input.caller, input.bundleAssetId);
-  return revalidate(bytes, input.withheldNetHosts);
+  try {
+    const { bytes } = await ctx.assets.readBytes(input.caller, input.bundleAssetId);
+    return revalidate(bytes, input.withheldNetHosts);
+  } catch (err) {
+    return { ok: false, error: `stored bundle unreadable: ${errorMessage(err)}` };
+  }
 }
 
 function durableMainJsLoader(ctx: PluginContext, input: ActivateInput): () => Promise<string> {
@@ -223,7 +227,10 @@ export function createActivate(
         if (isHostAdmissionRefusal(err)) {
           throw err;
         }
-        logPluginFailure(slug, invokeFailureKind(err), errorMessage(err));
+        // A caller that aborted the call already reported its own failure (a deadline); the rejection still counts.
+        if (signal?.aborted !== true) {
+          logPluginFailure(slug, invokeFailureKind(err), errorMessage(err));
+        }
         await crashPolicy.recordCrash({ pluginId: input.pluginId, recipientUserId: input.caller.userId, error: errorMessage(err) });
         throw err;
       }

@@ -35,7 +35,7 @@ import { logPluginFailure } from "../substrate/failure-log.ts";
 export const PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS = 200;
 
 /** One resident's crash-policy'd re-entry, curried to the (handler, argsJson) pair this seam uses. */
-type ResidentInvoke = (handler: PluginDisplayTransformRegistration["handler"], argsJson: string) => Promise<string>;
+type ResidentInvoke = (handler: PluginDisplayTransformRegistration["handler"], argsJson: string, signal: AbortSignal) => Promise<string>;
 
 /** Why a transform left the row's text alone. A throw or rejected invoke already reached the log through the
  *  resident's crash-policy'd `invoke`, so only a deadline overrun is logged here. */
@@ -45,13 +45,18 @@ type Outcome = { readonly text: string } | { readonly skip: "deadline" | "failed
  *  invoke, deadline) — the caller keeps the prior text. The timer is always cleared. */
 async function applyBounded(invoke: ResidentInvoke, transform: PluginDisplayTransformRegistration, argsJson: string): Promise<Outcome> {
   let timer: ReturnType<typeof setTimeout> | undefined;
+  // Aborted on the deadline so the orphaned invocation's later rejection counts a crash without a second log line.
+  const orphan = new AbortController();
   const deadline = new Promise<Outcome>((resolve) => {
-    timer = setTimeout(() => resolve({ skip: "deadline" }), PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS);
+    timer = setTimeout(() => {
+      orphan.abort();
+      resolve({ skip: "deadline" });
+    }, PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS);
   });
   // @orb-waive caught-failure-ownership(catch): the rejection was already logged by the resident's `invoke`; the
   // caller keeps the row's prior text. Ends if `invoke` stops logging the failures it rethrows.
   try {
-    const answer = await Promise.race([invoke(transform.handler, argsJson), deadline]);
+    const answer = await Promise.race([invoke(transform.handler, argsJson, orphan.signal), deadline]);
     return typeof answer === "string" ? { text: answer } : answer;
   } catch {
     return { skip: "failed" };
@@ -81,7 +86,7 @@ export function createTransformForDisplay(ctx: PluginContext, registry: PluginRe
         // exactly like a tool, event or surface-action handler. `null` chat scope: a display transform reads the
         // text it was handed and nothing else — admitting a room would hand it a `chat.read` window this seam
         // has no reason to open.
-        steps.push({ slug: row.slug, transform, invoke: (handler, json) => resident.invoke(handler, json, null) });
+        steps.push({ slug: row.slug, transform, invoke: (handler, json, signal) => resident.invoke(handler, json, null, signal) });
       }
     }
     if (steps.length === 0) {

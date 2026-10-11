@@ -419,6 +419,8 @@ export interface PromptTransform {
   readonly point: PromptTransformPoint;
   readonly order: number;
   readonly apply: (draft: string, env: PromptTransformEnv) => Promise<PromptTransformOutcome>;
+  /** The transform logs its own thrown failures, so the registry's skip warning does not repeat a throw. */
+  readonly logsOwnFailures?: true;
 }
 
 /** The entity kinds whose OWNER-PLANE edits reach a room's member-visible projections (the entity→room

@@ -43,6 +43,8 @@ export function buildPluginPromptTransform(
     id: deps.id,
     point: reg.point,
     order: deps.order,
+    // A thrown guest handler is logged by the resident `invoke` with its plugin and cause.
+    logsOwnFailures: true,
     apply: async (draft, env): Promise<string> => {
       if (!(await deps.isInstallerHost(env.chatId))) {
         return draft;

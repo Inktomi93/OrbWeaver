@@ -31,6 +31,7 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import type { UserMacroDef } from "@orb/kit/macro";
 import { neutralizeMacros } from "@orb/kit/macro";
 import type { PluginInvokeHandler, PluginMacroRegistry, PluginRegistrationHandle } from "../contract/ops.ts";
+import { logPluginFailure } from "./failure-log.ts";
 
 /** The wall-clock bound on ONE turn's whole plugin-macro resolution (every registered macro, in parallel). It
  *  is the ASSEMBLY deadline the design names, and it is deliberately larger than the 250 ms per-transform
@@ -46,13 +47,14 @@ export const PLUGIN_MACROS_MAX = 16;
 /** ONE registered plugin macro as the registry holds it: the host-NAMESPACED name, the guest handle, and the
  *  per-plugin invoker activation closed over. */
 interface RegisteredMacro {
+  readonly slug: string;
   readonly name: string;
   /** The PRE-#1391 spelling of {@link RegisteredMacro.name}, or `null` when the slug carries no hyphen and the
    *  two spellings coincide. Carried per macro so the degrade alias below costs no second flatten at
    *  resolution time and no second source of truth about what the old name was. */
   readonly legacyName: string | null;
   readonly description: string;
-  readonly resolve: (chat: InvocationChat | null) => Promise<string>;
+  readonly resolve: (chat: InvocationChat | null, signal: AbortSignal) => Promise<string>;
 }
 
 /** The host namespace a plugin macro's name lands in. The slug is HOST knowledge (derived from the
@@ -94,11 +96,16 @@ function pluginMacroLegacyName(slug: string, guestName: string): string | null {
  *  has no value this turn. The caller turns `null` into an empty body rather than dropping the macro, so a
  *  reference to it still renders (as "") instead of re-emitting raw `{{…}}` bytes into the prompt. */
 async function resolveOne(macro: RegisteredMacro, chat: InvocationChat | null, deadline: Promise<null>): Promise<string | null> {
-  // @orb-waive caught-failure-ownership(catch): documented above — a throw, a rejected invoke,
-  // or the deadline all mean the same thing to a render (this macro has no value this turn); the caller
-  // renders `null` as an empty body. Ends if a guest failure needs to surface distinctly from a timeout.
+  // Aborted on the deadline so the orphaned invocation's later rejection counts a crash without a second log line.
+  const orphan = new AbortController();
+  // @orb-waive caught-failure-ownership(catch): a throw or rejected invoke was already logged by the resident `invoke`, and a deadline is logged below; the caller renders `null` as an empty body. Ends if a guest failure stops being logged at those two sites.
   try {
-    return await Promise.race([macro.resolve(chat), deadline]);
+    const answer = await Promise.race([macro.resolve(chat, orphan.signal), deadline]);
+    if (answer === null) {
+      orphan.abort();
+      logPluginFailure(macro.slug, "macro-deadline", `macro '${macro.name}' exceeded its resolve deadline`);
+    }
+    return answer;
   } catch {
     return null;
   }
@@ -123,12 +130,13 @@ export function createPluginMacroRegistry(deadlineMs: () => number = () => PLUGI
       throw new Error(`plugin macros: a plugin may register at most ${PLUGIN_MACROS_MAX} macros (got ${req.macros.length})`);
     }
     const entries: RegisteredMacro[] = req.macros.map((macro) => ({
+      slug: req.slug,
       name: pluginMacroName(req.slug, macro.name),
       legacyName: pluginMacroLegacyName(req.slug, macro.name),
       description: macro.description,
       // The guest receives an EMPTY args object (the single-arg host→guest seam, arity-stable) and the turn's
       // chat scope, so `chat.current()` works inside a macro resolver exactly as it does inside a tool handler.
-      resolve: async (chat): Promise<string> => req.invoke(macro.handler, "{}", chat),
+      resolve: async (chat, signal): Promise<string> => req.invoke(macro.handler, "{}", chat, signal),
     }));
     const forInstaller = byInstaller.get(req.installer) ?? new Map<string, readonly RegisteredMacro[]>();
     forInstaller.set(req.slug, entries);

@@ -31,9 +31,13 @@ export const PROMPT_TRANSFORM_DEADLINE_MS = 250;
  *   `ok`      — a clean in-time render; `text` is the new draft.
  *   `skip`    — a timeout OR a throw (D53): the caller keeps the prior draft and warns.
  *   `abort`   — the transform DELIBERATELY refused the generation (§5.14); the fold stops and the turn does. */
-type BoundedOutcome = { readonly kind: "ok"; readonly text: string } | { readonly kind: "skip" } | { readonly kind: "abort"; readonly reason: string };
+type BoundedOutcome =
+  | { readonly kind: "ok"; readonly text: string }
+  | { readonly kind: "skip"; readonly threw: boolean }
+  | { readonly kind: "abort"; readonly reason: string };
 
-const SKIP: BoundedOutcome = { kind: "skip" };
+const SKIP: BoundedOutcome = { kind: "skip", threw: false };
+const THREW: BoundedOutcome = { kind: "skip", threw: true };
 
 /** Classify a transform's raw answer. A NON-EMPTY string is the rewritten draft; a `{abort}` object is the
  *  typed refusal, its reason capped here (it is untrusted text — a guest writes it — and it reaches a refusal
@@ -70,7 +74,7 @@ async function applyBounded(transform: PromptTransform, draft: string, env: Prom
   try {
     return await Promise.race([transform.apply(draft, env).then(classify), deadline]);
   } catch {
-    return SKIP;
+    return THREW;
   } finally {
     if (timer !== undefined) {
       clearTimeout(timer);
@@ -114,7 +118,10 @@ export function createPromptTransformRegistry(
         getLog().info({ chatId, transformId: transform.id, point }, "chat: prompt transform ABORTED the generation");
         return { aborted: true, transformId: transform.id, reason: result.reason };
       }
-      getLog().warn({ chatId, transformId: transform.id, point }, "chat: prompt transform SKIPPED (deadline/throw/empty render) — draft unchanged");
+      // A throw from a transform that logs its own failures is already on the log with its cause.
+      if (!(result.threw && transform.logsOwnFailures === true)) {
+        getLog().warn({ chatId, transformId: transform.id, point }, "chat: prompt transform SKIPPED (deadline/throw/empty render) — draft unchanged");
+      }
       skipped.push(transform.id);
       return foldFrom(index + 1, current);
     };
