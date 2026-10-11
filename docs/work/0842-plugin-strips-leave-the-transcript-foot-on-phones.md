@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-11
 priority: P2
 area: client
-lane: wt/agent-ae4b2d1f159008c8a
+lane: wt/agent-a9603c332ec7acdab
 ---
 
 # Plugin strips leave the transcript foot on phones
