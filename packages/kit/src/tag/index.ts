@@ -15,3 +15,9 @@ const WHITESPACE_RUN = /\s+/g;
 export function normalizeTagName(raw: string): string {
   return raw.replace(WHITESPACE_RUN, " ").trim();
 }
+
+/** The form tag names are COMPARED in, never stored: case, spacing and punctuation never make a different label
+ *  ("Slice of Life" and "slice-of-life" match). Unlike `normalizeTagName`, it is lossy by design. */
+export function tagMatchKey(name: string): string {
+  return name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+}
