@@ -22,6 +22,7 @@ import {
   embedGenerations,
   embedGenerationTargets,
   imageEmbeddings,
+  personas as personasTable,
   rpgGames,
   tags,
   workloads,
@@ -757,6 +758,69 @@ describe("persona.remove seed re-point (owner invariant)", () => {
     const { seeds } = (await result.services.settings.getUserSettings({ principal: actor })).config;
     expect(seeds.currentPersonaId).toBe(survivor.id); // untouched (wasn't deleted)
     expect(seeds.defaultPersonaId).toBe(survivor.id); // re-pointed off the deleted default
+  });
+
+  test("deleting the DEFAULT re-points it to the last-played persona over a newer one, and the result names it", async () => {
+    const db = await freshDb();
+    const result = await graph(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const actor = principal(owner);
+    const lastPlayed = await result.services.persona.create({ principal: actor, input: { name: "LastPlayed", description: "l" } });
+    const newer = await result.services.persona.create({ principal: actor, input: { name: "Newer", description: "n" } });
+    const doomedDefault = await result.services.persona.create({ principal: actor, input: { name: "DoomedDefault", description: "d" } });
+    // The frozen clock stamps one createdAt; spread them so "newest remaining" is a real, different answer.
+    await db.update(personasTable).set({ createdAt: 1 }).where(eq(personasTable.id, lastPlayed.id));
+    await db.update(personasTable).set({ createdAt: 2 }).where(eq(personasTable.id, newer.id));
+    await result.services.settings.updateUserSettingsSection({
+      principal: actor,
+      input: { section: "seeds", patch: { currentPersonaId: lastPlayed.id, defaultPersonaId: doomedDefault.id } },
+    });
+
+    const removed = await result.services.persona.remove({ principal: actor, personaId: doomedDefault.id });
+
+    const { seeds } = (await result.services.settings.getUserSettings({ principal: actor })).config;
+    expect(seeds.defaultPersonaId).toBe(lastPlayed.id);
+    expect(removed.newDefaultPersonaId).toBe(lastPlayed.id);
+  });
+
+  test("deleting a persona that is not the default reports no default move", async () => {
+    const db = await freshDb();
+    const result = await graph(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const actor = principal(owner);
+    const keeper = await result.services.persona.create({ principal: actor, input: { name: "Keeper", description: "k" } });
+    const doomed = await result.services.persona.create({ principal: actor, input: { name: "Doomed", description: "d" } });
+    await result.services.settings.updateUserSettingsSection({
+      principal: actor,
+      input: { section: "seeds", patch: { currentPersonaId: keeper.id, defaultPersonaId: keeper.id } },
+    });
+
+    expect((await result.services.persona.remove({ principal: actor, personaId: doomed.id })).newDefaultPersonaId).toBeNull();
+  });
+
+  test("deleting the persona on a seat re-seats that seat with the owner's default instead of leaving it empty", async () => {
+    const db = await freshDb();
+    const result = await graph(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const actor = principal(owner);
+    const seated = await result.services.persona.create({ principal: actor, input: { name: "Seated", description: "s" } });
+    const fallback = await result.services.persona.create({ principal: actor, input: { name: "Fallback", description: "f" } });
+    await result.services.settings.updateUserSettingsSection({
+      principal: actor,
+      input: { section: "seeds", patch: { currentPersonaId: seated.id, defaultPersonaId: fallback.id } },
+    });
+    const chatId = await seedChat(db, "reseat");
+    await seedParticipant(db, { chatId, key: "h", userId: owner, role: "host", activePersonaId: seated.id });
+    const leftChatId = await seedChat(db, "reseat-left");
+    await seedParticipant(db, { chatId: leftChatId, key: "hl", userId: owner, role: "member", activePersonaId: seated.id, leftSeq: 0 });
+
+    await result.services.persona.remove({ principal: actor, personaId: seated.id });
+
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId));
+    expect(row?.activePersonaId).toBe(fallback.id);
+    // A seat its owner already left stays as the delete left it.
+    const [leftRow] = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, leftChatId));
+    expect(leftRow?.activePersonaId).toBeNull();
   });
 });
 

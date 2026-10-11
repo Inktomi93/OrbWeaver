@@ -20,6 +20,7 @@ export function createRemove(ctx: PersonaContext): PersonaService["remove"] {
     // activePersonaId + every chat's anchorPersonaId, so a post-write reach resolves ∅. Snapshot the rooms this
     // persona is live in NOW, fan the captured set AFTER the row is gone (fanReach() past the NotFound guard).
     const fanReach = await ctx.captureRoomReachForDelete(personaId);
+    const reseat = await ctx.captureSeatsForDelete(ownerId, personaId);
 
     const deleted = await ctx.db
       .delete(personas)
@@ -48,8 +49,13 @@ export function createRemove(ctx: PersonaContext): PersonaService["remove"] {
       throw new PersonaNotFoundError(personaId);
     }
 
-    // Re-point any default/current pointer left dangling by this delete (no-op unless a seed named personaId).
-    await ctx.repointSeedsAfterPersonaDelete(ownerId, personaId);
+    const seeds = await ctx.repointSeedsAfterPersonaDelete(ownerId, personaId);
+    // A seat the delete emptied would stamp every later line with no persona; it takes the owner's default
+    // persona, then the last-played one, the same order a join uses.
+    const reseatWith = seeds.defaultPersonaId ?? seeds.currentPersonaId;
+    if (reseatWith !== null) {
+      await reseat(reseatWith);
+    }
 
     await ctx.audit(
       {
@@ -65,6 +71,6 @@ export function createRemove(ctx: PersonaContext): PersonaService["remove"] {
     // clamped roster and finds the seat fell back — the captured-set fan repaints them. Live-only + past the
     // delete's success path, so it cannot fault the write that already committed.
     fanReach();
-    return { deleted: true };
+    return { deleted: true, newDefaultPersonaId: seeds.defaultMoved ? seeds.defaultPersonaId : null };
   };
 }

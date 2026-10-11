@@ -21,7 +21,7 @@ export const useUpdatePersona = createEntityMutation<inferInput<Trpc["persona"][
   errorToast: "Couldn't save the persona.",
 });
 
-export const useRemovePersona = createEntityMutation<inferInput<Trpc["persona"]["remove"]>, unknown>({
+export const useRemovePersona = createEntityMutation<inferInput<Trpc["persona"]["remove"]>, inferOutput<Trpc["persona"]["remove"]>>({
   options: (trpc) => trpc.persona.remove.mutationOptions(),
   busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
   errorToast: "Couldn't delete the persona.",

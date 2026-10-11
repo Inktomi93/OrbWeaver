@@ -30,7 +30,7 @@ import { chatInjections, chatParticipants, chats, messages, messageVariants } fr
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/kit";
 import { stripHiddenSpans } from "@orb/kit/content";
-import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
@@ -57,6 +57,7 @@ import { NO_HISTORY_FLOOR, permitsHost } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
 import { memberToolCalls, viewerReadsHidden } from "../substrate/member-visibility.ts";
+import { resolveAnchorState } from "../substrate/participants-humans.ts";
 import { foldChain } from "../substrate/runtime-variables.ts";
 import { appendStatsDeltas, canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
@@ -624,20 +625,6 @@ function assertForkAllowed(args: {
   }
 }
 
-/** The ANCHOR arm of the fork's single-owner rule (the host-handoff heal's twin): the
- *  fork's host is the FORKER, and the D51 `{{user}}` anchor is resolved under the host's principal
- *  (owner-scoped `persona.get`), so copying a foreign `anchorPersonaId` verbatim would mint a room born with a
- *  dead POV pin — `{{user}}` silently falls through to the active persona while the knob serves an id the new
- *  host can never inspect. Keep what the forker can read, null what they cannot (the `resolveOwnedCharacterSeats`
- *  shape). Personas are owner-sacred: this heals the POINTER, it never copies a persona. */
-async function resolveForkAnchorPersonaId(ctx: ChatContext, forkerUserId: UserId, sourceAnchorPersonaId: PersonaId | null): Promise<PersonaId | null> {
-  if (sourceAnchorPersonaId === null) {
-    return null;
-  }
-  const owned = await ctx.verifyPersonaOwned({ ownerId: forkerUserId, personaId: sourceAnchorPersonaId });
-  return owned ? sourceAnchorPersonaId : null;
-}
-
 function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat"] {
   return async ({ principal, chatId, throughSeq, title }: ForkChatParams): Promise<ForkResult> => {
     // `requireParticipant` first — a non-member gets a leak-free `ChatNotFoundError` (never reveal existence);
@@ -680,7 +667,9 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     // The fork carries only the character seats the forker owns. The canon is copied whole regardless,
     // so a dropped character's prior lines survive in the fork; only the live seat is gone.
     const keptCharacterSeats = await resolveOwnedCharacterSeats(ctx, principal.userId, sourceParticipants);
-    const forkAnchorPersonaId = await resolveForkAnchorPersonaId(ctx, principal.userId, source.anchorPersonaId);
+    // The pin carries whoever owns it: a pin resolves live even when its owner is not in the room (item 885),
+    // so forking never changes who the card means.
+    const forkAnchorPersonaId = source.anchorPersonaId;
     const variants = await loadVariantsByMessageIds(
       ctx.db,
       slots.map((s) => s.id),
@@ -794,7 +783,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
       throw new ChatNotFoundError(newChatId);
     }
     const participants = await deps.loadParticipantViews(newChatId);
-    const identities = await loadChatIdentityProducer(ctx.db, { participants });
+    const identities = await loadChatIdentityProducer(ctx.db, { participants, anchorPersonaId: forkRow.anchorPersonaId });
     return {
       chat: toChatDetail({
         chat: forkRow,
@@ -805,6 +794,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
         // The forker is the NEW room's born-here host (`joinSeq` 0) — unclamped in the fork, which already
         // carries only what their source-room floor allowed.
         viewerHistoryFloorSeq: NO_HISTORY_FLOOR,
+        anchorState: await resolveAnchorState(ctx, participants, forkRow.anchorPersonaId),
       }),
     };
   };

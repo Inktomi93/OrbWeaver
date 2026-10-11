@@ -708,6 +708,7 @@ const FORK_RESULT: Awaited<ReturnType<ChatService["forkChat"]>> = {
     parentChatId: CHAT,
     forkedAt: 0,
     anchorPersonaId: null,
+    anchorState: "none",
     participants: [],
     viewerActivePersonaId: null,
     viewerIsHost: true,

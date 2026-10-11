@@ -370,8 +370,8 @@ test("the room's chat preset params follow the GM redirect: a GM preset's Max co
 
 // ── #760 — the composed persona-read catches narrow to PersonaNotFoundError, END TO END ─────────────────────
 // `resolveCurrentPersona` and `resolveDefaultPersona` (compose/chat.ts) are both reachable through
-// `chat.startChat`'s founding-anchor chain (`resolveFoundingAnchor`: explicit > connected > current >
-// default). Each is pinned in isolation by leaving the OTHER seed pointer unset (so its own read never
+// `chat.startChat`'s founding-anchor chain (`resolveFoundingAnchor`: explicit > connected > default >
+// current). Each is pinned in isolation by leaving the OTHER seed pointer unset (so its own read never
 // fires — an unset pointer returns null without calling `persona.get` at all).
 describe("compose/chat.ts — the persona-read catches narrow to PersonaNotFoundError (#760)", () => {
   test("startChat (resolveCurrentPersona): a non-not-found persona rejection PROPAGATES", async ({ db, services }) => {

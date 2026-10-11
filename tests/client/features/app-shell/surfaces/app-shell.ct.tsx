@@ -1668,13 +1668,10 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
   // lens (Playing-as header — mobile persona switching lives HERE), and the overflow sections.
   await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Switch theme" })).toHaveCount(0);
-  // Exact: the who-head's gloss ("Playing as") and the current row's pill ("playing as") are BOTH real —
-  // the un-exact string matches case-insensitively and trips strict mode.
-  await expect(page.getByText("Playing as", { exact: true })).toBeVisible();
-  // …and it is the CURRENT persona's row that says it (the row is the identity's ONE home, P2). The row's
-  // select target is STATE-AWARE (side-eye 2026-08-07 P3a): on the persona you are already playing as it is
-  // named for the state, not for a switch that would be a no-op — "Switch to X, current true" was the defect.
-  await expect(page.getByRole("button", { name: `${SHEET_PERSONA.name} — current persona` })).toHaveAttribute("aria-current", "true");
+  // With no room open the who-head names who a new chat starts you as (here the last-played persona, no
+  // default set), and the rows are not switches.
+  await expect(page.locator('[data-slot="persona-who-head"]')).toContainText(SHEET_PERSONA.name);
+  await expect(page.locator("[data-switch-row-button]")).toHaveCount(0);
   // The ACCOUNT FOOT replaced the Account-modal strip (#866 S4, owner-ruled F-3): the sheet renders the
   // identity facts + the mode-aware Log out inline — no modal handoff left to drive.
   await expect(page.getByTestId("account-surface")).toContainText("owner");

@@ -15,12 +15,12 @@ import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
-import { characters as charactersTable, personas as personasTable } from "@orb/db";
+import { characters as charactersTable, chatParticipants as chatParticipantsTable, personas as personasTable } from "@orb/db";
 import { findSeedEmbedding } from "@orb/default-content";
 import type { RoleClientsWithSignal } from "@orb/inference";
 import type { Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { can, isAdmin, isOwner, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
@@ -147,6 +147,19 @@ export interface SearchDiscoveryComposeResult {
   readonly listCorpusOwners: () => Promise<UserId[]>;
 }
 
+/** The seed pointers after `deletedId` is gone. A deleted default moves to the last-played persona, else
+ *  `newest`; a deleted last-played moves to the default, else `newest`. PURE. */
+function nextSeedsAfterPersonaDelete(
+  stored: { readonly defaultPersonaId: PersonaId | null; readonly currentPersonaId: PersonaId | null },
+  deletedId: PersonaId,
+  newest: PersonaId | null,
+): { readonly defaultPersonaId: PersonaId | null; readonly currentPersonaId: PersonaId | null; readonly defaultMoved: boolean } {
+  const surviving = (id: PersonaId | null): PersonaId | null => (id === deletedId ? null : id);
+  const defaultMoved = stored.defaultPersonaId === deletedId;
+  const defaultPersonaId = defaultMoved ? (surviving(stored.currentPersonaId) ?? newest) : stored.defaultPersonaId;
+  return { defaultPersonaId, currentPersonaId: surviving(stored.currentPersonaId) ?? defaultPersonaId ?? newest, defaultMoved };
+}
+
 export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDiscoveryComposeResult {
   const { db, now, audit, roleClientsFor, eventBus, character, assets, settings } = deps;
   // The two OWNER reads the vector substrate needs to pick a space: a card's owner (`characters.ownerId`, a
@@ -262,20 +275,20 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     // re-point the global seed pointers if either named it, runs through the settings section-patch verb.
     repointSeedsAfterPersonaDelete: async (ownerId, deletedId) => {
       const seeds = (await settings.loadUserSettings(ownerId)).seeds;
-      const currentHit = seeds.currentPersonaId === deletedId;
-      const defaultHit = seeds.defaultPersonaId === deletedId;
-      if (!(currentHit || defaultHit)) {
-        return;
+      const stored = {
+        defaultPersonaId: seeds.defaultPersonaId === null ? null : castId<PersonaId>(seeds.defaultPersonaId),
+        currentPersonaId: seeds.currentPersonaId === null ? null : castId<PersonaId>(seeds.currentPersonaId),
+      };
+      if (stored.defaultPersonaId !== deletedId && stored.currentPersonaId !== deletedId) {
+        return { ...stored, defaultMoved: false };
       }
-      const remaining = await db
+      const [newest] = await db
         .select({ id: personasTable.id })
         .from(personasTable)
         .where(eq(personasTable.ownerId, ownerId))
-        .orderBy(desc(personasTable.createdAt));
-      const firstRemaining: PersonaId | null = remaining[0]?.id ?? null;
-      // Prefer the surviving default; else the newest remaining persona; else null.
-      const survivingDefault = defaultHit ? firstRemaining : seeds.defaultPersonaId;
-      const nextCurrent = currentHit ? (survivingDefault ?? firstRemaining) : seeds.currentPersonaId;
+        .orderBy(desc(personasTable.createdAt))
+        .limit(1);
+      const next = nextSeedsAfterPersonaDelete(stored, deletedId, newest?.id ?? null);
       // @orb-waive one-principal-mint-population(Principal): synthetic principal for persona-seed settings update; ends when a shared factory replaces it
       const principal: Principal = {
         userId: ownerId,
@@ -286,14 +299,20 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
       };
       await settings.updateUserSettingsSection({
         principal,
-        input: {
-          section: "seeds",
-          patch: {
-            ...(currentHit ? { currentPersonaId: nextCurrent } : {}),
-            ...(defaultHit ? { defaultPersonaId: survivingDefault } : {}),
-          },
-        },
+        input: { section: "seeds", patch: { currentPersonaId: next.currentPersonaId, defaultPersonaId: next.defaultPersonaId } },
       });
+      return next;
+    },
+    captureSeatsForDelete: async (ownerId, personaId) => {
+      const seats = await db
+        .select({ chatId: chatParticipantsTable.chatId })
+        .from(chatParticipantsTable)
+        .where(and(eq(chatParticipantsTable.userId, ownerId), eq(chatParticipantsTable.activePersonaId, personaId), isNull(chatParticipantsTable.leftSeq)));
+      return async (reseatWith): Promise<void> => {
+        for (const { chatId } of seats) {
+          await setParticipantActivePersona(db, deps.emitChatEvent, { chatId, targetUserId: ownerId, personaId: reseatWith });
+        }
+      };
     },
   };
   const persona = createPersonaService(personaCtx);

@@ -1071,20 +1071,6 @@ function createNominateHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatS
   };
 }
 
-/** Is the room's D51 anchor persona still READABLE once `newOwnerUserId` holds the room? The anchor is
- *  resolved under the HOST's principal (owner-scoped `persona.get`), so an anchor the incoming host does not
- *  own resolves null on their very next turn: `{{user}}` silently falls through to the speaker's active
- *  persona (the null-anchor fallback) while the knob keeps serving an id they can never inspect. `false` ⇒ the
- *  swap batch nulls it — the honest degrade. The ownership axis is the new owner regardless of who pinned it
- *  (the `resolveForkGmPreset` shape); an anchor the nominee owns is a live pin and is left alone. Personas are
- *  owner-sacred — this heals the pointer, it never copies a persona. */
-function anchorSurvivesHandoff(ctx: ChatContext, newOwnerUserId: UserId, anchorPersonaId: PersonaId | null): Promise<boolean> {
-  if (anchorPersonaId === null) {
-    return Promise.resolve(true);
-  }
-  return ctx.verifyPersonaOwned({ ownerId: newOwnerUserId, personaId: anchorPersonaId });
-}
-
 /** Finish the only non-statement-shaped handoff tail. Actor re-keying runs first and is retry-safe; the
  * accepted-host-scoped marker then claims exactly one durable completion append in the same batch. */
 async function completeHandoffResumption(ctx: ChatContext, emit: EmitChatEvent, resume: HandoffResumption): Promise<void> {
@@ -1200,7 +1186,7 @@ async function prepareHandoffRebase(
  *  row records what fired, so the transfer stays inspectable rather than silent. */
 function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatService["acceptHostHandoff"] {
   return async ({ principal, chatId }: AcceptHostHandoffParams): Promise<void> => {
-    const { chat } = await requireParticipant(ctx, principal, chatId);
+    await requireParticipant(ctx, principal, chatId);
     const resumable = await loadHandoffResumption(ctx.db, chatId);
     if (resumable !== null) {
       if (resumable.acceptedByUserId !== principal.userId) {
@@ -1222,7 +1208,6 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
     // resolves under them and must NOT also be stamped as left.
     const droppedSeatIds = (await resolveDroppedCharacterSeatIds(ctx, principal.userId, participants)).filter((id) => !repointed.has(id));
     const dropSeq = await loadMaxMessageSeq(ctx.db, chatId);
-    const clearAnchorPersona = !(await anchorSurvivesHandoff(ctx, principal.userId, chat.anchorPersonaId));
     const acceptedAt = ctx.now();
     // The rpg-side heal (F1) + sheet re-key arrive as UNEXECUTED statements so they commit with the swap; `[]`
     // for a non-game room / an unwired rpg ⇒ byte-identical to a plain handoff.
@@ -1242,7 +1227,6 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
         chatId,
         nomineeUserId: principal.userId,
         now: acceptedAt,
-        clearAnchorPersona,
       }),
       ...plan.seats.map(({ participantId, copy }) => repointCharacterSeatStatement(ctx.db, participantId, copy.characterId)),
       ...plan.cardCopies.map((c) => restampChatCharacterStatement(ctx.db, chatId, c.sourceCharacterId, c.characterId)),
@@ -1265,7 +1249,6 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
           entityId: chatId,
           metadata: {
             previousHostUserId: oldHostUserId,
-            healedAnchorPersona: clearAnchorPersona,
             healedGmPreset: rpgHeal.length > 0,
             copiedCards: plan.cardCopies.length,
             droppedSeats: droppedSeatIds.length,

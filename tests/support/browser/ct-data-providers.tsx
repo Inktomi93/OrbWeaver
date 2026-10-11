@@ -53,7 +53,7 @@ import { makeCorpusSection } from "@orb/client/features/discovery";
 import { makeHomeSection, makeSectionJumpTile } from "@orb/client/features/home";
 import { imageDetailModal, imageEditModal, imagineModal } from "@orb/client/features/imagery";
 import { notificationsChrome } from "@orb/client/features/notifications";
-import { personaChrome, personaListSection, personaNotificationsSection, personaThisChatSection } from "@orb/client/features/persona";
+import { personaChrome, personaListSection, personaNotificationsSection } from "@orb/client/features/persona";
 import {
   extensionsSection,
   pluginCommandArgsModal,
@@ -289,7 +289,6 @@ const realSettingsSections: ContributorRegistry<ConfigSectionContribution> = cre
   // personas · backup · connections · automation ← the §6.8 conversions, in the door's order.
   personaNotificationsSection,
   personaListSection,
-  personaThisChatSection,
   backupExportSection,
   backupImportSection,
   connectionsListSection,

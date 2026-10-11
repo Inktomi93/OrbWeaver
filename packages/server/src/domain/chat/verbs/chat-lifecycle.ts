@@ -84,7 +84,7 @@ import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadChatInjections, loadRuntimeVariables, loadStoredUserMacroValues, loadStoredVariables } from "../persistence/queries.ts";
 import { prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
-import { presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
+import { ownedByConsentingHuman } from "../substrate/participants-humans.ts";
 import { shadowPresetUserMacros } from "../substrate/user-macros.ts";
 import { resolveChoiceVariables } from "../substrate/variables.ts";
 
@@ -205,14 +205,8 @@ function createSetChatAnchorPersona(ctx: ChatContext, emit: EmitChatEvent, claim
     await requireHost(ctx, principal, chatId);
     if (personaId !== null) {
       const participants = await loadParticipants(ctx.db, chatId);
-      // The SAME consent set the resolver gates its persona read on (`presentAndEnabledHumanUserIdsOf`) — one
-      // home, so a pin this verb permits is a pin the assemble can actually resolve (2026-08-15: this used to
-      // call the presence-only `presentHumanUserIdsOf`, which let a host pin — and a live turn silently refuse
-      // — a DISABLED member's persona; the enabled axis reintroduced the exact silently-dead-pin bug the
-      // presence axis was widened to fix).
-      const presentHumanIds = await presentAndEnabledHumanUserIdsOf(ctx, participants);
-      const ownership = await Promise.all(presentHumanIds.map((ownerId) => ctx.verifyPersonaOwned({ ownerId, personaId })));
-      if (!ownership.some((owned) => owned)) {
+      // The SAME consent set the resolver gates seat personas on: a new pin must be a present, enabled player's.
+      if (!(await ownedByConsentingHuman(ctx, participants, personaId))) {
         throw new ChatOperationError(CHAT_OP_CODES.notPersonaOwner, `chat ${chatId}: the anchor persona must be owned by a present, enabled human participant`);
       }
     }

@@ -501,7 +501,7 @@ test("a user who owns a persona never sees the gate (the automation-seeded + ret
   // `settings.getUserSettings` and renders nothing until both have settled (#1570), so a bare
   // `toHaveCount(0)` is satisfied by the in-flight frame and passes for the wrong reason. The rail-foot
   // avatar's accessible name is `Playing as <current>`, resolved from those SAME two reads
-  // (`persona-panel-surface.tsx` PanelTrigger ← resolveCurrentPersona(personas, seeds)) — so it appears
+  // (`persona-panel-surface.tsx` PanelTrigger ← resolvePlayingPersona(personas, seeds, room)) — so it appears
   // only once the viewer's identity is fully resolved, which is exactly when the gate would open if it
   // were going to.
   await expect(page.getByRole("button", { name: `Playing as ${HOME_PERSONA.name}` })).toBeVisible();

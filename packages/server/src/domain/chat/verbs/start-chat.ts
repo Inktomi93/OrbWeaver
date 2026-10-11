@@ -52,6 +52,7 @@ import { loadChatRow } from "../persistence/queries.ts";
 import { NO_HISTORY_FLOOR } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
+import { resolveAnchorState } from "../substrate/participants-humans.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 
 /** The collaborators not on `ChatContext`. `emit` is the chat bus; `loadParticipantViews` resolves the
@@ -155,8 +156,8 @@ async function resolveFoundingAnchor(
   }
   return (
     (await ctx.resolveConnectedPersona(hostUserId, characterIds)) ??
-    (await ctx.resolveCurrentPersona(hostUserId)) ??
-    (await ctx.resolveDefaultPersona(hostUserId))
+    (await ctx.resolveDefaultPersona(hostUserId)) ??
+    (await ctx.resolveCurrentPersona(hostUserId))
   );
 }
 
@@ -185,7 +186,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     const hostUserId = principal.userId;
     const characterIds = await resolveFoundingCharacters(ctx, hostUserId, requestedCharacterIds);
     // Anchor seed chain: explicit anchor > the connected persona (solo-character founding with exactly
-    // one connection) > the starter's current persona > the starter's default persona.
+    // one connection) > the starter's default persona > the starter's last-played persona.
     const anchor = await resolveFoundingAnchor(ctx, hostUserId, characterIds, anchorPersonaId);
     const policy = resolveOpeningPolicy(opening, characterIds.length);
 
@@ -264,7 +265,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
       throw new ChatNotFoundError(chatId);
     }
     const participants = await deps.loadParticipantViews(chatId);
-    const identities = await loadChatIdentityProducer(ctx.db, { participants });
+    const identities = await loadChatIdentityProducer(ctx.db, { participants, anchorPersonaId: chatRow.anchorPersonaId });
     return {
       chat: toChatDetail({
         chat: chatRow,
@@ -275,6 +276,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
         // Born-here host: `joinSeq` 0, so the checkpoint clamp is inert by construction (there is no
         // pre-membership canon in a room this call just created).
         viewerHistoryFloorSeq: NO_HISTORY_FLOOR,
+        anchorState: await resolveAnchorState(ctx, participants, chatRow.anchorPersonaId),
       }),
       opening: seedOutcome(seed.views),
     };

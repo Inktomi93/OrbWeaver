@@ -19,7 +19,7 @@ import {
   proseSettingsSection,
 } from "@orb/client/features/chat";
 import { connectionsKeysSection, connectionsListSection, connectionsRolesSection } from "@orb/client/features/credentials";
-import { personaListSection, personaNotificationsSection, personaThisChatSection } from "@orb/client/features/persona";
+import { personaListSection, personaNotificationsSection } from "@orb/client/features/persona";
 import { pluginDistributeSection, pluginsInstalledSection, pluginsInstallSection } from "@orb/client/features/plugin";
 import {
   adminCatalogSection,
@@ -237,7 +237,6 @@ function realDoorSections(): ReturnType<typeof createContributorRegistry<ConfigS
     // The §6.8 conversions — persona claims `persona.showNotifications`, connections claims `routing.roleDefaults`.
     personaNotificationsSection,
     personaListSection,
-    personaThisChatSection,
     backupExportSection,
     backupImportSection,
     connectionsListSection,

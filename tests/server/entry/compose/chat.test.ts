@@ -167,12 +167,12 @@ describe("createTurnPersonaResolver — the people projection", () => {
       ] as const
     ).map(([id, ownerId, name]) => [castId<PersonaId>(id), { id: castId<PersonaId>(id), ownerId, name, description: `${name}-DESC`, metadata: null }]),
   );
-  const resolve = createTurnPersonaResolver(({ personaIds, allowedOwnerIds }) =>
+  const resolve = createTurnPersonaResolver(({ personaIds, allowedOwnerIds, heldPersonaId }) =>
     Promise.resolve(
       new Map(
         personaIds.flatMap((id): [PersonaId, PersonaListView][] => {
           const hit = personaRows.get(id);
-          return hit !== undefined && allowedOwnerIds.includes(hit.ownerId) ? [[id, hit]] : [];
+          return hit !== undefined && (allowedOwnerIds.includes(hit.ownerId) || id === heldPersonaId) ? [[id, hit]] : [];
         }),
       ),
     ),
@@ -196,6 +196,20 @@ describe("createTurnPersonaResolver — the people projection", () => {
     expect(out.active?.name).toBe("Alice");
     expect(names(out.people)).toEqual(["Cara", "Bob"]);
     expect(out.people?.[0]).toEqual({ name: "Cara", description: "Cara-DESC", placement: { kind: "in_prompt" } });
+  });
+
+  test("a pinned persona whose owner left still projects as the anchor, while the voice stays the host's", async () => {
+    const out = await resolve({
+      ...base,
+      anchorPersonaId: castId<PersonaId>("persona_bob"),
+      presentHumanUserIds: [host],
+      humanSeats: [seat(host, castId<PersonaId>("persona_alice"))],
+    });
+
+    expect(out.anchor?.name).toBe("Bob");
+    expect(out.active?.name).toBe("Alice");
+    expect(out.activeUserId).toBe(host);
+    expect(out.people).toBeUndefined();
   });
 
   test("a departed owner's persona never projects (the consent gate), even when a stale seat still names it", async () => {
