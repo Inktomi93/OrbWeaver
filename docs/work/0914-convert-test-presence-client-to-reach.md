@@ -11,7 +11,7 @@ plan: test-mirror
 
 ## What
 
-Item 899 replaced the server, contracts and inference presence gates with test-reach (tooling/src/verify/gates/test-reach.ts, engine tooling/src/verify/lib/test-reach.ts), but test-presence-client still demands client and ui tests by mirrored file name (its clause A), and clause C resolves component actions through clause A's path. Move clauses A and B onto test-reach demand rules for the unit and component families, resolve clause C actions through imports, and delete the name-based clauses with their fixture controls ported.
+Item 899 replaced the server, contracts and inference presence gates with test-reach (tooling/src/verify/gates/test-reach.ts, engine tooling/src/verify/lib/test-reach.ts), but test-presence-client still demands client and ui tests by mirrored file name (its clause A), and clause C resolves component actions through clause A's path. Move clauses A and B onto test-reach demand rules for the unit and component families, resolve clause C actions through imports, and delete the name-based clauses with their fixture controls ported. Also from the 899 lane, not built: test-reach has no tripwire for an empty inference population (count inference modules with a runtime export and refuse on zero when the real-tree anchor is present), and the per-kind source-extension check that test-layout dropped (TEST_KIND_DEFINITIONS sourceExtensions) has no consumer now; judge the kind against the extensions a test reaches, or delete the field after a consumer sweep.
 
 ## Why
 
