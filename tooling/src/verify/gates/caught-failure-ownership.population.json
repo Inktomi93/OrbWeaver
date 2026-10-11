@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 702,
+    "sites": 703,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 702,
+      "deliberate-absorb": 703,
       "unproven": 0
     },
     "byGrammar": {
       "default": 160,
       "empty": 356,
-      "promise": 186
+      "promise": 187
     }
   },
   "rows": [
@@ -579,6 +579,11 @@
       "siteId": "packages/client/src/features/rpg/components/rpg-populate-control.tsx::RpgPopulateControl.onFill::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "the failed mutation's own errorToast already spoke — the toast is the surface. Ends if usePopulateFromCharacter drops its errorToast."
+    },
+    {
+      "siteId": "packages/client/src/features/tag/components/labels-suggestions.tsx::SuggestionGroupBlock::Promise.allSettled::1",
+      "verdict": "deliberate-absorb",
+      "reason": "allSettled never rejects; each failed attach already raises the mutation's own error toast, and the catch only releases the busy flag."
     },
     {
       "siteId": "packages/client/src/features/tag/hooks/use-tag-library.ts::useCreateLabel.createOnce::error::1",
