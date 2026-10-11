@@ -23,3 +23,5 @@ The form dialog footer is pinned outside the scroll body on every form dialog; C
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner ruling: build a sticky DialogFooter primitive that every dialog uses for its actions, and migrate the dialogs that draw their own footers (Add a connection, Add a document and the others) onto it.

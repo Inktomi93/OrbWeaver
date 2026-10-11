@@ -23,3 +23,5 @@ Teaching copy paragraphs use at least the body-small step on coarse pointers; la
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner ruling: the label step for teaching paragraphs applies everywhere, desktop included.
