@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-11
 priority: P2
 area: imagery
+lane: wt/agent-a86bf753f37b76f6b
 ---
 
 # Shared-room art variants honour the co-participant rule
