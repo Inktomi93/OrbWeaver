@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-11
 priority: P2
 area: server
+lane: wt/agent-a342f0e254d8197ee
 ---
 
 # An API request never receives the app page as its answer
