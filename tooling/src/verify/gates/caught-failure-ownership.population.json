@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 701,
+    "sites": 702,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 701,
+      "deliberate-absorb": 702,
       "unproven": 0
     },
     "byGrammar": {
       "default": 160,
       "empty": 356,
-      "promise": 185
+      "promise": 186
     }
   },
   "rows": [
