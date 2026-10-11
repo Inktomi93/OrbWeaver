@@ -17,10 +17,11 @@ import type { ReactElement } from "react";
 import { PIN_REVEAL } from "#components";
 import { cn } from "#lib";
 
-/** What a pin does, in the server's own terms: the default is the fallback persona a NEW chat is founded
- *  with when none is playing (`startChat`'s connected → current → default chain); the chat then keeps its
- *  own persona, which only "Applies: This chat" changes. */
-const PIN_HINT = "Pin to make this your default persona. A new chat uses it as {{user}} when none is playing, and each chat then keeps its own.";
+/** This row pin is the DEFAULT persona for new chats (the last link of `startChat`'s connected → current →
+ *  default chain), not a chat's persona pin: a chat pins whoever opened it, and that persona is the card
+ *  text's `{{user}}` for the life of the chat while preset text follows the current persona. */
+const PIN_HINT =
+  "Pin to make this your default persona for new chats. Each chat pins whoever opened it: {{user}} in card text stays that persona, while preset text follows who you're playing now.";
 
 export interface PersonaPinProps {
   /** True on the row `seeds.defaultPersonaId` names — the solid-marker arm. */

@@ -12,7 +12,8 @@ import { blobUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
-import { Icon, Pencil } from "@orb/ui/icons";
+import type { LucideIcon } from "@orb/ui/icons";
+import { Check, Icon, IdCard, Pencil } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { PopoverClose } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
@@ -35,6 +36,8 @@ export interface PersonaSwitchListProps {
    *  the rows only ever COMPARE against them. */
   readonly currentId: string | null;
   readonly defaultId: string | null;
+  /** The persona pinned to THIS chat — the card's `{{user}}` — while a room is open; `null` otherwise. */
+  readonly cardPinId: string | null;
   /** Switch to this persona under the caller's scope. Never fired for the current row (its arm is state). */
   readonly onSwitch: (persona: PersonaListItem) => void;
   /** Write `seeds.defaultPersonaId` to this persona (the pin). */
@@ -44,7 +47,7 @@ export interface PersonaSwitchListProps {
 }
 
 /** The switch rows — qualifiers resolved once with the whole list in hand (#458). */
-export function PersonaSwitchList({ personas, currentId, defaultId, onSwitch, onPin, presentation }: PersonaSwitchListProps): ReactElement {
+export function PersonaSwitchList({ personas, currentId, defaultId, cardPinId, onSwitch, onPin, presentation }: PersonaSwitchListProps): ReactElement {
   const nameCounts = new Map<string, number>();
   for (const persona of personas) {
     nameCounts.set(persona.name, (nameCounts.get(persona.name) ?? 0) + 1);
@@ -60,6 +63,7 @@ export function PersonaSwitchList({ personas, currentId, defaultId, onSwitch, on
       {personas.map((persona, index) => (
         <SwitchRow
           key={persona.id}
+          isCardPin={persona.id === cardPinId}
           isCurrent={persona.id === currentId}
           isDefault={persona.id === defaultId}
           onPin={(): void => onPin(persona)}
@@ -78,6 +82,7 @@ export function PersonaSwitchList({ personas, currentId, defaultId, onSwitch, on
 function SwitchRow({
   persona,
   subject,
+  isCardPin,
   isCurrent,
   isDefault,
   onSwitch,
@@ -86,6 +91,7 @@ function SwitchRow({
 }: {
   readonly persona: PersonaListItem;
   readonly subject: string;
+  readonly isCardPin: boolean;
   readonly isCurrent: boolean;
   readonly isDefault: boolean;
   readonly onSwitch: () => void;
@@ -116,6 +122,9 @@ function SwitchRow({
       <Text as="span" className="pointer-events-none relative min-w-0 flex-1 truncate" voice="label">
         {persona.name}
       </Text>
+      {/* Three states, one marker each: playing as (check), the chat's card pin (card), default (the pin). */}
+      {isCurrent ? <RowMarker hint="Your lines and preset text use this persona." icon={Check} label="Playing as" /> : null}
+      {isCardPin ? <RowMarker hint="{{user}} in this character's card" icon={IdCard} label="Pinned to this chat" /> : null}
       <EditDoor presentation={presentation} personaId={persona.id} subject={subject} />
       <PersonaPin className="relative shrink-0" isDefault={isDefault} onPin={onPin} subject={subject} toggle={true} />
     </Row>
@@ -154,6 +163,22 @@ function EditDoor({
     <Tooltip>
       <TooltipTrigger render={presentation === "bar" ? <PopoverClose render={door} /> : door} />
       <TooltipPopup side="top">{label}</TooltipPopup>
+    </Tooltip>
+  );
+}
+
+/** A state glyph with its short tooltip. Not a control: the row's one button already switches. */
+function RowMarker({ icon, label, hint }: { readonly icon: LucideIcon; readonly label: string; readonly hint: string }): ReactElement {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Text as="span" aria-label={label} className="relative shrink-0 text-muted-foreground" role="img">
+            <Icon icon={icon} size="sm" />
+          </Text>
+        }
+      />
+      <TooltipPopup side="top">{hint}</TooltipPopup>
     </Tooltip>
   );
 }

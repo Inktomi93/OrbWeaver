@@ -33,6 +33,7 @@ import type { ChromePresentation } from "#state";
 import { closeModal, openConfigTo, useActiveChatId } from "#state";
 import { PersonaAccountFoot } from "../components/persona-account-foot.tsx";
 import { PersonaSwitchList } from "../components/persona-switch-list.tsx";
+import { ChatAnchorRow } from "../components/persona-this-chat-section.tsx";
 import { useSetChatActivePersona } from "../hooks/use-chat-persona.ts";
 import { useSetPersonaSeed } from "../hooks/use-persona-identity.ts";
 import { resolveCurrentPersona } from "../lib/persona-current.ts";
@@ -141,6 +142,7 @@ function PanelBody({ presentation }: PersonaPanelSurfaceProps): ReactElement {
       <Stack gap="field">
         <Text voice="kicker">Switch persona</Text>
         <PersonaSwitchList
+          cardPinId={chatOpen ? chat.anchorPersonaId : null}
           currentId={currentId}
           defaultId={seeds.defaultPersonaId}
           onPin={onPin}
@@ -272,6 +274,9 @@ function ChatScopeBlock({
       <Text className="truncate" voice="kicker">
         In {roomLabel(chat)}
       </Text>
+      {/* The card pin lands on one of YOUR rows when it is yours; a member's persona has no row here, so the room
+          line says it (and the host's re-pin) instead. */}
+      {chat.anchorPersonaId !== null && !personas.some((p) => p.id === chat.anchorPersonaId) ? <ChatAnchorRow chat={chat} personas={personas} /> : null}
       <Row gap="row" align="center" className="justify-between">
         <Text voice="label">Applies to</Text>
         <Select<SwitchScope>

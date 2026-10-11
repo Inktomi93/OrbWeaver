@@ -10,7 +10,7 @@
 
 import type { PersonaId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Anchor, Check, ChevronDown, History, Icon } from "@orb/ui/icons";
+import { Check, ChevronDown, History, Icon, IdCard } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
@@ -78,7 +78,6 @@ export function PersonaThisChatSection({ anchorId, idle }: PersonaThisChatSectio
   const notifyOnChange = settings.config.persona.showNotifications;
 
   const setActive = useSetChatActivePersona({ trpc, invalidation });
-  const setAnchor = useSetChatAnchorPersona({ trpc, invalidation });
   const reattribute = useReattributePersona({ trpc, invalidation });
   const scopeId = useId();
 
@@ -92,8 +91,6 @@ export function PersonaThisChatSection({ anchorId, idle }: PersonaThisChatSectio
   if (chat === undefined) {
     return null;
   }
-
-  const memberAnchors = memberAnchorOptions(chat);
 
   // Switch the caller's chat persona; on success fire a confirming toast ONLY when the user opted in via
   // persona.showNotifications (HONORING the previously-stored-but-ignored setting). A no-op switch (already
@@ -160,51 +157,7 @@ export function PersonaThisChatSection({ anchorId, idle }: PersonaThisChatSectio
         </Menu>
       </Row>
 
-      <Row gap="row" align="center" className="justify-between">
-        <Row gap="field" align="center">
-          <Icon icon={Anchor} size="xs" />
-          <Text size="label" tone="muted">
-            Card sees you as {personaLabel(chat, personas, chat.anchorPersonaId)}
-          </Text>
-        </Row>
-        {chat.viewerIsHost ? (
-          <Menu>
-            <MenuTrigger
-              render={
-                <Button intent="ghost" size="sm">
-                  Re-pin
-                </Button>
-              }
-            />
-            <MenuPopup>
-              <MenuGroup>
-                <MenuGroupLabel>Your personas</MenuGroupLabel>
-                {personas.map((p) => (
-                  <MenuItem key={p.id} onClick={(): void => setAnchor.mutate({ chatId, personaId: p.id })}>
-                    {p.name}
-                  </MenuItem>
-                ))}
-              </MenuGroup>
-              {/* The verb permits ANY present human's persona; grouping by member is what makes that
-                  expressible without implying the host owns it. Empty in a solo room ⇒ no group renders. */}
-              {memberAnchors.length > 0 ? (
-                <MenuGroup>
-                  <MenuGroupLabel>Members' personas</MenuGroupLabel>
-                  {memberAnchors.map((option) => (
-                    <MenuItem key={option.personaId} onClick={(): void => setAnchor.mutate({ chatId, personaId: option.personaId })}>
-                      {option.name} ({option.member})
-                    </MenuItem>
-                  ))}
-                </MenuGroup>
-              ) : null}
-              <MenuSeparator />
-              {/* The verb's `personaId: null` arm had no affordance at all — a pin could be moved but never
-                  removed, though clearing it is what falls card {{user}} back to the live speaker. */}
-              <MenuItem onClick={(): void => setAnchor.mutate({ chatId, personaId: null })}>Clear pin</MenuItem>
-            </MenuPopup>
-          </Menu>
-        ) : null}
-      </Row>
+      <ChatAnchorRow chat={chat} personas={personas} />
 
       {/* THE BLAST RADIUS IS ON THE SURFACE, NOT IN A TOOLTIP (#2443, side-eye 2026-09-19). This button
           rewrites EVERY one of the viewer's own lines in the chat, however far back they go — a bulk
@@ -231,5 +184,62 @@ export function PersonaThisChatSection({ anchorId, idle }: PersonaThisChatSectio
         </Text>
       </Stack>
     </Section>
+  );
+}
+
+/** The card-pin line: who the card's `{{user}}` is in this chat, with the host-only re-pin. Shared by the
+ *  Settings section and the rail switcher, so the wording and the verb are one. */
+export function ChatAnchorRow({ chat, personas }: { readonly chat: ChatDetail; readonly personas: readonly PersonaListItem[] }): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const setAnchor = useSetChatAnchorPersona({ trpc, invalidation });
+  const chatId = chat.id;
+  const memberAnchors = memberAnchorOptions(chat);
+  return (
+    <Row gap="row" align="center" className="justify-between">
+      <Row gap="field" align="center">
+        <Icon icon={IdCard} size="xs" />
+        <Text size="label" tone="muted">
+          Card sees you as {personaLabel(chat, personas, chat.anchorPersonaId)}
+        </Text>
+      </Row>
+      {chat.viewerIsHost ? (
+        <Menu>
+          <MenuTrigger
+            render={
+              <Button intent="ghost" size="sm">
+                Re-pin
+              </Button>
+            }
+          />
+          <MenuPopup>
+            <MenuGroup>
+              <MenuGroupLabel>Your personas</MenuGroupLabel>
+              {personas.map((p) => (
+                <MenuItem key={p.id} onClick={(): void => setAnchor.mutate({ chatId, personaId: p.id })}>
+                  {p.name}
+                </MenuItem>
+              ))}
+            </MenuGroup>
+            {/* The verb permits ANY present human's persona; grouping by member is what makes that
+                expressible without implying the host owns it. Empty in a solo room ⇒ no group renders. */}
+            {memberAnchors.length > 0 ? (
+              <MenuGroup>
+                <MenuGroupLabel>Members' personas</MenuGroupLabel>
+                {memberAnchors.map((option) => (
+                  <MenuItem key={option.personaId} onClick={(): void => setAnchor.mutate({ chatId, personaId: option.personaId })}>
+                    {option.name} ({option.member})
+                  </MenuItem>
+                ))}
+              </MenuGroup>
+            ) : null}
+            <MenuSeparator />
+            {/* The verb's `personaId: null` arm had no affordance at all — a pin could be moved but never
+                removed, though clearing it is what falls card {{user}} back to the live speaker. */}
+            <MenuItem onClick={(): void => setAnchor.mutate({ chatId, personaId: null })}>Clear pin</MenuItem>
+          </MenuPopup>
+        </Menu>
+      ) : null}
+    </Row>
   );
 }

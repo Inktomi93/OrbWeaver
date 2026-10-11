@@ -373,3 +373,80 @@ test("a row's Edit door closes the popover and lands in that persona's open, foc
   await expect(editor).toBeVisible();
   await expect(editor).toBeFocused();
 });
+
+// ── The three persona states, one marker each ───────────────────────────────────────────────────────
+
+const ZARA = "persona_zara";
+
+/** The switch row holding the control named `persona` (its stretched button is the row's direct child). */
+function rowOf(page: Page, persona: string): Locator {
+  return page.getByRole("button", { name: new RegExp(`^(Switch to ${persona}|${persona} — current persona)$`) }).locator("..");
+}
+
+const PLAYING = "Playing as";
+const CARD_PIN = "Pinned to this chat";
+const DEFAULT_PIN = "Pinned — your default persona";
+
+test("after a swap the playing-as and card-pin markers sit on different rows, each state shown once", async ({ mount, page }) => {
+  // Nova is the global default; the chat opened as Lyra (the anchor) and was swapped to Orion for this room.
+  await stub(page, { "chat.getChat": () => ({ ...CHAT, viewerActivePersonaId: ORION, anchorPersonaId: LYRA }) });
+  await stubAuth(page);
+  await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
+  await openPopover(page);
+  await pickScope(page, "This chat");
+
+  await expect(rowOf(page, "Orion").getByRole("img", { name: PLAYING, exact: true })).toBeVisible();
+  await expect(rowOf(page, "Lyra").getByRole("img", { name: CARD_PIN, exact: true })).toBeVisible();
+  await expect(rowOf(page, "Nova").getByRole("button", { name: DEFAULT_PIN, pressed: true })).toBeVisible();
+  // One marker per state across the whole list, and none doubled onto a row that does not own the state.
+  await expect(page.getByRole("img", { name: PLAYING, exact: true })).toHaveCount(1);
+  await expect(page.getByRole("img", { name: CARD_PIN, exact: true })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: DEFAULT_PIN, pressed: true })).toHaveCount(1);
+  await expect(rowOf(page, "Orion").getByRole("img", { name: CARD_PIN, exact: true })).toHaveCount(0);
+  // The anchor is on your own row, so there is no separate room line.
+  await expect(page.getByText(/^Card sees you as/)).toHaveCount(0);
+});
+
+test("one persona can own playing-as and card-pin: both markers sit on that one row", async ({ mount, page }) => {
+  await stub(page, { "chat.getChat": () => CHAT });
+  await stubAuth(page);
+  await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
+  await openPopover(page);
+  await pickScope(page, "This chat");
+  const nova = rowOf(page, "Nova");
+  await expect(nova.getByRole("img", { name: PLAYING, exact: true })).toBeVisible();
+  await expect(nova.getByRole("img", { name: CARD_PIN, exact: true })).toBeVisible();
+  await expect(nova.getByRole("button", { name: DEFAULT_PIN, pressed: true })).toBeVisible();
+});
+
+const ROOM: TrpcFixtureOutput<"chat.getChat"> = {
+  ...CHAT,
+  anchorPersonaId: ZARA,
+  participants: [
+    { kind: "human", userId: "user_ct", displayName: "You", activePersonaId: NOVA, leftSeq: null },
+    { kind: "human", userId: "user_member", displayName: "Rowan", activePersonaId: ZARA, leftSeq: null },
+  ],
+  identities: [
+    ...PERSONAS.map((p) => ({ kind: "persona" as const, id: p.id, name: p.name, description: "", avatarHash: null })),
+    { kind: "persona", id: ZARA, name: "Zara", description: "", avatarHash: null },
+  ],
+};
+
+test("a member's persona as the card pin gets a room line, no row marker, and Re-pin only for the host", async ({ mount, page }) => {
+  await stub(page, { "chat.getChat": () => ROOM });
+  await stubAuth(page);
+  await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
+  await openPopover(page);
+  await expect(page.getByText("Card sees you as Zara")).toBeVisible();
+  await expect(page.getByRole("img", { name: CARD_PIN, exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Re-pin" })).toBeVisible();
+});
+
+test("a non-host sees the card-pin room line but no Re-pin", async ({ mount, page }) => {
+  await stub(page, { "chat.getChat": () => ({ ...ROOM, viewerIsHost: false }) });
+  await stubAuth(page);
+  await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
+  await openPopover(page);
+  await expect(page.getByText("Card sees you as Zara")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Re-pin" })).toHaveCount(0);
+});
