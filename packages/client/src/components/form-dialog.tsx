@@ -20,7 +20,7 @@
 
 import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
-import { Dialog, DialogClose, DialogDescription, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { DIALOG_SCROLL_CLASS, Dialog, DialogClose, DialogDescription, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Icon, X } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
@@ -119,7 +119,7 @@ export function FormDialog({
       >
         {/* The popup clamps to the viewport, so a tall body scrolls inside this Stack while the sticky footer
             stays visible on a phone. */}
-        <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="block">
+        <Stack className={`${DIALOG_SCROLL_CLASS} flex-1`} gap="block">
           <DialogTitle className={closeButton ? "pe-control-md" : ""}>{title}</DialogTitle>
           {description === undefined ? null : <DialogDescription>{description}</DialogDescription>}
           {submit === undefined ? (

@@ -13,7 +13,7 @@
 
 import { Button } from "@orb/ui/button";
 // @orb-waive dialog-via-composite(Dialog): the /join preview-to-confirm landing owns loading, invalid, and ready states rather than a form; ends if a flow composite owns those states.
-import { Dialog, DialogDescription, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { DIALOG_SCROLL_CLASS, Dialog, DialogDescription, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -103,7 +103,7 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
           }
         }}
       >
-        <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="block">
+        <Stack className={`${DIALOG_SCROLL_CLASS} flex-1`} gap="block">
           <DialogTitle>Join a chat</DialogTitle>
           {state.kind === "loading" ? <Text voice="quiet">Checking the invite…</Text> : null}
           {state.kind === "invalid" ? (

@@ -6,7 +6,7 @@
 import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
 // @orb-waive dialog-via-composite(Dialog): the shell's generic modal seam renders arbitrary registry-owned bodies and drawer presentation; ends if modal bodies gain a composite-owned species.
-import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { DIALOG_SCROLL_CLASS, Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Drawer, DrawerClose, DrawerPopup, DrawerTitle, DrawerVirtualKeyboardProvider } from "@orb/ui/drawer";
 import { Icon, X } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
@@ -183,7 +183,7 @@ function DialogModal({
   const isShellModal = def.size === "full" || def.size === "xl";
   // exactOptionalPropertyTypes: spread size only when set, never pass an explicit undefined.
   const sizeProp = def.size === undefined ? {} : { size: def.size };
-  const bodyClass = isShellModal ? "relative min-h-0 flex-1 overflow-y-auto overscroll-contain outline-none" : "relative min-h-0 overflow-y-auto outline-none";
+  const bodyClass = isShellModal ? `${DIALOG_SCROLL_CLASS} flex-1 outline-none` : `${DIALOG_SCROLL_CLASS} outline-none`;
   return (
     <Dialog open={true} onOpenChange={onOpenChange}>
       {/* OPENING FOCUS LANDS IN THE BODY, NOT ON CLOSE (side-eye 2026-08-16 ARIA rider). Base UI's default

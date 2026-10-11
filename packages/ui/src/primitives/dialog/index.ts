@@ -9,3 +9,4 @@ export {
   DialogTrigger,
 } from "./dialog.tsx";
 export { createDialogHandle } from "./handle.ts";
+export { DIALOG_SCROLL_CLASS } from "./variants.ts";

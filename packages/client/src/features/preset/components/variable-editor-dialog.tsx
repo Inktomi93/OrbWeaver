@@ -5,7 +5,7 @@
 import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 // @orb-waive dialog-via-composite(Dialog): this seven-field form needs a pinned title above its internally-scrolled dynamic body; ends when FormDialog supports that layout.
-import { Dialog, DialogClose, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { DIALOG_SCROLL_CLASS, Dialog, DialogClose, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -38,7 +38,7 @@ export function VariableEditorDialog({ form, index, onClose }: VariableEditorDia
     >
       <DialogPopup>
         <DialogTitle>Edit variable</DialogTitle>
-        <Stack gap="block" className="relative min-h-0 overflow-y-auto overscroll-contain">
+        <Stack gap="block" className={DIALOG_SCROLL_CLASS}>
           <form.AppField name={`variables[${index}].name`}>
             {(field): ReactElement => <field.TextField label="Name" description="The macro key — used as {{name}} in your prompt." />}
           </form.AppField>
