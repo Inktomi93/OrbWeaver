@@ -4,7 +4,7 @@
 import type { TagSuggestionView } from "@orb/contracts/tag";
 
 /** Tags the default-card seeder stamps on its own card; suggesting them back to the reader is noise. */
-export const INTERNAL_SEED_TAG_NAMES: ReadonlySet<string> = new Set(["assistant", "default", "utility"]);
+const INTERNAL_SEED_TAG_NAMES: ReadonlySet<string> = new Set(["assistant", "default", "utility"]);
 
 export interface SuggestionGroup {
   /** Normalized name shared by every row in the group. */
@@ -15,14 +15,14 @@ export interface SuggestionGroup {
 }
 
 /** Case, spacing and punctuation never make a different label: "Slice of Life" and "slice-of-life" are one. */
-export function normalizeTagName(name: string): string {
+function suggestionGroupKey(name: string): string {
   return name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
 }
 
 export function groupSuggestions(suggestions: readonly TagSuggestionView[]): readonly SuggestionGroup[] {
   const byKey = new Map<string, TagSuggestionView[]>();
   for (const suggestion of suggestions) {
-    const key = normalizeTagName(suggestion.name);
+    const key = suggestionGroupKey(suggestion.name);
     if (key === "" || INTERNAL_SEED_TAG_NAMES.has(key)) {
       continue;
     }
