@@ -40,6 +40,7 @@ import { alias } from "drizzle-orm/sqlite-core";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
 import type { AssetsContext } from "../../../../packages/server/src/domain/assets/context.ts";
+import { createLoadCoParticipantOwner } from "../../../../packages/server/src/entry/compose/co-participant-owner.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
@@ -112,61 +113,8 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
         .limit(1);
       return rows.length > 0;
     },
-    // roster-avatar reference-check, wired as the REAL query (mirrors the compose-root impl,
-    // `entry/compose/services.ts`) so the security property — a rostered character's OR a co-participant
-    // human's PERSONA avatar in a chat the caller is present in, NOT a bare hash oracle — is exercised
-    // against the real seeded DB, not a fake.
-    loadCoParticipantOwner: async (callerId: UserId, hash: string): Promise<UserId | undefined> => {
-      const rosterChar = alias(chatParticipants, "roster_char");
-      const callerSeat = alias(chatParticipants, "caller_seat");
-      const characterRows = await db
-        .select({ ownerId: assets.ownerId })
-        .from(assets)
-        .innerJoin(characters, eq(characters.avatarAssetId, assets.id))
-        .innerJoin(rosterChar, and(eq(rosterChar.characterId, characters.id), eq(rosterChar.kind, "character"), isNull(rosterChar.leftSeq)))
-        .innerJoin(callerSeat, and(eq(callerSeat.chatId, rosterChar.chatId), eq(callerSeat.userId, callerId), isNull(callerSeat.leftSeq)))
-        .where(eq(assets.hash, hash))
-        .limit(1);
-      if (characterRows[0] !== undefined) {
-        return characterRows[0].ownerId;
-      }
-
-      const personaSeat = alias(chatParticipants, "persona_seat");
-      const personaCallerSeat = alias(chatParticipants, "persona_caller_seat");
-      const personaRows = await db
-        .select({ ownerId: assets.ownerId })
-        .from(assets)
-        .innerJoin(personas, eq(personas.avatarAssetId, assets.id))
-        .innerJoin(personaSeat, and(eq(personaSeat.activePersonaId, personas.id), eq(personaSeat.kind, "human"), isNull(personaSeat.leftSeq)))
-        .innerJoin(
-          personaCallerSeat,
-          and(eq(personaCallerSeat.chatId, personaSeat.chatId), eq(personaCallerSeat.userId, callerId), isNull(personaCallerSeat.leftSeq)),
-        )
-        .where(eq(assets.hash, hash))
-        .limit(1);
-      if (personaRows[0] !== undefined) {
-        return personaRows[0].ownerId;
-      }
-
-      // Attachment arm (#67 co-participant render) — mirrors the compose-root impl: the hash is an asset
-      // referenced by a `message_assets` row for a message in a chat where BOTH the caller and the asset
-      // owner are present participants.
-      const attachOwnerSeat = alias(chatParticipants, "attach_owner_seat");
-      const attachCallerSeat = alias(chatParticipants, "attach_caller_seat");
-      const attachmentRows = await db
-        .select({ ownerId: assets.ownerId })
-        .from(assets)
-        .innerJoin(messageAssets, eq(messageAssets.assetId, assets.id))
-        .innerJoin(messages, eq(messages.id, messageAssets.messageId))
-        .innerJoin(attachCallerSeat, and(eq(attachCallerSeat.chatId, messages.chatId), eq(attachCallerSeat.userId, callerId), isNull(attachCallerSeat.leftSeq)))
-        .innerJoin(
-          attachOwnerSeat,
-          and(eq(attachOwnerSeat.chatId, messages.chatId), eq(attachOwnerSeat.userId, assets.ownerId), isNull(attachOwnerSeat.leftSeq)),
-        )
-        .where(eq(assets.hash, hash))
-        .limit(1);
-      return attachmentRows[0]?.ownerId;
-    },
+    // The production query itself, so a change to the shipped predicate is what these suites test.
+    loadCoParticipantOwner: createLoadCoParticipantOwner(db),
     // #67 co-participant RENDER resolver — mirrors the compose-root impl (`entry/compose/services.ts`) so the
     // structural gate (a `message_assets` reference IN `chatId` + owner present + caller present, NOT bare
     // membership) is exercised against the real seeded DB.

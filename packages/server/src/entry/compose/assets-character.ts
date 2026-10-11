@@ -15,14 +15,7 @@ import { DEFAULT_GUIDED_ACTIONS, SIDE_GEN_POSTURES } from "@orb/contracts/preset
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
-import {
-  assets as assetsTable,
-  characters as charactersTable,
-  chatParticipants,
-  messageAssets,
-  messages as messagesTable,
-  personas as personasTable,
-} from "@orb/db";
+import { assets as assetsTable, characters as charactersTable, chatParticipants, messageAssets, messages as messagesTable } from "@orb/db";
 import { readSeedAvatar, readSeedBackground, SEED_BACKGROUND_PLATES } from "@orb/default-content";
 import type { RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
 import { resolveSideGenSampling } from "@orb/inference";
@@ -52,6 +45,7 @@ import type { Cas, VariantCache } from "#infra/storage";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "../boot/index.ts";
 import { createDefaultPersonaSeeder } from "../boot/index.ts";
+import { createLoadCoParticipantOwner } from "./co-participant-owner.ts";
 import { createMaterializeBackground } from "./materialize-background.ts";
 import { minter } from "./minter.ts";
 
@@ -202,64 +196,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     // own persistence factory, not re-implemented here.
     linkCharacterAvatars: createLinkCharacterAvatars({ db, now }),
     assertCharacterOwned: characterOwned,
-    // Roster-avatar reference-check, not a hash→any-owner oracle. Returns an owner only if `hash` is the
-    // asset-hash of the `avatarAssetId` of either (a) a character currently rostered in a chat where
-    // `callerId` is a present member, or (b) a persona that is a present human participant's
-    // `activePersonaId` in a chat where `callerId` is also present (a co-participant's own persona avatar
-    // in a shared group chat). Returns `assets.ownerId` (the CAS bytes live in the asset owner's partition).
-    loadCoParticipantOwner: async (callerId, hash) => {
-      const rosterChar = alias(chatParticipants, "roster_char");
-      const callerSeat = alias(chatParticipants, "caller_seat");
-      const characterRows = await db
-        .select({ ownerId: assetsTable.ownerId })
-        .from(assetsTable)
-        .innerJoin(charactersTable, eq(charactersTable.avatarAssetId, assetsTable.id))
-        .innerJoin(rosterChar, and(eq(rosterChar.characterId, charactersTable.id), eq(rosterChar.kind, "character"), isNull(rosterChar.leftSeq)))
-        .innerJoin(callerSeat, and(eq(callerSeat.chatId, rosterChar.chatId), eq(callerSeat.userId, callerId), isNull(callerSeat.leftSeq)))
-        .where(eq(assetsTable.hash, hash))
-        .limit(1);
-      if (characterRows[0] !== undefined) {
-        return characterRows[0].ownerId;
-      }
-
-      const personaSeat = alias(chatParticipants, "persona_seat");
-      const personaCallerSeat = alias(chatParticipants, "persona_caller_seat");
-      const personaRows = await db
-        .select({ ownerId: assetsTable.ownerId })
-        .from(assetsTable)
-        .innerJoin(personasTable, eq(personasTable.avatarAssetId, assetsTable.id))
-        .innerJoin(personaSeat, and(eq(personaSeat.activePersonaId, personasTable.id), eq(personaSeat.kind, "human"), isNull(personaSeat.leftSeq)))
-        .innerJoin(
-          personaCallerSeat,
-          and(eq(personaCallerSeat.chatId, personaSeat.chatId), eq(personaCallerSeat.userId, callerId), isNull(personaCallerSeat.leftSeq)),
-        )
-        .where(eq(assetsTable.hash, hash))
-        .limit(1);
-      if (personaRows[0] !== undefined) {
-        return personaRows[0].ownerId;
-      }
-
-      // Attachment arm: the hash is an asset structurally referenced by a message_assets row for a message
-      // in a chat where both the caller and the asset's owner are present participants.
-      const attachOwnerSeat = alias(chatParticipants, "attach_owner_seat");
-      const attachCallerSeat = alias(chatParticipants, "attach_caller_seat");
-      const attachmentRows = await db
-        .select({ ownerId: assetsTable.ownerId })
-        .from(assetsTable)
-        .innerJoin(messageAssets, eq(messageAssets.assetId, assetsTable.id))
-        .innerJoin(messagesTable, eq(messagesTable.id, messageAssets.messageId))
-        .innerJoin(
-          attachCallerSeat,
-          and(eq(attachCallerSeat.chatId, messagesTable.chatId), eq(attachCallerSeat.userId, callerId), isNull(attachCallerSeat.leftSeq)),
-        )
-        .innerJoin(
-          attachOwnerSeat,
-          and(eq(attachOwnerSeat.chatId, messagesTable.chatId), eq(attachOwnerSeat.userId, assetsTable.ownerId), isNull(attachOwnerSeat.leftSeq)),
-        )
-        .where(eq(assetsTable.hash, hash))
-        .limit(1);
-      return attachmentRows[0]?.ownerId;
-    },
+    loadCoParticipantOwner: createLoadCoParticipantOwner(db),
     // Chat-scoped resolver a present viewer uses to render inline attachments: a pair is returned only
     // when the asset has a message_assets row for a message in `chatId` AND both owner and caller are
     // present participants. Membership alone is not sufficient — the message_assets FK is the reference.
