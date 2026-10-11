@@ -50,6 +50,7 @@ function detailFor(viewerUserId: UserId, participants: readonly ParticipantView[
     viewerUserId,
     viewerHistoryFloorSeq: 0,
     viewerOwnedCharacterIds: [],
+    anchorState: "none",
   });
 }
 

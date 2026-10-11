@@ -38,7 +38,7 @@ describe("remove", () => {
 
     const result = await svc.remove({ principal: principal(owner), personaId: created.id });
 
-    expect(result).toEqual({ deleted: true });
+    expect(result).toEqual({ deleted: true, newDefaultPersonaId: null });
     expect(await db.select().from(personas).where(eq(personas.id, created.id))).toHaveLength(0);
     expect(await db.select().from(characterPersonas).where(eq(characterPersonas.personaId, created.id))).toHaveLength(0);
     expect(h.audits.map((a) => a.entry.action)).toContain("persona.remove");
@@ -104,6 +104,7 @@ describe("remove", () => {
     await svc.create({ principal: principal(owner), input: { name: "Spare", description: "x" } });
     await expect(svc.remove({ principal: principal(owner), personaId: only.id })).resolves.toEqual({
       deleted: true,
+      newDefaultPersonaId: null,
     });
   });
 

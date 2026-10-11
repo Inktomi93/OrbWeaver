@@ -126,7 +126,7 @@ const UTILITY_ROW = connectionRow({
   tasks: ["chat", "summarize", "structured"],
 });
 /** A chat row on the user's OWN SERVER — the only fixture with a host to name, which is what the blocked
- *  readout's §5.3a sentence ("can't reach {host}.") is derived from. */
+ *  readout's §5.3a sentence ("can't reach `{host}`.") is derived from. */
 const LOCAL_CHAT_ROW = connectionRow({
   id: LOCAL_CHAT_CONNECTION_ID,
   label: "Local chat",

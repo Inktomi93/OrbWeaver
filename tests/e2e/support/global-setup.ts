@@ -130,7 +130,7 @@ interface SeededConnection {
 /** The row to author, with its model resolved the way the PANE resolves one (§7.4): ask the endpoint's own
  *  `/v1/models` server-side, take the first id it lists, else write the declared fallback with
  *  no model check — the product's typed-id arm, not a fabrication. The non-live suite is model-free and
- *  only needs the row + binding to exist, so a fleet that is down must not abort the whole run; a @live spec
+ *  only needs the row + binding to exist, so a fleet that is down must not abort the whole run; a `@live` spec
  *  against a down fleet fails on its own turn, where it belongs. Called ONLY when the row is missing, so a
  *  re-run against a surviving DB costs no dial. */
 async function engineConnectionInput(baseUrl: string): Promise<NewConnection> {
@@ -159,7 +159,7 @@ async function engineConnectionInput(baseUrl: string): Promise<NewConnection> {
  * WHY A CONNECTION AND NOT A SETTINGS PATCH: `routing` left `USER_SETTINGS_SECTIONS` with the inference
  * program — a per-task model pick is a `connection_bindings` row pointing at a `user_connections` row
  * (§3.2/§7.1), and there are NO defaults (§7.2), so a stack with no connection reads `no-connection` on
- * every task. This step is what makes a @live turn possible at all.
+ * every task. This step is what makes a `@live` turn possible at all.
  *
  * IDEMPOTENT BY LOOKUP, NOT BY REFUSAL: `connection.create` collision-suffixes a duplicate `(owner, label)`
  * (`mintLabel`) instead of refusing it, so a second run against a surviving DB would mint
@@ -206,7 +206,7 @@ async function pinChatConnection(baseUrl: string, fixtureBaseUrl?: string): Prom
 /** LOCAL mode: shell the dev multi-user seed against THIS stack's backend origin (the owner-fallback seam
  *  admits a LOOPBACK-PEER request — #298 f2 — so it hits 127.0.0.1 directly). Single source of truth for the
  *  seed sequence —
- *  resetPassword(owner) → updateAppSettings{localMultiUser:true} → createUser(member) → verify. */
+ *  resetPassword(owner) → updateAppSettings(`{ localMultiUser: true }`) → createUser(member) → verify. */
 function seedMultiUser(mode: ModeProject): void {
   // node runs the tool's source directly (type stripping); the tsx hop this used to take was launcher rot.
   execFileSync(process.execPath, ["tooling/src/seed/cli.ts", "multi-user"], {
@@ -389,7 +389,7 @@ async function warmMode(browser: Browser, mode: ModeProject, reportDir: string):
 
 /** Warm every booted mode in parallel (separate stacks ⇒ separate vite processes ⇒ no contention beyond CPU,
  *  and serialising them would just re-add the wall-clock this whole step exists to remove). */
-async function warmClients(modes: readonly ModeProject[], reportDir: string = WARMUP_REPORT_DIR): Promise<void> {
+export async function __warmClientsForTest(modes: readonly ModeProject[], reportDir: string = WARMUP_REPORT_DIR): Promise<void> {
   const browser = await chromium.launch();
   try {
     const outcomes = await Promise.allSettled(modes.map((mode) => warmMode(browser, mode, reportDir)));
@@ -404,8 +404,6 @@ async function warmClients(modes: readonly ModeProject[], reportDir: string = WA
     await browser.close();
   }
 }
-
-export { warmClients as __warmClientsForTest };
 
 /** Playwright `globalSetup` — runs once, after the webServers are up, before the first spec. Seeds EVERY
  *  mode-project's stack that actually BOOTED (a `--project=<name>`-scoped run boots only that project's
@@ -431,7 +429,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     await Promise.all(booted.map(({ mode }) => seedMode(mode, fixture?.baseUrl)));
     // AFTER the seed, never before: the `room` warm pass opens a chat from the list, which only exists once
     // `ensureChat` has run.
-    await warmClients(booted.map(({ mode }) => mode));
+    await __warmClientsForTest(booted.map(({ mode }) => mode));
   } catch (error) {
     await fixture?.close();
     throw error;

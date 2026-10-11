@@ -8,6 +8,7 @@ import type { ServerResponse } from "node:http";
 import { createServer } from "node:http";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { lastAppSettingsPartial } from "../../../../support/node/last-settings-patch.ts";
 import { isOrbSocketRequest } from "../../../../support/node/route-orb-socket.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
@@ -34,10 +35,6 @@ function stub(page: Page, overrides: Partial<AppSettingsOverrides> = {}): Promis
     "stream.attach": () => undefined,
     "stream.detach": () => undefined,
   });
-}
-
-function lastPartial(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  return trpc.lastInput(UPDATE_PROC)?.partial;
 }
 
 const socketCleanupByPage = new Map<Page, () => Promise<void>>();
@@ -522,7 +519,7 @@ test("toggling the indexer patches EXACTLY that key", async ({ mount, page }) =>
   await mount(<OperationsSectionStory />);
 
   await page.getByRole("switch", { name: "Background corpus indexing" }).click();
-  await expect.poll(() => lastPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ corpusAutoindex: true });
+  await expect.poll(() => lastAppSettingsPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ corpusAutoindex: true });
 });
 
 test("picking a log level patches EXACTLY that key", async ({ mount, page }) => {
@@ -531,7 +528,7 @@ test("picking a log level patches EXACTLY that key", async ({ mount, page }) => 
 
   await page.getByRole("combobox", { name: "Log level" }).click();
   await page.getByRole("option", { name: "Debug" }).click();
-  await expect.poll(() => lastPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ logLevel: "debug" });
+  await expect.poll(() => lastAppSettingsPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ logLevel: "debug" });
 });
 
 test("Reset appears only with an override and clears both of this section's keys", async ({ mount, page }) => {
@@ -540,5 +537,5 @@ test("Reset appears only with an override and clears both of this section's keys
 
   await expect(page.getByText("Overridden. Reset to fall back to this deployment's default.")).toBeVisible();
   await page.getByRole("button", { name: "Reset to defaults" }).click();
-  await expect.poll(() => lastPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ corpusAutoindex: null, logLevel: null });
+  await expect.poll(() => lastAppSettingsPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ corpusAutoindex: null, logLevel: null });
 });

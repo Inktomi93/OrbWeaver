@@ -144,7 +144,7 @@ export const gate = defineGate({
   severity: "error",
   // `packages/**` only, exactly as legacy scanned. The sanctioned join sites are SCANNED, never scoped out:
   // the only exemption is a cited row, so a moved or renamed home reds instead of carrying its sanction.
-  population: "@product",
+  population: { in: ["@product", "@tests"] },
   analysis: "types",
   execution: "selected-files",
   facts: [],
@@ -234,6 +234,18 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "CANNOT be established" },
       why: "THE FAIL-CLOSED THIRD ANSWER (§5b.1, #2194), reached by no row and by no tree before it: an OPAQUE receiver resolves NO property symbol, so `resolveTypeMemberOrigin` refuses and the read is REPORTED under the UNREADABLE text rather than passed. The `messageIncludes` is the whole row — the unreadable arm emits exactly ONE finding, the same as the ordinary verdict, so a bare `count: 1` would pass whether the arm fires or is unreachable, which is precisely how the declared message sat dead here",
     },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.d.ts":
+          "export interface ZodError {\n  readonly issues: readonly { readonly path: readonly string[]; readonly message: string }[];\n}\n",
+        "packages/contracts/src/anchor.ts": "export const use = (): number => 1;\n",
+        "tests/contracts/x.test.ts":
+          'import type { ZodError } from "zod";\nexport function refuse(parsed: { error: ZodError }): string {\n  return parsed.error.issues.map((issue) => issue.message).join("; ");\n}\n',
+      },
+      expect: { count: 1, token: ISSUES },
+      why: "THE TEST-PATH ARM: a hand-flattened zod `issues` read under `tests/**` is judged like product code, so a test asserts a refusal through `z.prettifyError` rather than teaching the path-dropping spelling",
+    },
   ],
   mustPass: [
     {
@@ -296,6 +308,17 @@ export const gate = defineGate({
           'import type { ZodError } from "zod";\nexport function summarize(parsed: { error: ZodError }): string {\n  const failure = parsed.error;\n  const { message } = failure;\n  return message;\n}\n',
       },
       why: "the destructured twin of the clause above (`property !== ISSUES` in `classifyIssuesDestructure`), which is a SEPARATE test in a separate function: the binding resolves to a zod-declared member, so `declaredByZod` says yes, and only the property-name comparison rejects it. Cut that comparison and this row flags — the member-read cut beside it leaves this row green, so the two clauses are pinned by disjoint rows",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.d.ts":
+          "export interface ZodError {\n  readonly issues: readonly { readonly path: readonly string[]; readonly message: string }[];\n}\n",
+        "packages/contracts/src/anchor.ts": "export const use = (): number => 1;\n",
+        "tests/contracts/x.test.ts":
+          'import type { ZodError } from "zod";\nexport function refuse(parsed: { error: ZodError }): number {\n  return parsed.error.name.length;\n}\n',
+      },
+      why: "the pass control of the test-path arm: a test that reads another `ZodError` member is clean, so the arm flags the `issues` read and not the directory",
     },
   ],
 });

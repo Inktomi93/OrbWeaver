@@ -1526,34 +1526,38 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     expect(chatRow?.pendingHostUserId).toBeNull();
   });
 
-  // F2 (stickler 2026-08-03) — the D51 anchor is the room's stable `{{user}}` POV, and `chats.anchorPersonaId`
-  // is resolved under the HOST's principal (owner-scoped `persona.get`). A handoff moves the host, so an anchor
-  // the NEW host cannot read becomes a dead id: the POV silently falls through to the speaker's active persona
-  // while the knob keeps serving an unreadable id (`ChatDetail.anchorPersonaId`) and `exportChat` still reads
-  // its NAME by id. The heal is the `resolveForkGmPreset` twin — null it IN THE SWAP BATCH, conditional on
-  // readability, so the null-anchor→active fallback takes over honestly.
-  test("an anchor persona the new host cannot read is NULLED in the swap batch", async () => {
+  // A handoff never moves the pin: the old host stays a member, and a pin whose owner left or is disabled
+  // holds (item 885), so the card keeps meaning the same persona under the new host.
+  test("a pin whose owner LEFT, or whose owner's account is disabled, holds through the handoff", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const member = await seedUser(db, castId<Handle>("member"));
-    const anchor = await seedPersona(db, host, "hostpov");
-    const chatId = await seedChat(db, "a", { anchorPersonaId: anchor });
-    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
-    const notes: NotificationEvent[] = [];
-    const participants = createParticipants(makeChatContext(db, { emitNotification: recordingEmit(notes) }), { emit, claimChat: noClaim });
-    await participants.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
+    const gone = await seedUser(db, castId<Handle>("gone"));
+    const off = await seedUser(db, castId<Handle>("off"));
+    const gonePin = await seedPersona(db, gone, "gonepov");
+    const offPin = await seedPersona(db, off, "offpov");
+    const leftRoom = await seedChat(db, "left", { anchorPersonaId: gonePin });
+    const offRoom = await seedChat(db, "off", { anchorPersonaId: offPin });
+    for (const chatId of [leftRoom, offRoom]) {
+      await seedParticipant(db, { chatId, key: `h-${chatId}`, userId: host, role: "host" });
+      await seedParticipant(db, { chatId, key: `m-${chatId}`, userId: member, role: "member" });
+    }
+    await seedParticipant(db, { chatId: leftRoom, key: "g", userId: gone, role: "member", leftSeq: 0 });
+    await seedParticipant(db, { chatId: offRoom, key: "o", userId: off, role: "member" });
+    const ctx = makeChatContext(db, { emitNotification: recordingEmit([]), resolveUserEnabled: (userId) => Promise.resolve(userId !== off) });
+    const participants = createParticipants(ctx, { emit, claimChat: noClaim });
 
-    await participants.acceptHostHandoff({ principal: principal(member), chatId });
+    for (const chatId of [leftRoom, offRoom]) {
+      await participants.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
+      await participants.acceptHostHandoff({ principal: principal(member), chatId });
+    }
 
-    const [chatRow] = await db.select().from(chats).where(eq(chats.id, chatId));
-    expect(chatRow?.anchorPersonaId).toBeNull();
-    // The heal rides the SAME batch as the swap — never a second write that a crash could skip.
-    expect(chatRow?.pendingHostUserId).toBeNull();
-    const rows = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId));
-    expect(rows.find((r) => r.userId === member)?.role).toBe("host");
+    const [leftRow] = await db.select().from(chats).where(eq(chats.id, leftRoom));
+    const [offRow] = await db.select().from(chats).where(eq(chats.id, offRoom));
+    expect(leftRow?.anchorPersonaId).toBe(gonePin);
+    expect(offRow?.anchorPersonaId).toBe(offPin);
   });
 
-  test("an anchor persona the NOMINEE owns survives the handoff (the POV is still readable)", async () => {
+  test("an anchor persona the NOMINEE owns survives the handoff", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const member = await seedUser(db, castId<Handle>("member"));
     // The room was already anchored on the nominee's own persona (the verb permits any present human's) —
@@ -1570,6 +1574,26 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
 
     const [chatRow] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(chatRow?.anchorPersonaId).toBe(anchor);
+  });
+
+  test("an anchor the OLD host owns survives the handoff while the old host stays present and enabled", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
+    const anchor = await seedPersona(db, host, "hostpov");
+    const chatId = await seedChat(db, "a", { anchorPersonaId: anchor });
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const participants = createParticipants(makeChatContext(db, { emitNotification: recordingEmit([]) }), { emit, claimChat: noClaim });
+    await participants.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
+
+    await participants.acceptHostHandoff({ principal: principal(member), chatId });
+
+    const [chatRow] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(chatRow?.anchorPersonaId).toBe(anchor);
+    // The swap still lands in the same batch.
+    expect(chatRow?.pendingHostUserId).toBeNull();
+    const rows = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId));
+    expect(rows.find((r) => r.userId === member)?.role).toBe("host");
   });
 
   test("a nominee who owns EVERY seated character keeps every character seat on handoff", async () => {
@@ -1680,7 +1704,6 @@ describe("audit wiring — the membership/config mutations write best-effort aud
     const accepted = (await db.select().from(auditLogs).where(eq(auditLogs.action, "chat.acceptHostHandoff")))[0];
     expect(accepted?.metadata).toEqual({
       previousHostUserId: host,
-      healedAnchorPersona: false,
       healedGmPreset: false,
       copiedCards: 0,
       droppedSeats: 0,

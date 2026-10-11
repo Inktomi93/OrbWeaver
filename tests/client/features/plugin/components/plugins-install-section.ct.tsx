@@ -36,6 +36,7 @@ import { strToU8, unzipSync, zipSync } from "fflate";
 import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
+import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { PluginsErrorToastStory, PluginsSurfaceStory, SnippetConsoleStory } from "../_ct-stories.tsx";
 
 /** The `FileTrigger`'s own hidden input — the UPGRADE feeder on an installed row (a different primitive
@@ -255,6 +256,7 @@ test("a selected plugin folder reaches shared consent and installs the packed bu
     netHosts: null,
   });
   const recorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => (installed ? [oracleRow] : []),
     "plugin.install": () => {
       installed = true;
@@ -285,6 +287,7 @@ test("a selected plugin folder reaches shared consent and installs the packed bu
 test("installing from Git discloses arbitrary code, previews through the server, and uses the shared consent", async ({ mount, page }) => {
   let installed = false;
   const recorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => (installed ? [GIT_ROW] : []),
     "plugin.previewFromGit": () => ({ manifest: GIT_MANIFEST, sourceCommit: GIT_ROW.sourceCommit }),
     "plugin.installFromGit": () => {
@@ -327,6 +330,7 @@ test("the latest Git preview owns consent after both batched previews settle", a
   const urlPreview = trpcHold();
   const gitPreview = trpcHold();
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [],
     "plugin.previewFromGit": gitPreview,
     "plugin.previewFromUrl": urlPreview,
@@ -371,6 +375,7 @@ test("a stale preview settlement keeps every door locked until the latest previe
   const urlPreview = trpcHold();
   const gitPreview = trpcHold();
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [],
     "plugin.previewFromGit": gitPreview,
     "plugin.previewFromUrl": urlPreview,
@@ -404,6 +409,7 @@ test("a stale preview settlement keeps every door locked until the latest previe
 test("a queued folder selection supersedes a late URL preview", async ({ mount, page }) => {
   const urlPreview = trpcHold();
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [],
     "plugin.previewFromUrl": urlPreview,
     "plugin.listSurfaces": () => [],
@@ -429,6 +435,7 @@ test("a held install retains its source and locks Cancel until settlement", asyn
   const install = trpcHold();
   const server: { installed: boolean } = { installed: false };
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => (server.installed ? [INSTALLED_ROW] : []),
     "plugin.install": install,
     "plugin.listSurfaces": () => [],
@@ -449,7 +456,12 @@ test("a held install retains its source and locks Cancel until settlement", asyn
 
 test("a malformed folder reports its own local error beside the folder door", async ({ mount, page }) => {
   writeFileSync(join(MALFORMED_FOLDER_ROOT, "main.js"), "export function activate() {}\n");
-  await routeTrpc(page, { "plugin.list": () => [], "plugin.listSurfaces": () => [], "sessions.me": () => USER_VIEWER });
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
+    "plugin.list": () => [],
+    "plugin.listSurfaces": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
   await mount(<PluginsSurfaceStory />);
   const folderDoor = page.locator('[data-slot="file-dropzone"]').filter({
     has: page.getByRole("button", { name: "Choose an unpacked plugin folder", exact: true }),
@@ -462,7 +474,12 @@ test("a malformed folder reports its own local error beside the folder door", as
 });
 
 test("the grant screen names every declared permission, its consequence, and the exact hosts it can reach", async ({ mount, page }) => {
-  await routeTrpc(page, { "plugin.list": () => [], "plugin.listSurfaces": () => [], "sessions.me": () => USER_VIEWER });
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
+    "plugin.list": () => [],
+    "plugin.listSurfaces": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
   await mount(<PluginsSurfaceStory />);
 
   await expect(page.getByText("Nothing installed yet.", { exact: false })).toBeVisible();
@@ -494,6 +511,7 @@ test("the grant screen names every declared permission, its consequence, and the
 
 test("a known duplicate source cannot install again and honestly opens the installed plugins section", async ({ mount, page }) => {
   const recorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [INSTALLED_ROW],
     "plugin.listSurfaces": () => [],
     "sessions.me": () => USER_VIEWER,
@@ -511,7 +529,12 @@ test("a known duplicate source cannot install again and honestly opens the insta
 });
 
 test("text fetch and image download disclose their separate hourly floors and shared host reach", async ({ mount, page }) => {
-  await routeTrpc(page, { "plugin.list": () => [], "plugin.listSurfaces": () => [], "sessions.me": () => USER_VIEWER });
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
+    "plugin.list": () => [],
+    "plugin.listSurfaces": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
   await mount(<PluginsSurfaceStory />);
   await pickBundle(page, {
     id: "image-collector",
@@ -532,7 +555,12 @@ test("text fetch and image download disclose their separate hourly floors and sh
 });
 
 test("search.query consent names hosted embedding spend before a plugin can be installed", async ({ mount, page }) => {
-  await routeTrpc(page, { "plugin.list": () => [], "plugin.listSurfaces": () => [], "sessions.me": () => USER_VIEWER });
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
+    "plugin.list": () => [],
+    "plugin.listSurfaces": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
   await mount(<PluginsSurfaceStory />);
   await pickBundle(page, {
     id: "library-reader",
@@ -554,7 +582,12 @@ test("the grant screen shows the owner-ruled ui.frame consent line verbatim, nam
   // A consent artifact, not tunable copy: frames relay host calls, so the line must say a frame can use this
   // plugin's other granted data and send it out over a channel no policy closes. Pinned whole, so a softened
   // edit goes red here.
-  await routeTrpc(page, { "plugin.list": () => [], "plugin.listSurfaces": () => [], "sessions.me": () => USER_VIEWER });
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
+    "plugin.list": () => [],
+    "plugin.listSurfaces": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
   await mount(<PluginsSurfaceStory />);
   await pickBundle(page, {
     id: "frame-plugin",
@@ -579,7 +612,12 @@ test("the grant screen shows the owner-ruled ui.frame consent line verbatim, nam
 test("the grant screen shows the ui.surface consent line when a plugin declares its own surfaces (#679 U0)", async ({ mount, page }) => {
   // THE U0 DONE-CRITERIA: a plugin declaring `ui.surface` reaches the consent screen with the new line, in the
   // person's own words — the whole point of landing the capability member ahead of its rendering surface (U1).
-  await routeTrpc(page, { "plugin.list": () => [], "plugin.listSurfaces": () => [], "sessions.me": () => USER_VIEWER });
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
+    "plugin.list": () => [],
+    "plugin.listSurfaces": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
   await mount(<PluginsSurfaceStory />);
   await pickBundle(page, {
     id: "panel-plugin",
@@ -616,6 +654,7 @@ test("#1855: the consent list is read-only and Install grants the FULL declared 
   // appearing after the write's own invalidate — rather than on a toast or an in-flight flash.
   let installed = false;
   const recorder: TrpcRecorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => (installed ? [pluginRow({ grantedCapabilities: WEATHER_MANIFEST.capabilities })] : []),
     "plugin.install": () => {
       installed = true;
@@ -651,7 +690,12 @@ test("#1855: the consent list is read-only and Install grants the FULL declared 
 });
 
 test("a bundle that is not a plugin is refused with a reason, before anything is uploaded", async ({ mount, page }) => {
-  const recorder = await routeTrpc(page, { "plugin.list": () => [], "plugin.listSurfaces": () => [], "sessions.me": () => USER_VIEWER });
+  const recorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
+    "plugin.list": () => [],
+    "plugin.listSurfaces": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
   await mount(<PluginsSurfaceStory />);
 
   await page.getByRole("button", { name: "Choose a plugin bundle", exact: true }).setInputFiles({
@@ -672,6 +716,7 @@ test("installing from a URL previews the manifest on the server, shows the SAME 
   // from it. The list read is stateful so the barrier is the SETTLED installed row, not a flash.
   let installed = false;
   const recorder: TrpcRecorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => (installed ? [INSTALLED_ROW] : []),
     "plugin.previewFromUrl": () => ({ manifest: WEATHER_MANIFEST, bundleHash: REVIEWED_BUNDLE_HASH }),
     "plugin.installFromUrl": () => {
@@ -731,6 +776,7 @@ test("a changed URL bundle keeps the consent screen open and succeeds only after
   let currentHash = REVIEWED_BUNDLE_HASH;
   let installed = false;
   const recorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => (installed ? [INSTALLED_ROW] : []),
     "plugin.previewFromUrl": () => ({ manifest: WEATHER_MANIFEST, bundleHash: currentHash }),
     "plugin.installFromUrl": ({ expectedBundleHash }) => {
@@ -769,6 +815,7 @@ test("an unreachable or blocked URL shows one leak-free line, and never forwards
   // surface becomes an SSRF oracle. The server's own error is leak-free-but-detailed (it names the reason
   // band); the client collapses EVERY preview failure to one fixed line and never forwards `error.message`.
   const recorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [],
     "plugin.previewFromUrl": () =>
       trpcError({
@@ -798,6 +845,7 @@ test("an installed plugin says whether it is on and what it is allowed to do", a
   // Stateful so the settled toggle can be checked after the optimistic paint and the actual write.
   let enabled = false;
   const recorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [{ ...INSTALLED_ROW, status: enabled ? "enabled" : "disabled" }],
     "plugin.setEnabled": () => {
       enabled = true;
@@ -838,6 +886,7 @@ test("a same-task repeat admits one enable write, owns only its plugin row, and 
   const held = trpcHold();
   const siblingRow = { ...INSTALLED_ROW, id: "plugin_ct0000000000000000002", name: "Rain Teller", slug: "rain-teller" };
   const recorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [INSTALLED_ROW, siblingRow],
     "plugin.setEnabled": held,
     "plugin.getLog": () => [],
@@ -895,6 +944,7 @@ test("an upgrade that WIDENS reach says exactly what widened, and Allow closes t
   // own settled truth after the confirm, never faked client-side.
   const allowedRow = pluginRow({ ...upgradedRow, grantedCapabilities: upgradedRow.declaredCapabilities, reconsentPending: false, widenedNetHosts: [] });
   const recorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => {
       if (!upgraded) {
         return [INSTALLED_ROW];
@@ -1051,6 +1101,7 @@ test("#1855: a two-capability re-consent counts both, offers no partial path, an
     widenedNetHosts: [],
   });
   const recorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => {
       if (!upgraded) {
         return [INSTALLED_ROW];
@@ -1120,6 +1171,7 @@ test("url plugin one-click update; a widening one lands disabled pending re-cons
   // silent. The list is stateful so the barrier is the SETTLED widened row, not an in-flight flash.
   let upgraded = false;
   const recorder: TrpcRecorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [upgraded ? URL_WIDENED_ROW : URL_INSTALLED_ROW],
     "plugin.checkForUpdates": () => [
       { pluginId: URL_INSTALLED_ROW.id, status: "update-available", source: "url", newVersion: "2.0.0", bundleHash: UPDATE_BUNDLE_HASH },
@@ -1163,6 +1215,7 @@ test("a DIVERGED seeded showcase plugin offers the same one-click, served by the
   // what decides which verb the click fires. The list is stateful so the barrier is the SETTLED upgraded row.
   let upgraded = false;
   const recorder: TrpcRecorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [upgraded ? SHOWCASE_UPGRADED_ROW : SHOWCASE_ROW],
     "plugin.checkForUpdates": () => [{ pluginId: SHOWCASE_ROW.id, status: "update-available", source: "showcase", newVersion: "1.2.0" }],
     "plugin.upgradeFromShowcase": () => {
@@ -1198,6 +1251,7 @@ test("a DIVERGED seeded showcase plugin offers the same one-click, served by the
 test("a Git plugin names the remote commit and upgrades through its stored repository", async ({ mount, page }) => {
   let upgraded = false;
   const recorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [upgraded ? GIT_UPGRADED_ROW : GIT_ROW],
     "plugin.checkForUpdates": () => [{ pluginId: GIT_ROW.id, status: "source-changed", sourceCommit: GIT_UPGRADED_ROW.sourceCommit }],
     "plugin.upgradeFromStoredGit": () => {
@@ -1226,6 +1280,7 @@ test("a Git plugin names the remote commit and upgrades through its stored repos
 
 test("an up-to-date url plugin says so; a file plugin offers no update check (U8 2b)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     // A url plugin (checkable) beside a file plugin (INSTALLED_ROW, origin "upload" — no remembered source).
     "plugin.list": () => [URL_INSTALLED_ROW, INSTALLED_ROW],
     "plugin.checkForUpdates": () => [{ pluginId: URL_INSTALLED_ROW.id, status: "up-to-date" }],
@@ -1265,7 +1320,13 @@ test("at a phone-width pane the LONG status badge never collides with the row's 
   // fix is a wrap-capable name row + the header stacking its controls below the identity at @max-md — so
   // the pin is geometric: the badge's box is disjoint from the toggle's AND the Update button's, and it
   // stays inside the pane.
-  await routeTrpc(page, { "plugin.list": () => [PENDING_ROW], "plugin.getLog": () => [], "plugin.listSurfaces": () => [], "sessions.me": () => USER_VIEWER });
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
+    "plugin.list": () => [PENDING_ROW],
+    "plugin.getLog": () => [],
+    "plugin.listSurfaces": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
   await mount(<PluginsSurfaceStory width={390} />);
 
   const badge = page.getByText("Off — asked for more than you allowed");
@@ -1298,7 +1359,13 @@ test("a plugin switched ON with nothing granted says so on its status badge (own
   // least-privilege posture working as designed, but "I turned it on and nothing happened" needed an answer
   // on the row itself.
   const inertRow = pluginRow({ status: "enabled", declaredCapabilities: ["chat.read"], grantedCapabilities: [], netHosts: null });
-  await routeTrpc(page, { "plugin.list": () => [inertRow], "plugin.getLog": () => [], "plugin.listSurfaces": () => [], "sessions.me": () => USER_VIEWER });
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
+    "plugin.list": () => [inertRow],
+    "plugin.getLog": () => [],
+    "plugin.listSurfaces": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
   await mount(<PluginsSurfaceStory />);
 
   await expect(page.getByText("On — nothing granted yet")).toBeVisible();
@@ -1315,6 +1382,7 @@ test.describe("coarse pointer — the disclosure triggers meet the touch floor (
   test("both plugin-row disclosures are reachable with a finger", async ({ mount, page }) => {
     await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     await routeTrpc(page, {
+      "settings.getUserSettings": () => userSettingsView(),
       "plugin.list": () => [INSTALLED_ROW],
       "plugin.getLog": () => [],
       "plugin.listSurfaces": () => [],
@@ -1351,6 +1419,7 @@ test.describe("coarse pointer — the disclosure triggers meet the touch floor (
 // target that does nothing, and the words carry no pointer cursor — the rendered tell #650 P1-3 is about.
 test("a consent row's box leads its own words, and the words advertise no target (P2-2)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [],
     "plugin.getLog": () => [],
     "plugin.listSurfaces": () => [],
@@ -1407,6 +1476,7 @@ test("a consent row's box leads its own words, and the words advertise no target
 // smaller assertion as drift.
 test("a re-consent row's checkbox name is exactly its label, with no badge run-on (P3-5)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.list": () => [PENDING_ROW],
     "plugin.getLog": () => [],
     "plugin.listSurfaces": () => [],
@@ -1437,6 +1507,7 @@ test("a re-consent row's checkbox name is exactly its label, with no badge run-o
 
 test("the snippet console shows what a run logged, and shows a contained failure instead of hanging", async ({ mount, page }) => {
   const recorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.runSnippet": () => ({ logLines: ["3 messages"], error: "TypeError: host.nope is not a function" }),
   });
   await mount(<SnippetConsoleStory chatId={CHAT} />);
@@ -1458,6 +1529,7 @@ test("a fresh console's shipped starter is code that can actually run — no top
   // the SENT source is real, runnable code by construction: the textarea is untouched, Run is clicked, and
   // the responder proves the exact source that would reach the sandbox on a fresh console's FIRST press.
   const recorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.runSnippet": () => ({ logLines: ["5 messages"] }),
   });
   await mount(<SnippetConsoleStory chatId={CHAT} />);
@@ -1482,6 +1554,7 @@ test("a parse failure says it never ran, with the line — never the empty-log l
   // logged nothing." and the raw engine message — a caption that is a lie for a snippet that never started
   // executing. This drives the deliberately-broken-snippet arm and pins the copy no longer says that.
   await routeTrpc(page, {
+    "settings.getUserSettings": () => userSettingsView(),
     "plugin.runSnippet": () => ({ logLines: [], error: "expecting ';'", errorKind: "parse", errorLine: 1 }),
   });
   await mount(<SnippetConsoleStory chatId={CHAT} />);

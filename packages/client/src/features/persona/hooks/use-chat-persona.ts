@@ -1,5 +1,4 @@
-// Persona x chat write verbs backing persona-this-chat-section.tsx: the per-chat active-persona flip and the
-// host anchor re-pin. Both emit a chat-bus event on the open chat that chatReads already covers, so both are
+// Persona x chat write verbs behind the switcher: the per-chat active-persona flip and the host anchor re-pin. Both emit a chat-bus event on the open chat that chatReads already covers, so both are
 // bus-driven, never a manual invalidates. The restamp verb is `#data`'s `useReattributePersona`.
 
 import type { ChatId, PersonaId } from "@orb/kit/ids";

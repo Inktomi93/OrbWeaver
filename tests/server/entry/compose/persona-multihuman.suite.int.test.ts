@@ -36,7 +36,7 @@ import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories
 import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedParticipant, seedPersona, seedUser } from "../../domain/chat/_support.ts";
 
-/** The card whose own description carries the CARD-context probe (§A.2's "{{user}} is my brother" shape). */
+/** The card whose own description carries the CARD-context probe (§A.2's "`{{user}}` is my brother" shape). */
 const CARD_DESCRIPTION = "{{user}} is my brother";
 
 function principal(userId: UserId): Principal {

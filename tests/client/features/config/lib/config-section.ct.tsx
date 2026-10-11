@@ -53,8 +53,8 @@ const BAND = '[data-slot="config-band"]';
 /** The phone's cold-start teaching frame — rendered ONLY on a mobile viewport with no member selected AND
  *  no active group, so its presence is also the pin that nothing selected on arrival. */
 const TEACHING = '[data-slot="config-mobile-teaching"]';
-/** Every group the door registers MINUS the admin one: `admin-group.tsx` declares `when: (viewer) =>
- *  viewer.isAdmin`, which this file's `sessions.me` (`globalRole: "user"`) is not. Stated as a number here
+/** Every group the door registers MINUS the admin one: `admin-group.tsx` declares
+ *  `when: (viewer) => viewer.isAdmin`, which this file's `sessions.me` (`globalRole: "user"`) is not. Stated as a number here
  *  rather than derived from `CONFIG_GROUP_IDS`, because a test that reads the tuple it judges proves nothing. */
 const GROUP_COUNT = 12;
 

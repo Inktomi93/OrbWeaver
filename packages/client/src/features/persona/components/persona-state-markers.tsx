@@ -1,41 +1,31 @@
-// The persona states a row can wear, one glyph each: playing as (check) and the room's card persona (card).
-// The third state, the default, is the pin beside them (`PersonaPin`). Shared by the switcher's rows and the
-// Settings list's rows so the two surfaces cannot drift. Glyphs are state, not controls.
+// The two state glyphs a switcher row can wear that are never controls: playing (check) and connected to the
+// open room's one character (link). The pin and the crown are toggles of their own (`persona-card-pin.tsx`,
+// `persona-crown.tsx`).
 
 import type { LucideIcon } from "@orb/ui/icons";
-import { Check, Icon, IdCard } from "@orb/ui/icons";
+import { Check, Icon, Link2 } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 
-export interface PersonaStateMarkersProps {
-  /** This persona is the one playing (the seat in a room, else the global pointer). */
-  readonly isCurrent: boolean;
-  /** This persona is the open room's card persona — what the card's `{{user}}` means. */
-  readonly isCardPin: boolean;
-  /** The persona's name, for the card marker's sentence. */
-  readonly name: string;
-  /** True when preset text follows the viewer's seat (no room, or the viewer is the anchor human, ADR 0250). */
-  readonly seatBindsPresets: boolean;
-}
-
-export function PersonaStateMarkers({ isCurrent, isCardPin, name, seatBindsPresets }: PersonaStateMarkersProps): ReactElement {
+/** ✓ — the persona on the viewer's seat. `seatBindsPresets`: preset text follows the seat too (ADR 0250). */
+export function PlayingGlyph({ seatBindsPresets }: { readonly seatBindsPresets: boolean }): ReactElement {
   return (
-    <>
-      {isCurrent ? (
-        <StateGlyph
-          hint={seatBindsPresets ? "Your lines and preset text use this persona." : "Your lines use this persona."}
-          icon={Check}
-          label="Playing as"
-          seatBinds={seatBindsPresets ? "lines-and-presets" : "lines"}
-        />
-      ) : null}
-      {isCardPin ? <StateGlyph hint={`This chat's card calls you ${name} ({{user}}).`} icon={IdCard} label="Card's persona in this chat" /> : null}
-    </>
+    <StateGlyph
+      hint={seatBindsPresets ? "Your lines and preset text use this persona." : "Your lines use this persona."}
+      icon={Check}
+      label="Playing as"
+      seatBinds={seatBindsPresets ? "lines-and-presets" : "lines"}
+    />
   );
 }
 
-/** A state glyph with its short tooltip. Not a control: the row's one button already switches. */
+/** 🔗 — connected to the open room's one character. Connect or disconnect in the editor or the character's Links tab. */
+export function ConnectedGlyph({ characterName }: { readonly characterName: string }): ReactElement {
+  const label = `Connected to ${characterName}`;
+  return <StateGlyph hint={label} icon={Link2} label={label} />;
+}
+
 function StateGlyph({
   icon,
   label,

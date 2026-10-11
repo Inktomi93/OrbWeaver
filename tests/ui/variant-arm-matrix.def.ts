@@ -321,7 +321,7 @@ export interface ExpectedFinding {
 // row is dated, count-exact, and carries its full repro inline (the badge episode is the template).
 export const EXPECTED_FINDINGS: readonly ExpectedFinding[] = [];
 
-/** Rules this suite judges (kernels imported from @orb/tooling/ui-audit — never re-derived math). */
+/** Rules this suite judges (kernels imported from `@orb/tooling/ui-audit` — never re-derived math). */
 export const JUDGED_RULES: readonly DesignAuditRuleId[] = [
   "contrast",
   "gray-on-color",

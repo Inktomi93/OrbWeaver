@@ -40,7 +40,7 @@ export function MenuHandleHarness(): ReactElement {
  * The MIXED-ROW menu — an iconed command, a bare-text command, a bare-text submenu trigger, an iconed
  * submenu trigger. The four label positions the ragged-column finding is about (side-eye 2026-08-06 P2).
  *
- * It lives HERE and not in the `.ct.tsx` for a mechanical reason worth keeping: `<Icon>` is an @orb/ui
+ * It lives HERE and not in the `.ct.tsx` for a mechanical reason worth keeping: `<Icon>` is an `@orb/ui`
  * COMPONENT, and playwright-ct refuses to mount a component whose definition it resolves through the test
  * file ("Component \"Icon\" cannot be mounted … Create a test story instead") — both a named import and a
  * namespace import fail, the named one at parse time.

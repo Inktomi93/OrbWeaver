@@ -176,8 +176,10 @@ describe("resolveVariant", () => {
 const PORTRAIT_REQUESTED = 150;
 const PORTRAIT_SNAPPED_WIDTH = 200;
 const PORTRAIT_SNAPPED_HEIGHT = 300;
-const PORTRAIT_TOP_WIDTH = 400;
-const PORTRAIT_TOP_HEIGHT = 600;
+const PORTRAIT_TOP_WIDTH = 864;
+const PORTRAIT_TOP_HEIGHT = 1296;
+const PORTRAIT_400_WIDTH = 400;
+const PORTRAIT_400_HEIGHT = 600;
 // The icon ladder's snap of the SAME requested width (200) used by the collision test below — the icon
 // ladder [48,64,96,128,240,400] snaps 200 up to 240, distinct from the portrait ladder's exact 200 rung.
 const ICON_SNAP_OF_200 = 240;
@@ -218,7 +220,7 @@ describe("resolveVariant — portrait ladder (kind:'portrait')", () => {
     expect(h.imageTransform).toHaveBeenCalledTimes(1);
   });
 
-  test("an oversized portrait width snaps to the top rung (400x600)", async () => {
+  test("an oversized portrait width snaps to the top rung (864x1296)", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
@@ -362,14 +364,14 @@ describe("resolveVariant — banner ladder (kind:'banner')", () => {
     const svc = createAssetsService(h.ctx);
     const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("banner_vs_portrait"));
 
-    // 400 sits exactly on the portrait ladder's top rung; the banner ladder snaps it up to 800 — two
+    // 400 is a rung on both ladders but the banner ladder snaps it up to 480 — two
     // DISTINCT (kind, width) cache keys, neither serving the other's transform.
     await svc.resolveVariant({ principal: principal(ownerId), hash, width: 400, kind: "portrait" });
     await svc.resolveVariant({ principal: principal(ownerId), hash, width: 400, kind: "banner" });
     expect(h.imageTransform).toHaveBeenCalledTimes(2);
     expect(h.imageTransform).toHaveBeenNthCalledWith(1, expect.anything(), {
-      width: PORTRAIT_TOP_WIDTH,
-      height: PORTRAIT_TOP_HEIGHT,
+      width: PORTRAIT_400_WIDTH,
+      height: PORTRAIT_400_HEIGHT,
       fit: "cover",
       position: "attention",
       format: "webp",

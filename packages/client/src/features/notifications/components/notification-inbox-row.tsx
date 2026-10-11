@@ -10,12 +10,12 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import type { Trpc } from "#data";
-import { useInvalidation, useTRPC } from "#data";
+import { notifyNewRoomPersona, useInvalidation, useTRPC } from "#data";
 import { useDismissNotification } from "../hooks/use-inbox.ts";
 import { useAcceptInvite, useDeclineInvite } from "../hooks/use-invite-actions.ts";
 
@@ -76,6 +76,7 @@ export interface InboxRowProps {
  *  firing the verb — what a nomination copies into your library is the bell's one two-step decision. */
 export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, onOpenPlugins, onOpenPlugin }: InboxRowProps): ReactElement {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const invalidation = useInvalidation();
   const dismiss = useDismissNotification({ trpc, invalidation });
   const accept = useAcceptInvite({ trpc, invalidation });
@@ -123,6 +124,7 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
       // only fail from then on.
       setActed(true);
       onAccepted(result.chat.id);
+      notifyNewRoomPersona(queryClient, trpc, result.chat);
       await dismiss.mutateAsync({ notificationId: item.id });
     });
   };

@@ -6,6 +6,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { lastAppSettingsPartial } from "../../../../support/node/last-settings-patch.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { setNumber } from "../../../../support/node/set-number.ts";
@@ -40,11 +41,6 @@ function stub(page: Page, overrides: Partial<AppSettingsOverrides> = {}): Promis
   });
 }
 
-/** The most recent override PARTIAL sent to `updateAppSettings`. */
-function lastPartial(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  return trpc.lastInput(UPDATE_PROC)?.partial;
-}
-
 test("mounts on the resolved values and stamps its own admin anchor", async ({ mount, page }) => {
   await stub(page);
   await mount(<MediaTrustSectionStory />);
@@ -75,7 +71,7 @@ test("flipping the interactive-cards switch patches EXACTLY that key", async ({ 
   await mount(<MediaTrustSectionStory />);
 
   await page.getByRole("switch", { name: INTERACTIVE_SWITCH }).click();
-  await expect.poll(() => lastPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ allowInteractiveCards: true });
+  await expect.poll(() => lastAppSettingsPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ allowInteractiveCards: true });
 });
 
 // P1 — the patch names ONLY this section's key. `toStrictEqual` is the point: a sibling key riding along
@@ -85,7 +81,7 @@ test("toggling a switch patches EXACTLY that key — no sibling, no whole-config
   await mount(<MediaTrustSectionStory />);
 
   await page.getByRole("switch", { name: "Render rich HTML as trusted" }).click();
-  await expect.poll(() => lastPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ trustHtml: true });
+  await expect.poll(() => lastAppSettingsPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ trustHtml: true });
 });
 
 test("the MB field saves BYTES, alone", async ({ mount, page }) => {
@@ -94,7 +90,7 @@ test("the MB field saves BYTES, alone", async ({ mount, page }) => {
 
   await setNumber(page.getByRole("textbox", { name: "Max generated-image download (MB)" }), "6");
   await page.getByRole("button", { name: "Save" }).click();
-  await expect.poll(() => lastPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ maxImageBytes: 6 * BYTES_PER_MB });
+  await expect.poll(() => lastAppSettingsPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ maxImageBytes: 6 * BYTES_PER_MB });
 });
 
 // The override-vs-floor story, arm 1: nothing stored ⇒ the resolved value IS the floor, so the row names it.
@@ -118,6 +114,6 @@ test("an overridden row admits it without faking a default, and Reset clears exa
   await expect(page.getByText("Overridden. Reset to fall back to this deployment's default.")).toBeVisible();
   await page.getByRole("button", { name: "Reset to defaults" }).click();
   await expect
-    .poll(() => lastPartial(trpc), { intervals: [20, 50, 100] })
+    .poll(() => lastAppSettingsPartial(trpc), { intervals: [20, 50, 100] })
     .toStrictEqual({ forbidExternalMedia: null, trustHtml: null, allowInteractiveCards: null, maxImageBytes: null });
 });

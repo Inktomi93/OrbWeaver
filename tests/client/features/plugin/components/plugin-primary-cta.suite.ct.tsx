@@ -195,7 +195,7 @@ test("CHAT BAND: the same spec grants NOBODY — the S1 one-primary law still ho
 
   // #830 — the host band and the grafted plugin section are both disclosures; two presses is the host's real
   // path to a plugin panel.
-  await openContextSections(component, HOST_BAND, "Plugin panels");
+  await openContextSections(component, HOST_BAND, "Plugin controls");
   const cta = component.getByRole("button", { name: "Add to library" });
   await expect(cta).toBeVisible();
 

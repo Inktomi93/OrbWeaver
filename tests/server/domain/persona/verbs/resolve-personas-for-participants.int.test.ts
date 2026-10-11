@@ -54,6 +54,16 @@ describe("resolvePersonasForParticipants", () => {
     expect(map.size).toBe(1);
   });
 
+  test("the room's pin resolves after its owner leaves; no other departed owner's persona rides along", async () => {
+    const { resolve, alice, alicePersona, bobPersona } = await seedTwoOwners();
+
+    const map = await resolve({ personaIds: [alicePersona, bobPersona], allowedOwnerIds: [alice], heldPersonaId: bobPersona });
+    expect(map.get(bobPersona)?.name).toBe("Mira");
+
+    const unpinned = await resolve({ personaIds: [alicePersona, bobPersona], allowedOwnerIds: [alice], heldPersonaId: alicePersona });
+    expect(unpinned.has(bobPersona)).toBe(false);
+  });
+
   test("REFUSAL: an EMPTY consent set resolves nothing, even for ids that exist (fail-closed, no read)", async () => {
     const { resolve, alicePersona, bobPersona } = await seedTwoOwners();
 

@@ -33,7 +33,7 @@ const ANCHOR_ORDER = ["config-anchor-workloads-jobs", "config-anchor-workloads-s
 /** The nav rows the pane DERIVES from its contributions, in door order. */
 const NAV_LABELS = ["Runs", "Schedules", "Analysis tuning"];
 /** The expanded category row's own label. "Jobs" used to sit at BOTH levels (the pane and its first section
- *  were the same word, the Personas>Personas / Tags>Tags precedent) — two rows in ONE navigation landmark
+ *  were the same word, the `Personas>Personas` / `Tags>Tags` precedent) — two rows in ONE navigation landmark
  *  with the identical accessible name, which side-eye ruled a defect on 2026-08-08 (WCAG 2.4.6/4.1.2). The
  *  section is "Runs" now, so the group's name is unambiguous again; the assertion reads the group frame's OWN rows
  *  because ORDER is what it claims. */

@@ -94,6 +94,7 @@ test("revoke is confirm-gated: cancel fires nothing, confirm fires credentials.m
   await page.getByTestId(testId("credentialMarkRevoked")).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Revoke" }).click();
   await expect.poll(() => trpc.count("credentials.markRevokedByUser"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the matching count was polled to its target above, so the recorded input is the settled last call.
   expect(trpc.requireLastInput("credentials.markRevokedByUser").credentialId).toBe("user_credential_ctstory0001");
 });
 
@@ -178,5 +179,6 @@ test("a revoked row's clear-revoked fires credentials.clearRevoked directly", as
 
   await page.getByTestId(testId("credentialClearRevoked")).click();
   await expect.poll(() => trpc.count("credentials.clearRevoked"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the matching count was polled to its target above, so the recorded input is the settled last call.
   expect(trpc.requireLastInput("credentials.clearRevoked").credentialId).toBe("user_credential_ctstory0003");
 });

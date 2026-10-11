@@ -164,6 +164,7 @@ export function inviteResults(joiner: UserId): InviteResults {
         parentChatId: null,
         forkedAt: null,
         anchorPersonaId: null,
+        anchorState: "none",
         participants: [joinerRow],
         viewerActivePersonaId: joinerRow.activePersonaId,
         viewerIsHost: false,

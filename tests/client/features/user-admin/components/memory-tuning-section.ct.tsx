@@ -5,6 +5,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { lastAppSettingsPartial } from "../../../../support/node/last-settings-patch.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { setNumber } from "../../../../support/node/set-number.ts";
@@ -30,11 +31,6 @@ function stub(page: Page, overrides: Partial<AppSettingsOverrides> = {}): Promis
     "settings.getAppSettingsWithOverrides": () => appSettingsView(RESOLVED, overrides),
     [UPDATE_PROC]: () => effectiveAppSettings(RESOLVED),
   });
-}
-
-function lastPartial(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  const input = trpc.lastInput(UPDATE_PROC);
-  return input?.partial;
 }
 
 const MODE_GUIDANCE = [
@@ -112,9 +108,7 @@ test("the mode picker is fully keyboard-selectable and writes the underlying enu
   await storyArcs.press("Enter");
 
   await expect(combo).toHaveAttribute("aria-expanded", "false");
-  await expect
-    .poll(() => (lastPartial(trpc)?.["memoryDefaults"] as Record<string, unknown> | undefined)?.["mode"], { intervals: [20, 50, 100] })
-    .toBe("tiered");
+  await expect.poll(() => lastAppSettingsPartial(trpc)?.memoryDefaults?.mode, { intervals: [20, 50, 100] }).toBe("tiered");
 });
 
 test("editing a numeric knob + Save fires updateAppSettings with the memoryDefaults delta", async ({ mount, page }) => {
@@ -123,7 +117,7 @@ test("editing a numeric knob + Save fires updateAppSettings with the memoryDefau
   await setNumber(page.getByRole("textbox", { name: "Block size" }), "12");
   // The first Save button is the memoryDefaults section's.
   await page.getByRole("button", { name: "Save" }).first().click();
-  await expect.poll(() => (lastPartial(trpc)?.["memoryDefaults"] as Record<string, unknown> | undefined)?.["blockSize"], { intervals: [20, 50, 100] }).toBe(12);
+  await expect.poll(() => lastAppSettingsPartial(trpc)?.memoryDefaults?.blockSize, { intervals: [20, 50, 100] }).toBe(12);
 });
 
 test("an out-of-range knob is CLAMPED to a schema-valid value, never sent raw (no silent-wipe)", async ({ mount, page }) => {
@@ -133,7 +127,7 @@ test("an out-of-range knob is CLAMPED to a schema-valid value, never sent raw (n
   // memoryDefaults `.catch(undefined)` would silently wipe every override).
   await setNumber(page.getByRole("textbox", { name: "Minimum match" }), "5");
   await page.getByRole("button", { name: "Save" }).first().click();
-  await expect.poll(() => (lastPartial(trpc)?.["memoryDefaults"] as Record<string, unknown> | undefined)?.["minScore"], { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => lastAppSettingsPartial(trpc)?.memoryDefaults?.minScore, { intervals: [20, 50, 100] }).toBe(1);
 });
 
 test("a non-integer count knob is rounded to an integer before send (no silent-wipe)", async ({ mount, page }) => {
@@ -142,7 +136,7 @@ test("a non-integer count knob is rounded to an integer before send (no silent-w
   // blockSize is integer-only; 8.7 must round to 9 (a raw 8.7 would fail `.int()` → wipe).
   await setNumber(page.getByRole("textbox", { name: "Block size" }), "8.7");
   await page.getByRole("button", { name: "Save" }).first().click();
-  await expect.poll(() => (lastPartial(trpc)?.["memoryDefaults"] as Record<string, unknown> | undefined)?.["blockSize"], { intervals: [20, 50, 100] }).toBe(9);
+  await expect.poll(() => lastAppSettingsPartial(trpc)?.memoryDefaults?.blockSize, { intervals: [20, 50, 100] }).toBe(9);
 });
 
 test("a memoryDefaults override shows 'Overridden' and Reset clears the whole memoryDefaults override", async ({ mount, page }) => {
@@ -151,7 +145,7 @@ test("a memoryDefaults override shows 'Overridden' and Reset clears the whole me
   await expect(page.getByRole("textbox", { name: "Block size" })).toHaveValue("12");
   await expect(page.getByText("Overridden. Default: 8.")).toBeVisible();
   await page.getByRole("button", { name: "Reset to defaults" }).click();
-  await expect.poll(() => lastPartial(trpc)?.["memoryDefaults"], { intervals: [20, 50, 100] }).toBeNull();
+  await expect.poll(() => lastAppSettingsPartial(trpc)?.memoryDefaults, { intervals: [20, 50, 100] }).toBeNull();
 });
 
 const COARSE_VIEWPORT_WIDTHS = [430, 390, 320] as const;

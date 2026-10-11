@@ -13,6 +13,7 @@ import { isPrefillCombo, personaInputFromForm } from "#client/features/persona/l
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const BASE_VALUES: PersonaFormValues = {
+  name: "Mira",
   title: "Narrator",
   description: "A calm observer.",
   descriptionPosition: "in_prompt",
@@ -34,6 +35,11 @@ const PROVENANCE = personaMetadataSchema.parse({
   swapMacros: true,
   descriptionPosition: "in_prompt",
   legacyNote: "keep me",
+});
+
+test("name: a blank name is withheld so the persona keeps its saved one; a real name is sent trimmed", () => {
+  expect(personaInputFromForm(form({ name: "   " }), null)).not.toHaveProperty("name");
+  expect(personaInputFromForm(form({ name: " Sarah " }), null).name).toBe("Sarah");
 });
 
 test("title: an empty/whitespace value maps to null (the nullable contract title); a real value passes", () => {

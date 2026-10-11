@@ -1074,12 +1074,11 @@ export type GeneratePictureOp = (p: {
   readonly warnings: readonly { readonly code: string; readonly detail: string }[];
 }>;
 
-/** The starter's user-level active persona, validated owned/alive at the root — startChat's default-seed
- *  source when no explicit anchor is given. */
+/** The user's default persona (`seeds.defaultPersonaId`), validated owned/alive at the root — the seat seed
+ *  after an explicit anchor and the connected persona. */
 type ResolveDefaultPersonaOp = (userId: UserId) => Promise<PersonaId | null>;
 
-/** The starter's global "Current persona" pointer, ranked above Default and below the connected-persona
- *  hop and an explicit anchor. */
+/** The user's last-played persona (`seeds.currentPersonaId`) — the floor below the default. */
 type ResolveCurrentPersonaOp = (userId: UserId) => Promise<PersonaId | null>;
 
 /** The persona to auto-anchor a new chat founded on exactly one character with exactly one connection.

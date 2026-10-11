@@ -564,7 +564,7 @@ export function deleteChat(chatId: ChatId): Promise<unknown> {
   return trpcMutation("chat.delete", { chatId });
 }
 
-/** The per-send output ceiling every @live group turn rides. Small on purpose: the group specs assert WHO
+/** The per-send output ceiling every `@live` group turn rides. Small on purpose: the group specs assert WHO
  *  speaks and HOW MANY messages land, never prose — so each turn buys the cheapest tokens that still
  *  produce a committed row. */
 const GROUP_TURN_MAX_OUTPUT_TOKENS = 32;

@@ -38,6 +38,7 @@
 // precisely the coupling the guard exists to prevent.
 
 import { pluginGrantTasks } from "@orb/contracts/plugin";
+import type { PluginId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Card } from "@orb/ui/card";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -47,17 +48,26 @@ import { Row, Stack } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
+import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { QueryBoundary, RowActionsMenu } from "#components";
+import { QueryBoundary, RowActionsMenu, SettingSwitchRow } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { installedPluginControlId } from "#state";
+import { usePluginChatVisibility } from "../hooks/use-plugin-chat-visibility.ts";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
-import { builtAgainstLine, PLUGIN_ERROR_COPY_SUBJECT, PLUGIN_ERROR_SENTENCE, REMOVE_PLUGIN_DESCRIPTION, statusCopy } from "../lib/plugin-copy.ts";
+import {
+  builtAgainstLine,
+  PLUGIN_ERROR_COPY_SUBJECT,
+  PLUGIN_ERROR_SENTENCE,
+  REMOVE_PLUGIN_DESCRIPTION,
+  showInChatLabel,
+  statusCopy,
+} from "../lib/plugin-copy.ts";
 import { PLUGIN_MODEL_HEADING } from "../lib/plugin-model-copy.ts";
 import { useSetPluginEnabled, useSetPluginGrant, useUninstallPlugin, useUpgradePlugin } from "../lib/plugin-mutations.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
@@ -75,6 +85,27 @@ export interface PluginRowProps {
   /** Fires once the owner's approval has landed and the plugin is on — the host that reviews in place uses it
    *  to open what the plugin just added. */
   readonly onApproved?: () => void;
+}
+
+/** The Plugins pane's switch for one plugin's chat panels. The switch governs chat panels, so only a plugin that
+ *  registered one has anything for it to govern. */
+function ShowInChatSwitch({ pluginId, pluginName }: { readonly pluginId: PluginId; readonly pluginName: string }): ReactElement | null {
+  const trpc = useTRPC();
+  const chatVisibility = usePluginChatVisibility();
+  const { data: surfaces } = useQuery(trpc.plugin.listSurfaces.queryOptions());
+  const hasChatPanel = (surfaces ?? []).some(
+    (surface) => surface.pluginId === pluginId && (surface.anchor === "chat-flank" || surface.anchor === "chat-settings-section"),
+  );
+  if (!hasChatPanel) {
+    return null;
+  }
+  return (
+    <SettingSwitchRow
+      checked={!chatVisibility.isHidden(pluginId)}
+      label={showInChatLabel(pluginName)}
+      onChange={(shown): void => chatVisibility.setShown(pluginId, shown)}
+    />
+  );
 }
 
 export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement {
@@ -222,6 +253,9 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
             </Row>
           </Row>
         </Stack>
+
+        {/* Per user and in every room: the plugin's chat panels show by default and are hidden from the panel itself. */}
+        <ShowInChatSwitch pluginId={plugin.id} pluginName={plugin.name} />
 
         {upgrade.isPending ? (
           <Text prose={true} role="status" voice="gloss">

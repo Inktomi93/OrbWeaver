@@ -64,7 +64,7 @@ export interface ModeProject {
  * WHY THE HARNESS WARMS AT ALL (#571): each `playwright test` invocation boots a FRESH vite dev server, and
  * vite's transform cache is per-process — so the FIRST spec of every run pays the cold transform of the
  * whole route graph (~1.6k module requests for home → Chats → room, measured from the #571 trace) INSIDE its
- * own 60s test timeout. That cost grew with the client and crossed the budget: `chat-persistence`'s @smoke
+ * own 60s test timeout. That cost grew with the client and crossed the budget: `chat-persistence`'s `@smoke`
  * case died at `page.reload` with `net::ERR_ABORTED` — the abort being the test-timeout context close, not a
  * competing navigation. Warming here moves that one-time cost OUT of every spec's budget (measured on this
  * box: cold 42.2s → warm 14.9s / 13.8s for the same case), and it is self-maintaining because the warm pass

@@ -476,10 +476,10 @@ describe("redeemInvite/acceptInvite — the join floor is THIS chat's canon head
 // INVITE-JOIN-NULL-PERSONA. Both join paths seated the member with `activePersonaId = NULL`, so every message
 // they wrote persisted `persona_id = NULL` — floored to the unresolvable-persona name on both render surfaces,
 // and (before the SHAPE guard) handed the HOST's persona on the wire. The seat now runs the SAME seed chain
-// `startChat` runs for the founding host row: current persona, then default. Proved through the VERB, because
+// `startChat` runs for the founding host row: default persona, then last played. Proved through the VERB, because
 // the resolvers live on `ChatContext` and the persistence layer only stores what it is handed.
 describe("redeem/accept — the joiner's seat is born with their persona", () => {
-  test("redeemInvite seats the joiner's CURRENT persona", async () => {
+  test("redeemInvite seats the joiner's DEFAULT persona over their last-played one", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const joiner = await seedUser(db, castId<Handle>("joiner"));
     const chatId = await seedChat(db, "a");
@@ -498,7 +498,7 @@ describe("redeem/accept — the joiner's seat is born with their persona", () =>
     await invites.redeemInvite({ principal: principal(joiner), input: { token: "tok" } });
 
     const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, joiner));
-    expect(row?.activePersonaId).toBe(current);
+    expect(row?.activePersonaId).toBe(fallback);
   });
 
   test("redeemInvite falls to the joiner's DEFAULT persona when they hold no current one", async () => {

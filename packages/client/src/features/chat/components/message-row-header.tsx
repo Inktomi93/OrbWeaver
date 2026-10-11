@@ -158,6 +158,8 @@ export function renderGhostNameRow(args: {
   /** `RowSkin.actionsRow.identity`. A style that names nobody still reserves the empty bar line its
    *  settled last row will carry, so the commit does not shift the reply down a line. */
   readonly named: boolean;
+  /** The hidden stand-in for the settled row's action cluster (`GhostActionsFootprint`), which sets the card's width. */
+  readonly actionsFootprint: ReactNode;
 }): ReactElement | null {
   const attribution = args.attribution;
   if (!args.named) {
@@ -183,7 +185,7 @@ export function renderGhostNameRow(args: {
           {renderAttributionName(attribution)}
         </Row>
       }
-      actions={null}
+      actions={args.actionsFootprint}
       stickyAttribution={args.stickyAttribution}
       placement={args.placement}
       // The ghost is always the assistant side; there is no own-message mirror to take.

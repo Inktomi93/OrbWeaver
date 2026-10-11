@@ -279,7 +279,7 @@ export function defineTrpcRoutes<const TRoutes extends object>(routes: TRoutes &
   return routes;
 }
 
-/** tRPC code → JSONRPC number (@trpc/server rpc/codes.ts TRPC_ERROR_CODES_BY_KEY), exhaustive. */
+/** tRPC code → JSONRPC number (`@trpc/server` rpc/codes.ts TRPC_ERROR_CODES_BY_KEY), exhaustive. */
 function errorNumber(code: TrpcErrorCode): number {
   switch (code) {
     case "PARSE_ERROR":
@@ -394,12 +394,14 @@ interface TrpcHoldMarker {
  * A DEFERRED responder — hands the test the release valve for one procedure so a CT can pin a PENDING
  * render as a settled, indefinitely-stable state instead of trying to catch a flash:
  *
+ * ```ts
  *     const hold = trpcHold();
  *     await routeTrpc(page, { echo: hold, "tag.listTags": [] });
  *     await mount(<Story />);
  *     await hold.requested;                       // the query is in flight, held
  *     await expect(page.getByText("loading…")).toBeVisible();
  *     hold.release({ message: "pong" });          // …and now it settles
+ * ```
  *
  * Usable anywhere a responder is (a route value, or the return of a responder function), because the
  * marker is recognised on the PRODUCED value exactly like `trpcError`.
@@ -474,8 +476,10 @@ export interface TrpcRecorder {
   readonly inputs: <P extends TrpcProcedurePath>(proc: P) => TrpcInput<P>[];
   /** The most recent decoded input for a procedure (or undefined). */
   readonly lastInput: <P extends TrpcProcedurePath>(proc: P) => TrpcInput<P> | undefined;
-  /** {@link TrpcRecorder.lastInput} for a call the test already knows happened: throws when none was recorded,
-   *  so a poll retries until the call lands instead of reading a field off `undefined`. */
+  /** {@link TrpcRecorder.lastInput} for a call the test already knows happened: throws when none was recorded.
+   *  Playwright's `expect.poll` does NOT retry a throwing callback, so use it only after the call is known to have
+   *  landed (a settled count poll, a web-first barrier): inside a poll it fails the test on the first attempt if the
+   *  call is still in flight. */
   readonly requireLastInput: <P extends TrpcProcedurePath>(proc: P) => TrpcInput<P>;
   /** How many times a procedure was called. */
   readonly count: (proc: string) => number;

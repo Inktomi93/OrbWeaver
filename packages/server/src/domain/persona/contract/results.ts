@@ -2,6 +2,7 @@
 // (contract/views.ts) or `void`; only the two delete-ish verbs carry a discriminant the caller acts on
 // (did a row actually go away?). One home for those shapes (§7.4 / types-in-contract).
 
+import type { PersonaId } from "@orb/kit/ids";
 import type { PersonaDetail } from "./views.ts";
 
 /** `export` — one portable persona file, ready for either door (the bundle descriptor streams it; the
@@ -19,3 +20,11 @@ export type PersonaImportOutcome =
   | { readonly ok: false; readonly error: string };
 
 export type { DisconnectResult, RemovePersonaResult } from "@orb/contracts/persona";
+
+/** The owner's seed pointers after a delete's re-point. `defaultMoved` is true when the deleted persona was
+ *  the default, so `remove` can tell the client where the default went. */
+export interface PersonaSeedRepoint {
+  readonly defaultPersonaId: PersonaId | null;
+  readonly currentPersonaId: PersonaId | null;
+  readonly defaultMoved: boolean;
+}

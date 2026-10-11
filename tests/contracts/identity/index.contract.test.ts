@@ -12,6 +12,7 @@ import {
 } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { z } from "zod";
 import { expect, test } from "../../support/fixtures.ts";
 
 // D17 PIN: the global-role axis is EXACTLY [owner, admin, user] — the `owner` member is the new one
@@ -125,9 +126,10 @@ test("viewerViewSchema admits the three-field projection and refuses a spread Pr
   const spread = { ...view, externalId: SAMPLE_EXTERNAL_ID, via: "cookie" };
   const refused = viewerViewSchema.safeParse(spread);
   expect(refused.success).toBe(false);
-  expect(refused.error?.issues).toEqual([expect.objectContaining({ code: "unrecognized_keys", keys: ["externalId", "via"] })]);
-  // The issue names the keys and never echoes the refused value.
-  expect(JSON.stringify(refused.error?.issues)).not.toContain(SAMPLE_EXTERNAL_ID);
+  const refusal = refused.success ? "" : z.prettifyError(refused.error);
+  expect(refusal).toContain('Unrecognized keys: "externalId", "via"');
+  // The refusal names the keys and never echoes the refused value.
+  expect(refusal).not.toContain(SAMPLE_EXTERNAL_ID);
 
   expect(viewerViewSchema.safeParse({ ...view, globalRole: "host" }).success).toBe(false);
 });

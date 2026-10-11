@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
-updated: 2026-10-09
+status: open
+updated: 2026-10-11
 priority: P1
 area: ci
-lane: codex/nightly-e2e-repair
 ---
 
 # Restore full E2E client startup
@@ -22,5 +21,9 @@ Full qualification stops in single-user warm-up while waiting for the app-ready 
 The cold-start failure has a demonstrated cause and discriminating controls. Selected-mode setup and real model-free E2E startup pass without weakening readiness, authentication, ownership or production isolation.
 
 ## Evidence
+
+Orphaned claim: its codex branch is fully merged into main and no session holds it. Done when still needs a hosted run to confirm.
+
+Hosted check: the scheduled CI qualification on e88487bf62 failed in every ct and node partition; e2e-smoke did not run.
 
 Filled at landing: what ran and where its output is.

@@ -1,9 +1,6 @@
-// The persona LIST — the band (name + New + Import) and the rows with their inline editors — extracted from
-// the panel surface so ONE component serves all three mounts: the desktop
-// rail popover and the mobile You sheet compose it inside `PersonaPanelSurface`; the Personas config group
-// renders it as the `your-personas` section's body. The editing model is unchanged: a row expands its own
-// editor in place (the EDITOR is a search leaf of this section, never a section of its own). All server
-// state via trpc, zero Zustand. Suspends on `persona.list` + `settings.getUserSettings` — the MOUNT owns
+// The persona LIST — the MANAGE surface's body (Settings → Personas → Your personas): the band (New, From
+// character, Restore) and the rows, each expanding its own editor in place. A row never switches who you play;
+// the switcher is the play surface. Suspends on `persona.list` + `settings.getUserSettings` — the MOUNT owns
 // the boundary.
 
 import type { PersonaId } from "@orb/kit/ids";
@@ -14,33 +11,32 @@ import { Drama, Icon, Plus, Upload } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { notify, rowQualifiers, timeLib } from "#lib";
 import { selectPersonaEditor, usePersonaEditorId } from "#state";
 import { useCreatePersona, useImportPersonaFile, useRemovePersona } from "../hooks/use-persona-mutations.ts";
-import { useDefaultPin, usePlayingPersona, useSwitchPersona } from "../hooks/use-playing-persona.ts";
+import { useDefaultPersona } from "../hooks/use-playing-persona.ts";
 import { PersonaFromCharacterDialog } from "./persona-from-character-dialog.tsx";
 import { PersonaPanelRow } from "./persona-panel-row.tsx";
 
-/** The list: band + rows. */
+/** The list: band + rows. A row never switches who you play; that is the switcher's job. */
 export function PersonaList(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  // The same "who is playing" the switcher reads: a room's seat when one is open, else the global pointer.
-  const state = usePlayingPersona();
-  const switchTo = useSwitchPersona(state, "everywhere");
-  const defaultPin = useDefaultPin(state);
+  const { data: personas } = useSuspenseQuery(trpc.persona.list.queryOptions());
+  const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
+  const seeds = settings.config.seeds;
+  const crown = useDefaultPersona(settings.config.persona.showNotifications);
   const create = useCreatePersona({ trpc, invalidation });
   const remove = useRemovePersona({ trpc, invalidation });
   const importPersona = useImportPersonaFile({ trpc, invalidation });
-  const { personas, seeds, playing, chat, seatBindsPresets } = state;
 
   const expandedId = usePersonaEditorId();
   const setExpandedId = selectPersonaEditor;
   const [fromCharacterOpen, setFromCharacterOpen] = useState(false);
-  const defaultId = seeds.defaultPersonaId;
   const onCreate = async (): Promise<void> => {
     // @orb-waive caught-failure-ownership(catch): createEntityMutation's own errorToast already surfaced the failure — nothing to expand. Ends if useCreatePersona drops its errorToast.
     try {
@@ -83,20 +79,21 @@ export function PersonaList(): ReactElement {
     timeLib.formatDateTime,
   );
 
-  const onDelete = (personaId: PersonaId): void => {
-    remove.mutate({ personaId });
+  // Deleting the default moves the crown to the last-played persona (else the newest); the server names it,
+  // and the reader is told, since every new chat now starts there.
+  const onDelete = async (personaId: PersonaId): Promise<void> => {
+    const { newDefaultPersonaId } = await remove.mutateAsync({ personaId });
     if (expandedId === personaId) {
       setExpandedId(null);
+    }
+    const crowned = personas.find((persona) => persona.id === newDefaultPersonaId);
+    if (crowned !== undefined) {
+      notify.info(`${crowned.name} is now your default.`);
     }
   };
 
   return (
     <Stack gap="row">
-      {/* ONE HOME FOR THE PLAYING-AS PERSONA (side-eye 2026-08-03 P2). This band used to render the current
-          persona's avatar + name under a `PLAYING AS` kicker, 40px above the SAME persona's row in the list
-          below — one identity, two anatomies, 40px apart. The row is the better home (it is where you switch,
-          and it already carries `aria-current` and the selected tint), so it now says "Playing as" in words
-          and the band is what a band is: the collection's name and its two verbs. */}
       <PersonaHeader
         onFromCharacter={(): void => setFromCharacterOpen(true)}
         onImport={(file): void => {
@@ -135,16 +132,12 @@ export function PersonaList(): ReactElement {
               key={persona.id}
               persona={persona}
               {...((nameCounts.get(persona.name) ?? 0) > 1 ? { qualifier: qualifiers[index] ?? "" } : {})}
-              isCurrent={persona.id === playing?.id}
-              isCardPin={persona.id === chat?.anchorPersonaId}
-              seatBindsPresets={seatBindsPresets}
-              isDefault={persona.id === defaultId}
+              isDefault={persona.id === seeds.defaultPersonaId}
               expanded={persona.id === expandedId}
-              onSetCurrent={(): void => switchTo(persona)}
-              onSetDefault={(): void => defaultPin.pin(persona.id)}
-              onClearDefault={defaultPin.clear}
+              onSetDefault={(): void => crown.set(persona)}
+              onClearDefault={crown.clear}
               onToggleExpand={(): void => setExpandedId(expandedId === persona.id ? null : persona.id)}
-              onDelete={(): void => onDelete(persona.id)}
+              onDelete={(): Promise<void> => onDelete(persona.id)}
             />
           ))
         )}

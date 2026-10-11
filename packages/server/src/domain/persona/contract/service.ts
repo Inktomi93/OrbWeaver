@@ -26,7 +26,7 @@ import type {
   SetActivePersonaParams,
   UpdatePersonaParams,
 } from "./params.ts";
-import type { DisconnectResult, PersonaImportOutcome, PersonaPortableFile, RemovePersonaResult } from "./results.ts";
+import type { DisconnectResult, PersonaImportOutcome, PersonaPortableFile, PersonaSeedRepoint, RemovePersonaResult } from "./results.ts";
 import type { ConnectedCharacterView, PersonaDetail } from "./views.ts";
 
 /** The DI bundle every persona verb closes over, wired at the composition root. */
@@ -55,10 +55,13 @@ export interface PersonaContext {
 
   readonly requireChatAuthorOrHost: (principal: Principal, chatId: ChatId, targetUserId: UserId) => Promise<void>;
   readonly setChatActivePersona: (chatId: ChatId, targetUserId: UserId, personaId: PersonaId | null) => Promise<void>;
-  /** Re-point the global seed pointers after `remove` deletes `deletedId`. Enforces "never no current
-   *  persona while you own one": re-points to default → first remaining → null. No-op when neither pointer
-   *  named the deleted id. Fires after the row deletion commits. */
-  readonly repointSeedsAfterPersonaDelete: (ownerId: UserId, deletedId: PersonaId) => Promise<void>;
+  /** Re-point the global seed pointers after `remove` deletes `deletedId` and return them as they now stand.
+   *  A deleted default moves to the last-played persona, else the newest remaining; a deleted last-played moves
+   *  to the default, else the newest remaining. Fires after the row deletion commits. */
+  readonly repointSeedsAfterPersonaDelete: (ownerId: UserId, deletedId: PersonaId) => Promise<PersonaSeedRepoint>;
+  /** PRE-WRITE capture of the owner's present seats holding `personaId` (the delete's FK `set null` empties
+   *  them). The returned thunk re-seats exactly those seats with the persona it is handed. */
+  readonly captureSeatsForDelete: (ownerId: UserId, personaId: PersonaId) => Promise<(reseatWith: PersonaId) => Promise<void>>;
 }
 
 export interface PersonaService {

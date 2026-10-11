@@ -131,6 +131,7 @@ test("a menu roll appends the baked stamp to the draft without sending it", asyn
 
   // The server roll fired for the clicked notation.
   await expect.poll(() => trpc.count("rpg.rollDice"), { intervals: [20, 50, 100] }).toBe(1);
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll settled the recorder — the roll is recorded, so its input is a fixed value.
   expect(trpc.requireLastInput("rpg.rollDice").notation).toBe("d20");
   await expect(composer).toHaveValue("I attack — [dice: d20 → 14]");
   // The roll is inserted, never auto-sent — the member sends it as their turn.

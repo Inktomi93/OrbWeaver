@@ -145,10 +145,11 @@ async function publishClocks(chat: ChatHandle, vars: Readonly<Record<string, str
     const clock = clocks[i];
     state[`line${i}`] = clock === undefined ? "" : clockLine(clock);
   }
-  state["summary"] =
-    clocks.length === 0 ? "No clocks yet — the host starts one in This chat → Plugin panels." : `${clocks.length} of ${MAX_CLOCKS} clocks running.`;
-  await host.ui.setState("clock_flank", state, chat);
-  await host.ui.setState("clock_panel", state, chat);
+  const running = `${clocks.length} of ${MAX_CLOCKS} clocks running.`;
+  // The empty hint names where to start a clock, and the host panel IS that place: it points at its own form.
+  const empty = clocks.length === 0;
+  await host.ui.setState("clock_flank", { ...state, summary: empty ? "No clocks yet — the host starts one in This chat → Plugin controls." : running }, chat);
+  await host.ui.setState("clock_panel", { ...state, summary: empty ? "No clocks yet — name one below and press Start." : running }, chat);
 }
 
 /** Read-then-publish, the refresh everything funnels through. */

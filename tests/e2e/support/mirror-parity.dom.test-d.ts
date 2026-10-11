@@ -115,10 +115,10 @@ function keys<Mirror, Contract>(): Drift<Mirror, Contract> {
 }
 
 /** The key-axis pin: `pin<Complete>(keys<Mirror, Contract>())`. Deliberately an ARGUMENT-position check
- *  rather than `expectTypeOf(…).toEqualTypeOf(…)` — expect-type's mismatch is an opaque `TS2554: Expected 1
- *  arguments, but got 0`, while this reds with the offending key spelled out:
- *    Argument of type 'Drift<…>' is not assignable to parameter of type 'Complete'.
- *      Types of property 'unmirrored' are incompatible. Type '"max"' is not assignable to type 'never'.
+ *  rather than `expectTypeOf(…).toEqualTypeOf(…)` — expect-type's mismatch is an opaque
+ *  `TS2554: Expected 1 arguments, but got 0`, while this reds with the offending key spelled out:
+ *    `Argument of type 'Drift<…>' is not assignable to parameter of type 'Complete'.`
+ *      `Types of property 'unmirrored' are incompatible. Type '"max"' is not assignable to type 'never'.`
  *  The direction (actual assignable to expected) makes `phantom` exact and `unmirrored` a subset of the
  *  declared skip list: a contract that GROWS a field reds, a stale skip-list entry does not. */
 function pin<Expected>(actual: Expected): Expected {

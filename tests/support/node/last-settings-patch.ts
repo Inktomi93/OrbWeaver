@@ -12,3 +12,8 @@ export function lastSettingsPatch(trpc: TrpcRecorder, section: SettingsSectionIn
   const input = trpc.lastInput(UPDATE_USER_SETTINGS_SECTION);
   return input?.section === section ? input.patch : undefined;
 }
+
+/** The most recent `settings.updateAppSettings` partial, typed by the contract's own app-settings shape. */
+export function lastAppSettingsPartial(trpc: TrpcRecorder): TrpcInput<"settings.updateAppSettings">["partial"] | undefined {
+  return trpc.lastInput("settings.updateAppSettings")?.partial;
+}

@@ -11,7 +11,7 @@ import type { MessageView } from "@orb/contracts/chat";
 import type { MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME } from "#client/features/chat/lib/message-action-names.ts";
+import { VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME, variantCountName } from "#client/features/chat/lib/message-action-names.ts";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { SwipeStripStory } from "../_ct-stories.tsx";
@@ -83,6 +83,15 @@ test("renders the n/m counter and fires swipe (generate) on the next chevron at 
   await component.getByRole("button", { name: VARIANT_GENERATE_NAME }).click();
   await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
   await expect.poll(() => trpc.count("chat.selectVariant")).toBe(0);
+});
+
+// One phrasing for the position: the latest reply's group is named as an earlier reply's count is ("Reply 2 of 2").
+test("the latest reply's pager group is named in words, as an earlier reply's count is", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listMessageVariants": () => TWO_VARIANT_LIST });
+
+  const component = await mount(<SwipeStripStory message={atTipOf2} />);
+
+  await expect(component.getByRole("group", { name: variantCountName(2, 2), exact: true })).toBeVisible();
 });
 
 // DENSITY S6 (UI-Density-Law.md §2.3): the n/m counter is a VALUE you read, so it speaks the `datum`

@@ -11,6 +11,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { lastAppSettingsPartial } from "../../../../support/node/last-settings-patch.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { setNumber } from "../../../../support/node/set-number.ts";
@@ -49,11 +50,6 @@ function stub(page: Page, overrides: Partial<AppSettingsOverrides> = {}): Promis
   });
 }
 
-function lastPartial(trpc: TrpcRecorder): Record<string, unknown> | undefined {
-  const input = trpc.lastInput(UPDATE_PROC);
-  return input?.partial;
-}
-
 test("mounts with the resolved floors and shows the default beneath each field", async ({ mount, page }) => {
   await stub(page);
   await mount(<SystemTuningSectionStory />);
@@ -80,8 +76,8 @@ test("editing the prompt-cache depth floor + Save patches promptCacheMinDepth al
   await mount(<SystemTuningSectionStory />);
   await setNumber(page.getByRole("textbox", { name: "Prompt-cache depth floor (0–20)" }), "2");
   await page.getByRole("button", { name: "Save" }).click();
-  await expect.poll(() => lastPartial(trpc)?.["promptCacheMinDepth"], { intervals: [20, 50, 100] }).toBe(2);
-  expect(lastPartial(trpc)?.["imageVariantQuality"]).toBeUndefined();
+  await expect.poll(() => lastAppSettingsPartial(trpc)?.promptCacheMinDepth, { intervals: [20, 50, 100] }).toBe(2);
+  expect(lastAppSettingsPartial(trpc)?.imageVariantQuality).toBeUndefined();
 });
 
 test("an active override shows 'Overridden' and Reset clears every ⑩ override to the floor", async ({ mount, page }) => {
@@ -98,5 +94,5 @@ test("an active override shows 'Overridden' and Reset clears every ⑩ override 
   // shape (the merge-clear transition-test law) — and assert it by EQUALITY over the whole set, so an owned
   // knob added without its reset key (an override with no way back to the floor, SET-SEAMS stage 4) fails
   // here instead of shipping, and a key that outlives its knob fails too.
-  await expect.poll(() => lastPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual(RESET_PATCH);
+  await expect.poll(() => lastAppSettingsPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual(RESET_PATCH);
 });
